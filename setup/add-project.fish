@@ -9,7 +9,7 @@
 # 2. Adds AGENTS.md and a one-line CLAUDE.md (@AGENTS.md) at the repository root when they are
 #    missing.
 # 3. Adds the providers claude-supervisor-SLUG, claude-lead-SLUG, and pi-peer-SLUG to
-#    ~/.paseo/config.json.
+#    ~/.paseo/config.json, and one Paseo agent profile for each seat.
 # 4. Registers the repository as a Paseo project, runs setup-seats.fish, and reloads Paseo.
 #
 # It never overwrites an existing file, so rerunning it only fills gaps. Edit the project's
@@ -136,6 +136,41 @@ if test $missing -eq 1
     end
     test "$has_token" = true
     or echo "  ! the base `claude` provider has no token: set CLAUDE_CODE_OAUTH_TOKEN on $lead_key or on `claude`."
+end
+
+# Agent profiles: named launch bundles that Paseo's app offers to the Human and that
+# orchestrating agents read through list_profiles. There is exactly one Peer profile: the
+# brief's disposition sets the Peer's role, not a separate profile. Existing profiles with the
+# same ID are left as they are, so edited notes survive a rerun.
+set -l new_profiles (jq -nc --arg s $slug --arg m "$model" '
+    ($s | ascii_upcase) as $n
+    | [
+        {id: "\($s)-supervisor", name: "\($n) · Supervisor", provider: "claude-supervisor-\($s)",
+         modeId: "bypassPermissions", thinkingOptionId: "medium",
+         notes: "Start here. Meets the Human, settles intent into an owner directive, creates the Lead, and watches coordination."},
+        {id: "\($s)-lead", name: "\($n) · Lead", provider: "claude-lead-\($s)",
+         modeId: "bypassPermissions", thinkingOptionId: "medium",
+         notes: "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task."},
+        ({id: "\($s)-peer", name: "\($n) · Peer", provider: "pi-peer-\($s)", thinkingOptionId: "medium",
+          notes: "The only Peer profile. Every disposition (Engineer, Architect, Reviewer, Scout) uses it; the brief sets the role. Use thinkingOptionId high for an Architect, a Reviewer, or a new boundary, low for a Scout. Pi has no modes: pass no modeId."}
+         + (if $m == "" then {} else {model: $m} end))
+      ]')
+set -l missing_profiles (jq -c --argjson p "$new_profiles" '
+    ((.daemon.agentProfiles // []) | map(.id)) as $have | $p | map(select(.id as $i | $have | index($i) | not))' $paseo_config)
+if test "$missing_profiles" != '[]'
+    cp $paseo_config $paseo_config.bak
+    chmod 600 $paseo_config.bak
+    if jq --argjson add "$missing_profiles" '.daemon.agentProfiles = ((.daemon.agentProfiles // []) + $add)' \
+            $paseo_config >$paseo_config.new
+        and jq -e . $paseo_config.new >/dev/null
+        chmod 600 $paseo_config.new
+        mv $paseo_config.new $paseo_config
+        echo "  ~ added agent profiles: "(echo $missing_profiles | jq -r 'map(.name) | join(", ")')
+    else
+        rm -f $paseo_config.new
+        echo "! could not add the agent profiles to $paseo_config"
+        exit 1
+    end
 end
 
 # ── 4. Paseo project, profiles, reload ──────────────────────────────────────────────

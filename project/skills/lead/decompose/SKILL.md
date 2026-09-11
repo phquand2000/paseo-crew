@@ -120,8 +120,8 @@ few reads show the whole outcome fits one slice, skip the graph and brief one En
      title:        "SLUG S2"
    ```
 
-   Then create the Peer, passing the new workspace's ID, and name its directory in the
-   brief's Workspace field:
+   Then create the Peer from the project's Peer profile (`list_profiles`), passing the new
+   workspace's ID, and name its directory in the brief's Workspace field:
 
    ```text
    create_agent

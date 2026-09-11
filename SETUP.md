@@ -126,6 +126,8 @@ already exists:
 - adds `AGENTS.md` and a one-line `CLAUDE.md` (`@AGENTS.md`) at the repository root if missing;
 - adds the providers `claude-supervisor-SLUG`, `claude-lead-SLUG`, and `pi-peer-SLUG` to the
   Paseo config, after a backup;
+- adds one Paseo agent profile per seat (a single one for the Peer), which Paseo's app offers
+  you and the Lead reads through `list_profiles`;
 - registers the repository as a Paseo project, builds the profiles, and reloads Paseo.
 
 It adds files only; leave the repository's code alone.

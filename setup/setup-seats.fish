@@ -37,10 +37,11 @@ set -g paseo_config     $HOME/.paseo/config.json
 # Byte budget per seat prompt. Exceeding it is an error: cut content instead of raising it.
 set -g prompt_budget 16384
 
-# Extra skills, from the $plugin_id plugin or $local_skills, on top of each seat's own skills
-# directory. Name them by the directory that holds SKILL.md.
-set -g supervisor_extra_skills
-set -g lead_extra_skills       # for example: domain-modeling
+# Extra skills, from Paseo's package, the $plugin_id plugin, or $local_skills, on top of each
+# seat's own skills directory. Name them by the directory that holds SKILL.md. `paseo` is
+# Paseo's reference for workspaces, scripts, profiles, schedules, and waiting.
+set -g supervisor_extra_skills paseo
+set -g lead_extra_skills       paseo    # add others, for example: domain-modeling
 set -g peer_extra_skills
 
 # Claude tools blocked at the provider level, which is where blocking happens for Claude
@@ -419,6 +420,18 @@ end
 # the same name.
 
 set -g all_skills   # each element is "name=path"
+
+# Paseo's own skills ship inside its package. Paseo's app can install copies into
+# ~/.claude/skills and ~/.agents/skills, but Claude seats read their own profiles, and Pi would
+# hand the ~/.agents copies to the Peer. So they are linked from the package, which also keeps
+# them current across Paseo updates.
+set -l paseo_bin (command -v paseo)
+if test -n "$paseo_bin"
+    set -l paseo_skills (path resolve (path dirname (path resolve $paseo_bin))/../node_modules/@getpaseo/server/dist/server/skills)
+    for skill in $paseo_skills/*/
+        test -f $skill/SKILL.md; and set -a all_skills (path basename $skill)=(path resolve $skill)
+    end
+end
 set -l plugin_root (jq -r --arg id $plugin_id '.plugins[$id][0].installPath // empty' \
     $shared_claude/plugins/installed_plugins.json 2>/dev/null)
 if test -n "$plugin_root"; and test -d $plugin_root

@@ -120,6 +120,27 @@ cause, and the response. Entries follow the order of the setup steps.
   repository, `.pi/APPEND_SYSTEM.md` takes the place of the profile's.
 - **Response:** leave project trust at `ask` for repositories the Peer works in.
 
+## Paseo's own skills reach the seats only through the setup script
+
+- **Symptom:** a Lead or Supervisor doesn't know a Paseo feature such as workspace scripts or
+  profiles, or a Peer starts talking about Paseo.
+- **Cause:** Paseo's app installs its orchestration skills (`paseo`, `paseo-committee`, and
+  others) into `~/.claude/skills` and `~/.agents/skills`. Claude seats read their own profiles
+  and never see those copies, while Pi loads `~/.agents/skills` for every profile, the Peer's
+  included.
+- **Response:** leave that install off in the app. The setup script links `paseo` from
+  Paseo's package into the Lead's and Supervisor's profiles, so it follows Paseo updates.
+
+## `list_profiles` decides how the Lead launches Peers
+
+- **Symptom:** a Lead picks a different model or thinking level for each Peer, or asks which
+  provider to use.
+- **Cause:** without agent profiles, `list_profiles` returns nothing and the Lead falls back to
+  guessing from `list_models`. Profiles live in `daemon.agentProfiles` in the Paseo config.
+- **Response:** `setup/add-project.fish` adds one profile per seat, with a single Peer profile
+  whose notes say how the disposition and thinking level vary. Edit the notes rather than
+  adding Peer profiles.
+
 ## Pi loads `~/.agents/skills` for every profile
 
 - **Symptom:** the Peer has skills that aren't in its allowlist.

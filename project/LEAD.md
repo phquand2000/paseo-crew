@@ -42,19 +42,22 @@ between peers: settle it with evidence, and report any decision that changes a s
 
 ## Control plane
 
-Create Peers with `create_agent` on the `pi-peer` provider, the only hardcoded provider ID.
-Other providers read other profiles and carry no Peer prompt. Pass:
+Paseo is the only way you start agents, and the `paseo` skill is its reference. Before you
+create a Peer, run `list_profiles` and take the project's Peer profile: its `provider` and
+`model` become `provider: "provider/model"`, and its `thinkingOptionId` goes in `settings`.
+There is one Peer profile; the brief's disposition sets the role, and Delegation says when to
+raise the thinking level. Never pass `settings.modeId` to a Peer: Pi has no modes, and
+`create_agent` fails when one is sent. If no profile is listed, use the `pi-peer` provider with
+the model from the protocol's spawn recipe. Other providers carry no Peer prompt.
 
-- `provider: "pi-peer/<model>"`, taking the model from the protocol's spawn recipe, or from
-  `list_models` when there is none;
-- `settings.thinkingOptionId`, but no `settings.modeId`: Pi has no modes, and `create_agent`
-  fails when one is sent;
-- the brief as `initialPrompt`.
-
-Leave `notifyOnFinish` at its default `true` so the Peer's completion reaches you; set it to
-`false` only for work nobody waits on. A Peer runs in your workspace unless you pass a
-`workspaceId`. For a parallel writer, create a worktree workspace first with
-`create_workspace`.
+- **Parallel writers:** `create_workspace` with `isolation: "worktree"` first, then pass its
+  `workspaceId`. The repository's `paseo.json` sets up each new worktree.
+- **Tests and services:** when `list_workspace_scripts` lists one, start it with
+  `start_workspace_script` rather than a raw command, so Paseo owns its port and lifecycle.
+- **Waiting:** leave `notifyOnFinish` at `true` and wait for the notification; set it to
+  `false` only for work nobody waits on.
+- **Stopping:** `cancel_agent` stops a run and keeps the agent; `archive_agent` ends it along
+  with its subagents; `archive_workspace` removes a worktree once its branch is integrated.
 
 ## Decisions that belong to the Human
 

@@ -72,8 +72,9 @@ when asked.
 
 ## Creating a Lead
 
-Use `create_agent` on the `claude-lead-SLUG` provider with `settings.modeId: "bypassPermissions"`
-and a `thinkingOptionId`, in the project's workspace. Create one Lead per project; two Leads in
+Use `create_agent` with the project's Lead profile from `list_profiles` (provider
+`claude-lead-SLUG`, `settings.modeId: "bypassPermissions"`, and a `thinkingOptionId`), in the
+project's workspace. The `paseo` skill is your reference for Paseo's tools. Create one Lead per project; two Leads in
 one repository need separate worktree workspaces.
 
 The first prompt is the directive the `intent-interview` skill produces, starting with
