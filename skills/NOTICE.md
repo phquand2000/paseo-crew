@@ -9,7 +9,7 @@ can be traced and credited.
 Codex setup (prompts, skills, and concept notes) that was shared with the kit's owner. No license
 is stated for it, and it is adapted here with the owner's agreement.
 
-## Peer skills (`skills/peer/`)
+## Peer skills (`project/skills/peer/`)
 
 | Skill | Draws on |
 |---|---|
@@ -23,7 +23,7 @@ is stated for it, and it is adapted here with the owner's agreement.
 | `performance-change` | addyosmani `performance-optimization`; SLP material (avoidable taxes) |
 | `security-check` | addyosmani `security-and-hardening`; trailofbits `sharp-edges` (ideas only) |
 
-## Lead skills (`skills/lead/`)
+## Lead skills (`project/skills/lead/`)
 
 | Skill | Draws on |
 |---|---|

@@ -1,16 +1,17 @@
 # Seatworks starter
 
-Seatworks sets up three agent seats on one machine, each with its own prompt and settings,
+Seatworks sets up agent seats on one machine, each with its own prompt and settings,
 coordinated through [Paseo](https://getpaseo.com):
 
 - `claude-supervisor` ([Claude Code](https://code.claude.com)) meets with you, relays settled
-  decisions to Leads, watches how they coordinate, and keeps a notebook of failures.
-- `claude-lead` (Claude Code) breaks work down, delegates it to Peers, and accepts their
-  results.
-- `pi-peer` ([Pi](https://pi.dev)) writes code and returns evidence.
+  decisions to Leads, watches how they coordinate, and keeps a notebook of failures. One
+  Supervisor serves every project.
+- `claude-lead-SLUG` (Claude Code), one per project, breaks work down, delegates it to Peers,
+  and accepts their results.
+- `pi-peer-SLUG` ([Pi](https://pi.dev)), one per project, writes code and returns evidence.
 
-The prompts live in this repository under git instead of in `~/.claude` or `~/.pi`, so every
-change has a history.
+Profiles, settings, and models are global. Every `.md` a project's seats load lives in that
+project, under `.seatworks/`, so each project carries its own rules under its own git history.
 
 ## Get started
 
@@ -19,7 +20,7 @@ provider, and a running Paseo daemon.
 
 Open Claude Code in this directory and say:
 
-> Read SETUP.md and set up the three seats exactly as it describes.
+> Read SETUP.md and set up the seats exactly as it describes, then add the project REPO_DIR.
 
 The agent asks you for an OAuth token and for confirmation of the model IDs, and does the rest.
 The full procedure is in [SETUP.md](SETUP.md).
@@ -27,15 +28,27 @@ The full procedure is in [SETUP.md](SETUP.md).
 ## How it works
 
 Each seat is a Paseo provider that points at its own profile directory: `CLAUDE_CONFIG_DIR`
-for the Claude seats, `PI_CODING_AGENT_DIR` for the Pi seat. The setup script fills those
-directories with symlinks back into this repository, so an edit to `claude/LEAD.md` takes
-effect for the next Lead you spawn.
+for the Claude seats, `PI_CODING_AGENT_DIR` for the Pi seats. The profiles hold symlinks: the
+Supervisor's point into this kit, and a project's Lead and Peer point into that project's
+`.seatworks/`. An edit to `REPO/.seatworks/LEAD.md` takes effect for the next Lead you spawn
+there.
 
-Each role also has its own skill set, linked from `skills/<role>/` into its profile: strategy
-skills for the Supervisor (interviews, pre-mortems, retrospectives, protocol patches), macro
-skills for the Lead (intake, decomposition, council, review orchestration, rollout), and micro
-skills for the Peer (test-first work, debugging, proof audits, reviews). The Supervisor alone
-keeps Claude Code's auto memory, as the organizational memory across projects.
+```
+~/.paseo/config.json          claude-supervisor, claude-lead-SLUG, pi-peer-SLUG
+~/.claude/profiles/<seat>/    settings and deny lists; CLAUDE.md and skills/ are links
+~/.pi/profiles/pi-peer-SLUG/  guard and login links; APPEND_SYSTEM.md and skills/ are links
+REPO/.seatworks/              LEAD.md, PEER.md, WORKSPACE_PROTOCOL.md, NOTEBOOK.md,
+                              skills/lead/, skills/peer/
+```
+
+`setup/add-project.fish` copies the kit's `project/` templates into a new project and creates
+its providers; after that, the project's copies are its own.
+
+Each role has its own skill set: strategy skills for the Supervisor (interviews, pre-mortems,
+retrospectives, protocol patches), macro skills for the Lead (intake, decomposition, council,
+review orchestration, rollout), and micro skills for the Peer (test-first work, debugging,
+proof audits, reviews). The Supervisor alone keeps Claude Code's auto memory, as the
+organizational memory across projects.
 
 Authority is split by concern rather than stacked in one chain. You hold intent and priorities.
 The Supervisor interprets intent and watches coordination across workspaces. A Lead owns its
@@ -68,7 +81,7 @@ fish setup/setup-seats.fish --check
 
 The real work is replacing the demo rules with your own, the last step in SETUP.md. The frame
 takes ten minutes to build. The rules grow each time the system misses a failure: the
-Supervisor records each miss in the notebook, and a miss becomes a rule only when it recurs.
+Supervisor records each miss in a notebook, and a miss becomes a rule only when it recurs.
 
 ## Contents
 
@@ -78,21 +91,24 @@ Supervisor records each miss in the notebook, and a miss becomes a rule only whe
 | [REFERENCE.md](REFERENCE.md) | Environment behavior that you can't infer from the config |
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing and editing the prompts and docs in this kit |
 | [claude/SUPERVISOR.md](claude/SUPERVISOR.md) | Supervisor prompt (demo) |
-| [claude/LEAD.md](claude/LEAD.md) | Lead prompt (demo) |
-| [pi/PEER.md](pi/PEER.md) | Peer prompt (demo), loaded by Pi as `APPEND_SYSTEM.md` |
-| [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for the Peer |
-| [pi/settings.json](pi/settings.json) | Keys merged into the Peer's Pi settings |
 | [skills/supervisor/](skills/supervisor/) | Strategy skills for the Supervisor |
-| [skills/lead/](skills/lead/) | Macro skills for the Lead |
-| [skills/peer/](skills/peer/) | Micro skills for the Peer, loaded by Pi |
+| [project/](project/) | Templates copied into each project's `.seatworks/` |
+| [project/LEAD.md](project/LEAD.md) | Lead prompt (demo) |
+| [project/PEER.md](project/PEER.md) | Peer prompt (demo), loaded by Pi as `APPEND_SYSTEM.md` |
+| [project/skills/lead/](project/skills/lead/) | Macro skills for the Lead |
+| [project/skills/peer/](project/skills/peer/) | Micro skills for the Peer, loaded by Pi |
+| [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
+| [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Peer |
+| [pi/settings.json](pi/settings.json) | Keys merged into each Peer's Pi settings |
 | [skills/NOTICE.md](skills/NOTICE.md) | Where the skills' ideas come from, with licenses |
-| [notebook/NOTEBOOK.md](notebook/NOTEBOOK.md) | The Supervisor's append-only record of failures |
+| [notebook/NOTEBOOK.md](notebook/NOTEBOOK.md) | The Supervisor's record of patterns across projects |
 | `records/` | Created by the Supervisor's skills: directives, timelines, audits, and the safety, integration, and strategy documents. Drafts and questionnaires are ignored by git |
-| [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes the seat profiles; idempotent, and `--check` only verifies |
+| [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, and `--check` only verifies |
+| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its providers, and its profiles |
 | [setup/seat-settings.base.json](setup/seat-settings.base.json) | Settings shared by the Claude seats |
-| [examples/paseo-providers.json](examples/paseo-providers.json) | Provider entries to merge into `~/.paseo/config.json` |
+| [examples/paseo-providers.json](examples/paseo-providers.json) | Provider entries for `~/.paseo/config.json`; the `SLUG` entries are per-project templates |
 | [examples/AGENTS_MD_SNIPPET.md](examples/AGENTS_MD_SNIPPET.md) | Template for the `AGENTS.md` of a repository you work in |
-| [examples/WORKSPACE_PROTOCOL.md](examples/WORKSPACE_PROTOCOL.md) | Template for a per-repository coordination protocol, read only by the Lead |
+| [examples/WORKSPACE_PROTOCOL.md](examples/WORKSPACE_PROTOCOL.md) | Template for a project's coordination protocol, read only by the Lead |
 
-The script generates `claude/<seat>.settings.json`. To change those files, edit
+The script generates `claude/<role>.settings.json`. To change those files, edit
 `setup/seat-settings.base.json` or the `overlay_*` blocks in the script.

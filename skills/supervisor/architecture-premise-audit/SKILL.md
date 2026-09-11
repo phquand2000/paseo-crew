@@ -65,9 +65,9 @@ and one module can hold several slices. For each slice, record:
    boundaries, and the proof the repository cites. **Done** when every entry point you found leads
    to a slice.
 4. **Delegate slices if the project is too large to read yourself.** Give each read-only Peer one
-   or a few slices. Create it with `create_agent` on `pi-peer/<model>`, with
+   or a few slices. Create it with `create_agent` on `pi-peer-SLUG/<model>`, with
    `settings.thinkingOptionId: "high"` and no `settings.modeId`, in the project's workspace. Its
-   `initialPrompt` is a brief with the fields under Delegation in `claude/LEAD.md`: disposition
+   `initialPrompt` is a brief with the fields under Delegation in the project's `.seatworks/LEAD.md`: disposition
    Architect, owned scope `none`, the claim, and the expected map rows for its slices. Ask for
    observed-map rows and candidate findings with file and line evidence. Leave out Paseo, seats,
    the Supervisor, and other Peers' findings, so that each report stays an independent judgment.

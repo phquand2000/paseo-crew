@@ -19,13 +19,13 @@ the Lead received, and the Lead's transcript goes away when the Lead is archived
 
 1. Look up the facts yourself. Facts are your job, and decisions are the Human's, so ask the
    Human only for what they alone can decide. Read the target repository's `AGENTS.md` and
-   `WORKSPACE_PROTOCOL.md`, run `git -C REPO log --oneline -20`, and read any notebook entries
+   `.seatworks/WORKSPACE_PROTOCOL.md`, run `git -C REPO log --oneline -20`, and read any notebook entries
    and earlier directives for this project. **Done** when every fact the interview needs is
    either known or listed as an open fact.
 2. If an open fact needs more than a few reads, hand it to a read-only Peer and keep
    interviewing on the questions that don't depend on it. Create the Peer with `create_agent` on
-   `pi-peer/<model>`, with `settings.thinkingOptionId` and no `settings.modeId`. Pass as
-   `initialPrompt` a brief with the fields listed under Delegation in `claude/LEAD.md`,
+   `pi-peer-SLUG/<model>`, with `settings.thinkingOptionId` and no `settings.modeId`. Pass as
+   `initialPrompt` a brief with the fields listed under Delegation in the project's `.seatworks/LEAD.md`,
    disposition Scout, and owned scope `none`. Leave Paseo, seats, and the Supervisor out of the
    brief, because a Peer knows only the Lead that assigns its work. **Done** when the Peer's
    handoff has arrived and you have archived the Peer with `archive_agent`.
@@ -109,7 +109,7 @@ after that point are yours to look up or the Lead's to settle.
 2. Save the directive to `records/directives/YYYY-MM-DD-SLUG.md` in the kit. **Done** when the file
    exists.
 3. Send it. Re-read the agent IDs with `list_agents` first.
-   - If the project has no Lead, create one with `create_agent` on `claude-lead`, with
+   - If the project has no Lead, create one with `create_agent` on `claude-lead-SLUG`, with
      `settings.modeId: "bypassPermissions"` and a `thinkingOptionId`, in the project's workspace.
      The directive is its first prompt.
    - If the project has a Lead, send the directive with `send_agent_prompt`.

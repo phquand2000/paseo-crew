@@ -1,7 +1,7 @@
 # Pre-mortem brief
 
 Every pre-mortem seat gets this brief, the same text for each seat, as its `initialPrompt`. It
-uses the brief fields from `claude/LEAD.md`, so the Peer reads it like any other assignment.
+uses the brief fields from the project's `.seatworks/LEAD.md`, so the Peer reads it like any other assignment.
 
 Copy the block below and put the plan text after it:
 

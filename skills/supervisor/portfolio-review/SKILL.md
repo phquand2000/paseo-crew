@@ -22,7 +22,7 @@ relative to this skill's directory; every other path is relative to the kit.
    the lens, N, and the project list are fixed. The project list is every workspace
    `list_agents` returns, plus any project the Human names.
 2. **Read the Paseo state.** Run `list_agents` and group the agents by workspace. For each
-   project, identify its Lead (provider `claude-lead`), its Peers, their states, and the time of
+   project, identify its Lead (provider `claude-lead-SLUG`), its Peers, their states, and the time of
    their last activity. **Done** when each project has a Lead row, or "no Lead".
 3. **Sample the activity sparingly.** For each Lead, call `get_agent_activity` limited to the
    recent entries since your last review. Read a Peer's activity only when the Lead's activity
@@ -54,7 +54,7 @@ relative to this skill's directory; every other path is relative to the kit.
    `Seen` shows two different days while the `Status` is still `open`. **Done** when each item is
    flagged or clear.
 7. **Suggest a recovery for each stale project.** Suggest it; don't carry it out. The usual
-   suggestion is a fresh Lead: create it on `claude-lead` with the original outcome as an
+   suggestion is a fresh Lead: create it on `claude-lead-SLUG` with the original outcome as an
    `OWNER DIRECTIVE:`, plus the old Lead's HANDOFF block if the old Lead is still alive, and have
    it rebuild the project's state first, with its project-state skill. The Human decides, and replacing a Lead follows "Replacing a Lead"
    in `claude/SUPERVISOR.md`. **Done** when each stale project has one suggestion and the

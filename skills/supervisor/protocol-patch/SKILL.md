@@ -28,9 +28,10 @@ the Human asked for the change. If neither holds, record the episode and stop.
    | Surface | Owns | Read by |
    |---|---|---|
    | The repository's `AGENTS.md` | technical constraints for anyone changing code there | every agent in that repository |
-   | The repository's `WORKSPACE_PROTOCOL.md` | coordination in that repository | that repository's Lead |
-   | `claude/LEAD.md` | how every Lead coordinates | every Lead, every turn |
-   | `pi/PEER.md` | how every Peer works | every Peer, every turn |
+   | The repository's `.seatworks/WORKSPACE_PROTOCOL.md` | coordination in that repository | that repository's Lead |
+   | The repository's `.seatworks/LEAD.md` | how that project's Lead coordinates | that Lead, every turn |
+   | The repository's `.seatworks/PEER.md` | how that project's Peers work | its Peers, every turn |
+   | The kit's `project/` templates | the defaults a new project starts from | only projects added later |
    | `claude/SUPERVISOR.md` | your own behavior | you |
    | a skill | a procedure used only some of the time | the seat that loads it |
    | the deny lists in `setup/setup-seats.fish`, and `pi/extensions/peer-guard.ts` | limits that must hold whatever the prompt says | enforced, not read |
@@ -41,7 +42,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
    on every turn stay short. **Done** when you have chosen one surface and can say why each
    narrower one doesn't fit.
 3. **Check what already covers it.** Search the chosen surface and its neighbors for the concept,
-   for example `grep -rn -i 'KEYWORD' claude/ pi/ skills/ examples/`. If a line already covers
+   for example `grep -rn -i 'KEYWORD' claude/ pi/ skills/ project/ examples/ REPO/.seatworks/`. If a line already covers
    it, sharpen that line or the pointer to it instead of adding another. If the line exists and
    is ignored, find out why: it's buried, contradicted elsewhere, or worded too weakly. **Done**
    when you can quote the lines that cover it, or state "none" together with the search you ran.
@@ -52,8 +53,8 @@ the Human asked for the change. If neither holds, record the episode and stop.
    - Describe the target behavior. A prohibition names the forbidden act and makes it more likely;
      when a hard limit has to be phrased as a prohibition, pair it with the action to take instead.
    - Put the reason in the rule's text. Put the removal trigger in an HTML comment beside the rule
-     in `claude/*.md`, and in the notebook entry for `pi/PEER.md` and skills, which carry no
-     comments.
+     in the Claude seat prompts (`SUPERVISOR.md`, `LEAD.md`), and in the notebook entry for
+     `PEER.md` and skills, which carry no comments.
    - For a seat prompt, keep `wc -c` under 16384 bytes; if the change goes over, cut something else.
 
    **Done** when the diff exists in the kit's working tree, or as text for a repository surface.
@@ -72,7 +73,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
 6. **Pressure-test the change on fresh seats.** Follow [references/rehearsal.md](references/rehearsal.md):
    build one scenario from the episode the old text failed on, run it on a fresh seat with the old
    text, then on another with the new text, and compare. Seats read the prompts through symlinks
-   into the kit's working tree, so the order matters: run the old text before you apply the diff,
+   into the working tree of the kit or of the project, so the order matters: run the old text before you apply the diff,
    or with the diff stashed. **Done** when the old seat reproduces X, the new seat does Y, and you
    have quotes from both. If the old seat doesn't reproduce X, the scenario is wrong, or the cause
    isn't in the prompt; go back to step 1. If the new seat still does X, or overshoots into the
@@ -82,8 +83,9 @@ the Human asked for the change. If neither holds, record the episode and stop.
 8. **Ship the change.** Run `fish setup/setup-seats.fish --check` and fix whatever it reports.
    Commit only the changed files in the kit, with a message naming the notebook entry, and set
    the entry's `Status` line to `applied SHA`.
-   - For a repository surface, send the Lead an `OWNER DIRECTIVE:` with the exact text to commit,
-     and set the `Status` line to the repository's SHA once the commit lands.
+   - For a repository surface, including its `.seatworks/`, send the Lead an `OWNER DIRECTIVE:`
+     with the exact text to commit, and set the `Status` line to the repository's SHA once the
+     commit lands.
    - For a deny list or guard change, ask the Human to run `fish setup/setup-seats.fish` and then
      `paseo reload`, because that step writes the seat profiles and `~/.paseo/config.json`,
      outside the kit.

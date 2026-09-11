@@ -15,7 +15,7 @@ It produces the slice table and the Progress ledger in the ExecPlan
 from those briefs.
 
 Before you start, have the intake result, the ExecPlan if intake opened one, the decide-first
-seams in `AGENTS.md`, and the writer limit and spawn recipes in `WORKSPACE_PROTOCOL.md`. If a
+seams in `AGENTS.md`, and the writer limit and spawn recipes in `.seatworks/WORKSPACE_PROTOCOL.md`. If a
 few reads show the whole outcome fits one slice, skip the graph and brief one Engineer.
 
 ## Procedure

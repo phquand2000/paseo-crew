@@ -50,7 +50,7 @@ profile loads the Lead prompt and would turn the seat into a second Lead.
 | Deep auditor | `deepAuditor` | `deepVerifier`, then `reasoning` | `pi-peer/PEER_MODEL`, `high` | semantic or high-risk audit |
 
 Without the file, every seat uses the Peer model from the spawn recipe in the repository's
-`WORKSPACE_PROTOCOL.md`; without a protocol, use the model `list_models` offers for `pi-peer`
+`.seatworks/WORKSPACE_PROTOCOL.md`; without a protocol, use the model `list_models` offers for `pi-peer`
 that your Peers already run on. Check which thinking levels a model offers with `list_models`
 before passing `xhigh`.
 

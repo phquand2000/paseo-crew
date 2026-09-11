@@ -34,7 +34,7 @@ can go wrong (4–5), what are we going to do about it (6), and did we do a good
    - Tools: the runtime's tools minus the provider's `disallowedTools` (for Claude seats) or
      minus the patterns in `pi/extensions/peer-guard.ts` (for the Peer); Paseo tools, from
      `paseoTools.enabled` and `daemon.mcp.injectIntoAgents`; MCP servers in each profile's
-     `.claude.json` or `mcp.json`; the Pi packages in `~/.pi/profiles/pi-peer/settings.json`; and
+     `.claude.json` or `mcp.json`; the Pi packages in `~/.pi/profiles/pi-peer-SLUG/settings.json`; and
      skills, including `~/.agents/skills`, which every Pi profile loads.
    - Credentials: the env var names on the provider; the linked `auth.json`; and what every seat
      with a shell inherits: `gh` login and scopes, keys in the ssh agent, cloud CLI config, npm

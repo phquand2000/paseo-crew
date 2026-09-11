@@ -20,7 +20,7 @@ every finding ends with a verdict and a route.
 | Sealed axes | a condition under "Independent review" in your seat prompt applies, or intake set Reviewers above zero | two or three Reviewer Peers, one axis each, same SHA and same question |
 | Sweep | high-risk work with weak proof, a large or unfamiliar surface, or a pre-merge audit where recall matters more than noise | four to ten scout Peers on overlapping concerns |
 
-The repository's `WORKSPACE_PROTOCOL.md` overrides these counts where it sets strictness or a
+The repository's `.seatworks/WORKSPACE_PROTOCOL.md` overrides these counts where it sets strictness or a
 review lane count. Done when you have named the lane and the reason.
 
 ## Sealed axes

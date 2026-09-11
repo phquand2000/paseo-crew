@@ -37,8 +37,8 @@ Replace the following:
 
 | Surface changed | Seat to create | How |
 |---|---|---|
-| `claude/LEAD.md` | `claude-lead` | `settings.modeId: "bypassPermissions"`, a `thinkingOptionId`, and a first prompt of `OWNER DIRECTIVE:` followed by the scenario |
-| `pi/PEER.md` | `pi-peer/<model>` | `settings.thinkingOptionId` only; the scenario inside a brief with disposition Scout and owned scope `none` |
+| the project's `.seatworks/LEAD.md` | `claude-lead-SLUG` | `settings.modeId: "bypassPermissions"`, a `thinkingOptionId`, and a first prompt of `OWNER DIRECTIVE:` followed by the scenario |
+| the project's `.seatworks/PEER.md` | `pi-peer-SLUG/<model>` | `settings.thinkingOptionId` only; the scenario inside a brief with disposition Scout and owned scope `none` |
 | `claude/SUPERVISOR.md` | `claude-supervisor` | same settings as the Lead; the scenario as the first prompt |
 | a repository file or a skill | the seat that reads it | quote the old rule in the first run and the new rule in the second, as part of `FACTS` |
 

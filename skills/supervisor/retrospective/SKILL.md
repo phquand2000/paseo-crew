@@ -6,8 +6,9 @@ description: "Runs a blameless retrospective on an agent episode: builds the tim
 # Retrospective
 
 Use this skill to learn from an episode where the agents went wrong, and to record the lesson as
-an entry in `notebook/NOTEBOOK.md`, in that file's entry format. You can't fix a model, but you
-can fix what it was given (the brief, the tools, the checks, the topology), so the question is
+an entry in the project's `.seatworks/NOTEBOOK.md`, or in the kit's `notebook/NOTEBOOK.md` for a
+pattern across projects; both use the same entry format. You can't fix a model, but you can fix
+what it was given (the brief, the tools, the checks, the topology), so the question is
 always what made the wrong action look right at the time.
 
 Paths starting with `references/` are relative to this skill's directory; every other path is
@@ -90,7 +91,7 @@ insights, decide what to do, and close.
    check or an enforced limit over prose when either would work, because a prompt is guidance
    and a check is enforcement. **Done** when every action has a type, an owner, and a removal
    trigger.
-7. **Write the notebook entry.** Use the format in `notebook/NOTEBOOK.md` exactly:
+7. **Write the notebook entry.** Use the notebooks' shared entry format exactly:
    - Observed: the project, the agent IDs, and a summary of the timeline with quotes, plus the
      timeline file's path if you saved one.
    - Suspected mechanism: the contributing causes, each with its category.

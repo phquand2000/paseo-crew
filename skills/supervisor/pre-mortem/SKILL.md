@@ -35,7 +35,7 @@ pre-mortem costs more than the risk.
    end of the appetite, plus the time failure takes to show (for example, a month after
    release). **Done** when you have one fixed plan text and one horizon date.
 2. **Choose the seats.** Use two seats for moderate risk, and three when the plan contains an
-   irreversible decision. Run `list_models` for `pi-peer`, and use models from different
+   irreversible decision. Run `list_models` for `pi-peer-SLUG`, and use models from different
    families when they're available: seats from one family share blind spots, so their agreement
    is weak evidence. **Done** when each seat has a model.
 3. **Write one brief for every seat.** Fill in [references/peer-brief.md](references/peer-brief.md).
@@ -46,7 +46,7 @@ pre-mortem costs more than the risk.
    checks pass.
 4. **Create the seats.** Record the repository state first with
    `git -C REPO status --porcelain` and `git -C REPO rev-parse HEAD`. Then, for each seat, call
-   `create_agent` with `provider: "pi-peer/<model>"`, `settings.thinkingOptionId: "high"`, no
+   `create_agent` with `provider: "pi-peer-SLUG/<model>"`, `settings.thinkingOptionId: "high"`, no
    `settings.modeId`, and the brief as `initialPrompt`. Run each seat in the project's workspace,
    or in the kit's workspace when the plan has no repository yet. Wait for the finish
    notifications instead of polling. **Done** when every seat has finished. If a seat fails for

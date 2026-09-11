@@ -1,6 +1,6 @@
 # Writing guide
 
-These rules apply to everything in this kit: the seat prompts in `claude/` and `pi/`, the
+These rules apply to everything in this kit: the seat prompts in `claude/` and `project/`, the
 templates in `examples/`, the docs, and the comments in the setup script and guard extension. The Supervisor follows them when it
 patches a prompt. Each rule names its source in brackets; the sources are listed at the end.
 
@@ -34,7 +34,7 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     `disallowedTools` for the Claude seats and `pi/extensions/peer-guard.ts` for the Peer. [M]
 14. Put maintainer notes for the Claude seat prompts in HTML comments. Claude Code strips them
     from `CLAUDE.md` before loading, so they cost the seat nothing. Pi doesn't strip them, so
-    `pi/PEER.md` contains no comments at all. [M]
+    `.seatworks/PEER.md` contains no comments at all. [M]
 15. Add a rule only after an observed failure, with a reproducible reason and a removal trigger.
     [HL, CUR]
 
@@ -83,8 +83,8 @@ describes its target. [G, MS]
 
 ## Skills
 
-Skills live in `skills/<role>/<name>/` and must work unchanged in Claude Code and Pi. Each
-role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
+Skills live in `skills/supervisor/` and `project/skills/<role>/`, and must work unchanged in
+Claude Code and Pi. Each role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
 Peer. [S, SK, PI]
 
 1. Use only `name` (equal to the directory name: lowercase letters, digits, hyphens) and
@@ -128,8 +128,8 @@ Use these terms, and only these, for the following concepts:
 | owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a Human decision |
 | advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
 
-`pi/PEER.md` never uses Supervisor, seat, or Paseo; the Peer knows only the Lead that assigns
-its work. `claude/LEAD.md` never names the Supervisor; it knows only the two message labels.
+`.seatworks/PEER.md` never uses Supervisor, seat, or Paseo; the Peer knows only the Lead that assigns
+its work. `.seatworks/LEAD.md` never names the Supervisor; it knows only the two message labels.
 
 ## Where sources disagree, and what this kit chose
 

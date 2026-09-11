@@ -1,77 +1,64 @@
 #!/usr/bin/env fish
 #
-# setup-seats: build or refresh the profile of every seat.
+# setup-seats: build or refresh every seat's profile.
 #
-#   claude-lead, claude-supervisor   Claude Code profiles, selected by CLAUDE_CONFIG_DIR
-#   pi-peer                          Pi profile, selected by PI_CODING_AGENT_DIR
+#   claude-supervisor              one Claude Code seat for every project; its prompt and skills
+#                                  live in this kit (claude/SUPERVISOR.md, skills/supervisor/)
+#   claude-lead-SLUG, pi-peer-SLUG one pair per project; their prompts and skills live in that
+#                                  project's .seatworks/ directory
 #
-# Prompts and settings live in this repository. The script links them into each seat's profile
-# directory, the one its Paseo provider points at, so an edit here reaches the next seat
-# spawned without copying.
-#
-# For each Claude seat, the script:
-#   1. Generates claude/<seat>.settings.json from the base settings plus the seat's overlay.
-#   2. Builds ~/.claude/profiles/claude-<seat>/: CLAUDE.md, settings.json, projects, plugins,
-#      and skills/ (the role's skills from skills/<seat>/, plus any extras).
-#   3. Adds the seat's deny list to the `disallowedTools` of provider claude-<seat>.
-#
-# For the Pi seat, the script:
-#   1. Builds ~/.pi/profiles/pi-peer/: APPEND_SYSTEM.md, the guard extension, a link to your
-#      Pi login, settings.json, and skills/ (the skills from skills/peer/, plus any extras).
-#   2. Sets `paseoTools.enabled: false` on provider pi-peer, so the Peer gets no Paseo tools.
+# Profiles, settings, deny lists, and models are global; every .md a seat loads stays with its
+# project. A profile links to those files, so an edit reaches the next seat spawned without
+# copying. Projects are the providers named claude-lead-SLUG in ~/.paseo/config.json, whose
+# env.SEATWORKS_REPO names the repository; setup/add-project.fish creates them.
 #
 # Usage:
 #   fish setup/setup-seats.fish            # build or update
 #   fish setup/setup-seats.fish --check    # verify only; write nothing
 #
 # Requires fish 3.5+ (for the `path` builtin) and jq. The script never reads credentials:
-# Claude seats get their token from the provider's `env`, and the Pi seat links to the
+# Claude seats inherit the token from the base `claude` provider, and Peer seats link to the
 # auth.json of your normal Pi profile.
 # Rerun after `claude plugin update`: plugin skill paths contain the version number, so an
 # update silently breaks the symlinks.
 
 # ── Configuration ────────────────────────────────────────────────────────────────────
 
-set -l repo (path resolve (path dirname (status filename))/..)
-set -l base $repo/setup/seat-settings.base.json
+set -g kit (path resolve (path dirname (status filename))/..)
+set -l base $kit/setup/seat-settings.base.json
 
-# Claude seats. Each needs claude/<ROLE>.md, <seat>_skills, deny_<seat>, overlay_<seat>, and a
-# claude-<seat> provider in ~/.paseo/config.json.
-set -l claude_seats  lead supervisor
-set -l profiles_root $HOME/.claude/profiles       # one CLAUDE_CONFIG_DIR per Claude seat
-set -l shared_claude $HOME/.claude                # projects/ and plugins/ are shared
-
-# The Pi seat. Its prompt, settings, and guard extension live in pi/.
-set -l pi_dir      $HOME/.pi/profiles/pi-peer     # PI_CODING_AGENT_DIR of provider pi-peer
-set -l pi_login    $HOME/.pi/agent/auth.json      # your normal Pi login, shared with the Peer
-set -l pi_settings $repo/pi/settings.json
-
-set -g local_skills $HOME/.agents/skills          # your own skills
-set -l plugin_id    mattpocock-skills@mattpocock  # optional source of extra skills
-set -l paseo_config $HOME/.paseo/config.json
+set -g profiles_root    $HOME/.claude/profiles      # one CLAUDE_CONFIG_DIR per Claude seat
+set -g pi_profiles_root $HOME/.pi/profiles          # one PI_CODING_AGENT_DIR per Peer seat
+set -g shared_claude    $HOME/.claude               # projects/ and plugins/ are shared
+set -g pi_login         $HOME/.pi/agent/auth.json   # your normal Pi login, shared with Peers
+set -g pi_settings      $kit/pi/settings.json
+set -g peer_guard       $kit/pi/extensions/peer-guard.ts
+set -g local_skills     $HOME/.agents/skills        # your own skills
+set -l plugin_id        mattpocock-skills@mattpocock
+set -g paseo_config     $HOME/.paseo/config.json
 
 # Byte budget per seat prompt. Exceeding it is an error: cut content instead of raising it.
 set -g prompt_budget 16384
 
-# Each seat gets every skill in this kit's skills/<role>/: strategy skills for the Supervisor,
-# macro skills for the Lead, micro skills for the Peer. Extras add skills from the $plugin_id
-# plugin or $local_skills, named by the directory that holds SKILL.md.
-set -l lead_extra_skills       # for example: domain-modeling
-set -l supervisor_extra_skills
-set -l peer_extra_skills
+# Extra skills, from the $plugin_id plugin or $local_skills, on top of each seat's own skills
+# directory. Name them by the directory that holds SKILL.md.
+set -g supervisor_extra_skills
+set -g lead_extra_skills       # for example: domain-modeling
+set -g peer_extra_skills
 
 # Claude tools blocked at the provider level, which is where blocking happens for Claude
 # seats; a seat's `permissions.deny` only looks safe, so the base settings leave it out.
 # `Bash(git push:*)` matches by prefix, so `git -C repo push` gets through. `gh` is blocked
 # because pushes, pull requests, and API calls through it leave the machine, which is the
 # Human's call. Pi ignores disallowedTools; pi/extensions/peer-guard.ts guards the Peer instead.
-set -l deny_common '["Agent", "Task", "SlashCommand", "Workflow", "WebSearch",
+set -g deny_common '["Agent", "Task", "SlashCommand", "Workflow", "WebSearch",
                      "TodoWrite", "EnterPlanMode", "ExitPlanMode",
                      "Bash(claude:*)", "Bash(npx claude:*)", "Bash(git push:*)", "Bash(gh:*)"]'
-set -l deny_lead       '["LSP"]'
-set -l deny_supervisor '["LSP"]'
+set -g deny_lead       '["LSP"]'
+set -g deny_supervisor '["LSP"]'
 
-# Per-seat differences from the base settings. `null` removes the key.
+# Per-role differences from the base settings. `null` removes the key. Every Lead shares one
+# generated settings file, and so does the Supervisor.
 set -l overlay_lead '{
   "outputStyle": "Concise",
   "disableBundledSkills": true,
@@ -116,15 +103,14 @@ end
 function check_budget --argument-names file
     set -l size (wc -c <$file | string trim)
     set -l pct (math "round($size * 100 / $prompt_budget)")
-    set -l name (path basename $file)
     if test $size -gt $prompt_budget
-        fail "$name is $size bytes, $pct% of the $prompt_budget-byte budget. Cut it."
+        fail "$file is $size bytes, $pct% of the $prompt_budget-byte budget. Cut it."
     else if test $pct -ge 85
-        echo "  · $name is $size bytes, $pct% of the $prompt_budget-byte budget; nearly full."
+        echo "  · $file is $size bytes, $pct% of the $prompt_budget-byte budget; nearly full."
     end
 end
 
-# Check that a kit skill works in both runtimes: the frontmatter name matches the directory
+# Check that a skill works in both runtimes: the frontmatter name matches the directory
 # (Claude Code names the command after the directory, Pi after `name`), the description is
 # present and within Pi's 1,024-character limit, and the body avoids substitutions that Pi
 # leaves as literal text. Peer skills also follow the Peer prompt's rules: no HTML comments,
@@ -153,10 +139,10 @@ function check_skill --argument-names label skill strict
     end
 end
 
-# Print "name=path" for every skill a seat gets: each skill directory in <kit_dir>, then the
-# extras (arguments after kit_dir) found in the plugin or $local_skills.
-function seat_skill_entries --argument-names label kit_dir
-    for skill in $kit_dir/*/
+# Print "name=path" for every skill a seat gets: each skill directory in <skills_dir>, then the
+# extras (arguments after skills_dir) found in the plugin or $local_skills.
+function seat_skill_entries --argument-names label skills_dir
+    for skill in $skills_dir/*/
         set skill (path resolve $skill)
         test -f $skill/SKILL.md; and echo (path basename $skill)=$skill
     end
@@ -212,17 +198,191 @@ function paseo_write --argument-names config label filter
     end
 end
 
+# Build one Claude seat's profile: CLAUDE.md, settings.json, the shared projects/ and plugins/,
+# an .claude.json without MCP servers, and skills from <skills_dir> plus extras.
+function build_claude_seat --argument-names label dir prompt settings skills_dir
+    set -l extras $argv[6..-1]
+    set -l err0 $errs
+    set -g linked_count 0
+    if not test -f $prompt
+        fail "$label: $prompt not found"
+    else
+        check_budget $prompt
+        test $dry -eq 0; and mkdir -p $dir/skills
+        if not test -d $dir/skills
+            fail "$label: $dir/skills is missing"
+        else
+            seat_link $dir/CLAUDE.md     $prompt                  $dry
+            seat_link $dir/settings.json $settings                $dry
+            seat_link $dir/projects      $shared_claude/projects  $dry
+            seat_link $dir/plugins       $shared_claude/plugins   $dry
+
+            # Seats authenticate through the provider's env, so a leftover file here is
+            # credentials sitting where they don't belong.
+            test -e $dir/.credentials.json
+            and fail "$label: $dir/.credentials.json exists; delete it."
+
+            # .claude.json: skip onboarding and keep mcpServers empty. A target repository's MCP
+            # servers are external processes that start before the model's first turn, so a
+            # seat shouldn't pick any up.
+            if test $dry -eq 0
+                test -e $dir/.claude.json; or echo '{"hasCompletedOnboarding": true}' >$dir/.claude.json
+                jq '.mcpServers = {} | .enabledMcpjsonServers = [] | del(.enableAllProjectMcpServers)
+                    | .projects = ((.projects // {}) | with_entries(.value.mcpServers = {}))' \
+                    $dir/.claude.json >$dir/.claude.json.new
+                and mv $dir/.claude.json.new $dir/.claude.json
+                or begin
+                    rm -f $dir/.claude.json.new
+                    fail "$label: $dir/.claude.json is not valid JSON, so mcpServers was not cleared."
+                end
+            else
+                jq -e '(.mcpServers // {}) == {} and ((.enabledMcpjsonServers // []) | length) == 0' \
+                    $dir/.claude.json >/dev/null 2>&1
+                or fail "$label: $dir/.claude.json is missing, broken, or has non-empty mcpServers."
+            end
+
+            for skill in $skills_dir/*/
+                check_skill $label (path resolve $skill) claude
+            end
+            link_skills $label $dir $dry (seat_skill_entries $label $skills_dir $extras)
+        end
+    end
+    test $errs -eq $err0
+    and echo "✓ $label → $dir ($linked_count skills)"
+    or echo "✗ $label → $dir (see the ! lines above)"
+end
+
+# Build one Peer seat's Pi profile: APPEND_SYSTEM.md, the guard extension, a link to your Pi
+# login, settings.json with the kit's keys merged in, and skills from <skills_dir> plus extras.
+function build_peer_seat --argument-names label dir prompt skills_dir
+    set -l extras $argv[5..-1]
+    set -l err0 $errs
+    set -g linked_count 0
+    if not test -f $prompt
+        fail "$label: $prompt not found"
+    else
+        # Pi loads APPEND_SYSTEM.md verbatim. Unlike Claude Code it doesn't strip HTML comments,
+        # so a maintainer note in PEER.md would reach the Peer.
+        grep -q '<!--' $prompt
+        and fail "$label: $prompt contains an HTML comment, which Pi shows to the Peer."
+        check_budget $prompt
+        test $dry -eq 0; and mkdir -p $dir/skills $dir/extensions
+        if not test -d $dir/skills; or not test -d $dir/extensions
+            fail "$label: $dir is missing or incomplete"
+        else
+            seat_link $dir/APPEND_SYSTEM.md          $prompt     $dry
+            seat_link $dir/extensions/peer-guard.ts  $peer_guard $dry
+
+            # The Peer uses your normal Pi login. Pi rewrites auth.json in place, so token
+            # refreshes go through the link to the shared file.
+            if not test -f $pi_login
+                fail "$label: $pi_login not found; log in with `pi` (/login) or save an API key first."
+            else
+                seat_link $dir/auth.json $pi_login $dry
+            end
+
+            # settings.json: Pi writes its own keys to this file, so merge the kit's keys in
+            # rather than linking or replacing it.
+            set -l settings $dir/settings.json
+            if not test -f $settings; or not jq -e --slurpfile kit_keys $pi_settings \
+                    '. as $s | $kit_keys[0] | to_entries | all(.[]; $s[.key] == .value)' $settings >/dev/null 2>&1
+                if test $dry -eq 1
+                    fail "$label: $settings is missing or lacks the keys in pi/settings.json (rerun without --check)"
+                else
+                    set -l tmp (mktemp)
+                    if test -f $settings
+                        jq -s --indent 2 '.[0] * .[1]' $settings $pi_settings >$tmp
+                    else
+                        jq --indent 2 . $pi_settings >$tmp
+                    end
+                    and mv $tmp $settings
+                    and echo "  ~ $label settings.json: merged pi/settings.json"
+                    or begin
+                        rm -f $tmp
+                        fail "$label: could not write $settings"
+                    end
+                end
+            end
+
+            # Paseo carries the profile's mcp.json into the Peer's launch; a paseo server there
+            # would hand the Peer the orchestration tools that paseoTools switches off.
+            if test -f $dir/mcp.json
+                jq -e '((.mcpServers // {}) | has("paseo")) | not' $dir/mcp.json >/dev/null 2>&1
+                or fail "$label: $dir/mcp.json defines a paseo server; remove it."
+            end
+
+            for skill in $skills_dir/*/
+                check_skill $label (path resolve $skill) peer
+            end
+            link_skills $label $dir $dry (seat_skill_entries $label $skills_dir $extras)
+        end
+    end
+    test $errs -eq $err0
+    and echo "✓ $label → $dir ($linked_count skills)"
+    or echo "✗ $label → $dir (see the ! lines above)"
+end
+
+# Check that a Claude seat's provider points CLAUDE_CONFIG_DIR at <dir>, and add the deny
+# entries this script manages. Deny lists are additive: your own entries stay.
+function claude_provider --argument-names key dir deny_extra
+    if not jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
+        fail "$paseo_config has no provider `$key`."
+        return
+    end
+    set -l have_dir (jq -r --arg k $key '.agents.providers[$k].env.CLAUDE_CONFIG_DIR // ""' $paseo_config)
+    if test -z "$have_dir"
+        fail "provider $key has no env.CLAUDE_CONFIG_DIR; set it to $dir."
+        return
+    else if test (path resolve $have_dir) != (path resolve $dir)
+        fail "provider $key points CLAUDE_CONFIG_DIR at $have_dir, not $dir."
+        return
+    end
+    set -l want (printf '%s\n' $deny_common $deny_extra | jq -s -c 'add | unique')
+    set -l have (jq -c --arg k $key '(.agents.providers[$k].disallowedTools // []) | unique' $paseo_config)
+    set -l lack (echo $have | jq -c --argjson w "$want" '$w - .')
+    test "$lack" = '[]'; and return
+    if test $dry -eq 1
+        fail "provider $key lacks deny entries "(echo $lack | jq -r 'join(", ")')" (rerun without --check)"
+        return
+    end
+    set -l merged (echo $have | jq -c --argjson w "$want" '($w + .) | unique')
+    paseo_write $paseo_config "provider $key: disallowedTools updated" \
+        '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$merged"
+end
+
+# Check that a Peer seat's provider points PI_CODING_AGENT_DIR at <dir>, and switch its Paseo
+# tools off. Pi ignores disallowedTools, so paseoTools and the guard extension are its limits.
+function peer_provider --argument-names key dir
+    if not jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
+        fail "$paseo_config has no provider `$key`."
+        return
+    end
+    set -l have_dir (jq -r --arg k $key '.agents.providers[$k].env.PI_CODING_AGENT_DIR // ""' $paseo_config)
+    if test -z "$have_dir"
+        fail "provider $key has no env.PI_CODING_AGENT_DIR; set it to $dir."
+    else
+        # Pi expands a leading ~ itself, so compare the expanded path.
+        set have_dir (string replace -r -- '^~' $HOME $have_dir)
+        test (path resolve $have_dir) = (path resolve $dir)
+        or fail "provider $key points PI_CODING_AGENT_DIR at $have_dir, not $dir."
+    end
+    if not jq -e --arg k $key '.agents.providers[$k].paseoTools.enabled == false' $paseo_config >/dev/null 2>&1
+        if test $dry -eq 1
+            fail "provider $key gives the Peer Paseo tools (rerun without --check)"
+        else
+            paseo_write $paseo_config "provider $key: paseoTools disabled" \
+                '.agents.providers[$k].paseoTools = ((.agents.providers[$k].paseoTools // {}) + {enabled: false})' --arg k $key
+        end
+    end
+end
+
 # ── Preconditions ────────────────────────────────────────────────────────────────────
 
 # `path resolve` doesn't require the path to exist, so a copied script would still derive
-# $repo and point real profiles at nothing. Stop here instead.
-set -l required pi/PEER.md pi/settings.json pi/extensions/peer-guard.ts
-for seat in $claude_seats
-    set -a required claude/(string upper $seat).md
-end
-for file in $required
-    if not test -f $repo/$file
-        echo "! $repo/$file not found. Run the script from its original location in the repository."
+# $kit and point real profiles at nothing. Stop here instead.
+for file in claude/SUPERVISOR.md pi/settings.json pi/extensions/peer-guard.ts
+    if not test -f $kit/$file
+        echo "! $kit/$file not found. Run the script from its original location in the kit."
         exit 1
     end
 end
@@ -258,7 +418,8 @@ if test -f $shared_claude/settings.json
 end
 
 # ── Skill discovery: plugin first, then the local directory ─────────────────────────
-# A local skill never replaces a plugin skill with the same name.
+# Only the extras above are taken from here. A local skill never replaces a plugin skill with
+# the same name.
 
 set -g all_skills   # each element is "name=path"
 set -l plugin_root (jq -r --arg id $plugin_id '.plugins[$id][0].installPath // empty' \
@@ -277,240 +438,88 @@ if test -d $local_skills
     end
 end
 
-# ── Claude seats ────────────────────────────────────────────────────────────────────
+# ── Settings shared by each Claude role ─────────────────────────────────────────────
+# Writing through a temp file compared with `cmp` keeps the run idempotent: a settings file
+# changes only when its content would.
 
-for seat in $claude_seats
-    set -l err0 $errs
-    set -l role (string upper $seat)
-    set -l dir $profiles_root/claude-$seat
-    set -l out $repo/claude/$seat.settings.json
-
-    set -l var overlay_$seat
+for role in lead supervisor
+    set -l var overlay_$role
     set -l overlay $$var
-    set var {$seat}_extra_skills
-    set -l extras $$var
-
-    # 1. Settings. Writing through a temp file compared with `cmp` keeps the run idempotent:
-    #    $out changes only when its content would.
+    set -l out $kit/claude/$role.settings.json
     set -l tmp (mktemp)
     if not jq --indent 2 --argjson ov "$overlay" --arg days "$retention" \
             '(. * $ov) | with_entries(select(.value != null))
              | if $days == "" then del(.cleanupPeriodDays)
                else .cleanupPeriodDays = ($days | tonumber) end' $base >$tmp
         rm -f $tmp
-        fail "$seat: could not generate settings from $base"
+        fail "$role: could not generate settings from $base"
         continue
     end
     if cmp -s $tmp $out
         rm -f $tmp
     else if test $dry -eq 1
         rm -f $tmp
-        fail "$seat.settings.json is missing or differs from base + overlay (rerun without --check)"
+        fail "$role.settings.json is missing or differs from base + overlay (rerun without --check)"
     else
         mv $tmp $out
-        echo "  ~ $seat.settings.json: regenerated from base + overlay"
+        echo "  ~ $role.settings.json: regenerated from base + overlay"
     end
-
-    # 2. Prompt budget.
-    check_budget $repo/claude/$role.md
-
-    # 3. Profile skeleton.
-    if test $dry -eq 0
-        mkdir -p $dir/skills
-    end
-    if not test -d $dir/skills
-        fail "$seat: $dir/skills is missing"
-        continue
-    end
-    seat_link $dir/CLAUDE.md     $repo/claude/$role.md    $dry
-    seat_link $dir/settings.json $out                     $dry
-    seat_link $dir/projects      $shared_claude/projects  $dry
-    seat_link $dir/plugins       $shared_claude/plugins   $dry
-
-    # Seats authenticate through the provider's env, so a leftover file here is credentials
-    # sitting where they don't belong.
-    test -e $dir/.credentials.json
-    and fail "$seat: $dir/.credentials.json exists; delete it."
-
-    # 4. .claude.json: skip onboarding and keep mcpServers empty. A target repository's MCP
-    #    servers are external processes that start before the model's first turn, so a seat
-    #    shouldn't pick any up.
-    if test $dry -eq 0
-        test -e $dir/.claude.json; or echo '{"hasCompletedOnboarding": true}' >$dir/.claude.json
-        jq '.mcpServers = {} | .enabledMcpjsonServers = [] | del(.enableAllProjectMcpServers)
-            | .projects = ((.projects // {}) | with_entries(.value.mcpServers = {}))' \
-            $dir/.claude.json >$dir/.claude.json.new
-        and mv $dir/.claude.json.new $dir/.claude.json
-        or begin
-            rm -f $dir/.claude.json.new
-            fail "$seat: $dir/.claude.json is not valid JSON, so mcpServers was not cleared."
-        end
-    else
-        jq -e '(.mcpServers // {}) == {} and ((.enabledMcpjsonServers // []) | length) == 0' \
-            $dir/.claude.json >/dev/null 2>&1
-        or fail "$seat: $dir/.claude.json is missing, broken, or has non-empty mcpServers."
-    end
-
-    # 5. Skills: the role's kit skills plus extras.
-    for skill in $repo/skills/$seat/*/
-        check_skill claude-$seat (path resolve $skill) claude
-    end
-    link_skills claude-$seat $dir $dry (seat_skill_entries claude-$seat $repo/skills/$seat $extras)
-
-    test $errs -eq $err0
-    and echo "✓ claude-$seat → $dir ($linked_count skills)"
-    or echo "✗ claude-$seat → $dir (see the ! lines above)"
 end
 
-# ── Pi seat ─────────────────────────────────────────────────────────────────────────
+# ── Paseo config ────────────────────────────────────────────────────────────────────
 
-set -l err0 $errs
-set -g linked_count 0
-
-# Pi loads APPEND_SYSTEM.md verbatim. Unlike Claude Code it doesn't strip HTML comments, so a
-# maintainer note in PEER.md would reach the Peer.
-grep -q '<!--' $repo/pi/PEER.md
-and fail "pi/PEER.md contains an HTML comment, which Pi shows to the Peer. Move the note elsewhere."
-check_budget $repo/pi/PEER.md
-
-if test $dry -eq 0
-    mkdir -p $pi_dir/skills $pi_dir/extensions
-end
-if not test -d $pi_dir/skills; or not test -d $pi_dir/extensions
-    fail "pi-peer: $pi_dir is missing or incomplete"
-else
-    seat_link $pi_dir/APPEND_SYSTEM.md          $repo/pi/PEER.md                   $dry
-    seat_link $pi_dir/extensions/peer-guard.ts  $repo/pi/extensions/peer-guard.ts  $dry
-
-    # The Peer uses your normal Pi login. Pi rewrites auth.json in place, so token refreshes
-    # go through the link to the shared file.
-    if not test -f $pi_login
-        fail "pi-peer: $pi_login not found; log in with `pi` (/login) or save an API key first."
-    else
-        seat_link $pi_dir/auth.json $pi_login $dry
-    end
-
-    # settings.json: Pi writes its own keys to this file, so merge the kit's keys in rather than
-    # linking or replacing it.
-    set -l settings $pi_dir/settings.json
-    if not test -f $settings; or not jq -e --slurpfile kit $pi_settings \
-            '. as $s | $kit[0] | to_entries | all(.[]; $s[.key] == .value)' $settings >/dev/null 2>&1
-        if test $dry -eq 1
-            fail "pi-peer: $settings is missing or lacks the keys in pi/settings.json (rerun without --check)"
-        else
-            set -l tmp (mktemp)
-            if test -f $settings
-                jq -s --indent 2 '.[0] * .[1]' $settings $pi_settings >$tmp
-            else
-                jq --indent 2 . $pi_settings >$tmp
-            end
-            and mv $tmp $settings
-            and echo "  ~ pi-peer settings.json: merged pi/settings.json"
-            or begin
-                rm -f $tmp
-                fail "pi-peer: could not write $settings"
-            end
-        end
-    end
-
-    # Paseo carries the profile's mcp.json into the Peer's launch; a paseo server there would
-    # hand the Peer the orchestration tools that paseoTools switches off.
-    if test -f $pi_dir/mcp.json
-        jq -e '((.mcpServers // {}) | has("paseo")) | not' $pi_dir/mcp.json >/dev/null 2>&1
-        or fail "pi-peer: $pi_dir/mcp.json defines a paseo server; remove it."
-    end
-
-    for skill in $repo/skills/peer/*/
-        check_skill pi-peer (path resolve $skill) peer
-    end
-    link_skills pi-peer $pi_dir $dry (seat_skill_entries pi-peer $repo/skills/peer $peer_extra_skills)
-end
-
-# Pi also loads ~/.agents/skills, which sits outside the profile; see REFERENCE.md.
-set -l leaked (count $local_skills/*/SKILL.md)
-test $leaked -gt 0
-and echo "  · Pi also gives the Peer the $leaked skill(s) in $local_skills."
-
-test $errs -eq $err0
-and echo "✓ pi-peer → $pi_dir ($linked_count skills)"
-or echo "✗ pi-peer → $pi_dir (see the ! lines above)"
-
-# ── Paseo providers ─────────────────────────────────────────────────────────────────
-#
-# A correct filesystem doesn't make a correct seat: if a provider doesn't point its profile
-# variable at the directory just built, the seat reads a shared profile and carries none of
-# this repository's prompts.
-
+set -l paseo_ok 0
 if not test -f $paseo_config
-    echo "  · $paseo_config not found; skipping the provider step."
+    echo "  · $paseo_config not found; skipping the provider checks and the projects."
 else if not jq -e . $paseo_config >/dev/null 2>&1
     fail "$paseo_config is not valid JSON; leaving it untouched."
 else
+    set paseo_ok 1
     # The Lead and Supervisor create agents through Paseo's tools, which reach agents only when
     # the daemon injects them. This is daemon-wide, so the script reports it instead of fixing.
     jq -e '.daemon.mcp.injectIntoAgents == true' $paseo_config >/dev/null 2>&1
     or fail "daemon.mcp.injectIntoAgents is not true in $paseo_config, so the Lead and Supervisor get no Paseo tools."
-
-    for seat in $claude_seats
-        set -l key claude-$seat
-        set -l want_dir (path resolve $profiles_root/$key)
-        set -l var deny_$seat
-        set -l deny_extra $$var
-
-        if not jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
-            fail "$paseo_config has no provider `$key`; add it from examples/paseo-providers.json."
-            continue
-        end
-
-        set -l have_dir (jq -r --arg k $key \
-            '.agents.providers[$k].env.CLAUDE_CONFIG_DIR // ""' $paseo_config)
-        if test -z "$have_dir"
-            fail "provider $key has no env.CLAUDE_CONFIG_DIR; set it to $want_dir."
-            continue
-        else if test (path resolve $have_dir) != $want_dir
-            fail "provider $key points CLAUDE_CONFIG_DIR at $have_dir, not $want_dir."
-            continue
-        end
-
-        # Deny lists are additive: the script adds the entries it manages and keeps yours.
-        set -l want (printf '%s\n' $deny_common $deny_extra | jq -s -c 'add | unique')
-        set -l have (jq -c --arg k $key \
-            '(.agents.providers[$k].disallowedTools // []) | unique' $paseo_config)
-        set -l lack (echo $have | jq -c --argjson w "$want" '$w - .')
-        test "$lack" = '[]'; and continue
-
-        if test $dry -eq 1
-            fail "provider $key lacks deny entries "(echo $lack | jq -r 'join(", ")')" (rerun without --check)"
-            continue
-        end
-        set -l merged (echo $have | jq -c --argjson w "$want" '($w + .) | unique')
-        paseo_write $paseo_config "provider $key: disallowedTools updated" \
-            '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$merged"
-    end
-
-    if not jq -e '.agents.providers["pi-peer"]' $paseo_config >/dev/null 2>&1
-        fail "$paseo_config has no provider `pi-peer`; add it from examples/paseo-providers.json."
-    else
-        set -l have_dir (jq -r '.agents.providers["pi-peer"].env.PI_CODING_AGENT_DIR // ""' $paseo_config)
-        if test -z "$have_dir"
-            fail "provider pi-peer has no env.PI_CODING_AGENT_DIR; set it to $pi_dir."
-        else
-            # Pi expands a leading ~ itself, so compare the expanded path.
-            set have_dir (string replace -r -- '^~' $HOME $have_dir)
-            test (path resolve $have_dir) = (path resolve $pi_dir)
-            or fail "provider pi-peer points PI_CODING_AGENT_DIR at $have_dir, not $pi_dir."
-        end
-
-        if not jq -e '.agents.providers["pi-peer"].paseoTools.enabled == false' $paseo_config >/dev/null 2>&1
-            if test $dry -eq 1
-                fail "provider pi-peer gives the Peer Paseo tools (rerun without --check)"
-            else
-                paseo_write $paseo_config "provider pi-peer: paseoTools disabled" \
-                    '.agents.providers["pi-peer"].paseoTools = ((.agents.providers["pi-peer"].paseoTools // {}) + {enabled: false})'
-            end
-        end
-    end
 end
+
+# ── The Supervisor seat ─────────────────────────────────────────────────────────────
+
+build_claude_seat claude-supervisor $profiles_root/claude-supervisor $kit/claude/SUPERVISOR.md \
+    $kit/claude/supervisor.settings.json $kit/skills/supervisor $supervisor_extra_skills
+test $paseo_ok -eq 1; and claude_provider claude-supervisor $profiles_root/claude-supervisor $deny_supervisor
+
+# ── Project seats ───────────────────────────────────────────────────────────────────
+# A filesystem that looks right doesn't make a seat right: if its provider doesn't point at
+# the profile built here, the seat reads a shared profile and carries none of its project's
+# prompts. So each project's providers are checked together with its profiles.
+
+set -l projects
+test $paseo_ok -eq 1
+and set projects (jq -r '.agents.providers | to_entries[] | select(.key | startswith("claude-lead-"))
+    | "\(.key | ltrimstr("claude-lead-"))=\(.value.env.SEATWORKS_REPO // "")"' $paseo_config)
+test (count $projects) -eq 0
+and echo "  · no projects yet; add one with: fish setup/add-project.fish REPO_DIR"
+
+for entry in $projects
+    set -l parts (string split -m1 '=' $entry)
+    set -l slug $parts[1]
+    set -l repo_dir $parts[2]
+    if test -z "$repo_dir"; or not test -d $repo_dir/.seatworks
+        fail "project $slug: claude-lead-$slug has no env.SEATWORKS_REPO, or $repo_dir/.seatworks is missing; rerun setup/add-project.fish."
+        continue
+    end
+    set -l seat $repo_dir/.seatworks
+    build_claude_seat claude-lead-$slug $profiles_root/claude-lead-$slug $seat/LEAD.md \
+        $kit/claude/lead.settings.json $seat/skills/lead $lead_extra_skills
+    claude_provider claude-lead-$slug $profiles_root/claude-lead-$slug $deny_lead
+    build_peer_seat pi-peer-$slug $pi_profiles_root/pi-peer-$slug $seat/PEER.md \
+        $seat/skills/peer $peer_extra_skills
+    peer_provider pi-peer-$slug $pi_profiles_root/pi-peer-$slug
+end
+
+# Pi also loads ~/.agents/skills, which sits outside every profile; see REFERENCE.md.
+set -l leaked (count $local_skills/*/SKILL.md)
+test $leaked -gt 0
+and echo "  · Pi also gives every Peer the $leaked skill(s) in $local_skills."
 
 # ── Summary ─────────────────────────────────────────────────────────────────────────
 

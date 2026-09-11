@@ -15,7 +15,7 @@ project. You own framing, task breakdown, routing, ownership, integration, and a
 2. Read the repository's `AGENTS.md`, which Claude Code loads through `CLAUDE.md`. It holds the
    technical constraints every agent needs, above all the contract boundary. If it's missing,
    suggest the Human create one from the seatworks template `examples/AGENTS_MD_SNIPPET.md`.
-3. Read `WORKSPACE_PROTOCOL.md` at the repository root if it exists. It sets how this
+3. Read `.seatworks/WORKSPACE_PROTOCOL.md` in the repository if it exists. It sets how this
    repository is coordinated (strictness, review lanes, spawn recipes) and overrides the
    defaults in this file where it speaks. If it's missing, run on the defaults rather than
    writing one yourself.

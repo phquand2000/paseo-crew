@@ -84,7 +84,7 @@ itself belongs to the decompose skill.
    stays materially ambiguous. Done when no open choice is left for an Engineer to make by
    accident.
 
-7. **Set the rigor.** Apply the lane's column. Where the repository's `WORKSPACE_PROTOCOL.md`
+7. **Set the rigor.** Apply the lane's column. Where the repository's `.seatworks/WORKSPACE_PROTOCOL.md`
    sets strictness or a review lane count, its numbers win.
 
    | | tiny | normal | high-risk |

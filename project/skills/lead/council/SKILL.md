@@ -60,7 +60,7 @@ Choose in one sentence; the tier needs no analysis to justify it.
 
 Resolve each seat's provider, model, and thinking from `references/routing.md` (relative to this
 skill's directory): an optional `~/.paseo/orchestration-preferences.json` `council` section,
-otherwise the Peer model from the repository's `WORKSPACE_PROTOCOL.md`. Read that file when you
+otherwise the Peer model from the repository's `.seatworks/WORKSPACE_PROTOCOL.md`. Read that file when you
 set up the first seat. It also explains why a Challenger on a different model family matters:
 sealed prompts remove contamination, not correlation.
 

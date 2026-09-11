@@ -5,12 +5,12 @@
 # It prints names, flags, and presence only. Env var values and file contents are left out on
 # purpose, because this output lands in transcripts and in records/safety/seat-matrix.md.
 #
-# Overrides: PASEO_CONFIG, PEER_DIR, CLAUDE_PROFILES, KIT.
+# Overrides: PASEO_CONFIG, PI_PROFILES, CLAUDE_PROFILES, KIT.
 
 set -u
 
 config="${PASEO_CONFIG:-$HOME/.paseo/config.json}"
-peer_dir="${PEER_DIR:-$HOME/.pi/profiles/pi-peer}"
+pi_profiles="${PI_PROFILES:-$HOME/.pi/profiles}"
 claude_profiles="${CLAUDE_PROFILES:-$HOME/.claude/profiles}"
 kit="${KIT:-$PWD}"
 
@@ -37,7 +37,7 @@ fi
 
 section "Kit deny lists (setup/setup-seats.fish)"
 if [ -f "$kit/setup/setup-seats.fish" ]; then
-    grep -n -A2 '^set -l deny_' "$kit/setup/setup-seats.fish"
+    grep -n -A2 '^set -[gl] deny_' "$kit/setup/setup-seats.fish"
 else
     echo "not found; run from the kit root or set KIT"
 fi
@@ -49,8 +49,12 @@ else
     echo "not found"
 fi
 
-section "Peer profile ($peer_dir)"
-if [ -d "$peer_dir" ]; then
+peers=0
+for peer_dir in "$pi_profiles"/pi-peer-*/; do
+    [ -d "$peer_dir" ] || continue
+    peers=1
+    peer_dir="${peer_dir%/}"
+    section "Peer profile ($peer_dir)"
     if [ -f "$peer_dir/settings.json" ]; then
         jq -r '"packages: \((.packages // []) | map(if type == "string" then . else (.source // .name // "object") end) | join(", "))"' "$peer_dir/settings.json"
     else
@@ -68,9 +72,9 @@ if [ -d "$peer_dir" ]; then
     elif [ -f "$peer_dir/auth.json" ]; then
         echo "auth.json: own file"
     fi
-else
-    echo "not built"
-fi
+    echo "prompt: $(readlink "$peer_dir/APPEND_SYSTEM.md" 2>/dev/null || echo "not a link")"
+done
+[ "$peers" -eq 1 ] || { section "Peer profiles ($pi_profiles)"; echo "none built"; }
 echo "skills every Pi profile loads from ~/.agents/skills: $(ls -d "$HOME"/.agents/skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
 
 section "Claude seat profiles ($claude_profiles)"

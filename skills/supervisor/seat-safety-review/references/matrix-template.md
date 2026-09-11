@@ -40,7 +40,7 @@ Replace the following:
 - `DATE`: the review date, `YYYY-MM-DD`.
 - `SOURCES`: the files and commands you read, for example
   `~/.paseo/config.json, setup/setup-seats.fish, pi/extensions/peer-guard.ts, scripts/inventory.sh`.
-- `SEAT`: the provider ID, for example `pi-peer` or `claude-lead`.
+- `SEAT`: the provider ID, for example `pi-peer-SLUG` or `claude-lead-SLUG`.
 - `TOOLS`: the tools the seat can reach after its deny list or guard, including Paseo tools,
   MCP servers, and packages.
 - `CREDENTIALS`: names only, for example `CLAUDE_CODE_OAUTH_TOKEN, gh (repo scope), ssh agent (2 keys)`.

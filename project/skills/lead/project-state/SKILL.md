@@ -13,7 +13,7 @@ verified state, and one chosen next slice. The last section covers writing a HAN
 you are the one leaving.
 
 Before you start, finish the start-of-session steps in your seat prompt: the repository root,
-`AGENTS.md`, and `WORKSPACE_PROTOCOL.md`.
+`AGENTS.md`, and `.seatworks/WORKSPACE_PROTOCOL.md`.
 
 ## Procedure
 

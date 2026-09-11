@@ -20,16 +20,16 @@ cause, and the response. Entries follow the order of the setup steps.
 
 - **Symptom:** a seat works but ignores its prompt.
 - **Cause:** without `CLAUDE_CONFIG_DIR`, Claude Code reads the shared `~/.claude`; without
-  `PI_CODING_AGENT_DIR`, Pi reads `~/.pi/agent`. Neither carries the kit's prompts, and nothing
+  `PI_CODING_AGENT_DIR`, Pi reads `~/.pi/agent`. Neither carries the seat's prompts, and nothing
   reports an error.
 - **Response:** the "Verify that each seat reads its own prompt" step in SETUP.md catches this.
 
 ## The Peer's model list comes from Pi
 
-- **Symptom:** `pi-peer` offers every model your Pi login can reach.
-- **Cause:** `pi-peer` has no `models` list, so Paseo asks Pi. For the Claude seats, an empty
+- **Symptom:** `pi-peer-SLUG` offers every model your Pi login can reach.
+- **Cause:** `pi-peer-SLUG` has no `models` list, so Paseo asks Pi. For the Claude seats, an empty
   `models` list likewise means the full runtime catalog, not "nothing to run".
-- **Response:** name the Peer model in the repository's `WORKSPACE_PROTOCOL.md`, and list
+- **Response:** name the Peer model in the repository's `.seatworks/WORKSPACE_PROTOCOL.md`, and list
   `models` explicitly on a provider to cap its model and effort.
 
 ## Paseo tool access is set per provider ID
@@ -38,7 +38,7 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** `paseoTools` applies to the exact provider ID and isn't inherited from `extends` or
   from the agent that creates the Peer. Pi receives Paseo tools only through the
   `pi-mcp-adapter` extension, and Paseo carries the profile's `mcp.json` into each launch.
-- **Response:** keep `paseoTools.enabled: false` on `pi-peer` (the setup script sets it), keep
+- **Response:** keep `paseoTools.enabled: false` on `pi-peer-SLUG` (the setup script sets it), keep
   `pi-mcp-adapter` out of the Peer profile, and keep any `paseo` server out of its `mcp.json`.
 
 ## Running agents keep the old rules
@@ -50,6 +50,17 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Response:** archive the old agents and delete their schedules and heartbeats, so that two
   versions of the rules don't run side by side.
 
+## Kit template edits don't reach existing projects
+
+- **Symptom:** after you edit `project/LEAD.md` or a skill under `project/skills/` in the kit, a
+  project's seats still follow the old text.
+- **Cause:** `setup/add-project.fish` copies the templates into `REPO/.seatworks/` once and
+  never overwrites them, and the project's profiles link to that copy. The setup script finds a
+  project's `.seatworks/` through `env.SEATWORKS_REPO` on its `claude-lead-SLUG` provider.
+- **Response:** edit the project's copy, or carry the change into each project that should have
+  it. If the repository moves, update `SEATWORKS_REPO` on both of its providers and rerun the
+  setup script.
+
 ## Claude seats: `settings.modeId` overrides the permission mode
 
 - **Symptom:** a Claude seat stops to ask permission for every tool.
@@ -60,7 +71,7 @@ cause, and the response. Entries follow the order of the setup steps.
 
 ## Pi seats reject `settings.modeId`
 
-- **Symptom:** `create_agent` on `pi-peer` fails with "Invalid mode … Available modes: (none)".
+- **Symptom:** `create_agent` on `pi-peer-SLUG` fails with "Invalid mode … Available modes: (none)".
 - **Cause:** Pi has no modes, so Paseo rejects any mode ID for it.
 - **Response:** pass only `settings.thinkingOptionId` for Pi agents.
 
@@ -87,10 +98,11 @@ cause, and the response. Entries follow the order of the setup steps.
 ## Information hiding lives in the prompts
 
 - **Symptom:** a Peer refers to coordination details, or to a note meant for maintainers.
-- **Cause:** a Peer can read any file in the repository, including `WORKSPACE_PROTOCOL.md`. Pi
-  also loads `APPEND_SYSTEM.md` verbatim: unlike Claude Code, it doesn't strip HTML comments.
-- **Response:** keep maintainer notes out of `pi/PEER.md` (the setup script fails on `<!--`).
-  The hiding reduces noise; it doesn't keep secrets.
+- **Cause:** a Peer can read any file in the repository, including everything in `.seatworks/`:
+  the Lead's prompt and skills and the workspace protocol. Pi also loads `APPEND_SYSTEM.md`
+  verbatim: unlike Claude Code, it doesn't strip HTML comments.
+- **Response:** keep maintainer notes out of `.seatworks/PEER.md` (the setup script fails on
+  `<!--`). The hiding reduces noise; it doesn't keep secrets.
 
 ## Pi reads `AGENTS.md` before `CLAUDE.md`
 

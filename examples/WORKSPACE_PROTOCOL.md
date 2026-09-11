@@ -8,19 +8,19 @@ The two files split the work like this:
 | File | Holds | Read by |
 |---|---|---|
 | `AGENTS.md` | Technical constraints anyone changing code must know: contracts, test commands, authority | Every agent, automatically |
-| `WORKSPACE_PROTOCOL.md` | Coordination strategy: strictness, topology, review lanes, spawn recipes | The Lead |
+| `.seatworks/WORKSPACE_PROTOCOL.md` | Coordination strategy: strictness, topology, review lanes, spawn recipes | The Lead |
 
 If an item belongs in both, put it in `AGENTS.md`.
 
 Strictness varies by repository: a side project might need ten lines, and a repository with
-many users a few hundred. Without this file, the Lead runs on the defaults in `LEAD.md`, so
-delete any section that repeats them. Give each mandatory rule a reproducible reason and a
-removal trigger, as in `AGENTS_MD_SNIPPET.md`.
+many users a few hundred. Without this file, the Lead runs on the defaults in
+`.seatworks/LEAD.md`, so delete any section that repeats them. Give each mandatory rule a
+reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
-To start quickly, ask the Supervisor to interview you and write the protocol for the
-repository.
-
-Copy the block below to `WORKSPACE_PROTOCOL.md` at the repository root:
+`setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
+repository. On the way it renames `pi-peer` to the project's provider, `pi-peer-SLUG`, and with
+`--model` it fills in `PEER_MODEL`. To fill in the rest, ask the Supervisor to run its
+`workspace-protocol` skill, which interviews you.
 
 ````md
 # Workspace protocol
@@ -82,7 +82,7 @@ Replace the following:
   `../REPO-wt/TASK_ID`.
 - `TEST_LANE_RULE`: who may run the full suite, hold a port, or use the test database, and
   when.
-- `PEER_MODEL`: the Pi model the Peers use, as `list_models` shows it for `pi-peer`, for
+- `PEER_MODEL`: the Pi model the Peers use, as `list_models` shows it for `pi-peer-SLUG`, for
   example `zai/glm-5.3`.
 - `REVIEW_LANE_COUNT`: how many sealed Reviewer lanes a material question gets, for example
   `2`.
