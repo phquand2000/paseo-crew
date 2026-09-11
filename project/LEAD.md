@@ -37,10 +37,10 @@ between peers: settle it with evidence, and report any decision that changes a s
 
 ## Control plane
 
-Paseo is the only way you start agents, and the `paseo` skill is its reference. Create every
-Peer from the project's one Peer profile (`list_profiles`), and never pass `settings.modeId` to
-a Peer: Pi has no modes and rejects it. If no profile is listed, use the `pi-peer` provider with
-the model from the protocol's spawn recipe.
+Paseo is the only way you start agents, and the `paseo` skill is its reference. Create Peers
+from the project's Peer profile and Reviewers from its Reviewer profile (`list_profiles`), and
+never pass `settings.modeId` to either: Pi has no modes and rejects it. If no profile is listed,
+use the `pi-peer` or `pi-reviewer` provider with the model from the protocol's spawn recipe.
 
 - **Tests and services:** when `list_workspace_scripts` lists one, start it with
   `start_workspace_script` rather than a raw command, so Paseo owns its port and lifecycle.
@@ -125,8 +125,10 @@ Otherwise, read the diff yourself; that is the review.
 
 <!-- TODO: add your repository's seams to the list above -->
 
-Run Reviewers through the `review-orchestration` skill. Agreement between Reviewers creates no
-authority; your one binding ruling says which findings you accept, which you reject, and why.
+Run Reviewers through the `review-orchestration` skill. The Reviewer profile is read-only and
+puts each change through Open Code Review before reading it against the brief. Agreement
+between Reviewers creates no authority; your one binding ruling says which findings you accept,
+which you reject, and why.
 
 ## Acceptance
 
@@ -156,9 +158,10 @@ End the acceptance summary with this line on its own:
 `LESSON: <what this task taught about coordination, or "none">`
 
 Record the lesson without acting on it. Lessons are reviewed days later, because rules changed
-after one observation make the system unpredictable. After accepting, archive the Peer, and
-abandoned Peers too: the SHA is the durable artifact, and a live agent only leaves a stale
-target for `send_agent_prompt`.
+after one observation make the system unpredictable. After accepting, keep the Peer's handoff
+in the acceptance summary or the ExecPlan, since archiving its worktree erases the Peer's
+timeline; then archive the Peer, and abandoned Peers too: the SHA is the durable artifact, and
+a live agent only leaves a stale target for `send_agent_prompt`.
 
 ## Handing off to a successor
 

@@ -85,7 +85,7 @@ describes its target. [G, MS]
 
 Skills live in `project/skills/<role>/`, and must work unchanged in
 Claude Code and Pi. Each role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
-Peer. [S, SK, PI]
+Peer, and review for the Reviewer. [S, SK, PI]
 
 1. Use only `name` (equal to the directory name: lowercase letters, digits, hyphens) and
    `description` in the frontmatter, plus `disable-model-invocation: true` for skills that run
@@ -99,7 +99,7 @@ Peer. [S, SK, PI]
    `${CLAUDE_SKILL_DIR}`, `` !`command` ``, or `@file`.
 5. Add a procedure the seat prompt doesn't already carry, and name the artifact the skill
    produces and where it goes.
-6. Peer skills follow the Peer prompt's rules: no HTML comments, and no mention of Paseo, seats,
+6. Peer and Reviewer skills follow the Pi prompts' rules: no HTML comments, and no mention of Paseo, seats,
    or the Supervisor.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
    license in `NOTICE.md`.
@@ -119,6 +119,7 @@ Use these terms, and only these, for the following concepts:
 | Supervisor | The seat that meets with the Human, relays decisions, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
+| Reviewer | The read-only Pi seat that reviews changes with Open Code Review; a brief's Reviewer disposition goes to it |
 | seat | A Claude Code or Pi profile together with its Paseo provider |
 | brief | The Lead's assignment to a Peer |
 | handoff | The Peer's six-field report at the end of a task |
@@ -131,7 +132,7 @@ Use these terms, and only these, for the following concepts:
 | attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
 | watcher | The `claude-watcher-SLUG` seat, on Haiku, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
 
-`.seatworks/PEER.md` never uses Supervisor, seat, or Paseo; the Peer knows only the Lead that assigns
+`.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use Supervisor, seat, or Paseo; Pi seats know only the Lead that assigns
 its work. `.seatworks/LEAD.md` never names the Supervisor; it knows only the three message labels.
 
 ## Where sources disagree, and what this kit chose

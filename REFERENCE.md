@@ -171,6 +171,15 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Response:** hand off a Lead only after its Peers have finished and been accepted or
   archived, or detach a Peer that must survive before archiving its Lead.
 
+## An archived worktree takes its agents' timelines with it
+
+- **Symptom:** `paseo logs` or `get_agent_activity` for a finished Peer fails with "Working
+  directory does not exist".
+- **Cause:** Paseo loads an agent's timeline from its working directory, and `archive_workspace`
+  removes the worktree, so agents that ran there can no longer be read, even archived ones.
+- **Response:** before archiving a worktree workspace, keep what a retrospective will need: the
+  Peer's handoff, in the acceptance summary or the ExecPlan.
+
 ## A message to a running agent replaces its turn
 
 - **Symptom:** a Peer stops mid-step, or a Lead gets a Peer's "finished" notification with a
@@ -193,6 +202,29 @@ cause, and the response. Entries follow the order of the setup steps.
   which is how the Supervisor gives the watcher its own ID.
 - **Response:** run `fish setup/add-project.fish REPO_DIR --refresh`; it adds what is missing and
   reloads Paseo.
+
+## The Reviewer runs Open Code Review in one of two modes
+
+- **Symptom:** a Reviewer's handoff reports `OCR mode: delegation`, or OCR's comments come back
+  in another language.
+- **Cause:** the `ocr-review` skill runs Open Code Review's full review, on OCR's own model, only
+  when `ocr llm test` succeeds; otherwise it uses delegation mode, where OCR selects the files
+  and rules and the Reviewer's own model reviews. OCR's settings, including its model and key,
+  are global, in `~/.opencodereview/config.json`, and the `language` key sets the comment
+  language.
+- **Response:** to give reviews a second model family, configure one with `ocr config provider`
+  and check it with `ocr llm test`. That sends the code under review to that provider, which is
+  the Human's call. `ocr config set language English` keeps comments in English.
+
+## The Reviewer is read-only by guard
+
+- **Symptom:** a Reviewer reports "Editing files is not available in a review."
+- **Cause:** `pi-reviewer-SLUG` sets `SEATWORKS_READ_ONLY=1`, which makes `peer-guard.ts` block
+  Pi's `write` and `edit` tools and git commands that change the repository. Shell redirection
+  still works, so temporary files under `$TMPDIR` remain possible, and so does a determined
+  write.
+- **Response:** expected. The guard prevents accidents rather than sandboxing; the setup script
+  checks that the variable stays on the provider.
 
 ## Heartbeats end with their agent
 

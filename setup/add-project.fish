@@ -5,11 +5,13 @@
 #   fish setup/add-project.fish REPO_DIR [--slug SLUG] [--model PI_MODEL] [--refresh]
 #
 # 1. Copies the kit's project templates into REPO_DIR/.seatworks/: SUPERVISOR.md, LEAD.md,
-#    PEER.md, WATCHER.md, NOTEBOOK.md, WORKSPACE_PROTOCOL.md, and skills/ for each role.
+#    PEER.md, REVIEWER.md, WATCHER.md, NOTEBOOK.md, WORKSPACE_PROTOCOL.md, and skills/ for each
+#    role.
 # 2. Adds AGENTS.md and a one-line CLAUDE.md (@AGENTS.md) at the repository root when they are
 #    missing.
-# 3. Adds the providers claude-supervisor-SLUG, claude-lead-SLUG, claude-watcher-SLUG, and
-#    pi-peer-SLUG to ~/.paseo/config.json, and one Paseo agent profile for each seat.
+# 3. Adds the providers claude-supervisor-SLUG, claude-lead-SLUG, claude-watcher-SLUG,
+#    pi-peer-SLUG, and pi-reviewer-SLUG to ~/.paseo/config.json, and one Paseo agent profile
+#    for each seat.
 # 4. Registers the repository as a Paseo project, runs setup-seats.fish, and reloads Paseo.
 #
 # It never overwrites an existing file, so rerunning it only fills gaps. Edit the project's
@@ -17,7 +19,7 @@
 # in lowercase. PI_MODEL is the Peer model written into the spawn recipe, such as zai/glm-5.3.
 #
 # --refresh carries kit template changes into a project that already has its files: it
-# replaces the seat prompts (SUPERVISOR.md, LEAD.md, PEER.md, WATCHER.md) and the skills with
+# replaces the seat prompts (SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md, WATCHER.md) and the skills with
 # the kit's current versions and moves skill files the kit no longer ships out of the way,
 # keeping each copy under .seatworks/records/drafts/refresh-STAMP/.
 # NOTEBOOK.md and WORKSPACE_PROTOCOL.md hold the project's own content and are never replaced.
@@ -71,6 +73,7 @@ set -l sup_key claude-supervisor-$slug
 set -l lead_key claude-lead-$slug
 set -l peer_key pi-peer-$slug
 set -l watch_key claude-watcher-$slug
+set -l review_key pi-reviewer-$slug
 set -l added
 
 # ── 1. Templates ────────────────────────────────────────────────────────────────────
@@ -81,13 +84,13 @@ set -l stage (mktemp -d)
 cp -R $kit/project/. $stage/
 awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/WORKSPACE_PROTOCOL.md
 for file in $stage/LEAD.md $stage/WORKSPACE_PROTOCOL.md (find $stage/skills/lead -type f)
-    perl -pi -e "s/\bpi-peer\b(?![-\w])/$peer_key/g" $file
+    perl -pi -e "s/\bpi-peer\b(?![-\w])/$peer_key/g; s/\bpi-reviewer\b(?![-\w])/$review_key/g" $file
 end
 test -n "$model"; and perl -pi -e "s|PEER_MODEL|$model|g" $stage/WORKSPACE_PROTOCOL.md
 # The Supervisor's files name the seats as PROVIDER-SLUG; other SLUG placeholders in them
 # (a directive's file name, for example) stay for the Supervisor to fill in.
 for file in $stage/SUPERVISOR.md (find $stage/skills/supervisor -type f -name '*.md')
-    perl -pi -e "s/\b(claude-supervisor|claude-lead|claude-watcher|pi-peer)-SLUG\b/\$1-$slug/g" $file
+    perl -pi -e "s/\b(claude-supervisor|claude-lead|claude-watcher|pi-peer|pi-reviewer)-SLUG\b/\$1-$slug/g" $file
 end
 
 set -l refreshed
@@ -98,7 +101,7 @@ for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
         # Only --refresh touches an existing file, and only a kit-owned one: the seat prompts
         # and the skills. The notebook and the protocol hold the project's own content.
         test $refresh -eq 1; or continue
-        string match -qr '^(SUPERVISOR|LEAD|PEER|WATCHER)\.md$|^skills/' -- $rel; or continue
+        string match -qr '^(SUPERVISOR|LEAD|PEER|REVIEWER|WATCHER)\.md$|^skills/' -- $rel; or continue
         cmp -s $src $seat/$rel; and continue
         mkdir -p (path dirname $drafts/$rel)
         cp $seat/$rel $drafts/$rel
@@ -150,7 +153,7 @@ end
 # `extends`.
 
 set -l missing 0
-for key in $sup_key $lead_key $watch_key $peer_key
+for key in $sup_key $lead_key $watch_key $peer_key $review_key
     jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1; or set missing 1
 end
 if test $missing -eq 1
@@ -167,12 +170,13 @@ if test $missing -eq 1
             | claude_seat | .env.SEATWORKS_KIT = $kit)
         | .agents.providers["claude-lead-\($s)"] //= ($e["claude-lead-SLUG"] | claude_seat)
         | .agents.providers["claude-watcher-\($s)"] //= ($e["claude-watcher-SLUG"] | claude_seat)
-        | .agents.providers["pi-peer-\($s)"] //= ($e["pi-peer-SLUG"] | .env.SEATWORKS_REPO = $r)' \
+        | .agents.providers["pi-peer-\($s)"] //= ($e["pi-peer-SLUG"] | .env.SEATWORKS_REPO = $r)
+        | .agents.providers["pi-reviewer-\($s)"] //= ($e["pi-reviewer-SLUG"] | .env.SEATWORKS_REPO = $r)' \
             $paseo_config >$paseo_config.new
         and jq -e . $paseo_config.new >/dev/null
         chmod 600 $paseo_config.new
         mv $paseo_config.new $paseo_config
-        echo "  ~ added the missing providers among $sup_key, $lead_key, $watch_key, $peer_key (backup: $paseo_config.bak)"
+        echo "  ~ added the missing providers among $sup_key, $lead_key, $watch_key, $peer_key, $review_key (backup: $paseo_config.bak)"
     else
         rm -f $paseo_config.new
         echo "! could not add the providers to $paseo_config"
@@ -199,7 +203,10 @@ set -l new_profiles (jq -nc --arg s $slug --arg m "$model" '
          model: "claude-haiku-4-5", modeId: "bypassPermissions",
          notes: "The Supervisor starts one with each Lead: it sweeps Lead and Peer activity on a heartbeat and sends the Supervisor ATTENTION events. Haiku has no thinking levels: pass no thinkingOptionId."},
         ({id: "\($s)-peer", name: "\($n) · Peer", provider: "pi-peer-\($s)", thinkingOptionId: "medium",
-          notes: "The only Peer profile. Every disposition (Engineer, Architect, Reviewer, Scout) uses it; the brief sets the role. Use thinkingOptionId high for an Architect, a Reviewer, or a new boundary, low for a Scout. Pi has no modes: pass no modeId."}
+          notes: "The only Peer profile for work: the Engineer, Architect, and Scout dispositions all use it, and the brief sets the role. Use thinkingOptionId high for an Architect or a new boundary, low for a Scout. Pi has no modes: pass no modeId."}
+         + (if $m == "" then {} else {model: $m} end)),
+        ({id: "\($s)-reviewer", name: "\($n) · Reviewer", provider: "pi-reviewer-\($s)", thinkingOptionId: "high",
+          notes: "Every review of a change (a SHA or range): sealed review axes, sweep scouts, re-reviews, and council Verifiers and Auditors. Read-only, and runs Open Code Review before reading the change against the brief. Pi has no modes: pass no modeId."}
          + (if $m == "" then {} else {model: $m} end))
       ]')
 set -l missing_profiles (jq -c --argjson p "$new_profiles" '
@@ -244,7 +251,9 @@ if test (count $refreshed) -gt 0
 else if test $refresh -eq 1
     echo "Nothing to refresh: the seat prompts and skills already match the kit."
 end
-echo "Seats: $sup_key (Supervisor), $lead_key (Lead), $peer_key (Peer), $watch_key (watcher)."
+echo "Seats: $sup_key (Supervisor), $lead_key (Lead), $peer_key (Peer), $review_key (Reviewer), $watch_key (watcher)."
+command -q ocr
+or echo "! the Reviewer runs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review"
 echo "Next: start $sup_key in this repository and ask it to run its workspace-protocol skill,"
 echo "which fills in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md."
 if test -z "$model"

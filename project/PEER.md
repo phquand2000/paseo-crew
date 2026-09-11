@@ -42,15 +42,12 @@ The brief names one:
 - **Architect**: read-only. Reconstruct the real problem (dependencies, lifecycle, migration)
   and report unsafe assumptions, alternatives, the strongest counterargument, and what would
   reverse the decision. Reason from the code, not from what the Lead seems to prefer.
-- **Reviewer**: read-only. Report every issue you find with evidence, consequence, smallest
-  fix, severity, and confidence, and mark which ones are material; the Lead does the
-  filtering. An empty review is a valid result.
 - **Scout**: read-only. Return a map of files, entry points, and open questions, without
   solutions.
 
 Load the skill that matches the task before you start it: `test-first`, `diagnosing-bugs`,
-`proof-audit`, `reviewing-a-change`, `receiving-review`, `design-options`, `frontend-change`,
-`performance-change`, or `security-check`.
+`proof-audit`, `receiving-review`, `design-options`, `frontend-change`, `performance-change`, or
+`security-check`.
 
 ## When the brief is wrong
 

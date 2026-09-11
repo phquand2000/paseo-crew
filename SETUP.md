@@ -16,8 +16,8 @@ The setup keeps two kinds of file apart:
   Lead's, and the Peer's prompts and skills, the workspace protocol, the notebook, and the
   Supervisor's records. The profiles link to these files.
 
-Each project gets four seats: `claude-supervisor-SLUG`, `claude-lead-SLUG`,
-`claude-watcher-SLUG`, and `pi-peer-SLUG`.
+Each project gets five seats: `claude-supervisor-SLUG`, `claude-lead-SLUG`,
+`claude-watcher-SLUG`, `pi-peer-SLUG`, and `pi-reviewer-SLUG`.
 
 Before you start, make sure the machine has the following:
 
@@ -25,6 +25,8 @@ Before you start, make sure the machine has the following:
 - jq
 - the `claude` CLI
 - Pi 0.84.4 or later, logged in to at least one model provider
+- the `ocr` CLI ([Open Code Review](https://github.com/alibaba/open-code-review)), which the
+  Reviewer runs: `npm install -g @alibaba-group/open-code-review`
 - a running Paseo daemon
 
 The setup has six steps. Steps 1–3 set up the machine once; steps 4 and 5 run once for each
@@ -62,7 +64,7 @@ project.
 1. Check the tools:
 
    ```fish
-   fish --version; jq --version; claude --version; pi --version; paseo ls
+   fish --version; jq --version; claude --version; pi --version; ocr --version; paseo ls
    ```
 
 2. Check the Pi login and Paseo's tool injection:
@@ -72,7 +74,7 @@ project.
    jq '.daemon.mcp' ~/.paseo/config.json
    ```
 
-**Done:** fish reports 3.5 or later, Pi reports 0.84.4 or later, jq and claude each print a
+**Done:** fish reports 3.5 or later, Pi reports 0.84.4 or later, jq, claude, and ocr each print a
 version, `paseo ls` exits without an error, the Pi login exists, and `.daemon.mcp` shows
 `"enabled": true` and `"injectIntoAgents": true`.
 
@@ -124,8 +126,8 @@ already exists:
 - copies the kit's templates from `project/` into `REPO_DIR/.seatworks/`, naming the project's
   seats in them;
 - adds `AGENTS.md` and a one-line `CLAUDE.md` (`@AGENTS.md`) at the repository root if missing;
-- adds the providers `claude-supervisor-SLUG`, `claude-lead-SLUG`, `claude-watcher-SLUG`, and
-  `pi-peer-SLUG` to the Paseo config, after a backup;
+- adds the providers `claude-supervisor-SLUG`, `claude-lead-SLUG`, `claude-watcher-SLUG`,
+  `pi-peer-SLUG`, and `pi-reviewer-SLUG` to the Paseo config, after a backup;
 - adds one Paseo agent profile per seat, a single one for the Peer; Paseo's app offers them to
   you, and the seats read them through `list_profiles`;
 - registers the repository as a Paseo project, builds the profiles, and reloads Paseo.
@@ -142,7 +144,7 @@ It adds files only; leave the repository's code alone.
    ```
 
 **Done:** the script exits 0 and prints `✓` lines for `claude-supervisor-SLUG`,
-`claude-lead-SLUG`, `claude-watcher-SLUG`, and `pi-peer-SLUG`, and these commands show the project, the import line,
+`claude-lead-SLUG`, `claude-watcher-SLUG`, `pi-peer-SLUG`, and `pi-reviewer-SLUG`, and these commands show the project, the import line,
 and a spawn recipe with a real model:
 
 ```fish
@@ -155,11 +157,16 @@ If a repository already had an `AGENTS.md`, the script leaves it alone: add the 
 `examples/AGENTS_MD_SNIPPET.md` to it by hand. If it had a `CLAUDE.md` with rules, move those
 rules into `AGENTS.md` and replace `CLAUDE.md` with the line `@AGENTS.md`.
 
+The Reviewer runs Open Code Review in delegation mode, reviewing with its own Pi model, until
+you give OCR a model of its own: run `ocr config provider` (it asks for an API key, which is
+yours to enter) and check it with `ocr llm test`. A different model family there gives reviews
+different blind spots, and it sends the code under review to that provider.
+
 To roll back, restore `~/.paseo/config.json.bak`, run `paseo project delete PROJECT_ID` with the
 ID `paseo project ls` shows for `REPO_DIR` (a path isn't accepted), and move the four profiles
 (`~/.claude/profiles/claude-supervisor-SLUG`, `~/.claude/profiles/claude-lead-SLUG`,
-`~/.claude/profiles/claude-watcher-SLUG`, `~/.pi/profiles/pi-peer-SLUG`) and the files the
-script listed as added to the Trash.
+`~/.claude/profiles/claude-watcher-SLUG`, `~/.pi/profiles/pi-peer-SLUG`,
+`~/.pi/profiles/pi-reviewer-SLUG`) and the files the script listed as added to the Trash.
 
 ## Verify that each seat reads its own prompt
 
@@ -184,6 +191,9 @@ For `pi-peer-SLUG`:
 3. Ask it to run `git -C /tmp push --dry-run` and report exactly what happened.
 4. Archive the agent.
 
+For `pi-reviewer-SLUG`, repeat those steps with the heading that begins with `# Reviewer`, and in
+step 3 ask it instead to create `probe.txt` in `REPO_DIR` with its write tool.
+
 **Done:** each agent answers as the table shows.
 
 | Provider | Expected answer |
@@ -192,6 +202,7 @@ For `pi-peer-SLUG`:
 | `claude-lead-SLUG` | First line `# Lead — Project Lead & binding technical arbiter` |
 | `claude-watcher-SLUG` | First line `# Watcher — attention sweeps for the Supervisor` |
 | `pi-peer-SLUG` | Heading `# Peer — independent co-worker`; no mention of Paseo; the push is blocked with "Pushing is not available in this workspace." |
+| `pi-reviewer-SLUG` | Heading `# Reviewer — independent code review`; no mention of Paseo; the write is blocked with "Editing files is not available in a review." |
 
 If a Claude seat returns the user's own `CLAUDE.md`, or the Peer can't name its heading, that
 provider's profile variable isn't applied: check its `env` in `~/.paseo/config.json` and rerun

@@ -40,11 +40,14 @@ review lane count. Done when you have named the lane and the reason.
 
    With two Reviewers, use spec conformance and structural. If the protocol adds a lane on a
    different model, give it the same brief; it adds a different set of blind spots, not a vote.
-   Done when each Reviewer has one axis.
+   Give the Open Code Review pass (`Machine pass: run`) to the standards Reviewer, or to the
+   structural one when there are two, and `skip` to the others: one run per round is enough.
+   Done when each Reviewer has one axis and exactly one runs the machine pass.
 
-3. **Brief and launch.** Use the axis Reviewer brief in `references/briefs.md` (relative to this
-   skill's directory): disposition Reviewer, thinking `high`, the slice brief and handoff as
-   files, and the global constraints word for word. Seal each Reviewer: no other Reviewer's
+3. **Brief and launch.** Create each Reviewer from the project's Reviewer profile
+   (`list_profiles`), which is read-only and runs Open Code Review, with the axis Reviewer brief
+   in `references/briefs.md` (relative to this skill's directory): disposition Reviewer, thinking
+   `high`, the slice brief and handoff as files, and the global constraints word for word. Seal each Reviewer: no other Reviewer's
    findings, none of your opinions, and no instruction to leave a particular issue unflagged.
    Create each with `create_agent`, labeled `review.name`, `review.round`, and `review.axis`, and
    wait for the notifications. Done when every Reviewer has reported.
@@ -76,11 +79,12 @@ review lane count. Done when you have named the lane and the reason.
    cases, or disconfirming angles, never copies of one prompt. Name them `scout-01` onwards.
    Done when the allocation table shows at least two scouts per concern.
 
-3. **Brief and launch the scouts.** Use the scout brief in `references/briefs.md`. Give scouts
-   the Reviewer disposition, because the Scout disposition returns a map without findings and a
-   sweep needs findings with evidence. Use the Peer model from the spawn recipe at `medium`
-   thinking. Scouts inspect statically and run no tests, builds, or package managers, because
-   they share your checkout and the test lane. Create each with `create_agent`, labeled
+3. **Brief and launch the scouts.** Use the scout brief in `references/briefs.md`. Create scouts
+   from the Reviewer profile with the Reviewer disposition, because the Scout disposition returns
+   a map without findings and a sweep needs findings with evidence; set `medium` thinking.
+   Scouts run no tests, builds, or package managers, because they share your checkout and the
+   test lane, and they skip the Open Code Review pass: add one more Reviewer with the axis
+   Reviewer brief and the `machine pass` axis to run it once over the whole scope. Create each with `create_agent`, labeled
    `review.name`, `review.round`, `review.scout`, and `review.concerns`, and wait for the
    notifications. Done when N agent IDs have come back.
 

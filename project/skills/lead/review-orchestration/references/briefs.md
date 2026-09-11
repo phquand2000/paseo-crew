@@ -13,6 +13,7 @@ Repository root     REPO_ROOT
 Disposition         Reviewer
 Objective           Answer this question about SHA_OR_RANGE: QUESTION
 Axis                AXIS_TEXT
+Machine pass        MACHINE_PASS
 Starting points     the slice brief at BRIEF_PATH, the handoff at HANDOFF_PATH,
                     `git diff BASE_SHA HEAD_SHA`, AGENTS.md
 Global constraints  GLOBAL_CONSTRAINTS
@@ -39,6 +40,9 @@ Replace the following:
     fail if the behavior it claims to prove disappeared?
   - structural: are boundaries, ownership, coupling, lifecycle, and failure handling sound, and
     does it weaken an interface, data model, or stateful system later work depends on?
+  - machine pass, for a sweep: run Open Code Review over the whole scope and report its
+    confirmed findings; skip the other axes.
+- `MACHINE_PASS`: `run` for exactly one Reviewer per round, `skip` for the others.
 - `BRIEF_PATH`, `HANDOFF_PATH`: files holding the slice's brief and the Peer's handoff.
 - `GLOBAL_CONSTRAINTS`: the same constraints as the slice's brief, copied word for word.
 
@@ -56,6 +60,7 @@ Prior-round notes   PRIOR_ROUND_NOTES
 Method              Read-only static inspection. Read the whole relevant production surface,
                     not only the diff: callers, callees, lifecycle, data flow. Run no tests,
                     builds, package managers, or generators; other agents share this checkout.
+Machine pass        skip; it runs separately for this sweep
 Report              Every candidate, including speculative, low-confidence, and incidental ones
                     inside the scope, each with: severity (P0 to P3) and confidence; file:line;
                     evidence observed; the contract or expected behavior it violates; the
@@ -88,6 +93,7 @@ Disposition         Reviewer
 Objective           For each finding below, say ADDRESSED or NOT ADDRESSED at HEAD_SHA, with
                     file:line evidence. Then report any new breakage inside the fix diff only.
 Findings            FINDINGS
+Machine pass        run, over FIX_BASE..HEAD_SHA only
 Starting points     `git diff FIX_BASE HEAD_SHA`, the fix handoff at HANDOFF_PATH
 Handoff             The six fields; leave Snapshot empty, since you write nothing.
 ```

@@ -2,8 +2,8 @@
 #
 # setup-seats: build or refresh every seat's profile.
 #
-# Each project has four seats: claude-supervisor-SLUG, claude-lead-SLUG, and claude-watcher-SLUG
-# (Claude Code), and pi-peer-SLUG (Pi). Profiles, settings, deny lists, and models are global; every .md a seat
+# Each project has five seats: claude-supervisor-SLUG, claude-lead-SLUG, and claude-watcher-SLUG
+# (Claude Code), and pi-peer-SLUG and pi-reviewer-SLUG (Pi). Profiles, settings, deny lists, and models are global; every .md a seat
 # loads lives in that project's .seatworks/ directory, and the profile links to it, so an edit
 # reaches the next seat spawned without copying. Projects are the providers named
 # claude-lead-SLUG in ~/.paseo/config.json, whose env.SEATWORKS_REPO names the repository;
@@ -44,6 +44,9 @@ set -g supervisor_extra_skills paseo
 set -g lead_extra_skills       paseo    # add others, for example: domain-modeling
 set -g watcher_extra_skills    paseo
 set -g peer_extra_skills
+# The Reviewer shares the Peer's proof-audit skill; `peer:NAME` names a skill in the project's
+# skills/peer directory rather than duplicating it.
+set -g reviewer_extra_skills   peer:proof-audit
 
 # Claude tools blocked at the provider level, which is where blocking happens for Claude
 # seats; a seat's `permissions.deny` only looks safe, so the base settings leave it out.
@@ -156,6 +159,15 @@ function seat_skill_entries --argument-names label skills_dir
         test -f $skill/SKILL.md; and echo (path basename $skill)=$skill
     end
     for name in $argv[3..-1]
+        if string match -q 'peer:*' -- $name
+            set -l shared (path resolve $skills_dir/../peer/(string replace 'peer:' '' -- $name))
+            if test -f $shared/SKILL.md
+                echo (path basename $shared)=$shared
+            else
+                fail "$label: shared skill '$name' is not in "(path dirname $shared) >&2
+            end
+            continue
+        end
         set -l hit (string match -- "$name=*" $all_skills)
         if test -n "$hit"
             echo $hit[1]
@@ -385,6 +397,19 @@ function peer_provider --argument-names key dir
     end
 end
 
+# The Reviewer is read-only because its provider sets SEATWORKS_READ_ONLY, which switches the
+# guard extension into blocking file edits and repository changes.
+function reviewer_read_only --argument-names key
+    jq -e --arg k $key '.agents.providers[$k].env.SEATWORKS_READ_ONLY == "1"' $paseo_config >/dev/null 2>&1
+    and return
+    if test $dry -eq 1
+        fail "provider $key lacks env.SEATWORKS_READ_ONLY=1, so the Reviewer could edit files (rerun without --check)"
+    else
+        paseo_write $paseo_config "provider $key: env.SEATWORKS_READ_ONLY set" \
+            '.agents.providers[$k].env.SEATWORKS_READ_ONLY = "1"' --arg k $key
+    end
+end
+
 # ── Preconditions ────────────────────────────────────────────────────────────────────
 
 # `path resolve` doesn't require the path to exist, so a copied script would still derive
@@ -536,8 +561,17 @@ for entry in $projects
     build_peer_seat pi-peer-$slug $pi_profiles_root/pi-peer-$slug $seat/PEER.md \
         $seat/skills/peer $peer_extra_skills
     peer_provider pi-peer-$slug $pi_profiles_root/pi-peer-$slug
-    # A project added before the watcher seat existed lacks its provider until add-project runs
-    # again. The watcher has no skills directory of its own, only the `paseo` reference.
+    # Projects added before the Reviewer or watcher seat existed lack its provider until
+    # add-project runs again.
+    if jq -e --arg k pi-reviewer-$slug '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
+        build_peer_seat pi-reviewer-$slug $pi_profiles_root/pi-reviewer-$slug $seat/REVIEWER.md \
+            $seat/skills/reviewer $reviewer_extra_skills
+        peer_provider pi-reviewer-$slug $pi_profiles_root/pi-reviewer-$slug
+        reviewer_read_only pi-reviewer-$slug
+    else
+        echo "  · project $slug has no pi-reviewer-$slug yet; rerun setup/add-project.fish $repo_dir --refresh."
+    end
+    # The watcher has no skills directory of its own, only the `paseo` reference.
     if jq -e --arg k claude-watcher-$slug '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
         build_claude_seat claude-watcher-$slug $profiles_root/claude-watcher-$slug $seat/WATCHER.md \
             $kit/claude/watcher.settings.json $seat/skills/watcher $watcher_extra_skills

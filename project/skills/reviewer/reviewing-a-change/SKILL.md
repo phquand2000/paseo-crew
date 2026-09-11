@@ -1,6 +1,6 @@
 ---
 name: reviewing-a-change
-description: "Review one commit or range against its brief without changing anything: read the diff from git objects, check spec conformance and repository standards as separate axes, apply structural lenses, and report every finding with severity, confidence, file:line evidence, failure mode, smallest fix, and a disconfirming check. Use when a brief assigns the Reviewer disposition."
+description: "Review one commit or range against its brief, read-only: read the diff from git objects, check spec conformance and repository standards as separate axes, apply structural lenses, and report every finding with severity, confidence, file:line evidence, failure mode, smallest fix, and a disconfirming check. Use for every review of a change, after the ocr-review pass when one runs."
 ---
 
 # Reviewing a change

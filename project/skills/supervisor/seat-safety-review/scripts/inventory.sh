@@ -50,11 +50,11 @@ else
 fi
 
 peers=0
-for peer_dir in "$pi_profiles"/pi-peer-*/; do
+for peer_dir in "$pi_profiles"/pi-peer-*/ "$pi_profiles"/pi-reviewer-*/; do
     [ -d "$peer_dir" ] || continue
     peers=1
     peer_dir="${peer_dir%/}"
-    section "Peer profile ($peer_dir)"
+    section "Pi seat profile ($peer_dir)"
     if [ -f "$peer_dir/settings.json" ]; then
         jq -r '"packages: \((.packages // []) | map(if type == "string" then . else (.source // .name // "object") end) | join(", "))"' "$peer_dir/settings.json"
     else

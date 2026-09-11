@@ -14,8 +14,8 @@ Read `~/.paseo/orchestration-preferences.json` once per council, if it exists, a
     "reasoning":           { "provider": "pi-peer", "model": "PEER_MODEL",         "thinking": "high" },
     "challengerReasoning": { "provider": "pi-peer", "model": "OTHER_FAMILY_MODEL", "thinking": "high" },
     "highRiskReasoning":   { "provider": "pi-peer", "model": "STRONGEST_MODEL",    "thinking": "xhigh" },
-    "verifier":            { "provider": "pi-peer", "model": "PEER_MODEL",         "thinking": "low" },
-    "auditor":             { "provider": "pi-peer", "model": "PEER_MODEL",         "thinking": "medium" }
+    "verifier":            { "provider": "pi-reviewer", "model": "PEER_MODEL",     "thinking": "low" },
+    "auditor":             { "provider": "pi-reviewer", "model": "PEER_MODEL",     "thinking": "medium" }
   }
 }
 ```
@@ -31,9 +31,9 @@ Map an entry to `create_agent` like this:
 - `mode` becomes `settings.modeId`, and only for a provider that isn't Pi: Pi has no modes, and
   `create_agent` fails when a Pi agent is given one.
 
-Route seats to `pi-peer`, or to a provider that was set up for read-only seats. A provider
-other than `pi-peer` doesn't load the Peer prompt, so the seat relies entirely on the council's
-preamble and epilogue for its boundaries. Never route a seat to your own Lead provider: its
+Route reasoning seats to `pi-peer`, and Verifiers and Auditors to `pi-reviewer`, which is
+read-only by guard and loads the Reviewer prompt. Any other provider loads neither prompt, so a
+seat there relies entirely on the council's preamble and epilogue for its boundaries. Never route a seat to your own Lead provider: its
 profile loads the Lead prompt and would turn the seat into a second Lead.
 
 ## Functions and fallbacks
@@ -44,10 +44,10 @@ profile loads the Lead prompt and would turn the seat into a second Lead.
 | Challenger | `challengerReasoning` | `reasoning` | `pi-peer/PEER_MODEL`, `high` | a different strong model family from the Independent |
 | High-risk Independent | `highRiskReasoning` | `reasoning` | `pi-peer/PEER_MODEL`, `xhigh` if offered, else `high` | the strongest configured seat |
 | Specialist | `specialist` | `reasoning` | `pi-peer/PEER_MODEL`, `high` | only when domain semantics matter |
-| Verifier | `verifier` | none | `pi-peer/PEER_MODEL`, `low` | cheap, bounded coverage |
-| Deep verifier | `deepVerifier` | `reasoning` | `pi-peer/PEER_MODEL`, `high` | when reading the source takes judgment |
-| Auditor | `auditor` | `verifier` | `pi-peer/PEER_MODEL`, `medium` | bounded audit of the draft verdict |
-| Deep auditor | `deepAuditor` | `deepVerifier`, then `reasoning` | `pi-peer/PEER_MODEL`, `high` | semantic or high-risk audit |
+| Verifier | `verifier` | none | `pi-reviewer/PEER_MODEL`, `low` | cheap, bounded coverage |
+| Deep verifier | `deepVerifier` | `reasoning` | `pi-reviewer/PEER_MODEL`, `high` | when reading the source takes judgment |
+| Auditor | `auditor` | `verifier` | `pi-reviewer/PEER_MODEL`, `medium` | bounded audit of the draft verdict |
+| Deep auditor | `deepAuditor` | `deepVerifier`, then `reasoning` | `pi-reviewer/PEER_MODEL`, `high` | semantic or high-risk audit |
 
 Without the file, every seat uses the Peer model from the spawn recipe in the repository's
 `.seatworks/WORKSPACE_PROTOCOL.md`; without a protocol, use the model `list_models` offers for `pi-peer`

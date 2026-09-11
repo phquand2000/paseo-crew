@@ -46,7 +46,9 @@ to the repository root.
 ## Answer an event
 
 Read the excerpt the event quotes; pull more activity with `get_agent_activity` only when the
-excerpt isn't enough to decide. Then decide once, with the smallest step that works:
+excerpt isn't enough to decide. Then decide once, with the smallest step that works, and record
+it as one log line in the watcher's format, `HH:MM  supervisor  -> ACTION`, with the time from
+`date +%H:%M`, so the away report reads as one timeline:
 
 1. **Log only.** Most events end here: the agent is already correcting itself, or the matter is
    reversible and inside its authority. **Done** when the log line ends in `-> logged`.

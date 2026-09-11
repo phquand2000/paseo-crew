@@ -18,12 +18,18 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 | `test-first` | superpowers `test-driven-development`; mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
 | `diagnosing-bugs` | mattpocock `diagnosing-bugs`; superpowers `systematic-debugging` and its root-cause tracing |
 | `proof-audit` | SLP material (`test-proof-debt-audit` and its catalog); superpowers `verification-before-completion` |
-| `reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns) |
 | `receiving-review` | superpowers `receiving-code-review` |
 | `design-options` | mattpocock `codebase-design` (deep modules, designing it twice); SLP material (`architecture-premise-audit` slices, structural anti-patterns) |
 | `frontend-change` | SLP material (`frontend-design`); anthropics/skills `webapp-testing` |
 | `performance-change` | addyosmani `performance-optimization`; SLP material (avoidable taxes) |
 | `security-check` | addyosmani `security-and-hardening`; trailofbits `sharp-edges` (ideas only) |
+
+## Reviewer skills (`project/skills/reviewer/`)
+
+| Skill | Draws on |
+|---|---|
+| `ocr-review` | alibaba/open-code-review (its `open-code-review` and `open-code-review-delegate` skills, delegation mode docs, and CLI reference) |
+| `reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns) |
 
 ## Lead skills (`project/skills/lead/`)
 
@@ -60,6 +66,7 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 
 | Source | Where | License |
 |---|---|---|
+| alibaba/open-code-review | https://github.com/alibaba/open-code-review | Apache-2.0, © 2026 Alibaba; workflow adapted, no text copied |
 | obra/superpowers (Jesse Vincent) | https://github.com/obra/superpowers | MIT, © 2025 Jesse Vincent |
 | mattpocock/skills (Matt Pocock) | https://github.com/mattpocock/skills | MIT, © 2026 Matt Pocock |
 | addyosmani/agent-skills (Addy Osmani) | https://github.com/addyosmani/agent-skills | MIT, © 2025 Addy Osmani |

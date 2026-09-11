@@ -31,6 +31,8 @@ from the Supervisor may replace the Lead IDs. Take every `HH:MM` and date from `
 2. For each agent in scope that ran since your last sweep, call `get_agent_activity` with
    `limit: 40`, and read only the entries you haven't seen.
 3. Match the triggers below on meaning, not only on the words, and quote the entry that matched.
+   `get_agent_activity` shortens long entries, so before reporting that something is missing
+   (an acceptance gap), read the full message with `paseo logs AGENT_ID --tail 20`.
 4. Append one log line per match, and nothing when nothing matched:
    `HH:MM  AGENT_ID (ROLE)  TRIGGER  "QUOTE"  -> sent | held | logged`
 5. Report at most one event per sweep: a `report` or `urgent` match, or a `log` trigger that

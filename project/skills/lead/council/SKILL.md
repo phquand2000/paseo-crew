@@ -183,9 +183,9 @@ nothing.
 
 Round 1 stays sealed: no seat sees your opinion, another seat's report, a desired conclusion,
 another agent's ID, or a transcript, and you read no report until every required seat has
-finished. This isolation is soft and audited. `pi-peer` seats have no Paseo tools, but nothing
-technically stops a seat from writing files, so never describe a forbidden action as
-impossible.
+finished. This isolation is soft and audited. Seats have no Paseo tools. Round 1 seats run on
+`pi-peer`, where nothing technically stops a seat from writing files, so never describe a
+forbidden action to them as impossible.
 
 Before you read any report, write down your own current position on the decision question in two
 or three sentences with its main reason: in the ExecPlan's Decision log, or in

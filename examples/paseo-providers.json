@@ -109,5 +109,18 @@
       "PI_TELEMETRY": "0"
     },
     "paseoTools": { "enabled": false }
+  },
+
+  "pi-reviewer-SLUG": {
+    "extends": "pi",
+    "label": "Pi Reviewer · SLUG",
+    "description": "Reviewer seat for SLUG: read-only code review with Open Code Review",
+    "env": {
+      "PI_CODING_AGENT_DIR": "HOME_DIR/.pi/profiles/pi-reviewer-SLUG",
+      "PI_SKIP_VERSION_CHECK": "1",
+      "PI_TELEMETRY": "0",
+      "SEATWORKS_READ_ONLY": "1"
+    },
+    "paseoTools": { "enabled": false }
   }
 }

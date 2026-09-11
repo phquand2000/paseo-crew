@@ -18,7 +18,7 @@ many users a few hundred. Without this file, the Lead runs on the defaults in
 reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
 `setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
-repository. On the way it renames `pi-peer` to the project's provider, `pi-peer-SLUG`, and with
+repository. On the way it renames `pi-peer` and `pi-reviewer` to the project's providers, `pi-peer-SLUG` and `pi-reviewer-SLUG`, and with
 `--model` it fills in `PEER_MODEL`. To fill in the rest, ask the Supervisor to run its
 `workspace-protocol` skill, which interviews you.
 
@@ -45,14 +45,14 @@ Level: STRICTNESS_LEVEL
 
 ## Spawn recipes
 
-Every Peer runs on `provider: "pi-peer/PEER_MODEL"`. Pass `settings.thinkingOptionId` and no
-`settings.modeId`.
+Peers run on `provider: "pi-peer/PEER_MODEL"` and Reviewers on
+`provider: "pi-reviewer/PEER_MODEL"`. Pass `settings.thinkingOptionId` and no `settings.modeId`.
 
 | Disposition | `thinkingOptionId` | Notes |
 |---|---|---|
 | Engineer | `medium` | `high` when touching a new boundary |
 | Architect | `high` | read-only |
-| Reviewer | `high` | sealed |
+| Reviewer | `high` | the Reviewer profile: read-only, runs Open Code Review; sealed |
 | Scout | `low` | read-only |
 
 ## Review lanes

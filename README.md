@@ -1,6 +1,6 @@
 # Seatworks starter
 
-Seatworks gives each project four agent seats, each with its own prompt and settings,
+Seatworks gives each project five agent seats, each with its own prompt and settings,
 coordinated through [Paseo](https://getpaseo.com):
 
 - `claude-supervisor-SLUG` ([Claude Code](https://code.claude.com)) meets with you, relays
@@ -9,6 +9,9 @@ coordinated through [Paseo](https://getpaseo.com):
 - `claude-lead-SLUG` (Claude Code) breaks work down, delegates it to Peers, and accepts their
   results.
 - `pi-peer-SLUG` ([Pi](https://pi.dev)) writes code and returns evidence.
+- `pi-reviewer-SLUG` (Pi) reviews changes read-only: it runs
+  [Open Code Review](https://github.com/alibaba/open-code-review) as a first pass and confirms
+  every finding in the code before reporting it.
 - `claude-watcher-SLUG` (Claude Code on Haiku) reads the Lead's and Peers' activity on a
   heartbeat and raises attention events for the Supervisor.
 
@@ -36,12 +39,12 @@ for the next Lead you spawn there.
 
 ```
 ~/.paseo/config.json               claude-supervisor-SLUG, claude-lead-SLUG,
-                                   claude-watcher-SLUG, pi-peer-SLUG
+                                   claude-watcher-SLUG, pi-peer-SLUG, pi-reviewer-SLUG
 ~/.claude/profiles/<seat>/         settings and deny lists; CLAUDE.md and skills/ are links
-~/.pi/profiles/pi-peer-SLUG/       guard and login links; APPEND_SYSTEM.md and skills/ are links
-REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, WATCHER.md,
+~/.pi/profiles/<seat>/             guard and login links; APPEND_SYSTEM.md and skills/ are links
+REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md, WATCHER.md,
                                    WORKSPACE_PROTOCOL.md, NOTEBOOK.md, records/,
-                                   skills/{supervisor,lead,peer}/
+                                   skills/{supervisor,lead,peer,reviewer}/
 ```
 
 `setup/add-project.fish` copies the kit's `project/` templates into a repository and creates its
@@ -49,8 +52,8 @@ providers; after that, the project's copies are its own.
 
 Each role has its own skill set: strategy skills for the Supervisor (interviews, pre-mortems,
 retrospectives, protocol patches), macro skills for the Lead (intake, decomposition, council,
-review orchestration, rollout), and micro skills for the Peer (test-first work, debugging,
-proof audits, reviews). The Supervisor alone keeps Claude Code's auto memory, as the project's
+review orchestration, rollout), micro skills for the Peer (test-first work, debugging, proof
+audits), and review skills for the Reviewer (Open Code Review, change review). The Supervisor alone keeps Claude Code's auto memory, as the project's
 organizational memory.
 
 Authority is split by concern rather than stacked in one chain. You hold intent and priorities.
@@ -125,12 +128,13 @@ notebook, and a miss becomes a rule only when it recurs.
 | [project/SUPERVISOR.md](project/SUPERVISOR.md) | Supervisor prompt (demo) |
 | [project/LEAD.md](project/LEAD.md) | Lead prompt (demo) |
 | [project/PEER.md](project/PEER.md) | Peer prompt (demo), loaded by Pi as `APPEND_SYSTEM.md` |
+| [project/REVIEWER.md](project/REVIEWER.md) | Reviewer prompt (demo), loaded by Pi as `APPEND_SYSTEM.md` |
 | [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the Haiku watcher on every sweep |
-| [project/skills/](project/skills/) | Strategy skills for the Supervisor, macro skills for the Lead, micro skills for the Peer |
+| [project/skills/](project/skills/) | Strategy skills for the Supervisor, macro skills for the Lead, micro skills for the Peer, review skills for the Reviewer |
 | [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
-| [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Peer |
+| [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Pi seat, and file edits for the Reviewer |
 | [pi/settings.json](pi/settings.json) | Keys merged into each Peer's Pi settings |
-| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its four providers, and their profiles |
+| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its five providers, and their profiles |
 | [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, and `--check` only verifies |
 | [setup/seat-settings.base.json](setup/seat-settings.base.json) | Settings shared by the Claude seats |
 | [examples/paseo-providers.json](examples/paseo-providers.json) | The base `claude` provider, plus the per-project `SLUG` templates |
