@@ -84,7 +84,9 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** prompts are guidance. For Claude seats, blocking happens in the provider's
   `disallowedTools` and, for the Lead, in the `PreToolUse` hook `claude/lead-guard.sh`, which
   blocks writes to repository files outside `.seatworks/`, `docs/`, `AGENTS.md`, and
-  `CLAUDE.md`. A seat's `permissions.deny` isn't equivalent, so the role settings in `claude/`
+  `CLAUDE.md`; for the Supervisor and the Lead, `claude/profile-guard.sh` blocks a
+  `create_agent` whose model or mode differs from the provider's profile, and an
+  `update_agent` that changes a model or mode. A seat's `permissions.deny` isn't equivalent, so the role settings in `claude/`
   leave it out. Pi has no permission system and ignores `disallowedTools`, so the Peer's only
   enforcement point is the `tool_call` hook in `pi/extensions/peer-guard.ts`.
 - **Response:** put anything that must never happen in the deny lists, the Lead guard, or the

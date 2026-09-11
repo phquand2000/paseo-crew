@@ -25,5 +25,18 @@
   },
   "outputStyle": "Concise",
   "disableBundledSkills": true,
-  "askUserQuestionTimeout": "never"
+  "askUserQuestionTimeout": "never",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__paseo__create_agent|mcp__paseo__update_agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_CONFIG_DIR/profile-guard.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; echo \"Profile guard: profile-guard.sh is missing from this seat profile; run setup/setup-seats.fish.\" >&2; exit 2"
+          }
+        ]
+      }
+    ]
+  }
 }

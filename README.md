@@ -134,6 +134,7 @@ notebook, and a miss becomes a rule only when it recurs.
 | [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
 | [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Pi seat, and file edits for the Reviewer |
 | [claude/lead-guard.sh](claude/lead-guard.sh) | Lead hook that blocks writes to repository files other than coordination records, so Peers write all code |
+| [claude/profile-guard.sh](claude/profile-guard.sh) | Supervisor and Lead hook that blocks creating an agent with a model or mode other than its profile's, and changing a running agent's model or mode |
 | [pi/settings.json](pi/settings.json) | Keys merged into each Peer's Pi settings |
 | [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its five providers, and their profiles |
 | [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, and `--check` only verifies |

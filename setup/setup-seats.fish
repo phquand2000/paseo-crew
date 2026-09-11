@@ -312,7 +312,7 @@ function reviewer_read_only --argument-names key
 end
 
 for file in claude/lead.settings.json claude/supervisor.settings.json claude/watcher.settings.json \
-        claude/lead-guard.sh pi/settings.json pi/extensions/peer-guard.ts
+        claude/lead-guard.sh claude/profile-guard.sh pi/settings.json pi/extensions/peer-guard.ts
     if not test -f $kit/$file
         echo "! $kit/$file not found. Run the script from its original location in the kit."
         exit 1
@@ -381,6 +381,10 @@ for role in lead supervisor watcher
 end
 jq -e '[.hooks.PreToolUse[]?.hooks[]?.command] | any(test("lead-guard.sh"))' $kit/claude/lead.settings.json >/dev/null 2>&1
 or fail "claude/lead.settings.json has no PreToolUse hook running lead-guard.sh, so nothing stops a Lead from writing code."
+for role in lead supervisor
+    jq -e '[.hooks.PreToolUse[]?.hooks[]?.command] | any(test("profile-guard.sh"))' $kit/claude/$role.settings.json >/dev/null 2>&1
+    or fail "claude/$role.settings.json has no PreToolUse hook running profile-guard.sh, so nothing stops a $role from launching an agent on the wrong model."
+end
 
 set -l paseo_ok 0
 if not test -f $paseo_config
@@ -411,12 +415,14 @@ for entry in $projects
     set -l seat $repo_dir/.seatworks
     build_claude_seat claude-supervisor-$slug $profiles_root/claude-supervisor-$slug $seat/SUPERVISOR.md \
         $kit/claude/supervisor.settings.json $seat/skills/supervisor $supervisor_extra_skills
+    seat_link $profiles_root/claude-supervisor-$slug/profile-guard.sh $kit/claude/profile-guard.sh $dry
     claude_provider claude-supervisor-$slug $profiles_root/claude-supervisor-$slug $deny_supervisor
     test (jq -r --arg k claude-supervisor-$slug '.agents.providers[$k].env.SEATWORKS_KIT // ""' $paseo_config) = $kit
     or fail "provider claude-supervisor-$slug: env.SEATWORKS_KIT is not $kit; rerun setup/add-project.fish."
     build_claude_seat claude-lead-$slug $profiles_root/claude-lead-$slug $seat/LEAD.md \
         $kit/claude/lead.settings.json $seat/skills/lead $lead_extra_skills
     seat_link $profiles_root/claude-lead-$slug/lead-guard.sh $kit/claude/lead-guard.sh $dry
+    seat_link $profiles_root/claude-lead-$slug/profile-guard.sh $kit/claude/profile-guard.sh $dry
     claude_provider claude-lead-$slug $profiles_root/claude-lead-$slug $deny_lead
     build_peer_seat pi-peer-$slug $pi_profiles_root/pi-peer-$slug $seat/PEER.md \
         $seat/skills/peer $peer_extra_skills

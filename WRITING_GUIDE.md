@@ -1,7 +1,7 @@
 # Writing guide
 
 These rules apply to everything in this kit: the seat prompts in `project/`, the
-templates in `examples/`, the docs, and the comments in the guard extension; the setup and skill scripts carry no comments, so their reasons live in REFERENCE.md. The Supervisor follows them when it
+templates in `examples/`, and the docs; scripts, hooks, and the guard extension carry no comments, so their reasons live in REFERENCE.md. The Supervisor follows them when it
 patches a prompt. Each rule names its source in brackets; the sources are listed at the end.
 
 ## Seat prompts
@@ -31,8 +31,8 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
 12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
     models over-verify when told to. [O5]
 13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: use
-    `disallowedTools` and `claude/lead-guard.sh` for the Claude seats and
-    `pi/extensions/peer-guard.ts` for the Peer. [M]
+    `disallowedTools`, `claude/lead-guard.sh`, and `claude/profile-guard.sh` for the Claude
+    seats and `pi/extensions/peer-guard.ts` for the Peer. [M]
 14. Put maintainer notes for the Claude seat prompts in HTML comments. Claude Code strips them
     from `CLAUDE.md` before loading, so they cost the seat nothing. Pi doesn't strip them, so
     `.seatworks/PEER.md` contains no comments at all. [M]
