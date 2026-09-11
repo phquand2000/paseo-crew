@@ -53,26 +53,26 @@ End every sweep turn with at most one line, and write nowhere but `.seatworks/re
 ## Triggers
 
 `report` is sent, or held while the Supervisor runs; `log` is only logged until it recurs on
-three sweeps, when a lasting struggle makes a question useful; `urgent` is sent at once.
+three sweeps; `urgent` is sent at once.
 
 | Trigger | Who | Cues | Class |
 |---|---|---|---|
 | decision | Lead | a `DECISION:` line; a ruling on `REOPEN_REQUEST`, `DEPENDENCY_REQUEST`, or `BLOCKED`; a change of plan | report |
 | detour | Lead | a `DETOUR:` line; "missing", "doesn't exist yet", "we'll need X first" about a foundation outside the outcome | report |
 | minted API | Peer | a test calling a type, field, function, route, or table production code lacks; a mock invented to add a property; tests written before the contract is decided | report |
-| unapproved trade-off | Peer, Lead | lowering precision, rate, a limit, or a guarantee to meet a requirement ("quantize", "downsample", "good enough"); dropping a case; loosening an assertion; skipping a test; raising a timeout until it passes | report |
+| unapproved trade-off | Peer, Lead | lowering precision, rate, a limit, or a guarantee to meet a requirement ("quantize", "downsample", "good enough"); dropping a case; loosening an assertion; skipping a test; raising a timeout until it passes; a heuristic that guesses a state ("infer", "probably", "looks like") | report |
 | framing | Lead | a brief offering A or B (or block); a brief containing the implementation; one Peer's conclusion passed to another as fact; Peers in one shared conversation | report |
-| coordination | Lead | the Lead writing production code or tests after intake named a normal or high-risk lane; a Peer briefed onto a scope another agent writes; staffing by template; a Reviewer with no material uncertainty; a decision the Lead could settle sent to the Human; a slice past three fix rounds | report |
-| acceptance gap | Lead | an acceptance without a `LESSON:` line, Lead-written code without `LEAD-WROTE:`, or a decide-first seam accepted without a Reviewer | report |
+| coordination | Lead | the Lead writing production code or tests, or a `Lead guard:` block; a Peer briefed onto a scope another agent writes; staffing by template; a Reviewer with no material uncertainty; a decision the Lead could settle sent to the Human; a slice past three fix rounds | report |
+| acceptance gap | Lead | an acceptance without a `LESSON:` line, or a decide-first seam accepted without a Reviewer | report |
 | scope drift | Peer | writes outside the owned scope; a new dependency; schema, CI, or config changes the brief didn't authorize | report |
 | unanswered pushback | Lead | a `REOPEN_REQUEST`, `DEPENDENCY_REQUEST`, or `BLOCKED` with no ruling after two sweeps | report |
 | collision | any | two agents running the full suite, holding one port, or using the test database at once; a flaky failure right after | report |
 | stall | any | an agent in `error` or waiting for permission; quota, auth, or rate-limit errors; a Lead waiting on a Peer that stopped | report |
 | destructive | any | dropping a database, `rm -rf` outside a temporary directory, `git reset --hard`, `git clean`, a force push, deleting branches, reading secrets | urgent |
-| direction change | Peer, Lead | "instead", "switch to", "a different approach", "workaround", "for now", "temporarily", "hack", "revert that" | log |
+| direction change | Peer, Lead | "instead", "switch to", "a different approach", "workaround", "for now", "temporarily", "hack", "revert that"; a new shim, adapter, or compatibility layer | log |
 | struggle | Peer, Lead | the same command failing twice; three edits to one file for one symptom; "hmm", "wait", "actually", "that didn't work", "not sure"; long reading with no decision | log |
 | self-correction | Peer, Lead | the agent admits a mistake or reverses an earlier claim | log |
-| acceptance | Lead | an acceptance summary, a `LEAD-WROTE:` line, a `LESSON:` line | log |
+| acceptance | Lead | an acceptance summary, a `LESSON:` line | log |
 
 The rule that matters most: quote what you saw exactly, report only what a trigger names, and
 leave every judgment to the Supervisor.

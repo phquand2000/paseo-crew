@@ -29,21 +29,12 @@
     },
     "models": [
       {
-        "id": "claude-sonnet-5",
-        "label": "Sonnet 5",
-        "isDefault": true,
-        "thinkingOptions": [
-          { "id": "low", "label": "Low" },
-          { "id": "medium", "label": "Medium", "isDefault": true },
-          { "id": "high", "label": "High" }
-        ]
-      },
-      {
         "id": "claude-opus-5",
         "label": "Opus 5",
+        "isDefault": true,
         "thinkingOptions": [
-          { "id": "medium", "label": "Medium", "isDefault": true },
-          { "id": "high", "label": "High" }
+          { "id": "medium", "label": "Medium" },
+          { "id": "high", "label": "High", "isDefault": true }
         ]
       }
     ],
@@ -70,7 +61,6 @@
         "label": "Opus 5",
         "isDefault": true,
         "thinkingOptions": [
-          { "id": "low", "label": "Low" },
           { "id": "medium", "label": "Medium", "isDefault": true },
           { "id": "high", "label": "High" }
         ]

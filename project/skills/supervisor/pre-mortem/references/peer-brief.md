@@ -1,9 +1,8 @@
 # Pre-mortem brief
 
-Every pre-mortem seat gets this brief, the same text for each seat, as its `initialPrompt`. It
-uses the brief fields from the project's `.seatworks/LEAD.md`, so the Peer reads it like any other assignment.
-
-Copy the block below and put the plan text after it:
+Every pre-mortem seat gets this same text as its `initialPrompt`. It uses the brief fields from
+the project's `.seatworks/LEAD.md`, so the Peer reads it like any other assignment. Copy the
+block below:
 
 ```text
 Task ID                       premortem-SLUG-SEAT_LETTER
@@ -34,10 +33,10 @@ Replace the following:
 
 - `SLUG`: a short name for the plan, for example `sdk-release`.
 - `SEAT_LETTER`: `A`, `B`, or `C`; the only field that differs between seats.
-- `REPO_ROOT`: the absolute path of the repository the plan changes, or of this project when the plan
-  has no repository yet. It must match the workspace passed to `create_agent`.
+- `REPO_ROOT`: the absolute path of the repository the plan changes, or of this project when the
+  plan has no repository yet. It must match the workspace passed to `create_agent`.
 - `HORIZON_DATE`: the date by which failure would be visible.
-- `OUTCOME`: the outcome from the directive, word for word.
+- `OUTCOME`: the directive's outcome, word for word.
 - `PLAN_LOCATION`: where the plan lives, for example an ExecPlan path and SHA, or `below`.
 - `STARTING_FILES`: files worth reading first, or `none`.
 - `PLAN_TEXT`: the frozen plan, or the directive draft without its Risks section.

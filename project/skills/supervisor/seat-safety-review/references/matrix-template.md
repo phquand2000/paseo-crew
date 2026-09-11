@@ -1,6 +1,6 @@
 # Seat matrix template
 
-Copy the block below to `.seatworks/records/safety/seat-matrix.md`, and replace the whole file on each
+Copy the block to `.seatworks/records/safety/seat-matrix.md`, replacing the whole file on each
 review; git keeps the history.
 
 ```md
@@ -41,18 +41,18 @@ Replace the following:
 - `SOURCES`: the files and commands you read, for example
   `~/.paseo/config.json, $SEATWORKS_KIT/setup/setup-seats.fish, $SEATWORKS_KIT/pi/extensions/peer-guard.ts, scripts/inventory.sh`.
 - `SEAT`: the provider ID, for example `pi-peer-SLUG` or `claude-lead-SLUG`.
-- `TOOLS`: the tools the seat can reach after its deny list or guard, including Paseo tools,
-  MCP servers, and packages.
+- `TOOLS`: what the seat reaches after its deny list or guard, including Paseo tools, MCP
+  servers, and packages.
 - `CREDENTIALS`: names only, for example `CLAUDE_CODE_OAUTH_TOKEN, gh (repo scope), ssh agent (2 keys)`.
-- `PRIVATE_DATA`: the repositories, transcripts, or files the seat can read.
-- `UNTRUSTED`: the untrusted sources the seat reads, directly or through another agent.
+- `PRIVATE_DATA`: the repositories, transcripts, or files it can read.
+- `UNTRUSTED`: the untrusted sources it reads, directly or through another agent.
 - `EGRESS`: every path that can send data off the machine.
-- `SIDE_EFFECTS`: actions with external effects that no Human gate covers, or `none`.
+- `SIDE_EFFECTS`: external effects no Human gate covers, or `none`.
 - `ENFORCEMENT`: `deny list`, `peer guard`, `prompt only`, or a combination.
 - `TRIFECTA`: `yes` or `no`.
 - `FROM`, `TO`: the seats at each end of the edge.
 - `CARRIES`: what travels along it, for example `handoff text` or `OWNER DIRECTIVE`.
-- `LEGS`: which of private data, untrusted content, and egress the chain holds.
+- `LEGS`: which of private data, untrusted content, and egress it holds.
 - `WHERE`: the flagged seat or chain.
 - `WORST_CASE`: what could leave, and how.
 - `FIX`: the change, as specific as a deny entry or a guard pattern.
@@ -60,5 +60,5 @@ Replace the following:
 - `SURFACE`: the file or config that changes.
 - `ENFORCED`: `yes` if a tool or guard blocks it, `no` if it's prompt text.
 - `STATUS`: `proposed`, `applied SHA`, or `accepted by Human DATE`.
-- `THREAT`: a threat outside the trifecta, with the seat and path involved.
+- `THREAT`: a threat outside the trifecta, with the seat and path.
 - `NOT_CHECKED`: what this review didn't cover, so the next one can start there.

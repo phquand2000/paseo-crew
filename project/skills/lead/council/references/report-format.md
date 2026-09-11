@@ -1,15 +1,14 @@
 # Council output patterns
 
-These are patterns to combine, not one schema to copy. Pick and adapt only what the case needs,
-and put the result into the brief's CASE OUTPUT CONTRACT. Copying every heading into every seat
-prompt produces filler and can cap what a seat reports.
+Patterns to combine, not one schema to copy. Pick and adapt only what the case needs, and put
+the result into the brief's CASE OUTPUT CONTRACT: copying every heading into every seat prompt
+produces filler and can cap what a seat reports.
 
 ## Evidence discipline for every case
 
-Whatever the shape, the output lets you tell apart direct observation, authority, inference,
-and uncertainty, and shows which action each material conclusion changes. Ask for falsifiers or
-reopen conditions when they bear on the decision. Leave out sections that would only be filled
-for form's sake.
+Whatever the shape, the output separates direct observation, authority, inference, and
+uncertainty, and shows which action each material conclusion changes. Ask for falsifiers or
+reopen conditions when they bear on the decision; leave out sections only filled for form.
 
 ## Focused decision
 
@@ -34,11 +33,11 @@ UNKNOWNS
 CONFIDENCE BASIS: high | medium | low, because ...
 ```
 
-Ask for a confidence basis in words rather than a percentage; a number invites false precision.
+Ask for the confidence basis in words, not a percentage, which invites false precision.
 
 ## Supplied findings or audit
 
-One row per supplied finding, with no cap on the number of rows.
+One row per supplied finding, with no cap on rows.
 
 ```markdown
 | Finding | Disposition | Direct evidence | Classification | Durable route | Confidence and limits |
@@ -51,14 +50,13 @@ findings. New findings use the same fields and stay visibly separate from the su
 
 ## Plan or contract review
 
-One row per gate or obligation, keeping its identity from the plan: status, the authority that
-governs it, evidence, impact, and the correction needed.
+One row per gate or obligation, keeping its identity from the plan: status, governing
+authority, evidence, impact, and the correction needed.
 
 ## Incident
 
 The smallest truthful timeline, then the causal claims, the containment and recovery decisions,
-the unknowns, and the evidence that would tell the competing explanations apart. An incident
-doesn't need an option memo.
+the unknowns, and the evidence that would tell competing explanations apart; no option memo.
 
 ## Material propositions
 
@@ -100,7 +98,7 @@ IF THE PROPOSITION IS TRUE, IMPACT ON THE RECOMMENDATION
 IF THE PROPOSITION IS FALSE, IMPACT ON THE RECOMMENDATION
 ```
 
-A new material factual claim goes to verification; it doesn't open a free debate.
+A new material factual claim goes to verification, not into a free debate.
 
 ## Draft-verdict audit
 
@@ -118,12 +116,11 @@ FINDINGS
 UNCHECKED LIMITATIONS
 ```
 
-The Auditor points out defects. It doesn't issue or replace the verdict.
+The Auditor points out defects; it doesn't issue or replace the verdict.
 
 ## Binding verdict
 
-Shape the verdict to the case and its vocabulary. Without needing these as literal headings, it
-covers:
+Shaped to the case and its vocabulary, not necessarily as literal headings, it covers:
 
 - the decision and why;
 - the material claims accepted, rejected, and left unproven;
@@ -133,6 +130,5 @@ covers:
 - material dissent, and your answer to it;
 - limitations: soft isolation, a degraded run, incomplete coverage, a skipped audit, a
   substituted model;
-- reopen conditions: the evidence that would justify revisiting the decision.
-
-For a supplied set of findings, give every finding an explicit disposition.
+- reopen conditions: the evidence that would justify revisiting the decision;
+- for a supplied set of findings, an explicit disposition for every finding.

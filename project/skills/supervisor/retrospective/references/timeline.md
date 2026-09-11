@@ -1,9 +1,7 @@
 # Timeline and visibility template
 
 Build the timeline first, and interpret it afterwards. Each row is one event with a source a
-reader can check.
-
-Copy the block below. If it runs over 15 rows, save it to `.seatworks/records/timelines/YYYY-MM-DD-SLUG.md`; otherwise, summarize it in the entry's Observed line.
+reader can check. Copy the block below.
 
 ```md
 # TITLE

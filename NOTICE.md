@@ -15,7 +15,7 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 
 | Skill | Draws on |
 |---|---|
-| `test-first` | superpowers `test-driven-development`; mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
+| `test-first` | superpowers `test-driven-development`; a Codex `test-driven-development` adaptation (evidence first, proof surfaces, the relevant-test gate, the wrapper and bridge rule); mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
 | `diagnosing-bugs` | mattpocock `diagnosing-bugs`; superpowers `systematic-debugging` and its root-cause tracing |
 | `proof-audit` | SLP material (`test-proof-debt-audit` and its catalog); superpowers `verification-before-completion` |
 | `receiving-review` | superpowers `receiving-code-review` |
@@ -44,7 +44,7 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 | `project-state` | Anthropic, "Effective harnesses for long-running agents"; mattpocock `handoff`; Adam Tornhill's churn hotspots (idea) |
 | `integration` | superpowers `finishing-a-development-branch`; mattpocock `resolving-merge-conflicts` |
 | `repo-refresh` | SLP material (`repo-refresh` and its refresh standard) |
-| `review-pack` | SLP material (`review-pack`; `scripts/review_pack.py` and `references/profiles.md` are copied unchanged) |
+| `review-pack` | SLP material (`review-pack`; `references/profiles.md` is copied unchanged; `scripts/review_pack.py` is copied with its comments and docstrings removed) |
 
 ## Supervisor skills (`project/skills/supervisor/`)
 

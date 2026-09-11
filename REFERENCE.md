@@ -82,11 +82,13 @@ cause, and the response. Entries follow the order of the setup steps.
 
 - **Symptom:** a seat does something its prompt rules out.
 - **Cause:** prompts are guidance. For Claude seats, blocking happens in the provider's
-  `disallowedTools`; a seat's `permissions.deny` isn't equivalent, so `seat-settings.base.json`
-  leaves it out. Pi has no permission system and ignores `disallowedTools`, so the Peer's only
+  `disallowedTools` and, for the Lead, in the `PreToolUse` hook `claude/lead-guard.sh`, which
+  blocks writes to repository files outside `.seatworks/`, `docs/`, `AGENTS.md`, and
+  `CLAUDE.md`. A seat's `permissions.deny` isn't equivalent, so the role settings in `claude/`
+  leave it out. Pi has no permission system and ignores `disallowedTools`, so the Peer's only
   enforcement point is the `tool_call` hook in `pi/extensions/peer-guard.ts`.
-- **Response:** put anything that must never happen in the deny lists in the setup script or in
-  the guard extension.
+- **Response:** put anything that must never happen in the deny lists, the Lead guard, or the
+  guard extension.
 
 ## Command guards are guard rails, not sandboxes
 
@@ -279,9 +281,9 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** every Claude seat's `projects` directory is a symlink to the shared
   `~/.claude/projects`. On startup, a seat deletes transcripts older than its own
   `cleanupPeriodDays`, including yours, and this can't be undone.
-- **Response:** the script copies `cleanupPeriodDays` from your `~/.claude/settings.json` into
-  every Claude seat's settings. Keep the key out of `setup/seat-settings.base.json`, and rerun
-  the script after you change your own value.
+- **Response:** each `claude/<role>.settings.json` must carry the same `cleanupPeriodDays` as
+  your `~/.claude/settings.json`, or none when you set none. The script checks this and names
+  the file to fix by hand; rerun it after you change your own value.
 
 ## The 16 KB prompt budget is self-imposed
 

@@ -15,8 +15,8 @@ imports it:
 ```
 
 Coordination strategy (strictness, review lanes, spawn recipes) belongs in
-`.seatworks/WORKSPACE_PROTOCOL.md` instead; see the template next to this one. Peers don't need it, and
-reading it every turn only distracts them.
+`.seatworks/WORKSPACE_PROTOCOL.md` instead (template next to this one): Peers don't need it,
+and reading it every turn only distracts them.
 
 When you fill in the template:
 

@@ -1,9 +1,7 @@
 # Questionnaire template
 
-Use this template when the Human answers later. Because an async answer may come in one pass,
-put the question whose answer changes the most other answers first.
-
-Copy the block below to `.seatworks/records/questionnaires/YYYY-MM-DD-SLUG.md`:
+Copy the block below to `.seatworks/records/questionnaires/YYYY-MM-DD-SLUG.md`, with the question
+whose answer changes the most other answers first:
 
 ````md
 # TITLE

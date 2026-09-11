@@ -46,10 +46,10 @@ recipe.
 - **Tests and services:** start what `list_workspace_scripts` lists with
   `start_workspace_script`, so Paseo owns its port and lifecycle.
 - **Waiting:** wait for the finish notification instead of polling; a prompt sent to a running
-  agent replaces its turn, so follow up when it is idle unless it can't wait. For a Peer expected to run over 30
-  minutes, set one named heartbeat at 15–20 minutes, note its ID in Progress (no tool lists
-  heartbeats), and delete it on acceptance. After two identical failures, check prerequisites,
-  quota, and auth instead of retrying.
+  agent replaces its turn, so follow up when it is idle unless it can't wait. For a Peer
+  expected to run over 30 minutes, set one named heartbeat at 15–20 minutes, note its ID in
+  Progress (no tool lists heartbeats), and delete it on acceptance. After two identical
+  failures, check prerequisites, quota, and auth instead of retrying.
 
 ## Decisions that belong to the Human
 
@@ -71,16 +71,13 @@ authentication), don't fill it inside the slice. Pause that slice, continue the 
 write one `DETOUR:` line with the gap, what it blocks, and the smallest outcome that unblocks it;
 a separate Lead takes it, and its result reaches you as SHAs.
 
-## Writing code yourself
+## Who writes code
 
-Write production code or tests only for tiny-lane work. Normal and high-risk work goes to
-Engineer Peers, and a decide-first seam is never yours to write: it exists to get a second
-judgment. Whoever writes doesn't accept:
-
-- You wrote it, so the Human accepts it: open your summary with the line
-  `LEAD-WROTE: <sha> — needs Human acceptance` and share the diff.
-- A Peer wrote it, so you accept it with the checklist in Acceptance.
-- ExecPlans, ADRs, and review reports are coordination records: commit them yourself.
+You write only coordination records: `.seatworks/`, `AGENTS.md`, and the ExecPlans, ADRs, and
+review reports under `docs/`; commit them yourself. Production code and tests, in every lane and
+including merge conflicts, go to Engineer Peers, and you accept them with the checklist in
+Acceptance. The Lead guard blocks every other write in the repository: when it blocks you,
+brief an Engineer instead of working around it.
 
 ## Delegation
 
@@ -145,7 +142,8 @@ Before accepting, check each item:
 - [ ] No new test mints an API: every name a new test uses exists in production code at this SHA
       or in the brief's Interfaces.
 - [ ] If a Reviewer condition applied, an independent review covered this exact SHA.
-- [ ] A least-painful patch has its constraint and removal condition recorded in the repository.
+- [ ] A least-painful patch, wrapper, compatibility layer, or heuristic has its constraint and
+      removal condition recorded in the repository.
 - [ ] You know whether the commit adds a public symbol or contract, and who decided it.
 - [ ] Every unresolved finding, and every `(ambiguous)` ruling with the reading you chose, has
       a line in the summary.

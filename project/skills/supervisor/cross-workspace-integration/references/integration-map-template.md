@@ -1,6 +1,6 @@
 # Integration map template
 
-One map per group of projects that share contracts. Copy the block below to
+One map per group of projects that share contracts. Copy the block to
 `.seatworks/records/integration/NAME.md`, and keep it current as the SHAs land.
 
 ```md
@@ -32,17 +32,17 @@ Replace the following:
 - `PROJECT_LIST`: each project, with its repository path.
 - `DATE`: `YYYY-MM-DD`.
 - `SEAM`: a short name, for example `sdk public API` or `call-event webhook`.
-- `CROSSES`: what crosses: a package, an API, a schema, an event format, a token, a shared
-  database, or a deploy order.
+- `CROSSES`: a package, an API, a schema, an event format, a token, a shared database, or a
+  deploy order.
 - `PROVIDER`: the providing project and the path that defines the contract.
 - `CONSUMERS`: each consuming project and the path where it uses the contract.
 - `OWNER`: the owning Lead's project and agent ID, confirmed by the Human.
 - `CHECKS`: each consumer's check, as `project:path@SHA`.
-- `PROVIDER_COMMAND`: the command the provider runs before acceptance that includes the checks.
+- `PROVIDER_COMMAND`: the command the provider runs before acceptance, including the checks.
 - `CHANGE`: the change in a few words, for example `rename startCall to dial`.
 - `CLASS`: `additive` or `breaking`.
-- `PHASE`: `expand`, `migrate`, `contract`, or `settled`; for an additive change, `open` or
-  `settled`.
+- `PHASE`: `expand`, `migrate`, `contract`, or `settled`; `open` or `settled` for an additive
+  change.
 - `GATE`: the condition that opens the next phase.
 - `EVIDENCE`: the SHAs and check results that passed the gate.
 - `RESERVED`: the decisions reserved for the Human, for example `removing the old form`.

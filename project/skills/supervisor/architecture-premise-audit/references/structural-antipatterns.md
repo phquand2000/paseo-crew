@@ -1,52 +1,52 @@
 # Structural misfits and avoidable costs
 
-Use these patterns as lenses for searching, not as a checklist every design must pass. Report a
-pattern only when the evidence from the audit supports it.
+Search lenses, not a checklist every design must pass: report a pattern only when the audit's
+evidence supports it.
 
 ## Causal mechanism
 
 - **Wrong product category:** each module is sound, but the whole acts like a different class of
   product than the goal, workload, scale, latency, cost, or operating model calls for.
 - **Imported realism or completeness:** the design perfects a capability that mature systems
-  deliberately leave out, constrain, approximate, precompute, or move offline. The machinery
-  proves the capability can exist, not that this product should pay for it.
+  deliberately omit, constrain, approximate, precompute, or move offline. The machinery proves
+  the capability can exist, not that this product should pay for it.
 - **Claim without a mechanism:** the name promises an outcome whose state or causal process
-  doesn't exist. Examples: prediction with no simulation or history; reconciliation with no
-  authoritative correction; a lifecycle with no state machine that owns it; idempotency with no
-  identity binding; durability with no durable commit.
+  doesn't exist: prediction with no simulation or history; reconciliation with no authoritative
+  correction; a lifecycle no state machine owns; idempotency with no identity binding; durability
+  with no durable commit.
 - **Homemade stand-in for a mature mechanism:** a snap, timer, counter, retry, straight-line
-  interpolation, or partial copy of state is presented as prediction, navigation, admission
-  control, reconciliation, backpressure, or a transaction.
+  interpolation, or partial copy of state presented as prediction, navigation, admission control,
+  reconciliation, backpressure, or a transaction.
 - **Missing information:** the owner can't compute its claimed output from the data it receives,
   so callers or downstream consumers guess the missing facts.
-- **Wrong archetype:** exact transactional work is modeled as latest state; rapidly superseded
-  state is journaled as exact work; keyed current state is stored as an append-only queue; or
-  eventually consistent snapshots enforce a transition that needs total ordering.
+- **Wrong archetype:** exact transactional work modeled as latest state; rapidly superseded state
+  journaled as exact work; keyed current state stored as an append-only queue; or eventually
+  consistent snapshots enforcing a transition that needs total ordering.
 
 ## Accommodating a weak foundation
 
 - A wrapper, adapter, cache, fallback, retry loop, ordering rule, or feature flag carries
   cancellation, invalidation, reset, synchronization, failure, or lifecycle semantics that belong
-  to the dependency underneath it.
+  to the dependency beneath it.
 - Feature code keeps duplicate state or a parallel implementation only to keep a dependency
   usable.
 - A neighboring module exposes too little identity, admission, capacity, cancellation, typed
   output, or terminal state, so callers reach into its internals or reconstruct the truth.
 - A raw escape hatch, legacy path, test constructor, manual bootstrap, or faked accepted state is
-  the only complete route, while the production route it stands in for isn't connected.
+  the only complete route, and the production route it stands in for isn't connected.
 - A local workaround outlives the point where its foundation could be fixed, and becomes
   permanent architecture.
 
 ## Bent code
 
-- Special cases, mode flags, lossy translations, synthetic states treated as real ones, collapsed
-  error types, duplicated counters, or impossible state combinations exist to bridge owners that
-  don't fit together.
+- Special cases, mode flags, lossy translations, synthetic states treated as real, collapsed
+  error types, duplicated counters, or impossible state combinations bridge owners that don't
+  fit together.
 - One module must know another's private queue, timing, allocation, or reset behavior to stay
   correct.
 - Cleanup, retry, polling, or timeout logic grows at the callers, because no owner exposes a
   complete terminal transition.
-- A compatibility facade keeps an obsolete authority alive, or lets callers go around the new
+- A compatibility facade keeps an obsolete authority alive, or lets callers bypass the new
   contract.
 - Several layers convert the same fact without adding information, isolation, ownership, or
   policy.
@@ -63,9 +63,9 @@ pattern only when the evidence from the audit supports it.
 - **Bandwidth and amplification:** duplicate carriers, catch-up bursts, redundant snapshots, full
   state where bounded deltas would do, or per-client output that could safely be shared.
 - **Hot-path cost:** allocation on every tick, repeated encoding and decoding, avoidable copies,
-  scans over every entity, locks across independent owners, or expensive work run at the wrong
-  frequency. Performance work that mostly recovers the overhead an abstraction added is itself
-  evidence of the cost.
+  scans over every entity, locks across independent owners, or expensive work at the wrong
+  frequency. Performance work that mostly recovers an abstraction's overhead is itself evidence
+  of the cost.
 - **Buffering and failure:** unbounded queues, retries with no terminal classification, overflow
   that kills the session, a fallback with different semantics, or recovery that revives stale
   work.
@@ -97,23 +97,22 @@ pattern only when the evidence from the audit supports it.
 ## The local-excellence trap
 
 Passing tests, polished modules, internal coherence, strong benchmarks, realism, precedent in the
-repository, and a small diff don't show that the archetype fits. Ask whether the whole would still
-look strange if every local detail were excellent, which impressive parts exist only to support an
-unusual large-scale choice, and what machinery would disappear on the plain, established route.
-Precedent in the repository may be accumulated drift rather than evidence that the category is
-right.
+repository, and a small diff don't show that the archetype fits; precedent may be accumulated
+drift. Ask whether the whole would still look strange if every local detail were excellent, which
+impressive parts exist only to support an unusual large-scale choice, and what machinery would
+disappear on the plain, established route.
 
 ## Laundered boundaries and proof
 
 - A transport send, an ACK, a drained queue, a connection state, adjacent timestamps, or a log
-  line is treated as acceptance by the application, an authoritative change, a completed command,
-  or an outcome the user sees.
+  line is treated as application acceptance, an authoritative change, a completed command, or an
+  outcome the user sees.
 - Downstream code parses payloads, timings, logs, or counters to infer a typed fact the owner
   should publish directly.
 - A mock, replica, fixture, source scan, successful compile, or isolated green suite is cited for
   a production causal chain it never reaches.
 - Components pass individually, but no production entry point connects them, or the real output
-  goes around the named authority.
+  bypasses the named authority.
 
 ## Domain examples: realtime and multiplayer
 
@@ -121,10 +120,10 @@ right.
   deterministic state required to correct or re-simulate. Moving one step at submit time is a
   different mechanism.
 - Reconciliation needs authoritative state or progress, and a rule for correcting or replaying
-  the local prediction. Building a partial authoritative record from an ACK is not equivalent.
+  the local prediction. A partial authoritative record built from an ACK is not equivalent.
 - Server-authoritative click-to-move needs an owned navigation mechanism: a validated destination
   plus path or corridor facts, or another explicit authoritative route. Moving straight toward a
-  target doesn't gain those semantics by being called navigation.
+  target doesn't become navigation by being called that.
 - High-frequency movement that newer values replace usually suits sequenced latest-state
   delivery; exact commands usually need durable identity and typed outcomes. Departing from this
   can be valid, but name its ordering, latency, bandwidth, and failure costs.

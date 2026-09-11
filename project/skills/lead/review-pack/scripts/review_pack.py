@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Create focused source-review artifacts for external agent or human review."""
-
 from __future__ import annotations
 
 import argparse
@@ -506,8 +504,6 @@ def all_source_snapshot_candidates(root: Path, args: argparse.Namespace) -> list
         else:
             missing.append(spec)
     for spec in missing:
-        # Keep this as an attribute-like side channel on args so dry-run and
-        # manifest can report it without widening return types everywhere.
         args._source_snapshot_missing.append(spec)
     return sorted(selected)
 

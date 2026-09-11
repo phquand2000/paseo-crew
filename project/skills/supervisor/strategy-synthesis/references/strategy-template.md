@@ -65,15 +65,14 @@ Replace the following:
 - `CONCERN`: the concern in a few words, for example `data migrations`.
 - `STATUS`: `draft`, `approved YYYY-MM-DD`, or `retired YYYY-MM-DD`.
 - `PROJECTS`: the projects the strategy covers.
-- `REVIEW_DATE`: about two months after approval for the first review, and within a year after
-  that.
-- `INPUT_PATH`, `PROJECT`, `INPUT_DATE`: the document's path, its project, and its date.
-- `DECISION`, `REASON`: a decision found in the inputs, and the reason the document gave for it.
+- `REVIEW_DATE`: about two months after approval for the first review, then within a year.
+- `INPUT_PATH`, `PROJECT`, `INPUT_DATE`: the document's path, project, and date.
+- `DECISION`, `REASON`: a decision found in the inputs, and the reason the document gave.
 - `INPUT_REFS`: the input numbers that made or argued the decision, for example `1, 3`.
 - `KIND`: `recurring`, `contested`, or `single`.
-- `DIAGNOSIS`: a few sentences explaining why these decisions keep coming back, each citing
-  decision rows.
-- `POLICY`, `RULE`: a policy statement, and the decision rows it generalizes (`DECISION_REFS`).
+- `DIAGNOSIS`: a few sentences on why these decisions keep coming back, each citing decision
+  rows.
+- `POLICY`, `RULE`: a policy statement; `DECISION_REFS`: the decision rows it generalizes.
 - `REASONING`: why the policy takes this position, and what it gives up.
 - `WHO`: who may grant an exception to the rule.
 - `DECISION_PROCESS`: who decides new cases, and by which criteria.
@@ -83,7 +82,6 @@ Replace the following:
 - `ACTION`, `OWNER`, `SURFACE`, `DONE_CHECK`: the enforcing action, who carries it out, the file
   or check it changes, and how you know it's done.
 - `REPLAYED`: the past decision or open question used to test the policy.
-- `SETTLED`: `yes`, or `no` with what was still unclear.
+- `SETTLED`: `yes`, or `no` with what stayed unclear.
 - `ENFORCED_BY`: the check, rule, or review lens that makes people follow the policy.
-- `REVIEW_FINDINGS`: at a review, whether the policies were applied, whether the actions were
-  done, and what changed.
+- `REVIEW_FINDINGS`: whether the policies were applied, the actions done, and what changed.

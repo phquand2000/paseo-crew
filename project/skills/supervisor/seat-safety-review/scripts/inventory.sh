@@ -1,11 +1,4 @@
 #!/bin/sh
-# Print a secret-free inventory of the seats for the seat safety review.
-#
-# Run it from the repository root: KIT=$SEATWORKS_KIT sh .seatworks/skills/supervisor/seat-safety-review/scripts/inventory.sh
-# It prints names, flags, and presence only. Env var values and file contents are left out on
-# purpose, because this output lands in transcripts and in .seatworks/records/safety/seat-matrix.md.
-#
-# Overrides: PASEO_CONFIG, PI_PROFILES, CLAUDE_PROFILES, KIT.
 
 set -u
 
@@ -20,7 +13,6 @@ section() { printf '\n## %s\n' "$1"; }
 
 section "Paseo providers ($config)"
 if [ -f "$config" ]; then
-    # jq's // treats false as missing, so test with has() where false is a meaningful value.
     jq -r '"daemon.mcp.injectIntoAgents: \(.daemon.mcp.injectIntoAgents | tostring)"' "$config"
     jq -r '.agents.providers // {} | to_entries[] | .value as $p | [
         .key,

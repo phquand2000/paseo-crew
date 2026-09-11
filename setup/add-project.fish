@@ -1,35 +1,11 @@
 #!/usr/bin/env fish
-#
-# add-project: give one repository its own Lead and Peer seats.
-#
-#   fish setup/add-project.fish REPO_DIR [--slug SLUG] [--model PI_MODEL] [--refresh]
-#
-# 1. Copies the kit's project templates into REPO_DIR/.seatworks/: SUPERVISOR.md, LEAD.md,
-#    PEER.md, REVIEWER.md, WATCHER.md, NOTEBOOK.md, WORKSPACE_PROTOCOL.md, and skills/ for each
-#    role.
-# 2. Adds AGENTS.md and a one-line CLAUDE.md (@AGENTS.md) at the repository root when they are
-#    missing.
-# 3. Adds the providers claude-supervisor-SLUG, claude-lead-SLUG, claude-watcher-SLUG,
-#    pi-peer-SLUG, and pi-reviewer-SLUG to ~/.paseo/config.json, and one Paseo agent profile
-#    for each seat.
-# 4. Registers the repository as a Paseo project, runs setup-seats.fish, and reloads Paseo.
-#
-# It never overwrites an existing file, so rerunning it only fills gaps. Edit the project's
-# copies to give that project its own rules. SLUG defaults to the repository's directory name
-# in lowercase. PI_MODEL is the Peer model written into the spawn recipe, such as zai/glm-5.3.
-#
-# --refresh carries kit template changes into a project that already has its files: it
-# replaces the seat prompts (SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md, WATCHER.md) and the skills with
-# the kit's current versions and moves skill files the kit no longer ships out of the way,
-# keeping each copy under .seatworks/records/drafts/refresh-STAMP/.
-# NOTEBOOK.md and WORKSPACE_PROTOCOL.md hold the project's own content and are never replaced.
 
 set -l kit (path resolve (path dirname (status filename))/..)
 set -l paseo_config $HOME/.paseo/config.json
 
 set -l repo_dir ""
 set -l slug ""
-set -l model ""
+set -l model zai/glm-5.3
 set -l refresh 0
 set -l i 1
 while test $i -le (count $argv)
@@ -52,7 +28,7 @@ while test $i -le (count $argv)
 end
 
 if test -z "$repo_dir"; or not test -d "$repo_dir"
-    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model PI_MODEL] [--refresh]"
+    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model PI_MODEL (default zai/glm-5.3)] [--refresh]"
     exit 2
 end
 set repo_dir (path resolve $repo_dir)
@@ -76,10 +52,6 @@ set -l watch_key claude-watcher-$slug
 set -l review_key pi-reviewer-$slug
 set -l added
 
-# ── 1. Templates ────────────────────────────────────────────────────────────────────
-# Build the copies in a staging directory, name this project's Peer provider in the Lead's
-# files, then copy only what the project doesn't have yet.
-
 set -l stage (mktemp -d)
 cp -R $kit/project/. $stage/
 awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/WORKSPACE_PROTOCOL.md
@@ -87,8 +59,6 @@ for file in $stage/LEAD.md $stage/WORKSPACE_PROTOCOL.md (find $stage/skills/lead
     perl -pi -e "s/\bpi-peer\b(?![-\w])/$peer_key/g; s/\bpi-reviewer\b(?![-\w])/$review_key/g" $file
 end
 test -n "$model"; and perl -pi -e "s|PEER_MODEL|$model|g" $stage/WORKSPACE_PROTOCOL.md
-# The Supervisor's files name the seats as PROVIDER-SLUG; other SLUG placeholders in them
-# (a directive's file name, for example) stay for the Supervisor to fill in.
 for file in $stage/SUPERVISOR.md (find $stage/skills/supervisor -type f -name '*.md')
     perl -pi -e "s/\b(claude-supervisor|claude-lead|claude-watcher|pi-peer|pi-reviewer)-SLUG\b/\$1-$slug/g" $file
 end
@@ -98,8 +68,6 @@ set -l drafts $seat/records/drafts/refresh-(date +%Y%m%d-%H%M%S)
 for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
     set -l rel (string replace -- "$stage/" '' $src)
     if test -e $seat/$rel
-        # Only --refresh touches an existing file, and only a kit-owned one: the seat prompts
-        # and the skills. The notebook and the protocol hold the project's own content.
         test $refresh -eq 1; or continue
         string match -qr '^(SUPERVISOR|LEAD|PEER|REVIEWER|WATCHER)\.md$|^skills/' -- $rel; or continue
         cmp -s $src $seat/$rel; and continue
@@ -113,8 +81,6 @@ for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
     cp $src $seat/$rel
     set -a added .seatworks/$rel
 end
-# A skill file the kit no longer ships would linger and contradict the new text, so --refresh
-# moves it to the drafts copy too.
 if test $refresh -eq 1; and test -d $seat/skills
     for old in (find $seat/skills -type f ! -name .DS_Store ! -path '*/__pycache__/*')
         set -l rel (string replace -- "$seat/" '' $old)
@@ -127,16 +93,12 @@ if test $refresh -eq 1; and test -d $seat/skills
 end
 rm -rf $stage
 
-# A project may have added its own ignore lines, so add only the kit's missing ones.
 for line in (grep -v '^#' $kit/project/.gitignore)
     test -n "$line"; or continue
     grep -qxF -- $line $seat/.gitignore; and continue
     echo $line >>$seat/.gitignore
     set -a added ".seatworks/.gitignore ($line)"
 end
-
-# ── 2. Instruction files every agent reads ──────────────────────────────────────────
-# Pi reads AGENTS.md and Claude Code reads CLAUDE.md, so CLAUDE.md imports AGENTS.md.
 
 if not test -e $repo_dir/AGENTS.md
     awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/AGENTS_MD_SNIPPET.md >$repo_dir/AGENTS.md
@@ -146,11 +108,6 @@ if not test -e $repo_dir/CLAUDE.md
     echo '@AGENTS.md' >$repo_dir/CLAUDE.md
     set -a added CLAUDE.md
 end
-
-# ── 3. Providers ────────────────────────────────────────────────────────────────────
-# The entries come from the SLUG templates in examples/paseo-providers.json. The Lead entry
-# carries no OAuth token when the base `claude` provider has one: it inherits it through
-# `extends`.
 
 set -l missing 0
 for key in $sup_key $lead_key $watch_key $peer_key $review_key
@@ -186,18 +143,14 @@ if test $missing -eq 1
     or echo "  ! the base `claude` provider has no token: set CLAUDE_CODE_OAUTH_TOKEN on $lead_key or on `claude`."
 end
 
-# Agent profiles: named launch bundles that Paseo's app offers to the Human and that
-# orchestrating agents read through list_profiles. There is exactly one Peer profile: the
-# brief's disposition sets the Peer's role, not a separate profile. Existing profiles with the
-# same ID are left as they are, so edited notes survive a rerun.
 set -l new_profiles (jq -nc --arg s $slug --arg m "$model" '
     ($s | ascii_upcase) as $n
     | [
         {id: "\($s)-supervisor", name: "\($n) · Supervisor", provider: "claude-supervisor-\($s)",
-         modeId: "bypassPermissions", thinkingOptionId: "medium",
+         model: "claude-opus-5", modeId: "bypassPermissions", thinkingOptionId: "high",
          notes: "Start here. Meets the Human, settles intent into an owner directive, creates the Lead, and watches coordination."},
         {id: "\($s)-lead", name: "\($n) · Lead", provider: "claude-lead-\($s)",
-         modeId: "bypassPermissions", thinkingOptionId: "medium",
+         model: "claude-opus-5", modeId: "bypassPermissions", thinkingOptionId: "medium",
          notes: "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task."},
         {id: "\($s)-watcher", name: "\($n) · Watcher", provider: "claude-watcher-\($s)",
          model: "claude-haiku-4-5", modeId: "bypassPermissions",
@@ -227,8 +180,6 @@ if test "$missing_profiles" != '[]'
     end
 end
 
-# ── 4. Paseo project, profiles, reload ──────────────────────────────────────────────
-
 paseo project ls 2>/dev/null | string match -q -- "*$repo_dir*"
 or begin
     paseo project create $repo_dir >/dev/null
@@ -256,8 +207,4 @@ command -q ocr
 or echo "! the Reviewer runs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review"
 echo "Next: start $sup_key in this repository and ask it to run its workspace-protocol skill,"
 echo "which fills in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md."
-if test -z "$model"
-    echo "! no --model given: replace PEER_MODEL in .seatworks/WORKSPACE_PROTOCOL.md with one of:"
-    paseo provider models $peer_key 2>/dev/null | awk 'NR > 1 { print "    " $1 }' | head -8
-end
 exit $seats_status

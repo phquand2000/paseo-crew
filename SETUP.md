@@ -134,13 +134,13 @@ already exists:
 
 It adds files only; leave the repository's code alone.
 
-1. Pick the Peer model from `paseo provider models pi`. If the built-in `pi` provider is
-   disabled, leave out `--model`; the script then lists the models and names the placeholder
-   to fill in.
+1. The models are set per seat: the Supervisor runs Opus 5 at thinking `high`, the Lead Opus 5
+   at `medium`, the watcher Haiku, and the Peer and Reviewer `zai/glm-5.3`. For another Pi
+   model, add `--model MODEL_ID` with an ID from `paseo provider models pi`.
 2. Run it, adding `--slug SLUG` if the directory name isn't the short name you want:
 
    ```fish
-   fish KIT_DIR/setup/add-project.fish REPO_DIR --model MODEL_ID
+   fish KIT_DIR/setup/add-project.fish REPO_DIR
    ```
 
 **Done:** the script exits 0 and prints `✓` lines for `claude-supervisor-SLUG`,

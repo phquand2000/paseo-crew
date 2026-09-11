@@ -1,14 +1,11 @@
 # Brief template
 
-A brief is the whole of what a Peer knows about its task, so it carries the fields from the
-Lead seat prompt's Delegation section plus three more: Interfaces, Global constraints, and Open
-questions. It goes into `create_agent` as `initialPrompt`.
-
-Keep the brief neutral. State the outcome, the boundaries, and the questions that are still
-open, and leave the implementation to the Peer. Point to files and SHAs instead of pasting
-earlier tasks' history: whatever you paste stays in the Peer's context for the whole task.
-Leave Paseo, seats, and other agents' identities out; pass their results as SHAs, paths, and
-output.
+A brief is all a Peer knows about its task: the fields from your seat prompt's Delegation
+section plus Interfaces, Global constraints, and Open questions. It goes into `create_agent` as
+`initialPrompt`. Keep it neutral, per that section: the outcome, the boundaries, and the open
+questions, with the implementation left to the Peer, and no Paseo, seats, or agent identities.
+Point to files and SHAs instead of pasting earlier tasks' history: whatever you paste stays in
+the Peer's context for the whole task.
 
 Copy this block:
 
@@ -41,10 +38,9 @@ Replace the following:
 - `WORKSPACE_DIR`: the worktree directory `create_workspace` returned for this slice, or the
   repository root when the Peer works in your checkout.
 - `DISPOSITION`: `Engineer`, `Architect`, `Reviewer`, or `Scout`.
-- `OBJECTIVE`: the observable outcome of this slice, in one or two sentences.
-- `DECISIONS`: settled decisions and rejected approaches that bound the slice, each with its
-  ADR number or plan line, for example `ADR 0007: amounts are integer cents; floats ruled out`.
-  Write `none` if there are none.
+- `OBJECTIVE`: the slice's observable outcome, in one or two sentences.
+- `DECISIONS`: settled decisions and rejected approaches that bound the slice, each with its ADR
+  number or plan line, or `none`.
 - `STARTING_POINTS`: files, docs, and SHAs worth reading first, including the ExecPlan path.
 - `OWNED_GLOBS`: the paths this Peer may write, as concrete globs.
 - `EXCLUDED_GLOBS`: nearby paths it may read but not write, such as another slice's scope.
@@ -52,17 +48,16 @@ Replace the following:
 - `CONSUMED_INTERFACES`: the exact signatures, types, routes, schemas, or file formats this
   slice uses, each with the SHA or path it comes from.
 - `PRODUCED_INTERFACES`: the exact names, parameters, and return types later slices will rely
-  on. A Peer sees only its own brief, so this block is how neighboring slices agree on names.
-  Tests in the slice may call only what exists at the base SHA or what Consumes and Produces
-  name; a test that needs anything else would invent the contract.
-- `GLOBAL_CONSTRAINTS`: requirements that bind every slice, copied word for word from the
-  spec, the owner directive, or `AGENTS.md`: exact values, formats, limits, and version floors.
-  A paraphrase loses the exact value.
+  on; a Peer sees only its own brief, so this is how neighboring slices agree on names. Tests in
+  the slice may call only what exists at the base SHA or what Consumes and Produces name; a test
+  that needs anything else would invent the contract.
+- `GLOBAL_CONSTRAINTS`: requirements that bind every slice (exact values, formats, limits, and
+  version floors), copied word for word from the spec, the owner directive, or `AGENTS.md`; a
+  paraphrase loses the exact value.
 - `VERIFICATION_COMMANDS`: the exact commands to run, one per line.
-- `TEST_LANE`: whether this Peer may run the full suite, hold a port, or use the test
-  database, for example `targeted tests only; no port; no test database`.
+- `TEST_LANE`: whether this Peer may run the full suite, hold a port, or use the test database.
 - `OPEN_QUESTIONS`: what you don't know and want the Peer's judgment on, or `none`. Ask each
-  one open, not as a choice between answers you picked: a Peer offered A or B returns A or B.
+  one open, not as a choice between answers you picked.
 
 ## Example
 

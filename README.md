@@ -133,13 +133,17 @@ notebook, and a miss becomes a rule only when it recurs.
 | [project/skills/](project/skills/) | Strategy skills for the Supervisor, macro skills for the Lead, micro skills for the Peer, review skills for the Reviewer |
 | [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
 | [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Pi seat, and file edits for the Reviewer |
+| [claude/lead-guard.sh](claude/lead-guard.sh) | Lead hook that blocks writes to repository files other than coordination records, so Peers write all code |
 | [pi/settings.json](pi/settings.json) | Keys merged into each Peer's Pi settings |
 | [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its five providers, and their profiles |
 | [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, and `--check` only verifies |
-| [setup/seat-settings.base.json](setup/seat-settings.base.json) | Settings shared by the Claude seats |
+| [claude/](claude/) `lead`, `supervisor`, `watcher` `.settings.json` | Your settings for each Claude role, shared by every seat of that role |
 | [examples/paseo-providers.json](examples/paseo-providers.json) | The base `claude` provider, plus the per-project `SLUG` templates |
 | [examples/AGENTS_MD_SNIPPET.md](examples/AGENTS_MD_SNIPPET.md) | Template for the `AGENTS.md` of a repository you work in |
 | [examples/WORKSPACE_PROTOCOL.md](examples/WORKSPACE_PROTOCOL.md) | Template for a project's coordination protocol, read only by the Lead |
 
-The script generates `claude/<role>.settings.json`. To change those files, edit
-`setup/seat-settings.base.json` or the `overlay_*` blocks in the script.
+Edit `claude/<role>.settings.json` by hand; the script links every seat to its role's file and
+only checks it, never writes it. Only the Supervisor keeps auto memory, because it is the
+project's organizational memory. The Lead and the watcher keep a 1-hour prompt cache, since the
+watcher sweeps every 15 minutes. The Lead's hook runs `lead-guard.sh` through its own profile,
+so the file holds no path specific to one machine.

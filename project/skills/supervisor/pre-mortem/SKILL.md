@@ -1,90 +1,81 @@
 ---
 name: pre-mortem
-description: "Runs a sealed pre-mortem on a plan or directive: two or three read-only Peers assume it failed by a stated date and explain why, and their reasons are merged round-robin into a risk register sorted by reversibility and damage, each risk with a mitigation, a tripwire, or a reserved Human decision. Use when a directive or plan carries material risk, or the Human asks what could go wrong."
+description: "Runs a sealed pre-mortem: two or three read-only Peers assume a plan failed and say why, merged into a risk register with one response per risk. Use when a directive or plan carries material risk, or the Human asks what could go wrong."
 ---
 
 # Pre-mortem
 
-Use this skill to find how a plan fails before a Lead commits to it, and to attach the result to
-the directive as a risk register. Imagining that the plan has already failed makes people, and
-models, name causes they would hold back when asked "what could go wrong?".
+Use this skill to find how a plan fails before a Lead commits to it. Told the plan has already
+failed, models name causes they hold back when asked "what could go wrong?".
 
-The skill produces a risk register built from
-[references/risk-register.md](references/risk-register.md). It goes under Risks in the
-directive, and in the directive's copy under `.seatworks/records/directives/`. Paths to `references/`
-are relative to this skill's directory; the other paths are relative to the repository root.
+It produces a risk register from [references/risk-register.md](references/risk-register.md),
+placed under Risks in the directive and in the directive's copy under
+`.seatworks/records/directives/`. `references/` paths are relative to this skill's directory;
+the rest to the repository root.
 
 ## When it applies
 
-Run it when the plan has material risk, meaning it touches any of these:
+Run it when the Human asks, or when the plan has material risk, touching any of:
 
 - authentication, authorization, secrets, or personal data;
 - deleting, migrating, or retaining data;
-- money, credentials, or external side effects that aren't safe to repeat (email, payments,
-  publishing, deploying);
+- money, credentials, or external side effects unsafe to repeat (email, payments, publishing,
+  deploying);
 - a public contract that other projects or users consume;
 - concurrency, lifecycle, or which component owns runtime state.
 
-Run it also when the Human asks. Skip it for small plans that git can revert, because there the
-pre-mortem costs more than the risk.
+Skip it for small plans git can revert; there it costs more than the risk.
 
 ## Procedure
 
-1. **Freeze the plan and set the horizon.** The plan is either the directive draft or a Lead's
-   plan, referenced by path and SHA. The horizon is the date when failure would be visible: the
-   end of the appetite, plus the time failure takes to show (for example, a month after
-   release). **Done** when you have one fixed plan text and one horizon date.
-2. **Choose the seats.** Use two seats for moderate risk, and three when the plan contains an
-   irreversible decision. Run `list_models` for `pi-peer-SLUG`, and use models from different
-   families when they're available: seats from one family share blind spots, so their agreement
-   is weak evidence. **Done** when each seat has a model.
-3. **Write one brief for every seat.** Fill in [references/peer-brief.md](references/peer-brief.md).
-   Every seat gets the same text, and no seat gets your opinion or another seat's output,
-   because a seat that sees another's reasons anchors on them. Check the brief before sending
-   it: it implies no preferred answer; it doesn't mention Paseo, seats, or the Supervisor; and
-   its repository root and workspace match where the Peer will run. **Done** when all three
-   checks pass.
-4. **Create the seats.** Record the repository state first with
-   `git -C REPO status --porcelain` and `git -C REPO rev-parse HEAD`. Then, for each seat, call
-   `create_agent` with `provider: "pi-peer-SLUG/<model>"`, `settings.thinkingOptionId: "high"`, no
-   `settings.modeId`, and the brief as `initialPrompt`. Run each seat in the project's workspace,
-   or in the project's workspace when the plan has no repository yet. Wait for the finish
-   notifications instead of polling. **Done** when every seat has finished. If a seat fails for
-   infrastructure reasons, retry it once with the same brief.
-5. **Collect the handoffs and check that the seats stayed read-only.** Read each handoff with
-   `get_agent_activity`. Then rerun the two git commands from step 4. The Peer prompt only asks
-   for read-only work; nothing enforces it. A seat that changed the repository has a compromised
-   report: set it aside, and record the episode in the notebook. Archive every seat with
-   `archive_agent`. **Done** when you hold every valid reason list and `list_agents` shows none of
-   the seats.
+1. **Freeze the plan and set the horizon.** The plan is the directive draft or a Lead's plan,
+   referenced by path and SHA. The horizon is when failure would be visible: the end of the
+   appetite plus the time failure takes to show (for example, a month after release). **Done**
+   when you have one fixed plan text and one horizon date.
+2. **Choose the seats.** Two for moderate risk, three when the plan contains an irreversible
+   decision. Run `list_models` for `pi-peer-SLUG` and use different model families when
+   available: one family shares blind spots, so its agreement is weak evidence. **Done** when
+   each seat has a model.
+3. **Write one brief for every seat** from [references/peer-brief.md](references/peer-brief.md).
+   Every seat gets the same text, with neither your opinion nor another seat's output, because a
+   seat anchors on reasons it sees. Check that the brief implies no preferred answer, doesn't
+   mention Paseo, seats, or the Supervisor, and its repository root and workspace match where
+   the Peer will run. **Done** when all three checks pass.
+4. **Create the seats.** First record the repository state with
+   `git -C REPO status --porcelain` and `git -C REPO rev-parse HEAD`. For each seat, call
+   `create_agent` with `provider: "pi-peer-SLUG/<model>"`, `settings.thinkingOptionId: "high"`,
+   no `settings.modeId`, and the brief as `initialPrompt`, in the workspace of the brief's
+   repository root. Wait for the finish notifications instead of polling; retry a seat that
+   fails for infrastructure reasons once, with the same brief. **Done** when every seat has
+   finished.
+5. **Collect the handoffs and check the seats stayed read-only.** Read each handoff with
+   `get_agent_activity`, then rerun the two git commands from step 4. The Peer prompt only
+   asks for read-only work and nothing enforces it, so a seat that changed the repository has a
+   compromised report: set it aside, and record the episode in the notebook. Archive every seat with `archive_agent`. **Done** when you hold every
+   valid reason list and `list_agents` shows none of the seats.
 6. **Merge the reasons round-robin.** Take reason 1 from each seat, then reason 2 from each, and
-   so on, so that the first seat's list doesn't set the agenda. Merge duplicates into one row and
-   note how many seats raised the reason. The count isn't a vote: a reason one seat raised with a
-   concrete mechanism stays in. **Done** when every reason from every seat is either a row or
-   merged into one, with no reason dropped.
-7. **Sort the register.** Put irreversible failures first, then order by damage (who is hurt,
-   and how badly), then by likelihood. **Done** when the order is irreversible and high-damage
-   first.
-8. **Give each risk one response.** Choose exactly one:
-   - Mitigation: a constraint or outcome the Lead can take on. State it as a constraint rather
-     than an implementation, because the Lead still owns the framing.
-   - Tripwire: an observable signal, with a threshold and whoever watches it. For example: "more
-     than 1% failed calls in the 10 minutes after deploy: stop the rollout". A tripwire turns a
-     vague worry into a check someone can run.
-   - Reserved decision: an irreversible choice that goes to the Human, added to the directive's
-     reserved list.
+   so on, so the first list doesn't set the agenda. Merge duplicates into one row, noting how
+   many seats raised it. The count isn't a vote: a reason one seat raised with a concrete
+   mechanism stays. **Done** when every reason is a row or merged into one, none dropped.
+7. **Sort the register.** Irreversible failures first, then by damage (who is hurt, and how
+   badly), then by likelihood. **Done** when irreversible and high-damage rows come first.
+8. **Give each risk exactly one response:**
+   - Mitigation: a constraint or outcome the Lead takes on, stated as a constraint rather than an
+     implementation, because the Lead owns the framing.
+   - Tripwire: an observable signal with a threshold and whoever watches it, for example "more
+     than 1% failed calls in the 10 minutes after deploy: stop the rollout".
+   - Reserved decision: an irreversible choice for the Human, added to the directive's reserved
+     list.
 
-   A risk nobody wants to answer goes to the Human, to be accepted in writing or given a
-   response. **Done** when every row has a response, and every tripwire has a watcher and a
-   threshold.
-9. **Review the register with the Human.** Show the irreversible risks and the high-damage ones,
-   together with your proposed responses. **Done** when the Human has accepted or changed each of
-   them.
-10. **Attach the register.** Add it to the directive under Risks, and update the saved copy
-    under `.seatworks/records/directives/`. Label the reasons as inference: they come from seats that imagined a
-    failure, not from observation. Leave out seat identities and models, because the Lead needs
-    the risks, not their source. **Done** when the directive with its register has been sent, as
-    in the intent-interview skill.
+   A risk nobody wants to answer goes to the Human, to accept in writing or give a response.
+   **Done** when every row has a response, and every tripwire a watcher and a threshold.
+9. **Review the register with the Human:** the irreversible and high-damage risks, with your
+   proposed responses. **Done** when the Human has accepted or changed each of them.
+10. **Attach the register** under Risks in the directive and in its saved copy under
+    `.seatworks/records/directives/`. Label the reasons as inference from an imagined failure,
+    not observation, and leave out seat identities and models; the Lead needs the risks, not
+    their source. **Done** when the directive with its register has been sent, as in the
+    intent-interview skill.
 
 The rule that matters most: keep the seats sealed from each other and from your view, so that
 each list is a separate judgment.

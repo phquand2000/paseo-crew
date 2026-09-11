@@ -18,8 +18,8 @@ many users a few hundred. Without this file, the Lead runs on the defaults in
 reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
 `setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
-repository. On the way it renames `pi-peer` and `pi-reviewer` to the project's providers, `pi-peer-SLUG` and `pi-reviewer-SLUG`, and with
-`--model` it fills in `PEER_MODEL`. To fill in the rest, ask the Supervisor to run its
+repository, renaming `pi-peer` and `pi-reviewer` to `pi-peer-SLUG` and `pi-reviewer-SLUG`;
+`--model` (default `zai/glm-5.3`) fills in `PEER_MODEL`. For the rest, ask the Supervisor to run its
 `workspace-protocol` skill, which interviews you.
 
 ````md

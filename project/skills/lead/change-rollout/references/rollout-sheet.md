@@ -1,12 +1,10 @@
 # Rollout sheet template
 
-The rollout sheet is what you hand the Human for every step that leaves this machine. It lists
-the steps in order, the proven way back from each, and the signals that stop the rollout. Write
-it before the first step runs anywhere shared, because thresholds and rollback commands chosen
-under pressure tend to fit whatever is happening at the time.
-
-Keep the sheet in the ExecPlan's "Acceptance and recovery" section, or in a file next to the
-plan that the section links to.
+The rollout sheet goes to the Human for every step that leaves this machine: the steps in order,
+the proven way back from each, and the signals that stop the rollout. Write it before the first
+step runs anywhere shared, because thresholds and rollback commands chosen under pressure fit
+whatever is happening at the time. Keep it in the ExecPlan's "Acceptance and recovery" section,
+or in a file next to the plan that the section links to.
 
 Copy this block:
 
@@ -51,11 +49,11 @@ Replace the following:
 - `ROUTE`: `parallel change`, `strangler`, or `hard cut`, with one line on why.
 - `ROLLBACK_EVIDENCE`: the date, the command run, and where its output is recorded, for example
   `2026-09-11, down migration on a copy of staging data, output in the ExecPlan Discoveries`.
-- `STEP`, `COMMAND`, `RUNNER`, `CHECK`, `ROLLBACK_COMMAND`: one row per step in order. `RUNNER`
+- `STEP`, `COMMAND`, `RUNNER`, `CHECK`, `ROLLBACK_COMMAND`: one row per step, in order. `RUNNER`
   is `Human` for anything that leaves this machine (push, deploy, migration on a shared
   database, a hosted flag, an external call), and `Peer` or `Lead` only for local steps.
 - `POPULATION`: who gets the change first, for example `5% of requests, internal accounts
-  first`. Write `none` and delete the canary table when the product has no staged rollout, and
+  first`. When the product has no staged rollout, write `none`, delete the canary table, and
   put the smoke check after deploy in the Steps table instead.
 - `CONTROL`: the same-size group running the old version at the same time.
 - `STAGES`: each stage's share and minimum duration, for example `5% for 24 h, 25% for 24 h,
