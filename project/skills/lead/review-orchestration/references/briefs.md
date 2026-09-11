@@ -46,10 +46,8 @@ Replace the following:
 - `MACHINE_PASS`: `run` for exactly one Reviewer per round, `skip` for the others.
 - `BRIEF_PATH`, `HANDOFF_PATH`: files holding the slice's brief and the Peer's handoff.
 - `GLOBAL_CONSTRAINTS`: the same constraints as the slice's brief, copied word for word.
-- `RULINGS_TO_CHECK`: each `DECISION: … (ambiguous)` ruling the change implements, as a
-  question with the directive's words quoted, for example `The directive says "only whole
-  hundreds count": which points does the code spend when the discount is capped?`; otherwise
-  `none`.
+- `RULINGS_TO_CHECK`: each `(ambiguous)` ruling the change implements, as a question that
+  quotes the directive's words, or `none`.
 
 ## Scout
 

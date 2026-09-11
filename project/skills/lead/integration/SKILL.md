@@ -82,11 +82,9 @@ and a closing summary that ends with the `LESSON:` line.
    the decompose skill, and rerun this step. A green run earlier in the session proves only the
    tree it ran on.
 
-6. **Offer exactly three options**, in this form, and wait for the Human's answer, unless the
-   owner directive already answered: when it says to proceed, reserves no decision for the
-   Human, and `LEAD_WROTE_SHAS` would be `none`, carry out option 1 yourself and send the same
-   block with `Merged locally: the directive said to proceed` in place of the question. A local
-   merge is reversible, and asking again only stalls the work:
+6. **Offer exactly three options** in this form and wait for the Human's answer. When the
+   directive says to proceed, reserves nothing, and no commit is Lead-written, merge locally
+   (option 1) and send the block with `Merged locally: the directive said to proceed`:
 
    ```text
    Integration ready: integrate/SLUG at SHA, based on BASE.
@@ -106,7 +104,7 @@ and a closing summary that ends with the `LESSON:` line.
    fixed because pushing and pull requests leave this machine, so the Human chooses. Discarding
    the work isn't on it: that happens only when the Human asks in so many words, and then you
    list the branch, commits, and worktrees it would delete and wait for an explicit yes. Done
-   when the Human has chosen, or the directive's proceed has chosen the local merge.
+   when the Human has chosen, or the directive chose for them.
 
 7. **Carry out the choice:**
 

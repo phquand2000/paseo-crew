@@ -47,10 +47,9 @@ review lane count. Done when you have named the lane and the reason.
 3. **Brief and launch.** Create each Reviewer from the project's Reviewer profile
    (`list_profiles`), which is read-only and runs Open Code Review, with the axis Reviewer brief
    in `references/briefs.md` (relative to this skill's directory): disposition Reviewer, thinking
-   `high`, the slice brief and handoff as files, and the global constraints word for word. Put every `DECISION: … (ambiguous)` ruling
-   the change implements under Rulings to check, as a question, because a Reviewer who isn't
-   asked reads the code against your reading and not against the directive's words. Seal each
-   Reviewer: no other Reviewer's
+   `high`, the slice brief and handoff as files, and the global constraints word for word. Put
+   each `(ambiguous)` ruling it implements under Rulings to check as a question: an unasked
+   Reviewer checks your reading, not the directive's. Seal each Reviewer: no other Reviewer's
    findings, none of your opinions, and no instruction to leave a particular issue unflagged.
    Create each with `create_agent`, labeled `review.name`, `review.round`, and `review.axis`, and
    wait for the notifications. Done when every Reviewer has reported.
@@ -87,9 +86,9 @@ review lane count. Done when you have named the lane and the reason.
    a map without findings and a sweep needs findings with evidence; set `medium` thinking.
    Scouts run no tests, builds, or package managers, because they share your checkout and the
    test lane, and they skip the Open Code Review pass: add one more Reviewer with the axis
-   Reviewer brief and the `machine pass` axis to run it once over the whole scope. Create each with `create_agent`, labeled
-   `review.name`, `review.round`, `review.scout`, and `review.concerns`, and wait for the
-   notifications. Done when N agent IDs have come back.
+   Reviewer brief and the `machine pass` axis to run it once over the whole scope. Create each
+   with `create_agent`, labeled `review.name`, `review.round`, `review.scout`, and
+   `review.concerns`, and wait for the notifications. Done when N agent IDs have come back.
 
 4. **Recover from a restart without relaunching.** If your session restarts or compacts, or
    agents stop mid-sweep, the roster in the brief file stays fixed. Call `list_agents` and match

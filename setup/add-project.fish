@@ -206,7 +206,7 @@ set -l new_profiles (jq -nc --arg s $slug --arg m "$model" '
           notes: "The only Peer profile for work: the Engineer, Architect, and Scout dispositions all use it, and the brief sets the role. Use thinkingOptionId high for an Architect or a new boundary, low for a Scout. Pi has no modes: pass no modeId."}
          + (if $m == "" then {} else {model: $m} end)),
         ({id: "\($s)-reviewer", name: "\($n) · Reviewer", provider: "pi-reviewer-\($s)", thinkingOptionId: "high",
-          notes: "Every review of a change (a SHA or range): sealed review axes, sweep scouts, re-reviews, and council Verifiers and Auditors. Read-only, and runs Open Code Review before reading the change against the brief. Pi has no modes: pass no modeId."}
+          notes: "Every review of a change: sealed axes, sweep scouts, re-reviews, council Verifiers and Auditors. Read-only; runs Open Code Review. Use the review-orchestration axis brief, with Machine pass and Rulings to check. No modeId: Pi has no modes."}
          + (if $m == "" then {} else {model: $m} end))
       ]')
 set -l missing_profiles (jq -c --argjson p "$new_profiles" '
