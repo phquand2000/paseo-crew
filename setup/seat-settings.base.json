@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "mattpocock-skills@mattpocock": false
+  },
+  "autoCompactWindow": 300000,
+  "precomputeCompactionEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "workflowKeywordTriggerEnabled": false,
+  "disableWorkflows": true,
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "300000"
+  },
+  "language": "vietnamese",
+  "autoMemoryEnabled": false,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  }
+}
