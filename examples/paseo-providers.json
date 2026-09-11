@@ -1,10 +1,10 @@
 {
   "_doc": [
-    "The `claude` and `claude-supervisor` entries belong under .agents.providers in ~/.paseo/config.json; merge them in once per machine.",
-    "The `claude-lead-SLUG` and `pi-peer-SLUG` entries are templates: setup/add-project.fish copies them for each project, replacing SLUG and adding env.SEATWORKS_REPO.",
+    "Merge the `claude` entry into .agents.providers in ~/.paseo/config.json once per machine; it holds the token every Claude seat inherits through `extends`.",
+    "The three SLUG entries are templates: setup/add-project.fish copies them for each project, replacing SLUG and HOME_DIR and adding env.SEATWORKS_REPO (and env.SEATWORKS_KIT for the Supervisor).",
     "Merge into the existing file; don't replace it, because it also holds workspaces and the agent ledger.",
     "Also make sure .daemon.mcp has \"enabled\": true and \"injectIntoAgents\": true, or the Lead and Supervisor get no Paseo tools.",
-    "Replace HOME_DIR with the real home directory and OAUTH_TOKEN with your CLAUDE_CODE_OAUTH_TOKEN. Seats inherit the token from `claude` through `extends`.",
+    "Replace OAUTH_TOKEN with your CLAUDE_CODE_OAUTH_TOKEN. add-project.fish drops it from the seat entries when the base `claude` entry has one.",
     "Delete the _doc key before writing: Paseo's schema rejects unknown keys."
   ],
 
@@ -13,12 +13,13 @@
     "enabled": true
   },
 
-  "claude-supervisor": {
+  "claude-supervisor-SLUG": {
     "extends": "claude",
-    "label": "Claude Supervisor Seat",
-    "description": "Supervisor seat for every project: meets the Human, relays decisions, observes, keeps the notebook",
+    "label": "Claude Supervisor · SLUG",
+    "description": "Supervisor seat for SLUG: meets the Human, relays decisions, observes, keeps the notebook",
     "env": {
-      "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-supervisor",
+      "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-supervisor-SLUG",
+      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
       "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
       "CLAUDE_CODE_DISABLE_CRON": "1",
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",

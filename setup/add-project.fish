@@ -4,11 +4,12 @@
 #
 #   fish setup/add-project.fish REPO_DIR [--slug SLUG] [--model PI_MODEL]
 #
-# 1. Copies the kit's project templates into REPO_DIR/.seatworks/: LEAD.md, PEER.md,
-#    NOTEBOOK.md, WORKSPACE_PROTOCOL.md, skills/lead/, and skills/peer/.
+# 1. Copies the kit's project templates into REPO_DIR/.seatworks/: SUPERVISOR.md, LEAD.md,
+#    PEER.md, NOTEBOOK.md, WORKSPACE_PROTOCOL.md, and skills/ for each role.
 # 2. Adds AGENTS.md and a one-line CLAUDE.md (@AGENTS.md) at the repository root when they are
 #    missing.
-# 3. Adds the providers claude-lead-SLUG and pi-peer-SLUG to ~/.paseo/config.json.
+# 3. Adds the providers claude-supervisor-SLUG, claude-lead-SLUG, and pi-peer-SLUG to
+#    ~/.paseo/config.json.
 # 4. Registers the repository as a Paseo project, runs setup-seats.fish, and reloads Paseo.
 #
 # It never overwrites an existing file, so rerunning it only fills gaps. Edit the project's
@@ -57,6 +58,7 @@ if not test -f $paseo_config; or not jq -e . $paseo_config >/dev/null 2>&1
 end
 
 set -l seat $repo_dir/.seatworks
+set -l sup_key claude-supervisor-$slug
 set -l lead_key claude-lead-$slug
 set -l peer_key pi-peer-$slug
 set -l added
@@ -72,6 +74,11 @@ for file in $stage/LEAD.md $stage/WORKSPACE_PROTOCOL.md (find $stage/skills/lead
     perl -pi -e "s/\bpi-peer\b(?![-\w])/$peer_key/g" $file
 end
 test -n "$model"; and perl -pi -e "s|PEER_MODEL|$model|g" $stage/WORKSPACE_PROTOCOL.md
+# The Supervisor's files name the seats as PROVIDER-SLUG; other SLUG placeholders in them
+# (a directive's file name, for example) stay for the Supervisor to fill in.
+for file in $stage/SUPERVISOR.md (find $stage/skills/supervisor -type f -name '*.md')
+    perl -pi -e "s/\b(claude-supervisor|claude-lead|pi-peer)-SLUG\b/\$1-$slug/g" $file
+end
 
 for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
     set -l rel (string replace -- "$stage/" '' $src)
@@ -100,7 +107,7 @@ end
 # `extends`.
 
 set -l missing 0
-for key in $lead_key $peer_key
+for key in $sup_key $lead_key $peer_key
     jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1; or set missing 1
 end
 if test $missing -eq 1
@@ -108,18 +115,20 @@ if test $missing -eq 1
     cp $paseo_config $paseo_config.bak
     chmod 600 $paseo_config.bak
     if jq --slurpfile ex $kit/examples/paseo-providers.json --arg h $HOME --arg s $slug \
-            --arg r $repo_dir --argjson tok $has_token '
+            --arg r $repo_dir --arg kit $kit --argjson tok $has_token '
         ($ex[0] | del(._doc)
           | walk(if type == "string" then (gsub("HOME_DIR"; $h) | gsub("SLUG"; $s)) else . end)) as $e
-        | .agents.providers["claude-lead-\($s)"] //= ($e["claude-lead-SLUG"]
-            | .env.SEATWORKS_REPO = $r
-            | if $tok then .env |= del(.CLAUDE_CODE_OAUTH_TOKEN) else . end)
+        | def claude_seat: .env.SEATWORKS_REPO = $r
+            | if $tok then .env |= del(.CLAUDE_CODE_OAUTH_TOKEN) else . end;
+        .agents.providers["claude-supervisor-\($s)"] //= ($e["claude-supervisor-SLUG"]
+            | claude_seat | .env.SEATWORKS_KIT = $kit)
+        | .agents.providers["claude-lead-\($s)"] //= ($e["claude-lead-SLUG"] | claude_seat)
         | .agents.providers["pi-peer-\($s)"] //= ($e["pi-peer-SLUG"] | .env.SEATWORKS_REPO = $r)' \
             $paseo_config >$paseo_config.new
         and jq -e . $paseo_config.new >/dev/null
         chmod 600 $paseo_config.new
         mv $paseo_config.new $paseo_config
-        echo "  ~ added providers $lead_key and $peer_key (backup: $paseo_config.bak)"
+        echo "  ~ added the missing providers among $sup_key, $lead_key, $peer_key (backup: $paseo_config.bak)"
     else
         rm -f $paseo_config.new
         echo "! could not add the providers to $paseo_config"
@@ -147,9 +156,9 @@ if test (count $added) -gt 0
 else
     echo "Nothing new to copy: $repo_dir already has every template file."
 end
-echo "Seats: $lead_key (Lead) and $peer_key (Peer); the Supervisor is shared."
-echo "Next: fill in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md,"
-echo "for example by asking the Supervisor to run its workspace-protocol skill for this repository."
+echo "Seats: $sup_key (Supervisor), $lead_key (Lead), $peer_key (Peer)."
+echo "Next: start $sup_key in this repository and ask it to run its workspace-protocol skill,"
+echo "which fills in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md."
 if test -z "$model"
     echo "! no --model given: replace PEER_MODEL in .seatworks/WORKSPACE_PROTOCOL.md with one of:"
     paseo provider models $peer_key 2>/dev/null | awk 'NR > 1 { print "    " $1 }' | head -8

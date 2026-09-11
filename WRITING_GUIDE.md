@@ -1,6 +1,6 @@
 # Writing guide
 
-These rules apply to everything in this kit: the seat prompts in `claude/` and `project/`, the
+These rules apply to everything in this kit: the seat prompts in `project/`, the
 templates in `examples/`, the docs, and the comments in the setup script and guard extension. The Supervisor follows them when it
 patches a prompt. Each rule names its source in brackets; the sources are listed at the end.
 
@@ -83,7 +83,7 @@ describes its target. [G, MS]
 
 ## Skills
 
-Skills live in `skills/supervisor/` and `project/skills/<role>/`, and must work unchanged in
+Skills live in `project/skills/<role>/`, and must work unchanged in
 Claude Code and Pi. Each role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
 Peer. [S, SK, PI]
 
@@ -102,7 +102,7 @@ Peer. [S, SK, PI]
 6. Peer skills follow the Peer prompt's rules: no HTML comments, and no mention of Paseo, seats,
    or the Supervisor.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
-   license in `skills/NOTICE.md`.
+   license in `NOTICE.md`.
 
 ## Script comments
 

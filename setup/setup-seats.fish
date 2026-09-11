@@ -2,15 +2,12 @@
 #
 # setup-seats: build or refresh every seat's profile.
 #
-#   claude-supervisor              one Claude Code seat for every project; its prompt and skills
-#                                  live in this kit (claude/SUPERVISOR.md, skills/supervisor/)
-#   claude-lead-SLUG, pi-peer-SLUG one pair per project; their prompts and skills live in that
-#                                  project's .seatworks/ directory
-#
-# Profiles, settings, deny lists, and models are global; every .md a seat loads stays with its
-# project. A profile links to those files, so an edit reaches the next seat spawned without
-# copying. Projects are the providers named claude-lead-SLUG in ~/.paseo/config.json, whose
-# env.SEATWORKS_REPO names the repository; setup/add-project.fish creates them.
+# Each project has three seats: claude-supervisor-SLUG and claude-lead-SLUG (Claude Code), and
+# pi-peer-SLUG (Pi). Profiles, settings, deny lists, and models are global; every .md a seat
+# loads lives in that project's .seatworks/ directory, and the profile links to it, so an edit
+# reaches the next seat spawned without copying. Projects are the providers named
+# claude-lead-SLUG in ~/.paseo/config.json, whose env.SEATWORKS_REPO names the repository;
+# setup/add-project.fish creates them.
 #
 # Usage:
 #   fish setup/setup-seats.fish            # build or update
@@ -58,7 +55,7 @@ set -g deny_lead       '["LSP"]'
 set -g deny_supervisor '["LSP"]'
 
 # Per-role differences from the base settings. `null` removes the key. Every Lead shares one
-# generated settings file, and so does the Supervisor.
+# generated settings file, and so does every Supervisor.
 set -l overlay_lead '{
   "outputStyle": "Concise",
   "disableBundledSkills": true,
@@ -66,7 +63,7 @@ set -l overlay_lead '{
   "promptCacheTtl": "1h"
 }'
 # Only the Supervisor keeps Claude Code's auto memory, as in the practitioner's Codex setup:
-# it is the organizational memory across projects, while Leads and Peers start clean.
+# it is the project's organizational memory, while Leads and Peers start clean.
 set -l overlay_supervisor '{
   "outputStyle": "Concise",
   "disableBundledSkills": true,
@@ -380,7 +377,7 @@ end
 
 # `path resolve` doesn't require the path to exist, so a copied script would still derive
 # $kit and point real profiles at nothing. Stop here instead.
-for file in claude/SUPERVISOR.md pi/settings.json pi/extensions/peer-guard.ts
+for file in setup/seat-settings.base.json pi/settings.json pi/extensions/peer-guard.ts
     if not test -f $kit/$file
         echo "! $kit/$file not found. Run the script from its original location in the kit."
         exit 1
@@ -442,6 +439,7 @@ end
 # Writing through a temp file compared with `cmp` keeps the run idempotent: a settings file
 # changes only when its content would.
 
+test $dry -eq 0; and mkdir -p $kit/claude
 for role in lead supervisor
     set -l var overlay_$role
     set -l overlay $$var
@@ -481,12 +479,6 @@ else
     or fail "daemon.mcp.injectIntoAgents is not true in $paseo_config, so the Lead and Supervisor get no Paseo tools."
 end
 
-# ── The Supervisor seat ─────────────────────────────────────────────────────────────
-
-build_claude_seat claude-supervisor $profiles_root/claude-supervisor $kit/claude/SUPERVISOR.md \
-    $kit/claude/supervisor.settings.json $kit/skills/supervisor $supervisor_extra_skills
-test $paseo_ok -eq 1; and claude_provider claude-supervisor $profiles_root/claude-supervisor $deny_supervisor
-
 # ── Project seats ───────────────────────────────────────────────────────────────────
 # A filesystem that looks right doesn't make a seat right: if its provider doesn't point at
 # the profile built here, the seat reads a shared profile and carries none of its project's
@@ -508,6 +500,12 @@ for entry in $projects
         continue
     end
     set -l seat $repo_dir/.seatworks
+    build_claude_seat claude-supervisor-$slug $profiles_root/claude-supervisor-$slug $seat/SUPERVISOR.md \
+        $kit/claude/supervisor.settings.json $seat/skills/supervisor $supervisor_extra_skills
+    claude_provider claude-supervisor-$slug $profiles_root/claude-supervisor-$slug $deny_supervisor
+    # The Supervisor reaches the kit's setup scripts and templates through SEATWORKS_KIT.
+    test (jq -r --arg k claude-supervisor-$slug '.agents.providers[$k].env.SEATWORKS_KIT // ""' $paseo_config) = $kit
+    or fail "provider claude-supervisor-$slug: env.SEATWORKS_KIT is not $kit; rerun setup/add-project.fish."
     build_claude_seat claude-lead-$slug $profiles_root/claude-lead-$slug $seat/LEAD.md \
         $kit/claude/lead.settings.json $seat/skills/lead $lead_extra_skills
     claude_provider claude-lead-$slug $profiles_root/claude-lead-$slug $deny_lead
