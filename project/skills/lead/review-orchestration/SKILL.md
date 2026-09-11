@@ -47,7 +47,10 @@ review lane count. Done when you have named the lane and the reason.
 3. **Brief and launch.** Create each Reviewer from the project's Reviewer profile
    (`list_profiles`), which is read-only and runs Open Code Review, with the axis Reviewer brief
    in `references/briefs.md` (relative to this skill's directory): disposition Reviewer, thinking
-   `high`, the slice brief and handoff as files, and the global constraints word for word. Seal each Reviewer: no other Reviewer's
+   `high`, the slice brief and handoff as files, and the global constraints word for word. Put every `DECISION: … (ambiguous)` ruling
+   the change implements under Rulings to check, as a question, because a Reviewer who isn't
+   asked reads the code against your reading and not against the directive's words. Seal each
+   Reviewer: no other Reviewer's
    findings, none of your opinions, and no instruction to leave a particular issue unflagged.
    Create each with `create_agent`, labeled `review.name`, `review.round`, and `review.axis`, and
    wait for the notifications. Done when every Reviewer has reported.

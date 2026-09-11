@@ -19,6 +19,8 @@ nothing, and leaves "nothing found" as a full answer. A question for a Peer goes
 | decision after lanes (Lead) | "Which lane's strongest point does your ruling leave unanswered?" |
 | framing (Lead) | "Does this brief leave the Peer room to propose a route you didn't list?" |
 | detour (Lead) | "Is this gap inside your outcome, or a foundation another owner should build first?" |
+| Lead writing code (Lead) | "Which lane did intake give this work, and who does that lane's Rigor say writes the code?" |
+| unreviewed seam (Lead) | "Does this change touch a decide-first seam in `AGENTS.md`, and what does your Independent review section require for it?" |
 
 Avoid these shapes:
 

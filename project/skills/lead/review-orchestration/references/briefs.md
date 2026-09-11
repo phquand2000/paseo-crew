@@ -17,6 +17,7 @@ Machine pass        MACHINE_PASS
 Starting points     the slice brief at BRIEF_PATH, the handoff at HANDOFF_PATH,
                     `git diff BASE_SHA HEAD_SHA`, AGENTS.md
 Global constraints  GLOBAL_CONSTRAINTS
+Rulings to check    RULINGS_TO_CHECK
 Owned scope         none; read-only
 Verification        none required; cite file:line and any command you ran with its output
 Report              Every finding, each with evidence (file:line), consequence, smallest fix,
@@ -45,6 +46,10 @@ Replace the following:
 - `MACHINE_PASS`: `run` for exactly one Reviewer per round, `skip` for the others.
 - `BRIEF_PATH`, `HANDOFF_PATH`: files holding the slice's brief and the Peer's handoff.
 - `GLOBAL_CONSTRAINTS`: the same constraints as the slice's brief, copied word for word.
+- `RULINGS_TO_CHECK`: each `DECISION: … (ambiguous)` ruling the change implements, as a
+  question with the directive's words quoted, for example `The directive says "only whole
+  hundreds count": which points does the code spend when the discount is capped?`; otherwise
+  `none`.
 
 ## Scout
 

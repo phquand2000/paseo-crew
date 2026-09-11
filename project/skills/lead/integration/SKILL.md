@@ -1,6 +1,6 @@
 ---
 name: integration
-description: "Finishes accepted work: merges slice branches in dependency order, resolves conflicts by reading each side's intent from its commits, runs the full suite on the merged result before offering anything, offers the Human exactly three options, then removes verified worktrees and archives finished Peers. Use when every slice of an outcome is accepted and its branches need to come together."
+description: "Finishes accepted work: merges slice branches in dependency order, resolves conflicts from each side's intent, runs the full suite on the merged result, then merges locally when the directive said proceed or offers the Human three options, and removes verified worktrees and archives finished Peers. Use when every slice of an outcome is accepted and its branches need to come together."
 ---
 
 # Integration
@@ -51,9 +51,9 @@ and a closing summary that ends with the `LESSON:` line.
    Done when every slice is merged, or a conflict stops you at step 4.
 
 4. **Resolve conflicts.** Resolving writes code, so brief an Engineer Peer whose owned scope is
-   the conflicted files in the integration worktree, or resolve them yourself and open your
-   summary with `LEAD-WROTE: <merge sha> — needs Human acceptance`. Whoever resolves works like
-   this:
+   the conflicted files in the integration worktree. Resolve them yourself only for tiny-lane
+   work, and then open your summary with `LEAD-WROTE: <merge sha> — needs Human acceptance`.
+   Whoever resolves works like this:
 
    1. List the conflicted files with `git diff --name-only --diff-filter=U`.
    2. Read each side's intent from its commits, its brief, and its handoff:
@@ -82,7 +82,11 @@ and a closing summary that ends with the `LESSON:` line.
    the decompose skill, and rerun this step. A green run earlier in the session proves only the
    tree it ran on.
 
-6. **Offer exactly three options**, in this form, and wait for the Human's answer:
+6. **Offer exactly three options**, in this form, and wait for the Human's answer, unless the
+   owner directive already answered: when it says to proceed, reserves no decision for the
+   Human, and `LEAD_WROTE_SHAS` would be `none`, carry out option 1 yourself and send the same
+   block with `Merged locally: the directive said to proceed` in place of the question. A local
+   merge is reversible, and asking again only stalls the work:
 
    ```text
    Integration ready: integrate/SLUG at SHA, based on BASE.
@@ -102,7 +106,7 @@ and a closing summary that ends with the `LESSON:` line.
    fixed because pushing and pull requests leave this machine, so the Human chooses. Discarding
    the work isn't on it: that happens only when the Human asks in so many words, and then you
    list the branch, commits, and worktrees it would delete and wait for an explicit yes. Done
-   when the Human has chosen.
+   when the Human has chosen, or the directive's proceed has chosen the local merge.
 
 7. **Carry out the choice:**
 

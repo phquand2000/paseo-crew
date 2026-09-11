@@ -69,6 +69,8 @@ question helps most. `urgent` events are sent at once.
 | framing | Lead | a brief offering A or B (or block) instead of an open question; a brief containing the implementation; one Peer's conclusion passed to another as fact; Peers put in one shared conversation | report |
 | coordination | Lead | a Peer briefed onto a scope another agent is writing; staffing by role template instead of by slice; a Reviewer added with no material uncertainty; a decision the Lead could settle sent to the Human; a slice past three fix rounds | report |
 | acceptance gap | Lead | an acceptance summary without a `LESSON:` line; Lead-written code without `LEAD-WROTE:` | report |
+| Lead writing code | Lead | the Lead writes or edits production code or tests (anything outside `.seatworks/`, `docs/`, plans, and ADRs) after its intake result named a normal or high-risk lane | report |
+| unreviewed seam | Lead | an acceptance of a change that touches a decide-first seam in `AGENTS.md`, with no Reviewer created for it | report |
 | scope drift | Peer | writes outside the brief's owned scope; a new dependency; schema, CI, or config changes the brief didn't authorize | report |
 | unanswered pushback | Lead | a `REOPEN_REQUEST`, `DEPENDENCY_REQUEST`, or `BLOCKED` with no ruling after two sweeps | report |
 | collision | any | two agents running the full suite, holding one port, or using the test database at once; a flaky failure right after | report |
