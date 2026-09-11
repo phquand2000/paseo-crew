@@ -1,6 +1,6 @@
 ---
 name: retrospective
-description: "Runs a blameless retrospective on an agent episode: builds the timeline from Paseo activity, git, and the notebook before interpreting anything, reconstructs what each agent could see, looks for contributing causes in the system, and records one or two typed actions as a notebook entry. Use when a failure repeats, work is lost, or an acceptance is reversed, or when the Human asks for one."
+description: "Runs a blameless retrospective on an agent episode, or the weekly review: builds the timeline from Paseo activity, git, the notebook, and the attention log before interpreting anything, finds contributing causes in the system, and records typed actions. Use when a failure repeats, work is lost, an acceptance is reversed, the WEEKLY REVIEW heartbeat fires, or the Human asks."
 ---
 
 # Retrospective
@@ -41,7 +41,8 @@ insights, decide what to do, and close.
    - `get_agent_activity` for each agent, limited to the window;
    - `git -C REPO log --since=START --until=END --format='%h %ad %an %s' --date=iso`;
    - `git -C REPO reflog --date=iso` for commits that were lost or rewritten;
-   - notebook entries, copies of directives under `.seatworks/records/directives/`, and handoffs quoted in activity.
+   - notebook entries, attention log lines under `.seatworks/records/attention/`, copies of
+     directives under `.seatworks/records/directives/`, and handoffs quoted in activity.
 
    Record one row per event, with the time, the agent, what happened, and the source, quoting
    output where you can; [references/timeline.md](references/timeline.md) has the format. Mark
@@ -120,6 +121,38 @@ An entry looks like this:
   owner Lead of echo; remove when Paseo reports quota errors as a notification.
 - Status: open
 ```
+
+## Weekly review
+
+The `WEEKLY REVIEW` heartbeat runs this instead of the episode procedure. It improves the rules a
+little each week from what actually happened, without changing them on one observation.
+
+1. **Collect the week.** Read the attention logs in `.seatworks/records/attention/` for the last
+   seven days, the notebook entries added or seen this week, and the `DECISION:`, `DETOUR:`, and
+   `LESSON:` lines in this week's Lead activity (`get_agent_activity`). **Done** when each item
+   has a date and a source.
+2. **Group by pattern.** Merge items that describe the same behavior, and count the distinct
+   days each pattern appeared. Note which `CHECK:` questions found something and which found
+   nothing. Look also for patterns that show only over time: a Peer that agrees with every brief
+   or objects for show, and a Lead that never changes a ruling after evidence or folds on every
+   objection. **Done** when every item belongs to one pattern.
+3. **Choose one action per pattern:**
+   - `notebook-only` for a first sighting: add or update its notebook entry.
+   - `patch` through the protocol-patch skill, when the pattern appeared on two different days
+     and belongs to this project.
+   - `watch`: a new trigger in `.seatworks/WATCHER.md`, or a new question in the attention-watch
+     skill's `references/questions.md`, when a question at the right moment would have caught
+     it. This goes through protocol-patch too.
+   - `kit`: when the pattern would appear in any project, write the change as a diff against
+     `$SEATWORKS_KIT/project/` for the Human, and don't apply it.
+
+   **Done** when every pattern has one action.
+4. **Check earlier patches.** For each notebook entry whose status is `applied SHA`, did the
+   pattern stop after that commit? A patch that changed nothing is a pattern of its own.
+   **Done** when each is marked held or not held.
+5. **Report** in at most eight lines: the patterns, the proposed changes, and what needs a
+   Human decision. Nothing is applied until the Human approves. **Done** when the report is
+   sent.
 
 The rule that matters most: build the timeline before naming any cause, and look for causes in
 what the agents were given rather than in the agents.

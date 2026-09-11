@@ -1,6 +1,6 @@
 ---
 name: test-first
-description: "Build a behavior change one failing test at a time at the seam the brief names: see each test fail for the right reason, make it pass with the least code, then tidy, while avoiding coupled, tautological, and all-tests-first tests. Use when a brief asks you to add or change behavior whose contract and owner are already settled."
+description: "Build a behavior change one failing test at a time at the seam the brief names: see each test fail for the right reason, make it pass with the least code, then tidy, while avoiding API-minting, coupled, tautological, and all-tests-first tests. Use when a brief asks you to add or change behavior whose contract and owner are already settled."
 ---
 
 # Test-first
@@ -27,8 +27,17 @@ Repeat for each behavior on the list:
 
 If you changed production code before writing the test, set your change aside with `git stash push -- PATHS`, confirm the new test fails on the original code, then run `git stash pop`. Name only your own paths, so uncommitted work that isn't yours stays where it is.
 
-## Three anti-patterns
+## Anti-patterns
 
+The full catalog, with the tell and the better route for each, is in [references/test-antipatterns.md](references/test-antipatterns.md). Check every new test against it before handoff. These four do the most damage:
+
+- Minted API: the test calls a type, field, function, route, or table that production code doesn't have and the brief's Interfaces don't name, so the test invents the contract. Later code gets bent to satisfy it, and a later design change turns a pile of such tests red for no real reason. For each name a new test uses that the test doesn't define itself, check that it exists at the base commit:
+
+  ```sh
+  git grep -n 'NAME' BASE -- . ':(exclude)*test*' ':(exclude)*spec*'
+  ```
+
+  A name with no hit that isn't in the brief's Interfaces means the contract isn't settled: report `BLOCKED` with the missing names.
 - Coupled to the implementation: the test mocks your own internal collaborators, calls private functions, asserts call order, or checks results through a side channel such as reading the database directly. It breaks when you refactor without changing behavior. Assert through the seam instead.
 - Tautological: the expected value is computed the way the code computes it, is a snapshot the code generated, or is a mock asserting that the mock was called. It passes by construction. Replace it with a literal you worked out by hand.
 - All tests first: the whole list written as test code before any implementation. Those tests describe the shape you imagined, not the behavior you learned while building. Write one test, make it pass, then write the next.

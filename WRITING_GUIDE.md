@@ -127,9 +127,12 @@ Use these terms, and only these, for the following concepts:
 | acceptance | The decision, by the Lead or the Human, that work is done |
 | owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a Human decision |
 | advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
+| check | A neutral question, labeled `CHECK:`, that asks a Lead, or a Peer through its Lead, to look again at its work against a named source |
+| attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
+| watcher | The `claude-watcher-SLUG` seat, on Haiku, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
 
 `.seatworks/PEER.md` never uses Supervisor, seat, or Paseo; the Peer knows only the Lead that assigns
-its work. `.seatworks/LEAD.md` never names the Supervisor; it knows only the two message labels.
+its work. `.seatworks/LEAD.md` never names the Supervisor; it knows only the three message labels.
 
 ## Where sources disagree, and what this kit chose
 

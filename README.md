@@ -1,14 +1,16 @@
 # Seatworks starter
 
-Seatworks gives each project three agent seats, each with its own prompt and settings,
+Seatworks gives each project four agent seats, each with its own prompt and settings,
 coordinated through [Paseo](https://getpaseo.com):
 
 - `claude-supervisor-SLUG` ([Claude Code](https://code.claude.com)) meets with you, relays
-  settled decisions to the Lead, watches how work is coordinated, and keeps the project's
-  notebook of failures.
+  settled decisions to the Lead, answers the attention events the watcher raises, and keeps
+  the project's notebook of failures.
 - `claude-lead-SLUG` (Claude Code) breaks work down, delegates it to Peers, and accepts their
   results.
 - `pi-peer-SLUG` ([Pi](https://pi.dev)) writes code and returns evidence.
+- `claude-watcher-SLUG` (Claude Code on Haiku) reads the Lead's and Peers' activity on a
+  heartbeat and raises attention events for the Supervisor.
 
 Profiles, settings, and models are global. Every `.md` a seat loads lives in the project, under
 `.seatworks/`, so each project carries its own rules under its own git history.
@@ -33,11 +35,13 @@ symlinks into the project's `.seatworks/`, so an edit to `REPO/.seatworks/LEAD.m
 for the next Lead you spawn there.
 
 ```
-~/.paseo/config.json               claude-supervisor-SLUG, claude-lead-SLUG, pi-peer-SLUG
+~/.paseo/config.json               claude-supervisor-SLUG, claude-lead-SLUG,
+                                   claude-watcher-SLUG, pi-peer-SLUG
 ~/.claude/profiles/<seat>/         settings and deny lists; CLAUDE.md and skills/ are links
 ~/.pi/profiles/pi-peer-SLUG/       guard and login links; APPEND_SYSTEM.md and skills/ are links
-REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, WORKSPACE_PROTOCOL.md,
-                                   NOTEBOOK.md, records/, skills/{supervisor,lead,peer}/
+REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, WATCHER.md,
+                                   WORKSPACE_PROTOCOL.md, NOTEBOOK.md, records/,
+                                   skills/{supervisor,lead,peer}/
 ```
 
 `setup/add-project.fish` copies the kit's `project/` templates into a repository and creates its
@@ -58,12 +62,33 @@ Supervisor's messages labeled as owner directives or advice, without knowing who
 The hiding lives in the prompts, not in the filesystem; [REFERENCE.md](REFERENCE.md)
 describes where it holds.
 
+## Attention, not polling
+
+An agent writing fluently rarely stops to check what it is most likely to get wrong, such as a
+test that invents an API nobody decided, or a trade-off made just to hit a number. Asked the
+right question at that moment, it usually sees the problem itself. The kit is built around
+that question:
+
+- When the Supervisor creates a Lead, it starts the watcher, a Haiku seat with a short prompt
+  of its own, which reads the Lead's and Peers' activity every 15 minutes and sends the
+  Supervisor an `ATTENTION:`
+  event when it sees a trigger, such as a major decision, a struggle, a change of direction, a
+  trade-off nobody approved, or a minted API.
+- The Supervisor logs most events. For the rest it sends a neutral `CHECK:` question through
+  the Lead ("which of the names your new tests call existed before this task?"), because asking
+  an agent to look again at a named source catches more than telling it that it is wrong.
+- Hard decisions go to sealed lanes: two or three Peers answer the same open question without
+  seeing the Lead's view or each other's, and the Lead rules on them.
+- When you're away, the Supervisor keeps attending and gives you a short report when you're
+  back. Once a week it proposes rule changes from what the log recorded.
+
 ## Daily use
 
 Talk to the Supervisor rather than to the Lead. In the Paseo app, open the project and start
 an agent on `claude-supervisor-SLUG`, settle the outcome with it, and have it create a Lead and
 relay the decision. For a small, well-defined task, you can talk to a Lead directly. A Peer has
-no context for questions, so give it only assigned work.
+no context for questions, so give it only assigned work. When you step away, tell the
+Supervisor; it holds everything but irreversible risks for the report you get when you return.
 
 After you edit a prompt or the settings, rebuild the profiles:
 
@@ -75,6 +100,13 @@ To verify without writing anything:
 
 ```fish
 fish setup/setup-seats.fish --check
+```
+
+When the kit's templates change, carry them into a project that already has its files. The
+replaced copies are kept under the project's `.seatworks/records/drafts/`:
+
+```fish
+fish setup/add-project.fish REPO_DIR --refresh
 ```
 
 The real work is replacing the demo rules with your own, the last step in SETUP.md. The rules
@@ -93,11 +125,12 @@ notebook, and a miss becomes a rule only when it recurs.
 | [project/SUPERVISOR.md](project/SUPERVISOR.md) | Supervisor prompt (demo) |
 | [project/LEAD.md](project/LEAD.md) | Lead prompt (demo) |
 | [project/PEER.md](project/PEER.md) | Peer prompt (demo), loaded by Pi as `APPEND_SYSTEM.md` |
+| [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the Haiku watcher on every sweep |
 | [project/skills/](project/skills/) | Strategy skills for the Supervisor, macro skills for the Lead, micro skills for the Peer |
 | [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
 | [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Peer |
 | [pi/settings.json](pi/settings.json) | Keys merged into each Peer's Pi settings |
-| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its three providers, and their profiles |
+| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its four providers, and their profiles |
 | [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, and `--check` only verifies |
 | [setup/seat-settings.base.json](setup/seat-settings.base.json) | Settings shared by the Claude seats |
 | [examples/paseo-providers.json](examples/paseo-providers.json) | The base `claude` provider, plus the per-project `SLUG` templates |

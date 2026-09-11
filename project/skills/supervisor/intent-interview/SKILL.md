@@ -19,8 +19,10 @@ the Lead received, and the Lead's transcript goes away when the Lead is archived
 1. Look up the facts yourself. Facts are your job, and decisions are the Human's, so ask the
    Human only for what they alone can decide. Read the target repository's `AGENTS.md` and
    `.seatworks/WORKSPACE_PROTOCOL.md`, run `git -C REPO log --oneline -20`, and read any notebook entries
-   and earlier directives for this project. **Done** when every fact the interview needs is
-   either known or listed as an open fact.
+   and earlier directives for this project. If the Human already worked the problem through,
+   with you or elsewhere, take its settled points as answers and the options it rejected as
+   no-gos, each with its reason, and keep the open parts as questions. **Done** when every fact
+   the interview needs is either known or listed as an open fact.
 2. If an open fact needs more than a few reads, hand it to a read-only Peer and keep
    interviewing on the questions that don't depend on it. Create the Peer with `create_agent` on
    `pi-peer-SLUG/<model>`, with `settings.thinkingOptionId` and no `settings.modeId`. Pass as
@@ -47,7 +49,7 @@ the Lead received, and the Lead's transcript goes away when the Lead is archived
 3. **Map the open decisions as a tree.** List every decision the directive depends on, and note
    which decisions depend on others. The frontier is every decision whose prerequisites are
    already settled. The tree always contains appetite, no-gos, known hard parts, the success
-   check, and the reserved decisions. **Done** when every field of the template maps to a node,
+   check, the reserved decisions, and what the Lead does when the design settles. **Done** when every field of the template maps to a node,
    or is already filled.
 4. **Ask the whole frontier in one round.** Number the questions, give your recommended answer
    with each one, and add a one-line reason. A question that depends on another question in the

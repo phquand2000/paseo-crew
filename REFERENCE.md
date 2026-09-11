@@ -57,9 +57,12 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** `setup/add-project.fish` copies the templates into `REPO/.seatworks/` once and
   never overwrites them, and the project's profiles link to that copy. The setup script finds a
   project's `.seatworks/` through `env.SEATWORKS_REPO` on its `claude-lead-SLUG` provider.
-- **Response:** edit the project's copy, or carry the change into each project that should have
-  it. If the repository moves, update `SEATWORKS_REPO` on both of its providers and rerun the
-  setup script.
+- **Response:** edit the project's copy, or carry kit changes in with
+  `fish setup/add-project.fish REPO_DIR --refresh`. It replaces the seat prompts and skills with
+  the kit's versions, keeps each replaced copy under `.seatworks/records/drafts/refresh-STAMP/`
+  so the project's own edits can be carried back, and never touches `NOTEBOOK.md` or
+  `WORKSPACE_PROTOCOL.md`. If the repository moves, update `SEATWORKS_REPO` on both of its
+  providers and rerun the setup script.
 
 ## Claude seats: `settings.modeId` overrides the permission mode
 
@@ -167,6 +170,41 @@ cause, and the response. Entries follow the order of the setup steps.
   in the Paseo app.
 - **Response:** hand off a Lead only after its Peers have finished and been accepted or
   archived, or detach a Peer that must survive before archiving its Lead.
+
+## A message to a running agent replaces its turn
+
+- **Symptom:** a Peer stops mid-step, or a Lead gets a Peer's "finished" notification with a
+  partial answer and never hears the real result.
+- **Cause:** `send_agent_prompt` replaces a running turn; only finish notifications and
+  heartbeats steer into it. A finish notification fires once, on the first idle, to whoever
+  sent the prompt, so a prompt from anyone but the Lead ends the Lead's wait early and sends
+  the Peer's next result to the sender.
+- **Response:** send anything meant for a Peer through its Lead (the Supervisor's `CHECK:`
+  questions work this way), and message a running agent only when it can't wait.
+
+## The watcher has its own seat
+
+- **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that a
+  project has no `claude-watcher-SLUG` yet.
+- **Cause:** the watcher runs on Haiku and reads its prompt on every sweep, so it has a seat of
+  its own whose `CLAUDE.md` is the short `.seatworks/WATCHER.md`, with the trigger table in it,
+  rather than the Supervisor's prompt. Projects added before the seat existed lack its
+  provider, profile, and prompt. Paseo sets `PASEO_AGENT_ID` in every agent's environment,
+  which is how the Supervisor gives the watcher its own ID.
+- **Response:** run `fish setup/add-project.fish REPO_DIR --refresh`; it adds what is missing and
+  reloads Paseo.
+
+## Heartbeats end with their agent
+
+- **Symptom:** a watcher's sweeps stop, an old heartbeat seems to linger, or `list_schedules`
+  doesn't show a heartbeat you created.
+- **Cause:** a heartbeat targets one agent, and Paseo completes it when that agent is archived.
+  `list_schedules` and `paseo schedule ls` show only schedules that start new agents, so no tool
+  lists heartbeats; each one is a file in `~/.paseo/schedules/`, and there is no update tool.
+- **Response:** name every heartbeat: creating one again with the same name for the same agent
+  updates it instead of adding a second, so a seat that isn't sure a heartbeat exists can
+  simply create it. Note the ID too, for `delete_heartbeat`. Archive the watcher to stop its
+  sweeps.
 
 ## HTML comments are stripped from `CLAUDE.md`
 

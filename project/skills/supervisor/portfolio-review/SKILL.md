@@ -31,7 +31,8 @@ relative to this skill's directory; every other path is relative to the reposito
      waiting for the Human;
    - blocked items: a `BLOCKED`, `DEPENDENCY_REQUEST`, or `REOPEN_REQUEST` without a ruling;
    - decisions waiting on the Human, especially irreversible ones;
-   - signs of an unhealthy Lead, from the Observing list in `.seatworks/SUPERVISOR.md`.
+   - signs of an unhealthy Lead: the Lead triggers in `.seatworks/WATCHER.md`, and the recent
+     attention log.
 
    **Done** when each Lead has either findings or the word "healthy".
 4. **Read each repository.** Run `git -C REPO log -1 --format=%ad --date=short` and

@@ -106,6 +106,7 @@ CASE OUTPUT CONTRACT
 
 - Is the original request preserved word for word?
 - Is the wording free of any hint of a preferred verdict?
+- Is the decision question open, rather than a choice among options you picked?
 - Does every authoritative fact carry its authority or provenance?
 - Are unverified premises written as claims rather than facts?
 - Are hard constraints separate from preferences?
@@ -186,6 +187,11 @@ finished. This isolation is soft and audited. `pi-peer` seats have no Paseo tool
 technically stops a seat from writing files, so never describe a forbidden action as
 impossible.
 
+Before you read any report, write down your own current position on the decision question in two
+or three sentences with its main reason: in the ExecPlan's Decision log, or in
+`${TMPDIR:-/tmp}/council-CASE_ID-lead.md`. You hold a framing too, and writing it first is how you
+notice when a report merely matches it and when one contradicts it.
+
 ## Phase 3: collect, audit, and handle failures
 
 When every Round 1 seat has finished:
@@ -264,6 +270,11 @@ unresolved; how each option fares under realistic failure modes; how robust it i
 assumption is wrong; how reversible it is; and whether serious dissent has stronger evidence or a
 decisive falsifier. Don't vote or average confidence; the number of seats that agree creates no
 authority. Draft the binding verdict before deciding on an audit.
+
+Start from the position you wrote before reading Round 1. For every point where a seat's evidence
+contradicts it, say in the verdict whether it changed your view and why. A verdict that restates
+your first position without answering those points is a framing failure, and an audit counts it
+as a material finding.
 
 ## Phase 8: draft-verdict audit
 

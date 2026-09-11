@@ -33,6 +33,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
    | The repository's `.seatworks/PEER.md` | how that project's Peers work | its Peers, every turn |
    | `$SEATWORKS_KIT/project/` templates, proposed to the Human | the defaults a new project starts from | only projects added later |
    | `.seatworks/SUPERVISOR.md` | your own behavior | you |
+   | `.seatworks/WATCHER.md` | what the watcher treats as a trigger | the watcher, every sweep |
    | a skill | a procedure used only some of the time | the seat that loads it |
    | the deny lists in `$SEATWORKS_KIT/setup/setup-seats.fish`, and `$SEATWORKS_KIT/pi/extensions/peer-guard.ts` | limits that must hold whatever the prompt says | enforced, not read |
 

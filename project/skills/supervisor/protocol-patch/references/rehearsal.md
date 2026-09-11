@@ -40,6 +40,7 @@ Replace the following:
 | the project's `.seatworks/LEAD.md` | `claude-lead-SLUG` | `settings.modeId: "bypassPermissions"`, a `thinkingOptionId`, and a first prompt of `OWNER DIRECTIVE:` followed by the scenario |
 | the project's `.seatworks/PEER.md` | `pi-peer-SLUG/<model>` | `settings.thinkingOptionId` only; the scenario inside a brief with disposition Scout and owned scope `none` |
 | `.seatworks/SUPERVISOR.md` | `claude-supervisor-SLUG` | same settings as the Lead; the scenario as the first prompt |
+| `.seatworks/WATCHER.md` | `claude-watcher-SLUG/claude-haiku-4-5` | `settings.modeId: "bypassPermissions"` and no thinking option; activity excerpts as `FACTS`, and the question "which trigger, if any, matches, and what do you log or send?" |
 | a repository file or a skill | the seat that reads it | quote the old rule in the first run and the new rule in the second, as part of `FACTS` |
 
 Create each seat in the project's workspace, since the scenario carries the facts and no project needs

@@ -103,14 +103,15 @@ Next slice    one slice, and why it comes first
 ## Writing a HANDOFF block
 
 When the Human asks you to hand off, first bring the ExecPlan's Progress up to date, so the
-block can point at it. Then write the HANDOFF block from your seat prompt so that every field
-points to an artifact instead of copying it:
+block can point at it. Then write the HANDOFF block, one line per field below, so that every
+field points to an artifact instead of copying it:
 
 - **Outcome**: the ExecPlan path, and the date of the owner directive that set the outcome.
 - **Open Peers**: agent ID, labels, and state, only for Peers the Human has to detach.
 - **SHAs**: accepted and awaiting acceptance, one line each; the diffs live in git.
 - **Open decisions**: the ADR numbers and Decision log lines, with each holder.
-- **Schedules**: the IDs `list_schedules` still shows.
+- **Schedules**: the IDs `list_schedules` still shows, and the heartbeat IDs noted in
+  Progress, since no tool lists heartbeats.
 - **Lessons**: what you would do differently, in a few lines.
 
 Add two more lines: `Verified` (which of these you confirmed by command in this session) and

@@ -33,6 +33,9 @@ Reserved for the Human
 Open questions for you to settle
 - OPEN_QUESTION
 
+When the design settles
+ON_CONVERGENCE
+
 Risks
 RISK_REGISTER
 
@@ -59,6 +62,9 @@ Replace the following:
 - `TRIGGER_POINT`: the moment the Lead stops and asks, for example `before the first publish`.
 - `OPEN_QUESTION`: a question the Human explicitly left to the Lead, or `none`. A question the
   Human still has to answer doesn't belong here; settle it first.
+- `ON_CONVERGENCE`: what the Lead does once a hard design decision is settled, either
+  `report the verdict and wait for the Human` or `proceed, and report at acceptance`. Choose
+  the first when the Human wants to check the design against their own concept first.
 - `RISK_REGISTER`: the table from the pre-mortem skill, or delete the Risks section when no
   pre-mortem ran.
 - `PROTOCOL_STATUS`: `WORKSPACE_PROTOCOL.md present` or `none; run on your defaults`.

@@ -53,13 +53,16 @@ Replace the following:
   slice uses, each with the SHA or path it comes from.
 - `PRODUCED_INTERFACES`: the exact names, parameters, and return types later slices will rely
   on. A Peer sees only its own brief, so this block is how neighboring slices agree on names.
+  Tests in the slice may call only what exists at the base SHA or what Consumes and Produces
+  name; a test that needs anything else would invent the contract.
 - `GLOBAL_CONSTRAINTS`: requirements that bind every slice, copied word for word from the
   spec, the owner directive, or `AGENTS.md`: exact values, formats, limits, and version floors.
   A paraphrase loses the exact value.
 - `VERIFICATION_COMMANDS`: the exact commands to run, one per line.
 - `TEST_LANE`: whether this Peer may run the full suite, hold a port, or use the test
   database, for example `targeted tests only; no port; no test database`.
-- `OPEN_QUESTIONS`: what you don't know and want the Peer's judgment on, or `none`.
+- `OPEN_QUESTIONS`: what you don't know and want the Peer's judgment on, or `none`. Ask each
+  one open, not as a choice between answers you picked: a Peer offered A or B returns A or B.
 
 ## Example
 
@@ -83,7 +86,7 @@ Global constraints  "Amounts are formatted with exactly two decimal places and n
 Verification        npm test -- test/invoices/export
                     npm run typecheck
                     Test lane: targeted tests only; no port; no test database
-Open questions      Should an empty result return a header row only, or 204? Recommend one with evidence.
+Open questions      How should an empty result behave? Recommend one behavior with evidence.
 Handoff             The six fields: Outcome, Snapshot, Scope, Verification, Unknown / risk,
                     Ownership. Put any log longer than a screen in a file and give its path.
 ```

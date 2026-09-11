@@ -7,13 +7,15 @@ can be traced and credited.
 
 "SLP material" means the reference files in the kit owner's `SLP/` folder: a practitioner's
 Codex setup (prompts, skills, and concept notes) that was shared with the kit's owner. No license
-is stated for it, and it is adapted here with the owner's agreement.
+is stated for it, and it is adapted here with the owner's agreement. "The SLP author's talk" is a
+recorded community session in which that practitioner explained how their Supervisor directs
+attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, not its words.
 
 ## Peer skills (`project/skills/peer/`)
 
 | Skill | Draws on |
 |---|---|
-| `test-first` | superpowers `test-driven-development`; mattpocock `tdd`; SLP material (test discipline and hard-cut rules) |
+| `test-first` | superpowers `test-driven-development`; mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
 | `diagnosing-bugs` | mattpocock `diagnosing-bugs`; superpowers `systematic-debugging` and its root-cause tracing |
 | `proof-audit` | SLP material (`test-proof-debt-audit` and its catalog); superpowers `verification-before-completion` |
 | `reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns) |
@@ -29,7 +31,7 @@ is stated for it, and it is adapted here with the owner's agreement.
 |---|---|
 | `intake` | SLP material (feature intake lanes, ExecPlans); superpowers `brainstorming` (a lane only moves upward) |
 | `decompose` | superpowers `subagent-driven-development` (ledger, rulings, fix-round cap) and `writing-plans` (interfaces, global constraints); mattpocock `to-tickets`; addyosmani `planning-and-task-breakdown`; Anthropic, "How we built our multi-agent research system"; Humanizing Work's guide to splitting user stories |
-| `council` | SLP material (`council`, its report format and model routing) |
+| `council` | SLP material (`council`, its report format and model routing); the SLP author's talk (blind lanes, no shared room, the Lead's own position) |
 | `review-orchestration` | SLP material (`ultra-review` and its report script); trailofbits `fp-check` (ideas only) |
 | `decision-records` | Michael Nygard, "Documenting Architecture Decisions"; Thoughtworks Radar, lightweight ADRs; mattpocock `domain-modeling`; addyosmani `documentation-and-adrs` |
 | `change-rollout` | Danilo Sato, "Parallel Change"; "Patterns of Legacy Displacement" and the strangler fig; Google SRE book and workbook on launches and canarying (ideas only); addyosmani `deprecation-and-migration`; SLP material (hard-cut development policy) |
@@ -45,7 +47,8 @@ is stated for it, and it is adapted here with the owner's agreement.
 | `intent-interview` | mattpocock `grilling` and `to-questionnaire`; *The Mom Test*; *Shape Up* (appetite, no-gos); Amazon's 2015 shareholder letter (one-way and two-way doors) |
 | `workspace-protocol` | mattpocock `grilling`; the kit's templates; the SLP report's account of per-repository protocols |
 | `pre-mortem` | Gary Klein's premortem; one-way and two-way doors; SLP material (`council` sealed seats) |
-| `retrospective` | Google SRE book, "Postmortem Culture" (ideas only); Retrium's five phases of a retrospective; mattpocock `retro` categories |
+| `retrospective` | Google SRE book, "Postmortem Culture" (ideas only); Retrium's five phases of a retrospective; mattpocock `retro` categories; the SLP author's talk (a weekly review that distills the week into rules) |
+| `attention-watch` | the SLP author's talk (attention triggers, a cheap watcher that pings the Supervisor, open questions instead of assertions, the away report) |
 | `protocol-patch` | superpowers `writing-skills` (test the change on a fresh seat); mattpocock `writing-for-agents`; SLP material (Supervisor instructions) |
 | `seat-safety-review` | Simon Willison, "The lethal trifecta for AI agents"; the Threat Modeling Manifesto's four questions |
 | `portfolio-review` | Black Swan Farming, "Cost of Delay Divided by Duration"; SLP material (concern-specialized Supervisors) |

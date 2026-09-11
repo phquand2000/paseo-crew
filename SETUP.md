@@ -16,8 +16,8 @@ The setup keeps two kinds of file apart:
   Lead's, and the Peer's prompts and skills, the workspace protocol, the notebook, and the
   Supervisor's records. The profiles link to these files.
 
-Each project gets three seats: `claude-supervisor-SLUG`, `claude-lead-SLUG`, and
-`pi-peer-SLUG`.
+Each project gets four seats: `claude-supervisor-SLUG`, `claude-lead-SLUG`,
+`claude-watcher-SLUG`, and `pi-peer-SLUG`.
 
 Before you start, make sure the machine has the following:
 
@@ -124,10 +124,10 @@ already exists:
 - copies the kit's templates from `project/` into `REPO_DIR/.seatworks/`, naming the project's
   seats in them;
 - adds `AGENTS.md` and a one-line `CLAUDE.md` (`@AGENTS.md`) at the repository root if missing;
-- adds the providers `claude-supervisor-SLUG`, `claude-lead-SLUG`, and `pi-peer-SLUG` to the
-  Paseo config, after a backup;
-- adds one Paseo agent profile per seat (a single one for the Peer), which Paseo's app offers
-  you and the Lead reads through `list_profiles`;
+- adds the providers `claude-supervisor-SLUG`, `claude-lead-SLUG`, `claude-watcher-SLUG`, and
+  `pi-peer-SLUG` to the Paseo config, after a backup;
+- adds one Paseo agent profile per seat, a single one for the Peer; Paseo's app offers them to
+  you, and the seats read them through `list_profiles`;
 - registers the repository as a Paseo project, builds the profiles, and reloads Paseo.
 
 It adds files only; leave the repository's code alone.
@@ -142,7 +142,7 @@ It adds files only; leave the repository's code alone.
    ```
 
 **Done:** the script exits 0 and prints `✓` lines for `claude-supervisor-SLUG`,
-`claude-lead-SLUG`, and `pi-peer-SLUG`, and these commands show the project, the import line,
+`claude-lead-SLUG`, `claude-watcher-SLUG`, and `pi-peer-SLUG`, and these commands show the project, the import line,
 and a spawn recipe with a real model:
 
 ```fish
@@ -155,10 +155,11 @@ If a repository already had an `AGENTS.md`, the script leaves it alone: add the 
 `examples/AGENTS_MD_SNIPPET.md` to it by hand. If it had a `CLAUDE.md` with rules, move those
 rules into `AGENTS.md` and replace `CLAUDE.md` with the line `@AGENTS.md`.
 
-To roll back, restore `~/.paseo/config.json.bak`, run `paseo project delete REPO_DIR`, and move
-the three profiles (`~/.claude/profiles/claude-supervisor-SLUG`,
-`~/.claude/profiles/claude-lead-SLUG`, `~/.pi/profiles/pi-peer-SLUG`) and the files the script
-listed as added to the Trash.
+To roll back, restore `~/.paseo/config.json.bak`, run `paseo project delete PROJECT_ID` with the
+ID `paseo project ls` shows for `REPO_DIR` (a path isn't accepted), and move the four profiles
+(`~/.claude/profiles/claude-supervisor-SLUG`, `~/.claude/profiles/claude-lead-SLUG`,
+`~/.claude/profiles/claude-watcher-SLUG`, `~/.pi/profiles/pi-peer-SLUG`) and the files the
+script listed as added to the Trash.
 
 ## Verify that each seat reads its own prompt
 
@@ -166,9 +167,10 @@ The previous steps prove only that the filesystem is right. This step proves tha
 loads its prompt and guards, because a provider whose profile variable isn't applied fails
 silently. Run each agent in `REPO_DIR`.
 
-For `claude-supervisor-SLUG` and `claude-lead-SLUG`:
+For `claude-supervisor-SLUG`, `claude-lead-SLUG`, and `claude-watcher-SLUG`:
 
-1. Create an agent with `settings.modeId: "bypassPermissions"` and a `thinkingOptionId`.
+1. Create an agent with `settings.modeId: "bypassPermissions"` and a `thinkingOptionId`; the
+   watcher runs on `claude-haiku-4-5`, which takes no `thinkingOptionId`.
 2. Ask it for the first line of the `CLAUDE.md` it has loaded.
 3. Archive the agent.
 
@@ -188,6 +190,7 @@ For `pi-peer-SLUG`:
 |---|---|
 | `claude-supervisor-SLUG` | First line `# Supervisor — orchestration observer acting for the Human` |
 | `claude-lead-SLUG` | First line `# Lead — Project Lead & binding technical arbiter` |
+| `claude-watcher-SLUG` | First line `# Watcher — attention sweeps for the Supervisor` |
 | `pi-peer-SLUG` | Heading `# Peer — independent co-worker`; no mention of Paseo; the push is blocked with "Pushing is not available in this workspace." |
 
 If a Claude seat returns the user's own `CLAUDE.md`, or the Peer can't name its heading, that
@@ -199,7 +202,8 @@ If the push isn't blocked, the guard extension didn't load. Check that
 for `pi-peer-SLUG`.
 
 Finally, leave one Supervisor running for the user: start an agent on
-`claude-supervisor-SLUG` in `REPO_DIR` and keep it.
+`claude-supervisor-SLUG` in `REPO_DIR` and keep it. It starts the watcher itself each time it
+creates a Lead.
 
 ## Write your own rules
 

@@ -1,7 +1,7 @@
 {
   "_doc": [
     "Merge the `claude` entry into .agents.providers in ~/.paseo/config.json once per machine; it holds the token every Claude seat inherits through `extends`.",
-    "The three SLUG entries are templates: setup/add-project.fish copies them for each project, replacing SLUG and HOME_DIR and adding env.SEATWORKS_REPO (and env.SEATWORKS_KIT for the Supervisor).",
+    "The SLUG entries are templates: setup/add-project.fish copies them for each project, replacing SLUG and HOME_DIR and adding env.SEATWORKS_REPO (and env.SEATWORKS_KIT for the Supervisor).",
     "Merge into the existing file; don't replace it, because it also holds workspaces and the agent ledger.",
     "Also make sure .daemon.mcp has \"enabled\": true and \"injectIntoAgents\": true, or the Lead and Supervisor get no Paseo tools.",
     "Replace OAUTH_TOKEN with your CLAUDE_CODE_OAUTH_TOKEN. add-project.fish drops it from the seat entries when the base `claude` entry has one.",
@@ -16,7 +16,7 @@
   "claude-supervisor-SLUG": {
     "extends": "claude",
     "label": "Claude Supervisor · SLUG",
-    "description": "Supervisor seat for SLUG: meets the Human, relays decisions, observes, keeps the notebook",
+    "description": "Supervisor seat for SLUG: meets the Human, relays decisions, answers attention events, keeps the notebook",
     "env": {
       "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-supervisor-SLUG",
       "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
@@ -75,6 +75,26 @@
           { "id": "high", "label": "High" }
         ]
       }
+    ],
+    "disallowedTools": []
+  },
+
+  "claude-watcher-SLUG": {
+    "extends": "claude",
+    "label": "Claude Watcher · SLUG",
+    "description": "Attention watcher for SLUG: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor",
+    "env": {
+      "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-watcher-SLUG",
+      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
+      "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
+      "CLAUDE_CODE_DISABLE_CRON": "1",
+      "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
+      "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+      "CLAUDE_CODE_DISABLE_WORKFLOWS": "1",
+      "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1"
+    },
+    "models": [
+      { "id": "claude-haiku-4-5", "label": "Haiku 4.5", "isDefault": true }
     ],
     "disallowedTools": []
   },

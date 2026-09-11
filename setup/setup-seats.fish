@@ -2,8 +2,8 @@
 #
 # setup-seats: build or refresh every seat's profile.
 #
-# Each project has three seats: claude-supervisor-SLUG and claude-lead-SLUG (Claude Code), and
-# pi-peer-SLUG (Pi). Profiles, settings, deny lists, and models are global; every .md a seat
+# Each project has four seats: claude-supervisor-SLUG, claude-lead-SLUG, and claude-watcher-SLUG
+# (Claude Code), and pi-peer-SLUG (Pi). Profiles, settings, deny lists, and models are global; every .md a seat
 # loads lives in that project's .seatworks/ directory, and the profile links to it, so an edit
 # reaches the next seat spawned without copying. Projects are the providers named
 # claude-lead-SLUG in ~/.paseo/config.json, whose env.SEATWORKS_REPO names the repository;
@@ -42,6 +42,7 @@ set -g prompt_budget 16384
 # Paseo's reference for workspaces, scripts, profiles, schedules, and waiting.
 set -g supervisor_extra_skills paseo
 set -g lead_extra_skills       paseo    # add others, for example: domain-modeling
+set -g watcher_extra_skills    paseo
 set -g peer_extra_skills
 
 # Claude tools blocked at the provider level, which is where blocking happens for Claude
@@ -54,6 +55,8 @@ set -g deny_common '["Agent", "Task", "SlashCommand", "Workflow", "WebSearch",
                      "Bash(claude:*)", "Bash(npx claude:*)", "Bash(git push:*)", "Bash(gh:*)"]'
 set -g deny_lead       '["LSP"]'
 set -g deny_supervisor '["LSP"]'
+# The watcher only reads activity and appends to its log, so it doesn't edit files.
+set -g deny_watcher    '["LSP", "Edit", "NotebookEdit"]'
 
 # Per-role differences from the base settings. `null` removes the key. Every Lead shares one
 # generated settings file, and so does every Supervisor.
@@ -70,6 +73,14 @@ set -l overlay_supervisor '{
   "disableBundledSkills": true,
   "askUserQuestionTimeout": "never",
   "autoMemoryEnabled": true
+}'
+# The watcher sweeps every 15 minutes, so a 1-hour prompt cache keeps its prompt warm between
+# sweeps.
+set -l overlay_watcher '{
+  "outputStyle": "Concise",
+  "disableBundledSkills": true,
+  "askUserQuestionTimeout": "never",
+  "promptCacheTtl": "1h"
 }'
 
 # ── Helpers ──────────────────────────────────────────────────────────────────────────
@@ -453,7 +464,7 @@ end
 # changes only when its content would.
 
 test $dry -eq 0; and mkdir -p $kit/claude
-for role in lead supervisor
+for role in lead supervisor watcher
     set -l var overlay_$role
     set -l overlay $$var
     set -l out $kit/claude/$role.settings.json
@@ -525,6 +536,15 @@ for entry in $projects
     build_peer_seat pi-peer-$slug $pi_profiles_root/pi-peer-$slug $seat/PEER.md \
         $seat/skills/peer $peer_extra_skills
     peer_provider pi-peer-$slug $pi_profiles_root/pi-peer-$slug
+    # A project added before the watcher seat existed lacks its provider until add-project runs
+    # again. The watcher has no skills directory of its own, only the `paseo` reference.
+    if jq -e --arg k claude-watcher-$slug '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
+        build_claude_seat claude-watcher-$slug $profiles_root/claude-watcher-$slug $seat/WATCHER.md \
+            $kit/claude/watcher.settings.json $seat/skills/watcher $watcher_extra_skills
+        claude_provider claude-watcher-$slug $profiles_root/claude-watcher-$slug $deny_watcher
+    else
+        echo "  · project $slug has no claude-watcher-$slug yet; rerun setup/add-project.fish $repo_dir --refresh."
+    end
 end
 
 # Pi also loads ~/.agents/skills, which sits outside every profile; see REFERENCE.md.
