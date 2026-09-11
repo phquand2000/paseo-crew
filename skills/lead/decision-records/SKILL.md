@@ -1,0 +1,184 @@
+---
+name: decision-records
+description: "Records architecture decisions as numbered ADRs in docs/adr with neutral context, a We will decision, every consequence including the negative ones, rejected alternatives, and a status, supersedes instead of editing, and keeps CONTEXT.md as a glossary of domain terms. Use when a decision is hard to reverse, surprising without context, and a real trade-off, or when two terms name one concept."
+---
+
+# Decision records
+
+Use this skill to write down the few decisions a future reader would otherwise reverse by
+accident, and to keep one name for each domain concept, so that Peers and successors don't
+re-decide settled questions.
+
+It produces ADR files at `docs/adr/NNNN-slug.md` and entries in `CONTEXT.md` at the root of the
+target repository, each committed on its own.
+
+## Decide whether it needs an ADR
+
+Write an ADR only when all three of these hold:
+
+1. **Hard to reverse**: undoing it would take a migration, a contract change, or rework across
+   several owners.
+2. **Surprising without context**: a capable newcomer reading the code would be tempted to
+   "fix" it.
+3. **A real trade-off**: at least one serious alternative existed and lost for a reason you can
+   state.
+
+When one of them fails, record the decision where it is used instead: the ExecPlan's Decision
+log for work in progress, `AGENTS.md` for a constraint every agent needs, or a code comment for
+a local choice. An ADR for every choice buries the ones that matter.
+
+Typical subjects are the shape of the architecture, integration between parts of the system,
+technology choices that lock you in, boundary and scope decisions including an explicit "no",
+deliberate deviations from the obvious approach, constraints the code doesn't show, and a
+rejected proposal that is likely to come back.
+
+A council verdict that settles an architecturally significant question gets an ADR, and the
+verdict's reopen conditions become the ADR's.
+
+## Write an ADR
+
+1. **Find the convention.** Look for an existing ADR directory (`docs/adr`, `doc/adr`,
+   `docs/decisions`, or the path in a `.adr-dir` file) and follow its format and numbering;
+   otherwise use `docs/adr/`. A second scheme next to an existing one splits the record in
+   two. Done when you know the directory.
+
+2. **Take the next number:**
+
+   ```bash
+   ls docs/adr | grep -E '^[0-9]{4}-' | sort | tail -n 1
+   ```
+
+   Add one to the highest number and pad it to four digits. Numbers are never reused, not even
+   those of rejected or withdrawn ADRs, because briefs and commit messages cite them. Done when
+   no existing file carries the number.
+
+3. **Write it** from the template below, keeping it to a page or two:
+
+   - Context: the forces at play in neutral terms, giving each option its strongest case, so a
+     reader can see why a reasonable person might have chosen otherwise.
+   - Decision: active voice, starting with "We will".
+   - Consequences: every result, including what becomes harder, what it costs, and the new
+     risks. A list of only benefits reads as advocacy, and the reader stops trusting it.
+   - Rejected alternatives: each with the reason it lost; this line is what keeps it from
+     being proposed again.
+   - Reopen when: the evidence that would justify revisiting the decision.
+
+   Done when every section has content, and `Status` and `Decided by` have values.
+
+4. **Set the status and the decider.** A new ADR is `proposed` until its decider accepts it.
+   You accept technical decisions within your authority. A decision that belongs to the Human
+   (product direction, priority, an irreversible trade-off) stays `proposed` until an owner
+   directive accepts it, and `Decided by` names that directive. Done when `Decided by` matches
+   who actually decided.
+
+5. **Commit it on its own:**
+
+   ```bash
+   git add docs/adr/NNNN-slug.md && git commit -m "adr: NNNN slug"
+   ```
+
+   An ADR is a record rather than code, so it needs no `LEAD-WROTE` line. Done when
+   `git show --stat HEAD` lists only the ADR, plus the superseded ADR when there is one.
+
+Copy this block to `docs/adr/NNNN-slug.md`:
+
+```md
+# NNNN. TITLE
+
+Status: proposed
+Date: DATE
+Decided by: DECIDER
+Supersedes: SUPERSEDED_ADR
+
+## Context
+
+CONTEXT
+
+## Decision
+
+We will DECISION.
+
+## Consequences
+
+- CONSEQUENCE
+
+## Rejected alternatives
+
+- ALTERNATIVE: REASON_IT_LOST
+
+## Reopen when
+
+- REOPEN_CONDITION
+
+Links: LINKS
+```
+
+Replace the following:
+
+- `NNNN` and `TITLE`: the number from step 2, and a short noun phrase such as
+  `Amounts stored as integer cents`.
+- `DATE`: the date in `YYYY-MM-DD` form.
+- `DECIDER`: `Lead`, or `Human (owner directive of DATE)`.
+- `SUPERSEDED_ADR`: the number of the ADR this one replaces, or `none`.
+- `CONTEXT`, `DECISION`, `CONSEQUENCE`, `ALTERNATIVE`, `REASON_IT_LOST`, `REOPEN_CONDITION`:
+  as described in step 3; repeat the list lines as needed.
+- `LINKS`: the council verdict, the ExecPlan, or the commit the decision came from.
+
+## Change a decision
+
+Supersede instead of editing. Write a new ADR with `Supersedes: NNNN`, and in the same commit
+change only the old ADR's status line to `superseded by MMMM`. The old text stays as written,
+because it records what was known and decided at the time, and a reader judging the new
+decision needs it. Fixing a typo or a broken link is fine.
+
+Before proposing a change that contradicts an accepted ADR, read the ADR and its reopen
+conditions, and reopen it only with evidence that meets one. Settle a contested reopen with
+the council skill, and take a reopen of a Human decision to the Human.
+
+## Use ADRs in briefs
+
+In each brief's "Decided / ruled out" field, cite the ADRs that touch the owned scope by
+number, with one line each, for example `ADR 0007: amounts are integer cents; floats ruled
+out`. Peers read the files for the detail. Cite rejected alternatives the same way, so a Peer
+doesn't spend its context rediscovering a road that is already closed. Done when every ADR
+whose scope overlaps the brief's owned scope is cited.
+
+When a Peer's `REOPEN_REQUEST` targets a decision an ADR covers, answer it against that ADR's
+reopen conditions.
+
+When the Human or a council rejects a proposal for a lasting reason, record an ADR whose
+decision reads "We will not …", so the proposal isn't raised again.
+
+## Keep the glossary
+
+`CONTEXT.md` at the repository root is a glossary of the project's domain terms and nothing
+else: no implementation notes, specs, or scratch work. Create it when the first term is
+settled. Each entry looks like this:
+
+```md
+## GROUP
+
+**TERM**: DEFINITION
+Avoid: SYNONYMS
+```
+
+Replace `GROUP` with a cluster of related terms, `TERM` with the chosen name, `DEFINITION`
+with one or two sentences on what the thing is, and `SYNONYMS` with the names not to use.
+
+- Keep one term per concept and list the rejected names under `Avoid`. When two names exist
+  for one concept, agents follow either one.
+- Define what the thing is, not how it is built; implementation details go stale and belong in
+  the code.
+- Include only project-specific concepts; general programming terms are noise.
+- Update an entry as soon as a term is settled, in the same commit as the work that settled it.
+- If the repository has several bounded contexts, give each its own `CONTEXT.md` and list them
+  and their relationships in a root `CONTEXT-MAP.md`.
+
+Challenge conflicting terms. When a request, a brief, a handoff, or the code uses a term that
+conflicts with the glossary, or uses one word for two concepts (such as "account" for both a
+customer and a login), name the conflict and settle one term before writing the next brief.
+Ask the Human about terms from the product's language, and choose and record internal terms
+yourself. Use glossary terms in every brief.
+
+The rule that matters most: record the decisions that are hard to reverse, surprising, and
+contested, and supersede them rather than rewrite them.

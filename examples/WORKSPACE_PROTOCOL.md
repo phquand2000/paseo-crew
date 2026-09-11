@@ -1,21 +1,21 @@
 # Workspace protocol template
 
 A workspace protocol sets how the Lead coordinates work in one repository. Only the Lead reads
-it; Peers read `CLAUDE.md` and their brief.
+it; Peers read `AGENTS.md` and their brief.
 
 The two files split the work like this:
 
 | File | Holds | Read by |
 |---|---|---|
-| `CLAUDE.md` | Technical constraints anyone changing code must know: contracts, test commands, authority | Every agent, automatically |
+| `AGENTS.md` | Technical constraints anyone changing code must know: contracts, test commands, authority | Every agent, automatically |
 | `WORKSPACE_PROTOCOL.md` | Coordination strategy: strictness, topology, review lanes, spawn recipes | The Lead |
 
-If an item belongs in both, put it in `CLAUDE.md`.
+If an item belongs in both, put it in `AGENTS.md`.
 
 Strictness varies by repository: a side project might need ten lines, and a repository with
 many users a few hundred. Without this file, the Lead runs on the defaults in `LEAD.md`, so
 delete any section that repeats them. Give each mandatory rule a reproducible reason and a
-removal trigger, as in `CLAUDE_MD_SNIPPET.md`.
+removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
 To start quickly, ask the Supervisor to interview you and write the protocol for the
 repository.
@@ -34,7 +34,7 @@ Level: STRICTNESS_LEVEL
 
 - `loose`: reading the diff yourself is enough; add a Reviewer only for data or migrations.
 - `standard`: the Lead's defaults.
-- `strict`: every change touching a seam listed in `CLAUDE.md` gets an independent Reviewer,
+- `strict`: every change touching a seam listed in `AGENTS.md` gets an independent Reviewer,
   and nothing is accepted while any Verification command is missing.
 
 ## Topology
@@ -45,22 +45,23 @@ Level: STRICTNESS_LEVEL
 
 ## Spawn recipes
 
-| Disposition | Provider | `thinkingOptionId` | Notes |
-|---|---|---|---|
-| Engineer | `claude-peer` | `medium` | `high` when touching a new boundary |
-| Architect | `claude-peer` | `high` | read-only |
-| Reviewer | `claude-peer` | `high` | sealed |
-| Scout | `claude-peer` | `low` | read-only |
+Every Peer runs on `provider: "pi-peer/PEER_MODEL"`. Pass `settings.thinkingOptionId` and no
+`settings.modeId`.
 
-Create every agent attached, with `settings.modeId: "bypassPermissions"`.
+| Disposition | `thinkingOptionId` | Notes |
+|---|---|---|
+| Engineer | `medium` | `high` when touching a new boundary |
+| Architect | `high` | read-only |
+| Reviewer | `high` | sealed |
+| Scout | `low` | read-only |
 
 ## Review lanes
 
 - A material review question on a stable implementation gets REVIEW_LANE_COUNT sealed lanes in
   parallel, each with the same SHA and the same question.
-- Optional: one lane on a different provider, if Paseo has one (for example, Codex). A
-  different model has different blind spots. The lane doesn't vote; the Lead still issues one
-  ruling.
+- Optional: one lane on a different model, for example another model in Pi or a Claude-based
+  reviewer. A different model has different blind spots. The lane doesn't vote; the Lead
+  still issues one ruling.
 - Give each lane only the SHA and the question, never another lane's findings.
 
 ## Escalation
@@ -81,11 +82,16 @@ Replace the following:
   `../REPO-wt/TASK_ID`.
 - `TEST_LANE_RULE`: who may run the full suite, hold a port, or use the test database, and
   when.
+- `PEER_MODEL`: the Pi model the Peers use, as `list_models` shows it for `pi-peer`, for
+  example `zai/glm-5.3`.
 - `REVIEW_LANE_COUNT`: how many sealed Reviewer lanes a material question gets, for example
   `2`.
 - `ARCHITECT_TRIGGER`: the condition that calls for design review before implementation.
 - `HUMAN_DECISIONS`: decisions the Lead never makes in this repository, even small ones.
 - `RULES`: repository-specific rules, each with a reason and a removal trigger.
+
+Pi thinking levels are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; Paseo
+offers them only for models that support reasoning.
 
 A rule with both parts looks like this:
 

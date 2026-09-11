@@ -2,7 +2,9 @@
   "_doc": [
     "These four entries belong under .agents.providers in ~/.paseo/config.json.",
     "Merge them into the existing file; don't replace it, because it also holds workspaces and the agent ledger.",
+    "Also make sure .daemon.mcp has \"enabled\": true and \"injectIntoAgents\": true, or the Lead and Supervisor get no Paseo tools.",
     "Replace HOME_DIR with the real home directory and OAUTH_TOKEN with your CLAUDE_CODE_OAUTH_TOKEN.",
+    "pi-peer shares the logins of your normal Pi profile (~/.pi/agent/auth.json), and Paseo discovers its models from Pi.",
     "The Supervisor defaults to a cheaper model because it runs rarely and mostly reads; keep Opus for hard meetings.",
     "Delete the _doc key before writing: Paseo's schema rejects unknown keys."
   ],
@@ -18,35 +20,6 @@
     "description": "Lead seat: framing, delegation, review, acceptance",
     "env": {
       "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-lead",
-      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
-      "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
-      "CLAUDE_CODE_DISABLE_CRON": "1",
-      "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
-      "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
-      "CLAUDE_CODE_DISABLE_WORKFLOWS": "1",
-      "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1"
-    },
-    "models": [
-      {
-        "id": "claude-opus-5",
-        "label": "Opus 5",
-        "isDefault": true,
-        "thinkingOptions": [
-          { "id": "low", "label": "Low" },
-          { "id": "medium", "label": "Medium", "isDefault": true },
-          { "id": "high", "label": "High" }
-        ]
-      }
-    ],
-    "disallowedTools": []
-  },
-
-  "claude-peer": {
-    "extends": "claude",
-    "label": "Claude Peer Seat",
-    "description": "Peer seat: implementation, evidence, handoff",
-    "env": {
-      "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-peer",
       "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
       "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
       "CLAUDE_CODE_DISABLE_CRON": "1",
@@ -105,5 +78,17 @@
       }
     ],
     "disallowedTools": []
+  },
+
+  "pi-peer": {
+    "extends": "pi",
+    "label": "Pi Peer Seat",
+    "description": "Peer seat: implementation, evidence, handoff",
+    "env": {
+      "PI_CODING_AGENT_DIR": "HOME_DIR/.pi/profiles/pi-peer",
+      "PI_SKIP_VERSION_CHECK": "1",
+      "PI_TELEMETRY": "0"
+    },
+    "paseoTools": { "enabled": false }
   }
 }

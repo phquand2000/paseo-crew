@@ -1,7 +1,7 @@
 # Writing guide
 
-These rules apply to everything in this kit: the seat prompts in `claude/`, the templates in
-`examples/`, the docs, and the comments in the setup script. The Supervisor follows them when it
+These rules apply to everything in this kit: the seat prompts in `claude/` and `pi/`, the
+templates in `examples/`, the docs, and the comments in the setup script and guard extension. The Supervisor follows them when it
 patches a prompt. Each rule names its source in brackets; the sources are listed at the end.
 
 ## Seat prompts
@@ -30,10 +30,11 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     literally. [O5]
 12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
     models over-verify when told to. [O5]
-13. Enforce hard limits with `disallowedTools` or hooks, because a prompt is guidance, not
-    enforcement. [M]
-14. Put maintainer notes in HTML comments. Claude Code strips them from `CLAUDE.md` before
-    loading, so they cost the seat nothing. [M]
+13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: use
+    `disallowedTools` for the Claude seats and `pi/extensions/peer-guard.ts` for the Peer. [M]
+14. Put maintainer notes for the Claude seat prompts in HTML comments. Claude Code strips them
+    from `CLAUDE.md` before loading, so they cost the seat nothing. Pi doesn't strip them, so
+    `pi/PEER.md` contains no comments at all. [M]
 15. Add a rule only after an observed failure, with a reproducible reason and a removal trigger.
     [HL, CUR]
 
@@ -80,6 +81,29 @@ describes its target. [G, MS]
 - Put copyable template content in a fenced block, so the instructions around it aren't
   copied along with it.
 
+## Skills
+
+Skills live in `skills/<role>/<name>/` and must work unchanged in Claude Code and Pi. Each
+role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
+Peer. [S, SK, PI]
+
+1. Use only `name` (equal to the directory name: lowercase letters, digits, hyphens) and
+   `description` in the frontmatter, plus `disable-model-invocation: true` for skills that run
+   only when asked. Claude Code names the command after the directory and Pi after `name`, so
+   the two must match.
+2. Write the description as one double-quoted line of 200 to 400 characters: what the skill
+   does, then "Use when …". Both runtimes trigger on it, and Pi ignores `when_to_use`.
+3. Keep `SKILL.md` under 500 lines, and move long catalogs and templates into `references/`,
+   linked by a path relative to the skill's directory.
+4. Refer to input as "the request given with this skill". Pi doesn't substitute `$ARGUMENTS`,
+   `${CLAUDE_SKILL_DIR}`, `` !`command` ``, or `@file`.
+5. Add a procedure the seat prompt doesn't already carry, and name the artifact the skill
+   produces and where it goes.
+6. Peer skills follow the Peer prompt's rules: no HTML comments, and no mention of Paseo, seats,
+   or the Supervisor.
+7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
+   license in `skills/NOTICE.md`.
+
 ## Script comments
 
 Explain why, not what. Comment workarounds and non-obvious behavior, and delete comments that
@@ -95,15 +119,17 @@ Use these terms, and only these, for the following concepts:
 | Supervisor | The seat that meets with the Human, relays decisions, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
-| seat | A Claude Code profile together with its Paseo provider |
+| seat | A Claude Code or Pi profile together with its Paseo provider |
 | brief | The Lead's assignment to a Peer |
 | handoff | The Peer's six-field report at the end of a task |
 | disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout |
 | owned scope | The paths a Peer may write |
 | acceptance | The decision, by the Lead or the Human, that work is done |
+| owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a Human decision |
+| advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
 
-`PEER.md` never uses Lead, Supervisor, seat, or Paseo. It calls the sender of a brief "the
-assigner".
+`pi/PEER.md` never uses Supervisor, seat, or Paseo; the Peer knows only the Lead that assigns
+its work. `claude/LEAD.md` never names the Supervisor; it knows only the two message labels.
 
 ## Where sources disagree, and what this kit chose
 
@@ -125,6 +151,8 @@ assigner".
 - [BP] [Claude Code best practices](https://code.claude.com/docs/en/best-practices)
 - [CE] [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
 - [S] [Agent Skills best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
+- [SK] [Claude Code skills](https://code.claude.com/docs/en/skills)
+- [PI] [Pi skills](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md)
 - [MA] [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
 - [COG] [Don't build multi-agents](https://cognition.com/blog/dont-build-multi-agents)
 - [HL] [Writing a good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md)

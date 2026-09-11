@@ -1,10 +1,22 @@
-# CLAUDE.md template for a target repository
+# AGENTS.md template for a target repository
 
-Every agent working in a repository reads its `CLAUDE.md` automatically, so the repository's
-technical constraints belong there. That keeps one source of context, instead of a separate
-file the Lead has to quote into every brief. Coordination strategy (strictness, review lanes,
-spawn recipes) belongs in `WORKSPACE_PROTOCOL.md` instead; see the template next to this one.
-Peers don't need it, and reading it every turn only distracts them.
+Every agent working in a repository reads its instruction file automatically, so the
+repository's technical constraints belong there. The seats read different files, though:
+
+- Pi (the Peer) reads `AGENTS.md`, and takes only one file per directory, preferring
+  `AGENTS.md` over `CLAUDE.md`.
+- Claude Code (the Lead and Supervisor) reads `CLAUDE.md`.
+
+So keep the constraints in `AGENTS.md`, and give the repository a one-line `CLAUDE.md` that
+imports it:
+
+```md
+@AGENTS.md
+```
+
+Coordination strategy (strictness, review lanes, spawn recipes) belongs in
+`WORKSPACE_PROTOCOL.md` instead; see the template next to this one. Peers don't need it, and
+reading it every turn only distracts them.
 
 When you fill in the template:
 
@@ -16,10 +28,12 @@ When you fill in the template:
 - Next to each mandatory rule, write two things: a reproducible problem that the existing
   layers don't prevent, and a removal trigger, meaning the evidence that would narrow or
   remove the rule. A rule missing either one is ceremony, and ceremony only ever tightens.
-- Enforce anything that must always hold with permissions or hooks. `CLAUDE.md` is guidance,
-  not enforcement.
+- Enforce anything that must always hold with permissions, hooks, or the Peer's guard
+  extension. An instruction file is guidance, not enforcement.
+- Put no maintainer notes in HTML comments: Claude Code strips them, but Pi shows them to the
+  Peer.
 
-Copy the block below into the repository's `CLAUDE.md`:
+Copy the block below into the repository's `AGENTS.md`:
 
 ````md
 ## Contract boundary
