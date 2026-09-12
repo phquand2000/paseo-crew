@@ -6,9 +6,10 @@ council's seats, or when `create_agent` rejects a value.
 ## Profiles, not models
 
 Launch every seat from a profile `list_profiles` shows, copying its provider and model into
-`provider: "PROVIDER/MODEL"` and passing `settings.thinkingOptionId` and no `settings.modeId`.
-The profile guard blocks any launch whose model or mode differs from its profile, and any launch
-on a provider with no profile, so never pick a model outside a profile.
+`provider: "PROVIDER/MODEL"` and its `modeId` and `thinkingOptionId` into `settings`. The profile
+guard blocks any launch whose model or mode differs from its profile, and any launch on a
+provider with no profile, so never pick a model outside a profile. A profile that lists no
+`modeId` belongs to a harness with no modes: pass none there, and the guard tells you so.
 
 - Every seat (Independent, Challenger, Specialist, Verifier, Auditor) launches from the
   read-only Peer profile, provider `peer-ro`: it loads the Peer prompt and blocks every write.

@@ -112,11 +112,16 @@ the graph and brief one Engineer; the integration skill still merges it.
    create_agent
      title:         "S2 Engineer: invoice CSV serializer"
      provider:      "peer/PEER_MODEL"
-     settings:      { thinkingOptionId: "medium" }
+     settings:      { modeId: "PEER_MODE_ID", thinkingOptionId: "medium" }
      workspaceId:   WORKSPACE_ID
      labels:        { plan: "SLUG", task: "S2", disposition: "engineer", round: "0" }
      initialPrompt: THE_BRIEF
    ```
+
+   Copy `PEER_MODEL` and `PEER_MODE_ID` from what `list_profiles` shows for that profile, spelled
+   exactly as it shows them: the profile guard refuses a launch whose model or mode differs from
+   its profile, and an omitted `modeId` counts as differing. A profile that lists no `modeId`
+   belongs to a harness with no modes, so pass none there.
 
    Leave out `workspaceId` for a Peer that works in your checkout (a single writer, or
    read-only work). `title` is required, at most 60 characters. Leave `notifyOnFinish` at its

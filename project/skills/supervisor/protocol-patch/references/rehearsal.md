@@ -34,8 +34,8 @@ Replace the following:
 ## Seats per surface
 
 Create each seat with `create_agent` in this project's workspace, which is what makes it this
-project's seat, from the role profile below, passing the provider/model and settings the profile
-lists; the scenario carries the facts, so no project is touched.
+project's seat, from the role profile below, copying the profile's provider/model and its `modeId`
+and `thinkingOptionId` into `settings`; the scenario carries the facts, so no project is touched.
 
 | Surface changed | Profile | First prompt |
 |---|---|---|

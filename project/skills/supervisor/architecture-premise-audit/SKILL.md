@@ -62,8 +62,8 @@ and one module can hold several slices. For each slice, record:
    to a slice.
 4. **Delegate slices if the project is too large to read yourself.** Give each read-only Peer one
    or a few slices. Create it with `create_agent` from the read-only Peer profile (`peer-ro`),
-   passing the provider/model and settings the profile lists with `thinkingOptionId: "high"`, in
-   this project's workspace. Its `initialPrompt` is a
+   copying the profile's provider/model and its `modeId` into `settings` with
+   `thinkingOptionId: "high"`, in this project's workspace. Its `initialPrompt` is a
    brief from `.seatworks/skills/lead/decompose/references/brief-template.md`: disposition
    Architect, owned scope `none`, the claim, and the expected-map rows for its slices. Ask for
    observed-map rows and candidate findings with file and line evidence. Leave out Paseo, seats,
