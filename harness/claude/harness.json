@@ -43,20 +43,45 @@
   },
   "deny": {
     "mechanism": "disallowedTools",
-    "toolNames": {
-      "edit": [
+    "intents": {
+      "subagents": [
+        "Agent",
+        "Task"
+      ],
+      "workflows": [
+        "Workflow"
+      ],
+      "web-search": [
+        "WebSearch"
+      ],
+      "todo-list": [
+        "TodoWrite"
+      ],
+      "plan-mode": [
+        "EnterPlanMode",
+        "ExitPlanMode"
+      ],
+      "agent-cli": [
+        "Bash(claude:*)",
+        "Bash(npx claude:*)"
+      ],
+      "git-push": [
+        "Bash(git push:*)"
+      ],
+      "forge-cli": [
+        "Bash(gh:*)"
+      ],
+      "lsp": [
+        "LSP"
+      ],
+      "file-edit": [
         "Edit",
         "Write",
         "MultiEdit",
         "NotebookEdit"
-      ],
-      "shell": [
-        "Bash"
-      ],
-      "skill": [
-        "Skill"
       ]
     },
+    "enforcedByGuard": [],
     "retired": [
       "SlashCommand"
     ],

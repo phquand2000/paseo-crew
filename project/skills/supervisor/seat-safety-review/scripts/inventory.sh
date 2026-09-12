@@ -41,9 +41,10 @@ jq -r '.seats[] | [
     "hidesOrchestration=\(.hidesOrchestration)",
     "guards=[\(.guards | join(","))]",
     "extraSkills=[\(.extraSkills | join(","))]",
+    "denyIntents=[\(.denyIntents | join(","))]",
     "deny=[\(.deny | join(","))]"
   ] | join("  ")' "$seats"
-jq -r '"denyCommon: \(.denyCommon | join(", "))"' "$seats"
+jq -r '"denyCommonIntents: \(.denyCommonIntents | join(", "))"' "$seats"
 jq -r '.skillGates[]? | "gate: \(.seat) needs \(.skill) before \(.on)"' "$seats"
 
 for id in $(jq -r '[.seats[].harness] | unique | .[]' "$seats"); do
@@ -58,6 +59,8 @@ for id in $(jq -r '[.seats[].harness] | unique | .[]' "$seats"); do
         "skillsDir=\(.skillsDir)",
         "promptComments=\(.promptComments)",
         "deny=\(.deny.mechanism)",
+        "intents=[\((.deny.intents // {}) | keys | join(","))]",
+        "enforcedByGuard=[\((.deny.enforcedByGuard // []) | join(","))]",
         "hookProtocol=\(.guards.hookProtocol)",
         "sharedSkillDirs=[\((.sharedSkillDirs // []) | join(","))]"
       ] | join("  ")' "$manifest"

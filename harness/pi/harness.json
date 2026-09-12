@@ -35,7 +35,15 @@
   },
   "deny": {
     "mechanism": "extension",
-    "paseoToolsOff": true
+    "paseoToolsOff": true,
+    "intents": {},
+    "enforcedByGuard": [
+      "git-push",
+      "forge-cli",
+      "agent-cli",
+      "file-edit"
+    ],
+    "note": "Pi ignores disallowedTools, so nothing maps to a tool name. peer-guard.ts blocks git push, gh and agent CLIs for every Pi seat, and the file tools when SEATWORKS_READ_ONLY=1. The intents not listed here are not enforced on this harness: a Pi seat can still use its own web search, plan mode or todo list."
   },
   "skillLoad": {
     "tool": "read",

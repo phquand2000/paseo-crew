@@ -47,8 +47,9 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
    - Egress: web fetch tools, shell network commands (`curl`, `wget`, `nc`, `ssh`, `git push`,
      `gh`, `npm publish`), MCP servers that write, Paseo messages to a seat with egress.
    - Side effects without a Human gate: push, deploy, publish, email, payments.
-   - Enforcement: whether each limit is enforced (a deny list, a guard hook, a guard extension)
-     or prompt only.
+   - Enforcement: for each intent `seats.json` asks for, whether this harness maps it to a tool
+     name (`deny.intents`), holds it in a guard (`deny.enforcedByGuard`), or neither, in which
+     case it is prompt only. `setup-seats.fish` prints the neither list per seat on every run.
 
    **Done** when no cell is blank; write `none` or `unknown` where that's the answer.
 3. **Trace the chains between seats.** List every edge with its direction: Supervisor to Lead

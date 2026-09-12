@@ -55,7 +55,14 @@
   },
   "deny": {
     "mechanism": "hooks",
-    "note": "Paseo applies disallowedTools only to its claude and omp providers, so a Codex seat's limits live in its hooks and in sandbox_mode plus approval_policy"
+    "intents": {},
+    "enforcedByGuard": [
+      "subagents",
+      "git-push",
+      "forge-cli",
+      "agent-cli"
+    ],
+    "note": "Paseo applies disallowedTools only to its claude and omp providers, so a Codex seat has no deny list. subagents is held by the nulled multi_agent_version in the room's model catalog; git-push, forge-cli and agent-cli by lead-guard.sh reading each shell command. file-edit is left out of enforcedByGuard on purpose: sandbox_mode = read-only in a role overlay does hold it, but that is per role (the Peer's overlay is workspace-write), so the report stays conservative and tells you to check the overlay. The rest are unenforced until its hooks cover them."
   },
   "skillLoad": {
     "tool": null,

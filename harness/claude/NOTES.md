@@ -23,7 +23,7 @@ and asks for `--probe`.
   list carried that dead entry until the harness layer removed it; `seat_deny` in
   `setup-seats.fish` now reports any deny entry `seats.json` no longer lists, so a future typo
   surfaces instead of silently protecting nothing.
-- **Denying `Skill` would turn every skill off.** It is not in `denyCommon`, and should not be.
+- **Denying `Skill` would turn every skill off.** No intent maps to it, and none should.
 - **Description budget:** Claude Code lists skill descriptions within about 1% of the context
   window, roughly 8,000 characters, and drops the least-used ones past that. Keep each role to
   about ten model-invocable skills, and mark the rest `disable-model-invocation: true`.

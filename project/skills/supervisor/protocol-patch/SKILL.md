@@ -34,7 +34,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
    | `AGENTS.md` | technical constraints for anyone changing code here | every agent in the repository | to the Human as a diff; the Lead commits it |
    | a seat prompt: `SUPERVISOR.md`, `LEAD.md`, `PEER.md`, `REVIEWER.md`, `WATCHER.md` | how that role behaves in every project | that seat, every turn | to the Human as a kit diff |
    | a skill | a procedure used only some of the time | the seat that loads it | to the Human as a kit diff |
-   | the deny lists and skill gates in `$SEATWORKS_KIT/seats.json`, the guards in `$SEATWORKS_KIT/harness/common/guards/` and `$SEATWORKS_KIT/harness/*/extensions/` | limits that must hold whatever the prompt says | enforced, not read | to the Human as a kit diff |
+   | the deny intents and skill gates in `$SEATWORKS_KIT/seats.json`, their per-harness mapping in `$SEATWORKS_KIT/harness/*/harness.json`, the guards in `$SEATWORKS_KIT/harness/common/guards/` and `$SEATWORKS_KIT/harness/*/extensions/` | limits that must hold whatever the prompt says | enforced, not read | to the Human as a kit diff |
 
    If it happens in one repository, fix it in its `WORKSPACE_PROTOCOL.md` or `AGENTS.md`. If it
    must never happen, make it a hard limit, and add a one-line reason to a prompt only if agents

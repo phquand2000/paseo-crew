@@ -14,9 +14,7 @@
         "profile-guard.sh"
       ],
       "guardRole": "supervisor",
-      "deny": [
-        "LSP"
-      ],
+      "deny": [],
       "readOnly": false,
       "hidesOrchestration": false,
       "required": true,
@@ -41,7 +39,10 @@
         }
       ],
       "description": "Supervisor seat: meets the Human, relays decisions, answers attention events, keeps the notebook",
-      "entry": true
+      "entry": true,
+      "denyIntents": [
+        "lsp"
+      ]
     },
     {
       "role": "lead",
@@ -58,9 +59,7 @@
         "skill-guard.sh"
       ],
       "guardRole": "lead",
-      "deny": [
-        "LSP"
-      ],
+      "deny": [],
       "readOnly": false,
       "hidesOrchestration": false,
       "required": true,
@@ -84,7 +83,10 @@
           ]
         }
       ],
-      "description": "Lead seat: framing, delegation, review, acceptance"
+      "description": "Lead seat: framing, delegation, review, acceptance",
+      "denyIntents": [
+        "lsp"
+      ]
     },
     {
       "role": "watcher",
@@ -101,11 +103,6 @@
       ],
       "guardRole": "watcher",
       "deny": [
-        "LSP",
-        "Edit",
-        "Write",
-        "MultiEdit",
-        "NotebookEdit",
         "mcp__paseo__create_agent",
         "mcp__paseo__update_agent",
         "mcp__paseo__archive_agent",
@@ -140,7 +137,11 @@
           "isDefault": true
         }
       ],
-      "description": "Attention watcher: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor"
+      "description": "Attention watcher: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor",
+      "denyIntents": [
+        "lsp",
+        "file-edit"
+      ]
     },
     {
       "role": "peer",
@@ -160,7 +161,8 @@
       "notes": "The Peer profile for work that writes: the Engineer disposition. Use thinkingOptionId high for a new boundary.",
       "models": [],
       "thinking": "medium",
-      "description": "Peer seat: implementation, evidence, handoff"
+      "description": "Peer seat: implementation, evidence, handoff",
+      "denyIntents": []
     },
     {
       "role": "peer-ro",
@@ -180,7 +182,8 @@
       "notes": "The Peer prompt with edits blocked: Architect, Scout, and every council seat. Use thinkingOptionId low for a Scout.",
       "models": [],
       "thinking": "high",
-      "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked"
+      "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked",
+      "denyIntents": []
     },
     {
       "role": "reviewer",
@@ -203,21 +206,9 @@
       "models": [],
       "thinking": "high",
       "description": "Reviewer seat: read-only code review with Open Code Review",
-      "reviewSeat": true
+      "reviewSeat": true,
+      "denyIntents": []
     }
-  ],
-  "denyCommon": [
-    "Agent",
-    "Task",
-    "Workflow",
-    "WebSearch",
-    "TodoWrite",
-    "EnterPlanMode",
-    "ExitPlanMode",
-    "Bash(claude:*)",
-    "Bash(npx claude:*)",
-    "Bash(git push:*)",
-    "Bash(gh:*)"
   ],
   "promptBudget": 16384,
   "skillGates": [
@@ -239,5 +230,16 @@
       "on": "merge",
       "because": "a merge into the base branch is the one step with no cheap undo"
     }
-  ]
+  ],
+  "denyCommonIntents": [
+    "subagents",
+    "workflows",
+    "web-search",
+    "todo-list",
+    "plan-mode",
+    "agent-cli",
+    "git-push",
+    "forge-cli"
+  ],
+  "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding."
 }

@@ -201,7 +201,7 @@ notebook, and a miss becomes a rule only when it recurs.
 | [REFERENCE.md](REFERENCE.md) | Paseo and kit behavior that you can't infer from the config |
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing and editing the prompts and docs in this kit |
 | [NOTICE.md](NOTICE.md) | Where the skills' ideas come from, with licenses |
-| [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny list, model, and the skill gates it must pass |
+| [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny intents, model, and the skill gates it must pass |
 | [harness/claude/](harness/claude/) | Claude Code as a harness: manifest, role settings, guards, and [NOTES.md](harness/claude/NOTES.md) |
 | [harness/pi/](harness/pi/) | Pi as a harness: manifest, settings, guard extensions, and [NOTES.md](harness/pi/NOTES.md) |
 | [harness/codex/](harness/codex/) | Codex as a harness, unverified: manifest, the room, the custom-model data, and the open questions in [NOTES.md](harness/codex/NOTES.md) |

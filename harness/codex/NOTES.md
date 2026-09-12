@@ -82,7 +82,7 @@ Three decisions worth knowing:
   `sandbox_mode` and `approval_policy`. `setup-seats.fish` says so rather than pretending a
   deny list is in force.
 - **Native subagents have to go.** Paseo is meant to be the only control plane, which
-  `denyCommon` achieves on Claude seats by refusing `Agent` and `Task`. On Codex the equivalent
+  the `subagents` intent achieves on Claude seats by refusing `Agent` and `Task`. On Codex the equivalent
   is the catalog with every `multi_agent_version` nulled; setting `multi_agent` and
   `multi_agent_v2` to false is not enough, because bundled model metadata can still advertise
   v1 or v2.

@@ -33,11 +33,14 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     literally. [O5]
 12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
     models over-verify when told to. [O5]
-13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: put
-    them in a role's `deny` list in `seats.json`, in a shared guard under
-    `harness/common/guards/` (`lead-guard.sh`, `profile-guard.sh`, `watcher-guard.sh`,
-    `skill-guard.sh`), or in a harness's own guard extension (`peer-guard.ts`, `skill-gate.ts`). A seat's manifest says which of those its
-    harness actually applies. [M]
+13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: name
+    the capability as an intent in `seats.json`, and let each harness map it to its own tool
+    names under `deny.intents` or declare a guard that holds it under `deny.enforcedByGuard`.
+    A limit no harness enforces is reported on every run rather than assumed, so write the
+    prompt rule as if it were the only thing holding: for a Pi seat it usually is. Stronger
+    limits go in a shared guard under `harness/common/guards/` (`lead-guard.sh`,
+    `profile-guard.sh`, `watcher-guard.sh`, `skill-guard.sh`) or in a harness's guard extension
+    (`peer-guard.ts`, `skill-gate.ts`). [M]
 14. Write every `.md` to load unchanged on every harness: no HTML comments anywhere, and no
     harness's tool names. A maintainer note goes under "What each demo prompt expects you to
     add" in this guide, and a rule about a tool names what the tool does ("your read tool"), not

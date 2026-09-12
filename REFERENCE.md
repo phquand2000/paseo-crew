@@ -126,8 +126,13 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   the target of the watcher's `send_agent_prompt` with `paseo ls`, so `paseo` must be on the
   daemon's PATH, and lets it reach only its own project's Supervisor, read from
   `SEATWORKS_SLUG`. Each guard blocks when jq is missing.
-- **Response:** put anything that must never happen in the deny list in `seats.json`, in a
-  shared guard under `harness/common/guards/`, or in a harness's own guard extension.
+- **Response:** name the capability as an intent in `seats.json` (`denyCommonIntents`, or a
+  role's `denyIntents`), and each harness manifest maps it to its own tool names under
+  `deny.intents` or declares it held by a guard under `deny.enforcedByGuard`. An intent a
+  harness does neither with is reported on every run as resting on the prompt alone, so moving
+  a role tells you which limits stopped holding: as shipped, a Pi seat enforces 3 of the 8
+  common intents, and a Codex watcher 4 of its 10. Put anything stronger in a shared guard under
+  `harness/common/guards/` or in a harness's own guard extension.
   `harness/common/hook-io.sh` writes each guard's refusal in the form the seat's harness
   expects, so one guard body serves every harness, and a manifest's `guards.dir` says which
   directory its seats install from.

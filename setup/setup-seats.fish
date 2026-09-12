@@ -535,6 +535,7 @@ function seat_provider --argument-names role slug repo_dir
         provider_env $key SEATWORKS_HOOK_PROTOCOL $protocol
     end
     seat_deny $key $role $harness
+    report_unenforced $key $role $harness
 end
 
 function needs_kit_path --argument-names role harness
@@ -587,11 +588,31 @@ function provider_env --argument-names key name value
         '.agents.providers[$k].env[$n] = $v' --arg k $key --arg n $name --arg v $value
 end
 
+function seat_intents --argument-names role
+    begin
+        seats_get '.denyCommonIntents[]?'
+        seat_field $role '.denyIntents[]?'
+    end | sort -u
+end
+
+function report_unenforced --argument-names key role harness
+    set -l gaps
+    for intent in (seat_intents $role)
+        test (count (harness_get $harness ".deny.intents[\"$intent\"][]?")) -gt 0; and continue
+        contains -- $intent (harness_get $harness '.deny.enforcedByGuard[]?'); and continue
+        set -a gaps $intent
+    end
+    test (count $gaps) -eq 0; and return
+    echo "  · $key: harness $harness enforces none of "(string join ', ' $gaps)". seats.json asks for "(count (seat_intents $role))" limits; "(count $gaps)" rest on the prompt alone."
+end
+
 function seat_deny --argument-names key role harness
     switch (harness_get $harness .deny.mechanism)
         case disallowedTools
             set -l want (begin
-                seats_get '.denyCommon[]'
+                for intent in (seat_intents $role)
+                    harness_get $harness ".deny.intents[\"$intent\"][]?"
+                end
                 seat_field $role '.deny[]?'
             end | jq -R . | jq -s -c 'unique')
             set -l have (jq -c --arg k $key '(.agents.providers[$k].disallowedTools // []) | unique' $paseo_config)
