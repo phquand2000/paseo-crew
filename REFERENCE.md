@@ -118,9 +118,9 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   applies `disallowedTools` only to some of its providers, so a role moved to another harness can
   lose a deny list without any error; `setup-seats.fish` says so when a harness has none. The
   guards themselves are shared. `lead-guard.sh` checks each write against the repository: the
-  Lead may write only `.seatworks/`, `docs/`, `doc/`, `CONTEXT.md`, and the instruction files any
-  harness in the kit reads (`AGENTS.md`, `CLAUDE.md`) — a fixed superset, which `setup-seats.fish`
-  checks still covers every harness's `contextFile` —
+  Lead may write only `.seatworks/`, `docs/`, `doc/`, `CONTEXT.md`, and every `contextFile` the
+  harness manifests declare, which the guard reads from `$SEATWORKS_KIT/harness/*/harness.json`
+  at startup and falls back to `AGENTS.md` alone when it cannot,
   the Supervisor only `.seatworks/`, and the watcher only its log under
   `.seatworks/records/attention/`; files outside the repository stay writable.
   `profile-guard.sh` holds a Supervisor's and Lead's `create_agent`, `update_agent`,

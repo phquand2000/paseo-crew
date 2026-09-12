@@ -212,7 +212,8 @@ if not jq --slurpfile seats $seats_file --slurpfile hs $manifests --arg h $HOME 
         | .agents.providers[$key] |= if . == null then $t else
               .env += ($t.env | with_entries(select(.key | startswith("SEATWORKS_") or . == $hx.configDirEnv)))
               | (if $t.command then .command = $t.command else . end)
-              | if .env.CLAUDE_CODE_OAUTH_TOKEN == "OAUTH_TOKEN" then del(.env.CLAUDE_CODE_OAUTH_TOKEN) else . end
+              | ($hx.provider.baseCredential.env // "") as $cred
+              | if $cred != "" and .env[$cred] == "OAUTH_TOKEN" then del(.env[$cred]) else . end
             end)
     | (.daemon.agentProfiles // []) as $have
     | [$cfg.seats[]
@@ -263,9 +264,10 @@ else
 end
 for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
     set -l base (jq -r '.baseProvider' $harness_dir/$id/harness.json)
-    test $base = claude; or continue
-    test (jq '(.agents.providers[$b].env.CLAUDE_CODE_OAUTH_TOKEN // "") | length > 0' --arg b $base $paseo_config) = true
-    or echo "  ! the base `$base` provider has no CLAUDE_CODE_OAUTH_TOKEN, so its seats can't log in: set it there (SETUP.md, \"Add the base providers to Paseo\") and run paseo reload."
+    set -l cred (jq -r '.provider.baseCredential.env // ""' $harness_dir/$id/harness.json)
+    test -n "$cred"; or continue
+    test (jq --arg b $base --arg v $cred '((.agents.providers[$b].env[$v]) // "") | length > 0' $paseo_config) = true
+    or echo "  ! the base `$base` provider has no $cred, so its seats can't log in: set it there (SETUP.md, \"Add the base providers to Paseo\") and run paseo reload."
 end
 
 paseo project ls --json 2>/dev/null | jq -e --arg p $repo_dir 'any(.[]; .path == $p)' >/dev/null 2>&1

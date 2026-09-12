@@ -13,7 +13,7 @@ watcher)
 *)
     role=lead
     who=Lead
-    rule="The Lead writes only coordination records (.seatworks/, docs/, doc/, AGENTS.md, CLAUDE.md, CONTEXT.md), with your file tools; code and tests go to an Engineer Peer through a brief."
+    rule="The Lead writes only coordination records (.seatworks/, docs/, doc/, CONTEXT.md, and the repository instruction files), with your file tools; code and tests go to an Engineer Peer through a brief."
     ;;
 esac
 
@@ -30,12 +30,26 @@ deny() {
     block "$1 $rule"
 }
 
+context_files=$(
+    if command -v jq >/dev/null 2>&1 && [ -d "${SEATWORKS_KIT:-}/harness" ]; then
+        jq -r '.contextFile // empty' "$SEATWORKS_KIT"/harness/*/harness.json 2>/dev/null | sort -u | tr '\n' ' '
+    fi
+)
+[ -n "$context_files" ] || context_files="AGENTS.md"
+
+
 allowed() {
     case $role:$1 in
     supervisor:.seatworks | supervisor:.seatworks/*) return 0 ;;
     watcher:.seatworks/records/attention/?*) return 0 ;;
     lead:.seatworks | lead:.seatworks/* | lead:docs | lead:docs/* | lead:doc | lead:doc/*) return 0 ;;
-    lead:AGENTS.md | lead:CLAUDE.md | lead:CONTEXT.md) return 0 ;;
+    lead:CONTEXT.md) return 0 ;;
+    esac
+    case $role:$1 in
+    lead:*.md)
+        case " $context_files " in *" ${1#*:} "*) return 0 ;; esac
+        case " $context_files " in *" $1 "*) return 0 ;; esac
+        ;;
     esac
     return 1
 }

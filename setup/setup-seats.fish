@@ -4,7 +4,6 @@ set -g kit (path resolve (path dirname (status filename))/..)
 set -g seats_file  $kit/seats.json
 set -g harness_dir $kit/harness
 set -g paseo_config $HOME/.paseo/config.json
-set -g shared_claude $HOME/.claude
 set -g local_skills  $HOME/.agents/skills
 set -l plugin_id     mattpocock-skills@mattpocock
 
@@ -82,8 +81,10 @@ function check_skill --argument-names label skill hides
     else if test (string length -- $desc) -gt 1024
         fail "$label: skill $name has a description over 1,024 characters"
     end
-    grep -qE '\$ARGUMENTS|\$\{CLAUDE_SKILL_DIR\}' $file
-    and fail "$label: skill $name uses \$ARGUMENTS or \${CLAUDE_SKILL_DIR}, which only some harnesses substitute"
+    for ph in $all_placeholders
+        grep -qF -- $ph $file
+        and fail "$label: skill $name uses the placeholder $ph, which only the harness that defines it substitutes; a skill has to load unchanged everywhere"
+    end
     test (wc -l <$file) -ge 500
     and echo "  · $label: skill $name has 500+ lines; move detail into references/."
     grep -rq '<!--' $skill
@@ -147,17 +148,18 @@ end
 function probe_skills --argument-names label harness dir skills_sub repo_dir
     set -g probed_count -1
     switch (harness_get $harness .probe.kind)
-        case pi-loader
+        case loader
             command -q node; or return
-            set -l entry (probe_pi_entry)
+            set -l entry (probe_loader_entry $harness)
             test -n "$entry"; or return
             set -l script (mktemp /tmp/seatworks-probe.XXXXXX.mjs)
             printf '%s\n' \
-                'const { loadSkills } = await import(process.env.SEATWORKS_PROBE_ENTRY);' \
+                'const loader = await import(process.env.SEATWORKS_PROBE_ENTRY);' \
+                'const loadSkills = loader[process.env.SEATWORKS_PROBE_EXPORT];' \
                 'const r = loadSkills({ cwd: process.env.SEATWORKS_PROBE_CWD, agentDir: process.env.SEATWORKS_PROBE_DIR, skillPaths: [], includeDefaults: true });' \
                 'for (const s of r.skills) console.log(s.name);' \
                 'for (const d of r.diagnostics) console.error(`${d.type}: ${d.message} (${d.path ?? ""})`);' >$script
-            set -l names (SEATWORKS_PROBE_DIR=$dir SEATWORKS_PROBE_CWD=$repo_dir SEATWORKS_PROBE_ENTRY=$entry node $script 2>/dev/null)
+            set -l names (env SEATWORKS_PROBE_DIR=$dir SEATWORKS_PROBE_CWD=$repo_dir SEATWORKS_PROBE_ENTRY=$entry SEATWORKS_PROBE_EXPORT=(harness_get $harness .probe.export) node $script 2>/dev/null)
             set -l ok $status
             rm -f $script
             test $ok -eq 0; or return
@@ -177,18 +179,27 @@ end
 
 function probe_live --argument-names label harness dir skills_sub repo_dir
     test (harness_get $harness .probe.kind) = version; or return
-    command -q claude; or begin
-        echo "  · $label: claude is not on PATH, so the live probe was skipped."
+    set -l cmd (harness_get $harness '.probe.command[]?')
+    test (count $cmd) -gt 0; or return
+    command -q $cmd[1]; or begin
+        echo "  · $label: $cmd[1] is not on PATH, so the live probe was skipped."
         return
     end
     set -l env_var (harness_get $harness .configDirEnv)
-    set -l base (harness_get $harness .baseProvider)
-    set -l token (jq -r --arg b $base '.agents.providers[$b].env.CLAUDE_CODE_OAUTH_TOKEN // ""' $paseo_config)
-    if test -z "$token"
-        fail "$label: the base provider `$base` has no CLAUDE_CODE_OAUTH_TOKEN, so the live probe can't log in."
-        return
+    set -l creds
+    if test (harness_get $harness '.probe.credentialFromBase // false') = true
+        set -l var (harness_get $harness '.provider.baseCredential.env // empty')
+        set -l base (harness_get $harness .baseProvider)
+        if test -n "$var"
+            set -l token (jq -r --arg b $base --arg v $var '.agents.providers[$b].env[$v] // ""' $paseo_config)
+            if test -z "$token"
+                fail "$label: the base provider `$base` has no $var, so the live probe can't log in."
+                return
+            end
+            set creds $var=$token
+        end
     end
-    set -l names (env $env_var=$dir CLAUDE_CODE_OAUTH_TOKEN=$token claude -p --model claude-haiku-4-5-20251001 \
+    set -l names (env $env_var=$dir $creds $cmd \
         'List every skill name in your available skills, one per line, nothing else.' 2>/dev/null |
         string trim | string replace -r '^[-*]\s*' '' | string replace -r '\s.*$' '')
     if test (count $names) -eq 0
@@ -218,14 +229,18 @@ function probe_live --argument-names label harness dir skills_sub repo_dir
     echo "  · $label: live probe saw "(count $names)" skills and offers all "(count $want_offered)" the kit linked for the model"(test $hidden -gt 0; and echo ", holding $hidden back as disable-model-invocation"; or echo "")"."
 end
 
-function probe_pi_entry
-    set -l bin (command -v pi)
+function probe_loader_entry --argument-names harness
+    set -l bin (command -v (harness_get $harness '.probe.bin // empty'))
     test -n "$bin"; or return
-    set -l root (path resolve (path dirname (path resolve $bin))/../lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js)
-    test -f $root; and echo $root; and return
-    command -q npm; or return
-    set -l entry (npm root -g 2>/dev/null)/@earendil-works/pi-coding-agent/dist/index.js
-    test -f $entry; and echo $entry
+    set -l bin_dir (path dirname (path resolve $bin))
+    set -l npm_root ""
+    command -q npm; and set npm_root (npm root -g 2>/dev/null)
+    for candidate in (harness_get $harness '.probe.entry[]?')
+        set -l resolved (string replace BIN_DIR $bin_dir -- $candidate)
+        set resolved (string replace NPM_ROOT "$npm_root" -- $resolved)
+        string match -q '*NPM_ROOT*' -- $resolved; and continue
+        test -f (path resolve $resolved 2>/dev/null); and path resolve $resolved; and return
+    end
 end
 
 function compare_probe --argument-names label
@@ -325,10 +340,11 @@ function build_seat --argument-names role slug repo_dir
 end
 
 function env_pairs --argument-names key harness
-    jq -r -n --slurpfile m (harness_file $harness) --slurpfile p $paseo_config --arg k $key '
+    set -l prefix (harness_get $harness '.provider.envPrefix // "SEATWORKS_"')
+    jq -r -n --slurpfile m (harness_file $harness) --slurpfile p $paseo_config --arg k $key --arg x $prefix '
         (($m[0].provider.env // {}) + (($p[0].agents.providers[$k].env // {})
-            | with_entries(select(.key | startswith("SEATWORKS_CODEX_")))))
-        | to_entries[] | select(.key | startswith("SEATWORKS_CODEX_")) | "\(.key)=\(.value)"'
+            | with_entries(select(.key | startswith($x)))))
+        | to_entries[] | select(.key | startswith($x)) | "\(.key)=\(.value)"'
 end
 
 function build_seat_settings --argument-names key harness role dir
@@ -371,12 +387,14 @@ function build_seat_settings --argument-names key harness role dir
             set -l base $harness_dir/$harness/(harness_get $harness '.settings.base // empty')
             test -f $base
             or fail "$key: harness $harness declares no settings.base, so the room has no provider block to write"
-            set -l key_var (jq -r --arg k $key '.agents.providers[$k].env.SEATWORKS_CODEX_ENV_KEY // ""' $paseo_config)
+            set -l prefix (harness_get $harness '.provider.envPrefix // empty')
+            set -l key_var ""
+            test -n "$prefix"; and set key_var (jq -r --arg k $key --arg n "$prefix"ENV_KEY '.agents.providers[$k].env[$n] // ""' $paseo_config)
             if test -n "$key_var"
                 grep -rqE '(experimental_bearer_token|api[_-]?key)\s*=' $harness_dir/$harness/config/
                 and fail "$key: harness $harness has a literal token in harness/$harness/config/; use env_key = \"$key_var\" and export the key instead."
                 set -q $key_var
-                or echo "  · $key: Codex reads its API key from \$$key_var, which is not set in this shell. Export it where the Paseo daemon can see it."
+                or echo "  · $key: $harness reads its API key from \$$key_var, which is not set in this shell. Export it where the Paseo daemon can see it."
             end
             set -l mat $harness_dir/$harness/(harness_get $harness '.settings.materialize // empty')
             if not test -x $mat
@@ -693,15 +711,6 @@ end
 test $dry -eq 1; and echo "[--check] verifying only; nothing will be written."
 test $live -eq 1; and echo "[--probe] each seat's harness will be asked which skills it loads; this spends a cheap model call per seat that needs one."
 
-set -g lead_writes (string match -ra --groups-only 'lead:([A-Za-z0-9_.-]+\.md)' -- \
-    (cat $harness_dir/common/guards/lead-guard.sh))
-for id in (all_harnesses)
-    set -l ctx (harness_get $id '.contextFile // empty')
-    test -n "$ctx"; or continue
-    contains -- $ctx $lead_writes
-    or fail "harness $id reads $ctx, which harness/common/guards/lead-guard.sh does not list among the Lead's writable files, so a Lead on it could not write the repository's instruction file. Add it to allowed()."
-end
-
 for file in $kit/project/*.md (find $kit/project/skills -name '*.md' 2>/dev/null)
     grep -q '<!--' $file
     and fail (string replace -- "$kit/" '' $file)" contains an HTML comment. Every .md in this kit loads unchanged on every harness; put maintainer notes in WRITING_GUIDE.md."
@@ -728,27 +737,43 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
 end
 test $errs -eq 0; or exit 1
 
-set -l retention ""
-if test -f $shared_claude/settings.json
-    set retention (jq -r '.cleanupPeriodDays // empty' $shared_claude/settings.json 2>/dev/null)
-    or begin
-        echo "! $shared_claude/settings.json is not valid JSON, so cleanupPeriodDays is unknown."
-        exit 1
+set -g all_placeholders
+for id in (all_harnesses)
+    for ph in (harness_get $id '.skillLoad.placeholders[]?')
+        contains -- $ph $all_placeholders; or set -a all_placeholders $ph
     end
 end
-for role in (seats_get '.seats[] | select(.harness == "claude") | .role')
-    set -l file $harness_dir/claude/settings/$role.settings.json
-    test -f $file; or continue
-    if not jq -e . $file >/dev/null 2>&1
-        fail "$file is not valid JSON; fix it by hand."
-        continue
+
+for id in (seats_get '[.seats[].harness] | unique | .[]')
+    test (harness_get $id '.settings.mode') = link; or continue
+    set -l retention_key (harness_get $id '.settings.retentionKey // empty')
+    set -l user_settings (expand_home (harness_get $id '.userSettings // empty'))
+    set -l retention ""
+    if test -n "$retention_key"; and test -f "$user_settings"
+        set retention (jq -r --arg k $retention_key '.[$k] // empty' $user_settings 2>/dev/null)
+        or begin
+            echo "! $user_settings is not valid JSON, so $retention_key is unknown."
+            exit 1
+        end
     end
-    set -l days (jq -r '.cleanupPeriodDays // empty' $file)
-    test "$days" = "$retention"
-    or fail "$file: cleanupPeriodDays is '$days' but yours is '$retention'; set the same value in the file by hand."
-    for guard in (seat_field $role '.guards[]?')
-        jq -e --arg g $guard '[.hooks.PreToolUse[]?.hooks[]?.command] | any(test($g))' $file >/dev/null 2>&1
-        or fail "$file has no PreToolUse hook running $guard, so that guard never runs for the $role seat."
+    set -l hook_key (harness_get $id '.guards.hookSettingsKey // empty')
+    for role in (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
+        set -l file $harness_dir/$id/(string replace ROLE $role (harness_get $id '.settings.source'))
+        test -f $file; or continue
+        if not jq -e . $file >/dev/null 2>&1
+            fail "$file is not valid JSON; fix it by hand."
+            continue
+        end
+        if test -n "$retention_key"
+            set -l days (jq -r --arg k $retention_key '.[$k] // empty' $file)
+            test "$days" = "$retention"
+            or fail "$file: $retention_key is '$days' but $user_settings has '$retention'; set the same value in the file by hand."
+        end
+        test -n "$hook_key"; or continue
+        for guard in (seat_field $role '.guards[]?')
+            jq -e --arg g $guard --arg k $hook_key '[getpath($k | split("."))[]?.hooks[]?.command] | any(test($g))' $file >/dev/null 2>&1
+            or fail "$file has no $hook_key entry running $guard, so that guard never runs for the $role seat."
+        end
     end
 end
 
@@ -765,10 +790,20 @@ end
 for skill in $paseo_skills/*/
     test -f $skill/SKILL.md; and set -a all_skills (path basename $skill)=(path resolve $skill)
 end
-set -l plugin_root (jq -r --arg id $plugin_id '.plugins[$id][0].installPath // empty' \
-    $shared_claude/plugins/installed_plugins.json 2>/dev/null)
+set -l plugin_index ""
+set -l plugin_manifest ""
+for id in (all_harnesses)
+    set -l candidate (expand_home (harness_get $id '.pluginIndex // empty'))
+    test -n "$candidate"; and test -f "$candidate"; or continue
+    set plugin_index $candidate
+    set plugin_manifest (harness_get $id '.pluginManifest // empty')
+    break
+end
+set -l plugin_root ""
+test -n "$plugin_index"
+and set plugin_root (jq -r --arg id $plugin_id '.plugins[$id][0].installPath // empty' $plugin_index 2>/dev/null)
 if test -n "$plugin_root"; and test -d $plugin_root
-    for rel in (jq -r '.skills[]?' $plugin_root/.claude-plugin/plugin.json 2>/dev/null)
+    for rel in (jq -r '.skills[]?' $plugin_root/$plugin_manifest 2>/dev/null)
         set -l abs $plugin_root/(string replace -r '^\./' '' -- $rel)
         test -f $abs/SKILL.md; and set -a all_skills (basename $abs)=$abs
     end

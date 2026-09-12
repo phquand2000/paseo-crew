@@ -93,11 +93,23 @@
     "force": "/NAME",
     "transcriptMatch": "\"name\":\"Skill\",\"input\":{\"skill\":\"NAME\"",
     "descriptionBudget": 8000,
-    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\""
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\"",
+    "placeholders": [
+      "$ARGUMENTS",
+      "${CLAUDE_SKILL_DIR}"
+    ],
+    "placeholdersNote": "substitutions this harness performs. setup-seats.fish refuses every harness's placeholders in every skill, because a skill has to load unchanged where none of them are substituted."
   },
   "probe": {
     "kind": "version",
-    "live": "claude --print, asked to list its skills, with the seat profile as the config directory",
+    "command": [
+      "claude",
+      "-p",
+      "--model",
+      "claude-haiku-4-5-20251001"
+    ],
+    "credentialFromBase": true,
+    "live": "run probe.command with the seat's configDirEnv set and ask it to list its skills",
     "note": "the skills directory and symlink following were verified by running a seat against a scratch profile; a version other than the verified one re-opens that question"
   },
   "versionCommand": "claude --version",
@@ -124,5 +136,10 @@
   },
   "contextFile": "CLAUDE.md",
   "contextFileNeedsPointer": true,
-  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat."
+  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat.",
+  "userSettings": "HOME/.claude/settings.json",
+  "userSettingsNote": "the user's own settings file. setup-seats.fish requires each role settings file to carry the same settings.retentionKey value, because a seat prunes the shared directories in links on startup.",
+  "pluginIndex": "HOME/.claude/plugins/installed_plugins.json",
+  "pluginManifest": ".claude-plugin/plugin.json",
+  "pluginManifestNote": "path inside an installed plugin whose `skills` array lists the skill directories it ships. Read together with pluginIndex."
 }

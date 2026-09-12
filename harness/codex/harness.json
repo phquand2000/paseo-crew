@@ -70,7 +70,8 @@
     "force": "$NAME",
     "transcriptMatch": null,
     "descriptionBudget": null,
-    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\""
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\"",
+    "placeholders": []
   },
   "sharedSkillDirs": [
     "HOME/.agents/skills"
@@ -100,7 +101,9 @@
     "defaultModel": "glm-5.3",
     "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id, Codex wants the bare slug with model_provider set separately.",
     "baseCredential": null,
-    "baseCredentialNote": "null: this harness authenticates through the login file in links, not through a token on its Paseo base provider."
+    "baseCredentialNote": "null: this harness authenticates through the login file in links, not through a token on its Paseo base provider.",
+    "envPrefix": "SEATWORKS_CODEX_",
+    "envPrefixNote": "the prefix setup-seats.fish passes through to this harness's materializer, so no script names the harness."
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,

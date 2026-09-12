@@ -51,14 +51,21 @@
     "force": "/skill:NAME",
     "transcriptMatch": null,
     "descriptionBudget": null,
-    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\""
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\"",
+    "placeholders": []
   },
   "sharedSkillDirs": [
     "HOME/.agents/skills"
   ],
   "probe": {
-    "kind": "pi-loader",
-    "note": "node, calling Pi's own loadSkills() with agentDir set to the seat profile; authoritative and free, so it runs on every --check"
+    "kind": "loader",
+    "bin": "pi",
+    "entry": [
+      "BIN_DIR/../lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js",
+      "NPM_ROOT/@earendil-works/pi-coding-agent/dist/index.js"
+    ],
+    "export": "loadSkills",
+    "note": "node, calling the harness's own loadSkills() with agentDir set to the seat profile; authoritative and free, so it runs on every --check"
   },
   "versionCommand": "pi --version",
   "provider": {

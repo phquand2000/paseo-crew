@@ -20,8 +20,7 @@ provider=$(jq -er --arg id "$id" 'if type == "array" then (first(.[] | select(.i
     block "paseo ls returned no agent list, so this message's target can't be checked. Log the event in .seatworks/records/attention/ and send it on the next sweep."
 slug=$SEATWORKS_SLUG
 if [ -z "$slug" ]; then
-    seat=${SEATWORKS_SEAT:-${CLAUDE_CONFIG_DIR##*/}}
-    case $seat in watcher-?*) slug=${seat#watcher-} ;; esac
+    case ${SEATWORKS_SEAT:-} in watcher-?*) slug=${SEATWORKS_SEAT#watcher-} ;; esac
 fi
 if [ -n "$slug" ]; then
     want=supervisor-$slug
