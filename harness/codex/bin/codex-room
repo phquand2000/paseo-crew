@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+seat=${1:?"usage: codex-room SEAT [codex args...]"}
+shift
+
+kit=${SEATWORKS_KIT:?"SEATWORKS_KIT must be set on the Paseo provider for this seat"}
+role=${SEATWORKS_ROLE:-${seat%-*}}
+runtime=${CODEX_HOME:-$HOME/.codex/profiles/$seat}
+
+if [ "${SEATWORKS_ROOM_REFRESH:-1}" = 1 ]; then
+    "$kit/harness/codex/bin/materialize-room" "$seat" "$role" "$runtime" >&2
+fi
+
+export CODEX_HOME=$runtime
+exec "${CODEX_BIN:-codex}" "$@"

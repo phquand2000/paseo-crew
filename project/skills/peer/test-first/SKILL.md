@@ -65,7 +65,7 @@ When the answers point at helper names, private fields, container shape, source 
 
 ## Anti-patterns
 
-Check every new test against the anti-pattern catalog in [references/test-antipatterns.md](references/test-antipatterns.md) before handoff, including its rules for mocks. The first rows cost the most to clean up later; for Minted API, the check is step 2 of Before the first test.
+Every new test goes against the anti-pattern catalog in [references/test-antipatterns.md](references/test-antipatterns.md), which you open in Before handoff. The first rows cost the most to clean up later; for Minted API, the check is step 2 of Before the first test.
 
 ## Production code serves production
 
@@ -89,6 +89,8 @@ When the brief removes or replaces a schema field, protocol tag, width, or versi
 4. Delete tests whose only claim is that a retired name is rejected or absent, and add no test or lint rule that lists retired names: the list keeps them alive.
 
 ## Before handoff
+
+Open [references/test-antipatterns.md](references/test-antipatterns.md) and read it against the tests you wrote, row by row, including its rules for mocks. Name in the handoff which rows you checked and which ones a test came close to; reading the catalog from memory is how the rows that cost the most get skipped.
 
 Run a mutation check in your head on the code you wrote: a wrong constant, a swapped branch, a missing side effect, an empty, default, or hard-coded return, missing validation for zero, empty, null, or maximum. Each should fail at least one test; for one that doesn't, add the test or list it under Unknown / risk. Then run the code on one input no test uses: if it works only on the test values, it is fitted to the examples, not the rule.
 

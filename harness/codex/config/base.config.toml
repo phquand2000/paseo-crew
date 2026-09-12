@@ -1,0 +1,9 @@
+model_provider = "PROVIDER_NAME"
+model = "MODEL_ID"
+model_catalog_json = "CODEX_MODEL_CATALOG"
+
+[model_providers.PROVIDER_NAME]
+name = "PROVIDER_NAME"
+base_url = "PROVIDER_BASE_URL"
+env_key = "PROVIDER_ENV_KEY"
+wire_api = "PROVIDER_WIRE_API"

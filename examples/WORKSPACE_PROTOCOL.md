@@ -18,7 +18,7 @@ many users a few hundred. Without this file, the Lead runs on the defaults in
 reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
 `setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
-repository, adding the project's slug to `pi-peer`, `pi-peer-ro`, and `pi-reviewer`; `--model`
+repository, adding the project's slug to `peer-SLUG`, `peer-ro-SLUG`, and `reviewer-SLUG`; `--model`
 (default `zai/glm-5.3`) fills in `PEER_MODEL`. For the rest, ask the Supervisor to run its
 `workspace-protocol` skill, which interviews you.
 
@@ -45,7 +45,7 @@ Level: STRICTNESS_LEVEL
 ## Spawn recipes
 
 Launch every agent from its profile in `list_profiles`, copying the profile's model, mode, and
-thinking: Engineers from the Peer profile (`pi-peer/PEER_MODEL`), Architects and Scouts from the
+thinking: Engineers from the Peer profile (`peer-SLUG/PEER_MODEL`), Architects and Scouts from the
 read-only Peer profile, Reviewers from the Reviewer profile. The profile notes say when to raise
 thinking.
 
@@ -73,7 +73,7 @@ Replace the following:
   `../REPO-wt/TASK_ID`.
 - `TEST_LANE_RULE`: who may run the full suite, hold a port, or use the test database, and
   when.
-- `PEER_MODEL`: the Pi model of the Peer profile, as `list_models` shows it for `pi-peer-SLUG`,
+- `PEER_MODEL`: the model of the Peer profile, as `list_models` shows it for `peer-SLUG`,
   for example `zai/glm-5.3`.
 - `REVIEW_LANE_COUNT`: how many Reviewers a material question gets, for example `2`.
 - `ARCHITECT_TRIGGER`: the condition that calls for design review before implementation.

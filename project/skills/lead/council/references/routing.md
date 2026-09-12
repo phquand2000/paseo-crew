@@ -11,11 +11,11 @@ The profile guard blocks any launch whose model or mode differs from its profile
 on a provider with no profile, so never pick a model outside a profile.
 
 - Every seat (Independent, Challenger, Specialist, Verifier, Auditor) launches from the
-  project's read-only Peer profile, provider `pi-peer-ro`: it loads the Peer prompt and blocks
+  project's read-only Peer profile, provider `peer-ro-SLUG`: it loads the Peer prompt and blocks
   every write. Give it the disposition Architect.
-- Never route a seat to `pi-peer`, which can write, or to your own Lead provider, whose profile
+- Never route a seat to `peer-SLUG`, which can write, or to your own Lead provider, whose profile
   loads the Lead prompt and would turn the seat into a second Lead.
-- A Verifier or Auditor that the preferences file routes to `pi-reviewer` loads the Reviewer
+- A Verifier or Auditor that the preferences file routes to `reviewer-SLUG` loads the Reviewer
   prompt, which expects a change review: give it the disposition Reviewer, and add
   `Target: SNAPSHOT_SHA`, `Machine pass: skip`, and the Verifier or audit shape from
   `report-format.md` to its prompt, asking for that shape instead of findings by axis.
@@ -29,11 +29,11 @@ model pair must match a profile, or the guard blocks the launch:
 ```json
 {
   "council": {
-    "reasoning":           { "provider": "pi-peer-ro", "model": "PEER_MODEL",         "thinking": "high" },
-    "challengerReasoning": { "provider": "pi-peer-ro", "model": "OTHER_FAMILY_MODEL", "thinking": "high" },
-    "highRiskReasoning":   { "provider": "pi-peer-ro", "model": "STRONGEST_MODEL",    "thinking": "xhigh" },
-    "verifier":            { "provider": "pi-peer-ro", "model": "PEER_MODEL",         "thinking": "low" },
-    "auditor":             { "provider": "pi-peer-ro", "model": "PEER_MODEL",         "thinking": "medium" }
+    "reasoning":           { "provider": "peer-ro-SLUG", "model": "PEER_MODEL",         "thinking": "high" },
+    "challengerReasoning": { "provider": "peer-ro-SLUG", "model": "OTHER_FAMILY_MODEL", "thinking": "high" },
+    "highRiskReasoning":   { "provider": "peer-ro-SLUG", "model": "STRONGEST_MODEL",    "thinking": "xhigh" },
+    "verifier":            { "provider": "peer-ro-SLUG", "model": "PEER_MODEL",         "thinking": "low" },
+    "auditor":             { "provider": "peer-ro-SLUG", "model": "PEER_MODEL",         "thinking": "medium" }
   }
 }
 ```
@@ -43,21 +43,21 @@ Replace `PEER_MODEL`, `OTHER_FAMILY_MODEL`, and `STRONGEST_MODEL` with the model
 profile's.
 
 One file serves every project, while a provider belongs to one: use only entries naming this
-project's `pi-peer-ro` or `pi-reviewer`. Another project's provider carries that project's
+project's `peer-ro-SLUG` or `reviewer-SLUG`. Another project's provider carries that project's
 repository and prompts, so skip such an entry and take the fallback below.
 
 ## Functions and fallbacks
 
 | Function | Key | Falls back to | Without the file | Policy |
 |---|---|---|---|---|
-| Independent | `reasoning` | none | `pi-peer-ro`, `high` | strong reasoning seat |
-| Challenger | `challengerReasoning` | `reasoning` | `pi-peer-ro` on another family if a profile has one, `high` | a different strong model family from the Independent |
-| High-risk Independent | `highRiskReasoning` | `reasoning` | `pi-peer-ro`, `xhigh` if offered, else `high` | the strongest configured seat |
-| Specialist | `specialist` | `reasoning` | `pi-peer-ro`, `high` | only when domain semantics matter |
-| Verifier | `verifier` | none | `pi-peer-ro`, `low` | cheap, bounded coverage |
-| Deep verifier | `deepVerifier` | `reasoning` | `pi-peer-ro`, `high` | when reading the source takes judgment |
-| Auditor | `auditor` | `verifier` | `pi-peer-ro`, `medium` | bounded audit of the draft verdict |
-| Deep auditor | `deepAuditor` | `deepVerifier`, then `reasoning` | `pi-peer-ro`, `high` | semantic or high-risk audit |
+| Independent | `reasoning` | none | `peer-ro-SLUG`, `high` | strong reasoning seat |
+| Challenger | `challengerReasoning` | `reasoning` | `peer-ro-SLUG` on another family if a profile has one, `high` | a different strong model family from the Independent |
+| High-risk Independent | `highRiskReasoning` | `reasoning` | `peer-ro-SLUG`, `xhigh` if offered, else `high` | the strongest configured seat |
+| Specialist | `specialist` | `reasoning` | `peer-ro-SLUG`, `high` | only when domain semantics matter |
+| Verifier | `verifier` | none | `peer-ro-SLUG`, `low` | cheap, bounded coverage |
+| Deep verifier | `deepVerifier` | `reasoning` | `peer-ro-SLUG`, `high` | when reading the source takes judgment |
+| Auditor | `auditor` | `verifier` | `peer-ro-SLUG`, `medium` | bounded audit of the draft verdict |
+| Deep auditor | `deepAuditor` | `deepVerifier`, then `reasoning` | `peer-ro-SLUG`, `high` | semantic or high-risk audit |
 
 Check a model's thinking levels with `list_models` before passing `xhigh`. If `create_agent`
 rejects a value, pick the nearest one the profile allows and name the substitution in the
@@ -73,7 +73,8 @@ cheap model picked only for its family trades away the Challenger's depth. When 
 shows no such profile, use the Independent's and list "same-family Challenger" under the
 verdict's limitations; the Human can add a profile before the next council.
 
-Your adjudication already crosses families (you run on Claude; Pi seats usually don't). That
+Your adjudication already crosses families (the council seats' harness and model family are
+usually not yours). That
 protects the verdict from your priors, but not the seats from sharing theirs. In the high-risk
 tier, only the Independent moves to `highRiskReasoning`; the Challenger stays on
 `challengerReasoning` at `high` or more, so the family split survives.

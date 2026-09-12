@@ -3,15 +3,35 @@
 This page lists behavior you can't infer from the config. Each entry gives the symptom, the
 cause, and the response. Entries follow the order of the setup steps.
 
+It holds Paseo and kit behavior. Anything true of one coding agent rather than of the kit lives
+in that harness's notes, so swapping a harness doesn't invalidate this page:
+[harness/claude/NOTES.md](harness/claude/NOTES.md),
+[harness/pi/NOTES.md](harness/pi/NOTES.md), [harness/codex/NOTES.md](harness/codex/NOTES.md).
+
+## A harness fact isn't where you expect it
+
+- **Symptom:** you need to know where a seat's skills go, which file it reads as a prompt, or
+  what blocks a tool for it, and this page doesn't say.
+- **Cause:** those differ per coding agent, so they are data, not prose:
+  `harness/<id>/harness.json` holds them and `harness/<id>/NOTES.md` says how each was
+  established. `seats.json` says which harness hosts each role.
+- **Response:** read the manifest field, not a doc. `configDirEnv`, `promptFile`, `skillsDir`,
+  `promptComments`, `contextFile`, `deny.mechanism`, `guards.hookProtocol`, and `skillLoad`
+  answer most questions; `jq -r '.seats[] | "\(.role): \(.harness)"' seats.json` says whose
+  answer applies.
+
 ## Provider changes don't take effect
 
 - **Symptom:** after you edit `~/.paseo/config.json`, agents still behave as before.
 - **Cause:** Paseo has no file watcher; the daemon keeps the config it loaded.
-- **Response:** run `paseo reload` after every edit to the file.
+- **Response:** run `paseo reload` after every edit to the file. A reload updates providers the
+  daemon already knows, but it builds no snapshot for a new one: a provider `add-project.fish`
+  just created is listed by `paseo status` and still fails `create_agent` with "Provider … is
+  not available" until you run `paseo daemon restart`.
 
 ## The Lead and Supervisor have no Paseo tools
 
-- **Symptom:** a Claude seat can't call `create_agent` or `list_models`.
+- **Symptom:** a coordinating seat can't call `create_agent` or `list_models`.
 - **Cause:** Paseo's tools reach agents only when `daemon.mcp.injectIntoAgents` is `true`.
 - **Response:** set it to `true` and reload. It applies to every agent the daemon starts, which
   is why the setup script reports it instead of changing it.
@@ -19,28 +39,195 @@ cause, and the response. Entries follow the order of the setup steps.
 ## A seat runs normally without its profile
 
 - **Symptom:** a seat works but ignores its prompt.
-- **Cause:** without `CLAUDE_CONFIG_DIR`, Claude Code reads the shared `~/.claude`; without
-  `PI_CODING_AGENT_DIR`, Pi reads `~/.pi/agent`. Neither carries the seat's prompts, and nothing
-  reports an error.
-- **Response:** the "Verify that each seat reads its own prompt" step in SETUP.md catches this.
+- **Cause:** each harness reads a shared config directory unless its `configDirEnv` points
+  somewhere else, and that shared directory carries none of the seat's prompts. Nothing reports
+  an error.
+- **Response:** the "Verify that each seat reads its own prompt and skills" step in SETUP.md
+  catches this. `setup-seats.fish` also compares each provider's `configDirEnv` value with the
+  profile directory it built.
 
-## The Peer's model list comes from Pi
+## A harness is newer than the version its facts were checked on
 
-- **Symptom:** `pi-peer-SLUG` offers every model your Pi login can reach.
-- **Cause:** `pi-peer-SLUG` has no `models` list, so Paseo asks Pi. For the Claude seats, an empty
-  `models` list likewise means the full runtime catalog, not "nothing to run".
-- **Response:** the Pi seats' agent profiles name the model (`add-project.fish --model`), and the
+- **Symptom:** `--check` prints that a manifest records its skills directory as verified on one
+  version while the machine runs another.
+- **Cause:** `verified` in a manifest is the version its fields were established on, by running
+  a seat rather than by reading documentation. An upgrade can move a skills directory or rename
+  a tool without any error.
+- **Response:** run `fish setup/setup-seats.fish --check --probe`. It asks each seat's harness
+  which skills it loads and fails with the name of any linked skill the harness would not offer.
+  When it passes, set `verified` to the version you confirmed and note in that harness's
+  `NOTES.md` how you confirmed it.
+
+## A skill gate holds only where a loaded skill can be recognised
+
+- **Symptom:** `setup-seats.fish` refuses to build, saying a gated role is on a harness with
+  `skillLoad.transcriptMatch` of null.
+- **Cause:** a gate blocks a call until its skill is loaded, which means the guard has to be
+  able to tell a loaded skill from an unloaded one. On a harness where that shape is unknown,
+  a gate would silently pass everything.
+- **Response:** keep the gated role on a harness whose gate holds, or settle that harness's
+  field first and record how. Failing closed is deliberate: a gate that silently passes is worse
+  than no gate, because the prompt still promises one.
+
+## A seat loads a skill only if it decides to
+
+- **Symptom:** a seat works without the skill its task calls for, or loads one skill and none of
+  the files that skill points at.
+- **Cause:** a harness puts only skill names and descriptions in the system prompt and leaves
+  the agent to open the `SKILL.md` itself. Pi's own documentation says models don't always do
+  this, and two evaluation runs recorded a Lead skipping `review-orchestration` and `integration`
+  though `LEAD.md` said to load them. Nothing reports the miss.
+- **Response:** three layers, in order of strength. The prompts carry it, and each skill opens
+  the files it depends on as a step of its own. `seats.json`'s `skillGates` then refuse the call
+  a skill owns until that skill is loaded, which is what actually changed the outcome; the guard
+  reads the session transcript, so a load through the harness's skill tool or a read of the
+  `SKILL.md` both count. Last, a seat that keeps missing one particular skill can be forced with
+  the harness's `skillLoad.force` form; on Pi that expansion happens before the model's turn and
+  leaves no tool call, so it does **not** satisfy a gate.
+- **Add a gate only for a skill a seat has been observed to skip.** Each gate costs the seat one
+  tool call it would otherwise choose, and a gate on a step the model already does right is a
+  rule without a failure behind it.
+
+## The Peer's model list comes from its harness
+
+- **Symptom:** `peer-SLUG` offers every model that harness's login can reach.
+- **Cause:** a seat whose role names no `models` in `seats.json` gets no `models` list, so Paseo
+  asks the harness. An empty `models` list likewise means the full runtime catalog, not "nothing
+  to run".
+- **Response:** those seats' agent profiles name the model (`add-project.fish --model`), and the
   profile guard blocks a Lead's or Supervisor's launch on any other. To cap launches from the
-  app as well, list `models` explicitly on the provider.
+  app as well, give the role a `models` list in `seats.json`.
 
 ## Paseo tool access is set per provider ID
 
 - **Symptom:** a Peer can see `create_agent` or other Paseo tools.
 - **Cause:** `paseoTools` applies to the exact provider ID and isn't inherited from `extends` or
-  from the agent that creates the Peer. Pi receives Paseo tools only through the
-  `pi-mcp-adapter` extension, and Paseo carries the profile's `mcp.json` into each launch.
-- **Response:** keep `paseoTools.enabled: false` on every Pi seat (the setup script sets it), keep
-  `pi-mcp-adapter` out of the Peer profile, and keep any `paseo` server out of its `mcp.json`.
+  from the agent that creates the Peer. A harness reaches Paseo's tools only through its own
+  adapter, and Paseo carries the profile's MCP file into each launch.
+- **Response:** keep `paseoTools.enabled: false` on every seat whose manifest sets
+  `deny.paseoToolsOff` (the setup script does it), keep the harness's MCP adapter out of the
+  profile, and keep any `paseo` server out of its MCP file.
+
+## Enforcement differs by harness
+
+- **Symptom:** a seat does something its prompt rules out.
+- **Cause:** prompts are guidance. Where the blocking happens is the manifest's
+  `deny.mechanism`: a Paseo `disallowedTools` list, guard hooks, or a guard extension. Paseo
+  applies `disallowedTools` only to some of its providers, so a role moved to another harness can
+  lose a deny list without any error; `setup-seats.fish` says so when a harness has none. The
+  guards themselves are shared. `lead-guard.sh` checks each write against the repository: the
+  Lead may write only `.seatworks/`, `docs/`, `doc/`, `AGENTS.md`, `CLAUDE.md`, and `CONTEXT.md`,
+  the Supervisor only `.seatworks/`, and the watcher only its log under
+  `.seatworks/records/attention/`; files outside the repository stay writable.
+  `profile-guard.sh` holds a Supervisor's and Lead's `create_agent`, `update_agent`,
+  `send_agent_prompt`, `create_schedule`, and `update_schedule` calls to each provider's profile
+  model and mode, blocks `set_agent_mode`, and blocks any provider without a profile.
+  `skill-guard.sh` refuses a gated call until its skill is loaded. `watcher-guard.sh` looks up
+  the target of the watcher's `send_agent_prompt` with `paseo ls`, so `paseo` must be on the
+  daemon's PATH, and lets it reach only its own project's Supervisor, read from
+  `SEATWORKS_SLUG`. Each guard blocks when jq is missing.
+- **Response:** put anything that must never happen in the deny list in `seats.json`, in a
+  shared guard under `harness/common/guards/`, or in a harness's own guard extension.
+  `harness/common/hook-io.sh` writes each guard's refusal in the form the seat's harness
+  expects, so one guard body serves every harness, and a manifest's `guards.dir` says which
+  directory its seats install from.
+
+## Command guards are guard rails, not sandboxes
+
+- **Symptom:** a blocked command runs anyway in a different form.
+- **Cause:** a deny entry like `Bash(git push:*)` matches by prefix, so `git -C repo push`
+  gets through. The Peer's guard catches that form and also blocks `gh`, but it ignores quoted
+  strings, so `sh -c 'git push'` still runs. `lead-guard.sh` reads a command's redirects and
+  file-writing commands; a write made inside an interpreter or a nested shell, such as
+  `python -c`, `node -e`, or `sh -c`, is outside its scope. `skill-guard.sh` recognises a merge
+  by matching `git merge` and `git cherry-pick` at a command position, so it passes
+  `git merge-base` and a quoted mention, and a merge reached through an interpreter escapes it.
+  No guard blocks other network commands such as `curl`; the Supervisor's `seat-safety-review`
+  skill checks for that.
+- **Response:** treat the guards as protection against accidents. Keep credentials that could
+  do damage out of the Peer's environment.
+
+## Information hiding lives in the prompts
+
+- **Symptom:** a Peer refers to coordination details, or to a note meant for maintainers.
+- **Cause:** a Peer can read any file in the repository, including everything in `.seatworks/`:
+  the Lead's prompt and skills and the workspace protocol. A harness whose `promptComments` is
+  `shown` also loads HTML comments verbatim.
+- **Response:** keep maintainer notes out of `.seatworks/PEER.md` and `.seatworks/REVIEWER.md`
+  (the setup script fails on `<!--` for any seat whose harness shows comments), and out of every
+  skill such a seat loads. The hiding reduces noise; it doesn't keep secrets. A seat whose role
+  has `hidesOrchestration` also has its prompt and skills checked for the words `paseo`,
+  `supervisor`, `watcher`, and `seat`.
+
+## The repository's instruction file depends on the harness
+
+- **Symptom:** one seat ignores constraints that another follows.
+- **Cause:** harnesses disagree on which file they read. The manifest's `contextFile` says which
+  one, and `contextFileNeedsPointer` says whether that file has to point at `AGENTS.md`.
+- **Response:** keep constraints in `AGENTS.md`, and make `CLAUDE.md` contain `@AGENTS.md`, so
+  every harness converges on one source.
+
+## Paseo's own skills reach the seats only through the setup script
+
+- **Symptom:** a Lead or Supervisor doesn't know a Paseo feature such as workspace scripts or
+  profiles, or a Peer starts talking about Paseo.
+- **Cause:** Paseo's app installs its orchestration skills (`paseo`, `paseo-committee`, and
+  others) into shared skill directories. A seat whose skills live under its own profile never
+  sees those copies; a harness that also loads a directory listed in its `sharedSkillDirs` gives
+  them to every seat on it, the Peer's included.
+- **Response:** leave that install off in the app. The setup script links `paseo` from Paseo's
+  package into the profiles of the roles whose `extraSkills` name it, so it follows Paseo
+  updates.
+
+## A shared skill directory reaches every seat on that harness
+
+- **Symptom:** a seat has skills that aren't in its allowlist.
+- **Cause:** a directory in the manifest's `sharedSkillDirs` sits outside the seat's config
+  directory, so every profile on that harness loads it. For Pi that is `~/.agents/skills`.
+- **Response:** move skills the seat shouldn't see out of it. The setup script prints how many
+  skills each such directory holds, per harness that loads it.
+
+## `list_profiles` shows every project's profiles
+
+- **Symptom:** a Lead in one project sees another project's seats, or starts a Peer that loads
+  the wrong project's prompt and skills.
+- **Cause:** profiles live in one global list, `daemon.agentProfiles`, and the tool returns all
+  of it: there is no project or working-directory filter. A provider from another project
+  carries that project's `SEATWORKS_REPO` and its own config-directory value, so a seat launched
+  on it reads that project's `.seatworks/`.
+- **Response:** `profile-guard.sh` compares the target provider's `env.SEATWORKS_REPO` with the
+  launching seat's and blocks a `create_agent` or `create_schedule` across projects, naming this
+  project's provider strings instead; a provider with no `SEATWORKS_REPO` is blocked too, since a
+  seat on it would load no project prompt. Messaging another project's Supervisor still works,
+  because `send_agent_prompt` is how cross-project work is relayed.
+
+## `list_profiles` decides how the Lead launches Peers
+
+- **Symptom:** a Lead picks a different model or thinking level for each Peer, or asks which
+  provider to use.
+- **Cause:** without agent profiles, `list_profiles` returns nothing and the Lead falls back to
+  guessing from `list_models`. Profiles live in `daemon.agentProfiles` in the Paseo config.
+- **Response:** `setup/add-project.fish` adds one profile per seat, composed from `seats.json`: a
+  role's `models` supplies its model and `isDefault` thinking option (Supervisor Opus 5 `high`,
+  Lead Opus 5 `medium`, watcher Haiku), a role with none takes `--model` (default
+  `zai/glm-5.3`) and its own `thinking`, and its `notes` say which dispositions use it and how
+  the thinking level varies. A `modeId` is set only for a harness whose
+  `provider.profileModeId` names one. Every rerun restores the notes from `seats.json`, so
+  change them there rather than in the config, and keep one profile per seat. A rerun never
+  changes an existing profile's model: to move a seat to another model, edit that profile's
+  `model` in the config and run `paseo reload`; the profile guard follows it.
+
+## `settings.modeId` and a harness that has no modes
+
+- **Symptom:** a seat stops to ask permission for every tool, or `create_agent` fails with
+  "Invalid mode … Available modes: (none)".
+- **Cause:** Paseo passes `create_agent`'s `settings.modeId` straight to the harness, overriding
+  a seat's own default mode, and falls back to `auto` when the field is empty. A harness with no
+  modes rejects any mode ID.
+- **Response:** the manifest's `hasModes` and `provider.profileModeId` say which case a seat is
+  in, and its agent profile carries a `modeId` only in the first. Copy `modeId` and
+  `thinkingOptionId` from the profile when you create the seat; the profile guard blocks any
+  other mode, and for a harness without modes it tells you to pass none.
 
 ## Running agents keep the old rules
 
@@ -49,7 +236,9 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** an agent keeps what it started with until its session ends. Seats spawned
   afterwards pick up prompts, settings, extensions, and skills immediately.
 - **Response:** archive the old agents and delete their schedules and heartbeats, so that two
-  versions of the rules don't run side by side.
+  versions of the rules don't run side by side. A seat rename is the same case, and worse: a
+  running agent holds the old profile path, so archive every agent before
+  `setup/migrate-seat-names.fish --apply`.
 
 ## Kit template edits don't reach existing projects
 
@@ -57,8 +246,8 @@ cause, and the response. Entries follow the order of the setup steps.
   project's seats still follow the old text.
 - **Cause:** `setup/add-project.fish` copies the templates into `REPO/.seatworks/` once and a
   plain rerun never overwrites them, and the project's profiles link to that copy. The setup
-  script finds a project's `.seatworks/` through `env.SEATWORKS_REPO` on its
-  `claude-lead-SLUG` provider.
+  script finds a project's `.seatworks/` through `env.SEATWORKS_REPO` on the provider of the role
+  marked `anchor` in `seats.json`.
 - **Response:** send a change to a seat prompt, skill, or guard to the kit as a diff. Guards are
   linked from the kit; prompts and skills reach a project through
   `fish setup/add-project.fish REPO_DIR --refresh`, which replaces them, and the workspace
@@ -67,126 +256,19 @@ cause, and the response. Entries follow the order of the setup steps.
   in `AGENTS.md` or the filled-in `.seatworks/WORKSPACE_PROTOCOL.md`, which refresh never
   touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles' notes and, after the
   kit moves, the providers' kit and profile paths. If the repository moves, set
-  `env.SEATWORKS_REPO` on `claude-lead-SLUG` to the new path and rerun add-project there with
-  `--slug SLUG`; it updates the other providers.
+  `env.SEATWORKS_REPO` on the anchor role's provider to the new path and rerun add-project there
+  with `--slug SLUG`; it updates the other providers.
 
-## Claude seats: `settings.modeId` overrides the permission mode
+## A template that names a seat has to name it as ROLE-SLUG
 
-- **Symptom:** a Claude seat stops to ask permission for every tool.
-- **Cause:** Paseo passes `create_agent`'s `settings.modeId` straight to the SDK, overriding
-  the seat's `permissions.defaultMode`. When the field is empty, the mode falls back to `auto`.
-- **Response:** copy `modeId` and `thinkingOptionId` from the seat's agent profile into
-  `settings` when you create a Claude seat; the profile guard blocks any other mode. Pi seats
-  take no `modeId`.
-
-## Pi seats reject `settings.modeId`
-
-- **Symptom:** `create_agent` on `pi-peer-SLUG` fails with "Invalid mode … Available modes: (none)".
-- **Cause:** Pi has no modes, so Paseo rejects any mode ID for it.
-- **Response:** pass only `settings.thinkingOptionId` for Pi agents.
-
-## Enforcement differs between Claude and Pi
-
-- **Symptom:** a seat does something its prompt rules out.
-- **Cause:** prompts are guidance. For Claude seats, blocking happens in the provider's
-  `disallowedTools` and in `PreToolUse` hooks. `claude/lead-guard.sh` checks each Edit, Write,
-  and Bash call against the repository: the Lead may write only `.seatworks/`, `docs/`, `doc/`,
-  `AGENTS.md`, `CLAUDE.md`, and `CONTEXT.md`, the Supervisor only `.seatworks/`, and the watcher
-  only its log under `.seatworks/records/attention/`; files outside the repository stay
-  writable. `claude/profile-guard.sh` holds the Supervisor's and Lead's `create_agent`,
-  `update_agent`, `send_agent_prompt`, `create_schedule`, and `update_schedule` calls to each
-  provider's profile model and mode, blocks `set_agent_mode`, and blocks any provider without a
-  profile. `claude/watcher-guard.sh` looks up the target of the watcher's `send_agent_prompt`
-  with `paseo ls`, so `paseo` must be on the daemon's PATH, and lets it reach only its own
-  project's Supervisor, read from the seat's `CLAUDE_CONFIG_DIR`; the watcher's deny list
-  removes `Edit`, `Write`, and the Paseo tools that create, change, or archive agents,
-  workspaces, schedules, and terminals. Each hook blocks when jq is missing. A seat's
-  `permissions.deny` isn't equivalent, so the role settings in `claude/` leave it out. Pi has no
-  permission system and ignores `disallowedTools`, so the Pi seats' only enforcement point is
-  the `tool_call` hook in `pi/extensions/peer-guard.ts`.
-- **Response:** put anything that must never happen in the deny lists, the guards, or the guard
-  extension.
-
-## Command guards are guard rails, not sandboxes
-
-- **Symptom:** a blocked command runs anyway in a different form.
-- **Cause:** Claude's `Bash(git push:*)` and `Bash(gh:*)` match by prefix, so `git -C repo push`
-  gets through. The Peer's guard catches that form and also blocks `gh`, but it ignores quoted
-  strings, so `sh -c 'git push'` still runs. `lead-guard.sh` reads a command's redirects and
-  file-writing commands; a write made inside an interpreter or a nested shell, such as
-  `python -c`, `node -e`, or `sh -c`, is outside its scope. No guard blocks other network
-  commands such as `curl`; the Supervisor's `seat-safety-review` skill checks for that.
-- **Response:** treat the guards as protection against accidents. Keep credentials that could
-  do damage out of the Peer's environment.
-
-## Information hiding lives in the prompts
-
-- **Symptom:** a Peer refers to coordination details, or to a note meant for maintainers.
-- **Cause:** a Peer can read any file in the repository, including everything in `.seatworks/`:
-  the Lead's prompt and skills and the workspace protocol. Pi also loads `APPEND_SYSTEM.md`
-  verbatim: unlike Claude Code, it doesn't strip HTML comments.
-- **Response:** keep maintainer notes out of `.seatworks/PEER.md` and `.seatworks/REVIEWER.md`
-  (the setup script fails on `<!--`). The hiding reduces noise; it doesn't keep secrets.
-
-## Pi reads `AGENTS.md` before `CLAUDE.md`
-
-- **Symptom:** the Peer ignores constraints that the Lead follows.
-- **Cause:** Pi takes one instruction file per directory, preferring `AGENTS.md` over
-  `CLAUDE.md`, while Claude Code reads `CLAUDE.md`.
-- **Response:** keep constraints in `AGENTS.md`, and make `CLAUDE.md` contain `@AGENTS.md`.
-
-## Pi ignores an untrusted repository's `.pi/` directory
-
-- **Symptom:** a repository's `.pi/` extensions, skills, or prompts don't reach the Peer, or,
-  once trusted, replace the Peer prompt.
-- **Cause:** in RPC mode Pi never shows its trust prompt, and with the default
-  `defaultProjectTrust: "ask"` it silently skips project `.pi/` resources. In a trusted
-  repository, `.pi/APPEND_SYSTEM.md` takes the place of the profile's.
-- **Response:** leave project trust at `ask` for repositories the Peer works in.
-
-## Paseo's own skills reach the seats only through the setup script
-
-- **Symptom:** a Lead or Supervisor doesn't know a Paseo feature such as workspace scripts or
-  profiles, or a Peer starts talking about Paseo.
-- **Cause:** Paseo's app installs its orchestration skills (`paseo`, `paseo-committee`, and
-  others) into `~/.claude/skills` and `~/.agents/skills`. Claude seats read their own profiles
-  and never see those copies, while Pi loads `~/.agents/skills` for every profile, the Peer's
-  included.
-- **Response:** leave that install off in the app. The setup script links `paseo` from
-  Paseo's package into the Supervisor's, Lead's, and watcher's profiles, so it follows Paseo
-  updates.
-
-## `list_profiles` decides how the Lead launches Peers
-
-- **Symptom:** a Lead picks a different model or thinking level for each Peer, or asks which
-  provider to use.
-- **Cause:** without agent profiles, `list_profiles` returns nothing and the Lead falls back to
-  guessing from `list_models`. Profiles live in `daemon.agentProfiles` in the Paseo config.
-- **Response:** `setup/add-project.fish` adds one profile per seat. The Claude profiles take the
-  `isDefault` model and thinking option from `examples/paseo-providers.json` (Supervisor Opus 5
-  `high`, Lead Opus 5 `medium`, watcher Haiku); the Peer, read-only Peer, and Reviewer profiles
-  run the `--model` (default `zai/glm-5.3`), and their notes say which dispositions use each and
-  how the thinking level varies. Every rerun restores the notes from `add-project.fish`, so
-  change them there rather than in the config, and keep one profile per seat. A rerun never
-  changes an existing profile's model: to move a seat to another model, edit that profile's
-  `model` in the config and run `paseo reload`; the profile guard follows it.
-
-## Pi loads `~/.agents/skills` for every profile
-
-- **Symptom:** the Peer has skills that aren't in its allowlist.
-- **Cause:** `~/.agents/skills` sits outside `PI_CODING_AGENT_DIR`, so every Pi profile loads
-  it. The setup script prints how many skills it holds.
-- **Response:** move skills the Peer shouldn't see out of `~/.agents/skills`.
-
-## The Peer shares your Pi login
-
-- **Symptom:** a login or logout in your normal Pi profile also affects the Peer.
-- **Cause:** the Peer profile's `auth.json` links to `~/.pi/agent/auth.json`, and Pi rewrites the
-  file in place, so both profiles use one set of credentials. Each profile keeps its own lock
-  file, so two OAuth refreshes at the same moment can race. A Claude Pro or Max login used
-  through Pi is billed per token as extra usage, not against the plan's limits.
-- **Response:** prefer an API key for the Peer's provider. To separate the logins, replace the
-  link with a real file and log in again with `PI_CODING_AGENT_DIR` pointing at the profile.
+- **Symptom:** after `add-project.fish`, a prompt or skill refers to `peer` or `reviewer` where a
+  provider name was meant, or an ordinary sentence gains a slug.
+- **Cause:** seats are named for their roles, so `peer` and `reviewer` are also ordinary words in
+  these prompts. The script substitutes exactly `ROLE-SLUG`, which is unambiguous, and nothing
+  else.
+- **Response:** in `project/` and `examples/`, always write a provider as `peer-SLUG`,
+  `peer-ro-SLUG`, `reviewer-SLUG`, `lead-SLUG`, `supervisor-SLUG`, or `watcher-SLUG`, never as a
+  bare role word in code font.
 
 ## Archiving a Lead archives its Peers
 
@@ -221,12 +303,13 @@ cause, and the response. Entries follow the order of the setup steps.
 ## The watcher has its own seat
 
 - **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that
-  `claude-watcher-SLUG` (or another seat) doesn't exist yet.
-- **Cause:** the watcher runs on Haiku and reads its prompt on every sweep, so it has a seat of
-  its own whose `CLAUDE.md` is the short `.seatworks/WATCHER.md`, with the trigger table in it,
-  rather than the Supervisor's prompt. Projects added before the seat existed lack its
-  provider, profile, and prompt. Paseo sets `PASEO_AGENT_ID` in every agent's environment,
-  which is how the Supervisor gives the watcher its own ID.
+  `watcher-SLUG` (or another seat) doesn't exist yet.
+- **Cause:** the watcher runs on a small model and reads its prompt on every sweep, so it has a
+  seat of its own whose instruction file is the short `.seatworks/WATCHER.md`, with the trigger
+  table in it, rather than the Supervisor's prompt. Projects added before a seat existed lack its
+  provider, profile, and prompt; `seats.json` marks such a role `required: false` and the script
+  says how to add it. Paseo sets `PASEO_AGENT_ID` in every agent's environment, which is how the
+  Supervisor gives the watcher its own ID.
 - **Response:** run `fish setup/add-project.fish REPO_DIR` without `--refresh`; it adds the
   missing providers, profiles, and files, keeps the project's prompts, and reloads Paseo.
 
@@ -246,13 +329,13 @@ cause, and the response. Entries follow the order of the setup steps.
 ## The Reviewer and the read-only Peer are read-only by guard
 
 - **Symptom:** a Reviewer or read-only Peer reports "Editing files is not available in this role."
-- **Cause:** `pi-reviewer-SLUG` and `pi-peer-ro-SLUG` set `SEATWORKS_READ_ONLY=1`, which makes
-  `peer-guard.ts` block Pi's `write` and `edit` tools and git commands that change the
-  repository. Shell redirection still works, so temporary files under `$TMPDIR` remain
-  possible, and so does a determined write.
-- **Response:** expected; send work that edits files to `pi-peer-SLUG`. The guard prevents
-  accidents rather than sandboxing; the setup script checks that the variable stays on both
-  providers.
+- **Cause:** a role marked `readOnly` in `seats.json` gets `SEATWORKS_READ_ONLY=1` on its
+  provider, which makes its guard block the harness's write and edit tools and the git commands
+  that change the repository. Shell redirection still works, so temporary files under `$TMPDIR`
+  remain possible, and so does a determined write.
+- **Response:** expected; send work that edits files to `peer-SLUG`. The guard prevents
+  accidents rather than sandboxing; the setup script checks that the variable stays on every
+  read-only provider.
 
 ## Heartbeats end with their agent
 
@@ -266,54 +349,10 @@ cause, and the response. Entries follow the order of the setup steps.
   simply create it. Note the ID too, for `delete_heartbeat`. Archive the watcher to stop its
   sweeps.
 
-## HTML comments are stripped from `CLAUDE.md`
-
-- **Symptom:** none; this is useful behavior for the Claude seats.
-- **Cause:** Claude Code removes `<!-- ... -->` comments before loading `CLAUDE.md`. Files read
-  with a tool, and every file Pi loads, keep their comments.
-- **Response:** put maintainer notes in the Claude seat prompts in HTML comments, and nowhere
-  else.
-
-## Claude seats drop skill descriptions past a budget
-
-- **Symptom:** a Claude seat never uses a skill it has.
-- **Cause:** Claude Code lists skill descriptions within about 1% of the context window
-  (roughly 8,000 characters) and drops the least-used ones when the list is longer. Pi lists
-  every skill without a cap.
-- **Response:** keep each role to about ten model-invocable skills with descriptions of 200 to
-  400 characters, and mark rarely used ones `disable-model-invocation: true`; they stay
-  available as `/name` in Claude Code and `/skill:name` in Pi.
-
-## Pi reads only three frontmatter fields
-
-- **Symptom:** a skill behaves differently in Pi than in Claude Code, or doesn't load in Pi.
-- **Cause:** Pi reads only `name`, `description`, and `disable-model-invocation` (the literal
-  `true`). It doesn't substitute `$ARGUMENTS` or `${CLAUDE_SKILL_DIR}`, shows HTML comments,
-  skips a skill with malformed YAML or an empty description, and lists skills only when the
-  `read` or `bash` tool is enabled.
-- **Response:** write skills by the rules in WRITING_GUIDE.md; the setup script checks the
-  ones it can.
-
-## Plugin updates break skill symlinks
-
-- **Symptom:** a Claude seat loses a skill after `claude plugin update`.
-- **Cause:** plugin skill paths contain the version number, so an update leaves the symlinks
-  pointing at a directory that no longer exists.
-- **Response:** rerun `setup/setup-seats.fish` after every plugin update.
-
-## Claude seats clean up the shared transcript directory
-
-- **Symptom:** your own old Claude Code transcripts disappear.
-- **Cause:** every Claude seat's `projects` directory is a symlink to the shared
-  `~/.claude/projects`. On startup, a seat deletes transcripts older than its own
-  `cleanupPeriodDays`, including yours, and this can't be undone.
-- **Response:** each `claude/<role>.settings.json` must carry the same `cleanupPeriodDays` as
-  your `~/.claude/settings.json`, or none when you set none. The script checks this and names
-  the file to fix by hand; rerun it after you change your own value.
-
 ## The 16 KB prompt budget is self-imposed
 
-- **Symptom:** the script fails a prompt that the runtime would load without complaint.
-- **Cause:** both runtimes load larger files. The budget exists because every line costs context
-  on every turn, and rules at the end of a long file get skimmed.
+- **Symptom:** the script fails a prompt that a harness would load without complaint.
+- **Cause:** every harness loads larger files. The budget, `promptBudget` in `seats.json`, exists
+  because every line costs context on every turn, and rules at the end of a long file get
+  skimmed.
 - **Response:** when a prompt exceeds the budget, cut content rather than raising the limit.

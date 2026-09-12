@@ -1,0 +1,243 @@
+{
+  "seats": [
+    {
+      "role": "supervisor",
+      "harness": "claude",
+      "label": "Supervisor",
+      "prompt": "SUPERVISOR.md",
+      "skills": "supervisor",
+      "extraSkills": [
+        "paseo"
+      ],
+      "guards": [
+        "lead-guard.sh",
+        "profile-guard.sh"
+      ],
+      "guardRole": "supervisor",
+      "deny": [
+        "LSP"
+      ],
+      "readOnly": false,
+      "hidesOrchestration": false,
+      "required": true,
+      "carriesKitPath": true,
+      "notes": "Start here. Meets the Human, settles intent into an owner directive, creates the Lead, and watches coordination.",
+      "models": [
+        {
+          "id": "claude-opus-5",
+          "label": "Opus 5",
+          "isDefault": true,
+          "thinkingOptions": [
+            {
+              "id": "medium",
+              "label": "Medium"
+            },
+            {
+              "id": "high",
+              "label": "High",
+              "isDefault": true
+            }
+          ]
+        }
+      ],
+      "description": "Supervisor seat: meets the Human, relays decisions, answers attention events, keeps the notebook",
+      "entry": true
+    },
+    {
+      "role": "lead",
+      "harness": "claude",
+      "label": "Lead",
+      "prompt": "LEAD.md",
+      "skills": "lead",
+      "extraSkills": [
+        "paseo"
+      ],
+      "guards": [
+        "lead-guard.sh",
+        "profile-guard.sh",
+        "skill-guard.sh"
+      ],
+      "guardRole": "lead",
+      "deny": [
+        "LSP"
+      ],
+      "readOnly": false,
+      "hidesOrchestration": false,
+      "required": true,
+      "anchor": true,
+      "notes": "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task.",
+      "models": [
+        {
+          "id": "claude-opus-5",
+          "label": "Opus 5",
+          "isDefault": true,
+          "thinkingOptions": [
+            {
+              "id": "medium",
+              "label": "Medium",
+              "isDefault": true
+            },
+            {
+              "id": "high",
+              "label": "High"
+            }
+          ]
+        }
+      ],
+      "description": "Lead seat: framing, delegation, review, acceptance"
+    },
+    {
+      "role": "watcher",
+      "harness": "claude",
+      "label": "Watcher",
+      "prompt": "WATCHER.md",
+      "skills": null,
+      "extraSkills": [
+        "paseo"
+      ],
+      "guards": [
+        "lead-guard.sh",
+        "watcher-guard.sh"
+      ],
+      "guardRole": "watcher",
+      "deny": [
+        "LSP",
+        "Edit",
+        "Write",
+        "MultiEdit",
+        "NotebookEdit",
+        "mcp__paseo__create_agent",
+        "mcp__paseo__update_agent",
+        "mcp__paseo__archive_agent",
+        "mcp__paseo__set_agent_mode",
+        "mcp__paseo__create_workspace",
+        "mcp__paseo__archive_workspace",
+        "mcp__paseo__start_workspace_script",
+        "mcp__paseo__create_schedule",
+        "mcp__paseo__update_schedule",
+        "mcp__paseo__delete_schedule",
+        "mcp__paseo__respond_to_permission",
+        "mcp__paseo__kill_agent",
+        "mcp__paseo__cancel_agent",
+        "mcp__paseo__pause_schedule",
+        "mcp__paseo__resume_schedule",
+        "mcp__paseo__run_schedule_once",
+        "mcp__paseo__rename_workspace",
+        "mcp__paseo__stop_workspace_script",
+        "mcp__paseo__create_terminal",
+        "mcp__paseo__send_terminal_keys",
+        "mcp__paseo__kill_terminal",
+        "mcp__paseo__speak"
+      ],
+      "readOnly": false,
+      "hidesOrchestration": false,
+      "required": false,
+      "notes": "The Supervisor keeps one running while any Lead is active: it sweeps Lead and Peer activity on a heartbeat and sends the Supervisor ATTENTION events.",
+      "models": [
+        {
+          "id": "claude-haiku-4-5",
+          "label": "Haiku 4.5",
+          "isDefault": true
+        }
+      ],
+      "description": "Attention watcher: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor"
+    },
+    {
+      "role": "peer",
+      "harness": "pi",
+      "label": "Peer",
+      "prompt": "PEER.md",
+      "skills": "peer",
+      "extraSkills": [],
+      "guards": [
+        "peer-guard.ts"
+      ],
+      "guardRole": "peer",
+      "deny": [],
+      "readOnly": false,
+      "hidesOrchestration": true,
+      "required": true,
+      "notes": "The Peer profile for work that writes: the Engineer disposition. Use thinkingOptionId high for a new boundary.",
+      "models": [],
+      "thinking": "medium",
+      "description": "Peer seat: implementation, evidence, handoff"
+    },
+    {
+      "role": "peer-ro",
+      "harness": "pi",
+      "label": "Peer (read-only)",
+      "prompt": "PEER.md",
+      "skills": "peer",
+      "extraSkills": [],
+      "guards": [
+        "peer-guard.ts"
+      ],
+      "guardRole": "peer",
+      "deny": [],
+      "readOnly": true,
+      "hidesOrchestration": true,
+      "required": false,
+      "notes": "The Peer prompt with edits blocked: Architect, Scout, and every council seat. Use thinkingOptionId low for a Scout.",
+      "models": [],
+      "thinking": "high",
+      "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked"
+    },
+    {
+      "role": "reviewer",
+      "harness": "pi",
+      "label": "Reviewer",
+      "prompt": "REVIEWER.md",
+      "skills": "reviewer",
+      "extraSkills": [
+        "peer:proof-audit"
+      ],
+      "guards": [
+        "peer-guard.ts"
+      ],
+      "guardRole": "peer",
+      "deny": [],
+      "readOnly": true,
+      "hidesOrchestration": true,
+      "required": false,
+      "notes": "Every review of a change: sealed axes, re-reviews, sweep scouts (Reviewer disposition: they report findings), and a council Verifier or Auditor only when the preferences file routes it here, with Machine pass: skip. Read-only; runs Open Code Review.",
+      "models": [],
+      "thinking": "high",
+      "description": "Reviewer seat: read-only code review with Open Code Review",
+      "reviewSeat": true
+    }
+  ],
+  "denyCommon": [
+    "Agent",
+    "Task",
+    "Workflow",
+    "WebSearch",
+    "TodoWrite",
+    "EnterPlanMode",
+    "ExitPlanMode",
+    "Bash(claude:*)",
+    "Bash(npx claude:*)",
+    "Bash(git push:*)",
+    "Bash(gh:*)"
+  ],
+  "promptBudget": 16384,
+  "skillGates": [
+    {
+      "seat": "lead",
+      "skill": "intake",
+      "on": "delegate",
+      "because": "a request takes a lane before it takes a Peer: intake sets the review, council, and rollout rigor"
+    },
+    {
+      "seat": "lead",
+      "skill": "review-orchestration",
+      "on": "review",
+      "because": "a Reviewer brief without its Axis, Machine pass, and Rulings to check fields sends back findings the Lead cannot rule on"
+    },
+    {
+      "seat": "lead",
+      "skill": "integration",
+      "on": "merge",
+      "because": "a merge into the base branch is the one step with no cheap undo"
+    }
+  ]
+}

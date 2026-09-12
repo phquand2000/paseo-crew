@@ -49,8 +49,8 @@ For a first, one-off failure, a plain notebook entry is enough.
 3. **Reconstruct what each agent could see.** For each decision point in the timeline, record:
    - the brief or first prompt, word for word;
    - the context: session length, whether it had compacted, and what the agent had read;
-   - the tools: the provider's `disallowedTools`, the hooks in `$SEATWORKS_KIT/claude/` for
-     Claude seats, `$SEATWORKS_KIT/pi/extensions/peer-guard.ts` for Pi seats, and whether Paseo
+   - the tools: the provider's `disallowedTools`, and the guards the seat's harness installs
+     (`$SEATWORKS_KIT/harness/HARNESS/` names them; `seats.json` says which seat gets which), and whether Paseo
      tools were present;
    - time and quota: rate limits, auth errors, and waiting on dead agents.
 

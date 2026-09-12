@@ -1,0 +1,94 @@
+{
+  "id": "claude",
+  "label": "Claude Code",
+  "baseProvider": "claude",
+  "verified": "2.1.236",
+  "profileRoot": "HOME/.claude/profiles",
+  "configDirEnv": "CLAUDE_CONFIG_DIR",
+  "promptFile": "CLAUDE.md",
+  "skillsDir": "skills",
+  "promptComments": "stripped",
+  "hasModes": true,
+  "settings": {
+    "mode": "link",
+    "file": "settings.json",
+    "source": "settings/ROLE.settings.json",
+    "retentionKey": "cleanupPeriodDays"
+  },
+  "links": [
+    {
+      "link": "projects",
+      "target": "HOME/.claude/projects"
+    },
+    {
+      "link": "plugins",
+      "target": "HOME/.claude/plugins"
+    }
+  ],
+  "state": {
+    "file": ".claude.json",
+    "seed": "{\"hasCompletedOnboarding\": true}",
+    "clearMcp": ".mcpServers = {} | .enabledMcpjsonServers = [] | del(.enableAllProjectMcpServers) | .projects = ((.projects // {}) | with_entries(.value.mcpServers = {}))",
+    "checkMcp": "(.mcpServers // {}) == {} and ((.enabledMcpjsonServers // []) | length) == 0",
+    "forbid": [
+      ".credentials.json"
+    ]
+  },
+  "guards": {
+    "dir": "common/guards",
+    "installTo": ".",
+    "hookProtocol": "exit-code",
+    "hookSettingsKey": "hooks.PreToolUse",
+    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards"
+  },
+  "deny": {
+    "mechanism": "disallowedTools",
+    "toolNames": {
+      "edit": [
+        "Edit",
+        "Write",
+        "MultiEdit",
+        "NotebookEdit"
+      ],
+      "shell": [
+        "Bash"
+      ],
+      "skill": [
+        "Skill"
+      ]
+    },
+    "retired": [
+      "SlashCommand"
+    ],
+    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool \u2014 check for typos`. Skills load through the Skill tool, which must stay allowed."
+  },
+  "skillLoad": {
+    "tool": "Skill",
+    "phrase": "the Skill tool",
+    "force": "/NAME",
+    "transcriptMatch": "\"name\":\"Skill\",\"input\":{\"skill\":\"NAME\"",
+    "descriptionBudget": 8000
+  },
+  "probe": {
+    "kind": "version",
+    "live": "claude --print, asked to list its skills, with the seat profile as the config directory",
+    "note": "the skills directory and symlink following were verified by running a seat against a scratch profile; a version other than the verified one re-opens that question"
+  },
+  "versionCommand": "claude --version",
+  "provider": {
+    "env": {
+      "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
+      "CLAUDE_CODE_DISABLE_CRON": "1",
+      "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
+      "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
+      "CLAUDE_CODE_DISABLE_WORKFLOWS": "1",
+      "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1"
+    },
+    "keys": {
+      "disallowedTools": []
+    },
+    "profileModeId": "bypassPermissions"
+  },
+  "contextFile": "CLAUDE.md",
+  "contextFileNeedsPointer": true
+}

@@ -3,13 +3,13 @@
 set -u
 
 config="${PASEO_CONFIG:-$HOME/.paseo/config.json}"
-pi_profiles="${PI_PROFILES:-$HOME/.pi/profiles}"
-claude_profiles="${CLAUDE_PROFILES:-$HOME/.claude/profiles}"
 kit="${KIT:-${SEATWORKS_KIT:-$PWD}}"
+seats="$kit/seats.json"
 
 command -v jq >/dev/null 2>&1 || { echo "jq must be on PATH" >&2; exit 1; }
 
 section() { printf '\n## %s\n' "$1"; }
+home_path() { printf '%s\n' "$1" | sed "s|^HOME|$HOME|"; }
 
 section "Paseo providers ($config)"
 if [ -f "$config" ]; then
@@ -27,65 +27,87 @@ else
     echo "not found"
 fi
 
-section "Kit deny lists (setup/setup-seats.fish)"
-if [ -f "$kit/setup/setup-seats.fish" ]; then
-    awk '/^set -[gl] deny_/,/^$/ { print FNR ": " $0 }' "$kit/setup/setup-seats.fish"
-else
+if [ ! -f "$seats" ]; then
+    section "Seat map"
     echo "not found; set KIT to the seatworks kit"
+    exit 0
 fi
 
-section "Peer guard rules (pi/extensions/peer-guard.ts)"
-if [ -f "$kit/pi/extensions/peer-guard.ts" ]; then
-    grep -nE 'pattern:|reason:|READ_ONLY' "$kit/pi/extensions/peer-guard.ts" || echo "no rules found"
-else
-    echo "not found"
-fi
+section "Seat map (seats.json)"
+jq -r '.seats[] | [
+    .role,
+    "harness=\(.harness)",
+    "readOnly=\(.readOnly)",
+    "hidesOrchestration=\(.hidesOrchestration)",
+    "guards=[\(.guards | join(","))]",
+    "extraSkills=[\(.extraSkills | join(","))]",
+    "deny=[\(.deny | join(","))]"
+  ] | join("  ")' "$seats"
+jq -r '"denyCommon: \(.denyCommon | join(", "))"' "$seats"
+jq -r '.skillGates[]? | "gate: \(.seat) needs \(.skill) before \(.on)"' "$seats"
 
-section "Claude role hooks (claude/*.settings.json)"
-for f in "$kit"/claude/*.settings.json; do
-    [ -f "$f" ] || continue
-    jq -r --arg f "$(basename "$f")" '.hooks.PreToolUse[]? | "\($f): \(.matcher // "*") -> \([.hooks[]?.command] | join(", "))"' "$f"
-done
+for id in $(jq -r '[.seats[].harness] | unique | .[]' "$seats"); do
+    manifest="$kit/harness/$id/harness.json"
+    [ -f "$manifest" ] || { section "Harness $id"; echo "no $manifest"; continue; }
+    root=$(home_path "$(jq -r '.profileRoot' "$manifest")")
+    section "Harness $id ($manifest)"
+    jq -r '[
+        "verified=\(.verified // "null")",
+        "configDirEnv=\(.configDirEnv)",
+        "promptFile=\(.promptFile)",
+        "skillsDir=\(.skillsDir)",
+        "promptComments=\(.promptComments)",
+        "deny=\(.deny.mechanism)",
+        "hookProtocol=\(.guards.hookProtocol)",
+        "sharedSkillDirs=[\((.sharedSkillDirs // []) | join(","))]"
+      ] | join("  ")' "$manifest"
+    gdir="$kit/harness/$id/$(jq -r '.guards.dir' "$manifest")"
+    for guard in "$gdir"/*; do
+        [ -f "$guard" ] || continue
+        echo "guard $(basename "$guard"): $(grep -cE 'block |return \{ *$|reason:' "$guard" 2>/dev/null) refusal site(s)"
+    done
+    for f in "$kit/harness/$id/settings"/*.settings.json; do
+        [ -f "$f" ] || continue
+        jq -r --arg f "$(basename "$f")" '.hooks.PreToolUse[]? | "\($f): \(.matcher // "*") -> \([.hooks[]?.command] | join(", "))"' "$f"
+    done
+    for shared in $(jq -r '(.sharedSkillDirs // [])[]' "$manifest"); do
+        dir=$(home_path "$shared")
+        echo "skills every $id profile also loads from $shared: $(ls -d "$dir"/*/ 2>/dev/null | wc -l | tr -d ' ')"
+    done
 
-peers=0
-for peer_dir in "$pi_profiles"/pi-peer-*/ "$pi_profiles"/pi-reviewer-*/; do
-    [ -d "$peer_dir" ] || continue
-    peers=1
-    peer_dir="${peer_dir%/}"
-    section "Pi seat profile ($peer_dir)"
-    if [ -f "$peer_dir/settings.json" ]; then
-        jq -r '"packages: \((.packages // []) | map(if type == "string" then . else (.source // .name // "object") end) | join(", "))"' "$peer_dir/settings.json"
-    else
-        echo "settings.json: missing"
-    fi
-    if [ -f "$peer_dir/mcp.json" ]; then
-        jq -r '"mcp servers: \((.mcpServers // {}) | keys | join(", "))"' "$peer_dir/mcp.json"
-    else
-        echo "mcp servers: none (no mcp.json)"
-    fi
-    echo "extensions: $(ls "$peer_dir/extensions" 2>/dev/null | tr '\n' ' ')"
-    echo "skills: $(ls "$peer_dir/skills" 2>/dev/null | tr '\n' ' ')"
-    if [ -L "$peer_dir/auth.json" ]; then
-        echo "auth.json: link to $(readlink "$peer_dir/auth.json")"
-    elif [ -f "$peer_dir/auth.json" ]; then
-        echo "auth.json: own file"
-    fi
-    echo "prompt: $(readlink "$peer_dir/APPEND_SYSTEM.md" 2>/dev/null || echo "not a link")"
+    found=0
+    for role in $(jq -r --arg h "$id" '.seats[] | select(.harness == $h) | .role' "$seats"); do
+        for dir in "$root/$role-"*/; do
+            [ -d "$dir" ] || continue
+            found=1
+            dir="${dir%/}"
+            section "Seat profile ($dir)"
+            prompt=$(jq -r '.promptFile' "$manifest")
+            echo "prompt: $(readlink "$dir/$prompt" 2>/dev/null || echo "not a link")"
+            echo "skills: $(ls "$dir/$(jq -r '.skillsDir' "$manifest")" 2>/dev/null | tr '\n' ' ')"
+            echo "guards: $(ls "$dir/$(jq -r '.guards.installTo' "$manifest")" 2>/dev/null | grep -E '\.(sh|ts)$' | tr '\n' ' ')"
+            state=$(jq -r '.state.file // empty' "$manifest")
+            if [ -n "$state" ] && [ -f "$dir/$state" ]; then
+                echo "mcp servers: $(jq -r '(.mcpServers // {}) | keys | join(", ")' "$dir/$state" 2>/dev/null || echo unreadable)"
+            else
+                echo "mcp servers: none"
+            fi
+            [ -f "$dir/settings.json" ] &&
+                jq -r '"packages: \((.packages // []) | map(if type == "string" then . else (.source // .name // "object") end) | join(", "))"' "$dir/settings.json" 2>/dev/null
+            for link in $(jq -r '(.links // [])[].link' "$manifest"); do
+                if [ -L "$dir/$link" ]; then
+                    echo "$link: link to $(readlink "$dir/$link")"
+                elif [ -e "$dir/$link" ]; then
+                    echo "$link: own file"
+                fi
+            done
+            for name in $(jq -r '(.state.forbid // [])[]' "$manifest"); do
+                [ -e "$dir/$name" ] && echo "! $name is present"
+            done
+        done
+    done
+    [ "$found" -eq 1 ] || { section "Seat profiles ($root)"; echo "none built"; }
 done
-[ "$peers" -eq 1 ] || { section "Peer profiles ($pi_profiles)"; echo "none built"; }
-echo "skills every Pi profile loads from ~/.agents/skills: $(ls -d "$HOME"/.agents/skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
-
-section "Claude seat profiles ($claude_profiles)"
-found=0
-for dir in "$claude_profiles"/*/; do
-    [ -d "$dir" ] || continue
-    found=1
-    mcp=$(jq -r '(.mcpServers // {}) | keys | join(",")' "$dir.claude.json" 2>/dev/null || echo "unreadable")
-    creds=none
-    [ -e "$dir.credentials.json" ] && creds=present
-    echo "$(basename "$dir")  mcp=[$mcp]  skills=[$(ls "$dir/skills" 2>/dev/null | tr '\n' ' ')]  .credentials.json=$creds"
-done
-[ "$found" -eq 1 ] || echo "none"
 
 section "Credentials any seat with a shell inherits (presence only)"
 if command -v gh >/dev/null 2>&1; then

@@ -34,7 +34,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
    | `AGENTS.md` | technical constraints for anyone changing code here | every agent in the repository | to the Human as a diff; the Lead commits it |
    | a seat prompt: `SUPERVISOR.md`, `LEAD.md`, `PEER.md`, `REVIEWER.md`, `WATCHER.md` | how that role behaves in every project | that seat, every turn | to the Human as a kit diff |
    | a skill | a procedure used only some of the time | the seat that loads it | to the Human as a kit diff |
-   | the deny lists in `$SEATWORKS_KIT/setup/setup-seats.fish`, the guards in `$SEATWORKS_KIT/claude/` and `$SEATWORKS_KIT/pi/extensions/` | limits that must hold whatever the prompt says | enforced, not read | to the Human as a kit diff |
+   | the deny lists and skill gates in `$SEATWORKS_KIT/seats.json`, the guards in `$SEATWORKS_KIT/harness/common/guards/` and `$SEATWORKS_KIT/harness/*/extensions/` | limits that must hold whatever the prompt says | enforced, not read | to the Human as a kit diff |
 
    If it happens in one repository, fix it in its `WORKSPACE_PROTOCOL.md` or `AGENTS.md`. If it
    must never happen, make it a hard limit, and add a one-line reason to a prompt only if agents
@@ -42,7 +42,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
    prompts loaded on every turn stay short. **Done** when you have chosen one surface and can say
    why each narrower one doesn't fit.
 3. **Check what already covers it.** Search the chosen surface and its neighbors for the concept,
-   for example `grep -rn -i 'KEYWORD' AGENTS.md .seatworks/ $SEATWORKS_KIT/pi/ $SEATWORKS_KIT/project/`.
+   for example `grep -rn -i 'KEYWORD' AGENTS.md .seatworks/ $SEATWORKS_KIT/harness/ $SEATWORKS_KIT/project/`.
    If a line already covers it, sharpen that line or the pointer to it instead of adding
    another. If the line exists and is ignored, find out why: it's buried, contradicted
    elsewhere, or worded too weakly. **Done** when you can quote the lines that cover it, or
@@ -58,7 +58,7 @@ the Human asked for the change. If neither holds, record the episode and stop.
      likely; when a hard limit has to be phrased as a prohibition, pair it with the action to
      take instead.
    - Put the reason in the rule's text. Put the removal trigger in an HTML comment beside the
-     rule in the Claude seat prompts (`SUPERVISOR.md`, `LEAD.md`, `WATCHER.md`), on a
+     rule in the coordinating seats' prompts (`SUPERVISOR.md`, `LEAD.md`, `WATCHER.md`), on a
      `Remove when:` line in `WORKSPACE_PROTOCOL.md` and `AGENTS.md`, and in the notebook entry
      for `PEER.md`, `REVIEWER.md`, and skills, which carry no comments.
    - For a seat prompt, keep `wc -c` under 16384 bytes; if the change goes over, cut something

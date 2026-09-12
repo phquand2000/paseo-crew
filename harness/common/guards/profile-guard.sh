@@ -8,12 +8,16 @@ block() {
 command -v jq >/dev/null 2>&1 || block "jq is not on PATH, so this call can't be checked against the agent profiles; install jq or add its directory to the Paseo daemon's PATH."
 input=$(cat)
 config=${SEATWORKS_PASEO_CONFIG:-$HOME/.paseo/config.json}
+repo=${SEATWORKS_REPO%/}
 field() { jq -r "$1 // empty" <<<"$input"; }
 has() { jq -e "$1" <<<"$input" >/dev/null 2>&1; }
 readable() { jq -e . "$config" >/dev/null 2>&1; }
 specs() {
     readable || { echo "(the Paseo config at $config can't be read; call list_profiles)"; return; }
-    jq -r '[.daemon.agentProfiles[]? | .provider + (if .model then "/" + .model else "" end)]
+    jq -r --arg repo "$repo" '.agents.providers as $pv
+        | [.daemon.agentProfiles[]?
+            | select($repo == "" or (($pv[.provider].env.SEATWORKS_REPO // "") | sub("/$"; "")) == $repo)
+            | .provider + (if .model then "/" + .model else "" end)]
         | unique | map("\"" + . + "\"") | join(", ")' "$config"
 }
 
@@ -51,10 +55,12 @@ model=
 mode=$(field .tool_input.settings.modeId)
 think=$(field .tool_input.settings.thinkingOptionId)
 
-verdict=$(jq -r --arg p "$provider" --arg m "$model" --arg mode "$mode" --arg think "$think" --arg kind "$kind" '
+verdict=$(jq -r --arg p "$provider" --arg m "$model" --arg mode "$mode" --arg think "$think" --arg kind "$kind" --arg repo "$repo" '
     [.daemon.agentProfiles[]? | select(.provider == $p)] as $ps
     | [$ps[] | .model | select(. != null)] as $models
+    | ((.agents.providers[$p].env.SEATWORKS_REPO // "") | sub("/$"; "")) as $theirs
     | if $p == "" or ($ps | length) == 0 then "noprofile"
+      elif $repo != "" and $theirs != $repo then "otherproject:" + $theirs
       elif ($models | length) > 0 and ($models | index($m) | not) then "model:" + $models[0]
       elif $kind == "schedule" then "ok"
       elif ($ps | any((.modeId // "") == $mode) | not) then "mode:" + ($ps[0].modeId // "")
@@ -66,6 +72,12 @@ ok) exit 0 ;;
 noprofile)
     [ -n "$spec" ] || block "pass provider explicitly, as one of these provider strings: $(specs)."
     block "\"$provider\" has no agent profile. Launch agents only from a profile in list_profiles: pass provider as one of $(specs)."
+    ;;
+otherproject:)
+    block "\"$provider\" serves no repository, so a seat on it would load no project prompt. list_profiles shows every project's profiles: launch one of this project's, $(specs)."
+    ;;
+otherproject:*)
+    block "\"$provider\" serves ${verdict#otherproject:}, not $repo, so a seat on it would load that project's prompts, skills, and guards. list_profiles shows every project's profiles: launch one of this project's, $(specs)."
     ;;
 model:*)
     m=${verdict#model:}

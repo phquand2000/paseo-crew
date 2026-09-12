@@ -3,9 +3,9 @@
 Every agent working in a repository reads its instruction file automatically, so the
 repository's technical constraints belong there. The seats read different files, though:
 
-- Pi (the Peer and the Reviewer) reads `AGENTS.md`, and takes only one file per directory,
-  preferring `AGENTS.md` over `CLAUDE.md`.
-- Claude Code (the Supervisor, the Lead, and the watcher) reads `CLAUDE.md`.
+- Most harnesses read `AGENTS.md`, and take only one file per directory, preferring `AGENTS.md`
+  over `CLAUDE.md`.
+- A harness whose `contextFile` is `CLAUDE.md` reads that one instead.
 
 So keep the constraints in `AGENTS.md`, and give the repository a one-line `CLAUDE.md` that
 imports it:
@@ -30,7 +30,7 @@ When you fill in the template:
   remove the rule. A rule missing either one is ceremony, and ceremony only ever tightens.
 - Enforce anything that must always hold with permissions, hooks, or the Peer's guard
   extension. An instruction file is guidance, not enforcement.
-- Put no maintainer notes in HTML comments: Claude Code strips them, but Pi shows them to the
+- Put no maintainer notes in HTML comments: some harnesses strip them, and the rest show them to the
   Peer.
 
 Copy the block below into the repository's `AGENTS.md`:

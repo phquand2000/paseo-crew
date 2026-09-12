@@ -1,0 +1,3 @@
+model_reasoning_effort = "low"
+sandbox_mode = "read-only"
+approval_policy = "never"

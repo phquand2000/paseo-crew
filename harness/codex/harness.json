@@ -1,0 +1,96 @@
+{
+  "id": "codex",
+  "label": "Codex",
+  "baseProvider": "codex",
+  "verified": null,
+  "profileRoot": "HOME/.codex/profiles",
+  "configDirEnv": "CODEX_HOME",
+  "promptFile": "AGENTS.md",
+  "skillsDir": "skills",
+  "promptComments": "shown",
+  "hasModes": null,
+  "settings": {
+    "mode": "toml-overlay",
+    "file": "config.toml",
+    "source": "config/ROLE.config.toml",
+    "base": "config/base.config.toml",
+    "baseline": "HOME/.codex/config.toml",
+    "materialize": "bin/materialize-room",
+    "overlayKeys": [
+      "model",
+      "model_provider",
+      "model_reasoning_effort",
+      "model_reasoning_summary",
+      "model_verbosity",
+      "model_catalog_json",
+      "sandbox_mode",
+      "approval_policy",
+      "approvals_reviewer"
+    ]
+  },
+  "links": [
+    {
+      "link": "auth.json",
+      "target": "HOME/.codex/auth.json",
+      "required": "log in with `codex login` first"
+    },
+    {
+      "link": "hooks.json",
+      "target": "HOME/.codex/hooks.json",
+      "optional": true
+    }
+  ],
+  "state": {
+    "file": "model-catalog.json",
+    "build": "bin/materialize-room",
+    "note": "written by the materializer from harness/codex/models.json with every multi_agent_version set to null, so the seat cannot start Codex-native subagents and Paseo stays the only control plane"
+  },
+  "guards": {
+    "dir": "common/guards",
+    "installTo": ".",
+    "hookProtocol": "json-decision",
+    "hookSettingsKey": "hooks.PreToolUse",
+    "hookSettingsFile": "hooks.json",
+    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards"
+  },
+  "deny": {
+    "mechanism": "hooks",
+    "note": "Paseo applies disallowedTools only to its claude and omp providers, so a Codex seat's limits live in its hooks and in sandbox_mode plus approval_policy"
+  },
+  "skillLoad": {
+    "tool": null,
+    "phrase": "the $NAME skill reference",
+    "force": "$NAME",
+    "transcriptMatch": null,
+    "descriptionBudget": null
+  },
+  "sharedSkillDirs": [
+    "HOME/.agents/skills"
+  ],
+  "probe": {
+    "kind": "unverified",
+    "note": "resolve the open questions in NOTES.md, then set verified to the Codex version you confirmed them on"
+  },
+  "versionCommand": "codex --version",
+  "provider": {
+    "env": {
+      "SEATWORKS_CODEX_PROVIDER": "ZAI",
+      "SEATWORKS_CODEX_BASE_URL": "https://api.z.ai/api/v1",
+      "SEATWORKS_CODEX_ENV_KEY": "ZAI_API_KEY",
+      "SEATWORKS_CODEX_WIRE_API": "responses",
+      "SEATWORKS_CODEX_MODEL": "glm-5.3",
+      "SEATWORKS_CODEX_MODEL_DESCRIPTION": "Z.ai's latest flagship model",
+      "SEATWORKS_CODEX_KEEP_BUNDLED": "0"
+    },
+    "keys": {},
+    "profileModeId": null,
+    "command": [
+      "KIT/harness/codex/bin/codex-room",
+      "SEAT"
+    ],
+    "envNote": "SEATWORKS_CODEX_ENV_KEY names the variable Codex reads the API key from; the key itself is never written here or anywhere else in the kit. Export it for the Paseo daemon."
+  },
+  "contextFile": "AGENTS.md",
+  "contextFileNeedsPointer": false,
+  "linksNote": "skills is not linked here: skillsDir owns the seat's own skills directory, which is the point of a per-seat room. An optional link whose target is missing is skipped."
+}

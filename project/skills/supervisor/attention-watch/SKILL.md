@@ -5,7 +5,7 @@ description: "Keeps a watcher and the weekly review running, answers ATTENTION e
 
 # Attention watch
 
-The watcher, a Haiku agent running `.seatworks/WATCHER.md`, sweeps the Lead's and Peers'
+The watcher, a small-model agent running `.seatworks/WATCHER.md`, sweeps the Lead's and Peers'
 activity and sends you `ATTENTION:` events. This skill keeps it running and answers its events
 with `CHECK:` questions, `ADVICE:`, Human reports, and your action at the end of each line of
 the attention log, `.seatworks/records/attention/YYYY-MM-DD.md` (git ignores it). `references/`

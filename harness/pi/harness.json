@@ -1,0 +1,69 @@
+{
+  "id": "pi",
+  "label": "Pi",
+  "baseProvider": "pi",
+  "verified": "0.85.1",
+  "profileRoot": "HOME/.pi/profiles",
+  "configDirEnv": "PI_CODING_AGENT_DIR",
+  "promptFile": "APPEND_SYSTEM.md",
+  "skillsDir": "skills",
+  "promptComments": "shown",
+  "hasModes": false,
+  "settings": {
+    "mode": "merge",
+    "file": "settings.json",
+    "source": "settings.json"
+  },
+  "links": [
+    {
+      "link": "auth.json",
+      "target": "HOME/.pi/agent/auth.json",
+      "required": "log in with `pi` (/login) or save an API key first"
+    }
+  ],
+  "state": {
+    "file": "mcp.json",
+    "optional": true,
+    "checkMcp": "((.mcpServers // {}) | has(\"paseo\")) | not"
+  },
+  "guards": {
+    "dir": "pi/extensions",
+    "installTo": "extensions",
+    "hookProtocol": "extension",
+    "readOnlyEnv": "SEATWORKS_READ_ONLY",
+    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards"
+  },
+  "deny": {
+    "mechanism": "extension",
+    "paseoToolsOff": true
+  },
+  "skillLoad": {
+    "tool": "read",
+    "phrase": "reading its SKILL.md",
+    "force": "/skill:NAME",
+    "transcriptMatch": null,
+    "descriptionBudget": null
+  },
+  "sharedSkillDirs": [
+    "HOME/.agents/skills"
+  ],
+  "probe": {
+    "kind": "pi-loader",
+    "note": "node, calling Pi's own loadSkills() with agentDir set to the seat profile; authoritative and free, so it runs on every --check"
+  },
+  "versionCommand": "pi --version",
+  "provider": {
+    "env": {
+      "PI_SKIP_VERSION_CHECK": "1",
+      "PI_TELEMETRY": "0"
+    },
+    "keys": {
+      "paseoTools": {
+        "enabled": false
+      }
+    },
+    "profileModeId": null
+  },
+  "contextFile": "AGENTS.md",
+  "contextFileNeedsPointer": false
+}

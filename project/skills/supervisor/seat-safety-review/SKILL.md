@@ -24,30 +24,31 @@ shared `~/.claude/projects`. Select config keys with `jq`, or use
 Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 the record.
 
 1. **List every seat, including providers outside the kit.** Compare
-   `$SEATWORKS_KIT/examples/paseo-providers.json` (intended) with `~/.paseo/config.json`
-   (actual). Any enabled provider is a seat, because any agent with `create_agent` can launch
+   `$SEATWORKS_KIT/seats.json` and `$SEATWORKS_KIT/harness/*/harness.json` (intended) with
+   `~/.paseo/config.json` (actual). Any enabled provider is a seat, because any agent with `create_agent` can launch
    it, whatever its prompt says. Run
    `KIT=$SEATWORKS_KIT sh .seatworks/skills/supervisor/seat-safety-review/scripts/inventory.sh`.
    **Done** when every provider in the live config is a row, including ones the kit didn't create.
 2. **Fill in each seat's capabilities.** For each row, record:
-   - Tools: the runtime's tools minus `disallowedTools` and the hooks in `$SEATWORKS_KIT/claude/`
-     (Claude seats), or minus the rules in `$SEATWORKS_KIT/pi/extensions/peer-guard.ts` (Pi
-     seats; more with `SEATWORKS_READ_ONLY=1`); Paseo tools from `paseoTools.enabled` and
-     `daemon.mcp.injectIntoAgents`; MCP servers in each profile's `.claude.json` or `mcp.json`;
-     Pi packages in each Pi seat's `~/.pi/profiles/PROVIDER/settings.json`; skills, including
-     `~/.agents/skills`, which every Pi profile loads.
+   - Tools: the harness's own tools, minus whatever its manifest's `deny.mechanism` names
+     (a Paseo `disallowedTools` list, guard hooks, or a guard extension) and minus the guards
+     `seats.json` gives that seat; more is blocked with `SEATWORKS_READ_ONLY=1`. Paseo tools from
+     `paseoTools.enabled` and `daemon.mcp.injectIntoAgents`; MCP servers in the profile file the
+     manifest's `state.file` names; packages in the profile's own settings file; skills, including
+     every directory in the manifest's `sharedSkillDirs`, which all of that harness's profiles load.
    - Credentials: env var names on the provider, the linked `auth.json`, and what any shell
      inherits: `gh` login and scopes, ssh agent keys, cloud CLI config, npm and netrc tokens,
      the git credential helper.
-   - Private data: the repositories it works in, `~/.claude/projects` (every Claude seat links
-     it), the notebook, `.env` files.
+   - Private data: the repositories it works in, every shared directory in the manifest's
+     `links` (a transcript directory there is readable by every seat on that harness), the
+     notebook, `.env` files.
    - Untrusted content: web pages, issue and pull request text, dependency source and READMEs,
      bot or chat messages, and agent output derived from these; it stays untrusted when passed on.
    - Egress: web fetch tools, shell network commands (`curl`, `wget`, `nc`, `ssh`, `git push`,
      `gh`, `npm publish`), MCP servers that write, Paseo messages to a seat with egress.
    - Side effects without a Human gate: push, deploy, publish, email, payments.
-   - Enforcement: whether each limit is enforced (`disallowedTools`, a `claude/` hook, the peer
-     guard) or prompt only.
+   - Enforcement: whether each limit is enforced (a deny list, a guard hook, a guard extension)
+     or prompt only.
 
    **Done** when no cell is blank; write `none` or `unknown` where that's the answer.
 3. **Trace the chains between seats.** List every edge with its direction: Supervisor to Lead
@@ -64,9 +65,11 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
 
    Look first at these places in this kit; they're leads, not verdicts:
    - the peer guard blocks `git push` and agent CLIs, not other network commands;
-   - the Claude deny lists block `WebSearch`, not web fetch or shell network commands;
+   - a deny list blocks `WebSearch`, not web fetch or shell network commands, and Paseo applies
+     `disallowedTools` only to some harnesses: the manifest's `deny.mechanism` says which;
    - providers outside the kit may have no deny list and full Paseo tools;
-   - every Claude seat shares `~/.claude/projects`, so each can read the others' transcripts.
+   - seats on one harness share the directories in its `links`, so each can read the others'
+     transcripts.
 5. **Note the other threats.** Briefly: destructive commands no gate covers (force push, data
    deletion, `rm` outside the owned scope), secrets that may reach logs or transcripts, prompt
    and protocol files a seat can write, and anything else outside the trifecta. **Done** when
@@ -91,9 +94,9 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
    fixes that need a Human decision, and proposals going through protocol-patch. **Done** when
    the report is sent.
 
-Rerun after any change to providers, deny lists, the peer guard, Pi packages, MCP servers, or
-skill allowlists, and when a project gains production credentials; the portfolio-review skill
-flags a matrix older than the last such change.
+Rerun after any change to providers, `seats.json`, a harness manifest or its guards, profile
+packages, MCP servers, or skill allowlists, and when a project gains production credentials; the
+portfolio-review skill flags a matrix older than the last such change.
 
 The rule that matters most: count only enforced limits as closing a leg, and count a chain of
 seats as one seat.

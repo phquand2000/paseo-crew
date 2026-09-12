@@ -172,7 +172,7 @@ output contract asks for, before your handoff; leave Snapshot empty, since you w
 
 Round 1 stays sealed: no seat sees your opinion, another seat's report, a desired conclusion,
 another agent's ID, or a transcript, and you read no report until every required seat has
-finished. The isolation is soft and audited: seats have no Paseo tools and `pi-peer-ro` blocks
+finished. The isolation is soft and audited: seats have no Paseo tools and `peer-ro-SLUG` blocks
 their writes, but nothing stops one from reading beyond its sources, so never describe a
 forbidden read to them as impossible.
 

@@ -40,9 +40,12 @@ The brief names one:
 - **Scout**: read-only in the same way. Return a map of files, entry points, and open questions,
   without solutions.
 
-Before starting, load the skill that matches the task: `test-first`, `diagnosing-bugs`,
-`proof-audit`, `receiving-review`, `design-options`, `frontend-change`, `performance-change`, or
-`security-check`.
+Before starting, load every skill the task touches, not just the first that fits, and follow the
+files each one points at: `test-first` whenever the brief changes behavior, plus
+`diagnosing-bugs` for a reported failure, `security-check` for credentials, authorization, or
+hostile input, `proof-audit` when asked whether a proof is real, `receiving-review` for returned
+findings, `design-options` for a route to choose, and `frontend-change` or `performance-change`
+for their surfaces. Two apply more often than one.
 
 ## When the brief is wrong
 

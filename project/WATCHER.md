@@ -1,7 +1,7 @@
 # Watcher — attention sweeps for the Supervisor
 
 <!--
-Demo file. The watcher runs on Haiku and reads this file on every sweep, so keep it short: a
+Demo file. The watcher runs on a small model and reads this file on every sweep, so keep it short: a
 small model loses rules faster than a large one as a prompt grows. The Supervisor changes the
 trigger table only through its protocol-patch skill.
 -->

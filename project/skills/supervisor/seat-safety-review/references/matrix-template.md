@@ -39,8 +39,8 @@ Replace the following:
 
 - `DATE`: the review date, `YYYY-MM-DD`.
 - `SOURCES`: the files and commands you read, for example
-  `~/.paseo/config.json, $SEATWORKS_KIT/setup/setup-seats.fish, $SEATWORKS_KIT/pi/extensions/peer-guard.ts, scripts/inventory.sh`.
-- `SEAT`: the provider ID, for example `pi-peer-SLUG` or `claude-lead-SLUG`.
+  `~/.paseo/config.json, $SEATWORKS_KIT/seats.json, $SEATWORKS_KIT/harness/HARNESS/harness.json, scripts/inventory.sh`.
+- `SEAT`: the provider ID, for example `peer-SLUG` or `lead-SLUG`.
 - `TOOLS`: what the seat reaches after its deny list or guard, including Paseo tools, MCP
   servers, and packages.
 - `CREDENTIALS`: names only, for example `CLAUDE_CODE_OAUTH_TOKEN, gh (repo scope), ssh agent (2 keys)`.

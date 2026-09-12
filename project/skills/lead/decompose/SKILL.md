@@ -115,14 +115,14 @@ the graph and brief one Engineer; the integration skill still merges it.
    ```
 
    Then create the Peer from the profile for its disposition (`list_profiles`): an Engineer
-   from the Peer profile (`pi-peer`), an Architect or Scout from the read-only Peer profile
-   (`pi-peer-ro`). Pass a writer the new workspace's ID, and name its directory in the brief's
+   from the Peer profile (`peer-SLUG`), an Architect or Scout from the read-only Peer profile
+   (`peer-ro-SLUG`). Pass a writer the new workspace's ID, and name its directory in the brief's
    Workspace field:
 
    ```text
    create_agent
      title:         "S2 Engineer: invoice CSV serializer"
-     provider:      "pi-peer/PEER_MODEL"
+     provider:      "peer-SLUG/PEER_MODEL"
      settings:      { thinkingOptionId: "medium" }
      workspaceId:   WORKSPACE_ID
      labels:        { plan: "SLUG", task: "S2", disposition: "engineer", round: "0" }

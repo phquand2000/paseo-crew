@@ -2,6 +2,8 @@
 
 set -l kit (path resolve (path dirname (status filename))/..)
 set -l paseo_config $HOME/.paseo/config.json
+set -l seats_file $kit/seats.json
+set -l harness_dir $kit/harness
 
 set -l repo_dir ""
 set -l slug ""
@@ -28,56 +30,83 @@ while test $i -le (count $argv)
 end
 
 if test -z "$repo_dir"; or not test -d "$repo_dir"
-    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model PI_MODEL (default zai/glm-5.3)] [--refresh]"
+    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model MODEL (default zai/glm-5.3, for seats whose role names no model)] [--refresh]"
     exit 2
 end
 set repo_dir (path resolve $repo_dir)
 test -n "$slug"; or set slug (path basename $repo_dir)
 set slug (string replace -ra '[^a-z0-9-]' '-' -- (string lower -- $slug))
-if string match -qr '^ro(-|$)' -- $slug
-    echo "! the slug $slug would clash with the read-only Peer's provider names; pass --slug with another name."
-    exit 2
-end
 
 command -q jq; or begin
     echo "! jq must be on PATH."
     exit 1
 end
+for file in $seats_file $kit/examples/paseo-providers.json
+    test -f $file; or begin
+        echo "! $file not found. Run the script from its original location in the kit."
+        exit 1
+    end
+end
+jq -e . $seats_file >/dev/null 2>&1; or begin
+    echo "! $seats_file is not valid JSON; fix it by hand."
+    exit 1
+end
+
+set -l roles (jq -r '.seats[].role' $seats_file)
+set -l anchor (jq -r '.seats[] | select(.anchor == true) | .role' $seats_file)
+set -l entry (jq -r '.seats[] | select(.entry == true) | .role' $seats_file)
+set -l prompts (jq -r '[.seats[].prompt] | unique | .[]' $seats_file)
+for short in $roles
+    for long in $roles
+        string match -q "$short-*" -- $long; or continue
+        set -l rest (string replace "$short-" '' -- $long)
+        test "$slug" = "$rest"; or string match -q "$rest-*" -- $slug; or continue
+        echo "! the slug $slug would make $short-$slug unreadable: it is also how a $long seat is named. Pass --slug with another name."
+        exit 2
+    end
+end
+
 if not test -f $paseo_config; or not jq -e . $paseo_config >/dev/null 2>&1
     echo "! $paseo_config is missing or not valid JSON; finish SETUP.md steps 3 to 5 first."
     exit 1
 end
 git -C $repo_dir rev-parse --git-dir >/dev/null 2>&1; or begin
-    echo "! $repo_dir is not a git repository, and the Lead guard checks writes only inside one; run git init there first."
+    echo "! $repo_dir is not a git repository, and the write guard checks paths only inside one; run git init there first."
     exit 1
 end
 
 set -l seat $repo_dir/.seatworks
-set -l sup_key claude-supervisor-$slug
-set -l lead_key claude-lead-$slug
-set -l watch_key claude-watcher-$slug
-set -l peer_key pi-peer-$slug
-set -l peer_ro_key pi-peer-ro-$slug
-set -l review_key pi-reviewer-$slug
 set -l added
 
-set -l other (jq -r --arg k $lead_key '.agents.providers[$k].env.SEATWORKS_REPO // ""' $paseo_config)
+set -l other (jq -r --arg k $anchor-$slug '.agents.providers[$k].env.SEATWORKS_REPO // ""' $paseo_config)
 if test -n "$other"; and test (path resolve $other) != $repo_dir
     echo "! the slug $slug already belongs to $other: pass --slug with another name."
-    echo "  If that repository moved here, set env.SEATWORKS_REPO on $lead_key to $repo_dir, then rerun."
+    echo "  If that repository moved here, set env.SEATWORKS_REPO on $anchor-$slug to $repo_dir, then rerun."
     exit 1
+end
+
+for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
+    set -l manifest $harness_dir/$id/harness.json
+    if not test -f $manifest; or not jq -e . $manifest >/dev/null 2>&1
+        echo "! seats.json uses harness '$id', whose $manifest is missing or not valid JSON."
+        exit 1
+    end
+    set -l base (jq -r '.baseProvider' $manifest)
+    jq -e --arg b $base '.agents.providers[$b]' $paseo_config >/dev/null 2>&1
+    or begin
+        echo "! $paseo_config has no base provider `$base`, which harness $id extends; add it from examples/paseo-providers.json (SETUP.md, \"Add the base providers to Paseo\")."
+        exit 1
+    end
 end
 
 set -l stage (mktemp -d)
 cp -R $kit/project/. $stage/
 awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/WORKSPACE_PROTOCOL.md
-for file in $stage/LEAD.md $stage/WORKSPACE_PROTOCOL.md (find $stage/skills/lead -type f)
-    perl -pi -e "s/\bpi-(peer-ro|peer|reviewer)(?![-\w])/pi-\$1-$slug/g" $file
+set -l seat_pattern (string join '|' $roles)
+for file in $stage/*.md (find $stage/skills -type f -name '*.md')
+    perl -pi -e "s/\b($seat_pattern)-SLUG\b/\$1-$slug/g" $file
 end
 test -n "$model"; and perl -pi -e "s|PEER_MODEL|$model|g" $stage/WORKSPACE_PROTOCOL.md
-for file in $stage/SUPERVISOR.md (find $stage/skills/supervisor -type f -name '*.md')
-    perl -pi -e "s/\b(claude-supervisor|claude-lead|claude-watcher|pi-peer-ro|pi-peer|pi-reviewer)-SLUG\b/\$1-$slug/g" $file
-end
 
 set -l refreshed
 set -l drafts $seat/records/drafts/refresh-(date +%Y%m%d-%H%M%S)
@@ -85,7 +114,7 @@ for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
     set -l rel (string replace -- "$stage/" '' $src)
     if test -e $seat/$rel
         test $refresh -eq 1; or continue
-        string match -qr '^(SUPERVISOR|LEAD|PEER|REVIEWER|WATCHER)\.md$|^skills/' -- $rel
+        contains -- $rel $prompts; or string match -q 'skills/*' -- $rel
         or begin
             test $rel = WORKSPACE_PROTOCOL.md; and grep -q STRICTNESS_LEVEL $seat/$rel
         end
@@ -129,54 +158,79 @@ if not test -e $repo_dir/CLAUDE.md
     set -a added CLAUDE.md
 end
 
+set -l manifests (mktemp)
+jq -n --arg dir $harness_dir '
+    [$dir] | .[0] as $d | {}' >$manifests
+for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
+    set -l merged (mktemp)
+    jq --arg id $id --slurpfile m $harness_dir/$id/harness.json '.[$id] = $m[0]' $manifests >$merged
+    and mv $merged $manifests
+    or begin
+        rm -f $merged $manifests
+        echo "! could not read the harness manifests"
+        exit 1
+    end
+end
+
 set -l new $paseo_config.new
-if not jq --slurpfile ex $kit/examples/paseo-providers.json --arg h $HOME --arg s $slug \
+if not jq --slurpfile seats $seats_file --slurpfile hs $manifests --arg h $HOME --arg s $slug \
         --arg r $repo_dir --arg kit $kit --arg m "$model" '
     def dflt: (map(select(.isDefault == true)) + .)[0];
+    def home($p): ($p | sub("^HOME"; $h));
     ($s | ascii_upcase) as $n
-    | ($ex[0] | del(._doc)
-      | walk(if type == "string" then (gsub("HOME_DIR"; $h) | gsub("SLUG"; $s)) else . end)) as $e
-    | def claude_prof($id; $label; $b; $notes):
-        ($e["\($b)-SLUG"].models // [] | dflt) as $d
-        | {id: "\($s)-\($id)", name: "\($n) · \($label)", provider: "\($b)-\($s)",
-           model: $d.id, modeId: "bypassPermissions"}
-          + (($d.thinkingOptions // [] | dflt.id) as $t | if $t then {thinkingOptionId: $t} else {} end)
-          + {notes: $notes};
-      def pi_prof($id; $label; $b; $think; $notes):
-        {id: "\($s)-\($id)", name: "\($n) · \($label)", provider: "\($b)-\($s)", thinkingOptionId: $think}
-          + (if $m == "" then {} else {model: $m} end) + {notes: $notes};
-    reduce ("claude-supervisor", "claude-lead", "claude-watcher", "pi-peer", "pi-peer-ro", "pi-reviewer") as $b (.;
-        ($e["\($b)-SLUG"] | .env.SEATWORKS_REPO = $r
-          | if $b == "claude-supervisor" then .env.SEATWORKS_KIT = $kit else . end) as $t
-        | .agents.providers["\($b)-\($s)"] |= if . == null then $t else
-            .env += ($t.env | with_entries(select(.key
-              | IN("SEATWORKS_REPO", "SEATWORKS_KIT", "CLAUDE_CONFIG_DIR", "PI_CODING_AGENT_DIR"))))
-            | if .env.CLAUDE_CODE_OAUTH_TOKEN == "OAUTH_TOKEN" then del(.env.CLAUDE_CODE_OAUTH_TOKEN) else . end
-          end)
+    | $seats[0] as $cfg
+    | $hs[0] as $H
+    | reduce ($cfg.seats[]) as $seat (.;
+        ($H[$seat.harness]) as $hx
+        | "\($seat.role)-\($s)" as $key
+        | ({ extends: $hx.baseProvider,
+             label: "\($hx.label) \($seat.label) · \($s)",
+             description: "\($seat.description) for \($s)",
+             env: ($hx.provider.env
+                   + { (($hx.configDirEnv)): "\(home($hx.profileRoot))/\($key)" }
+                   + { SEATWORKS_REPO: $r, SEATWORKS_ROLE: $seat.role, SEATWORKS_SEAT: $key, SEATWORKS_SLUG: $s }
+                   + (if (($hx.guards.hookProtocol != "extension" and ($seat.guards | length) > 0)
+                          or ($cfg.skillGates | any(.seat == $seat.role)))
+                      then { SEATWORKS_KIT: $kit } else {} end)
+                   + (if $seat.readOnly then { SEATWORKS_READ_ONLY: "1" } else {} end)
+                   + (if ($hx.guards.hookProtocol | IN("exit-code", "extension")) then {}
+                      else { SEATWORKS_HOOK_PROTOCOL: $hx.guards.hookProtocol } end))
+           }
+           + $hx.provider.keys
+           + (if ($hx.provider.command // []) | length > 0
+              then { command: ($hx.provider.command
+                     | map(gsub("KIT"; $kit) | gsub("SEAT"; $key))) }
+              else {} end)
+           + (if ($seat.models | length) > 0 then { models: $seat.models } else {} end)) as $t
+        | .agents.providers[$key] |= if . == null then $t else
+              .env += ($t.env | with_entries(select(.key | startswith("SEATWORKS_") or . == $hx.configDirEnv)))
+              | (if $t.command then .command = $t.command else . end)
+              | if .env.CLAUDE_CODE_OAUTH_TOKEN == "OAUTH_TOKEN" then del(.env.CLAUDE_CODE_OAUTH_TOKEN) else . end
+            end)
     | (.daemon.agentProfiles // []) as $have
-    | [
-        claude_prof("supervisor"; "Supervisor"; "claude-supervisor";
-          "Start here. Meets the Human, settles intent into an owner directive, creates the Lead, and watches coordination."),
-        claude_prof("lead"; "Lead"; "claude-lead";
-          "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task."),
-        claude_prof("watcher"; "Watcher"; "claude-watcher";
-          "The Supervisor keeps one running while any Lead is active: it sweeps Lead and Peer activity on a heartbeat and sends the Supervisor ATTENTION events. Haiku has no thinking levels: pass no thinkingOptionId."),
-        pi_prof("peer"; "Peer"; "pi-peer"; "medium";
-          "The Peer profile for work that writes: the Engineer disposition. Use thinkingOptionId high for a new boundary. Pi has no modes: pass no modeId."),
-        pi_prof("peer-ro"; "Peer (read-only)"; "pi-peer-ro"; "high";
-          "The Peer prompt with edits blocked: Architect, Scout, and every council seat. Use thinkingOptionId low for a Scout. Pi has no modes: pass no modeId."),
-        pi_prof("reviewer"; "Reviewer"; "pi-reviewer"; "high";
-          "Every review of a change: sealed axes, re-reviews, sweep scouts (Reviewer disposition: they report findings), and a council Verifier or Auditor only when the preferences file routes it here, with Machine pass: skip. Read-only; runs Open Code Review. No modeId: Pi has no modes.")
-      ] as $kitp
+    | [$cfg.seats[]
+        | . as $seat
+        | $H[$seat.harness] as $hx
+        | ($seat.models | if length > 0 then dflt else null end) as $d
+        | { id: "\($s)-\($seat.role)", name: "\($n) · \($seat.label)", provider: "\($seat.role)-\($s)" }
+          + (if $d then { model: $d.id } elif $m == "" then {} else { model: $m } end)
+          + (if $hx.provider.profileModeId then { modeId: $hx.provider.profileModeId } else {} end)
+          + (($d.thinkingOptions // [] | dflt.id) as $t
+             | if $t then { thinkingOptionId: $t }
+               elif $seat.thinking then { thinkingOptionId: $seat.thinking }
+               else {} end)
+          + { notes: $seat.notes }] as $kitp
     | .daemon.agentProfiles = ($have | map(.id as $i
           | (($kitp | map(select(.id == $i)))[0].notes) as $kn
           | if $kn then .notes = $kn else . end))
         + ($kitp | map(select(.id as $i | $have | any(.id == $i) | not)))' $paseo_config >$new
         or not jq -e . $new >/dev/null 2>&1
-    rm -f $new
-    echo "! could not update the providers and agent profiles in $paseo_config"
+    rm -f $new $manifests
+    echo "! could not compose the providers and agent profiles in $paseo_config"
     exit 1
 end
+rm -f $manifests
+set -l new_providers 0
 if jq -e --slurpfile n $new '. == $n[0]' $paseo_config >/dev/null
     rm -f $new
 else
@@ -191,10 +245,18 @@ else
           (.daemon.agentProfiles[] | . as $p | select($oi | any(.id == $p.id and .notes != $p.notes))
             | "profile \(.name) notes updated")' $new)
     mv $new $paseo_config
+    for change in $changes
+        string match -q 'profile *' -- $change; and continue
+        string match -q '* added' -- $change; and set new_providers 1
+    end
     echo "  ~ "(string join ', ' $changes)" (backup: $bak)"
 end
-test (jq '(.agents.providers.claude.env.CLAUDE_CODE_OAUTH_TOKEN // "") | length > 0' $paseo_config) = true
-or echo "  ! the base `claude` provider has no CLAUDE_CODE_OAUTH_TOKEN, so the Claude seats can't log in: set it there (SETUP.md, \"Add the base provider to Paseo\") and run paseo reload."
+for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
+    set -l base (jq -r '.baseProvider' $harness_dir/$id/harness.json)
+    test $base = claude; or continue
+    test (jq '(.agents.providers[$b].env.CLAUDE_CODE_OAUTH_TOKEN // "") | length > 0' --arg b $base $paseo_config) = true
+    or echo "  ! the base `$base` provider has no CLAUDE_CODE_OAUTH_TOKEN, so its seats can't log in: set it there (SETUP.md, \"Add the base providers to Paseo\") and run paseo reload."
+end
 
 paseo project ls --json 2>/dev/null | jq -e --arg p $repo_dir 'any(.[]; .path == $p)' >/dev/null 2>&1
 or begin
@@ -205,6 +267,8 @@ end
 fish $kit/setup/setup-seats.fish
 set -l seats_status $status
 paseo reload >/dev/null 2>&1; and echo "  ~ paseo reloaded"
+test $new_providers -eq 1
+and echo "  ! run `paseo daemon restart` before you start a seat: a reload lists a new provider but builds no snapshot for it, so create_agent reports it as unavailable."
 
 echo ""
 if test (count $added) -gt 0
@@ -218,9 +282,11 @@ if test (count $refreshed) -gt 0
 else if test $refresh -eq 1
     echo "Nothing to refresh: the seat prompts and skills already match the kit."
 end
-echo "Seats: $sup_key (Supervisor), $lead_key (Lead), $peer_key (Peer), $peer_ro_key (read-only Peer), $review_key (Reviewer), $watch_key (watcher)."
+echo "Seats: "(for role in $roles
+    echo -n "$role-$slug ("(jq -r --arg r $role '.seats[] | select(.role == $r) | .label' $seats_file)") "
+end | string trim)
 command -q ocr
 or echo "! the Reviewer runs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review"
-echo "Next: start $sup_key in this repository and ask it to run its workspace-protocol skill,"
+echo "Next: start $entry-$slug in this repository and ask it to run its workspace-protocol skill,"
 echo "which fills in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md."
 exit $seats_status

@@ -50,7 +50,7 @@ the repository root, your working directory.
    the file every session. Give each mandatory rule a `Reason:` line (a dated, reproducible
    episode) and a `Remove when:` line (the evidence that would retire it). **Done** when the
    step 2 search prints nothing for this file and
-   `grep -n 'pi-peer-SLUG/' .seatworks/WORKSPACE_PROTOCOL.md` shows the Peer profile's model.
+   `grep -n 'peer-SLUG/' .seatworks/WORKSPACE_PROTOCOL.md` shows the Peer profile's model.
 6. **Draft `AGENTS.md`.** Copy `AGENTS.md` to `.seatworks/records/drafts/AGENTS.md` and fill it
    in by the same rules. For each line, ask whether a Peer would make a mistake without it: if
    it would, the line belongs in `AGENTS.md`; if only the Lead needs it, in the protocol. Peers

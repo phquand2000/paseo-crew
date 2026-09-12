@@ -1,6 +1,6 @@
 #!/bin/bash
 
-role=${1:-lead}
+role=${1:-${SEATWORKS_ROLE:-lead}}
 case $role in
 supervisor)
     who=Supervisor
@@ -17,9 +17,17 @@ watcher)
     ;;
 esac
 
-block() {
-    echo "$who guard: $1 $rule" >&2
+export SEATWORKS_GUARD_LABEL="$who guard"
+hook_io=${SEATWORKS_HOOK_IO:-${SEATWORKS_KIT:+$SEATWORKS_KIT/harness/common/hook-io.sh}}
+if [ -n "$hook_io" ] && [ -r "$hook_io" ]; then
+    . "$hook_io"
+else
+    echo "$who guard: harness/common/hook-io.sh is unreadable; set env.SEATWORKS_KIT on this seat's provider and rerun setup/setup-seats.fish." >&2
     exit 2
+fi
+
+deny() {
+    block "$1 $rule"
 }
 
 allowed() {
@@ -33,12 +41,11 @@ allowed() {
 }
 
 inplace() {
-    block "in-place edits (sed -i, perl -i, patch, git apply) are blocked."
+    deny "in-place edits (sed -i, perl -i, patch, git apply) are blocked."
 }
 
-command -v jq >/dev/null 2>&1 || block "jq is not on PATH, so this call can't be checked; install jq or add its directory to the Paseo daemon's PATH."
-input=$(cat)
-field() { jq -r "$1 // empty" <<<"$input"; }
+need_jq
+read_hook_input
 cwd=$(field .cwd)
 [ -d "$cwd" ] || cwd=$PWD
 anchor=$cwd
@@ -98,7 +105,7 @@ check() {
     rel=${rel#/}
     [ -n "$rel" ] || block "$1 is the repository root."
     allowed "$rel" && return 0
-    block "$rel is a repository file."
+    deny "$rel is a repository file."
 }
 
 expand() {
@@ -374,4 +381,4 @@ Edit | Write | MultiEdit | NotebookEdit)
     ;;
 Bash) scan "$(field .tool_input.command)" ;;
 esac
-exit 0
+pass
