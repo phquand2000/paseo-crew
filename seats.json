@@ -333,7 +333,6 @@
   "denyCommonIntents": [
     "subagents",
     "workflows",
-    "web-search",
     "todo-list",
     "plan-mode",
     "code-eval",
