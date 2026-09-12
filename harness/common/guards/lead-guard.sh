@@ -45,6 +45,10 @@ allowed() {
 }
 
 inplace() {
+    local pat
+    while IFS= read -r pat; do
+        [ "$pat" = '*' ] && return 0
+    done <<<"$patterns"
     deny "in-place edits (sed -i, perl -i, patch, git apply) are blocked."
 }
 
@@ -56,6 +60,20 @@ anchor=$cwd
 [ -d "$SEATWORKS_REPO" ] && anchor=$SEATWORKS_REPO
 common=$(git -C "$anchor" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 root=$(cd "$anchor" && pwd -P)
+scratch_roots=()
+for t in "$TMPDIR" /tmp /private/tmp /var/folders /private/var/folders; do
+    [ -n "$t" ] || continue
+    t=$(cd "$t" 2>/dev/null && pwd -P) || continue
+    scratch_roots+=("${t%/}")
+done
+
+outside() {
+    local t
+    for t in "${scratch_roots[@]}"; do
+        case $ex/ in "$t"/*) return 0 ;; esac
+    done
+    deny "$1 is outside $root, where this seat's own rules live: the kit, the orchestrator's config and the seat profiles are all files that decide what you may do. Scratch files go under \$TMPDIR."
+}
 
 resolve() {
     local p=$1 d rest t n=0
@@ -96,15 +114,20 @@ check() {
     resolve "$p" || block "$1 can't be resolved (a symlink loop or an unreadable directory)."
     case /$ex/ in */../*) block "$1 is an unclear path." ;; esac
     case $ex in /dev/*) return 0 ;; esac
+    top=
     if [ -n "$common" ]; then
         d=$ex
         while [ ! -d "$d" ]; do d=${d%/*}; d=${d:-/}; done
-        [ "$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" = "$common" ] || return 0
-        top=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null) || return 0
+        if [ "$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" = "$common" ]; then
+            top=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null)
+        fi
     else
         top=$root
     fi
-    case $ex/ in "$top"/*) ;; *) return 0 ;; esac
+    if [ -n "$top" ]; then
+        case $ex/ in "$top"/*) ;; *) top= ;; esac
+    fi
+    [ -n "$top" ] || { outside "$1"; return 0; }
     rel=${ex#"$top"}
     rel=${rel#/}
     [ -n "$rel" ] || block "$1 is the repository root."

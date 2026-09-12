@@ -51,7 +51,7 @@
       "mayStart": [
         "lead",
         "watcher",
-        "peer-ro"
+        "reviewer"
       ],
       "hidesWords": []
     },
@@ -66,8 +66,7 @@
       ],
       "guards": [
         "lead-guard.sh",
-        "profile-guard.sh",
-        "skill-guard.sh"
+        "profile-guard.sh"
       ],
       "deny": [],
       "readOnly": false,
@@ -96,7 +95,8 @@
       "description": "Lead seat: framing, delegation, review, acceptance",
       "denyIntents": [
         "ide-refactor",
-        "lsp"
+        "lsp",
+        "workspaces"
       ],
       "writes": [
         ".seatworks/records",
@@ -109,10 +109,9 @@
         "CONTEXT.md"
       ],
       "writesAlsoContextFiles": true,
-      "writesRule": "The Lead writes only its own coordination records: the lesson log under .seatworks/records/lessons/, the plans, decision records and review reports under docs/ (or doc/), CONTEXT.md, and the repository instruction files. The rest of .seatworks/ is the Supervisor's, and code and tests go to an Engineer Peer through a brief.",
+      "writesRule": "The Lead writes only its own coordination records: the lesson log under .seatworks/records/lessons/, the plans, decision records and review reports under docs/ (or doc/), CONTEXT.md, and the repository instruction files. The rest of .seatworks/ is the Supervisor's, code and tests go to an Engineer Peer through a brief, and nothing outside this repository is the Lead's to change.",
       "mayStart": [
         "peer",
-        "peer-ro",
         "reviewer"
       ],
       "hidesWords": [
@@ -125,9 +124,7 @@
       "label": "Watcher",
       "prompt": "WATCHER.md",
       "skills": null,
-      "extraSkills": [
-        "paseo"
-      ],
+      "extraSkills": [],
       "guards": [
         "lead-guard.sh",
         "watcher-guard.sh",
@@ -152,7 +149,8 @@
         "file-edit",
         "ide-refactor",
         "lsp",
-        "paseo-write"
+        "paseo-write",
+        "web-search"
       ],
       "writes": [
         ".seatworks/records/attention/?*"
@@ -170,13 +168,15 @@
       "skills": "peer",
       "extraSkills": [],
       "guards": [
-        "peer-guard.ts"
+        "peer-guard.ts",
+        "lead-guard.sh",
+        "shell-guard.ts"
       ],
       "deny": [],
       "readOnly": false,
       "hidesOrchestration": true,
       "required": true,
-      "notes": "The Peer profile for work that writes: the Engineer disposition. Use thinkingOptionId max for a new boundary.",
+      "notes": "Every Peer runs here. An Engineer owns a writable scope; an Architect or Scout gets the same profile with owned scope none, and the brief holds it read-only. Use thinkingOptionId max for a new boundary.",
       "models": [],
       "thinking": "high",
       "description": "Peer seat: implementation, evidence, handoff",
@@ -193,58 +193,21 @@
         "seats"
       ],
       "hidesPaths": [
-        ".seatworks/SUPERVISOR.md",
+        ".seatworks/BRIEF.md",
+        ".seatworks/DIRECTIVE.md",
         ".seatworks/LEAD.md",
-        ".seatworks/WATCHER.md",
         ".seatworks/NOTEBOOK.md",
-        ".seatworks/WORKSPACE_PROTOCOL.md",
-        ".seatworks/skills/lead",
-        ".seatworks/skills/supervisor",
-        ".seatworks/records"
-      ]
-    },
-    {
-      "role": "peer-ro",
-      "harness": "omp",
-      "label": "Peer (read-only)",
-      "prompt": "PEER.md",
-      "skills": "peer",
-      "extraSkills": [],
-      "guards": [
-        "peer-guard.ts"
-      ],
-      "deny": [],
-      "readOnly": true,
-      "hidesOrchestration": true,
-      "required": false,
-      "notes": "The Peer prompt with edits blocked: Architect, Scout, and every council seat. Use thinkingOptionId low for a Scout.",
-      "models": [],
-      "thinking": "high",
-      "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked",
-      "denyIntents": [
-        "code-eval",
-        "file-edit",
-        "ide-refactor",
-        "paseo"
-      ],
-      "mayStart": [],
-      "hidesWords": [
-        "paseo",
-        "supervisor",
-        "watcher",
-        "seat",
-        "seats"
-      ],
-      "hidesPaths": [
         ".seatworks/SUPERVISOR.md",
-        ".seatworks/LEAD.md",
         ".seatworks/WATCHER.md",
-        ".seatworks/NOTEBOOK.md",
         ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/records",
         ".seatworks/skills/lead",
-        ".seatworks/skills/supervisor",
-        ".seatworks/records"
-      ]
+        ".seatworks/skills/supervisor"
+      ],
+      "writes": [
+        "*"
+      ],
+      "writesRule": "A Peer writes inside this repository and nowhere else, and the brief's owned scope narrows it further; scratch files go under $TMPDIR. The kit, the orchestrator config and the seat profiles all sit outside the repository, and each one decides what this seat may do."
     },
     {
       "role": "reviewer",
@@ -253,19 +216,21 @@
       "prompt": "REVIEWER.md",
       "skills": "reviewer",
       "extraSkills": [
-        "peer:proof-audit"
+        "peer:test-proof-debt-audit"
       ],
       "guards": [
-        "peer-guard.ts"
+        "peer-guard.ts",
+        "lead-guard.sh",
+        "shell-guard.ts"
       ],
       "deny": [],
       "readOnly": true,
       "hidesOrchestration": true,
       "required": false,
-      "notes": "Every review of a change: sealed axes, re-reviews, sweep scouts (Reviewer disposition: they report findings), and a council Verifier or Auditor only when the preferences file routes it here, with Machine pass: skip. Read-only; runs Open Code Review.",
+      "notes": "The only read-only seat: every review of a change, and every read-only lane a skill opens (council seats, ultra-review scouts, audit readers). Read-only is enforced, not asked for.",
       "models": [],
       "thinking": "max",
-      "description": "Reviewer seat: read-only code review with Open Code Review",
+      "description": "Reviewer seat: read-only review, council and audit lanes",
       "reviewSeat": true,
       "denyIntents": [
         "code-eval",
@@ -282,15 +247,19 @@
         "seats"
       ],
       "hidesPaths": [
-        ".seatworks/SUPERVISOR.md",
+        ".seatworks/BRIEF.md",
+        ".seatworks/DIRECTIVE.md",
         ".seatworks/LEAD.md",
-        ".seatworks/WATCHER.md",
         ".seatworks/NOTEBOOK.md",
+        ".seatworks/SUPERVISOR.md",
+        ".seatworks/WATCHER.md",
         ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/records",
         ".seatworks/skills/lead",
-        ".seatworks/skills/supervisor",
-        ".seatworks/records"
-      ]
+        ".seatworks/skills/supervisor"
+      ],
+      "writes": [],
+      "writesRule": "A review writes nothing: notes and long output go under $TMPDIR through the shell, and everything else is a finding."
     }
   ],
   "mcpServers": {
@@ -309,39 +278,35 @@
     }
   },
   "mcpServersNote": "the MCP servers every seat gets, spelled the way both harnesses already read one: a map of name to a stdio or http entry. setup-seats.fish writes exactly this map into the file each harness names under mcp.file, at mcp.path, and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code where no guard in this kit can see them, so every seat but the Peer denies them through the ide-refactor intent; the rest of its tools read.",
+  "researchNote": "a seat that cannot find a source cannot check one, so web search and web fetch are left on for every seat but the watcher. On the claude harness both arrive with the harness. On omp, web_search is a built-in tool but its backend needs a key the Human sets themselves in the base provider's environment: one of EXA_API_KEY, BRAVE_API_KEY, TAVILY_API_KEY or PERPLEXITY_API_KEY. Without one the tool is offered and fails, which reads to the seat as a broken tool rather than a missing key, so set it or deny web-search on the omp roles.",
   "promptBudget": 16384,
-  "skillGates": [
-    {
-      "seat": "lead",
-      "skill": "intake",
-      "on": "delegate",
-      "because": "a request takes a lane before it takes a Peer: intake sets the review, council, and rollout rigor"
-    },
-    {
-      "seat": "lead",
-      "skill": "review-orchestration",
-      "on": "review",
-      "because": "a Reviewer brief without its Axis, Machine pass, and Rulings to check fields sends back findings the Lead cannot rule on"
-    },
-    {
-      "seat": "lead",
-      "skill": "integration",
-      "on": "merge",
-      "because": "a merge into the base branch is the one step with no cheap undo"
-    }
-  ],
+  "skillGates": [],
+  "skillGatesNote": "empty on purpose. A gate refuses a named call until its skill is in the transcript, and it was holding three procedures the Lead now carries in its own prompt, where nothing can skip them. Gates also only hold on a harness whose skillLoad.transcriptMatch is set, so they never held for an omp seat at all. The mechanism stays because a future procedure may earn one; a gate needs an observed skip and a because line, not a wish.",
   "denyCommonIntents": [
     "subagents",
     "workflows",
-    "todo-list",
-    "plan-mode",
     "code-eval",
     "agent-cli",
     "git-push",
     "forge-cli"
   ],
-  "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding.",
-  "writesNote": "writes lists the repository paths a seat may change, as shell glob patterns relative to the repository root; harness/common/guards/lead-guard.sh reads them and refuses every other path with writesRule. A seat with no writes entry may change nothing, so a new role fails closed.",
+  "denyBecause": {
+    "subagents": "a seat is already a subagent with its own context and its own guards. A sub-agent started inside one runs under the seat's identity with none of the ownership the brief assigns, and its work reaches the Lead as the seat's own.",
+    "workflows": "a workflow fans out dozens of agents on one approval, and the Human's appetite is set per directive, not per fan-out.",
+    "code-eval": "the eval tool reaches an interpreter the shell guard cannot parse, so every writable path the guards hold would be reachable through it. Bash stays, because the guard reads it.",
+    "agent-cli": "a coding agent started from a shell runs outside Paseo, so no profile, guard, deny list or workspace applies to it.",
+    "git-push": "a push leaves this machine and is the Human's call, per seat prompt and directive.",
+    "forge-cli": "gh writes to the forge: issues, comments, reviews, releases. Outward-facing, and the Human's call.",
+    "ide-refactor": "the IDE index's rename, move and safe-delete tools write code through the IDE, where no guard in this kit can see the write. The rest of that server reads.",
+    "lsp": "the language server's own edit and format actions write the same way, past the guards.",
+    "workspaces": "a Lead that can create workspaces creates worktrees, and a worktree buys isolation only when two writers hold disjoint scopes. Measured instead: three Engineers on one worktree, no isolation and three timelines to reconcile. One writer per scope, in the repository, and the Human makes a worktree when parallel work truly earns one.",
+    "paseo": "a Peer or Reviewer believes it works directly for a human. A control-plane tool would show it the layer above it.",
+    "paseo-write": "the watcher observes; every correction it wants goes to the Supervisor as an attention event, so it needs the read half of the control plane and none of the write half.",
+    "file-edit": "the read-only seats: review, council and audit lanes write nothing but temporary files, through the shell.",
+    "web-search": "the watcher reads activity logs and matches triggers. It has no question the web answers, and it re-reads its prompt every sweep on the smallest model in the kit."
+  },
+  "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding. denyBecause holds one line per intent: an intent with no reason recorded there is a limit nobody can review, and setup refuses it.",
+  "writesNote": "writes lists the repository paths a seat may change, as shell glob patterns relative to the repository root; harness/common/guards/lead-guard.sh reads them and refuses every other path with writesRule. A seat with no writes entry may change nothing, so a new role fails closed. Outside the repository the same guard allows only the seat's temporary directory, because the kit, the Paseo config and the seat profiles all live outside it and each one is a file that decides what the seat may do. A seat whose only pattern is * owns the whole repository, so the guard also lets it edit in place; every narrower seat must leave a diff.",
   "mayStartNote": "mayStart lists the roles a seat may launch; harness/common/guards/profile-guard.sh refuses a create_agent or create_schedule on any other role, so an empty list means the seat starts nothing. With one provider per role the provider name is the role, which is what the guard matches.",
   "hidesWordsNote": "hidesWords lists words a seat must never see: setup-seats.fish refuses the seat prompt and every skill it links if one of them appears as a whole word, case-insensitively. Peers and Reviewers believe they work directly for a human, and a Lead knows only the three message labels, so nothing may name the seat above it.",
   "hidesPathsNote": "hidesPaths lists repository paths a seat may not read, because the project keeps every seat prompt in one directory: a Peer that opened .seatworks/SUPERVISOR.md would learn about the layer above it. setup-seats.fish passes the list to the seat as SEATWORKS_HIDDEN_PATHS and its guard refuses a read there. Anything a Peer needs from those files belongs in its brief or in the repository instruction file.",

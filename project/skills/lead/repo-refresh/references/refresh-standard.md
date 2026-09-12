@@ -1,95 +1,101 @@
-# Repository refresh standard
+# Repository Refresh Standard
 
-This standard defines what "current truth" means for a refreshed repository. `SKILL.md` applies
-it; the repository's `AGENTS.md` can add stricter rules.
+This standard takes the strongest useful lessons from the NOVA cleanup and makes
+them the default baseline for every refreshed repository.
 
-## Current truth
+## Current Truth
 
-- Current documents describe the current system. Git holds the narrative history, so a document
-  that retells history duplicates `git log` and goes stale.
-- Each contract has one canonical owner document. Other documents link to it instead of
+- Current documents describe the current system. Git owns narrative history.
+- One contract has one canonical owner. Other documents link to it rather than
   restating it.
-- One documentation index is enough; don't keep an index of indexes.
-- Keep a folder only when it marks a lasting ownership boundary and holds several current
-  documents.
-- Collections named `archive/`, `completed/`, `review/`, `packet/`, `old/`, or `postmortem/` go
-  by default; `docs/reviews/` follows its entry under Documentation shape. Keep a postmortem
-  only while it is an active operational control or a record the law requires.
-- Move current facts into their owner before deleting the stale container that held them.
-- A document older than a date the Human names is a suspect to examine, not a file to delete.
+- Use one documentation index. Avoid indexes of indexes.
+- Keep folders only when they express a durable ownership boundary with multiple
+  current documents.
+- Do not keep `archive/`, `completed/`, `review/`, `packet/`, `old/`, or
+  `postmortem/` collections by default. Retain a postmortem only when it remains
+  an active operational control or legally required record.
+- Merge current facts before deleting their stale containers.
+- A document modified before a user-supplied date is presumed suspect, not
+  presumed disposable.
 
-## Documentation shape
+## Default Documentation Shape
 
-Prefer the smallest subset of these that fits the repository:
+Prefer the smallest subset that fits:
 
 - `docs/architecture/`: stable system owners and boundaries;
-- `docs/adr/`: architecture decision records;
 - `docs/product/`: externally observable product contracts;
-- `docs/process/`: current development, evidence, release, and operating rules;
-- `docs/exec-plans/active/`: ExecPlans for work in progress, and nothing finished;
-- `docs/reviews/`: review reports until their findings are routed and fixed; a refresh retires
-  each once its durable decisions have reached their owners;
-- `docs/issues/`: the local tracker, if the repository uses one;
-- `docs/templates/`: templates a current tool or workflow consumes.
+- `docs/process/`: current development, evidence, release, and operating law;
+- `docs/plans/`: active decision or execution authority only;
+- `docs/issues/`: the configured local tracker, if one exists;
+- `docs/templates/`: templates that a current tool or workflow consumes.
 
-An equally coherent existing structure stays; don't rename folders to match this list. Merge
-parallel trees (doctrine, contracts, observability, agents, miscellaneous) into the owner above
-that their content belongs to.
+Do not force these names over an equally coherent existing structure. Do remove
+parallel doctrine, contract, observability, project, agent, and miscellaneous
+trees when their content belongs to the canonical owners above.
 
-## Plans and trackers
+## Plans And Trackers
 
-- A plan is temporary execution authority, not a permanent record. Delete it once its durable
-  decisions have reached their owner documents or ADRs.
-- An open issue has a current premise, an owner, a consumer, and a completion condition. An open
-  issue missing one of these is a candidate for closing or rewriting.
-- A closed issue keeps its identity, its dependency fields, and a short closeout or
-  not-pursuing reason. Diaries, review transcripts, stale artifact paths, and links to deleted
-  plans go.
-- A generated roadmap is a view of the tracker, never a second source of truth.
+- Plans are temporary execution authority, not permanent historical records.
+- Delete completed and superseded plans after durable current decisions reach
+  their owner docs.
+- Nonterminal issues must have a current premise, owner, consumer, and completion
+  condition.
+- Terminal issues retain stable identity and dependency fields plus a compact
+  closeout or not-pursuing reason. Delete diaries, review transcripts, stale
+  artifact paths, and deleted-plan references.
+- Generated roadmaps are views, never independent truth.
 
-## Tests and proof
+## Tests And Proof
 
-A mandatory proof route stays only when it names all six of these:
+A retained mandatory proof route must name:
 
-1. the current risk it protects against;
-2. the production behavior or machine contract it checks;
-3. the current consumer of that behavior;
-4. an observation that would fail if the behavior disappeared;
+1. the current risk;
+2. the production behavior or machine contract;
+3. the current consumer;
+4. an observation capable of failing when the behavior disappears;
 5. an oracle independent enough not to reproduce the implementation;
-6. the reason an ordinary, cheaper test isn't enough.
+6. the reason cheaper ordinary testing is insufficient.
 
-Delete, replace, or demote proof machinery that:
+Delete, replace, or demote machinery that:
 
-- checks source text, metadata, filenames, or an artifact's existence as a stand-in for runtime
-  behavior;
-- pins retired values only to prove they are retired;
-- reimplements production logic in a mock, simulator, or validator, and so proves only the copy;
-- runs a broad, expensive workflow to cover a narrow local risk;
-- exists because an old issue demanded evidence, but protects no current contract;
-- repeats what the compiler, type system, linter, framework, or an ordinary unit test already
+- checks source text, metadata, filenames, or artifact presence as a proxy for
+  runtime behavior;
+- pins retired values solely to prove their retirement;
+- reproduces production logic in a mock, simulator, or validator and proves only
+  the replica;
+- runs broad expensive workflows for a narrow local risk;
+- exists because an earlier issue demanded evidence, but protects no current
+  contract;
+- duplicates compiler, type-system, linter, framework, or ordinary unit-test
   guarantees;
-- would still pass if the claimed behavior were removed;
-- produces large retained reports that no current release or operator reads.
+- cannot fail under a credible removal of the claimed behavior;
+- produces large retained reports that no current release or operator consumes.
 
-Keep historical compatibility vectors only while the old value is still a current public,
-security, wire, storage, migration, or machine contract.
+Keep historical compatibility vectors only when the old value remains a current
+public, security, wire, storage, migration, or machine contract.
 
-## Cleanup rules
+## Strong Cleanup Rules
 
-- In a repository with a single owner, delete rather than deprecate.
-- When an internal path is renamed, update its callers instead of leaving a forwarding stub.
-- Remove debt that can be removed now instead of writing it into a debt register.
-- A mechanism earns its place by protecting something current; an old proof that would fail
-  without it isn't a reason to keep it.
-- Add no abstraction whose only purpose is to preserve a stale interface.
-- Empty folders, obsolete taxonomy, dead commands, and reports that can be regenerated count as
-  unfinished cleanup.
-- When unsure, keep the unique current information and delete the redundant narrative around
-  it.
+- Prefer deletion over deprecation inside a single-owner repository.
+- Do not leave forwarding documents for renamed internal paths; update callers.
+- Do not create a debt register to excuse debt that can be removed now.
+- Do not retain a mechanism because deleting it would make an old proof fail.
+- Do not create new abstractions merely to preserve a stale interface.
+- Empty folders, obsolete taxonomy, dead commands, and reproducible reports are
+  cleanup failures, not harmless residue.
+- When uncertain, preserve unique current truth but delete redundant narrative.
 
-## Evidence for the refresh
+## Evidence For The Refresh
 
-The refresh itself needs only the proportionate checks in step 6 of `SKILL.md`, plus a check
-that each canonical owner is unique. A lower line count is worth reporting, but it doesn't show
-correctness: the refresh succeeded only if the repository still carries every current product,
-operational, compatibility, security, and contributor contract.
+The refresh itself needs only proportionate verification:
+
+- references resolve;
+- canonical owners are unique;
+- retained tracker and plan schemas are valid;
+- changed tooling tests pass;
+- generated material matches its producer where tracking is intentional;
+- official acceptance still exercises the contracts affected by cleanup.
+
+Line-count reduction is useful reporting, not proof of correctness. A smaller
+repository is successful only when it retains every current product, operational,
+compatibility, security, and contributor contract.

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Create focused source-review artifacts for external agent or human review."""
+
 from __future__ import annotations
 
 import argparse
@@ -11,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -184,6 +187,48 @@ TEXT_EXTENSIONS = {
     ".xml",
     ".yaml",
     ".yml",
+}
+
+REVIEW_KIND_GUIDANCE = {
+    "general": [
+        "Correctness bugs and behavioral regressions.",
+        "Architecture or ownership drift.",
+        "Performance risks in hot paths.",
+        "Missing contract tests and unclear failure modes.",
+    ],
+    "bughunt": [
+        "Edge cases, state-machine mistakes, off-by-one errors, null or empty inputs, and rollback paths.",
+        "Concurrency, ordering, timeout, cancellation, retry, and resource lifetime bugs.",
+        "Error handling that hides failures or makes recovery ambiguous.",
+    ],
+    "safety": [
+        "Secret, token, cookie, credential, local-path, prompt, response, or account-identifier leakage.",
+        "Permission boundary regressions, especially public, destructive, paid, account-level, or externally visible actions.",
+        "Use of private APIs, hidden endpoints, background scraping, or bypasses of explicit user control.",
+        "Reports or artifacts that should redact sensitive content by default.",
+    ],
+    "parity": [
+        "Cross-language API drift, especially defaults, parameter names, return shapes, exceptions, and error codes.",
+        "Protocol, contract fixture, schema, documentation, and example mismatches.",
+        "Behavior that changed in one surface but not the others.",
+    ],
+    "rust-impact": [
+        "Public Rust API changes, trait invariants, feature flags, cargo metadata, and workspace impact.",
+        "Changed symbols, likely callers, tests, unsafe boundaries, async behavior, lifetimes, and ownership assumptions.",
+        "Whether Rust Impact Summary evidence contradicts or misses anything in the diff.",
+    ],
+    "release": [
+        "Packaging contents, versioning, generated artifacts, docs drift, changelog readiness, and install surfaces.",
+        "Backward compatibility, migration notes, release gates, and missing verification evidence.",
+    ],
+    "architecture": [
+        "Module boundaries, ownership, coupling, data flow, abstractions, and long-term maintainability.",
+        "Places where a simpler local pattern would reduce risk without a broad rewrite.",
+    ],
+    "debug": [
+        "Whether the included evidence establishes root cause instead of only symptoms.",
+        "Missing repro steps, diagnostics, instrumentation, flaky-test risks, and environment assumptions.",
+    ],
 }
 
 
@@ -461,6 +506,8 @@ def all_source_snapshot_candidates(root: Path, args: argparse.Namespace) -> list
         else:
             missing.append(spec)
     for spec in missing:
+        # Keep this as an attribute-like side channel on args so dry-run and
+        # manifest can report it without widening return types everywhere.
         args._source_snapshot_missing.append(spec)
     return sorted(selected)
 
@@ -708,6 +755,11 @@ def source_tree_text(files: list[PackFile]) -> str:
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+def review_kinds(args: argparse.Namespace) -> list[str]:
+    kinds = args.review_kind or ["general"]
+    return list(dict.fromkeys(kinds))
+
+
 def manifest(
     args: argparse.Namespace,
     root: Path,
@@ -724,6 +776,7 @@ def manifest(
         f"- Generated UTC: `{datetime.now(timezone.utc).isoformat(timespec='seconds')}`",
         f"- Root: `{root}`",
         f"- Profiles: `{', '.join(args.profile or ['generic'])}`",
+        f"- Review kinds: `{', '.join(review_kinds(args))}`",
         f"- Focus: `{', '.join(args.focus) if args.focus else '<all>'}`",
         f"- Task: `{args.task or '<unspecified>'}`",
         f"- Include tests: `{not args.exclude_tests}`",
@@ -758,10 +811,53 @@ def manifest(
     return "\n".join(lines)
 
 
-def prompt_text(args: argparse.Namespace) -> str:
-    if not args.prompt_file:
-        return ""
-    return Path(args.prompt_file).read_text(encoding="utf-8")
+def prompt_template(args: argparse.Namespace) -> str:
+    profiles = ", ".join(args.profile or ["generic"])
+    focus = ", ".join(args.focus) if args.focus else "the included source"
+    kinds = review_kinds(args)
+    guidance_lines: list[str] = []
+    for kind in kinds:
+        guidance_lines.append(f"{kind}:")
+        guidance_lines.extend(f"- {item}" for item in REVIEW_KIND_GUIDANCE[kind])
+    guidance = "\n".join(guidance_lines)
+    base = textwrap.dedent(
+        f"""\
+        You are reviewing an attached source review pack.
+
+        Focus: {focus}
+        Profiles: {profiles}
+        Review kinds: {", ".join(kinds)}
+
+        Read in this order:
+        1. Review Pack Manifest / MANIFEST.md.
+        2. Reviewer Prompt / PROMPT.md.
+        3. Git Diff / DIFF.patch, if present.
+        4. Rust Impact Summary and Source Excerpts, if present.
+        5. Source Files.
+
+        Review priorities:
+        {textwrap.indent(guidance, "        ").lstrip()}
+
+        Response format:
+        - Start with findings, ordered by severity.
+        - For each finding include severity (P0, P1, P2, or P3), file:line, issue, why it matters, and a concrete fix or test.
+        - Ground every finding in paths and line references from the pack.
+        - Separate missing-context requests from findings, and ask for exact files or ranges.
+        - If there are no findings, say that clearly and list residual risks or test gaps.
+
+        Constraints:
+        - Do not suggest broad rewrites unless a concrete issue requires one.
+        - Do not assume repository context outside this pack.
+        - Treat omitted files as unavailable unless you request them explicitly.
+        """
+    )
+    if args.task:
+        base += f"\nTask:\n{args.task}\n"
+    if args.question:
+        base += "\nSpecific review questions:\n"
+        for index, question in enumerate(args.question, start=1):
+            base += f"{index}. {question}\n"
+    return base
 
 
 def fence_for(text: str) -> str:
@@ -1099,10 +1195,11 @@ def render_markdown_pack(
         "",
         source_tree(files, ranges),
         "",
+        "## Reviewer Prompt",
+        "",
+        prompt_template(args),
+        "",
     ]
-    prompt = prompt_text(args)
-    if prompt:
-        sections.extend(["## Reviewer Prompt", "", prompt, ""])
     if should_include_diff(args):
         diff = git_diff_text(root)
         if diff:
@@ -1166,7 +1263,7 @@ def write_summary(
     summary = {
         "root": str(root),
         "profiles": args.profile or ["generic"],
-        "prompt_file": args.prompt_file,
+        "review_kinds": review_kinds(args),
         "focus": args.focus,
         "include": args.include,
         "task": args.task,
@@ -1200,12 +1297,6 @@ def write_diff(stage: Path, root: Path) -> None:
         (stage / "DIFF.patch").write_text(content, encoding="utf-8", errors="replace")
 
 
-def write_prompt(stage: Path, args: argparse.Namespace) -> None:
-    text = prompt_text(args)
-    if text:
-        (stage / "PROMPT.md").write_text(text, encoding="utf-8")
-
-
 def write_git_context(stage: Path, root: Path) -> None:
     if not is_git_repo(root):
         return
@@ -1236,6 +1327,7 @@ def source_snapshot_manifest(
     branch = git_output(root, ["branch", "--show-current"]).strip() if is_git_repo(root) else ""
     source_bytes = sum(item.size for item in files)
     include_diff = should_include_diff(args)
+    include_prompt = should_include_prompt(args)
     lines = [
         "# MANIFEST",
         "",
@@ -1245,7 +1337,7 @@ def source_snapshot_manifest(
         f"- Format: `{args.format}`",
         f"- Tests: `{test_mode(args)}`",
         f"- Include diff: `{include_diff}`",
-        f"- Prompt file: `{args.prompt_file or '<none>'}`",
+        f"- Include prompt: `{include_prompt}`",
         f"- Source roots: `{', '.join(args.source_root) if args.source_root else '<focus/include/default>'}`",
         f"- Docs: `{', '.join(args.doc) if args.doc else '<none>'}`",
         f"- File count: `{len(files)}`",
@@ -1271,8 +1363,8 @@ def source_snapshot_manifest(
     )
     if include_diff:
         lines.append("- `DIFF.patch`: git diff, explicitly requested.")
-    if args.prompt_file:
-        lines.append("- `PROMPT.md`: the reviewer prompt passed with `--prompt-file`.")
+    if include_prompt:
+        lines.append("- `PROMPT.md`: reviewer prompt, explicitly requested.")
     lines.extend(["", "## Included Files", ""])
     lines.extend(source_tree_text(files).splitlines())
     lines.extend(["", "## Skipped Files", ""])
@@ -1287,6 +1379,12 @@ def source_snapshot_manifest(
 def should_include_diff(args: argparse.Namespace) -> bool:
     if args.include_diff is not None:
         return bool(args.include_diff)
+    return args.shape != "source-snapshot"
+
+
+def should_include_prompt(args: argparse.Namespace) -> bool:
+    if args.include_prompt is not None:
+        return bool(args.include_prompt)
     return args.shape != "source-snapshot"
 
 
@@ -1349,8 +1447,6 @@ def create(args: argparse.Namespace) -> int:
     if not root.exists():
         raise SystemExit(f"root does not exist: {root}")
     args._source_snapshot_missing = []
-    if args.prompt_file and not Path(args.prompt_file).is_file():
-        raise SystemExit(f"prompt file does not exist: {args.prompt_file}")
     if args.shape == "source-snapshot":
         return create_source_snapshot(args, root)
     files, skipped = select_files(args, root)
@@ -1361,7 +1457,7 @@ def create(args: argparse.Namespace) -> int:
         print(json.dumps({
             "root": str(root),
             "profiles": args.profile or ["generic"],
-            "prompt_file": args.prompt_file,
+            "review_kinds": review_kinds(args),
             "task": args.task,
             "file_count": len(files),
             "range_count": len(ranges),
@@ -1382,7 +1478,7 @@ def create(args: argparse.Namespace) -> int:
             "format": args.format,
             "file_count": len(files),
             "range_count": len(ranges),
-            "prompt_file": args.prompt_file,
+            "review_kinds": review_kinds(args),
             "source_bytes": source_bytes,
             "estimated_tokens": source_bytes // 4,
         }, indent=2))
@@ -1395,7 +1491,8 @@ def create(args: argparse.Namespace) -> int:
             write_pack_file(stage, root, item, args.exclude_tests)
         (stage / "MANIFEST.md").write_text(manifest(args, root, files, ranges, skipped), encoding="utf-8")
         (stage / "SOURCE_TREE.md").write_text(source_tree(files, ranges), encoding="utf-8")
-        write_prompt(stage, args)
+        if should_include_prompt(args):
+            (stage / "PROMPT.md").write_text(prompt_template(args), encoding="utf-8")
         write_summary(stage, args, root, files, ranges, skipped)
         write_excerpts(stage, ranges)
         write_rust_impact(stage, args, root)
@@ -1413,7 +1510,7 @@ def create(args: argparse.Namespace) -> int:
             "format": args.format,
             "file_count": len(files),
             "range_count": len(ranges),
-            "prompt_file": args.prompt_file,
+            "review_kinds": review_kinds(args),
             "source_bytes": source_bytes,
             "estimated_tokens": source_bytes // 4,
         }, indent=2))
@@ -1437,7 +1534,7 @@ def create_source_snapshot(args: argparse.Namespace, root: Path) -> int:
             "docs": args.doc,
             "include_tests": args.include_test,
             "include_diff": should_include_diff(args),
-            "prompt_file": args.prompt_file,
+            "include_prompt": should_include_prompt(args),
             "file_count": len(files),
             "source_bytes": source_bytes,
             "estimated_tokens": source_bytes // 4,
@@ -1462,7 +1559,8 @@ def create_source_snapshot(args: argparse.Namespace, root: Path) -> int:
             encoding="utf-8",
         )
         write_git_context(stage, root)
-        write_prompt(stage, args)
+        if should_include_prompt(args):
+            (stage / "PROMPT.md").write_text(prompt_template(args), encoding="utf-8")
         if should_include_diff(args):
             write_diff(stage, root)
         if args.format == "dir":
@@ -1481,7 +1579,7 @@ def create_source_snapshot(args: argparse.Namespace, root: Path) -> int:
             "source_bytes": source_bytes,
             "estimated_tokens": source_bytes // 4,
             "include_diff": should_include_diff(args),
-            "prompt_file": args.prompt_file,
+            "include_prompt": should_include_prompt(args),
             "missing": args._source_snapshot_missing,
             "skipped_count": len(skipped),
         }, indent=2))
@@ -1495,7 +1593,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
     create_parser = sub.add_parser("create", help="create a source review pack")
     create_parser.add_argument("--root", default=".", help="repository root, default: cwd")
-    create_parser.add_argument("--shape", choices=["review-pack", "source-snapshot"], default="review-pack", help="artifact shape; source-snapshot writes repo-relative files and keeps the diff out unless requested")
+    create_parser.add_argument("--shape", choices=["review-pack", "source-snapshot"], default="review-pack", help="artifact shape; source-snapshot writes repo-relative files and keeps prompt/diff out unless requested")
     create_parser.add_argument("--profile", action="append", choices=sorted(PROFILE_INCLUDES), help="language/profile preset; can repeat")
     create_parser.add_argument("--focus", action="append", default=[], help="path or glob to focus; can repeat")
     create_parser.add_argument("--include", action="append", default=[], help="extra path or glob to include; can repeat")
@@ -1506,13 +1604,19 @@ def build_parser() -> argparse.ArgumentParser:
     create_parser.add_argument("--include-test", action="append", default=[], help="test path/glob to keep when --tests targeted; can repeat")
     create_parser.add_argument("--range", action="append", default=[], help="include a numbered source excerpt '<path>:<start>-<end>'; can repeat")
     create_parser.add_argument("--only-ranges", action="store_true", help="skip normal file selection and include only explicit --range excerpts")
-    create_parser.add_argument("--task", help="review task or brief to record in the manifest")
+    create_parser.add_argument("--task", help="review task or brief to include in the manifest and reviewer prompt")
     create_parser.add_argument("--question", action="append", default=[], help="specific reviewer question; can repeat")
+    create_parser.add_argument(
+        "--review-kind",
+        action="append",
+        choices=sorted(REVIEW_KIND_GUIDANCE),
+        help="standard prompt profile for the reviewer; can repeat",
+    )
     create_parser.add_argument("--rust-impact", action="store_true", help="include Rust git-diff symbol impact and cargo metadata summary")
     create_parser.add_argument("--rust-analyzer", action="store_true", help="try to include rust-analyzer version and diagnostics output")
     create_parser.add_argument("--exclude-tests", action="store_true", help="exclude test files and strip Rust cfg(test) blocks")
     create_parser.add_argument("--include-diff", action=argparse.BooleanOptionalAction, default=None, help="include git diff when present; default on for review-pack and off for source-snapshot")
-    create_parser.add_argument("--prompt-file", help="copy this file into the artifact as PROMPT.md")
+    create_parser.add_argument("--include-prompt", action=argparse.BooleanOptionalAction, default=None, help="include generated PROMPT.md in non-md artifacts; default on for review-pack and off for source-snapshot")
     create_parser.add_argument("--max-bytes", type=int, default=5_000_000, help="source byte budget")
     create_parser.add_argument("--max-file-bytes", type=int, default=300_000, help="per-file byte budget")
     create_parser.add_argument("--format", choices=["md", "zip", "dir"], default="md")

@@ -1,84 +1,56 @@
 # Council routing
 
-Which profile and thinking level each council function runs on. Read it when you set up a
-council's seats, or when `create_agent` rejects a value.
+Every council seat runs on the read-only Reviewer profile, provider `reviewer`. It is the only
+profile whose guard blocks edits and repository-changing git, so it is the only one a sealed seat
+may use. Never route a seat to the Peer profile, which can write, or to your own Lead profile,
+whose prompt would turn the seat into a second Lead.
 
-## Profiles, not models
+Copy the profile's provider, model and `modeId` exactly as `list_profiles` shows them. What
+routing chooses is the thinking level, and the Challenger's model.
 
-Launch every seat from a profile `list_profiles` shows, copying its provider and model into
-`provider: "PROVIDER/MODEL"` and its `modeId` and `thinkingOptionId` into `settings`. The profile
-guard blocks any launch whose model or mode differs from its profile, and any launch on a
-provider with no profile, so never pick a model outside a profile. A profile that lists no
-`modeId` belongs to a harness with no modes: pass none there, and the guard tells you so.
+## Thinking level per function
 
-- Every seat (Independent, Challenger, Specialist, Verifier, Auditor) launches from the
-  read-only Peer profile, provider `peer-ro`: it loads the Peer prompt and blocks every write.
-  Give it the disposition Architect.
-- Never route a seat to `peer`, which can write, or to your own Lead provider, whose profile
-  loads the Lead prompt and would turn the seat into a second Lead.
-- A Verifier or Auditor that the preferences file routes to `reviewer` loads the Reviewer
-  prompt, which expects a change review: give it the disposition Reviewer, and add
-  `Target: SNAPSHOT_SHA`, `Machine pass: skip`, and the Verifier or audit shape from
-  `report-format.md` to its prompt, asking for that shape instead of findings by axis.
-
-## The preferences file
+| Function | Preference key | Fallback | Default | Policy |
+|---|---|---|---|---|
+| Independent | `council.reasoning` | none | `high` | the strong reasoning seat |
+| Premise Challenger | `council.challengerReasoning` | `council.reasoning` | `high` | prefer a model from another strong family |
+| High-risk reasoning | `council.highRiskReasoning` | `council.reasoning` | `max` | the strongest seat offered |
+| Specialist | `council.specialist` | `council.reasoning` | `high` | only when domain semantics matter |
+| Verifier | `council.verifier` | none | `low` | cheap, bounded coverage |
+| Deep verifier | `council.deepVerifier` | `council.reasoning` | `high` | source meaning takes judgment |
+| Auditor | `council.auditor` | `council.verifier` | `medium` | bounded audit of the draft |
+| Deep auditor | `council.deepAuditor` | `council.deepVerifier`, then `council.reasoning` | `high` | semantic or high-risk audit |
 
 Read `~/.paseo/orchestration-preferences.json` once per council, if it exists, and use its
-`council` section. Each entry may set `provider`, `model`, and `thinking`; every provider and
-model pair must match a profile, or the guard blocks the launch:
-
-```json
-{
-  "council": {
-    "reasoning":           { "provider": "peer-ro", "model": "PEER_MODEL",         "thinking": "high" },
-    "challengerReasoning": { "provider": "peer-ro", "model": "OTHER_FAMILY_MODEL", "thinking": "high" },
-    "highRiskReasoning":   { "provider": "peer-ro", "model": "STRONGEST_MODEL",    "thinking": "xhigh" },
-    "verifier":            { "provider": "peer-ro", "model": "PEER_MODEL",         "thinking": "low" },
-    "auditor":             { "provider": "peer-ro", "model": "PEER_MODEL",         "thinking": "medium" }
-  }
-}
-```
-
-Replace `PEER_MODEL`, `OTHER_FAMILY_MODEL`, and `STRONGEST_MODEL` with the models of profiles
-`list_profiles` shows for that provider, spelled exactly as it shows them; with no `model`, use
-the profile's.
-
-A provider belongs to a role, not to a project, and a seat's project is the workspace it starts
-in: use only entries naming `peer-ro` or `reviewer`, and take the fallback below for any other
-provider an entry names.
-
-## Functions and fallbacks
-
-| Function | Key | Falls back to | Without the file | Policy |
-|---|---|---|---|---|
-| Independent | `reasoning` | none | `peer-ro`, `high` | strong reasoning seat |
-| Challenger | `challengerReasoning` | `reasoning` | `peer-ro` on another family if a profile has one, `high` | a different strong model family from the Independent |
-| High-risk Independent | `highRiskReasoning` | `reasoning` | `peer-ro`, `xhigh` if offered, else `high` | the strongest configured seat |
-| Specialist | `specialist` | `reasoning` | `peer-ro`, `high` | only when domain semantics matter |
-| Verifier | `verifier` | none | `peer-ro`, `low` | cheap, bounded coverage |
-| Deep verifier | `deepVerifier` | `reasoning` | `peer-ro`, `high` | when reading the source takes judgment |
-| Auditor | `auditor` | `verifier` | `peer-ro`, `medium` | bounded audit of the draft verdict |
-| Deep auditor | `deepAuditor` | `deepVerifier`, then `reasoning` | `peer-ro`, `high` | semantic or high-risk audit |
-
-Check a model's thinking levels with `list_models` before passing `xhigh`. If `create_agent`
-rejects a value, pick the nearest one the profile allows and name the substitution in the
-verdict's limitations.
+`council` section. An entry may set `model` and `thinking`; ignore any `provider` it names, since
+a read-only seat has one profile. A `model` must be one the Reviewer profile offers, or the
+profile guard refuses the launch. Check a model's thinking levels with `list_models` before
+passing `max`, and if `create_agent` rejects a value, take the nearest one the profile allows and
+name the substitution in the verdict's limitations.
 
 ## Independence
 
-Sealed prompts remove contamination, not correlation: seats on the same model share its blind
-spots, so their agreement is weak evidence even when neither saw the other's report. Put the
-Challenger on a read-only Peer profile whose model is from a different strong family than the
-Independent's, at `high` thinking or more; a cheap model picked only for its family trades away
-the Challenger's depth. When `list_profiles` shows no such profile, use the Independent's and
-list "same-family Challenger" under the verdict's limitations; the Human can add a profile
-before the next council.
+Sealed prompts remove contamination, not correlation: two seats on the same model share its blind
+spots, so their agreement is weak evidence even when neither saw the other's report. Giving the
+Challenger a different strong model family is the cheapest way to make `debate` stronger than
+`lens`. Do not route the Challenger to a cheap coverage model just to differ in family; when the
+profile offers no second strong family, use the Independent's model and list "same-family
+Challenger" under the verdict's limitations. In the `high-risk` tier only the Independent moves to
+`highRiskReasoning`; the Challenger stays at `high` or stronger so the family split survives.
 
-Your adjudication already crosses families (the council seats' harness and model family are
-usually not yours). That protects the verdict from your priors, but not the seats from sharing
-theirs. In the high-risk
-tier, only the Independent moves to `highRiskReasoning`; the Challenger stays on
-`challengerReasoning` at `high` or more, so the family split survives.
+Your own adjudication already crosses families, since the council seats' harness and model are
+usually not yours. That protects the verdict from your priors, not the seats from sharing theirs.
 
-Seat count never turns into decision weight, and a cheap worker never produces the binding
-verdict.
+## Topology is not routing
+
+Council seats are ordinary agents in your own workspace: leave `workspaceId` out, and never open
+a worktree for a council. The Human controls your model and reasoning effort; routing neither
+checks nor changes it, and never starts a replacement Lead.
+
+```text
+Cheap seats increase coverage.
+Strong seats deliberate.
+The Lead adjudicates.
+```
+
+Seat count never becomes decision weight, and a cheap seat never produces the binding verdict.

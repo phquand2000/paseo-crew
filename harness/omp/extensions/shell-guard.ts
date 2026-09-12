@@ -13,6 +13,7 @@ const TOOL_NAMES: Record<string, string> = {
   write: "Write",
   edit: "Edit",
   notebook: "NotebookEdit",
+  ast_edit: "Write",
 };
 
 const EDIT_SECTION = /^\[([^\]\n#]+)#[0-9A-Fa-f]{4}\]/gm;
@@ -43,6 +44,7 @@ export function hookInputs(toolName: string, input: Record<string, unknown>, cwd
     case "bash":
       return [frame({ command: String(input.command ?? "") })];
     case "write":
+    case "ast_edit":
       return [frame({ file_path: String(input.path ?? "") })];
     case "notebook":
       return [frame({ notebook_path: String(input.path ?? "") })];

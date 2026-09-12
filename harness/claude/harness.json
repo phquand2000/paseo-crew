@@ -110,13 +110,18 @@
         "mcp__intellij-index__ide_refactor_rename",
         "mcp__intellij-index__ide_move_file",
         "mcp__intellij-index__ide_refactor_safe_delete"
+      ],
+      "workspaces": [
+        "mcp__paseo__create_workspace",
+        "mcp__paseo__archive_workspace",
+        "mcp__paseo__rename_workspace"
       ]
     },
     "enforcedByGuard": [],
     "retired": [
       "SlashCommand"
     ],
-    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool \u2014 check for typos`. Skills load through the Skill tool, which must stay allowed.",
+    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool — check for typos`. Skills load through the Skill tool, which must stay allowed.",
     "absent": [
       "code-eval"
     ],

@@ -737,6 +737,15 @@ for file in $kit/project/*.md (find $kit/project/skills -name '*.md' 2>/dev/null
     and fail (string replace -- "$kit/" '' $file)" contains an HTML comment. Every .md in this kit loads unchanged on every harness; put maintainer notes in WRITING_GUIDE.md."
 end
 
+for intent in (begin
+        seats_get '.denyCommonIntents[]?'
+        seats_get '.seats[].denyIntents[]?'
+    end | sort -u)
+    set -l because (seats_get --arg i $intent '.denyBecause[$i] // empty' | string collect)
+    test -n "$because"
+    or fail "seats.json denies '$intent' but records no reason for it under denyBecause. A limit nobody can review is a limit nobody can drop: write one line saying what it prevents."
+end
+
 for id in (seats_get '[.seats[].harness] | unique | .[]')
     set -l manifest (harness_file $id)
     if not test -f $manifest

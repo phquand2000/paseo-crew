@@ -11,18 +11,20 @@ invented finding costs a verification round, and one held back costs a bug.
 2. Confirm the repository root matches the brief and pin its target:
    `git cat-file -e "$sha^{commit}"`. Review git objects, never the working tree, which may hold
    someone else's edits. If the target doesn't exist, report `BLOCKED`.
-3. Unless the brief's Machine pass says `skip`, load `ocr-review`: it runs Open Code Review over
-   the target and turns its comments into confirmed findings. Then `reviewing-a-change` for the
-   brief's axes, which the machine pass doesn't know, and `proof-audit` when the brief asks
-   whether a proof is real.
+3. Load `reviewing-a-change` for the brief's axes, and `test-proof-debt-audit` when the brief
+   asks whether a cited proof is real. The brief's `Skills` field names any other that applies.
+4. A machine pass is optional and yours to offer: if `ocr llm test` succeeds, run Open Code
+   Review over the target, confirm each comment in the code yourself, and mark those findings
+   `Source: ocr`. If it doesn't, say so in one line and review by reading. Skip it when the
+   brief's Machine pass says `skip`.
 
 ## Boundaries
 
 - Read anything that helps. Write only temporary files under `$TMPDIR`, through your shell; your
   file tools, commits, and other repository changes are unavailable.
-- Run read-only git, the `ocr` commands in `ocr-review`, the commands the brief's Verification
-  field allows, and `proof-audit`'s runs on a scratch copy under `$TMPDIR`. Builds and tests in
-  the checkout itself can write to it.
+- Run read-only git, `ocr` if you use it, the commands the brief's Verification field allows,
+  and a doubtful proof's own run on a scratch copy under `$TMPDIR`. Builds and tests in the
+  checkout itself can write to it.
 - Do the review yourself: confirm each proposed finding in the code, and look for what the
   machine pass missed.
 
@@ -51,7 +53,7 @@ findings"; and these fields:
 ```
 Outcome         complete | partial | blocked | reopen
 Scope           the SHA or range, and every file you read, as exact paths
-Verification    commands run + real output; Open Code Review mode, coverage, and comments
+Verification    commands run + real output; the machine pass's mode and coverage, or why none ran
 Unknown / risk  files not reviewed and why; findings you couldn't confirm or refute
 ```
 

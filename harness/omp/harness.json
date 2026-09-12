@@ -129,6 +129,11 @@
         "mcp__intellij_index_ide_refactor_rename",
         "mcp__intellij_index_ide_move_file",
         "mcp__intellij_index_ide_refactor_safe_delete"
+      ],
+      "workspaces": [
+        "create_workspace",
+        "archive_workspace",
+        "rename_workspace"
       ]
     },
     "enforcedByGuard": [
@@ -140,7 +145,7 @@
       "workflows"
     ],
     "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Everything else a seat asks for and this manifest does not map is reported as unenforced.",
-    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start; Paseo's host tools arrive after that and cannot be dropped, so a seat sees them and is refused when it calls one. eval is denied on every seat because it reaches a shell the guard extension does not parse. plan-mode stays unenforced: omp's plan mode is a session mode, not a tool.",
+    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start; Paseo's host tools arrive after that and cannot be dropped, so a seat sees them and is refused when it calls one. eval is denied on every seat because it reaches a shell the guard extension does not parse. todo-list and plan-mode are mapped but no role denies them: a coding agent keeps its task list, and omp's plan mode is a session mode rather than a tool, so a deny there would report unenforced anyway.",
     "mcpNamesNote": "the MCP tool names above were read off a running seat, not guessed: omp registers mcp__<server with - as _>_<tool>, so intellij-index/ide_refactor_rename becomes mcp__intellij_index_ide_refactor_rename and semble/search becomes mcp__semble_search."
   },
   "skillLoad": {

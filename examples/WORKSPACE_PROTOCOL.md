@@ -19,8 +19,8 @@ reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
 `setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
 repository, and fills in `PEER_MODEL` from `--model` or the Peer harness's
-`provider.defaultModel`. For the rest, ask the Supervisor to run its `workspace-protocol` skill,
-which interviews you.
+`provider.defaultModel`. Fill in the rest yourself, or delete a line to keep the Lead's default:
+the file is yours, and every line in it is a rule the Lead cannot see the reason for.
 
 ````md
 # Workspace protocol
@@ -39,21 +39,23 @@ Level: STRICTNESS_LEVEL
 ## Topology
 
 - Maximum parallel writing Peers: MAX_PARALLEL_WRITERS
-- Worktree location and naming: WORKTREE_RULE
 - Test lane: TEST_LANE_RULE
+
+Every Peer works in the Lead's own checkout. The Lead cannot create a workspace, so parallel
+writers above one need a worktree the Human makes.
 
 ## Spawn recipes
 
-Launch every agent from its profile in `list_profiles`, copying the profile's model, mode, and
-thinking: Engineers from the Peer profile (`peer/PEER_MODEL`), Architects and Scouts from the
-read-only Peer profile, Reviewers from the Reviewer profile. The profile notes say when to raise
-thinking.
+Launch every agent from its profile in `list_profiles`, copying the profile's model, `modeId`,
+and thinking exactly: Engineers from the Peer profile (`peer/PEER_MODEL`), Architects and Scouts
+from the same profile with `Owned scope none`, Reviewers from the Reviewer profile. The profile
+notes say when to raise thinking.
 
 ## Review lanes
 
-- A material review question gets REVIEW_LANE_COUNT Reviewers, briefed through
-  `review-orchestration`: one axis each, never cloned prompts. One may run on a profile with a
-  different model family; it adds blind spots, not a vote, and the Lead still issues one ruling.
+- A material review question gets REVIEW_LANE_COUNT Reviewers: one axis each, never cloned
+  prompts. One may run on a different model family; it adds blind spots, not a vote, and the Lead
+  still issues one ruling.
 
 ## Escalation
 
@@ -68,9 +70,7 @@ RULES
 Replace the following:
 
 - `STRICTNESS_LEVEL`: `loose`, `standard`, or `strict`.
-- `MAX_PARALLEL_WRITERS`: the most Peers that may write at once, for example `2`.
-- `WORKTREE_RULE`: where worktrees go and how they are named, for example
-  `../REPO-wt/TASK_ID`.
+- `MAX_PARALLEL_WRITERS`: the most Peers that may write at once, for example `1`.
 - `TEST_LANE_RULE`: who may run the full suite, hold a port, or use the test database, and
   when.
 - `PEER_MODEL`: the model of the Peer profile, spelled exactly as `list_models` shows it for
