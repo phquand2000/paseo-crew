@@ -5,25 +5,28 @@ description: "Runs a Lead-only council on a contested, hard-to-reverse decision:
 
 # Council
 
-Use this skill to get sealed, independent judgments on one decision from fresh Peers and turn
-them into one binding verdict that you write and can defend. It produces the verdict in your
-reply and the records in Phase 9.
+Get sealed, independent judgments on one decision from fresh Peers, and turn them into one
+binding verdict you write and can defend. The verdict goes in your reply; the records go in
+Phase 9.
 
-Here a seat is one council member: a Peer created for this case alone. Keep the word out of the
-prompts seats read; Peers know only the Lead that briefs them.
+A council member is a Peer created for this case alone. Keep that framing out of the prompts
+seats read: a Peer knows only the Lead that briefs it.
+
+`references/` and `scripts/` paths are relative to this skill's directory, shown below as
+`SKILL_DIR`. Run `python3 SKILL_DIR/scripts/case.py --help` for its four subcommands.
 
 ## Guard
 
-Run this only as the Lead: your seat prompt makes you Lead of one project, and you have the
-`create_agent` tool. Otherwise, reply that the council runs in the Lead's session, and stop. A
-seat never starts another council. When the decision is one reserved for the Human, the output
-is a recommendation to the Human, and the verdict says so.
+- Run this only as the Lead, holding the `create_agent` tool. Otherwise reply that the council
+  runs in the Lead's session, and stop.
+- A seat never starts another council.
+- When the decision is reserved for the Human, the output is a recommendation, and the verdict
+  says so.
 
 ## Choose a tier
 
-Answering from a few reads, with no council, is the default, not a tier. Choose the tier in one
-sentence; it needs no analysis to justify it, then announce each phase below in one short line as
-you enter it:
+Answering from a few reads is the default, not a tier. Name the tier in one sentence, with no
+analysis to justify it, then announce each phase in one short line as you enter it.
 
 | Tier | Seats |
 |---|---|
@@ -32,48 +35,41 @@ you enter it:
 | `debate-with-proof` | `debate`, plus Verifiers where facts are disputed, plus a draft-verdict audit by default |
 | `high-risk` | an Independent on the high-risk routing and a Challenger, optionally one Specialist, Verifiers as needed, and a mandatory audit; for high-risk-lane decisions that can't be undone |
 
-## Routing
-
-When you set up the first seat, read `references/routing.md` (relative to this skill's
-directory): it resolves each seat's profile and thinking, and says when the verdict must list a
-same-family Challenger.
+Read `references/routing.md` when you set up the first seat: it resolves each seat's profile and
+thinking, and says when the verdict must list a same-family Challenger.
 
 ## Phase 1: neutral brief
 
-Write one compact, self-contained brief from the request given with this skill:
+Print the field skeleton, then fill it in as one compact, self-contained brief from the request
+given with this skill:
 
-```text
-CASE_ID
-ORIGINAL REQUEST
-DECISION QUESTION
-OBSERVABLE OUTCOME
-AUTHORITATIVE FACTS
-DIRECT OBSERVATIONS
-UNVERIFIED CLAIMS
-UNKNOWNS
-HARD CONSTRAINTS
-PREFERENCES / PRIORITY ORDER
-AUTHORIZED SCOPE AND SOURCES
-SNAPSHOT
-REQUESTED OUTPUT
-CASE OUTPUT CONTRACT
+```bash
+python3 SKILL_DIR/scripts/case.py brief CASE_ID
 ```
 
-- ORIGINAL REQUEST is the request word for word; DECISION QUESTION may clarify it, but never
-  narrows or replaces it.
-- AUTHORITATIVE FACTS holds only Human decisions and verified facts, each with provenance.
-  DIRECT OBSERVATIONS holds what a source shows, with its exact location. Every other premise,
-  yours included, goes under UNVERIFIED CLAIMS.
-- Keep HARD CONSTRAINTS apart from PREFERENCES, so a seat can tell what it may trade away.
-- Fit the CASE OUTPUT CONTRACT to the case's natural units: a finding ledger for an audit,
-  options and trade-offs for a design choice, one row per gate for a plan review, a timeline and
-  causal model for an incident (patterns in `references/report-format.md`). Require direct
-  evidence, labeled inference, material unknowns, falsifiers where relevant, and an actionable
-  conclusion; leave out headings that would only produce filler.
-- Record a SNAPSHOT when the source can change: `git rev-parse HEAD`, plus, if decision-relevant
-  files are uncommitted, a patch outside the repository
-  (`git diff -- PATHS > "${TMPDIR:-/tmp}/council-CASE_ID.patch"`). A hash detects drift but
-  doesn't preserve the bytes; the patch does.
+| Field | Rule |
+|---|---|
+| ORIGINAL REQUEST | the request word for word |
+| DECISION QUESTION | may clarify the request, never narrow or replace it |
+| AUTHORITATIVE FACTS | Human decisions and verified facts only, each with its provenance |
+| DIRECT OBSERVATIONS | what a source shows, with its exact location |
+| UNVERIFIED CLAIMS | every other premise, yours included |
+| HARD CONSTRAINTS | kept apart from PREFERENCES, so a seat can tell what it may trade away |
+| CASE OUTPUT CONTRACT | the case's natural units (below) |
+
+Fit the output contract to the case: a finding ledger for an audit, options and trade-offs for a
+design choice, one row per gate for a plan review, a timeline and causal model for an incident
+(patterns in `references/report-format.md`). Require direct evidence, labeled inference, material
+unknowns, falsifiers where relevant, and an actionable conclusion. Leave out headings that would
+only produce filler.
+
+Record the SNAPSHOT when the source can change. This pins HEAD and preserves the bytes of any
+uncommitted authorized path outside the repository, because a hash detects drift but does not
+preserve what drifted:
+
+```bash
+python3 SKILL_DIR/scripts/case.py snapshot CASE_ID --root REPO_ROOT --path PATH
+```
 
 **Framing lint.** Revise the brief until each answer is yes:
 
@@ -111,55 +107,54 @@ create_agent         as in the decompose skill's step 9
     council.round:   "1"
 ```
 
-Seats work read-only in your workspace: pass no `workspaceId` and create no worktree. Leave
-`notifyOnFinish` at its default `true` for every seat, Verifier, and Auditor. Create seats only
-with `create_agent`, never a shell `paseo run`: a shell launch isn't your subagent, so no
-completion notification reaches you, and a label naming you as parent doesn't change that. If
-`create_agent` is unavailable or rejects the launch, stop before any seat exists and report the
-blocker. Keep every returned agent ID, report the seats in one line, then wait for the
-notifications instead of polling.
+- Seats work read-only in your workspace: pass no `workspaceId`, and create no worktree.
+- Leave `notifyOnFinish` at its default `true` for every seat, Verifier, and Auditor.
+- Use `create_agent`, never a shell `paseo run`: a shell launch isn't your subagent, so no
+  completion notification reaches you, and a label naming you as parent doesn't change that.
+- If `create_agent` is unavailable or rejects the launch, stop before any seat exists and report
+  the blocker.
+- Keep every returned agent ID, report the seats in one line, then wait for the notifications
+  instead of polling.
 
 Give each core seat the same brief and output contract, the disposition Architect, and exactly
 one role:
 
-- **Independent**: reason from first principles, recommend the strongest answer, and expose the
-  assumptions the decision rests on.
-- **Premise Challenger**: test the framing and shared premises, build at least one viable
-  alternative framing, and say what it would make unnecessary. The current framing may win when
-  nothing better survives scrutiny.
-- **Specialist**: apply only the requested domain knowledge; expertise doesn't outrank stronger
-  evidence or Human authority. It may get extra output fields that reveal no other seat's view
-  and no preferred answer.
+| Role | Mandate |
+|---|---|
+| Independent | Reason from first principles, recommend the strongest answer, expose the assumptions the decision rests on. |
+| Premise Challenger | Test the framing and shared premises, build at least one viable alternative framing, say what it would make unnecessary. The current framing may win when nothing better survives scrutiny. |
+| Specialist | Apply only the requested domain knowledge; expertise doesn't outrank stronger evidence or Human authority. It may get extra output fields that reveal no other seat's view and no preferred answer. |
 
 Round 1 stays sealed: no seat sees your opinion, another seat's report, a desired conclusion,
 another agent's ID, or a transcript, and you read no report until every required seat has
-finished. The isolation is soft and audited: seats have no Paseo tools and `peer-ro` blocks
-their writes, but nothing stops one from reading beyond its sources, so never describe a
-forbidden read to them as impossible.
+finished. The isolation is soft and audited: seats have no Paseo tools and `peer-ro` blocks their
+writes, but nothing stops one from reading beyond its sources, so never describe a forbidden read
+to them as impossible.
 
-Before you read any report, write your current position on the decision question in two or
-three sentences with its main reason, so you notice when a report merely matches your framing
-and when it contradicts it. Write it only outside the repository, never in the ExecPlan or any
-file a seat is pointed to: run `echo "${TMPDIR:-/tmp}"` and write `council-CASE_ID-lead.md`
-under the absolute path it prints, since your file tools expand no variables.
+Before you read any report, record your current position on the decision question in two or three
+sentences with its main reason, so you notice when a report merely matches your framing and when
+it contradicts it. This writes it outside the repository, where no seat is pointed:
+
+```bash
+printf '%s\n' "YOUR POSITION" | python3 SKILL_DIR/scripts/case.py position CASE_ID
+```
 
 ## Phase 3: collect, audit, and handle failures
 
 When every Round 1 seat has finished:
 
 1. Read each seat's activity with `get_agent_activity`.
-2. Look for file writes or edits, commits, attempts to find or read another seat's output or
-   your position file, and commands that start agents.
-3. Compare the snapshot: `git rev-parse HEAD`, and `git diff --stat -- PATHS` against the
-   recorded patch.
+2. Look for file writes or edits, commits, attempts to find or read another seat's output or your
+   position file, and commands that start agents.
+3. Check the snapshot: `python3 SKILL_DIR/scripts/case.py verify CASE_ID --root REPO_ROOT`.
 4. Mark a seat that broke isolation `COMPROMISED`, and leave its report out.
 5. Set `council.phase` to `review` on each valid seat with `update_agent`.
 6. Then read the reports.
 
-If a change to decision-relevant source can't be reconciled with the snapshot, stop the affected
-part of the case and report the exact mismatch; changes outside the authorized sources aren't a
-mismatch. Clean nothing up, and don't blame a seat for a concurrent change without evidence.
-Done when every seat is valid or marked, and valid seats are in `review`.
+On a reported mismatch, stop the affected part of the case and report it exactly; changes outside
+the authorized sources aren't a mismatch. Clean nothing up, and don't blame a seat for a
+concurrent change without evidence. Done when every seat is valid or marked, and valid seats are
+in `review`.
 
 Failure policy:
 
@@ -178,14 +173,16 @@ five material propositions for a focused decision, one row per finding for an au
 gate for a plan review, a timeline and causal model for an incident. Never merge, cap, or drop a
 requested finding to shrink the model.
 
-Type each material claim where the type changes the evidence bar: `FACT`, `INFERENCE`,
-`CAUSAL CLAIM`, `FORECAST`, `VALUE / PREFERENCE`, `AUTHORITATIVE CONSTRAINT`. Give it one status:
-`verified`, `falsified`, `authoritative`, `supported inference`, `contested inference`,
-`unresolved`, `insufficient coverage`, or `snapshot mismatch`. Only facts and direct observations
-can be fact-checked; inferences, forecasts, and values need arguments, not a fake fact check.
+Type each material claim where the type changes the evidence bar, and give it one status:
 
-If the model grows too large to reason about honestly, split it by sub-question with an index
-back to the request's units. Done when every material claim has a type and a status.
+| Types | Statuses |
+|---|---|
+| `FACT`, `INFERENCE`, `CAUSAL CLAIM`, `FORECAST`, `VALUE / PREFERENCE`, `AUTHORITATIVE CONSTRAINT` | `verified`, `falsified`, `authoritative`, `supported inference`, `contested inference`, `unresolved`, `insufficient coverage`, `snapshot mismatch` |
+
+Only facts and direct observations can be fact-checked; inferences, forecasts, and values need
+arguments, not a fake fact check. If the model grows too large to reason about honestly, split it
+by sub-question with an index back to the request's units. Done when every material claim has a
+type and a status.
 
 ## Phase 5: verification
 
@@ -197,31 +194,34 @@ epilogue. Give each one proposition, the authorized sources, and one distinct ma
 - **disconfirm**: search for counterexamples and evidence against it;
 - **coverage**: find the sources the others are likely to miss.
 
-Use only the mandates the proposition needs, and never send identical prompts to count votes.
-Use the deep-verifier routing when reading the source takes judgment. The output shape is in
+Use only the mandates the proposition needs, and never send identical prompts to count votes. Use
+the deep-verifier routing when reading the source takes judgment. The output shape is in
 `references/report-format.md`. A `snapshot mismatch` halts that proposition until the source is
 refreshed. Done when every disputed fact has a result.
 
 ## Phase 6: cross-examination
 
-For a material disagreement that evidence didn't settle, send the original seat only the
-disputed point and the relevant evidence with `send_agent_prompt`, asking for the
-cross-examination response in `references/report-format.md`. Allow one challenge and one
-response per disputed point, never an open debate. Skip this phase and Phase 5 when every valid
-seat agrees and no factual or framing issue remains.
+For a material disagreement that evidence didn't settle, send the original seat only the disputed
+point and the relevant evidence with `send_agent_prompt`, asking for the cross-examination
+response in `references/report-format.md`. Allow one challenge and one response per disputed
+point, never an open debate. Skip this phase and Phase 5 when every valid seat agrees and no
+factual or framing issue remains.
 
 ## Phase 7: draft verdict
 
-You decide, not the seats. Work through: the authoritative outcome and hard constraints; the
-options verified constraints exclude; which premises are verified, falsified, or unresolved;
-each option under realistic failure modes; its robustness if an assumption is wrong; its
-reversibility; and whether serious dissent has stronger evidence or a decisive falsifier. Draft
-the binding verdict before deciding on an audit.
+You decide, not the seats. Work through:
 
-Start from the position you wrote before reading Round 1. For every point where a seat's
-evidence contradicts it, say in the verdict whether it changed your view and why. A verdict that
-restates your first position without answering those points is a framing failure, and an audit
-counts it as a material finding.
+- the authoritative outcome and hard constraints;
+- the options verified constraints exclude;
+- which premises are verified, falsified, or unresolved;
+- each option under realistic failure modes, and its robustness if an assumption is wrong;
+- its reversibility;
+- whether serious dissent has stronger evidence or a decisive falsifier.
+
+Draft the binding verdict before deciding on an audit. Start from the position you recorded in
+Phase 2: for every point where a seat's evidence contradicts it, say in the verdict whether it
+changed your view and why. A verdict that restates your first position without answering those
+points is a framing failure, and an audit counts it as a material finding.
 
 ## Phase 8: draft-verdict audit
 
@@ -231,18 +231,18 @@ counts it as a material finding.
 - `high-risk`: mandatory, on the deep-auditor routing.
 
 Create one fresh Auditor (the disposition `references/routing.md` gives its profile, role
-`auditor`, round and phase `audit`, the same preamble and epilogue). Give it only the brief,
-every valid Round 1 report labeled by role, the decision model, the verified evidence, the draft
-verdict, and the material dissent, with no agent IDs or transcripts. A material claim the model
-or draft left out counts as a material finding. Resolve every material finding by revising the
-draft, removing an unsupported claim, or sending that proposition back to Phase 5 or 6. Run at
-most one audit round; the Auditor never replaces the verdict.
+`auditor`, round and phase `audit`, the same preamble and epilogue). Give it only the brief, every
+valid Round 1 report labeled by role, the decision model, the verified evidence, the draft
+verdict, and the material dissent, with no agent IDs or transcripts. A material claim the model or
+draft left out counts as a material finding. Resolve every material finding by revising the draft,
+removing an unsupported claim, or sending that proposition back to Phase 5 or 6. Run at most one
+audit round; the Auditor never replaces the verdict.
 
 ## Phase 9: binding verdict
 
 Write the verdict in the case's vocabulary, covering every point under "Binding verdict" in
-`references/report-format.md`, including limitations and reopen conditions. For a supplied set
-of findings, give each one a disposition. Then:
+`references/report-format.md`, including limitations and reopen conditions. For a supplied set of
+findings, give each one a disposition. Then:
 
 1. Set `council.phase` to `verdict` on every seat of the case with `update_agent`; keep the
    verdict itself in your reply, not in labels.

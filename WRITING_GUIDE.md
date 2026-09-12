@@ -143,6 +143,21 @@ micro for the Peer, and review for the Reviewer. [S, SK, PI]
    no-comment rule is not theirs alone: it applies to every skill.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
    license in `NOTICE.md`.
+8. Keep a seat's working context under about 50K tokens. Recall falls as input grows, well
+   before a window is full: a model with a 200K window already degrades measurably around 50K,
+   and it degrades on every model tested, so a long session invents rather than reports. A
+   loaded skill never leaves the context, so the budget is the sum of every skill a seat loads
+   plus the code it reads, not any one file. [CR, CE]
+9. Put a section a seat reaches in a later turn in `references/`, not in `SKILL.md`: a fix-round
+   cap read only when findings come back, a lane the seat picks against, a report format used
+   after subagents report. It costs the same when reached, and nothing when it isn't, and it
+   arrives after the planning turns can be compacted away. Keep the decision that chooses it,
+   and the rule that matters most, in `SKILL.md`. [S, CE]
+10. Put deterministic work in `scripts/`, not in prose: a script is run, not read, so only its
+    output reaches the context, and it can't be paraphrased into a different procedure. Name the
+    path as `SKILL_DIR/scripts/NAME`, say to run it, and keep its reasons in `REFERENCE.md`
+    by the no-comment rule. `review_pack.py`, `create_review_report.py`, and `case.py` are the
+    kit's own. [S]
 
 ## Terminology
 
@@ -208,3 +223,4 @@ Supervisor, watcher, seat, or Paseo, and `.seatworks/LEAD.md` never names the Su
 - [GP] [Google developer documentation style guide: placeholders](https://developers.google.com/style/placeholders)
 - [GHR] [GitHub: About READMEs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)
 - [MS] [Microsoft Writing Style Guide: top 10 tips](https://learn.microsoft.com/en-us/style-guide/top-10-tips-style-voice)
+- [CR] [Context rot: how increasing input tokens impacts LLM performance](https://www.trychroma.com/research/context-rot)
