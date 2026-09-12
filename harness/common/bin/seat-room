@@ -39,6 +39,38 @@ export SEATWORKS_SEAT=$role-$slug
 var=$(jq -r '.configDirEnv // empty' "$manifest" 2>/dev/null || true)
 [ -n "$var" ] && export "$var=$dir"
 
+forced=$(jq -r '.provider.forceFlags // {} | to_entries[] | .key + "\t" + (.value | tostring)' "$manifest" 2>/dev/null || true)
+if [ -n "$forced" ]; then
+    while IFS="$(printf '\t')" read -r flag value; do
+        [ -n "$flag" ] || continue
+        args=()
+        drop=0
+        seen=0
+        for arg in ${1+"$@"}; do
+            if [ "$drop" = 1 ]; then
+                drop=0
+                continue
+            fi
+            case $arg in
+            "$flag")
+                seen=1
+                drop=1
+                args+=("$flag" "$value")
+                ;;
+            "$flag"=*)
+                seen=1
+                args+=("$flag=$value")
+                ;;
+            *) args+=("$arg") ;;
+            esac
+        done
+        [ "$seen" = 1 ] || args+=("$flag" "$value")
+        set -- ${args[@]+"${args[@]}"}
+    done <<FORCED
+$forced
+FORCED
+fi
+
 model=$(jq -r --arg r "$role" '.models[$r] // empty' "$project" 2>/dev/null || true)
 if [ -n "$model" ]; then
     args=()

@@ -14,7 +14,8 @@
     "mode": "merge",
     "file": "config.yml",
     "source": "settings.json",
-    "sourceNote": "the seat's omp settings file is YAML, and JSON is valid YAML, so the kit writes and verifies it with jq like every other settings file. setup merges the deny map seats.json asks for into the same file; see deny.settingsPath."
+    "sourceNote": "the seat's omp settings file is YAML, and JSON is valid YAML, so the kit writes and verifies it with jq like every other settings file. setup merges the deny map seats.json asks for into the same file; see deny.settingsPath.",
+    "skillsNote": "skills and skillful are pinned, not left to defaults. enablePiUser keeps the seat directory this kit fills; every other discovery root is off, because a repository ships .omp/skills, .claude/skills and .agent/skills of its own and HOME/.agents/skills is shared, and a skill arriving that way was never checked against this seat hidesWords or its skill set. Measured with omp config get on this machine: enablePiProject, enableClaudeProject, enableAgentsUser and enableAgentsProject all default to true, and a project-level skill was seen in a seat system prompt alongside the kit ones. skillful true is what puts the list in the system prompt at all."
   },
   "state": {
     "file": "mcp.json",
@@ -157,9 +158,6 @@
     "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\"",
     "placeholders": []
   },
-  "sharedSkillDirs": [
-    "HOME/.agents/skills"
-  ],
   "probe": {
     "kind": "version",
     "command": [
@@ -196,5 +194,6 @@
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,
-  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat."
+  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat.",
+  "sharedSkillDirsNote": "removed: HOME/.agents/skills is no longer a shared root for this harness, because settings.json pins skills.enableAgentsUser to false. Restore the field only if that pin is dropped, since setup reports the directory as reaching every seat when a harness declares it."
 }

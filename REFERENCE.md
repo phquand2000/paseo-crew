@@ -247,13 +247,38 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Response:** leave that install off in the app. The setup script links `paseo` from Paseo's
   package into the profiles whose role's `extraSkills` name it, so it follows Paseo updates.
 
-## A shared skill directory reaches every seat on that harness
+## A seat gets the skills seats.json chose, and no others
 
-- **Symptom:** a seat has skills that aren't in its allowlist.
-- **Cause:** a directory in the manifest's `sharedSkillDirs` sits outside the seat's config
-  directory, so every profile on that harness loads it.
-- **Response:** move skills the seat shouldn't see out of it. The setup script prints how many
-  skills each such directory holds, per harness that loads it.
+- **Symptom:** you expect a repository's own `.claude/skills/` or `.omp/skills/` to reach a seat,
+  and it doesn't; or you want to know whether one ever did.
+- **Cause:** both harnesses discover skills from several roots by default, and only one of them
+  is the directory this kit fills. Measured on this machine: `omp config get` reports
+  `skills.enablePiProject`, `skills.enableClaudeProject`, `skills.enableAgentsUser` and
+  `skills.enableAgentsProject` all defaulting to true, and a skill placed in a repository's
+  `.omp/skills/` was seen in a seat's system prompt beside the kit's own. On the other harness the
+  debug log counts it outright: with `--setting-sources user,project,local` it loads 2 skills
+  (`user: 1, project: 1`), and with `--setting-sources user` it loads 1 (`project: 0`).
+- **Response:** both are pinned now, the same way the MCP map is. `harness/omp/settings.json`
+  writes the whole `skills` block into every omp seat's `config.yml`, with `enablePiUser` on and
+  every other root off, and `skillful` on so the list reaches the system prompt at all; the setup
+  script compares those keys on every run, so a change to them is reported as drift.
+  `harness/claude/harness.json` sets `provider.forceFlags`, and `seat-room` rewrites the argv the
+  orchestrator built to carry `--setting-sources user`, which keeps the seat's own settings file
+  (the user source, named first in that harness's watch list, so its hooks and guards stay) and
+  drops the repository's. A skill the kit did not choose was never checked against the seat's
+  `hidesWords` or its skill set, which is the reason for the pin.
+
+## The room rewrites the argv the orchestrator built
+
+- **Symptom:** a seat runs with a flag neither `seats.json` nor the provider's `args` names.
+- **Cause:** the kit writes each provider but not the arguments Paseo appends when it launches
+  one, so a flag the kit needs cannot be set there. `harness/common/bin/seat-room` is the command
+  every provider launches, and it makes two passes over the argv: it substitutes a model pinned
+  in `project.json`, and it applies the manifest's `provider.forceFlags`, replacing a flag in
+  place whether it arrived as `--flag value` or `--flag=value`, and appending it when absent.
+- **Response:** put the flag in that manifest's `provider.forceFlags`, not in the provider. A
+  seat started where no `.seatworks/` is found skips both passes and is the plain coding agent, as
+  the room's other fallbacks are.
 
 ## Agent profiles are global, one per role
 

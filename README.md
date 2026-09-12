@@ -16,6 +16,10 @@ coordinated through [Paseo](https://getpaseo.com):
 - `watcher` reads the Lead's and Peers' activity on a heartbeat and raises attention events
   for the Supervisor.
 
+A seat gets the prompt, skills, MCP servers and limits `seats.json` names, and nothing a
+repository can add: both harnesses read skills from several directories by default, including the
+repository's own, so the kit pins those roots per harness and reports any drift.
+
 A seat is named for its role alone: not for the tool that runs it, and not for a project. Which
 coding agent hosts a role is one line in [seats.json](seats.json), so the prompts, skills, and
 docs never name a vendor. Every `.md` a seat loads lives in the project, under `.seatworks/`, so

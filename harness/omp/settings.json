@@ -1,5 +1,20 @@
 {
   "startup": {
     "checkUpdate": false
+  },
+  "skillful": true,
+  "skills": {
+    "enabled": true,
+    "enableSkillCommands": true,
+    "enablePiUser": true,
+    "enablePiProject": false,
+    "enableClaudeUser": false,
+    "enableClaudeProject": false,
+    "enableCodexUser": false,
+    "enableAgentsUser": false,
+    "enableAgentsProject": false,
+    "customDirectories": [],
+    "ignoredSkills": [],
+    "includeSkills": []
   }
 }

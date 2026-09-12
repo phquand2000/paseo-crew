@@ -176,7 +176,11 @@
     "command": [
       "KIT/harness/common/bin/seat-room"
     ],
-    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched"
+    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched",
+    "forceFlags": {
+      "--setting-sources": "user"
+    },
+    "forceFlagsNote": "flags the room replaces in the argv the orchestrator built, or appends when absent, because the kit writes the provider but not its arguments. --setting-sources user drops the repository own .claude/settings.json and .claude/skills/ while keeping the seat own settings.json, which is the user source: measured from this harness debug log, user,project,local loads 2 skills (user: 1, project: 1) and user loads 1 (user: 1, project: 0), and the watch list names the seat file first. Without it a repository adds skills and settings to a seat that no hidesWords check and no skill set ever saw."
   },
   "contextFile": "CLAUDE.md",
   "contextFileNeedsPointer": true,
