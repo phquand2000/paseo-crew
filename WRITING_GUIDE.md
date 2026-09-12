@@ -57,6 +57,11 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
 17. Name no coding agent in a seat prompt, a skill, or a doc other than `harness/<id>/NOTES.md`.
     A role can move to another harness, and a prompt that names one goes stale silently. Where
     the behavior genuinely differs, cite the manifest field instead.
+18. Keep the prompt static for the life of a session. A seat prompt and the skill descriptions
+    sit in the cached prefix, so after the first turn they cost about a tenth of their first
+    price, and a byte that changes mid-session throws the cache away from that point on. Cut a
+    prompt to hold attention, not to lower the bill, and put nothing dated, timed, counted, or
+    session-specific in one: the seat reads those from its tools. [TP, PC]
 
 ## What each demo prompt expects you to add
 
@@ -126,14 +131,19 @@ micro for the Peer, and review for the Reviewer. [S, SK, PI]
    `description` in the frontmatter, plus `disable-model-invocation: true` for skills that run
    only when asked. Harnesses disagree on whether the command follows the directory or `name`,
    so the two must match.
-2. Write the description as one double-quoted line of 200 to 400 characters, in the third
-   person: what the skill does, then "Use when …", naming concrete triggers. It is the only
-   part always in context, so every "when to use" belongs there and not in the body; every
-   harness triggers on it, and none reads `when_to_use`. [S]
+2. Write the description as one double-quoted line in the third person: what the skill does,
+   then "Use when …", naming concrete triggers. Make it the shortest line that still tells the
+   skill apart from its siblings in the same role, and cap it at 400 characters; there is no
+   floor, because padding the one layer that is always in context buys nothing. Where a sibling
+   covers nearby ground, end with a "Not for …" clause naming what takes that case instead: the
+   common retrieval failure is the right family and the wrong skill, not a missed family. Every
+   "when to use" belongs here and not in the body; every harness triggers on it, and none reads
+   `when_to_use`. [S, SR, RF]
 3. Keep `SKILL.md` under 500 lines, and move long catalogs and templates into `references/`,
    linked by a relative path that says when to read it. Keep references one level deep, because
    a harness may only preview a file reached from another; open one over 100 lines with a
-   contents list. [S]
+   contents list. Open every reference with one line naming what it holds and when to open it,
+   so a seat can decide against it without reading it. [S, SR]
 4. Refer to input as "the request given with this skill". Not every harness substitutes
    `$ARGUMENTS`, `${CLAUDE_SKILL_DIR}`, `` !`command` ``, or `@file`, and the setup script
    refuses the first two.
@@ -143,21 +153,36 @@ micro for the Peer, and review for the Reviewer. [S, SK, PI]
    no-comment rule is not theirs alone: it applies to every skill.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
    license in `NOTICE.md`.
-8. Keep a seat's working context under about 50K tokens. Recall falls as input grows, well
-   before a window is full: a model with a 200K window already degrades measurably around 50K,
-   and it degrades on every model tested, so a long session invents rather than reports. A
-   loaded skill never leaves the context, so the budget is the sum of every skill a seat loads
-   plus the code it reads, not any one file. [CR, CE]
+8. Budget attention, not bytes. Recall falls as input grows, well before a window is full: a
+   model with a 200K window already degrades measurably around 50K, and it degrades on every
+   model tested, so a long session invents rather than reports. A loaded skill never leaves the
+   context, and a finished procedure still in the right format distracts harder than irrelevant
+   text does. So the number to hold is open procedures, not bytes per file. Give every skill one
+   written artifact it ends in — a result block, a brief, an ADR, a report, a summary — and say
+   so in the skill, because once the artifact exists nothing later depends on re-reading the
+   skill and the turns that carried it can be compacted away. Two open procedures is one seat's
+   working limit; a third is the signal to finish one or hand off, not to load another skill.
+   Keep the whole working context under about 50K tokens, counting every skill the seat loaded
+   plus the code it read. [CR, CE, IFS]
 9. Put a section a seat reaches in a later turn in `references/`, not in `SKILL.md`: a fix-round
    cap read only when findings come back, a lane the seat picks against, a report format used
    after subagents report. It costs the same when reached, and nothing when it isn't, and it
    arrives after the planning turns can be compacted away. Keep the decision that chooses it,
-   and the rule that matters most, in `SKILL.md`. [S, CE]
+   and the rule that matters most, in `SKILL.md`. Sort the rest by content type before you
+   split: operational rules, decision criteria, and thresholds stay; background, rationale,
+   worked examples, and templates go to `references/`; an exact repeat goes nowhere. A body cut
+   this way loses no behavior and often gains some, because what stays distracts less. [S, CE, SR]
 10. Put deterministic work in `scripts/`, not in prose: a script is run, not read, so only its
     output reaches the context, and it can't be paraphrased into a different procedure. Name the
     path as `SKILL_DIR/scripts/NAME`, say to run it, and keep its reasons in `REFERENCE.md`
     by the no-comment rule. `review_pack.py`, `create_review_report.py`, and `case.py` are the
     kit's own. [S]
+11. Keep the disclosure flat: one level of references under `SKILL.md`, and no index of
+    descriptions layered above it. A routing layer whose entries sit in context permanently
+    recreates the pressure the split was meant to relieve, and measures worse than a flat pack.
+    The one allowed second copy is the trigger table in a seat prompt, because a skill a seat
+    never loads helps nobody: it names the situation and the skill and nothing else, never the
+    skill's procedure, so the two layers cannot disagree. [PD, S]
 
 ## Terminology
 
@@ -198,6 +223,12 @@ Supervisor, watcher, seat, or Paseo, and `.seatworks/LEAD.md` never names the Su
   skill gate, after two evaluation runs where a Lead skipped a skill its prompt named.
 - **File length:** recommendations range from about 60 lines to 500. This kit uses 16 KB and
   roughly 200 lines.
+- **Description length:** the skills guide caps a description at 1,024 characters and this kit
+  once set a 200-character floor as well. The floor is gone, since it padded the always-resident
+  layer; the 400-character cap stays.
+- **Disclosure depth:** the skills guide describes layers without a limit, and one controlled
+  study measured a deep routing layer as worse than a flat one. This kit keeps one level, with
+  the seat prompt's trigger table as the single deliberate duplicate.
 - **Multi-agent or single thread:** [MA] parallelizes research, [COG] prefers a single thread.
   This kit parallelizes reading and review, and keeps each write scope to one writer.
 - **Numbered headings:** [G] avoids them; SETUP.md links its steps from a numbered list instead.
@@ -224,3 +255,8 @@ Supervisor, watcher, seat, or Paseo, and `.seatworks/LEAD.md` never names the Su
 - [GHR] [GitHub: About READMEs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)
 - [MS] [Microsoft Writing Style Guide: top 10 tips](https://learn.microsoft.com/en-us/style-guide/top-10-tips-style-voice)
 - [CR] [Context rot: how increasing input tokens impacts LLM performance](https://www.trychroma.com/research/context-rot)
+- [SR] [SkillReducer: optimizing LLM agent skills for token efficiency](https://arxiv.org/abs/2603.29919)
+- [PD] [Is progressive disclosure all you need for long-context agents?](https://arxiv.org/abs/2607.17598)
+- [RF] [Right family, wrong skill: benchmarking risk exposure in agent skill retrieval](https://arxiv.org/abs/2606.10388)
+- [TP] [TokenPilot: cache-efficient context management for LLM agents](https://arxiv.org/abs/2606.17016)
+- [PC] [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)

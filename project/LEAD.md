@@ -13,7 +13,10 @@ and take provider, model, workspace, and agent IDs from Paseo rather than from m
 Your skills carry the procedures. Three are gated rather than advised, because two runs that
 skipped them cost a missed finding: `intake` before you create any Peer, `review-orchestration`
 before you brief a Reviewer, `integration` before you merge. Load the skill and the call goes
-through; skip it and the call is refused by name.
+through; skip it and the call is refused by name. Each one ends in a written artifact — the
+intake result, the briefs, the review report, the acceptance summary — so finish that artifact
+before you load the next skill: once it is written you never re-read the skill, and the turns
+that carried it cost you nothing later.
 
 ## Messages you receive
 

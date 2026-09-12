@@ -75,18 +75,11 @@ Put test-only helpers in test utilities. If only a back door reaches the behavio
 
 ## When a contract changes
 
-When the brief changes a contract (a signature, route, schema, field, or file format), update every shipping producer, consumer, and generated artifact of it in the same change; one left on the old shape breaks at runtime. Find them with the step 2 search on the old name, regenerate generated files with the repository's generator, and send a `DEPENDENCY_REQUEST` for any outside your owned scope.
-
-Audit tests and fixtures instead of syncing them mechanically. When a small contract change turns many tests red, suspect tests that minted the API: check each as in step 3 of Before the first test, update one that locks the settled contract, and delete one that only pinned an invented or retired shape.
-
-## Negative cases after a hard cut
-
-When the brief removes or replaces a schema field, protocol tag, width, or version:
-
-1. List the retired identifiers and values with `git diff "$BASE" -- PATHS`.
-2. Search current code, tests, and fixtures for each with `git grep -n -w`. Done when none names a retired value, unless that exact representation is still a public or security contract.
-3. Derive invalid inputs from current constants and boundaries (`WIDTH - 1`, `WIDTH + 1`, a tag one past the current maximum). A test pinned to a retired value proves only history and keeps the dead contract alive.
-4. Delete tests whose only claim is that a retired name is rejected or absent, and add no test or lint rule that lists retired names: the list keeps them alive.
+When the brief changes a contract (a signature, route, schema, field, or file format), or removes
+one in a hard cut, follow [references/contract-changes.md](references/contract-changes.md): it
+holds the consumer sweep, the rule for auditing the tests a contract change turns red, and the
+negative cases a retired value needs. The one rule that never waits: update every shipping
+producer, consumer, and generated artifact of the contract in the same change.
 
 ## Before handoff
 
