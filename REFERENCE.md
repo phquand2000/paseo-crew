@@ -32,9 +32,11 @@ invalidate this page, and no entry here names a coding agent or its tools.
 ## The Lead and Supervisor have no Paseo tools
 
 - **Symptom:** a coordinating seat can't call `create_agent` or `list_models`.
-- **Cause:** Paseo's tools reach agents only when `daemon.mcp.injectIntoAgents` is `true`.
-- **Response:** set it to `true` and reload. It applies to every agent the daemon starts, which
-  is why the setup script reports it instead of changing it.
+- **Cause:** Paseo's tools reach agents only when `daemon.mcp.enabled` and
+  `daemon.mcp.injectIntoAgents` are both `true`.
+- **Response:** `setup-seats.fish` sets both and reloads. They apply to every agent the daemon
+  starts, not just this kit's: that one switch is also why an omp seat is offered Paseo's tools
+  and has to deny the ones its role must not call.
 
 ## A seat belongs to the workspace it starts in
 

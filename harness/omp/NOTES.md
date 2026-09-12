@@ -3,7 +3,7 @@
 Facts about this harness that `harness.json` encodes, and how each one was established. Every
 entry here is omp behavior; nothing in `project/` or the setup docs should repeat it.
 
-Verified on omp **18.1.14**, against Paseo's own `omp` provider.
+Verified on omp **18.1.18**, against Paseo's own `omp` provider.
 
 ## The seat directory
 
@@ -68,6 +68,24 @@ Verified on omp **18.1.14**, against Paseo's own `omp` provider.
   check would fail loudly rather than quietly dropping the denies.
 - **`startup.checkUpdate: false`** is the only key the kit sets by hand. A seat is not a place to
   be told about a new release.
+
+## MCP servers
+
+- **File:** `mcp.json` in the seat directory, which is omp's user scope once
+  `PI_CODING_AGENT_DIR` points there. setup writes the whole object, so a seat carries exactly
+  the servers `seats.json` names.
+- **How it was established:** `/mcp list` over RPC on a built seat printed both servers as
+  `enabled [user]`, and `/mcp test <name>` connected to each and listed its tools.
+- **They are not in the first session's tool set.** MCP connect has a 250 ms startup gate; a
+  server slower than that is deferred and its tools come from a cache the seat has not written
+  yet. On a cold seat directory the model sees only built-in tools; from the next session the
+  cache is warm and the MCP tools are there. Verified both ways on the same seat.
+- **Registered names:** `mcp__<server, with `-` as `_`>_<tool>` — `intellij-index`'s
+  `ide_refactor_rename` is `mcp__intellij_index_ide_refactor_rename`, and semble's `search` is
+  `mcp__semble_search`. Read off a running seat, which is how the `ide-refactor` intent can name
+  the three write tools exactly.
+- **A repository's own MCP config still loads.** omp reads `<repo>/.omp/mcp.json` and the other
+  tools' project files; the seat file does not override those.
 
 ## Enforcement
 

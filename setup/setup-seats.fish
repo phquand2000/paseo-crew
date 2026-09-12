@@ -411,25 +411,26 @@ function build_seat_state --argument-names key harness dir
     if test "$optional" = true
         test -f $dir/$file; or return
         test -n "$check"; or return
-        jq -e "$check" $dir/$file >/dev/null 2>&1
+        jq -e --argjson servers (seats_get -c '.mcpServers // {}') "$check" $dir/$file >/dev/null 2>&1
         or fail "$key: $dir/$file fails the harness check `$check`; fix it."
         return
     end
+    set -l servers (seats_get -c '.mcpServers // {}')
     if test $dry -eq 0
         test -n "$seed"; and begin
             test -e $dir/$file; or echo $seed >$dir/$file
         end
         test -n "$clear"; or return
-        jq "$clear" $dir/$file >$dir/$file.new
+        jq --argjson servers "$servers" "$clear" $dir/$file >$dir/$file.new
         and mv $dir/$file.new $dir/$file
         or begin
             rm -f $dir/$file.new
-            fail "$key: $dir/$file is not valid JSON, so its MCP servers were not cleared."
+            fail "$key: $dir/$file is not valid JSON, so its MCP servers were not set."
         end
     else
         test -n "$check"; or return
-        jq -e "$check" $dir/$file >/dev/null 2>&1
-        or fail "$key: $dir/$file is missing, broken, or still defines MCP servers."
+        jq -e --argjson servers "$servers" "$check" $dir/$file >/dev/null 2>&1
+        or fail "$key: $dir/$file is missing, broken, or does not carry exactly the MCP servers seats.json names."
     end
 end
 
@@ -840,8 +841,14 @@ else if not jq -e . $paseo_config >/dev/null 2>&1
     fail "$paseo_config is not valid JSON; leaving it untouched."
 else
     set paseo_ok 1
-    jq -e '.daemon.mcp.injectIntoAgents == true' $paseo_config >/dev/null 2>&1
-    or fail "daemon.mcp.injectIntoAgents is not true in $paseo_config, so the Lead and Supervisor get no Paseo tools."
+    if not jq -e '.daemon.mcp.enabled == true and .daemon.mcp.injectIntoAgents == true' $paseo_config >/dev/null 2>&1
+        if test $dry -eq 1
+            fail "daemon.mcp.enabled and daemon.mcp.injectIntoAgents are not both true in $paseo_config, so the Lead and Supervisor get no Paseo tools (rerun without --check)"
+        else
+            paseo_write $paseo_config "daemon.mcp: enabled and injected into agents" \
+                '.daemon.mcp = ((.daemon.mcp // {}) + {enabled: true, injectIntoAgents: true})'
+        end
+    end
 end
 
 if test $paseo_ok -eq 1

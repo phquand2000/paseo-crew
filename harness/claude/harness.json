@@ -28,11 +28,12 @@
   "state": {
     "file": ".claude.json",
     "seed": "{\"hasCompletedOnboarding\": true}",
-    "clearMcp": ".mcpServers = {} | .enabledMcpjsonServers = [] | del(.enableAllProjectMcpServers) | .projects = ((.projects // {}) | with_entries(.value.mcpServers = {}))",
-    "checkMcp": "(.mcpServers // {}) == {} and ((.enabledMcpjsonServers // []) | length) == 0",
+    "clearMcp": ".mcpServers = $servers | .enabledMcpjsonServers = [] | del(.enableAllProjectMcpServers) | .projects = ((.projects // {}) | with_entries(.value.mcpServers = {}))",
+    "checkMcp": "(.mcpServers // {}) == $servers and ((.enabledMcpjsonServers // []) | length) == 0",
     "forbid": [
       ".credentials.json"
-    ]
+    ],
+    "mcpNote": "$servers is seats.json's mcpServers map, passed in by setup-seats.fish. The seat gets those at user scope in its own .claude.json and nothing else: project-scoped servers stay cleared, because a repository could otherwise hand a seat a server the kit never chose."
   },
   "guards": {
     "dir": "common/guards",
@@ -104,6 +105,11 @@
         "mcp__paseo__stop_workspace_script",
         "mcp__paseo__update_agent",
         "mcp__paseo__update_schedule"
+      ],
+      "ide-refactor": [
+        "mcp__intellij-index__ide_refactor_rename",
+        "mcp__intellij-index__ide_move_file",
+        "mcp__intellij-index__ide_refactor_safe_delete"
       ]
     },
     "enforcedByGuard": [],
@@ -114,7 +120,8 @@
     "absent": [
       "code-eval"
     ],
-    "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Claude Code runs code only through Bash, which the guards already read."
+    "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Claude Code runs code only through Bash, which the guards already read.",
+    "mcpNamesNote": "Claude Code registers mcp__<server>__<tool> with the server name as written in the config, so these keep the hyphen. This is the documented spelling and the one name in this manifest not read off a running seat; a wrong one answers `matches no known tool`, the way deny.retired records."
   },
   "skillLoad": {
     "tool": "Skill",

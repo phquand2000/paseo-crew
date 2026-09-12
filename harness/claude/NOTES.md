@@ -55,6 +55,18 @@ and asks for `--probe`.
 - **`permissions.deny` is not equivalent** to a provider deny list, so the role settings leave
   it out.
 
+## MCP servers
+
+- The seat's own `.claude.json` carries `mcpServers`, written from `seats.json`. Project-scoped
+  servers stay cleared — `enabledMcpjsonServers` empty, `enableAllProjectMcpServers` deleted,
+  every `projects[].mcpServers` emptied — so a repository cannot hand a seat a server the kit
+  never chose.
+- `claude mcp list` run with `CLAUDE_CONFIG_DIR` set to a built seat reported both servers
+  connected, which is how the file location was confirmed.
+- Tool names are `mcp__<server>__<tool>`, with the server name exactly as the config spells it.
+  That is the documented form, not one read off a running seat here; a wrong name in a deny list
+  answers `matches no known tool`, the way `deny.retired` records.
+
 ## Shared state
 
 - `projects` and `plugins` in each profile are links to `~/.claude/projects` and

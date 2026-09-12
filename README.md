@@ -47,7 +47,8 @@ plain coding agent.
 
 ```
 seats.json                      which harness hosts each role, its skills, its guards, its
-                                deny list, its model, and the skill gates it must pass
+                                deny list, its model, the skill gates it must pass, and the
+                                MCP servers every seat gets
 harness/<id>/harness.json       one harness: its config-directory variable, prompt file,
                                 skills directory, settings format, guards, and how a skill is
                                 loaded and recognised there
@@ -214,7 +215,7 @@ notebook, and a miss becomes a rule only when it recurs.
 | [REFERENCE.md](REFERENCE.md) | Paseo and kit behavior that you can't infer from the config |
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing and editing the prompts and docs in this kit |
 | [NOTICE.md](NOTICE.md) | Where the skills' ideas come from, with licenses |
-| [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny intents, model, and the skill gates it must pass |
+| [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny intents, model, and the skill gates it must pass; plus the MCP servers every seat gets |
 | [harness/](harness/) | One directory per harness: its manifest, role settings, guards or guard extensions, and `NOTES.md`, which records what was verified and what is still open |
 | [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: resolves the project from the working directory, points the config-directory variable at its profile, applies a model pin, execs the agent |
 | [harness/common/hook-io.sh](harness/common/hook-io.sh) | Reads a guard's hook input and writes its refusal in the form the seat's harness expects |

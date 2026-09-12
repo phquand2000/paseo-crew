@@ -109,12 +109,24 @@ step 4, then step 5 for every project.
    ```
 
 **Done:** fish reports 3.5 or later, `paseo ls` exits without an error, every `versionCommand`
-prints a version, each login exists, and `.daemon.mcp` shows `"enabled": true` and
-`"injectIntoAgents": true`.
+prints a version, and each login exists. `.daemon.mcp` may still be missing here; step 4 sets
+`"enabled": true` and `"injectIntoAgents": true` itself.
 
 If a tool or a login is missing, stop and ask the user to install it or to log in with the
-`required` text its harness gives; don't do it yourself. If `injectIntoAgents` isn't `true`, ask
-before changing it: it gives Paseo tools to every agent the daemon starts.
+`required` text its harness gives; don't do it yourself. Tell the user that step 4 will turn
+`daemon.mcp` on, because it gives Paseo tools to every agent the daemon starts, not only these
+seats.
+
+The MCP servers in `seats.json` under `mcpServers` need their own programs on the machine, and
+step 4 writes the config for them whether or not they are there. Check them now:
+
+```fish
+jq -r '.mcpServers | to_entries[] | if .value.type == "http" then "\(.key): \(.value.url)" else "\(.key): \(.value.command)" end' KIT_DIR/seats.json
+```
+
+A missing one costs a seat that server's tools and nothing else: a stdio server whose command is
+not on `PATH` and an http server with nothing listening both fail per server, and the seat
+starts anyway.
 
 ## Add the base providers to Paseo
 

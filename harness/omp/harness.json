@@ -2,7 +2,7 @@
   "id": "omp",
   "label": "Oh My Pi",
   "baseProvider": "omp",
-  "verified": "18.1.14",
+  "verified": "18.1.18",
   "profileRoot": "HOME/.omp/seats",
   "profileRootNote": "not HOME/.omp/profiles: that path is omp's own named-profile layout (~/.omp/profiles/<name>/agent), and a seat directory is an agent directory, not a profile.",
   "configDirEnv": "PI_CODING_AGENT_DIR",
@@ -15,6 +15,13 @@
     "file": "config.yml",
     "source": "settings.json",
     "sourceNote": "the seat's omp settings file is YAML, and JSON is valid YAML, so the kit writes and verifies it with jq like every other settings file. setup merges the deny map seats.json asks for into the same file; see deny.settingsPath."
+  },
+  "state": {
+    "file": "mcp.json",
+    "seed": "{}",
+    "clearMcp": "{mcpServers: $servers}",
+    "checkMcp": "(.mcpServers // {}) == $servers",
+    "mcpNote": "$servers is seats.json's mcpServers map, passed in by setup-seats.fish. This file is the seat's user-scope MCP config, and writing the whole object replaces anything else in it. omp also reads a repository's own .omp/mcp.json and the other tools' project files, which this does not reach."
   },
   "guards": {
     "dir": "omp/extensions",
@@ -117,6 +124,11 @@
         "stop_workspace_script",
         "update_agent",
         "update_schedule"
+      ],
+      "ide-refactor": [
+        "mcp__intellij_index_ide_refactor_rename",
+        "mcp__intellij_index_ide_move_file",
+        "mcp__intellij_index_ide_refactor_safe_delete"
       ]
     },
     "enforcedByGuard": [
@@ -128,7 +140,8 @@
       "workflows"
     ],
     "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Everything else a seat asks for and this manifest does not map is reported as unenforced.",
-    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start; Paseo's host tools arrive after that and cannot be dropped, so a seat sees them and is refused when it calls one. eval is denied on every seat because it reaches a shell the guard extension does not parse. plan-mode stays unenforced: omp's plan mode is a session mode, not a tool."
+    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start; Paseo's host tools arrive after that and cannot be dropped, so a seat sees them and is refused when it calls one. eval is denied on every seat because it reaches a shell the guard extension does not parse. plan-mode stays unenforced: omp's plan mode is a session mode, not a tool.",
+    "mcpNamesNote": "the MCP tool names above were read off a running seat, not guessed: omp registers mcp__<server with - as _>_<tool>, so intellij-index/ide_refactor_rename becomes mcp__intellij_index_ide_refactor_rename and semble/search becomes mcp__semble_search."
   },
   "skillLoad": {
     "tool": "read",

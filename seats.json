@@ -40,6 +40,7 @@
       "description": "Supervisor seat: meets the Human, relays decisions, answers attention events, keeps the notebook",
       "entry": true,
       "denyIntents": [
+        "ide-refactor",
         "lsp"
       ],
       "writes": [
@@ -94,6 +95,7 @@
       ],
       "description": "Lead seat: framing, delegation, review, acceptance",
       "denyIntents": [
+        "ide-refactor",
         "lsp"
       ],
       "writes": [
@@ -146,9 +148,10 @@
       ],
       "description": "Attention watcher: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor",
       "denyIntents": [
-        "lsp",
-        "file-edit",
         "code-eval",
+        "file-edit",
+        "ide-refactor",
+        "lsp",
         "paseo-write"
       ],
       "writes": [
@@ -219,8 +222,9 @@
       "thinking": "high",
       "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked",
       "denyIntents": [
-        "file-edit",
         "code-eval",
+        "file-edit",
+        "ide-refactor",
         "paseo"
       ],
       "mayStart": [],
@@ -260,12 +264,13 @@
       "required": false,
       "notes": "Every review of a change: sealed axes, re-reviews, sweep scouts (Reviewer disposition: they report findings), and a council Verifier or Auditor only when the preferences file routes it here, with Machine pass: skip. Read-only; runs Open Code Review.",
       "models": [],
-      "thinking": "high",
+      "thinking": "max",
       "description": "Reviewer seat: read-only code review with Open Code Review",
       "reviewSeat": true,
       "denyIntents": [
-        "file-edit",
         "code-eval",
+        "file-edit",
+        "ide-refactor",
         "paseo"
       ],
       "mayStart": [],
@@ -288,6 +293,22 @@
       ]
     }
   ],
+  "mcpServers": {
+    "semble": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "semble[mcp]==0.5.4",
+        "semble"
+      ]
+    },
+    "intellij-index": {
+      "type": "http",
+      "url": "http://127.0.0.1:29170/index-mcp/streamable-http"
+    }
+  },
+  "mcpServersNote": "the MCP servers every seat gets, spelled the way both harnesses already read one: a map of name to a stdio or http entry. setup-seats.fish writes exactly this map into the file each harness names under mcp.file, at mcp.path, and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code where no guard in this kit can see them, so every seat but the Peer denies them through the ide-refactor intent; the rest of its tools read.",
   "promptBudget": 16384,
   "skillGates": [
     {
