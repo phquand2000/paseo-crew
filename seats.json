@@ -4,7 +4,7 @@
       "role": "supervisor",
       "harness": "claude",
       "label": "Supervisor",
-      "prompt": "SUPERVISOR.md",
+      "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",
       "extraSkills": [
         "paseo"
@@ -59,7 +59,7 @@
       "role": "lead",
       "harness": "claude",
       "label": "Lead",
-      "prompt": "LEAD.md",
+      "prompt": "prompts/LEAD.md",
       "skills": "lead",
       "extraSkills": [
         "paseo"
@@ -122,7 +122,7 @@
       "role": "watcher",
       "harness": "omp",
       "label": "Watcher",
-      "prompt": "WATCHER.md",
+      "prompt": "prompts/WATCHER.md",
       "skills": null,
       "extraSkills": [],
       "guards": [
@@ -164,7 +164,7 @@
       "role": "peer",
       "harness": "omp",
       "label": "Peer",
-      "prompt": "PEER.md",
+      "prompt": "prompts/PEER.md",
       "skills": "peer",
       "extraSkills": [],
       "guards": [
@@ -193,13 +193,10 @@
         "seats"
       ],
       "hidesPaths": [
-        ".seatworks/BRIEF.md",
-        ".seatworks/DIRECTIVE.md",
-        ".seatworks/LEAD.md",
-        ".seatworks/NOTEBOOK.md",
-        ".seatworks/SUPERVISOR.md",
-        ".seatworks/WATCHER.md",
-        ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/prompts/SUPERVISOR.md",
+        ".seatworks/prompts/LEAD.md",
+        ".seatworks/prompts/WATCHER.md",
+        ".seatworks/guides",
         ".seatworks/records",
         ".seatworks/skills/lead",
         ".seatworks/skills/supervisor"
@@ -213,7 +210,7 @@
       "role": "reviewer",
       "harness": "omp",
       "label": "Reviewer",
-      "prompt": "REVIEWER.md",
+      "prompt": "prompts/REVIEWER.md",
       "skills": "reviewer",
       "extraSkills": [
         "peer:test-proof-debt-audit"
@@ -247,13 +244,10 @@
         "seats"
       ],
       "hidesPaths": [
-        ".seatworks/BRIEF.md",
-        ".seatworks/DIRECTIVE.md",
-        ".seatworks/LEAD.md",
-        ".seatworks/NOTEBOOK.md",
-        ".seatworks/SUPERVISOR.md",
-        ".seatworks/WATCHER.md",
-        ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/prompts/SUPERVISOR.md",
+        ".seatworks/prompts/LEAD.md",
+        ".seatworks/prompts/WATCHER.md",
+        ".seatworks/guides",
         ".seatworks/records",
         ".seatworks/skills/lead",
         ".seatworks/skills/supervisor"
@@ -309,6 +303,6 @@
   "writesNote": "writes lists the repository paths a seat may change, as shell glob patterns relative to the repository root; harness/common/guards/lead-guard.sh reads them and refuses every other path with writesRule. A seat with no writes entry may change nothing, so a new role fails closed. Outside the repository the same guard allows only the seat's temporary directory, because the kit, the Paseo config and the seat profiles all live outside it and each one is a file that decides what the seat may do. A seat whose only pattern is * owns the whole repository, so the guard also lets it edit in place; every narrower seat must leave a diff.",
   "mayStartNote": "mayStart lists the roles a seat may launch; harness/common/guards/profile-guard.sh refuses a create_agent or create_schedule on any other role, so an empty list means the seat starts nothing. With one provider per role the provider name is the role, which is what the guard matches.",
   "hidesWordsNote": "hidesWords lists words a seat must never see: setup-seats.fish refuses the seat prompt and every skill it links if one of them appears as a whole word, case-insensitively. Peers and Reviewers believe they work directly for a human, and a Lead knows only the three message labels, so nothing may name the seat above it.",
-  "hidesPathsNote": "hidesPaths lists repository paths a seat may not read, because the project keeps every seat prompt in one directory: a Peer that opened .seatworks/SUPERVISOR.md would learn about the layer above it. setup-seats.fish passes the list to the seat as SEATWORKS_HIDDEN_PATHS and its guard refuses a read there. Anything a Peer needs from those files belongs in its brief or in the repository instruction file.",
+  "hidesPathsNote": "hidesPaths lists repository paths a seat may not read, because the project keeps every seat prompt in one directory: a Peer that opened .seatworks/prompts/SUPERVISOR.md would learn about the layer above it. A directory entry hides everything under it, so guides/ and records/ are hidden whole and a new file there is hidden by default. setup-seats.fish passes the list to the seat as SEATWORKS_HIDDEN_PATHS and its guard refuses a read there. Anything a Peer needs from those files belongs in its brief or in the repository instruction file.",
   "guardsNote": "guards names the files a seat installs, so moving a role to another harness moves everything in seats.json except this list: a hook-protocol harness takes the shell guards under harness/common/guards/, and a harness whose guards.hookProtocol is \"extension\" needs its own, as harness/omp/extensions/ shows. A harness that declares guards.shellBridge takes both: it installs the bridge instead of the .sh files and runs them out of the kit. Check the target harness has an equivalent before you change a role's harness, and read report_unenforced's output, which names every intent the new harness enforces with neither a deny list nor a guard."
 }

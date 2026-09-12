@@ -39,6 +39,11 @@ There are two scopes, and only one of them grows. Your Paseo config holds five p
 agent profiles, one per role, and adding a project only composes one that is missing. Everything a
 seat reads lives in that project, under `REPO/.seatworks/`.
 
+Inside `.seatworks/`, the first three are the kit's and `--refresh` replaces them; `records/` is
+the project's and nothing replaces it. That split is the whole rule for what is safe to edit
+where: a change meant for every project goes to the kit, and a change meant for this one goes to
+its `AGENTS.md` or `guides/WORKSPACE_PROTOCOL.md`.
+
 The room joins the two. `harness/common/bin/seat-room` is the command every provider launches:
 it walks up from the agent's working directory to the nearest `.seatworks/`, reads the project's
 slug from `project.json`, points the harness's config-directory variable at that project's
@@ -60,10 +65,12 @@ harness/common/bin/seat-room    the room, launched by every provider
 <profileRoot>/<role>-<slug>/    one profile directory per role per project, named by each
                                 harness manifest: the role's settings and guards, and links
                                 into that project's `.seatworks/`
-REPO/.seatworks/                project.json, SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md,
-                                WATCHER.md, WORKSPACE_PROTOCOL.md, NOTEBOOK.md, and the Lead's
-                                own docs DIRECTIVE.md, FEATURE_INTAKE.md, PLANS.md, BRIEF.md;
-                                records/, skills/{supervisor,lead,peer,reviewer}/
+REPO/.seatworks/project.json    this project's slug, and any model it pins per role
+REPO/.seatworks/prompts/        one prompt per seat: SUPERVISOR, LEAD, PEER, REVIEWER, WATCHER
+REPO/.seatworks/guides/         what a seat reads when it needs a shape: WORKSPACE_PROTOCOL,
+                                DIRECTIVE, FEATURE_INTAKE, PLANS, BRIEF
+REPO/.seatworks/skills/         supervisor/, lead/, peer/, reviewer/
+REPO/.seatworks/records/        what the seats write: NOTEBOOK.md, attention/, lessons/, drafts/
 maintenance/                    kit tools no seat loads: seat-safety-review audits the kit's
                                 seats, not a project
 ```
@@ -76,7 +83,7 @@ the global profile. A role the file doesn't name keeps its profile's model.
 `setup/add-project.fish` copies the kit's `project/` templates into a repository and writes its
 `project.json`; after that, the project's copies are its own until a `--refresh`.
 `setup/setup-seats.fish` composes the providers and profiles and builds every profile
-directory, so an edit to `REPO/.seatworks/LEAD.md` takes effect for the next Lead you start
+directory, so an edit to `REPO/.seatworks/prompts/LEAD.md` takes effect for the next Lead you start
 there.
 
 Eleven skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
@@ -201,7 +208,7 @@ When the kit's templates change, carry them into a project that already has its 
 replaces the project's seat prompts and skills, and its workspace protocol while that is still
 the unfilled template, keeping the old copies under the git-ignored `.seatworks/records/drafts/`.
 Keep one project's own rules in its `AGENTS.md` or its filled-in
-`.seatworks/WORKSPACE_PROTOCOL.md`, which it never touches:
+`.seatworks/guides/WORKSPACE_PROTOCOL.md`, which it never touches:
 
 ```fish
 fish setup/add-project.fish REPO_DIR --refresh

@@ -6,7 +6,7 @@ project. You own framing, task breakdown, routing, ownership, integration, and a
 ## Start of every session
 
 Confirm the repository root; read `AGENTS.md` and, where it exists,
-`.seatworks/WORKSPACE_PROTOCOL.md`, which sets strictness, review lanes, and spawn recipes and
+`.seatworks/guides/WORKSPACE_PROTOCOL.md`, which sets strictness, review lanes, and spawn recipes and
 overrides this file; check that the checkout holds no uncommitted changes you would overwrite;
 and take provider, model, and agent IDs from Paseo rather than from memory.
 
@@ -44,9 +44,9 @@ decision that changes a shared contract.
 
 ## The loop
 
-1. **Take the lane.** Use `.seatworks/FEATURE_INTAKE.md`: pick the smallest lane the work
+1. **Take the lane.** Use `.seatworks/guides/FEATURE_INTAKE.md`: pick the smallest lane the work
    honestly fits, and state its five-line intake result in your reply. The high-risk lane also
-   takes an active ExecPlan, whose shape is `.seatworks/PLANS.md`.
+   takes an active ExecPlan, whose shape is `.seatworks/guides/PLANS.md`.
 2. **Settle what a slice cannot.** Name the leverage points the outcome touches — interfaces
    other slices consume, stateful systems, data models, and the decide-first seams in
    `AGENTS.md` — and mark each decided, citing the ADR or plan line, or open. Settle an open one
@@ -117,7 +117,7 @@ working around it.
 
 ## Delegation
 
-Every brief follows `.seatworks/BRIEF.md`, and its disposition sets what the Peer may do. Fill
+Every brief follows `.seatworks/guides/BRIEF.md`, and its disposition sets what the Peer may do. Fill
 its `Skills` field yourself with the skills the task touches, by name: a Peer left to route
 itself usually loads none.
 

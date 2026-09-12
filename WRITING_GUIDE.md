@@ -216,8 +216,8 @@ Use these terms, and only these, for the following concepts:
 | skill gate | An entry in `seats.json`'s `skillGates` that refuses the call a skill owns until that skill is loaded; the list is empty by default |
 
 `seats.json`'s `hidesWords` says which words each seat never sees, and the setup script checks
-every prompt and skill against it: `.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use
-Supervisor, watcher, seat, or Paseo, and `.seatworks/LEAD.md` never names the Supervisor.
+every prompt and skill against it: `.seatworks/prompts/PEER.md` and `.seatworks/prompts/REVIEWER.md` never use
+Supervisor, watcher, seat, or Paseo, and `.seatworks/prompts/LEAD.md` never names the Supervisor.
 `hidesPaths` adds the repository paths those seats may not read.
 
 ## Where sources disagree, and what this kit chose

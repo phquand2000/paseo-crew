@@ -94,8 +94,8 @@ function check_skill --argument-names label skill
     end
     test (wc -l <$file) -ge 500
     and echo "  · $label: skill $name has 500+ lines; move detail into references/."
-    grep -rq '<!--' $skill
-    and fail "$label: skill $name contains an HTML comment; a skill loads unchanged on every harness, and one that shows comments would read it to the seat as a rule"
+    grep -rq --include='*.md' '<!--' $skill
+    and fail "$label: skill $name has an HTML comment in a .md file; a skill loads unchanged on every harness, and one that shows comments would read it to the seat as a rule. A script is run rather than read, so its own output may contain one."
 
     for file in (find $skill -type f -name '*.md')
         hidden_words $label $file $argv[3..-1]
@@ -732,7 +732,7 @@ end
 test $dry -eq 1; and echo "[--check] verifying only; nothing will be written."
 test $live -eq 1; and echo "[--probe] each seat's harness will be asked which skills it loads; this spends a cheap model call per seat that needs one."
 
-for file in $kit/project/*.md (find $kit/project/skills -name '*.md' 2>/dev/null)
+for file in (find $kit/project -name '*.md' 2>/dev/null)
     grep -q '<!--' $file
     and fail (string replace -- "$kit/" '' $file)" contains an HTML comment. Every .md in this kit loads unchanged on every harness; put maintainer notes in WRITING_GUIDE.md."
 end

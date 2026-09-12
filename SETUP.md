@@ -225,7 +225,24 @@ pointer for every other `contextFile` a harness declares with `contextFileNeedsP
 registers the repository as a Paseo project, builds this project's five seat directories under
 each harness's profile root, and reloads Paseo.
 
-It writes no provider and no profile: those are step 4's six, shared by every project. It adds
+`.seatworks/` holds four directories and one file, and which of them a rerun may touch is the
+whole rule:
+
+| Path | Holds | `--refresh` |
+|---|---|---|
+| `project.json` | the slug, and any model pinned per role | never replaced |
+| `prompts/` | one prompt per seat | replaced |
+| `guides/` | the shapes a seat reads when it needs one: `WORKSPACE_PROTOCOL.md`, `DIRECTIVE.md`, `FEATURE_INTAKE.md`, `PLANS.md`, `BRIEF.md` | replaced, except `WORKSPACE_PROTOCOL.md` once its placeholders are filled in |
+| `skills/` | each role's skills | replaced, and a skill the kit dropped is retired into `records/drafts/` |
+| `records/` | what the seats write: `NOTEBOOK.md`, `attention/`, `lessons/`, `drafts/` | never replaced |
+
+A project set up before those directories existed kept all eleven `.md` files flat in
+`.seatworks/`. The first run moves each one to its new path, keeping your text where the file is
+yours (`NOTEBOOK.md`, and `WORKSPACE_PROTOCOL.md` once filled in) and reporting every move. Do it
+in one pass: a stale `.seatworks/LEAD.md` left at the root is no longer on the Peer's hidden-path
+list, so it would be readable.
+
+It writes no provider and no profile: those are step 4's five, shared by every project. It adds
 files only; leave the repository's code alone. If another repository already uses the slug, it
 stops and asks for `--slug`.
 
@@ -251,7 +268,7 @@ line, and a spawn recipe with a real model:
 jq -r .slug REPO_DIR/.seatworks/project.json
 paseo project ls | grep REPO_DIR
 for f in (jq -r 'select(.contextFileNeedsPointer == true) | .contextFile' KIT_DIR/harness/*/harness.json); head -1 REPO_DIR/$f; end
-grep -n 'peer/' REPO_DIR/.seatworks/WORKSPACE_PROTOCOL.md
+grep -n 'peer/' REPO_DIR/.seatworks/guides/WORKSPACE_PROTOCOL.md
 ```
 
 If the repository already had an `AGENTS.md`, add the sections of
@@ -354,18 +371,18 @@ The prompts are demo files: the structure is real, the rules generic, and the va
 your own. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE.md).
 
 1. Fill in the project's placeholders (the `UPPER_SNAKE_CASE` words in `AGENTS.md` and
-   `.seatworks/WORKSPACE_PROTOCOL.md`) with the Human's decisions, or delete the line to keep
+   `.seatworks/guides/WORKSPACE_PROTOCOL.md`) with the Human's decisions, or delete the line to keep
    the Lead's default; `examples/WORKSPACE_PROTOCOL.md` says what each one means. Committing is
    the Human's call. List what is open with:
 
    ```fish
-   grep -noE '\b[A-Z]{2,}(_[A-Z]+)+\b' REPO_DIR/AGENTS.md REPO_DIR/.seatworks/WORKSPACE_PROTOCOL.md
+   grep -noE '\b[A-Z]{2,}(_[A-Z]+)+\b' REPO_DIR/AGENTS.md REPO_DIR/.seatworks/guides/WORKSPACE_PROTOCOL.md
    ```
 
 2. Rewrite the seat prompts in this order, because each one constrains the next. Put rules every
    project should start with in the `KIT_DIR/project/` templates; `--refresh` replaces a
    project's copies, so a rule meant for one project goes in its `AGENTS.md` or
-   `.seatworks/WORKSPACE_PROTOCOL.md`:
+   `.seatworks/guides/WORKSPACE_PROTOCOL.md`:
    1. `PEER.md` and `REVIEWER.md`: boundaries, handoff shape, evidence standard. No HTML
       comments in any prompt or skill: a maintainer note goes in `WRITING_GUIDE.md`, which lists
       what each demo prompt expects you to add.

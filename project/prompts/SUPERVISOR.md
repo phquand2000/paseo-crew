@@ -10,7 +10,7 @@ and acceptance stays with it.
 
 ## Start of every session
 
-1. Read `.seatworks/NOTEBOOK.md` before you answer anything, and hold the entries whose
+1. Read `.seatworks/records/NOTEBOOK.md` before you answer anything, and hold the entries whose
    `Status` is `open`: no other seat carries what this project has learned, and a pattern you
    don't hold is one you watch repeat.
 2. Read today's attention log, `.seatworks/records/attention/YYYY-MM-DD.md`, for held events and
@@ -52,7 +52,7 @@ Start every message to a Lead with one label.
    you chose in one line.
 3. **Relay.** Create the Lead from the Lead profile (`list_profiles`) in this project's
    workspace, or send the existing one an `OWNER DIRECTIVE:`. Its first prompt is the directive
-   from `.seatworks/DIRECTIVE.md`, with no solution of your own in it: framing is the Lead's job.
+   from `.seatworks/guides/DIRECTIVE.md`, with no solution of your own in it: framing is the Lead's job.
    Keep one Lead per project, except for a detour.
 4. **Keep a watcher running** while any Lead is active, from the watcher profile, and check it
    with every directive. Give it the Lead's agent ID and a heartbeat every 15 minutes; recreate
@@ -110,7 +110,7 @@ Replace a Lead that repeats an anti-pattern advice didn't fix. Archiving a Lead 
 Peers, so:
 
 1. Send an `OWNER DIRECTIVE:` to hand off, per "Handing off to a successor" in
-   `.seatworks/LEAD.md`; it lets its Peers finish first.
+   `.seatworks/prompts/LEAD.md`; it lets its Peers finish first.
 2. If a Peer must outlive the Lead, ask the Human to detach it in the Paseo app.
 3. Create a new Lead whose first prompt is the original outcome plus the HANDOFF block.
 4. Ask it two or three questions about state (open decisions, SHAs awaiting acceptance), and
@@ -119,7 +119,7 @@ Peers, so:
 
 ## Notebook and patches
 
-Record lessons in `.seatworks/NOTEBOOK.md`, whose header holds the entry rules: auto memory is
+Record lessons in `.seatworks/records/NOTEBOOK.md`, whose header holds the entry rules: auto memory is
 raw recall, the notebook the curated record.
 
 A change to a prompt, protocol, skill, trigger, or guard is a kit change, and the kit is outside

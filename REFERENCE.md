@@ -221,7 +221,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Cause:** a Peer can read any file in the repository, including everything in `.seatworks/`:
   the Lead's prompt and skills and the workspace protocol. A harness whose `promptComments` is
   `shown` would also load an HTML comment verbatim, which is why no `.md` in this kit has one.
-- **Response:** keep maintainer notes out of `.seatworks/PEER.md` and `.seatworks/REVIEWER.md`
+- **Response:** keep maintainer notes out of `.seatworks/prompts/PEER.md` and `.seatworks/prompts/REVIEWER.md`
   (the setup script fails on an HTML comment in any prompt or skill, whatever the harness), and
   out of every skill such a seat loads. The hiding reduces noise; it doesn't keep secrets. A
   seat's prompt and skills are also checked for every word its role's `hidesWords` lists, and
@@ -302,11 +302,12 @@ invalidate this page, and no entry here names a coding agent or its tools.
   counts it only when `.seatworks/project.json` is there; `--project REPO_DIR` names one
   directly.
 - **Response:** send a change to a seat prompt, skill, or guard to the kit as a diff. Guards are
-  linked from the kit; prompts and skills, and the workspace protocol while it is still the
-  unfilled template, reach a project through `fish setup/add-project.fish REPO_DIR --refresh`,
+  linked from the kit; `prompts/`, `guides/` and `skills/` reach a project through
+  `fish setup/add-project.fish REPO_DIR --refresh`, which leaves `records/` alone and leaves
+  `guides/WORKSPACE_PROTOCOL.md` alone once its placeholders are filled in,
   which replaces them with the kit's versions and keeps each old copy under the git-ignored
   `.seatworks/records/drafts/refresh-STAMP/`. Put project-only rules
-  in `AGENTS.md` or the filled-in `.seatworks/WORKSPACE_PROTOCOL.md`, which refresh never
+  in `AGENTS.md` or the filled-in `.seatworks/guides/WORKSPACE_PROTOCOL.md`, which refresh never
   touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles and, after the kit
   moves, the providers' kit paths. If the repository moves, rerun add-project at the new path
   with the same `--slug SLUG`; the old profile directories point at a path with no
@@ -347,7 +348,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that
   `watcher` (or another seat) doesn't exist yet.
 - **Cause:** the watcher runs on a small model and reads its prompt on every sweep, so its
-  instruction file is the short `.seatworks/WATCHER.md`, with the trigger table in it, rather
+  instruction file is the short `.seatworks/prompts/WATCHER.md`, with the trigger table in it, rather
   than the Supervisor's prompt. A project added before a seat existed lacks its profile
   directory and prompt. Paseo sets `PASEO_AGENT_ID` in every agent's environment, which is how
   the Supervisor gives the watcher its own ID.

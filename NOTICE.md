@@ -30,7 +30,7 @@ history at `db20bff^`.
 | `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | unchanged; the catalog installed as `references/proof-debt-catalog.md` |
 | `supervisor/architecture-premise-audit` | SLP `SKILL.md` | unchanged |
 | `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | unchanged |
-| `.seatworks/FEATURE_INTAKE.md`, `.seatworks/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/` |
+| `.seatworks/guides/FEATURE_INTAKE.md`, `.seatworks/guides/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/` |
 
 Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 `lead/ultra-review/scripts/create_ultra_review_report.py`, are SLP files kept byte-for-byte.

@@ -8,16 +8,16 @@ The two files split the work like this:
 | File | Holds | Read by |
 |---|---|---|
 | `AGENTS.md` | Technical constraints anyone changing code must know: contracts, test commands, authority | Every agent, automatically |
-| `.seatworks/WORKSPACE_PROTOCOL.md` | Coordination strategy: strictness, topology, review lanes, spawn recipes | The Lead |
+| `.seatworks/guides/WORKSPACE_PROTOCOL.md` | Coordination strategy: strictness, topology, review lanes, spawn recipes | The Lead |
 
 If an item belongs in both, put it in `AGENTS.md`.
 
 Strictness varies by repository: a side project might need ten lines, and a repository with
 many users a few hundred. Without this file, the Lead runs on the defaults in
-`.seatworks/LEAD.md`, so delete any section that repeats them. Give each mandatory rule a
+`.seatworks/prompts/LEAD.md`, so delete any section that repeats them. Give each mandatory rule a
 reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
-`setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
+`setup/add-project.fish` copies the block below to `.seatworks/guides/WORKSPACE_PROTOCOL.md` in the
 repository, and fills in `PEER_MODEL` from `--model` or the Peer harness's
 `provider.defaultModel`. Fill in the rest yourself, or delete a line to keep the Lead's default:
 the file is yours, and every line in it is a rule the Lead cannot see the reason for.

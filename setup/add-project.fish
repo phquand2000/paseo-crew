@@ -94,7 +94,7 @@ for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
     for role in $roles
         set -l link $root/$role-$slug/$prompt_file
         test -L $link; or continue
-        set -l other (string replace -r '/\.seatworks/[^/]*$' '' -- (readlink $link))
+        set -l other (string replace -r '/\.seatworks/.*$' '' -- (readlink $link))
         test "$other" = "$repo_dir"; and continue
         echo "! the slug $slug already belongs to $other: pass --slug with another name."
         exit 1
@@ -106,23 +106,44 @@ set -l added
 
 set -l stage (mktemp -d)
 cp -R $kit/project/. $stage/
-awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/WORKSPACE_PROTOCOL.md
+awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/guides/WORKSPACE_PROTOCOL.md
 set -l peer_harness (jq -r '.seats[] | select(.role == "peer") | .harness' $seats_file)
 set -l peer_model $model
 test -n "$peer_model"; or set peer_model (jq -r '.provider.defaultModel // ""' $harness_dir/$peer_harness/harness.json)
-test -n "$peer_model"; and perl -pi -e "s|PEER_MODEL|$peer_model|g" $stage/WORKSPACE_PROTOCOL.md
+test -n "$peer_model"; and perl -pi -e "s|PEER_MODEL|$peer_model|g" $stage/guides/WORKSPACE_PROTOCOL.md
 
 set -l refreshed
 set -l drafts $seat/records/drafts/refresh-(date +%Y%m%d-%H%M%S)
+
+for flat in SUPERVISOR.md LEAD.md PEER.md REVIEWER.md WATCHER.md BRIEF.md DIRECTIVE.md FEATURE_INTAKE.md PLANS.md WORKSPACE_PROTOCOL.md NOTEBOOK.md
+    test -f $seat/$flat; or continue
+    set -l now (find $stage -type f -name $flat | head -1)
+    test -n "$now"; or continue
+    set -l dest (string replace -- "$stage/" '' $now)
+    mkdir -p (path dirname $drafts/$flat)
+    if test -e $seat/$dest
+        mv $seat/$flat $drafts/$flat
+        set -a refreshed ".seatworks/$flat (moved to records/drafts; it lives at $dest now)"
+    else
+        mkdir -p (path dirname $seat/$dest)
+        mv $seat/$flat $seat/$dest
+        set -a refreshed ".seatworks/$flat -> .seatworks/$dest"
+    end
+end
+
 for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
     set -l rel (string replace -- "$stage/" '' $src)
     if test -e $seat/$rel
         test $refresh -eq 1; or continue
-        contains -- $rel $prompts; or string match -q 'skills/*' -- $rel
-        or begin
-            test $rel = WORKSPACE_PROTOCOL.md; and grep -q STRICTNESS_LEVEL $seat/$rel
+        set -l replaceable 0
+        if test $rel = guides/WORKSPACE_PROTOCOL.md
+            grep -q STRICTNESS_LEVEL $seat/$rel; and set replaceable 1
+        else if contains -- $rel $prompts
+            set replaceable 1
+        else if string match -q 'skills/*' -- $rel; or string match -q 'guides/*' -- $rel
+            set replaceable 1
         end
-        or continue
+        test $replaceable -eq 1; or continue
         cmp -s $src $seat/$rel; and continue
         mkdir -p (path dirname $drafts/$rel)
         cp $seat/$rel $drafts/$rel
@@ -134,15 +155,19 @@ for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
     cp $src $seat/$rel
     set -a added .seatworks/$rel
 end
-if test $refresh -eq 1; and test -d $seat/skills
-    for old in (find $seat/skills -type f ! -name .DS_Store ! -path '*/__pycache__/*')
-        set -l rel (string replace -- "$seat/" '' $old)
-        test -e $stage/$rel; and continue
-        mkdir -p (path dirname $drafts/$rel)
-        mv $old $drafts/$rel
-        set -a refreshed ".seatworks/$rel (retired)"
+if test $refresh -eq 1
+    for owned in skills prompts guides
+        test -d $seat/$owned; or continue
+        for old in (find $seat/$owned -type f ! -name .DS_Store ! -path '*/__pycache__/*')
+            set -l rel (string replace -- "$seat/" '' $old)
+            test -e $stage/$rel; and continue
+            test $rel = guides/WORKSPACE_PROTOCOL.md; and continue
+            mkdir -p (path dirname $drafts/$rel)
+            mv $old $drafts/$rel
+            set -a refreshed ".seatworks/$rel (retired)"
+        end
+        find $seat/$owned -type d -empty -delete
     end
-    find $seat/skills -type d -empty -delete
 end
 rm -rf $stage
 
@@ -212,13 +237,14 @@ if test (count $refreshed) -gt 0
     echo "Refreshed from the kit: "(string join ', ' $refreshed)
     echo "The previous copies are in "(string replace -- "$repo_dir/" '' $drafts)"/; running agents keep the old text until archived."
 else if test $refresh -eq 1
-    echo "Nothing to refresh: the seat prompts and skills already match the kit."
+    echo "Nothing to refresh: the prompts, guides and skills already match the kit."
 end
 echo "Seats for $slug: "(for role in $roles
     echo -n "$role ("(jq -r --arg r $role '.seats[] | select(.role == $r) | .label' $seats_file)") "
 end | string trim)
 command -q ocr
-or echo "! the Reviewer runs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review"
-echo "Next: start the $entry profile in this repository and ask it to run its workspace-protocol skill,"
-echo "which fills in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md."
+or echo "  · the Reviewer's optional machine pass needs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review. Without it the Reviewer reviews by reading."
+echo "Next: fill in the UPPER_SNAKE_CASE placeholders in AGENTS.md and"
+echo ".seatworks/guides/WORKSPACE_PROTOCOL.md, or delete a line there to keep the Lead's default."
+echo "Then start the $entry profile in this repository."
 exit $seats_status

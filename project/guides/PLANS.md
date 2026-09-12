@@ -5,7 +5,7 @@ handoff. It preserves decisions and acceptance; it is not implementation written
 
 ## When Required
 
-Use `.seatworks/FEATURE_INTAKE.md`. A task or issue is enough for tiny and bounded normal work.
+Use `.seatworks/guides/FEATURE_INTAKE.md`. A task or issue is enough for tiny and bounded normal work.
 Create an active ExecPlan for material risk, irreversibility, uncertainty, broad owner/contract
 impact, external side effects, or restart/handoff.
 

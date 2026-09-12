@@ -13,7 +13,7 @@ for every other file a harness in use reads. A pointer is this one line:
 ```
 
 Coordination strategy (strictness, review lanes, spawn recipes) belongs in
-`.seatworks/WORKSPACE_PROTOCOL.md` instead (template next to this one): Peers don't need it,
+`.seatworks/guides/WORKSPACE_PROTOCOL.md` instead (template next to this one): Peers don't need it,
 and reading it every turn only distracts them.
 
 When you fill in the template:
