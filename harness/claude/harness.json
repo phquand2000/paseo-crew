@@ -19,10 +19,6 @@
     {
       "link": "projects",
       "target": "HOME/.claude/projects"
-    },
-    {
-      "link": "plugins",
-      "target": "HOME/.claude/plugins"
     }
   ],
   "state": {
@@ -140,7 +136,7 @@
     "retired": [
       "SlashCommand"
     ],
-    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool \u2014 check for typos`. Skills load through the Skill tool, which must stay allowed.",
+    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool — check for typos`. Skills load through the Skill tool, which must stay allowed.",
     "absent": [
       "code-eval"
     ],
@@ -207,7 +203,8 @@
   "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat.",
   "userSettings": "HOME/.claude/settings.json",
   "userSettingsNote": "the user's own settings file. setup-seats.fish requires each role settings file to carry the same settings.retentionKey value, because a seat prunes the shared directories in links on startup.",
-  "pluginIndex": "HOME/.claude/plugins/installed_plugins.json",
-  "pluginManifest": ".claude-plugin/plugin.json",
-  "pluginManifestNote": "path inside an installed plugin whose `skills` array lists the skill directories it ships. Read together with pluginIndex."
+  "retiredLinks": [
+    "plugins"
+  ],
+  "retiredLinksNote": "links this harness once made and must not have now. setup deletes each one from every seat directory, because build_seat_links only creates what links declares and would otherwise leave a retired symlink in place. plugins is retired because no seat uses a plugin: the Human asked for none, both LSP plugins were enabled on seats whose lsp intent denies the LSP tool, they ship no skills, and installed_plugins.json recorded their install path inside a profile directory the kit had stopped creating. Without the link a seat has no plugin directory at all, so nothing can be enabled by default either."
 }

@@ -59,7 +59,7 @@ function seat_link --argument-names link want dry
     end
 end
 
-function check_budget --argument-names file budget
+function check_budget --argument-names file budget lines
     set -l size (wc -c <$file | string trim)
     set -l pct (math "round($size * 100 / $budget)")
     if test $size -gt $budget
@@ -67,6 +67,10 @@ function check_budget --argument-names file budget
     else if test $pct -ge 85
         echo "  · $file is $size bytes, $pct% of the $budget-byte budget; nearly full."
     end
+    test -n "$lines"; and test "$lines" -gt 0; or return
+    set -l count (wc -l <$file | string trim)
+    test $count -gt $lines
+    and fail "$file is $count lines, over the $lines-line limit WRITING_GUIDE.md sets for a seat prompt. Cut it, or move detail into a skill."
 end
 
 function hidden_words --argument-names label file words
@@ -271,7 +275,7 @@ function build_seat --argument-names role slug repo_dir
     and fail "$key: $prompt contains an HTML comment; a prompt loads unchanged on every harness, and one that shows comments would read it to the seat as a rule. Maintainer notes go in WRITING_GUIDE.md."
 
     hidden_words $key $prompt $hides
-    check_budget $prompt (seats_get .promptBudget)
+    check_budget $prompt (seats_get .promptBudget) (seats_get '.promptLineBudget // 0')
 
     test $dry -eq 0; and mkdir -p $dir/$skills_sub
     if not test -d $dir/$skills_sub
@@ -283,6 +287,7 @@ function build_seat --argument-names role slug repo_dir
     seat_link $dir/$prompt_file $prompt $dry
     build_seat_settings $key $harness $role $dir
     build_seat_links $key $harness $dir
+    retire_seat_links $key $harness $dir
     build_seat_state $key $harness $dir
     build_seat_guards $key $harness $role $dir
 
@@ -401,6 +406,18 @@ function build_seat_links --argument-names key harness dir
             end
         end
         seat_link $dir/$link $target $dry
+    end
+end
+
+function retire_seat_links --argument-names key harness dir
+    for link in (harness_get $harness '.retiredLinks[]?')
+        test -e $dir/$link; or test -L $dir/$link; or continue
+        if test $dry -eq 1
+            fail "$key: $dir/$link is a link this harness retired; rerun without --check to remove it."
+        else
+            rm -rf $dir/$link
+            echo "  ~ $key: removed the retired link $link"
+        end
     end
 end
 
@@ -752,6 +769,17 @@ for file in (find $kit/project -name '*.md' 2>/dev/null)
         test $rel = guides/WORKSPACE_PROTOCOL.md; and test -f $kit/examples/WORKSPACE_PROTOCOL.md; and continue
         fail (string replace -- "$kit/" '' $file)" names $link, which neither project/ nor examples/ ships"
     end
+end
+
+for role in (seats_get '.seats[].role')
+    set -l file $kit/project/(seat_field $role .prompt)
+    test -f $file
+    or begin
+        fail "seats.json gives role $role the prompt "(seat_field $role .prompt)", which the kit does not ship at project/"(seat_field $role .prompt)
+        continue
+    end
+    check_budget $file (seats_get .promptBudget) (seats_get '.promptLineBudget // 0')
+    hidden_words "role $role" $file (seat_field $role '.hidesWords[]?')
 end
 
 for intent in (begin

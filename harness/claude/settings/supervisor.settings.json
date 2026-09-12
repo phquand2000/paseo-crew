@@ -3,11 +3,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": false,
-    "pyright-lsp@claude-plugins-official": false,
-    "mattpocock-skills@mattpocock": false
-  },
+  "enabledPlugins": {},
   "autoCompactWindow": 300000,
   "precomputeCompactionEnabled": true,
   "skipDangerousModePermissionPrompt": true,
