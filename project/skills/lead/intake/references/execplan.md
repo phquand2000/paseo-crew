@@ -3,7 +3,8 @@
 An ExecPlan is a short direction document for work that has to survive a restart, a compaction,
 or a handoff, checked into the target repository at `docs/exec-plans/active/SLUG.md`, one file
 per outcome. It records the outcome, the decisions, and the acceptance evidence, not the
-implementation in prose: files, symbols, and control flow stay with the Peers who write them.
+implementation in prose: files, private symbols, and control flow stay with the Peers who write
+them; interfaces between slices are leverage points the plan may settle.
 
 ## Rules
 
@@ -25,7 +26,7 @@ A plan is good when each of these holds:
 Keep these out, since each pre-solves the Peer's work or turns the plan into a log nobody
 rereads:
 
-- exact symbols, pseudocode, private control flow, or a line-by-line edit sequence;
+- private symbols, pseudocode, private control flow, or a line-by-line edit sequence;
 - completion defined as "edits made", a coverage percentage, or a report existing;
 - a diary, an evidence archive, or a review transcript; put logs in files and link them.
 
@@ -38,9 +39,8 @@ Keep agent IDs and tool names out of the plan: Peers read the repository, and th
 distract them. Label the agents instead (`plan: SLUG`, `task: S1`) and recover their IDs with
 `list_agents`.
 
-When the outcome is accepted, move durable decisions into their owners (an ADR, `AGENTS.md`, a
-contract document) and delete the plan in the same commit; git keeps its history. If the
-repository's `AGENTS.md` says to keep finished plans, follow that instead.
+When the outcome merges, the integration skill moves its durable decisions into their owners
+and deletes the plan; git keeps its history.
 
 ## Template
 
@@ -126,7 +126,7 @@ survives a compaction:
 ```text
 S1: pending
 S1: briefed, Engineer, thinking medium, base 3f2a1c9
-S1: fix round 2/5, open F003 F004
+S1: fix round 2/4, open F003 F004
 S1: reopened, REOPEN_REQUEST on the API layer, ruling: RULING
 S1: accepted at 9b8e7d6
 ```

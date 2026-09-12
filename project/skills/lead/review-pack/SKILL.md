@@ -44,8 +44,10 @@ skill's directory) says what each `--profile` selects; read it when a selection 
    architecture, or large adversarial reviews: it writes repository-relative files under
    `repo/` plus `MANIFEST.md`, `SOURCE_TREE.txt`, `GIT_STATUS.txt`, `GIT_HEAD.txt`, and
    `GIT_BRANCH.txt`, with the diff and prompt only on `--include-diff` or `--include-prompt`.
-   Use the default Markdown pack for a small focused review that reads best as one file. Done
-   when the shape fits the size of the question.
+   Use the default Markdown pack for a small focused review that reads best as one file. The
+   script includes tests by default, so add `--tests none` (snapshot) or `--exclude-tests`
+   (Markdown) unless the request asks for tests. Done when the shape fits the question and the
+   command carries a test flag.
 
 4. **Run a dry run** with the same arguments plus `--dry-run`, and show the Human the
    interpreted scope, file count, size estimate, and notable skipped categories. Done when the
@@ -116,12 +118,9 @@ python3 SKILL_DIR/scripts/review_pack.py create --root REPO --only-ranges \
 ## Reviewer prompts
 
 Keep the prompt out of a source snapshot unless the Human asks, so the artifact stays neutral
-and reusable with another question. For a snapshot, tell the reviewer how to read it without
-flooding its context: map from `MANIFEST.md`, `SOURCE_TREE.txt`, and doc headings first; search,
-then read focused line ranges; rerun a narrower range when output is cut off; cite only lines
-actually read; and, if tests are excluded, name missing test context rather than guess.
-
-For an adversarial source-truth review, cover these points:
+and reusable with another question. The script's built-in prompt, shaped by `--review-kind`,
+asks for no broad rewrites, so use it only for a small Markdown pack. For an adversarial
+source-truth review, write a prompt that covers these points:
 
 ```text
 You are an independent adversarial reviewer for PROJECT_OR_TASK.
@@ -130,6 +129,9 @@ GIT_STATUS.txt is orientation, not the boundary of the review.
 Review GOVERNING_PLAN_OR_TASK as a whole, not only a local patch or a list of earlier findings.
 Try to falsify both local correctness and fit with the long-lived architecture.
 Read MANIFEST.md, AGENTS.md, the governing plan and ADRs, then the source.
+Don't dump whole large files: map from MANIFEST.md, SOURCE_TREE.txt, and doc headings, search,
+then read focused line ranges (narrower when output is cut off), and cite only lines you read.
+If tests are excluded, name the missing test context rather than guess.
 Cover these surfaces: SURFACES.
 Flag issues that pass locally but weaken the architecture.
 Report findings first, each with severity, file:line, failure path, the rule or boundary it

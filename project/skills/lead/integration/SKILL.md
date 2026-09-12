@@ -1,21 +1,23 @@
 ---
 name: integration
-description: "Finishes accepted work: merges slice branches in dependency order, resolves conflicts, runs the full suite, offers the Human three options, and cleans up worktrees and Peers. Use when every slice of an outcome is accepted and its branches must merge."
+description: "Merges accepted slices in dependency order, has an Engineer resolve conflicts, runs the full suite, offers the Human three options, and cleans up. Use before any merge into the base branch, even for tiny work with no ExecPlan."
 ---
 
 # Integration
 
-Merge an outcome's accepted slices, get the Human's decision on where the result goes, and leave
-no stray worktree, live Peer, or heartbeat. Output: an integration branch with a passing check
-run, the options block, and a closing summary ending with the `LESSON:` line.
+Every merge into the base branch goes through this skill, tiny and normal work included: merge
+the accepted slices, get the Human's decision on where the result goes, and leave no stray
+worktree, live Peer, or heartbeat. Output: an integration branch with a passing check run, the
+options block, and a closing summary ending with the `LESSON:` line.
 
 ## Before you start
 
 - Every slice in the ExecPlan's Progress is `accepted at SHA`, or dropped with a recorded ruling.
+  With no ExecPlan, the accepted SHAs in your acceptance summary are the slices.
 - `list_agents` shows none of this outcome's Peers running, so no one writes into a branch you
   merge.
-- You know the base branch from the ExecPlan or the owner directive; otherwise ask the Human,
-  since a merge into the wrong base is expensive to undo.
+- You know the base branch from the owner directive; otherwise ask the Human, since a merge into
+  the wrong base is expensive to undo.
 
 ## Procedure
 
@@ -24,18 +26,31 @@ run, the options block, and a closing summary ending with the `LESSON:` line.
    `git merge-base --is-ancestor "$sha" BRANCH && echo on-branch`.
    Done when every slice maps to one branch and one SHA.
 
-2. **Create the integration worktree** from the base, so the main checkout and any uncommitted
-   work in it stay untouched: `git worktree add WORKTREE_PATH -b integrate/SLUG BASE`, with
-   `WORKTREE_PATH` where the protocol's worktree rule says (for example
-   `../REPO-wt/integrate-SLUG`). Done when `git -C WORKTREE_PATH status --short` is empty.
+2. **Create the integration worktree** with `create_workspace`, so the main checkout and any
+   uncommitted work in it stay untouched, and a conflict Peer can be placed in it:
 
-3. **Merge the slices in dependency order** (the ExecPlan's dependency graph), running the fast
-   check after each merge so a break points at one slice:
+   ```text
+   create_workspace
+     isolation:    "worktree"
+     path:         REPO_ROOT
+     mode:         "branch-off"
+     baseBranch:   BASE
+     branchName:   "integrate/SLUG"
+     worktreeSlug: "integrate-SLUG"
+     title:        "SLUG integration"
+   ```
+
+   Keep the returned workspace ID, and call its directory `WORKTREE_PATH`. Done when
+   `git -C WORKTREE_PATH status --short` is empty.
+
+3. **Merge the slices in dependency order** (the ExecPlan's dependency graph, else acceptance
+   order), running the fast check after each merge so a break points at one slice:
    `git -C WORKTREE_PATH merge --no-ff --no-edit task/SLUG-S1`.
    Done when every slice is merged, or a conflict stops you at step 4.
 
-4. **Resolve conflicts.** Resolving writes code, so brief an Engineer Peer whose owned scope is
-   the conflicted files in the integration worktree; never resolve them yourself. The Peer:
+4. **Resolve conflicts.** Resolving writes code, so never resolve them yourself: brief an
+   Engineer Peer from the Peer profile, pass the integration workspace's ID as `workspaceId`,
+   and make the conflicted files in `WORKTREE_PATH` its owned scope. The Peer:
 
    1. Lists the conflicted files: `git diff --name-only --diff-filter=U`.
    2. Reads each side's intent from its commits, brief, and handoff:
@@ -61,8 +76,8 @@ run, the options block, and a closing summary ending with the `LESSON:` line.
    skill, and rerun this step. An earlier green run proves only the tree it ran on.
 
 6. **Offer exactly three options** in this form and wait for the Human's answer. When the
-   directive says to proceed and reserves nothing, merge locally
-   (option 1) and send the block with `Merged locally: the directive said to proceed`:
+   directive says to proceed and reserves nothing, merge locally (option 1) and send the block
+   with `Merged locally: the directive said to proceed`:
 
    ```text
    Integration ready: integrate/SLUG at SHA, based on BASE.
@@ -76,11 +91,11 @@ run, the options block, and a closing summary ending with the `LESSON:` line.
    Which option?
    ```
 
-   `OPEN_ITEMS` is unresolved findings,
-   your rulings, and scheduled contract steps, or `none`. The list is fixed, since a push or PR
-   leaves this machine. Discarding the work isn't on it: only when the Human asks in so many
-   words, and then list the branch, commits, and worktrees it would delete and wait for an
-   explicit yes. Done when the Human has chosen, or the directive chose for them.
+   `OPEN_ITEMS` is unresolved findings, your rulings, and scheduled contract steps, or `none`.
+   The list is fixed, since a push or PR leaves this machine. Discarding the work isn't on it:
+   only when the Human asks in so many words, list the branch, commits, and worktrees it would
+   delete, and wait for an explicit yes. Done when the Human has chosen, or the directive chose
+   for them.
 
 7. **Carry out the choice:**
 
@@ -97,28 +112,23 @@ run, the options block, and a closing summary ending with the `LESSON:` line.
    have reported the paths.
 
 8. **Remove the worktrees**, only after a local merge whose result passed. For each worktree of
-   this outcome:
-
-   ```bash
-   git -C PATH status --porcelain
-   git worktree remove PATH
-   git branch -d BRANCH
-   ```
-
-   `git branch -d` refuses an unmerged branch, which is the check you want. If
-   `git worktree remove` refuses over modified or untracked files, they exist nowhere else: show
-   the Human `git -C PATH status --porcelain -uall`, ask whether to commit, move, or delete them,
-   and use `--force` only on their word. For a worktree `create_workspace` made, archive its
-   agents and ask the Human to archive the workspace in the Paseo app instead of deleting the
-   directory, so Paseo's record and the disk agree. Done when `git worktree list` shows only the
-   worktrees you were asked to keep.
+   this outcome, first run `git -C PATH status --porcelain -uall`. If it prints anything, those
+   files exist nowhere else: show the Human the output and ask whether to commit, move, or
+   delete them. Once it is clean, archive a worktree `create_workspace` made with
+   `archive_workspace` and its workspace ID, so Paseo archives its agents and removes the
+   directory in step with its record; remove any other with `git worktree remove PATH`. Then
+   run `git branch -d BRANCH`, which refuses an unmerged branch: the check you want. Done when
+   `git worktree list` shows only the worktrees you were asked to keep.
 
 9. **Archive and close.** Archive every listed Peer of this outcome, accepted or abandoned, with
-   `archive_agent` (its subagents go with it), and confirm with `list_schedules` that no
-   heartbeat for this outcome remains. After a local merge, move durable decisions from the
-   ExecPlan into their owners (ADRs, `AGENTS.md`) and delete the plan in its own commit on
-   `BASE`; otherwise the plan stays until the work lands. Done when `list_agents` shows no live
-   agent for this outcome and the closing summary ends with `LESSON:`.
+   `archive_agent` (its subagents go with it), and delete each heartbeat you noted, in Progress
+   or, with no ExecPlan, in your earlier replies, with `delete_heartbeat`; `list_schedules` shows
+   schedules, never heartbeats. After a local merge, move durable decisions from the ExecPlan
+   into their owners (ADRs, `AGENTS.md`, a contract document) and delete the plan in its own
+   commit on `BASE`, unless `AGENTS.md` says to keep finished plans; otherwise the plan stays
+   until the work lands. Done when
+   `list_agents` shows no live agent for this outcome and the closing summary ends with
+   `LESSON:`.
 
 The rule that matters most: offer options only on a green merged result, and let the Human
 decide anything that leaves this machine.

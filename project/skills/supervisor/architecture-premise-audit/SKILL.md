@@ -63,12 +63,13 @@ and one module can hold several slices. For each slice, record:
    boundaries, and the proof the repository cites. **Done** when every entry point you found leads
    to a slice.
 4. **Delegate slices if the project is too large to read yourself.** Give each read-only Peer one
-   or a few slices. Create it with `create_agent` on `pi-peer-SLUG/<model>`, with
-   `settings.thinkingOptionId: "high"` and no `settings.modeId`, in the project's workspace. Its
-   `initialPrompt` is a brief with the fields under Delegation in the project's
-   `.seatworks/LEAD.md`: disposition Architect, owned scope `none`, the claim, and the expected-map
-   rows for its slices. Ask for observed-map rows and candidate findings with file and line
-   evidence. Leave out Paseo, seats, the Supervisor, and other Peers' findings, so that each
+   or a few slices. Create it with `create_agent` from the read-only Peer profile
+   (`<slug>-peer-ro` in `list_profiles`), passing the provider/model and settings the profile
+   lists with `thinkingOptionId: "high"`, in the project's workspace. Its `initialPrompt` is a
+   brief from `.seatworks/skills/lead/decompose/references/brief-template.md`: disposition
+   Architect, owned scope `none`, the claim, and the expected-map rows for its slices. Ask for
+   observed-map rows and candidate findings with file and line evidence. Leave out Paseo, seats,
+   the Supervisor, and other Peers' findings, so that each
    report stays an independent judgment. Run `git -C REPO status --porcelain` before and after,
    and archive each Peer once its handoff is in. **Done** when every slice has observed rows, and
    the repository is unchanged.
@@ -85,8 +86,9 @@ and one module can hold several slices. For each slice, record:
    expensive operation, and external output appears in the coverage ledger, or is excluded by
    scope with a reason. **Done** when nothing discovered is missing from the ledger.
 8. **Classify and choose the verdict.** Classify each supported candidate as an architecture
-   defect, owner defect, implementation drift, justified divergence, quarantined scaffold, or
-   insufficient evidence; leave generic improvements out. Then choose one verdict:
+   defect, owner defect, implementation drift, justified divergence (a `PROBABLY_JUSTIFIED`
+   item), quarantined scaffold, or insufficient evidence; leave generic improvements out. Then
+   choose one verdict:
    `KEEP_FOUNDATION`, `REPAIR_FIRST`, `REDIRECT_RECOMMENDED`, `STOP_AND_REDIRECT`, or
    `INSUFFICIENT_EVIDENCE`. **Done** when the verdict follows from the ranked findings.
 9. **Write the report.** Lead with the verdict, then include only the sections that support it:
@@ -103,8 +105,9 @@ and one module can hold several slices. For each slice, record:
 11. **Relay the decision.** Send the Lead an `OWNER DIRECTIVE:` with the decision as an outcome
     and constraints, the findings it rests on, quoted with file and line, and the decisions still
     reserved for the Human. Put the findings in the directive itself, so the Lead works from its
-    own repository rather than a file in `.seatworks/`. **Done** when `get_agent_activity` shows
-    the Lead received it.
+    own repository rather than a file in `.seatworks/`. Send it as in the intent-interview
+    skill's "Sending the directive". **Done** when `get_agent_activity` shows the Lead received
+    it.
 
 The rule that matters most: build the expected map from the product before you read the
 repository's own account of itself.

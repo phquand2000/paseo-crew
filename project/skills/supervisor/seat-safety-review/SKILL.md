@@ -30,11 +30,12 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
    `KIT=$SEATWORKS_KIT sh .seatworks/skills/supervisor/seat-safety-review/scripts/inventory.sh`.
    **Done** when every provider in the live config is a row, including ones the kit didn't create.
 2. **Fill in each seat's capabilities.** For each row, record:
-   - Tools: the runtime's tools minus `disallowedTools` (Claude seats) or minus the patterns in
-     `$SEATWORKS_KIT/pi/extensions/peer-guard.ts` (the Peer); Paseo tools from
-     `paseoTools.enabled` and `daemon.mcp.injectIntoAgents`; MCP servers in each profile's
-     `.claude.json` or `mcp.json`; Pi packages in `~/.pi/profiles/pi-peer-SLUG/settings.json`;
-     skills, including `~/.agents/skills`, which every Pi profile loads.
+   - Tools: the runtime's tools minus `disallowedTools` and the hooks in `$SEATWORKS_KIT/claude/`
+     (Claude seats), or minus the rules in `$SEATWORKS_KIT/pi/extensions/peer-guard.ts` (Pi
+     seats; more with `SEATWORKS_READ_ONLY=1`); Paseo tools from `paseoTools.enabled` and
+     `daemon.mcp.injectIntoAgents`; MCP servers in each profile's `.claude.json` or `mcp.json`;
+     Pi packages in each Pi seat's `~/.pi/profiles/PROVIDER/settings.json`; skills, including
+     `~/.agents/skills`, which every Pi profile loads.
    - Credentials: env var names on the provider, the linked `auth.json`, and what any shell
      inherits: `gh` login and scopes, ssh agent keys, cloud CLI config, npm and netrc tokens,
      the git credential helper.
@@ -45,7 +46,8 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
    - Egress: web fetch tools, shell network commands (`curl`, `wget`, `nc`, `ssh`, `git push`,
      `gh`, `npm publish`), MCP servers that write, Paseo messages to a seat with egress.
    - Side effects without a Human gate: push, deploy, publish, email, payments.
-   - Enforcement: whether each limit is enforced (`disallowedTools`, peer guard) or prompt only.
+   - Enforcement: whether each limit is enforced (`disallowedTools`, a `claude/` hook, the peer
+     guard) or prompt only.
 
    **Done** when no cell is blank; write `none` or `unknown` where that's the answer.
 3. **Trace the chains between seats.** List every edge with its direction: Supervisor to Lead
@@ -56,7 +58,9 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
 4. **Flag the trifectas.** Mark each seat and chain for private data, untrusted content, and an
    exfiltration path; flag every row with all three, rated by what could leave and through which
    path. A leg blocked only by prompt text still counts as open, because a prompt is guidance
-   and a guard is a guard rail, not a sandbox (see `REFERENCE.md`). **Done** when every row has a yes or no, and each yes names its three legs.
+   and a guard is a guard rail, not a sandbox (see "Command guards are guard rails, not
+   sandboxes" in `$SEATWORKS_KIT/REFERENCE.md`). **Done** when every row has a yes or no, and
+   each yes names its three legs.
 
    Look first at these places in this kit; they're leads, not verdicts:
    - the peer guard blocks `git push` and agent CLIs, not other network commands;
@@ -80,9 +84,9 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
    guidance. Kit changes go through protocol-patch; changes to `~/.paseo/config.json` or a
    profile are the Human's, so write the exact change for them. **Done** when every flag has a
    fix, or a line recording that the Human accepted the risk.
-7. **Write the matrix.** Save `.seatworks/records/safety/seat-matrix.md` from the template: the date, the commands you ran, the matrix, chains,
-   flags, fixes, and what you didn't check. **Done** when the file is saved with its "Not
-   checked" section filled in.
+7. **Write the matrix.** Save `.seatworks/records/safety/seat-matrix.md` from the template: the
+   date, the commands you ran, the matrix, chains, flags, fixes, and what you didn't check.
+   **Done** when the file is saved with its "Not checked" section filled in.
 8. **Report** to the Human in at most five lines: how many seats were flagged, the worst chain,
    fixes that need a Human decision, and proposals going through protocol-patch. **Done** when
    the report is sent.

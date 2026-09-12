@@ -27,14 +27,16 @@ For each proof:
    Done when you have all three outputs. If the second run stays green, the proof proves nothing about this claim.
 8. Choose a disposition from the table below, and name the smallest change that carries it out.
 
-If the brief makes you read-only, run step 7 in a scratch copy outside the repository:
+If the brief makes you read-only, run step 7 in a scratch copy outside the repository, and commit nothing. When you are read-only, `git apply` and the file tools are blocked, so revert with `patch`. `$base` is the commit before the change (`"$sha^"` for a single commit). `PATHS` are the fix's production files, so the proof itself stays in place:
 
 ```sh
 tmp=$(mktemp -d)
 git archive "$sha" | tar -x -C "$tmp"
+git diff "$base" "$sha" -- PATHS | patch -R -p1 -d "$tmp"
+git diff "$base" "$sha" -- PATHS | patch -p1 -d "$tmp"
 ```
 
-If the scratch copy can't run (missing dependencies, services, or build steps), reason through step 7 instead, and mark it "not executed" with the reason.
+Run the proof in `$tmp` after the second line (expect green), after the third (expect red), and after the fourth (expect green). If the scratch copy can't run (missing dependencies, services, or build steps), reason through step 7 instead, and mark it "not executed" with the reason.
 
 ## Dispositions
 

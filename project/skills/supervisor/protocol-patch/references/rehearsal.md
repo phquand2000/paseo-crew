@@ -8,7 +8,7 @@ text only, so no project changes.
 
 - Ask the Human once whether you may run the rehearsal seats; that approval is what lets a Lead
   rehearsal open with `OWNER DIRECTIVE:`.
-- Record `git status --porcelain`, to confirm afterwards that only your diff changed.
+- Record `git status --porcelain`, to confirm afterwards that nothing else changed.
 
 ## The scenario
 
@@ -33,25 +33,30 @@ Replace the following:
 
 ## Seats per surface
 
-Create each seat in the project's workspace; the scenario carries the facts, so no project is
-touched.
+Create each seat with `create_agent` in the project's workspace, from the profile below in
+`list_profiles`, passing the provider/model and settings the profile lists; the scenario
+carries the facts, so no project is touched.
 
-| Surface changed | Seat to create | How |
+| Surface changed | Profile | First prompt |
 |---|---|---|
-| the project's `.seatworks/LEAD.md` | `claude-lead-SLUG` | `settings.modeId: "bypassPermissions"` and a `thinkingOptionId`; first prompt `OWNER DIRECTIVE:` followed by the scenario |
-| the project's `.seatworks/PEER.md` | `pi-peer-SLUG/<model>` | `settings.thinkingOptionId` only; the scenario inside a brief with disposition Scout and owned scope `none` |
-| `.seatworks/SUPERVISOR.md` | `claude-supervisor-SLUG` | the Lead's settings; the scenario as the first prompt |
-| `.seatworks/WATCHER.md` | `claude-watcher-SLUG/claude-haiku-4-5` | `settings.modeId: "bypassPermissions"` and no thinking option; activity excerpts as `FACTS`, and the question "which trigger, if any, matches, and what do you log or send?" |
-| a repository file or a skill | the seat that reads it | the old rule quoted in `FACTS` for the first run, the new rule for the second |
+| `LEAD.md` | `<slug>-lead` | `OWNER DIRECTIVE:` followed by the scenario |
+| `PEER.md` or `REVIEWER.md` | `<slug>-peer-ro` or `<slug>-reviewer` | the scenario inside a brief with disposition Scout (Reviewer for `REVIEWER.md`) and owned scope `none` |
+| `SUPERVISOR.md` | `<slug>-supervisor` | the scenario |
+| `WATCHER.md` | `<slug>-watcher` | `This is a rehearsal. Supervisor agent: none. Lead agents: none. Answer in text only; call no tools.`, then the scenario with activity excerpts as `FACTS` and the question "which trigger, if any, matches, and what do you log or send?" |
+| `WORKSPACE_PROTOCOL.md`, `AGENTS.md`, or a skill | the seat that reads it | the scenario, with the old rule quoted in `FACTS` for the first run and the new rule for the second |
 
 ## Running and comparing
 
 1. Run the scenario on a seat with the old text, and quote its answer.
-2. Apply the diff to the working tree, or pop the stash.
+2. For a seat prompt, which the seat reads from the project's `.seatworks/`, copy the project's
+   file to `.seatworks/records/drafts/FILE.old`, then make the diff's change in the project's
+   file.
 3. Run the same scenario on a new seat, and quote its answer.
 4. Compare: did the old seat choose X, and the new seat Y without overshooting? If borderline, run
    each version once more; one run of each is weak evidence.
-5. Archive every rehearsal seat with `archive_agent`, then confirm that `list_agents` shows no
-   agent they created and `git status --porcelain` shows only your diff.
+5. Copy `FILE.old` back over the project's file, because every seat started from then on reads
+   it, and the approved change arrives through the kit. Archive every rehearsal seat with
+   `archive_agent`, then confirm that `list_agents` shows no agent they created and
+   `git status --porcelain` matches what you recorded.
 
 Record the two quotes and the comparison for the Human's approval step.

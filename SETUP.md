@@ -12,12 +12,13 @@ The setup keeps two kinds of file apart:
 
 - **Global, on this machine:** the Paseo providers, the profile directories, the settings, the
   deny lists, and the models.
-- **Per project, in `REPO_DIR/.seatworks/`:** every `.md` a seat loads: the Supervisor's, the
-  Lead's, and the Peer's prompts and skills, the workspace protocol, the notebook, and the
-  Supervisor's records. The profiles link to these files.
+- **Per project, in `REPO_DIR/.seatworks/`:** every `.md` a seat loads: the Supervisor's,
+  Lead's, Peer's, Reviewer's, and watcher's prompts, their skills, the workspace protocol, the
+  notebook, and the Supervisor's records. The profiles link to these files.
 
-Each project gets five seats: `claude-supervisor-SLUG`, `claude-lead-SLUG`,
-`claude-watcher-SLUG`, `pi-peer-SLUG`, and `pi-reviewer-SLUG`.
+Each project gets six seats: `claude-supervisor-SLUG`, `claude-lead-SLUG`,
+`claude-watcher-SLUG`, `pi-peer-SLUG`, `pi-peer-ro-SLUG` (the Peer with edits blocked), and
+`pi-reviewer-SLUG`.
 
 Before you start, make sure the machine has the following:
 
@@ -39,8 +40,9 @@ project:
 5. [Verify that each seat reads its own prompt](#verify-that-each-seat-reads-its-own-prompt)
 6. [Write your own rules](#write-your-own-rules)
 
-Step 4 is safe to repeat: it never overwrites a file. Steps 3 and 4 edit a file that also holds
-your workspaces, so each starts with a backup.
+Step 4 is safe to repeat: without `--refresh` it never overwrites a project file, and it updates
+only the kit-managed paths of existing providers and the notes of existing profiles. Steps 3 and
+4 edit a file that also holds your workspaces, so each starts with a backup.
 
 ## Move the kit to a stable path
 
@@ -111,8 +113,9 @@ in `examples/paseo-providers.json` are templates that step 4 copies for each pro
    ```
 
 5. Look up the real Claude model IDs with `paseo provider models claude`. If they differ from
-   the IDs in the `claude-supervisor-SLUG` and `claude-lead-SLUG` templates, correct the
-   templates, because step 4 copies them.
+   the IDs in the `claude-supervisor-SLUG`, `claude-lead-SLUG`, and `claude-watcher-SLUG`
+   templates, correct them: step 4 copies each one's `isDefault` model and thinking option into
+   the provider and its agent profile.
 
 **Done:** the command from substep 1 prints `true`, and `jq -e . ~/.paseo/config.json` succeeds.
 
@@ -120,32 +123,34 @@ To roll back, restore `~/.paseo/config.json.pre-seatworks`.
 
 ## Add a project
 
-`setup/add-project.fish` does everything a project needs, and never overwrites a file that
-already exists:
+`setup/add-project.fish` does everything a git repository needs, and never overwrites a file
+that already exists:
 
 - copies the kit's templates from `project/` into `REPO_DIR/.seatworks/`, naming the project's
   seats in them;
 - adds `AGENTS.md` and a one-line `CLAUDE.md` (`@AGENTS.md`) at the repository root if missing;
-- adds the providers `claude-supervisor-SLUG`, `claude-lead-SLUG`, `claude-watcher-SLUG`,
-  `pi-peer-SLUG`, and `pi-reviewer-SLUG` to the Paseo config, after a backup;
-- adds one Paseo agent profile per seat, a single one for the Peer; Paseo's app offers them to
-  you, and the seats read them through `list_profiles`;
+- adds the six providers to the Paseo config, or refreshes the kit-managed paths
+  (`SEATWORKS_REPO`, `SEATWORKS_KIT`, `CLAUDE_CONFIG_DIR`, `PI_CODING_AGENT_DIR`) of existing
+  ones, after a backup named `~/.paseo/config.json.bak.YYYYmmdd-HHMMSS`;
+- adds one Paseo agent profile per seat, or refreshes the notes of an existing one, keeping its
+  model; Paseo's app offers them to you, and the seats read them through `list_profiles`;
 - registers the repository as a Paseo project, builds the profiles, and reloads Paseo.
 
-It adds files only; leave the repository's code alone.
+It adds files only; leave the repository's code alone. If another repository already uses the
+slug, it stops and asks for `--slug`.
 
 1. The models are set per seat: the Supervisor runs Opus 5 at thinking `high`, the Lead Opus 5
-   at `medium`, the watcher Haiku, and the Peer and Reviewer `zai/glm-5.3`. For another Pi
-   model, add `--model MODEL_ID` with an ID from `paseo provider models pi`.
+   at `medium`, the watcher Haiku, and the Peer, read-only Peer, and Reviewer `zai/glm-5.3`.
+   For another Pi model, add `--model MODEL_ID` with an ID from `paseo provider models pi`.
 2. Run it, adding `--slug SLUG` if the directory name isn't the short name you want:
 
    ```fish
    fish KIT_DIR/setup/add-project.fish REPO_DIR
    ```
 
-**Done:** the script exits 0 and prints `✓` lines for `claude-supervisor-SLUG`,
-`claude-lead-SLUG`, `claude-watcher-SLUG`, `pi-peer-SLUG`, and `pi-reviewer-SLUG`, and these commands show the project, the import line,
-and a spawn recipe with a real model:
+**Done:** the script exits 0, prints a `✓` line for each of the six seats and no warning about
+the base provider's token (if it does, go back to step 3), and these commands show the project,
+the import line, and a spawn recipe with a real model:
 
 ```fish
 paseo project ls | grep REPO_DIR
@@ -162,11 +167,12 @@ you give OCR a model of its own: run `ocr config provider` (it asks for an API k
 yours to enter) and check it with `ocr llm test`. A different model family there gives reviews
 different blind spots, and it sends the code under review to that provider.
 
-To roll back, restore `~/.paseo/config.json.bak`, run `paseo project delete PROJECT_ID` with the
-ID `paseo project ls` shows for `REPO_DIR` (a path isn't accepted), and move the four profiles
-(`~/.claude/profiles/claude-supervisor-SLUG`, `~/.claude/profiles/claude-lead-SLUG`,
-`~/.claude/profiles/claude-watcher-SLUG`, `~/.pi/profiles/pi-peer-SLUG`,
-`~/.pi/profiles/pi-reviewer-SLUG`) and the files the script listed as added to the Trash.
+To roll back, restore the first backup the run printed (`~/.paseo/config.json.bak.YYYYmmdd-HHMMSS`;
+the setup script may print a later one), run `paseo project delete PROJECT_ID` with the ID
+`paseo project ls` shows for `REPO_DIR` (a path isn't accepted), and move the six profiles
+(`~/.claude/profiles/claude-{supervisor,lead,watcher}-SLUG` and
+`~/.pi/profiles/pi-{peer,peer-ro,reviewer}-SLUG`) and the files the script listed as added to
+the Trash.
 
 ## Verify that each seat reads its own prompt
 
@@ -176,8 +182,8 @@ silently. Run each agent in `REPO_DIR`.
 
 For `claude-supervisor-SLUG`, `claude-lead-SLUG`, and `claude-watcher-SLUG`:
 
-1. Create an agent with `settings.modeId: "bypassPermissions"` and a `thinkingOptionId`; the
-   watcher runs on `claude-haiku-4-5`, which takes no `thinkingOptionId`.
+1. Create an agent with the `settings.modeId` and `thinkingOptionId` its agent profile names;
+   the watcher's Haiku profile names no `thinkingOptionId`.
 2. Ask it for the first line of the `CLAUDE.md` it has loaded.
 3. Archive the agent.
 
@@ -191,8 +197,9 @@ For `pi-peer-SLUG`:
 3. Ask it to run `git -C /tmp push --dry-run` and report exactly what happened.
 4. Archive the agent.
 
-For `pi-reviewer-SLUG`, repeat those steps with the heading that begins with `# Reviewer`, and in
-step 3 ask it instead to create `probe.txt` in `REPO_DIR` with its write tool.
+For `pi-reviewer-SLUG` and `pi-peer-ro-SLUG`, repeat those steps with the heading that begins
+with `# Reviewer` and `# Peer` respectively, and in step 3 ask each instead to create
+`probe.txt` in `REPO_DIR` with its write tool.
 
 **Done:** each agent answers as the table shows.
 
@@ -202,7 +209,8 @@ step 3 ask it instead to create `probe.txt` in `REPO_DIR` with its write tool.
 | `claude-lead-SLUG` | First line `# Lead — Project Lead & binding technical arbiter` |
 | `claude-watcher-SLUG` | First line `# Watcher — attention sweeps for the Supervisor` |
 | `pi-peer-SLUG` | Heading `# Peer — independent co-worker`; no mention of Paseo; the push is blocked with "Pushing is not available in this workspace." |
-| `pi-reviewer-SLUG` | Heading `# Reviewer — independent code review`; no mention of Paseo; the write is blocked with "Editing files is not available in a review." |
+| `pi-reviewer-SLUG` | Heading `# Reviewer — independent code review`; no mention of Paseo; the write is blocked with "Editing files is not available in this role." |
+| `pi-peer-ro-SLUG` | Heading `# Peer — independent co-worker`; no mention of Paseo; the write is blocked with the same message |
 
 If a Claude seat returns the user's own `CLAUDE.md`, or the Peer can't name its heading, that
 provider's profile variable isn't applied: check its `env` in `~/.paseo/config.json` and rerun
@@ -213,8 +221,8 @@ If the push isn't blocked, the guard extension didn't load. Check that
 for `pi-peer-SLUG`.
 
 Finally, leave one Supervisor running for the user: start an agent on
-`claude-supervisor-SLUG` in `REPO_DIR` and keep it. It starts the watcher itself each time it
-creates a Lead.
+`claude-supervisor-SLUG` in `REPO_DIR` and keep it. It keeps a watcher running while a Lead
+works.
 
 ## Write your own rules
 
@@ -231,16 +239,17 @@ comes from your own rules. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE
    ```
 
 2. Rewrite the seat prompts in this order, because each one constrains the next. Edit the
-   project's copies in `REPO_DIR/.seatworks/` for rules that belong to that project, and the
-   templates in `KIT_DIR/project/` for rules every future project should start with:
-   1. `PEER.md`: boundaries, handoff shape, evidence standard. Keep HTML comments out of it,
-      because Pi shows them to the Peer.
+   templates in `KIT_DIR/project/` for rules every project should start with. A project's own
+   copies can differ, but `--refresh` replaces them, so keep a rule for one project only in its
+   `AGENTS.md` or `.seatworks/WORKSPACE_PROTOCOL.md`:
+   1. `PEER.md` and `REVIEWER.md`: boundaries, handoff shape, evidence standard. Keep HTML
+      comments out of both, because Pi shows them to the seat.
    2. `LEAD.md`: acceptance conditions, when to add a Reviewer, what belongs to the Human.
-   3. `SUPERVISOR.md`: signals worth a look, intervention rights, when prompt patches are
-      allowed.
-   4. `skills/supervisor/`, `skills/lead/`, and `skills/peer/`: keep, cut, or rewrite skills to
-      fit your process. Keep each role to about ten skills the model can trigger on its own, and
-      mark the rest `disable-model-invocation: true`.
+   3. `SUPERVISOR.md` and `WATCHER.md`: signals worth a look (the watcher's trigger table),
+      intervention rights, when prompt patches are allowed.
+   4. `skills/`: keep, cut, or rewrite each role's skills to fit your process. Keep each role
+      to about ten skills the model can trigger on its own, and mark the rest
+      `disable-model-invocation: true`.
 
 Then run the check:
 

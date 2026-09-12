@@ -29,8 +29,9 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Symptom:** `pi-peer-SLUG` offers every model your Pi login can reach.
 - **Cause:** `pi-peer-SLUG` has no `models` list, so Paseo asks Pi. For the Claude seats, an empty
   `models` list likewise means the full runtime catalog, not "nothing to run".
-- **Response:** name the Peer model in the repository's `.seatworks/WORKSPACE_PROTOCOL.md`, and list
-  `models` explicitly on a provider to cap its model and effort.
+- **Response:** the Pi seats' agent profiles name the model (`add-project.fish --model`), and the
+  profile guard blocks a Lead's or Supervisor's launch on any other. To cap launches from the
+  app as well, list `models` explicitly on the provider.
 
 ## Paseo tool access is set per provider ID
 
@@ -38,7 +39,7 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** `paseoTools` applies to the exact provider ID and isn't inherited from `extends` or
   from the agent that creates the Peer. Pi receives Paseo tools only through the
   `pi-mcp-adapter` extension, and Paseo carries the profile's `mcp.json` into each launch.
-- **Response:** keep `paseoTools.enabled: false` on `pi-peer-SLUG` (the setup script sets it), keep
+- **Response:** keep `paseoTools.enabled: false` on every Pi seat (the setup script sets it), keep
   `pi-mcp-adapter` out of the Peer profile, and keep any `paseo` server out of its `mcp.json`.
 
 ## Running agents keep the old rules
@@ -54,23 +55,29 @@ cause, and the response. Entries follow the order of the setup steps.
 
 - **Symptom:** after you edit `project/LEAD.md` or a skill under `project/skills/` in the kit, a
   project's seats still follow the old text.
-- **Cause:** `setup/add-project.fish` copies the templates into `REPO/.seatworks/` once and
-  never overwrites them, and the project's profiles link to that copy. The setup script finds a
-  project's `.seatworks/` through `env.SEATWORKS_REPO` on its `claude-lead-SLUG` provider.
-- **Response:** edit the project's copy, or carry kit changes in with
-  `fish setup/add-project.fish REPO_DIR --refresh`. It replaces the seat prompts and skills with
-  the kit's versions, keeps each replaced copy under `.seatworks/records/drafts/refresh-STAMP/`
-  so the project's own edits can be carried back, and never touches `NOTEBOOK.md` or
-  `WORKSPACE_PROTOCOL.md`. If the repository moves, update `SEATWORKS_REPO` on both of its
-  providers and rerun the setup script.
+- **Cause:** `setup/add-project.fish` copies the templates into `REPO/.seatworks/` once and a
+  plain rerun never overwrites them, and the project's profiles link to that copy. The setup
+  script finds a project's `.seatworks/` through `env.SEATWORKS_REPO` on its
+  `claude-lead-SLUG` provider.
+- **Response:** send a change to a seat prompt, skill, or guard to the kit as a diff. Guards are
+  linked from the kit; prompts and skills reach a project through
+  `fish setup/add-project.fish REPO_DIR --refresh`, which replaces them, and the workspace
+  protocol while it is still the unfilled template, with the kit's versions, keeping each old
+  copy under the git-ignored `.seatworks/records/drafts/refresh-STAMP/`. Put project-only rules
+  in `AGENTS.md` or the filled-in `.seatworks/WORKSPACE_PROTOCOL.md`, which refresh never
+  touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles' notes and, after the
+  kit moves, the providers' kit and profile paths. If the repository moves, set
+  `env.SEATWORKS_REPO` on `claude-lead-SLUG` to the new path and rerun add-project there with
+  `--slug SLUG`; it updates the other providers.
 
 ## Claude seats: `settings.modeId` overrides the permission mode
 
 - **Symptom:** a Claude seat stops to ask permission for every tool.
 - **Cause:** Paseo passes `create_agent`'s `settings.modeId` straight to the SDK, overriding
   the seat's `permissions.defaultMode`. When the field is empty, the mode falls back to `auto`.
-- **Response:** pass `settings.modeId: "bypassPermissions"` and a `thinkingOptionId` when you
-  create a Claude seat.
+- **Response:** copy `modeId` and `thinkingOptionId` from the seat's agent profile into
+  `settings` when you create a Claude seat; the profile guard blocks any other mode. Pi seats
+  take no `modeId`.
 
 ## Pi seats reject `settings.modeId`
 
@@ -82,25 +89,35 @@ cause, and the response. Entries follow the order of the setup steps.
 
 - **Symptom:** a seat does something its prompt rules out.
 - **Cause:** prompts are guidance. For Claude seats, blocking happens in the provider's
-  `disallowedTools` and, for the Lead, in the `PreToolUse` hook `claude/lead-guard.sh`, which
-  blocks writes to repository files outside `.seatworks/`, `docs/`, `AGENTS.md`, and
-  `CLAUDE.md`; for the Supervisor and the Lead, `claude/profile-guard.sh` blocks a
-  `create_agent` whose model or mode differs from the provider's profile, and an
-  `update_agent` that changes a model or mode. A seat's `permissions.deny` isn't equivalent, so the role settings in `claude/`
-  leave it out. Pi has no permission system and ignores `disallowedTools`, so the Peer's only
-  enforcement point is the `tool_call` hook in `pi/extensions/peer-guard.ts`.
-- **Response:** put anything that must never happen in the deny lists, the Lead guard, or the
-  guard extension.
+  `disallowedTools` and in `PreToolUse` hooks. `claude/lead-guard.sh` checks each Edit, Write,
+  and Bash call against the repository: the Lead may write only `.seatworks/`, `docs/`, `doc/`,
+  `AGENTS.md`, `CLAUDE.md`, and `CONTEXT.md`, the Supervisor only `.seatworks/`, and the watcher
+  only its log under `.seatworks/records/attention/`; files outside the repository stay
+  writable. `claude/profile-guard.sh` holds the Supervisor's and Lead's `create_agent`,
+  `update_agent`, `send_agent_prompt`, `create_schedule`, and `update_schedule` calls to each
+  provider's profile model and mode, blocks `set_agent_mode`, and blocks any provider without a
+  profile. `claude/watcher-guard.sh` looks up the target of the watcher's `send_agent_prompt`
+  with `paseo ls`, so `paseo` must be on the daemon's PATH, and lets it reach only its own
+  project's Supervisor, read from the seat's `CLAUDE_CONFIG_DIR`; the watcher's deny list
+  removes `Edit`, `Write`, and the Paseo tools that create, change, or archive agents,
+  workspaces, schedules, and terminals. Each hook blocks when jq is missing. A seat's
+  `permissions.deny` isn't equivalent, so the role settings in `claude/` leave it out. Pi has no
+  permission system and ignores `disallowedTools`, so the Pi seats' only enforcement point is
+  the `tool_call` hook in `pi/extensions/peer-guard.ts`.
+- **Response:** put anything that must never happen in the deny lists, the guards, or the guard
+  extension.
 
 ## Command guards are guard rails, not sandboxes
 
 - **Symptom:** a blocked command runs anyway in a different form.
 - **Cause:** Claude's `Bash(git push:*)` and `Bash(gh:*)` match by prefix, so `git -C repo push`
   gets through. The Peer's guard catches that form and also blocks `gh`, but it ignores quoted
-  strings, so `sh -c 'git push'` still runs. Neither guard blocks other network commands such
-  as `curl`; the Supervisor's `seat-safety-review` skill checks for that.
-- **Response:** treat both as protection against accidents. Keep credentials that could do
-  damage out of the Peer's environment.
+  strings, so `sh -c 'git push'` still runs. `lead-guard.sh` reads a command's redirects and
+  file-writing commands; a write made inside an interpreter or a nested shell, such as
+  `python -c`, `node -e`, or `sh -c`, is outside its scope. No guard blocks other network
+  commands such as `curl`; the Supervisor's `seat-safety-review` skill checks for that.
+- **Response:** treat the guards as protection against accidents. Keep credentials that could
+  do damage out of the Peer's environment.
 
 ## Information hiding lives in the prompts
 
@@ -108,8 +125,8 @@ cause, and the response. Entries follow the order of the setup steps.
 - **Cause:** a Peer can read any file in the repository, including everything in `.seatworks/`:
   the Lead's prompt and skills and the workspace protocol. Pi also loads `APPEND_SYSTEM.md`
   verbatim: unlike Claude Code, it doesn't strip HTML comments.
-- **Response:** keep maintainer notes out of `.seatworks/PEER.md` (the setup script fails on
-  `<!--`). The hiding reduces noise; it doesn't keep secrets.
+- **Response:** keep maintainer notes out of `.seatworks/PEER.md` and `.seatworks/REVIEWER.md`
+  (the setup script fails on `<!--`). The hiding reduces noise; it doesn't keep secrets.
 
 ## Pi reads `AGENTS.md` before `CLAUDE.md`
 
@@ -136,7 +153,8 @@ cause, and the response. Entries follow the order of the setup steps.
   and never see those copies, while Pi loads `~/.agents/skills` for every profile, the Peer's
   included.
 - **Response:** leave that install off in the app. The setup script links `paseo` from
-  Paseo's package into the Lead's and Supervisor's profiles, so it follows Paseo updates.
+  Paseo's package into the Supervisor's, Lead's, and watcher's profiles, so it follows Paseo
+  updates.
 
 ## `list_profiles` decides how the Lead launches Peers
 
@@ -144,9 +162,14 @@ cause, and the response. Entries follow the order of the setup steps.
   provider to use.
 - **Cause:** without agent profiles, `list_profiles` returns nothing and the Lead falls back to
   guessing from `list_models`. Profiles live in `daemon.agentProfiles` in the Paseo config.
-- **Response:** `setup/add-project.fish` adds one profile per seat, with a single Peer profile
-  whose notes say how the disposition and thinking level vary. Edit the notes rather than
-  adding Peer profiles.
+- **Response:** `setup/add-project.fish` adds one profile per seat. The Claude profiles take the
+  `isDefault` model and thinking option from `examples/paseo-providers.json` (Supervisor Opus 5
+  `high`, Lead Opus 5 `medium`, watcher Haiku); the Peer, read-only Peer, and Reviewer profiles
+  run the `--model` (default `zai/glm-5.3`), and their notes say which dispositions use each and
+  how the thinking level varies. Every rerun restores the notes from `add-project.fish`, so
+  change them there rather than in the config, and keep one profile per seat. A rerun never
+  changes an existing profile's model: to move a seat to another model, edit that profile's
+  `model` in the config and run `paseo reload`; the profile guard follows it.
 
 ## Pi loads `~/.agents/skills` for every profile
 
@@ -197,15 +220,15 @@ cause, and the response. Entries follow the order of the setup steps.
 
 ## The watcher has its own seat
 
-- **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that a
-  project has no `claude-watcher-SLUG` yet.
+- **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that
+  `claude-watcher-SLUG` (or another seat) doesn't exist yet.
 - **Cause:** the watcher runs on Haiku and reads its prompt on every sweep, so it has a seat of
   its own whose `CLAUDE.md` is the short `.seatworks/WATCHER.md`, with the trigger table in it,
   rather than the Supervisor's prompt. Projects added before the seat existed lack its
   provider, profile, and prompt. Paseo sets `PASEO_AGENT_ID` in every agent's environment,
   which is how the Supervisor gives the watcher its own ID.
-- **Response:** run `fish setup/add-project.fish REPO_DIR --refresh`; it adds what is missing and
-  reloads Paseo.
+- **Response:** run `fish setup/add-project.fish REPO_DIR` without `--refresh`; it adds the
+  missing providers, profiles, and files, keeps the project's prompts, and reloads Paseo.
 
 ## The Reviewer runs Open Code Review in one of two modes
 
@@ -220,15 +243,16 @@ cause, and the response. Entries follow the order of the setup steps.
   and check it with `ocr llm test`. That sends the code under review to that provider, which is
   the Human's call. `ocr config set language English` keeps comments in English.
 
-## The Reviewer is read-only by guard
+## The Reviewer and the read-only Peer are read-only by guard
 
-- **Symptom:** a Reviewer reports "Editing files is not available in a review."
-- **Cause:** `pi-reviewer-SLUG` sets `SEATWORKS_READ_ONLY=1`, which makes `peer-guard.ts` block
-  Pi's `write` and `edit` tools and git commands that change the repository. Shell redirection
-  still works, so temporary files under `$TMPDIR` remain possible, and so does a determined
-  write.
-- **Response:** expected. The guard prevents accidents rather than sandboxing; the setup script
-  checks that the variable stays on the provider.
+- **Symptom:** a Reviewer or read-only Peer reports "Editing files is not available in this role."
+- **Cause:** `pi-reviewer-SLUG` and `pi-peer-ro-SLUG` set `SEATWORKS_READ_ONLY=1`, which makes
+  `peer-guard.ts` block Pi's `write` and `edit` tools and git commands that change the
+  repository. Shell redirection still works, so temporary files under `$TMPDIR` remain
+  possible, and so does a determined write.
+- **Response:** expected; send work that edits files to `pi-peer-SLUG`. The guard prevents
+  accidents rather than sandboxing; the setup script checks that the variable stays on both
+  providers.
 
 ## Heartbeats end with their agent
 

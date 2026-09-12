@@ -44,7 +44,7 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 | `project-state` | Anthropic, "Effective harnesses for long-running agents"; mattpocock `handoff`; Adam Tornhill's churn hotspots (idea) |
 | `integration` | superpowers `finishing-a-development-branch`; mattpocock `resolving-merge-conflicts` |
 | `repo-refresh` | SLP material (`repo-refresh` and its refresh standard) |
-| `review-pack` | SLP material (`review-pack`; `references/profiles.md` is copied unchanged; `scripts/review_pack.py` is copied with its comments and docstrings removed) |
+| `review-pack` | SLP material (`review-pack`; both files adapted: `scripts/review_pack.py` with its comments and docstrings removed, `references/profiles.md` with a command corrected) |
 
 ## Supervisor skills (`project/skills/supervisor/`)
 

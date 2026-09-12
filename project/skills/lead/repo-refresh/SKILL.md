@@ -51,8 +51,9 @@ one, judge by current consumers and ownership, not by dates.
    issue states, timestamps, and labels such as "authoritative". Done when each item has a path
    and the consumer or command that shows it is current.
 
-2. **Build the inventory ledger** at `${TMPDIR:-/tmp}/refresh-REPO-DATE.md`, one row per
-   suspect:
+2. **Build the inventory ledger** outside the repository: run `echo "${TMPDIR:-/tmp}"` and
+   write `refresh-REPO-DATE.md` under the absolute path it prints (the Write tool expands no
+   variables), one row per suspect:
 
    ```text
    | Path | Kind | Owner | Current consumer | Unique current information | Destination | If deleted | Disposition | Evidence |
@@ -63,9 +64,10 @@ one, judge by current consumers and ownership, not by dates.
    task-runner machinery; scripts, fixtures, snapshots, reports, generated output, and tracked
    build debris; dead links, paths, commands, and owner names; and unusually large or
    fragmented surfaces that hide one contract. For a large repository, split the inventory by
-   top-level area across Scout Peers (read-only, `low` thinking), each returning rows for its
-   area, and merge the rows yourself. Done when every row has its owner, consumer, unique
-   information, destination, and deletion consequence, or `none` where that is the finding.
+   top-level area across Scout Peers from the read-only Peer profile (`pi-peer-ro`, `low`
+   thinking), each returning rows for its area, and merge the rows yourself. Done when every
+   row has its owner, consumer, unique information, destination, and deletion consequence, or
+   `none` where that is the finding.
 
 3. **Classify each row** with exactly one disposition:
 
@@ -96,8 +98,8 @@ one, judge by current consumers and ownership, not by dates.
    3. Delete the superseded sources in the same commit as the merge.
    4. Compact finished tracker records to identity, dependencies, disposition, and a short
       closeout.
-   5. Keep only active plans; delete finished plans and review packets once their durable
-      decisions have reached their owners.
+   5. Keep only active plans; delete finished plans, review packets, and `docs/reviews/`
+      reports whose findings are fixed, once their durable decisions have reached their owners.
    6. Remove or demote proof that has no current risk, independent oracle, production
       consumer, or sensitivity to the behavior disappearing.
    7. Remove tests that pin retired implementation detail or repository history and protect no

@@ -13,8 +13,8 @@ it; the repository's `AGENTS.md` can add stricter rules.
 - Keep a folder only when it marks a lasting ownership boundary and holds several current
   documents.
 - Collections named `archive/`, `completed/`, `review/`, `packet/`, `old/`, or `postmortem/` go
-  by default. Keep a postmortem only while it is an active operational control or a record the
-  law requires.
+  by default; `docs/reviews/` follows its entry under Documentation shape. Keep a postmortem
+  only while it is an active operational control or a record the law requires.
 - Move current facts into their owner before deleting the stale container that held them.
 - A document older than a date the Human names is a suspect to examine, not a file to delete.
 
@@ -27,6 +27,8 @@ Prefer the smallest subset of these that fits the repository:
 - `docs/product/`: externally observable product contracts;
 - `docs/process/`: current development, evidence, release, and operating rules;
 - `docs/exec-plans/active/`: ExecPlans for work in progress, and nothing finished;
+- `docs/reviews/`: review reports until their findings are routed and fixed; a refresh retires
+  each once its durable decisions have reached their owners;
 - `docs/issues/`: the local tracker, if the repository uses one;
 - `docs/templates/`: templates a current tool or workflow consumes.
 

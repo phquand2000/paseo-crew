@@ -63,8 +63,10 @@ Before you start, finish your seat prompt's start-of-session steps: the reposito
 
 7. **List the live agents.** Call `list_agents`, raising `sinceHours` (up to 720) for a quiet
    project, and read each agent's `status` and labels (`plan`, `task`, `council.*`, `review.*`)
-   to see what it holds. Check `list_schedules` for leftover heartbeats. A predecessor's agents
-   notify it, not you: read their state with `get_agent_activity`, treat any committed SHA as a
+   to see what it holds. Check `list_schedules` for leftover schedules; it never shows
+   heartbeats, and only the agent that set one can delete it, so ask the Human about any
+   heartbeat the HANDOFF block lists as still live. A predecessor's agents notify it, not you:
+   read their state with `get_agent_activity`, treat any committed SHA as a
    fact to review, and ask the Human to detach or archive an agent you need to take over. Done
    when every live agent is matched to a slice or marked unowned.
 
@@ -97,7 +99,9 @@ copying it:
 - **Open Peers**: agent ID, labels, and state, only for Peers the Human has to detach.
 - **SHAs**: accepted and awaiting acceptance, one line each; the diffs live in git.
 - **Open decisions**: the ADR numbers and Decision log lines, with each holder.
-- **Schedules**: the IDs `list_schedules` still shows, and the heartbeat IDs noted in Progress.
+- **Schedules**: the IDs `list_schedules` still shows. First delete your heartbeats with
+  `delete_heartbeat` and the IDs you noted, in Progress or in your replies, since no one else
+  can; list any left.
 - **Lessons**: what you would do differently, in a few lines.
 - **Verified**: which of these you confirmed by command in this session.
 - **Start with**: the skills the successor should run first, usually `/project-state`.

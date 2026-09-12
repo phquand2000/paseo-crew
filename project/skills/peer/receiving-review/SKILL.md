@@ -16,13 +16,13 @@ Use this skill when the Lead returns findings on work you handed off, to turn ea
 5. Before building something "properly" (a fuller version, more options, a general mechanism), search for real callers:
 
    ```sh
-   git grep -n 'SYMBOL'
+   git grep -n -w 'SYMBOL' -- . ':(exclude,glob)**/test*/**' ':(exclude,glob)**/spec/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/*[._]test.*' ':(exclude,glob)**/*[._]spec.*' ':(exclude,glob)**/test_*'
    ```
 
-   If nothing outside the tests calls it, propose removing it or leaving it as it is, with the search output; the brief didn't ask for unused surface.
+   The excludes skip test directories and test files, so a hit is a production caller. If it prints nothing, propose removing it or leaving it as it is, with the search output; the brief didn't ask for unused surface.
 6. For each finding you judge wrong, give the evidence: the command and its output, the `path:line`, or the brief line it conflicts with. If a finding contradicts the brief's Decided field, point to both and let the Lead rule, because implementing either reading silently hides the conflict. Give your evidence once; the Lead's ruling decides.
 7. For a finding you can't verify because it needs an environment, a port, or data the brief doesn't allow, say what you would need.
-8. Fix confirmed findings one at a time, most severe first: breakage and security, then simple fixes, then larger changes. Put each fix in a new commit that names the finding, such as `fix(F3): reject empty tenant id`, and leave the commits you already handed off unamended and unrebased. Run the relevant test after each fix, and the brief's verification commands after the last one.
+8. Fix confirmed findings one at a time, most severe first: breakage and security, then simple fixes, then larger changes. Put each fix in a new commit that names the finding, such as `fix(F3): reject empty tenant id`, and leave the commits you already handed off unamended and unrebased. Run the relevant test after each fix, and the brief's verification commands after the last one. If the brief makes you read-only (an Architect or Scout disposition), give each verdict with its evidence instead of a fix, and commit nothing.
 9. If a fix needs paths outside your owned scope, send a `DEPENDENCY_REQUEST` for them instead of editing them.
 
 ## How to reply

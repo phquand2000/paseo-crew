@@ -49,8 +49,9 @@ For a first, one-off failure, a plain notebook entry is enough.
 3. **Reconstruct what each agent could see.** For each decision point in the timeline, record:
    - the brief or first prompt, word for word;
    - the context: session length, whether it had compacted, and what the agent had read;
-   - the tools: the provider's `disallowedTools`, `$SEATWORKS_KIT/pi/extensions/peer-guard.ts`
-     for Peers, and whether Paseo tools were present;
+   - the tools: the provider's `disallowedTools`, the hooks in `$SEATWORKS_KIT/claude/` for
+     Claude seats, `$SEATWORKS_KIT/pi/extensions/peer-guard.ts` for Pi seats, and whether Paseo
+     tools were present;
    - time and quota: rate limits, auth errors, and waiting on dead agents.
 
    **Done** when every decision point has a "could see" line.
@@ -122,30 +123,32 @@ An entry looks like this:
 The `WEEKLY REVIEW` heartbeat runs this instead of the episode procedure.
 
 1. **Collect the week.** Read the attention logs in `.seatworks/records/attention/` for the last
-   seven days, the notebook entries added or seen this week, and the `DECISION:`, `DETOUR:`, and
-   `LESSON:` lines in this week's Lead activity (`get_agent_activity`). **Done** when each item
-   has a date and a source.
+   seven days, where the watcher has already logged each `decision`, `detour`, `acceptance`, and
+   `check answer` it saw, and the notebook entries added or seen this week. Call
+   `get_agent_activity` only to fill a gap: a day a Lead ran with no log line, or a quote too
+   short to judge. **Done** when each item has a date and a source.
 2. **Group by pattern.** Merge items that describe the same behavior, and count the distinct days
-   each pattern appeared. Note which `CHECK:` questions found something and which found nothing.
-   Look also for patterns that show only over time: a Peer that agrees with every brief or
-   objects for show, and a Lead that never changes a ruling after evidence or folds on every
-   objection. **Done** when every item belongs to one pattern.
+   each pattern appeared. From the `check answer` and `-> checked` lines, note which `CHECK:`
+   questions found something and which found nothing. Look also for patterns that show only over
+   time: a Peer that agrees with every brief or objects for show, and a Lead that never changes a
+   ruling after evidence or folds on every objection. **Done** when every item belongs to one
+   pattern.
 3. **Choose one action per pattern:**
    - `notebook-only` for a first sighting: add or update its notebook entry.
-   - `patch` through the protocol-patch skill, when the pattern appeared on two different days
-     and belongs to this project.
-   - `watch`: a new trigger in `.seatworks/WATCHER.md`, or a new question in the attention-watch
-     skill's `references/questions.md`, when a question at the right moment would have caught
-     it. This goes through protocol-patch too.
-   - `kit`: when the pattern would appear in any project, write the change as a diff against
-     `$SEATWORKS_KIT/project/` for the Human, and don't apply it.
+   - `patch` through the protocol-patch skill, when the pattern appeared on two different days.
+   - `watch`: a new trigger in `.seatworks/WATCHER.md`, or a new question or default step in the
+     attention-watch skill's `references/questions.md`, when a question at the right moment
+     would have caught it. This goes through protocol-patch too.
+   - `kit`: when `grep` finds the pattern in another project's `.seatworks/NOTEBOOK.md` too, a
+     kit diff for the Human through protocol-patch, since that sighting is the second day.
 
    **Done** when every pattern has one action.
 4. **Check earlier patches.** For each notebook entry whose status is `applied SHA`, did the
    pattern stop after that commit? A patch that changed nothing is a pattern of its own. **Done**
    when each is marked held or not held.
-5. **Report** in at most eight lines: the patterns, the proposed changes, and what needs a Human
-   decision. Nothing is applied until the Human approves. **Done** when the report is sent.
+5. **Report** in at most eight lines: the patterns, the proposed changes, strategies in
+   `.seatworks/records/strategy/` past their `Review by` date, and what needs a Human decision.
+   Nothing is applied until the Human approves. **Done** when the report is sent.
 
 The rule that matters most: build the timeline before naming any cause, and look for causes in
 what the agents were given rather than in the agents.

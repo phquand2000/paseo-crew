@@ -1,6 +1,6 @@
 # Seatworks starter
 
-Seatworks gives each project five agent seats, each with its own prompt and settings,
+Seatworks gives each project six agent seats, each with its own prompt and settings,
 coordinated through [Paseo](https://getpaseo.com):
 
 - `claude-supervisor-SLUG` ([Claude Code](https://code.claude.com)) meets with you, relays
@@ -8,7 +8,8 @@ coordinated through [Paseo](https://getpaseo.com):
   the project's notebook of failures.
 - `claude-lead-SLUG` (Claude Code) breaks work down, delegates it to Peers, and accepts their
   results.
-- `pi-peer-SLUG` ([Pi](https://pi.dev)) writes code and returns evidence.
+- `pi-peer-SLUG` ([Pi](https://pi.dev)) writes code and returns evidence; `pi-peer-ro-SLUG`
+  runs the same prompt and skills with edits blocked, for Architect, Scout, and council work.
 - `pi-reviewer-SLUG` (Pi) reviews changes read-only: it runs
   [Open Code Review](https://github.com/alibaba/open-code-review) as a first pass and confirms
   every finding in the code before reporting it.
@@ -33,14 +34,14 @@ is in [SETUP.md](SETUP.md).
 ## How it works
 
 Each seat is a Paseo provider that points at its own profile directory: `CLAUDE_CONFIG_DIR`
-for the Claude seats, `PI_CODING_AGENT_DIR` for the Pi seat. The profiles hold settings and
-symlinks into the project's `.seatworks/`, so an edit to `REPO/.seatworks/LEAD.md` takes effect
-for the next Lead you spawn there.
+for the Claude seats, `PI_CODING_AGENT_DIR` for the Pi seats. The profiles hold links to the
+kit's settings and guards and into the project's `.seatworks/`, so an edit to
+`REPO/.seatworks/LEAD.md` takes effect for the next Lead you spawn there.
 
 ```
-~/.paseo/config.json               claude-supervisor-SLUG, claude-lead-SLUG,
-                                   claude-watcher-SLUG, pi-peer-SLUG, pi-reviewer-SLUG
-~/.claude/profiles/<seat>/         settings and deny lists; CLAUDE.md and skills/ are links
+~/.paseo/config.json               the six SLUG providers, each Claude seat's deny list in its
+                                   disallowedTools, and one agent profile per seat
+~/.claude/profiles/<seat>/         links: settings.json, guard scripts, CLAUDE.md, skills/
 ~/.pi/profiles/<seat>/             guard and login links; APPEND_SYSTEM.md and skills/ are links
 REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md, WATCHER.md,
                                    WORKSPACE_PROTOCOL.md, NOTEBOOK.md, records/,
@@ -48,13 +49,13 @@ REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md,
 ```
 
 `setup/add-project.fish` copies the kit's `project/` templates into a repository and creates its
-providers; after that, the project's copies are its own.
+providers; after that, the project's copies are its own until a `--refresh`.
 
 Each role has its own skill set: strategy skills for the Supervisor (interviews, pre-mortems,
 retrospectives, protocol patches), macro skills for the Lead (intake, decomposition, council,
 review orchestration, rollout), micro skills for the Peer (test-first work, debugging, proof
-audits), and review skills for the Reviewer (Open Code Review, change review). The Supervisor alone keeps Claude Code's auto memory, as the project's
-organizational memory.
+audits), and review skills for the Reviewer (Open Code Review, change review). The Supervisor
+alone keeps Claude Code's auto memory, as the project's organizational memory.
 
 Authority is split by concern rather than stacked in one chain. You hold intent and priorities.
 The Supervisor interprets intent and watches coordination. The Lead owns its workspace's
@@ -72,11 +73,11 @@ test that invents an API nobody decided, or a trade-off made just to hit a numbe
 right question at that moment, it usually sees the problem itself. The kit is built around
 that question:
 
-- When the Supervisor creates a Lead, it starts the watcher, a Haiku seat with a short prompt
-  of its own, which reads the Lead's and Peers' activity every 15 minutes and sends the
-  Supervisor an `ATTENTION:`
-  event when it sees a trigger, such as a major decision, a struggle, a change of direction, a
-  trade-off nobody approved, or a minted API.
+- The Supervisor keeps a watcher running while a Lead works, and checks it before every
+  directive. The watcher is a Haiku seat with a short prompt of its own; it reads the Lead's and
+  Peers' activity every 15 minutes and sends the Supervisor an `ATTENTION:` event when it sees
+  a trigger, such as a major decision, a struggle, a change of direction, a trade-off nobody
+  approved, or a minted API.
 - The Supervisor logs most events. For the rest it sends a neutral `CHECK:` question through
   the Lead ("which of the names your new tests call existed before this task?"), because asking
   an agent to look again at a named source catches more than telling it that it is wrong.
@@ -105,8 +106,11 @@ To verify without writing anything:
 fish setup/setup-seats.fish --check
 ```
 
-When the kit's templates change, carry them into a project that already has its files. The
-replaced copies are kept under the project's `.seatworks/records/drafts/`:
+When the kit's templates change, carry them into a project that already has its files. This
+replaces the project's seat prompts and skills, and its workspace protocol while that is still
+the unfilled template, keeping the old copies under the git-ignored `.seatworks/records/drafts/`.
+Keep one project's own rules in its `AGENTS.md` or its filled-in
+`.seatworks/WORKSPACE_PROTOCOL.md`, which it never touches:
 
 ```fish
 fish setup/add-project.fish REPO_DIR --refresh
@@ -132,19 +136,21 @@ notebook, and a miss becomes a rule only when it recurs.
 | [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the Haiku watcher on every sweep |
 | [project/skills/](project/skills/) | Strategy skills for the Supervisor, macro skills for the Lead, micro skills for the Peer, review skills for the Reviewer |
 | [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
-| [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Pi seat, and file edits for the Reviewer |
-| [claude/lead-guard.sh](claude/lead-guard.sh) | Lead hook that blocks writes to repository files other than coordination records, so Peers write all code |
-| [claude/profile-guard.sh](claude/profile-guard.sh) | Supervisor and Lead hook that blocks creating an agent with a model or mode other than its profile's, and changing a running agent's model or mode |
+| [pi/extensions/peer-guard.ts](pi/extensions/peer-guard.ts) | Pi extension that blocks `git push` and agent CLIs for every Pi seat, and file edits for the read-only seats (Reviewer and read-only Peer) |
+| [claude/lead-guard.sh](claude/lead-guard.sh) | Lead, Supervisor, and watcher hook that blocks writes to repository files outside what the role owns (coordination records, `.seatworks/`, the attention log), so Peers write all code |
+| [claude/profile-guard.sh](claude/profile-guard.sh) | Supervisor and Lead hook that blocks creating, prompting, scheduling, or switching an agent onto a model or mode other than its profile's |
+| [claude/watcher-guard.sh](claude/watcher-guard.sh) | Watcher hook that lets `send_agent_prompt` reach only the Supervisor |
 | [pi/settings.json](pi/settings.json) | Keys merged into each Peer's Pi settings |
-| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its five providers, and their profiles |
+| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its six providers, and their profiles |
 | [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, and `--check` only verifies |
 | [claude/](claude/) `lead`, `supervisor`, `watcher` `.settings.json` | Your settings for each Claude role, shared by every seat of that role |
 | [examples/paseo-providers.json](examples/paseo-providers.json) | The base `claude` provider, plus the per-project `SLUG` templates |
 | [examples/AGENTS_MD_SNIPPET.md](examples/AGENTS_MD_SNIPPET.md) | Template for the `AGENTS.md` of a repository you work in |
 | [examples/WORKSPACE_PROTOCOL.md](examples/WORKSPACE_PROTOCOL.md) | Template for a project's coordination protocol, read only by the Lead |
 
-Edit `claude/<role>.settings.json` by hand; the script links every seat to its role's file and
-only checks it, never writes it. Only the Supervisor keeps auto memory, because it is the
-project's organizational memory. The Lead and the watcher keep a 1-hour prompt cache, since the
-watcher sweeps every 15 minutes. The Lead's hook runs `lead-guard.sh` through its own profile,
-so the file holds no path specific to one machine.
+The role settings in `claude/<role>.settings.json` are tracked in git and edited by hand; the
+script links every seat to its role's file and only checks it, never writes it. Their
+`"language": "vietnamese"` is the kit owner's setting: change or remove it for your own. The
+Lead and the watcher keep a 1-hour prompt cache, since the watcher sweeps every 15 minutes.
+Each hook runs its guard through the seat's own profile, so the files hold no path specific to
+one machine.

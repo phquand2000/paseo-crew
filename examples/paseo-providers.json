@@ -1,10 +1,9 @@
 {
   "_doc": [
-    "Merge the `claude` entry into .agents.providers in ~/.paseo/config.json once per machine; it holds the token every Claude seat inherits through `extends`.",
-    "The SLUG entries are templates: setup/add-project.fish copies them for each project, replacing SLUG and HOME_DIR and adding env.SEATWORKS_REPO (and env.SEATWORKS_KIT for the Supervisor).",
+    "Merge the `claude` entry into .agents.providers in ~/.paseo/config.json once per machine, replacing OAUTH_TOKEN with your CLAUDE_CODE_OAUTH_TOKEN; every Claude seat inherits it through `extends`.",
+    "The SLUG entries are templates: setup/add-project.fish copies them for each project, replacing SLUG and HOME_DIR and adding env.SEATWORKS_REPO (and env.SEATWORKS_KIT for the Supervisor). Each Claude seat's agent profile takes the isDefault model and its isDefault thinking option from here.",
     "Merge into the existing file; don't replace it, because it also holds workspaces and the agent ledger.",
     "Also make sure .daemon.mcp has \"enabled\": true and \"injectIntoAgents\": true, or the Lead and Supervisor get no Paseo tools.",
-    "Replace OAUTH_TOKEN with your CLAUDE_CODE_OAUTH_TOKEN. add-project.fish drops it from the seat entries when the base `claude` entry has one.",
     "Delete the _doc key before writing: Paseo's schema rejects unknown keys."
   ],
 
@@ -19,7 +18,6 @@
     "description": "Supervisor seat for SLUG: meets the Human, relays decisions, answers attention events, keeps the notebook",
     "env": {
       "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-supervisor-SLUG",
-      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
       "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
       "CLAUDE_CODE_DISABLE_CRON": "1",
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
@@ -47,7 +45,6 @@
     "description": "Lead seat for SLUG: framing, delegation, review, acceptance",
     "env": {
       "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-lead-SLUG",
-      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
       "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
       "CLAUDE_CODE_DISABLE_CRON": "1",
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
@@ -75,7 +72,6 @@
     "description": "Attention watcher for SLUG: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor",
     "env": {
       "CLAUDE_CONFIG_DIR": "HOME_DIR/.claude/profiles/claude-watcher-SLUG",
-      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN",
       "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
       "CLAUDE_CODE_DISABLE_CRON": "1",
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
@@ -97,6 +93,19 @@
       "PI_CODING_AGENT_DIR": "HOME_DIR/.pi/profiles/pi-peer-SLUG",
       "PI_SKIP_VERSION_CHECK": "1",
       "PI_TELEMETRY": "0"
+    },
+    "paseoTools": { "enabled": false }
+  },
+
+  "pi-peer-ro-SLUG": {
+    "extends": "pi",
+    "label": "Pi Peer (read-only) · SLUG",
+    "description": "Read-only Peer seat for SLUG: Architect, Scout, and council work with file edits blocked",
+    "env": {
+      "PI_CODING_AGENT_DIR": "HOME_DIR/.pi/profiles/pi-peer-ro-SLUG",
+      "PI_SKIP_VERSION_CHECK": "1",
+      "PI_TELEMETRY": "0",
+      "SEATWORKS_READ_ONLY": "1"
     },
     "paseoTools": { "enabled": false }
   },

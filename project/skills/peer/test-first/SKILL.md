@@ -1,11 +1,11 @@
 ---
 name: test-first
-description: "Evidence before behavior: choose the proof (a failing test at the brief's seam, a repro, characterization, a benchmark, a render check), then add behavior one failing test at a time. Use when a brief changes behavior, fixes a bug, or refactors."
+description: "Evidence before behavior: choose the proof (a failing test at a settled seam, a repro, characterization, a benchmark, a render check), then add behavior one failing test at a time. Use when a brief changes behavior, fixes a bug, or refactors."
 ---
 
 # Test-first
 
-Use this skill to put evidence before every behavior change: choose the proof that shows the change best, and when that proof is a test, add behavior one failing test at a time at a seam whose contract is already settled.
+Use this skill to put evidence before every behavior change: choose the proof that shows the change best, and when that proof is a test, work in this order: settle the contract, write a failing test at the seam, then write the code. If the brief makes you read-only (an Architect or Scout disposition), report the proof and seam you would use, and commit nothing.
 
 ## Choose the proof
 
@@ -26,9 +26,16 @@ Done when you can name the proof in one line, and why no other surface proves th
 
 ## Before the first test
 
-1. Name the seam: the public interface the brief, or a settled seam in the repository's `AGENTS.md`, says to test through, and what a caller observes there. If the brief names no seam, or the seam is marked decide-first and still undecided, report `BLOCKED` with the candidate seams you found; a test at a guessed seam makes your guess the contract. Done when the seam fits on one line, such as `parseHeader(bytes) -> Header | ParseError`.
-2. Find the fastest command that runs one test file, and run it on the unchanged code. Done when it passes, so any later red is yours.
-3. List the behaviors to add, one sentence each in a caller's words ("rejects a header shorter than WIDTH"). Done when the list is in your notes and no test code exists yet.
+1. Name the seam: an interface the brief's Interfaces field lists under Consumes or Produces, or an existing public entry point the change goes through (`path:line`), and what a caller observes there. Report `BLOCKED` with the candidate seams only when neither exists, or when the seam is marked decide-first in `AGENTS.md` and still undecided; a test at a guessed seam makes your guess the contract. Done when the seam fits on one line, such as `parseHeader(bytes) -> Header | ParseError`.
+2. Settle the contract: every type, field, function, route, and table your tests use but don't define must exist in production code at `BASE`, or be named in the brief's Interfaces. `BASE` is the base commit the brief names; otherwise run `BASE=$(git merge-base HEAD BASE_BRANCH)` with the branch yours started from, such as `main`. This search skips test directories and test files but keeps production names such as `latest` or `inspect`:
+
+   ```sh
+   git grep -n -w 'NAME' "$BASE" -- . ':(exclude,glob)**/test*/**' ':(exclude,glob)**/spec/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/*[._]test.*' ':(exclude,glob)**/*[._]spec.*' ':(exclude,glob)**/test_*'
+   ```
+
+   A missing name would mint an API: a test that needs a `points` field `User` lacks decides the contract, and later code bends to fit it. Report `BLOCKED` with the missing names. For a name Produces lists that doesn't exist yet, declare its signature first, so the test fails on an assertion, not an import. Done when every name has a hit or an Interfaces line.
+3. Find the fastest command that runs one test file, and run it on the unchanged code. Done when it passes, so any later red is yours. If a test is already red, or the brief asks you to make an existing test pass, check that test before touching production code: its names pass step 2, and its expected values trace to the brief, `AGENTS.md`, or a spec. If it mints an API or pins retired behavior, report `BLOCKED` with its `path:line` instead of bending the code to fit it.
+4. List the behaviors to add, one sentence each in a caller's words ("rejects a header shorter than WIDTH"). Done when the list is in your notes and no test code exists yet.
 
 ## The loop
 
@@ -58,39 +65,28 @@ When the answers point at helper names, private fields, container shape, source 
 
 ## Anti-patterns
 
-Check every new test against the anti-pattern catalog in [references/test-antipatterns.md](references/test-antipatterns.md) before handoff. These four do the most damage:
-
-- Minted API: the test uses a type, field, function, route, or table that production code lacks and the brief's Interfaces don't name, so the test invents the contract. For each name a test uses but doesn't define, check it exists at the base commit:
-
-  ```sh
-  git grep -n 'NAME' BASE -- . ':(exclude)*test*' ':(exclude)*spec*'
-  ```
-
-  A name with no hit that isn't in the brief's Interfaces means the contract isn't settled: report `BLOCKED` with the missing names.
-- Coupled to the implementation: mocks of your own collaborators, calls to private functions, call-order assertions, or checks through a side channel such as reading the database. It breaks on refactors that keep behavior; assert through the seam.
-- Tautological: the expected value is computed the way the code computes it, is a snapshot the code generated, or is a mock asserting it was called. It passes by construction; use a literal worked out by hand.
-- All tests first: the whole list written as tests before any code, so they describe the imagined shape, not the learned behavior. Write one test, make it pass, then the next.
-
-Mock only what you don't control or can't make fast and deterministic: external services, the clock, randomness, and sometimes the network or filesystem. Before mocking a method, name its side effects and whether the test depends on them; if you can't, run the test against the real implementation first, then mock only the slow or external part below it. Keep your own modules real, and make each mock return the complete real structure, so a field read later isn't silently missing.
+Check every new test against the anti-pattern catalog in [references/test-antipatterns.md](references/test-antipatterns.md) before handoff, including its rules for mocks. The first rows cost the most to clean up later; for Minted API, the check is step 2 of Before the first test.
 
 ## Production code serves production
 
-Add no production API, state, flag, lifecycle branch, log line, or constructor whose only consumer is a test or a demo; production has to carry it and keep it correct. For each public symbol you add, check that something outside the tests calls it:
-
-```sh
-git grep -n 'SYMBOL' -- . ':(exclude)*test*' ':(exclude)*spec*'
-```
+Add no production API, state, flag, lifecycle branch, log line, or constructor whose only consumer is a test or a demo; production has to carry it and keep it correct. Don't make production slower, synchronous, or less scalable, or blur a boundary, to make it easier to test. For each public symbol you add, run the step 2 search without `"$BASE"`, so it covers your current files, and check that it finds a caller.
 
 Put test-only helpers in test utilities. If only a back door reaches the behavior, the seam is probably misplaced; if the seam forces it, say so under Unknown / risk.
+
+## When a contract changes
+
+When the brief changes a contract (a signature, route, schema, field, or file format), update every shipping producer, consumer, and generated artifact of it in the same change; one left on the old shape breaks at runtime. Find them with the step 2 search on the old name, regenerate generated files with the repository's generator, and send a `DEPENDENCY_REQUEST` for any outside your owned scope.
+
+Audit tests and fixtures instead of syncing them mechanically. When a small contract change turns many tests red, suspect tests that minted the API: check each as in step 3 of Before the first test, update one that locks the settled contract, and delete one that only pinned an invented or retired shape.
 
 ## Negative cases after a hard cut
 
 When the brief removes or replaces a schema field, protocol tag, width, or version:
 
-1. List the retired identifiers and values with `git diff BASE -- PATHS`.
-2. Search current tests and fixtures for each with `git grep -n`. Done when none names a retired value, unless that exact representation is still a public or security contract.
+1. List the retired identifiers and values with `git diff "$BASE" -- PATHS`.
+2. Search current code, tests, and fixtures for each with `git grep -n -w`. Done when none names a retired value, unless that exact representation is still a public or security contract.
 3. Derive invalid inputs from current constants and boundaries (`WIDTH - 1`, `WIDTH + 1`, a tag one past the current maximum). A test pinned to a retired value proves only history and keeps the dead contract alive.
-4. Delete tests whose only claim is that a retired name is rejected or absent.
+4. Delete tests whose only claim is that a retired name is rejected or absent, and add no test or lint rule that lists retired names: the list keeps them alive.
 
 ## Before handoff
 
@@ -106,4 +102,4 @@ A test that is hard to write is design feedback:
 - Verification: the proof you chose and why; per slice, the failing run (the assertion message is enough) and the passing run; then the brief's verification commands with their output.
 - Unknown / risk: behaviors left untested and why, mutations no test catches, and any seam that forced test-only access.
 
-The rule that matters most: evidence comes before the change, and a test you never saw fail proves nothing, so the red run is part of the evidence.
+The rule that matters most: settle the contract, see the test fail at the seam, then write the code. A test you never saw fail proves nothing, and a test that invents the contract becomes the spec.

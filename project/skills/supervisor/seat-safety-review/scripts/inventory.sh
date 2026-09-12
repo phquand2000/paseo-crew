@@ -29,17 +29,23 @@ fi
 
 section "Kit deny lists (setup/setup-seats.fish)"
 if [ -f "$kit/setup/setup-seats.fish" ]; then
-    grep -n -A2 '^set -[gl] deny_' "$kit/setup/setup-seats.fish"
+    awk '/^set -[gl] deny_/,/^$/ { print FNR ": " $0 }' "$kit/setup/setup-seats.fish"
 else
     echo "not found; set KIT to the seatworks kit"
 fi
 
-section "Peer guard patterns (pi/extensions/peer-guard.ts)"
+section "Peer guard rules (pi/extensions/peer-guard.ts)"
 if [ -f "$kit/pi/extensions/peer-guard.ts" ]; then
-    grep -n -B1 'pattern:' "$kit/pi/extensions/peer-guard.ts" | grep '//' || echo "no commented patterns found"
+    grep -nE 'pattern:|reason:|READ_ONLY' "$kit/pi/extensions/peer-guard.ts" || echo "no rules found"
 else
     echo "not found"
 fi
+
+section "Claude role hooks (claude/*.settings.json)"
+for f in "$kit"/claude/*.settings.json; do
+    [ -f "$f" ] || continue
+    jq -r --arg f "$(basename "$f")" '.hooks.PreToolUse[]? | "\($f): \(.matcher // "*") -> \([.hooks[]?.command] | join(", "))"' "$f"
+done
 
 peers=0
 for peer_dir in "$pi_profiles"/pi-peer-*/ "$pi_profiles"/pi-reviewer-*/; do

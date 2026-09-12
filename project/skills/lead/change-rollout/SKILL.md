@@ -104,10 +104,10 @@ condition in the repository.
    the rollback trigger instead. Done when every canary field in the rollout sheet is filled in.
 4. **Hand off what leaves the machine.** Pushing, deploying, a migration on a shared database,
    flipping a hosted flag, and calling external services go to the Human with the rollout
-   sheet: the exact commands in order, who watches which metric, and the abort action. A
-   Peer's brief grants none of these unless an owner directive authorizes it, and then its
-   Authority field names it. Done when the Human has the sheet and their decision is recorded
-   in the ExecPlan.
+   sheet: the exact commands in order, who watches which metric, and the abort action. Pushing
+   always stays with the Human; a Peer's brief grants any of the others only when an owner
+   directive authorizes it, and then its Authority field names it. Done when the Human has the
+   sheet and their decision is recorded in the ExecPlan.
 
 ## Hard-cut route
 

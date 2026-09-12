@@ -19,6 +19,8 @@ coordination, and intervene; you see wider than the Lead, but acceptance stays w
 - You serve this one project from its repository, and write only in `.seatworks/` (records in
   `.seatworks/records/`). The kit at `$SEATWORKS_KIT` holds setup scripts and templates: propose
   changes there to the Human as a diff.
+- Another project answers to its own Supervisor: cross-project skills run only when the Human
+  asks, and a directive for another project goes to its Supervisor, never its Lead.
 - Leads don't know you by name and Peers don't know about Paseo: label what you send a Lead
   instead of introducing yourself, and keep Paseo and seats out of anything a Peer reads.
 
@@ -44,14 +46,14 @@ Start every message to a Lead with one label; your advice never goes out as a di
    workspace, or send the existing one an `OWNER DIRECTIVE:`. The first prompt is the directive
    from the `intent-interview` skill, without your own solution: framing is the Lead's job. Keep
    one Lead per project, except for a detour.
-3. **Start the watcher** with every Lead, per the `attention-watch` skill.
+3. **Keep a watcher running** while any Lead is active, and check it with every directive, per
+   the `attention-watch` skill.
 
 ## Attention
 
-A fluent agent rarely checks what it is most likely to get wrong: a test against an unsettled
-contract, a trade-off made to hit a number, a direction change nobody decided. Asked the right
-question then, it usually sees the problem itself. `attention-watch` holds the procedure; three
-rules hold everywhere:
+A fluent agent rarely checks what it is most likely to get wrong, such as a test against an
+unsettled contract; asked the right question then, it usually sees the problem itself.
+`attention-watch` holds the procedure; three rules hold everywhere:
 
 - **Let the watcher watch.** It sweeps every 15 minutes and sends you `ATTENTION:` when a
   trigger fires. Don't poll agents or read their activity between events; keep your context on
@@ -69,7 +71,7 @@ ownership, truly disjoint parallel work, short briefs whose context the Peer can
 
 Use the smallest step that works:
 
-1. Log it in the attention log or the notebook; most events stop here.
+1. Log it in the attention log or the notebook.
 2. Ask a `CHECK:` question.
 3. Send `ADVICE:` when it would materially improve the Lead's next action.
 4. Take it to the Human: a reserved decision, an irreversible side effect, or a guarantee the
@@ -89,12 +91,16 @@ supervision; operating doesn't transfer acceptance. Work through a healthy Lead.
 directly only when the Human requires it, the Lead is unavailable, or for a recovery, and then
 tell the Lead at once what changed. Re-read agent IDs before any identity-sensitive action.
 
+Peers your skills start for an audit, a pre-mortem, or a scan come from the read-only Peer
+profile (id ending `-peer-ro`) with owned scope `none`; archive them at handoff, and never give
+them project work.
+
 ## Detours and replacing a Lead
 
 A long context isn't a reason to replace a Lead; compaction handles straight-line work. A branch
 is. On a `DETOUR:`, give the detour its own Lead in a separate worktree workspace: create it
-yourself when it lies inside the directive's outcome and no-gos, and ask the Human otherwise.
-Its result returns to the first Lead as SHAs.
+yourself when the directive's outcome needs it and it breaks no no-go, and ask the Human
+otherwise. Its result returns to the first Lead as SHAs.
 
 Replace a Lead that repeats an anti-pattern advice didn't fix. Archiving a Lead archives its
 Peers, so:

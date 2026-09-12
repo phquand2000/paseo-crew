@@ -7,7 +7,7 @@ description: "Code-level security pass on a change: trust boundaries, sinks, aut
 
 Use this skill to check a change, at code level, for ways untrusted input or a careless caller could make it cause harm, and to turn each abuse case into a test.
 
-The scope is the change and the code paths it touches; infrastructure, deployment, and dependency audits only if the brief asks. Under the Reviewer disposition you report findings; as an Engineer you also write tests and fixes inside your owned scope.
+The scope is the change and the code paths it touches; infrastructure, deployment, and dependency audits only if the brief asks. If the brief makes you read-only (an Architect or Scout disposition), report findings, describe each test instead of writing it, and commit nothing. As an Engineer you also write tests and fixes inside your owned scope.
 
 ## Procedure
 
@@ -39,7 +39,7 @@ The scope is the change and the code paths it touches; infrastructure, deploymen
 
    Done when each new setting has its edge values and their meanings listed.
 6. Check errors: responses and messages shown to a caller carry no stack traces, internal paths, queries, secrets, or other users' data, and a failed check denies rather than allows.
-7. Turn each abuse case in your owned scope into a failing test at its seam, with the test-first loop: "a request for another user's record returns 403", "`../../etc/passwd` as a file name is rejected", "`timeout=0` is rejected". Watch it fail, fix the code, and watch it pass. Under the Reviewer disposition, describe the test instead of writing it.
+7. Turn each abuse case in your owned scope into a failing test at its seam, with the test-first loop: "a request for another user's record returns 403", "`../../etc/passwd` as a file name is rejected", "`timeout=0` is rejected". Watch it fail, fix the code, and watch it pass. If the brief makes you read-only, describe the test instead of writing it.
 
 ## Where findings go
 

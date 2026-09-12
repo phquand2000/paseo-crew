@@ -51,6 +51,16 @@ The change adds cost that follows the structure rather than the useful work. Loo
 
 Ask: what does this cost per unit of useful work, and how does it grow with the scaling variable? Cite the loop or call site and the variable it grows with.
 
+## Missing causal mechanism
+
+A name or claim promises an outcome that no mechanism produces. Look for:
+
+- a name that promises an outcome (reconcile, retry, idempotent, exactly-once, in sync) with no state or owner that makes it true;
+- a mechanism of the wrong kind for the job, such as polling for an event the owner could publish, or a lock around data that has one writer;
+- a locally polished route (a clean abstraction, thorough tests) that departs from the standard route the domain uses, whose quality hides the cost of keeping it.
+
+Ask: which state, held by which owner, makes the promised outcome true, and does the standard route already provide it?
+
 ## When the structure is fine
 
 Report no structural finding when the production mechanism has the information and owner it needs, the counterexample is handled, and any departure from the usual route serves a named constraint at a proportionate cost. Custom code isn't wrong for being custom, and complexity the domain requires isn't overengineering.

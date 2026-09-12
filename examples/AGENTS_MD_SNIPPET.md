@@ -3,9 +3,9 @@
 Every agent working in a repository reads its instruction file automatically, so the
 repository's technical constraints belong there. The seats read different files, though:
 
-- Pi (the Peer) reads `AGENTS.md`, and takes only one file per directory, preferring
-  `AGENTS.md` over `CLAUDE.md`.
-- Claude Code (the Lead and Supervisor) reads `CLAUDE.md`.
+- Pi (the Peer and the Reviewer) reads `AGENTS.md`, and takes only one file per directory,
+  preferring `AGENTS.md` over `CLAUDE.md`.
+- Claude Code (the Supervisor, the Lead, and the watcher) reads `CLAUDE.md`.
 
 So keep the constraints in `AGENTS.md`, and give the repository a one-line `CLAUDE.md` that
 imports it:
@@ -43,11 +43,12 @@ These are the constraints agents can't infer from the code.
 - Settled seams (use them without asking): SETTLED_SEAMS
 - Decide-first seams (if one is still undecided when a test would cross it, stop and report
   `BLOCKED`): DECIDE_FIRST_SEAMS
+- Changing a contract: COMPAT_POLICY
 
 ## Authority
 
-Push, deploy, CI changes, data deletion, external API calls, and major dependency changes need
-explicit permission.
+Pushing is the Human's. Deploys, CI changes, data deletion, external API calls, and major
+dependency changes need explicit permission.
 
 - Also allowed in this repository: EXTRA_ALLOWED
 - Needs the owner's decision, even when it looks small: OWNER_DECISIONS
@@ -73,6 +74,8 @@ Replace the following:
 
 - `SETTLED_SEAMS`: interfaces that are final, for example `the REST API under api/v1`.
 - `DECIDE_FIRST_SEAMS`: interfaces that must be decided before a test crosses them.
+- `COMPAT_POLICY`: `hard cut` (replace the old form everywhere in one change, with no shim) or
+  `keep the old form until DATE` for consumers this repository doesn't ship.
 - `EXTRA_ALLOWED`: actions allowed here beyond the default, such as updating lockfiles.
 - `OWNER_DECISIONS`: actions that always need the owner, however small.
 - `CHECK_COMMAND`: the command that verifies an ordinary change, for example `npm test`.

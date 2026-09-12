@@ -1,6 +1,6 @@
 ---
 name: intake
-description: "Classifies each request as tiny, normal, or high-risk via hard gates and a risk rubric that set review, council, and rollout rigor, and opens an ExecPlan when needed. Use when a request or owner directive arrives, or new evidence may raise a lane."
+description: "Classifies a request as tiny, normal, or high-risk via hard gates and a risk rubric, sets review, council, and rollout rigor, and opens an ExecPlan when needed. Use when a request or directive arrives, or evidence may raise a lane."
 ---
 
 # Intake
@@ -66,8 +66,9 @@ decompose skill.
    data consequences, or another direction that is expensive to reverse. Record the
    constraints, the alternatives worth weighing, the decision, and its likely failure modes in
    the ExecPlan's Direction section or as an ADR with the decision-records skill. Leave files,
-   symbols, pseudocode, and private control flow to the Peer; a design that pre-solves them
-   throws away the Peer's judgment. Route each open choice:
+   private symbols, pseudocode, and control flow to the Peer, since a design that pre-solves
+   them throws away its judgment; interfaces other slices consume are leverage points, settled
+   in decompose step 1. Route each open choice:
 
    - product direction, priority, or an irreversible trade-off: ask the Human;
    - a technical choice a few reads can settle: decide it and record it;
@@ -84,12 +85,14 @@ decompose skill.
    |---|---|---|---|
    | Plan | none; the request is the acceptance | the brief carries acceptance | ExecPlan before implementation |
    | Who writes | one Engineer Peer; never you | Engineer Peers, one per owned scope | Engineer Peers, with an Architect first where a decide-first seam is open |
-   | Review | you read the diff | you read the diff, and add sealed Reviewers when a condition under "Independent review" in your seat prompt applies | at least two sealed Reviewers on separate axes, and a high-recall sweep when the proof is weak (review-orchestration) |
+   | Review | you read the diff; Reviewers 0 | you read the diff; Reviewers 0 unless a condition under "Independent review" in your seat prompt applies | at least two sealed Reviewers on separate axes, and a high-recall sweep when the proof is weak |
    | Council | none | lens or debate, for a contested choice only | debate-with-proof for a contested choice; the high-risk tier when it can't be undone |
    | Rollout | none | local revert | a change-rollout plan with the rollback proven before rollout |
+   | Merge | the integration skill | the integration skill | the integration skill |
 
    Done when the intake result's Rigor line names a number of Reviewers, a council tier or
-   `none`, and a rollout route.
+   `none`, and a rollout route. A Rigor line that names Reviewers is itself a Reviewer
+   condition: brief them only through the review-orchestration skill.
 
 8. **Open an ExecPlan** when the lane is high-risk, or when normal work will span sessions,
    several Peers, or a handoff. Copy the template in `references/execplan.md` (relative to this
@@ -123,9 +126,8 @@ decompose skill.
 When new evidence trips a gate or moves a rubric answer mid-task, raise the lane at once: update
 the result block and the ExecPlan, apply the new rigor to the work still ahead, and extend it to
 accepted slices the new risk reaches. When the work turns out easier, keep the lane and say so
-in the acceptance summary's `LESSON:` line; the pull to lower a lane comes under mid-task
-schedule pressure, when a dropped check is hardest to put back; the lesson calibrates the next
-intake instead.
+in the acceptance summary's `LESSON:` line, which calibrates the next intake: the pull to lower
+a lane comes under schedule pressure, when a dropped check is hardest to put back.
 
 ## Examples
 

@@ -5,7 +5,7 @@ description: "Build a UI change in the repository's design language with every s
 
 # Frontend change
 
-Use this skill to build a user-facing interface change in the repository's design language, and to confirm it in the rendered page, not only in the code. Copy-only edits, a single design-token change, and headless UI logic don't need it; build logic with the test-first skill.
+Use this skill to build a user-facing interface change in the repository's design language, and to confirm it in the rendered page, not only in the code. Copy-only edits, a single design-token change, and headless UI logic don't need it; build logic with the test-first skill. If the brief makes you read-only (an Architect or Scout disposition), render and report what you find, change no code, and commit nothing.
 
 ## Before editing
 
@@ -34,9 +34,8 @@ Done when all five are written down. Make routine visual choices yourself; a cho
 2. Load the page and wait until it settles (network idle, or a known element present). Then read the rendered DOM, the accessibility tree, or a screenshot, and choose selectors from what actually rendered, preferring roles and labels over CSS classes; selectors guessed from the source often miss.
 3. At each target viewport, run the primary workflow end to end: complete the main action, trigger each state the flow owns, and reach the action by keyboard with Tab and Enter.
 4. Watch the browser console during the run, and record any errors.
-5. Save a screenshot per viewport, with the command that produced it.
 
-Done when each target viewport has a screenshot or a DOM assertion for the primary workflow, and the console output is recorded. If the repository has a browser test suite whose directory is in your owned scope, add the workflow there as a test so it keeps running.
+Done when each target viewport has a screenshot or a DOM assertion for the primary workflow, with the command that produced it, and the console output is recorded. Add the workflow to a browser test suite only if the brief asks for a lasting check; beyond that, build no verification the brief didn't ask for.
 
 ## When you can't render
 

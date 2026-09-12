@@ -15,7 +15,7 @@ It produces the slice table and Progress ledger in the ExecPlan
 Before you start, have the intake result, the ExecPlan if intake opened one, the decide-first
 seams in `AGENTS.md`, and the writer limit and spawn recipes in
 `.seatworks/WORKSPACE_PROTOCOL.md`. If a few reads show the whole outcome fits one slice, skip
-the graph and brief one Engineer.
+the graph and brief one Engineer; the integration skill still merges it.
 
 ## Procedure
 
@@ -80,12 +80,13 @@ the graph and brief one Engineer.
    slice needs its own context and doesn't depend on a slice in flight. Done when every
    frontier slice has exactly one owner.
 
-7. **Write one brief per slice** from the template. Besides the fields in your seat prompt's
-   Delegation section, it carries:
+7. **Write one brief per slice** from the template. Beyond its task, scope, and verification
+   fields, it carries:
 
    - **Interfaces**: the exact signatures, types, routes, or schemas the slice consumes, with
-     the SHA or path they come from, and those it produces for later slices. A Peer sees only
-     its own brief, so this is how neighboring slices agree on names.
+     the SHA or path they come from, and those it produces for later slices, each settled in
+     step 1 or by the skeleton, never invented in the brief. A Peer sees only its own brief, so
+     this is how neighboring slices agree on names.
    - **Global constraints**: the requirements that bind every slice, copied word for word from
      the spec, the owner directive, or `AGENTS.md`, because a paraphrase is how "exactly two
      decimal places" turns into "round sensibly".
@@ -113,8 +114,10 @@ the graph and brief one Engineer.
      title:        "SLUG S2"
    ```
 
-   Then create the Peer from the project's Peer profile (`list_profiles`), passing the new
-   workspace's ID, and name its directory in the brief's Workspace field:
+   Then create the Peer from the profile for its disposition (`list_profiles`): an Engineer
+   from the Peer profile (`pi-peer`), an Architect or Scout from the read-only Peer profile
+   (`pi-peer-ro`). Pass a writer the new workspace's ID, and name its directory in the brief's
+   Workspace field:
 
    ```text
    create_agent
@@ -135,8 +138,8 @@ the graph and brief one Engineer.
 10. **Accept or loop.** When a handoff arrives, run your acceptance checklist, and the
     review-orchestration skill where a review applies. On acceptance, record
     `S2: accepted at SHA`, archive the Peer, and move the frontier forward; otherwise, start a
-    fix round. Done when every slice is accepted or dropped with a ruling; then the integration
-    skill takes over.
+    fix round. Done when every slice is accepted or dropped with a ruling; then load the
+    integration skill before anything merges into the base branch.
 
 ## Fix-round cap
 
@@ -151,10 +154,11 @@ reading the new diff, or a scoped re-review. Count rounds per slice in Progress,
   still holds the task and its own choices.
 - **Round 4**: a loop that survives three rounds usually means the Peer can't see its own
   problem, so create a fresh Peer one thinking level higher (for example `medium` to `high`).
-  Give it the brief, the open findings, the previous handoff saved to a file such as
-  `${TMPDIR:-/tmp}/SLUG-S2-handoff-r3.md`, and one line: "An earlier attempt went three rounds;
-  read its handoff and its commits up to SHA before you start." Set its `round` label to `"4"`,
-  and archive the old Peer once the new one has started.
+  Give it the brief, the open findings, the previous handoff saved outside the repository (run
+  `echo "${TMPDIR:-/tmp}"` and write `SLUG-S2-handoff-r3.md` under the path it prints), and one
+  line: "An earlier attempt went three rounds; read its handoff and its commits up to SHA before
+  you start." Set its `round` label to `"4"`, and archive the old Peer once the new one has
+  started.
 - **After round 4**: stop sending fixes and adjudicate each open finding:
   - wrong or contestable: record a ruling, and accept with the finding listed;
   - real, but nothing depends on it: record a ruling, list it as open, and accept;

@@ -1,11 +1,10 @@
 # Brief template
 
-A brief is all a Peer knows about its task: the fields from your seat prompt's Delegation
-section plus Interfaces, Global constraints, and Open questions. It goes into `create_agent` as
-`initialPrompt`. Keep it neutral, per that section: the outcome, the boundaries, and the open
-questions, with the implementation left to the Peer, and no Paseo, seats, or agent identities.
-Point to files and SHAs instead of pasting earlier tasks' history: whatever you paste stays in
-the Peer's context for the whole task.
+A brief is all a Peer knows about its task: the fields below. It goes into `create_agent` as
+`initialPrompt`. Keep it neutral, per your seat prompt's Delegation section: the outcome, the boundaries, and the
+open questions, with the implementation left to the Peer, and no Paseo, seats, or agent
+identities. Point to files and SHAs instead of pasting earlier tasks' history: whatever you
+paste stays in the Peer's context for the whole task.
 
 Copy this block:
 
@@ -44,13 +43,15 @@ Replace the following:
 - `STARTING_POINTS`: files, docs, and SHAs worth reading first, including the ExecPlan path.
 - `OWNED_GLOBS`: the paths this Peer may write, as concrete globs.
 - `EXCLUDED_GLOBS`: nearby paths it may read but not write, such as another slice's scope.
-- `BRANCH`: the slice branch, for example `task/invoice-csv-S2`.
+- `BRANCH`: the slice branch, for example `task/invoice-csv-S2`. For a read-only disposition
+  (Architect, Scout, Reviewer), the Authority line reads `Read-only: commit nothing.` instead.
 - `CONSUMED_INTERFACES`: the exact signatures, types, routes, schemas, or file formats this
   slice uses, each with the SHA or path it comes from.
 - `PRODUCED_INTERFACES`: the exact names, parameters, and return types later slices will rely
-  on; a Peer sees only its own brief, so this is how neighboring slices agree on names. Tests in
-  the slice may call only what exists at the base SHA or what Consumes and Produces name; a test
-  that needs anything else would invent the contract.
+  on, each citing where it was settled (the skeleton slice's SHA, an Architect's handoff, or an
+  ADR), never invented in the brief; a Peer sees only its own brief, so this is how neighboring
+  slices agree on names. Tests in the slice may call only what exists at the base SHA or what
+  Consumes and Produces name; a test that needs anything else would invent the contract.
 - `GLOBAL_CONSTRAINTS`: requirements that bind every slice (exact values, formats, limits, and
   version floors), copied word for word from the spec, the owner directive, or `AGENTS.md`; a
   paraphrase loses the exact value.
@@ -75,7 +76,7 @@ Excluded scope      src/invoices/query.ts (S3 owns it)
 Authority           Commit locally on task/invoice-csv-S2. Pushing, deploying, external calls, and CI changes are not authorized.
 Interfaces
   Consumes          listInvoices(filter: InvoiceFilter): Promise<Invoice[]>  (src/invoices/query.ts at 4c1d9e2)
-  Produces          toCsv(invoices: Invoice[]): string
+  Produces          toCsv(invoices: Invoice[]): string  (stubbed by the S1 skeleton at 4c1d9e2)
 Global constraints  "Amounts are formatted with exactly two decimal places and no thousands separator."
                     "Column order: number, customer, issued_at, amount, status."
 Verification        npm test -- test/invoices/export

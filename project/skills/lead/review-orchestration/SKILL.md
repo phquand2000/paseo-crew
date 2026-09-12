@@ -1,20 +1,21 @@
 ---
 name: review-orchestration
-description: "Chooses the review a change needs (your own reading, sealed Reviewers on separate axes, or a scout sweep) and adjudicates each finding. Use when a slice or branch awaits acceptance and needs more than your reading, or before briefing any Reviewer."
+description: "Chooses the review a change needs (your own reading, sealed Reviewers on separate axes, or a scout sweep) and adjudicates each finding. Use before briefing any Reviewer, or when intake's Rigor line or a Reviewer condition calls for one."
 ---
 
 # Review orchestration
 
 Give a change the review its risk calls for, and no more. Sealed axes end in a ruling in your
 acceptance summary; a sweep ends in one report at `docs/reviews/DATE-NAME-round-N.md` in the
-target repository. Every finding ends with a verdict and a route.
+target repository, which stays until its findings are routed and fixed (repo-refresh retires it
+once its durable decisions reach their owners). Every finding ends with a verdict and a route.
 
 ## Choose the lane
 
 | Lane | When | Who reviews |
 |---|---|---|
 | Read it yourself | default: tiny or normal work, no review condition | you: `git diff "$base" "$head"` |
-| Sealed axes | a condition under "Independent review" in your seat prompt applies, or intake set Reviewers above zero | two or three Reviewer Peers, one axis each, same SHA and question |
+| Sealed axes | intake's Rigor line names Reviewers (every high-risk lane does), or another condition under "Independent review" in your seat prompt applies | two or three Reviewer Peers, one axis each, same SHA and question |
 | Sweep | high-risk work with weak proof, a large or unfamiliar surface, or a pre-merge audit where recall beats noise | four to ten scout Peers on overlapping concerns |
 
 `.seatworks/WORKSPACE_PROTOCOL.md` overrides these counts where it sets strictness or a review
@@ -63,10 +64,10 @@ lane count. Done when you have named the lane and the reason.
    partial failure; authorization, trust boundaries, hostile input; hot-path cost; generated
    files, fixtures, snapshots, docs; proof that passes without its behavior; duplicate state and
    wrappers compensating for a broken foundation; alternative end-to-end traces. Pick N from 4
-   to 10 so every concern has at least two scouts and no scout more than three concerns. Scouts
-   sharing a concern take different traces, lifecycle phases, owners, hostile cases, or
-   disconfirming angles, never one copied prompt. Name them `scout-01` onwards. Done when the
-   allocation table shows at least two scouts per concern.
+   to 10 so each directive `D0x` has at least three scouts, each derived concern `G0x` at least
+   two, and no scout more than three concerns. Scouts sharing a concern take different traces,
+   lifecycle phases, owners, hostile cases, or disconfirming angles, never one copied prompt.
+   Name them `scout-01` onwards. Done when the allocation table meets those counts.
 
 3. **Brief and launch the scouts** with the scout brief in `references/briefs.md`, from the
    Reviewer profile, disposition Reviewer (the Scout disposition returns a map without

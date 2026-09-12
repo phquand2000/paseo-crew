@@ -14,9 +14,9 @@ the repository root, your working directory.
 ## Procedure
 
 1. **Check that the project is set up:** `.seatworks/WORKSPACE_PROTOCOL.md` exists and
-   `list_models` answers for `pi-peer-SLUG`. If either fails, ask the Human to run
-   `fish $SEATWORKS_KIT/setup/add-project.fish` for this repository, and stop. **Done** when
-   both hold.
+   `list_profiles` shows the project's Lead and Peer profiles (`<slug>-lead`, `<slug>-peer`). If
+   either fails, ask the Human to run `fish $SEATWORKS_KIT/setup/add-project.fish` for this
+   repository, and stop. **Done** when both hold.
 2. **Read the repository before asking.** List the open placeholders:
 
    ```sh
@@ -36,33 +36,35 @@ the repository root, your working directory.
 
    Recommend `loose` when only the Human is affected and git undoes every change, `strict` for
    external users or irreversible data paths, and `standard` otherwise; strictness costs Lead
-   time on every task, so match it to the damage a mistake can do. **Done** when the recommendation and its evidence are in `NOTES.md`.
+   time on every task, so match it to the damage a mistake can do. **Done** when the
+   recommendation and its evidence are in `NOTES.md`.
 4. **Interview the Human about the unknowns.** Ask in rounds: every question you can ask now,
-   numbered, each with a recommended answer, as in the intent-interview skill. Run `list_models`
-   for `pi-peer-SLUG` and recommend a Peer model; the protocol must name one, because the
-   provider offers every model the Pi login reaches. When the Human proposes a rule, ask for the
-   episode it would have prevented; a rule without one is ceremony, and ceremony only ever
-   tightens. **Done** when every
-   placeholder you keep has an answer.
+   numbered, each with a recommended answer, as in the intent-interview skill. The protocol's
+   `PEER_MODEL` is the model of the `<slug>-peer` profile in `list_profiles`, because the profile
+   guard blocks a launch on any other; another model is a profile change, so write it out for the
+   Human. When the Human proposes a rule, ask for the episode it would have prevented; a rule
+   without one is ceremony, and ceremony only ever tightens. **Done** when every placeholder you
+   keep has an answer.
 5. **Fill in `.seatworks/WORKSPACE_PROTOCOL.md` in place.** Replace the placeholders, and delete
    every section that repeats the Lead's defaults in `.seatworks/LEAD.md`, since the Lead reads
    the file every session. Give each mandatory rule a `Reason:` line (a dated, reproducible
    episode) and a `Remove when:` line (the evidence that would retire it). **Done** when the
    step 2 search prints nothing for this file and
-   `grep -n 'pi-peer-SLUG/' .seatworks/WORKSPACE_PROTOCOL.md` shows a real model.
+   `grep -n 'pi-peer-SLUG/' .seatworks/WORKSPACE_PROTOCOL.md` shows the Peer profile's model.
 6. **Draft `AGENTS.md`.** Copy `AGENTS.md` to `.seatworks/records/drafts/AGENTS.md` and fill it
    in by the same rules. For each line, ask whether a Peer would make a mistake without it: if
    it would, the line belongs in `AGENTS.md`; if only the Lead needs it, in the protocol. Peers
-   don't read the protocol, and coordination detail in `AGENTS.md` distracts them every turn. **Done** when the draft has no placeholder left and no
-   technical constraint lives only in the protocol.
+   don't read the protocol, and coordination detail in `AGENTS.md` distracts them every turn.
+   **Done** when the draft has no placeholder left and no technical constraint lives only in the
+   protocol.
 7. **Get the Human's approval.** Show the protocol (`git diff -- .seatworks`, or the whole file
-   if it isn't committed yet), the `AGENTS.md` draft, the strictness evidence, and the rules you
-   dropped for lack of an episode. **Done** when the Human approves, or has asked for changes
-   that you applied and the Human approved.
-8. **Hand the files to the Lead.** Re-read the agent IDs with `list_agents`, then send this with
-   `send_agent_prompt`. If the project has no Lead, create one on `claude-lead-SLUG` with
-   `settings.modeId: "bypassPermissions"` and a `thinkingOptionId`, with this directive as its
-   first prompt. **Done** when the Lead confirms that it committed the files.
+   if it isn't committed yet), the `AGENTS.md` change as a diff
+   (`diff -u AGENTS.md .seatworks/records/drafts/AGENTS.md`), the strictness evidence, and the
+   rules you dropped for lack of an episode. **Done** when the Human approves, or has asked for
+   changes that you applied and the Human approved.
+8. **Hand the files to the Lead.** Send this directive as in step 3 of "Sending the directive"
+   in the intent-interview skill, which creates a Lead if the project has none. **Done** when
+   the Lead confirms that it committed the files.
 
    ```text
    OWNER DIRECTIVE: Adopt the rules for this repository.
@@ -84,7 +86,9 @@ the repository root, your working directory.
    ```
 
    **Done** when the commit exists, the `diff` prints nothing (or the Lead explained each
-   difference and the Human accepted it), and you have deleted `.seatworks/records/drafts/`.
+   difference and the Human accepted it), and you have deleted
+   `.seatworks/records/drafts/AGENTS.md` and `.seatworks/records/drafts/NOTES.md`, leaving the
+   `refresh-*` backups there alone.
 
 If the Lead raises a conflict in step 8, take it to the Human, update the files, and repeat from
 step 7.

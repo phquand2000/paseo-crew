@@ -133,7 +133,8 @@ disappear on the plain, established route.
 
 ## Exoneration
 
-Return `BORING_STANDARD` or `JUSTIFIED_DEVIATION` when the production mechanism has the
-information and the owner it needs, the counterexample is handled, and any deviation serves a
-named constraint at a proportionate cost. Custom doesn't mean wrong, and visible complexity isn't
+List a mechanism under the report's `PROBABLY_JUSTIFIED` items, as the plain standard or a
+justified divergence, when the production mechanism has the information and the owner it needs,
+the counterexample is handled, and any deviation serves a named constraint at a proportionate
+cost. Custom doesn't mean wrong, and visible complexity isn't
 overengineering when the domain itself demands it.

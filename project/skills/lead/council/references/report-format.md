@@ -129,6 +129,6 @@ Shaped to the case and its vocabulary, not necessarily as literal headings, it c
 - the validation that will show the action worked;
 - material dissent, and your answer to it;
 - limitations: soft isolation, a degraded run, incomplete coverage, a skipped audit, a
-  substituted model;
+  substituted model, a same-family Challenger;
 - reopen conditions: the evidence that would justify revisiting the decision;
 - for a supplied set of findings, an explicit disposition for every finding.

@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 
-ROUND_RE_TEMPLATE = r".*-{name}-round-(\d+)\.md$"
+ROUND_RE_TEMPLATE = r"^\d{{4}}-\d{{2}}-\d{{2}}-{name}-round-(\d+)\.md$"
 REPORT_DIR = Path("docs") / "reviews"
 
 
@@ -47,6 +47,7 @@ def markdown_template(
     review_name: str,
     round_number: int,
     scope: str,
+    brief_sha256: str,
     report_path: Path,
     prior_reports: list[Path],
 ) -> str:
@@ -57,6 +58,7 @@ Date: {date_slug}
 Review name: {review_name}
 Round: {round_number}
 Scope: {scope}
+Brief SHA-256: {brief_sha256}
 Report path: {report_path.as_posix()}
 
 ## Prior round guard
@@ -162,6 +164,7 @@ def main() -> int:
         review_name=review_name,
         round_number=round_number,
         scope=args.scope.strip(),
+        brief_sha256=args.review_brief_sha256,
         report_path=relative_report_path,
         prior_reports=relative_prior,
     )

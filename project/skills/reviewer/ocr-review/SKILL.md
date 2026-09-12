@@ -28,14 +28,14 @@ Use this skill to put a change through Open Code Review (`ocr`) and turn its out
 
 Check whether OCR has a model: `ocr llm test`. Exit 0 means it has one.
 
-**With a model**, OCR's own review agent runs the review:
+**With a model**, OCR's own review agent runs the review. `--no-filter` keeps the comments OCR's model would otherwise drop, because the Lead filters, not you:
 
 ```sh
-ocr review TARGET --format json --audience agent \
+ocr review TARGET --no-filter --format json --audience agent \
   --background-file "$TMPDIR/ocr-TASK-background.md" --output "$TMPDIR/ocr-TASK.json"
 ```
 
-Read the whole output file with your read tool, never through `head` or `tail`, which drop comments. `status` `success` or `completed_with_warnings` is usable; each entry under `warnings` names a file OCR failed on, and those files are yours to review. Exit code 1 is a fatal error: put it under Verification and continue in delegation mode. **Done** when you have every comment and the list of failed files.
+Read the whole output file with your read tool, never through `head` or `tail`, which drop comments. `status` `success` or `completed_with_warnings` is usable; each entry under `warnings` names a file OCR failed on, and those files are yours to review. A non-zero exit means the run failed: put its output under Verification and continue in delegation mode. **Done** when you have every comment and the list of failed files.
 
 **Without a model**, OCR selects the files and rules, and you review:
 

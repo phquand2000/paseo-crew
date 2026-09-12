@@ -5,7 +5,7 @@ description: "Change performance on evidence: baseline the claimed path, find th
 
 # Performance change
 
-Use this skill to change performance on evidence: a baseline on the claimed path, one change at a time, and a keep-or-revert decision made on the numbers.
+Use this skill to change performance on evidence: a baseline on the claimed path, one change at a time, and a keep-or-revert decision made on the numbers. If the brief makes you read-only (an Architect or Scout disposition), or asks only to investigate a slowdown, stop after Find the bottleneck. Report the baseline and the profile evidence, change no code, and commit nothing.
 
 ## Pin the claim and the method
 

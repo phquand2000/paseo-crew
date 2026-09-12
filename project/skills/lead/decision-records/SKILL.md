@@ -38,7 +38,9 @@ verdict's reopen conditions become the ADR's.
 1. **Find the convention.** Look for an existing ADR directory (`docs/adr`, `doc/adr`,
    `docs/decisions`, or the path in a `.adr-dir` file) and follow its format and numbering;
    otherwise use `docs/adr/`. Don't add a second scheme next to an existing one, because it
-   splits the record in two. Done when you know the directory.
+   splits the record in two. The Lead guard lets you write only under `docs/` or `doc/`, so an
+   ADR directory elsewhere gets its ADRs from an Engineer Peer. Done when you know the
+   directory.
 2. **Take the next number:**
 
    ```bash
@@ -160,9 +162,10 @@ one or two sentences on what the thing is, and `SYNONYMS` with the names not to 
 - Define what the thing is, not how it is built; implementation details go stale and belong in
   the code.
 - Include only project-specific concepts, not general programming terms.
-- Update an entry as soon as a term is settled, in the same commit as the work that settled it.
-- If the repository has several bounded contexts, give each its own `CONTEXT.md` and list them
-  and their relationships in a root `CONTEXT-MAP.md`.
+- Update an entry in its own commit, right after you accept the work that settled the term.
+- If the repository has several bounded contexts, give each a group in the root `CONTEXT.md`
+  and say how they relate; a `CONTEXT.md` elsewhere is a repository file an Engineer Peer
+  writes.
 
 Challenge conflicting terms. When a request, a brief, a handoff, or the code uses a term that
 conflicts with the glossary, or uses one word for two concepts (such as "account" for both a

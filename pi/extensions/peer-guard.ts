@@ -1,48 +1,80 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const ASSIGN = String.raw`(?:[A-Za-z_]\w*=\S*\s+)*`;
+const OPTS = String.raw`(?:-\S+(?:\s+[^\s;&|<>()-]\S*)?\s+)*`;
 const WRAPPER =
-  String.raw`(?:(?:sudo|env|exec|command|nohup|time|npx|bunx)\s+(?:-\S+\s+)*` + ASSIGN + `)*`;
-const START = String.raw`(?:^|[\n;&|(\x60])\s*` + ASSIGN + WRAPPER + String.raw`(?:\S*/)?`;
+  String.raw`(?:(?:sudo|doas|env|exec|command|builtin|nohup|time|nice|timeout|stdbuf|xargs|eval|npx|bunx|pnpx)\s+` +
+  OPTS +
+  ASSIGN +
+  String.raw`(?:\d[\w.]*\s+)?)*`;
+const PREFIX = String.raw`(?:(?:[{!]|if|then|elif|else|do|while|until)\s+)*`;
+const START =
+  String.raw`(?:^|[\n;&|(\x60])\s*` + PREFIX + ASSIGN + WRAPPER + String.raw`(?:\S*/)?`;
+const GITOPTS = String.raw`(?:\s+(?:-[Cc]\s+\S+|--(?:git-dir|work-tree|namespace|exec-path|config-env|super-prefix)\s+\S+|--?\S+))*`;
+const GIT = START + "git" + GITOPTS + String.raw`\s+`;
 
 const RULES: { pattern: RegExp; reason: string }[] = [
   {
-    pattern: new RegExp(START + String.raw`git(?:\s+(?:-[Cc]\s+\S+|--?\S+))*\s+push\b`),
+    pattern: new RegExp(GIT + String.raw`push\b`),
     reason:
       "Pushing is not available in this workspace. Commit locally and mention it in your handoff.",
+  },
+  {
+    pattern: new RegExp(
+      START + "git" + GITOPTS + String.raw`\s+(?:-c\s*alias\.|config\b[^;&|\n]*\salias\.)`,
+    ),
+    reason: "Git aliases are not available in this workspace. Run the git command itself.",
   },
   {
     pattern: new RegExp(START + String.raw`gh(?![\w.-])`),
     reason: "Calling GitHub is not available in this workspace. Say what you need in your handoff.",
   },
   {
-    pattern: new RegExp(START + String.raw`(?:paseo|claude|codex|opencode|omp|pi)(?![\w.-])`),
+    pattern: new RegExp(
+      START +
+        String.raw`(?:paseo|claude|codex|opencode|omp|pi|claude-code|pi-coding-agent)(?![\w.-])`,
+    ),
     reason:
       "Starting or controlling other agents is not available in this workspace. Do the work yourself, or say what you need in your handoff.",
   },
 ];
 
+const WRITES = [
+  String.raw`(?:add|commit|reset|checkout|switch|restore|merge|rebase|cherry-pick|revert|clean|rm|mv|update-ref|pull)(?![\w.-])`,
+  String.raw`am(?![\w.-])(?![^;&|\n]*--show-current-patch)`,
+  String.raw`stash(?![\w.-])(?!\s+(?:list|show)(?![\w.-]))`,
+  String.raw`apply(?![\w.-])(?:(?=[^;&|\n]*\s--apply(?![\w-]))|(?![^;&|\n]*\s--(?:check|stat|numstat|summary)(?![\w-])))`,
+  String.raw`branch(?![\w.-])(?=[^;&|\n]*\s(?:-(?!-)[A-Za-z]*[dDfmMcCu]|--(?:delete|force|move|copy|set-upstream-to|unset-upstream|edit-description)(?![\w-])))`,
+  String.raw`tag(?![\w.-])(?=[^;&|\n]*\s(?:-(?!-)[A-Za-z]*[dfasmF]|--(?:delete|force|annotate|sign|message|file)(?![\w-])))`,
+  String.raw`notes(?![\w.-])(?!\s+(?:list|show)(?![\w.-]))`,
+  String.raw`worktree(?![\w.-])(?!\s+list(?![\w.-]))`,
+  String.raw`config(?![\w.-])(?!(?:\s+-\S+)*\s+(?:get|list)(?![\w.-]))(?![^;&|\n]*\s(?:--get(?:-all|-regexp|-urlmatch|-color|colorbool)?|--list|-l)(?![\w-]))`,
+];
+
 const READ_ONLY_RULES: { pattern: RegExp; reason: string }[] = [
   {
-    pattern: new RegExp(
-      START +
-        String.raw`git(?:\s+(?:-[Cc]\s+\S+|--?\S+))*\s+` +
-        String.raw`(?:add|commit|stash|reset|checkout|switch|restore|merge|rebase|cherry-pick|revert|am|apply|clean|rm|mv)(?![\w.-])`,
-    ),
-    reason: "Changing the repository is not available in a review. Report it as a finding.",
+    pattern: new RegExp(GIT + `(?:${WRITES.join("|")})`),
+    reason: "Changing the repository is not available in this role. Report it instead.",
   },
 ];
 
 const READ_ONLY_TOOLS = new Set(["write", "edit"]);
 const READ_ONLY_TOOL_REASON =
-  "Editing files is not available in a review. Put temporary notes under $TMPDIR with the shell, and report fixes in your findings.";
+  "Editing files is not available in this role. Put temporary notes under $TMPDIR with the shell, and report what you would change.";
 
 const READ_ONLY =
   (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env
     .SEATWORKS_READ_ONLY === "1";
 
 function unquoted(command: string): string {
-  return command.replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, "''");
+  return command.replace(
+    /\\([\s\S])|'[^']*'|"(?:[^"\\]|\\[\s\S])*"|(^|[\s;&|()])#[^\n]*/g,
+    (_match, escaped: string | undefined, before: string | undefined) => {
+      if (escaped !== undefined) return /[\w./-]/.test(escaped) ? escaped : escaped === "\n" ? " " : "_";
+      if (before !== undefined) return before;
+      return "''";
+    },
+  );
 }
 
 export function blockReason(command: string, readOnly = READ_ONLY): string | undefined {

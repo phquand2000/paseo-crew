@@ -39,7 +39,7 @@
         ]
       },
       {
-        "matcher": "mcp__paseo__create_agent|mcp__paseo__update_agent",
+        "matcher": "mcp__paseo__create_agent|mcp__paseo__update_agent|mcp__paseo__set_agent_mode|mcp__paseo__send_agent_prompt|mcp__paseo__create_schedule|mcp__paseo__update_schedule",
         "hooks": [
           {
             "type": "command",

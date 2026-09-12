@@ -1,8 +1,10 @@
 # Writing guide
 
-These rules apply to everything in this kit: the seat prompts in `project/`, the
-templates in `examples/`, and the docs; scripts, hooks, and the guard extension carry no comments, so their reasons live in REFERENCE.md. The Supervisor follows them when it
-patches a prompt. Each rule names its source in brackets; the sources are listed at the end.
+These rules apply to everything in this kit: the seat prompts in `project/`, the templates in
+`examples/`, and the docs. Scripts, hooks, and the guard extension carry no comments or
+docstrings (except the one `create_review_report.py` prints as its `--help`), so their reasons
+live in REFERENCE.md. The Supervisor follows these rules when it patches a prompt. Each rule
+names its source in brackets; the sources are listed at the end.
 
 ## Seat prompts
 
@@ -31,11 +33,12 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
 12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
     models over-verify when told to. [O5]
 13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: use
-    `disallowedTools`, `claude/lead-guard.sh`, and `claude/profile-guard.sh` for the Claude
-    seats and `pi/extensions/peer-guard.ts` for the Peer. [M]
+    `disallowedTools` and the hooks in `claude/` (`lead-guard.sh`, `profile-guard.sh`,
+    `watcher-guard.sh`) for the Claude seats, and `pi/extensions/peer-guard.ts` for the Pi
+    seats. [M]
 14. Put maintainer notes for the Claude seat prompts in HTML comments. Claude Code strips them
     from `CLAUDE.md` before loading, so they cost the seat nothing. Pi doesn't strip them, so
-    `.seatworks/PEER.md` contains no comments at all. [M]
+    the Pi prompts, `PEER.md` and `REVIEWER.md`, contain no comments at all. [M]
 15. Add a rule only after an observed failure, with a reproducible reason and a removal trigger.
     [HL, CUR]
 
@@ -84,8 +87,8 @@ describes its target. [G, MS]
 
 ## Skills
 
-Skills live in `project/skills/<role>/`, and must work unchanged in
-Claude Code and Pi. Each role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
+Skills live in `project/skills/<role>/`, and must work unchanged in Claude Code and Pi. Each
+role's set matches its altitude: strategy for the Supervisor, macro for the Lead, micro for the
 Peer, and review for the Reviewer. [S, SK, PI]
 
 1. Use only `name` (equal to the directory name: lowercase letters, digits, hyphens) and
@@ -100,15 +103,10 @@ Peer, and review for the Reviewer. [S, SK, PI]
    `${CLAUDE_SKILL_DIR}`, `` !`command` ``, or `@file`.
 5. Add a procedure the seat prompt doesn't already carry, and name the artifact the skill
    produces and where it goes.
-6. Peer and Reviewer skills follow the Pi prompts' rules: no HTML comments, and no mention of Paseo, seats,
-   or the Supervisor.
+6. Peer and Reviewer skills follow the Pi prompts' rules: no HTML comments, and no mention of
+   Paseo, seats, the Supervisor, or the watcher.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
    license in `NOTICE.md`.
-
-## Script comments
-
-Explain why, not what. Comment workarounds and non-obvious behavior, and delete comments that
-have gone stale. [SO]
 
 ## Terminology
 
@@ -120,6 +118,7 @@ Use these terms, and only these, for the following concepts:
 | Supervisor | The seat that meets with the Human, relays decisions, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
+| read-only Peer | The `pi-peer-ro-SLUG` seat: the Peer prompt and skills with edits blocked, for Architect, Scout, and council work |
 | Reviewer | The read-only Pi seat that reviews changes with Open Code Review; a brief's Reviewer disposition goes to it |
 | seat | A Claude Code or Pi profile together with its Paseo provider |
 | brief | The Lead's assignment to a Peer |
@@ -133,8 +132,9 @@ Use these terms, and only these, for the following concepts:
 | attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
 | watcher | The `claude-watcher-SLUG` seat, on Haiku, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
 
-`.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use Supervisor, seat, or Paseo; Pi seats know only the Lead that assigns
-its work. `.seatworks/LEAD.md` never names the Supervisor; it knows only the three message labels.
+`.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use Supervisor, watcher, seat, or Paseo
+(the setup script checks); Pi seats know only the Lead that assigns their work.
+`.seatworks/LEAD.md` never names the Supervisor; it knows only the three message labels.
 
 ## Where sources disagree, and what this kit chose
 
@@ -169,4 +169,3 @@ its work. `.seatworks/LEAD.md` never names the Supervisor; it knows only the thr
 - [GP] [Google developer documentation style guide: placeholders](https://developers.google.com/style/placeholders)
 - [GHR] [GitHub: About READMEs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)
 - [MS] [Microsoft Writing Style Guide: top 10 tips](https://learn.microsoft.com/en-us/style-guide/top-10-tips-style-voice)
-- [SO] [Best practices for writing code comments](https://stackoverflow.blog/2021/12/23/best-practices-for-writing-code-comments/)

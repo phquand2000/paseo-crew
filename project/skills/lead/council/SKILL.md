@@ -1,6 +1,6 @@
 ---
 name: council
-description: "Runs a Lead-only council on a contested architecture, product, policy, or incident decision: sealed Peer judgments, verification, one binding verdict. Use when intake, a dispute, or a request needs independent judgment on a hard-to-reverse choice."
+description: "Runs a Lead-only council on a contested, hard-to-reverse decision: sealed Peer judgments, verification, one binding verdict. Use when intake, a dispute, or a request needs independent judgment. Not for a question a few reads settle."
 ---
 
 # Council
@@ -39,8 +39,8 @@ Announce each step in one short line as you enter it; if you lose your place, fi
 
 ## Choose a tier
 
-Answering from a few reads, with no council, is the default, not a tier. Choose in one sentence; the tier needs
-no analysis to justify it:
+Answering from a few reads, with no council, is the default, not a tier. Choose the tier in one
+sentence; it needs no analysis to justify it:
 
 | Tier | Seats |
 |---|---|
@@ -52,10 +52,8 @@ no analysis to justify it:
 ## Routing
 
 When you set up the first seat, read `references/routing.md` (relative to this skill's
-directory) and resolve each seat's provider, model, and thinking from it: the `council` section of
-`~/.paseo/orchestration-preferences.json` if present, otherwise the Peer model from
-`.seatworks/WORKSPACE_PROTOCOL.md`. It puts the Challenger on a different model family, because
-sealed prompts remove contamination, not correlation.
+directory): it resolves each seat's profile and thinking, and says when the verdict must list a
+same-family Challenger.
 
 ## Phase 1: neutral brief
 
@@ -134,9 +132,10 @@ create_agent
 Seats work read-only in your workspace: pass no `workspaceId` and create no worktree. Leave
 `notifyOnFinish` at its default `true` for every seat, Verifier, and Auditor. Create seats only
 with `create_agent`, never a shell `paseo run`: a shell launch isn't your subagent, so no
-completion notification reaches you, and a label naming you as parent doesn't change that. If `create_agent` is unavailable
-or rejects the launch, stop before any seat exists and report the blocker. Keep every returned
-agent ID, report the seats in one line, then wait for the notifications instead of polling.
+completion notification reaches you, and a label naming you as parent doesn't change that. If
+`create_agent` is unavailable or rejects the launch, stop before any seat exists and report the
+blocker. Keep every returned agent ID, report the seats in one line, then wait for the
+notifications instead of polling.
 
 Give each core seat the same brief and output contract, the disposition Architect, and exactly
 one role:
@@ -173,22 +172,23 @@ output contract asks for, before your handoff; leave Snapshot empty, since you w
 
 Round 1 stays sealed: no seat sees your opinion, another seat's report, a desired conclusion,
 another agent's ID, or a transcript, and you read no report until every required seat has
-finished. The isolation is soft and audited: seats have no Paseo tools, but on `pi-peer` nothing
-technically stops one from writing files, so never describe a forbidden action to them as
-impossible.
+finished. The isolation is soft and audited: seats have no Paseo tools and `pi-peer-ro` blocks
+their writes, but nothing stops one from reading beyond its sources, so never describe a
+forbidden read to them as impossible.
 
 Before you read any report, write your current position on the decision question in two or
-three sentences with its main reason, in the ExecPlan's Decision log or in
-`${TMPDIR:-/tmp}/council-CASE_ID-lead.md`, so you notice when a report merely matches your
-framing and when it contradicts it.
+three sentences with its main reason, so you notice when a report merely matches your framing
+and when it contradicts it. Write it only outside the repository, never in the ExecPlan or any
+file a seat is pointed to: run `echo "${TMPDIR:-/tmp}"` and write `council-CASE_ID-lead.md`
+under the absolute path it prints, since the Write tool expands no variables.
 
 ## Phase 3: collect, audit, and handle failures
 
 When every Round 1 seat has finished:
 
 1. Read each seat's activity with `get_agent_activity`.
-2. Look for file writes or edits, commits, attempts to find or read another seat's output, and
-   commands that start agents.
+2. Look for file writes or edits, commits, attempts to find or read another seat's output or
+   your position file, and commands that start agents.
 3. Compare the snapshot: `git rev-parse HEAD`, and `git diff --stat -- PATHS` against the
    recorded patch.
 4. Mark a seat that broke isolation `COMPROMISED`, and leave its report out.
@@ -229,8 +229,8 @@ back to the request's units. Done when every material claim has a type and a sta
 ## Phase 5: verification
 
 For each material factual dispute, create one to three Verifiers: same case ID, role `verifier`,
-round `verify`, disposition Reviewer, the seat preamble and epilogue. Give each one proposition,
-the authorized sources, and one distinct mandate:
+round `verify`, the disposition `references/routing.md` gives its profile, the seat preamble and
+epilogue. Give each one proposition, the authorized sources, and one distinct mandate:
 
 - **support**: search for direct evidence that the proposition holds;
 - **disconfirm**: search for counterexamples and evidence against it;
@@ -270,13 +270,13 @@ counts it as a material finding.
 - `debate-with-proof`: by default, on the auditor routing.
 - `high-risk`: mandatory, on the deep-auditor routing.
 
-Create one fresh Auditor (disposition Reviewer, role `auditor`, round and phase `audit`, the same
-preamble and epilogue). Give it only the brief, every valid Round 1 report labeled by role, the
-decision model, the verified evidence, the draft verdict, and the material dissent, with no
-agent IDs or transcripts. A material claim the model or draft left out counts as a material
-finding. Resolve every material finding by revising the draft, removing an unsupported claim, or
-sending that proposition back to Phase 5 or 6. Run at most one audit round; the Auditor never
-replaces the verdict.
+Create one fresh Auditor (the disposition `references/routing.md` gives its profile, role
+`auditor`, round and phase `audit`, the same preamble and epilogue). Give it only the brief,
+every valid Round 1 report labeled by role, the decision model, the verified evidence, the draft
+verdict, and the material dissent, with no agent IDs or transcripts. A material claim the model
+or draft left out counts as a material finding. Resolve every material finding by revising the
+draft, removing an unsupported claim, or sending that proposition back to Phase 5 or 6. Run at
+most one audit round; the Auditor never replaces the verdict.
 
 ## Phase 9: binding verdict
 

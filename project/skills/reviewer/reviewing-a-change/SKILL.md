@@ -27,7 +27,7 @@ Check each requirement in the brief, quote the brief line each finding answers t
 
 - Missing or partial: asked for and not done, or done for some cases only.
 - Scope creep: done but not asked for, including files outside the owned scope. Compare `git show --stat "$sha"` with the owned-scope globs.
-- Wrong: looks implemented but behaves incorrectly. Probe boundaries (0, empty, null, maximum), error and cleanup paths, ordering and concurrency, and resource lifetime.
+- Wrong: looks implemented but behaves incorrectly. Probe boundaries (0, empty, null, maximum), error and cleanup paths, ordering and concurrency, and resource lifetime. When the change alters a contract (a signature, route, schema, field, or file format), check that every shipping producer, consumer, and generated artifact changed with it; one left on the old shape breaks at runtime.
 
 ## Standards axis
 
@@ -42,13 +42,14 @@ Check each requirement in the brief, quote the brief line each finding answers t
   - one logical change forcing edits across many files;
   - hooks, parameters, or layers for needs the brief doesn't have;
   - a layer that only forwards calls;
-  - a production symbol whose only callers are tests.
+  - a production symbol whose only callers are tests;
+  - a small contract change that edits or turns red many tests, which suggests those tests mint the API (they use names production code lacks).
 
 Keep the two axes in separate lists, and don't rank findings across them: code can follow every rule and implement the wrong thing, and a merged list lets one axis hide the other.
 
 ## Structure
 
-If the change adds a wrapper, adapter, cache, retry, fallback, flag, or layer, touches a hot path, or cites a proof, apply the lenses in `references/structural-lenses.md` (relative to this skill's directory). Report what they turn up under a third heading, Structure.
+If the change adds a wrapper, adapter, cache, retry, fallback, flag, or layer, touches a hot path, cites a proof, or names an outcome such as reconcile or idempotent, apply the lenses in `references/structural-lenses.md` (relative to this skill's directory). Report what they turn up under a third heading, Structure.
 
 ## Findings
 

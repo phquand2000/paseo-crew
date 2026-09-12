@@ -1,14 +1,8 @@
 # Concern lenses
 
-A Supervisor may be one of several, each specialized by a concern named in its first prompt.
-Authority is split by concern, not stacked: each watches its own workspaces and topics, and the
-Leads keep acceptance. Filter a review through your lens, and pass what you notice in another
-lens to the Human instead of acting on it.
-
-After any direct action in a workspace (messaging a Peer, recovering a Lead, changing topology),
-notify that workspace's Lead at once with the current intent, ownership, topology changes,
-decisions that affected its Peers, and the impact on integration and acceptance; otherwise each
-Supervisor leaves the Lead a different picture of its own workspace.
+Filters the Human can ask a review to apply. Keep the items the named lens watches, and give the
+Human one line for anything you notice under another lens instead of acting on it; the Leads
+keep acceptance.
 
 ## Architecture
 

@@ -1,6 +1,6 @@
 # Review Pack Profiles
 
-Use these profile names with `review-pack create --profile <name>`.
+Use these profile names with `python3 SKILL_DIR/scripts/review_pack.py create --profile NAME`.
 
 - `rust`: Rust crates and workspaces. Includes `Cargo.toml`, lock/toolchain/config files, `.rs`, `.toml`, and Markdown. With `--exclude-tests`, excludes common test paths and strips `#[cfg(test)]` blocks from included Rust source.
 - `go`: Go modules/workspaces. Includes module files and `.go`; with `--exclude-tests`, excludes `*_test.go`.

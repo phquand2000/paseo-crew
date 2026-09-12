@@ -32,10 +32,12 @@ Skip it for small plans git can revert; there it costs more than the risk.
    referenced by path and SHA. The horizon is when failure would be visible: the end of the
    appetite plus the time failure takes to show (for example, a month after release). **Done**
    when you have one fixed plan text and one horizon date.
-2. **Choose the seats.** Two for moderate risk, three when the plan contains an irreversible
-   decision. Run `list_models` for `pi-peer-SLUG` and use different model families when
-   available: one family shares blind spots, so its agreement is weak evidence. **Done** when
-   each seat has a model.
+2. **Choose the seats.** Every seat runs on the read-only Peer profile (`<slug>-peer-ro` in
+   `list_profiles`), except that one goes to a second read-only Peer profile for this project if
+   one runs another model family. Take two seats for moderate risk, and three when the plan
+   contains an irreversible decision and two families are available. One family shares blind
+   spots, so its agreement is weak evidence: with one family, add `one model family` to the
+   register's horizon line. **Done** when each seat has a profile.
 3. **Write one brief for every seat** from [references/peer-brief.md](references/peer-brief.md).
    Every seat gets the same text, with neither your opinion nor another seat's output, because a
    seat anchors on reasons it sees. Check that the brief implies no preferred answer, doesn't
@@ -43,16 +45,17 @@ Skip it for small plans git can revert; there it costs more than the risk.
    the Peer will run. **Done** when all three checks pass.
 4. **Create the seats.** First record the repository state with
    `git -C REPO status --porcelain` and `git -C REPO rev-parse HEAD`. For each seat, call
-   `create_agent` with `provider: "pi-peer-SLUG/<model>"`, `settings.thinkingOptionId: "high"`,
-   no `settings.modeId`, and the brief as `initialPrompt`, in the workspace of the brief's
-   repository root. Wait for the finish notifications instead of polling; retry a seat that
-   fails for infrastructure reasons once, with the same brief. **Done** when every seat has
+   `create_agent` from its profile, passing the provider/model and settings the profile lists
+   with `thinkingOptionId: "high"`, and the brief as `initialPrompt`, in the workspace of the
+   brief's repository root. Wait for the finish notifications instead of polling; retry a seat
+   that fails for infrastructure reasons once, with the same brief. **Done** when every seat has
    finished.
 5. **Collect the handoffs and check the seats stayed read-only.** Read each handoff with
-   `get_agent_activity`, then rerun the two git commands from step 4. The Peer prompt only
-   asks for read-only work and nothing enforces it, so a seat that changed the repository has a
-   compromised report: set it aside, and record the episode in the notebook. Archive every seat with `archive_agent`. **Done** when you hold every
-   valid reason list and `list_agents` shows none of the seats.
+   `get_agent_activity`, then rerun the two git commands from step 4. The read-only profile
+   blocks file edits and git writes but not every shell write, so a seat that changed the
+   repository has a compromised report: set it aside, and record the episode in the notebook.
+   Archive every seat with `archive_agent`. **Done** when you hold every valid reason list and
+   `list_agents` shows none of the seats.
 6. **Merge the reasons round-robin.** Take reason 1 from each seat, then reason 2 from each, and
    so on, so the first list doesn't set the agenda. Merge duplicates into one row, noting how
    many seats raised it. The count isn't a vote: a reason one seat raised with a concrete
