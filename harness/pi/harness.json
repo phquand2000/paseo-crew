@@ -39,10 +39,11 @@
   },
   "skillLoad": {
     "tool": "read",
-    "phrase": "reading its SKILL.md",
+    "phrase": "a read of its SKILL.md",
     "force": "/skill:NAME",
     "transcriptMatch": null,
-    "descriptionBudget": null
+    "descriptionBudget": null,
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\""
   },
   "sharedSkillDirs": [
     "HOME/.agents/skills"
@@ -65,5 +66,6 @@
     "profileModeId": null
   },
   "contextFile": "AGENTS.md",
-  "contextFileNeedsPointer": false
+  "contextFileNeedsPointer": false,
+  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat."
 }

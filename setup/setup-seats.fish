@@ -70,7 +70,7 @@ function check_budget --argument-names file budget
     end
 end
 
-function check_skill --argument-names label skill comments hides
+function check_skill --argument-names label skill hides
     set -l file $skill/SKILL.md
     set -l name (path basename $skill)
     set -l front (awk 'NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit } NR > 1 { print }' $file)
@@ -86,10 +86,9 @@ function check_skill --argument-names label skill comments hides
     and fail "$label: skill $name uses \$ARGUMENTS or \${CLAUDE_SKILL_DIR}, which only some harnesses substitute"
     test (wc -l <$file) -ge 500
     and echo "  · $label: skill $name has 500+ lines; move detail into references/."
-    if test "$comments" = shown
-        grep -rq '<!--' $skill
-        and fail "$label: skill $name contains an HTML comment, which this seat's harness shows to the seat"
-    end
+    grep -rq '<!--' $skill
+    and fail "$label: skill $name contains an HTML comment; a skill loads unchanged on every harness, and one that shows comments would read it to the seat as a rule"
+
     if test "$hides" = true
         grep -rqiwE 'paseo|supervisor|watcher|seats?' $skill
         and fail "$label: skill $name mentions the orchestration layer, which this seat doesn't know"
@@ -280,10 +279,9 @@ function build_seat --argument-names role slug repo_dir
         echo "✗ $key → $dir (see the ! lines above)"
         return
     end
-    if test "$comments" = shown
-        grep -q '<!--' $prompt
-        and fail "$key: $prompt contains an HTML comment, which $harness shows to the seat."
-    end
+    grep -q '<!--' $prompt
+    and fail "$key: $prompt contains an HTML comment; a prompt loads unchanged on every harness, and one that shows comments would read it to the seat as a rule. Maintainer notes go in WRITING_GUIDE.md."
+
     if test "$hides" = true
         grep -qiwE 'paseo|supervisor|watcher|seats?' $prompt
         and fail "$key: $prompt mentions the orchestration layer, which this seat doesn't know."
@@ -310,7 +308,7 @@ function build_seat --argument-names role slug repo_dir
     end
     if test -n "$skills_dir"
         for skill in $skills_dir/*/
-            check_skill $key (path resolve $skill) $comments $hides
+            check_skill $key (path resolve $skill) $hides
         end
     end
     link_skills $key $dir $skills_sub $dry (seat_skill_entries $key $skills_dir $extras)
@@ -673,6 +671,11 @@ for a in $argv
 end
 test $dry -eq 1; and echo "[--check] verifying only; nothing will be written."
 test $live -eq 1; and echo "[--probe] each seat's harness will be asked which skills it loads; this spends a cheap model call per seat that needs one."
+
+for file in $kit/project/*.md (find $kit/project/skills -name '*.md' 2>/dev/null)
+    grep -q '<!--' $file
+    and fail (string replace -- "$kit/" '' $file)" contains an HTML comment. Every .md in this kit loads unchanged on every harness; put maintainer notes in WRITING_GUIDE.md."
+end
 
 for id in (seats_get '[.seats[].harness] | unique | .[]')
     set -l manifest (harness_file $id)

@@ -109,11 +109,10 @@ Resolve these before setting `verified`, then record how, the way
    Codex seat has nothing to read. Setup fails closed on this: it refuses to build a gated role
    on this harness. `seats.json` gates only the Lead, so the watcher and the Peer can move here
    and the Lead cannot.
-4. **Whether HTML comments are shown.** `promptComments` is `shown`, the safe assumption, so
-   setup refuses a comment in a Codex seat's prompt. This already bites: flipping the watcher to
-   Codex fails with `WATCHER.md contains an HTML comment`, because the demo `WATCHER.md` carries
-   maintainer notes that are free on Claude Code. Strip them from `WATCHER.md` before moving the
-   watcher here, or confirm Codex strips them and relax the field.
+4. **Whether HTML comments are shown.** `promptComments` is `shown`, the safe assumption. It no
+   longer gates anything: every `.md` in the kit is comment-free, so a flip of the watcher to
+   Codex passes this check. Confirm the field anyway, because a safety review reads it to know
+   whether a leaked note would be visible.
 5. **Whether it has modes.** `hasModes` is null. `paseo provider ls` shows a default mode of
    `auto-review` but lists no modes while Codex is unavailable. The answer decides whether an
    agent profile for a Codex seat carries a `modeId`; the profile guard follows the profile.

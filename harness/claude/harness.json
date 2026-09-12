@@ -67,7 +67,8 @@
     "phrase": "the Skill tool",
     "force": "/NAME",
     "transcriptMatch": "\"name\":\"Skill\",\"input\":{\"skill\":\"NAME\"",
-    "descriptionBudget": 8000
+    "descriptionBudget": 8000,
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\""
   },
   "probe": {
     "kind": "version",
@@ -90,5 +91,6 @@
     "profileModeId": "bypassPermissions"
   },
   "contextFile": "CLAUDE.md",
-  "contextFileNeedsPointer": true
+  "contextFileNeedsPointer": true,
+  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat."
 }

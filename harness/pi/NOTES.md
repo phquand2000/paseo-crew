@@ -40,8 +40,10 @@ Verified on Pi **0.85.1**.
 ## Prompt
 
 - **File:** `APPEND_SYSTEM.md` in the profile directory, linked to the project's role prompt.
-- **HTML comments are shown to the seat.** `promptComments: "shown"` is what makes
-  `setup-seats.fish` refuse a comment in `PEER.md`, `REVIEWER.md`, or any skill a Pi seat loads.
+- **HTML comments are shown to the seat.** This harness is the reason the kit forbids them in
+  every `.md`, not just the ones a Pi seat reads: a prompt has to load unchanged wherever its
+  role runs, so `setup-seats.fish` refuses `<!--` in any prompt or skill for any harness.
+  `promptComments: "shown"` records the behavior for a safety review.
 - **A trusted repository's `.pi/APPEND_SYSTEM.md` replaces the profile's.** In RPC mode Pi never
   shows its trust prompt, and with the default `defaultProjectTrust: "ask"` it silently skips
   project `.pi/` resources. Leave project trust at `ask` for repositories a Peer works in.

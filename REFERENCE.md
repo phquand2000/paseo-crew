@@ -152,9 +152,9 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Symptom:** a Peer refers to coordination details, or to a note meant for maintainers.
 - **Cause:** a Peer can read any file in the repository, including everything in `.seatworks/`:
   the Lead's prompt and skills and the workspace protocol. A harness whose `promptComments` is
-  `shown` also loads HTML comments verbatim.
+  `shown` would also load an HTML comment verbatim, which is why no `.md` in this kit has one.
 - **Response:** keep maintainer notes out of `.seatworks/PEER.md` and `.seatworks/REVIEWER.md`
-  (the setup script fails on `<!--` for any seat whose harness shows comments), and out of every
+  (the setup script fails on `<!--` in any prompt or skill, whatever the harness), and out of every
   skill such a seat loads. The hiding reduces noise; it doesn't keep secrets. A seat whose role
   has `hidesOrchestration` also has its prompt and skills checked for the words `paseo`,
   `supervisor`, `watcher`, and `seat`.

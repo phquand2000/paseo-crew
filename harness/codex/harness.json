@@ -59,10 +59,11 @@
   },
   "skillLoad": {
     "tool": null,
-    "phrase": "the $NAME skill reference",
+    "phrase": "its $NAME reference",
     "force": "$NAME",
     "transcriptMatch": null,
-    "descriptionBudget": null
+    "descriptionBudget": null,
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\""
   },
   "sharedSkillDirs": [
     "HOME/.agents/skills"
@@ -92,5 +93,6 @@
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,
-  "linksNote": "skills is not linked here: skillsDir owns the seat's own skills directory, which is the point of a per-seat room. An optional link whose target is missing is skipped."
+  "linksNote": "skills is not linked here: skillsDir owns the seat's own skills directory, which is the point of a per-seat room. An optional link whose target is missing is skipped.",
+  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat."
 }

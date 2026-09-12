@@ -30,7 +30,7 @@ When you fill in the template:
   remove the rule. A rule missing either one is ceremony, and ceremony only ever tightens.
 - Enforce anything that must always hold with permissions, hooks, or the Peer's guard
   extension. An instruction file is guidance, not enforcement.
-- Put no maintainer notes in HTML comments: some harnesses strip them, and the rest show them to the
+- Put no maintainer notes in HTML comments: some harnesses strip them, and the rest read them to the
   Peer.
 
 Copy the block below into the repository's `AGENTS.md`:

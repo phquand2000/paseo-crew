@@ -38,10 +38,12 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     `harness/common/guards/` (`lead-guard.sh`, `profile-guard.sh`, `watcher-guard.sh`,
     `skill-guard.sh`), or in a harness's own guard extension (`peer-guard.ts`, `skill-gate.ts`). A seat's manifest says which of those its
     harness actually applies. [M]
-14. Put maintainer notes in HTML comments only in a prompt whose harness has `promptComments:
-    "stripped"`, where they cost the seat nothing. A harness that shows them makes them part of
-    the prompt, so the prompts its seats read, `PEER.md` and `REVIEWER.md` as shipped, contain
-    no comments at all; the setup script enforces this from the manifest. [M]
+14. Write every `.md` to load unchanged on every harness: no HTML comments anywhere, and no
+    harness's tool names. A maintainer note goes under "What each demo prompt expects you to
+    add" in this guide, and a rule about a tool names what the tool does ("your read tool"), not
+    what one harness calls it. The setup script refuses `<!--` in any prompt or skill and refuses
+    `$ARGUMENTS` and `${CLAUDE_SKILL_DIR}`. Only a seat's profile is allowed to differ per
+    harness. [M]
 15. Add a rule only after an observed failure, with a reproducible reason and a removal trigger.
     [HL, CUR]
 16. Name a skill a seat must not skip in `seats.json`'s `skillGates`, not only in the prompt,
@@ -51,6 +53,25 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
 17. Name no coding agent in a seat prompt, a skill, or a doc other than `harness/<id>/NOTES.md`.
     A role can move to another harness, and a prompt that names one goes stale silently. Where
     the behavior genuinely differs, cite the manifest field instead.
+
+## What each demo prompt expects you to add
+
+Every `.md` in this kit loads unchanged on every harness, so none of them carries an HTML
+comment: a harness whose manifest says `promptComments: "shown"` would read a maintainer note to
+the seat as if it were a rule. The setup script refuses `<!--` in any prompt or skill, for every
+seat. So the notes that used to sit at the top of each prompt live here instead.
+
+All four seat prompts are demo files: the structure is real, the rules are generic, and the value
+is your own rules. `setup-seats.fish` holds each to the 16 KB `promptBudget` in `seats.json`;
+exceeding it is an error, and the fix is to cut, not to raise the budget.
+
+| Prompt | What to extend, by section |
+|---|---|
+| `PEER.md` | Boundaries, the handoff's six fields, the evidence standard |
+| `REVIEWER.md` | Findings, the axes a review covers, the handoff shape |
+| `LEAD.md` | "Decisions that belong to the Human", with the ones your project reserves; the numbered Reviewer conditions, with the seams your `AGENTS.md` marks decide-first; acceptance conditions |
+| `SUPERVISOR.md` | The signals worth a look, intervention rights, when a prompt patch is allowed |
+| `WATCHER.md` | The trigger table. It runs on a small model and is re-read on every sweep, so keep it short: a small model loses rules faster than a large one as a prompt grows. The Supervisor changes the table only through its `protocol-patch` skill. |
 
 ## Delegation briefs and handoffs
 
@@ -114,8 +135,8 @@ micro for the Peer, and review for the Reviewer. [S, SK, PI]
    refuses the first two.
 5. Add a procedure the seat prompt doesn't already carry, and name the artifact the skill
    produces and where it goes.
-6. Skills for a role with `hidesOrchestration` follow its prompt's rules: no HTML comments
-   while its harness shows them, and no mention of Paseo, seats, the Supervisor, or the watcher.
+6. Skills for a role with `hidesOrchestration` carry no mention of Paseo, seats, the Supervisor,
+   or the watcher. The no-comment rule is not theirs alone: it applies to every skill.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
    license in `NOTICE.md`.
 

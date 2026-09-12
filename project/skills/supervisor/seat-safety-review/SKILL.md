@@ -65,8 +65,9 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
 
    Look first at these places in this kit; they're leads, not verdicts:
    - the peer guard blocks `git push` and agent CLIs, not other network commands;
-   - a deny list blocks `WebSearch`, not web fetch or shell network commands, and Paseo applies
-     `disallowedTools` only to some harnesses: the manifest's `deny.mechanism` says which;
+   - a deny list blocks the harness's own web-search tool, not web fetch or shell network
+     commands, and Paseo applies `disallowedTools` only to some harnesses: the manifest's
+     `deny.mechanism` says which;
    - providers outside the kit may have no deny list and full Paseo tools;
    - seats on one harness share the directories in its `links`, so each can read the others'
      transcripts.

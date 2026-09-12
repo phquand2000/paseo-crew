@@ -313,8 +313,8 @@ comes from your own rules. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE
    copies can differ, but `--refresh` replaces them, so keep a rule for one project only in its
    `AGENTS.md` or `.seatworks/WORKSPACE_PROTOCOL.md`:
    1. `PEER.md` and `REVIEWER.md`: boundaries, handoff shape, evidence standard. Keep HTML
-      comments out of both while their harness's `promptComments` is `shown`, because it shows
-      them to the seat.
+      comments out of every prompt and skill, whatever harness it runs on: a maintainer note
+      goes in `WRITING_GUIDE.md`, which lists what each demo prompt expects you to add.
    2. `LEAD.md`: acceptance conditions, when to add a Reviewer, what belongs to the Human.
    3. `SUPERVISOR.md` and `WATCHER.md`: signals worth a look (the watcher's trigger table),
       intervention rights, when prompt patches are allowed.

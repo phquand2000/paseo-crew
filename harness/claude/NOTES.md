@@ -33,9 +33,10 @@ and asks for `--probe`.
 ## Prompt
 
 - **File:** `CLAUDE.md` in the profile directory, linked to the project's role prompt.
-- **HTML comments are stripped** before loading, so maintainer notes in the prompts this harness
-  reads cost the seat nothing. `promptComments: "stripped"` is what lets `setup-seats.fish`
-  allow comments here and refuse them for a harness that shows them.
+- **HTML comments are stripped** before loading, so a maintainer note in a prompt this harness
+  reads would cost the seat nothing. The kit still forbids them: every `.md` has to load
+  unchanged on every harness, so `setup-seats.fish` refuses `<!--` here too, and
+  `promptComments: "stripped"` is now a fact for a safety review rather than a licence.
 
 ## Enforcement
 

@@ -15,6 +15,10 @@ read_hook_input
 seats=${SEATWORKS_SEATS:-$SEATWORKS_KIT/seats.json}
 [ -r "$seats" ] || block "$seats can't be read, so the gates for this seat are unknown; set env.SEATWORKS_KIT on this seat's provider and rerun setup/setup-seats.fish."
 
+harness=$(jq -r --arg r "$role" '.seats[] | select(.role == $r) | .harness' "$seats" 2>/dev/null)
+how=$(jq -r '.skillLoad.phrase // empty' "$SEATWORKS_KIT/harness/$harness/harness.json" 2>/dev/null)
+[ -n "$how" ] || how="the way your harness loads a skill"
+
 tool=$(field .tool_name)
 transcript=$(field .transcript_path)
 
@@ -43,7 +47,7 @@ require() {
     while IFS=$'\t' read -r skill why; do
         [ -n "$skill" ] || continue
         loaded "$skill" && continue
-        block "$what without loading the \`$skill\` skill first, because $why. Load it with the Skill tool, then make this call again."
+        block "$what without loading the \`$skill\` skill first, because $why. Load it with $how, then make this call again."
     done < <(gates "$on")
 }
 

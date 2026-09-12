@@ -13,7 +13,7 @@ watcher)
 *)
     role=lead
     who=Lead
-    rule="The Lead writes only coordination records (.seatworks/, docs/, doc/, AGENTS.md, CLAUDE.md, CONTEXT.md), with Edit or Write; code and tests go to an Engineer Peer through a brief."
+    rule="The Lead writes only coordination records (.seatworks/, docs/, doc/, AGENTS.md, CLAUDE.md, CONTEXT.md), with your file tools; code and tests go to an Engineer Peer through a brief."
     ;;
 esac
 
