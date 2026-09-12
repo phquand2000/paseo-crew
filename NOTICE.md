@@ -44,7 +44,7 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 | `project-state` | Anthropic, "Effective harnesses for long-running agents"; mattpocock `handoff`; Adam Tornhill's churn hotspots (idea) |
 | `integration` | superpowers `finishing-a-development-branch`; mattpocock `resolving-merge-conflicts` |
 | `repo-refresh` | SLP material (`repo-refresh` and its refresh standard) |
-| `review-pack` | SLP material (`review-pack`; both files adapted: `scripts/review_pack.py` with its comments and docstrings removed, `references/profiles.md` with a command corrected) |
+| `review-pack` | SLP material (`review-pack`, adapted: comments, docstrings, and the review policy out of `scripts/review_pack.py` into `references/`; one command corrected) |
 
 ## Supervisor skills (`project/skills/supervisor/`)
 
@@ -56,9 +56,8 @@ attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, no
 | `retrospective` | Google SRE book, "Postmortem Culture" (ideas only); Retrium's five phases of a retrospective; mattpocock `retro` categories; the SLP author's talk (a weekly review that distills the week into rules) |
 | `attention-watch` | the SLP author's talk (attention triggers, a cheap watcher that pings the Supervisor, open questions instead of assertions, the away report) |
 | `protocol-patch` | superpowers `writing-skills` (test the change on a fresh seat); mattpocock `writing-for-agents`; SLP material (Supervisor instructions) |
-| `seat-safety-review` | Simon Willison, "The lethal trifecta for AI agents"; the Threat Modeling Manifesto's four questions |
-| `portfolio-review` | Black Swan Farming, "Cost of Delay Divided by Duration"; SLP material (concern-specialized Supervisors) |
-| `cross-workspace-integration` | Ian Robinson, "Consumer-Driven Contracts"; Danilo Sato, "Parallel Change"; SLP material (cross-workspace supervision) |
+| `portfolio-review` | Black Swan Farming, "Cost of Delay Divided by Duration"; Ian Robinson, "Consumer-Driven Contracts"; Danilo Sato, "Parallel Change"; SLP material (concern-specialized Supervisors, cross-workspace supervision) |
+| `maintenance/seat-safety-review` | Simon Willison, "The lethal trifecta for AI agents"; the Threat Modeling Manifesto's four questions |
 | `architecture-premise-audit` | SLP material (`architecture-premise-audit`, structural anti-patterns) |
 | `strategy-synthesis` | Will Larson, "Good engineering strategy is boring" and "Writing an engineering strategy" |
 

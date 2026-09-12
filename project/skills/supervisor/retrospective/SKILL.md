@@ -15,7 +15,8 @@ relative to the repository root.
 
 ## When to run it
 
-Run a retrospective when one of these holds:
+On the `WEEKLY REVIEW` heartbeat, follow [references/weekly-review.md](references/weekly-review.md)
+instead of the procedure below. Run the episode procedure when one of these holds:
 
 - A failure repeated: the same notebook pattern on two different days, or two identical failures
   within one task.
@@ -87,16 +88,11 @@ For a first, one-off failure, a plain notebook entry is enough.
    Give each action an owner (you, a named Lead, or the Human) and a removal trigger. Prefer a
    check or an enforced limit over prose when either would work, because a prompt is guidance and
    a check is enforcement. **Done** when every action has a type, an owner, and a removal trigger.
-7. **Write the notebook entry** in the notebook's entry format exactly:
-   - Observed: the project, the agent IDs, and a summary of the timeline with quotes, plus the
-     timeline file's path if you saved one.
-   - Suspected mechanism: the contributing causes, each with its category.
-   - Seen: the count and the dates.
-   - Smallest correction: each action as `TYPE: ACTION; owner OWNER; remove when TRIGGER`.
-   - Status: `open`.
-
-   If an existing entry describes the same pattern, update only its `Seen` line instead of adding
-   an entry, unless your evidence is materially stronger. **Done** when the entry is appended, or
+7. **Write the notebook entry** in the format at the top of `.seatworks/NOTEBOOK.md`. Two fields
+   carry more in a retrospective than elsewhere: Observed ends with the timeline file's path if
+   you saved one, and Suspected mechanism names each cause's category from step 4. If an existing
+   entry describes the same pattern, update only its `Seen` line instead of adding an entry,
+   unless your evidence is materially stronger. **Done** when the entry is appended, or
    the `Seen` line is updated.
 8. **Close.** Send the advice, if an action has that type. Report to the Human in at most five
    lines: the question, the main cause, the actions, and what needs a Human decision. **Done**
@@ -117,38 +113,6 @@ An entry looks like this:
   owner Lead of echo; remove when Paseo reports quota errors as a notification.
 - Status: open
 ```
-
-## Weekly review
-
-The `WEEKLY REVIEW` heartbeat runs this instead of the episode procedure.
-
-1. **Collect the week.** Read the attention logs in `.seatworks/records/attention/` for the last
-   seven days, where the watcher has already logged each `decision`, `detour`, `acceptance`, and
-   `check answer` it saw, and the notebook entries added or seen this week. Call
-   `get_agent_activity` only to fill a gap: a day a Lead ran with no log line, or a quote too
-   short to judge. **Done** when each item has a date and a source.
-2. **Group by pattern.** Merge items that describe the same behavior, and count the distinct days
-   each pattern appeared. From the `check answer` and `-> checked` lines, note which `CHECK:`
-   questions found something and which found nothing. Look also for patterns that show only over
-   time: a Peer that agrees with every brief or objects for show, and a Lead that never changes a
-   ruling after evidence or folds on every objection. **Done** when every item belongs to one
-   pattern.
-3. **Choose one action per pattern:**
-   - `notebook-only` for a first sighting: add or update its notebook entry.
-   - `patch` through the protocol-patch skill, when the pattern appeared on two different days.
-   - `watch`: a new trigger in `.seatworks/WATCHER.md`, or a new question or default step in the
-     attention-watch skill's `references/questions.md`, when a question at the right moment
-     would have caught it. This goes through protocol-patch too.
-   - `kit`: when `grep` finds the pattern in another project's `.seatworks/NOTEBOOK.md` too, a
-     kit diff for the Human through protocol-patch, since that sighting is the second day.
-
-   **Done** when every pattern has one action.
-4. **Check earlier patches.** For each notebook entry whose status is `applied SHA`, did the
-   pattern stop after that commit? A patch that changed nothing is a pattern of its own. **Done**
-   when each is marked held or not held.
-5. **Report** in at most eight lines: the patterns, the proposed changes, strategies in
-   `.seatworks/records/strategy/` past their `Review by` date, and what needs a Human decision.
-   Nothing is applied until the Human approves. **Done** when the report is sent.
 
 The rule that matters most: build the timeline before naming any cause, and look for causes in
 what the agents were given rather than in the agents.

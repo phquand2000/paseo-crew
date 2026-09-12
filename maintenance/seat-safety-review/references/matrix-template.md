@@ -1,7 +1,7 @@
 # Seat matrix template
 
-Copy the block to `.seatworks/records/safety/seat-matrix.md`, replacing the whole file on each
-review; git keeps the history.
+Copy the block to `maintenance/records/seat-matrix.md`, or wherever the Human keeps it,
+replacing the whole file on each review; git keeps the history.
 
 ```md
 # Seat safety matrix
@@ -39,8 +39,8 @@ Replace the following:
 
 - `DATE`: the review date, `YYYY-MM-DD`.
 - `SOURCES`: the files and commands you read, for example
-  `~/.paseo/config.json, $SEATWORKS_KIT/seats.json, $SEATWORKS_KIT/harness/HARNESS/harness.json, scripts/inventory.sh`.
-- `SEAT`: the provider ID, for example `peer-SLUG` or `lead-SLUG`.
+  `~/.paseo/config.json, seats.json, harness/HARNESS/harness.json, scripts/inventory.sh`.
+- `SEAT`: the provider ID, for example `peer` or `lead`.
 - `TOOLS`: what the seat reaches after its deny list or guard, including Paseo tools, MCP
   servers, and packages.
 - `CREDENTIALS`: names only, for example `the harness's own token variable, gh (repo scope), ssh agent (2 keys)`.

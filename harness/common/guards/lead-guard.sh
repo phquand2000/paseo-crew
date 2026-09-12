@@ -1,30 +1,25 @@
 #!/bin/bash
 
 role=${1:-${SEATWORKS_ROLE:-lead}}
-case $role in
-supervisor)
-    who=Supervisor
-    rule="The Supervisor writes only in .seatworks/; code and tests go to a Lead, whose Peers write them."
-    ;;
-watcher)
-    who=Watcher
-    rule="The watcher writes only its log in .seatworks/records/attention/; everything else goes to the Supervisor as an ATTENTION event."
-    ;;
-*)
-    role=lead
-    who=Lead
-    rule="The Lead writes only coordination records (.seatworks/, docs/, doc/, CONTEXT.md, and the repository instruction files), with your file tools; code and tests go to an Engineer Peer through a brief."
-    ;;
-esac
 
-export SEATWORKS_GUARD_LABEL="$who guard"
+export SEATWORKS_GUARD_LABEL="Seat guard"
 hook_io=${SEATWORKS_HOOK_IO:-${SEATWORKS_KIT:+$SEATWORKS_KIT/harness/common/hook-io.sh}}
 if [ -n "$hook_io" ] && [ -r "$hook_io" ]; then
     . "$hook_io"
 else
-    echo "$who guard: harness/common/hook-io.sh is unreadable; set env.SEATWORKS_KIT on this seat's provider and rerun setup/setup-seats.fish." >&2
+    echo "Seat guard: harness/common/hook-io.sh is unreadable; set env.SEATWORKS_KIT on this seat's provider and rerun setup/setup-seats.fish." >&2
     exit 2
 fi
+
+need_jq
+seats=${SEATWORKS_SEATS:-$SEATWORKS_KIT/seats.json}
+[ -r "$seats" ] || block "$seats can't be read, so this seat's writable paths are unknown; set env.SEATWORKS_KIT on this seat's provider and rerun setup/setup-seats.fish."
+seat=$(jq -c --arg r "$role" 'first(.seats[] | select(.role == $r)) // {}' "$seats")
+prefix="$(jq -r '.label // "Seat"' <<<"$seat") guard"
+rule=$(jq -r '.writesRule // empty' <<<"$seat")
+[ -n "$rule" ] || block "seats.json gives the $role seat no writesRule, so nothing says which paths it may change. Add writes and writesRule there, or send this role to a guard of its own."
+patterns=$(jq -r '(.writes // [])[]' <<<"$seat")
+also_context=$(jq -r '.writesAlsoContextFiles // false' <<<"$seat")
 
 deny() {
     block "$1 $rule"
@@ -39,18 +34,13 @@ context_files=$(
 
 
 allowed() {
-    case $role:$1 in
-    supervisor:.seatworks | supervisor:.seatworks/*) return 0 ;;
-    watcher:.seatworks/records/attention/?*) return 0 ;;
-    lead:.seatworks | lead:.seatworks/* | lead:docs | lead:docs/* | lead:doc | lead:doc/*) return 0 ;;
-    lead:CONTEXT.md) return 0 ;;
-    esac
-    case $role:$1 in
-    lead:*.md)
-        case " $context_files " in *" ${1#*:} "*) return 0 ;; esac
-        case " $context_files " in *" $1 "*) return 0 ;; esac
-        ;;
-    esac
+    local pat
+    while IFS= read -r pat; do
+        [ -n "$pat" ] || continue
+        case $1 in $pat) return 0 ;; esac
+    done <<<"$patterns"
+    [ "$also_context" = true ] || return 1
+    case " $context_files " in *" $1 "*) return 0 ;; esac
     return 1
 }
 

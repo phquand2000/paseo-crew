@@ -33,16 +33,16 @@ Replace the following:
 
 ## Seats per surface
 
-Create each seat with `create_agent` in the project's workspace, from the profile below in
-`list_profiles`, passing the provider/model and settings the profile lists; the scenario
-carries the facts, so no project is touched.
+Create each seat with `create_agent` in this project's workspace, which is what makes it this
+project's seat, from the role profile below, passing the provider/model and settings the profile
+lists; the scenario carries the facts, so no project is touched.
 
 | Surface changed | Profile | First prompt |
 |---|---|---|
-| `LEAD.md` | `<slug>-lead` | `OWNER DIRECTIVE:` followed by the scenario |
-| `PEER.md` or `REVIEWER.md` | `<slug>-peer-ro` or `<slug>-reviewer` | the scenario inside a brief with disposition Scout (Reviewer for `REVIEWER.md`) and owned scope `none` |
-| `SUPERVISOR.md` | `<slug>-supervisor` | the scenario |
-| `WATCHER.md` | `<slug>-watcher` | `This is a rehearsal. Supervisor agent: none. Lead agents: none. Answer in text only; call no tools.`, then the scenario with activity excerpts as `FACTS` and the question "which trigger, if any, matches, and what do you log or send?" |
+| `LEAD.md` | `lead` | `OWNER DIRECTIVE:` followed by the scenario |
+| `PEER.md` or `REVIEWER.md` | `peer-ro` or `reviewer` | the scenario inside a brief with disposition Scout (Reviewer for `REVIEWER.md`) and owned scope `none` |
+| `SUPERVISOR.md` | `supervisor` | the scenario |
+| `WATCHER.md` | `watcher` | `This is a rehearsal. Supervisor agent: none. Lead agents: none. Answer in text only; call no tools.`, then the scenario with activity excerpts as `FACTS` and the question "which trigger, if any, matches, and what do you log or send?" |
 | `WORKSPACE_PROTOCOL.md`, `AGENTS.md`, or a skill | the seat that reads it | the scenario, with the old rule quoted in `FACTS` for the first run and the new rule for the second |
 
 ## Running and comparing

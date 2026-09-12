@@ -1,23 +1,23 @@
 ---
 name: design-options
-description: "Read-only design: reconstruct the real problem, draft two or three different designs, judge them against the boring standard route, recommend one with its counterargument and reversal conditions. Use when a brief assigns the Architect disposition."
+description: "Draft two or three genuinely different designs for one problem, judge them against the boring standard route and the project's structural lenses, and recommend one. Use when a brief assigns the Architect disposition and asks for a route rather than a change."
 ---
 
 # Design options
 
-Use this skill, read-only, to turn an Architect brief into a recommendation the Lead can rule on: the real problem, two or three genuinely different designs, and one choice with the conditions that would reverse it. Stay inside the brief's scope, and write nothing to the repository.
+Use this skill to turn an Architect brief into the four artifacts its handoff carries: the problem slices, two or three designs, a comparison table, and one recommendation. Your instructions already set the Architect disposition's boundaries and the report shapes; this skill adds the method.
 
 ## Reconstruct the problem
 
-1. Fill in one slice for each responsibility the brief touches, working from the code rather than the brief's vocabulary or the module names:
-   - Job and consumer: the outcome, and the production code that consumes it (`path:line`).
-   - Owner, state, and lifecycle: which module holds the authoritative state, how that state is created, changed, and ended, and who cleans it up.
-   - Inputs, outputs, and trust boundaries: what enters, what leaves, and where untrusted data crosses.
-   - Scaling or adversarial variable: what grows (entities, rate, payload size, tenants), or who would abuse it and how.
-   - Failure and overload: what happens on an error, a timeout, a full queue, a partial failure, and a restart.
+Fill in one slice per responsibility the brief touches, working from the code rather than from the brief's vocabulary or the module names:
 
-   Done when every field has a `path:line`, or "not found; looked in PATHS".
-2. Compare the slices with the brief's Decided / ruled out. If the code contradicts a premise (the named module doesn't own the state, or the consumer doesn't exist), put that first in your report; it may call for a `REOPEN_REQUEST` rather than a design.
+- Job and consumer: the outcome, and the production code that consumes it.
+- Owner, state, and lifecycle: which module holds the authoritative state, how it is created, changed, and ended, and who cleans it up.
+- Inputs, outputs, and trust boundaries: what enters, what leaves, and where untrusted data crosses.
+- Scaling or adversarial variable: what grows (entities, rate, payload size, tenants), or who would abuse it and how.
+- Failure and overload: what happens on an error, a timeout, a full queue, a partial failure, and a restart.
+
+Done when every field has a `path:line`, or "not found; looked in PATHS". If a slice contradicts the brief's Decided / ruled out, that goes first in your report; it may call for a `REOPEN_REQUEST` rather than a design.
 
 ## Name the boring route
 
@@ -31,7 +31,7 @@ Produce two or three designs whose interfaces differ in shape, not only in names
 - the interface that makes the most common caller trivial;
 - ports and adapters, where a dependency crosses a real boundary.
 
-The boring route can be one of the designs. For each design, give:
+The boring route can be one of them. For each design, give:
 
 1. the interface: signatures plus invariants, ordering rules, and error modes;
 2. a caller example of at most 15 lines;
@@ -43,27 +43,11 @@ Done when a reader could tell the designs apart from their interfaces alone.
 
 ## Judge the designs
 
-Compare the designs in a table on these tests:
+Compare them in a table. Run each design past the project's catalog of structural misfits and avoidable costs, `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md`, and add the two tests that only a design choice raises:
 
-- Depth: the interface should be much smaller than what it hides; one nearly as complex as its implementation is a smell.
-- Deletion: delete the module in your head. If the complexity vanishes, it was pass-through; if it reappears in several callers, it earns its place.
 - Seams: one adapter makes a hypothetical seam, and two (production and test, or two real backends) make a real one. A port with one adapter is only indirection.
-- Owner fit: each responsibility sits with the module that has the information to compute it, with no caller left guessing facts the owner didn't pass on.
-- Accommodation: whether the design adds a wrapper, cache, retry, or flag that takes over a job a dependency should do.
-- Taxes: extra round trips, copies or allocation on hot paths, ordering imposed on independent work, dual paths during a migration, and test cost.
 - Reversibility: which parts are hard to undo, such as a schema, a public API, or stored data.
 
 ## Recommend one
 
-Give one recommendation, not a menu, with:
-
-- why it wins on the tests above;
-- the strongest counterargument: the best case for the runner-up;
-- reversal conditions: specific observations that would flip the choice, such as a second consumer appearing, load passing a named rate, or the dependency gaining cancellation;
-- decisions that belong to someone else, such as a public API, a schema, or product scope, under Unknown / risk.
-
-If the evidence can't support a recommendation, name the one fact that would decide it and where to find it.
-
-## Final message
-
-Give the problem slices, the boring route, the designs, the comparison table, and the recommendation. End with the handoff: omit Snapshot, list the files you read under Scope, and put the commands you ran, such as searches and test runs, under Verification.
+Give one recommendation, not a menu, and say why it wins on the tests above. Reversal conditions are specific observations, such as a second consumer appearing, load passing a named rate, or the dependency gaining cancellation. If the evidence can't support a recommendation, name the one fact that would decide it and where to find it.

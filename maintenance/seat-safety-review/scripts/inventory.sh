@@ -2,9 +2,12 @@
 
 set -u
 
+here="${0%/*}"
+[ "$here" = "$0" ] && here=.
 config="${PASEO_CONFIG:-$HOME/.paseo/config.json}"
-kit="${KIT:-${SEATWORKS_KIT:-$PWD}}"
+kit="${KIT:-$here/../../..}"
 seats="$kit/seats.json"
+sources="${SOURCES:-$here/../references/inventory-sources.json}"
 
 command -v jq >/dev/null 2>&1 || { echo "jq must be on PATH" >&2; exit 1; }
 
@@ -29,7 +32,7 @@ fi
 
 if [ ! -f "$seats" ]; then
     section "Seat map"
-    echo "not found; set KIT to the seatworks kit"
+    echo "not found; set KIT to the kit root"
     exit 0
 fi
 
@@ -38,7 +41,8 @@ jq -r '.seats[] | [
     .role,
     "harness=\(.harness)",
     "readOnly=\(.readOnly)",
-    "hidesOrchestration=\(.hidesOrchestration)",
+    "hides=[\((.hidesWords // []) | join(","))]",
+    "hidesPaths=\((.hidesPaths // []) | length)",
     "guards=[\(.guards | join(","))]",
     "extraSkills=[\(.extraSkills | join(","))]",
     "denyIntents=[\(.denyIntents | join(","))]",
@@ -64,11 +68,8 @@ for id in $(jq -r '[.seats[].harness] | unique | .[]' "$seats"); do
         "hookProtocol=\(.guards.hookProtocol)",
         "sharedSkillDirs=[\((.sharedSkillDirs // []) | join(","))]"
       ] | join("  ")' "$manifest"
-    gdir="$kit/harness/$id/$(jq -r '.guards.dir' "$manifest")"
-    for guard in "$gdir"/*; do
-        [ -f "$guard" ] || continue
-        echo "guard $(basename "$guard"): $(grep -cE 'block |return \{ *$|reason:' "$guard" 2>/dev/null) refusal site(s)"
-    done
+    gdir=$(jq -r '.guards.dir' "$manifest")
+    echo "guards in $gdir: $(ls "$kit/harness/$gdir" 2>/dev/null | tr '\n' ' ')"
     for f in "$kit/harness/$id/settings"/*.settings.json; do
         [ -f "$f" ] || continue
         jq -r --arg f "$(basename "$f")" '.hooks.PreToolUse[]? | "\($f): \(.matcher // "*") -> \([.hooks[]?.command] | join(", "))"' "$f"
@@ -112,18 +113,19 @@ for id in $(jq -r '[.seats[].harness] | unique | .[]' "$seats"); do
     [ "$found" -eq 1 ] || { section "Seat profiles ($root)"; echo "none built"; }
 done
 
-section "Credentials any seat with a shell inherits (presence only)"
+section "Credentials a seat with a shell inherits (presence only)"
 if command -v gh >/dev/null 2>&1; then
     gh auth status 2>&1 | grep -E 'Logged in|Token scopes' || echo "gh: not logged in"
 fi
-echo "ssh agent keys: $(ssh-add -l 2>/dev/null | grep -vc 'no identities')"
-for f in .aws/credentials .config/gcloud .npmrc .netrc .docker/config.json .kube/config .git-credentials; do
+echo "ssh keys: $(ssh-add -l 2>/dev/null | grep -vc 'no identities')"
+helper=$(git config --global credential.helper 2>/dev/null) && echo "credential.helper: $helper"
+[ -f "$sources" ] || { echo "no $sources"; exit 0; }
+for f in $(jq -r '.credentialFiles[]' "$sources"); do
     [ -e "$HOME/$f" ] && echo "present: ~/$f"
 done
-helper=$(git config --global credential.helper 2>/dev/null) && echo "git credential.helper: $helper"
 
-section "Network tools on PATH"
-for t in curl wget nc ssh scp rsync gh npm; do
+section "Egress tools on PATH"
+for t in $(jq -r '.egressTools[]' "$sources"); do
     command -v "$t" >/dev/null 2>&1 && printf '%s ' "$t"
 done
 echo

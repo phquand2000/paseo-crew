@@ -1,7 +1,7 @@
 #!/usr/bin/env fish
 
 set -l kit (path resolve (path dirname (status filename))/..)
-set -l paseo_config $HOME/.paseo/config.json
+set -l paseo_config (test -n "$SEATWORKS_PASEO_CONFIG"; and echo $SEATWORKS_PASEO_CONFIG; or echo $HOME/.paseo/config.json)
 set -l seats_file $kit/seats.json
 set -l harness_dir $kit/harness
 
@@ -30,7 +30,7 @@ while test $i -le (count $argv)
 end
 
 if test -z "$repo_dir"; or not test -d "$repo_dir"
-    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model MODEL (overrides each harness's provider.defaultModel, for roles whose seats.json entry names none)] [--refresh]"
+    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model MODEL (pins this project's model for the roles whose seats.json entry names none)] [--refresh]"
     exit 2
 end
 set repo_dir (path resolve $repo_dir)
@@ -53,7 +53,6 @@ jq -e . $seats_file >/dev/null 2>&1; or begin
 end
 
 set -l roles (jq -r '.seats[].role' $seats_file)
-set -l anchor (jq -r '.seats[] | select(.anchor == true) | .role' $seats_file)
 set -l entry (jq -r '.seats[] | select(.entry == true) | .role' $seats_file)
 set -l prompts (jq -r '[.seats[].prompt] | unique | .[]' $seats_file)
 for short in $roles
@@ -75,16 +74,6 @@ git -C $repo_dir rev-parse --git-dir >/dev/null 2>&1; or begin
     exit 1
 end
 
-set -l seat $repo_dir/.seatworks
-set -l added
-
-set -l other (jq -r --arg k $anchor-$slug '.agents.providers[$k].env.SEATWORKS_REPO // ""' $paseo_config)
-if test -n "$other"; and test (path resolve $other) != $repo_dir
-    echo "! the slug $slug already belongs to $other: pass --slug with another name."
-    echo "  If that repository moved here, set env.SEATWORKS_REPO on $anchor-$slug to $repo_dir, then rerun."
-    exit 1
-end
-
 for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
     set -l manifest $harness_dir/$id/harness.json
     if not test -f $manifest; or not jq -e . $manifest >/dev/null 2>&1
@@ -99,13 +88,25 @@ for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
     end
 end
 
+for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
+    set -l root (string replace -r '^HOME' $HOME (jq -r '.profileRoot' $harness_dir/$id/harness.json))
+    set -l prompt_file (jq -r '.promptFile' $harness_dir/$id/harness.json)
+    for role in $roles
+        set -l link $root/$role-$slug/$prompt_file
+        test -L $link; or continue
+        set -l other (string replace -r '/\.seatworks/[^/]*$' '' -- (readlink $link))
+        test "$other" = "$repo_dir"; and continue
+        echo "! the slug $slug already belongs to $other: pass --slug with another name."
+        exit 1
+    end
+end
+
+set -l seat $repo_dir/.seatworks
+set -l added
+
 set -l stage (mktemp -d)
 cp -R $kit/project/. $stage/
 awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/WORKSPACE_PROTOCOL.md
-set -l seat_pattern (string join '|' $roles)
-for file in $stage/*.md (find $stage/skills -type f -name '*.md')
-    perl -pi -e "s/\b($seat_pattern)-SLUG\b/\$1-$slug/g" $file
-end
 set -l peer_harness (jq -r '.seats[] | select(.role == "peer") | .harness' $seats_file)
 set -l peer_model $model
 test -n "$peer_model"; or set peer_model (jq -r '.provider.defaultModel // ""' $harness_dir/$peer_harness/harness.json)
@@ -145,6 +146,24 @@ if test $refresh -eq 1; and test -d $seat/skills
 end
 rm -rf $stage
 
+set -l project $seat/project.json
+set -l models '{}'
+if test -n "$model"
+    set models (jq -c --slurpfile s $seats_file --arg m $model '
+        reduce ($s[0].seats[] | select((.models | length) == 0) | .role) as $r ({}; .[$r] = $m)' -n)
+end
+set -l new_project (jq -n --arg s $slug --argjson m "$models" '{slug: $s} + (if $m == {} then {} else {models: $m} end)')
+if not test -f $project
+    echo $new_project | jq . >$project
+    set -a added .seatworks/project.json
+else if not jq -e --argjson n "$new_project" '.slug == $n.slug' $project >/dev/null 2>&1
+    echo "  ! $project names another slug; leaving it alone. Delete it and rerun to change the slug."
+else if test -n "$model"
+    jq --argjson m "$models" '.models = ((.models // {}) + $m)' $project >$project.new
+    and mv $project.new $project
+    and echo "  ~ .seatworks/project.json: pinned $model for this project"
+end
+
 for line in (grep -v '^#' $kit/project/.gitignore)
     test -n "$line"; or continue
     grep -qxF -- $line $seat/.gitignore; and continue
@@ -165,103 +184,6 @@ for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
     set -a added $ctx
 end
 
-set -l manifests (mktemp)
-jq -n --arg dir $harness_dir '
-    [$dir] | .[0] as $d | {}' >$manifests
-for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
-    set -l merged (mktemp)
-    jq --arg id $id --slurpfile m $harness_dir/$id/harness.json '.[$id] = $m[0]' $manifests >$merged
-    and mv $merged $manifests
-    or begin
-        rm -f $merged $manifests
-        echo "! could not read the harness manifests"
-        exit 1
-    end
-end
-
-set -l new $paseo_config.new
-if not jq --slurpfile seats $seats_file --slurpfile hs $manifests --arg h $HOME --arg s $slug \
-        --arg r $repo_dir --arg kit $kit --arg m "$model" '
-    def dflt: (map(select(.isDefault == true)) + .)[0];
-    def home($p): ($p | sub("^HOME"; $h));
-    ($s | ascii_upcase) as $n
-    | $seats[0] as $cfg
-    | $hs[0] as $H
-    | reduce ($cfg.seats[]) as $seat (.;
-        ($H[$seat.harness]) as $hx
-        | "\($seat.role)-\($s)" as $key
-        | ({ extends: $hx.baseProvider,
-             label: "\($hx.label) \($seat.label) · \($s)",
-             description: "\($seat.description) for \($s)",
-             env: ($hx.provider.env
-                   + { (($hx.configDirEnv)): "\(home($hx.profileRoot))/\($key)" }
-                   + { SEATWORKS_REPO: $r, SEATWORKS_ROLE: $seat.role, SEATWORKS_SEAT: $key, SEATWORKS_SLUG: $s }
-                   + (if (($hx.guards.hookProtocol != "extension" and ($seat.guards | length) > 0)
-                          or ($cfg.skillGates | any(.seat == $seat.role)))
-                      then { SEATWORKS_KIT: $kit } else {} end)
-                   + (if $seat.readOnly then { SEATWORKS_READ_ONLY: "1" } else {} end)
-                   + (if ($hx.guards.hookProtocol | IN("exit-code", "extension")) then {}
-                      else { SEATWORKS_HOOK_PROTOCOL: $hx.guards.hookProtocol } end))
-           }
-           + $hx.provider.keys
-           + (if ($hx.provider.command // []) | length > 0
-              then { command: ($hx.provider.command
-                     | map(gsub("KIT"; $kit) | gsub("SEAT"; $key))) }
-              else {} end)
-           + (if ($seat.models | length) > 0 then { models: $seat.models } else {} end)) as $t
-        | .agents.providers[$key] |= if . == null then $t else
-              .env += ($t.env | with_entries(select(.key | startswith("SEATWORKS_") or . == $hx.configDirEnv)))
-              | (if $t.command then .command = $t.command else . end)
-              | ($hx.provider.baseCredential.env // "") as $cred
-              | if $cred != "" and .env[$cred] == "OAUTH_TOKEN" then del(.env[$cred]) else . end
-            end)
-    | (.daemon.agentProfiles // []) as $have
-    | [$cfg.seats[]
-        | . as $seat
-        | $H[$seat.harness] as $hx
-        | ($seat.models | if length > 0 then dflt else null end) as $d
-        | { id: "\($s)-\($seat.role)", name: "\($n) · \($seat.label)", provider: "\($seat.role)-\($s)" }
-          + (if $d then { model: $d.id }
-             elif $m != "" then { model: $m }
-             elif $hx.provider.defaultModel then { model: $hx.provider.defaultModel }
-             else {} end)
-          + (if $hx.provider.profileModeId then { modeId: $hx.provider.profileModeId } else {} end)
-          + (($d.thinkingOptions // [] | dflt.id) as $t
-             | if $t then { thinkingOptionId: $t }
-               elif $seat.thinking then { thinkingOptionId: $seat.thinking }
-               else {} end)
-          + { notes: $seat.notes }] as $kitp
-    | .daemon.agentProfiles = ($have | map(.id as $i
-          | (($kitp | map(select(.id == $i)))[0].notes) as $kn
-          | if $kn then .notes = $kn else . end))
-        + ($kitp | map(select(.id as $i | $have | any(.id == $i) | not)))' $paseo_config >$new
-        or not jq -e . $new >/dev/null 2>&1
-    rm -f $new $manifests
-    echo "! could not compose the providers and agent profiles in $paseo_config"
-    exit 1
-end
-rm -f $manifests
-set -l new_providers 0
-if jq -e --slurpfile n $new '. == $n[0]' $paseo_config >/dev/null
-    rm -f $new
-else
-    set -l bak $paseo_config.bak.(date +%Y%m%d-%H%M%S)
-    cp $paseo_config $bak
-    chmod 600 $bak $new
-    set -l changes (jq -r --slurpfile o $paseo_config '
-        ($o[0].agents.providers // {}) as $op | ($o[0].daemon.agentProfiles // []) as $oi
-        | (.agents.providers | to_entries[] | select($op[.key] != .value)
-            | "\(.key) \(if $op[.key] == null then "added" else "env updated" end)"),
-          (.daemon.agentProfiles[] | select(.id as $i | $oi | any(.id == $i) | not) | "profile \(.name) added"),
-          (.daemon.agentProfiles[] | . as $p | select($oi | any(.id == $p.id and .notes != $p.notes))
-            | "profile \(.name) notes updated")' $new)
-    mv $new $paseo_config
-    for change in $changes
-        string match -q 'profile *' -- $change; and continue
-        string match -q '* added' -- $change; and set new_providers 1
-    end
-    echo "  ~ "(string join ', ' $changes)" (backup: $bak)"
-end
 for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
     set -l base (jq -r '.baseProvider' $harness_dir/$id/harness.json)
     set -l cred (jq -r '.provider.baseCredential.env // ""' $harness_dir/$id/harness.json)
@@ -276,11 +198,9 @@ or begin
     and echo "  ~ registered $repo_dir as a Paseo project"
 end
 
-fish $kit/setup/setup-seats.fish
+fish $kit/setup/setup-seats.fish --project $repo_dir
 set -l seats_status $status
 paseo reload >/dev/null 2>&1; and echo "  ~ paseo reloaded"
-test $new_providers -eq 1
-and echo "  ! run `paseo daemon restart` before you start a seat: a reload lists a new provider but builds no snapshot for it, so create_agent reports it as unavailable."
 
 echo ""
 if test (count $added) -gt 0
@@ -294,11 +214,11 @@ if test (count $refreshed) -gt 0
 else if test $refresh -eq 1
     echo "Nothing to refresh: the seat prompts and skills already match the kit."
 end
-echo "Seats: "(for role in $roles
-    echo -n "$role-$slug ("(jq -r --arg r $role '.seats[] | select(.role == $r) | .label' $seats_file)") "
+echo "Seats for $slug: "(for role in $roles
+    echo -n "$role ("(jq -r --arg r $role '.seats[] | select(.role == $r) | .label' $seats_file)") "
 end | string trim)
 command -q ocr
 or echo "! the Reviewer runs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review"
-echo "Next: start $entry-$slug in this repository and ask it to run its workspace-protocol skill,"
+echo "Next: start the $entry profile in this repository and ask it to run its workspace-protocol skill,"
 echo "which fills in the UPPER_SNAKE_CASE placeholders in AGENTS.md and .seatworks/WORKSPACE_PROTOCOL.md."
 exit $seats_status

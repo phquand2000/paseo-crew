@@ -12,23 +12,30 @@ fi
 need_jq
 read_hook_input
 case $(field .tool_name) in *send_agent_prompt) ;; *) pass ;; esac
+
+later="Log the event in .seatworks/records/attention/ and send it on the next sweep."
+seats=${SEATWORKS_SEATS:-$SEATWORKS_KIT/seats.json}
+want=$(jq -r '.seats[] | select(.entry == true) | .role' "$seats" 2>/dev/null)
+[ -n "$want" ] || want=supervisor
+
 id=$(field .tool_input.agentId)
-[ -n "$id" ] || block "send_agent_prompt has no agentId; pass the Supervisor's full agent id."
-command -v paseo >/dev/null 2>&1 || block "paseo is not on PATH, so this message's target can't be checked. Log the event in .seatworks/records/attention/ and send it on the next sweep."
-list=$(paseo ls -g -a --json 2>/dev/null) || block "paseo ls failed, so this message's target can't be checked. Log the event in .seatworks/records/attention/ and send it on the next sweep."
-provider=$(jq -er --arg id "$id" 'if type == "array" then (first(.[] | select(.id == $id) | .provider) // "") else error end' <<<"$list" 2>/dev/null) ||
-    block "paseo ls returned no agent list, so this message's target can't be checked. Log the event in .seatworks/records/attention/ and send it on the next sweep."
-slug=$SEATWORKS_SLUG
-if [ -z "$slug" ]; then
-    case ${SEATWORKS_SEAT:-} in watcher-?*) slug=${SEATWORKS_SEAT#watcher-} ;; esac
-fi
-if [ -n "$slug" ]; then
-    want=supervisor-$slug
-else
-    want='supervisor-*'
-fi
+[ -n "$id" ] || block "send_agent_prompt has no agentId; pass the ${want}'s full agent id."
+command -v paseo >/dev/null 2>&1 || block "paseo is not on PATH, so this message's target can't be checked. $later"
+
+list=$(paseo ls -g -a --json 2>/dev/null) ||
+    block "paseo ls failed, so this message's target can't be checked. $later"
+
+here=${SEATWORKS_REPO%/}
+[ -n "$here" ] && case $here in "$HOME"/*) here="~${here#$HOME}" ;; esac
+provider=$(jq -er --arg id "$id" --arg here "$here" '
+    if type != "array" then error
+    else first(.[] | select(.id == $id)
+        | select($here == "" or .cwd == $here or (.cwd | startswith($here + "/")))
+        | .provider) // "" end' <<<"$list" 2>/dev/null) ||
+    block "paseo ls returned no agent list, so this message's target can't be checked. $later"
+
 case ${provider%%/*} in
-$want) pass ;;
-"") block "no agent has the id $id. Send ATTENTION events only to this project's Supervisor, by its full agent id from paseo ls." ;;
+"$want") pass ;;
+"") block "no agent with the id $id runs in this repository. Send attention events only to this project's $want, by its full agent id from paseo ls." ;;
 esac
-block "agent $id runs $provider. The watcher sends ATTENTION events only to this project's Supervisor (a $want agent); log anything else in .seatworks/records/attention/."
+block "agent $id runs $provider. The watcher sends attention events only to this project's $want; log anything else in .seatworks/records/attention/."

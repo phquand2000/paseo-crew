@@ -8,19 +8,6 @@ import subprocess
 import sys
 import tempfile
 
-OVERLAY_KEYS = {
-    "model",
-    "model_provider",
-    "model_reasoning_effort",
-    "model_reasoning_summary",
-    "model_verbosity",
-    "model_catalog_json",
-    "sandbox_mode",
-    "approval_policy",
-    "approvals_reviewer",
-}
-
-
 def fail(message):
     raise SystemExit(f"! codex room: {message}")
 
@@ -115,7 +102,7 @@ def bundled_models(codex):
         return []
 
 
-def build_catalog(kit, runtime, values, codex, keep_bundled):
+def build_catalog(kit, runtime, values, codex, keep_bundled, null_fields):
     source = json.loads((kit / "harness/codex/models.json").read_text())
     models = json.loads(substitute(json.dumps(source), values))["models"]
     slugs = {model.get("slug") for model in models}
@@ -126,7 +113,8 @@ def build_catalog(kit, runtime, values, codex, keep_bundled):
     for model in models:
         if not isinstance(model, dict):
             fail("the model catalog holds an entry that is not an object")
-        model["multi_agent_version"] = None
+        for field in null_fields:
+            model[field] = None
     target = runtime / "model-catalog.json"
     write_atomic(target, json.dumps({"models": models}, separators=(",", ":")) + "\n")
     return target
@@ -162,7 +150,7 @@ def main():
 
     codex = os.environ.get("CODEX_BIN") or shutil.which("codex")
     keep = os.environ.get("SEATWORKS_CODEX_KEEP_BUNDLED", "") == "1"
-    catalog = build_catalog(kit, runtime, values, codex, keep)
+    catalog = build_catalog(kit, runtime, values, codex, keep, manifest["state"]["nullFields"])
     values["CODEX_MODEL_CATALOG"] = json.dumps(str(catalog))[1:-1]
 
     kit_base = substitute((kit / "harness/codex/config/base.config.toml").read_text(), values)
@@ -176,9 +164,10 @@ def main():
     user_base = canonical / "config.toml"
     shared = user_base.read_text() if user_base.is_file() else ""
 
+    overlay_keys = set(manifest["settings"]["overlayKeys"])
     head = apply_scalars(
         text_head(shared) + text_head(kit_base),
-        {**scalars(kit_base, OVERLAY_KEYS), **scalars(overlay, OVERLAY_KEYS)},
+        {**scalars(kit_base, overlay_keys), **scalars(overlay, overlay_keys)},
     )
     instructions = block(overlay, "developer_instructions") or block(kit_base, "developer_instructions")
     body = tables(shared).lstrip() + ("\n" if tables(shared).strip() else "") + tables(kit_base).lstrip()

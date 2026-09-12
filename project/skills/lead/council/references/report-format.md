@@ -1,14 +1,26 @@
 # Council output patterns
 
-Patterns to combine, not one schema to copy. Pick and adapt only what the case needs, and put
-the result into the brief's CASE OUTPUT CONTRACT: copying every heading into every seat prompt
-produces filler and can cap what a seat reports.
+Patterns to combine, not one schema to copy: pick and adapt only what the case needs, and put
+the result into the brief's CASE OUTPUT CONTRACT.
+
+Contents:
+
+- Evidence discipline for every case
+- Focused decision
+- Supplied findings or audit
+- Plan or contract review
+- Incident
+- Material propositions
+- Verifier output
+- Cross-examination response
+- Draft-verdict audit
+- Binding verdict
 
 ## Evidence discipline for every case
 
 Whatever the shape, the output separates direct observation, authority, inference, and
 uncertainty, and shows which action each material conclusion changes. Ask for falsifiers or
-reopen conditions when they bear on the decision; leave out sections only filled for form.
+reopen conditions when they bear on the decision.
 
 ## Focused decision
 

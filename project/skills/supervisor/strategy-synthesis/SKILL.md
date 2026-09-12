@@ -18,14 +18,13 @@ It produces `.seatworks/records/strategy/CONCERN.md` from
 
 1. **Name the concern and its scope** from the request given with this skill, for example "data
    migrations" or "how SDKs are released", and list the projects in scope. **Done** when the
-   concern fits in one line and the project list is fixed.
+   concern fits one line and the project list is fixed.
 2. **Gather about five inputs:** recent documents where a real tradeoff on this concern was
-   made: ADRs and design docs (for example under `docs/adr/` or `docs/decisions/`), ExecPlan
-   decision logs, notebook patterns, integration maps, and the reserved decisions in
+   made: ADRs and design docs (under `docs/adr/` or `docs/decisions/`, say), ExecPlan decision
+   logs, notebook patterns, integration maps, and the reserved decisions in
    `.seatworks/records/directives/`. Prefer recent ones from different projects. For a large
-   repository, give the search to a read-only Peer, created as in step 2 of "Before the first
-   question" in the intent-interview skill, asking for paths with a one-line summary of each
-   decision. **Done** when you hold at least three inputs; with fewer, stop and tell the Human
+   repository, give the search to a read-only Peer, created as in "Before the first question" in
+   the intent-interview skill, asking for paths with a one-line summary of each decision. **Done** when you hold at least three inputs; with fewer, stop and tell the Human
    the concern is too new, because a strategy generalized from one or two decisions is a guess.
 3. **Extract the decisions.** List each input's decisions with the reason it gave. Mark a
    decision recurring when two or more inputs made the same choice, contested when inputs chose
@@ -59,14 +58,14 @@ It produces `.seatworks/records/strategy/CONCERN.md` from
    **Done** when every policy passes both tests, with the replayed decisions recorded.
 8. **Write the file.** Save `.seatworks/records/strategy/CONCERN.md` from the template, with the
    status `draft`, the inputs, and a review date about two months out. Nothing fires on that
-   date by itself; the weekly review in the retrospective skill lists strategies past it.
+   date by itself; the retrospective skill's weekly review lists strategies past it.
    **Done** when the file is saved with a review date.
 9. **Get the Human's approval** of the diagnosis, the policies, the open list, and the tests.
    **Done** when the Human approves and you have set the status to `approved DATE`.
 10. **Relay the parts that bind Leads.** Write each affected project an `OWNER DIRECTIVE:` with
-    its policies and actions, stated as constraints, and send it as in step 5 of the
-    cross-workspace-integration skill: to this project's Lead, or to another project's
-    Supervisor. Seat prompt or skill changes go through the protocol-patch skill. **Done** when
+    its policies and actions, stated as constraints, and send it as in the portfolio-review
+    skill's "Map a seam between projects": to this project's Lead, or to another project's
+    Supervisor. Prompt or skill changes go through the protocol-patch skill. **Done** when
     every action has a directive, a patch proposal, or an owner who has confirmed it.
 11. **Review at the review date.** Check the decisions made since: were the policies applied,
     the actions done, and did the diagnosis hold? Update the strategy or retire policies that

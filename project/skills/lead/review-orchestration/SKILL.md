@@ -1,6 +1,6 @@
 ---
 name: review-orchestration
-description: "Chooses the review a change needs (your own reading, sealed Reviewers on separate axes, or a scout sweep) and adjudicates each finding. Use before briefing any Reviewer, or when intake's Rigor line or a Reviewer condition calls for one."
+description: "Chooses the review a change needs (the Lead's own reading, sealed Reviewers on separate axes, or a scout sweep) and adjudicates each finding. Use before briefing any Reviewer, or when intake's Rigor line or a Reviewer condition calls for one."
 ---
 
 # Review orchestration
@@ -8,14 +8,14 @@ description: "Chooses the review a change needs (your own reading, sealed Review
 Give a change the review its risk calls for, and no more. Sealed axes end in a ruling in your
 acceptance summary; a sweep ends in one report at `docs/reviews/DATE-NAME-round-N.md` in the
 target repository, which stays until its findings are routed and fixed (repo-refresh retires it
-once its durable decisions reach their owners). Every finding ends with a verdict and a route.
+once its durable decisions reach their owners).
 
 ## Choose the lane
 
 | Lane | When | Who reviews |
 |---|---|---|
 | Read it yourself | default: tiny or normal work, no review condition | you: `git diff "$base" "$head"` |
-| Sealed axes | intake's Rigor line names Reviewers (every high-risk lane does), or another condition under "Independent review" in your seat prompt applies | two or three Reviewer Peers, one axis each, same SHA and question |
+| Sealed axes | a condition under "Independent review" in your seat prompt applies | two or three Reviewer Peers, one axis each, same SHA and question |
 | Sweep | high-risk work with weak proof, a large or unfamiliar surface, or a pre-merge audit where recall beats noise | four to ten scout Peers on overlapping concerns |
 
 `.seatworks/WORKSPACE_PROTOCOL.md` overrides these counts where it sets strictness or a review
@@ -35,7 +35,7 @@ lane count. Done when you have named the lane and the reason.
    and `skip` to the rest; one run per round is enough. Done when each Reviewer has one axis
    and exactly one runs the machine pass.
 
-3. **Brief and launch** each Reviewer from the project's Reviewer profile (`list_profiles`)
+3. **Brief and launch** each Reviewer from the Reviewer profile (`list_profiles`)
    with the axis Reviewer brief in `references/briefs.md` (relative to this skill's directory):
    disposition Reviewer, thinking `high`, slice brief and handoff as files, global constraints
    word for word. List each `(ambiguous)` ruling it implements under Rulings to check as a
@@ -58,16 +58,12 @@ lane count. Done when you have named the lane and the reason.
 
 2. **Define and allocate the concerns.** Directives in the request become mandatory concerns
    `D01`, `D02`, …; otherwise derive `G01`, `G02`, … from scope, contracts, call paths,
-   lifecycle, data flow, and blast radius. Lenses: semantic and state-machine correctness;
-   ownership against lifecycle events; API, schema, and data-format contracts; concurrency,
-   ordering, cancellation, cleanup, resource lifetime; error masking, fallbacks, retries,
-   partial failure; authorization, trust boundaries, hostile input; hot-path cost; generated
-   files, fixtures, snapshots, docs; proof that passes without its behavior; duplicate state and
-   wrappers compensating for a broken foundation; alternative end-to-end traces. Pick N from 4
-   to 10 so each directive `D0x` has at least three scouts, each derived concern `G0x` at least
-   two, and no scout more than three concerns. Scouts sharing a concern take different traces,
-   lifecycle phases, owners, hostile cases, or disconfirming angles, never one copied prompt.
-   Name them `scout-01` onwards. Done when the allocation table meets those counts.
+   lifecycle, data flow, and blast radius, using the concern lenses in `references/briefs.md`.
+   Pick N from 4 to 10 so each directive `D0x` has at least three scouts, each derived concern
+   `G0x` at least two, and no scout more than three concerns. Scouts sharing a concern take
+   different traces, lifecycle phases, owners, hostile cases, or disconfirming angles, never one
+   copied prompt. Name them `scout-01` onwards. Done when the allocation table meets those
+   counts.
 
 3. **Brief and launch the scouts** with the scout brief in `references/briefs.md`, from the
    Reviewer profile, disposition Reviewer (the Scout disposition returns a map without
@@ -135,13 +131,12 @@ For each finding from either lane:
    becomes a new slice; an unresolved one gets a verification slice or a line in the acceptance
    summary. False positives stay recorded with their evidence for the next round's notes.
 
-Done when every finding has a verdict and a route, and `grep -c TODO REPORT_PATH` prints `0`.
-Then commit the report on its own (`git add REPORT_PATH && git commit -m "review: NAME round
-N"`) and archive the scouts.
+Done when `grep -c TODO REPORT_PATH` prints `0`. Then commit the report on its own
+(`git add REPORT_PATH && git commit -m "review: NAME round N"`) and archive the scouts.
 
 After a fix round, check the fixes with the scoped re-review brief in `references/briefs.md`:
 each finding is `ADDRESSED` or `NOT ADDRESSED`, and only new breakage inside the fix diff counts.
 Run a fresh sweep round only when the fixes were broad or the lane is high-risk.
 
-The rule that matters most: every finding gets a disconfirming check and a recorded verdict,
-and the ruling is yours alone.
+The rule that matters most: every finding gets a disconfirming check, a recorded verdict, and a
+route, and the ruling is yours alone.

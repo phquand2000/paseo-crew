@@ -1,7 +1,14 @@
 # Review briefs
 
-Briefs for the two multi-Peer review lanes and the scoped re-review after fixes. Each goes into
-`create_agent` as `initialPrompt`.
+Briefs for the two multi-Peer review lanes and the scoped re-review after fixes, and the lenses
+a sweep draws its concerns from. Each brief goes into `create_agent` as `initialPrompt`.
+
+Contents:
+
+- Axis Reviewer
+- Concern lenses
+- Scout
+- Scoped re-review
 
 ## Axis Reviewer
 
@@ -36,9 +43,8 @@ Replace the following:
     and nothing beyond it? Map each requirement to code and to a check.
   - standards: does it follow `AGENTS.md` and the repository's conventions, and would each test
     fail if the behavior it claims to prove disappeared?
-  - structural: are boundaries, ownership, coupling, lifecycle, and failure handling sound; does
-    it guess a state from indirect signals where an owner could hold it; and does it weaken an
-    interface, data model, or stateful system later work depends on?
+  - structural: are boundaries, ownership, coupling, lifecycle, and failure handling sound, and
+    does the change weaken an interface, data model, or stateful system later work depends on?
   - machine pass, for a sweep: run Open Code Review over the whole scope and report its
     confirmed findings; skip the other axes.
 - `MACHINE_PASS`: `run` for exactly one Reviewer per round, `skip` for the others.
@@ -47,6 +53,22 @@ Replace the following:
 - `RULINGS_TO_CHECK`: each `(ambiguous)` ruling the change implements, as a question quoting
   the directive's words, such as `The directive says "export every invoice"; is skipping drafts
   a valid reading?`, or `none`.
+
+## Concern lenses
+
+One `G0x` concern per lens the scope touches:
+
+- semantic and state-machine correctness;
+- ownership against lifecycle events;
+- API, schema, and data-format contracts;
+- concurrency, ordering, cancellation, cleanup, and resource lifetime;
+- error masking, fallbacks, retries, and partial failure;
+- authorization, trust boundaries, and hostile input;
+- hot-path cost;
+- generated files, fixtures, snapshots, and docs;
+- proof that passes without its behavior;
+- duplicate state and wrappers compensating for a broken foundation;
+- alternative end-to-end traces.
 
 ## Scout
 

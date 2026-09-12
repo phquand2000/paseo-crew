@@ -60,14 +60,10 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
 
 ## What each demo prompt expects you to add
 
-Every `.md` in this kit loads unchanged on every harness, so none of them carries an HTML
-comment: a harness whose manifest says `promptComments: "shown"` would read a maintainer note to
-the seat as if it were a rule. The setup script refuses `<!--` in any prompt or skill, for every
-seat. So the notes that used to sit at the top of each prompt live here instead.
-
-All four seat prompts are demo files: the structure is real, the rules are generic, and the value
-is your own rules. `setup-seats.fish` holds each to the 16 KB `promptBudget` in `seats.json`;
-exceeding it is an error, and the fix is to cut, not to raise the budget.
+No `.md` here carries an HTML comment, by rule 14, so the notes that used to sit at the top of
+each prompt live here instead. Every seat prompt is a demo file: the structure is real, the rules
+are generic, and the value is your own. `setup-seats.fish` holds each to `promptBudget` in
+`seats.json`; exceeding it is an error, and the fix is to cut, not to raise the budget.
 
 | Prompt | What to extend, by section |
 |---|---|
@@ -130,17 +126,21 @@ micro for the Peer, and review for the Reviewer. [S, SK, PI]
    `description` in the frontmatter, plus `disable-model-invocation: true` for skills that run
    only when asked. Harnesses disagree on whether the command follows the directory or `name`,
    so the two must match.
-2. Write the description as one double-quoted line of 200 to 400 characters: what the skill
-   does, then "Use when …". Every harness triggers on it, and none reads `when_to_use`.
+2. Write the description as one double-quoted line of 200 to 400 characters, in the third
+   person: what the skill does, then "Use when …", naming concrete triggers. It is the only
+   part always in context, so every "when to use" belongs there and not in the body; every
+   harness triggers on it, and none reads `when_to_use`. [S]
 3. Keep `SKILL.md` under 500 lines, and move long catalogs and templates into `references/`,
-   linked by a path relative to the skill's directory.
+   linked by a relative path that says when to read it. Keep references one level deep, because
+   a harness may only preview a file reached from another; open one over 100 lines with a
+   contents list. [S]
 4. Refer to input as "the request given with this skill". Not every harness substitutes
    `$ARGUMENTS`, `${CLAUDE_SKILL_DIR}`, `` !`command` ``, or `@file`, and the setup script
    refuses the first two.
 5. Add a procedure the seat prompt doesn't already carry, and name the artifact the skill
    produces and where it goes.
-6. Skills for a role with `hidesOrchestration` carry no mention of Paseo, seats, the Supervisor,
-   or the watcher. The no-comment rule is not theirs alone: it applies to every skill.
+6. A skill carries none of the words its role's `hidesWords` lists in `seats.json`. The
+   no-comment rule is not theirs alone: it applies to every skill.
 7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
    license in `NOTICE.md`.
 
@@ -154,7 +154,7 @@ Use these terms, and only these, for the following concepts:
 | Supervisor | The seat that meets with the Human, relays decisions, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
-| read-only Peer | The `peer-ro-SLUG` seat: the Peer prompt and skills with edits blocked, for Architect, Scout, and council work |
+| read-only Peer | The `peer-ro` seat: the Peer prompt and skills with edits blocked, for Architect, Scout, and council work |
 | Reviewer | The read-only seat that reviews changes with Open Code Review; a brief's Reviewer disposition goes to it |
 | seat | A harness profile together with its Paseo provider, named for its role |
 | brief | The Lead's assignment to a Peer |
@@ -166,29 +166,26 @@ Use these terms, and only these, for the following concepts:
 | advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
 | check | A neutral question, labeled `CHECK:`, that asks a Lead, or a Peer through its Lead, to look again at its work against a named source |
 | attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
-| watcher | The `watcher-SLUG` seat, on a small model, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
+| watcher | The `watcher` seat, on a small model, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
 | harness | The coding agent that hosts a role, described by `harness/<id>/harness.json` |
 | skill gate | An entry in `seats.json`'s `skillGates` that refuses the call a skill owns until that skill is loaded |
 
-`.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use Supervisor, watcher, seat, or Paseo
-(the setup script checks for every role with `hidesOrchestration`); those seats know only the
-Lead that assigns their work.
-`.seatworks/LEAD.md` never names the Supervisor; it knows only the three message labels.
+`seats.json`'s `hidesWords` says which words each seat never sees, and the setup script checks
+every prompt and skill against it: `.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use
+Supervisor, watcher, seat, or Paseo, and `.seatworks/LEAD.md` never names the Supervisor.
+`hidesPaths` adds the repository paths those seats may not read.
 
 ## Where sources disagree, and what this kit chose
 
-- **Emphasis:** Anthropic's prompting guide discourages it, while the Claude Code best
-  practices allow it on a single line. This kit uses none by default.
+- **Emphasis:** one guide discourages it, another allows it on a single line. None by default.
 - **Prompt or guard:** the prompting guides treat instructions as the whole mechanism. This kit
   treats a prompt as guidance and puts anything that must hold in a deny list, a guard, or a
   skill gate, after two evaluation runs where a Lead skipped a skill its prompt named.
 - **File length:** recommendations range from about 60 lines to 500. This kit uses 16 KB and
   roughly 200 lines.
-- **Multi-agent or single thread:** Anthropic parallelizes research, while Cognition prefers a
-  single thread. This kit parallelizes reading and review, and keeps each write scope to one
-  writer.
-- **Numbered headings:** Google's style guide avoids them. SETUP.md follows it and links its
-  steps from a numbered list instead.
+- **Multi-agent or single thread:** [MA] parallelizes research, [COG] prefers a single thread.
+  This kit parallelizes reading and review, and keeps each write scope to one writer.
+- **Numbered headings:** [G] avoids them; SETUP.md links its steps from a numbered list instead.
 
 ## Sources
 

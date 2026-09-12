@@ -62,9 +62,28 @@ const READ_ONLY_TOOLS = new Set(["write", "edit"]);
 const READ_ONLY_TOOL_REASON =
   "Editing files is not available in this role. Put temporary notes under $TMPDIR with the shell, and report what you would change.";
 
-const READ_ONLY =
-  (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env
-    .SEATWORKS_READ_ONLY === "1";
+const ENV =
+  (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
+
+const READ_ONLY = ENV.SEATWORKS_READ_ONLY === "1";
+
+const HIDDEN = (ENV.SEATWORKS_HIDDEN_PATHS ?? "")
+  .split(":")
+  .map((entry) => entry.trim().replace(/\/+$/, ""))
+  .filter((entry) => entry.length > 0);
+const HIDDEN_REASON =
+  "That path is not part of this workspace. Everything this task needs is in your brief and in the repository instruction file; ask for what is missing instead.";
+
+function hidden(path: string): boolean {
+  const clean = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  return HIDDEN.some(
+    (entry) =>
+      clean === entry ||
+      clean.startsWith(entry + "/") ||
+      clean.endsWith("/" + entry) ||
+      clean.includes("/" + entry + "/"),
+  );
+}
 
 function unquoted(command: string): string {
   return command.replace(
@@ -80,7 +99,10 @@ function unquoted(command: string): string {
 export function blockReason(command: string, readOnly = READ_ONLY): string | undefined {
   const text = unquoted(command);
   const rules = readOnly ? RULES.concat(READ_ONLY_RULES) : RULES;
-  return rules.find((rule) => rule.pattern.test(text))?.reason;
+  const hit = rules.find((rule) => rule.pattern.test(text))?.reason;
+  if (hit) return hit;
+  if (HIDDEN.length > 0 && text.split(/[\s;&|()'"><]+/).some(hidden)) return HIDDEN_REASON;
+  return undefined;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -88,8 +110,11 @@ export default function (pi: ExtensionAPI) {
     if (READ_ONLY && READ_ONLY_TOOLS.has(event.toolName)) {
       return { block: true, reason: READ_ONLY_TOOL_REASON };
     }
+    const input = event.input as { command?: unknown; path?: unknown; file_path?: unknown };
+    const path = String(input.path ?? input.file_path ?? "");
+    if (path && hidden(path)) return { block: true, reason: HIDDEN_REASON };
     if (event.toolName !== "bash") return;
-    const reason = blockReason(String((event.input as { command?: unknown }).command ?? ""));
+    const reason = blockReason(String(input.command ?? ""));
     if (reason) return { block: true, reason };
   });
 }

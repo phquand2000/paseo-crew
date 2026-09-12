@@ -6,6 +6,19 @@ per outcome. It records the outcome, the decisions, and the acceptance evidence,
 implementation in prose: files, private symbols, and control flow stay with the Peers who write
 them; interfaces between slices are leverage points the plan may settle.
 
+Contents:
+
+- Rules
+- Template, with a section per heading: Outcome and constraints, Context and ownership,
+  Direction and work units, Acceptance and recovery, Progress, Decision log, Discoveries
+- Progress line formats
+
+Contents:
+
+- Rules
+- Template
+- Progress line formats
+
 ## Rules
 
 A plan is good when each of these holds:

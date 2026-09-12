@@ -3,27 +3,27 @@
 Seatworks gives each project six agent seats, each with its own prompt, skills, and settings,
 coordinated through [Paseo](https://getpaseo.com):
 
-- `supervisor-SLUG` meets with you, relays settled decisions to the Lead, answers the attention
+- `supervisor` meets with you, relays settled decisions to the Lead, answers the attention
   events the watcher raises, and keeps the project's notebook of failures.
-- `lead-SLUG` breaks work down, delegates it to Peers, and accepts their results.
-- `peer-SLUG` writes code and returns evidence; `peer-ro-SLUG` runs the same prompt and skills
+- `lead` breaks work down, delegates it to Peers, and accepts their results.
+- `peer` writes code and returns evidence; `peer-ro` runs the same prompt and skills
   with edits blocked, for Architect, Scout, and council work.
-- `reviewer-SLUG` reviews changes read-only: it runs
+- `reviewer` reviews changes read-only: it runs
   [Open Code Review](https://github.com/alibaba/open-code-review) as a first pass and confirms
   every finding in the code before reporting it.
-- `watcher-SLUG` reads the Lead's and Peers' activity on a heartbeat and raises attention events
+- `watcher` reads the Lead's and Peers' activity on a heartbeat and raises attention events
   for the Supervisor.
 
-A seat is named for its role, not for the tool that runs it. Which coding agent hosts a role is
-one line in [seats.json](seats.json), so the prompts, skills, and docs never name a vendor.
-Profiles, settings, and models are global. Every `.md` a seat loads lives in the project, under
-`.seatworks/`, so each project carries its own rules under its own git history.
+A seat is named for its role alone: not for the tool that runs it, and not for a project. Which
+coding agent hosts a role is one line in [seats.json](seats.json), so the prompts, skills, and
+docs never name a vendor. Every `.md` a seat loads lives in the project, under `.seatworks/`, so
+each project carries its own rules under its own git history.
 
 ## Get started
 
-You need fish 3.5 or later, jq, a running Paseo daemon, and the coding agents the roles in
-`seats.json` are assigned to. As shipped that means the `claude` CLI for the Supervisor, Lead,
-and watcher, and Pi 0.84.4 or later, logged in to a model provider, for the Peers and Reviewer.
+You need fish 3.5 or later, jq, a running Paseo daemon, and the coding agents `seats.json`
+assigns to the roles, each logged in to a model provider and at or above the version its
+`harness/<id>/harness.json` records under `verified`.
 
 Open a coding agent in this directory and say:
 
@@ -34,34 +34,54 @@ is in [SETUP.md](SETUP.md).
 
 ## How it works
 
-Each seat is a Paseo provider pointed at its own profile directory, through whichever
-environment variable its harness uses for that. The profiles hold links to the kit's settings
-and guards and into the project's `.seatworks/`, so an edit to `REPO/.seatworks/LEAD.md` takes
-effect for the next Lead you spawn there.
+There are two scopes, and only one of them grows. Your Paseo config holds six providers and six
+agent profiles, one per role, and adding a project only composes one that is missing. Everything a seat reads
+lives in that project, under `REPO/.seatworks/`.
+
+The room joins the two. `harness/common/bin/seat-room` is the command every provider launches:
+it walks up from the agent's working directory to the nearest `.seatworks/`, reads the project's
+slug from `project.json`, points the harness's config-directory variable at that project's
+profile directory, and execs the coding agent with every argument untouched. So a seat belongs
+to the workspace it starts in, and a `lead` started where no `.seatworks/` is found is just the
+plain coding agent.
 
 ```
-seats.json                         which harness hosts each role, its skills, its guards, its
-                                   deny list, its model, and the skill gates it must pass
-harness/<id>/harness.json          one harness: its config-directory variable, prompt file,
-                                   skills directory, settings format, guards, and how a skill
-                                   is loaded and recognised there
-harness/<id>/NOTES.md              that harness's behavior, and how each fact was established
-~/.paseo/config.json               the six SLUG providers, composed from those two files
-~/.claude/profiles/<seat>/         links: settings.json, guard scripts, CLAUDE.md, skills/
-~/.pi/profiles/<seat>/             guard and login links; APPEND_SYSTEM.md and skills/ are links
-REPO/.seatworks/                   SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md, WATCHER.md,
-                                   WORKSPACE_PROTOCOL.md, NOTEBOOK.md, records/,
-                                   skills/{supervisor,lead,peer,reviewer}/
+seats.json                      which harness hosts each role, its skills, its guards, its
+                                deny list, its model, and the skill gates it must pass
+harness/<id>/harness.json       one harness: its config-directory variable, prompt file,
+                                skills directory, settings format, guards, and how a skill is
+                                loaded and recognised there
+harness/<id>/NOTES.md           that harness's behavior, and how each fact was established
+harness/common/bin/seat-room    the room, launched by every provider
+~/.paseo/config.json            six providers and six agent profiles, one per role, composed
+                                from the two files above
+<profileRoot>/<role>-<slug>/    one profile directory per role per project, named by each
+                                harness manifest: the role's settings and guards, and links
+                                into that project's `.seatworks/`
+REPO/.seatworks/                project.json, SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md,
+                                WATCHER.md, WORKSPACE_PROTOCOL.md, NOTEBOOK.md, records/,
+                                skills/{supervisor,lead,peer,reviewer}/
+maintenance/                    kit tools no seat loads: seat-safety-review audits the kit's
+                                seats, not a project
 ```
 
-`setup/add-project.fish` copies the kit's `project/` templates into a repository and composes its
-providers; after that, the project's copies are its own until a `--refresh`.
+`project.json` carries the slug, which keeps one project's profile directories apart from
+another's, and may pin a model per role under `models`: the room rewrites the model argument
+Paseo passes for that role, so one project can run its Lead on a larger model without touching
+the global profile. A role the file doesn't name keeps its profile's model.
 
-Each role has its own skill set: strategy skills for the Supervisor (interviews, pre-mortems,
-retrospectives, protocol patches), macro skills for the Lead (intake, decomposition, council,
-review orchestration, rollout), micro skills for the Peer (test-first work, debugging, proof
-audits), and review skills for the Reviewer (Open Code Review, change review). The Supervisor
-alone keeps its harness's auto memory, as the project's organizational memory.
+`setup/add-project.fish` copies the kit's `project/` templates into a repository and writes its
+`project.json`; after that, the project's copies are its own until a `--refresh`.
+`setup/setup-seats.fish` composes the providers and profiles and builds every profile
+directory, so an edit to `REPO/.seatworks/LEAD.md` takes effect for the next Lead you start
+there.
+
+Each role has its own skill set: strategy for the Supervisor (interviews, pre-mortems,
+retrospectives, patches), macro for the Lead (intake, decomposition, council, review
+orchestration, rollout), micro for the Peer (test-first work, debugging, proof audits), and
+review for the Reviewer (Open Code Review, change review). The Supervisor
+alone keeps its harness's auto memory, in its own profile directory, as that project's
+organizational memory.
 
 Authority is split by concern rather than stacked in one chain. You hold intent and priorities.
 The Supervisor interprets intent and watches coordination. The Lead owns its workspace's
@@ -74,36 +94,32 @@ describes where it holds.
 
 ## Changing which agent runs a role
 
-Edit that role's `harness` in `seats.json`, then rerun setup for each project. The provider keeps
-its name, the prompts and skills are untouched, and the guards follow: `harness/common/hook-io.sh`
-writes whichever refusal form the new harness expects, so one guard body serves all of them.
+Edit that role's `harness` in `seats.json`, then rerun setup. The provider keeps its name, the
+prompts and skills are untouched, and the guards follow: `harness/common/hook-io.sh` writes
+whichever refusal form the new harness expects, so one guard body serves all of them.
 
 One edit means one edit: setup moves the profile directory, sets and clears the harness's own
-environment variables and its config-directory variable, installs or removes a launcher command,
-and switches the guards' refusal form. Flipping the watcher to Codex and back leaves the provider
-byte-identical.
+environment variables, tells the room which binary to exec and which config-directory variable
+to set, and switches the guards' refusal form. Flipping the watcher to another harness and back
+leaves the provider byte-identical.
 
 A harness manifest carries `verified`, the version its facts were checked on. `--check` says so
 when your installed version differs, and `--probe` settles it by asking each seat's harness which
-skills it actually loads. A manifest with `verified: null` is a sketch: `harness/codex/NOTES.md`
-lists what is still open for Codex, and setup refuses to send a gated role to a harness that
-cannot enforce its gates.
+skills it actually loads. A manifest with `verified: null` is a sketch: its `NOTES.md` lists what
+is still open, and setup refuses to send a gated role to a harness that cannot enforce its gates.
 
-### A non-OpenAI model on Codex
+### A model the harness doesn't ship with
 
-A Codex seat gets its own `CODEX_HOME`, built by `harness/codex/bin/materialize-room`: a
-`config.toml` merged from your shared one, the kit's provider block, and the role's overlay, plus
-a model catalog with every `multi_agent_version` nulled so the seat cannot start Codex-native
-subagents. `harness/codex/bin/codex-room` is the provider's command; it re-materializes the room
-and `exec`s Codex, so a launch never disagrees with a build.
+A harness can run a model from another provider, and every part of that is data in
+`harness/<id>/harness.json` under `provider.env`: the provider name, its base URL, the wire
+protocol, and the model. One edit changes them. Where a manifest names `settings.materialize`,
+the room runs that harness's materializer first, which builds the seat's config from your shared
+one, the kit's provider block, and the role's overlay, plus a model catalog with every
+native-subagent version nulled, so the seat starts no subagents outside Paseo.
 
-The model and provider are data in `harness/codex/harness.json` under `provider.env`, so one edit
-changes them. **The API key is never written anywhere**: Codex's `env_key` names an environment
-variable it reads the key from, so the kit writes `env_key = "ZAI_API_KEY"` and you export the
-key where the Paseo daemon can see it. Setup fails if a literal token appears under
-`harness/codex/config/`. There is no room for Claude Code or Pi, and there should not be: both
-already relocate their whole config directory and merge settings natively, and Claude Code
-reloads settings files mid-session — a launcher would reimplement that and lose the reload.
+**The API key is never written anywhere**: the harness's own config names the environment
+variable it reads the key from, and you export that variable where the Paseo daemon can see it.
+Setup fails if a literal token appears under a harness's `config/`.
 
 ## Attention, not polling
 
@@ -146,21 +162,22 @@ failure.
 ## Daily use
 
 Talk to the Supervisor rather than to the Lead. In the Paseo app, open the project and start
-an agent on `supervisor-SLUG`, settle the outcome with it, and have it create a Lead and relay
+an agent on `supervisor`, settle the outcome with it, and have it create a Lead and relay
 the decision. For a small, well-defined task, you can talk to a Lead directly. A Peer has
 no context for questions, so give it only assigned work. When you step away, tell the
 Supervisor; it holds everything but irreversible risks for the report you get when you return.
 
-After you edit a prompt or the settings, rebuild the profiles:
+After you edit a prompt or the settings, rebuild the profiles of every project:
 
 ```fish
 fish setup/setup-seats.fish
 ```
 
-To verify without writing anything:
+To verify without writing anything, or to work on one project only:
 
 ```fish
 fish setup/setup-seats.fish --check
+fish setup/setup-seats.fish --project REPO_DIR
 ```
 
 To make each seat's harness prove which skills it loads, which costs one cheap model call per
@@ -180,15 +197,6 @@ Keep one project's own rules in its `AGENTS.md` or its filled-in
 fish setup/add-project.fish REPO_DIR --refresh
 ```
 
-If you are coming from a kit whose providers were named `claude-lead-SLUG` and `pi-peer-SLUG`,
-archive every running agent and rename them in place:
-
-```fish
-fish setup/migrate-seat-names.fish
-```
-
-It prints what it would change and does nothing until you add `--apply`.
-
 The real work is replacing the demo rules with your own, the last step in SETUP.md. The rules
 grow each time the system misses a failure: the Supervisor records each miss in the project's
 notebook, and a miss becomes a rule only when it recurs.
@@ -202,38 +210,25 @@ notebook, and a miss becomes a rule only when it recurs.
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing and editing the prompts and docs in this kit |
 | [NOTICE.md](NOTICE.md) | Where the skills' ideas come from, with licenses |
 | [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny intents, model, and the skill gates it must pass |
-| [harness/claude/](harness/claude/) | Claude Code as a harness: manifest, role settings, guards, and [NOTES.md](harness/claude/NOTES.md) |
-| [harness/pi/](harness/pi/) | Pi as a harness: manifest, settings, guard extensions, and [NOTES.md](harness/pi/NOTES.md) |
-| [harness/codex/](harness/codex/) | Codex as a harness, unverified: manifest, the room, the custom-model data, and the open questions in [NOTES.md](harness/codex/NOTES.md) |
-| [harness/codex/bin/materialize-room](harness/codex/bin/materialize-room) | Builds one Codex seat's `CODEX_HOME`: merged `config.toml`, model catalog, links |
-| [harness/codex/bin/codex-room](harness/codex/bin/codex-room) | The Codex seat's launcher: re-materializes the room, then execs Codex |
-| [harness/codex/models.json](harness/codex/models.json) | The custom model's catalog entry, with the provider's model filled in at build time |
-| [harness/codex/config/](harness/codex/config/) | `base.config.toml` (provider block) and one `<role>.config.toml` overlay per role |
+| [harness/](harness/) | One directory per harness: its manifest, role settings, guards or guard extensions, the custom-model data, and `NOTES.md`, which records what was verified and what is still open |
+| [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: resolves the project from the working directory, points the config-directory variable at its profile, applies a model pin, execs the agent |
 | [harness/common/hook-io.sh](harness/common/hook-io.sh) | Reads a guard's hook input and writes its refusal in the form the seat's harness expects |
-| [project/](project/) | Templates copied into each project's `.seatworks/` |
-| [project/SUPERVISOR.md](project/SUPERVISOR.md) | Supervisor prompt (demo) |
-| [project/LEAD.md](project/LEAD.md) | Lead prompt (demo) |
-| [project/PEER.md](project/PEER.md) | Peer prompt (demo) |
-| [project/REVIEWER.md](project/REVIEWER.md) | Reviewer prompt (demo) |
-| [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the watcher on every sweep |
-| [project/skills/](project/skills/) | Strategy skills for the Supervisor, macro skills for the Lead, micro skills for the Peer, review skills for the Reviewer |
-| [project/NOTEBOOK.md](project/NOTEBOOK.md) | A project's append-only record of failures |
-| [harness/pi/extensions/peer-guard.ts](harness/pi/extensions/peer-guard.ts) | Blocks `git push` and agent CLIs for every Pi seat, and file edits for the read-only seats |
-| [harness/pi/extensions/skill-gate.ts](harness/pi/extensions/skill-gate.ts) | Enforces `seats.json`'s skill gates on a Pi seat; installed only for a role that has one |
 | [harness/common/guards/lead-guard.sh](harness/common/guards/lead-guard.sh) | Blocks writes to repository files outside what the role owns, so Peers write all code |
-| [harness/common/guards/profile-guard.sh](harness/common/guards/profile-guard.sh) | Blocks creating, prompting, scheduling, or switching an agent onto a model or mode other than its profile's |
+| [harness/common/guards/profile-guard.sh](harness/common/guards/profile-guard.sh) | Blocks creating, prompting, scheduling, or switching an agent onto a model, mode, or workspace other than its own |
 | [harness/common/guards/skill-guard.sh](harness/common/guards/skill-guard.sh) | Refuses a gated call until its skill is loaded in this session |
-| [harness/common/guards/watcher-guard.sh](harness/common/guards/watcher-guard.sh) | Lets the watcher's `send_agent_prompt` reach only the Supervisor |
-| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/`, its six providers, and their profiles |
-| [setup/setup-seats.fish](setup/setup-seats.fish) | Builds or refreshes every seat profile; idempotent, `--check` only verifies, `--probe` asks each harness |
-| [setup/migrate-seat-names.fish](setup/migrate-seat-names.fish) | Renames `<harness>-<role>-<slug>` providers and profiles to `<role>-<slug>`; dry run by default |
+| [harness/common/guards/watcher-guard.sh](harness/common/guards/watcher-guard.sh) | Lets the watcher's `send_agent_prompt` reach only its own project's Supervisor |
+| [project/](project/) | Templates copied into each project's `.seatworks/`: the seat prompts, the notebook, the skills |
+| [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the watcher on every sweep |
+| [project/skills/](project/skills/) | Each role's skill set, at its own altitude |
+| [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/` and its `project.json`, then builds its profiles |
+| [setup/setup-seats.fish](setup/setup-seats.fish) | Composes the six providers and profiles and builds every project's profile directories; idempotent, `--check` only verifies, `--probe` asks each harness |
 | [examples/paseo-providers.json](examples/paseo-providers.json) | The base provider per harness, added once per machine |
 | [examples/AGENTS_MD_SNIPPET.md](examples/AGENTS_MD_SNIPPET.md) | Template for the `AGENTS.md` of a repository you work in |
 | [examples/WORKSPACE_PROTOCOL.md](examples/WORKSPACE_PROTOCOL.md) | Template for a project's coordination protocol, read only by the Lead |
 
-The role settings in `harness/claude/settings/<role>.settings.json` are tracked in git and edited
-by hand; the script links every seat to its role's file and only checks it, never writes it. Their
-`"language": "vietnamese"` is the kit owner's setting: change or remove it for your own. The
-Lead and the watcher keep a 1-hour prompt cache, since the watcher sweeps every 15 minutes.
-Each hook runs its guard through the seat's own profile, so the files hold no path specific to
-one machine.
+The role settings each manifest names under `settings.source` are tracked in git and edited by
+hand; the script links or merges a seat's file and only checks it, never writes it. Their
+`"language": "vietnamese"` is the kit owner's setting: change or remove it for your own. The Lead
+and the watcher keep a 1-hour prompt cache, since the watcher sweeps every 15 minutes, and each
+hook runs its guard through the seat's own profile, so no file holds a path specific to one
+machine.

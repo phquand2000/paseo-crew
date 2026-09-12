@@ -8,16 +8,22 @@ disable-model-invocation: true
 
 Build a focused, reproducible review artifact for a reviewer outside this machine's agents with
 the bundled script, not by hand-zipping. Output: one artifact outside the repository (Markdown
-file, ZIP, or directory) and a reviewer prompt, in your reply or a separate file.
+file, ZIP, or directory) and the reviewer prompt you wrote to go with it.
 
 ## The script
 
 The script is `scripts/review_pack.py`, resolved against this skill's directory (`SKILL_DIR`
-below; `REPO` is the repository root). List its options with
-`python3 SKILL_DIR/scripts/review_pack.py create --help`. Always pass `--out` with a path
-outside the repository, such as `${TMPDIR:-/tmp}/NAME`: the default, `reports/review-packs/`,
-is inside it, where the artifact can get committed. `references/profiles.md` (relative to this
-skill's directory) says what each `--profile` selects; read it when a selection surprises you.
+below; `REPO` is the repository root). It decides which files go into the artifact and nothing
+about what the review looks for, so the prompt is yours to write. List its options with
+`python3 SKILL_DIR/scripts/review_pack.py create --help`, and know two defaults before you read
+them: without `--out` it writes inside the repository, under `reports/review-packs/`, where the
+artifact can get committed; and it includes tests unless you pass `--tests none` (snapshot) or
+`--exclude-tests` (Markdown).
+
+Three references sit beside this file. `references/profiles.md` says what each `--profile`
+selects; read it when a selection surprises you. `references/review-kinds.md` lists the
+priorities for eight kinds of review. `references/reviewer-prompts.md` holds the two prompt
+templates and their placeholders.
 
 ## Procedure
 
@@ -43,20 +49,39 @@ skill's directory) says what each `--profile` selects; read it when a selection 
 3. **Choose the shape.** Use `--shape source-snapshot --format zip` for source-truth,
    architecture, or large adversarial reviews: it writes repository-relative files under
    `repo/` plus `MANIFEST.md`, `SOURCE_TREE.txt`, `GIT_STATUS.txt`, `GIT_HEAD.txt`, and
-   `GIT_BRANCH.txt`, with the diff and prompt only on `--include-diff` or `--include-prompt`.
-   Use the default Markdown pack for a small focused review that reads best as one file. The
-   script includes tests by default, so add `--tests none` (snapshot) or `--exclude-tests`
-   (Markdown) unless the request asks for tests. Done when the shape fits the question and the
-   command carries a test flag.
+   `GIT_BRANCH.txt`, with the diff only on `--include-diff`. Use the default Markdown pack for a
+   small focused review that reads best as one file. Done when the shape fits the question and
+   the command carries `--out` and a test flag.
 
-4. **Run a dry run** with the same arguments plus `--dry-run`, and show the Human the
+4. **Write the reviewer prompt** to a file outside the repository, such as
+   `${TMPDIR:-/tmp}/NAME-prompt.md`: start from the matching template in
+   `references/reviewer-prompts.md` and take its review priorities from the kinds in
+   `references/review-kinds.md` that fit the target. Done when the file states the target, the
+   priorities, and the response format, with every placeholder replaced.
+
+5. **Run a dry run** with the create arguments plus `--dry-run`, and show the Human the
    interpreted scope, file count, size estimate, and notable skipped categories. Done when the
    dry run matches the requested scope.
 
-5. **Create the artifact** with the same command minus `--dry-run`. Done when the `--out` file
+   ```bash
+   # A Rust crate without tests, as one Markdown file
+   python3 SKILL_DIR/scripts/review_pack.py create --root REPO --profile rust \
+     --focus crates/my-crate --exclude-tests --out "${TMPDIR:-/tmp}/my-crate-review.md"
+
+   # A source snapshot of two source roots and their governing docs
+   python3 SKILL_DIR/scripts/review_pack.py create --root REPO \
+     --shape source-snapshot --format zip \
+     --source-root crates/app-protocol/src --source-root crates/app-contracts/src \
+     --doc AGENTS.md --doc docs/exec-plans/active/SLUG.md \
+     --tests none --out "${TMPDIR:-/tmp}/SLUG-source.zip"
+   ```
+
+6. **Create the artifact** with the same command minus `--dry-run`. Add `--prompt-file PATH`,
+   naming the file from step 4, only when the Human wants the prompt bundled in; a snapshot
+   without it stays neutral and reusable with another question. Done when the `--out` file
    exists.
 
-6. **Check it for secrets**, because the artifact is about to leave the machine:
+7. **Check it for secrets**, because the artifact is about to leave the machine:
 
    ```bash
    out=OUT_PATH
@@ -71,77 +96,9 @@ skill's directory) says what each `--profile` selects; read it when a selection 
    doesn't exclude environment files, so pass `--exclude '*.env' --exclude '*.env.*'` whenever
    the source units contain any. Done when every hit is explained or excluded.
 
-7. **Hand it over.** Write the reviewer prompt (below), then give the Human the artifact path
-   and the prompt. Uploading leaves this machine, so it is the Human's step: upload only the
-   artifact the Human approved, and paste the prompt separately instead of bundling it into a
-   source snapshot. Done when the Human has both.
-
-## Common commands
-
-```bash
-# A Rust crate without tests, as one Markdown file
-python3 SKILL_DIR/scripts/review_pack.py create --root REPO --profile rust \
-  --focus crates/my-crate --exclude-tests --out "${TMPDIR:-/tmp}/my-crate-review.md"
-
-# A source snapshot of two source roots and their governing docs
-python3 SKILL_DIR/scripts/review_pack.py create --root REPO \
-  --shape source-snapshot --format zip \
-  --source-root crates/app-protocol/src --source-root crates/app-contracts/src \
-  --doc AGENTS.md --doc docs/exec-plans/active/SLUG.md \
-  --tests none --out "${TMPDIR:-/tmp}/SLUG-source.zip"
-
-# Changed files only, for a narrow follow-up review
-python3 SKILL_DIR/scripts/review_pack.py create --root REPO --profile changed-files \
-  --exclude-tests --out "${TMPDIR:-/tmp}/changes-review.md"
-
-# Exact spans from large files, keeping their original line numbers
-python3 SKILL_DIR/scripts/review_pack.py create --root REPO --only-ranges \
-  --range "src/lib.rs:500-1200" --range "src/api.rs:300-700" \
-  --task "Review the changed control flow" --question "Find correctness regressions" \
-  --out "${TMPDIR:-/tmp}/range-review.md"
-```
-
-## Options worth knowing
-
-- `--profile rust|go|vue|swift-ios|changed-files|generic`, repeatable for mixed projects.
-- `--focus PATH` centers a pack on a unit; `--include PATH` adds docs, schemas, or plans outside
-  it. Snapshots use `--source-root PATH` and `--doc PATH` instead.
-- `--tests none|all|targeted`, with `--include-test GLOB` for `targeted`; `--exclude-tests` also
-  strips Rust `#[cfg(test)]` blocks.
-- `--review-kind general|bughunt|safety|parity|rust-impact|release|architecture|debug`,
-  repeatable, picks the built-in reviewer prompt profile; `--task` and repeated `--question` put
-  the brief into the manifest and prompt.
-- `--rust-impact` adds a symbol-impact summary from the git diff and `cargo metadata`;
-  `--rust-analyzer` adds diagnostics when the binary is available.
-- `--max-bytes` and `--max-file-bytes` fit the pack to the reviewer's upload and context limits.
-
-## Reviewer prompts
-
-Keep the prompt out of a source snapshot unless the Human asks, so the artifact stays neutral
-and reusable with another question. The script's built-in prompt, shaped by `--review-kind`,
-asks for no broad rewrites, so use it only for a small Markdown pack. For an adversarial
-source-truth review, write a prompt that covers these points:
-
-```text
-You are an independent adversarial reviewer for PROJECT_OR_TASK.
-The attached ZIP holds source and docs only; treat repo/ as the current source truth.
-GIT_STATUS.txt is orientation, not the boundary of the review.
-Review GOVERNING_PLAN_OR_TASK as a whole, not only a local patch or a list of earlier findings.
-Try to falsify both local correctness and fit with the long-lived architecture.
-Read MANIFEST.md, AGENTS.md, the governing plan and ADRs, then the source.
-Don't dump whole large files: map from MANIFEST.md, SOURCE_TREE.txt, and doc headings, search,
-then read focused line ranges (narrower when output is cut off), and cite only lines you read.
-If tests are excluded, name the missing test context rather than guess.
-Cover these surfaces: SURFACES.
-Flag issues that pass locally but weaken the architecture.
-Report findings first, each with severity, file:line, failure path, the rule or boundary it
-breaks, and a durable fix direction rather than the least painful patch.
-```
-
-Replace `PROJECT_OR_TASK`, `GOVERNING_PLAN_OR_TASK`, and `SURFACES` (the owner, protocol,
-runtime, and proof surfaces in scope). Keep earlier findings out of the mission, adding them
-afterwards as optional hints if they help, because a list of known blockers tends to become the
-scope. Mention only operating limits that matter for this reviewer.
+8. **Hand it over.** Give the Human the artifact path and the prompt. Uploading leaves this
+   machine, so it is the Human's step: upload only the artifact the Human approved, and paste
+   the prompt separately whenever it is not bundled in. Done when the Human has both.
 
 The rule that matters most: the artifact leaves the machine only through the Human, and only
 the version the Human approved.

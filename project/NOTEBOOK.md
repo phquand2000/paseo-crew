@@ -1,13 +1,12 @@
 # Project notebook
 
-Lessons from this project's work, kept by the Supervisor. Append only novel or materially
-stronger evidence, grouped by pattern; a repeat raises `Seen` instead of adding an entry. Not
-every entry becomes a rule: a patch waits until `Seen` spans two different days. A pattern also
-seen in another project's notebook goes to the Human as a kit diff.
+Lessons from this project's work, kept and re-read by the Supervisor each session: the
+`Status: open` entries are the live patterns, matched against every new observation first.
+Append only novel or materially stronger evidence, grouped by pattern: a repeat raises `Seen`
+rather than adding an entry, and a patch waits until `Seen` spans two different days. Once
+written, an entry changes only in its `Seen` and `Status` lines.
 
-Once an entry is written, change only its `Seen` and `Status` lines.
-
-Use this format for each entry:
+Entry format:
 
 ```
 ## YYYY-MM-DD — SHORT_TITLE

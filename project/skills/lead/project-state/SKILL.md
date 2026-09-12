@@ -104,7 +104,7 @@ copying it:
   can; list any left.
 - **Lessons**: what you would do differently, in a few lines.
 - **Verified**: which of these you confirmed by command in this session.
-- **Start with**: the skills the successor should run first, usually `/project-state`.
+- **Start with**: the skills the successor should load first, usually `project-state`.
 
 Copy nothing that lives in a plan, ADR, commit, or report (copies go stale), and leave secrets
 and credentials out. Done when the block fits on one screen and every item is a path, an ID, a

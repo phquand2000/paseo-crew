@@ -16,31 +16,14 @@ prompts seats read; Peers know only the Lead that briefs them.
 
 Run this only as the Lead: your seat prompt makes you Lead of one project, and you have the
 `create_agent` tool. Otherwise, reply that the council runs in the Lead's session, and stop. A
-seat never starts another council. When the decision belongs to the Human (product direction,
-priority, an irreversible trade-off), the output is a recommendation to the Human, and the
-verdict says so.
-
-## At a glance
-
-```text
-tier     choose the smallest tier that fits, in one sentence
-brief    neutral brief, case output contract, framing lint
-sealed   create_agent for every Round 1 seat, then wait for notifications
-collect  audit each seat, handle failures, set council.phase=review
-model    reduce reports to a typed decision model
-verify   Verifiers for material factual disputes only
-cross    at most one challenge and one response per disputed point
-draft    you draft the verdict alone
-audit    a fresh Auditor, per the tier
-verdict  binding verdict, set council.phase=verdict, archive the seats
-```
-
-Announce each step in one short line as you enter it; if you lose your place, find it here.
+seat never starts another council. When the decision is one reserved for the Human, the output
+is a recommendation to the Human, and the verdict says so.
 
 ## Choose a tier
 
 Answering from a few reads, with no council, is the default, not a tier. Choose the tier in one
-sentence; it needs no analysis to justify it:
+sentence; it needs no analysis to justify it, then announce each phase below in one short line as
+you enter it:
 
 | Tier | Seats |
 |---|---|
@@ -115,11 +98,10 @@ your next action is `create_agent` for every Round 1 seat, not more analysis.
 Create every seat in the same turn, each as a fresh agent:
 
 ```text
-create_agent
-  title:         "council CASE_ID independent"
-  provider:      RESOLVED_PROVIDER
-  settings:      { thinkingOptionId: RESOLVED_THINKING }
-  initialPrompt: SEAT_PREAMBLE + BRIEF + ROLE + SEAT_EPILOGUE
+create_agent         as in the decompose skill's step 9
+  title:             "council CASE_ID independent"
+  provider, settings RESOLVED_PROVIDER and RESOLVED_THINKING from references/routing.md
+  initialPrompt:     the preamble, BRIEF, ROLE, and the epilogue, per references/seat-prompt.md
   labels:
     council.case_id: CASE_ID
     council.title:   SHORT_TITLE
@@ -144,35 +126,14 @@ one role:
   assumptions the decision rests on.
 - **Premise Challenger**: test the framing and shared premises, build at least one viable
   alternative framing, and say what it would make unnecessary. The current framing may win when
-  nothing better survives scrutiny; manufactured disagreement is a failure.
+  nothing better survives scrutiny.
 - **Specialist**: apply only the requested domain knowledge; expertise doesn't outrank stronger
   evidence or Human authority. It may get extra output fields that reveal no other seat's view
   and no preferred answer.
 
-Begin every seat prompt with this preamble:
-
-```text
-ANALYST MODE
-You are one independent analyst on this question. Use your own judgment inside the authorized
-scope: choose what evidence to read, challenge premises that look false, and make ordinary
-analytical decisions without waiting for the Lead. This task asks for your analysis only. Work
-alone: don't look for, start, or contact other agents, don't read other reviewers' reports,
-notes, or timelines, and don't coordinate with anyone. Begin the work directly.
-```
-
-End every seat prompt with this epilogue:
-
-```text
-This is analysis only: create, edit, rename, or delete no files, write no code, make no commits,
-and start or contact no other agent. Aim for the most accurate answer, not for agreement. Mark
-each point as a direct observation (file:line, command output, or source) or as your inference,
-and state what evidence would prove your position wrong. Put your analysis, in the shape the
-output contract asks for, before your handoff; leave Snapshot empty, since you write nothing.
-```
-
 Round 1 stays sealed: no seat sees your opinion, another seat's report, a desired conclusion,
 another agent's ID, or a transcript, and you read no report until every required seat has
-finished. The isolation is soft and audited: seats have no Paseo tools and `peer-ro-SLUG` blocks
+finished. The isolation is soft and audited: seats have no Paseo tools and `peer-ro` blocks
 their writes, but nothing stops one from reading beyond its sources, so never describe a
 forbidden read to them as impossible.
 
@@ -180,7 +141,7 @@ Before you read any report, write your current position on the decision question
 three sentences with its main reason, so you notice when a report merely matches your framing
 and when it contradicts it. Write it only outside the repository, never in the ExecPlan or any
 file a seat is pointed to: run `echo "${TMPDIR:-/tmp}"` and write `council-CASE_ID-lead.md`
-under the absolute path it prints, since the Write tool expands no variables.
+under the absolute path it prints, since your file tools expand no variables.
 
 ## Phase 3: collect, audit, and handle failures
 
@@ -254,9 +215,8 @@ seat agrees and no factual or framing issue remains.
 You decide, not the seats. Work through: the authoritative outcome and hard constraints; the
 options verified constraints exclude; which premises are verified, falsified, or unresolved;
 each option under realistic failure modes; its robustness if an assumption is wrong; its
-reversibility; and whether serious dissent has stronger evidence or a decisive falsifier. Don't
-vote or average confidence; agreement among seats creates no authority. Draft the binding
-verdict before deciding on an audit.
+reversibility; and whether serious dissent has stronger evidence or a decisive falsifier. Draft
+the binding verdict before deciding on an audit.
 
 Start from the position you wrote before reading Round 1. For every point where a seat's
 evidence contradicts it, say in the verdict whether it changed your view and why. A verdict that
@@ -296,11 +256,7 @@ Done when the seats are archived and the verdict is recorded where it will be re
 
 ## Stopping rules
 
-- One sealed Round 1.
-- One complete decision model, split only when that helps reasoning without losing the index.
-- At most one challenge and one response per disputed point.
-- At most one audit round.
-- No voting, no group chat, no seat edits, and no new worktree for a council.
+- No new worktree for a council.
 - No daemon, database, queue, or permanent council team.
 
 The rule that matters most: cheap workers increase coverage, strong seats deliberate, and you

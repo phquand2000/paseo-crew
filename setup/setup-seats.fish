@@ -3,7 +3,7 @@
 set -g kit (path resolve (path dirname (status filename))/..)
 set -g seats_file  $kit/seats.json
 set -g harness_dir $kit/harness
-set -g paseo_config $HOME/.paseo/config.json
+set -g paseo_config (test -n "$SEATWORKS_PASEO_CONFIG"; and echo $SEATWORKS_PASEO_CONFIG; or echo $HOME/.paseo/config.json)
 set -g local_skills  $HOME/.agents/skills
 set -l plugin_id     mattpocock-skills@mattpocock
 
@@ -69,7 +69,14 @@ function check_budget --argument-names file budget
     end
 end
 
-function check_skill --argument-names label skill hides
+function hidden_words --argument-names label file words
+    test (count $argv[3..-1]) -gt 0; or return
+    set -l pattern (string join '|' $argv[3..-1])
+    set -l hit (grep -oiwE -- $pattern $file | sort -u | string join ', ')
+    test -n "$hit"; and fail "$label: "(string replace -- "$kit/" '' $file)" names $hit, which this seat never sees. seats.json lists the words under hidesWords."
+end
+
+function check_skill --argument-names label skill
     set -l file $skill/SKILL.md
     set -l name (path basename $skill)
     set -l front (awk 'NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit } NR > 1 { print }' $file)
@@ -90,9 +97,8 @@ function check_skill --argument-names label skill hides
     grep -rq '<!--' $skill
     and fail "$label: skill $name contains an HTML comment; a skill loads unchanged on every harness, and one that shows comments would read it to the seat as a rule"
 
-    if test "$hides" = true
-        grep -rqiwE 'paseo|supervisor|watcher|seats?' $skill
-        and fail "$label: skill $name mentions the orchestration layer, which this seat doesn't know"
+    for file in (find $skill -type f -name '*.md')
+        hidden_words $label $file $argv[3..-1]
     end
 end
 
@@ -282,7 +288,7 @@ function build_seat --argument-names role slug repo_dir
     test "$skills_name" = null; or set skills_dir $repo_dir/.seatworks/skills/$skills_name
     set -l extras (seat_field $role '.extraSkills[]?')
     set -l comments (harness_get $harness .promptComments)
-    set -l hides (seat_field $role .hidesOrchestration)
+    set -l hides (seat_field $role '.hidesWords[]?')
     set -l skills_sub (harness_get $harness .skillsDir)
     set -l prompt_file (harness_get $harness .promptFile)
     set -l err0 $errs
@@ -297,10 +303,7 @@ function build_seat --argument-names role slug repo_dir
     grep -q '<!--' $prompt
     and fail "$key: $prompt contains an HTML comment; a prompt loads unchanged on every harness, and one that shows comments would read it to the seat as a rule. Maintainer notes go in WRITING_GUIDE.md."
 
-    if test "$hides" = true
-        grep -qiwE 'paseo|supervisor|watcher|seats?' $prompt
-        and fail "$key: $prompt mentions the orchestration layer, which this seat doesn't know."
-    end
+    hidden_words $key $prompt $hides
     check_budget $prompt (seats_get .promptBudget)
 
     test $dry -eq 0; and mkdir -p $dir/$skills_sub
@@ -505,44 +508,44 @@ function build_seat_guards --argument-names key harness role dir
     end
 end
 
-function seat_provider --argument-names role slug repo_dir
-    set -l key $role-$slug
+function seat_provider --argument-names role
+    set -l key $role
     set -l harness (seat_field $role .harness)
-    set -l dir (expand_home (harness_get $harness .profileRoot))/$key
-    set -l env_var (harness_get $harness .configDirEnv)
     if not jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
-        fail "$paseo_config has no provider `$key`."
-        return
+        if test $dry -eq 1
+            fail "$paseo_config has no provider `$key`; rerun without --check."
+            return
+        end
+        paseo_write $paseo_config "provider $key: created" \
+            '.agents.providers[$k] = {extends: $b, label: $l, description: $d, env: {}}' \
+            --arg k $key --arg b (harness_get $harness .baseProvider) \
+            --arg l (seat_field $role .label) --arg d (seat_field $role .description)
     end
-    set -l have (jq -r --arg k $key --arg v $env_var '.agents.providers[$k].env[$v] // ""' $paseo_config)
-    if test -n "$have"; and test (path resolve (expand_home $have)) != (path resolve $dir)
-        echo "  · provider $key pointed $env_var at $have; this role's harness is $harness, so it moves to $dir."
-    end
-    provider_env $key $env_var $dir
+    provider_models $key $role
     set -l mine (harness_get $harness '.provider.env | keys[]?')
     for other in (all_harnesses)
+        provider_env_absent $key (harness_get $other .configDirEnv)
         test $other = $harness; and continue
-        set -l stale (harness_get $other .configDirEnv)
-        test "$stale" = "$env_var"; or provider_env_absent $key $stale
         for name in (harness_get $other '.provider.env | keys[]?')
             contains -- $name $mine; and continue
             provider_env_absent $key $name
         end
     end
+    for name in SEATWORKS_REPO SEATWORKS_SLUG SEATWORKS_SEAT
+        provider_env_absent $key $name
+    end
     for name in $mine
         provider_env $key $name (harness_get $harness ".provider.env[\"$name\"]")
     end
-    set -l cmd (jq -c --arg kit $kit --arg s $key '[(.provider.command // [])[]
-        | gsub("KIT"; $kit) | gsub("SEAT"; $s)]' (harness_file $harness))
-    provider_command $key $cmd
-    provider_env $key SEATWORKS_REPO $repo_dir
+    provider_command $key (jq -c --arg kit $kit '[(.provider.command // [])[]
+        | gsub("KIT"; $kit)]' (harness_file $harness))
     provider_env $key SEATWORKS_ROLE $role
-    provider_env $key SEATWORKS_SEAT $key
-    provider_env $key SEATWORKS_SLUG $slug
-    if needs_kit_path $role $harness
-        provider_env $key SEATWORKS_KIT $kit
+    provider_env $key SEATWORKS_KIT $kit
+    set -l hidden (seat_field $role '[.hidesPaths[]?] | join(":")')
+    if test -n "$hidden"
+        provider_env $key SEATWORKS_HIDDEN_PATHS $hidden
     else
-        provider_env_absent $key SEATWORKS_KIT
+        provider_env_absent $key SEATWORKS_HIDDEN_PATHS
     end
     test (seat_field $role .readOnly) = true
     and provider_env $key SEATWORKS_READ_ONLY 1
@@ -556,12 +559,45 @@ function seat_provider --argument-names role slug repo_dir
     report_unenforced $key $role $harness
 end
 
-function needs_kit_path --argument-names role harness
-    test (jq -r --arg r $role '[.skillGates[]? | select(.seat == $r)] | length' $seats_file) -gt 0
-    and return 0
-    test (harness_get $harness .guards.hookProtocol) = extension
-    and return 1
-    test (count (seat_field $role '.guards[]?')) -gt 0
+function provider_models --argument-names key role
+    set -l want (seat_field $role '[.models[]?]' | jq -c .)
+    test "$want" = '[]'; and return
+    set -l have (jq -c --arg k $key '.agents.providers[$k].models // []' $paseo_config)
+    test "$have" = "$want"; and return
+    if test $dry -eq 1
+        fail "provider $key does not offer the models seats.json names for $role (rerun without --check)"
+        return
+    end
+    paseo_write $paseo_config "provider $key: models set from seats.json" \
+        '.agents.providers[$k].models = $m' --arg k $key --argjson m "$want"
+end
+
+function seat_profile --argument-names role
+    set -l harness (seat_field $role .harness)
+    set -l want (jq -n --slurpfile s $seats_file --slurpfile h (harness_file $harness) --arg r $role '
+        def dflt: (map(select(.isDefault == true)) + .)[0];
+        ($s[0].seats[] | select(.role == $r)) as $seat
+        | $h[0] as $hx
+        | ($seat.models | if length > 0 then dflt else null end) as $d
+        | { id: $r, name: $seat.label, provider: $r }
+          + (if $d then { model: $d.id }
+             elif $hx.provider.defaultModel then { model: $hx.provider.defaultModel }
+             else {} end)
+          + (if $hx.provider.profileModeId then { modeId: $hx.provider.profileModeId } else {} end)
+          + (($d.thinkingOptions // [] | dflt.id) as $t
+             | if $t then { thinkingOptionId: $t }
+               elif $seat.thinking then { thinkingOptionId: $seat.thinking }
+               else {} end)
+          + { notes: $seat.notes }')
+    set -l have (jq -c --arg r $role '[(.daemon.agentProfiles // [])[] | select(.id == $r)][0] // null' $paseo_config)
+    test "$have" = (echo $want | jq -c .); and return
+    if test $dry -eq 1
+        fail "agent profile $role is missing or differs from seats.json (rerun without --check)"
+        return
+    end
+    paseo_write $paseo_config "agent profile $role: set from seats.json" \
+        '.daemon.agentProfiles = (((.daemon.agentProfiles // []) | map(select(.id != $p.id))) + [$p])' \
+        --argjson p "$want"
 end
 
 function provider_command --argument-names key want
@@ -646,18 +682,18 @@ function seat_deny --argument-names key role harness
                     set have $kept
                 end
             end
+            test "$have" = "$want"; and return
             set -l dead (echo $have | jq -c --argjson w "$want" '. - $w')
-            test "$dead" != '[]'
-            and echo "  · provider $key denies "(echo $dead | jq -r 'join(", ")')", which seats.json no longer lists; check for a stale or misspelled tool name."
             set -l lack (echo $have | jq -c --argjson w "$want" '$w - .')
-            test "$lack" = '[]'; and return
+            set -l note
+            test "$dead" != '[]'; and set -a note "drops "(echo $dead | jq -r 'join(", ")')", which seats.json no longer lists"
+            test "$lack" != '[]'; and set -a note "adds "(echo $lack | jq -r 'join(", ")')
             if test $dry -eq 1
-                fail "provider $key lacks deny entries "(echo $lack | jq -r 'join(", ")')" (rerun without --check)"
+                fail "provider $key's deny list differs from seats.json: it "(string join ' and ' $note)" (rerun without --check)"
                 return
             end
-            set -l merged (echo $have | jq -c --argjson w "$want" '($w + .) | unique')
-            paseo_write $paseo_config "provider $key: disallowedTools updated" \
-                '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$merged"
+            paseo_write $paseo_config "provider $key: disallowedTools set from seats.json, which "(string join ' and ' $note) \
+                '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$want"
         case extension
             test (harness_get $harness .deny.paseoToolsOff) = true; or return
             jq -e --arg k $key '.agents.providers[$k].paseoTools.enabled == false' $paseo_config >/dev/null 2>&1
@@ -673,11 +709,8 @@ function seat_deny --argument-names key role harness
     end
 end
 
-function optional_seat --argument-names key repo_dir
-    jq -e --arg k $key '.agents.providers[$k]' $paseo_config >/dev/null 2>&1
-    and return 0
-    echo "  · $key doesn't exist yet; add it with: fish $kit/setup/add-project.fish $repo_dir"
-    return 1
+function project_slug --argument-names repo_dir
+    jq -r '.slug // empty' $repo_dir/.seatworks/project.json 2>/dev/null
 end
 
 command -q jq; or begin
@@ -697,16 +730,28 @@ end
 
 set -g dry 0
 set -g live 0
-for a in $argv
-    switch $a
+set -l wanted
+set -l i 1
+while test $i -le (count $argv)
+    switch $argv[$i]
         case --check
             set dry 1
         case --probe
             set live 1
+        case --project
+            set i (math $i + 1)
+            set -l repo $argv[$i]
+            test -d "$repo/.seatworks"
+            or begin
+                echo "! --project $repo has no .seatworks/; run setup/add-project.fish there first."
+                exit 2
+            end
+            set -a wanted (path resolve $repo)
         case '*'
-            echo "! unknown argument: $a (usage: setup-seats.fish [--check] [--probe])"
+            echo "! unknown argument: $argv[$i] (usage: setup-seats.fish [--check] [--probe] [--project REPO_DIR]...)"
             exit 2
     end
+    set i (math $i + 1)
 end
 test $dry -eq 1; and echo "[--check] verifying only; nothing will be written."
 test $live -eq 1; and echo "[--probe] each seat's harness will be asked which skills it loads; this spends a cheap model call per seat that needs one."
@@ -827,33 +872,38 @@ else
     or fail "daemon.mcp.injectIntoAgents is not true in $paseo_config, so the Lead and Supervisor get no Paseo tools."
 end
 
-set -l anchor (seats_get '.seats[] | select(.anchor == true) | .role')
-set -l projects
-test $paseo_ok -eq 1
-and set projects (jq -r --arg a "$anchor-" '.agents.providers | to_entries[] | select(.key | startswith($a))
-    | "\(.key | ltrimstr($a))=\(.value.env.SEATWORKS_REPO // "")"' $paseo_config)
+if test $paseo_ok -eq 1
+    for role in (seats_get '.seats[].role')
+        seat_provider $role
+        seat_profile $role
+    end
+end
+
+set -l projects $wanted
+if test (count $projects) -eq 0
+    for id in (seats_get '[.seats[].harness] | unique | .[]')
+        set -l root (expand_home (harness_get $id .profileRoot))
+        set -l prompt_file (harness_get $id .promptFile)
+        test -d $root; or continue
+        for dir in $root/*/
+            test -L $dir/$prompt_file; or continue
+            set -l repo (string replace -r '/\.seatworks/[^/]*$' '' -- (readlink $dir/$prompt_file))
+            test -f $repo/.seatworks/project.json; or continue
+            contains -- $repo $projects; or set -a projects $repo
+        end
+    end
+end
 test (count $projects) -eq 0
 and echo "  · no projects yet; add one with: fish setup/add-project.fish REPO_DIR"
 
-for entry in $projects
-    set -l parts (string split -m1 '=' $entry)
-    set -l slug $parts[1]
-    set -l repo_dir $parts[2]
-    if test -z "$repo_dir"; or not test -d $repo_dir/.seatworks
-        fail "project $slug: $anchor-$slug has no env.SEATWORKS_REPO, or $repo_dir/.seatworks is missing; rerun setup/add-project.fish."
+for repo_dir in $projects
+    set -l slug (project_slug $repo_dir)
+    if test -z "$slug"
+        fail "$repo_dir/.seatworks/project.json names no slug, so its seat directories have no name; rerun: fish $kit/setup/add-project.fish $repo_dir"
         continue
     end
     for role in (seats_get '.seats[].role')
-        set -l key $role-$slug
-        if test (seat_field $role .required) != true
-            optional_seat $key $repo_dir; or continue
-        end
         build_seat $role $slug $repo_dir
-        seat_provider $role $slug $repo_dir
-        if test (seat_field $role .carriesKitPath) = true
-            test (jq -r --arg k $key '.agents.providers[$k].env.SEATWORKS_KIT // ""' $paseo_config) = $kit
-            or fail "provider $key: env.SEATWORKS_KIT is not $kit; rerun: fish $kit/setup/add-project.fish $repo_dir"
-        end
     end
 end
 

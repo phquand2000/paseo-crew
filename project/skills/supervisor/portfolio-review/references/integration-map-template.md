@@ -46,4 +46,5 @@ Replace the following:
 - `GATE`: the condition that opens the next phase.
 - `EVIDENCE`: the SHAs and check results that passed the gate.
 - `RESERVED`: the decisions reserved for the Human, for example `removing the old form`.
-- `LOG_ENTRY`: a direct action you took, and which Leads you notified and how.
+- `LOG_ENTRY`: a phase that opened or closed, a gate that passed, or an action you took in a
+  Lead's workspace and the notice you sent it.

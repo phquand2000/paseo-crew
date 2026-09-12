@@ -9,9 +9,8 @@ disable-model-invocation: true
 Use this skill to check whether a project is built around the right kind of system, not only
 whether its modules are consistent with one another: every module can be well made while the
 whole behaves like a different class of product than its goal calls for. It produces an audit
-report at `.seatworks/records/audits/REPO-YYYY-MM-DD.md` with one verdict at the top. Paths
-starting with `references/` are relative to this skill's directory; every other path is relative
-to the repository root.
+report at `.seatworks/records/audits/REPO-YYYY-MM-DD.md` with one verdict at the top. Every path
+here is relative to the repository root.
 
 ## Boundaries
 
@@ -32,9 +31,8 @@ to the repository root.
   mechanisms: prediction and reconciliation for the locally controlled actor, authoritative
   snapshots with interpolation and interest management for remote actors, sequenced latest-state
   delivery for state that newer values replace, and durable identity with typed outcomes for
-  exact commands. The domain examples in
-  [references/structural-antipatterns.md](references/structural-antipatterns.md) show the level
-  of detail to aim for.
+  exact commands. The domain examples in the structural lenses named in step 5 show the level of
+  detail to aim for.
 
 ## Audit slices
 
@@ -63,9 +61,9 @@ and one module can hold several slices. For each slice, record:
    boundaries, and the proof the repository cites. **Done** when every entry point you found leads
    to a slice.
 4. **Delegate slices if the project is too large to read yourself.** Give each read-only Peer one
-   or a few slices. Create it with `create_agent` from the read-only Peer profile
-   (`<slug>-peer-ro` in `list_profiles`), passing the provider/model and settings the profile
-   lists with `thinkingOptionId: "high"`, in the project's workspace. Its `initialPrompt` is a
+   or a few slices. Create it with `create_agent` from the read-only Peer profile (`peer-ro`),
+   passing the provider/model and settings the profile lists with `thinkingOptionId: "high"`, in
+   this project's workspace. Its `initialPrompt` is a
    brief from `.seatworks/skills/lead/decompose/references/brief-template.md`: disposition
    Architect, owned scope `none`, the claim, and the expected-map rows for its slices. Ask for
    observed-map rows and candidate findings with file and line evidence. Leave out Paseo, seats,
@@ -75,8 +73,9 @@ and one module can hold several slices. For each slice, record:
    the repository is unchanged.
 5. **Compare every slice.** For each mechanism, ask: which demonstrated requirement forces it?
    Does its cost follow useful work? Are the normal and exceptional paths reversed? Would removing
-   or relocating it lose an established requirement? Use
-   [references/structural-antipatterns.md](references/structural-antipatterns.md) as search
+   or relocating it lose an established requirement? Use the project's one catalog of structural
+   misfits and avoidable costs,
+   `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md`, as search
    lenses, not as a checklist. **Done** when every slice has a line of comparison.
 6. **Deep-check the serious candidates.** For each one, trace the real callers and consumers, name
    the exact route by which its cost grows, sketch the cleaner counterfactual and the machinery

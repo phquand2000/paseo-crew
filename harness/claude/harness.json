@@ -39,7 +39,8 @@
     "installTo": ".",
     "hookProtocol": "exit-code",
     "hookSettingsKey": "hooks.PreToolUse",
-    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards"
+    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards",
+    "shellTool": "Bash"
   },
   "deny": {
     "mechanism": "disallowedTools",
@@ -85,7 +86,7 @@
     "retired": [
       "SlashCommand"
     ],
-    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool \u2014 check for typos`. Skills load through the Skill tool, which must stay allowed."
+    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool — check for typos`. Skills load through the Skill tool, which must stay allowed."
   },
   "skillLoad": {
     "tool": "Skill",
@@ -106,7 +107,7 @@
       "claude",
       "-p",
       "--model",
-      "claude-haiku-4-5-20251001"
+      "claude-haiku-4-5"
     ],
     "credentialFromBase": true,
     "live": "run probe.command with the seat's configDirEnv set and ask it to list its skills",
@@ -120,7 +121,9 @@
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
       "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
       "CLAUDE_CODE_DISABLE_WORKFLOWS": "1",
-      "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1"
+      "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1",
+      "SEATWORKS_HARNESS": "claude",
+      "SEATWORKS_AGENT_BIN": "claude"
     },
     "keys": {
       "disallowedTools": []
@@ -132,7 +135,11 @@
       "env": "CLAUDE_CODE_OAUTH_TOKEN",
       "create": "claude setup-token",
       "note": "set on the base provider so every seat inherits it through extends. The kit never reads it from anywhere but the user."
-    }
+    },
+    "command": [
+      "KIT/harness/common/bin/seat-room"
+    ],
+    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched"
   },
   "contextFile": "CLAUDE.md",
   "contextFileNeedsPointer": true,

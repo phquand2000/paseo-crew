@@ -4,9 +4,8 @@ This page lists behavior you can't infer from the config. Each entry gives the s
 cause, and the response. Entries follow the order of the setup steps.
 
 It holds Paseo and kit behavior. Anything true of one coding agent rather than of the kit lives
-in that harness's notes, so swapping a harness doesn't invalidate this page:
-[harness/claude/NOTES.md](harness/claude/NOTES.md),
-[harness/pi/NOTES.md](harness/pi/NOTES.md), [harness/codex/NOTES.md](harness/codex/NOTES.md).
+in that harness's own `NOTES.md` under [harness/](harness/), so swapping a harness doesn't
+invalidate this page, and no entry here names a coding agent or its tools.
 
 ## A harness fact isn't where you expect it
 
@@ -25,9 +24,10 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Symptom:** after you edit `~/.paseo/config.json`, agents still behave as before.
 - **Cause:** Paseo has no file watcher; the daemon keeps the config it loaded.
 - **Response:** run `paseo reload` after every edit to the file. A reload updates providers the
-  daemon already knows, but it builds no snapshot for a new one: a provider `add-project.fish`
-  just created is listed by `paseo status` and still fails `create_agent` with "Provider … is
-  not available" until you run `paseo daemon restart`.
+  daemon already knows, but it builds no snapshot for a new one: a provider `setup-seats.fish`
+  just composed is listed by `paseo status` and still fails `create_agent` with "Provider … is
+  not available" until you run `paseo daemon restart`. The six providers are composed once, so
+  this bites on a first install or when a role moves to another harness.
 
 ## The Lead and Supervisor have no Paseo tools
 
@@ -36,15 +36,35 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Response:** set it to `true` and reload. It applies to every agent the daemon starts, which
   is why the setup script reports it instead of changing it.
 
-## A seat runs normally without its profile
+## A seat belongs to the workspace it starts in
 
-- **Symptom:** a seat works but ignores its prompt.
-- **Cause:** each harness reads a shared config directory unless its `configDirEnv` points
-  somewhere else, and that shared directory carries none of the seat's prompts. Nothing reports
-  an error.
-- **Response:** the "Verify that each seat reads its own prompt and skills" step in SETUP.md
-  catches this. `setup-seats.fish` also compares each provider's `configDirEnv` value with the
-  profile directory it built.
+- **Symptom:** a seat works but ignores its prompt and skills, or a provider name says only a
+  role where you expected it to say which project.
+- **Cause:** the six providers carry no project. Each launches `harness/common/bin/seat-room`,
+  which walks up from the agent's working directory to the nearest `.seatworks/`, reads its
+  `project.json` for the slug, and points the harness's `configDirEnv` at
+  `<profileRoot>/<role>-<slug>`. Finding no `.seatworks/`, no slug, no such directory, or no jq,
+  it execs the coding agent untouched, and the harness reads its shared config directory, which
+  carries none of the seat's prompts. Nothing reports an error, and the fallthrough is
+  deliberate: Paseo also runs the room for its version and login probes, from a working
+  directory of its own.
+- **Response:** start a seat in the project you mean: a Paseo workspace does that, and
+  `create_agent` defaults to the caller's. SETUP.md's "Verify that each seat reads its own prompt
+  and skills" step catches the rest; `setup-seats.fish` checks that every provider runs the room
+  and carries its role in `env.SEATWORKS_ROLE`.
+
+## A project can pin a model per role
+
+- **Symptom:** one project needs a role on a bigger or cheaper model than the rest.
+- **Cause:** `daemon.agentProfiles` is global and has no project field, so a profile's model is
+  the same everywhere. The room changes it instead: Paseo passes the model to the agent as an
+  argument, and the room rewrites that argument before the exec.
+- **Response:** name the role under `models` in `REPO/.seatworks/project.json`
+  (`{"slug": "SLUG", "models": {"lead": "MODEL_ID"}}`), spelled the way that role's harness
+  spells a model; `add-project.fish --model MODEL_ID` writes one entry per role whose
+  `seats.json` entry names no `models`. A role the file doesn't name keeps its profile's model.
+  Pin it here rather than passing another model to `create_agent`, which the profile guard
+  refuses.
 
 ## A harness is newer than the version its facts were checked on
 
@@ -92,13 +112,14 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 
 ## The Peer's model list comes from its harness
 
-- **Symptom:** `peer-SLUG` offers every model that harness's login can reach.
+- **Symptom:** `peer` offers every model that harness's login can reach.
 - **Cause:** a seat whose role names no `models` in `seats.json` gets no `models` list, so Paseo
   asks the harness. An empty `models` list likewise means the full runtime catalog, not "nothing
   to run".
-- **Response:** those seats' agent profiles name the model (`add-project.fish --model`), and the
-  profile guard blocks a Lead's or Supervisor's launch on any other. To cap launches from the
-  app as well, give the role a `models` list in `seats.json`.
+- **Response:** those roles take their model from their agent profile, filled from the harness's
+  `provider.defaultModel`, or from a pin in the project's `project.json`; the profile guard
+  blocks a Lead's or Supervisor's launch on any other. To cap launches from the app too, give
+  the role a `models` list in `seats.json`.
 
 ## Paseo tool access is set per provider ID
 
@@ -117,42 +138,42 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   `deny.mechanism`: a Paseo `disallowedTools` list, guard hooks, or a guard extension. Paseo
   applies `disallowedTools` only to some of its providers, so a role moved to another harness can
   lose a deny list without any error; `setup-seats.fish` says so when a harness has none. The
-  guards themselves are shared. `lead-guard.sh` checks each write against the repository: the
-  Lead may write only `.seatworks/`, `docs/`, `doc/`, `CONTEXT.md`, and every `contextFile` the
-  harness manifests declare, which the guard reads from `$SEATWORKS_KIT/harness/*/harness.json`
-  at startup and falls back to `AGENTS.md` alone when it cannot,
-  the Supervisor only `.seatworks/`, and the watcher only its log under
-  `.seatworks/records/attention/`; files outside the repository stay writable.
-  `profile-guard.sh` holds a Supervisor's and Lead's `create_agent`, `update_agent`,
-  `send_agent_prompt`, `create_schedule`, and `update_schedule` calls to each provider's profile
-  model and mode, blocks `set_agent_mode`, and blocks any provider without a profile.
-  `skill-guard.sh` refuses a gated call until its skill is loaded. `watcher-guard.sh` looks up
-  the target of the watcher's `send_agent_prompt` with `paseo ls`, so `paseo` must be on the
-  daemon's PATH, and lets it reach only its own project's Supervisor, read from
-  `SEATWORKS_SLUG`. Each guard blocks when jq is missing.
+  guards themselves are shared. `lead-guard.sh` checks each write against the repository and
+  allows only the glob patterns a role's `writes` lists in `seats.json`, plus every `contextFile`
+  the manifests declare for a role whose `writesAlsoContextFiles` is set, read from
+  `harness/*/harness.json` at startup and falling back to `AGENTS.md` alone when it cannot; a
+  role with no `writes` may change nothing, and files outside the repository stay writable.
+  `profile-guard.sh` holds a Supervisor's and Lead's agent and schedule calls to their profile's
+  model and mode, and refuses a role outside the caller's `mayStart` list, a provider with no
+  profile, and a named workspace outside its own repository, since a seat started there would
+  load that project's rules. `skill-guard.sh` refuses a gated call until its skill is loaded.
+  `watcher-guard.sh` looks up the target of the watcher's `send_agent_prompt` with `paseo ls`,
+  so `paseo` must be on the daemon's PATH, and lets it reach only its own project's Supervisor:
+  the entry role, in an agent whose working directory is inside `SEATWORKS_REPO`. A Supervisor's
+  own `send_agent_prompt` reaches another project's, which is how cross-project work is relayed.
+  Each guard blocks when jq is missing.
 - **Response:** name the capability as an intent in `seats.json` (`denyCommonIntents`, or a
   role's `denyIntents`), and each harness manifest maps it to its own tool names under
   `deny.intents` or declares it held by a guard under `deny.enforcedByGuard`. An intent a
-  harness does neither with is reported on every run as resting on the prompt alone, so moving
-  a role tells you which limits stopped holding, and the count is printed per seat on every run
-  rather than written down here. Put anything stronger in a shared guard under
+  harness does neither with is reported per seat on every run as resting on the prompt alone,
+  so moving a role tells you which limits stopped holding. Put anything stronger in a guard under
   `harness/common/guards/` or in a harness's own guard extension.
-  `harness/common/hook-io.sh` writes each guard's refusal in the form the seat's harness
-  expects, so one guard body serves every harness, and a manifest's `guards.dir` says which
-  directory its seats install from.
+  `harness/common/hook-io.sh` writes each refusal in the form the seat's harness expects, so one
+  guard body serves every harness, and a manifest's `guards.dir` says where its seats install
+  from.
 
 ## Command guards are guard rails, not sandboxes
 
 - **Symptom:** a blocked command runs anyway in a different form.
-- **Cause:** a deny entry like `Bash(git push:*)` matches by prefix, so `git -C repo push`
-  gets through. The Peer's guard catches that form and also blocks `gh`, but it ignores quoted
-  strings, so `sh -c 'git push'` still runs. `lead-guard.sh` reads a command's redirects and
+- **Cause:** a deny entry that matches a command by prefix lets `git -C repo push` through. The
+  Peer's guard catches that form and blocks `gh` too, but ignores quoted strings, so
+  `sh -c 'git push'` still runs. `lead-guard.sh` reads a command's redirects and
   file-writing commands; a write made inside an interpreter or a nested shell, such as
-  `python -c`, `node -e`, or `sh -c`, is outside its scope. `skill-guard.sh` recognises a merge
-  by matching `git merge` and `git cherry-pick` at a command position, so it passes
-  `git merge-base` and a quoted mention, and a merge reached through an interpreter escapes it.
-  No guard blocks other network commands such as `curl`; the Supervisor's `seat-safety-review`
-  skill checks for that.
+  `python -c`, `node -e`, or `sh -c`, is outside its scope. `skill-guard.sh` matches
+  `git merge` and `git cherry-pick` at a command position, so it passes `git merge-base`, a
+  quoted mention, and a merge reached through an interpreter.
+  No guard blocks other network commands such as `curl`; the kit's own
+  `maintenance/seat-safety-review/` checks for that, and no seat loads it.
 - **Response:** treat the guards as protection against accidents. Keep credentials that could
   do damage out of the Peer's environment.
 
@@ -163,10 +184,10 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   the Lead's prompt and skills and the workspace protocol. A harness whose `promptComments` is
   `shown` would also load an HTML comment verbatim, which is why no `.md` in this kit has one.
 - **Response:** keep maintainer notes out of `.seatworks/PEER.md` and `.seatworks/REVIEWER.md`
-  (the setup script fails on `<!--` in any prompt or skill, whatever the harness), and out of every
-  skill such a seat loads. The hiding reduces noise; it doesn't keep secrets. A seat whose role
-  has `hidesOrchestration` also has its prompt and skills checked for the words `paseo`,
-  `supervisor`, `watcher`, and `seat`.
+  (the setup script fails on an HTML comment in any prompt or skill, whatever the harness), and
+  out of every skill such a seat loads. The hiding reduces noise; it doesn't keep secrets. A
+  seat's prompt and skills are also checked for every word its role's `hidesWords` lists, and
+  its guard refuses a read under any path in `hidesPaths`.
 
 ## The repository's instruction file depends on the harness
 
@@ -186,47 +207,30 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   sees those copies; a harness that also loads a directory listed in its `sharedSkillDirs` gives
   them to every seat on it, the Peer's included.
 - **Response:** leave that install off in the app. The setup script links `paseo` from Paseo's
-  package into the profiles of the roles whose `extraSkills` name it, so it follows Paseo
-  updates.
+  package into the profiles whose role's `extraSkills` name it, so it follows Paseo updates.
 
 ## A shared skill directory reaches every seat on that harness
 
 - **Symptom:** a seat has skills that aren't in its allowlist.
 - **Cause:** a directory in the manifest's `sharedSkillDirs` sits outside the seat's config
-  directory, so every profile on that harness loads it. `sharedSkillDirs` in the manifest names
-  them.
+  directory, so every profile on that harness loads it.
 - **Response:** move skills the seat shouldn't see out of it. The setup script prints how many
   skills each such directory holds, per harness that loads it.
 
-## `list_profiles` shows every project's profiles
+## Agent profiles are global, one per role
 
-- **Symptom:** a Lead in one project sees another project's seats, or starts a Peer that loads
-  the wrong project's prompt and skills.
-- **Cause:** profiles live in one global list, `daemon.agentProfiles`, and the tool returns all
-  of it: there is no project or working-directory filter. A provider from another project
-  carries that project's `SEATWORKS_REPO` and its own config-directory value, so a seat launched
-  on it reads that project's `.seatworks/`.
-- **Response:** `profile-guard.sh` compares the target provider's `env.SEATWORKS_REPO` with the
-  launching seat's and blocks a `create_agent` or `create_schedule` across projects, naming this
-  project's provider strings instead; a provider with no `SEATWORKS_REPO` is blocked too, since a
-  seat on it would load no project prompt. Messaging another project's Supervisor still works,
-  because `send_agent_prompt` is how cross-project work is relayed.
-
-## `list_profiles` decides how the Lead launches Peers
-
-- **Symptom:** a Lead picks a different model or thinking level for each Peer, or asks which
-  provider to use.
-- **Cause:** without agent profiles, `list_profiles` returns nothing and the Lead falls back to
-  guessing from `list_models`. Profiles live in `daemon.agentProfiles` in the Paseo config.
-- **Response:** `setup/add-project.fish` adds one profile per seat, composed from `seats.json`: a
-  role's `models` supplies its model and `isDefault` thinking option; a role with none takes
-  `--model`, or its harness's `provider.defaultModel`, and its own `thinking`; and its `notes`
-  say which dispositions use it and how the thinking level varies. `seats.json` is the list, not
-  this page. A `modeId` is set only for a harness whose
-  `provider.profileModeId` names one. Every rerun restores the notes from `seats.json`, so
-  change them there rather than in the config, and keep one profile per seat. A rerun never
-  changes an existing profile's model: to move a seat to another model, edit that profile's
-  `model` in the config and run `paseo reload`; the profile guard follows it.
+- **Symptom:** `list_profiles` returns the same six profiles in every project, a Lead asks which
+  provider to use, or a profile's model you edited by hand comes back changed.
+- **Cause:** profiles live in one global list, `daemon.agentProfiles`, with no project or
+  working-directory field. Because a seat joins the project it is started in, the same six are
+  the right answer everywhere, and the setup script rewrites each from `seats.json` every run.
+- **Response:** `setup/setup-seats.fish` composes one profile per role: a role's `models`
+  supplies its model and `isDefault` thinking option; a role with none takes its harness's
+  `provider.defaultModel` and its own `thinking`; a `modeId` only a harness whose
+  `provider.profileModeId` names one; and its `notes` say which dispositions use it. `--check`
+  fails for a profile that differs from `seats.json`. To move a role to another model everywhere,
+  change it there; for one project, pin it in that project's `project.json`. Without profiles,
+  `list_profiles` returns nothing and a Lead guesses from `list_models`.
 
 ## `settings.modeId` and a harness that has no modes
 
@@ -246,40 +250,29 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   version.
 - **Cause:** an agent keeps what it started with until its session ends. Seats spawned
   afterwards pick up prompts, settings, extensions, and skills immediately.
-- **Response:** archive the old agents and delete their schedules and heartbeats, so that two
-  versions of the rules don't run side by side. A seat rename is the same case, and worse: a
-  running agent holds the old profile path, so archive every agent before
-  `setup/migrate-seat-names.fish --apply`.
+- **Response:** archive the old agents and delete their schedules and heartbeats, so two versions
+  of the rules don't run side by side. Moving a role to another harness is worse: a running agent
+  holds the old profile path, so archive every agent first.
 
 ## Kit template edits don't reach existing projects
 
 - **Symptom:** after you edit `project/LEAD.md` or a skill under `project/skills/` in the kit, a
   project's seats still follow the old text.
 - **Cause:** `setup/add-project.fish` copies the templates into `REPO/.seatworks/` once and a
-  plain rerun never overwrites them, and the project's profiles link to that copy. The setup
-  script finds a project's `.seatworks/` through `env.SEATWORKS_REPO` on the provider of the role
-  marked `anchor` in `seats.json`.
+  plain rerun never overwrites them, and the profile directories link to that copy. The setup
+  script finds a project by reading where each profile directory's prompt link points, and
+  counts it only when `.seatworks/project.json` is there; `--project REPO_DIR` names one
+  directly.
 - **Response:** send a change to a seat prompt, skill, or guard to the kit as a diff. Guards are
-  linked from the kit; prompts and skills reach a project through
-  `fish setup/add-project.fish REPO_DIR --refresh`, which replaces them, and the workspace
-  protocol while it is still the unfilled template, with the kit's versions, keeping each old
-  copy under the git-ignored `.seatworks/records/drafts/refresh-STAMP/`. Put project-only rules
+  linked from the kit; prompts and skills, and the workspace protocol while it is still the
+  unfilled template, reach a project through `fish setup/add-project.fish REPO_DIR --refresh`,
+  which replaces them with the kit's versions and keeps each old copy under the git-ignored
+  `.seatworks/records/drafts/refresh-STAMP/`. Put project-only rules
   in `AGENTS.md` or the filled-in `.seatworks/WORKSPACE_PROTOCOL.md`, which refresh never
-  touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles' notes and, after the
-  kit moves, the providers' kit and profile paths. If the repository moves, set
-  `env.SEATWORKS_REPO` on the anchor role's provider to the new path and rerun add-project there
-  with `--slug SLUG`; it updates the other providers.
-
-## A template that names a seat has to name it as ROLE-SLUG
-
-- **Symptom:** after `add-project.fish`, a prompt or skill refers to `peer` or `reviewer` where a
-  provider name was meant, or an ordinary sentence gains a slug.
-- **Cause:** seats are named for their roles, so `peer` and `reviewer` are also ordinary words in
-  these prompts. The script substitutes exactly `ROLE-SLUG`, which is unambiguous, and nothing
-  else.
-- **Response:** in `project/` and `examples/`, always write a provider as `peer-SLUG`,
-  `peer-ro-SLUG`, `reviewer-SLUG`, `lead-SLUG`, `supervisor-SLUG`, or `watcher-SLUG`, never as a
-  bare role word in code font.
+  touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles and, after the kit
+  moves, the providers' kit paths. If the repository moves, rerun add-project at the new path
+  with the same `--slug SLUG`; the old profile directories point at a path with no
+  `project.json`, are ignored, and can be deleted.
 
 ## Archiving a Lead archives its Peers
 
@@ -314,15 +307,15 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 ## The watcher has its own seat
 
 - **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that
-  `watcher-SLUG` (or another seat) doesn't exist yet.
-- **Cause:** the watcher runs on a small model and reads its prompt on every sweep, so it has a
-  seat of its own whose instruction file is the short `.seatworks/WATCHER.md`, with the trigger
-  table in it, rather than the Supervisor's prompt. Projects added before a seat existed lack its
-  provider, profile, and prompt; `seats.json` marks such a role `required: false` and the script
-  says how to add it. Paseo sets `PASEO_AGENT_ID` in every agent's environment, which is how the
-  Supervisor gives the watcher its own ID.
+  `watcher` (or another seat) doesn't exist yet.
+- **Cause:** the watcher runs on a small model and reads its prompt on every sweep, so its
+  instruction file is the short `.seatworks/WATCHER.md`, with the trigger table in it, rather
+  than the Supervisor's prompt. A project added before a seat existed lacks its profile
+  directory and prompt. Paseo sets `PASEO_AGENT_ID` in every agent's environment, which is how
+  the Supervisor gives the watcher its own ID.
 - **Response:** run `fish setup/add-project.fish REPO_DIR` without `--refresh`; it adds the
-  missing providers, profiles, and files, keeps the project's prompts, and reloads Paseo.
+  missing files, composes any missing provider and profile, builds the profile directory, keeps
+  the project's prompts, and reloads Paseo.
 
 ## The Reviewer runs Open Code Review in one of two modes
 
@@ -344,7 +337,7 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   provider, which makes its guard block the harness's write and edit tools and the git commands
   that change the repository. Shell redirection still works, so temporary files under `$TMPDIR`
   remain possible, and so does a determined write.
-- **Response:** expected; send work that edits files to `peer-SLUG`. The guard prevents
+- **Response:** expected; send work that edits files to `peer`. The guard prevents
   accidents rather than sandboxing; the setup script checks that the variable stays on every
   read-only provider.
 
@@ -366,4 +359,4 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Cause:** every harness loads larger files. The budget, `promptBudget` in `seats.json`, exists
   because every line costs context on every turn, and rules at the end of a long file get
   skimmed.
-- **Response:** when a prompt exceeds the budget, cut content rather than raising the limit.
+- **Response:** when a prompt exceeds the budget, cut content rather than raise the limit.

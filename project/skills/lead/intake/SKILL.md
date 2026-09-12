@@ -70,7 +70,7 @@ decompose skill.
    them throws away its judgment; interfaces other slices consume are leverage points, settled
    in decompose step 1. Route each open choice:
 
-   - product direction, priority, or an irreversible trade-off: ask the Human;
+   - a decision under "Decisions that belong to the Human" in your seat prompt: ask the Human;
    - a technical choice a few reads can settle: decide it and record it;
    - a technical choice that stays contested: run the council skill at the tier in step 7.
 
@@ -88,11 +88,11 @@ decompose skill.
    | Review | you read the diff; Reviewers 0 | you read the diff; Reviewers 0 unless a condition under "Independent review" in your seat prompt applies | at least two sealed Reviewers on separate axes, and a high-recall sweep when the proof is weak |
    | Council | none | lens or debate, for a contested choice only | debate-with-proof for a contested choice; the high-risk tier when it can't be undone |
    | Rollout | none | local revert | a change-rollout plan with the rollback proven before rollout |
-   | Merge | the integration skill | the integration skill | the integration skill |
 
-   Done when the intake result's Rigor line names a number of Reviewers, a council tier or
-   `none`, and a rollout route. A Rigor line that names Reviewers is itself a Reviewer
-   condition: brief them only through the review-orchestration skill.
+   Every lane merges through the integration skill. Done when the intake result's Rigor line
+   names a number of Reviewers, a council tier or `none`, and a rollout route. A Rigor line that
+   names Reviewers is itself a Reviewer condition: brief them only through the
+   review-orchestration skill.
 
 8. **Open an ExecPlan** when the lane is high-risk, or when normal work will span sessions,
    several Peers, or a handoff. Copy the template in `references/execplan.md` (relative to this

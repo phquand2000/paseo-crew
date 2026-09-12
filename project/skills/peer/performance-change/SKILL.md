@@ -1,11 +1,11 @@
 ---
 name: performance-change
-description: "Change performance on evidence: baseline the claimed path, find the bottleneck, change one thing, re-measure, keep or revert on the numbers, add a guard. Use when a brief asks to make something faster, smaller, or cheaper, or investigate a slowdown."
+description: "Change performance on evidence: pin the claimed path and the method, baseline its spread, profile before choosing, then keep or revert on the numbers and record every attempt in a ledger. Use when a brief asks to make something faster, smaller, or cheaper, or to investigate a slowdown."
 ---
 
 # Performance change
 
-Use this skill to change performance on evidence: a baseline on the claimed path, one change at a time, and a keep-or-revert decision made on the numbers. If the brief makes you read-only (an Architect or Scout disposition), or asks only to investigate a slowdown, stop after Find the bottleneck. Report the baseline and the profile evidence, change no code, and commit nothing.
+Use this skill to change performance on evidence: a baseline on the claimed path, one change at a time, and a keep-or-revert decision made on the numbers. Under a read-only disposition, or when the brief asks only to investigate a slowdown, stop after Find the bottleneck and report the baseline with the profile evidence.
 
 ## Pin the claim and the method
 
@@ -21,29 +21,17 @@ Run the method enough times to see its spread: at least five runs, or the benchm
 
 ## Find the bottleneck
 
-Profile before you choose a change (a CPU or allocation profile, a query log or plan, a trace), and name the one thing that dominates: a function, query, lock, allocation site, or round trip. Typical culprits:
-
-- work repeated per item, such as one query per row, or a scan proportional to the total size inside a loop;
-- copies, or encoding and decoding the same data more than once;
-- allocation inside a hot loop;
-- unbounded fetches where a page or a limit would do;
-- blocking calls, lock contention, or ordering imposed on independent work;
-- extra round trips.
+Profile before you choose a change (a CPU or allocation profile, a query log or plan, a trace), and name the one thing that dominates: a function, query, lock, allocation site, or round trip. The Avoidable costs section of `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md` lists where this cost usually hides.
 
 Done when a profile excerpt or query plan points at the bottleneck. If the bottleneck lies outside your owned scope, send a `DEPENDENCY_REQUEST` with that evidence.
 
-If the bottleneck is overhead that an abstraction in the path introduced (a layer that converts the same data twice, a wrapper that forces copies, a generic path the only caller doesn't need), record it under Unknown / risk as a finding, even if you optimize around it. Winning back that overhead treats the symptom; removing the layer may be the better fix, and that may not be yours to decide.
+If it is overhead an abstraction in the path introduced, record that under Unknown / risk even when you optimize around it: winning the overhead back treats the symptom, and removing the layer may not be yours to decide.
 
 ## Change one thing and re-measure
 
-1. Make one change; three changes measured together give one number you can't attribute.
-2. Run the brief's tests. A speed-up that drops required work, such as a validation, a freshness guarantee, or an awaited write, is a regression.
-3. Measure again with the baseline's command, inputs, sample count, and cache state, and compare the difference with the spread.
-4. Decide on the numbers:
-   - better by more than the spread, with tests green: keep it, and put the before and after numbers in the commit message;
-   - within the spread: revert it;
-   - worse: revert it;
-   - faster, but a test failed: revert it.
+1. A speed-up that drops required work, such as a validation, a freshness guarantee, or an awaited write, is a regression, so run the brief's tests with every attempt.
+2. Measure again with the baseline's command, inputs, sample count, and cache state, and compare the difference with the spread.
+3. Decide on the numbers: keep it when it is better by more than the spread with tests green, and put the before and after numbers in the commit message; revert it when it lands within the spread, is worse, or a test failed.
 
 Done when every attempt, kept or reverted, is in the attempt ledger below, so a dead idea isn't tried again.
 

@@ -1,8 +1,8 @@
 # Pre-mortem brief
 
-Every pre-mortem seat gets this same text as its `initialPrompt`. It uses the fields of
-`.seatworks/skills/lead/decompose/references/brief-template.md`, so the Peer reads it like any
-other assignment. Copy the block below:
+Every pre-mortem seat gets this same text as its `initialPrompt`. Its fields are a Peer brief's
+own, so the Peer reads it like any other assignment; every field this one needs is below. Copy
+the block:
 
 ```text
 Task ID                       premortem-SLUG-SEAT_LETTER

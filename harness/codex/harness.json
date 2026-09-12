@@ -43,7 +43,11 @@
   "state": {
     "file": "model-catalog.json",
     "build": "bin/materialize-room",
-    "note": "written by the materializer from harness/codex/models.json with every multi_agent_version set to null, so the seat cannot start Codex-native subagents and Paseo stays the only control plane"
+    "note": "written by the materializer from harness/codex/models.json with every multi_agent_version set to null, so the seat cannot start Codex-native subagents and Paseo stays the only control plane",
+    "nullFields": [
+      "multi_agent_version"
+    ],
+    "nullFieldsNote": "fields the materializer sets to null in every model-catalog entry, so the seat cannot start this harness's native subagents and Paseo stays the only control plane"
   },
   "guards": {
     "dir": "common/guards",
@@ -51,7 +55,9 @@
     "hookProtocol": "json-decision",
     "hookSettingsKey": "hooks.PreToolUse",
     "hookSettingsFile": "hooks.json",
-    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards"
+    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards",
+    "shellTool": null,
+    "shellToolNote": "unset: nobody has confirmed what this harness calls its shell tool in a hook payload, so the merge gate does not hold here. Settle it in NOTES.md before sending a gated role to this harness."
   },
   "deny": {
     "mechanism": "hooks",
@@ -89,13 +95,14 @@
       "SEATWORKS_CODEX_WIRE_API": "responses",
       "SEATWORKS_CODEX_MODEL": "glm-5.3",
       "SEATWORKS_CODEX_MODEL_DESCRIPTION": "Z.ai's latest flagship model",
-      "SEATWORKS_CODEX_KEEP_BUNDLED": "0"
+      "SEATWORKS_CODEX_KEEP_BUNDLED": "0",
+      "SEATWORKS_HARNESS": "codex",
+      "SEATWORKS_AGENT_BIN": "codex"
     },
     "keys": {},
     "profileModeId": null,
     "command": [
-      "KIT/harness/codex/bin/codex-room",
-      "SEAT"
+      "KIT/harness/common/bin/seat-room"
     ],
     "envNote": "SEATWORKS_CODEX_ENV_KEY names the variable Codex reads the API key from; the key itself is never written here or anywhere else in the kit. Export it for the Paseo daemon.",
     "defaultModel": "glm-5.3",
@@ -103,7 +110,8 @@
     "baseCredential": null,
     "baseCredentialNote": "null: this harness authenticates through the login file in links, not through a token on its Paseo base provider.",
     "envPrefix": "SEATWORKS_CODEX_",
-    "envPrefixNote": "the prefix setup-seats.fish passes through to this harness's materializer, so no script names the harness."
+    "envPrefixNote": "the prefix setup-seats.fish passes through to this harness's materializer, so no script names the harness.",
+    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched"
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,

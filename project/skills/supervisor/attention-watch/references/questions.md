@@ -17,6 +17,7 @@ the Supervisor.
 | decision (Lead) | CHECK | "Which alternatives did you weigh for this ruling, and what evidence would reverse it?" |
 | decision after lanes (Lead) | CHECK | "Which lane's strongest point does your ruling leave unanswered, if any?" |
 | detour (Lead) | CHECK | "Is this gap inside your outcome, or a foundation another owner should build first?" |
+| handoff (Lead) | CHECK, then archive once the successor confirms | "Which Peers are still running, which of their results have you accepted, and which decisions are still open?" |
 | framing (Lead) | ADVICE; CHECK when one brief shows it | "Does this brief leave the Peer room to propose a route you didn't list?" |
 | coordination (Lead codes) | CHECK | "Which files did you change yourself, and does your seat prompt count each one as a coordination record?" |
 | coordination (fix rounds) | CHECK | "Do the findings behind these fix rounds share one missing mechanism or a wrong foundation? Compare them and say what you find, including nothing." |

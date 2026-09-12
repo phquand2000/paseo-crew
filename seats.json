@@ -13,7 +13,6 @@
         "lead-guard.sh",
         "profile-guard.sh"
       ],
-      "guardRole": "supervisor",
       "deny": [],
       "readOnly": false,
       "hidesOrchestration": false,
@@ -42,7 +41,18 @@
       "entry": true,
       "denyIntents": [
         "lsp"
-      ]
+      ],
+      "writes": [
+        ".seatworks",
+        ".seatworks/*"
+      ],
+      "writesRule": "The Supervisor writes only in .seatworks/; code and tests go to a Lead, whose Peers write them.",
+      "mayStart": [
+        "lead",
+        "watcher",
+        "peer-ro"
+      ],
+      "hidesWords": []
     },
     {
       "role": "lead",
@@ -58,7 +68,6 @@
         "profile-guard.sh",
         "skill-guard.sh"
       ],
-      "guardRole": "lead",
       "deny": [],
       "readOnly": false,
       "hidesOrchestration": false,
@@ -86,6 +95,26 @@
       "description": "Lead seat: framing, delegation, review, acceptance",
       "denyIntents": [
         "lsp"
+      ],
+      "writes": [
+        ".seatworks/records",
+        ".seatworks/records/lessons",
+        ".seatworks/records/lessons/*",
+        "docs",
+        "docs/*",
+        "doc",
+        "doc/*",
+        "CONTEXT.md"
+      ],
+      "writesAlsoContextFiles": true,
+      "writesRule": "The Lead writes only its own coordination records: the lesson log under .seatworks/records/lessons/, the plans, decision records and review reports under docs/ (or doc/), CONTEXT.md, and the repository instruction files. The rest of .seatworks/ is the Supervisor's, and code and tests go to an Engineer Peer through a brief.",
+      "mayStart": [
+        "peer",
+        "peer-ro",
+        "reviewer"
+      ],
+      "hidesWords": [
+        "supervisor"
       ]
     },
     {
@@ -101,7 +130,6 @@
         "lead-guard.sh",
         "watcher-guard.sh"
       ],
-      "guardRole": "watcher",
       "deny": [
         "mcp__paseo__create_agent",
         "mcp__paseo__update_agent",
@@ -141,7 +169,13 @@
       "denyIntents": [
         "lsp",
         "file-edit"
-      ]
+      ],
+      "writes": [
+        ".seatworks/records/attention/?*"
+      ],
+      "writesRule": "The watcher writes only its log in .seatworks/records/attention/; everything else goes to the Supervisor as an attention event.",
+      "mayStart": [],
+      "hidesWords": []
     },
     {
       "role": "peer",
@@ -153,7 +187,6 @@
       "guards": [
         "peer-guard.ts"
       ],
-      "guardRole": "peer",
       "deny": [],
       "readOnly": false,
       "hidesOrchestration": true,
@@ -162,7 +195,25 @@
       "models": [],
       "thinking": "medium",
       "description": "Peer seat: implementation, evidence, handoff",
-      "denyIntents": []
+      "denyIntents": [],
+      "mayStart": [],
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "watcher",
+        "seat",
+        "seats"
+      ],
+      "hidesPaths": [
+        ".seatworks/SUPERVISOR.md",
+        ".seatworks/LEAD.md",
+        ".seatworks/WATCHER.md",
+        ".seatworks/NOTEBOOK.md",
+        ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/skills/lead",
+        ".seatworks/skills/supervisor",
+        ".seatworks/records"
+      ]
     },
     {
       "role": "peer-ro",
@@ -174,7 +225,6 @@
       "guards": [
         "peer-guard.ts"
       ],
-      "guardRole": "peer",
       "deny": [],
       "readOnly": true,
       "hidesOrchestration": true,
@@ -183,7 +233,25 @@
       "models": [],
       "thinking": "high",
       "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked",
-      "denyIntents": []
+      "denyIntents": [],
+      "mayStart": [],
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "watcher",
+        "seat",
+        "seats"
+      ],
+      "hidesPaths": [
+        ".seatworks/SUPERVISOR.md",
+        ".seatworks/LEAD.md",
+        ".seatworks/WATCHER.md",
+        ".seatworks/NOTEBOOK.md",
+        ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/skills/lead",
+        ".seatworks/skills/supervisor",
+        ".seatworks/records"
+      ]
     },
     {
       "role": "reviewer",
@@ -197,7 +265,6 @@
       "guards": [
         "peer-guard.ts"
       ],
-      "guardRole": "peer",
       "deny": [],
       "readOnly": true,
       "hidesOrchestration": true,
@@ -207,7 +274,25 @@
       "thinking": "high",
       "description": "Reviewer seat: read-only code review with Open Code Review",
       "reviewSeat": true,
-      "denyIntents": []
+      "denyIntents": [],
+      "mayStart": [],
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "watcher",
+        "seat",
+        "seats"
+      ],
+      "hidesPaths": [
+        ".seatworks/SUPERVISOR.md",
+        ".seatworks/LEAD.md",
+        ".seatworks/WATCHER.md",
+        ".seatworks/NOTEBOOK.md",
+        ".seatworks/WORKSPACE_PROTOCOL.md",
+        ".seatworks/skills/lead",
+        ".seatworks/skills/supervisor",
+        ".seatworks/records"
+      ]
     }
   ],
   "promptBudget": 16384,
@@ -241,5 +326,10 @@
     "git-push",
     "forge-cli"
   ],
-  "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding."
+  "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding.",
+  "writesNote": "writes lists the repository paths a seat may change, as shell glob patterns relative to the repository root; harness/common/guards/lead-guard.sh reads them and refuses every other path with writesRule. A seat with no writes entry may change nothing, so a new role fails closed.",
+  "mayStartNote": "mayStart lists the roles a seat may launch; harness/common/guards/profile-guard.sh refuses a create_agent or create_schedule on any other role, so an empty list means the seat starts nothing. With one provider per role the provider name is the role, which is what the guard matches.",
+  "hidesWordsNote": "hidesWords lists words a seat must never see: setup-seats.fish refuses the seat prompt and every skill it links if one of them appears as a whole word, case-insensitively. Peers and Reviewers believe they work directly for a human, and a Lead knows only the three message labels, so nothing may name the seat above it.",
+  "hidesPathsNote": "hidesPaths lists repository paths a seat may not read, because the project keeps every seat prompt in one directory: a Peer that opened .seatworks/SUPERVISOR.md would learn about the layer above it. setup-seats.fish passes the list to the seat as SEATWORKS_HIDDEN_PATHS and its guard refuses a read there. Anything a Peer needs from those files belongs in its brief or in the repository instruction file.",
+  "guardsNote": "guards names the files a seat installs, so moving a role to another harness moves everything in seats.json except this list: a hook-protocol harness takes the shell guards under harness/common/guards/, and a harness whose guards.hookProtocol is \"extension\" needs its own, as harness/pi/extensions/ shows. Check the target harness has an equivalent before you change a role's harness, and read report_unenforced's output, which names every intent the new harness enforces with neither a deny list nor a guard."
 }

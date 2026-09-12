@@ -26,22 +26,11 @@ options block, and a closing summary ending with the `LESSON:` line.
    `git merge-base --is-ancestor "$sha" BRANCH && echo on-branch`.
    Done when every slice maps to one branch and one SHA.
 
-2. **Create the integration worktree** with `create_workspace`, so the main checkout and any
-   uncommitted work in it stay untouched, and a conflict Peer can be placed in it:
-
-   ```text
-   create_workspace
-     isolation:    "worktree"
-     path:         REPO_ROOT
-     mode:         "branch-off"
-     baseBranch:   BASE
-     branchName:   "integrate/SLUG"
-     worktreeSlug: "integrate-SLUG"
-     title:        "SLUG integration"
-   ```
-
-   Keep the returned workspace ID, and call its directory `WORKTREE_PATH`. Done when
-   `git -C WORKTREE_PATH status --short` is empty.
+2. **Create the integration worktree** with the `create_workspace` call in the decompose
+   skill's step 9, with `branchName: "integrate/SLUG"`, `worktreeSlug: "integrate-SLUG"`, and
+   `title: "SLUG integration"`, so the main checkout and any uncommitted work in it stay
+   untouched and a conflict Peer can be placed in it. Keep the returned workspace ID, and call
+   its directory `WORKTREE_PATH`. Done when `git -C WORKTREE_PATH status --short` is empty.
 
 3. **Merge the slices in dependency order** (the ExecPlan's dependency graph, else acceptance
    order), running the fast check after each merge so a break points at one slice:

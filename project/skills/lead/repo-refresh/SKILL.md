@@ -52,7 +52,7 @@ one, judge by current consumers and ownership, not by dates.
    and the consumer or command that shows it is current.
 
 2. **Build the inventory ledger** outside the repository: run `echo "${TMPDIR:-/tmp}"` and
-   write `refresh-REPO-DATE.md` under the absolute path it prints (the Write tool expands no
+   write `refresh-REPO-DATE.md` under the absolute path it prints (your file tools expand no
    variables), one row per suspect:
 
    ```text
@@ -64,7 +64,7 @@ one, judge by current consumers and ownership, not by dates.
    task-runner machinery; scripts, fixtures, snapshots, reports, generated output, and tracked
    build debris; dead links, paths, commands, and owner names; and unusually large or
    fragmented surfaces that hide one contract. For a large repository, split the inventory by
-   top-level area across Scout Peers from the read-only Peer profile (`peer-ro-SLUG`, `low`
+   top-level area across Scout Peers from the read-only Peer profile (`peer-ro`, `low`
    thinking), each returning rows for its area, and merge the rows yourself. Done when every
    row has its owner, consumer, unique information, destination, and deletion consequence, or
    `none` where that is the finding.

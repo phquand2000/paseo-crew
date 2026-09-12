@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Create a deterministic review report scaffold.
-
-This script owns the report path, round increment, and markdown skeleton so
-agents do not improvise artifact names or section layout.
-"""
+"""Create a deterministic review report scaffold."""
 
 from __future__ import annotations
 

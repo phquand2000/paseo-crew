@@ -31,7 +31,9 @@
     "installTo": "extensions",
     "hookProtocol": "extension",
     "readOnlyEnv": "SEATWORKS_READ_ONLY",
-    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards"
+    "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards",
+    "shellTool": null,
+    "shellToolNote": "unset: this harness gates skills through its extension, not through the shared shell guard."
   },
   "deny": {
     "mechanism": "extension",
@@ -71,7 +73,9 @@
   "provider": {
     "env": {
       "PI_SKIP_VERSION_CHECK": "1",
-      "PI_TELEMETRY": "0"
+      "PI_TELEMETRY": "0",
+      "SEATWORKS_HARNESS": "pi",
+      "SEATWORKS_AGENT_BIN": "pi"
     },
     "keys": {
       "paseoTools": {
@@ -82,7 +86,11 @@
     "defaultModel": "zai/glm-5.3",
     "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id, Codex wants the bare slug with model_provider set separately.",
     "baseCredential": null,
-    "baseCredentialNote": "null: this harness authenticates through the login file in links, not through a token on its Paseo base provider."
+    "baseCredentialNote": "null: this harness authenticates through the login file in links, not through a token on its Paseo base provider.",
+    "command": [
+      "KIT/harness/common/bin/seat-room"
+    ],
+    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched"
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,

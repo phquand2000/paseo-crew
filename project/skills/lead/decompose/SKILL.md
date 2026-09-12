@@ -80,20 +80,9 @@ the graph and brief one Engineer; the integration skill still merges it.
    slice needs its own context and doesn't depend on a slice in flight. Done when every
    frontier slice has exactly one owner.
 
-7. **Write one brief per slice** from the template. Beyond its task, scope, and verification
-   fields, it carries:
-
-   - **Interfaces**: the exact signatures, types, routes, or schemas the slice consumes, with
-     the SHA or path they come from, and those it produces for later slices, each settled in
-     step 1 or by the skeleton, never invented in the brief. A Peer sees only its own brief, so
-     this is how neighboring slices agree on names.
-   - **Global constraints**: the requirements that bind every slice, copied word for word from
-     the spec, the owner directive, or `AGENTS.md`, because a paraphrase is how "exactly two
-     decimal places" turns into "round sensibly".
-   - **Open questions**: what you want the Peer's judgment on.
-
-   Done when every field has a value or `none`, and no Interfaces entry names something that no
-   slice or existing code produces.
+7. **Write one brief per slice** from the template; its Interfaces, Global constraints, and
+   Open questions fields carry their own rules there. Done when every field has a value or
+   `none`, and no Interfaces entry names something that no slice or existing code produces.
 
 8. **Keep the ledger.** Fill in the ExecPlan's slice table, and add a Progress line for each
    event in the same turn it happens: briefed, handoff received, fix round, reopen, ruling,
@@ -115,14 +104,14 @@ the graph and brief one Engineer; the integration skill still merges it.
    ```
 
    Then create the Peer from the profile for its disposition (`list_profiles`): an Engineer
-   from the Peer profile (`peer-SLUG`), an Architect or Scout from the read-only Peer profile
-   (`peer-ro-SLUG`). Pass a writer the new workspace's ID, and name its directory in the brief's
+   from the Peer profile (`peer`), an Architect or Scout from the read-only Peer profile
+   (`peer-ro`). Pass a writer the new workspace's ID, and name its directory in the brief's
    Workspace field:
 
    ```text
    create_agent
      title:         "S2 Engineer: invoice CSV serializer"
-     provider:      "peer-SLUG/PEER_MODEL"
+     provider:      "peer/PEER_MODEL"
      settings:      { thinkingOptionId: "medium" }
      workspaceId:   WORKSPACE_ID
      labels:        { plan: "SLUG", task: "S2", disposition: "engineer", round: "0" }

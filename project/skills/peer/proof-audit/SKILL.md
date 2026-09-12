@@ -1,6 +1,6 @@
 ---
 name: proof-audit
-description: "Audit whether a test, validator, benchmark, or gate proves its cited behavior: what it observes, where expected values come from, whether it fails on revert, and a disposition. Use when a brief asks if a proof is real, or before citing one you doubt."
+description: "Audits whether a test, validator, benchmark, or gate proves the behavior it is cited for: what it observes, where its expected values come from, whether it fails when the behavior is reverted, and one disposition per proof. Use when a brief asks whether a proof is real, or before citing a doubtful one."
 ---
 
 # Proof audit

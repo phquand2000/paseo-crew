@@ -7,14 +7,14 @@ description: "Fills in WORKSPACE_PROTOCOL.md and AGENTS.md after setup: intervie
 
 Use this skill to turn the project's template rules into real ones. Setup copied
 `.seatworks/WORKSPACE_PROTOCOL.md` (read only by the Lead), which you fill in yourself because
-`.seatworks/` is yours to write, and `AGENTS.md` (read by every agent), which holds the
-repository's rules for everyone, so you draft it and the Lead commits it. Paths are relative to
-the repository root, your working directory.
+`.seatworks/` is yours to write, and `AGENTS.md` (read by every agent), which holds rules
+for everyone, so you draft it and the Lead commits it. Paths are relative to the repository
+root.
 
 ## Procedure
 
-1. **Check that the project is set up:** `.seatworks/WORKSPACE_PROTOCOL.md` exists and
-   `list_profiles` shows the project's Lead and Peer profiles (`<slug>-lead`, `<slug>-peer`). If
+1. **Check that the project is set up:** `.seatworks/WORKSPACE_PROTOCOL.md` and
+   `.seatworks/project.json` exist, and `list_profiles` shows the `lead` and `peer` profiles. If
    either fails, ask the Human to run `fish $SEATWORKS_KIT/setup/add-project.fish` for this
    repository, and stop. **Done** when both hold.
 2. **Read the repository before asking.** List the open placeholders:
@@ -40,9 +40,9 @@ the repository root, your working directory.
    recommendation and its evidence are in `NOTES.md`.
 4. **Interview the Human about the unknowns.** Ask in rounds: every question you can ask now,
    numbered, each with a recommended answer, as in the intent-interview skill. The protocol's
-   `PEER_MODEL` is the model of the `<slug>-peer` profile in `list_profiles`, because the profile
-   guard blocks a launch on any other; another model is a profile change, so write it out for the
-   Human. When the Human proposes a rule, ask for the episode it would have prevented; a rule
+   `PEER_MODEL` is the model this project pins for `peer` in `.seatworks/project.json`, or the
+   `peer` profile's when it pins none, because the profile guard blocks a launch on any other;
+   another model changes that file, so write it out for the Human. When the Human proposes a rule, ask for the episode it would have prevented; a rule
    without one is ceremony, and ceremony only ever tightens. **Done** when every placeholder you
    keep has an answer.
 5. **Fill in `.seatworks/WORKSPACE_PROTOCOL.md` in place.** Replace the placeholders, and delete
@@ -50,10 +50,10 @@ the repository root, your working directory.
    the file every session. Give each mandatory rule a `Reason:` line (a dated, reproducible
    episode) and a `Remove when:` line (the evidence that would retire it). **Done** when the
    step 2 search prints nothing for this file and
-   `grep -n 'peer-SLUG/' .seatworks/WORKSPACE_PROTOCOL.md` shows the Peer profile's model.
+   `grep -n 'peer/' .seatworks/WORKSPACE_PROTOCOL.md` shows the Peer profile's model.
 6. **Draft `AGENTS.md`.** Copy `AGENTS.md` to `.seatworks/records/drafts/AGENTS.md` and fill it
    in by the same rules. For each line, ask whether a Peer would make a mistake without it: if
-   it would, the line belongs in `AGENTS.md`; if only the Lead needs it, in the protocol. Peers
+   so, the line belongs in `AGENTS.md`; if only the Lead needs it, in the protocol. Peers
    don't read the protocol, and coordination detail in `AGENTS.md` distracts them every turn.
    **Done** when the draft has no placeholder left and no technical constraint lives only in the
    protocol.
