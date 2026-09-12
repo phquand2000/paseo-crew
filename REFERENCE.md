@@ -74,16 +74,18 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Symptom:** a seat works without the skill its task calls for, or loads one skill and none of
   the files that skill points at.
 - **Cause:** a harness puts only skill names and descriptions in the system prompt and leaves
-  the agent to open the `SKILL.md` itself. Pi's own documentation says models don't always do
-  this, and two evaluation runs recorded a Lead skipping `review-orchestration` and `integration`
-  though `LEAD.md` said to load them. Nothing reports the miss.
+  the agent to open the `SKILL.md` itself, and at least one harness's own documentation says
+  models don't always do it (see its `NOTES.md`). Two evaluation runs recorded a Lead skipping
+  `review-orchestration` and `integration` though `LEAD.md` said to load them. Nothing reports
+  the miss.
 - **Response:** three layers, in order of strength. The prompts carry it, and each skill opens
   the files it depends on as a step of its own. `seats.json`'s `skillGates` then refuse the call
   a skill owns until that skill is loaded, which is what actually changed the outcome; the guard
   reads the session transcript, so a load through the harness's skill tool or a read of the
   `SKILL.md` both count. Last, a seat that keeps missing one particular skill can be forced with
-  the harness's `skillLoad.force` form; on Pi that expansion happens before the model's turn and
-  leaves no tool call, so it does **not** satisfy a gate.
+  the harness's `skillLoad.force` form. On a harness that expands it before the model's turn it
+  leaves no tool call and so does **not** satisfy a gate; each `NOTES.md` says which case its
+  harness is.
 - **Add a gate only for a skill a seat has been observed to skip.** Each gate costs the seat one
   tool call it would otherwise choose, and a gate on a step the model already does right is a
   rule without a failure behind it.
@@ -130,8 +132,8 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   role's `denyIntents`), and each harness manifest maps it to its own tool names under
   `deny.intents` or declares it held by a guard under `deny.enforcedByGuard`. An intent a
   harness does neither with is reported on every run as resting on the prompt alone, so moving
-  a role tells you which limits stopped holding: as shipped, a Pi seat enforces 3 of the 8
-  common intents, and a Codex watcher 4 of its 10. Put anything stronger in a shared guard under
+  a role tells you which limits stopped holding, and the count is printed per seat on every run
+  rather than written down here. Put anything stronger in a shared guard under
   `harness/common/guards/` or in a harness's own guard extension.
   `harness/common/hook-io.sh` writes each guard's refusal in the form the seat's harness
   expects, so one guard body serves every harness, and a manifest's `guards.dir` says which
@@ -188,7 +190,8 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 
 - **Symptom:** a seat has skills that aren't in its allowlist.
 - **Cause:** a directory in the manifest's `sharedSkillDirs` sits outside the seat's config
-  directory, so every profile on that harness loads it. For Pi that is `~/.agents/skills`.
+  directory, so every profile on that harness loads it. `sharedSkillDirs` in the manifest names
+  them.
 - **Response:** move skills the seat shouldn't see out of it. The setup script prints how many
   skills each such directory holds, per harness that loads it.
 
@@ -213,10 +216,10 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Cause:** without agent profiles, `list_profiles` returns nothing and the Lead falls back to
   guessing from `list_models`. Profiles live in `daemon.agentProfiles` in the Paseo config.
 - **Response:** `setup/add-project.fish` adds one profile per seat, composed from `seats.json`: a
-  role's `models` supplies its model and `isDefault` thinking option (Supervisor Opus 5 `high`,
-  Lead Opus 5 `medium`, watcher Haiku), a role with none takes `--model` (default
-  `zai/glm-5.3`) and its own `thinking`, and its `notes` say which dispositions use it and how
-  the thinking level varies. A `modeId` is set only for a harness whose
+  role's `models` supplies its model and `isDefault` thinking option; a role with none takes
+  `--model`, or its harness's `provider.defaultModel`, and its own `thinking`; and its `notes`
+  say which dispositions use it and how the thinking level varies. `seats.json` is the list, not
+  this page. A `modeId` is set only for a harness whose
   `provider.profileModeId` names one. Every rerun restores the notes from `seats.json`, so
   change them there rather than in the config, and keep one profile per seat. A rerun never
   changes an existing profile's model: to move a seat to another model, edit that profile's

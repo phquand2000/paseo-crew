@@ -18,8 +18,8 @@ many users a few hundred. Without this file, the Lead runs on the defaults in
 reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
 
 `setup/add-project.fish` copies the block below to `.seatworks/WORKSPACE_PROTOCOL.md` in the
-repository, adding the project's slug to `peer-SLUG`, `peer-ro-SLUG`, and `reviewer-SLUG`; `--model`
-(default `zai/glm-5.3`) fills in `PEER_MODEL`. For the rest, ask the Supervisor to run its
+repository, adding the project's slug to `peer-SLUG`, `peer-ro-SLUG`, and `reviewer-SLUG`; `--model`,
+or the Peer harness's `provider.defaultModel`, fills in `PEER_MODEL`. For the rest, ask the Supervisor to run its
 `workspace-protocol` skill, which interviews you.
 
 ````md
@@ -73,8 +73,8 @@ Replace the following:
   `../REPO-wt/TASK_ID`.
 - `TEST_LANE_RULE`: who may run the full suite, hold a port, or use the test database, and
   when.
-- `PEER_MODEL`: the model of the Peer profile, as `list_models` shows it for `peer-SLUG`,
-  for example `zai/glm-5.3`.
+- `PEER_MODEL`: the model of the Peer profile, spelled exactly as `list_models` shows it for
+  `peer-SLUG`; each harness spells a model its own way.
 - `REVIEW_LANE_COUNT`: how many Reviewers a material question gets, for example `2`.
 - `ARCHITECT_TRIGGER`: the condition that calls for design review before implementation.
 - `HUMAN_DECISIONS`: decisions the Lead never makes in this repository, even small ones.

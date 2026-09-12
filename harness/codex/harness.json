@@ -96,7 +96,9 @@
       "KIT/harness/codex/bin/codex-room",
       "SEAT"
     ],
-    "envNote": "SEATWORKS_CODEX_ENV_KEY names the variable Codex reads the API key from; the key itself is never written here or anywhere else in the kit. Export it for the Paseo daemon."
+    "envNote": "SEATWORKS_CODEX_ENV_KEY names the variable Codex reads the API key from; the key itself is never written here or anywhere else in the kit. Export it for the Paseo daemon.",
+    "defaultModel": "glm-5.3",
+    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id, Codex wants the bare slug with model_provider set separately."
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,

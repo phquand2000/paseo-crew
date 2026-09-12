@@ -15,9 +15,10 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
    capable model already knows and what it can learn by reading the code. [BP, S]
 2. Stay under 200 lines and the 16 KB budget. Adherence drops as files grow, and instructions
    in a long list are dropped silently rather than refused. [M, IFS]
-3. Write calm, plain instructions. Current Claude models follow the system prompt closely, and
-   capitals or "MUST" make them over-apply a rule. Save emphasis for a single rule you have
-   seen skipped. [P, BP]
+3. Write calm, plain instructions. A capable model follows the system prompt closely, and
+   capitals or "MUST" make it over-apply a rule. Save emphasis for a single rule you have
+   seen skipped. A prompt is read by whichever model its role's harness runs, so tune it to
+   the weakest one you intend to use, not the strongest. [P, BP]
 4. Say what to do rather than what to avoid. [P]
 5. Give the reason with each rule; the model generalizes from the reason. [P]
 6. Make each rule checkable by naming the command, field, or threshold. "Run `X`" works better
@@ -29,15 +30,15 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
    the end. [O5, LIM]
 10. Use one term per concept, as listed under Terminology. When two layers contradict each
     other, the model may follow either one. [M, S]
-11. State scope explicitly. Opus 5 tends to widen tasks, while other models read instructions
-    literally. [O5]
+11. State scope explicitly. A strong model tends to widen a task, while a cheaper one reads the
+    instruction literally; a prompt that names its scope survives both. [O5]
 12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
     models over-verify when told to. [O5]
 13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: name
     the capability as an intent in `seats.json`, and let each harness map it to its own tool
     names under `deny.intents` or declare a guard that holds it under `deny.enforcedByGuard`.
     A limit no harness enforces is reported on every run rather than assumed, so write the
-    prompt rule as if it were the only thing holding: for a Pi seat it usually is. Stronger
+    prompt rule as if it were the only thing holding, because on some harnesses it is. Stronger
     limits go in a shared guard under `harness/common/guards/` (`lead-guard.sh`,
     `profile-guard.sh`, `watcher-guard.sh`, `skill-guard.sh`) or in a harness's guard extension
     (`peer-guard.ts`, `skill-gate.ts`). [M]

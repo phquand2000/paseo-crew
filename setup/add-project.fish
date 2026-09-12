@@ -7,7 +7,7 @@ set -l harness_dir $kit/harness
 
 set -l repo_dir ""
 set -l slug ""
-set -l model zai/glm-5.3
+set -l model ""
 set -l refresh 0
 set -l i 1
 while test $i -le (count $argv)
@@ -30,7 +30,7 @@ while test $i -le (count $argv)
 end
 
 if test -z "$repo_dir"; or not test -d "$repo_dir"
-    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model MODEL (default zai/glm-5.3, for seats whose role names no model)] [--refresh]"
+    echo "usage: add-project.fish REPO_DIR [--slug SLUG] [--model MODEL (overrides each harness's provider.defaultModel, for roles whose seats.json entry names none)] [--refresh]"
     exit 2
 end
 set repo_dir (path resolve $repo_dir)
@@ -106,7 +106,10 @@ set -l seat_pattern (string join '|' $roles)
 for file in $stage/*.md (find $stage/skills -type f -name '*.md')
     perl -pi -e "s/\b($seat_pattern)-SLUG\b/\$1-$slug/g" $file
 end
-test -n "$model"; and perl -pi -e "s|PEER_MODEL|$model|g" $stage/WORKSPACE_PROTOCOL.md
+set -l peer_harness (jq -r '.seats[] | select(.role == "peer") | .harness' $seats_file)
+set -l peer_model $model
+test -n "$peer_model"; or set peer_model (jq -r '.provider.defaultModel // ""' $harness_dir/$peer_harness/harness.json)
+test -n "$peer_model"; and perl -pi -e "s|PEER_MODEL|$peer_model|g" $stage/WORKSPACE_PROTOCOL.md
 
 set -l refreshed
 set -l drafts $seat/records/drafts/refresh-(date +%Y%m%d-%H%M%S)
@@ -213,7 +216,10 @@ if not jq --slurpfile seats $seats_file --slurpfile hs $manifests --arg h $HOME 
         | $H[$seat.harness] as $hx
         | ($seat.models | if length > 0 then dflt else null end) as $d
         | { id: "\($s)-\($seat.role)", name: "\($n) · \($seat.label)", provider: "\($seat.role)-\($s)" }
-          + (if $d then { model: $d.id } elif $m == "" then {} else { model: $m } end)
+          + (if $d then { model: $d.id }
+             elif $m != "" then { model: $m }
+             elif $hx.provider.defaultModel then { model: $hx.provider.defaultModel }
+             else {} end)
           + (if $hx.provider.profileModeId then { modeId: $hx.provider.profileModeId } else {} end)
           + (($d.thinkingOptions // [] | dflt.id) as $t
              | if $t then { thinkingOptionId: $t }

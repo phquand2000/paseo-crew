@@ -39,8 +39,8 @@ model pair must match a profile, or the guard blocks the launch:
 ```
 
 Replace `PEER_MODEL`, `OTHER_FAMILY_MODEL`, and `STRONGEST_MODEL` with the models of profiles
-`list_profiles` shows for that provider, for example `zai/glm-5.3`; with no `model`, use the
-profile's.
+`list_profiles` shows for that provider, spelled exactly as it shows them; with no `model`, use
+the profile's.
 
 One file serves every project, while a provider belongs to one: use only entries naming this
 project's `peer-ro-SLUG` or `reviewer-SLUG`. Another project's provider carries that project's
@@ -68,8 +68,8 @@ verdict's limitations.
 Sealed prompts remove contamination, not correlation: seats on the same model share its blind
 spots, so their agreement is weak evidence even when neither saw the other's report. Put the
 Challenger on a read-only Peer profile whose model is from a different strong family than the
-Independent's, for example a DeepSeek profile beside a GLM one, at `high` thinking or more; a
-cheap model picked only for its family trades away the Challenger's depth. When `list_profiles`
+Independent's, at `high` thinking or more; a cheap model picked only for its family trades away
+the Challenger's depth. When `list_profiles`
 shows no such profile, use the Independent's and list "same-family Challenger" under the
 verdict's limitations; the Human can add a profile before the next council.
 

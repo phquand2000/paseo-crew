@@ -113,7 +113,9 @@
     "keys": {
       "disallowedTools": []
     },
-    "profileModeId": "bypassPermissions"
+    "profileModeId": "bypassPermissions",
+    "defaultModel": null,
+    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id, Codex wants the bare slug with model_provider set separately."
   },
   "contextFile": "CLAUDE.md",
   "contextFileNeedsPointer": true,

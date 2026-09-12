@@ -32,10 +32,13 @@ Before you start, make sure the machine has the following:
 - fish 3.5 or later (the scripts use the `path` builtin)
 - jq
 - a running Paseo daemon
-- every coding agent a role in `seats.json` is assigned to. Read the assignments with
-  `jq -r '.seats[] | "\(.role): \(.harness)"' KIT_DIR/seats.json`, then check each harness's
-  `versionCommand`. As shipped that is the `claude` CLI, and Pi 0.84.4 or later logged in to at
-  least one model provider.
+- every coding agent a role in `seats.json` is assigned to, at or above the version its
+  manifest records, and logged in. Read both from the data rather than from this page:
+
+  ```fish
+  jq -r '.seats[] | "\(.role): \(.harness)"' KIT_DIR/seats.json
+  jq -r '"\(.id): need \(.verified // "unverified"), check with `\(.versionCommand)`"' KIT_DIR/harness/*/harness.json
+  ```
 - the `ocr` CLI ([Open Code Review](https://github.com/alibaba/open-code-review)), which the
   Reviewer runs: `npm install -g @alibaba-group/open-code-review`
 
@@ -100,10 +103,11 @@ later you must rerun step 4 for every project.
    jq -r '.provider.env | to_entries[] | select(.key | endswith("_ENV_KEY")) | "export \(.value) yourself; the kit never stores it"' KIT_DIR/harness/codex/harness.json
    ```
 
-4. Check the logins and Paseo's tool injection. For the Pi seats:
+4. Check each harness's login and Paseo's tool injection. A harness declares the login file a
+   seat links under `links`, with the `required` text saying how to create it:
 
    ```fish
-   test -f ~/.pi/agent/auth.json; and echo "pi login: ok"
+   jq -r '(.links // [])[] | select(.required) | "\(.target): \(.required)"' KIT_DIR/harness/*/harness.json
    jq '.daemon.mcp' ~/.paseo/config.json
    ```
 
@@ -111,8 +115,8 @@ later you must rerun step 4 for every project.
 `versionCommand` prints a version, each harness's login exists, and `.daemon.mcp` shows
 `"enabled": true` and `"injectIntoAgents": true`.
 
-If a tool or a login is missing, stop and ask the user to install it or to log in (for Pi, run
-`pi`, then `/login`, or save an API key); don't do it yourself. If `injectIntoAgents` isn't
+If a tool or a login is missing, stop and ask the user to install it or to log in, using the
+`required` text its harness gives; don't do it yourself. If `injectIntoAgents` isn't
 `true`, ask the user before changing it, because it gives Paseo tools to every agent the daemon
 starts.
 
@@ -182,10 +186,16 @@ that already exists:
 It adds files only; leave the repository's code alone. If another repository already uses the
 slug, it stops and asks for `--slug`.
 
-1. The models come from `seats.json`: the Supervisor runs Opus 5 at thinking `high`, the Lead
-   Opus 5 at `medium`, the watcher Haiku, and any role that names no model takes `--model`
-   (default `zai/glm-5.3`), which is how the Peer, read-only Peer, and Reviewer are set. For
-   another model there, pass `--model MODEL_ID` with an ID from `paseo provider models BASE`.
+1. The models come from `seats.json`, and a role that names none falls back to its harness's
+   `provider.defaultModel`. Read what each seat will get rather than trusting this page:
+
+   ```fish
+   jq -r '.seats[] | "\(.role): \((.models[0].id // "from its harness"))"' KIT_DIR/seats.json
+   jq -r '"\(.id) default: \(.provider.defaultModel // "none; roles name their own")"' KIT_DIR/harness/*/harness.json
+   ```
+
+   To override the fallback for one project, pass `--model MODEL_ID` with an ID from
+   `paseo provider models BASE`, spelled the way that harness spells a model.
 2. Run it, adding `--slug SLUG` if the directory name isn't the short name you want:
 
    ```fish
@@ -235,25 +245,25 @@ applied fails silently, and a harness that looks for skills somewhere else offer
    fish KIT_DIR/setup/setup-seats.fish --check --probe
    ```
 
-   For a harness with a free, authoritative probe (Pi) this runs on every `--check`. For one
-   probed by asking the seat (Claude Code) `--probe` spends one cheap model call per seat. A line
-   reads `live probe saw N skills and offers all M the kit linked for the model`; skills marked
-   `disable-model-invocation: true` are counted as held back, because the model's list is meant
-   not to show them.
+   A harness whose `probe.kind` is a loader runs free and authoritative on every `--check`. One
+   whose `probe.kind` is `version` is settled by asking the seat, which `--probe` does for one
+   cheap model call per seat. A line reads `live probe saw N skills and offers all M the kit
+   linked for the model`; skills marked `disable-model-invocation: true` are counted as held
+   back, because the model's list is meant not to show them.
 
 2. Then check the prompts and the guards by hand. Run each agent in `REPO_DIR`.
 
-   For `supervisor-SLUG`, `lead-SLUG`, and `watcher-SLUG`, whose harness has modes:
+   For the seats whose harness has `hasModes: true`:
 
    1. Create an agent with the `settings.modeId` and `thinkingOptionId` its agent profile names;
-      the watcher's Haiku profile names no `thinkingOptionId`.
+      a profile whose model offers no thinking options names no `thinkingOptionId`.
    2. Ask it for the first line of the instruction file it has loaded.
    3. Archive the agent.
 
-   For `peer-SLUG`, whose harness has none:
+   For the seats whose harness has `hasModes: false`:
 
    1. Create an agent with `provider: "peer-SLUG/MODEL_ID"` and a `thinkingOptionId`. Don't
-      pass `settings.modeId`; Pi agents reject it.
+      pass `settings.modeId`; a harness with no modes rejects it.
    2. Ask it, without running tools, to quote the heading of its instructions that begins with
       `# Peer`, and whether its instructions mention Paseo. Asked for the "first line", a model
       often quotes the harness's own system prompt instead.
