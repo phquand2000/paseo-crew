@@ -518,6 +518,17 @@ function seat_provider --argument-names role
             --arg k $key --arg b (harness_get $harness .baseProvider) \
             --arg l (seat_field $role .label) --arg d (seat_field $role .description)
     end
+    for field in label description
+        set -l want (seat_field $role .$field)
+        set -l have (jq -r --arg k $key --arg f $field '.agents.providers[$k][$f] // ""' $paseo_config)
+        test "$have" = "$want"; and continue
+        if test $dry -eq 1
+            fail "provider $key: $field is \"$have\" but seats.json says \"$want\" (rerun without --check)"
+        else
+            paseo_write $paseo_config "provider $key: $field set from seats.json" \
+                '.agents.providers[$k][$f] = $v' --arg k $key --arg f $field --arg v $want
+        end
+    end
     provider_models $key $role
     set -l mine (harness_get $harness '.provider.env | keys[]?')
     for other in (all_harnesses)
@@ -936,8 +947,11 @@ if test (count $projects) -eq 0
         test -d $root; or continue
         for dir in $root/*/
             test -L $dir/$prompt_file; or continue
-            set -l repo (string replace -r '/\.seatworks/[^/]*$' '' -- (readlink $dir/$prompt_file))
-            test -f $repo/.seatworks/project.json; or continue
+            set -l repo (string replace -r '/\.seatworks/.*$' '' -- (readlink $dir/$prompt_file))
+            if not test -f $repo/.seatworks/project.json
+                fail (path basename $dir)"'s prompt link points at "(readlink $dir/$prompt_file)", whose project has no .seatworks/project.json. Rerun add-project.fish for that repository, or delete the seat directory."
+                continue
+            end
             contains -- $repo $projects; or set -a projects $repo
         end
     end
