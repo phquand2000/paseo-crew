@@ -4,7 +4,7 @@
     "defaultMode": "bypassPermissions"
   },
   "enabledPlugins": {},
-  "autoCompactWindow": 300000,
+  "autoCompactWindow": 333000,
   "precomputeCompactionEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "workflowKeywordTriggerEnabled": false,
