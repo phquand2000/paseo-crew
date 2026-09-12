@@ -84,7 +84,7 @@
     },
     "profileModeId": null,
     "defaultModel": "zai/glm-5.3",
-    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id, Codex wants the bare slug with model_provider set separately.",
+    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id.",
     "baseCredential": null,
     "baseCredentialNote": "null: this harness authenticates through the login file in links, not through a token on its Paseo base provider.",
     "command": [

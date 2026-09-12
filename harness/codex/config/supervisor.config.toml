@@ -1,3 +1,0 @@
-model_reasoning_effort = "max"
-sandbox_mode = "workspace-write"
-approval_policy = "never"

@@ -7,17 +7,13 @@
     "Also make sure .daemon.mcp has \"enabled\": true and \"injectIntoAgents\": true, or the Lead and Supervisor get no Paseo tools.",
     "Delete the _doc key before writing: Paseo's schema rejects unknown keys."
   ],
-
   "claude": {
-    "env": { "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN" },
+    "env": {
+      "CLAUDE_CODE_OAUTH_TOKEN": "OAUTH_TOKEN"
+    },
     "enabled": true
   },
-
   "pi": {
-    "enabled": true
-  },
-
-  "codex": {
     "enabled": true
   }
 }

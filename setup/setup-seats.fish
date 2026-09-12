@@ -549,12 +549,7 @@ function seat_provider --argument-names role
     end
     test (seat_field $role .readOnly) = true
     and provider_env $key SEATWORKS_READ_ONLY 1
-    set -l protocol (harness_get $harness .guards.hookProtocol)
-    if test "$protocol" = extension; or test "$protocol" = exit-code
-        provider_env_absent $key SEATWORKS_HOOK_PROTOCOL
-    else
-        provider_env $key SEATWORKS_HOOK_PROTOCOL $protocol
-    end
+    provider_env_absent $key SEATWORKS_HOOK_PROTOCOL
     seat_deny $key $role $harness
     report_unenforced $key $role $harness
 end

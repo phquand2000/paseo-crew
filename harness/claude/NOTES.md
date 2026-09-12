@@ -41,15 +41,17 @@ and asks for `--probe`.
 ## Enforcement
 
 - **Deny lists:** Paseo applies `disallowedTools` to its `claude` provider (and to `omp`), which
-  is why `deny.mechanism` is `disallowedTools` here and `hooks` for Codex.
+  is why `deny.mechanism` is `disallowedTools` here; a harness Paseo does not cover that way
+  falls back to `hooks`.
 - **Hooks:** `PreToolUse`, one entry per guard in the role settings. Every entry whose matcher
   matches runs, and any exit code 2 blocks the call, so the guards compose without chaining;
   this was confirmed with two overlapping matchers where the second refused.
 - **Hook input:** `cwd`, `hook_event_name`, `permission_mode`, `prompt_id`, `session_id`,
   `tool_input`, `tool_name`, `tool_use_id`, `transcript_path`. The transcript path is what makes
   a skill gate possible at all.
-- **Hook protocol:** `exit-code` — stderr plus exit 2. `harness/common/hook-io.sh` writes that
-  form for this harness and a JSON decision for Codex, so one guard body serves both.
+- **Hook protocol:** `exit-code` — stderr plus exit 2, which is the only form
+  `harness/common/hook-io.sh` writes. A harness that answers hooks another way needs its own
+  guards, as `guards.hookProtocol` records and `harness/pi/extensions/` shows.
 - **`permissions.deny` is not equivalent** to a provider deny list, so the role settings leave
   it out.
 
