@@ -1,11 +1,12 @@
 # Skill sources
 
-The eleven skills in `project/skills/` fall into two groups, and the difference matters for
+The thirteen skills in `project/skills/` fall into three groups, and the difference matters for
 credit. Six are **SLP files** installed here with targeted edits — model names, Windows paths,
 Codex-only tooling, and the launch shapes replaced with this kit's — and their text is the SLP
 author's. Five are **written for this kit**, adapting a mechanism (a procedure, a gate, or a
 checklist) from an existing skill, book, or article without copying its text beyond short
-phrases. Two vendored Python scripts keep their upstream form, comments included, so they can be
+phrases. Two are **written for this kit from published research**, credited with their sources
+below. Two vendored Python scripts keep their upstream form, comments included, so they can be
 re-synced.
 
 "SLP material" means the reference files in the kit owner's `SLP/` folder: a practitioner's

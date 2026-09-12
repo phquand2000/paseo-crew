@@ -148,11 +148,14 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Response:** measure the seat, don't read the changelog. Point the harness at a local listener
   that captures one request and answers 400, launch it with the seat's own config directory, role
   settings, `provider.env` and computed deny list, and read `tools[].name` out of the captured
-  body. A lead seat measured that way held 23 tools; nine of them — `Artifact`, `EnterWorktree`,
+  body. **Launch it the way the orchestrator does**, not with `-p`: a lead seat measured in
+  `--output-format stream-json --input-format stream-json` mode holds three tools that `-p` never
+  offers (`AskUserQuestion`, `EnterPlanMode`, `ExitPlanMode`), so a `-p` measurement undercounts.
+  In that real shape a lead seat held 26 tools; nine of them — `Artifact`, `EnterWorktree`,
   `ExitWorktree`, `CronCreate`, `CronDelete`, `CronList`, `SendMessage`, `ListAgents`,
   `DesignSync` — were things this kit takes elsewhere: publishing to the web, making a worktree,
   scheduling, and reaching another agent outside the orchestrator. They have intents now, and the
-  same seat holds 14. Redo the measurement when a harness's `verified` version moves, the way
+  same seat holds 17. Redo the measurement when a harness's `verified` version moves, the way
   `NOTES.md` treats every other fact read off a running seat.
 
 ## Enforcement differs by harness
@@ -300,7 +303,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
 
 ## Agent profiles are global, one per role
 
-- **Symptom:** `list_profiles` returns the same six profiles in every project, a Lead asks which
+- **Symptom:** `list_profiles` returns the same five profiles in every project, a Lead asks which
   provider to use, or a profile's model you edited by hand comes back changed.
 - **Cause:** profiles live in one global list, `daemon.agentProfiles`, with no project or
   working-directory field. Because a seat joins the project it is started in, the same six are
