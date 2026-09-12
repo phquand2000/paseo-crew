@@ -91,8 +91,10 @@ Verified on omp **18.1.18**, against Paseo's own `omp` provider.
 
 - **Paseo's `disallowedTools` does nothing here.** Paseo carries the list into the OMP client's
   runtime settings and the client never reads it. `deny.mechanism` is `settings`: setup composes
-  the deny map from the intents `seats.json` asks for and merges it into the seat's `config.yml`
-  under `tools.approval`.
+  the deny map from the intents `seats.json` asks for and writes it into the seat's `config.yml`
+  at `tools.approval`, which it owns outright. Every other key in that file is merged and kept, so
+  anything omp writes for itself survives; `tools.approval` is replaced whole, because a merge
+  there cannot remove a deny that `seats.json` has stopped asking for.
 - **`tools.approval.<tool>: deny` is absolute.** It overrides the active approval mode, it cannot
   be lifted by a tool's own policy, and it holds inside a subagent. Paseo launches these seats in
   mode `full`, which is `--approval-mode yolo`; the denies still hold. Verified by asking a seat

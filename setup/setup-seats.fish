@@ -315,16 +315,10 @@ function seat_deny_names --argument-names role harness
     end | string trim | string match -rv '^$' | sort -u
 end
 
-function seat_deny_map --argument-names role harness
-    set -l path (harness_get $harness '.deny.settingsPath // empty')
-    if test -z "$path"
-        echo '{}'
-        return
-    end
+function seat_deny_flat --argument-names role harness
     printf '%s\n' (seat_deny_names $role $harness) | jq -R . | jq -s -c \
-        --arg p $path --arg v (harness_get $harness '.deny.settingsValue') '
-        map(select(length > 0) | {key: ., value: $v}) | from_entries | . as $m
-        | if ($m | length) == 0 then {} else {} | setpath($p | split("."); $m) end'
+        --arg v (harness_get $harness '.deny.settingsValue') '
+        map(select(length > 0) | {key: ., value: $v}) | from_entries'
 end
 
 function build_seat_settings --argument-names key harness role dir
@@ -343,33 +337,42 @@ function build_seat_settings --argument-names key harness role dir
                 fail "$key: $src not found"
                 return
             end
-            set -l want (mktemp)
-            if not jq -s --indent 2 --argjson d (seat_deny_map $role $harness) '.[0] * $d' $src >$want
-                rm -f $want
-                fail "$key: could not compose the settings this seat needs from harness/$harness/"(harness_get $harness .settings.source)" and the deny intents seats.json gives $role"
-                return
-            end
+            set -l path (harness_get $harness '.deny.settingsPath // empty')
+            set -l map '{}'
+            test -z "$path"; or set map (seat_deny_flat $role $harness)
             set -l target $dir/$file
-            if not test -f $target; or not jq -e --slurpfile kit_keys $want \
-                    '. as $s | $kit_keys[0] | to_entries | all(.[]; $s[.key] == .value)' $target >/dev/null 2>&1
+            if not test -f $target; or not jq -e --slurpfile kit $src --arg p "$path" --argjson m "$map" '
+                    . as $s
+                    | ($p | split(".")) as $dp
+                    | (if $p == "" then $s else ($s | delpaths([$dp])) end) as $sd
+                    | (if $p == "" then $kit[0] else ($kit[0] | delpaths([$dp])) end) as $kd
+                    | (if $p == "" then true else (($s | getpath($dp)) // {}) == $m end)
+                      and ($kd | to_entries | all(.[]; $sd[.key] == .value))' $target >/dev/null 2>&1
                 if test $dry -eq 1
-                    fail "$key: $target is missing or lacks the keys harness/$harness/"(harness_get $harness .settings.source)" and seats.json ask for (rerun without --check)"
+                    fail "$key: $target is missing, lacks a key harness/$harness/"(harness_get $harness .settings.source)" sets, or holds a deny seats.json no longer gives $role (rerun without --check)"
                 else
-                    set -l tmp (mktemp)
+                    set -l base (mktemp)
                     if test -f $target
-                        jq -s --indent 2 '.[0] * .[1]' $target $want >$tmp
+                        cp $target $base
                     else
-                        cp $want $tmp
+                        echo '{}' >$base
                     end
-                    and mv $tmp $target
-                    and echo "  ~ $key $file: merged harness/$harness/"(harness_get $harness .settings.source)" and this seat's deny map"
-                    or begin
+                    set -l tmp (mktemp)
+                    if jq -s --indent 2 --arg p "$path" --argjson m "$map" '
+                            (.[0] * .[1])
+                            | ($p | split(".")) as $dp
+                            | if $p == "" then .
+                              elif ($m | length) == 0 then delpaths([$dp])
+                              else setpath($dp; $m) end' $base $src >$tmp
+                        mv $tmp $target
+                        echo "  ~ $key $file: keys from harness/$harness/"(harness_get $harness .settings.source)" and this seat's deny map, replacing any deny it no longer asks for"
+                    else
                         rm -f $tmp
-                        fail "$key: could not write $target"
+                        fail "$key: could not compose $target from harness/$harness/"(harness_get $harness .settings.source)" and the deny intents seats.json gives $role"
                     end
+                    rm -f $base
                 end
             end
-            rm -f $want
         case '*'
             fail "$key: harness $harness declares settings.mode '$mode', which this script doesn't build"
     end
