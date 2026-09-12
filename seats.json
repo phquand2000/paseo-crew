@@ -277,12 +277,17 @@
   "skillGates": [],
   "skillGatesNote": "empty on purpose. A gate refuses a named call until its skill is in the transcript, and it was holding three procedures the Lead now carries in its own prompt, where nothing can skip them. Gates also only hold on a harness whose skillLoad.transcriptMatch is set, so they never held for an omp seat at all. The mechanism stays because a future procedure may earn one; a gate needs an observed skip and a because line, not a wish.",
   "denyCommonIntents": [
-    "subagents",
-    "workflows",
-    "code-eval",
     "agent-cli",
+    "agent-messaging",
+    "artifact-publish",
+    "code-eval",
+    "cron",
+    "design-sync",
+    "forge-cli",
     "git-push",
-    "forge-cli"
+    "local-worktree",
+    "subagents",
+    "workflows"
   ],
   "denyBecause": {
     "subagents": "a seat is already a subagent with its own context and its own guards. A sub-agent started inside one runs under the seat's identity with none of the ownership the brief assigns, and its work reaches the Lead as the seat's own.",
@@ -297,7 +302,12 @@
     "paseo": "a Peer or Reviewer believes it works directly for a human. A control-plane tool would show it the layer above it.",
     "paseo-write": "the watcher observes; every correction it wants goes to the Supervisor as an attention event, so it needs the read half of the control plane and none of the write half.",
     "file-edit": "the read-only seats: review, council and audit lanes write nothing but temporary files, through the shell.",
-    "web-search": "the watcher reads activity logs and matches triggers. It has no question the web answers, and it re-reads its prompt every sweep on the smallest model in the kit."
+    "web-search": "the watcher reads activity logs and matches triggers. It has no question the web answers, and it re-reads its prompt every sweep on the smallest model in the kit.",
+    "artifact-publish": "the Artifact tool publishes a page to the web and the link outlives the session. Outward-facing, and the Human's call, for the same reason git-push and the forge CLI are.",
+    "local-worktree": "the workspaces intent takes orchestrator worktrees off the Lead, and these tools make a git worktree directly, which is the same decision through another door. On omp the shell guard holds it instead, and git worktree list still reads.",
+    "cron": "the kit schedules through the orchestrator, where the Supervisor owns the watcher's heartbeat and can delete it. A second scheduler nobody lists is a job that outlives every seat that knew about it. The claude provider env sets CLAUDE_CODE_DISABLE_CRON and the tools were offered anyway, so the deny is what holds.",
+    "agent-messaging": "the orchestrator is the only way a seat reaches another, because that is where the message labels, the profile guard and archiving live. A second channel bypasses all three.",
+    "design-sync": "it reads and writes a design tool over the network. Outward-facing, and nothing in this kit asks for it."
   },
   "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding. denyBecause holds one line per intent: an intent with no reason recorded there is a limit nobody can review, and setup refuses it.",
   "writesNote": "writes lists the repository paths a seat may change, as shell glob patterns relative to the repository root; harness/common/guards/lead-guard.sh reads them and refuses every other path with writesRule. A seat with no writes entry may change nothing, so a new role fails closed. Outside the repository the same guard allows only the seat's temporary directory, because the kit, the Paseo config and the seat profiles all live outside it and each one is a file that decides what the seat may do. A seat whose only pattern is * owns the whole repository, so the guard also lets it edit in place; every narrower seat must leave a diff.",

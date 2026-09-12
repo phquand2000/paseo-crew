@@ -137,6 +137,24 @@ invalidate this page, and no entry here names a coding agent or its tools.
   `paseo-write` for a seat that should read Paseo and change nothing, and let its harness spell
   the names; keep any `paseo` server out of the profile's own MCP file as well.
 
+## A harness offers more tools than seats.json ever named
+
+- **Symptom:** a seat calls something no prompt and no skill mentions, or you want to know what a
+  seat actually holds.
+- **Cause:** a deny list can only remove what you thought to name. A harness ships its own tool
+  set and grows it between versions, and an environment variable that turns a feature off does
+  not always take its tool out of the offered set: measured here, `CLAUDE_CODE_DISABLE_CRON` is on
+  in `provider.env` and the three Cron tools were still offered.
+- **Response:** measure the seat, don't read the changelog. Point the harness at a local listener
+  that captures one request and answers 400, launch it with the seat's own config directory, role
+  settings, `provider.env` and computed deny list, and read `tools[].name` out of the captured
+  body. A lead seat measured that way held 23 tools; nine of them — `Artifact`, `EnterWorktree`,
+  `ExitWorktree`, `CronCreate`, `CronDelete`, `CronList`, `SendMessage`, `ListAgents`,
+  `DesignSync` — were things this kit takes elsewhere: publishing to the web, making a worktree,
+  scheduling, and reaching another agent outside the orchestrator. They have intents now, and the
+  same seat holds 14. Redo the measurement when a harness's `verified` version moves, the way
+  `NOTES.md` treats every other fact read off a running seat.
+
 ## Enforcement differs by harness
 
 - **Symptom:** a seat does something its prompt rules out.

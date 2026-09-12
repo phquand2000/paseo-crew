@@ -803,6 +803,19 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
             exit 1
         end
     end
+    set -l roles (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
+    set -l source (harness_get $id '.settings.source')
+    set -l srcdir (path dirname $source)
+    set -l tail (string replace ROLE '' (path basename $source))
+    if string match -q '*ROLE*' -- $source; and test "$srcdir" != .
+        for file in $harness_dir/$id/$srcdir/*
+            test -f $file; or continue
+            set -l named (string replace -- $tail '' (path basename $file))
+            contains -- "$named" $roles
+            or echo "  · harness/$id/$srcdir/"(path basename $file)" is a settings file for role '$named', which seats.json does not put on this harness. Nothing reads it: delete it, or move the role back."
+        end
+    end
+
     set -l hook_key (harness_get $id '.guards.hookSettingsKey // empty')
     for role in (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
         set -l file $harness_dir/$id/(string replace ROLE $role (harness_get $id '.settings.source'))

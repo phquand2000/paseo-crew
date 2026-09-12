@@ -37,6 +37,13 @@ const RULES: { pattern: RegExp; reason: string }[] = [
     reason:
       "Starting or controlling other agents is not available in this workspace. Do the work yourself, or say what you need in your handoff.",
   },
+  {
+    pattern: new RegExp(
+      GIT + String.raw`worktree(?![\w.-])(?!\s+list(?![\w.-]))`,
+    ),
+    reason:
+      "Adding or removing a worktree is not available in this workspace. Work in the checkout you were given, and say in your handoff if the task needs a second one.",
+  },
 ];
 
 const WRITES = [

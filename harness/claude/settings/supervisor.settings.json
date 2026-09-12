@@ -4,8 +4,8 @@
     "defaultMode": "bypassPermissions"
   },
   "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": false,
+    "pyright-lsp@claude-plugins-official": false,
     "mattpocock-skills@mattpocock": false
   },
   "autoCompactWindow": 300000,
@@ -47,5 +47,6 @@
         ]
       }
     ]
-  }
+  },
+  "promptCacheTtl": "1h"
 }

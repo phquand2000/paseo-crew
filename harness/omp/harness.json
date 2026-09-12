@@ -135,14 +135,21 @@
         "create_workspace",
         "archive_workspace",
         "rename_workspace"
+      ],
+      "agent-messaging": [
+        "hub"
       ]
     },
     "enforcedByGuard": [
-      "git-push",
+      "agent-cli",
       "forge-cli",
-      "agent-cli"
+      "git-push",
+      "local-worktree"
     ],
     "absent": [
+      "artifact-publish",
+      "cron",
+      "design-sync",
       "workflows"
     ],
     "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Everything else a seat asks for and this manifest does not map is reported as unenforced.",

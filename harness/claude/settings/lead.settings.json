@@ -4,8 +4,8 @@
     "defaultMode": "bypassPermissions"
   },
   "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": false,
+    "pyright-lsp@claude-plugins-official": false,
     "mattpocock-skills@mattpocock": false
   },
   "autoCompactWindow": 300000,
@@ -44,15 +44,6 @@
           {
             "type": "command",
             "command": "f=\"$CLAUDE_CONFIG_DIR/profile-guard.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; echo \"Profile guard: profile-guard.sh is missing from this seat profile; run setup/setup-seats.fish.\" >&2; exit 2"
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__paseo__create_agent|Bash|Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"$CLAUDE_CONFIG_DIR/skill-guard.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; echo \"Skill guard: skill-guard.sh is missing from this seat profile; run setup/setup-seats.fish.\" >&2; exit 2"
           }
         ]
       }
