@@ -154,22 +154,6 @@ end
 function probe_skills --argument-names label harness dir skills_sub repo_dir
     set -g probed_count -1
     switch (harness_get $harness .probe.kind)
-        case loader
-            command -q node; or return
-            set -l entry (probe_loader_entry $harness)
-            test -n "$entry"; or return
-            set -l script (mktemp /tmp/seatworks-probe.XXXXXX.mjs)
-            printf '%s\n' \
-                'const loader = await import(process.env.SEATWORKS_PROBE_ENTRY);' \
-                'const loadSkills = loader[process.env.SEATWORKS_PROBE_EXPORT];' \
-                'const r = loadSkills({ cwd: process.env.SEATWORKS_PROBE_CWD, agentDir: process.env.SEATWORKS_PROBE_DIR, skillPaths: [], includeDefaults: true });' \
-                'for (const s of r.skills) console.log(s.name);' \
-                'for (const d of r.diagnostics) console.error(`${d.type}: ${d.message} (${d.path ?? ""})`);' >$script
-            set -l names (env SEATWORKS_PROBE_DIR=$dir SEATWORKS_PROBE_CWD=$repo_dir SEATWORKS_PROBE_ENTRY=$entry SEATWORKS_PROBE_EXPORT=(harness_get $harness .probe.export) node $script 2>/dev/null)
-            set -l ok $status
-            rm -f $script
-            test $ok -eq 0; or return
-            compare_probe $label $names
         case version
             set -l want (harness_get $harness '.verified // empty')
             set -l cmd (harness_get $harness '.versionCommand // empty')
@@ -235,28 +219,7 @@ function probe_live --argument-names label harness dir skills_sub repo_dir
     echo "  · $label: live probe saw "(count $names)" skills and offers all "(count $want_offered)" the kit linked for the model"(test $hidden -gt 0; and echo ", holding $hidden back as disable-model-invocation"; or echo "")"."
 end
 
-function probe_loader_entry --argument-names harness
-    set -l bin (command -v (harness_get $harness '.probe.bin // empty'))
-    test -n "$bin"; or return
-    set -l bin_dir (path dirname (path resolve $bin))
-    set -l npm_root ""
-    command -q npm; and set npm_root (npm root -g 2>/dev/null)
-    for candidate in (harness_get $harness '.probe.entry[]?')
-        set -l resolved (string replace BIN_DIR $bin_dir -- $candidate)
-        set resolved (string replace NPM_ROOT "$npm_root" -- $resolved)
-        string match -q '*NPM_ROOT*' -- $resolved; and continue
-        test -f (path resolve $resolved 2>/dev/null); and path resolve $resolved; and return
-    end
-end
 
-function compare_probe --argument-names label
-    set -l found $argv[2..-1]
-    set -g probed_count (count $found)
-    for want in $linked_names
-        contains -- $want $found
-        or fail "$label: the harness does not load the linked skill '$want'; its skills directory or frontmatter is wrong"
-    end
-end
 
 function paseo_write --argument-names config label filter
     set -l jq_args $argv[4..-1]
@@ -342,12 +305,26 @@ function build_seat --argument-names role slug repo_dir
     or echo "✗ $key → $dir (see the ! lines above)"
 end
 
-function env_pairs --argument-names key harness
-    set -l prefix (harness_get $harness '.provider.envPrefix // "SEATWORKS_"')
-    jq -r -n --slurpfile m (harness_file $harness) --slurpfile p $paseo_config --arg k $key --arg x $prefix '
-        (($m[0].provider.env // {}) + (($p[0].agents.providers[$k].env // {})
-            | with_entries(select(.key | startswith($x)))))
-        | to_entries[] | select(.key | startswith($x)) | "\(.key)=\(.value)"'
+
+function seat_deny_names --argument-names role harness
+    begin
+        for intent in (seat_intents $role)
+            harness_get $harness ".deny.intents[\"$intent\"][]?"
+        end
+        seat_field $role '.deny[]?'
+    end | string trim | string match -rv '^$' | sort -u
+end
+
+function seat_deny_map --argument-names role harness
+    set -l path (harness_get $harness '.deny.settingsPath // empty')
+    if test -z "$path"
+        echo '{}'
+        return
+    end
+    printf '%s\n' (seat_deny_names $role $harness) | jq -R . | jq -s -c \
+        --arg p $path --arg v (harness_get $harness '.deny.settingsValue') '
+        map(select(length > 0) | {key: ., value: $v}) | from_entries | . as $m
+        | if ($m | length) == 0 then {} else {} | setpath($p | split("."); $m) end'
 end
 
 function build_seat_settings --argument-names key harness role dir
@@ -362,62 +339,45 @@ function build_seat_settings --argument-names key harness role dir
             end
             seat_link $dir/$file $src $dry
         case merge
+            if not test -f $src
+                fail "$key: $src not found"
+                return
+            end
+            set -l want (mktemp)
+            if not jq -s --indent 2 --argjson d (seat_deny_map $role $harness) '.[0] * $d' $src >$want
+                rm -f $want
+                fail "$key: could not compose the settings this seat needs from harness/$harness/"(harness_get $harness .settings.source)" and the deny intents seats.json gives $role"
+                return
+            end
             set -l target $dir/$file
-            if not test -f $target; or not jq -e --slurpfile kit_keys $src \
+            if not test -f $target; or not jq -e --slurpfile kit_keys $want \
                     '. as $s | $kit_keys[0] | to_entries | all(.[]; $s[.key] == .value)' $target >/dev/null 2>&1
                 if test $dry -eq 1
-                    fail "$key: $target is missing or lacks the keys in harness/$harness/"(harness_get $harness .settings.source)" (rerun without --check)"
+                    fail "$key: $target is missing or lacks the keys harness/$harness/"(harness_get $harness .settings.source)" and seats.json ask for (rerun without --check)"
                 else
                     set -l tmp (mktemp)
                     if test -f $target
-                        jq -s --indent 2 '.[0] * .[1]' $target $src >$tmp
+                        jq -s --indent 2 '.[0] * .[1]' $target $want >$tmp
                     else
-                        jq --indent 2 . $src >$tmp
+                        cp $want $tmp
                     end
                     and mv $tmp $target
-                    and echo "  ~ $key $file: merged harness/$harness/"(harness_get $harness .settings.source)
+                    and echo "  ~ $key $file: merged harness/$harness/"(harness_get $harness .settings.source)" and this seat's deny map"
                     or begin
                         rm -f $tmp
                         fail "$key: could not write $target"
                     end
                 end
             end
-        case toml-overlay
-            if not test -f $src
-                fail "$key: $src not found; write a per-role overlay for $role before this seat can be built"
-                return
-            end
-            set -l base $harness_dir/$harness/(harness_get $harness '.settings.base // empty')
-            test -f $base
-            or fail "$key: harness $harness declares no settings.base, so the room has no provider block to write"
-            set -l prefix (harness_get $harness '.provider.envPrefix // empty')
-            set -l key_var ""
-            test -n "$prefix"; and set key_var (jq -r --arg k $key --arg n "$prefix"ENV_KEY '.agents.providers[$k].env[$n] // ""' $paseo_config)
-            if test -n "$key_var"
-                grep -rqE '(experimental_bearer_token|api[_-]?key)\s*=' $harness_dir/$harness/config/
-                and fail "$key: harness $harness has a literal token in harness/$harness/config/; use env_key = \"$key_var\" and export the key instead."
-                set -q $key_var
-                or echo "  · $key: $harness reads its API key from \$$key_var, which is not set in this shell. Export it where the Paseo daemon can see it."
-            end
-            set -l mat $harness_dir/$harness/(harness_get $harness '.settings.materialize // empty')
-            if not test -x $mat
-                fail "$key: harness $harness declares settings.materialize, but $mat is not executable"
-                return
-            end
-            if test $dry -eq 1
-                test -f $dir/(harness_get $harness .settings.file)
-                or fail "$key: $dir/"(harness_get $harness .settings.file)" is missing (rerun without --check)"
-            else
-                env SEATWORKS_KIT=$kit (env_pairs $key $harness) $mat $key $role $dir
-                or fail "$key: $mat failed"
-            end
+            rm -f $want
         case '*'
             fail "$key: harness $harness declares settings.mode '$mode', which this script doesn't build"
     end
 end
 
 function build_seat_links --argument-names key harness dir
-    set -l count (harness_get $harness '.links | length')
+    set -l count (harness_get $harness '.links // [] | length')
+    test $count -gt 0; or return
     for i in (seq 0 (math $count - 1))
         set -l link (harness_get $harness ".links[$i].link")
         set -l target (expand_home (harness_get $harness ".links[$i].target"))
@@ -476,7 +436,19 @@ end
 function build_seat_guards --argument-names key harness role dir
     set -l gdir (harness_get $harness .guards.dir)
     set -l into (harness_get $harness .guards.installTo)
-    set -l want (seat_field $role '.guards[]?')
+    set -l bridge (harness_get $harness '.guards.shellBridge // empty')
+    set -l want
+    for guard in (seat_field $role '.guards[]?')
+        if test -n "$bridge"; and string match -q '*.sh' -- $guard
+            if not test -f $harness_dir/common/guards/$guard
+                fail "$key: seats.json asks for shell guard $guard, which is not in harness/common/guards/; harness $harness runs it through "(harness_get $harness .guards.shellBridge)" from the kit."
+                continue
+            end
+            contains -- $bridge $want; or set -a want $bridge
+            continue
+        end
+        contains -- $guard $want; or set -a want $guard
+    end
     if test "$into" != "."
         test $dry -eq 0; and mkdir -p $dir/$into
         if not test -d $dir/$into
@@ -541,6 +513,11 @@ function seat_provider --argument-names role
         | gsub("KIT"; $kit)]' (harness_file $harness))
     provider_env $key SEATWORKS_ROLE $role
     provider_env $key SEATWORKS_KIT $kit
+    if test (harness_get $harness .deny.mechanism) = settings
+        provider_env $key SEATWORKS_DENIED_TOOLS (string join ':' (seat_deny_names $role $harness))
+    else
+        provider_env_absent $key SEATWORKS_DENIED_TOOLS
+    end
     set -l hidden (seat_field $role '[.hidesPaths[]?] | join(":")')
     if test -n "$hidden"
         provider_env $key SEATWORKS_HIDDEN_PATHS $hidden
@@ -649,6 +626,7 @@ function report_unenforced --argument-names key role harness
     for intent in (seat_intents $role)
         test (count (harness_get $harness ".deny.intents[\"$intent\"][]?")) -gt 0; and continue
         contains -- $intent (harness_get $harness '.deny.enforcedByGuard[]?'); and continue
+        contains -- $intent (harness_get $harness '.deny.absent[]?'); and continue
         set -a gaps $intent
     end
     test (count $gaps) -eq 0; and return
@@ -689,15 +667,14 @@ function seat_deny --argument-names key role harness
             end
             paseo_write $paseo_config "provider $key: disallowedTools set from seats.json, which "(string join ' and ' $note) \
                 '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$want"
-        case extension
-            test (harness_get $harness .deny.paseoToolsOff) = true; or return
-            jq -e --arg k $key '.agents.providers[$k].paseoTools.enabled == false' $paseo_config >/dev/null 2>&1
+        case settings
+            jq -e --arg k $key '(.agents.providers[$k].disallowedTools // []) == []' $paseo_config >/dev/null 2>&1
             and return
             if test $dry -eq 1
-                fail "provider $key gives the seat Paseo tools (rerun without --check)"
+                fail "provider $key still carries a disallowedTools list, which harness $harness's agent never reads; its deny map belongs in the seat's "(harness_get $harness .settings.file)" (rerun without --check)"
             else
-                paseo_write $paseo_config "provider $key: paseoTools disabled" \
-                    '.agents.providers[$k].paseoTools = ((.agents.providers[$k].paseoTools // {}) + {enabled: false})' --arg k $key
+                paseo_write $paseo_config "provider $key: disallowedTools removed, which harness $harness does not read" \
+                    'del(.agents.providers[$k].disallowedTools)' --arg k $key
             end
         case hooks
             echo "  · provider $key: harness $harness has no Paseo-side deny list, so its limits rest on its hooks and sandbox settings."

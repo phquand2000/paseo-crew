@@ -100,26 +100,31 @@ whichever refusal form the new harness expects, so one guard body serves all of 
 
 One edit means one edit: setup moves the profile directory, sets and clears the harness's own
 environment variables, tells the room which binary to exec and which config-directory variable
-to set, and switches the guards' refusal form. Flipping the watcher to another harness and back
-leaves the provider byte-identical.
+to set, writes the deny map where that harness reads one, and switches the guards' refusal form.
+Flipping the watcher to another harness and back leaves the provider byte-identical.
+
+The guards the new harness ships are the part `seats.json` names by hand, in the role's `guards`
+list, because a hook harness and an extension harness cannot run each other's files. A harness
+that declares `guards.shellBridge` bridges the gap: it takes the shared `.sh` guards in that
+list, installs the bridge instead of them, and runs them out of the kit with the hook input they
+read, so a role keeps the writes rule and the launch rules it had before the move.
 
 A harness manifest carries `verified`, the version its facts were checked on. `--check` says so
 when your installed version differs, and `--probe` settles it by asking each seat's harness which
 skills it actually loads. A manifest with `verified: null` is a sketch: its `NOTES.md` lists what
 is still open, and setup refuses to send a gated role to a harness that cannot enforce its gates.
 
-### A model the harness doesn't ship with
+### A model from another provider
 
-A harness can run a model from another provider, and every part of that is data in
-`harness/<id>/harness.json` under `provider.env`: the provider name, its base URL, the wire
-protocol, and the model. One edit changes them. Where a manifest names `settings.materialize`,
-the room runs that harness's materializer first, which builds the seat's config from your shared
-one, the kit's provider block, and the role's overlay, plus a model catalog with every
-native-subagent version nulled, so the seat starts no subagents outside Paseo.
+A harness runs whichever models it can reach, and `provider.defaultModel` in
+`harness/<id>/harness.json` names the one a role gets when `seats.json` names none. A role that
+wants its own says so in `seats.json` under `models`, and a single project overrides it in
+`.seatworks/project.json`, which the room applies to the launch.
 
-**The API key is never written anywhere**: the harness's own config names the environment
-variable it reads the key from, and you export that variable where the Paseo daemon can see it.
-Setup fails if a literal token appears under a harness's `config/`.
+**The API key is never written anywhere**: `provider.baseCredential` in the manifest names the
+environment variable the harness reads it from, you set that variable on the harness's base
+provider in the Paseo config, and every seat inherits it through `extends`. Setup fails if a
+literal token appears under a harness directory.
 
 ## Attention, not polling
 
@@ -210,7 +215,7 @@ notebook, and a miss becomes a rule only when it recurs.
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing and editing the prompts and docs in this kit |
 | [NOTICE.md](NOTICE.md) | Where the skills' ideas come from, with licenses |
 | [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny intents, model, and the skill gates it must pass |
-| [harness/](harness/) | One directory per harness: its manifest, role settings, guards or guard extensions, the custom-model data, and `NOTES.md`, which records what was verified and what is still open |
+| [harness/](harness/) | One directory per harness: its manifest, role settings, guards or guard extensions, and `NOTES.md`, which records what was verified and what is still open |
 | [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: resolves the project from the working directory, points the config-directory variable at its profile, applies a model pin, execs the agent |
 | [harness/common/hook-io.sh](harness/common/hook-io.sh) | Reads a guard's hook input and writes its refusal in the form the seat's harness expects |
 | [harness/common/guards/lead-guard.sh](harness/common/guards/lead-guard.sh) | Blocks writes to repository files outside what the role owns, so Peers write all code |

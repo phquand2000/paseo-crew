@@ -1,0 +1,182 @@
+{
+  "id": "omp",
+  "label": "Oh My Pi",
+  "baseProvider": "omp",
+  "verified": "18.1.14",
+  "profileRoot": "HOME/.omp/seats",
+  "profileRootNote": "not HOME/.omp/profiles: that path is omp's own named-profile layout (~/.omp/profiles/<name>/agent), and a seat directory is an agent directory, not a profile.",
+  "configDirEnv": "PI_CODING_AGENT_DIR",
+  "promptFile": "AGENTS.md",
+  "skillsDir": "skills",
+  "promptComments": "shown",
+  "hasModes": true,
+  "settings": {
+    "mode": "merge",
+    "file": "config.yml",
+    "source": "settings.json",
+    "sourceNote": "the seat's omp settings file is YAML, and JSON is valid YAML, so the kit writes and verifies it with jq like every other settings file. setup merges the deny map seats.json asks for into the same file; see deny.settingsPath."
+  },
+  "guards": {
+    "dir": "omp/extensions",
+    "installTo": "extensions",
+    "hookProtocol": "extension",
+    "readOnlyEnv": "SEATWORKS_READ_ONLY",
+    "shellBridge": "shell-guard.ts",
+    "shellBridgeNote": "a guard whose name ends in .sh is not installed in the seat directory here. setup installs this bridge instead, and the bridge runs every .sh guard in the role's guards list out of harness/common/guards/, feeding it the hook input those guards read and turning its exit-2 stderr into a blocked tool call.",
+    "shellTool": "bash"
+  },
+  "deny": {
+    "mechanism": "settings",
+    "settingsPath": "tools.approval",
+    "settingsValue": "deny",
+    "intents": {
+      "subagents": [
+        "task",
+        "hub"
+      ],
+      "web-search": [
+        "web_search"
+      ],
+      "todo-list": [
+        "todo"
+      ],
+      "code-eval": [
+        "eval"
+      ],
+      "lsp": [
+        "lsp"
+      ],
+      "file-edit": [
+        "edit",
+        "write",
+        "ast_edit",
+        "notebook"
+      ],
+      "paseo": [
+        "archive_agent",
+        "archive_workspace",
+        "cancel_agent",
+        "capture_terminal",
+        "create_agent",
+        "create_heartbeat",
+        "create_schedule",
+        "create_terminal",
+        "create_workspace",
+        "delete_heartbeat",
+        "delete_schedule",
+        "get_agent_activity",
+        "get_agent_status",
+        "inspect_provider",
+        "inspect_schedule",
+        "kill_agent",
+        "kill_terminal",
+        "list_agents",
+        "list_models",
+        "list_pending_permissions",
+        "list_profiles",
+        "list_providers",
+        "list_schedules",
+        "list_terminals",
+        "list_workspace_scripts",
+        "list_workspaces",
+        "pause_schedule",
+        "rename_workspace",
+        "respond_to_permission",
+        "resume_schedule",
+        "run_schedule_once",
+        "schedule_logs",
+        "send_agent_prompt",
+        "send_terminal_keys",
+        "set_agent_mode",
+        "speak",
+        "start_workspace_script",
+        "stop_workspace_script",
+        "update_agent",
+        "update_schedule"
+      ],
+      "paseo-write": [
+        "archive_agent",
+        "archive_workspace",
+        "cancel_agent",
+        "create_agent",
+        "create_schedule",
+        "create_terminal",
+        "create_workspace",
+        "delete_schedule",
+        "kill_agent",
+        "kill_terminal",
+        "pause_schedule",
+        "rename_workspace",
+        "respond_to_permission",
+        "resume_schedule",
+        "run_schedule_once",
+        "send_terminal_keys",
+        "set_agent_mode",
+        "speak",
+        "start_workspace_script",
+        "stop_workspace_script",
+        "update_agent",
+        "update_schedule"
+      ]
+    },
+    "enforcedByGuard": [
+      "git-push",
+      "forge-cli",
+      "agent-cli"
+    ],
+    "absent": [
+      "workflows"
+    ],
+    "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Everything else a seat asks for and this manifest does not map is reported as unenforced.",
+    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start; Paseo's host tools arrive after that and cannot be dropped, so a seat sees them and is refused when it calls one. eval is denied on every seat because it reaches a shell the guard extension does not parse. plan-mode stays unenforced: omp's plan mode is a session mode, not a tool."
+  },
+  "skillLoad": {
+    "tool": "read",
+    "phrase": "a read of skill://NAME",
+    "force": "/skill:NAME",
+    "transcriptMatch": null,
+    "descriptionBudget": null,
+    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\"",
+    "placeholders": []
+  },
+  "sharedSkillDirs": [
+    "HOME/.agents/skills"
+  ],
+  "probe": {
+    "kind": "version",
+    "command": [
+      "omp",
+      "-p",
+      "--no-session",
+      "--model",
+      "zai/glm-5.3-flash",
+      "--thinking",
+      "low"
+    ],
+    "credentialFromBase": true,
+    "live": "run probe.command with the seat's configDirEnv set and ask it to list its skills",
+    "note": "the skills directory, the prompt file, the extensions directory and the deny map were verified by running a seat against a scratch agent directory; a version other than the verified one re-opens those questions"
+  },
+  "versionCommand": "omp --version",
+  "provider": {
+    "env": {
+      "SEATWORKS_HARNESS": "omp",
+      "SEATWORKS_AGENT_BIN": "omp"
+    },
+    "profileModeId": "full",
+    "defaultModel": "zai/glm-5.3",
+    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: omp wants provider/id.",
+    "baseCredential": {
+      "env": "ZAI_API_KEY",
+      "create": "omp token zai",
+      "note": "set on the base provider so every seat inherits it through extends. A seat directory is its own agent directory with its own empty credential store, so the seat authenticates from this variable and never shares omp's login database. The kit never reads it from anywhere but the user."
+    },
+    "command": [
+      "KIT/harness/common/bin/seat-room"
+    ],
+    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched"
+  },
+  "contextFile": "AGENTS.md",
+  "contextFileNeedsPointer": false,
+  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat."
+}

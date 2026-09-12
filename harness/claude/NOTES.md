@@ -51,7 +51,7 @@ and asks for `--probe`.
   a skill gate possible at all.
 - **Hook protocol:** `exit-code` — stderr plus exit 2, which is the only form
   `harness/common/hook-io.sh` writes. A harness that answers hooks another way needs its own
-  guards, as `guards.hookProtocol` records and `harness/pi/extensions/` shows.
+  guards, as `guards.hookProtocol` records and `harness/omp/extensions/` shows.
 - **`permissions.deny` is not equivalent** to a provider deny list, so the role settings leave
   it out.
 

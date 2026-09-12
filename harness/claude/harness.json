@@ -80,13 +80,41 @@
         "Write",
         "MultiEdit",
         "NotebookEdit"
+      ],
+      "paseo-write": [
+        "mcp__paseo__archive_agent",
+        "mcp__paseo__archive_workspace",
+        "mcp__paseo__cancel_agent",
+        "mcp__paseo__create_agent",
+        "mcp__paseo__create_schedule",
+        "mcp__paseo__create_terminal",
+        "mcp__paseo__create_workspace",
+        "mcp__paseo__delete_schedule",
+        "mcp__paseo__kill_agent",
+        "mcp__paseo__kill_terminal",
+        "mcp__paseo__pause_schedule",
+        "mcp__paseo__rename_workspace",
+        "mcp__paseo__respond_to_permission",
+        "mcp__paseo__resume_schedule",
+        "mcp__paseo__run_schedule_once",
+        "mcp__paseo__send_terminal_keys",
+        "mcp__paseo__set_agent_mode",
+        "mcp__paseo__speak",
+        "mcp__paseo__start_workspace_script",
+        "mcp__paseo__stop_workspace_script",
+        "mcp__paseo__update_agent",
+        "mcp__paseo__update_schedule"
       ]
     },
     "enforcedByGuard": [],
     "retired": [
       "SlashCommand"
     ],
-    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool — check for typos`. Skills load through the Skill tool, which must stay allowed."
+    "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool \u2014 check for typos`. Skills load through the Skill tool, which must stay allowed.",
+    "absent": [
+      "code-eval"
+    ],
+    "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Claude Code runs code only through Bash, which the guards already read."
   },
   "skillLoad": {
     "tool": "Skill",
@@ -125,12 +153,9 @@
       "SEATWORKS_HARNESS": "claude",
       "SEATWORKS_AGENT_BIN": "claude"
     },
-    "keys": {
-      "disallowedTools": []
-    },
     "profileModeId": "bypassPermissions",
     "defaultModel": null,
-    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: Pi wants provider/id.",
+    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed. Spelled the way this harness spells a model: omp wants provider/id.",
     "baseCredential": {
       "env": "CLAUDE_CODE_OAUTH_TOKEN",
       "create": "claude setup-token",

@@ -82,12 +82,12 @@
           "thinkingOptions": [
             {
               "id": "medium",
-              "label": "Medium",
-              "isDefault": true
+              "label": "Medium"
             },
             {
               "id": "high",
-              "label": "High"
+              "label": "High",
+              "isDefault": true
             }
           ]
         }
@@ -119,7 +119,7 @@
     },
     {
       "role": "watcher",
-      "harness": "claude",
+      "harness": "omp",
       "label": "Watcher",
       "prompt": "WATCHER.md",
       "skills": null,
@@ -128,58 +128,40 @@
       ],
       "guards": [
         "lead-guard.sh",
-        "watcher-guard.sh"
+        "watcher-guard.sh",
+        "peer-guard.ts",
+        "shell-guard.ts"
       ],
-      "deny": [
-        "mcp__paseo__create_agent",
-        "mcp__paseo__update_agent",
-        "mcp__paseo__archive_agent",
-        "mcp__paseo__set_agent_mode",
-        "mcp__paseo__create_workspace",
-        "mcp__paseo__archive_workspace",
-        "mcp__paseo__start_workspace_script",
-        "mcp__paseo__create_schedule",
-        "mcp__paseo__update_schedule",
-        "mcp__paseo__delete_schedule",
-        "mcp__paseo__respond_to_permission",
-        "mcp__paseo__kill_agent",
-        "mcp__paseo__cancel_agent",
-        "mcp__paseo__pause_schedule",
-        "mcp__paseo__resume_schedule",
-        "mcp__paseo__run_schedule_once",
-        "mcp__paseo__rename_workspace",
-        "mcp__paseo__stop_workspace_script",
-        "mcp__paseo__create_terminal",
-        "mcp__paseo__send_terminal_keys",
-        "mcp__paseo__kill_terminal",
-        "mcp__paseo__speak"
-      ],
+      "deny": [],
       "readOnly": false,
       "hidesOrchestration": false,
       "required": false,
       "notes": "The Supervisor keeps one running while any Lead is active: it sweeps Lead and Peer activity on a heartbeat and sends the Supervisor ATTENTION events.",
       "models": [
         {
-          "id": "claude-haiku-4-5",
-          "label": "Haiku 4.5",
+          "id": "zai/glm-5.3-flash",
+          "label": "GLM-5.3-Flash",
           "isDefault": true
         }
       ],
       "description": "Attention watcher: sweeps Lead and Peer activity on a heartbeat and raises ATTENTION events for the Supervisor",
       "denyIntents": [
         "lsp",
-        "file-edit"
+        "file-edit",
+        "code-eval",
+        "paseo-write"
       ],
       "writes": [
         ".seatworks/records/attention/?*"
       ],
       "writesRule": "The watcher writes only its log in .seatworks/records/attention/; everything else goes to the Supervisor as an attention event.",
       "mayStart": [],
-      "hidesWords": []
+      "hidesWords": [],
+      "thinking": "low"
     },
     {
       "role": "peer",
-      "harness": "pi",
+      "harness": "omp",
       "label": "Peer",
       "prompt": "PEER.md",
       "skills": "peer",
@@ -191,11 +173,14 @@
       "readOnly": false,
       "hidesOrchestration": true,
       "required": true,
-      "notes": "The Peer profile for work that writes: the Engineer disposition. Use thinkingOptionId high for a new boundary.",
+      "notes": "The Peer profile for work that writes: the Engineer disposition. Use thinkingOptionId max for a new boundary.",
       "models": [],
-      "thinking": "medium",
+      "thinking": "high",
       "description": "Peer seat: implementation, evidence, handoff",
-      "denyIntents": [],
+      "denyIntents": [
+        "code-eval",
+        "paseo"
+      ],
       "mayStart": [],
       "hidesWords": [
         "paseo",
@@ -217,7 +202,7 @@
     },
     {
       "role": "peer-ro",
-      "harness": "pi",
+      "harness": "omp",
       "label": "Peer (read-only)",
       "prompt": "PEER.md",
       "skills": "peer",
@@ -233,7 +218,11 @@
       "models": [],
       "thinking": "high",
       "description": "Read-only Peer seat: Architect, Scout, and council work with file edits blocked",
-      "denyIntents": [],
+      "denyIntents": [
+        "file-edit",
+        "code-eval",
+        "paseo"
+      ],
       "mayStart": [],
       "hidesWords": [
         "paseo",
@@ -255,7 +244,7 @@
     },
     {
       "role": "reviewer",
-      "harness": "pi",
+      "harness": "omp",
       "label": "Reviewer",
       "prompt": "REVIEWER.md",
       "skills": "reviewer",
@@ -274,7 +263,11 @@
       "thinking": "high",
       "description": "Reviewer seat: read-only code review with Open Code Review",
       "reviewSeat": true,
-      "denyIntents": [],
+      "denyIntents": [
+        "file-edit",
+        "code-eval",
+        "paseo"
+      ],
       "mayStart": [],
       "hidesWords": [
         "paseo",
@@ -322,6 +315,7 @@
     "web-search",
     "todo-list",
     "plan-mode",
+    "code-eval",
     "agent-cli",
     "git-push",
     "forge-cli"
@@ -331,5 +325,5 @@
   "mayStartNote": "mayStart lists the roles a seat may launch; harness/common/guards/profile-guard.sh refuses a create_agent or create_schedule on any other role, so an empty list means the seat starts nothing. With one provider per role the provider name is the role, which is what the guard matches.",
   "hidesWordsNote": "hidesWords lists words a seat must never see: setup-seats.fish refuses the seat prompt and every skill it links if one of them appears as a whole word, case-insensitively. Peers and Reviewers believe they work directly for a human, and a Lead knows only the three message labels, so nothing may name the seat above it.",
   "hidesPathsNote": "hidesPaths lists repository paths a seat may not read, because the project keeps every seat prompt in one directory: a Peer that opened .seatworks/SUPERVISOR.md would learn about the layer above it. setup-seats.fish passes the list to the seat as SEATWORKS_HIDDEN_PATHS and its guard refuses a read there. Anything a Peer needs from those files belongs in its brief or in the repository instruction file.",
-  "guardsNote": "guards names the files a seat installs, so moving a role to another harness moves everything in seats.json except this list: a hook-protocol harness takes the shell guards under harness/common/guards/, and a harness whose guards.hookProtocol is \"extension\" needs its own, as harness/pi/extensions/ shows. Check the target harness has an equivalent before you change a role's harness, and read report_unenforced's output, which names every intent the new harness enforces with neither a deny list nor a guard."
+  "guardsNote": "guards names the files a seat installs, so moving a role to another harness moves everything in seats.json except this list: a hook-protocol harness takes the shell guards under harness/common/guards/, and a harness whose guards.hookProtocol is \"extension\" needs its own, as harness/omp/extensions/ shows. A harness that declares guards.shellBridge takes both: it installs the bridge instead of the .sh files and runs them out of the kit. Check the target harness has an equivalent before you change a role's harness, and read report_unenforced's output, which names every intent the new harness enforces with neither a deny list nor a guard."
 }

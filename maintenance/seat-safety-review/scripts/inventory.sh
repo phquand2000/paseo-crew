@@ -21,7 +21,6 @@ if [ -f "$config" ]; then
         .key,
         "extends=\($p.extends // "-")",
         "enabled=\(if $p | has("enabled") then $p.enabled else "inherited" end)",
-        "paseoTools=\(if ($p.paseoTools // {}) | has("enabled") then $p.paseoTools.enabled else "default" end)",
         "env=[\(($p.env // {}) | keys | join(","))]",
         "deny=[\(($p.disallowedTools // []) | join(","))]",
         "models=[\(($p.models // []) | map(.id) | join(","))]"

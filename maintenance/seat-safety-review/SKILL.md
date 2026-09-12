@@ -37,8 +37,9 @@ Steps 1–3 map what exists, 4–5 what can go wrong, 6 the response, and 7–8 
    - Tools: the harness's own tools, minus whatever its manifest's `deny.mechanism` names (a Paseo
      `disallowedTools` list, guard hooks, or a guard extension) and minus the guards `seats.json`
      gives that seat; more is blocked with `SEATWORKS_READ_ONLY=1`. Paseo tools from
-     `paseoTools.enabled` and `daemon.mcp.injectIntoAgents`; MCP servers in the profile file the
-     manifest's `state.file` names; packages in the profile's own settings file; skills, including
+     `daemon.mcp.injectIntoAgents`, minus the ones the seat's `paseo` or `paseo-write` intent
+     denies; MCP servers in the profile file the manifest's `state.file` names, and the deny map
+     in the settings file its `settings.file` names; skills, including
      every directory in the manifest's `sharedSkillDirs`, which all of that harness's profiles
      load.
    - Credentials: env var names on the provider, the linked auth file, and what any shell

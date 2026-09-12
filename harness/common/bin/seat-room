@@ -39,11 +39,6 @@ export SEATWORKS_SEAT=$role-$slug
 var=$(jq -r '.configDirEnv // empty' "$manifest" 2>/dev/null || true)
 [ -n "$var" ] && export "$var=$dir"
 
-materialize=$(jq -r '.settings.materialize // empty' "$manifest" 2>/dev/null || true)
-if [ -n "$materialize" ] && [ -x "$kit/harness/$harness/$materialize" ]; then
-    "$kit/harness/$harness/$materialize" "$role-$slug" "$role" "$dir" >&2
-fi
-
 model=$(jq -r --arg r "$role" '.models[$r] // empty' "$project" 2>/dev/null || true)
 if [ -n "$model" ]; then
     args=()

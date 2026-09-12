@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const ASSIGN = String.raw`(?:[A-Za-z_]\w*=\S*\s+)*`;
 const OPTS = String.raw`(?:-\S+(?:\s+[^\s;&|<>()-]\S*)?\s+)*`;
@@ -58,7 +58,7 @@ const READ_ONLY_RULES: { pattern: RegExp; reason: string }[] = [
   },
 ];
 
-const READ_ONLY_TOOLS = new Set(["write", "edit"]);
+const READ_ONLY_TOOLS = new Set(["write", "edit", "ast_edit", "notebook"]);
 const READ_ONLY_TOOL_REASON =
   "Editing files is not available in this role. Put temporary notes under $TMPDIR with the shell, and report what you would change.";
 
@@ -66,6 +66,13 @@ const ENV =
   (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 
 const READ_ONLY = ENV.SEATWORKS_READ_ONLY === "1";
+
+const DENIED = new Set(
+  (ENV.SEATWORKS_DENIED_TOOLS ?? "")
+    .split(":")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0),
+);
 
 const HIDDEN = (ENV.SEATWORKS_HIDDEN_PATHS ?? "")
   .split(":")
@@ -106,6 +113,14 @@ export function blockReason(command: string, readOnly = READ_ONLY): string | und
 }
 
 export default function (pi: ExtensionAPI) {
+  if (DENIED.size > 0) {
+    pi.on("session_start", () => {
+      const active = pi.getActiveTools();
+      const keep = active.filter((name) => !DENIED.has(name));
+      if (keep.length !== active.length) pi.setActiveTools(keep);
+    });
+  }
+
   pi.on("tool_call", async (event) => {
     if (READ_ONLY && READ_ONLY_TOOLS.has(event.toolName)) {
       return { block: true, reason: READ_ONLY_TOOL_REASON };

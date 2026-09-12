@@ -139,7 +139,15 @@ in it, because step 4 composes them.
    ```
 
 3. Merge any missing base entry from `examples/paseo-providers.json` into `.agents.providers`,
-   dropping its `_doc` key.
+   dropping its `_doc` key. Paseo ships some providers disabled, and substep 1 calls one of those
+   `present`, so check the entries that already exist too:
+
+   ```fish
+   jq -r '.agents.providers | to_entries[] | select(.value.extends | not) | "\(.key): enabled=\(.value.enabled // "unset")"' ~/.paseo/config.json
+   ```
+
+   A base provider the example file marks `"enabled": true` needs that key, whether you added the
+   entry now or it was already there.
 4. A harness whose manifest sets `provider.baseCredential` keeps a token on its base provider,
    which every seat inherits. List which, and whether each is set, without printing any value:
 

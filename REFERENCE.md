@@ -121,23 +121,26 @@ invalidate this page, and no entry here names a coding agent or its tools.
   blocks a Lead's or Supervisor's launch on any other. To cap launches from the app too, give
   the role a `models` list in `seats.json`.
 
-## Paseo tool access is set per provider ID
+## Paseo offers its tools to every seat
 
 - **Symptom:** a Peer can see `create_agent` or other Paseo tools.
-- **Cause:** `paseoTools` applies to the exact provider ID and isn't inherited from `extends` or
-  from the agent that creates the Peer. A harness reaches Paseo's tools only through its own
-  adapter, and Paseo carries the profile's MCP file into each launch.
-- **Response:** keep `paseoTools.enabled: false` on every seat whose manifest sets
-  `deny.paseoToolsOff` (the setup script does it), keep the harness's MCP adapter out of the
-  profile, and keep any `paseo` server out of its MCP file.
+- **Cause:** `daemon.mcp.injectIntoAgents` is one machine-wide switch. There is no per-provider
+  one: a key like `paseoTools` under a provider is not in Paseo's schema and is dropped when the
+  config is read. A harness that supports Paseo's tools natively gets them as host tools with
+  bare names (`create_agent`), and one that does not gets the `paseo` MCP server instead, whose
+  names carry the `mcp__paseo__` prefix.
+- **Response:** deny them per seat. Give the role the `paseo` intent in `seats.json`, or
+  `paseo-write` for a seat that should read Paseo and change nothing, and let its harness spell
+  the names; keep any `paseo` server out of the profile's own MCP file as well.
 
 ## Enforcement differs by harness
 
 - **Symptom:** a seat does something its prompt rules out.
 - **Cause:** prompts are guidance. Where the blocking happens is the manifest's
-  `deny.mechanism`: a Paseo `disallowedTools` list, guard hooks, or a guard extension. Paseo
-  applies `disallowedTools` only to some of its providers, so a role moved to another harness can
-  lose a deny list without any error; `setup-seats.fish` says so when a harness has none. The
+  `deny.mechanism`: a Paseo `disallowedTools` list, the harness's own settings file, or a guard
+  extension. Paseo applies `disallowedTools` only to some of its providers, so a role moved to
+  another harness can lose a deny list without any error; `setup-seats.fish` says so when a
+  harness has none, and it removes a stale list from a provider whose agent never reads one. The
   guards themselves are shared. `lead-guard.sh` checks each write against the repository and
   allows only the glob patterns a role's `writes` lists in `seats.json`, plus every `contextFile`
   the manifests declare for a role whose `writesAlsoContextFiles` is set, read from
@@ -159,8 +162,9 @@ invalidate this page, and no entry here names a coding agent or its tools.
   so moving a role tells you which limits stopped holding. Put anything stronger in a guard under
   `harness/common/guards/` or in a harness's own guard extension.
   `harness/common/hook-io.sh` writes each refusal in the form the seat's harness expects, so one
-  guard body serves every harness, and a manifest's `guards.dir` says where its seats install
-  from.
+  guard body serves every harness; a manifest's `guards.dir` says where its seats install from,
+  and its `guards.shellBridge`, where it has one, runs the shared `.sh` guards on a harness that
+  takes extensions rather than hooks.
 
 ## Command guards are guard rails, not sandboxes
 
@@ -330,16 +334,16 @@ invalidate this page, and no entry here names a coding agent or its tools.
   and check it with `ocr llm test`. That sends the code under review to that provider, which is
   the Human's call. `ocr config set language English` keeps comments in English.
 
-## The Reviewer and the read-only Peer are read-only by guard
+## The Reviewer and the read-only Peer are read-only
 
 - **Symptom:** a Reviewer or read-only Peer reports "Editing files is not available in this role."
-- **Cause:** a role marked `readOnly` in `seats.json` gets `SEATWORKS_READ_ONLY=1` on its
-  provider, which makes its guard block the harness's write and edit tools and the git commands
-  that change the repository. Shell redirection still works, so temporary files under `$TMPDIR`
-  remain possible, and so does a determined write.
-- **Response:** expected; send work that edits files to `peer`. The guard prevents
-  accidents rather than sandboxing; the setup script checks that the variable stays on every
-  read-only provider.
+- **Cause:** two things hold it. A role marked `readOnly` in `seats.json` gets
+  `SEATWORKS_READ_ONLY=1` on its provider, which makes its guard block the harness's write and
+  edit tools and the git commands that change the repository; and its `file-edit` intent denies
+  those tools outright wherever the harness can. Shell redirection still works, so temporary
+  files under `$TMPDIR` remain possible, and so does a determined write.
+- **Response:** expected; send work that edits files to `peer`. This prevents accidents rather
+  than sandboxing; the setup script checks that the variable stays on every read-only provider.
 
 ## Heartbeats end with their agent
 

@@ -125,7 +125,7 @@ describes its target. [G, MS]
 
 Skills live in `project/skills/<role>/`, and must work unchanged on every harness a role might
 run on. Each role's set matches its altitude: strategy for the Supervisor, macro for the Lead,
-micro for the Peer, and review for the Reviewer. [S, SK, PI]
+micro for the Peer, and review for the Reviewer. [S, SK, OMP]
 
 1. Use only `name` (equal to the directory name: lowercase letters, digits, hyphens) and
    `description` in the frontmatter, plus `disable-model-invocation: true` for skills that run
@@ -242,7 +242,7 @@ Supervisor, watcher, seat, or Paseo, and `.seatworks/LEAD.md` never names the Su
 - [CE] [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
 - [S] [Agent Skills best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
 - [SK] [Claude Code skills](https://code.claude.com/docs/en/skills)
-- [PI] [Pi skills](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md)
+- [OMP] [omp skills](https://omp.sh/docs/skills)
 - [MA] [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
 - [COG] [Don't build multi-agents](https://cognition.com/blog/dont-build-multi-agents)
 - [HL] [Writing a good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
