@@ -46,7 +46,10 @@ Replace the following:
 - `DECISIONS`: settled decisions and rejected approaches that bound the slice, each with its ADR
   number or plan line, or `none`.
 - `STARTING_POINTS`: files, docs, and SHAs worth reading first, including the ExecPlan path.
-- `OWNED_GLOBS`: the paths this Peer may write, as concrete globs.
+- `OWNED_GLOBS`: the paths this Peer may write, as concrete globs. Before you write them, name
+  the files the slice's change reaches that lie outside them, and either bring each one inside
+  these globs or re-cut the slice; a Peer that meets a shared file it cannot write can only
+  stop and ask, and its session is spent.
 - `EXCLUDED_GLOBS`: nearby paths it may read but not write, such as another slice's scope.
 - `BRANCH`: the slice branch, for example `task/invoice-csv-S2`.
 - `CONSUMED_INTERFACES`: the exact signatures, types, routes, schemas, or file formats this
