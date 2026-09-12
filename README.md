@@ -1,15 +1,16 @@
 # Seatworks starter
 
-Seatworks gives each project six agent seats, each with its own prompt, skills, and settings,
+Seatworks gives each project five agent seats, each with its own prompt, skills, and settings,
 coordinated through [Paseo](https://getpaseo.com):
 
 - `supervisor` meets with you, relays settled decisions to the Lead, answers the attention
   events the watcher raises, and keeps the project's notebook of failures.
 - `lead` breaks work down, delegates it to Peers, and accepts their results.
-- `peer` writes code and returns evidence; `peer-ro` runs the same prompt and skills
-  with edits blocked, for Architect, Scout, and council work.
-- `reviewer` reviews changes read-only: it runs
-  [Open Code Review](https://github.com/alibaba/open-code-review) as a first pass and confirms
+- `peer` writes code and returns evidence. An Architect or Scout is the same seat with `Owned
+  scope none` in its brief.
+- `reviewer` is the only seat whose writes are blocked outright, so it takes every read-only
+  lane: reviewing a change, a council seat, an ultra-review scout, an audit reader. It can run
+  [Open Code Review](https://github.com/alibaba/open-code-review) as a first pass, and confirms
   every finding in the code before reporting it.
 - `watcher` reads the Lead's and Peers' activity on a heartbeat and raises attention events
   for the Supervisor.
@@ -34,9 +35,9 @@ is in [SETUP.md](SETUP.md).
 
 ## How it works
 
-There are two scopes, and only one of them grows. Your Paseo config holds six providers and six
-agent profiles, one per role, and adding a project only composes one that is missing. Everything a seat reads
-lives in that project, under `REPO/.seatworks/`.
+There are two scopes, and only one of them grows. Your Paseo config holds five providers and five
+agent profiles, one per role, and adding a project only composes one that is missing. Everything a
+seat reads lives in that project, under `REPO/.seatworks/`.
 
 The room joins the two. `harness/common/bin/seat-room` is the command every provider launches:
 it walks up from the agent's working directory to the nearest `.seatworks/`, reads the project's
@@ -54,14 +55,15 @@ harness/<id>/harness.json       one harness: its config-directory variable, prom
                                 loaded and recognised there
 harness/<id>/NOTES.md           that harness's behavior, and how each fact was established
 harness/common/bin/seat-room    the room, launched by every provider
-~/.paseo/config.json            six providers and six agent profiles, one per role, composed
+~/.paseo/config.json            five providers and five agent profiles, one per role, composed
                                 from the two files above
 <profileRoot>/<role>-<slug>/    one profile directory per role per project, named by each
                                 harness manifest: the role's settings and guards, and links
                                 into that project's `.seatworks/`
 REPO/.seatworks/                project.json, SUPERVISOR.md, LEAD.md, PEER.md, REVIEWER.md,
-                                WATCHER.md, WORKSPACE_PROTOCOL.md, NOTEBOOK.md, records/,
-                                skills/{supervisor,lead,peer,reviewer}/
+                                WATCHER.md, WORKSPACE_PROTOCOL.md, NOTEBOOK.md, and the Lead's
+                                own docs DIRECTIVE.md, FEATURE_INTAKE.md, PLANS.md, BRIEF.md;
+                                records/, skills/{supervisor,lead,peer,reviewer}/
 maintenance/                    kit tools no seat loads: seat-safety-review audits the kit's
                                 seats, not a project
 ```
@@ -77,12 +79,14 @@ the global profile. A role the file doesn't name keeps its profile's model.
 directory, so an edit to `REPO/.seatworks/LEAD.md` takes effect for the next Lead you start
 there.
 
-Each role has its own skill set: strategy for the Supervisor (interviews, pre-mortems,
-retrospectives, patches), macro for the Lead (intake, decomposition, council, review
-orchestration, rollout), micro for the Peer (test-first work, debugging, proof audits), and
-review for the Reviewer (Open Code Review, change review). The Supervisor
-alone keeps its harness's auto memory, in its own profile directory, as that project's
-organizational memory.
+Eleven skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
+every session lives in its prompt, where nothing can skip it; a skill is for the situation that
+doesn't come up every time. Four belong to the Lead and every one waits for you to ask by name
+(`council`, `ultra-review`, `review-pack`, `repo-refresh`); five belong to the Peer and are
+named in its brief (`test-first`, `diagnosing-bugs`, `security-check`, `frontend-design`,
+`test-proof-debt-audit`); the Reviewer has `reviewing-a-change` and the Supervisor has
+`architecture-premise-audit`. The Supervisor alone keeps its harness's auto memory, in its own
+profile directory, as that project's organizational memory.
 
 Authority is split by concern rather than stacked in one chain. You hold intent and priorities.
 The Supervisor interprets intent and watches coordination. The Lead owns its workspace's
@@ -142,28 +146,28 @@ that question:
 - The Supervisor logs most events. For the rest it sends a neutral `CHECK:` question through
   the Lead ("which of the names your new tests call existed before this task?"), because asking
   an agent to look again at a named source catches more than telling it that it is wrong.
-- Hard decisions go to sealed lanes: two or three Peers answer the same open question without
-  seeing the Lead's view or each other's, and the Lead rules on them.
+- Hard decisions go to sealed lanes when you ask for one: two or three read-only seats answer the
+  same open question without seeing the Lead's view or each other's, and the Lead rules on them.
+  The Lead cannot open that lane itself, because it costs several seats and rounds of waiting.
 - When you're away, the Supervisor keeps attending and gives you a short report when you're
-  back. Once a week it proposes rule changes from what the log recorded.
+  back, and proposes a rule change only for a pattern the notebook has seen twice.
 
 ## Skills the seat has to load
 
-A seat's harness offers it a skill's name and description and leaves the loading to the model,
-which does not always do it. Two evaluation runs recorded a Lead skipping `review-orchestration`
-and `integration` though its prompt said to load them, and the Reviewer brief that followed was
-missing the fields the Lead needed to rule.
+A seat's harness offers a skill's name and description and leaves the loading to the model, which
+often doesn't. Measured here: a byte-exact replica of a Peer seat sends all eight of its skills
+in its own system prompt, under an instruction to read the matching one first, and not one
+session on this machine ever did. The Lead skipped its gated skills in two evaluation runs.
 
-So three of the Lead's skills are gated rather than advised. `seats.json` lists them under
-`skillGates`: `intake` before creating a Peer, `review-orchestration` before briefing a Reviewer,
-`integration` before a merge. The guard reads the session's own transcript, and a call made
-without its skill is refused with the skill's name and the reason. Loading the skill first costs
-one tool call and the gate is invisible.
+The kit answers that in two ways, neither of which is a new mechanism. What a seat does every
+session is in its prompt rather than in a skill, so there is nothing to skip; and what a Peer
+does sometimes is named in the brief's `Skills` field by the Lead, because a Peer left to route
+itself routes to none.
 
-Gates are declared per role, not per harness, and both the hook guard and the guard extension
-read the same list, so a gated role keeps its gates wherever it runs. No Peer skill is gated: no
-evaluation run recorded a Peer skipping one, and the kit adds a rule only after an observed
-failure.
+`seats.json` still has `skillGates`, which refuses a named call until its skill is in the
+transcript, and the list is empty. It held three Lead procedures that the prompt now carries, and
+it only ever held on a harness whose manifest can tell a loaded skill from an unloaded one. A
+gate earns its place with an observed skip and a recorded reason, not with a wish.
 
 ## Daily use
 
@@ -219,15 +223,15 @@ notebook, and a miss becomes a rule only when it recurs.
 | [harness/](harness/) | One directory per harness: its manifest, role settings, guards or guard extensions, and `NOTES.md`, which records what was verified and what is still open |
 | [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: resolves the project from the working directory, points the config-directory variable at its profile, applies a model pin, execs the agent |
 | [harness/common/hook-io.sh](harness/common/hook-io.sh) | Reads a guard's hook input and writes its refusal in the form the seat's harness expects |
-| [harness/common/guards/lead-guard.sh](harness/common/guards/lead-guard.sh) | Blocks writes to repository files outside what the role owns, so Peers write all code |
+| [harness/common/guards/lead-guard.sh](harness/common/guards/lead-guard.sh) | Blocks writes to repository files outside what the role owns, and to everything outside the repository but `$TMPDIR` — the kit, the Paseo config and the seat profiles all live out there |
 | [harness/common/guards/profile-guard.sh](harness/common/guards/profile-guard.sh) | Blocks creating, prompting, scheduling, or switching an agent onto a model, mode, or workspace other than its own |
-| [harness/common/guards/skill-guard.sh](harness/common/guards/skill-guard.sh) | Refuses a gated call until its skill is loaded in this session |
+| [harness/common/guards/skill-guard.sh](harness/common/guards/skill-guard.sh) | Refuses a gated call until its skill is loaded in this session; no role sets a gate today |
 | [harness/common/guards/watcher-guard.sh](harness/common/guards/watcher-guard.sh) | Lets the watcher's `send_agent_prompt` reach only its own project's Supervisor |
 | [project/](project/) | Templates copied into each project's `.seatworks/`: the seat prompts, the notebook, the skills |
 | [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the watcher on every sweep |
 | [project/skills/](project/skills/) | Each role's skill set, at its own altitude |
 | [setup/add-project.fish](setup/add-project.fish) | Gives one repository its `.seatworks/` and its `project.json`, then builds its profiles |
-| [setup/setup-seats.fish](setup/setup-seats.fish) | Composes the six providers and profiles and builds every project's profile directories; idempotent, `--check` only verifies, `--probe` asks each harness |
+| [setup/setup-seats.fish](setup/setup-seats.fish) | Composes the five providers and profiles and builds every project's profile directories; idempotent, `--check` only verifies, `--probe` asks each harness |
 | [examples/paseo-providers.json](examples/paseo-providers.json) | The base provider per harness, added once per machine |
 | [examples/AGENTS_MD_SNIPPET.md](examples/AGENTS_MD_SNIPPET.md) | Template for the `AGENTS.md` of a repository you work in |
 | [examples/WORKSPACE_PROTOCOL.md](examples/WORKSPACE_PROTOCOL.md) | Template for a project's coordination protocol, read only by the Lead |

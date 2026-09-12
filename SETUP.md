@@ -28,8 +28,8 @@ from the agent's working directory to the nearest `.seatworks/`, reads the slug 
 seat belongs to the project it starts in: start every seat in `REPO_DIR`; started anywhere else,
 a provider gives you the plain coding agent.
 
-The seats are named for their roles alone: `supervisor`, `lead`, `watcher`, `peer`, `peer-ro`
-(the Peer with edits blocked), and `reviewer`. The same six serve every project.
+The seats are named for their roles alone: `supervisor`, `lead`, `watcher`, `peer`, and
+`reviewer` (the only one whose writes are blocked). The same five serve every project.
 
 Before you start, make sure the machine has the following:
 
@@ -38,15 +38,16 @@ Before you start, make sure the machine has the following:
 - a running Paseo daemon
 - every coding agent `seats.json` assigns a role to, at or above the version its manifest
   records, and logged in; step 2 lists them
-- the `ocr` CLI ([Open Code Review](https://github.com/alibaba/open-code-review)), which the
-  Reviewer runs: `npm install -g @alibaba-group/open-code-review`
+- optionally the `ocr` CLI ([Open Code Review](https://github.com/alibaba/open-code-review)),
+  which the Reviewer offers as a first pass when `ocr llm test` succeeds:
+  `npm install -g @alibaba-group/open-code-review`. Without it the Reviewer reviews by reading.
 
 The setup has eight steps. Steps 1–4 set up the machine once; steps 5–8 run for each project:
 
 1. [Move the kit to a stable path](#move-the-kit-to-a-stable-path)
 2. [Check the prerequisites](#check-the-prerequisites)
 3. [Add the base providers to Paseo](#add-the-base-providers-to-paseo)
-4. [Compose the six seats](#compose-the-six-seats)
+4. [Compose the five seats](#compose-the-five-seats)
 5. [Add a project](#add-a-project)
 6. [Pin a model for one project](#pin-a-model-for-one-project)
 7. [Verify each seat's prompt and skills](#verify-each-seats-prompt-and-skills)
@@ -182,7 +183,7 @@ from substep 4 prints `true`, and `jq -e . ~/.paseo/config.json` succeeds.
 
 To roll back, restore `~/.paseo/config.json.pre-seatworks`.
 
-## Compose the six seats
+## Compose the five seats
 
 `setup/setup-seats.fish` with no project composes the six role providers and the six agent
 profiles from `seats.json` and the manifests: each provider's launcher command, `SEATWORKS_*`
@@ -221,7 +222,7 @@ existing file. It copies the kit's templates from `project/` into `REPO_DIR/.sea
 in the Peer's model in the spawn recipes; writes `.seatworks/project.json` with the slug the room
 resolves a seat by; adds `AGENTS.md` at the repository root if missing, plus an `@AGENTS.md`
 pointer for every other `contextFile` a harness declares with `contextFileNeedsPointer`; then
-registers the repository as a Paseo project, builds this project's six seat directories under
+registers the repository as a Paseo project, builds this project's five seat directories under
 each harness's profile root, and reloads Paseo.
 
 It writes no provider and no profile: those are step 4's six, shared by every project. It adds
@@ -242,7 +243,7 @@ stops and asks for `--slug`.
    fish KIT_DIR/setup/add-project.fish REPO_DIR
    ```
 
-**Done:** the script exits 0, prints a `✓` line for each of the six seats and no base-provider
+**Done:** the script exits 0, prints a `✓` line for each of the five seats and no base-provider
 token warning (if it does, go back to step 3), and these show the slug, the project, the import
 line, and a spawn recipe with a real model:
 
@@ -264,7 +265,7 @@ code under review to that provider.
 
 To roll back, run `paseo project delete PROJECT_ID` with the ID `paseo project ls` shows for
 `REPO_DIR` (a path isn't accepted), then move the files the script listed as added and this
-project's six seat directories (`<profileRoot>/<role>-SLUG`) to the Trash. The providers and
+project's five seat directories (`<profileRoot>/<role>-SLUG`) to the Trash. The providers and
 profiles stay: step 4 owns them.
 
 ## Pin a model for one project
@@ -317,9 +318,9 @@ none.
    Ask for the heading, not the first line: asked for a line, a model often quotes its
    harness's own system prompt.
 3. Check the limits, each in its own agent in `REPO_DIR`, archived afterwards. Ask `peer` to
-   run `git -C /tmp push --dry-run` and report what happened; ask `peer-ro` and `reviewer` to
-   create `probe.txt` in `REPO_DIR` with their write tool; ask `lead` to run
-   `git merge some-branch` without loading a skill first.
+   run `git -C /tmp push --dry-run` and report what happened, and to write `probe.txt` into the
+   kit directory its `SEATWORKS_KIT` names; ask `reviewer` to create `probe.txt` in `REPO_DIR`
+   with its write tool; ask `lead` to create a workspace.
 
 **Done:** `--check --probe` exits 0, and each seat quotes the heading this table gives:
 
@@ -328,20 +329,21 @@ none.
 | `supervisor` | `# Supervisor — orchestration observer acting for the Human` |
 | `lead` | `# Lead — Project Lead & binding technical arbiter` |
 | `watcher` | `# Watcher — attention sweeps for the Supervisor` |
-| `peer`, `peer-ro` | `# Peer — independent co-worker`, with no mention of Paseo |
+| `peer` | `# Peer — independent co-worker`, with no mention of Paseo |
 | `reviewer` | `# Reviewer — independent code review`, with no mention of Paseo |
 
-Every limit refuses too: `peer`'s push with "Pushing is not available in this workspace.",
-`peer-ro`'s and `reviewer`'s write with "Editing files is not available in this role.", and
-`lead`'s merge with "Skill guard: You can't merge without loading the `integration` skill
-first".
+Every limit refuses too: `peer`'s push with "Pushing is not available in this workspace." and
+its write into the kit with "is outside" that repository; `reviewer`'s write with "Editing files
+is not available in this role."; and `lead`'s workspace with "matches no known tool" or a denial,
+because `create_workspace` is denied for that role.
 
 If a seat quotes the user's own instruction file, the room didn't resolve the project: check the
 agent's `--cwd`, the slug in `REPO_DIR/.seatworks/project.json`, and that
 `<profileRoot>/<role>-SLUG` exists, then rerun step 5. If a limit doesn't refuse, its guard
 didn't load: check the guard link under `<profileRoot>/<role>-SLUG/<guards.installTo>/`, from
-that harness's manifest, and for the merge that the `lead` provider has `env.SEATWORKS_KIT` and
-its role settings file runs `skill-guard.sh` in a hook. Then repeat this step for that seat.
+that harness's manifest, that the provider has `env.SEATWORKS_KIT`, and for the workspace that
+the `lead` provider's deny list carries the `workspaces` intent's tools. Then repeat this step
+for that seat.
 
 Finally, leave one Supervisor running for the user: start an agent on `supervisor` in `REPO_DIR`
 and keep it; it keeps a watcher running while a Lead works.
@@ -352,9 +354,9 @@ The prompts are demo files: the structure is real, the rules generic, and the va
 your own. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE.md).
 
 1. Fill in the project's placeholders (the `UPPER_SNAKE_CASE` words in `AGENTS.md` and
-   `.seatworks/WORKSPACE_PROTOCOL.md`) with the Human's decisions: ask the project's Supervisor
-   to run its `workspace-protocol` skill, which interviews the Human. Committing is the Human's
-   call. List what is open with:
+   `.seatworks/WORKSPACE_PROTOCOL.md`) with the Human's decisions, or delete the line to keep
+   the Lead's default; `examples/WORKSPACE_PROTOCOL.md` says what each one means. Committing is
+   the Human's call. List what is open with:
 
    ```fish
    grep -noE '\b[A-Z]{2,}(_[A-Z]+)+\b' REPO_DIR/AGENTS.md REPO_DIR/.seatworks/WORKSPACE_PROTOCOL.md
@@ -370,11 +372,16 @@ your own. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE.md).
    2. `LEAD.md`: acceptance conditions, when to add a Reviewer, what belongs to the Human.
    3. `SUPERVISOR.md` and `WATCHER.md`: signals worth a look (the watcher's trigger table),
       intervention rights, when prompt patches are allowed.
-   4. `skills/`: keep, cut, or rewrite each role's skills to fit your process. Keep each role
-      to about ten skills the model can trigger on its own, and mark the rest
-      `disable-model-invocation: true`.
+   4. `skills/`: keep, cut, or rewrite each role's skills to fit your process. A skill is for a
+      situation that doesn't come up every session; what a seat does every time belongs in its
+      prompt, where nothing can skip it. Prefer few: every skill's description is resident in
+      every session, and a skill the model finished reading stays in its context competing for
+      attention. A skill that costs several agents or several rounds waits for the Human, which
+      its description says and `disable-model-invocation: true` enforces on a harness that
+      honors it.
    5. `seats.json`'s `skillGates`: add a gate only for a skill a seat has been observed to skip,
-      with the reason in `because`; the guard shows that text when it refuses.
+      with the reason in `because`; the guard shows that text when it refuses. It holds only on
+      a harness whose `skillLoad.transcriptMatch` is set.
 
 Then run the check:
 

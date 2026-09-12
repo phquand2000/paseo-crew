@@ -26,7 +26,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Response:** run `paseo reload` after every edit to the file. A reload updates providers the
   daemon already knows, but it builds no snapshot for a new one: a provider `setup-seats.fish`
   just composed is listed by `paseo status` and still fails `create_agent` with "Provider … is
-  not available" until you run `paseo daemon restart`. The six providers are composed once, so
+  not available" until you run `paseo daemon restart`. The five providers are composed once, so
   this bites on a first install or when a role moves to another harness.
 
 ## The Lead and Supervisor have no Paseo tools
@@ -42,7 +42,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
 
 - **Symptom:** a seat works but ignores its prompt and skills, or a provider name says only a
   role where you expected it to say which project.
-- **Cause:** the six providers carry no project. Each launches `harness/common/bin/seat-room`,
+- **Cause:** the five providers carry no project. Each launches `harness/common/bin/seat-room`,
   which walks up from the agent's working directory to the nearest `.seatworks/`, reads its
   `project.json` for the slug, and points the harness's `configDirEnv` at
   `<profileRoot>/<role>-<slug>`. Finding no `.seatworks/`, no slug, no such directory, or no jq,
@@ -96,18 +96,20 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Symptom:** a seat works without the skill its task calls for, or loads one skill and none of
   the files that skill points at.
 - **Cause:** a harness puts only skill names and descriptions in the system prompt and leaves
-  the agent to open the `SKILL.md` itself, and at least one harness's own documentation says
-  models don't always do it (see its `NOTES.md`). Two evaluation runs recorded a Lead skipping
-  `review-orchestration` and `integration` though `LEAD.md` said to load them. Nothing reports
-  the miss.
-- **Response:** three layers, in order of strength. The prompts carry it, and each skill opens
-  the files it depends on as a step of its own. `seats.json`'s `skillGates` then refuse the call
-  a skill owns until that skill is loaded, which is what actually changed the outcome; the guard
-  reads the session transcript, so a load through the harness's skill tool or a read of the
-  `SKILL.md` both count. Last, a seat that keeps missing one particular skill can be forced with
-  the harness's `skillLoad.force` form. On a harness that expands it before the model's turn it
-  leaves no tool call and so does **not** satisfy a gate; each `NOTES.md` says which case its
-  harness is.
+  the agent to open the `SKILL.md` itself, and it often doesn't. Measured on this kit: a
+  byte-exact replica of a Peer seat sends all eight of its skills in the system prompt under an
+  instruction to read the matching one first, and no session on that harness has ever read one.
+  Two evaluation runs recorded a Lead skipping the skills `LEAD.md` told it to load. Nothing
+  reports the miss.
+- **Response:** four layers, in order of strength, and the first two are the ones that work.
+  What a seat does every session is in its prompt, not in a skill, so there is nothing to skip.
+  What it does sometimes is named by the Lead in the brief's `Skills` field, because a Peer left
+  to route itself routes to none. Then `seats.json`'s `skillGates` can refuse the call a skill
+  owns until that skill is in the session transcript; the list is empty today, and a gate holds
+  only on a harness whose `skillLoad.transcriptMatch` is set. Last, a seat that keeps missing one
+  skill can be forced with the harness's `skillLoad.force` form; on a harness that expands it
+  before the model's turn it leaves no tool call and so does **not** satisfy a gate, and each
+  `NOTES.md` says which case its harness is.
 - **Add a gate only for a skill a seat has been observed to skip.** Each gate costs the seat one
   tool call it would otherwise choose, and a gate on a step the model already does right is a
   rule without a failure behind it.
@@ -147,11 +149,15 @@ invalidate this page, and no entry here names a coding agent or its tools.
   allows only the glob patterns a role's `writes` lists in `seats.json`, plus every `contextFile`
   the manifests declare for a role whose `writesAlsoContextFiles` is set, read from
   `harness/*/harness.json` at startup and falling back to `AGENTS.md` alone when it cannot; a
-  role with no `writes` may change nothing, and files outside the repository stay writable.
+  role with no `writes` may change nothing. Outside the repository only the seat's temporary
+  directory is writable, because the kit, the Paseo config and the seat profile directories all
+  live out there and each one is a file that decides what the seat may do; a seat whose only
+  `writes` pattern is `*` owns the whole repository and may also edit in place.
   `profile-guard.sh` holds a Supervisor's and Lead's agent and schedule calls to their profile's
   model and mode, and refuses a role outside the caller's `mayStart` list, a provider with no
   profile, and a named workspace outside its own repository, since a seat started there would
-  load that project's rules. `skill-guard.sh` refuses a gated call until its skill is loaded.
+  load that project's rules. `skill-guard.sh` refuses a gated call until its skill is loaded, and
+  no role sets a gate today.
   `watcher-guard.sh` looks up the target of the watcher's `send_agent_prompt` with `paseo ls`,
   so `paseo` must be on the daemon's PATH, and lets it reach only its own project's Supervisor:
   the entry role, in an agent whose working directory is inside `SEATWORKS_REPO`. A Supervisor's
@@ -168,6 +174,33 @@ invalidate this page, and no entry here names a coding agent or its tools.
   and its `guards.shellBridge`, where it has one, runs the shared `.sh` guards on a harness that
   takes extensions rather than hooks.
 
+## Nothing outside the repository is writable
+
+- **Symptom:** a seat reports that a path "is outside" the repository, for a file in the kit, in
+  `~/.paseo/`, in its own profile directory, or anywhere else on the machine.
+- **Cause:** `lead-guard.sh` used to pass any path it could not place inside the repository. Every
+  file that decides what a seat may do lives out there: `seats.json`, which `profile-guard.sh`
+  reads on every launch to see which roles the caller may start; the Paseo config, which holds the
+  providers and their deny lists; the guards themselves; and the seat's own settings file, where a
+  harness's deny map lives. A seat that could edit those could lift its own limits, and
+  `profile-guard.sh` would then honour the new rules. The guard now allows only the seat's
+  temporary directory outside the repository, for every role that carries it — Supervisor, Lead,
+  watcher, Peer, and Reviewer, the last two through the shell bridge.
+- **Response:** intended. Scratch files go under `$TMPDIR`. A kit change is proposed to the Human
+  as a diff and applied by them, which is what `SUPERVISOR.md` says; the Human runs the setup
+  script, and no seat does.
+
+## The Lead cannot make a workspace
+
+- **Symptom:** a Lead's `create_workspace` is denied, or it reports that it cannot open a
+  worktree for a parallel slice.
+- **Cause:** the `workspaces` intent is on the Lead's deny list. A worktree buys isolation only
+  when two writers hold genuinely disjoint scopes; what it produced in practice was three
+  Engineers in one worktree, no isolation, and three timelines to reconcile at acceptance.
+- **Response:** one writer per scope, in the Lead's own checkout, which is what `LEAD.md` now
+  describes. When parallel writers really are worth it, the Human or the Supervisor makes the
+  workspace and hands the Lead its ID; the Supervisor still creates one for a `DETOUR:`.
+
 ## Command guards are guard rails, not sandboxes
 
 - **Symptom:** a blocked command runs anyway in a different form.
@@ -175,10 +208,9 @@ invalidate this page, and no entry here names a coding agent or its tools.
   Peer's guard catches that form and blocks `gh` too, but ignores quoted strings, so
   `sh -c 'git push'` still runs. `lead-guard.sh` reads a command's redirects and
   file-writing commands; a write made inside an interpreter or a nested shell, such as
-  `python -c`, `node -e`, or `sh -c`, is outside its scope. `skill-guard.sh` matches
-  `git merge` and `git cherry-pick` at a command position, so it passes `git merge-base`, a
-  quoted mention, and a merge reached through an interpreter.
-  No guard blocks other network commands such as `curl`; the kit's own
+  `python -c`, `node -e`, or `sh -c`, is outside its scope; the `code-eval` intent denies the one
+  tool that reaches an interpreter directly, for the same reason. No guard blocks other network
+  commands such as `curl`; the kit's own
   `maintenance/seat-safety-review/` checks for that, and no seat loads it.
 - **Response:** treat the guards as protection against accidents. Keep credentials that could
   do damage out of the Peer's environment.
@@ -323,29 +355,34 @@ invalidate this page, and no entry here names a coding agent or its tools.
   missing files, composes any missing provider and profile, builds the profile directory, keeps
   the project's prompts, and reloads Paseo.
 
-## The Reviewer runs Open Code Review in one of two modes
+## The Reviewer's machine pass is optional
 
-- **Symptom:** a Reviewer's handoff reports `OCR mode: delegation`, or OCR's comments come back
-  in another language.
-- **Cause:** the `ocr-review` skill runs Open Code Review's full review, on OCR's own model, only
-  when `ocr llm test` succeeds; otherwise it uses delegation mode, where OCR selects the files
-  and rules and the Reviewer's own model reviews. OCR's settings, including its model and key,
-  are global, in `~/.opencodereview/config.json`, and the `language` key sets the comment
-  language.
+- **Symptom:** a Reviewer's handoff says no machine pass ran, or OCR's comments come back in
+  another language.
+- **Cause:** `REVIEWER.md` offers Open Code Review as a first pass only when `ocr llm test`
+  succeeds; otherwise the Reviewer says so in one line and reviews by reading. OCR's settings,
+  including its model and key, are global, in `~/.opencodereview/config.json`, and the
+  `language` key sets the comment language.
 - **Response:** to give reviews a second model family, configure one with `ocr config provider`
   and check it with `ocr llm test`. That sends the code under review to that provider, which is
   the Human's call. `ocr config set language English` keeps comments in English.
 
-## The Reviewer and the read-only Peer are read-only
+## The Reviewer is the only read-only seat
 
-- **Symptom:** a Reviewer or read-only Peer reports "Editing files is not available in this role."
-- **Cause:** two things hold it. A role marked `readOnly` in `seats.json` gets
+- **Symptom:** a Reviewer reports "Editing files is not available in this role.", or an Architect
+  Peer edits a file it was told not to.
+- **Cause:** three things hold the Reviewer. A role marked `readOnly` in `seats.json` gets
   `SEATWORKS_READ_ONLY=1` on its provider, which makes its guard block the harness's write and
-  edit tools and the git commands that change the repository; and its `file-edit` intent denies
-  those tools outright wherever the harness can. Shell redirection still works, so temporary
-  files under `$TMPDIR` remain possible, and so does a determined write.
-- **Response:** expected; send work that edits files to `peer`. This prevents accidents rather
-  than sandboxing; the setup script checks that the variable stays on every read-only provider.
+  edit tools and the git commands that change the repository; its `file-edit` intent denies those
+  tools outright wherever the harness can; and its empty `writes` list leaves it the temporary
+  directory and nothing else. An Architect or Scout is a **writable** Peer with `Owned scope
+  none` in its brief, so nothing enforces its read-only lane: the brief asks, the handoff's Scope
+  field shows what it touched, and acceptance is where a violation surfaces.
+- **Response:** expected. Send work that edits files to `peer`, and read an Architect's handoff
+  Scope field before you trust its report. The read-only lanes a skill opens — council seats,
+  ultra-review scouts, audit readers — all run on `reviewer` for exactly this reason. This
+  prevents accidents rather than sandboxing; the setup script checks that the variable stays on
+  every read-only provider.
 
 ## Heartbeats end with their agent
 

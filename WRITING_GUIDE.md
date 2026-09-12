@@ -47,13 +47,19 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     add" in this guide, and a rule about a tool names what the tool does ("your read tool"), not
     what one harness calls it. The setup script refuses `<!--` in any prompt or skill and refuses
     `$ARGUMENTS` and `${CLAUDE_SKILL_DIR}`. Only a seat's profile is allowed to differ per
-    harness. [M]
+    harness. A script vendored from another kit is the one exception and keeps its upstream form,
+    comments included, so it can be re-synced; `NOTICE.md` says which files those are. [M]
 15. Add a rule only after an observed failure, with a reproducible reason and a removal trigger.
     [HL, CUR]
-16. Name a skill a seat must not skip in `seats.json`'s `skillGates`, not only in the prompt,
-    and only after a run skipped it. A gate refuses the call the skill owns until the skill is
-    loaded and shows its `because` text, so write that text as the reason the step exists. It
-    holds only on a harness whose `skillLoad.transcriptMatch` is set. [M]
+16. Put what a seat does every session in its prompt, and keep a skill for the situation that
+    doesn't come up every time. A prompt rule cannot be skipped and is cached after the first
+    turn; a skill has to be chosen, and measurement says it often isn't — a replica Peer seat
+    carried all eight of its skills in its system prompt and no session ever read one. Where a
+    skill genuinely applies only sometimes, have the Lead name it in the brief's `Skills` field
+    rather than leaving the seat to route itself. `seats.json`'s `skillGates` remains for a skill
+    an actual run was observed to skip: a gate refuses the call the skill owns until the skill is
+    in the transcript and shows its `because` text, and holds only on a harness whose
+    `skillLoad.transcriptMatch` is set. The list is empty, which is the default state. [M]
 17. Name no coding agent in a seat prompt, a skill, or a doc other than `harness/<id>/NOTES.md`.
     A role can move to another harness, and a prompt that names one goes stale silently. Where
     the behavior genuinely differs, cite the manifest field instead.
@@ -76,7 +82,7 @@ are generic, and the value is your own. `setup-seats.fish` holds each to `prompt
 | `REVIEWER.md` | Findings, the axes a review covers, the handoff shape |
 | `LEAD.md` | "Decisions that belong to the Human", with the ones your project reserves; the numbered Reviewer conditions, with the seams your `AGENTS.md` marks decide-first; acceptance conditions |
 | `SUPERVISOR.md` | The signals worth a look, intervention rights, when a prompt patch is allowed |
-| `WATCHER.md` | The trigger table. It runs on a small model and is re-read on every sweep, so keep it short: a small model loses rules faster than a large one as a prompt grows. The Supervisor changes the table only through its `protocol-patch` skill. |
+| `WATCHER.md` | The trigger table. It runs on a small model and is re-read on every sweep, so keep it short: a small model loses rules faster than a large one as a prompt grows. The Supervisor proposes a change to it; the Human applies it in the kit. |
 
 ## Delegation briefs and handoffs
 
@@ -194,12 +200,11 @@ Use these terms, and only these, for the following concepts:
 | Supervisor | The seat that meets with the Human, relays decisions, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
-| read-only Peer | The `peer-ro` seat: the Peer prompt and skills with edits blocked, for Architect, Scout, and council work |
-| Reviewer | The read-only seat that reviews changes with Open Code Review; a brief's Reviewer disposition goes to it |
+| Reviewer | The only seat whose writes are blocked: it reviews changes, and takes every read-only lane a skill opens (council seats, ultra-review scouts, audit readers) |
 | seat | A harness profile together with its Paseo provider, named for its role |
 | brief | The Lead's assignment to a Peer |
 | handoff | The Peer's six-field report at the end of a task |
-| disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout |
+| disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout. An Architect or Scout is a Peer with `Owned scope none`, which the brief holds rather than a guard |
 | owned scope | The paths a Peer may write |
 | acceptance | The decision, by the Lead or the Human, that work is done |
 | owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a Human decision |
@@ -208,7 +213,7 @@ Use these terms, and only these, for the following concepts:
 | attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
 | watcher | The `watcher` seat, on a small model, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
 | harness | The coding agent that hosts a role, described by `harness/<id>/harness.json` |
-| skill gate | An entry in `seats.json`'s `skillGates` that refuses the call a skill owns until that skill is loaded |
+| skill gate | An entry in `seats.json`'s `skillGates` that refuses the call a skill owns until that skill is loaded; the list is empty by default |
 
 `seats.json`'s `hidesWords` says which words each seat never sees, and the setup script checks
 every prompt and skill against it: `.seatworks/PEER.md` and `.seatworks/REVIEWER.md` never use

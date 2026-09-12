@@ -1,94 +1,62 @@
 # Skill sources
 
-The skills in `project/skills/` are written for this kit. Most adapt a mechanism (a procedure, a
-gate, or a checklist) from an existing skill, book, or article. None of them copies the source's
-text beyond short phrases. This file lists those sources and their licenses, so that each idea
-can be traced and credited.
+The eleven skills in `project/skills/` fall into two groups, and the difference matters for
+credit. Six are **SLP files** installed here with targeted edits — model names, Windows paths,
+Codex-only tooling, and the launch shapes replaced with this kit's — and their text is the SLP
+author's. Five are **written for this kit**, adapting a mechanism (a procedure, a gate, or a
+checklist) from an existing skill, book, or article without copying its text beyond short
+phrases. Two vendored Python scripts keep their upstream form, comments included, so they can be
+re-synced.
 
 "SLP material" means the reference files in the kit owner's `SLP/` folder: a practitioner's
 Codex setup (prompts, skills, and concept notes) that was shared with the kit's owner. No license
-is stated for it, and it is adapted here with the owner's agreement. "The SLP author's talk" is a
+is stated for it, and it is used here with the owner's agreement. "The SLP author's talk" is a
 recorded community session in which that practitioner explained how their Supervisor directs
 attention (`meeting.txt` in the same folder); the kit borrows its mechanisms, not its words.
 
-## Peer skills (`project/skills/peer/`)
+Twenty-one skill directories the kit used to ship were retired on 2026-09-12 — three of them
+replaced by their SLP originals under the SLP names. They and the sources they drew on are in git
+history at `db20bff^`.
+
+## Installed from SLP, with edits
+
+| Skill | Source file | What changed here |
+|---|---|---|
+| `lead/council` | SLP `council/` with `references/report-format.md` | `$ARGUMENTS` and the Codex room-role guard removed; the Lead-only guard rewritten as "only when the Human asked"; launch block, routing, and isolation claims rewritten for this kit's one read-only profile; `references/routing.md` rewritten from `model-routing.md` |
+| `lead/ultra-review` | SLP `ultra-review/` | fixed model names replaced with the Reviewer profile; the author's absolute Windows script path replaced; the `$ultra-review-receive` handoff replaced with the Lead's ruling and an Engineer brief; the Human-invoked gate added |
+| `lead/review-pack` | SLP `review-pack/` | the `codex-chatgpt-control` upload section removed; Windows paths, PowerShell continuations, and the description's Codex framing converted |
+| `lead/repo-refresh` | SLP `repo-refresh/` | unchanged |
+| `peer/frontend-design` | SLP `frontend-design-SKILL.md` | unchanged |
+| `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | unchanged; the catalog installed as `references/proof-debt-catalog.md` |
+| `supervisor/architecture-premise-audit` | SLP `SKILL.md` | unchanged |
+| `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | unchanged |
+| `.seatworks/FEATURE_INTAKE.md`, `.seatworks/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/` |
+
+Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
+`lead/ultra-review/scripts/create_ultra_review_report.py`, are SLP files kept byte-for-byte.
+
+## Written for this kit
 
 | Skill | Draws on |
 |---|---|
-| `test-first` | superpowers `test-driven-development`; a Codex `test-driven-development` adaptation (evidence first, proof surfaces, the relevant-test gate, the wrapper and bridge rule); mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
-| `diagnosing-bugs` | mattpocock `diagnosing-bugs`; superpowers `systematic-debugging` and its root-cause tracing |
-| `proof-audit` | SLP material (`test-proof-debt-audit` and its catalog); superpowers `verification-before-completion` |
-| `receiving-review` | superpowers `receiving-code-review` |
-| `design-options` | mattpocock `codebase-design` (deep modules, designing it twice); SLP material (`architecture-premise-audit` slices, structural anti-patterns) |
-| `frontend-change` | SLP material (`frontend-design`); anthropics/skills `webapp-testing` |
-| `performance-change` | addyosmani `performance-optimization`; SLP material (avoidable taxes) |
-| `security-check` | addyosmani `security-and-hardening`; trailofbits `sharp-edges` (ideas only) |
-
-## Reviewer skills (`project/skills/reviewer/`)
-
-| Skill | Draws on |
-|---|---|
-| `ocr-review` | alibaba/open-code-review (its `open-code-review` and `open-code-review-delegate` skills, delegation mode docs, and CLI reference) |
-| `reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns) |
-
-## Lead skills (`project/skills/lead/`)
-
-| Skill | Draws on |
-|---|---|
-| `intake` | SLP material (feature intake lanes, ExecPlans); superpowers `brainstorming` (a lane only moves upward) |
-| `decompose` | superpowers `subagent-driven-development` (ledger, rulings, fix-round cap) and `writing-plans` (interfaces, global constraints); mattpocock `to-tickets`; addyosmani `planning-and-task-breakdown`; Anthropic, "How we built our multi-agent research system"; Humanizing Work's guide to splitting user stories |
-| `council` | SLP material (`council`, its report format and model routing); the SLP author's talk (blind lanes, no shared room, the Lead's own position) |
-| `review-orchestration` | SLP material (`ultra-review` and its report script); trailofbits `fp-check` (ideas only) |
-| `decision-records` | Michael Nygard, "Documenting Architecture Decisions"; Thoughtworks Radar, lightweight ADRs; mattpocock `domain-modeling`; addyosmani `documentation-and-adrs` |
-| `change-rollout` | Danilo Sato, "Parallel Change"; "Patterns of Legacy Displacement" and the strangler fig; Google SRE book and workbook on launches and canarying (ideas only); addyosmani `deprecation-and-migration`; SLP material (hard-cut development policy) |
-| `project-state` | Anthropic, "Effective harnesses for long-running agents"; mattpocock `handoff`; Adam Tornhill's churn hotspots (idea) |
-| `integration` | superpowers `finishing-a-development-branch`; mattpocock `resolving-merge-conflicts` |
-| `repo-refresh` | SLP material (`repo-refresh` and its refresh standard) |
-| `review-pack` | SLP material (`review-pack`, adapted: comments, docstrings, and the review policy out of `scripts/review_pack.py` into `references/`; one command corrected) |
-
-## Supervisor skills (`project/skills/supervisor/`)
-
-| Skill | Draws on |
-|---|---|
-| `intent-interview` | mattpocock `grilling` and `to-questionnaire`; *The Mom Test*; *Shape Up* (appetite, no-gos); Amazon's 2015 shareholder letter (one-way and two-way doors) |
-| `workspace-protocol` | mattpocock `grilling`; the kit's templates; the SLP report's account of per-repository protocols |
-| `pre-mortem` | Gary Klein's premortem; one-way and two-way doors; SLP material (`council` sealed seats) |
-| `retrospective` | Google SRE book, "Postmortem Culture" (ideas only); Retrium's five phases of a retrospective; mattpocock `retro` categories; the SLP author's talk (a weekly review that distills the week into rules) |
-| `attention-watch` | the SLP author's talk (attention triggers, a cheap watcher that pings the Supervisor, open questions instead of assertions, the away report) |
-| `protocol-patch` | superpowers `writing-skills` (test the change on a fresh seat); mattpocock `writing-for-agents`; SLP material (Supervisor instructions) |
-| `portfolio-review` | Black Swan Farming, "Cost of Delay Divided by Duration"; Ian Robinson, "Consumer-Driven Contracts"; Danilo Sato, "Parallel Change"; SLP material (concern-specialized Supervisors, cross-workspace supervision) |
+| `peer/test-first` | superpowers `test-driven-development`; a Codex `test-driven-development` adaptation (evidence first, proof surfaces, the relevant-test gate, the wrapper and bridge rule); mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
+| `peer/diagnosing-bugs` | mattpocock `diagnosing-bugs`; superpowers `systematic-debugging` and its root-cause tracing |
+| `peer/security-check` | addyosmani `security-and-hardening`; trailofbits `sharp-edges` (ideas only) |
+| `reviewer/reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns) |
 | `maintenance/seat-safety-review` | Simon Willison, "The lethal trifecta for AI agents"; the Threat Modeling Manifesto's four questions |
-| `architecture-premise-audit` | SLP material (`architecture-premise-audit`, structural anti-patterns) |
-| `strategy-synthesis` | Will Larson, "Good engineering strategy is boring" and "Writing an engineering strategy" |
 
 ## Sources and licenses
 
 | Source | Where | License |
 |---|---|---|
-| alibaba/open-code-review | https://github.com/alibaba/open-code-review | Apache-2.0, © 2026 Alibaba; workflow adapted, no text copied |
+| alibaba/open-code-review | https://github.com/alibaba/open-code-review | Apache-2.0, © 2026 Alibaba; the Reviewer runs its CLI, no text copied |
 | obra/superpowers (Jesse Vincent) | https://github.com/obra/superpowers | MIT, © 2025 Jesse Vincent |
 | mattpocock/skills (Matt Pocock) | https://github.com/mattpocock/skills | MIT, © 2026 Matt Pocock |
 | addyosmani/agent-skills (Addy Osmani) | https://github.com/addyosmani/agent-skills | MIT, © 2025 Addy Osmani |
-| anthropics/skills, `webapp-testing` | https://github.com/anthropics/skills | Apache-2.0 (per-skill `LICENSE.txt`) |
-| trailofbits/skills, `sharp-edges` and `fp-check` | https://github.com/trailofbits/skills | CC-BY-SA-4.0; ideas only, no text |
-| Anthropic, "How we built our multi-agent research system" | https://www.anthropic.com/engineering/multi-agent-research-system | © Anthropic; ideas only |
-| Anthropic, "Effective harnesses for long-running agents" | https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents | © Anthropic; ideas only |
-| Humanizing Work, "The Humanizing Work Guide to Splitting User Stories" | https://www.humanizingwork.com/the-humanizing-work-guide-to-splitting-user-stories/ | © Humanizing Work; ideas only |
-| Michael Nygard, "Documenting Architecture Decisions" | https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions | ideas only |
-| Thoughtworks Radar, "Lightweight Architecture Decision Records" | https://www.thoughtworks.com/radar/techniques/lightweight-architecture-decision-records | © Thoughtworks; ideas only |
-| Cartwright, Horn, and Lewis, "Patterns of Legacy Displacement"; Martin Fowler, "StranglerFigApplication" | https://martinfowler.com/articles/patterns-legacy-displacement/ and https://martinfowler.com/bliki/StranglerFigApplication.html | ideas only |
-| Google SRE book, "Reliable Product Launches at Scale"; SRE workbook, "Canarying Releases" | https://sre.google/sre-book/reliable-product-launches/ and https://sre.google/workbook/canarying-releases/ | CC BY-NC-ND 4.0; ideas only |
-| Adam Tornhill, *Your Code as a Crime Scene* | book | ideas only |
-| Rob Fitzpatrick, *The Mom Test* | https://www.momtestbook.com/ | book; ideas only |
-| Ryan Singer, *Shape Up* | https://basecamp.com/shapeup | © 37signals; ideas only |
-| Amazon 2015 shareholder letter | https://s2.q4cdn.com/299287126/files/doc_financials/annual/2015-Letter-to-Shareholders.PDF | © Amazon; idea only |
-| Gary Klein, "Performing a Project Premortem" | https://www.gary-klein.com/premortem | ideas only |
-| Google SRE book, "Postmortem Culture" | https://sre.google/sre-book/postmortem-culture/ | CC BY-NC-ND 4.0; ideas only |
-| Retrium, "The Five Phases of a Successful Retrospective" | https://www.retrium.com/ultimate-guide-to-agile-retrospectives/five-phases-of-a-successful-retrospective | ideas only |
+| trailofbits/skills, `sharp-edges` | https://github.com/trailofbits/skills | CC-BY-SA-4.0; ideas only, no text |
 | Simon Willison, "The lethal trifecta for AI agents" | https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/ | ideas only |
 | Threat Modeling Manifesto | https://www.threatmodelingmanifesto.org/ | CC BY 4.0 (attribution given here) |
-| Ian Robinson, "Consumer-Driven Contracts" | https://martinfowler.com/articles/consumerDrivenContracts.html | ideas only |
-| Danilo Sato, "Parallel Change" | https://martinfowler.com/bliki/ParallelChange.html | ideas only |
-| Black Swan Farming, "Cost of Delay Divided by Duration" | https://blackswanfarming.com/cost-of-delay-divided-by-duration/ | ideas only |
-| Will Larson, lethain.com | https://lethain.com/good-engineering-strategy-is-boring/ and https://lethain.com/eng-strategies/ | ideas only |
-| SLP material | the kit owner's `SLP/` folder | no license stated; adapted with the owner's agreement |
+| SLP material | the kit owner's `SLP/` folder | no license stated; used and adapted with the owner's agreement |
+
+Sources that only the retired skills drew on are listed with those skills in git history, not
+here.
