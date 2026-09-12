@@ -1,6 +1,6 @@
 ---
 name: reviewing-a-change
-description: "Review one commit or range against its brief, read-only: spec and standards as separate axes, structural lenses, every finding with severity, confidence, evidence, and a disconfirming check. Use for every change review, after ocr-review if it runs."
+description: "Review one commit or range against its brief, read-only: the review tool for scope and standing rules, spec and standards as separate axes, structural lenses, and every finding with severity, confidence, evidence, and a disconfirming check. Use for every change review."
 ---
 
 # Reviewing a change
@@ -16,10 +16,23 @@ Use this skill, read-only, to review one change, identified by SHA, against the 
    ```
 
    For a range, use `git log --oneline "$base..$sha"` and `git diff "$base" "$sha"`. Done when the file list matches the change you were asked to review.
-2. Read the change from git objects: `git show "$sha"` for the diff, and `git show "$sha:PATH"` for whole files.
-3. Collect the spec: the originating brief's Objective, Decided / ruled out, Owned scope, and Verification, as your review brief supplies them. If none is available, skip the spec axis and say so.
-4. Collect the standards: the repository's `AGENTS.md`, any files it names as rules, and the baseline below.
-5. Read outward from the diff to the callers and consumers of every changed symbol, at the same commit, with `git grep -n 'SYMBOL' "$sha"`; bugs often sit in an unchanged caller the change broke. Done when you know every production caller of each changed public symbol.
+2. Ask the review tool for the scope and the rules. It runs no model, needs no key, and writes nothing:
+
+   ```sh
+   ocr delegate preview --commit "$sha" --format json
+   ocr delegate rule --commit "$sha" --format json PATH_FROM_PREVIEW...
+   ```
+
+   `rule` takes the paths from `preview`'s `reviewable_files` and refuses to run with none, so
+   skip it when that list is empty.
+
+   `preview` returns `reviewable_files`, `excluded_files` with an `exclude_reason` each, the insertion and deletion counts, and the commit message as `background`. `rule` returns `groups`, each with the file pattern it matched, the files in it, and the rule text to answer. For a range pass `--from BASE --to "$sha"` instead of `--commit`; add `--repo DIR` when you are not at the repository root, and `--rule FILE` when the repository ships its own rule set.
+
+   Two things the output does not mean. `excluded_count` is the tool's extension filter and its deleted-file rule, not a judgment that those files are fine: a change whose whole diff is excluded still gets reviewed, from `git show --stat`. And a rule group is a standing question for that file type, not a finding. If `ocr` is not installed, say so in one line and take the file list from `git show --stat "$sha"`; the review is unchanged. Done when the excluded list is in your handoff and every group has a rule you can answer.
+3. Read the change from git objects: `git show "$sha"` for the diff, and `git show "$sha:PATH"` for whole files.
+4. Collect the spec: the originating brief's Objective, Decided / ruled out, Owned scope, and Verification, as your review brief supplies them. If none is available, skip the spec axis and say so.
+5. Collect the standards: the repository's `AGENTS.md`, any files it names as rules, and the baseline below.
+6. Read outward from the diff to the callers and consumers of every changed symbol, at the same commit, with `git grep -n 'SYMBOL' "$sha"`; bugs often sit in an unchanged caller the change broke. Done when you know every production caller of each changed public symbol.
 
 ## Spec axis
 
@@ -32,6 +45,7 @@ Check each requirement in the brief, quote the brief line each finding answers t
 ## Standards axis
 
 - Documented rules: each place the diff breaks an `AGENTS.md` rule, quoting the rule. These can be hard violations.
+- Tool rules: for each group `ocr delegate rule` returned, answer its rule text against the files in that group and say so per group, "no finding" included. A group is answered, not scanned: the rule asks about correctness, security, performance, maintainability and test coverage for that file type, and an answer names the code it rests on.
 - Baseline smells, always judgment calls. A documented repository rule overrides them, and anything a linter or formatter already enforces stays out:
   - a name that hides what the thing does or holds;
   - the same logic shape in more than one hunk;
@@ -57,14 +71,13 @@ Mark a finding material when it could change the result, the route, a boundary, 
 
 ```text
 F1          P0-P3, confidence high | medium | low, material yes | no
-Axis        spec | standards | structure
+Axis        spec | standards | structure, and the rule group when a tool rule raised it
 Where       path:line at SHA
 Evidence    what the code does (quote at most five lines)
 Contract    the brief line, AGENTS.md rule, or invariant it breaks
 Failure     what goes wrong, for whom, under which input or timing
 Fix         the smallest durable fix
 Disconfirm  a read-only check that would show this finding is wrong
-Source      ocr | own
 ```
 
 Severity:

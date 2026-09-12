@@ -16,8 +16,14 @@ Never invoke this skill implicitly.
 Choose the mode from the user's wording:
 
 - `audit`: inspect and report; this is the default for a bare invocation.
-- `apply`: audit, perform the authorized cleanup, and verify. Words such as
+- `apply`: audit, get the cleanup performed, and verify. Words such as
   `refresh`, `clean`, `fix`, `remove`, or `consolidate` authorize this mode.
+  You do not delete anything yourself: your guard allows you `docs/` and your
+  own records, and the rest of the repository belongs to an Engineer. The audit
+  is yours; the deletion goes out as one brief per coherent group from
+  `.seatworks/guides/BRIEF.md`, with the audit rows as its objective, the paths
+  as its owned scope, and the verification below as its acceptance. Verify from
+  the returned SHA, not from the Peer's summary.
 - `verify`: validate an earlier refresh without expanding its scope.
 
 An age threshold identifies suspects, never automatic deletion targets. If the

@@ -38,9 +38,11 @@ Before you start, make sure the machine has the following:
 - a running Paseo daemon
 - every coding agent `seats.json` assigns a role to, at or above the version its manifest
   records, and logged in; step 2 lists them
-- optionally the `ocr` CLI ([Open Code Review](https://github.com/alibaba/open-code-review)),
-  which the Reviewer offers as a first pass when `ocr llm test` succeeds:
-  `npm install -g @alibaba-group/open-code-review`. Without it the Reviewer reviews by reading.
+- the `ocr` CLI ([Open Code Review](https://github.com/alibaba/open-code-review)), which scopes
+  every review and hands the Reviewer the rules to answer:
+  `npm install -g @alibaba-group/open-code-review`. It needs no key and no model of its own; the
+  Reviewer uses `ocr delegate`, which runs no LLM. Without the CLI the Reviewer falls back to
+  `git show --stat` and says so.
 
 The setup has eight steps. Steps 1–4 set up the machine once; steps 5–8 run for each project:
 
@@ -275,10 +277,10 @@ If the repository already had an `AGENTS.md`, add the sections of
 `examples/AGENTS_MD_SNIPPET.md` by hand; if a pointer file already had rules in it, move those
 into `AGENTS.md` and leave the pointer as the single line `@AGENTS.md`.
 
-Until you give OCR a model of its own, the Reviewer reviews in delegation mode, on its own
-model: run `ocr config provider` (it asks for an API key, which is yours to enter) and check it
-with `ocr llm test`. A different model family gives reviews different blind spots, and sends the
-code under review to that provider.
+The Reviewer uses OCR only through `ocr delegate`, which resolves the scope and the rules without
+calling any model, so OCR needs no key and no provider here. Configuring one (`ocr config
+provider`) would let `ocr review` send the code under review to that provider; the kit does not
+use that path, and it is yours to decide if you ever want it.
 
 To roll back, run `paseo project delete PROJECT_ID` with the ID `paseo project ls` shows for
 `REPO_DIR` (a path isn't accepted), then move the files the script listed as added and this

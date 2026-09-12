@@ -30,4 +30,4 @@ smallest replacement. Weak proof does not authorize an architecture redesign. If
 the user requested assessment only, report and stop; modify proof or production code
 only when requested.
 
-Read [references/catalog.md](references/catalog.md) only for a broad user-requested audit or when concrete replacement examples are needed.
+Read [references/proof-debt-catalog.md](references/proof-debt-catalog.md) only for a broad user-requested audit or when concrete replacement examples are needed.

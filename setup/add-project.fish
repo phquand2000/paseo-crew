@@ -243,7 +243,7 @@ echo "Seats for $slug: "(for role in $roles
     echo -n "$role ("(jq -r --arg r $role '.seats[] | select(.role == $r) | .label' $seats_file)") "
 end | string trim)
 command -q ocr
-or echo "  · the Reviewer's optional machine pass needs Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review. Without it the Reviewer reviews by reading."
+or echo "  · every review starts from Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review. It needs no key; without it the Reviewer scopes from git show --stat and says so."
 echo "Next: fill in the UPPER_SNAKE_CASE placeholders in AGENTS.md and"
 echo ".seatworks/guides/WORKSPACE_PROTOCOL.md, or delete a line there to keep the Lead's default."
 echo "Then start the $entry profile in this repository."

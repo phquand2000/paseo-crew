@@ -23,10 +23,13 @@ unless the user separately requests changes.
 - Ask only when one missing fact would reverse the verdict and cannot be bounded
   with an explicit assumption.
 
-For realtime multiplayer or MMO systems, read
-[references/realtime-multiplayer-atlas.md](references/realtime-multiplayer-atlas.md)
-before constructing the expected capability map. Do not load that profile for
-unrelated domains.
+For realtime or multiplayer domains, build the expected atlas from established
+domain mechanisms: prediction and reconciliation for the locally controlled
+actor, authoritative snapshots with interpolation and interest management for
+remote actors, sequenced latest-state delivery for state that newer values
+replace, and durable identity with typed outcomes for exact commands. The domain
+examples in the structural lenses named in step 4 show the level of detail to aim
+for.
 
 ## Audit Slice
 
@@ -56,7 +59,10 @@ A slice may cross modules, and one module may contain several slices.
 4. **Compare every slice.** Ask what demonstrated requirement forces each
    mechanism, whether cost follows useful work, whether normal and exceptional
    paths are reversed, and whether removing or relocating the mechanism loses
-   an established requirement.
+   an established requirement. Use the project's one catalog of structural
+   misfits and avoidable costs,
+   `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md`,
+   as search lenses rather than a checklist every design must satisfy.
 5. **Deep-check serious candidates.** Trace real callers and consumers, name the
    exact amplification route, construct the cleaner counterfactual, identify
    machinery that disappears, give the strongest counterargument, and state
@@ -68,6 +74,19 @@ A slice may cross modules, and one module may contain several slices.
 Do not report generic improvements. Classify supported candidates as architecture
 defect, owner defect, implementation drift, justified divergence, quarantined
 scaffold, or insufficient evidence.
+
+## Delegating slices
+
+A project too large to read yourself divides into slices, one or a few per
+reader. Every reader comes from the read-only Reviewer profile, the only profile
+whose guard blocks writes, created in this project's workspace with your own
+`create_agent`, copying the profile's provider, model and `modeId` exactly. Its
+prompt is a brief from `.seatworks/guides/BRIEF.md` with disposition Architect,
+owned scope `none`, the claim, and the expected-atlas rows for its slices; ask
+for observed-map rows and candidate findings with file and line evidence. Leave
+the orchestration, the other readers' findings and your own suspicion out, so
+each report stays an independent judgment. Run `git -C REPO status --porcelain`
+before and after, and archive each reader once its report is in.
 
 ## Verdict And Output
 
@@ -92,3 +111,14 @@ Then provide only the material sections needed to support it:
 
 Make the best evidence-supported judgment available. Expose assumptions, but do
 not end with an unranked option menu or an interview questionnaire.
+
+Save the report at `.seatworks/records/audits/REPO-YYYY-MM-DD.md`, then take the
+verdict, the top findings and the decisions it asks for to the Human, keeping
+what you observed apart from what you infer. Once the Human has decided, relay it
+to the Lead as an `OWNER DIRECTIVE:` whose outcome and constraints carry the
+decision, with the findings it rests on quoted with file and line inside the
+directive itself, so the Lead works from its own repository rather than from a
+file it cannot read.
+
+The rule that matters most: build the expected atlas from the product before you
+read the repository's own account of itself.

@@ -99,6 +99,10 @@ function check_skill --argument-names label skill
 
     for file in (find $skill -type f -name '*.md')
         hidden_words $label $file $argv[3..-1]
+        for link in (grep -oE '\]\((references|scripts)/[^)#]+' $file | string replace -r '^\]\(' '')
+            test -e $skill/$link
+            or fail "$label: skill $name links $link, which is not in its own directory; a reference a seat cannot open is a step it cannot take"
+        end
     end
 end
 
@@ -735,6 +739,19 @@ test $live -eq 1; and echo "[--probe] each seat's harness will be asked which sk
 for file in (find $kit/project -name '*.md' 2>/dev/null)
     grep -q '<!--' $file
     and fail (string replace -- "$kit/" '' $file)" contains an HTML comment. Every .md in this kit loads unchanged on every harness; put maintainer notes in WRITING_GUIDE.md."
+end
+
+for file in (find $kit/project -name '*.md' 2>/dev/null)
+    for link in (grep -oE '\]\((references|scripts)/[^)#]+' $file | string replace -r '^\]\(' '')
+        test -e (path dirname $file)/$link
+        or fail (string replace -- "$kit/" '' $file)" links $link, which is not next to it; a reference a seat cannot open is a step it cannot take"
+    end
+    for link in (grep -oE '`\.seatworks/(skills|guides|prompts)/[^`]+`' $file | string trim -c '`')
+        set -l rel (string replace '.seatworks/' '' $link)
+        test -e $kit/project/$rel; and continue
+        test $rel = guides/WORKSPACE_PROTOCOL.md; and test -f $kit/examples/WORKSPACE_PROTOCOL.md; and continue
+        fail (string replace -- "$kit/" '' $file)" names $link, which neither project/ nor examples/ ships"
+    end
 end
 
 for intent in (begin

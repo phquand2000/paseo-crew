@@ -210,8 +210,8 @@ invalidate this page, and no entry here names a coding agent or its tools.
   file-writing commands; a write made inside an interpreter or a nested shell, such as
   `python -c`, `node -e`, or `sh -c`, is outside its scope; the `code-eval` intent denies the one
   tool that reaches an interpreter directly, for the same reason. No guard blocks other network
-  commands such as `curl`; the kit's own
-  `maintenance/seat-safety-review/` checks for that, and no seat loads it.
+  commands such as `curl`: a seat that can read the repository can always describe it to
+  something outside, and this kit does not try to stop that.
 - **Response:** treat the guards as protection against accidents. Keep credentials that could
   do damage out of the Peer's environment.
 
@@ -356,17 +356,20 @@ invalidate this page, and no entry here names a coding agent or its tools.
   missing files, composes any missing provider and profile, builds the profile directory, keeps
   the project's prompts, and reloads Paseo.
 
-## The Reviewer's machine pass is optional
+## The review tool scopes the review; it does not do it
 
-- **Symptom:** a Reviewer's handoff says no machine pass ran, or OCR's comments come back in
-  another language.
-- **Cause:** `REVIEWER.md` offers Open Code Review as a first pass only when `ocr llm test`
-  succeeds; otherwise the Reviewer says so in one line and reviews by reading. OCR's settings,
-  including its model and key, are global, in `~/.opencodereview/config.json`, and the
-  `language` key sets the comment language.
-- **Response:** to give reviews a second model family, configure one with `ocr config provider`
-  and check it with `ocr llm test`. That sends the code under review to that provider, which is
-  the Human's call. `ocr config set language English` keeps comments in English.
+- **Symptom:** a Reviewer reports `reviewable_count: 0`, or a handoff has no findings for files
+  the change clearly touched.
+- **Cause:** the Reviewer calls Open Code Review only through `ocr delegate`, which runs no model
+  and needs no key: `preview` returns the files in scope and the ones it left out with an
+  `exclude_reason`, and `rule` returns the rule text resolved per file pattern. The filter is by
+  extension, so a change that is all Markdown, config, or deleted files comes back with nothing
+  reviewable. That is a scope answer, not a verdict.
+- **Response:** `reviewing-a-change` says to review the excluded files anyway, from
+  `git show --stat`, and to put the excluded list with its reasons in the handoff, which is the
+  coverage ledger. A repository with its own standards ships a rule file and the brief names it
+  for `--rule`. The `ocr review` path, which sends the diff to a model OCR is configured with, is
+  not used by this kit; nothing here needs `ocr config` or `ocr llm test`.
 
 ## The Reviewer is the only read-only seat
 

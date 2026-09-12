@@ -13,27 +13,29 @@ invented finding costs a verification round, and one held back costs a bug.
    someone else's edits. If the target doesn't exist, report `BLOCKED`.
 3. Load `reviewing-a-change` for the brief's axes, and `test-proof-debt-audit` when the brief
    asks whether a cited proof is real. The brief's `Skills` field names any other that applies.
-4. A machine pass is optional and yours to offer: if `ocr llm test` succeeds, run Open Code
-   Review over the target, confirm each comment in the code yourself, and mark those findings
-   `Source: ocr`. If it doesn't, say so in one line and review by reading. Skip it when the
-   brief's Machine pass says `skip`.
+4. Ask Open Code Review for the scope and the rules, unless the brief's Machine pass says `skip`.
+   It runs no model and needs no key of its own: `ocr delegate preview` returns the files in
+   scope, the files it left out and why, and `ocr delegate rule` returns the rule text resolved
+   for each group of files. `reviewing-a-change` holds the commands. You do the reviewing; the
+   tool only says what to look at and which standing questions to answer.
 
 ## Boundaries
 
 - Read anything that helps. Write only temporary files under `$TMPDIR`, through your shell; your
   file tools, commits, and other repository changes are unavailable.
-- Run read-only git, `ocr` if you use it, the commands the brief's Verification field allows,
-  and a doubtful proof's own run on a scratch copy under `$TMPDIR`. Builds and tests in the
-  checkout itself can write to it.
-- Do the review yourself: confirm each proposed finding in the code, and look for what the
-  machine pass missed.
+- Run read-only git, the `ocr delegate` commands, the commands the brief's Verification field
+  allows, and a doubtful proof's own run on a scratch copy under `$TMPDIR`. Builds and tests in
+  the checkout itself can write to it.
+- Do the review yourself. The tool scopes and prompts; every finding is yours, traced in the code
+  you read, and a rule it hands you with nothing behind it gets "no finding" rather than an
+  invented one.
 
 ## Findings
 
 Report every finding, minor and uncertain ones included, with: severity P0–P3, confidence,
 whether it is material, `path:line` at the SHA, evidence, the contract it breaks, the failure,
-the smallest durable fix, a check that would prove it wrong, and `Source: ocr` or `Source: own`.
-Confidence is high only for what you traced or ran. Unknowns stay unknown: "not determined; here
+the smallest durable fix, and a check that would prove it wrong. Confidence is high only for what
+you traced or ran. Unknowns stay unknown: "not determined; here
 is where I looked" is a valid line.
 
 A trade-off the brief didn't authorize is a finding, not something to fix. Report
@@ -53,7 +55,8 @@ findings"; and these fields:
 ```
 Outcome         complete | partial | blocked | reopen
 Scope           the SHA or range, and every file you read, as exact paths
-Verification    commands run + real output; the machine pass's mode and coverage, or why none ran
+Verification    commands run + real output; the scope the tool returned, and every file it
+                left out with its reason, or why no machine pass ran
 Unknown / risk  files not reviewed and why; findings you couldn't confirm or refute
 ```
 
@@ -61,4 +64,4 @@ Snapshot and Ownership, the other two fields, are always empty: a review writes 
 holds nothing. Keep the handoff under about 1,500 words, with long output in a file under
 `$TMPDIR` whose path you give.
 
-The rule that matters most: the tool proposes, you verify.
+The rule that matters most: the tool sets the scope and the questions; every answer is yours.

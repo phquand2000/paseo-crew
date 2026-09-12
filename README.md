@@ -9,9 +9,10 @@ coordinated through [Paseo](https://getpaseo.com):
 - `peer` writes code and returns evidence. An Architect or Scout is the same seat with `Owned
   scope none` in its brief.
 - `reviewer` is the only seat whose writes are blocked outright, so it takes every read-only
-  lane: reviewing a change, a council seat, an ultra-review scout, an audit reader. It can run
-  [Open Code Review](https://github.com/alibaba/open-code-review) as a first pass, and confirms
-  every finding in the code before reporting it.
+  lane: reviewing a change, a council seat, an ultra-review scout, an audit reader. Every review
+  starts from [Open Code Review](https://github.com/alibaba/open-code-review) in delegation mode,
+  which resolves the scope and the standing rules without calling a model of its own; the seat
+  answers them against the code it read.
 - `watcher` reads the Lead's and Peers' activity on a heartbeat and raises attention events
   for the Supervisor.
 
@@ -71,8 +72,6 @@ REPO/.seatworks/guides/         what a seat reads when it needs a shape: WORKSPA
                                 DIRECTIVE, FEATURE_INTAKE, PLANS, BRIEF
 REPO/.seatworks/skills/         supervisor/, lead/, peer/, reviewer/
 REPO/.seatworks/records/        what the seats write: NOTEBOOK.md, attention/, lessons/, drafts/
-maintenance/                    kit tools no seat loads: seat-safety-review audits the kit's
-                                seats, not a project
 ```
 
 `project.json` carries the slug, which keeps one project's profile directories apart from
@@ -86,13 +85,15 @@ the global profile. A role the file doesn't name keeps its profile's model.
 directory, so an edit to `REPO/.seatworks/prompts/LEAD.md` takes effect for the next Lead you start
 there.
 
-Eleven skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
+Thirteen skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
 every session lives in its prompt, where nothing can skip it; a skill is for the situation that
 doesn't come up every time. Four belong to the Lead and every one waits for you to ask by name
 (`council`, `ultra-review`, `review-pack`, `repo-refresh`); five belong to the Peer and are
 named in its brief (`test-first`, `diagnosing-bugs`, `security-check`, `frontend-design`,
-`test-proof-debt-audit`); the Reviewer has `reviewing-a-change` and the Supervisor has
-`architecture-premise-audit`. The Supervisor alone keeps its harness's auto memory, in its own
+`test-proof-debt-audit`); the Reviewer has `reviewing-a-change`; and the Supervisor has three that each end in something
+you read (`pre-mortem` before a hard-to-reverse directive, `retrospective` to turn the logs into
+one proposed change, `architecture-premise-audit` to ask whether the project is the right kind of
+system at all). The Supervisor alone keeps its harness's auto memory, in its own
 profile directory, as that project's organizational memory.
 
 Authority is split by concern rather than stacked in one chain. You hold intent and priorities.

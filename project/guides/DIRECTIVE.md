@@ -63,6 +63,7 @@ Replace the following:
 - `ON_CONVERGENCE`: what the Lead does once a hard design decision is settled, either
   `report the verdict and wait for the Human` or `proceed, and report at acceptance`. Choose the
   first when the Human wants to check the design against their own concept first.
-- `RISK_REGISTER`: the risks the Human named and what each one would cost, one per line, or
-  delete the Risks section when none were raised.
+- `RISK_REGISTER`: the rows the `pre-mortem` skill returned, each with its first observable
+  signal and its disposition; or the risks the Human named and what each would cost, one per
+  line; or delete the Risks section when the outcome is reversible and none were raised.
 - `PROTOCOL_STATUS`: `WORKSPACE_PROTOCOL.md present` or `none; run on your defaults`.
