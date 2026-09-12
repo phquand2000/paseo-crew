@@ -18,8 +18,8 @@ No behavior changes without evidence you produced before the change. Pick it by 
 | Protocol, wire, or schema change | a failing round-trip or encode/decode test on real records or bytes |
 | Refactor with no behavior change | the existing tests; where they are weak, characterization tests of current behavior at the seam, never one test per moved helper |
 | Wrapper, adapter, or temporary bridge | proof at the long-lived owner seam it serves; a direct test only when the layer itself translates, filters, retries, caches, falls back, or will outlive the plan |
-| Performance | a benchmark before the change (load `performance-change`); correctness proven separately |
-| Visual, layout, or copy | a render check, screenshot, or accessibility assertion (load `frontend-change`); no unit tests for CSS or wording |
+| Performance | a benchmark before the change, baselined over enough runs to show its spread; correctness proven separately |
+| Visual, layout, or copy | a render check, screenshot, or accessibility assertion (load `frontend-design`); no unit tests for CSS or wording |
 | Docs, config, or mechanical edit | the smallest check that proves the artifact is valid |
 
 Done when you can name the proof in one line, and why no other surface proves the claim better.
