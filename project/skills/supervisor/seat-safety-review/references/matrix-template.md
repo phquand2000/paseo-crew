@@ -43,7 +43,7 @@ Replace the following:
 - `SEAT`: the provider ID, for example `peer-SLUG` or `lead-SLUG`.
 - `TOOLS`: what the seat reaches after its deny list or guard, including Paseo tools, MCP
   servers, and packages.
-- `CREDENTIALS`: names only, for example `CLAUDE_CODE_OAUTH_TOKEN, gh (repo scope), ssh agent (2 keys)`.
+- `CREDENTIALS`: names only, for example `the harness's own token variable, gh (repo scope), ssh agent (2 keys)`.
 - `PRIVATE_DATA`: the repositories, transcripts, or files it can read.
 - `UNTRUSTED`: the untrusted sources it reads, directly or through another agent.
 - `EGRESS`: every path that can send data off the machine.

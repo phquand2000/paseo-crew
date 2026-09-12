@@ -118,7 +118,9 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
   applies `disallowedTools` only to some of its providers, so a role moved to another harness can
   lose a deny list without any error; `setup-seats.fish` says so when a harness has none. The
   guards themselves are shared. `lead-guard.sh` checks each write against the repository: the
-  Lead may write only `.seatworks/`, `docs/`, `doc/`, `AGENTS.md`, `CLAUDE.md`, and `CONTEXT.md`,
+  Lead may write only `.seatworks/`, `docs/`, `doc/`, `CONTEXT.md`, and the instruction files any
+  harness in the kit reads (`AGENTS.md`, `CLAUDE.md`) — a fixed superset, which `setup-seats.fish`
+  checks still covers every harness's `contextFile` —
   the Supervisor only `.seatworks/`, and the watcher only its log under
   `.seatworks/records/attention/`; files outside the repository stay writable.
   `profile-guard.sh` holds a Supervisor's and Lead's `create_agent`, `update_agent`,
@@ -171,8 +173,9 @@ in that harness's notes, so swapping a harness doesn't invalidate this page:
 - **Symptom:** one seat ignores constraints that another follows.
 - **Cause:** harnesses disagree on which file they read. The manifest's `contextFile` says which
   one, and `contextFileNeedsPointer` says whether that file has to point at `AGENTS.md`.
-- **Response:** keep constraints in `AGENTS.md`, and make `CLAUDE.md` contain `@AGENTS.md`, so
-  every harness converges on one source.
+- **Response:** keep constraints in `AGENTS.md`, and let `add-project.fish` write a one-line
+  `@AGENTS.md` pointer for every other `contextFile` a harness in use declares, so every harness
+  converges on one source.
 
 ## Paseo's own skills reach the seats only through the setup script
 

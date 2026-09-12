@@ -693,6 +693,15 @@ end
 test $dry -eq 1; and echo "[--check] verifying only; nothing will be written."
 test $live -eq 1; and echo "[--probe] each seat's harness will be asked which skills it loads; this spends a cheap model call per seat that needs one."
 
+set -g lead_writes (string match -ra --groups-only 'lead:([A-Za-z0-9_.-]+\.md)' -- \
+    (cat $harness_dir/common/guards/lead-guard.sh))
+for id in (all_harnesses)
+    set -l ctx (harness_get $id '.contextFile // empty')
+    test -n "$ctx"; or continue
+    contains -- $ctx $lead_writes
+    or fail "harness $id reads $ctx, which harness/common/guards/lead-guard.sh does not list among the Lead's writable files, so a Lead on it could not write the repository's instruction file. Add it to allowed()."
+end
+
 for file in $kit/project/*.md (find $kit/project/skills -name '*.md' 2>/dev/null)
     grep -q '<!--' $file
     and fail (string replace -- "$kit/" '' $file)" contains an HTML comment. Every .md in this kit loads unchanged on every harness; put maintainer notes in WRITING_GUIDE.md."

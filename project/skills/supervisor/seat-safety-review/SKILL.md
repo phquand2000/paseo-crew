@@ -15,9 +15,10 @@ It produces `.seatworks/records/safety/seat-matrix.md` from
 the history. Policy changes it proposes go through the protocol-patch skill. `references/` and
 `scripts/` paths are relative to this skill's directory; the rest to the repository root.
 
-Print credential names, never values: the matrix is committed, and your transcript lands in the
-shared `~/.claude/projects`. Select config keys with `jq`, or use
-[scripts/inventory.sh](scripts/inventory.sh), which prints only names and presence.
+Print credential names, never values: the matrix is committed, and your transcript lands in a
+directory your harness shares with every seat on it, named in its manifest's `links`. Select
+config keys with `jq`, or use [scripts/inventory.sh](scripts/inventory.sh), which prints only
+names and presence.
 
 ## Procedure
 

@@ -156,9 +156,13 @@ if not test -e $repo_dir/AGENTS.md
     awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/AGENTS_MD_SNIPPET.md >$repo_dir/AGENTS.md
     set -a added AGENTS.md
 end
-if not test -e $repo_dir/CLAUDE.md
-    echo '@AGENTS.md' >$repo_dir/CLAUDE.md
-    set -a added CLAUDE.md
+for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
+    set -l ctx (jq -r '.contextFile // "AGENTS.md"' $harness_dir/$id/harness.json)
+    test $ctx = AGENTS.md; and continue
+    test (jq -r '.contextFileNeedsPointer // false' $harness_dir/$id/harness.json) = true; or continue
+    test -e $repo_dir/$ctx; and continue
+    echo '@AGENTS.md' >$repo_dir/$ctx
+    set -a added $ctx
 end
 
 set -l manifests (mktemp)

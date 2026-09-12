@@ -100,7 +100,7 @@ later you must rerun step 4 for every project.
    value, from the manifest:
 
    ```fish
-   jq -r '.provider.env | to_entries[] | select(.key | endswith("_ENV_KEY")) | "export \(.value) yourself; the kit never stores it"' KIT_DIR/harness/codex/harness.json
+   jq -r '.provider.env // {} | to_entries[] | select(.key | endswith("_ENV_KEY")) | "export \(.value) yourself; the kit never stores it"' KIT_DIR/harness/*/harness.json
    ```
 
 4. Check each harness's login and Paseo's tool injection. A harness declares the login file a
@@ -144,26 +144,30 @@ in that file, because step 4 composes them from `seats.json` and the manifests.
 
 3. Merge any missing base entry from `examples/paseo-providers.json` into
    `.agents.providers`, dropping its `_doc` key.
-4. For the `claude` base provider, check whether it already holds a token, without printing it:
+4. A harness whose manifest sets `provider.baseCredential` keeps a token on its base provider,
+   which every seat inherits through `extends`. List which, and whether each is already set,
+   without printing any value:
 
    ```fish
-   jq '(.agents.providers.claude.env.CLAUDE_CODE_OAUTH_TOKEN // "") | length > 0' ~/.paseo/config.json
+   jq -r '[.baseProvider, (.provider.baseCredential.env // "-"), (.provider.baseCredential.create // "-")] | @tsv' KIT_DIR/harness/*/harness.json | while read -l base var create
+       test $var = -; and continue
+       echo "$base needs $var (create with: $create): "(jq -r --arg b $base --arg v $var '((.agents.providers[$b].env[$v]) // "") | length > 0' ~/.paseo/config.json)
+   end
    ```
 
-   If it prints `false`, ask the user for their `CLAUDE_CODE_OAUTH_TOKEN`; they can create one
-   with `claude setup-token`. Don't read a token from any other file. Then set it, keeping the
-   rest of the file:
+   For each one that prints `false`, ask the user for that variable's value; the `create` command
+   is how they obtain it. Don't read it from any other file. Then set it, keeping the rest:
 
    ```fish
-   jq --arg t TOKEN '.agents.providers.claude.env.CLAUDE_CODE_OAUTH_TOKEN = $t' ~/.paseo/config.json > ~/.paseo/config.json.new; and mv ~/.paseo/config.json.new ~/.paseo/config.json; and chmod 600 ~/.paseo/config.json
+   jq --arg b BASE --arg v VAR --arg t TOKEN '.agents.providers[$b].env[$v] = $t' ~/.paseo/config.json > ~/.paseo/config.json.new; and mv ~/.paseo/config.json.new ~/.paseo/config.json; and chmod 600 ~/.paseo/config.json
    ```
 
 5. Look up the real model IDs for each base provider with `paseo provider models BASE`. If they
    differ from the `models` a role names in `seats.json`, correct them there: step 4 copies each
    seat's `isDefault` model and thinking option into its provider and its agent profile.
 
-**Done:** the command from substep 1 prints `present` for every harness, the `claude` token check
-prints `true`, and `jq -e . ~/.paseo/config.json` succeeds.
+**Done:** the command from substep 1 prints `present` for every harness, every base credential
+from substep 4 prints `true`, and `jq -e . ~/.paseo/config.json` succeeds.
 
 To roll back, restore `~/.paseo/config.json.pre-seatworks`.
 
@@ -174,7 +178,8 @@ that already exists:
 
 - copies the kit's templates from `project/` into `REPO_DIR/.seatworks/`, naming the project's
   seats in them;
-- adds `AGENTS.md` and a one-line `CLAUDE.md` (`@AGENTS.md`) at the repository root if missing;
+- adds `AGENTS.md` at the repository root if missing, plus a one-line `@AGENTS.md` pointer for
+  every other `contextFile` a harness in use declares with `contextFileNeedsPointer`;
 - composes the six providers from `seats.json` and the harness manifests and adds them to the
   Paseo config, or refreshes the kit-managed env of existing ones (the harness's config-directory
   variable, and every `SEATWORKS_*` value), after a backup named
@@ -208,13 +213,13 @@ the import line, and a spawn recipe with a real model:
 
 ```fish
 paseo project ls | grep REPO_DIR
-head -1 REPO_DIR/CLAUDE.md
+for f in (jq -r 'select(.contextFileNeedsPointer == true) | .contextFile' KIT_DIR/harness/*/harness.json); head -1 REPO_DIR/$f; end
 grep -n 'peer-SLUG/' REPO_DIR/.seatworks/WORKSPACE_PROTOCOL.md
 ```
 
 If a repository already had an `AGENTS.md`, the script leaves it alone: add the sections of
-`examples/AGENTS_MD_SNIPPET.md` to it by hand. If it had a `CLAUDE.md` with rules, move those
-rules into `AGENTS.md` and replace `CLAUDE.md` with the line `@AGENTS.md`.
+`examples/AGENTS_MD_SNIPPET.md` to it by hand. If a pointer file already existed with rules in
+it, move those rules into `AGENTS.md` and leave the pointer as the single line `@AGENTS.md`.
 
 The Reviewer runs Open Code Review in delegation mode, reviewing with its own model, until
 you give OCR a model of its own: run `ocr config provider` (it asks for an API key, which is
@@ -294,12 +299,13 @@ provider's profile variable isn't applied: check its `env` in `~/.paseo/config.j
 `configDirEnv` in its harness manifest, and rerun `fish KIT_DIR/setup/setup-seats.fish --check`.
 
 If the push isn't blocked, the guard extension didn't load. Check that
-`~/.pi/profiles/peer-SLUG/extensions/peer-guard.ts` links to the kit, then repeat this step
+the Peer's guard links to the kit under its profile (`<profileRoot>/peer-SLUG/<guards.installTo>/`,
+both from its harness manifest), then repeat this step
 for `peer-SLUG`.
 
 If the merge isn't blocked, the skill guard didn't run: check that the Lead's provider has
-`env.SEATWORKS_KIT`, that `harness/claude/settings/lead.settings.json` has a `PreToolUse` entry
-running `skill-guard.sh`, and that the link exists in the profile.
+`env.SEATWORKS_KIT`, that its harness's role settings file has a hook entry running
+`skill-guard.sh`, and that the link exists in the profile.
 
 Finally, leave one Supervisor running for the user: start an agent on `supervisor-SLUG` in
 `REPO_DIR` and keep it. It keeps a watcher running while a Lead works.

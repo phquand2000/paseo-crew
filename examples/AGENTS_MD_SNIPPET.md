@@ -1,14 +1,12 @@
 # AGENTS.md template for a target repository
 
 Every agent working in a repository reads its instruction file automatically, so the
-repository's technical constraints belong there. The seats read different files, though:
+repository's technical constraints belong there. The seats don't all read the same file: each
+harness names the one it reads in its manifest's `contextFile`, and a harness that reads
+something other than `AGENTS.md` also says `contextFileNeedsPointer`.
 
-- Most harnesses read `AGENTS.md`, and take only one file per directory, preferring `AGENTS.md`
-  over `CLAUDE.md`.
-- A harness whose `contextFile` is `CLAUDE.md` reads that one instead.
-
-So keep the constraints in `AGENTS.md`, and give the repository a one-line `CLAUDE.md` that
-imports it:
+So keep the constraints in `AGENTS.md`, and let `setup/add-project.fish` add a one-line pointer
+for every other file a harness in use reads. A pointer is this one line:
 
 ```md
 @AGENTS.md
