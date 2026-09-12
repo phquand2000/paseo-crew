@@ -330,6 +330,14 @@ function seat_deny_flat --argument-names role harness
         map(select(length > 0) | {key: ., value: $v}) | from_entries'
 end
 
+function role_settings_overlay --argument-names harness role
+    set -l rel (harness_get $harness '.settings.roleSource // empty')
+    test -n "$rel"; or return
+    set -l file $harness_dir/$harness/(string replace ROLE $role $rel)
+    test -f $file; or return
+    echo $file
+end
+
 function build_seat_settings --argument-names key harness role dir
     set -l mode (harness_get $harness .settings.mode)
     set -l file (harness_get $harness .settings.file)
@@ -346,6 +354,22 @@ function build_seat_settings --argument-names key harness role dir
                 fail "$key: $src not found"
                 return
             end
+            set -l overlay (role_settings_overlay $harness $role)
+            set -l shed 0
+            if test -n "$overlay"
+                if not jq -e . $overlay >/dev/null 2>&1
+                    fail "$key: its settings were left alone, because "(string replace $harness_dir/ '' $overlay)" is not valid JSON."
+                    return
+                end
+                set -l merged (mktemp)
+                if not jq -s --indent 2 '.[0] * .[1]' $src $overlay >$merged
+                    rm -f $merged
+                    fail "$key: could not merge $overlay over $src."
+                    return
+                end
+                set src $merged
+                set shed 1
+            end
             set -l path (harness_get $harness '.deny.settingsPath // empty')
             set -l map '{}'
             test -z "$path"; or set map (seat_deny_flat $role $harness)
@@ -358,7 +382,9 @@ function build_seat_settings --argument-names key harness role dir
                     | (if $p == "" then true else (($s | getpath($dp)) // {}) == $m end)
                       and ($kd | to_entries | all(.[]; $sd[.key] == .value))' $target >/dev/null 2>&1
                 if test $dry -eq 1
-                    fail "$key: $target is missing, lacks a key harness/$harness/"(harness_get $harness .settings.source)" sets, or holds a deny seats.json no longer gives $role (rerun without --check)"
+                    set -l sets harness/$harness/(harness_get $harness .settings.source)
+                    test -z "$overlay"; or set sets "$sets or "(string replace $harness_dir/ '' $overlay)
+                    fail "$key: $target is missing, lacks a key $sets sets, or holds a deny seats.json no longer gives $role (rerun without --check)"
                 else
                     set -l base (mktemp)
                     if test -f $target
@@ -374,7 +400,9 @@ function build_seat_settings --argument-names key harness role dir
                               elif ($m | length) == 0 then delpaths([$dp])
                               else setpath($dp; $m) end' $base $src >$tmp
                         mv $tmp $target
-                        echo "  ~ $key $file: keys from harness/$harness/"(harness_get $harness .settings.source)" and this seat's deny map, replacing any deny it no longer asks for"
+                        set -l from harness/$harness/(harness_get $harness .settings.source)
+                        test -z "$overlay"; or set from "$from and "(string replace $harness_dir/ '' $overlay)
+                        echo "  ~ $key $file: keys from $from and this seat's deny map, replacing any deny it no longer asks for"
                     else
                         rm -f $tmp
                         fail "$key: could not compose $target from harness/$harness/"(harness_get $harness .settings.source)" and the deny intents seats.json gives $role"
@@ -382,6 +410,7 @@ function build_seat_settings --argument-names key harness role dir
                     rm -f $base
                 end
             end
+            test $shed -eq 1; and rm -f $src
         case '*'
             fail "$key: harness $harness declares settings.mode '$mode', which this script doesn't build"
     end
@@ -831,6 +860,24 @@ for id in (all_harnesses)
 end
 
 for id in (seats_get '[.seats[].harness] | unique | .[]')
+    set -l harness_roles (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
+    for source in (harness_get $id '.settings.source') (harness_get $id '.settings.roleSource // empty')
+        test -n "$source"; or continue
+        string match -q '*ROLE*' -- $source; or continue
+        set -l dir (path dirname $source)
+        test "$dir" != .; or continue
+        set -l tail (string replace ROLE '' (path basename $source))
+        for file in $harness_dir/$id/$dir/*
+            test -f $file; or continue
+            set -l named (string replace -- $tail '' (path basename $file))
+            if not contains -- "$named" $harness_roles
+                echo "  · harness/$id/$dir/"(path basename $file)" is a settings file for role '$named', which seats.json does not put on this harness. Nothing reads it: delete it, or move the role back."
+            else if not jq -e . $file >/dev/null 2>&1
+                fail "$file is not valid JSON; fix it by hand."
+            end
+        end
+    end
+
     test (harness_get $id '.settings.mode') = link; or continue
     set -l retention_key (harness_get $id '.settings.retentionKey // empty')
     set -l user_settings (expand_home (harness_get $id '.userSettings // empty'))
@@ -842,27 +889,11 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
             exit 1
         end
     end
-    set -l roles (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
-    set -l source (harness_get $id '.settings.source')
-    set -l srcdir (path dirname $source)
-    set -l tail (string replace ROLE '' (path basename $source))
-    if string match -q '*ROLE*' -- $source; and test "$srcdir" != .
-        for file in $harness_dir/$id/$srcdir/*
-            test -f $file; or continue
-            set -l named (string replace -- $tail '' (path basename $file))
-            contains -- "$named" $roles
-            or echo "  · harness/$id/$srcdir/"(path basename $file)" is a settings file for role '$named', which seats.json does not put on this harness. Nothing reads it: delete it, or move the role back."
-        end
-    end
-
     set -l hook_key (harness_get $id '.guards.hookSettingsKey // empty')
     for role in (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
         set -l file $harness_dir/$id/(string replace ROLE $role (harness_get $id '.settings.source'))
         test -f $file; or continue
-        if not jq -e . $file >/dev/null 2>&1
-            fail "$file is not valid JSON; fix it by hand."
-            continue
-        end
+        jq -e . $file >/dev/null 2>&1; or continue
         if test -n "$retention_key"
             set -l days (jq -r --arg k $retention_key '.[$k] // empty' $file)
             test "$days" = "$retention"
