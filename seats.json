@@ -176,9 +176,15 @@
       "readOnly": false,
       "hidesOrchestration": true,
       "required": true,
-      "notes": "Every Peer runs here. An Engineer owns a writable scope; an Architect or Scout gets the same profile with owned scope none, and the brief holds it read-only. Use thinkingOptionId max for a new boundary.",
-      "models": [],
-      "thinking": "high",
+      "notes": "Every Peer runs here. An Engineer owns a writable scope; an Architect or Scout gets the same profile with owned scope none, and the brief holds it read-only.",
+      "models": [
+        {
+          "id": "zai/glm-5.3-flash",
+          "label": "GLM-5.3-Flash",
+          "isDefault": true
+        }
+      ],
+      "thinking": "max",
       "description": "Peer seat: implementation, evidence, handoff",
       "denyIntents": [
         "code-eval",
