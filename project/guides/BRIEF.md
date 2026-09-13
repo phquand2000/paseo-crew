@@ -1,97 +1,49 @@
 # Brief template
 
-A brief is all a Peer knows about its task: the fields below. It goes into `create_agent` as
-`initialPrompt`. Keep it neutral, per your seat prompt's Delegation section: the outcome, the
-boundaries, and the open questions, with the implementation left to the Peer, and no Paseo,
-seats, or agent identities in it. Point to files and SHAs instead of pasting earlier tasks'
-history: whatever you paste stays in the Peer's context for the whole task.
+A brief is everything a Peer or Reviewer knows about its task. Use this template exactly, and fill
+every field or write `none`.
 
-Copy this block:
-
-```text
-Task ID             TASK_ID
-Repository root     REPO_ROOT
-Disposition         DISPOSITION
-Objective           OBJECTIVE
-Skills              SKILLS
-Decided / ruled out DECISIONS
-Starting points     STARTING_POINTS
-Owned scope         OWNED_GLOBS
-Excluded scope      EXCLUDED_GLOBS
-Authority           Commit locally on BRANCH. Pushing, deploying, external calls, and CI changes are not authorized.
-Interfaces
-  Consumes          CONSUMED_INTERFACES
-  Produces          PRODUCED_INTERFACES
-Global constraints  GLOBAL_CONSTRAINTS
-Verification        VERIFICATION_COMMANDS
-                    Test lane: TEST_LANE
-Open questions      OPEN_QUESTIONS
-Handoff             The six fields: Outcome, Snapshot, Scope, Verification, Unknown / risk,
-                    Ownership. Put any log longer than a screen in a file and give its path.
-```
-
-Replace the following:
-
-- `TASK_ID`: the plan slug and slice, for example `invoice-csv-S2`.
-- `REPO_ROOT`: the repository root as `git rev-parse --show-toplevel` prints it. A Peer works in
-  your checkout; there is no separate worktree to name.
-- `DISPOSITION`: `Engineer`, `Architect`, or `Scout`. An Architect or Scout gets `Owned scope
-  none` and the Authority line `Read-only: change nothing and commit nothing.`
-- `OBJECTIVE`: the slice's observable outcome, in one or two sentences.
-- `SKILLS`: the skills whose subject this task touches, by name, from the Peer's own list, or
-  `none`. Name them; a Peer that has to pick for itself usually picks none. Behavior changes take
-  `test-first`; a reported failure takes `diagnosing-bugs`; credentials, authorization or hostile
-  input take `security-check`; a web UI surface takes `frontend-design`; a doubtful proof takes
-  `test-proof-debt-audit`. Two apply more often than one.
-- `DECISIONS`: settled decisions and rejected approaches that bound the slice, each with its ADR
-  number or the plan heading it sits under, or `none`. The Peer can open the ADR itself.
-- `STARTING_POINTS`: files, docs, SHAs and URLs worth reading first, including the ExecPlan path.
-  A Peer reads a URL but cannot search, so name every outside source the task rests on.
-- `OWNED_GLOBS`: the paths this Peer may write, as concrete globs. Before you write them, name
-  the files the slice's change reaches that lie outside them, and either bring each one inside
-  these globs or re-cut the slice; a Peer that meets a shared file it cannot write can only
-  stop and ask, and its session is spent.
-- `EXCLUDED_GLOBS`: nearby paths it may read but not write, such as another slice's scope.
-- `BRANCH`: the slice branch, for example `task/invoice-csv-S2`.
-- `CONSUMED_INTERFACES`: the exact signatures, types, routes, schemas, or file formats this
-  slice uses, each with the SHA or path it comes from.
-- `PRODUCED_INTERFACES`: the exact names, parameters, and return types later slices will rely
-  on, each citing where it was settled (the skeleton slice's SHA, an Architect's handoff, or an
-  ADR), never invented in the brief; a Peer sees only its own brief, so this is how neighboring
-  slices agree on names. Tests in the slice may call only what exists at the base SHA or what
-  Consumes and Produces name; a test that needs anything else would invent the contract.
-- `GLOBAL_CONSTRAINTS`: requirements that bind every slice (exact values, formats, limits, and
-  version floors), copied word for word from an ADR, the owner directive, or `AGENTS.md`; a
-  paraphrase loses the exact value.
-- `VERIFICATION_COMMANDS`: the exact commands to run, one per line, starting from the slice's
-  Acceptance cell in the plan.
-- `TEST_LANE`: whether this Peer may run the full suite, hold a port, or use the test database.
-- `OPEN_QUESTIONS`: what you don't know and want the Peer's judgment on, or `none`. Ask each
-  one open, not as a choice between answers you picked.
-
-## Example
+Keep it neutral: the outcome, the limits and the open questions, not the implementation, because a
+Peer that only retypes your answer adds no second judgment. Point to files and SHAs rather than
+pasting history: whatever you paste stays in its context for the whole task.
 
 ```text
-Task ID             invoice-csv-S2
-Repository root     /Users/me/code/billing
-Disposition         Engineer
-Objective           GET /invoices/export?format=csv returns the filtered invoice list as CSV.
-Skills              test-first
-Decided / ruled out ADR 0007: amounts are integer cents; floats ruled out.
-                    Streaming the response is ruled out for now (plan: Outcome and non-goals): lists cap at 5,000 rows.
-Starting points     docs/exec-plans/active/invoice-csv.md, src/invoices/query.ts, 4c1d9e2 (S1 skeleton)
-Owned scope         src/invoices/export/**, test/invoices/export/**
-Excluded scope      src/invoices/query.ts (S3 owns it)
-Authority           Commit locally on task/invoice-csv-S2. Pushing, deploying, external calls, and CI changes are not authorized.
+Task ID             <plan slug and slice, e.g. invoice-csv-S2>
+Repository root     <as git rev-parse --show-toplevel prints it>
+Disposition         <Engineer | Architect | Scout | Reviewer>
+Objective           <the observable outcome, in one or two sentences>
+Skills              <the skills whose subject this task touches, by name, or none>
+Decided / ruled out <settled decisions and rejected routes, each with its ADR number or plan heading>
+Starting points     <files, docs, SHAs and URLs to read first; name every outside source, since it cannot search>
+Owned scope         <globs it may write, or none>
+Excluded scope      <nearby globs it may read but not write>
+Authority           Commit locally on <branch>. Pushing, deploying, external calls and CI changes are not authorized.
 Interfaces
-  Consumes          listInvoices(filter: InvoiceFilter): Promise<Invoice[]>  (src/invoices/query.ts at 4c1d9e2)
-  Produces          toCsv(invoices: Invoice[]): string  (stubbed by the S1 skeleton at 4c1d9e2)
-Global constraints  "Amounts are formatted with exactly two decimal places and no thousands separator."
-                    "Column order: number, customer, issued_at, amount, status."
-Verification        npm test -- test/invoices/export
-                    npm run typecheck
-                    Test lane: targeted tests only; no port; no test database
-Open questions      How should an empty result behave? Recommend one behavior with evidence.
-Handoff             The six fields: Outcome, Snapshot, Scope, Verification, Unknown / risk,
-                    Ownership. Put any log longer than a screen in a file and give its path.
+  Consumes          <exact signatures, routes or schemas it uses, each with its SHA or path>
+  Produces          <exact names later slices rely on, each citing where it was settled>
+Global constraints  <values, formats and limits copied word for word from an ADR, the directive or AGENTS.md>
+Verification        <exact commands, one per line, starting from the slice's Acceptance cell>
+                    Test lane: <whether it may run the full suite, hold a port, or use the test database>
+Open questions      <what you want its judgment on, each asked open, not as A or B>
+Handoff             The six fields: Outcome, Snapshot, Scope, Verification, Unknown / risk, Ownership.
+                    Put any log longer than a screen in a file and give its path.
 ```
+
+A Reviewer's brief adds these four fields after Objective:
+
+```text
+Target SHA          <the exact commit or range under review>
+Axes                <spec, standards, structure: the ones this review covers>
+Machine pass        <run, or skip and why>
+Rulings to check    <each (ambiguous) DECISION: line, quoted, or none>
+```
+
+Three fields need care, because an agent sees only its own brief:
+
+- **Authority** for an Architect, Scout or Reviewer is `Read-only: change nothing and commit
+  nothing.`, with Owned scope `none`.
+- **Owned scope**: first list the files the change reaches outside it, then bring each inside or
+  re-cut the slice. A Peer that meets a file it cannot write can only stop.
+- **Produces** names only what is already settled (the skeleton slice's SHA, an Architect's
+  handoff, an ADR). A test may call only what exists at the base SHA or what Interfaces names, or
+  it invents the contract.

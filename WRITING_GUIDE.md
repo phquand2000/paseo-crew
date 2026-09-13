@@ -117,8 +117,8 @@ describes its target. [G, MS]
 
 ## Templates
 
-- Name placeholders in `UPPER_SNAKE_CASE`, and explain each one under "Replace the
-  following". [GP]
+- Describe each field inside a seat's template as a short `<hint>`, never in a separate list, and
+  add an example only where output drifted, as the same news written right and wrong. [GP]
 - Put copyable template content in a fenced block, so the instructions around it aren't
   copied along with it.
 

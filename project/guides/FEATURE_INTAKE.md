@@ -1,63 +1,45 @@
-# Feature Intake
+# Feature intake
 
-Choose the smallest lane that honestly covers blast radius, reversibility, uncertainty, and
-proof weakness.
+Pick the smallest lane that honestly covers the work's blast radius, reversibility, uncertainty and
+proof, and state the result before you brief anyone.
 
-## Lanes
+| Lane | When | What it takes |
+|---|---|---|
+| Tiny | local, reversible, directly verifiable | patch it and keep affected docs true |
+| Normal | one owner and contract, local rollback, an honest way to validate | acceptance in the task; no repository artifact unless state must outlive it |
+| High-risk | a hard gate below, irreversible state, broad uncertainty, weak proof, or a restart or handoff | an ExecPlan per `.seatworks/guides/PLANS.md` before implementation |
 
-### Tiny
+## Hard gates
 
-Local, low-risk, reversible, and directly verifiable. Patch directly and keep affected truth
-current.
+Work is high-risk when it materially changes:
 
-### Normal
-
-Bounded owner and contract, local rollback, and an honest validation route. The task or issue may
-carry acceptance; create no repository artifact unless truth or progress must survive the task.
-
-### High-Risk
-
-Material security, authorization, data, public-contract, migration, external-side-effect,
-runtime-boundary, cross-platform, or performance impact; irreversible state; broad uncertainty;
-weak proof; or restart/handoff. Use an active ExecPlan before implementation.
-
-## Hard Gates
-
-Treat work as high-risk when it includes:
-
-- material authentication, authorization, privacy, audit, or secret-handling change;
-- data loss, irreversible migration, deletion, retention, replay, or recovery behavior;
+- authentication, authorization, privacy, audit or secret handling;
+- data loss, irreversible migration, deletion, retention, replay or recovery;
 - money, credentials, user-visible delivery, or non-idempotent external side effects;
-- coordinated current-contract replacement or development-state reset/rebuild;
-- any request to add backward compatibility, fallback, dual-read/write, a shim, facade, legacy
-  parser, read-time upgrade, migration path, or version branch, unless `AGENTS.md` says this
-  project allows it: a compatibility layer outlives whoever asked for it, so it is the Human's
-  call and needs a recorded removal condition;
-- material runtime owner-boundary, concurrency, lifecycle, or ordering change;
-- weakening proof that protects a real security, data, contract, or external-system claim.
+- a current contract replaced in coordination, or a development-state reset;
+- runtime owner boundaries, concurrency, lifecycle or ordering;
+- proof that protects a security, data, contract or external-system claim;
+- compatibility (a fallback, shim, dual read/write, legacy parser or version branch) unless
+  `AGENTS.md` allows it, because such a layer outlives whoever asked for it: it is the Human's
+  call and needs a recorded removal condition.
 
-A label alone does not force the lane. Material impact, irreversibility, uncertainty, or weak
-proof does.
+A label alone does not set the lane; material impact does.
 
-## Design Gate
+## Design gate
 
-Before implementation, resolve any choice that materially changes ownership, public behavior,
-safety, compatibility, data consequences, or another expensive-to-reverse direction. Record each
-one as an ADR per `.seatworks/guides/ADR.md`: constraints, meaningful alternatives, the decision,
-and likely failure modes. Do not prescribe files, symbols, pseudocode, or private control flow.
+Before implementation, settle every choice that changes ownership, public behavior, safety,
+compatibility or data, or is otherwise expensive to reverse, as an ADR per
+`.seatworks/guides/ADR.md`, without prescribing files, symbols or control flow. Ask the Human when
+the requested behavior, the destructive scope or a weakened proof stays ambiguous.
 
-Human confirmation is required when the requested behavior, destructive scope, or proof weakening
-remains materially ambiguous. Compatibility is not an implementation choice available through
-ordinary intake.
+## Intake result
 
-## Intake Result
-
-State this in your reply before you brief anyone; a plan carries its lane and reason in its header:
+State these five lines in your reply; a plan carries its lane and reason in its header:
 
 ```text
-Lane: tiny | normal | high-risk
-Reason: [material reason]
-Owners: [canonical docs/contracts]
-Plan: [active plan or none]
-Validation: [claim-shaped evidence]
+Lane: <tiny | normal | high-risk>
+Reason: <the material reason>
+Owners: <the canonical docs and contracts>
+Plan: <the active plan's path, or none>
+Validation: <the evidence that would show the claim>
 ```

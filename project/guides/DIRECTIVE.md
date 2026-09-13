@@ -1,69 +1,42 @@
 # Owner directive template
 
-A directive carries only settled decisions: the outcome and the limits, never the solution, because
-framing is the Lead's. Copy the block below and send it to the Lead as it is.
+A directive carries only settled decisions: the outcome and its limits, never the solution, because
+framing is the Lead's. Use this template exactly and send it as it is. Delete the Risks section when
+the outcome is reversible and no risk was raised.
 
 ```text
-OWNER DIRECTIVE: TITLE
+OWNER DIRECTIVE: <a short name for the outcome>
 
 Problem story
-PROBLEM_STORY
+<the most recent real occurrence: when, who, what they did, and what it cost; two to five sentences>
 
 Outcome
-OUTCOME
+<the observable change wanted, naming no implementation; a solution the Human fixed goes under Constraints with its reason>
 
 Success check
-SUCCESS_CHECK
+<a command and its expected output, a metric with a threshold, or a named screen someone looks at>
 
 Appetite
-APPETITE
+<what the outcome is worth as a budget, not an estimate, e.g. two days of Lead time; stop and ask if it needs more>
 
 Constraints
-- CONSTRAINT
-- Known hard parts: HARD_PARTS
+- <one settled limit per line: a platform, a dependency, a deadline, a fixed solution>
+- Known hard parts: <traps the Human already suspects, or none known>
 
 No-gos
-- NO_GO
+- <one out-of-scope item per line, or none>
 
 Reserved for the Human
-- RESERVED_DECISION: CONCEPT_CHANGE. Come back before: TRIGGER_POINT
+- <a decision that changes what the project does or how it behaves>: <what it would change>. Come back before: <the moment to stop and ask>
 
 Open questions for you to settle
-- OPEN_QUESTION
+- <a question left to the Lead, never one about the project's concept, or none>
 
 When the design settles
-ON_CONVERGENCE
+<report the verdict and wait | proceed, and report at acceptance; the first only when the design could change the concept>
 
 Risks
-RISK_REGISTER
+<the pre-mortem rows, each with its first observable signal and its disposition; or the risks the Human named and what each would cost>
 
-Workspace protocol: PROTOCOL_STATUS
+Workspace protocol: <WORKSPACE_PROTOCOL.md present | none; run on your defaults>
 ```
-
-Replace the following:
-
-- `TITLE`: a short name for the outcome, for example `Voice SDK on the private registry`.
-- `PROBLEM_STORY`: the most recent real occurrence of the problem: when, who, what they did, and
-  what it cost. Two to five sentences.
-- `OUTCOME`: the observable change the Human wants, without naming an implementation. If the
-  Human fixed a solution, put it under Constraints with its reason.
-- `SUCCESS_CHECK`: a command and its expected output, a metric with a threshold, or a named
-  screen someone looks at.
-- `APPETITE`: what the outcome is worth, for example `two days of Lead time; stop and ask if it
-  needs more`. It's a budget, not an estimate.
-- `CONSTRAINT`: one settled limit per line: platforms, dependencies, deadlines, a solution the
-  Human fixed.
-- `HARD_PARTS`: traps the Human already suspects, or `none known`.
-- `NO_GO`: one out-of-scope item per line, or `none`.
-- `RESERVED_DECISION`: a decision that changes what the project does or how it behaves.
-- `CONCEPT_CHANGE`: what about the project it would change.
-- `TRIGGER_POINT`: the moment the Lead stops and asks, for example `before the first publish`.
-- `OPEN_QUESTION`: a question left to the Lead, or `none`. A question about the project's concept
-  doesn't belong here; settle it first.
-- `ON_CONVERGENCE`: what the Lead does once a hard design decision is settled, either
-  `report the verdict and wait` or `proceed, and report at acceptance`. Choose the first only when
-  the design could change the project's concept.
-- `RISK_REGISTER`: the rows the `pre-mortem` skill returned, each with its first observable
-  signal and its disposition; or the risks the Human named and what each would cost, one per
-  line; or delete the Risks section when the outcome is reversible and none were raised.
-- `PROTOCOL_STATUS`: `WORKSPACE_PROTOCOL.md present` or `none; run on your defaults`.
