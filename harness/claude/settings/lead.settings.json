@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"$CLAUDE_CONFIG_DIR/plan-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; exit 0"
+            "command": "f=\"$CLAUDE_CONFIG_DIR/record-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\" lead; fi; exit 0"
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"$CLAUDE_CONFIG_DIR/plan-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; exit 0"
+            "command": "f=\"$CLAUDE_CONFIG_DIR/record-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\" lead; fi; exit 0"
           }
         ]
       }

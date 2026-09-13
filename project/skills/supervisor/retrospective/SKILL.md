@@ -7,7 +7,7 @@ description: "Turns a week of attention logs and lesson lines into at most one p
 
 Use this skill to turn what the logs already recorded into one change worth making, and to
 answer the question `.seatworks/prompts/SUPERVISOR.md` leaves open: which pattern has been seen
-twice. It ends in notebook entries and at most one proposal for the Human.
+twice. It ends in updated notebook rows and at most one proposal for the Human.
 
 ## The finding this rests on
 
@@ -50,11 +50,10 @@ stronger one too.
    ```
 
    Done when each group has a number and the dates that produced it.
-4. **Check the notebook before proposing anything.** A group that matches an open notebook entry
-   raises that entry's `Seen` line and inherits the correction already recorded there; a
-   recurrence under an existing entry is evidence the correction was too weak, which is a
-   stronger finding than a new entry. A group seen once becomes a notebook entry with
-   `Status: open` and nothing else. Done when every group is either an entry or a raised count.
+4. **Check the notebook before proposing anything.** A group that matches a row raises its Seen
+   and Last and inherits where its fix lives; a recurrence under an `applied` row is evidence the
+   fix was too weak, which is a stronger finding than a new row. A group with no row becomes one
+   at `observed` and nothing else. Done when every group is a row or a raised count.
 5. **Propose at most one change.** Take the group with the highest count and the clearest class,
    and write it as the smallest diff to one file: a prompt line, a brief field, an acceptance
    item, a trigger, a guard. With it, bring the two dated episodes that justify it, the class,
@@ -62,12 +61,12 @@ stronger one too.
    retrospective that proposes four changes makes the next one unattributable, because nobody
    can tell which change moved the outcome.
 6. **Hand it over.** The kit is outside this repository and you cannot edit it, so the proposal
-   goes to the Human as a diff in your reply. Record in the notebook what you proposed and on
-   what date, so the next retrospective can tell whether it worked.
+   goes to the Human as a diff in your reply. Set its row to `adopted`, with the file the diff
+   changes under Fix lives in and what would show it worked under Check.
 
 ## Rules
 
-- One observation is not a pattern. A single surprise gets a notebook entry and nothing more,
+- One observation is not a pattern. A single surprise gets a row at `observed` and nothing more,
   because a rule added after one event makes the system unpredictable for everyone after you.
 - Judge the system, not the seat. "The Peer was careless" is not a class; "the brief's owned
   scope was a directory and the work needed two" is.

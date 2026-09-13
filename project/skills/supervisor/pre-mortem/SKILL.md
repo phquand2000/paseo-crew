@@ -77,7 +77,7 @@ seat prompt.
   been worked out yet.
 - A reason to enlarge the appetite. The output can make the Human shrink the outcome, add a
   no-go, or stop; it never quietly buys more budget.
-- A ritual. If the last three pre-mortems on similar work returned the same rows, put those rows
-  in the notebook and the project's `AGENTS.md` and stop running it for that class of work.
+- A ritual. If the last three pre-mortems on similar work returned the same rows, put them in
+  `AGENTS.md`, give the pattern one notebook row, and stop running it for that class of work.
 
 The rule that matters most: the seats write in the past tense, and they never see each other.

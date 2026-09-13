@@ -1,89 +1,60 @@
 # Workspace protocol template
 
-A workspace protocol sets how the Lead coordinates work in one repository. Only the Lead reads
-it; Peers read `AGENTS.md` and their brief.
+A workspace protocol holds the standing decisions on how the Lead coordinates one repository: how
+many Peers write at once, when a change gets independent review, when a council or an ultra-review
+runs, when a Lead hands off, and what always goes to the Human. The Lead reads it at the start of
+every session, and where it speaks it overrides `.seatworks/prompts/LEAD.md`.
 
-The two files split the work like this:
-
-| File | Holds | Read by |
-|---|---|---|
-| `AGENTS.md` | Technical constraints anyone changing code must know: contracts, test commands, authority | Every agent, automatically |
-| `.seatworks/guides/WORKSPACE_PROTOCOL.md` | Coordination strategy: strictness, topology, review lanes, spawn recipes | The Lead |
-
-If an item belongs in both, put it in `AGENTS.md`.
-
-Strictness varies by repository: a side project might need ten lines, and a repository with
-many users a few hundred. Without this file, the Lead runs on the defaults in
-`.seatworks/prompts/LEAD.md`, so delete any section that repeats them. Give each mandatory rule a
-reproducible reason and a removal trigger, as in `AGENTS_MD_SNIPPET.md`.
-
-`setup/add-project.fish` copies the block below to `.seatworks/guides/WORKSPACE_PROTOCOL.md` in the
-repository, and fills in `PEER_MODEL` from `--model` or the Peer harness's
-`provider.defaultModel`. Fill in the rest yourself, or delete a line to keep the Lead's default:
-the file is yours, and every line in it is a rule the Lead cannot see the reason for.
+`setup/add-project.fish` copies the block below to `.seatworks/guides/WORKSPACE_PROTOCOL.md`. Fill
+in each placeholder with a decision the Human made, or delete its line to keep the Lead's default.
+After that the Supervisor changes a line only when the Human agrees, and by replacing it.
 
 ````md
 # Workspace protocol
 
-This file sets how the Lead coordinates work in this repository. Where it speaks, it overrides
-the Lead's defaults.
+How the Lead coordinates this repository where it differs from `.seatworks/prompts/LEAD.md`. Each
+line is a standing decision of the Human's; a line naming a council or an ultra-review is the Human
+asking for it in advance. Seat models live in the profiles, rules for code in `AGENTS.md`, rulings
+in the Lead's ADRs, and what happened in the Supervisor's records. One line per decision, under 40
+lines: a new decision replaces the line it changes.
 
-## Strictness
+## Routing
 
-Level: STRICTNESS_LEVEL
+- Writers at once: MAX_PARALLEL_WRITERS. Full suite, ports, test database: TEST_LANE_RULE.
+- Independent review: REVIEW_RULE.
+- Design before code: ARCHITECT_TRIGGER.
+- Council: COUNCIL_TRIGGER.
+- Hand off to a fresh Lead: HANDOFF_TRIGGER.
 
-- `loose`: reading the diff yourself is enough; add a Reviewer only for data or migrations.
-- `standard`: the Lead's defaults.
-- `strict`: every change touching a seam listed in `AGENTS.md` gets an independent Reviewer.
+## Gates
 
-## Topology
-
-- Maximum parallel writing Peers: MAX_PARALLEL_WRITERS
-- Test lane: TEST_LANE_RULE
-
-Every Peer works in the Lead's own checkout. The Lead cannot create a workspace, so parallel
-writers above one need a worktree the Human makes.
-
-## Spawn recipes
-
-Launch every agent from its profile in `list_profiles`, copying the profile's model, `modeId`,
-and thinking exactly: Engineers from the Peer profile (`peer/PEER_MODEL`), Architects and Scouts
-from the same profile with `Owned scope none`, Reviewers from the Reviewer profile. The profile
-notes say when to raise thinking.
-
-## Review lanes
-
-- A material review question gets REVIEW_LANE_COUNT Reviewers: one axis each, never cloned
-  prompts. One may run on a different model family; it adds blind spots, not a vote, and the Lead
-  still issues one ruling.
-
-## Escalation
-
-- Add an Architect before an Engineer when: ARCHITECT_TRIGGER
-- Always goes to the Human in this repository: HUMAN_DECISIONS
-
-## Rules for this repository
-
-RULES
+- Ultra-review: ULTRA_REVIEW_TRIGGER.
+- Always the Human's: HUMAN_DECISIONS.
 ````
 
-Replace the following:
+Replace the following, each with one line and no date:
 
-- `STRICTNESS_LEVEL`: `loose`, `standard`, or `strict`.
-- `MAX_PARALLEL_WRITERS`: the most Peers that may write at once, for example `1`.
-- `TEST_LANE_RULE`: who may run the full suite, hold a port, or use the test database, and
-  when.
-- `PEER_MODEL`: the model of the Peer profile, spelled exactly as `list_models` shows it for
-  `peer`; each harness spells a model its own way.
-- `REVIEW_LANE_COUNT`: how many Reviewers a material question gets, for example `2`.
-- `ARCHITECT_TRIGGER`: the condition that calls for design review before implementation.
+- `MAX_PARALLEL_WRITERS`: how many Peers may write at once, for example `1`. Every Peer works in the
+  Lead's checkout, so more than one needs a worktree the Human makes.
+- `TEST_LANE_RULE`: who may run the full suite, hold a port or use the test database, and when.
+- `REVIEW_RULE`: which changes get an independent Reviewer and how many, for example `two
+  Reviewers, one axis each, for anything under billing/; otherwise the Lead reads the diff`.
+- `ARCHITECT_TRIGGER`: the condition that puts an Architect before an Engineer.
+- `COUNCIL_TRIGGER`: the kind of decision the Human wants a council on without being asked each
+  time, or delete the line.
+- `HANDOFF_TRIGGER`: when a Lead hands off to a fresh one, for example `when an outcome closes, or
+  when it can no longer name its own open decisions`.
+- `ULTRA_REVIEW_TRIGGER`: the checkpoint that earns an ultra-review, for example `once, when the
+  outcome's last slice is accepted`, or delete the line.
 - `HUMAN_DECISIONS`: decisions the Lead never makes in this repository, even small ones.
-- `RULES`: repository-specific rules, each with a reason and a removal trigger.
 
-A rule with both parts looks like this:
+## What does not go in the protocol
 
-```md
-- Every change touching `billing/` gets two sealed Reviewers.
-  Reason: on 2026-08-12 a single Reviewer missed a rounding bug that reached staging.
-  Remove when: `billing/` has a rounding property test running in CI.
-```
+| What you have | Where it goes |
+|---|---|
+| A rule for anyone changing code: comments, commands, contracts | `AGENTS.md`, through an `OWNER DIRECTIVE:` to the Lead |
+| A ruling on work in flight | a message to the Lead, and the Lead's ADR if it settles a boundary |
+| The episode behind a decision: dates, quotes, SHAs | the attention log |
+| The reason a line exists | the notebook row whose `Fix lives in` names that line |
+| Which model, thinking level or mode a seat uses | the seat profile, or `.seatworks/project.json` to pin one per project |
+| A repeat of `LEAD.md` | nowhere: delete the line |

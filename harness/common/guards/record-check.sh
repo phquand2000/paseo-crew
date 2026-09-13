@@ -1,6 +1,7 @@
 #!/bin/bash
 
-export SEATWORKS_GUARD_LABEL="Plan check"
+role=${1:-${SEATWORKS_ROLE:-}}
+export SEATWORKS_GUARD_LABEL="Record check"
 hook_io=${SEATWORKS_HOOK_IO:-${SEATWORKS_KIT:+$SEATWORKS_KIT/harness/common/hook-io.sh}}
 [ -n "$hook_io" ] && [ -r "$hook_io" ] || exit 0
 . "$hook_io"
@@ -8,20 +9,20 @@ command -v jq >/dev/null 2>&1 || exit 0
 read_hook_input
 seats=${SEATWORKS_SEATS:-$SEATWORKS_KIT/seats.json}
 [ -r "$seats" ] || exit 0
-max=$(jq -r '.planShape.maxLines // empty' "$seats")
-globs=$(jq -r '.planShape.paths[]?' "$seats")
-[ -n "$max" ] && [ -n "$globs" ] || exit 0
+sep=$(printf '\037')
+shapes=$(jq -r --arg r "$role" --arg s "$sep" '
+    (.recordShapes // [])[]
+    | select($r == "" or ((.roles // []) | length) == 0 or ((.roles // []) | index($r)))
+    | .paths[] as $p
+    | [$p, (.maxLines | tostring), (.template // ""), (.tail // "")] | join($s)' "$seats" 2>/dev/null)
+[ -n "$shapes" ] || exit 0
 
 event=$(field .hook_event_name)
 sid=$(field .session_id)
 cwd=$(field .cwd)
 [ -d "$cwd" ] || cwd=$PWD
 top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || top=$cwd
-guide_rel=.seatworks/guides/PLANS.md
-guide=$top/$guide_rel
-[ -r "$guide" ] || guide=$SEATWORKS_KIT/project/guides/PLANS.md
-headings=$(awk '/^```md$/ { f = 1; next } f && /^```$/ { exit } f && /^## /' "$guide" 2>/dev/null)
-state=${TMPDIR:-/tmp}/seatworks-plan-check/${sid:-none}
+state=${TMPDIR:-/tmp}/seatworks-record-check/${sid:-none}
 shopt -s nullglob
 
 measure='
@@ -42,12 +43,23 @@ BEGIN { n = split(ENVIRON["H"], a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "
 NF { count++ }
 END { flush(); print "total\t" NR }'
 
-plans() {
-    local g f
-    while IFS= read -r g; do
+records() {
+    local g max template tail f
+    while IFS=$sep read -r g max template tail; do
         [ -n "$g" ] || continue
-        for f in "$top"/$g; do [ -f "$f" ] && printf '%s\n' "$f"; done
-    done <<<"$globs"
+        for f in "$top"/$g; do
+            [ -f "$f" ] && printf '%s\n' "$f$sep$max$sep$template$sep$tail"
+        done
+    done <<<"$shapes"
+}
+
+headings_for() {
+    local t=$1 guide
+    [ -n "$t" ] || return 0
+    guide=$top/$t
+    [ -r "$guide" ] || guide=$SEATWORKS_KIT/project/${t#.seatworks/}
+    [ -r "$guide" ] || return 0
+    awk '/^```md$/ { f = 1; next } f && /^```$/ { exit } f && /^## /' "$guide"
 }
 
 summary() {
@@ -60,14 +72,14 @@ summary() {
         }'
 }
 
-check_plan() {
-    local f=$1 rel out total issues sig file
+check_record() {
+    local f=$1 max=$2 template=$3 tail=$4 rel out total issues sig file
     rel=${f#"$top"/}
-    out=$(H=$headings awk "$measure" "$f")
+    out=$(H=$(headings_for "$template") awk "$measure" "$f")
     total=$(awk -F'\t' '$1 == "total" { print $2 }' <<<"$out")
     issues=$(grep -v '^total' <<<"$out")
     if [ "${total:-0}" -gt "$max" ]; then
-        issues=$(printf 'lines:%s\tthe plan is %s lines against a %s-line page\n%s' "$(((total - max - 1) / 50))" "$total" "$max" "$issues")
+        issues=$(printf 'lines:%s\tthe file is %s lines against its %s\n%s' "$(((total - max - 1) / 50))" "$total" "$max" "$issues")
     fi
     issues=$(grep . <<<"$issues")
     file=$state/$(printf '%s' "$f" | shasum | cut -c1-16)
@@ -80,8 +92,7 @@ check_plan() {
         return
     fi
     mkdir -p "$state" && printf '%s\n' "$sig" >"$file"
-    printf 'In %s: %s. In this kit a plan is current state: an update replaces its row or line, each section'\''s size is in its heading, and reviews, the reasoning behind rulings, evidence and incidents each have a file of their own, listed in %s.' \
-        "$rel" "$(summary <<<"$issues")" "$guide_rel"
+    printf 'In %s: %s.%s' "$rel" "$(summary <<<"$issues")" "${tail:+ $tail}"
 }
 
 case $event in
@@ -91,21 +102,21 @@ PostToolUse)
     Edit | Write | MultiEdit)
         p=$(field .tool_input.file_path)
         case $p in /*) ;; *) p=$cwd/$p ;; esac
-        while IFS= read -r f; do
-            [ "$f" -ef "$p" ] && targets=$f
-        done < <(plans)
+        while IFS=$sep read -r f max template tail; do
+            [ "$f" -ef "$p" ] && targets=$f$sep$max$sep$template$sep$tail
+        done < <(records)
         ;;
     Bash)
         cmd=$(field .tool_input.command)
-        while IFS= read -r g; do
-            case $cmd in *"${g%/*}"*) targets=$(plans) ;; esac
-        done <<<"$globs"
+        while IFS=$sep read -r f max template tail; do
+            case $cmd in *"${f##*/}"*) targets=${targets:+$targets$'\n'}$f$sep$max$sep$template$sep$tail ;; esac
+        done < <(records)
         ;;
     esac
     msg=
-    while IFS= read -r f; do
+    while IFS=$sep read -r f max template tail; do
         [ -n "$f" ] || continue
-        m=$(check_plan "$f")
+        m=$(check_record "$f" "$max" "$template" "$tail")
         [ -n "$m" ] && msg=${msg:+$msg$'\n'}$m
     done <<<"$targets"
     [ -n "$msg" ] && note PostToolUse "$msg"
@@ -113,15 +124,14 @@ PostToolUse)
 SessionStart)
     [ "$(field .source)" = compact ] || exit 0
     list=
-    count=0
-    while IFS= read -r f; do
-        list=${list:+$list, }${f#"$top"/}" ($(wc -l <"$f" | tr -d ' ') lines)"
-        count=$((count + 1))
-    done < <(plans)
-    [ $count -gt 0 ] || exit 0
+    tails=
+    while IFS=$sep read -r f max template tail; do
+        list=${list:+$list; }${f#"$top"/}" ($(wc -l <"$f" | tr -d ' ') of $max lines)"
+        case $tails in *"$tail"*) ;; *) tails=${tails:+$tails }$tail ;; esac
+    done < <(records)
+    [ -n "$list" ] || exit 0
     [ -n "$sid" ] && rm -rf "$state"
-    [ $count -eq 1 ] && label="Active plan" || label="Active plans"
-    note SessionStart "This session was compacted. $label: $list. A plan here is current state: an update replaces its row or line, each section's size is in its heading, and rulings, reviews and evidence go to the files listed in $guide_rel."
+    note SessionStart "This session was compacted. Records kept to a size: $list. $tails"
     ;;
 esac
 exit 0

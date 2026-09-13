@@ -42,6 +42,28 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_CONFIG_DIR/record-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\" supervisor; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_CONFIG_DIR/record-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\" supervisor; fi; exit 0"
+          }
+        ]
+      }
     ]
   },
   "promptCacheTtl": "1h"

@@ -107,10 +107,6 @@ set -l added
 set -l stage (mktemp -d)
 cp -R $kit/project/. $stage/
 awk '/^````md$/{f=1; next} /^````$/{f=0} f' $kit/examples/WORKSPACE_PROTOCOL.md >$stage/guides/WORKSPACE_PROTOCOL.md
-set -l peer_harness (jq -r '.seats[] | select(.role == "peer") | .harness' $seats_file)
-set -l peer_model $model
-test -n "$peer_model"; or set peer_model (jq -r '.provider.defaultModel // ""' $harness_dir/$peer_harness/harness.json)
-test -n "$peer_model"; and perl -pi -e "s|PEER_MODEL|$peer_model|g" $stage/guides/WORKSPACE_PROTOCOL.md
 
 set -l refreshed
 set -l drafts $seat/records/drafts/refresh-(date +%Y%m%d-%H%M%S)
@@ -137,7 +133,7 @@ for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
         test $refresh -eq 1; or continue
         set -l replaceable 0
         if test $rel = guides/WORKSPACE_PROTOCOL.md
-            grep -q STRICTNESS_LEVEL $seat/$rel; and set replaceable 1
+            grep -qE 'STRICTNESS_LEVEL|REVIEW_RULE' $seat/$rel; and set replaceable 1
         else if contains -- $rel $prompts
             set replaceable 1
         else if string match -q 'skills/*' -- $rel; or string match -q 'guides/*' -- $rel

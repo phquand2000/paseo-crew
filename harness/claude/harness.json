@@ -38,7 +38,7 @@
     "hookProtocol": "exit-code",
     "hookSettingsKey": "hooks",
     "noteProtocol": "additionalContext",
-    "noteProtocolNote": "how a script tells the model something without refusing the call: hookSpecificOutput.additionalContext, which note in harness/common/hook-io.sh writes. Measured on 2.1.236 from PostToolUse and PreToolUse; NOTES.md says how. A role whose guards include a note-only script such as plan-check.sh belongs on a harness that sets this field.",
+    "noteProtocolNote": "how a script tells the model something without refusing the call: hookSpecificOutput.additionalContext, which note in harness/common/hook-io.sh writes. Measured on 2.1.236 from PostToolUse and PreToolUse; NOTES.md says how. A role whose guards include a note-only script such as record-check.sh belongs on a harness that sets this field.",
     "dirNote": "relative to harness/; the shell guards are protocol-generic and shared, so every hook-based harness points at common/guards",
     "shellTool": "Bash"
   },

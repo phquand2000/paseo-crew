@@ -47,7 +47,7 @@ seat reads lives in that project, under `REPO/.seatworks/`.
 Inside `.seatworks/`, the first three are the kit's and `--refresh` replaces them; `records/` is
 the project's and nothing replaces it. That split is the whole rule for what is safe to edit
 where: a change meant for every project goes to the kit, and a change meant for this one goes to
-its `AGENTS.md` or `guides/WORKSPACE_PROTOCOL.md`.
+its `AGENTS.md` for code, or `guides/WORKSPACE_PROTOCOL.md` for how its seats coordinate.
 
 The room joins the two. `harness/common/bin/seat-room` is the command every provider launches:
 it walks up from the agent's working directory to the nearest `.seatworks/`, reads the project's
@@ -212,8 +212,8 @@ fish setup/setup-seats.fish --check --probe
 When the kit's templates change, carry them into a project that already has its files. This
 replaces the project's seat prompts and skills, and its workspace protocol while that is still
 the unfilled template, keeping the old copies under the git-ignored `.seatworks/records/drafts/`.
-Keep one project's own rules in its `AGENTS.md` or its filled-in
-`.seatworks/guides/WORKSPACE_PROTOCOL.md`, which it never touches:
+Keep one project's rules for code in its `AGENTS.md` and its coordination decisions in its
+filled-in `.seatworks/guides/WORKSPACE_PROTOCOL.md`, which it never touches:
 
 ```fish
 fish setup/add-project.fish REPO_DIR --refresh

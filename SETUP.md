@@ -220,9 +220,8 @@ To roll back, restore the backup the run named.
 ## Add a project
 
 `setup/add-project.fish` adds what a repository needs and, without `--refresh`, overwrites no
-existing file. It copies the kit's templates from `project/` into `REPO_DIR/.seatworks/`, filling
-in the Peer's model in the spawn recipes; writes `.seatworks/project.json` with the slug the room
-resolves a seat by; adds `AGENTS.md` at the repository root if missing, plus an `@AGENTS.md`
+existing file. It copies the kit's templates from `project/` into `REPO_DIR/.seatworks/`; writes
+`.seatworks/project.json` with the slug the room resolves a seat by; adds `AGENTS.md` at the repository root if missing, plus an `@AGENTS.md`
 pointer for every other `contextFile` a harness declares with `contextFileNeedsPointer`; then
 registers the repository as a Paseo project, builds this project's five seat directories under
 each harness's profile root, and reloads Paseo.
@@ -264,13 +263,13 @@ stops and asks for `--slug`.
 
 **Done:** the script exits 0, prints a `✓` line for each of the five seats and no base-provider
 token warning (if it does, go back to step 3), and these show the slug, the project, the import
-line, and a spawn recipe with a real model:
+line, and the workspace protocol's routing placeholders waiting to be filled:
 
 ```fish
 jq -r .slug REPO_DIR/.seatworks/project.json
 paseo project ls | grep REPO_DIR
 for f in (jq -r 'select(.contextFileNeedsPointer == true) | .contextFile' KIT_DIR/harness/*/harness.json); head -1 REPO_DIR/$f; end
-grep -n 'peer/' REPO_DIR/.seatworks/guides/WORKSPACE_PROTOCOL.md
+grep -n 'REVIEW_RULE' REPO_DIR/.seatworks/guides/WORKSPACE_PROTOCOL.md
 ```
 
 If the repository already had an `AGENTS.md`, add the sections of
@@ -383,8 +382,8 @@ your own. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE.md).
 
 2. Rewrite the seat prompts in this order, because each one constrains the next. Put rules every
    project should start with in the `KIT_DIR/project/` templates; `--refresh` replaces a
-   project's copies, so a rule meant for one project goes in its `AGENTS.md` or
-   `.seatworks/guides/WORKSPACE_PROTOCOL.md`:
+   project's copies, so a rule for one project's code goes in its `AGENTS.md`, and a coordination
+   decision in its `.seatworks/guides/WORKSPACE_PROTOCOL.md`:
    1. `PEER.md` and `REVIEWER.md`: boundaries, handoff shape, evidence standard. No HTML
       comments in any prompt or skill: a maintainer note goes in `WRITING_GUIDE.md`, which lists
       what each demo prompt expects you to add.

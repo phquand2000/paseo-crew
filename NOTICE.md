@@ -47,6 +47,7 @@ Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 | `supervisor/pre-mortem` | Gary Klein, "Performing a Project Premortem" (prospective hindsight, and the shift from what could go wrong to what did); SLP material (`council` sealed seats, one lens per seat) |
 | `supervisor/retrospective` | Cemri et al., "Why Do Multi-Agent LLM Systems Fail?" (the three failure classes, and organizational design over model capability); the SLP author's talk (a weekly review that distills the period into rules) |
 | `.seatworks/guides/PLANS.md` (rewritten), `ADR.md`, `REVIEW.md` | Nygard's ADR and MADR (sections, statuses, superseding); Zdun et al.'s Y-statement (the short form); AWS and Azure ADR guidance (an accepted record is not edited; when a decision earns one); HumanLayer's plans and GitHub Spec Kit (the plan as current state, acceptance per unit of work); Rust tracking issues and stabilization reports, and Kubernetes KEPs (progress, review and deviations kept out of the design); OpenAI's ExecPlans (restartable from the plan alone); Anthropic's prompting guidance and BMAD's templates (sizes in the headings, destinations instead of prohibitions, one worked example); OpenAI's harness-engineering lints and Factory's lint-driven agents (a check that informs with the fix instead of refusing) |
+| `examples/WORKSPACE_PROTOCOL.md` and `project/records/NOTEBOOK.md` (rewritten) | the SLP author's workspace protocol and supervisor notebook (two sections of routing and gates; one row per pattern with where its fix lives); ITIL problem management and Google's SRE workbook (a problem, not an incident, is the unit, with an owner and a verifiable end state); ACE, Mem0 and Xiong et al. (match before adding, no whole-file rewrites, delete what stops being useful); Gloaguen et al. and OpenAI's harness engineering (only what the agent cannot discover, as a short map) |
 
 ## Sources and licenses
 
@@ -70,6 +71,10 @@ Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 | Anthropic, Claude prompting best practices | https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices | ideas only |
 | BMAD-METHOD | https://github.com/bmad-code-org/BMAD-METHOD | ideas only; per-section size budgets |
 | Factory, "Using linters to direct agents" | https://factory.ai/news/using-linters-to-direct-agents | ideas only |
+| ITIL problem management | https://wiki.en.it-processmaps.com/index.php/Problem_Management | ideas only |
+| Google SRE workbook, postmortem culture | https://sre.google/workbook/postmortem-culture/ | ideas only |
+| Gloaguen et al., evaluating repository context files | https://arxiv.org/abs/2602.11988 | ideas only |
+| Xiong et al., memory management for LLM agents | https://arxiv.org/abs/2505.16067 | ideas only |
 | SLP material | the kit owner's `SLP/` folder | no license stated; used and adapted with the owner's agreement |
 
 Sources that only the retired skills drew on are listed with those skills in git history, not

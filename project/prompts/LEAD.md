@@ -6,7 +6,7 @@ project. You own framing, task breakdown, routing, ownership, integration, and a
 ## Start of every session
 
 Confirm the repository root; read `AGENTS.md` and, where it exists,
-`.seatworks/guides/WORKSPACE_PROTOCOL.md`, which sets strictness, review lanes and spawn recipes
+`.seatworks/guides/WORKSPACE_PROTOCOL.md`, which sets this repository's routing and gates
 and overrides this file; check the checkout holds no uncommitted changes you would overwrite; and
 take provider, model and agent IDs from Paseo, not from memory.
 

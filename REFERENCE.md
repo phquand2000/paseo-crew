@@ -236,24 +236,26 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Response:** treat the guards as protection against accidents. Keep credentials that could
   do damage out of the Peer's environment.
 
-## The plan check nudges, and never refuses a write
+## The record check nudges, and never refuses a write
 
-- **Symptom:** after writing a plan, a Lead receives a note that the plan is past its size, that a
-  section is past the size in its heading, or that a heading is outside the template.
-- **Cause:** the plans three Leads wrote reached 264, 307 and 1005 lines. The transcripts show why
-  a rule in the guide alone did not hold: the Lead read `PLANS.md` once, at its second step, then
-  wrote the plan 27 times, 7 to 161 steps later and across a compaction whose summary kept none of
-  the guide, and every one of those writes went through the shell. The template now carries the
-  rule itself (a size in each heading, a current-state line under the title), and
-  `plan-check.sh` puts it back in view: after a file-tool write to a plan, or a shell command that
-  names a plan directory, it measures the plans and adds a note to the Lead's context, once per new
-  drift in a session; after a compaction it lists the active plans with the rule. It reads the
-  headings and section sizes from the project's `.seatworks/guides/PLANS.md` and the page size and
-  directories from `planShape` in `seats.json`. It exits 0 in every case, including a missing jq
-  or template, so a write is never lost to it.
+- **Symptom:** after writing a plan, the workspace protocol or the notebook, a seat receives a note
+  that the file is past its size, that a section is past the size in its heading, or that a heading
+  is outside the plan template.
+- **Cause:** the records the seats keep all grew the same way. Three plans reached 264, 307 and
+  1005 lines; the OMS and autoWildPet protocols reached 153 and 166 lines against a 42-line
+  template, 38 of OMS's lines repeating `AGENTS.md`, `LEAD.md` or `seats.json` and 31 of them
+  history; their notebooks reached 396 and 339 lines with every entry still open. Each time the
+  seat read the rule once, then had nowhere else to put a ruling, an episode or a lesson, and every
+  write went through the shell. The templates now carry the rule and name the other homes, and
+  `record-check.sh` puts the rule back in view: after a file-tool write to a record, or a shell
+  command naming one, it measures the record and adds a note to the seat's context once per new
+  drift in a session, and after a compaction it lists the records with their sizes.
+  `recordShapes` in `seats.json` gives each record its paths, size, roles, an optional template
+  whose headings are checked, and the note's closing sentence. It exits 0 in every case, including
+  a missing jq or template, so a write is never lost to it.
 - **Response:** follow the note, or ignore it when the drift is deliberate; it does not repeat
-  until something new drifts. To change the page size or the directories, edit `planShape`; to
-  change a section's size, edit its heading in `project/guides/PLANS.md` and refresh the project.
+  until something new drifts. Edit `recordShapes` to change a size or a record; a plan section's
+  size is its heading in `project/guides/PLANS.md`, changed there and refreshed into the project.
   The note needs a harness whose `guards.noteProtocol` is set, so the check is wired only to roles
   on such a harness.
 
@@ -374,8 +376,8 @@ invalidate this page, and no entry here names a coding agent or its tools.
   `guides/WORKSPACE_PROTOCOL.md` alone once its placeholders are filled in,
   which replaces them with the kit's versions and keeps each old copy under the git-ignored
   `.seatworks/records/drafts/refresh-STAMP/`. Put project-only rules
-  in `AGENTS.md` or the filled-in `.seatworks/guides/WORKSPACE_PROTOCOL.md`, which refresh never
-  touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles and, after the kit
+  for code in `AGENTS.md` and coordination decisions in the filled-in
+  `.seatworks/guides/WORKSPACE_PROTOCOL.md`, which refresh never touches, like `NOTEBOOK.md`. Any rerun also restores the agent profiles and, after the kit
   moves, the providers' kit paths. If the repository moves, rerun add-project at the new path
   with the same `--slug SLUG`; the old profile directories point at a path with no
   `project.json`, are ignored, and can be deleted.

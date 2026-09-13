@@ -12,9 +12,9 @@ for every other file a harness in use reads. A pointer is this one line:
 @AGENTS.md
 ```
 
-Coordination strategy (strictness, review lanes, spawn recipes) belongs in
-`.seatworks/guides/WORKSPACE_PROTOCOL.md` instead (template next to this one): Peers don't need it,
-and reading it every turn only distracts them.
+Standing coordination decisions (writers at once, review, council, gates) belong in
+`.seatworks/guides/WORKSPACE_PROTOCOL.md` instead (template next to this one): Peers don't need
+them, and reading them every turn only distracts them.
 
 When you fill in the template:
 

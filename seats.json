@@ -11,7 +11,8 @@
       ],
       "guards": [
         "lead-guard.sh",
-        "profile-guard.sh"
+        "profile-guard.sh",
+        "record-check.sh"
       ],
       "deny": [],
       "readOnly": false,
@@ -66,7 +67,7 @@
       ],
       "guards": [
         "lead-guard.sh",
-        "plan-check.sh",
+        "record-check.sh",
         "profile-guard.sh"
       ],
       "deny": [],
@@ -281,14 +282,41 @@
   "mcpServersNote": "the MCP servers every seat gets, spelled the way both harnesses already read one: a map of name to a stdio or http entry. setup-seats.fish writes exactly this map into the file each harness names under mcp.file, at mcp.path, and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code where no guard in this kit can see them, so every seat but the Peer denies them through the ide-refactor intent; the rest of its tools read.",
   "researchNote": "a seat that cannot find a source cannot check one, so web search and web fetch are left on for every seat but the watcher. On the claude harness both arrive with the harness. On omp, web_search is a built-in tool but its backend needs a key the Human sets themselves in the base provider's environment: one of EXA_API_KEY, BRAVE_API_KEY, TAVILY_API_KEY or PERPLEXITY_API_KEY. Without one the tool is offered and fails, which reads to the seat as a broken tool rather than a missing key, so set it or deny web-search on the omp roles.",
   "promptBudget": 16384,
-  "planShape": {
-    "paths": [
-      "docs/exec-plans/active/*.md",
-      "doc/exec-plans/active/*.md"
-    ],
-    "maxLines": 200
-  },
-  "planShapeNote": "read by plan-check.sh on the Lead, which never refuses a write: after a write to a plan under these paths it notes, once per new drift, a plan past maxLines, a section past the size its heading names, or a heading outside the template in the project's .seatworks/guides/PLANS.md. 200 lines is roughly what a person still reads in a plan; REFERENCE.md holds the reasons.",
+  "recordShapes": [
+    {
+      "roles": [
+        "lead"
+      ],
+      "paths": [
+        "docs/exec-plans/active/*.md",
+        "doc/exec-plans/active/*.md"
+      ],
+      "maxLines": 200,
+      "template": ".seatworks/guides/PLANS.md",
+      "tail": "In this kit a plan is current state: an update replaces its row or line, each section's size is in its heading, and reviews, the reasoning behind rulings, evidence and incidents each have a file of their own, listed in .seatworks/guides/PLANS.md."
+    },
+    {
+      "roles": [
+        "supervisor"
+      ],
+      "paths": [
+        ".seatworks/guides/WORKSPACE_PROTOCOL.md"
+      ],
+      "maxLines": 40,
+      "tail": "The protocol holds one line per standing decision the Human made; rules for code, rulings, episodes, reasons and seat models each have another home, listed at the top of .seatworks/records/NOTEBOOK.md."
+    },
+    {
+      "roles": [
+        "supervisor"
+      ],
+      "paths": [
+        ".seatworks/records/NOTEBOOK.md"
+      ],
+      "maxLines": 70,
+      "tail": "The notebook holds one row per pattern, at most 30: an episode raises Seen and Last on its row, and events, rulings and decisions go where the table at its top says."
+    }
+  ],
+  "recordShapesNote": "read by record-check.sh, which never refuses a write: for each record a role keeps, the paths, the size in lines, an optional template whose ## headings and \"up to N lines\" sizes are checked, and the closing sentence of the note it adds once per new drift. REFERENCE.md holds the reasons for each size.",
   "skillGates": [],
   "skillGatesNote": "empty on purpose. A gate refuses a named call until its skill is in the transcript, and it was holding three procedures the Lead now carries in its own prompt, where nothing can skip them. Gates also only hold on a harness whose skillLoad.transcriptMatch is set, so they never held for an omp seat at all. The mechanism stays because a future procedure may earn one; a gate needs an observed skip and a because line, not a wish.",
   "denyCommonIntents": [
