@@ -1,270 +1,111 @@
 ---
 name: council
-description: "Lead-only: settles one non-trivial architecture, code, product, research, strategy, policy, or incident decision with fresh read-only seats, sealed independent reports, bounded verification, and one binding Lead verdict. Use when the Human or an owner directive asks for a council."
+description: "Settles one non-trivial architecture, code, product, research, strategy, policy, or incident decision with fresh read-only reviewers writing sealed independent reports, bounded verification of factual disputes, and one binding verdict the Lead drafts alone. Use when the Human or an owner directive asks for a council."
 ---
 
 # Council
 
-You are the Lead and final arbiter. You run the protocol and adjudicate; the seats do the
-analysis, so do not perform a seat's analysis yourself.
-
-## Protocol at a glance
+You run the protocol and adjudicate; the reviewers do the analysis, so don't do a reviewer's analysis yourself. Each position is a fresh agent from the read-only `reviewer` profile, labeled with the case ID, its role and its round.
 
 ```text
-tier    -> choose the smallest sufficient tier in one sentence
-brief   -> neutral brief + case-fit output contract + framing lint
-sealed  -> launch every Round 1 seat, then wait for them all
-collect -> audit seats, handle failures
-model   -> preserve the case's natural decision units in a typed decision model
+tier    -> the smallest sufficient tier, in one sentence
+brief   -> neutral brief + case output contract + framing lint
+sealed  -> launch every Round 1 reviewer, then wait for all of them
+model   -> reduce the reports to the case's natural decision units
 verify  -> bounded Verifiers for material factual disputes only
-cross   -> at most one challenge/response per disputed decision unit
-draft   -> Lead drafts the verdict alone
-audit   -> fresh Auditor per tier policy
-verdict -> binding verdict, handoff contract
+cross   -> at most one challenge and response per disputed unit
+draft   -> you draft the verdict alone
+audit   -> a fresh Auditor, per tier
+verdict -> binding verdict and handoff contract
 ```
 
-When unsure mid-case which step is active, re-anchor on this list. Announce each phase transition
-in one short Lead-timeline line.
+Re-anchor on this list whenever you're unsure which step is active.
 
-Every seat is a fresh agent on the read-only Reviewer profile.
-[references/routing.md](references/routing.md) gives the model and thinking level per function,
-including the Challenger's different model family, which is what makes `debate` stronger than
-`lens`. Label each seat `council.case_id`, `council.role`, and `council.round` so its report can be
-traced back to the case.
+## Tier
 
-## Select a tier
-
-`direct` is a bypass outside Council, not a Council tier.
-
-- `lens`: one Independent seat.
+- `lens`: one Independent.
 - `debate` (default): Independent + Premise Challenger.
-- `debate-with-proof`: `debate`, plus bounded Verifiers as needed and a default draft-verdict
-  audit.
-- `high-risk`: Independent at the high-risk reasoning level + Premise Challenger; optionally one
-  Specialist; bounded Verifiers as needed; mandatory draft-verdict audit.
+- `debate-with-proof`: `debate`, plus Verifiers as needed and a draft audit by default.
+- `high-risk`: Independent at the highest thinking level + Premise Challenger, optionally one Specialist, Verifiers as needed, mandatory draft audit.
 
-Choose in one sentence; do not perform task analysis merely to justify the tier.
+Set each agent's thinking level when you create it:
 
-## Phase 1: neutral brief
+| Role | Thinking | Why |
+|---|---|---|
+| Independent, Premise Challenger, Specialist, deep Verifier or Auditor | high | they deliberate |
+| Independent in `high-risk` | max | the strongest reasoning offered |
+| Verifier | low | cheap, bounded coverage |
+| Auditor | medium | a bounded audit of the draft |
 
-Write a compact, self-contained brief:
+Give the Challenger a model from a different strong family whenever the profile offers one. Sealing removes contamination, not correlation: two reviewers on one model share its blind spots, so their agreement is weak evidence. When no second family is offered, use the same model and list "same-family Challenger" under the verdict's limitations. Cheap agents add coverage; strong ones deliberate; you adjudicate.
+
+## 1. Neutral brief
 
 ```text
-Case ID: <stable URL-safe ID, reused on every seat label>
-Original request: <the message that asked for the council, verbatim; never your summary>
+Case ID: <stable URL-safe ID, reused on every label>
+Original request: <the message that asked for the council, verbatim, never your summary>
 Decision question: <may clarify the request, never narrow or replace it>
 Observable outcome: <what is true in the world once the decision is right>
-Authoritative facts: <user/system decisions or already-verified facts, each with provenance>
+Authoritative facts: <decisions or verified facts, each with provenance>
 Direct observations: <source-backed observations with exact locations>
 Unverified claims: <every other premise>
 Unknowns: <material gaps no one has resolved>
-Hard constraints: <non-negotiable limits, kept apart from preferences>
+Hard constraints: <non-negotiable limits, apart from preferences>
 Preferences: <priority order among soft goals>
-Authorized scope and sources: <what seats may inspect>
-Snapshot: <commit, checkpoint, or captured archive of mutable source, when state matters>
-Requested output: <the work product the user expects>
-Case output contract: <the case-fit sections or fields each seat returns>
+Authorized scope and sources: <what reviewers may inspect>
+Snapshot: <commit or archive of mutable source, when state matters>
+Requested output: <the work product the requester expects>
+Case output contract: <the sections or fields each reviewer returns>
 ```
 
-Design the case output contract for the actual work product before launching seats: choose the
-request's natural units (the same units Phase 4 preserves) and require only what is needed to
-compare evidence and reach the verdict. Keep a shared comparable core for the core reasoning seats,
-adding role-specific fields only when a role genuinely needs them. Do not force `Position`, `Best alternative`, a fixed claim count, or any
-heading that does not fit. Require direct evidence, inference labels, material unknowns,
-falsifiers or reopen conditions where relevant, and an actionable conclusion.
-[references/report-format.md](references/report-format.md) holds adaptable patterns, not a schema
-to copy.
+Build the output contract from the request's natural units, the same ones the decision model keeps, asking only for what comparing evidence needs: direct evidence, inference labels, material unknowns, falsifiers, and an actionable conclusion. Force no heading that doesn't fit the case; [references/report-format.md](references/report-format.md) holds adaptable patterns. When a dirty repository could change during review and exact state matters, snapshot to a commit or an archive outside the repository; a hash only detects drift.
 
-Inspect external artifacts only when the request requires them. A fingerprint detects drift but does
-not preserve bytes, so never call a commit-plus-hash a recoverable lock: when a dirty repository can
-change during review and exact state matters, use a stable checkpoint or a reconstructable
-read-only patch or archive outside the repository. Scope identity checks to decision-relevant
-source; unrelated mutable metadata and pre-existing uncommitted changes are not blockers.
+**Framing lint.** Repair the brief until each answer is yes: it preserves the original request; no wording implies a preferred verdict; every fact has provenance and unverified premises are claims; constraints are apart from preferences; no option is excluded without authority; reviewers can investigate independently; the output contract keeps every unit the requester expects and creates no filler. Ask the requester only when missing authority or scope would change the decision. Then launch Round 1 at once, with no further analysis.
 
-### Framing lint
+## 2. Sealed Round 1
 
-Repair the brief until every answer is satisfactory:
+Launch every reviewer in parallel with the same brief and output contract and exactly one role instruction. A Specialist may get extra domain fields that reveal no view and no preferred answer.
 
-- Does it preserve the original request?
-- Does any wording imply a preferred verdict?
-- Does every authoritative fact have authority or provenance?
-- Are unverified premises claims rather than facts?
-- Are hard constraints separate from preferences?
-- Has any option been excluded without an authoritative reason?
-- Can seats investigate independently within the authorized scope?
-- Is the snapshot current and unambiguous where source state matters?
-- Does the output contract keep every natural decision unit the user expects adjudicated?
-- Does any requested heading create filler, hide evidence, cap coverage, or seed a conclusion?
+- **Independent:** reason from first principles, recommend the strongest answer, expose decision-critical assumptions.
+- **Premise Challenger:** test the framing and shared premises and build at least one viable counterfactual, stating what it would make unnecessary. Don't manufacture disagreement; the incumbent framing may survive.
+- **Specialist:** apply only the requested domain semantics; expertise doesn't outrank stronger evidence or product authority.
 
-Ask the user only when missing authority or scope cannot be resolved without materially changing
-the decision. Once the lint passes, launch the Round 1 seats next; no further task analysis or
-context gathering first.
-
-## Phase 2: sealed Round 1
-
-Launch every required seat in parallel, and keep each returned agent ID. Every core reasoning seat
-gets the same neutral brief and case output contract plus exactly one role instruction. A
-Specialist may get extra domain fields that reveal no other seat's view and no preferred answer.
-
-- **Independent:** reason from first principles, recommend the strongest answer, and expose
-  decision-critical assumptions.
-- **Premise Challenger:** test the framing and shared premises, construct at least one viable
-  counterfactual, and state what it would make unnecessary. Do not manufacture disagreement; the
-  incumbent framing may survive as strongest.
-- **Specialist:** apply only the requested domain semantics; expertise does not override stronger
-  evidence or product authority.
-
-Begin every seat prompt with:
+Every prompt opens with:
 
 ```text
-Work as an autonomous reviewer with independent judgment inside the authorized scope. Challenge false premises, choose what evidence to inspect, and make ordinary analytical decisions without waiting for the Lead. Do not look for or read other reviewers' work or council artifacts. Begin the work directly, without a preamble.
+Work as an autonomous reviewer with independent judgment inside the authorized scope. Challenge false premises, choose what evidence to inspect, and make ordinary analytical decisions without waiting. Do not look for or read other reviewers' work or council artifacts. Begin the work directly, without a preamble.
 ```
 
-End every seat prompt with:
+and closes with:
 
 ```text
 This is analysis only. Do not optimize for agreement. Distinguish direct observations from inference, and state what evidence would prove your position wrong.
 ```
 
-Round 1 is sealed: reveal no Lead opinion, desired conclusion, other report, agent ID, or
-transcript, and do not read or synthesize any report while a required seat is unfinished.
+Reveal no opinion of yours, other report, agent ID or transcript, and read no report until every reviewer has finished. A reviewer that fails gets one retry with the same brief, or one fresh replacement for an infrastructure failure; a report missing decision content gets one request for that content, never for cosmetics. `lens` issues no verdict without its reviewer, `debate` tiers may continue with one core reviewer missing only as `DEGRADED`, and `high-risk` needs both core reviewers. If decision-relevant source changed and the snapshot can't be rebuilt, stop and report the mismatch.
 
-## Phase 3: collect, audit, handle failures
+## 3. Decision model
 
-Once every required seat is terminal:
+Reduce the reports to the smallest model that keeps every unit the verdict needs: three to five material propositions for a focused decision; one row per supplied finding for an audit; one row per gate or obligation for a plan review; a bounded timeline and causal model for an incident; alternatives with discriminating tests for research. Never merge, cap or drop requested findings to fit; decompose by sub-question instead.
 
-1. read each seat's activity;
-2. audit it for attempts to read another seat's work, and mark a violating seat `COMPROMISED`;
-3. compare the snapshot where practical;
-4. collect the complete valid reports; never silently use a compromised one.
+Type a claim when its type changes the evidence bar: `FACT`, `INFERENCE`, `CAUSAL CLAIM`, `FORECAST`, `VALUE / PREFERENCE`, `AUTHORITATIVE CONSTRAINT`. Only facts get factual verification. Statuses: `verified`, `falsified`, `authoritative`, `supported inference`, `contested inference`, `unresolved`, `insufficient coverage`, `snapshot mismatch`. Insufficient coverage never shows a proposition false.
 
-If decision-relevant source changed and the snapshot cannot be reconstructed, stop the affected
-review and report the exact mismatch. Drift outside the authorized source is not a mismatch. Do
-not clean up destructively or blame a seat for a concurrent human change without evidence.
+## 4. Verification and cross-examination
 
-Failure policy:
+For a material factual dispute, launch one to three Verifiers, each with one proposition verbatim, the sources, the opening instruction, and a distinct mandate: find supporting evidence, find disconfirming evidence, or audit coverage. Never send identical prompts as a vote. Each returns the proposition, mandate, sources searched, direct observations with locations, a result (`verified`, `falsified`, `partial`, `insufficient coverage`, `snapshot mismatch`) and limitations.
 
-- one attempt and at most one retry per seat, with the same brief and snapshot;
-- a format-only failure gets one request to the same seat for the missing decision-relevant
-  content, never cosmetic conformance;
-- an infrastructure failure or a compromised seat gets one fresh replacement;
-- `lens` cannot issue a verdict without its only seat;
-- `debate` and `debate-with-proof` may continue with one core seat missing only as `DEGRADED`;
-- `high-risk` issues no normal binding verdict without both core seats;
-- `insufficient coverage` is never evidence that a proposition is false.
+When evidence leaves a material disagreement, send the original reviewer only the disputed unit and its evidence, and require the cross-examination response from the report patterns. Skip both steps when every report agrees and no factual or framing dispute remains.
 
-## Phase 4: adaptive decision model
+## 5. Draft, audit, verdict
 
-Reduce the valid reports to the smallest model that keeps every natural unit the verdict needs:
+Draft alone, weighing: the authoritative outcome and hard constraints, options they exclude, verified and unresolved premises, fit under realistic failure, robustness if an assumption is wrong, reversibility, and whether serious dissent has stronger evidence. Don't vote or average: the number of reviewers never creates authority.
 
-- focused decision: normally three to five material propositions;
-- supplied finding set or audit: one ledger row per finding, plus only the cross-cutting claims
-  needed to classify and route them;
-- plan or contract review: one row per gate, requirement, or disputed obligation;
-- incident: a bounded timeline and causal/recovery model;
-- research or strategy: evidence-backed alternatives, assumptions, and discriminating tests.
+The draft audit is optional in `debate` (use it for material dissent, high-impact unresolved claims or a fragile chain), the default in `debate-with-proof`, and mandatory in `high-risk`. The Auditor gets the opening instruction without its ban on reading other work, the closing one, the brief, every valid report attributed by role, the decision model, verified evidence, the draft and material dissent, with no agent IDs or transcripts, and returns the audit response from the report patterns. It can't replace the verdict: resolve each material finding by revising, removing the claim, or returning it to its step.
 
-Adapt the patterns in [references/report-format.md](references/report-format.md) to the case.
-Never merge, cap, or omit requested findings to fit a size limit. If the model grows too large to
-reason about truthfully, decompose it by sub-question or causal family with a complete index back
-to the user's units. Build no claim graph, database, or custom store.
-
-Classify a material claim when its type changes the evidence bar: `FACT`, `INFERENCE`,
-`CAUSAL CLAIM`, `FORECAST`, `VALUE / PREFERENCE`, `AUTHORITATIVE CONSTRAINT`. Only facts and direct
-observations get factual verification; the others need their own evidence bar, not a fake fact
-check.
-
-Statuses, and no others:
-
-```text
-verified | falsified | authoritative | supported inference | contested inference | unresolved | insufficient coverage | snapshot mismatch
-```
-
-## Phase 5: verification
-
-For a material factual dispute, launch one to three Verifiers (role `verifier`, round `verify`).
-Each gets one precise proposition, the authorized sources, the same opening instruction as the
-seats, and one distinct mandate:
-
-- search for direct supporting evidence;
-- search for disconfirming evidence and counterexamples;
-- audit coverage and find likely missed sources.
-
-Use only the mandates the proposition needs; never send identical prompts as a vote. Use the deep
-verifier level when source meaning takes semantic judgment. Require:
-
-```text
-Proposition checked: <the one proposition, verbatim>
-Mandate: <support | disconfirm | coverage>
-Sources searched: <files, locations, or sources inspected>
-Direct observations: <what the sources show, with exact locations>
-Result: <verified | falsified | partial | insufficient coverage | snapshot mismatch>
-Limitations: <what was not or could not be checked>
-```
-
-A `snapshot mismatch` halts that proposition until the source is refreshed or the case restarts.
-
-## Phase 6: targeted cross-examination
-
-When evidence leaves a material disagreement, send the original seat only the disputed unit and
-the relevant evidence, and require the cross-examination response from
-[references/report-format.md](references/report-format.md). Skip verification and
-cross-examination when every valid seat agrees and no factual dispute, framing issue, or audit issue
-remains.
-
-## Phase 7: Lead draft verdict
-
-The Lead, not the seats, decides:
-
-1. authoritative outcome and hard constraints;
-2. options excluded by verified constraints;
-3. verified, falsified, and unresolved premises;
-4. fit under realistic failure modes;
-5. robustness if an assumption is wrong;
-6. reversibility;
-7. whether serious dissent has stronger evidence or a decisive falsifier.
-
-Do not vote or average confidence; seat count never creates authority. Draft the binding output
-before deciding whether to audit it.
-
-## Phase 8: draft-verdict audit
-
-- `debate`: optional, when the draft carries material dissent, unresolved high-impact claims, or a
-  fragile reasoning chain.
-- `debate-with-proof`: default.
-- `high-risk`: mandatory.
-
-Launch one fresh Auditor (role `auditor`, round `audit`) at the auditor level, or the deep-auditor
-level for semantic or high-risk review, with the seat closing instruction and the opening one minus
-its ban on reading other reviewers' work, since the reports are its input. Give it
-only the neutral brief, every valid Round 1 report attributed by role, the decision model, verified
-evidence, the draft verdict, and material dissent; no seat identities, agent IDs, or transcripts.
-The reports let it check that the model and dissent summary omit nothing material. Require the
-audit response from [references/report-format.md](references/report-format.md).
-
-The Auditor cannot replace the verdict. Resolve every material finding by revising the draft,
-removing the unsupported claim, or returning the proposition to its bounded step.
-
-## Phase 9: binding verdict
-
-Shape the verdict to the user's case and vocabulary. Without requiring literal headings, it
-conveys: the decision and why; accepted versus rejected or unproven material claims; required
-action and owner boundaries; do-not-touch constraints; validation; material dissent and the
-Lead's response; limitations; reopen conditions. A supplied finding set keeps an explicit
-disposition per finding. State whether a seat was marked `COMPROMISED`, the run became degraded,
-coverage was incomplete, or an optional audit was skipped.
-
-Council ends at the decision and handoff contract; seats do not implement. A later Implementer
-receives the verdict, required action, do-not-touch boundaries, and validation requirements, and a
-fresh Validator may check against that contract without reopening the architecture unless a reopen
-condition fires.
+The verdict, in the requester's vocabulary, conveys the decision and why, accepted versus rejected or unproven claims, required action and owner boundaries, do-not-touch constraints, validation, material dissent and your answer, limitations, and reopen conditions; a supplied finding set keeps a disposition per finding. Say whether the run was degraded, coverage incomplete, or an optional audit skipped. A verdict that settles a boundary becomes an ADR.
 
 ## Stopping rules
 
-- one sealed Round 1;
-- at most one retry or replacement per seat;
-- at most one challenge and one response per disputed decision unit; new material factual claims
-  go to verification, never to free-form debate;
-- at most one verdict-audit round;
-- no voting, group chat, or shared room;
-- no daemon, database, queue, event log, claim graph, or standing council.
+- One sealed Round 1; one retry or replacement per reviewer; one challenge and one response per disputed unit, with new factual claims sent to verification, not debate; one audit round.
+- No voting, group chat or shared room: in a shared room the most assertive model wins, not the best evidence.
+- The council ends at the verdict and its handoff contract. Reviewers don't implement; an Engineer brief carries the required action, boundaries and validation.

@@ -1,122 +1,34 @@
 ---
 name: architecture-premise-audit
-description: Audit a whole project for a possibly wrong system archetype by deriving expected product capabilities before trusting repository vocabulary. Use when the Human asks whether the whole project is built around the right system archetype, not for ordinary architecture review or one named design concern.
+description: "Audits whether a whole project is built around the right kind of system, by deriving the capabilities its product needs before trusting the repository's own vocabulary, and returns one verdict with ranked, falsifiable findings. Use when the Human asks whether the project is the right kind of system. Not for reviewing a change or one named design concern."
 ---
 
 # Architecture premise audit
 
-Determine whether the project is built around the right system archetype, not
-merely whether its current modules are internally consistent. Audit read-only
-unless the user separately requests changes.
+You judge whether the project is built around the right system archetype, not whether its modules are internally consistent. The audit reads; it doesn't implement, open issues, or become a second review.
 
-## Boundaries
-
-- Work at the whole-project or named broad-system boundary requested by the user.
-- Derive the expected product model before treating repository terminology,
-  architecture docs, tests, or benchmarks as authoritative.
-- Treat passing proof as evidence about an implementation, not proof that the
-  mechanism should exist.
-- Complexity is a finding only when it lacks a required product need, owner,
-  lifecycle, consumer, scaling contract, or failure contract.
-- Do not turn a broad audit into implementation, issue creation, or a second
-  review workflow.
-- Ask only when one missing fact would reverse the verdict and cannot be bounded
-  with an explicit assumption.
-
-For realtime or multiplayer domains, build the expected atlas from established
-domain mechanisms: prediction and reconciliation for the locally controlled
-actor, authoritative snapshots with interpolation and interest management for
-remote actors, sequenced latest-state delivery for state that newer values
-replace, and durable identity with typed outcomes for exact commands. The domain
-examples in the structural lenses named in step 4 show the level of detail to aim
-for.
-
-## Audit slice
-
-Judge work by product responsibility rather than repository module. Each audit
-slice should identify:
-
-- job to be done and production consumer;
-- authoritative owner, state, and lifecycle;
-- inputs, outputs, and trust boundaries;
-- scaling or adversarial variable;
-- failure, overload, and backpressure behavior;
-- reusable-platform versus application responsibility.
-
-A slice may cross modules, and one module may contain several slices.
+- Build the expected model from the product before you treat repository terms, architecture docs, tests or benchmarks as authoritative.
+- Passing proof is evidence about an implementation, not proof the mechanism should exist.
+- Complexity is a finding only when it lacks a product need, owner, lifecycle, consumer, scaling contract or failure contract.
+- Ask only when one missing fact would reverse the verdict and no stated assumption can bound it.
 
 ## Procedure
 
-1. **Set the claim.** State the product category, requested boundary, expected
-   outcome, material assumptions, and completion rule.
-2. **Build the expected atlas.** From product needs and established domain
-   mechanisms, list the responsibilities that should exist, likely owners,
-   scaling variables, and work that must be bounded or isolated.
-3. **Build the observed map.** Trace production entry points, authoritative
-   state, durable effects, expensive operations, queues, schedulers, external
-   outputs, deployment boundaries, and cited proof. Do not copy the repository's
-   decomposition without testing it.
-4. **Compare every slice.** Ask what demonstrated requirement forces each
-   mechanism, whether cost follows useful work, whether normal and exceptional
-   paths are reversed, and whether removing or relocating the mechanism loses
-   an established requirement. Use the project's one catalog of structural
-   misfits and avoidable costs,
-   `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md`,
-   as search lenses rather than a checklist every design must satisfy.
-5. **Deep-check serious candidates.** Trace real callers and consumers, name the
-   exact amplification route, construct the cleaner counterfactual, identify
-   machinery that disappears, give the strongest counterargument, and state
-   evidence that would falsify the finding.
-6. **Check coverage.** Stop only when every discovered ingress, authoritative
-   state family, durable effect, expensive operation, and external output is
-   represented in the coverage ledger or explicitly excluded by scope.
+1. **Set the claim:** product category, boundary, expected outcome, assumptions, and when you are done.
+2. **Build the expected atlas** from product needs and established domain mechanisms: the responsibilities that should exist, their likely owners, scaling variables, and work that must be bounded or isolated. Slice by product responsibility, not by module: each slice names its job and consumer, its authoritative owner, state and lifecycle, its inputs, outputs and trust boundaries, its scaling or adversarial variable, and its failure and backpressure behavior.
+3. **Build the observed map:** production entry points, authoritative state, durable effects, expensive operations, queues and schedulers, external outputs, deployment boundaries and cited proof, without copying the repository's decomposition untested.
+4. **Compare every slice.** What demonstrated requirement forces each mechanism? Does cost follow useful work? Are the normal and exceptional paths reversed? What is lost by removing or moving it? Use `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md` as search lenses; its domain examples show the detail an expected mechanism needs.
+5. **Deep-check serious candidates:** trace real callers, name the amplification route, build the cleaner counterfactual and the machinery it removes, and give the strongest counterargument and the evidence that would falsify the finding.
+6. **Stop on coverage,** when every ingress, state family, durable effect, expensive operation and external output is in the ledger or excluded by scope.
 
-Do not report generic improvements. Classify supported candidates as architecture
-defect, owner defect, implementation drift, justified divergence, quarantined
-scaffold, or insufficient evidence.
+Classify each supported candidate as architecture defect, owner defect, implementation drift, justified divergence, quarantined scaffold, or insufficient evidence; generic improvements aren't findings.
 
-## Delegating slices
+A project too large to read alone splits into slices, one or a few per reader. Each reader is a fresh agent from the `reviewer` profile with a brief from `.seatworks/guides/BRIEF.md` (disposition Architect, owned scope `none`), the claim and its atlas rows, asking for observed-map rows and candidates with file and line evidence. Leave out the other readers' findings and your own suspicion, so each report stays an independent judgment, and archive each reader once its report is in.
 
-A project too large to read yourself divides into slices, one or a few per
-reader. Every reader comes from the read-only Reviewer profile. Its prompt is a
-brief from `.seatworks/guides/BRIEF.md` with disposition Architect,
-owned scope `none`, the claim, and the expected-atlas rows for its slices; ask
-for observed-map rows and candidate findings with file and line evidence. Leave
-the orchestration, the other readers' findings and your own suspicion out, so
-each report stays an independent judgment. Run `git -C <repo> status --porcelain`
-before and after, and archive each reader once its report is in.
+## Ends in
 
-## Verdict and output
+A report at `.seatworks/records/audits/REPO-YYYY-MM-DD.md` that leads with one verdict, `KEEP_FOUNDATION`, `REPAIR_FIRST`, `REDIRECT_RECOMMENDED`, `STOP_AND_REDIRECT` or `INSUFFICIENT_EVIDENCE`, followed only by the sections that support it: expected versus observed map, coverage ledger and exclusions, ranked findings with evidence, hidden premise and amplification route, the counterfactual, counterarguments and falsifiers, `STOP_OPTIMIZING` and `PROBABLY_JUSTIFIED` items, and the decisions it asks for. Make the best judgment the evidence supports; don't end with an unranked option menu.
 
-Lead with one verdict:
+Take the verdict, top findings and decisions to the Human, observation kept apart from inference. The Human's decision reaches the Lead as an `OWNER DIRECTIVE:` that quotes the findings it rests on with file and line, since the Lead doesn't read your records.
 
-- `KEEP_FOUNDATION`
-- `REPAIR_FIRST`
-- `REDIRECT_RECOMMENDED`
-- `STOP_AND_REDIRECT`
-- `INSUFFICIENT_EVIDENCE`
-
-Then provide only the material sections needed to support it:
-
-1. expected-versus-observed map;
-2. compact coverage ledger and exclusions;
-3. ranked findings with production evidence, hidden premise, tax, and
-   amplification route;
-4. counterfactual architecture and machinery removed or relocated;
-5. counterargument and falsifier for each serious finding;
-6. `STOP_OPTIMIZING` and `PROBABLY_JUSTIFIED` items;
-7. prioritized decisions and realistic fitness scenarios.
-
-Make the best evidence-supported judgment available. Expose assumptions, but do
-not end with an unranked option menu or an interview questionnaire.
-
-Save the report at `.seatworks/records/audits/<repo>-YYYY-MM-DD.md`, then take the
-verdict, the top findings and the decisions it asks for to the Human, keeping
-what you observed apart from what you infer. Once the Human has decided, relay it
-to the Lead as an `OWNER DIRECTIVE:` whose outcome and constraints carry the
-decision, with the findings it rests on quoted with file and line inside the
-directive itself, so the Lead works from its own repository rather than from a
-file it cannot read.
-
-The rule that matters most: build the expected atlas from the product before you
-read the repository's own account of itself.
+The rule that matters most: build the expected atlas from the product before you read the repository's account of itself.

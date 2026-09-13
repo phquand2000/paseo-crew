@@ -1,55 +1,26 @@
 ---
 name: pre-mortem
-description: "Finds the ways a directive will have failed before it is sent, using sealed read-only seats writing in the past tense, and returns the risk register, no-gos and reserved decisions the directive template asks for. Use before a directive whose outcome is expensive, externally visible, or hard to reverse; skip it for reversible work."
+description: "Finds how a directive will have failed before it is sent, from two or three sealed read-only reviewers writing in the past tense, and turns their causes into the risks, no-gos and reserved decisions the directive template asks for. Use before a directive whose outcome is expensive, externally visible, or hard to reverse; not for work a revert undoes."
 ---
 
 # Pre-mortem
 
-Use this skill to find how a directive fails while changing it is still free, and to fill the
-`Risks`, `No-gos` and `Reserved for the Human` fields of `.seatworks/guides/DIRECTIVE.md` with
-something earned rather than guessed.
+You find how a directive fails while changing it is still free, so its `Risks`, `No-gos` and `Reserved for the Human` fields in `.seatworks/guides/DIRECTIVE.md` are earned rather than guessed. Say in one line why this directive warrants it: expensive, leaves this machine, touches money, credentials or unrecoverable data, or rests on one untested assumption.
 
-## When it is worth the seats
-
-Run it when the outcome is expensive to reach, leaves this machine, touches money, credentials,
-user-visible delivery or data you cannot restore, or rests on one untested assumption. Skip it for reversible work: two seats and a round of waiting buy nothing against a
-change a `git revert` undoes. Say in one line which of those applies before you start.
-
-## The one mechanism that matters
-
-Ask what **did** go wrong, never what could. The seat is told the directive has already been
-carried out and the outcome already failed, and it writes in the past tense. That grammatical
-shift is the whole technique: a question in the conditional invites a polite list of generic
-risks, and a question in the past tense invites the specific story of a real failure, including
-the one nobody wanted to raise. Do not soften it back into "potential risks" anywhere in the
-seat prompt.
+The mechanism is the tense. Each reviewer is told the directive was carried out and the outcome **did** fail, and writes that story in the past tense. A question about what could go wrong returns a polite list of generic risks; one about what did go wrong returns the specific failure nobody wanted to raise. Keep every prompt in that tense.
 
 ## Procedure
 
-1. **Fix the plan being tested.** Write the outcome, the success check, the appetite, and the
-   assumptions it rests on, exactly as the directive will state them. A pre-mortem on an unsettled
-   plan returns risks about the wording.
-2. **Choose the horizon and the failure.** Name a date and a failure the Human would recognise:
-   "eight weeks from now the migration shipped and a week of orders cannot be reconstructed",
-   not "the project failed". A vague death gives vague causes.
-3. **Seal two seats, three at most.** Each comes from the read-only Reviewer profile.
-   Give each the same plan, the same named failure, and one distinct lens:
+1. **Fix the plan.** Write the outcome, success check, appetite and assumptions exactly as the directive will state them; a pre-mortem on unsettled wording returns risks about the wording.
+2. **Name the failure.** A date and a failure the Human would recognise: "eight weeks from now the migration shipped and a week of orders can't be reconstructed", not "the project failed".
+3. **Run two sealed reviewers, three at most,** each a fresh agent from the `reviewer` profile with a brief from `.seatworks/guides/BRIEF.md` (disposition Architect, owned scope `none`), the same plan and failure, and one lens:
+   - **Mechanism:** what state was wrong, which owner didn't hold it, what ordering or rollback broke.
+   - **Assumption:** which stated premise turned out false, and what would have shown it early.
+   - **Process** (when the work spans several slices): where ownership overlapped, which decision nobody made, what acceptance let through.
 
-   - **Mechanism:** the failure happened inside the system. What state was wrong, which owner
-     did not hold it, what ordering or lifecycle broke, what the rollback could not restore.
-   - **Assumption:** the failure happened because a premise was false. Which stated fact turned
-     out wrong, and what would have shown it early and cheaply.
-   - **Process** (the third seat, when the work spans several slices or people): the failure
-     happened in coordination. Where ownership overlapped, which decision nobody made, what
-     the acceptance step let through.
-
-   Each prompt is a brief from `.seatworks/guides/BRIEF.md` with disposition Architect and owned
-   scope `none`. Never put the seats in one conversation and never show one seat another's
-   answer: independence is what stops the first strong story from becoming the only story.
-4. **Read what came back before you judge it.** Merge duplicates, keep every distinct cause, and
-   drop nothing for being unlikely. A cause you cannot place in the system is still a cause; mark
-   it unplaced rather than deleting it.
-5. **Turn each cause into a row.** A risk the directive cannot act on is a worry, not a risk:
+   No reviewer sees another's answer: independence stops the first strong story from becoming the only one.
+4. **Merge, dropping nothing for being unlikely.** Keep every distinct cause; one you can't place in the system is marked unplaced, not deleted.
+5. **Turn each cause into a row.** A cause the directive can't act on is a worry, not a risk.
 
    ```text
    R1  Failure        what had happened, past tense, one sentence
@@ -59,22 +30,12 @@ seat prompt.
        Disposition    accepted | mitigated | no-go | reserved for the Human
    ```
 
-   `no-go` rows go into the directive's `No-gos`. A row is `reserved` only when its mitigation
-   changes the project's concept; it goes into `Reserved for the Human` with the point at which
-   the Lead must stop and ask. Anything the Lead can handle stays as `Risks`.
-6. **Decide, then archive the seats.** You choose each row's disposition, no-gos included.
-   Report the named failure, the rows in order of how early their first signal appears, and what
-   you acted on. Archive every seat once its answer is in.
+   You decide each disposition. `no-go` rows go into No-gos. A row is reserved only when its mitigation changes the project's concept, and it names the point where the Lead must stop and ask; everything else stays under Risks.
 
-## What it must not become
+The output can shrink the outcome, add a no-go, or stop the directive; it never enlarges the appetite, and a better plan is a redesign for the Lead, not part of this. When similar work returns the same rows three times, put them in `AGENTS.md` and stop running it for that class of work.
 
-- A second design review. The pre-mortem finds failures of this plan; a better plan is your call
-  and a redesign is the Lead's job.
-- A risk list with no owner and no signal. A row whose first signal is "when it breaks" has not
-  been worked out yet.
-- A reason to enlarge the appetite. The output can make you shrink the outcome, add a no-go, or
-  stop; it never quietly buys more budget.
-- A ritual. If the last three pre-mortems on similar work returned the same rows, put them in
-  `AGENTS.md`, give the pattern one notebook row, and stop running it for that class of work.
+## Ends in
 
-The rule that matters most: the seats write in the past tense, and they never see each other.
+The directive's filled fields, and a report of the named failure and the rows ordered by how early their first signal appears. Archive each reviewer once its answer is in.
+
+The rule that matters most: the reviewers write in the past tense, and never see each other.

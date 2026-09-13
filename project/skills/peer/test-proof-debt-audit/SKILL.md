@@ -1,33 +1,21 @@
 ---
 name: test-proof-debt-audit
-description: Audit one named behavioral claim and the test, validator, benchmark, or gate cited as proof. Do not use for ordinary implementation, failing tests, weak coverage, or the presence of mocks.
+description: "Audits one named behavioral claim and the test, validator, benchmark, or gate cited as its proof, and says whether that proof would notice the behavior disappearing. Use when a brief asks whether a specific proof really proves its claim. Not for ordinary implementation, a failing test, weak coverage, or the mere presence of mocks."
 ---
 
 # Test proof debt audit
 
-Audit only the claim and proof route named by the user. Do not turn ordinary
-implementation, a failing test, weak coverage, or the presence of mocks into a
-repository-wide proof audit.
+You audit only the claim and the proof the brief names; don't widen it into a repository-wide audit.
 
-1. Name the claim and production behavior that makes it true.
-2. Identify the cited proof.
-3. State what the proof actually observes: behavior, machine-readable contract, performance, or proxy text/metadata.
-4. Apply deletion sensitivity: would it still pass if the claimed behavior disappeared?
-5. Check whether expected values come from independent truth.
-6. Choose `keep`, `replace`, `demote`, `closeout-only`, `delete`, or `escalate`.
+1. Name the claim and the production behavior that makes it true.
+2. Name the cited proof.
+3. Say what the proof actually observes: behavior, a machine-readable contract, performance, or proxy text and metadata.
+4. Deletion sensitivity: would it still pass if the claimed behavior disappeared?
+5. Do its expected values come from independent truth, or from the code or artifact under test?
+6. Choose one: `keep`, `replace`, `demote`, `closeout-only`, `delete`, or `escalate`.
 
-Treat history-only expected values as proof debt. A current test must not name
-or pin a retired width, tag, field, version, byte sequence, or identifier merely
-to prove its rejection. Ask whether the test could be derived from the current
-contract without repository history. Replace it with current-boundary cases,
-demote it to closeout-only evidence, or delete it unless the historical value
-is itself a current public machine/security contract.
+Expected values that exist only because of history are debt: a test pinning a retired width, tag, field or version just to prove its rejection couldn't be written from the current contract. Replace it with current-boundary cases, demote or delete it, unless that value is still a public or security contract. Proxy evidence never proves runtime behavior, a mock proves only its own boundary, and weak proof doesn't authorize a redesign.
 
-Proxy evidence can support lint or closeout but cannot prove runtime behavior. Mocks and replicas prove only their own boundary unless the claim is explicitly about that boundary.
+## Ends in
 
-Report location, claimed behavior, actual observation, disconfirming scenario, and
-smallest replacement. Weak proof does not authorize an architecture redesign. If
-the user requested assessment only, report and stop; modify proof or production code
-only when requested.
-
-Read [references/proof-debt-catalog.md](references/proof-debt-catalog.md) only for a broad user-requested audit or when concrete replacement examples are needed.
+A report per proof: location, claimed behavior, actual observation, a scenario where it passes with the behavior broken, your disposition, and the smallest replacement; for assessment only, report and stop. For a broad audit or concrete replacement routes, read [references/proof-debt-catalog.md](references/proof-debt-catalog.md).

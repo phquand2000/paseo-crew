@@ -88,11 +88,11 @@ the global profile. A role the file doesn't name keeps its profile's model.
 directory, so an edit to `REPO/.seatworks/prompts/LEAD.md` takes effect for the next Lead you start
 there.
 
-Thirteen skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
+Twelve skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
 every session lives in its prompt, where nothing can skip it; a skill is for the situation that
 doesn't come up every time. Four belong to the Lead and every one waits for you to ask by name
-(`council`, `ultra-review`, `review-pack`, `repo-refresh`); five belong to the Peer and are
-named in its brief (`test-first`, `diagnosing-bugs`, `security-check`, `frontend-design`,
+(`council`, `ultra-review`, `review-pack`, `repo-refresh`); four belong to the Peer and are
+named in its brief (`test-first`, `diagnosing-bugs`, `security-check`,
 `test-proof-debt-audit`); the Reviewer has `reviewing-a-change`; and the Supervisor has three that each end in something
 you read (`pre-mortem` before a hard-to-reverse directive, `retrospective` to turn the logs into
 one proposed change, `architecture-premise-audit` to ask whether the project is the right kind of

@@ -1,47 +1,25 @@
 ---
 name: security-check
-description: "Code-level security pass on a change: trust boundaries and their sinks, authorization per object, committed secrets, the meaning of every new edge value, fail-closed errors, and one failing test per abuse case. Use when a brief touches input, auth, secrets, file paths, or outbound calls."
+description: "Checks a change at code level for harm untrusted input or a careless caller could cause: trust boundaries and sinks, per-object authorization, committed secrets, the meaning of new edge values, fail-closed errors, and a failing test per abuse case. Use when a brief touches input, auth, secrets, file paths, or outbound calls."
 ---
 
 # Security check
 
-Use this skill to check a change, at code level, for ways untrusted input or a careless caller could make it cause harm, and to turn each abuse case into a test.
+You look for ways the change lets untrusted input or a careless caller cause harm, and turn each abuse case into a test. The scope is the change and the paths it touches; infrastructure and dependency audits only when the brief asks. Without an owned scope, report findings and describe each test instead of writing it.
 
-The scope is the change and the code paths it touches; infrastructure, deployment, and dependency audits only if the brief asks. Under a read-only disposition, report findings and describe each test instead of writing it.
+## What to check
 
-## Procedure
+1. **Trust boundaries.** Every place data someone else wrote enters the changed code: requests, model output, queue messages, third-party responses, rows another tenant wrote. Trust follows who wrote a value, not the channel it came through. Give each an entry `path:line` and a validation `path:line`, or "no validation".
+2. **Sinks.** Follow each input to where it is used, and check that sink against the framework's safe form. Two are easy to get half right: a file path must resolve, symlinks included, under an allowed root, and a delete or overwrite must target something *below* the root; a URL the server fetches needs a scheme and host allowlist that its redirects can't escape.
+3. **Authorization.** For each operation added or changed: who may do it, where that is checked, and whether the check covers this user on this object rather than only a signed-in user. Look for lookups by ID without an ownership check and checks that live only in the UI.
+4. **Secrets.** Search the diff for credentials. Secrets come from the environment or a secret store, stay out of logs and errors, and are compared in constant time. A real secret already committed is `BLOCKED`: rotating it is the owner's decision, and deleting the line doesn't take it back.
+5. **Edge values.** For every new parameter, option or flag, write down what 0, negative, empty, null or missing, maximum and very long input mean: `timeout=0` could mean never or immediately, and an empty allowlist could allow everything. The default is the safe choice, a parse error denies, no two settings combine into a bypass, and a caller can't ignore a failed check.
+6. **Failure.** A failed check denies, and messages to a caller carry no stack traces, internal paths, queries, secrets or other users' data.
+7. **Tests.** Turn each abuse case in your owned scope into a failing test at its seam with the test-first loop ("another user's record returns 403", "`../../etc/passwd` is rejected"), then fix it.
 
-1. Map the trust boundaries the change touches: every place where data someone else wrote enters the changed code, model output, queue messages, third-party responses, and rows another tenant wrote included. Trust follows who wrote a value, not the channel it came through. Done when each boundary has an entry `path:line` and a validation `path:line`, or "no validation".
-2. Follow each input to its sink and check the sink against the framework's safe form, paying attention to the two that are easy to get half right:
-   - a file path is resolved, symlinks included, and checked to lie under an allowed root; a delete, move, or overwrite also checks that the target is *below* the root, not the root itself;
-   - a URL the server fetches passes a scheme and host allowlist, and its redirects are controlled.
+## Ends in
 
-   Done when each input reaches a safe sink or is a finding.
-3. For each operation the change adds or modifies, check authorization: who may perform it, where that is checked (`path:line`), and whether the check covers this user acting on this object, not only that someone is signed in. Look for object lookups by ID without an ownership check, admin paths without a role check, and checks enforced in the UI but not at the entry point.
-4. Search the change, your own commit or the SHA under review, for credentials:
-
-   ```sh
-   git show "$sha" | grep -nEi 'secret|token|passw|api[_-]?key|private key'
-   ```
-
-   Secrets come from the environment or a secret store, stay out of logs, responses, and error messages, and are compared in constant time. If a real secret was committed, report `BLOCKED`: rotating it is the owner's decision, and deleting the line doesn't take it back.
-5. For every new parameter, config option, or flag, write down what each edge value means: 0, negative, an empty string, an empty list, null or missing, the maximum or an overflow, and very long input. `timeout=0` could mean never or immediately, an empty allowlist could allow everything, and a missing key could skip verification. Then check that:
-   - the default is the safe choice, and a parse error denies rather than falling back to a permissive value;
-   - no two settings combine into a bypass;
-   - distinct secret values (a key, a nonce, a token) can't be swapped without a type error;
-   - a caller can't ignore a failed check, for example by not reading a returned boolean.
-
-   Done when each new setting has its edge values and their meanings listed.
-6. Check that a failed check denies rather than allows, and that messages shown to a caller carry no stack traces, internal paths, queries, secrets, or other users' data.
-7. Turn each abuse case in your owned scope into a failing test at its seam, with the test-first loop: "a request for another user's record returns 403", "`../../etc/passwd` as a file name is rejected", "`timeout=0` is rejected". Watch it fail, fix the code, and watch it pass.
-
-## Where findings go
-
-- Fixed inside your owned scope: the commits, and the abuse-case tests with their output under Verification.
-- Needs the owner's decision (a change to the auth model, a new category of stored data, accepting a risk, rotating a leaked secret, CORS or rate-limit policy): Unknown / risk, as the decision needed and the consequence of each option.
-- Outside your owned scope: a `DEPENDENCY_REQUEST` with the evidence.
-
-Write each finding as:
+Your handoff. Fixed issues are commits with their abuse-case tests under Verification. A decision that isn't yours (the auth model, accepting a risk, rotating a secret, CORS or rate-limit policy) goes under Unknown / risk with the consequence of each option; a problem outside your owned scope is a `DEPENDENCY_REQUEST`. Write each finding as:
 
 ```text
 S1          P0-P3, confidence high | medium | low

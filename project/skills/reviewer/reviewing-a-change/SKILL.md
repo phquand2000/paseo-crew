@@ -1,73 +1,55 @@
 ---
 name: reviewing-a-change
-description: "Review one commit or range against its brief, read-only: the review tool for scope and standing rules, spec and standards as separate axes, structural lenses, and every finding with severity, confidence, evidence, and a disconfirming check. Use for every change review."
+description: "Reviews one commit or range against its brief without changing anything: the review tool for scope and standing rules, spec and standards as separate axes, structural lenses when the change adds machinery, and every finding with severity, confidence, evidence and a disconfirming check. Use for every change review."
 ---
 
 # Reviewing a change
 
-Use this skill, read-only, to review one change, identified by SHA, against the brief that produced it, and to report every finding so the Lead can filter them.
+You review one change, pinned by SHA, against the brief that produced it, and report every finding so the Lead can rule on them.
 
 ## Set up
 
-1. Pin the object: take the SHA from the brief and check that it exists. Keep `"$sha"` quoted: if the variable is empty, `git show` silently shows HEAD.
+1. **Pin the object.** Keep `"$sha"` quoted: empty, `git show` silently shows HEAD.
 
    ```sh
    git cat-file -e "$sha^{commit}" && git show --stat "$sha"
    ```
 
-   For a range, use `git log --oneline "$base..$sha"` and `git diff "$base" "$sha"`. Done when the file list matches the change you were asked to review.
-2. Ask the review tool for the scope and the rules. It runs no model, needs no key, and writes nothing:
+   For a range use `git log --oneline "$base..$sha"` and `git diff "$base" "$sha"`.
+2. **Ask the review tool for scope and rules.** It runs no model and writes nothing:
 
    ```sh
    ocr delegate preview --commit "$sha" --format json
    ocr delegate rule --commit "$sha" --format json PATH_FROM_PREVIEW...
    ```
 
-   `rule` takes the paths from `preview`'s `reviewable_files` and refuses to run with none, so
-   skip it when that list is empty.
-
-   `preview` returns `reviewable_files`, `excluded_files` with an `exclude_reason` each, the insertion and deletion counts, and the commit message as `background`. `rule` returns `groups`, each with the file pattern it matched, the files in it, and the rule text to answer. For a range pass `--from BASE --to "$sha"` instead of `--commit`; add `--repo <dir>` when not at the repository root, and `--rule <file>` when the repository ships its own rule set.
-
-   Two things the output does not mean. `excluded_count` is the tool's extension filter and its deleted-file rule, not a judgment that those files are fine: a change whose whole diff is excluded still gets reviewed, from `git show --stat`. And a rule group is a standing question for that file type, not a finding. If `ocr` is not installed, say so in one line and take the file list from `git show --stat "$sha"`; the review is unchanged. Done when the excluded list is in your handoff and every group has a rule you can answer.
-3. Read the change from git objects: `git show "$sha"` for the diff, and `git show "$sha:PATH"` for whole files.
-4. Collect the spec: the originating brief's Objective, Decided / ruled out, Owned scope, and Verification, as your review brief supplies them. If none is available, skip the spec axis and say so.
-5. Collect the standards: the repository's `AGENTS.md`, any files it names as rules, and the baseline below.
-6. Read outward from the diff to the callers and consumers of every changed symbol, at the same commit, with `git grep -n 'SYMBOL' "$sha"`; bugs often sit in an unchanged caller the change broke. Done when you know every production caller of each changed public symbol.
+   `preview` returns `reviewable_files` and `excluded_files` with an `exclude_reason` each; `rule` takes those reviewable paths (skip it when there are none) and returns rule `groups`, each a file pattern, its files and the rule text. For a range pass `--from BASE --to "$sha"`; add `--rule FILE` when the repository ships its own rule set. An excluded file is the tool's extension filter, not a verdict: review it from `git show --stat` anyway. Without `ocr`, say so in one line and take the files from `git show --stat`.
+3. **Read** the diff with `git show "$sha"` and whole files with `git show "$sha:PATH"`, then outward to every production caller of each changed symbol with `git grep -n 'SYMBOL' "$sha"`: bugs often sit in an unchanged caller the change broke.
+4. **Collect** the spec (the originating brief's Objective, Decided / ruled out, Owned scope and Verification; without one, skip the spec axis and say so) and the standards (`AGENTS.md` and the files it names as rules).
 
 ## Spec axis
 
-Check each requirement in the brief, quote the brief line each finding answers to, and sort what you find:
+Check each requirement, quoting the brief line each finding answers to:
 
-- Missing or partial: asked for and not done, or done for some cases only.
-- Scope creep: done but not asked for, including files outside the owned scope. Compare `git show --stat "$sha"` with the owned-scope globs.
-- Wrong: looks implemented but behaves incorrectly. Probe boundaries (0, empty, null, maximum), error and cleanup paths, ordering and concurrency, and resource lifetime. When the change alters a contract (a signature, route, schema, field, or file format), check that every shipping producer, consumer, and generated artifact changed with it; one left on the old shape breaks at runtime.
+- **Missing or partial:** asked for and not done, or done for some cases.
+- **Scope creep:** done but not asked for, including files outside the owned scope.
+- **Wrong:** looks implemented but misbehaves. Probe boundaries (0, empty, null, maximum), error and cleanup paths, ordering, concurrency and resource lifetime. A changed contract must change every shipping producer, consumer and generated artifact with it.
 
 ## Standards axis
 
-- Documented rules: each place the diff breaks an `AGENTS.md` rule, quoting the rule. These can be hard violations.
-- Tool rules: for each group `ocr delegate rule` returned, answer its rule text against the files in that group and say so per group, "no finding" included. A group is answered, not scanned: the rule asks about correctness, security, performance, maintainability and test coverage for that file type, and an answer names the code it rests on.
-- Baseline smells, always judgment calls. A documented repository rule overrides them, and anything a linter or formatter already enforces stays out:
-  - a name that hides what the thing does or holds;
-  - the same logic shape in more than one hunk;
-  - a function that works mostly on another module's data;
-  - the same few parameters always travelling together;
-  - a string or number standing in for a domain concept;
-  - the same switch on the same type in several places;
-  - one logical change forcing edits across many files;
-  - hooks, parameters, or layers for needs the brief doesn't have;
-  - a layer that only forwards calls;
-  - a production symbol whose only callers are tests;
-  - a small contract change that edits or turns red many tests, which suggests those tests mint the API (they use names production code lacks).
+- **Documented rules:** each break of an `AGENTS.md` rule, quoting the rule.
+- **Tool rules:** answer each group's rule text against its files, "no finding" included, naming the code each answer rests on. A group is a standing question, not a finding.
+- **Smells,** judgment calls a documented rule overrides: a name that hides what it holds, duplicated logic, a primitive standing in for a domain concept, a layer that only forwards calls, hooks for needs the brief doesn't have, a production symbol only tests call, and a small contract change that turns many tests red, which suggests tests that mint the API.
 
-Keep the two axes in separate lists, and don't rank findings across them: code can follow every rule and implement the wrong thing, and a merged list lets one axis hide the other.
+Keep the two axes as separate lists and don't rank across them: code can follow every rule and implement the wrong thing.
 
 ## Structure
 
-If the change adds a wrapper, adapter, cache, retry, fallback, flag, or layer, touches a hot path, cites a proof, or names an outcome such as reconcile or idempotent, apply the lenses in `references/structural-lenses.md` (relative to this skill's directory). Report what they turn up under a third heading, Structure.
+When the change adds a wrapper, adapter, cache, retry, fallback, flag or layer, touches a hot path, cites a proof, or names an outcome such as reconcile or idempotent, apply [references/structural-lenses.md](references/structural-lenses.md) and report under a third heading, Structure.
 
 ## Findings
 
-Mark a finding material when it could change the result, the route, a boundary, or confidence in the change. Use this block for each finding:
+A finding is material when it could change the result, the route, a boundary, or confidence in the change.
 
 ```text
 F1          P0-P3, confidence high | medium | low, material yes | no
@@ -80,11 +62,8 @@ Fix         the smallest durable fix
 Disconfirm  a read-only check that would show this finding is wrong
 ```
 
-Severity:
+P0 is data loss, a security hole, a broken build or main path, or hard-to-reverse harm; P1 wrong behavior in a realistic case or a missing requirement; P2 an edge-case bug, weak proof, or a maintenance cost with a concrete consequence; P3 naming, style, or a minor smell. Confidence is high only for what you traced or ran.
 
-- P0: data loss, a security hole, a broken build or main path, or harm that is hard to reverse.
-- P1: wrong behavior in a realistic case, or a brief requirement missing.
-- P2: an edge-case bug, weak proof, or a maintenance cost with a concrete consequence.
-- P3: naming, style, or a smell with a minor consequence.
+## Ends in
 
-Confidence is high when you traced or ran it, medium when the code strongly suggests it, and low when it is plausible but untraced.
+The handoff your prompt describes, with the excluded files and their reasons under Verification as the coverage ledger.

@@ -1,6 +1,6 @@
 # Skill sources
 
-The thirteen skills in `project/skills/` fall into three groups, and the difference matters for
+The twelve skills in `project/skills/` fall into three groups, and the difference matters for
 credit. Seven are **SLP files** installed here with targeted edits — model names, Windows paths,
 Codex-only tooling, and the launch shapes replaced with this kit's — and their text is the SLP
 author's. Four are **written for this kit**, adapting a mechanism (a procedure, a gate, or a
@@ -23,18 +23,23 @@ history at `db20bff^`.
 
 | Skill | Source file | What changed here |
 |---|---|---|
-| `lead/council` | SLP `council/` with `references/report-format.md` | `$ARGUMENTS` and the Codex room-role guard removed; the Lead-only guard dropped for a `permissions.ask` rule in the Lead's settings; launch mechanics the orchestrator handles removed, and the brief given inline field hints; `references/routing.md` rewritten from `model-routing.md` |
+| `lead/council` | SLP `council/` with `references/report-format.md` | `$ARGUMENTS` and the Codex room-role guard removed; the Lead-only guard dropped for a `permissions.ask` rule in the Lead's settings; launch mechanics the orchestrator handles removed, and the brief given inline field hints; `model-routing.md` cut to a thinking-level table in the skill, without the preferences file; the audit for reviewers reading each other's work dropped, since the Reviewer's settings give it no view of other agents |
 | `lead/ultra-review` | SLP `ultra-review/` | fixed model names replaced with the Reviewer profile; the author's absolute Windows script path replaced; the `$ultra-review-receive` handoff replaced with the Lead's ruling and an Engineer brief; its Human gate is a `permissions.ask` rule in the Lead's settings |
 | `lead/review-pack` | SLP `review-pack/` | the `codex-chatgpt-control` upload section removed; Windows paths, PowerShell continuations, and the description's Codex framing converted |
 | `lead/repo-refresh` | SLP `repo-refresh/` | the apply mode's deletions sent out as Engineer briefs, since the Lead writes only `docs/` and its records; the `$repo-refresh` invocation replaced by a `permissions.ask` rule |
-| `peer/frontend-design` | SLP `frontend-design-SKILL.md` | the rendered check replaced by a list in the handoff, since a Peer has no browser |
-| `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | unchanged; the catalog installed as `references/proof-debt-catalog.md` |
+| `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | the user as requester replaced by the brief; the catalog installed as `references/proof-debt-catalog.md`, cut to its search families and routes |
 | `supervisor/architecture-premise-audit` | SLP `SKILL.md` | its explicit-request gate is a `permissions.ask` rule in the Supervisor's settings |
-| `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | unchanged |
+| `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | condensed; every lens, the domain examples and the exoneration verdicts kept |
 | `.seatworks/guides/FEATURE_INTAKE.md`, `.seatworks/guides/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/`; the Design Gate's record pointed at an ADR; `PLANS.md` since rewritten, listed below |
 
 Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 `lead/ultra-review/scripts/create_ultra_review_report.py`, are SLP files kept byte-for-byte.
+
+On 2026-09-14 every skill was cut to the job and how to do it, drawing on Anthropic's skill
+authoring best practices and agentskills.io (what the agent would get wrong without it, one reason
+per rule, formats and thresholds kept in the body), SkillsBench (compact skills beat comprehensive
+ones) and SkillReducer (most skill text is background, not action). The refresh standard now leaves
+the records this kit's guides define in their guides' layout.
 
 ## Written for this kit
 

@@ -1,94 +1,37 @@
 ---
 name: ultra-review
-description: "A maximum-recall bug hunt over one named scope: ten independent read-only scouts with deliberate overlap, consolidated into one durable report that keeps every candidate. Use when the Human asks for an ultra review; an ordinary review of a change is one Reviewer."
+description: "Runs a maximum-recall bug hunt over one named scope with ten independent read-only scouts assigned overlapping concerns, and consolidates every candidate into one durable report with a verification queue. Use when the Human asks for an ultra review. Not for an ordinary review of a change, which is one Reviewer."
 ---
 
 # Ultra review
 
-Ten scouts over one scope is the most expensive review in this project, worth it only where a missed bug costs more than ten seats. The goal is recall: noise and false positives are acceptable, and no candidate leaves the report for being speculative, unique, low-confidence, weakly evidenced, duplicated, or hard to classify. Verification is your ruling after the report exists, not part of the hunt.
+The goal is recall, so noise and false positives are acceptable: no candidate leaves the report for being speculative, unique, low-confidence, weakly evidenced or duplicated. Verification is your ruling after the report exists, not part of the hunt.
 
-## Strategy
+## Assign concerns
 
 The review brief gives the scope, its sha256 digest, and optionally numbered directives `D01`, `D02`, ...
 
-- With no directives, derive concerns `G01`, `G02`, ... from the scope, repository contracts, architecture, change intent, adjacent owners, call paths, lifecycle, data flow, and blast radius.
-- With directives, every one is mandatory: assign each to at least three scouts and expand it into search angles without weakening or replacing it.
+- With no directives, derive concerns `G01`, `G02`, ... from the scope, repository contracts, change intent, adjacent owners, call paths, lifecycle, data flow and blast radius.
+- Every directive is mandatory: give each to at least three scouts and expand it into search angles without weakening it.
 
-Launch exactly ten scouts, `scout-01` to `scout-10`, each a seat on the Reviewer profile:
+Launch ten scouts, `scout-01` to `scout-10`, each a fresh agent from the `reviewer` profile. Every scout has at least one concern and may report any bug it meets in scope. Overlap on risky areas uses different traces, lifecycle phases, owners, adversarial cases or disconfirming approaches, never copies of one prompt, and no candidate is shared before consolidation. Relaunch only scouts whose report never arrived, under their original ID and assignment.
 
-- every scout has at least one assigned concern and may report any incidental bug in scope;
-- overlap on risky areas produces genuinely different traces, lifecycle phases, owners, adversarial cases, or disconfirming approaches, never copies of one prompt;
-- scouts stay independent, and no candidate is shared before consolidation.
+Each scout prompt carries the exact scope, change intent, relevant repository contracts and prior-round warnings; its concern IDs with tailored search angles; the full production surface to inspect, not only the diff; static inspection only, with no tests, builds or package managers; and a request for every candidate, speculative ones included, with the finding fields below. Lenses to combine for a slice: state-machine correctness; ownership and lifecycle gaps; caller, schema and protocol contracts; concurrency, cancellation and cleanup; error masking, fallback and retry; authorization and adversarial input; hot-path cost; generated artifacts, fixtures and docs; fake-pass proof; compatibility paths and duplicate state; missing essential mechanisms.
 
-If scouts stop mid-review, relaunch only those whose report has not arrived, under their original ID and assignment.
+Before round 2 or later, read every earlier report of the same review name and give relevant scouts short warnings: confirmed fixes, rejected false positives, unresolved routes, regression risks. A prior rejection is a warning, not a filter; a scout may revive it, and the report keeps it.
 
-## Scout packet
-
-Each prompt carries:
-
-- the exact scope, change intent, relevant repository contracts, and prior-round warnings;
-- its concern IDs with tailored search angles, and leave to report any incidental in-scope concern;
-- the full relevant production surface to inspect, not only the visible diff;
-- a request for every candidate, incomplete or speculative ones included, with the finding fields below;
-- static inspection only: no tests, builds, package managers, or proof commands.
-
-## Search surface
-
-Combine the lenses that fit the slice; this list is raw material, not a fixed topology:
-
-- semantic and state-machine correctness
-- ownership × lifecycle/event × expected-outcome gaps
-- caller/API/schema/protocol/data-format contracts
-- concurrency, ordering, cancellation, cleanup, and resource lifetime
-- error masking, fallback, retry, partial failure, and invariant handling
-- authorization, trust boundaries, adversarial input, and abuse cases
-- hot-path allocation, copies, rescans, N+1 work, blocking, and contention
-- generated artifacts, fixtures, validators, snapshots, docs, and examples
-- test/proof gaps, fake-pass evidence, and mocked production claims
-- compatibility paths, duplicate state, wrappers, caches, and compensation for a broken foundation
-- owner/module boundaries, file responsibility, and missing essential mechanisms
-- alternate end-to-end call traces and hostile edge cases
-
-## Prior rounds
-
-Before round 2 or later, read every earlier report with the same review name. Give relevant scouts concise warnings about confirmed fixes, rejected false positives, unresolved routes, and regression risks. A prior rejection is a warning, not a filter: a scout may revive the candidate, and the report keeps it.
-
-## Artifact contract
-
-Create the report with:
+## Write the report
 
 ```bash
 python3 .seatworks/skills/lead/ultra-review/scripts/create_ultra_review_report.py \
-  --workspace "$(git rev-parse --show-toplevel)" --review-name <review-name> \
-  --scope "<scope>" --review-brief-sha256 <brief-sha256> --scout-count 10 --directive-count <directive-count>
+  --workspace "$(git rev-parse --show-toplevel)" --review-name REVIEW_NAME \
+  --scope "SCOPE" --review-brief-sha256 BRIEF_SHA256 --scout-count 10 --directive-count DIRECTIVE_COUNT
 ```
 
-The script owns the path under `docs/ultrareview/` and the round number. Write to its `report_path` and nowhere else, never overwrite a report, and replace every `TODO`. This report is the only file the review creates.
+The script owns the path under `docs/ultrareview/` and the round number. Write only to its `report_path`, never overwrite a report, and replace every `TODO` and the script's comment block. Group candidates by root cause into findings `F001`, `F002`, ..., each with severity `P0`–`P3`, confidence, `file:line`, evidence observed, the contract violated, a plausible failure mode, a durable fix hypothesis, and a read-only disconfirming check. A finding holds only what someone needs to verify and fix it: no raw candidate ledger or merge notes. If scouts reported nothing, write `No candidates reported.` under Findings.
 
-Group every scout candidate by root cause into findings `F001`, `F002`, ..., each with:
+Keep the script's metadata lines and headings: `Prior Round Guard`, `Findings`, `Verification Queue` (every finding with its disconfirming check), `Strongest Reason Not To Merge Yet`, and `Next Receive Prompt`, whose placeholder line you replace with the handoff below.
 
-- severity (`P0` to `P3`) and confidence (`high`, `medium`, `low`);
-- source pointer (`file:line`);
-- evidence observed;
-- contract violated;
-- plausible failure mode;
-- durable solution hypothesis;
-- read-only disconfirming check.
+## Ends in
 
-A finding holds only what an agent needs to verify and fix the bug: no raw candidate ledger, execution receipt, preservation counters, or merge notes. If scouts reported nothing, write `No candidates reported.` under Findings.
-
-## Report shape
-
-Keep the script's metadata lines (Date, Review name, Round, Scope, Report path) and these headings:
-
-- `Prior Round Guard`
-- `Findings`
-- `Verification Queue`: every finding with its disconfirming check
-- `Strongest Reason Not To Merge Yet`
-- `Next Receive Prompt`: replace the script's placeholder line with the handoff below
-
-After writing, print the report path and the full content.
-
-## Handoff
-
-You rule on every finding in the Verification Queue. Each confirmed fix goes to an Engineer Peer as an ordinary brief naming the finding IDs, the owned scope, and the disconfirming check as its acceptance. Scouts never implement, and a rejected finding keeps its row with your reason.
+The report, the only file the review creates; print its path and content. Then rule on every finding in the Verification Queue: each confirmed fix goes to an Engineer as an ordinary brief naming the finding IDs, owned scope, and the disconfirming check as acceptance, and a rejected finding keeps its row with your reason.

@@ -1,17 +1,8 @@
-# Council output-contract patterns
+# Council report patterns
 
-Composable patterns, not a universal schema: adapt only what the case needs, and never copy every
-heading into every seat prompt.
+Open this when you write the case output contract, and again for a cross-examination or a draft audit. Adapt what the case needs; never copy every heading into every prompt. Every contract separates direct observation, authority, inference and uncertainty, and shows which action each conclusion changes.
 
-## Shared evidence discipline
-
-Every contract should separate direct observation, authority, inference, and uncertainty, and
-show which action each material conclusion changes. Ask for falsifiers or reopen conditions when
-they matter. No filler sections.
-
-## Focused decision pattern
-
-For choosing one architecture, product, policy, or strategy route.
+## Focused decision
 
 ```text
 Position: <the answer in one sentence>
@@ -29,9 +20,9 @@ Unknowns: <material gaps>
 Confidence basis: <HIGH | MEDIUM | LOW, because ...; no percentage>
 ```
 
-## Supplied-findings or audit pattern
+## Supplied findings or audit
 
-One row per supplied finding, no row limit.
+One row per supplied finding, no row limit; new findings use the same fields, kept apart.
 
 ```markdown
 | Finding | Disposition | Direct evidence | Classification | Durable route | Confidence/limits |
@@ -39,34 +30,28 @@ One row per supplied finding, no row limit.
 | <F001> | <confirmed / falsified / narrowed / insufficient coverage> | <location, excerpt> | <bounded / foundation / architecture / mechanism / proof-only> | <where the fix belongs> | <limits> |
 ```
 
-Add a cross-cutting synthesis only for causal or ownership conclusions spanning findings. New
-findings use the same fields, kept apart from supplied ones.
+## Plan or contract review
 
-## Plan or contract review pattern
+One row per gate or obligation, keeping the requester's IDs: status, governing authority, evidence, impact, required correction.
 
-One row per gate or obligation, keeping the user's requirement IDs: status, governing authority,
-evidence, impact, required correction.
+## Incident
 
-## Incident pattern
+The smallest truthful timeline, causal claims, containment and recovery decisions, unknowns, and discriminating evidence. No option memo.
 
-The smallest truthful timeline, causal claims, containment and recovery decisions, unknowns, and
-discriminating evidence. No option memo.
+## Material propositions
 
-## Material proposition pattern
-
-For a focused decision, or cross-cutting claims above a finding or gate ledger. Material means
-its truth or authority could change the verdict or required action.
+For the decision model's cross-cutting claims.
 
 ```markdown
 | ID | Type | Proposition | Source/excerpt | Evidence bar | Status | Verdict impact |
 |---|---|---|---|---|---|---|
-| <P1> | <FACT, INFERENCE, ...> | <one claim> | <seat excerpt or location> | <what settles it> | <a SKILL.md status> | <High / Medium / Low> |
+| <P1> | <FACT, INFERENCE, ...> | <one claim> | <excerpt or location> | <what settles it> | <a council status> | <High / Medium / Low> |
 ```
 
 ## Cross-examination response
 
 ```text
-ID: <the case's natural finding, gate, or claim ID>
+ID: <the finding, gate, or claim ID>
 Response: <CONCEDE | MAINTAIN | NARROW | REVERSE>
 Reason: <why>
 Direct evidence: <locations or excerpts>
@@ -87,5 +72,3 @@ Findings, each as:
 - Required correction: <the change that resolves it>
 Unchecked limitations: <what the audit could not check>
 ```
-
-The Auditor finds defects; it never issues or replaces the verdict.

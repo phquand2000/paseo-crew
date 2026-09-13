@@ -1,24 +1,24 @@
 # Test anti-pattern catalog
 
-Check every test you add or change against this list before handoff. A test can pass and still be one of these; the first three cost the most to clean up later.
+Check every test you added or changed against each row before handoff. A test can pass and still be one of these; the first three cost the most to undo.
 
-| Anti-pattern | Tell | Why it hurts | Better route |
-|---|---|---|---|
-| Minted API | The test calls a type, field, function, route, or table that production code lacks and the brief's Interfaces don't name. A common sign: a small contract change turns many tests red. | The test invents the contract; later code bends to it, and the next agent reads it as the spec. | Settle the contract first, with step 2 of test-first's Before the first test; if it isn't yours, report `BLOCKED` with the missing names. |
-| Test-only production surface | Production gains an API, flag, state, lifecycle branch, or constructor that only tests call. | Production carries surface nobody needs and must keep it correct. | Put helpers in test utilities; if the seam forces a back door, say so under Unknown / risk. |
-| Parallel model | A fixture builds its own model of the system (a fake game loop, a fake ledger) and the test asserts against it. | It proves the fixture, yet gates the product. | Test through the real owner at its public seam. |
-| Coupled to the implementation | Mocks of your own collaborators, calls to private functions, call-order assertions, side-channel checks such as reading the database. | It breaks on every refactor that keeps behavior. | Assert what a caller observes at the seam. |
-| Tautological | The expected value is computed the way the code computes it, is a snapshot the code generated, or is a mock asserting it was called. | It passes by construction. | A literal worked out by hand, or an independent source of truth. |
-| Fitted to the examples | The code special-cases the test's inputs, or guesses a state from signals that hold only in the fixtures (a message's text, a count, timing, a field's presence). | The tests pass and the first real input fails; the next agent reads the guess as the rule. | Implement the stated rule, add a second example with different values, and read the state from its owner. |
-| All tests first | The whole behavior list written as tests before any implementation. | The tests describe the imagined shape, not the learned behavior. | One test, make it pass, then the next. |
-| Never seen red | No failing run of the test in your notes. | It may be unable to fail. | Show the red run, for the right reason, in the handoff. |
-| Weakened to green | A loosened assertion, a widened tolerance, a raised timeout, or an added skip, `xfail`, or disabled marker. | The suite goes green while the behavior stays broken, and it reads like a fix. | Fix the cause, or report the trade-off as a `REOPEN_REQUEST`. |
-| Swallowing mock | A mock returns success or a partial structure, or replaces a method whose side effect the test depends on, so a failure path or a later field read never runs. | It passes on a path production never takes. | Mock only what you don't control or can't make fast and deterministic (external services, the clock, randomness). Name a method's side effects before you mock it, mock below the ones the test needs, keep your own modules real, and return the complete real structure. |
-| Wrapper or bridge test | Tests for a layer that only forwards data, or for compile-keeping bridge code a later slice removes. | It pins scaffolding and dies with it, while the real contract stays unproven. | Prove the behavior at the long-lived owner seam. |
-| Retired-value negative | A negative case pinned to an old width, tag, version, field, or offset. | It keeps a dead contract alive. | Derive invalid inputs from current constants, such as `WIDTH - 1` and `WIDTH + 1`. |
-| Absence test | Its only claim is that a removed name or dependency is absent. | It proves history, not behavior. | Cover the current contract positively, then delete it. |
-| Source or prose check | It reads source text, help text, headings, registration names, or a report's shape. | Text present is not behavior executed. | Execute the behavior, or parse machine-readable output. |
-| Over-specified | Exact log lines, a full error message, or an internal data layout asserted where a typed or semantic check exists. | Harmless wording changes break it. | Assert the type of rejection or the observable result. |
-| Sleep-timed | `sleep` or a fixed delay instead of waiting on a condition. | Slow when it passes, flaky when the machine is busy. | Wait on the condition, with a timeout that only guards against hangs. |
-| Order-dependent | Tests share mutable fixtures, pass only in one order, or fail in the suite and pass alone. | A change elsewhere fails unrelated tests. | Give each test its own state, created and cleaned up inside it. It is a bug to fix, not a lane collision, unless another agent held its port or test database. |
-| Outside the test lane | The run uses the full suite, a port, or the test database when the brief's test lane rules them out. | Two agents in one lane create failures that belong to neither. | Run only what the brief's Verification and test lane allow, and list what you skipped. |
+| Anti-pattern | Tell | Better route |
+|---|---|---|
+| Minted API | The test uses a name production code lacks and Interfaces doesn't list; a small contract change turns many tests red. | Settle the contract first (test-first step 2.2), or report `BLOCKED` with the names. |
+| Test-only production surface | Production gains an API, flag, state or constructor only tests call. | Helpers go in test utilities; if the seam forces a back door, say so under Unknown / risk. |
+| Parallel model | A fixture builds its own model of the system and the test asserts against it, so it proves the fixture. | Test through the real owner at its public seam. |
+| Coupled to the implementation | Mocks of your own collaborators, private calls, call-order assertions, reading the database behind the seam. | Assert what a caller observes at the seam. |
+| Tautological | The expected value is computed the way the code computes it, snapshotted from its output, or a mock asserting it was called. | A literal worked out by hand, or an independent source of truth. |
+| Fitted to the examples | The code special-cases test inputs or guesses state from signals that only hold in fixtures (text, counts, timing). | Implement the stated rule, add a second example, read state from its owner. |
+| All tests first | The whole behavior list written as tests before any code. | One test, make it pass, then the next. |
+| Never seen red | No failing run in your notes. | Show the red run, failing for the right reason. |
+| Weakened to green | A loosened assertion, wider tolerance, raised timeout, or added skip. | Fix the cause, or report the trade-off as a `REOPEN_REQUEST`. |
+| Swallowing mock | A mock returns success or a partial structure, so a failure path or later field read never runs. | Mock only what you don't control (external services, clock, randomness), below the side effects the test needs, returning the full real structure. |
+| Wrapper or bridge test | Tests for a layer that only forwards data, or for bridge code a later slice removes. | Prove the behavior at the long-lived owner seam. |
+| Retired-value negative | A negative case pinned to an old width, tag, version, field or offset. | Derive invalid inputs from current constants, such as `WIDTH - 1`. |
+| Absence test | Its only claim is that a removed name or dependency is gone. | Cover the current contract positively, then delete it. |
+| Source or prose check | It reads source text, help text, headings or registration names. | Execute the behavior, or parse machine-readable output. |
+| Over-specified | Exact log lines, full error messages or internal layout where a typed check exists. | Assert the kind of rejection or the observable result. |
+| Sleep-timed | A fixed delay instead of waiting on a condition. | Wait on the condition, with a timeout only against hangs. |
+| Order-dependent | Shared mutable fixtures; passes alone, fails in the suite. | Each test creates and cleans its own state. |
+| Outside the test lane | The full suite, a port or the test database when the brief's test lane rules them out. | Run only what Verification and the test lane allow, and list what you skipped. |
