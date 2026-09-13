@@ -23,8 +23,8 @@ The coordinator clusters all scout submissions directly into clean, actionable F
 The review brief provides scope, an identity digest, and optionally numbered caller directives. An
 ultra review always uses 10 scouts, each one a seat on the read-only Reviewer profile
 (`list_profiles`), created with your own `create_agent` in your own workspace: leave `workspaceId`
-out, copy the profile's provider, model and `modeId` exactly, and leave `notifyOnFinish` at its
-default so every scout's completion reaches you. Label each one `review.name` and
+out, pass provider `reviewer` and let the orchestrator apply the profile's model and mode, and
+leave `notifyOnFinish` at its default so every scout's completion reaches you. Label each one `review.name` and
 `review.scout: scout-NN` so `list_agents` maps them back after a compaction.
 
 If no directives were supplied:

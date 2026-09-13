@@ -1,7 +1,7 @@
 # Owner directive template
 
-A directive carries only decisions the Human has settled: the outcome and the limits, never the
-solution, because framing is the Lead's. Copy the block below and send it to the Lead as it is.
+A directive carries only settled decisions: the outcome and the limits, never the solution, because
+framing is the Lead's. Copy the block below and send it to the Lead as it is.
 
 ```text
 OWNER DIRECTIVE: TITLE
@@ -26,7 +26,7 @@ No-gos
 - NO_GO
 
 Reserved for the Human
-- RESERVED_DECISION: REASON_IRREVERSIBLE. Come back before: TRIGGER_POINT
+- RESERVED_DECISION: CONCEPT_CHANGE. Come back before: TRIGGER_POINT
 
 Open questions for you to settle
 - OPEN_QUESTION
@@ -55,14 +55,14 @@ Replace the following:
   Human fixed.
 - `HARD_PARTS`: traps the Human already suspects, or `none known`.
 - `NO_GO`: one out-of-scope item per line, or `none`.
-- `RESERVED_DECISION`: an irreversible decision the Lead leaves to the Human.
-- `REASON_IRREVERSIBLE`: why it can't be undone cheaply.
+- `RESERVED_DECISION`: a decision that changes what the project does or how it behaves.
+- `CONCEPT_CHANGE`: what about the project it would change.
 - `TRIGGER_POINT`: the moment the Lead stops and asks, for example `before the first publish`.
-- `OPEN_QUESTION`: a question the Human explicitly left to the Lead, or `none`. A question the
-  Human still has to answer doesn't belong here; settle it first.
+- `OPEN_QUESTION`: a question left to the Lead, or `none`. A question about the project's concept
+  doesn't belong here; settle it first.
 - `ON_CONVERGENCE`: what the Lead does once a hard design decision is settled, either
-  `report the verdict and wait for the Human` or `proceed, and report at acceptance`. Choose the
-  first when the Human wants to check the design against their own concept first.
+  `report the verdict and wait` or `proceed, and report at acceptance`. Choose the first only when
+  the design could change the project's concept.
 - `RISK_REGISTER`: the rows the `pre-mortem` skill returned, each with its first observable
   signal and its disposition; or the risks the Human named and what each would cost, one per
   line; or delete the Risks section when the outcome is reversible and none were raised.

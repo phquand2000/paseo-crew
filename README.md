@@ -13,8 +13,8 @@ coordinated through [Paseo](https://getpaseo.com):
   starts from [Open Code Review](https://github.com/alibaba/open-code-review) in delegation mode,
   which resolves the scope and the standing rules without calling a model of its own; the seat
   answers them against the code it read.
-- `watcher` reads the Lead's and Peers' activity on a heartbeat and raises attention events
-  for the Supervisor.
+- `watcher` reads the Lead's and Peers' activity when the kit's Paseo plugin wakes it, and
+  raises attention events that the plugin brings to the Supervisor.
 
 A seat gets the prompt, skills, MCP servers and limits `seats.json` names, and nothing a
 repository can add: both harnesses read skills from several directories by default, including the
@@ -236,9 +236,8 @@ notebook, and a miss becomes a rule only when it recurs.
 | [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: resolves the project from the working directory, points the config-directory variable at its profile, applies a model pin, execs the agent |
 | [harness/common/hook-io.sh](harness/common/hook-io.sh) | Reads a guard's hook input and writes its refusal in the form the seat's harness expects |
 | [harness/common/guards/lead-guard.sh](harness/common/guards/lead-guard.sh) | Blocks writes to repository files outside what the role owns, and to everything outside the repository but `$TMPDIR` — the kit, the Paseo config and the seat profiles all live out there |
-| [harness/common/guards/profile-guard.sh](harness/common/guards/profile-guard.sh) | Blocks creating, prompting, scheduling, or switching an agent onto a model, mode, or workspace other than its own |
 | [harness/common/guards/skill-guard.sh](harness/common/guards/skill-guard.sh) | Refuses a gated call until its skill is loaded in this session; no role sets a gate today |
-| [harness/common/guards/watcher-guard.sh](harness/common/guards/watcher-guard.sh) | Lets the watcher's `send_agent_prompt` reach only its own project's Supervisor |
+| [plugin/](plugin/) | The Paseo plugin: gives every new seat its profile's model and mode, archives a seat its parent may not start or that runs outside the parent's project, sends the watcher `SWEEP` after activity, and delivers the watcher's `ATTENTION:` blocks and failed turns to the Supervisor |
 | [project/](project/) | Templates copied into each project's `.seatworks/`: the seat prompts, the notebook, the skills |
 | [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the watcher on every sweep |
 | [project/skills/](project/skills/) | Each role's skill set, at its own altitude |

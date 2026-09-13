@@ -62,100 +62,43 @@
         "ast_edit",
         "notebook"
       ],
-      "paseo": [
-        "archive_agent",
-        "archive_workspace",
-        "cancel_agent",
-        "capture_terminal",
-        "create_agent",
-        "create_heartbeat",
-        "create_schedule",
-        "create_terminal",
-        "create_workspace",
-        "delete_heartbeat",
-        "delete_schedule",
-        "get_agent_activity",
-        "get_agent_status",
-        "inspect_provider",
-        "inspect_schedule",
-        "kill_agent",
-        "kill_terminal",
-        "list_agents",
-        "list_models",
-        "list_pending_permissions",
-        "list_profiles",
-        "list_providers",
-        "list_schedules",
-        "list_terminals",
-        "list_workspace_scripts",
-        "list_workspaces",
-        "pause_schedule",
-        "rename_workspace",
-        "respond_to_permission",
-        "resume_schedule",
-        "run_schedule_once",
-        "schedule_logs",
-        "send_agent_prompt",
-        "send_terminal_keys",
-        "set_agent_mode",
-        "speak",
-        "start_workspace_script",
-        "stop_workspace_script",
-        "update_agent",
-        "update_schedule"
-      ],
-      "paseo-write": [
-        "archive_agent",
-        "archive_workspace",
-        "cancel_agent",
-        "create_agent",
-        "create_schedule",
-        "create_terminal",
-        "create_workspace",
-        "delete_schedule",
-        "kill_agent",
-        "kill_terminal",
-        "pause_schedule",
-        "rename_workspace",
-        "respond_to_permission",
-        "resume_schedule",
-        "run_schedule_once",
-        "send_terminal_keys",
-        "set_agent_mode",
-        "speak",
-        "start_workspace_script",
-        "stop_workspace_script",
-        "update_agent",
-        "update_schedule"
-      ],
       "ide-refactor": [
         "mcp__intellij_index_ide_refactor_rename",
         "mcp__intellij_index_ide_move_file",
         "mcp__intellij_index_ide_refactor_safe_delete"
       ],
-      "workspaces": [
-        "create_workspace",
-        "archive_workspace",
-        "rename_workspace"
-      ],
       "agent-messaging": [
         "hub"
+      ],
+      "debugger": [
+        "debug"
+      ],
+      "user-question": [
+        "ask"
+      ],
+      "notebook-edit": [
+        "notebook"
       ]
     },
     "enforcedByGuard": [
       "agent-cli",
       "forge-cli",
       "git-push",
-      "local-worktree"
+      "local-worktree",
+      "paseo-cli",
+      "web-fetch"
     ],
     "absent": [
       "artifact-publish",
+      "background-tasks",
       "cron",
       "design-sync",
+      "host-surfaces",
+      "plan-mode",
       "workflows"
     ],
     "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Everything else a seat asks for and this manifest does not map is reported as unenforced.",
-    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start; Paseo's host tools arrive after that and cannot be dropped, so a seat sees them and is refused when it calls one. eval is denied on every seat because it reaches a shell the guard extension does not parse. todo-list and plan-mode are mapped but no role denies them: a coding agent keeps its task list, and omp's plan mode is a session mode rather than a tool, so a deny there would report unenforced anyway.",
+    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start. Paseo's own tools are not in this map: each role's paseoTools in seats.json goes to its Paseo provider, and Paseo 0.8 leaves a disabled tool out of the catalog it hands the seat. eval is denied on every seat because it reaches a shell the guard extension does not parse. todo-list is mapped but no role denies it: a coding agent keeps its task list. plan-mode is absent: omp's plan mode is a session mode, not a tool.",
     "mcpNamesNote": "the MCP tool names above were read off a running seat, not guessed: omp registers mcp__<server with - as _>_<tool>, so intellij-index/ide_refactor_rename becomes mcp__intellij_index_ide_refactor_rename and semble/search becomes mcp__semble_search."
   },
   "skillLoad": {

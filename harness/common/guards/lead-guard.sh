@@ -332,6 +332,15 @@ perlish() {
     done
 }
 
+agentcli() {
+    case $role in supervisor | lead) ;; *) return 0 ;; esac
+    case $1 in
+    paseo | claude | claude-code | codex | opencode | omp | pi | pi-coding-agent)
+        block "$1 runs outside the orchestrator's tools, where every launch is checked against its profile; use those tools instead."
+        ;;
+    esac
+}
+
 gitapply() {
     while [ $k -lt $n ]; do
         case ${a[$k]} in -C | -c | --git-dir | --work-tree) k=$((k + 2)) ;; -*) k=$((k + 1)) ;; *) break ;; esac
@@ -379,6 +388,8 @@ run() {
     perl | ruby) perlish ;;
     patch) case " ${a[*]:$k} " in *" --dry-run "* | *" --check "* | *" -C "*) ;; *) inplace ;; esac ;;
     git) gitapply ;;
+    paseo | claude | claude-code | codex | opencode | omp | pi | pi-coding-agent) agentcli "$c" ;;
+    npx | bunx | pnpx) operands; [ ${#op[@]} -gt 0 ] && agentcli "${op[0]##*/}" ;;
     esac
 }
 

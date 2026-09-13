@@ -63,6 +63,11 @@ and asks for `--probe`.
 - **`permissions.deny` is not equivalent** to a provider deny list, so the role settings leave
   it out.
 
+- **`AskUserQuestion` is offered only with `--permission-prompt-tool`,** which the orchestrator
+  passes, and the call then becomes its pending question even under `bypassPermissions`.
+  Measured on 2.1.236 with a local API stand-in: a `PreToolUse` hook matching it can deny with a
+  reason the model reads, or answer through `updatedInput.answers`.
+
 ## MCP servers
 
 - The seat's own `.claude.json` carries `mcpServers`, written from `seats.json`. Project-scoped

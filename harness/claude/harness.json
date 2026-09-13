@@ -64,7 +64,12 @@
       ],
       "agent-cli": [
         "Bash(claude:*)",
-        "Bash(npx claude:*)"
+        "Bash(npx claude:*)",
+        "Bash(bunx claude:*)",
+        "Bash(pnpx claude:*)",
+        "Bash(codex:*)",
+        "Bash(opencode:*)",
+        "Bash(omp:*)"
       ],
       "git-push": [
         "Bash(git push:*)"
@@ -81,39 +86,10 @@
         "MultiEdit",
         "NotebookEdit"
       ],
-      "paseo-write": [
-        "mcp__paseo__archive_agent",
-        "mcp__paseo__archive_workspace",
-        "mcp__paseo__cancel_agent",
-        "mcp__paseo__create_agent",
-        "mcp__paseo__create_schedule",
-        "mcp__paseo__create_terminal",
-        "mcp__paseo__create_workspace",
-        "mcp__paseo__delete_schedule",
-        "mcp__paseo__kill_agent",
-        "mcp__paseo__kill_terminal",
-        "mcp__paseo__pause_schedule",
-        "mcp__paseo__rename_workspace",
-        "mcp__paseo__respond_to_permission",
-        "mcp__paseo__resume_schedule",
-        "mcp__paseo__run_schedule_once",
-        "mcp__paseo__send_terminal_keys",
-        "mcp__paseo__set_agent_mode",
-        "mcp__paseo__speak",
-        "mcp__paseo__start_workspace_script",
-        "mcp__paseo__stop_workspace_script",
-        "mcp__paseo__update_agent",
-        "mcp__paseo__update_schedule"
-      ],
       "ide-refactor": [
         "mcp__intellij-index__ide_refactor_rename",
         "mcp__intellij-index__ide_move_file",
         "mcp__intellij-index__ide_refactor_safe_delete"
-      ],
-      "workspaces": [
-        "mcp__paseo__create_workspace",
-        "mcp__paseo__archive_workspace",
-        "mcp__paseo__rename_workspace"
       ],
       "artifact-publish": [
         "Artifact"
@@ -125,7 +101,8 @@
       "cron": [
         "CronCreate",
         "CronDelete",
-        "CronList"
+        "CronList",
+        "ScheduleWakeup"
       ],
       "agent-messaging": [
         "SendMessage",
@@ -133,6 +110,27 @@
       ],
       "design-sync": [
         "DesignSync"
+      ],
+      "background-tasks": [
+        "Monitor",
+        "TaskOutput",
+        "TaskStop"
+      ],
+      "host-surfaces": [
+        "PushNotification",
+        "ReportFindings"
+      ],
+      "notebook-edit": [
+        "NotebookEdit"
+      ],
+      "paseo-cli": [
+        "Bash(paseo:*)"
+      ],
+      "user-question": [
+        "AskUserQuestion"
+      ],
+      "web-fetch": [
+        "WebFetch"
       ]
     },
     "enforcedByGuard": [],
@@ -141,7 +139,8 @@
     ],
     "retiredNote": "Claude Code 2.1.236 answers a SlashCommand deny rule with `matches no known tool — check for typos`. Skills load through the Skill tool, which must stay allowed.",
     "absent": [
-      "code-eval"
+      "code-eval",
+      "debugger"
     ],
     "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Claude Code runs code only through Bash, which the guards already read.",
     "mcpNamesNote": "Claude Code registers mcp__<server>__<tool> with the server name as written in the config, so these keep the hyphen. This is the documented spelling and the one name in this manifest not read off a running seat; a wrong one answers `matches no known tool`, the way deny.retired records.",

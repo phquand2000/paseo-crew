@@ -9,8 +9,8 @@ lives. Read it before anything else, and match every observation against it firs
 |---|---|
 | An event, an answer to a `CHECK:`, a quote, a time or a SHA | today's attention log, one line |
 | A ruling on work in flight | an `OWNER DIRECTIVE:` or `ADVICE:` to the Lead, who writes an ADR if it settles a boundary |
-| A rule the Human sets for code in this repository | an `OWNER DIRECTIVE:`, and the Lead writes it into `AGENTS.md` |
-| A standing coordination decision the Human approved | one line of `.seatworks/guides/WORKSPACE_PROTOCOL.md`, replacing the line it changes |
+| A rule for code in this repository | an `OWNER DIRECTIVE:`, and the Lead writes it into `AGENTS.md` |
+| A standing coordination decision | one line of `.seatworks/guides/WORKSPACE_PROTOCOL.md`, replacing the line it changes |
 | A pattern in how the work goes | a row below |
 | A change to a prompt, skill, guard or profile | a diff for the Human |
 

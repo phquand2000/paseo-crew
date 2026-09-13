@@ -168,8 +168,8 @@ Create all required seats in parallel where the tool surface permits. Every call
 ```text
 create_agent
   title:    "<role>: <short case title>"
-  provider: "reviewer/REVIEWER_MODEL"
-  settings: { modeId: "REVIEWER_MODE_ID", thinkingOptionId: <per routing.md> }
+  provider: "reviewer", or "reviewer/<model>" when routing.md picks one
+  settings: { thinkingOptionId: <per routing.md> }
   labels:
     council.case_id: <stable URL-safe case ID>
     council.title: <short human-readable title>
@@ -181,10 +181,9 @@ create_agent
 ```
 
 Leave `workspaceId` out, so the seat starts in your own workspace, and leave `notifyOnFinish` at
-its default, so the seat's completion reaches you. Take `REVIEWER_MODEL` and `REVIEWER_MODE_ID`
-from what `list_profiles` shows for the Reviewer profile, spelled exactly as it shows them: the
-profile guard refuses a launch whose model or mode differs from its profile, and an omitted
-`modeId` counts as differing. Use a fresh session for every seat. Preserve every returned agent ID. Do not end
+its default, so the seat's completion reaches you. The orchestrator applies the Reviewer
+profile's model and mode, so pass a model only when `references/routing.md` picks another one the
+profile offers; it refuses any other. Use a fresh session for every seat. Preserve every returned agent ID. Do not end
 the launch turn until all required seat IDs have been returned. Then report the launched
 seat names/IDs concisely and wait for the completion notifications; do not poll.
 

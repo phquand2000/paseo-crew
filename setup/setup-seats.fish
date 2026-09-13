@@ -559,6 +559,19 @@ function seat_provider --argument-names role
         end
     end
     provider_models $key $role
+    set -l tools (seat_field $role '.paseoTools // null' | jq -c .)
+    set -l have_tools (jq -c --arg k $key '.agents.providers[$k].paseoTools // null' $paseo_config)
+    if test "$have_tools" != "$tools"
+        if test $dry -eq 1
+            fail "provider $key: paseoTools differs from seats.json (rerun without --check)"
+        else if test "$tools" = null
+            paseo_write $paseo_config "provider $key: paseoTools removed, which seats.json no longer sets" \
+                'del(.agents.providers[$k].paseoTools)' --arg k $key
+        else
+            paseo_write $paseo_config "provider $key: paseoTools set from seats.json" \
+                '.agents.providers[$k].paseoTools = $t' --arg k $key --argjson t "$tools"
+        end
+    end
     set -l mine (harness_get $harness '.provider.env | keys[]?')
     for other in (all_harnesses)
         provider_env_absent $key (harness_get $other .configDirEnv)
@@ -1005,7 +1018,7 @@ set -l known (seats_get '.seats[].role') (all_harnesses | while read -l id; harn
 for key in (jq -r '.agents.providers | keys[]' $paseo_config 2>/dev/null)
     contains -- $key $known; and continue
     set -l profiles (jq -r --arg k $key '[.daemon.agentProfiles[]? | select(.provider == $k)] | length' $paseo_config)
-    echo "  · provider $key is not a role in seats.json, and $profiles profile(s) still point at it. A retired role's provider, profiles and seat directories are left alone, so nothing is deleted behind you: remove them yourself once no agent runs on them. list_profiles still offers it, and the profile guard refuses it by mayStart."
+    echo "  · provider $key is not a role in seats.json, and $profiles profile(s) still point at it. A retired role's provider, profiles and seat directories are left alone, so nothing is deleted behind you: remove them yourself once no agent runs on them. list_profiles still offers it, and the Paseo plugin archives it when a seat starts it."
 end
 
 set -l leaked (count $local_skills/*/SKILL.md)
@@ -1018,8 +1031,8 @@ end
 
 echo ""
 echo "After changing providers in $paseo_config, run `paseo reload`; there is no file watcher."
-echo "Running agents keep their old prompt and guards until they end: archive them and delete"
-echo "their schedules and heartbeats. New seats pick up prompts, settings, and skills."
+echo "Running agents keep their old prompt and guards until they end: archive them. New seats pick"
+echo "up prompts, settings, and skills; after a kit update also run `paseo plugin reload seatworks`."
 
 if test $errs -ne 0
     echo ""

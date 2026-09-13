@@ -1,9 +1,9 @@
 # Skill sources
 
 The thirteen skills in `project/skills/` fall into three groups, and the difference matters for
-credit. Six are **SLP files** installed here with targeted edits — model names, Windows paths,
+credit. Seven are **SLP files** installed here with targeted edits — model names, Windows paths,
 Codex-only tooling, and the launch shapes replaced with this kit's — and their text is the SLP
-author's. Five are **written for this kit**, adapting a mechanism (a procedure, a gate, or a
+author's. Four are **written for this kit**, adapting a mechanism (a procedure, a gate, or a
 checklist) from an existing skill, book, or article without copying its text beyond short
 phrases. Two are **written for this kit from published research**, credited with their sources
 below. Two vendored Python scripts keep their upstream form, comments included, so they can be
@@ -26,8 +26,8 @@ history at `db20bff^`.
 | `lead/council` | SLP `council/` with `references/report-format.md` | `$ARGUMENTS` and the Codex room-role guard removed; the Lead-only guard rewritten as "only when the Human asked"; launch block, routing, and isolation claims rewritten for this kit's one read-only profile; `references/routing.md` rewritten from `model-routing.md` |
 | `lead/ultra-review` | SLP `ultra-review/` | fixed model names replaced with the Reviewer profile; the author's absolute Windows script path replaced; the `$ultra-review-receive` handoff replaced with the Lead's ruling and an Engineer brief; the Human-invoked gate added |
 | `lead/review-pack` | SLP `review-pack/` | the `codex-chatgpt-control` upload section removed; Windows paths, PowerShell continuations, and the description's Codex framing converted |
-| `lead/repo-refresh` | SLP `repo-refresh/` | unchanged |
-| `peer/frontend-design` | SLP `frontend-design-SKILL.md` | unchanged |
+| `lead/repo-refresh` | SLP `repo-refresh/` | the apply mode's deletions sent out as Engineer briefs, since the Lead's guard allows only `docs/` and its records |
+| `peer/frontend-design` | SLP `frontend-design-SKILL.md` | the rendered check replaced by a list in the handoff, since a Peer has no browser |
 | `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | unchanged; the catalog installed as `references/proof-debt-catalog.md` |
 | `supervisor/architecture-premise-audit` | SLP `SKILL.md` | unchanged |
 | `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | unchanged |

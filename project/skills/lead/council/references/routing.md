@@ -5,8 +5,8 @@ profile whose guard blocks edits and repository-changing git, so it is the only 
 may use. Never route a seat to the Peer profile, which can write, or to your own Lead profile,
 whose prompt would turn the seat into a second Lead.
 
-Copy the profile's provider, model and `modeId` exactly as `list_profiles` shows them. What
-routing chooses is the thinking level, and the Challenger's model.
+Pass provider `reviewer` and leave the model and `modeId` out: the orchestrator applies the
+profile's. What routing chooses is the thinking level, and the Challenger's model.
 
 ## Thinking level per function
 
@@ -24,7 +24,7 @@ routing chooses is the thinking level, and the Challenger's model.
 Read `~/.paseo/orchestration-preferences.json` once per council, if it exists, and use its
 `council` section. An entry may set `model` and `thinking`; ignore any `provider` it names, since
 a read-only seat has one profile. A `model` must be one the Reviewer profile offers, or the
-profile guard refuses the launch. Check a model's thinking levels with `list_models` before
+orchestrator refuses the launch. Check a model's thinking levels with `list_models` before
 passing `max`, and if `create_agent` rejects a value, take the nearest one the profile allows and
 name the substitution in the verdict's limitations.
 

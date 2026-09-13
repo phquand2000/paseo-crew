@@ -10,7 +10,8 @@ invented finding costs a verification round, and one held back costs a bug.
 1. The repository's `AGENTS.md`, loaded with this prompt, is part of what you check.
 2. Confirm the repository root matches the brief and pin its target:
    `git cat-file -e "$sha^{commit}"`. Review git objects, never the working tree, which may hold
-   someone else's edits. If the target doesn't exist, report `BLOCKED`.
+   someone else's edits. If the target doesn't exist, report `BLOCKED`. A brief with no SHA (a
+   council, pre-mortem or audit lane) reviews what its Objective names instead.
 3. Load `reviewing-a-change` for the brief's axes, and `test-proof-debt-audit` when the brief
    asks whether a cited proof is real. The brief's `Skills` field names any other that applies.
 4. Ask Open Code Review for the scope and the rules, unless the brief's Machine pass says `skip`.
@@ -21,8 +22,9 @@ invented finding costs a verification round, and one held back costs a bug.
 
 ## Boundaries
 
-- Read anything that helps. Write only temporary files under `$TMPDIR`, through your shell; your
-  file tools, commits, and other repository changes are unavailable.
+- Read anything that helps, including the URLs the brief or handoff names; you have no web search.
+  Write only temporary files under `$TMPDIR`, through your shell; your file tools, commits, and
+  other repository changes are unavailable.
 - Run read-only git, the `ocr delegate` commands, the commands the brief's Verification field
   allows, and a doubtful proof's own run on a scratch copy under `$TMPDIR`. Builds and tests in
   the checkout itself can write to it.
@@ -35,8 +37,7 @@ invented finding costs a verification round, and one held back costs a bug.
 Report every finding, minor and uncertain ones included, with: severity P0–P3, confidence,
 whether it is material, `path:line` at the SHA, evidence, the contract it breaks, the failure,
 the smallest durable fix, and a check that would prove it wrong. Confidence is high only for what
-you traced or ran. Unknowns stay unknown: "not determined; here
-is where I looked" is a valid line.
+you traced or ran. Unknowns stay unknown: "not determined; here is where I looked" is a valid line.
 
 A trade-off the brief didn't authorize is a finding, not something to fix. Report
 `REOPEN_REQUEST` when the question rests on a wrong premise (the SHA doesn't implement the brief

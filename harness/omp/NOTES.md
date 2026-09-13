@@ -103,29 +103,35 @@ Verified on omp **18.1.18**, against Paseo's own `omp` provider.
   `bash` rule does not cover it and `peer-guard.ts`, which parses `bash` commands, never sees it.
 - **Paseo's own tools are host tools here, with bare names** — `create_agent`, not
   `mcp__paseo__create_agent` — because omp supports them natively and Paseo strips its MCP server
-  when it does. `daemon.mcp.injectIntoAgents` is machine-wide with no per-provider switch, so
-  every omp seat is offered all forty. That is what the `paseo` intent is for on a Peer and the
-  `paseo-write` intent on the watcher.
+  when it does. `setActiveTools` cannot remove them, since Paseo registers them after
+  `session_start`, so the role's `paseoTools` is what trims them: Paseo 0.8 builds the catalog
+  without the disabled tools, and a Peer with `enabled: false` is handed none.
 - **A denied tool is still offered to the model.** `tools.approval` refuses the call; it does not
   take the tool out of the prompt. So setup also passes the composed deny list as
   `SEATWORKS_DENIED_TOOLS`, and `peer-guard.ts` removes those names from the active tool set with
-  `setActiveTools` at `session_start`.
-- **That prune reaches omp's own tools and not Paseo's.** Verified by driving a seat over RPC:
-  `setActiveTools` at `session_start` removes `eval`, `task`, `hub`, `todo` and `web_search`, and
-  the model then lists only what is left. A `set_host_tools` frame sent afterwards, the way Paseo
-  sends it, adds its tools to the same set, and `setActiveTools` from `turn_start` no longer
-  removes anything — the model still sees them. **So an omp Peer sees Paseo's forty tool names
-  and is refused when it calls one.** Nothing in the tool names says which seat is above it, but
-  this is a real difference from a harness with no native Paseo tools, and the only switch that
-  would close it, `daemon.mcp.injectIntoAgents`, is the same switch the Supervisor and the Lead
-  need on.
+  `setActiveTools` at `session_start`. Verified over RPC: `eval`, `task`, `hub`, `todo` and
+  `web_search` disappear, and the model lists only what is left.
 - **`SEATWORKS_READ_ONLY=1`** makes `peer-guard.ts` block omp's `write` and `edit` tools and the
   git commands that change the repository. Shell redirection still works, so `$TMPDIR` notes
   remain possible and so does a determined write; a read-only role also denies `file-edit` in its
   settings, which closes the tool path properly.
-- **`plan-mode` stays unenforced.** omp's plan mode is a session mode and a slash command, not a
+- **`plan-mode` is absent here.** omp's plan mode is a session mode and a slash command, not a
   tool, so there is nothing to deny. `workflows` is listed under `deny.absent`: omp has no such
   capability, so setup does not report it as a gap.
+
+- **`ask` is on under `--mode rpc-ui`.** omp registers it when the session can prompt, and the
+  orchestrator's `rpc-ui` launch counts; a call waits as a pending question with no timeout.
+  Paseo 0.8 brings it to the agent that created the seat, as a "needs permission" notification
+  with the request ID, and `respond_to_permission` with `answers: {"Response": ...}` answers it;
+  verified with a Claude parent and an omp child, so no role denies `ask`.
+- **`read` fetches URLs** (`http://`, `https://`, `pr://`, `ssh://`), so denying `web_search`
+  does not keep a seat off the web; `peer-guard.ts` refuses those paths for a role whose intents
+  include `web-fetch`.
+- **`lsp` writes.** `rename` and `rename_file` apply unless `apply` is false, `code_actions`
+  applies with `apply: true`, and `request` sends any request to the server; `peer-guard.ts`
+  refuses those on a read-only seat and leaves navigation and diagnostics.
+- **`debug` launches programs** through a debug adapter, outside the shell guard; the `debugger`
+  intent denies it.
 
 ## The shell-guard bridge
 

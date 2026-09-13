@@ -45,7 +45,8 @@ Replace the following:
   `test-proof-debt-audit`. Two apply more often than one.
 - `DECISIONS`: settled decisions and rejected approaches that bound the slice, each with its ADR
   number or the plan heading it sits under, or `none`. The Peer can open the ADR itself.
-- `STARTING_POINTS`: files, docs, and SHAs worth reading first, including the ExecPlan path.
+- `STARTING_POINTS`: files, docs, SHAs and URLs worth reading first, including the ExecPlan path.
+  A Peer reads a URL but cannot search, so name every outside source the task rests on.
 - `OWNED_GLOBS`: the paths this Peer may write, as concrete globs. Before you write them, name
   the files the slice's change reaches that lie outside them, and either bring each one inside
   these globs or re-cut the slice; a Peer that meets a shared file it cannot write can only

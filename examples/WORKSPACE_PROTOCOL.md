@@ -6,15 +6,15 @@ runs, when a Lead hands off, and what always goes to the Human. The Lead reads i
 every session, and where it speaks it overrides `.seatworks/prompts/LEAD.md`.
 
 `setup/add-project.fish` copies the block below to `.seatworks/guides/WORKSPACE_PROTOCOL.md`. Fill
-in each placeholder with a decision the Human made, or delete its line to keep the Lead's default.
-After that the Supervisor changes a line only when the Human agrees, and by replacing it.
+in each placeholder, or delete its line to keep the Lead's default. After that the Supervisor keeps
+it current on the Human's behalf, by replacing lines.
 
 ````md
 # Workspace protocol
 
 How the Lead coordinates this repository where it differs from `.seatworks/prompts/LEAD.md`. Each
-line is a standing decision of the Human's; a line naming a council or an ultra-review is the Human
-asking for it in advance. Seat models live in the profiles, rules for code in `AGENTS.md`, rulings
+line is a standing decision on the owner's side; a line naming a council or an ultra-review asks
+for one in advance. Seat models live in the profiles, rules for code in `AGENTS.md`, rulings
 in the Lead's ADRs, and what happened in the Supervisor's records. One line per decision, under 40
 lines: a new decision replaces the line it changes.
 
@@ -40,13 +40,14 @@ Replace the following, each with one line and no date:
 - `REVIEW_RULE`: which changes get an independent Reviewer and how many, for example `two
   Reviewers, one axis each, for anything under billing/; otherwise the Lead reads the diff`.
 - `ARCHITECT_TRIGGER`: the condition that puts an Architect before an Engineer.
-- `COUNCIL_TRIGGER`: the kind of decision the Human wants a council on without being asked each
-  time, or delete the line.
+- `COUNCIL_TRIGGER`: the kind of decision that gets a council without anyone asking each time, or
+  delete the line.
 - `HANDOFF_TRIGGER`: when a Lead hands off to a fresh one, for example `when an outcome closes, or
   when it can no longer name its own open decisions`.
 - `ULTRA_REVIEW_TRIGGER`: the checkpoint that earns an ultra-review, for example `once, when the
   outcome's last slice is accepted`, or delete the line.
-- `HUMAN_DECISIONS`: decisions the Lead never makes in this repository, even small ones.
+- `HUMAN_DECISIONS`: the changes to what this project does or how it behaves that only the Human
+  decides; everything else is decided on the owner's side without asking.
 
 ## What does not go in the protocol
 

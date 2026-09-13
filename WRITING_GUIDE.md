@@ -2,7 +2,7 @@
 
 These rules apply to everything in this kit: the seat prompts in `project/`, the templates in
 `examples/`, and the docs. Scripts, hooks, and the guard extensions carry no comments or
-docstrings (except the one `create_review_report.py` prints as its `--help`), so their reasons
+docstrings (except the two vendored scripts `NOTICE.md` names), so their reasons
 live in REFERENCE.md, or in `harness/<id>/NOTES.md` when the reason is one coding agent's
 behavior rather than the kit's. The Supervisor follows these rules when it patches a prompt. Each rule
 names its source in brackets; the sources are listed at the end.
@@ -38,10 +38,11 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     the capability as an intent in `seats.json`, and let each harness map it to its own tool
     names under `deny.intents` or declare a guard that holds it under `deny.enforcedByGuard`.
     A limit no harness enforces is reported on every run rather than assumed, so write the
-    prompt rule as if it were the only thing holding, because on some harnesses it is. Stronger
-    limits go in a shared guard under `harness/common/guards/` (`lead-guard.sh`,
-    `profile-guard.sh`, `watcher-guard.sh`, `skill-guard.sh`) or in a harness's guard extension
-    (`peer-guard.ts`, `skill-gate.ts`). [M]
+    prompt rule as if it were the only thing holding, because on some harnesses it is. A limit on
+    Paseo's own tools is a role's `paseoTools`, and one on launching or messaging agents belongs
+    in the Paseo plugin under `plugin/`, which sees every harness; a limit on a harness's own
+    tools goes in a shared guard under `harness/common/guards/` (`lead-guard.sh`,
+    `skill-guard.sh`) or in a harness's guard extension (`peer-guard.ts`, `skill-gate.ts`). [M]
 14. Write every `.md` to load unchanged on every harness: no HTML comments anywhere, and no
     harness's tool names. A maintainer note goes under "What each demo prompt expects you to
     add" in this guide, and a rule about a tool names what the tool does ("your read tool"), not
@@ -181,8 +182,8 @@ micro for the Peer, and review for the Reviewer. [S, SK, OMP]
 10. Put deterministic work in `scripts/`, not in prose: a script is run, not read, so only its
     output reaches the context, and it can't be paraphrased into a different procedure. Name the
     path as `SKILL_DIR/scripts/NAME`, say to run it, and keep its reasons in `REFERENCE.md`
-    by the no-comment rule. `review_pack.py`, `create_review_report.py`, and `case.py` are the
-    kit's own. [S]
+    by the no-comment rule. `review_pack.py` and `create_ultra_review_report.py` are the kit's
+    two, both vendored. [S]
 11. Keep the disclosure flat: one level of references under `SKILL.md`, and no index of
     descriptions layered above it. A routing layer whose entries sit in context permanently
     recreates the pressure the split was meant to relieve, and measures worse than a flat pack.
@@ -196,8 +197,8 @@ Use these terms, and only these, for the following concepts:
 
 | Term | Meaning |
 |---|---|
-| Human | The owner, who makes product decisions and irreversible calls |
-| Supervisor | The seat that meets with the Human, relays decisions, observes, and keeps the notebook |
+| Human | The owner, who decides what changes the project's concept: what it does and how it behaves |
+| Supervisor | The seat that decides for the Human everything short of the project's concept, relays, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
 | Reviewer | The only seat whose writes are blocked: it reviews changes, and takes every read-only lane a skill opens (council seats, ultra-review scouts, audit readers) |
@@ -210,11 +211,11 @@ Use these terms, and only these, for the following concepts:
 | ExecPlan | The Lead's plan for one high-risk outcome under `docs/exec-plans/active/`, shaped by `PLANS.md`; it holds current state only |
 | ADR | A decision record under `docs/adr/`, shaped by `ADR.md`; superseded by a new one, never edited |
 | review record | The Lead's file for one review round under `docs/reviews/`, shaped by `REVIEW.md`: each finding and the ruling on it |
-| owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a Human decision |
+| owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a decision from the owner's side: the Human's, or the Supervisor's on the Human's behalf |
 | advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
 | check | A neutral question, labeled `CHECK:`, that asks a Lead, or a Peer through its Lead, to look again at its work against a named source |
 | attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
-| watcher | The `watcher` seat, on a small model, which sweeps Lead and Peer activity on a heartbeat and raises attention events |
+| watcher | The `watcher` seat, on a small model, which sweeps Lead and Peer activity when the Paseo plugin wakes it and raises attention events |
 | harness | The coding agent that hosts a role, described by `harness/<id>/harness.json` |
 | skill gate | An entry in `seats.json`'s `skillGates` that refuses the call a skill owns until that skill is loaded; the list is empty by default |
 

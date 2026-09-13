@@ -12,8 +12,7 @@ something earned rather than guessed.
 ## When it is worth the seats
 
 Run it when the outcome is expensive to reach, leaves this machine, touches money, credentials,
-user-visible delivery or data you cannot restore, or rests on one assumption the Human has not
-tested. Skip it for reversible work: two seats and a round of waiting buy nothing against a
+user-visible delivery or data you cannot restore, or rests on one untested assumption. Skip it for reversible work: two seats and a round of waiting buy nothing against a
 change a `git revert` undoes. Say in one line which of those applies before you start.
 
 ## The one mechanism that matters
@@ -28,14 +27,14 @@ seat prompt.
 ## Procedure
 
 1. **Fix the plan being tested.** Write the outcome, the success check, the appetite, and the
-   assumptions it rests on, exactly as the directive will state them. A pre-mortem on a plan the
-   Human has not settled returns risks about the wording.
+   assumptions it rests on, exactly as the directive will state them. A pre-mortem on an unsettled
+   plan returns risks about the wording.
 2. **Choose the horizon and the failure.** Name a date and a failure the Human would recognise:
    "eight weeks from now the migration shipped and a week of orders cannot be reconstructed",
    not "the project failed". A vague death gives vague causes.
 3. **Seal two seats, three at most.** Each comes from the read-only Reviewer profile
    (`list_profiles`), the only profile whose guard blocks writes, created with your own
-   `create_agent` in this project's workspace, copying its provider, model and `modeId` exactly.
+   `create_agent` in this project's workspace and provider `reviewer`, which takes its model and mode.
    Give each the same plan, the same named failure, and one distinct lens:
 
    - **Mechanism:** the failure happened inside the system. What state was wrong, which owner
@@ -62,21 +61,21 @@ seat prompt.
        Disposition    accepted | mitigated | no-go | reserved for the Human
    ```
 
-   `no-go` rows go into the directive's `No-gos`. `reserved` rows go into
-   `Reserved for the Human` with the trigger point at which the Lead must stop and ask. Anything
-   the Lead can handle stays as `Risks`.
-6. **Take it to the Human, then archive the seats.** Report the named failure, the rows in order
-   of how early their first signal appears, and the one row you would act on first. The Human
-   decides which become no-gos. Archive every seat once its answer is in.
+   `no-go` rows go into the directive's `No-gos`. A row is `reserved` only when its mitigation
+   changes the project's concept; it goes into `Reserved for the Human` with the point at which
+   the Lead must stop and ask. Anything the Lead can handle stays as `Risks`.
+6. **Decide, then archive the seats.** You choose each row's disposition, no-gos included.
+   Report the named failure, the rows in order of how early their first signal appears, and what
+   you acted on. Archive every seat once its answer is in.
 
 ## What it must not become
 
-- A second design review. The pre-mortem finds failures of this plan; a better plan is the
-  Human's call and a redesign is the Lead's job.
+- A second design review. The pre-mortem finds failures of this plan; a better plan is your call
+  and a redesign is the Lead's job.
 - A risk list with no owner and no signal. A row whose first signal is "when it breaks" has not
   been worked out yet.
-- A reason to enlarge the appetite. The output can make the Human shrink the outcome, add a
-  no-go, or stop; it never quietly buys more budget.
+- A reason to enlarge the appetite. The output can make you shrink the outcome, add a no-go, or
+  stop; it never quietly buys more budget.
 - A ritual. If the last three pre-mortems on similar work returned the same rows, put them in
   `AGENTS.md`, give the pattern one notebook row, and stop running it for that class of work.
 

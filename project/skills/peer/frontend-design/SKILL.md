@@ -19,7 +19,8 @@ Prioritize usable structure before decoration:
 - prevent clipping, overlap, hidden actions, and unintended layout shifts
 - use domain content and established assets instead of generic card grids, gradients, glass, blobs, or oversized marketing headings
 
-Inspect the rendered result at the representative viewports required by the change
-and exercise the primary affected workflow. Do not add a separate verification
-ceremony or unrelated cleanup. If rendered inspection is unavailable, report that
-limitation without claiming visual completion.
+Check what you can without a browser: the states in the component's tests, and the
+markup, styles and layout rules the change touches. Rendered inspection belongs to
+someone with a browser, so list in your handoff the viewports, states and workflow
+to look at, and do not claim visual completion. Do not add a separate verification
+ceremony or unrelated cleanup.

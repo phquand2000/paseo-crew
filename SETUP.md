@@ -200,6 +200,15 @@ It writes only what differs, after a backup named `~/.paseo/config.json.bak.YYYY
 
    On a machine with no project the run ends with `no projects yet`; step 5 builds the seat
    directories.
+2. Install the kit's Paseo plugin, which needs Paseo 0.8 and plugins enabled
+   (`jq .pluginsEnabled ~/.paseo/config.json` prints `true`; ask the Human before turning it on):
+
+   ```fish
+   paseo plugin install KIT_DIR/plugin
+   ```
+
+   `paseo plugin ls` shows `seatworks` as `running`. After a later kit update, run
+   `paseo plugin reload seatworks`.
 3. Restart the daemon, because a reload updates providers it already knows but builds nothing
    for a new one:
 

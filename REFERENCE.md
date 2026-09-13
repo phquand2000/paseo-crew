@@ -65,7 +65,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
   (`{"slug": "SLUG", "models": {"lead": "MODEL_ID"}}`), spelled the way that role's harness
   spells a model; `add-project.fish --model MODEL_ID` writes one entry per role whose
   `seats.json` entry names no `models`. A role the file doesn't name keeps its profile's model.
-  Pin it here rather than passing another model to `create_agent`, which the profile guard
+  Pin it here rather than passing another model to `create_agent`, which the Paseo plugin
   refuses.
 
 ## A harness is newer than the version its facts were checked on
@@ -121,21 +121,21 @@ invalidate this page, and no entry here names a coding agent or its tools.
   asks the harness. An empty `models` list likewise means the full runtime catalog, not "nothing
   to run".
 - **Response:** those roles take their model from their agent profile, filled from the harness's
-  `provider.defaultModel`, or from a pin in the project's `project.json`; the profile guard
-  blocks a Lead's or Supervisor's launch on any other. To cap launches from the app too, give
-  the role a `models` list in `seats.json`.
+  `provider.defaultModel`, or from a pin in the project's `project.json`. The Paseo plugin
+  refuses a launch on any other model, from a seat or from the app alike; give the role a
+  `models` list in `seats.json` to offer more than one.
 
 ## Paseo offers its tools to every seat
 
 - **Symptom:** a Peer can see `create_agent` or other Paseo tools.
-- **Cause:** `daemon.mcp.injectIntoAgents` is one machine-wide switch. There is no per-provider
-  one: a key like `paseoTools` under a provider is not in Paseo's schema and is dropped when the
-  config is read. A harness that supports Paseo's tools natively gets them as host tools with
-  bare names (`create_agent`), and one that does not gets the `paseo` MCP server instead, whose
-  names carry the `mcp__paseo__` prefix.
-- **Response:** deny them per seat. Give the role the `paseo` intent in `seats.json`, or
-  `paseo-write` for a seat that should read Paseo and change nothing, and let its harness spell
-  the names; keep any `paseo` server out of the profile's own MCP file as well.
+- **Cause:** `daemon.mcp.injectIntoAgents` is one machine-wide switch, and before Paseo 0.8 it was
+  the only one. From 0.8 a provider's `paseoTools` (`enabled`, `disabledTools`) decides which of
+  those tools its seats are handed, on every harness alike; custom providers do not inherit it
+  through `extends`.
+- **Response:** set the role's `paseoTools` in `seats.json`; setup copies it to the role's
+  provider, and a new seat gets the trimmed catalog after `paseo reload`. Paseo calls this a
+  catalog limit, not a security boundary: a seat with a shell can still run the `paseo` CLI,
+  which is what the `paseo-cli` intent is for.
 
 ## A harness offers more tools than seats.json ever named
 
@@ -174,16 +174,12 @@ invalidate this page, and no entry here names a coding agent or its tools.
   directory is writable, because the kit, the Paseo config and the seat profile directories all
   live out there and each one is a file that decides what the seat may do; a seat whose only
   `writes` pattern is `*` owns the whole repository and may also edit in place.
-  `profile-guard.sh` holds a Supervisor's and Lead's agent and schedule calls to their profile's
-  model and mode, and refuses a role outside the caller's `mayStart` list, a provider with no
-  profile, and a named workspace outside its own repository, since a seat started there would
-  load that project's rules. `skill-guard.sh` refuses a gated call until its skill is loaded, and
-  no role sets a gate today.
-  `watcher-guard.sh` looks up the target of the watcher's `send_agent_prompt` with `paseo ls`,
-  so `paseo` must be on the daemon's PATH, and lets it reach only its own project's Supervisor:
-  the entry role, in an agent whose working directory is inside `SEATWORKS_REPO`. A Supervisor's
-  own `send_agent_prompt` reaches another project's, which is how cross-project work is relayed.
-  Each guard blocks when jq is missing.
+  `skill-guard.sh` refuses a gated call until its skill is loaded, and no role sets a gate today.
+  Each guard blocks when jq is missing. Launches are not a guard's job: the Paseo plugin in
+  `plugin/` sees every creation, from a tool, the CLI or a schedule, gives a seat its profile's
+  model and mode, refuses a model the profile doesn't offer or a seat outside a project with
+  `.seatworks/`, and archives one whose parent's `mayStart` doesn't name it or that runs outside
+  the parent's project.
 - **Response:** name the capability as an intent in `seats.json` (`denyCommonIntents`, or a
   role's `denyIntents`), and each harness manifest maps it to its own tool names under
   `deny.intents` or declares it held by a guard under `deny.enforcedByGuard`. An intent a
@@ -200,11 +196,11 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Symptom:** a seat reports that a path "is outside" the repository, for a file in the kit, in
   `~/.paseo/`, in its own profile directory, or anywhere else on the machine.
 - **Cause:** `lead-guard.sh` used to pass any path it could not place inside the repository. Every
-  file that decides what a seat may do lives out there: `seats.json`, which `profile-guard.sh`
+  file that decides what a seat may do lives out there: `seats.json`, which the Paseo plugin
   reads on every launch to see which roles the caller may start; the Paseo config, which holds the
   providers and their deny lists; the guards themselves; and the seat's own settings file, where a
-  harness's deny map lives. A seat that could edit those could lift its own limits, and
-  `profile-guard.sh` would then honour the new rules. The guard now allows only the seat's
+  harness's deny map lives. A seat that could edit those could lift its own limits, and the
+  plugin would then honour the new rules. The guard now allows only the seat's
   temporary directory outside the repository, for every role that carries it — Supervisor, Lead,
   watcher, Peer, and Reviewer, the last two through the shell bridge.
 - **Response:** intended. Scratch files go under `$TMPDIR`. A kit change is proposed to the Human
@@ -289,7 +285,9 @@ invalidate this page, and no entry here names a coding agent or its tools.
   sees those copies; a harness that also loads a directory listed in its `sharedSkillDirs` gives
   them to every seat on it, the Peer's included.
 - **Response:** leave that install off in the app. The setup script links `paseo` from Paseo's
-  package into the profiles whose role's `extraSkills` name it, so it follows Paseo updates.
+  package into the profiles whose role's `extraSkills` name it, so it follows Paseo updates. No
+  role names it now: no seat ever loaded it, the prompts already carry the Paseo calls a seat
+  makes, and it taught workspace and `paseo run` operations the kit refuses.
 
 ## A seat gets the skills seats.json chose, and no others
 
@@ -347,9 +345,9 @@ invalidate this page, and no entry here names a coding agent or its tools.
   a seat's own default mode, and falls back to `auto` when the field is empty. A harness with no
   modes rejects any mode ID.
 - **Response:** the manifest's `hasModes` and `provider.profileModeId` say which case a seat is
-  in, and its agent profile carries a `modeId` only in the first. Copy `modeId` and
-  `thinkingOptionId` from the profile when you create the seat; the profile guard blocks any
-  other mode, and for a harness without modes it tells you to pass none.
+  in, and its agent profile carries a `modeId` only in the first. The Paseo plugin sets `modeId`
+  from the profile on every launch and fills a missing `thinkingOptionId`, so a seat's creator
+  passes neither; for a harness without modes the profile has none to set.
 
 ## Running agents keep the old rules
 
@@ -357,8 +355,9 @@ invalidate this page, and no entry here names a coding agent or its tools.
   version.
 - **Cause:** an agent keeps what it started with until its session ends. Seats spawned
   afterwards pick up prompts, settings, extensions, and skills immediately.
-- **Response:** archive the old agents and delete their schedules and heartbeats, so two versions
-  of the rules don't run side by side. Moving a role to another harness is worse: a running agent
+- **Response:** archive the old agents and delete their schedules, and run
+  `paseo plugin reload seatworks` after a plugin change, so two versions of the rules don't run
+  side by side. Moving a role to another harness is worse: a running agent
   holds the old profile path, so archive every agent first.
 
 ## Kit template edits don't reach existing projects
@@ -405,8 +404,8 @@ invalidate this page, and no entry here names a coding agent or its tools.
 
 - **Symptom:** a Peer stops mid-step, or a Lead gets a Peer's "finished" notification with a
   partial answer and never hears the real result.
-- **Cause:** `send_agent_prompt` replaces a running turn; only finish notifications and
-  heartbeats steer into it. A finish notification fires once, on the first idle, to whoever
+- **Cause:** `send_agent_prompt` replaces a running turn; only finish notifications steer into
+  it, and the Paseo plugin holds its own messages until the agent is idle. A finish notification fires once, on the first idle, to whoever
   sent the prompt, so a prompt from anyone but the Lead ends the Lead's wait early and sends
   the Peer's next result to the sender.
 - **Response:** send anything meant for a Peer through its Lead (the Supervisor's `CHECK:`
@@ -457,17 +456,20 @@ invalidate this page, and no entry here names a coding agent or its tools.
   prevents accidents rather than sandboxing; the setup script checks that the variable stays on
   every read-only provider.
 
-## Heartbeats end with their agent
+## The watcher sweeps when the plugin wakes it
 
-- **Symptom:** a watcher's sweeps stop, an old heartbeat seems to linger, or `list_schedules`
-  doesn't show a heartbeat you created.
-- **Cause:** a heartbeat targets one agent, and Paseo completes it when that agent is archived.
-  `list_schedules` and `paseo schedule ls` show only schedules that start new agents, so no tool
-  lists heartbeats; each one is a file in `~/.paseo/schedules/`, and there is no update tool.
-- **Response:** name every heartbeat: creating one again with the same name for the same agent
-  updates it instead of adding a second, so a seat that isn't sure a heartbeat exists can
-  simply create it. Note the ID too, for `delete_heartbeat`. Archive the watcher to stop its
-  sweeps.
+- **Symptom:** the watcher never sweeps, sweeps late, or its `ATTENTION:` events never reach the
+  Supervisor.
+- **Cause:** nothing schedules the watcher. The Paseo plugin sends it `SWEEP` after a Lead, Peer
+  or Reviewer turn ends in the same project, at most once per the watcher seat's `sweepMinutes`,
+  and again a minute later while the watcher is busy. It reads the `ATTENTION:` blocks a sweep
+  ends with and sends them to that project's Supervisor once it is idle, an
+  `ATTENTION (urgent):` block at once, and a failed turn becomes one too. Held messages live in
+  the plugin process, so a plugin reload or a daemon restart drops them.
+- **Response:** `paseo plugin ls` must show `seatworks` running, and `paseo plugin logs seatworks`
+  shows handler errors. The watcher and the Supervisor must run inside the same repository, and
+  it needs `.seatworks/`. A heartbeat left from before the plugin still wakes a watcher on its
+  own cadence: archive that watcher and start a new one.
 
 ## The 16 KB prompt budget is self-imposed
 

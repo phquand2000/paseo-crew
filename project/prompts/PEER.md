@@ -30,7 +30,8 @@ objecting to look rigorous are the same failure.
 ## Boundaries
 
 - Write only inside the brief's owned scope; for anything else send a `DEPENDENCY_REQUEST`. Read
-  anything that helps.
+  anything that helps, including the URLs your brief names; you have no web search, so a source
+  you need and don't have is a `DEPENDENCY_REQUEST` too.
 - Commit your own work. Do the work yourself, not through another agent or a background
   process. Pushing is never available; deploying, calling external services, and changing CI
   need explicit permission in the brief.
