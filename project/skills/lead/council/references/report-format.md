@@ -1,108 +1,91 @@
 # Council output-contract patterns
 
-These are composable patterns, not a universal schema. Lead selects and adapts only what the case
-needs. Do not copy all headings into every seat prompt.
+Composable patterns, not a universal schema: adapt only what the case needs, and never copy every
+heading into every seat prompt.
 
 ## Shared evidence discipline
 
-Every case output contract should make it possible to distinguish direct observation, authority,
-inference, uncertainty, and the action each material conclusion changes. Ask for falsifiers or
-reopen conditions when they are decision-relevant. Do not require filler sections.
+Every contract should separate direct observation, authority, inference, and uncertainty, and
+show which action each material conclusion changes. Ask for falsifiers or reopen conditions when
+they matter. No filler sections.
 
 ## Focused decision pattern
 
-Useful when the council is choosing one architecture, product, policy, or strategy route. Adapt or
-omit headings that do not help the decision.
+For choosing one architecture, product, policy, or strategy route.
 
 ```text
-POSITION
-RECOMMENDATION
-
-DECISION-CRITICAL CLAIMS
-- CLAIM
-- TYPE: fact | inference | causal claim | forecast | value/preference | authoritative constraint
-- EVIDENCE OR AUTHORITY
-- VERDICT IMPACT
-
-BEST ALTERNATIVE
-STRONGEST COUNTERARGUMENT
-PRIMARY FAILURE MODE
-FALSIFIER / WHAT WOULD CHANGE MY MIND
-UNKNOWNS
-CONFIDENCE BASIS: HIGH | MEDIUM | LOW, because ...
+Position: <the answer in one sentence>
+Recommendation: <the action to take>
+Decision-critical claims, each as:
+- Claim: <one proposition>
+- Type: <fact | inference | causal claim | forecast | value/preference | authoritative constraint>
+- Evidence or authority: <location, excerpt, or who decided>
+- Verdict impact: <what changes if it is wrong>
+Best alternative: <strongest option not recommended>
+Strongest counterargument: <best case against>
+Primary failure mode: <likeliest way it goes wrong>
+Falsifier: <evidence that would change my mind>
+Unknowns: <material gaps>
+Confidence basis: <HIGH | MEDIUM | LOW, because ...; no percentage>
 ```
 
-Do not use a numeric confidence percentage.
+## Supplied-findings or audit pattern
 
-## Supplied-findings / audit pattern
-
-Preserve one row per supplied finding. Do not impose a fixed row limit.
+One row per supplied finding, no row limit.
 
 ```markdown
 | Finding | Disposition | Direct evidence | Classification | Durable route | Confidence/limits |
-|---------|-------------|-----------------|----------------|---------------|-------------------|
-| F001    | confirmed / falsified / narrowed / insufficient coverage | ... | bounded / foundation / architecture / mechanism / proof-only | ... | ... |
+|---|---|---|---|---|---|
+| <F001> | <confirmed / falsified / narrowed / insufficient coverage> | <location, excerpt> | <bounded / foundation / architecture / mechanism / proof-only> | <where the fix belongs> | <limits> |
 ```
 
-Add a short cross-cutting synthesis only for causal or ownership conclusions that span multiple
-findings. New findings use the same evidence fields and remain clearly separate from supplied
-findings.
+Add a cross-cutting synthesis only for causal or ownership conclusions spanning findings. New
+findings use the same fields, kept apart from supplied ones.
 
-## Plan / contract review pattern
+## Plan or contract review pattern
 
-Use one row per natural gate or obligation: status, governing authority, evidence, impact, and
-required correction. Preserve user-visible requirement identity.
+One row per gate or obligation, keeping the user's requirement IDs: status, governing authority,
+evidence, impact, required correction.
 
 ## Incident pattern
 
-Use the smallest truthful timeline plus causal claims, containment/recovery decisions, unknowns,
-and discriminating evidence. Do not force an option memo onto an incident.
+The smallest truthful timeline, causal claims, containment and recovery decisions, unknowns, and
+discriminating evidence. No option memo.
 
 ## Material proposition pattern
 
-Useful for a focused decision or for cross-cutting claims above a larger finding/gate ledger.
+For a focused decision, or cross-cutting claims above a finding or gate ledger. Material means
+its truth or authority could change the verdict or required action.
 
 ```markdown
 | ID | Type | Proposition | Source/excerpt | Evidence bar | Status | Verdict impact |
-|----|------|-------------|----------------|--------------|--------|----------------|
-| P1 | FACT | ...         | Seat, excerpt  | Direct source evidence | unresolved | High |
+|---|---|---|---|---|---|---|
+| <P1> | <FACT, INFERENCE, ...> | <one claim> | <seat excerpt or location> | <what settles it> | <a SKILL.md status> | <High / Medium / Low> |
 ```
-
-Use an exact report excerpt or source location where practical. A proposition is material only
-when changing its truth or authority could change the verdict or required action.
 
 ## Cross-examination response
 
-Rename `PROPOSITION_ID` to the case's natural identifier, such as `FINDING_ID`, `GATE_ID`, or
-`CLAIM_ID`.
-
 ```text
-PROPOSITION_ID
-RESPONSE: CONCEDE | MAINTAIN | NARROW | REVERSE
-REASON
-DIRECT EVIDENCE
-NEW CLAIMS, if any
-FALSIFIER
-IF PROPOSITION IS TRUE, RECOMMENDATION IMPACT
-IF PROPOSITION IS FALSE, RECOMMENDATION IMPACT
+ID: <the case's natural finding, gate, or claim ID>
+Response: <CONCEDE | MAINTAIN | NARROW | REVERSE>
+Reason: <why>
+Direct evidence: <locations or excerpts>
+New claims: <if any; new material facts go to verification>
+Falsifier: <what would overturn this response>
+If true: <impact on the recommendation>
+If false: <impact on the recommendation>
 ```
-
-New material factual claims return to verification; they do not expand free-form debate.
 
 ## Draft-verdict audit
 
 ```text
-AUDIT RESULT: CLEAR | REVISE | STOP
-
-FINDINGS
-- SEVERITY: material | non-material
-- CATEGORY: falsified premise | unsupported new claim | unanswered dissent |
-  omitted material claim | preference-as-constraint | scope breach | action mismatch |
-  vague reopen condition
-- EVIDENCE
-- REQUIRED CORRECTION
-
-UNCHECKED LIMITATIONS
+Audit result: <CLEAR | REVISE | STOP>
+Findings, each as:
+- Severity: <material | non-material>
+- Category: <falsified premise | unsupported new claim | unanswered dissent | omitted material claim | preference-as-constraint | scope breach | action mismatch | vague reopen condition>
+- Evidence: <draft location and the source showing the defect>
+- Required correction: <the change that resolves it>
+Unchecked limitations: <what the audit could not check>
 ```
 
-The Auditor identifies defects but does not issue or replace the binding verdict.
+The Auditor finds defects; it never issues or replaces the verdict.

@@ -3,7 +3,7 @@ name: test-proof-debt-audit
 description: Audit one named behavioral claim and the test, validator, benchmark, or gate cited as proof. Do not use for ordinary implementation, failing tests, weak coverage, or the presence of mocks.
 ---
 
-# Test Proof Debt Audit
+# Test proof debt audit
 
 Audit only the claim and proof route named by the user. Do not turn ordinary
 implementation, a failing test, weak coverage, or the presence of mocks into a

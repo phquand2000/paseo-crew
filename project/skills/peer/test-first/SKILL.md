@@ -13,13 +13,13 @@ No behavior changes without evidence you produced before the change. Pick it by 
 
 | Change | Evidence before you change code |
 |---|---|
-| Bug or regression | a failing test or minimal repro of the reported symptom; load `diagnosing-bugs` |
+| Bug or regression | a failing test or minimal repro of the reported symptom; see `diagnosing-bugs` |
 | New behavior at a seam | a failing test through the seam: the loop below |
 | Protocol, wire, or schema change | a failing round-trip or encode/decode test on real records or bytes |
 | Refactor with no behavior change | the existing tests; where they are weak, characterization tests of current behavior at the seam, never one test per moved helper |
 | Wrapper, adapter, or temporary bridge | proof at the long-lived owner seam it serves; a direct test only when the layer itself translates, filters, retries, caches, falls back, or will outlive the plan |
 | Performance | a benchmark before the change, baselined over enough runs to show its spread; correctness proven separately |
-| Visual, layout, or copy | a render check, screenshot, or accessibility assertion (load `frontend-design`); no unit tests for CSS or wording |
+| Visual, layout, or copy | a render check, screenshot, or accessibility assertion (see `frontend-design`); no unit tests for CSS or wording |
 | Docs, config, or mechanical edit | the smallest check that proves the artifact is valid |
 
 Done when you can name the proof in one line, and why no other surface proves the claim better.
@@ -49,7 +49,7 @@ For each behavior on the list:
 
 If a slice shows the contract itself is wrong, stop writing code and send a `REOPEN_REQUEST` naming the `API` layer.
 
-If you changed production code before writing the test, don't delete it blindly: run `git stash push -- PATHS`, confirm the test fails on the original code, then run `git stash pop`. Name only your own paths, so uncommitted work that isn't yours stays where it is.
+If you changed production code before writing the test, don't delete it blindly: run `git stash push -- <paths>`, confirm the test fails on the original code, then run `git stash pop`. Name only your own paths, so uncommitted work that isn't yours stays where it is.
 
 ## Keep only tests that lock a contract
 

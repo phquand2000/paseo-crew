@@ -1,4 +1,4 @@
-# Structural Misfit And Avoidable-Tax Catalog
+# Structural misfit and avoidable-tax catalog
 
 Use this catalog as search lenses, not a checklist that every design must satisfy.
 Report only patterns supported by the bounded checkpoint.

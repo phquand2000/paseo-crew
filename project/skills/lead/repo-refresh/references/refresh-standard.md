@@ -1,9 +1,9 @@
-# Repository Refresh Standard
+# Repository refresh standard
 
 This standard takes the strongest useful lessons from the NOVA cleanup and makes
 them the default baseline for every refreshed repository.
 
-## Current Truth
+## Current truth
 
 - Current documents describe the current system. Git owns narrative history.
 - One contract has one canonical owner. Other documents link to it rather than
@@ -18,7 +18,7 @@ them the default baseline for every refreshed repository.
 - A document modified before a user-supplied date is presumed suspect, not
   presumed disposable.
 
-## Default Documentation Shape
+## Default documentation shape
 
 Prefer the smallest subset that fits:
 
@@ -33,7 +33,7 @@ Do not force these names over an equally coherent existing structure. Do remove
 parallel doctrine, contract, observability, project, agent, and miscellaneous
 trees when their content belongs to the canonical owners above.
 
-## Plans And Trackers
+## Plans and trackers
 
 - Plans are temporary execution authority, not permanent historical records.
 - Delete completed and superseded plans after durable current decisions reach
@@ -45,7 +45,7 @@ trees when their content belongs to the canonical owners above.
   artifact paths, and deleted-plan references.
 - Generated roadmaps are views, never independent truth.
 
-## Tests And Proof
+## Tests and proof
 
 A retained mandatory proof route must name:
 
@@ -74,7 +74,7 @@ Delete, replace, or demote machinery that:
 Keep historical compatibility vectors only when the old value remains a current
 public, security, wire, storage, migration, or machine contract.
 
-## Strong Cleanup Rules
+## Strong cleanup rules
 
 - Prefer deletion over deprecation inside a single-owner repository.
 - Do not leave forwarding documents for renamed internal paths; update callers.
@@ -85,7 +85,7 @@ public, security, wire, storage, migration, or machine contract.
   cleanup failures, not harmless residue.
 - When uncertain, preserve unique current truth but delete redundant narrative.
 
-## Evidence For The Refresh
+## Evidence for the refresh
 
 The refresh itself needs only proportionate verification:
 

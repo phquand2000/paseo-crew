@@ -26,7 +26,7 @@ Use this skill, read-only, to review one change, identified by SHA, against the 
    `rule` takes the paths from `preview`'s `reviewable_files` and refuses to run with none, so
    skip it when that list is empty.
 
-   `preview` returns `reviewable_files`, `excluded_files` with an `exclude_reason` each, the insertion and deletion counts, and the commit message as `background`. `rule` returns `groups`, each with the file pattern it matched, the files in it, and the rule text to answer. For a range pass `--from BASE --to "$sha"` instead of `--commit`; add `--repo DIR` when you are not at the repository root, and `--rule FILE` when the repository ships its own rule set.
+   `preview` returns `reviewable_files`, `excluded_files` with an `exclude_reason` each, the insertion and deletion counts, and the commit message as `background`. `rule` returns `groups`, each with the file pattern it matched, the files in it, and the rule text to answer. For a range pass `--from BASE --to "$sha"` instead of `--commit`; add `--repo <dir>` when not at the repository root, and `--rule <file>` when the repository ships its own rule set.
 
    Two things the output does not mean. `excluded_count` is the tool's extension filter and its deleted-file rule, not a judgment that those files are fine: a change whose whole diff is excluded still gets reviewed, from `git show --stat`. And a rule group is a standing question for that file type, not a finding. If `ocr` is not installed, say so in one line and take the file list from `git show --stat "$sha"`; the review is unchanged. Done when the excluded list is in your handoff and every group has a rule you can answer.
 3. Read the change from git objects: `git show "$sha"` for the diff, and `git show "$sha:PATH"` for whole files.

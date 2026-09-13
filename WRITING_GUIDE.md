@@ -75,8 +75,8 @@ are generic, and the value is your own. `setup-seats.fish` holds each to `prompt
 |---|---|
 | `PEER.md` | Boundaries, the handoff's six fields, the evidence standard |
 | `REVIEWER.md` | Findings, the axes a review covers, the handoff shape |
-| `LEAD.md` | "Decisions that belong to the Human", with the ones your project reserves; the numbered Reviewer conditions, with the seams your `AGENTS.md` marks decide-first; acceptance conditions |
-| `SUPERVISOR.md` | The signals worth a look, intervention rights, when a prompt patch is allowed |
+| `LEAD.md` | "What you own, and what goes up", with the decisions your project reserves for the Human; the Reviewer conditions under Delegation; the Acceptance checks |
+| `SUPERVISOR.md` | "Attention", with the signals worth a look; intervention rights under "Operating, detours and replacing a Lead"; when a kit change is proposed |
 | `WATCHER.md` | The trigger table. It runs on a small model and is re-read on every sweep, so keep it short: a small model loses rules faster than a large one as a prompt grows. The Supervisor proposes a change to it; the Human applies it in the kit. |
 
 ## Delegation briefs and handoffs

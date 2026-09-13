@@ -29,7 +29,7 @@ function clock(date = new Date()): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function logLine(root: string, line: string): void {
+export function logLine(root: string, line: string): void {
   const now = new Date();
   const dir = join(root, ".seatworks", "records", "attention");
   const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;

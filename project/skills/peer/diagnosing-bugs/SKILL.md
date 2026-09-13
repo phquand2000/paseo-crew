@@ -11,9 +11,9 @@ Use this skill to go from a reported symptom to a confirmed cause and a fix, wit
 
 Build one command that fails on this bug before you form theories from the code:
 
-1. Pick the cheapest route to the bug, roughly in this order: a failing test at a seam that reaches it (if it was already red when you started, check it first with test-first's Before the first test, step 3); a CLI run on a fixture input diffed against the expected output; a replay of a captured request, payload, or log through the code path; a small harness that calls the failing path directly; a `git bisect run` script, when `git log --oneline -20 -- PATHS` shows the bug appeared between two known commits.
+1. Pick the cheapest route to the bug, roughly in this order: a failing test at a seam that reaches it (if it was already red when you started, check it first with test-first's Before the first test, step 3); a CLI run on a fixture input diffed against the expected output; a replay of a captured request, payload, or log through the code path; a small harness that calls the failing path directly; a `git bisect run` script, when `git log --oneline -20 -- <paths>` shows the bug appeared between two known commits.
 2. Make it take seconds, make it deterministic (fix the clock, seed randomness, isolate the filesystem), and make it assert the reported symptom, not "didn't crash".
-3. For an intermittent failure, rerun the failing test alone about 20 times, for example `for i in $(seq 20); do TEST_CMD || echo "failed run $i"; done`. Call it a lane collision only when it fails solely while another agent uses the same port or test database, for example when `lsof -i :PORT` shows a process you didn't start. Report a collision and change no code. Otherwise diagnose it as a bug, usually a race, an order dependence, or shared state, and raise the failure rate (100 repeats, a shuffled test order, added load or delays) until you can test against it.
+3. For an intermittent failure, rerun the failing test alone about 20 times, for example `for i in $(seq 20); do TEST_CMD || echo "failed run $i"; done`. Call it a lane collision only when it fails solely while another agent uses the same port or test database, for example when `lsof -i :<port>` shows a process you didn't start. Report a collision and change no code. Otherwise diagnose it as a bug, usually a race, an order dependence, or shared state, and raise the failure rate (100 repeats, a shuffled test order, added load or delays) until you can test against it.
 
 Done when you have run it, it fails with the symptom from the brief, and you can paste the invocation and output, with any secret replaced by `<REDACTED>`.
 
@@ -41,7 +41,7 @@ Tag every temporary debug line with one marker unique to this task, such as `DEB
 git grep -n 'DEBUG-7f3a'
 ```
 
-For a performance regression, logs mislead. Measure a baseline as the performance-change skill describes, then `git bisect run` a script that fails when the measurement exceeds the baseline by more than its spread.
+For a performance regression, logs mislead. Measure a baseline per test-first's Performance row, then `git bisect run` a script that fails when the measurement exceeds the baseline by more than its spread.
 
 ## Fix with a regression test
 

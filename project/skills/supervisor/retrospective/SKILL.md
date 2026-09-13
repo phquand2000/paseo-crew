@@ -46,7 +46,7 @@ stronger one too.
    with dates. This is the "seen twice" test, and it is a count, not an impression:
 
    ```sh
-   grep -ciE 'PATTERN' .seatworks/records/attention/*.md
+   grep -ciE '<mechanism pattern>' .seatworks/records/attention/*.md
    ```
 
    Done when each group has a number and the dates that produced it.
@@ -60,9 +60,8 @@ stronger one too.
    and what would show it made things worse. Everything else stays in the notebook; a
    retrospective that proposes four changes makes the next one unattributable, because nobody
    can tell which change moved the outcome.
-6. **Hand it over.** The kit is outside this repository and you cannot edit it, so the proposal
-   goes to the Human as a diff in your reply. Set its row to `adopted`, with the file the diff
-   changes under Fix lives in and what would show it worked under Check.
+6. **Hand it over.** The proposal goes to the Human as a diff in your reply. Set its row to
+   `adopted`, with the file the diff changes under Fix lives in and what would show it worked under Check.
 
 ## Rules
 

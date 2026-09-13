@@ -1,8 +1,8 @@
-# Proof Debt Catalog
+# Proof debt catalog
 
 Use this reference to widen an audit after the live claim and scan roots are known from the repository.
 
-## Search Families
+## Search families
 
 Search for:
 
@@ -16,7 +16,7 @@ Search for:
 
 Use repository-appropriate search and semantic tools. Search hits are leads, not findings.
 
-## Common Smells
+## Common smells
 
 - permanent tests whose only claim is that a retired name or dependency is absent
 - source or document text used as evidence that runtime behavior executes
@@ -27,7 +27,7 @@ Use repository-appropriate search and semantic tools. Search hits are leads, not
 - benchmarks whose measured path differs from the claimed path
 - tests that survive deletion of the production module
 
-## Better Routes
+## Better routes
 
 - Replace absence memory with positive coverage of the current contract.
 - Derive malformed inputs from current authority, such as current width ± 1, instead of preserving retired values.

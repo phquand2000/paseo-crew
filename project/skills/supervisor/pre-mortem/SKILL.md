@@ -32,9 +32,7 @@ seat prompt.
 2. **Choose the horizon and the failure.** Name a date and a failure the Human would recognise:
    "eight weeks from now the migration shipped and a week of orders cannot be reconstructed",
    not "the project failed". A vague death gives vague causes.
-3. **Seal two seats, three at most.** Each comes from the read-only Reviewer profile
-   (`list_profiles`), the only profile whose settings block writes, created with your own
-   `create_agent` in this project's workspace and provider `reviewer`, which takes its model and mode.
+3. **Seal two seats, three at most.** Each comes from the read-only Reviewer profile.
    Give each the same plan, the same named failure, and one distinct lens:
 
    - **Mechanism:** the failure happened inside the system. What state was wrong, which owner

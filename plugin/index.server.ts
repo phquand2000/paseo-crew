@@ -2,6 +2,7 @@ import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { onTurnEnded, onTurnStarted, stopTimers } from "./server/attention";
 import { loadKit } from "./server/kit";
 import { applyProfile, checkParent } from "./server/launch";
+import { onPermissionRequested, onPermissionResolved } from "./server/permissions";
 import { seatEnv } from "./server/room";
 
 export default function contribute(server: PluginServerContext) {
@@ -21,6 +22,13 @@ export default function contribute(server: PluginServerContext) {
   });
 
   server.on("agent.turn_started", (event) => onTurnStarted(event));
+
+  server.on("agent.permission_requested", (event) => {
+    const kit = loadKit();
+    if (kit) onPermissionRequested(kit, event);
+  });
+
+  server.on("agent.permission_resolved", (event) => onPermissionResolved(event));
 
   server.on("agent.turn_ended", async (event, { paseo }) => {
     const kit = loadKit();

@@ -1,4 +1,4 @@
-# Review Pack Profiles
+# Review pack profiles
 
 Use these profile names with `review-pack create --profile <name>`.
 
