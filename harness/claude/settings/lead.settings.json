@@ -1,7 +1,56 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Agent",
+      "Task",
+      "Workflow",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "EnterWorktree",
+      "ExitWorktree",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "ScheduleWakeup",
+      "SendMessage",
+      "ListAgents",
+      "Monitor",
+      "TaskOutput",
+      "TaskStop",
+      "PushNotification",
+      "ReportFindings",
+      "Artifact",
+      "DesignSync",
+      "NotebookEdit",
+      "LSP",
+      "mcp__intellij-index__ide_refactor_rename",
+      "mcp__intellij-index__ide_move_file",
+      "mcp__intellij-index__ide_refactor_safe_delete",
+      "Bash(git push *)",
+      "Bash(gh *)",
+      "Bash(paseo *)",
+      "Bash(claude *)",
+      "Bash(npx claude *)",
+      "Bash(bunx claude *)",
+      "Bash(codex *)",
+      "Bash(opencode *)",
+      "Bash(omp *)",
+      "Edit(~/.paseo/**)",
+      "Edit(~/.omp/**)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude/profiles/*/settings.json)",
+      "Edit(~/.claude/profiles/*/.claude.json)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowLocalBinding": true
+    }
   },
   "enabledPlugins": {},
   "autoCompactWindow": 333000,
@@ -22,40 +71,5 @@
   "outputStyle": "Concise",
   "disableBundledSkills": true,
   "askUserQuestionTimeout": "never",
-  "promptCacheTtl": "1h",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"$CLAUDE_CONFIG_DIR/lead-guard.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; echo \"Lead guard: lead-guard.sh is missing from this seat profile; run setup/setup-seats.fish.\" >&2; exit 2"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"$CLAUDE_CONFIG_DIR/record-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\" lead; fi; exit 0"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"$CLAUDE_CONFIG_DIR/record-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\" lead; fi; exit 0"
-          }
-        ]
-      }
-    ]
-  }
+  "promptCacheTtl": "1h"
 }

@@ -16,14 +16,11 @@ and asks for `--probe`.
   directory and one symlink, run through `claude -p`. Both appeared in the seat's skill list and
   the model invoked one.
 - **Loading one:** the `Skill` tool, with `{"skill": "<name>"}`. A user-typed `/<name>` reaches
-  the same tool. The transcript records it as `"name":"Skill","input":{"skill":"<name>"`, which
-  is how `skill-guard.sh` tells a loaded skill from an unloaded one.
+  the same tool. The transcript records it as `"name":"Skill","input":{"skill":"<name>"`.
 - **`SlashCommand` is not a tool.** A deny entry for it makes Claude Code print
-  `Permission deny rule "SlashCommand" matches no known tool — check for typos.` The kit's deny
-  list carried that dead entry until the harness layer removed it; `seat_deny` in
-  `setup-seats.fish` now reports any deny entry `seats.json` no longer lists, so a future typo
-  surfaces instead of silently protecting nothing.
-- **Denying `Skill` would turn every skill off.** No intent maps to it, and none should.
+  `Permission deny rule "SlashCommand" matches no known tool — check for typos.`, which is how a
+  typo in a role's `permissions.deny` surfaces instead of silently protecting nothing.
+- **Denying `Skill` would turn every skill off.** No role settings deny it, and none should.
 - **Description budget:** Claude Code lists skill descriptions within about 1% of the context
   window, roughly 8,000 characters, and drops the least-used ones past that. Keep each role to
   about ten model-invocable skills, and mark the rest `disable-model-invocation: true`.
@@ -40,28 +37,27 @@ and asks for `--probe`.
 
 ## Enforcement
 
-- **Deny lists:** Paseo applies `disallowedTools` to its `claude` provider (and to `omp`), which
-  is why `deny.mechanism` is `disallowedTools` here; a harness Paseo does not cover that way
-  falls back to `hooks`.
-- **Hooks:** one entry per guard in the role settings, under the event it answers: `PreToolUse`
-  for a guard that can refuse, `PostToolUse` or `SessionStart` for a note. Every entry whose
-  matcher matches runs, and any `PreToolUse` exit code 2 blocks the call, so the guards compose
-  without chaining; this was confirmed with two overlapping matchers where the second refused.
-- **Hook input:** `cwd`, `hook_event_name`, `permission_mode`, `prompt_id`, `session_id`,
-  `tool_input`, `tool_name`, `tool_use_id`, `transcript_path`. The transcript path is what makes
-  a skill gate possible at all.
-- **Hook protocol:** `exit-code` — stderr plus exit 2, the form `block` in
-  `harness/common/hook-io.sh` writes. A harness that answers hooks another way needs its own
-  guards, as `guards.hookProtocol` records and `harness/omp/extensions/` shows.
-- **Notes to the model (`guards.noteProtocol`):** measured on 2.1.236 by pointing a seat at a
-  local server that answered one Write tool call and captured the next request. The write ran in
-  every case. `hookSpecificOutput.additionalContext` from `PostToolUse` or `PreToolUse` arrived in
-  the next user message as a `<system-reminder>` reading "hook additional context"; `PostToolUse`
-  exit 2 with stderr, and `decision: "block"` with `reason`, arrived too, but as a "hook blocking
-  error". The first is the note channel `note` writes. `SessionStart` with matcher `compact`
-  delivers `additionalContext` by the docs.
-- **`permissions.deny` is not equivalent** to a provider deny list, so the role settings leave
-  it out.
+Every limit is in the role settings, verified on 2.1.236 with
+`claude -p --setting-sources user --permission-mode bypassPermissions` against a scratch config
+directory. The two parts below hold in `bypassPermissions`, the mode Paseo launches these seats
+in, and load because the room forces `--setting-sources user`, which makes this file the user
+source.
+
+- **`permissions.deny`:** a bare tool name (`Agent`, `Task`, `Workflow`, `EnterPlanMode`,
+  `EnterWorktree`, the Cron tools, `SendMessage`, `Monitor`, `Artifact`, `NotebookEdit`, `LSP`,
+  the three `intellij-index` refactor tools) takes the tool out of the model's context. A Bash
+  rule such as `Bash(git push *)`, `Bash(gh *)`, `Bash(paseo *)`, `Bash(claude *)` or
+  `Bash(omp *)` matches the command text. An `Edit` rule refused a Write to its path; the rules
+  name `~/.paseo`, `~/.omp`, `~/.claude/settings.json` and each seat profile's `settings.json`
+  and `.claude.json`.
+- **`sandbox`:** `enabled`, `failIfUnavailable: true` and `allowUnsandboxedCommands: false`, and
+  the Lead also sets `network.allowLocalBinding`. It refused a Bash write outside the working
+  directory and allowed one inside it, a git commit, and an HTTPS request.
+- **No write allow-list inside the repository.** A `sandbox.filesystem.denyWrite` entry beats an
+  `allowWrite` inside it, so which repository files the Supervisor and the Lead write is a line in
+  their prompts.
+- **Paseo's `disallowedTools` is not used.** Its OMP client never reads the list, so each harness
+  keeps its own, and setup deletes one it finds on a provider.
 
 - **`AskUserQuestion` is offered only with `--permission-prompt-tool`,** which the orchestrator
   passes, and the call then becomes its pending question even under `bypassPermissions`.
@@ -78,7 +74,7 @@ and asks for `--probe`.
   connected, which is how the file location was confirmed.
 - Tool names are `mcp__<server>__<tool>`, with the server name exactly as the config spells it.
   That is the documented form, not one read off a running seat here; a wrong name in a deny list
-  answers `matches no known tool`, the way `deny.retired` records.
+  answers `matches no known tool`.
 
 ## Shared state
 
@@ -93,6 +89,5 @@ and asks for `--probe`.
 ## Role settings
 
 `settings/<role>.settings.json` is tracked in git and edited by hand. `setup-seats.fish` links
-each seat to its role's file and only checks it: that its JSON parses, that `cleanupPeriodDays`
-matches yours, and that every guard `seats.json` gives the role has a `PreToolUse` entry running
-it. It never writes these files.
+each seat to its role's file and only checks it: that its JSON parses and that
+`cleanupPeriodDays` matches yours. It never writes these files.

@@ -26,8 +26,8 @@ When you fill in the template:
 - Next to each mandatory rule, write two things: a reproducible problem that the existing
   layers don't prevent, and a removal trigger, meaning the evidence that would narrow or
   remove the rule. A rule missing either one is ceremony, and ceremony only ever tightens.
-- Enforce anything that must always hold with permissions, hooks, or the Peer's guard
-  extension. An instruction file is guidance, not enforcement.
+- Enforce anything that must always hold with the coding agents' own settings, such as
+  permission rules or a sandbox. An instruction file is guidance, not enforcement.
 - Put no maintainer notes in HTML comments: some harnesses strip them, and the rest read them to the
   Peer.
 

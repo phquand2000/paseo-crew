@@ -1,7 +1,7 @@
 # Council routing
 
 Every council seat runs on the read-only Reviewer profile, provider `reviewer`. It is the only
-profile whose guard blocks edits and repository-changing git, so it is the only one a sealed seat
+profile whose settings block edits and repository-changing git, so it is the only one a sealed seat
 may use. Never route a seat to the Peer profile, which can write, or to your own Lead profile,
 whose prompt would turn the seat into a second Lead.
 

@@ -28,12 +28,11 @@ Verified on omp **18.1.18**, against Paseo's own `omp` provider.
   would silently take every skill with it.
 - **Loading one:** omp puts names and descriptions in the system prompt and leaves the agent to
   read the `SKILL.md` itself, through the ordinary `read` tool or the `skill://<name>` URL. Its
-  own documentation says models don't always do this, and nothing reports the miss. That is why
-  the kit has skill gates at all.
+  own documentation says models don't always do this, and nothing reports the miss.
 - **Forcing one:** `/skill:<name>` expands the whole `SKILL.md` into the turn. It is recognised
   both at the start of a message and as a token inside ordinary prose, and it resolves relative
   paths against the skill directory. The expansion happens before the model's turn and leaves no
-  tool call, so `skill-gate.ts` cannot see it: a forced load does not satisfy a gate.
+  tool call.
 - **Frontmatter:** `name`, `description`, `globs`, `alwaysApply`, `hide` and
   `disable-model-invocation` are read; `name` defaults to the directory name and a skill with no
   description is skipped by the native loader. `$ARGUMENTS` and `${CLAUDE_SKILL_DIR}` are not
@@ -66,8 +65,8 @@ Verified on omp **18.1.18**, against Paseo's own `omp` provider.
   Only `omp config set`, `/settings`, and a model-selector role assignment write that file, and a
   seat does none of those. If one ever did, the file would come back as real YAML and the merge
   check would fail loudly rather than quietly dropping the denies.
-- **`startup.checkUpdate: false`** is the only key the kit sets by hand. A seat is not a place to
-  be told about a new release.
+- **`startup.checkUpdate: false`**: a seat is not a place to be told about a new release. The
+  keys that limit a seat's tools are under "Tool limits" below.
 
 ## MCP servers
 
@@ -82,82 +81,57 @@ Verified on omp **18.1.18**, against Paseo's own `omp` provider.
   cache is warm and the MCP tools are there. Verified both ways on the same seat.
 - **Registered names:** `mcp__<server, with `-` as `_`>_<tool>` — `intellij-index`'s
   `ide_refactor_rename` is `mcp__intellij_index_ide_refactor_rename`, and semble's `search` is
-  `mcp__semble_search`. Read off a running seat, which is how the `ide-refactor` intent can name
-  the three write tools exactly.
+  `mcp__semble_search`. Read off a running seat, which is how `tools.approval` can name the three
+  write tools exactly.
 - **A repository's own MCP config still loads.** omp reads `<repo>/.omp/mcp.json` and the other
   tools' project files; the seat file does not override those.
 
-## Enforcement
+## Tool limits
+
+Every limit is an omp setting: `settings.json` for every seat, merged under
+`settings/<role>.settings.json` for one role. Verified on omp 18.1.19 against a scratch agent
+directory in `--approval-mode yolo`, which is Paseo's mode `full`, the one it launches these seats
+in.
 
 - **Paseo's `disallowedTools` does nothing here.** Paseo carries the list into the OMP client's
-  runtime settings and the client never reads it. `deny.mechanism` is `settings`: setup composes
-  the deny map from the intents `seats.json` asks for and writes it into the seat's `config.yml`
-  at `tools.approval`, which it owns outright. Every other key in that file is merged and kept, so
-  anything omp writes for itself survives; `tools.approval` is replaced whole, because a merge
-  there cannot remove a deny that `seats.json` has stopped asking for.
-- **`tools.approval.<tool>: deny` is absolute.** It overrides the active approval mode, it cannot
-  be lifted by a tool's own policy, and it holds inside a subagent. Paseo launches these seats in
-  mode `full`, which is `--approval-mode yolo`; the denies still hold. Verified by asking a seat
-  to write a file and watching the tool refuse.
-- **`eval` is denied on every seat.** It reaches a shell through its own subprocess, so a
-  `bash` rule does not cover it and `peer-guard.ts`, which parses `bash` commands, never sees it.
+  runtime settings and the client never reads it, so setup writes none and deletes one it finds.
+- **Setup owns two keys.** Every other key in the seat's `config.yml` is merged and kept, so
+  anything omp writes for itself survives; `settings.ownedPaths` (`tools.approval`,
+  `bash.patterns`) is replaced whole, because a merge cannot take back a deny the kit no longer
+  sets. A role overlay that changes `bash.patterns` repeats the shared patterns it keeps.
+- **Removing a tool:** `eval.py` and `eval.js` false with `task.maxRecursionDepth` 0 take `eval`,
+  `task` and `hub` out of the tool list, and `web_search.enabled` false takes `web_search` out;
+  every seat sets them, with `browser.enabled` and `github.enabled` false. `eval` matters most:
+  it reaches a shell through its own subprocess, so no `bash` rule covers it.
+- **The watcher and the Reviewer** also set `debug.enabled` and `lsp.enabled` false. `debug`
+  launches programs through a debug adapter, outside any `bash` rule; `lsp` applies `rename`,
+  `rename_file` and `code_actions`, and `request` sends anything to the server. The watcher sets
+  `fetch.enabled` false, which turns off the part of `read` that opens URLs (`http://`,
+  `https://`, `pr://`, `ssh://`).
+- **Refusing a call:** `tools.approval.<tool>: deny` overrides the approval mode, cannot be lifted
+  by a tool's own policy, and holds inside a subagent, but leaves the tool listed. The watcher and
+  the Reviewer deny `edit`, `write`, `ast_edit`, `notebook` and the three `intellij-index`
+  refactor tools. Verified by asking a seat to write a file and watching the tool refuse.
+- **Refusing a command:** a `bash.patterns` entry with `approval: deny` refuses a command whose
+  text matches, with `*` as the only wildcard, so `*git push*` also catches a push after `cd` or
+  behind a variable. Every seat denies `*git push*`, `git worktree` changes, `gh *`, `*paseo *`,
+  `claude *`, `omp *` and the other coding agents' CLIs; the Reviewer adds the git commands that
+  write. A deny beats an allow for the same command, so the watcher, which reads `paseo logs`,
+  `ls` and `inspect`, denies every other `paseo` subcommand by name instead of the whole CLI.
+- **No filesystem sandbox.** Patterns match text, a rail against the habitual form: where a Peer
+  writes is its brief's owned scope, and the Reviewer stays read-only through `tools.approval`
+  and `bash.patterns` while shell redirection can still write.
 - **Paseo's own tools are host tools here, with bare names** — `create_agent`, not
   `mcp__paseo__create_agent` — because omp supports them natively and Paseo strips its MCP server
-  when it does. `setActiveTools` cannot remove them, since Paseo registers them after
-  `session_start`, so the role's `paseoTools` is what trims them: Paseo 0.8 builds the catalog
-  without the disabled tools, and a Peer with `enabled: false` is handed none.
-- **A denied tool is still offered to the model.** `tools.approval` refuses the call; it does not
-  take the tool out of the prompt. So setup also passes the composed deny list as
-  `SEATWORKS_DENIED_TOOLS`, and `peer-guard.ts` removes those names from the active tool set with
-  `setActiveTools` at `session_start`. Verified over RPC: `eval`, `task`, `hub`, `todo` and
-  `web_search` disappear, and the model lists only what is left.
-- **`SEATWORKS_READ_ONLY=1`** makes `peer-guard.ts` block omp's `write` and `edit` tools and the
-  git commands that change the repository. Shell redirection still works, so `$TMPDIR` notes
-  remain possible and so does a determined write; a read-only role also denies `file-edit` in its
-  settings, which closes the tool path properly.
-- **`plan-mode` is absent here.** omp's plan mode is a session mode and a slash command, not a
-  tool, so there is nothing to deny. `workflows` is listed under `deny.absent`: omp has no such
-  capability, so setup does not report it as a gap.
-
+  when it does. The role's `paseoTools` is what trims them: Paseo 0.8 builds the catalog without
+  the disabled tools, and a Peer with `enabled: false` is handed none.
+- **Plan mode is not a tool.** It is a session mode and a slash command, so there is nothing to
+  deny.
 - **`ask` is on under `--mode rpc-ui`.** omp registers it when the session can prompt, and the
   orchestrator's `rpc-ui` launch counts; a call waits as a pending question with no timeout.
   Paseo 0.8 brings it to the agent that created the seat, as a "needs permission" notification
   with the request ID, and `respond_to_permission` with `answers: {"Response": ...}` answers it;
   verified with a Claude parent and an omp child, so no role denies `ask`.
-- **`read` fetches URLs** (`http://`, `https://`, `pr://`, `ssh://`), so denying `web_search`
-  does not keep a seat off the web; `peer-guard.ts` refuses those paths for a role whose intents
-  include `web-fetch`.
-- **`lsp` writes.** `rename` and `rename_file` apply unless `apply` is false, `code_actions`
-  applies with `apply: true`, and `request` sends any request to the server; `peer-guard.ts`
-  refuses those on a read-only seat and leaves navigation and diagnostics.
-- **`debug` launches programs** through a debug adapter, outside the shell guard; the `debugger`
-  intent denies it.
-
-## The shell-guard bridge
-
-`harness/common/guards/` holds the guards that decide which repository paths a role may write and
-which agent the watcher may prompt. They are POSIX shell reading one JSON object on stdin and
-answering with exit 2 plus a message on stderr, and rewriting them in TypeScript would mean
-rewriting a shell-command path scanner. `extensions/shell-guard.ts` runs them instead: it reads
-the role's `guards` list from `seats.json`, keeps the `.sh` entries, and for each `tool_call`
-spawns the guard with the hook input it expects, turning exit 2 into a blocked call with the
-guard's own wording.
-
-Two translations happen in the bridge. omp's tool names become the ones the guards match
-(`bash` → `Bash`, `write` → `Write`, `edit` → `Edit`, `notebook` → `NotebookEdit`); host tools
-pass through unchanged, which is enough because the guards match those by suffix. And omp's
-`edit` takes one patch string rather than a path, so the bridge reads the `[path#tag]` section
-headers out of it and checks each path separately.
-
-Setup installs the bridge for any role that lists a `.sh` guard and installs the `.sh` files
-themselves nowhere: the bridge runs them out of the kit.
-
-## Skill gates on this harness
-
-`skill-gate.ts` counts a skill as loaded when a tool call reads a path ending in
-`<name>/SKILL.md`. It ships with no gate enabled, because `seats.json` defines gates only for the
-Lead. It is installed only for a role that has a gate, and it reads the same `seats.json` entries
-the Claude guard reads, so moving a gated role onto omp keeps its gate.
 
 ## Login
 

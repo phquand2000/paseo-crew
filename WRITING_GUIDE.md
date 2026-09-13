@@ -1,8 +1,7 @@
 # Writing guide
 
 These rules apply to everything in this kit: the seat prompts in `project/`, the templates in
-`examples/`, and the docs. Scripts, hooks, and the guard extensions carry no comments or
-docstrings (except the two vendored scripts `NOTICE.md` names), so their reasons
+`examples/`, and the docs. Scripts carry no comments or docstrings (except the two vendored scripts `NOTICE.md` names), so their reasons
 live in REFERENCE.md, or in `harness/<id>/NOTES.md` when the reason is one coding agent's
 behavior rather than the kit's. The Supervisor follows these rules when it patches a prompt. Each rule
 names its source in brackets; the sources are listed at the end.
@@ -34,15 +33,13 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     instruction literally; a prompt that names its scope survives both. [O5]
 12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
     models over-verify when told to. [O5]
-13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement: name
-    the capability as an intent in `seats.json`, and let each harness map it to its own tool
-    names under `deny.intents` or declare a guard that holds it under `deny.enforcedByGuard`.
-    A limit no harness enforces is reported on every run rather than assumed, so write the
-    prompt rule as if it were the only thing holding, because on some harnesses it is. A limit on
+13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement. A
+    limit on a harness's own tools is a native setting of that coding agent, in the role's
+    settings under `harness/<id>/`, using keys its `NOTES.md` records as verified. A limit on
     Paseo's own tools is a role's `paseoTools`, and one on launching or messaging agents belongs
-    in the Paseo plugin under `plugin/`, which sees every harness; a limit on a harness's own
-    tools goes in a shared guard under `harness/common/guards/` (`lead-guard.sh`,
-    `skill-guard.sh`) or in a harness's guard extension (`peer-guard.ts`, `skill-gate.ts`). [M]
+    in the Paseo plugin under `plugin/`, which sees every harness. Don't restate an enforced
+    limit in the prompt; what no setting can say, such as which repository files a role writes,
+    stays in the prompt as part of the job. [M]
 14. Write every `.md` to load unchanged on every harness: no HTML comments anywhere, and no
     harness's tool names. A maintainer note goes under "What each demo prompt expects you to
     add" in this guide, and a rule about a tool names what the tool does ("your read tool"), not
@@ -57,10 +54,7 @@ A seat prompt is loaded into context on every turn, so each line has to be worth
     turn; a skill has to be chosen, and measurement says it often isn't — a replica Peer seat
     carried all eight of its skills in its system prompt and no session ever read one. Where a
     skill genuinely applies only sometimes, have the Lead name it in the brief's `Skills` field
-    rather than leaving the seat to route itself. `seats.json`'s `skillGates` remains for a skill
-    an actual run was observed to skip: a gate refuses the call the skill owns until the skill is
-    in the transcript and shows its `because` text, and holds only on a harness whose
-    `skillLoad.transcriptMatch` is set. The list is empty, which is the default state. [M]
+    rather than leaving the seat to route itself. [M]
 17. Name no coding agent in a seat prompt, a skill, or a doc other than `harness/<id>/NOTES.md`.
     A role can move to another harness, and a prompt that names one goes stale silently. Where
     the behavior genuinely differs, cite the manifest field instead.
@@ -201,11 +195,11 @@ Use these terms, and only these, for the following concepts:
 | Supervisor | The seat that decides for the Human everything short of the project's concept, relays, observes, and keeps the notebook |
 | Lead | The seat that owns one project: framing, delegation, acceptance |
 | Peer | The seat that does assigned work and returns evidence |
-| Reviewer | The only seat whose writes are blocked: it reviews changes, and takes every read-only lane a skill opens (council seats, ultra-review scouts, audit readers) |
+| Reviewer | The read-only seat: it reviews changes, and takes every read-only lane a skill opens (council seats, ultra-review scouts, audit readers) |
 | seat | A harness profile together with its Paseo provider, named for its role |
 | brief | The Lead's assignment to a Peer |
 | handoff | The Peer's six-field report at the end of a task |
-| disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout. An Architect or Scout is a Peer with `Owned scope none`, which the brief holds rather than a guard |
+| disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout. An Architect or Scout is a Peer with `Owned scope none`, which the brief holds rather than a setting |
 | owned scope | The paths a Peer may write |
 | acceptance | The decision, by the Lead or the Human, that work is done |
 | ExecPlan | The Lead's plan for one high-risk outcome under `docs/exec-plans/active/`, shaped by `PLANS.md`; it holds current state only |
@@ -214,22 +208,22 @@ Use these terms, and only these, for the following concepts:
 | owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a decision from the owner's side: the Human's, or the Supervisor's on the Human's behalf |
 | advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
 | check | A neutral question, labeled `CHECK:`, that asks a Lead, or a Peer through its Lead, to look again at its work against a named source |
-| attention event | A watcher's message to the Supervisor, labeled `ATTENTION:`, reporting a trigger in Lead or Peer activity |
+| attention event | A message the Paseo plugin brings the Supervisor, labeled `ATTENTION:`, reporting a trigger the watcher matched or a marked line, pushback or failure the plugin saw itself |
 | watcher | The `watcher` seat, on a small model, which sweeps Lead and Peer activity when the Paseo plugin wakes it and raises attention events |
 | harness | The coding agent that hosts a role, described by `harness/<id>/harness.json` |
-| skill gate | An entry in `seats.json`'s `skillGates` that refuses the call a skill owns until that skill is loaded; the list is empty by default |
 
 `seats.json`'s `hidesWords` says which words each seat never sees, and the setup script checks
 every prompt and skill against it: `.seatworks/prompts/PEER.md` and `.seatworks/prompts/REVIEWER.md` never use
 Supervisor, watcher, seat, or Paseo, and `.seatworks/prompts/LEAD.md` never names the Supervisor.
-`hidesPaths` adds the repository paths those seats may not read.
+No setting hides a path, so those seats can still read `.seatworks/`.
 
 ## Where sources disagree, and what this kit chose
 
 - **Emphasis:** one guide discourages it, another allows it on a single line. None by default.
-- **Prompt or guard:** the prompting guides treat instructions as the whole mechanism. This kit
-  treats a prompt as guidance and puts anything that must hold in a deny list, a guard, or a
-  skill gate, after two evaluation runs where a Lead skipped a skill its prompt named.
+- **Prompt or setting:** the prompting guides treat instructions as the whole mechanism. This kit
+  treats a prompt as guidance and puts anything that must hold in Paseo's config or plugin, or in
+  the coding agent's own settings, after two evaluation runs where a Lead skipped a step its
+  prompt named.
 - **File length:** recommendations range from about 60 lines to 500. This kit uses 16 KB and
   roughly 200 lines.
 - **Description length:** the skills guide caps a description at 1,024 characters and this kit

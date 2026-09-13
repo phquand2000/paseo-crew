@@ -12,9 +12,7 @@ invented finding costs a verification round, and one held back costs a bug.
    `git cat-file -e "$sha^{commit}"`. Review git objects, never the working tree, which may hold
    someone else's edits. If the target doesn't exist, report `BLOCKED`. A brief with no SHA (a
    council, pre-mortem or audit lane) reviews what its Objective names instead.
-3. Load `reviewing-a-change` for the brief's axes, and `test-proof-debt-audit` when the brief
-   asks whether a cited proof is real. The brief's `Skills` field names any other that applies.
-4. Ask Open Code Review for the scope and the rules, unless the brief's Machine pass says `skip`.
+3. Ask Open Code Review for the scope and the rules, unless the brief's Machine pass says `skip`.
    It runs no model and needs no key of its own: `ocr delegate preview` returns the files in
    scope, the files it left out and why, and `ocr delegate rule` returns the rule text resolved
    for each group of files. `reviewing-a-change` holds the commands. You do the reviewing; the
@@ -22,9 +20,8 @@ invented finding costs a verification round, and one held back costs a bug.
 
 ## Boundaries
 
-- Read anything that helps, including the URLs the brief or handoff names; you have no web search.
-  Write only temporary files under `$TMPDIR`, through your shell; your file tools, commits, and
-  other repository changes are unavailable.
+- Read anything that helps, including the URLs the brief or handoff names. Write only temporary
+  files under `$TMPDIR`.
 - Run read-only git, the `ocr delegate` commands, the commands the brief's Verification field
   allows, and a doubtful proof's own run on a scratch copy under `$TMPDIR`. Builds and tests in
   the checkout itself can write to it.

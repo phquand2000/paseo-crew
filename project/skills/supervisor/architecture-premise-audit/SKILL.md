@@ -79,7 +79,7 @@ scaffold, or insufficient evidence.
 
 A project too large to read yourself divides into slices, one or a few per
 reader. Every reader comes from the read-only Reviewer profile, the only profile
-whose guard blocks writes, created in this project's workspace with your own
+whose settings block writes, created in this project's workspace with your own
 `create_agent` and provider `reviewer`, which takes the profile's model and mode. Its
 prompt is a brief from `.seatworks/guides/BRIEF.md` with disposition Architect,
 owned scope `none`, the claim, and the expected-atlas rows for its slices; ask

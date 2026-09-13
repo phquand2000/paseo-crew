@@ -16,5 +16,37 @@
     "customDirectories": [],
     "ignoredSkills": [],
     "includeSkills": []
+  },
+  "eval": {
+    "py": false,
+    "js": false
+  },
+  "task": {
+    "maxRecursionDepth": 0
+  },
+  "web_search": {
+    "enabled": false
+  },
+  "browser": {
+    "enabled": false
+  },
+  "github": {
+    "enabled": false
+  },
+  "tools": {
+    "approval": {}
+  },
+  "bash": {
+    "patterns": [
+      { "match": "*git push*", "approval": "deny" },
+      { "match": "*git worktree add*", "approval": "deny" },
+      { "match": "*git worktree remove*", "approval": "deny" },
+      { "match": "gh *", "approval": "deny" },
+      { "match": "*paseo *", "approval": "deny" },
+      { "match": "claude *", "approval": "deny" },
+      { "match": "omp *", "approval": "deny" },
+      { "match": "codex *", "approval": "deny" },
+      { "match": "opencode *", "approval": "deny" }
+    ]
   }
 }

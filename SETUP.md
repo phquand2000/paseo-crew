@@ -8,7 +8,7 @@ a repository the seats will work in, `SLUG` is that project's short name (by def
 directory name in lowercase), and `BASE` is a harness's base provider.
 
 Two files decide what a seat is: `seats.json` lists the six roles with each one's harness,
-prompt, skills, guards, deny list, model, and skill gates; `harness/<id>/harness.json` describes
+prompt, skills, Paseo tools, and model; `harness/<id>/harness.json` describes
 one harness. A role moves to another coding agent by one edit, because everything else is
 composed from those two. `REFERENCE.md` holds the environment behavior the config doesn't
 reveal.
@@ -16,20 +16,21 @@ reveal.
 The setup keeps two kinds of file apart:
 
 - **Global, on this machine:** the six Paseo providers and six agent profiles, one per role,
-  with their settings, deny lists, models, and seat directories. Adding a project adds nothing
+  with their settings, models, and seat directories. Adding a project adds nothing
   here.
 - **Per project, in `REPO_DIR/.seatworks/`:** every `.md` a seat loads — the five seat prompts,
   their skills, the workspace protocol, the notebook, the Supervisor's records — and
   `project.json`, which names the slug.
 
-Each provider launches through one shared room, `harness/common/bin/seat-room`, which walks up
-from the agent's working directory to the nearest `.seatworks/`, reads the slug from its
-`project.json`, and points the harness's config directory at `<profileRoot>/<role>-SLUG`. So a
-seat belongs to the project it starts in: start every seat in `REPO_DIR`; started anywhere else,
-a provider gives you the plain coding agent.
+Whenever a seat's session opens, the kit's Paseo plugin walks up from the agent's working
+directory to the nearest `.seatworks/`, reads the slug from its `project.json`, and points the
+harness's config directory at `<profileRoot>/<role>-SLUG`; each provider then launches through
+one shared room, `harness/common/bin/seat-room`, which forces the manifest's flags. So a seat
+belongs to the project it starts in: start every seat in `REPO_DIR`; started anywhere else, the
+plugin refuses it.
 
 The seats are named for their roles alone: `supervisor`, `lead`, `watcher`, `peer`, and
-`reviewer` (the only one whose writes are blocked). The same five serve every project.
+`reviewer` (the read-only one). The same five serve every project.
 
 Before you start, make sure the machine has the following:
 
@@ -62,7 +63,7 @@ holds your workspaces, so each starts with a backup.
 ## Move the kit to a stable path
 
 The seat directories link to the kit by absolute path, each seat finds it through
-`SEATWORKS_KIT`, and the guards read `seats.json` there, so if you move the kit later, rerun
+`SEATWORKS_KIT`, and the Paseo plugin reads `seats.json` there, so if you move the kit later, rerun
 step 4, then step 5 for every project.
 
 1. Move this directory to where it will live long-term, for example `~/.config/seatworks`.
@@ -189,7 +190,7 @@ To roll back, restore `~/.paseo/config.json.pre-seatworks`.
 
 `setup/setup-seats.fish` with no project composes the six role providers and the six agent
 profiles from `seats.json` and the manifests: each provider's launcher command, `SEATWORKS_*`
-environment, models, and deny list, and each profile's model, mode, thinking option, and notes.
+environment, models, and Paseo tools, and each profile's model, mode, thinking option, and notes.
 It writes only what differs, after a backup named `~/.paseo/config.json.bak.YYYYmmdd-HHMMSS`.
 
 1. Compose the seats:
@@ -249,8 +250,7 @@ whole rule:
 A project set up before those directories existed kept all eleven `.md` files flat in
 `.seatworks/`. The first run moves each one to its new path, keeping your text where the file is
 yours (`NOTEBOOK.md`, and `WORKSPACE_PROTOCOL.md` once filled in) and reporting every move. Do it
-in one pass: a stale `.seatworks/LEAD.md` left at the root is no longer on the Peer's hidden-path
-list, so it would be readable.
+in one pass, so no old copy stays behind at the root.
 
 It writes no provider and no profile: those are step 4's five, shared by every project. It adds
 files only; leave the repository's code alone. If another repository already uses the slug, it
@@ -317,7 +317,7 @@ keeps the model it started on.
 ## Verify each seat's prompt and skills
 
 The previous steps prove only that the filesystem is right. This step proves each seat loads its
-own prompt, skills, and guards: a seat whose config directory isn't applied runs on the user's
+own prompt, skills, and settings: a seat whose config directory isn't applied runs on the user's
 own config and reports no error, and a harness that looks for skills elsewhere offers the seat
 none.
 
@@ -345,9 +345,9 @@ none.
    Ask for the heading, not the first line: asked for a line, a model often quotes its
    harness's own system prompt.
 3. Check the limits, each in its own agent in `REPO_DIR`, archived afterwards. Ask `peer` to
-   run `git -C /tmp push --dry-run` and report what happened, and to write `probe.txt` into the
-   kit directory its `SEATWORKS_KIT` names; ask `reviewer` to create `probe.txt` in `REPO_DIR`
-   with its write tool; ask `lead` to create a workspace.
+   run `git push --dry-run` and report what happened; ask `reviewer` to create `probe.txt` in
+   `REPO_DIR` with its write tool; ask `lead` to create `probe.txt` in your home directory with a
+   shell command, and to create a workspace.
 
 **Done:** `--check --probe` exits 0, and each seat quotes the heading this table gives:
 
@@ -359,18 +359,17 @@ none.
 | `peer` | `# Peer — independent co-worker`, with no mention of Paseo |
 | `reviewer` | `# Reviewer — independent code review`, with no mention of Paseo |
 
-Every limit refuses too: `peer`'s push with "Pushing is not available in this workspace." and
-its write into the kit with "is outside" that repository; `reviewer`'s write with "Editing files
-is not available in this role."; and `lead`'s workspace with "matches no known tool" or a denial,
-because `create_workspace` is denied for that role.
+Every limit refuses too: `peer`'s push and `reviewer`'s write are refused by their role settings,
+`lead`'s shell write by its sandbox, and `lead` reports no tool that creates a workspace, because
+its `paseoTools` disables `create_workspace`.
 
 If a seat quotes the user's own instruction file, the room didn't resolve the project: check the
 agent's `--cwd`, the slug in `REPO_DIR/.seatworks/project.json`, and that
-`<profileRoot>/<role>-SLUG` exists, then rerun step 5. If a limit doesn't refuse, its guard
-didn't load: check the guard link under `<profileRoot>/<role>-SLUG/<guards.installTo>/`, from
-that harness's manifest, that the provider has `env.SEATWORKS_KIT`, and for the workspace that
-the `lead` provider's deny list carries the `workspaces` intent's tools. Then repeat this step
-for that seat.
+`<profileRoot>/<role>-SLUG` exists, then rerun step 5. If a limit doesn't refuse, the role's
+settings didn't reach the seat: run `fish KIT_DIR/setup/setup-seats.fish --check`, check that
+`<profileRoot>/<role>-SLUG/<settings.file>`, from that harness's manifest, carries the role's
+settings under `harness/<id>/`, and for the workspace that the `lead` provider's `paseoTools`
+lists `create_workspace`. Then repeat this step for that seat.
 
 Finally, leave one Supervisor running for the user: start an agent on `supervisor` in `REPO_DIR`
 and keep it; it keeps a watcher running while a Lead works.
@@ -406,9 +405,6 @@ your own. Before editing, read [WRITING_GUIDE.md](WRITING_GUIDE.md).
       attention. A skill that costs several agents or several rounds waits for the Human, which
       its description says and `disable-model-invocation: true` enforces on a harness that
       honors it.
-   5. `seats.json`'s `skillGates`: add a gate only for a skill a seat has been observed to skip,
-      with the reason in `because`; the guard shows that text when it refuses. It holds only on
-      a harness whose `skillLoad.transcriptMatch` is set.
 
 Then run the check:
 

@@ -1,0 +1,59 @@
+{
+  "fetch": {
+    "enabled": false
+  },
+  "debug": {
+    "enabled": false
+  },
+  "lsp": {
+    "enabled": false
+  },
+  "tools": {
+    "approval": {
+      "edit": "deny",
+      "write": "deny",
+      "ast_edit": "deny",
+      "notebook": "deny",
+      "mcp__intellij_index_ide_refactor_rename": "deny",
+      "mcp__intellij_index_ide_move_file": "deny",
+      "mcp__intellij_index_ide_refactor_safe_delete": "deny"
+    }
+  },
+  "bash": {
+    "patterns": [
+      { "match": "*git push*", "approval": "deny" },
+      { "match": "*git worktree*", "approval": "deny" },
+      { "match": "gh *", "approval": "deny" },
+      { "match": "claude *", "approval": "deny" },
+      { "match": "omp *", "approval": "deny" },
+      { "match": "codex *", "approval": "deny" },
+      { "match": "opencode *", "approval": "deny" },
+      { "match": "*paseo run*", "approval": "deny" },
+      { "match": "*paseo import*", "approval": "deny" },
+      { "match": "*paseo clone*", "approval": "deny" },
+      { "match": "*paseo attach*", "approval": "deny" },
+      { "match": "*paseo stop*", "approval": "deny" },
+      { "match": "*paseo delete*", "approval": "deny" },
+      { "match": "*paseo send*", "approval": "deny" },
+      { "match": "*paseo archive*", "approval": "deny" },
+      { "match": "*paseo onboard*", "approval": "deny" },
+      { "match": "*paseo start*", "approval": "deny" },
+      { "match": "*paseo hooks*", "approval": "deny" },
+      { "match": "*paseo reload*", "approval": "deny" },
+      { "match": "*paseo restart*", "approval": "deny" },
+      { "match": "*paseo agent*", "approval": "deny" },
+      { "match": "*paseo daemon*", "approval": "deny" },
+      { "match": "*paseo hub*", "approval": "deny" },
+      { "match": "*paseo terminal*", "approval": "deny" },
+      { "match": "*paseo script*", "approval": "deny" },
+      { "match": "*paseo schedule*", "approval": "deny" },
+      { "match": "*paseo heartbeat*", "approval": "deny" },
+      { "match": "*paseo permit*", "approval": "deny" },
+      { "match": "*paseo provider*", "approval": "deny" },
+      { "match": "*paseo plugin*", "approval": "deny" },
+      { "match": "*paseo speech*", "approval": "deny" },
+      { "match": "*paseo project*", "approval": "deny" },
+      { "match": "*paseo workspace*", "approval": "deny" }
+    ]
+  }
+}

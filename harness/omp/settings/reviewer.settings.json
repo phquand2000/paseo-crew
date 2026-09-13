@@ -1,0 +1,50 @@
+{
+  "debug": {
+    "enabled": false
+  },
+  "lsp": {
+    "enabled": false
+  },
+  "tools": {
+    "approval": {
+      "edit": "deny",
+      "write": "deny",
+      "ast_edit": "deny",
+      "notebook": "deny",
+      "mcp__intellij_index_ide_refactor_rename": "deny",
+      "mcp__intellij_index_ide_move_file": "deny",
+      "mcp__intellij_index_ide_refactor_safe_delete": "deny"
+    }
+  },
+  "bash": {
+    "patterns": [
+      { "match": "*git push*", "approval": "deny" },
+      { "match": "*git worktree*", "approval": "deny" },
+      { "match": "gh *", "approval": "deny" },
+      { "match": "*paseo *", "approval": "deny" },
+      { "match": "claude *", "approval": "deny" },
+      { "match": "omp *", "approval": "deny" },
+      { "match": "codex *", "approval": "deny" },
+      { "match": "opencode *", "approval": "deny" },
+      { "match": "*git add*", "approval": "deny" },
+      { "match": "*git commit*", "approval": "deny" },
+      { "match": "*git reset*", "approval": "deny" },
+      { "match": "*git checkout*", "approval": "deny" },
+      { "match": "*git switch*", "approval": "deny" },
+      { "match": "*git restore*", "approval": "deny" },
+      { "match": "*git merge*", "approval": "deny" },
+      { "match": "*git rebase*", "approval": "deny" },
+      { "match": "*git cherry-pick*", "approval": "deny" },
+      { "match": "*git revert*", "approval": "deny" },
+      { "match": "*git clean*", "approval": "deny" },
+      { "match": "*git rm *", "approval": "deny" },
+      { "match": "*git mv *", "approval": "deny" },
+      { "match": "*git stash*", "approval": "deny" },
+      { "match": "*git apply*", "approval": "deny" },
+      { "match": "*git am *", "approval": "deny" },
+      { "match": "*git pull*", "approval": "deny" },
+      { "match": "*git update-ref*", "approval": "deny" },
+      { "match": "*git config *", "approval": "deny" }
+    ]
+  }
+}

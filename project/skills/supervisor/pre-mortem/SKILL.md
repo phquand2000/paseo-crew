@@ -33,7 +33,7 @@ seat prompt.
    "eight weeks from now the migration shipped and a week of orders cannot be reconstructed",
    not "the project failed". A vague death gives vague causes.
 3. **Seal two seats, three at most.** Each comes from the read-only Reviewer profile
-   (`list_profiles`), the only profile whose guard blocks writes, created with your own
+   (`list_profiles`), the only profile whose settings block writes, created with your own
    `create_agent` in this project's workspace and provider `reviewer`, which takes its model and mode.
    Give each the same plan, the same named failure, and one distinct lens:
 

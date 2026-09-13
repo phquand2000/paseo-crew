@@ -289,7 +289,6 @@ function build_seat --argument-names role slug repo_dir
     build_seat_links $key $harness $dir
     retire_seat_links $key $harness $dir
     build_seat_state $key $harness $dir
-    build_seat_guards $key $harness $role $dir
 
     if test -n "$skills_dir"; and not test -d $skills_dir
         fail "$key: seats.json gives role $role the skill set '$skills_name', but $skills_dir does not exist. Fix the name, or set skills to null for a role with no own skills."
@@ -314,21 +313,6 @@ function build_seat --argument-names role slug repo_dir
     or echo "✗ $key → $dir (see the ! lines above)"
 end
 
-
-function seat_deny_names --argument-names role harness
-    begin
-        for intent in (seat_intents $role)
-            harness_get $harness ".deny.intents[\"$intent\"][]?"
-        end
-        seat_field $role '.deny[]?'
-    end | string trim | string match -rv '^$' | sort -u
-end
-
-function seat_deny_flat --argument-names role harness
-    printf '%s\n' (seat_deny_names $role $harness) | jq -R . | jq -s -c \
-        --arg v (harness_get $harness '.deny.settingsValue') '
-        map(select(length > 0) | {key: ., value: $v}) | from_entries'
-end
 
 function role_settings_overlay --argument-names harness role
     set -l rel (harness_get $harness '.settings.roleSource // empty')
@@ -370,21 +354,19 @@ function build_seat_settings --argument-names key harness role dir
                 set src $merged
                 set shed 1
             end
-            set -l path (harness_get $harness '.deny.settingsPath // empty')
-            set -l map '{}'
-            test -z "$path"; or set map (seat_deny_flat $role $harness)
+            set -l owned (harness_get $harness '[.settings.ownedPaths[]?]' | jq -c .)
             set -l target $dir/$file
-            if not test -f $target; or not jq -e --slurpfile kit $src --arg p "$path" --argjson m "$map" '
+            if not test -f $target; or not jq -e --slurpfile kit $src --argjson o "$owned" '
                     . as $s
-                    | ($p | split(".")) as $dp
-                    | (if $p == "" then $s else ($s | delpaths([$dp])) end) as $sd
-                    | (if $p == "" then $kit[0] else ($kit[0] | delpaths([$dp])) end) as $kd
-                    | (if $p == "" then true else (($s | getpath($dp)) // {}) == $m end)
+                    | ($o | map(split("."))) as $ps
+                    | ($s | reduce $ps[] as $p (.; delpaths([$p]))) as $sd
+                    | ($kit[0] | reduce $ps[] as $p (.; delpaths([$p]))) as $kd
+                    | all($ps[]; . as $p | ($s | getpath($p)) == ($kit[0] | getpath($p)))
                       and ($kd | to_entries | all(.[]; $sd[.key] == .value))' $target >/dev/null 2>&1
+                set -l sets harness/$harness/(harness_get $harness .settings.source)
+                test -z "$overlay"; or set sets "$sets and "(string replace $harness_dir/ '' $overlay)
                 if test $dry -eq 1
-                    set -l sets harness/$harness/(harness_get $harness .settings.source)
-                    test -z "$overlay"; or set sets "$sets or "(string replace $harness_dir/ '' $overlay)
-                    fail "$key: $target is missing, lacks a key $sets sets, or holds a deny seats.json no longer gives $role (rerun without --check)"
+                    fail "$key: $target is missing, lacks a key $sets set, or holds an owned key that differs (rerun without --check)"
                 else
                     set -l base (mktemp)
                     if test -f $target
@@ -393,19 +375,16 @@ function build_seat_settings --argument-names key harness role dir
                         echo '{}' >$base
                     end
                     set -l tmp (mktemp)
-                    if jq -s --indent 2 --arg p "$path" --argjson m "$map" '
-                            (.[0] * .[1])
-                            | ($p | split(".")) as $dp
-                            | if $p == "" then .
-                              elif ($m | length) == 0 then delpaths([$dp])
-                              else setpath($dp; $m) end' $base $src >$tmp
+                    if jq -s --indent 2 --argjson o "$owned" '
+                            .[1] as $kit
+                            | reduce ($o | map(split(".")))[] as $p ((.[0] * $kit);
+                                if ($kit | getpath($p)) == null then delpaths([$p])
+                                else setpath($p; $kit | getpath($p)) end)' $base $src >$tmp
                         mv $tmp $target
-                        set -l from harness/$harness/(harness_get $harness .settings.source)
-                        test -z "$overlay"; or set from "$from and "(string replace $harness_dir/ '' $overlay)
-                        echo "  ~ $key $file: keys from $from and this seat's deny map, replacing any deny it no longer asks for"
+                        echo "  ~ $key $file: keys from $sets, with "(echo $owned | jq -r 'join(" and ")')" replaced whole"
                     else
                         rm -f $tmp
-                        fail "$key: could not compose $target from harness/$harness/"(harness_get $harness .settings.source)" and the deny intents seats.json gives $role"
+                        fail "$key: could not compose $target from $sets"
                     end
                     rm -f $base
                 end
@@ -487,53 +466,6 @@ function build_seat_state --argument-names key harness dir
     end
 end
 
-function build_seat_guards --argument-names key harness role dir
-    set -l gdir (harness_get $harness .guards.dir)
-    set -l into (harness_get $harness .guards.installTo)
-    set -l bridge (harness_get $harness '.guards.shellBridge // empty')
-    set -l want
-    for guard in (seat_field $role '.guards[]?')
-        if test -n "$bridge"; and string match -q '*.sh' -- $guard
-            if not test -f $harness_dir/common/guards/$guard
-                fail "$key: seats.json asks for shell guard $guard, which is not in harness/common/guards/; harness $harness runs it through "(harness_get $harness .guards.shellBridge)" from the kit."
-                continue
-            end
-            contains -- $bridge $want; or set -a want $bridge
-            continue
-        end
-        contains -- $guard $want; or set -a want $guard
-    end
-    if test "$into" != "."
-        test $dry -eq 0; and mkdir -p $dir/$into
-        if not test -d $dir/$into
-            fail "$key: $dir/$into is missing"
-            return
-        end
-    end
-    set -l dest $dir
-    test "$into" = "."; or set dest $dir/$into
-    for guard in $want
-        set -l src $harness_dir/$gdir/$guard
-        if not test -f $src
-            fail "$key: seats.json asks for guard $guard, which harness $harness doesn't ship at $src"
-            continue
-        end
-        seat_link $dest/$guard $src $dry
-    end
-    if test (harness_get $harness .guards.hookProtocol) = extension
-        for extra in (command ls -1 $dest 2>/dev/null)
-            contains -- $extra $want; and continue
-            test -L $dest/$extra; or continue
-            string match -q "$harness_dir/*" (readlink $dest/$extra); or continue
-            if test $dry -eq 1
-                fail "$key: leftover guard extension: $extra"
-            else
-                rm -f $dest/$extra
-            end
-        end
-    end
-end
-
 function seat_provider --argument-names role
     set -l key $role
     set -l harness (seat_field $role .harness)
@@ -591,22 +523,17 @@ function seat_provider --argument-names role
         | gsub("KIT"; $kit)]' (harness_file $harness))
     provider_env $key SEATWORKS_ROLE $role
     provider_env $key SEATWORKS_KIT $kit
-    if test (harness_get $harness .deny.mechanism) = settings
-        provider_env $key SEATWORKS_DENIED_TOOLS (string join ':' (seat_deny_names $role $harness))
-    else
-        provider_env_absent $key SEATWORKS_DENIED_TOOLS
+    for name in SEATWORKS_DENIED_TOOLS SEATWORKS_HIDDEN_PATHS SEATWORKS_READ_ONLY SEATWORKS_HOOK_PROTOCOL
+        provider_env_absent $key $name
     end
-    set -l hidden (seat_field $role '[.hidesPaths[]?] | join(":")')
-    if test -n "$hidden"
-        provider_env $key SEATWORKS_HIDDEN_PATHS $hidden
-    else
-        provider_env_absent $key SEATWORKS_HIDDEN_PATHS
+    if not jq -e --arg k $key '.agents.providers[$k] | has("disallowedTools") | not' $paseo_config >/dev/null 2>&1
+        if test $dry -eq 1
+            fail "provider $key still carries disallowedTools; the role's limits are its settings under harness/$harness/ (rerun without --check)"
+        else
+            paseo_write $paseo_config "provider $key: disallowedTools removed, since the role's limits are its settings under harness/$harness/" \
+                'del(.agents.providers[$k].disallowedTools)' --arg k $key
+        end
     end
-    test (seat_field $role .readOnly) = true
-    and provider_env $key SEATWORKS_READ_ONLY 1
-    provider_env_absent $key SEATWORKS_HOOK_PROTOCOL
-    seat_deny $key $role $harness
-    report_unenforced $key $role $harness
 end
 
 function provider_models --argument-names key role
@@ -692,73 +619,6 @@ function provider_env --argument-names key name value
         '.agents.providers[$k].env[$n] = $v' --arg k $key --arg n $name --arg v $value
 end
 
-function seat_intents --argument-names role
-    begin
-        seats_get '.denyCommonIntents[]?'
-        seat_field $role '.denyIntents[]?'
-    end | sort -u
-end
-
-function report_unenforced --argument-names key role harness
-    set -l gaps
-    for intent in (seat_intents $role)
-        test (count (harness_get $harness ".deny.intents[\"$intent\"][]?")) -gt 0; and continue
-        contains -- $intent (harness_get $harness '.deny.enforcedByGuard[]?'); and continue
-        contains -- $intent (harness_get $harness '.deny.absent[]?'); and continue
-        set -a gaps $intent
-    end
-    test (count $gaps) -eq 0; and return
-    echo "  · $key: harness $harness enforces none of "(string join ', ' $gaps)". seats.json asks for "(count (seat_intents $role))" limits; "(count $gaps)" rest on the prompt alone."
-end
-
-function seat_deny --argument-names key role harness
-    switch (harness_get $harness .deny.mechanism)
-        case disallowedTools
-            set -l want (begin
-                for intent in (seat_intents $role)
-                    harness_get $harness ".deny.intents[\"$intent\"][]?"
-                end
-                seat_field $role '.deny[]?'
-            end | jq -R . | jq -s -c 'unique')
-            set -l have (jq -c --arg k $key '(.agents.providers[$k].disallowedTools // []) | unique' $paseo_config)
-            set -l retired (harness_get $harness '[.deny.retired[]?]' | jq -c .)
-            set -l stale (echo $have | jq -c --argjson r "$retired" '[.[] | select(. as $x | $r | index($x))]')
-            if test "$stale" != '[]'
-                if test $dry -eq 1
-                    fail "provider $key still denies "(echo $stale | jq -r 'join(", ")')", which this harness has retired: "(harness_get $harness '.deny.retiredNote // ""')" (rerun without --check)"
-                else
-                    set -l kept (echo $have | jq -c --argjson r "$retired" '[.[] | select(. as $x | $r | index($x) | not)]')
-                    paseo_write $paseo_config "provider $key: retired deny entries removed" \
-                        '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$kept"
-                    set have $kept
-                end
-            end
-            test "$have" = "$want"; and return
-            set -l dead (echo $have | jq -c --argjson w "$want" '. - $w')
-            set -l lack (echo $have | jq -c --argjson w "$want" '$w - .')
-            set -l note
-            test "$dead" != '[]'; and set -a note "drops "(echo $dead | jq -r 'join(", ")')", which seats.json no longer lists"
-            test "$lack" != '[]'; and set -a note "adds "(echo $lack | jq -r 'join(", ")')
-            if test $dry -eq 1
-                fail "provider $key's deny list differs from seats.json: it "(string join ' and ' $note)" (rerun without --check)"
-                return
-            end
-            paseo_write $paseo_config "provider $key: disallowedTools set from seats.json, which "(string join ' and ' $note) \
-                '.agents.providers[$k].disallowedTools = $d' --arg k $key --argjson d "$want"
-        case settings
-            jq -e --arg k $key '(.agents.providers[$k].disallowedTools // []) == []' $paseo_config >/dev/null 2>&1
-            and return
-            if test $dry -eq 1
-                fail "provider $key still carries a disallowedTools list, which harness $harness's agent never reads; its deny map belongs in the seat's "(harness_get $harness .settings.file)" (rerun without --check)"
-            else
-                paseo_write $paseo_config "provider $key: disallowedTools removed, which harness $harness does not read" \
-                    'del(.agents.providers[$k].disallowedTools)' --arg k $key
-            end
-        case hooks
-            echo "  · provider $key: harness $harness has no Paseo-side deny list, so its limits rest on its hooks and sandbox settings."
-    end
-end
-
 function project_slug --argument-names repo_dir
     jq -r '.slug // empty' $repo_dir/.seatworks/project.json 2>/dev/null
 end
@@ -767,7 +627,7 @@ command -q jq; or begin
     echo "! jq must be on PATH."
     exit 1
 end
-for file in $seats_file $harness_dir/common/hook-io.sh
+for file in $seats_file
     test -f $file; or begin
         echo "! $file not found. Run the script from its original location in the kit."
         exit 1
@@ -835,15 +695,6 @@ for role in (seats_get '.seats[].role')
     hidden_words "role $role" $file (seat_field $role '.hidesWords[]?')
 end
 
-for intent in (begin
-        seats_get '.denyCommonIntents[]?'
-        seats_get '.seats[].denyIntents[]?'
-    end | sort -u)
-    set -l because (seats_get --arg i $intent '.denyBecause[$i] // empty' | string collect)
-    test -n "$because"
-    or fail "seats.json denies '$intent' but records no reason for it under denyBecause. A limit nobody can review is a limit nobody can drop: write one line saying what it prevents."
-end
-
 for id in (seats_get '[.seats[].harness] | unique | .[]')
     set -l manifest (harness_file $id)
     if not test -f $manifest
@@ -854,14 +705,6 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
     or fail "$manifest is not valid JSON; fix it by hand."
     test (harness_get $id '.verified // "null"') = null
     and echo "  · harness $id is unverified on this machine; read harness/$id/NOTES.md before you trust a seat on it."
-    test (harness_get $id '.skillLoad.transcriptMatch // "null"') = null
-    or continue
-    test (harness_get $id .guards.hookProtocol) = extension
-    and continue
-    for role in (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
-        test (jq -r --arg r $role '[.skillGates[]? | select(.seat == $r)] | length' $seats_file) -gt 0
-        and fail "seats.json gates the $role seat but sends it to harness $id, which has no way to tell a loaded skill from an unloaded one (skillLoad.transcriptMatch is null). Move the role to a harness whose gate holds, or settle that field first: harness/$id/NOTES.md."
-    end
 end
 test $errs -eq 0; or exit 1
 
@@ -902,7 +745,6 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
             exit 1
         end
     end
-    set -l hook_key (harness_get $id '.guards.hookSettingsKey // empty')
     for role in (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
         set -l file $harness_dir/$id/(string replace ROLE $role (harness_get $id '.settings.source'))
         test -f $file; or continue
@@ -911,11 +753,6 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
             set -l days (jq -r --arg k $retention_key '.[$k] // empty' $file)
             test "$days" = "$retention"
             or fail "$file: $retention_key is '$days' but $user_settings has '$retention'; set the same value in the file by hand."
-        end
-        test -n "$hook_key"; or continue
-        for guard in (seat_field $role '.guards[]?')
-            jq -e --arg g $guard --arg k $hook_key '[getpath($k | split("."))[]?[]?.hooks[]?.command] | any(test($g))' $file >/dev/null 2>&1
-            or fail "$file has no $hook_key entry running $guard, so that guard never runs for the $role seat."
         end
     end
 end
@@ -1031,7 +868,7 @@ end
 
 echo ""
 echo "After changing providers in $paseo_config, run `paseo reload`; there is no file watcher."
-echo "Running agents keep their old prompt and guards until they end: archive them. New seats pick"
+echo "Running agents keep their old prompt and settings until they end: archive them. New seats pick"
 echo "up prompts, settings, and skills; after a kit update also run `paseo plugin reload seatworks`."
 
 if test $errs -ne 0

@@ -56,7 +56,7 @@ stronger one too.
    at `observed` and nothing else. Done when every group is a row or a raised count.
 5. **Propose at most one change.** Take the group with the highest count and the clearest class,
    and write it as the smallest diff to one file: a prompt line, a brief field, an acceptance
-   item, a trigger, a guard. With it, bring the two dated episodes that justify it, the class,
+   item, a trigger, a setting. With it, bring the two dated episodes that justify it, the class,
    and what would show it made things worse. Everything else stays in the notebook; a
    retrospective that proposes four changes makes the next one unattributable, because nobody
    can tell which change moved the outcome.

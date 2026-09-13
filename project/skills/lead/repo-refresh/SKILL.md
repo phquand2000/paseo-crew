@@ -18,7 +18,7 @@ Choose the mode from the user's wording:
 - `audit`: inspect and report; this is the default for a bare invocation.
 - `apply`: audit, get the cleanup performed, and verify. Words such as
   `refresh`, `clean`, `fix`, `remove`, or `consolidate` authorize this mode.
-  You do not delete anything yourself: your guard allows you `docs/` and your
+  You do not delete anything yourself: you write only `docs/` and your
   own records, and the rest of the repository belongs to an Engineer. The audit
   is yours; the deletion goes out as one brief per coherent group from
   `.seatworks/guides/BRIEF.md`, with the audit rows as its objective, the paths

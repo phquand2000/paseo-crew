@@ -1,6 +1,6 @@
 import type { PluginBeforeRequests, PluginHookAgent, PluginHookContext } from "@getpaseo/plugin/server";
 import { deliver } from "./attention";
-import { type Kit, projectRoot, roleOf, seatFor } from "./kit";
+import { type Kit, projectOf, projectRoot, roleOf, seatFor } from "./kit";
 
 type PaseoApi = PluginHookContext["paseo"];
 type AgentSessionConfig = PluginBeforeRequests["agent.create"]["config"];
@@ -8,16 +8,18 @@ type AgentSessionConfig = PluginBeforeRequests["agent.create"]["config"];
 export function applyProfile(kit: Kit, config: AgentSessionConfig): AgentSessionConfig {
   const role = roleOf(config.provider);
   if (!seatFor(kit, config.provider)) return config;
-  if (!projectRoot(config.cwd)) {
+  const root = projectRoot(config.cwd);
+  if (!root) {
     throw new Error(
       `a ${role} starts only inside a project that has .seatworks/, and ${config.cwd} has none. Leave the workspace out to start it beside you.`,
     );
   }
   const profile = kit.profiles.find((entry) => entry.provider === role);
   if (!profile) return config;
-  const offered = [profile.model, ...(kit.providers[role]?.models ?? []).map((model) => model.id)];
+  const pinned = projectOf(root).models[role];
+  const offered = [pinned, profile.model, ...(kit.providers[role]?.models ?? []).map((model) => model.id)];
   const allowed = [...new Set(offered.filter((model): model is string => Boolean(model)))];
-  const model = config.model ?? profile.model;
+  const model = config.model ?? pinned ?? profile.model;
   if (model && allowed.length > 0 && !allowed.includes(model)) {
     throw new Error(`a ${role} runs ${allowed.join(" or ")}, as its profile says. Leave the model out, or pass ${allowed.length > 1 ? "one of those" : "that one"}.`);
   }

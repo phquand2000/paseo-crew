@@ -8,17 +8,17 @@ coordinated through [Paseo](https://getpaseo.com):
 - `lead` breaks work down, delegates it to Peers, and accepts their results.
 - `peer` writes code and returns evidence. An Architect or Scout is the same seat with `Owned
   scope none` in its brief.
-- `reviewer` is the only seat whose writes are blocked outright, so it takes every read-only
-  lane: reviewing a change, a council seat, an ultra-review scout, an audit reader. Every review
-  starts from [Open Code Review](https://github.com/alibaba/open-code-review) in delegation mode,
+- `reviewer` has its edit and write tools and the git commands that change the repository
+  refused, so it takes every read-only lane: reviewing a change, a council seat, an ultra-review
+  scout, an audit reader. Every review starts from [Open Code Review](https://github.com/alibaba/open-code-review) in delegation mode,
   which resolves the scope and the standing rules without calling a model of its own; the seat
   answers them against the code it read.
 - `watcher` reads the Lead's and Peers' activity when the kit's Paseo plugin wakes it, and
   raises attention events that the plugin brings to the Supervisor.
 
-A seat gets the prompt, skills, MCP servers and limits `seats.json` names, and nothing a
-repository can add: both harnesses read skills from several directories by default, including the
-repository's own, so the kit pins those roots per harness and reports any drift.
+A seat gets the prompt, skills and MCP servers `seats.json` names, the tool limits its harness's
+role settings set, and nothing a repository can add: both harnesses read skills from several
+directories by default, including the repository's own, so the kit pins those roots per harness and reports any drift.
 
 A seat is named for its role alone: not for the tool that runs it, and not for a project. Which
 coding agent hosts a role is one line in [seats.json](seats.json), so the prompts, skills, and
@@ -49,26 +49,25 @@ the project's and nothing replaces it. That split is the whole rule for what is 
 where: a change meant for every project goes to the kit, and a change meant for this one goes to
 its `AGENTS.md` for code, or `guides/WORKSPACE_PROTOCOL.md` for how its seats coordinate.
 
-The room joins the two. `harness/common/bin/seat-room` is the command every provider launches:
-it walks up from the agent's working directory to the nearest `.seatworks/`, reads the project's
-slug from `project.json`, points the harness's config-directory variable at that project's
-profile directory, and execs the coding agent with every argument untouched. So a seat belongs
-to the workspace it starts in, and a `lead` started where no `.seatworks/` is found is just the
-plain coding agent.
+The Paseo plugin joins the two. Every time a seat's session opens, `plugin/` walks up from the
+agent's working directory to the nearest `.seatworks/`, reads the project's slug from
+`project.json`, and points the harness's config-directory variable at that project's profile
+directory; `harness/common/bin/seat-room`, the command every provider launches, then forces the
+manifest's flags and execs the coding agent. So a seat belongs to the workspace it starts in, and
+a `lead` started where no `.seatworks/` is found is refused.
 
 ```
-seats.json                      which harness hosts each role, its skills, its guards, its
-                                deny list, its model, the skill gates it must pass, and the
-                                MCP servers every seat gets
+seats.json                      which harness hosts each role, its skills, its Paseo tools,
+                                its model, and the MCP servers every seat gets
 harness/<id>/harness.json       one harness: its config-directory variable, prompt file,
-                                skills directory, settings format, guards, and how a skill is
-                                loaded and recognised there
+                                skills directory, settings format, and how a skill is loaded
+                                and recognised there
 harness/<id>/NOTES.md           that harness's behavior, and how each fact was established
 harness/common/bin/seat-room    the room, launched by every provider
 ~/.paseo/config.json            five providers and five agent profiles, one per role, composed
                                 from the two files above
 <profileRoot>/<role>-<slug>/    one profile directory per role per project, named by each
-                                harness manifest: the role's settings and guards, and links
+                                harness manifest: the role's settings, and links
                                 into that project's `.seatworks/`
 REPO/.seatworks/project.json    this project's slug, and any model it pins per role
 REPO/.seatworks/prompts/        one prompt per seat: SUPERVISOR, LEAD, PEER, REVIEWER, WATCHER
@@ -111,25 +110,25 @@ describes where it holds.
 
 ## Changing which agent runs a role
 
-Edit that role's `harness` in `seats.json`, then rerun setup. The provider keeps its name, the
-prompts and skills are untouched, and the guards follow: `harness/common/hook-io.sh` writes
-whichever refusal form the new harness expects, so one guard body serves all of them.
+Edit that role's `harness` in `seats.json`, then rerun setup. The provider keeps its name, and
+the prompts and skills are untouched.
 
 One edit means one edit: setup moves the profile directory, sets and clears the harness's own
 environment variables, tells the room which binary to exec and which config-directory variable
-to set, writes the deny map where that harness reads one, and switches the guards' refusal form.
-Flipping the watcher to another harness and back leaves the provider byte-identical.
+to set, and links or merges that harness's settings into the seat. Flipping the watcher to
+another harness and back leaves the provider byte-identical.
 
-The guards the new harness ships are the part `seats.json` names by hand, in the role's `guards`
-list, because a hook harness and an extension harness cannot run each other's files. A harness
-that declares `guards.shellBridge` bridges the gap: it takes the shared `.sh` guards in that
-list, installs the bridge instead of them, and runs them out of the kit with the hook input they
-read, so a role keeps the writes rule and the launch rules it had before the move.
+The tool limits are the part that does not travel by itself, because each one is a native setting
+of the coding agent: `permissions.deny` and `sandbox` in one harness's role settings, per-tool
+`enabled` keys, `tools.approval` and `bash.patterns` in the other's. Paseo's own
+`disallowedTools` never reaches every harness, so each keeps its own list. Before a move, give the
+role its settings under the new harness's directory, in the keys its `NOTES.md` records as
+verified.
 
 A harness manifest carries `verified`, the version its facts were checked on. `--check` says so
 when your installed version differs, and `--probe` settles it by asking each seat's harness which
 skills it actually loads. A manifest with `verified: null` is a sketch: its `NOTES.md` lists what
-is still open, and setup refuses to send a gated role to a harness that cannot enforce its gates.
+is still open.
 
 ### A model from another provider
 
@@ -169,17 +168,13 @@ that question:
 A seat's harness offers a skill's name and description and leaves the loading to the model, which
 often doesn't. Measured here: a byte-exact replica of a Peer seat sends all eight of its skills
 in its own system prompt, under an instruction to read the matching one first, and not one
-session on this machine ever did. The Lead skipped its gated skills in two evaluation runs.
+session on this machine ever did. The Lead skipped the skills its prompt named in two
+evaluation runs.
 
 The kit answers that in two ways, neither of which is a new mechanism. What a seat does every
 session is in its prompt rather than in a skill, so there is nothing to skip; and what a Peer
 does sometimes is named in the brief's `Skills` field by the Lead, because a Peer left to route
 itself routes to none.
-
-`seats.json` still has `skillGates`, which refuses a named call until its skill is in the
-transcript, and the list is empty. It held three Lead procedures that the prompt now carries, and
-it only ever held on a harness whose manifest can tell a loaded skill from an unloaded one. A
-gate earns its place with an observed skip and a recorded reason, not with a wish.
 
 ## Daily use
 
@@ -231,13 +226,10 @@ notebook, and a miss becomes a rule only when it recurs.
 | [REFERENCE.md](REFERENCE.md) | Paseo and kit behavior that you can't infer from the config |
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing and editing the prompts and docs in this kit |
 | [NOTICE.md](NOTICE.md) | Where the skills' ideas come from, with licenses |
-| [seats.json](seats.json) | Every seat: role, harness, prompt, skills, guards, deny intents, model, and the skill gates it must pass; plus the MCP servers every seat gets |
-| [harness/](harness/) | One directory per harness: its manifest, role settings, guards or guard extensions, and `NOTES.md`, which records what was verified and what is still open |
-| [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: resolves the project from the working directory, points the config-directory variable at its profile, applies a model pin, execs the agent |
-| [harness/common/hook-io.sh](harness/common/hook-io.sh) | Reads a guard's hook input and writes its refusal in the form the seat's harness expects |
-| [harness/common/guards/lead-guard.sh](harness/common/guards/lead-guard.sh) | Blocks writes to repository files outside what the role owns, and to everything outside the repository but `$TMPDIR` — the kit, the Paseo config and the seat profiles all live out there |
-| [harness/common/guards/skill-guard.sh](harness/common/guards/skill-guard.sh) | Refuses a gated call until its skill is loaded in this session; no role sets a gate today |
-| [plugin/](plugin/) | The Paseo plugin: gives every new seat its profile's model and mode, archives a seat its parent may not start or that runs outside the parent's project, sends the watcher `SWEEP` after activity, and delivers the watcher's `ATTENTION:` blocks and failed turns to the Supervisor |
+| [seats.json](seats.json) | Every seat: role, harness, prompt, skills, Paseo tools and model; plus the MCP servers every seat gets |
+| [harness/](harness/) | One directory per harness: its manifest, the role settings that hold each seat's tool limits, and `NOTES.md`, which records what was verified and what is still open |
+| [harness/common/bin/seat-room](harness/common/bin/seat-room) | The room: refuses a seat the Paseo plugin didn't open, forces the manifest's `forceFlags`, execs the agent |
+| [plugin/](plugin/) | The Paseo plugin: gives every new seat its profile's model and mode and its project's seat directory, archives a seat its parent may not start or that runs outside the parent's project, sends the watcher `SWEEP` after activity, and logs and delivers attention events — the watcher's blocks plus `DECISION:`/`DETOUR:`/`HANDOFF` lines, unanswered pushback and failed turns — to the Supervisor |
 | [project/](project/) | Templates copied into each project's `.seatworks/`: the seat prompts, the notebook, the skills |
 | [project/WATCHER.md](project/WATCHER.md) | Watcher prompt with the trigger table, read by the watcher on every sweep |
 | [project/skills/](project/skills/) | Each role's skill set, at its own altitude |
@@ -250,6 +242,4 @@ notebook, and a miss becomes a rule only when it recurs.
 The role settings each manifest names under `settings.source` are tracked in git and edited by
 hand; the script links or merges a seat's file and only checks it, never writes it. Their
 `"language": "vietnamese"` is the kit owner's setting: change or remove it for your own. The Lead
-and the watcher keep a 1-hour prompt cache, since the watcher sweeps every 15 minutes, and each
-hook runs its guard through the seat's own profile, so no file holds a path specific to one
-machine.
+and the watcher keep a 1-hour prompt cache, since the watcher sweeps every 15 minutes.

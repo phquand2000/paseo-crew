@@ -70,7 +70,7 @@ if not test -f $paseo_config; or not jq -e . $paseo_config >/dev/null 2>&1
     exit 1
 end
 git -C $repo_dir rev-parse --git-dir >/dev/null 2>&1; or begin
-    echo "! $repo_dir is not a git repository, and the write guard checks paths only inside one; run git init there first."
+    echo "! $repo_dir is not a git repository, and every seat commits its work there; run git init there first."
     exit 1
 end
 

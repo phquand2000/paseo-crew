@@ -14,10 +14,16 @@
     "mode": "merge",
     "file": "config.yml",
     "source": "settings.json",
-    "sourceNote": "the seat's omp settings file is YAML, and JSON is valid YAML, so the kit writes and verifies it with jq like every other settings file. setup merges the deny map seats.json asks for into the same file; see deny.settingsPath.",
+    "sourceNote": "the seat's omp settings file is YAML, and JSON is valid YAML, so the kit writes and verifies it with jq like every other settings file.",
+    "ownedPaths": [
+      "tools.approval",
+      "bash.patterns"
+    ],
+    "ownedPathsNote": "keys setup replaces whole instead of merging, because a merge cannot take back a deny or a pattern the kit no longer sets. Every other key in the seat's file is merged and kept, so anything omp writes for itself survives.",
+    "limitsNote": "a seat's tool limits are omp settings, verified on 18.1.19 against a scratch agent directory in --approval-mode yolo, the mode Paseo launches these seats in. eval.py and eval.js false with task.maxRecursionDepth 0 take eval, task and hub out of the tool list; web_search, fetch, debug, lsp and browser with enabled false take theirs out, and fetch is the part of read that opens URLs. tools.approval deny refuses a call but leaves the tool listed. bash.patterns deny refuses a command whose text matches, with * as the only wildcard, so *git push* also catches a push after cd or behind a variable; a deny wins over an allow for the same command, so the watcher, which reads paseo logs, denies the other paseo subcommands by name instead of the whole CLI. Matching is on the command text, which makes it a rail against the habitual form, not a sandbox: omp has no filesystem sandbox, so where a Peer writes is the brief's owned scope.",
     "skillsNote": "skills and skillful are pinned, not left to defaults. enablePiUser keeps the seat directory this kit fills; every other discovery root is off, because a repository ships .omp/skills, .claude/skills and .agent/skills of its own and HOME/.agents/skills is shared, and a skill arriving that way was never checked against this seat hidesWords or its skill set. Measured with omp config get on this machine: enablePiProject, enableClaudeProject, enableAgentsUser and enableAgentsProject all default to true, and a project-level skill was seen in a seat system prompt alongside the kit ones. skillful true is what puts the list in the system prompt at all.",
     "roleSource": "settings/ROLE.settings.json",
-    "roleSourceNote": "an optional per-role overlay merged over settings.json, for a key one seat needs its own value for. Only differences belong here: a key every seat on this harness shares stays in settings.json, where it cannot drift, and a role with no file here takes the shared file unchanged. compaction.thresholdTokens is such a key, and its value is the owner's to pick per seat rather than anything the kit derives: the model window is only the ceiling it must stay under, and zai/glm-5.3 reports 1M. Give another omp role its own point by adding settings/ROLE.settings.json with just that key; setup reports a file here for a role seats.json does not put on this harness. Verified in the omp binary rather than taken from the key name: My() returns min(contextWindow - 1, thresholdTokens) and SO() compacts once tokens exceed it, so the number is the compaction point itself, with no offset. Left unset, the default is the window minus max(15% of it, 16384), which on a 1M window would only compact at 850k."
+    "roleSourceNote": "a per-role overlay merged over settings.json, for a key one seat needs its own value for. Only differences belong here: a key every seat on this harness shares stays in settings.json, where it cannot drift, and a role with no file here takes the shared file unchanged. An owned path is an array or map the overlay replaces whole, so a role that changes bash.patterns repeats the shared patterns it keeps. compaction.thresholdTokens is the owner's to pick per seat rather than anything the kit derives: the model window is only the ceiling it must stay under, and zai/glm-5.3 reports 1M. Verified in the omp binary rather than taken from the key name: My() returns min(contextWindow - 1, thresholdTokens) and SO() compacts once tokens exceed it, so the number is the compaction point itself, with no offset. Left unset, the default is the window minus max(15% of it, 16384), which on a 1M window would only compact at 850k."
   },
   "state": {
     "file": "mcp.json",
@@ -26,88 +32,10 @@
     "checkMcp": "(.mcpServers // {}) == $servers",
     "mcpNote": "$servers is seats.json's mcpServers map, passed in by setup-seats.fish. This file is the seat's user-scope MCP config, and writing the whole object replaces anything else in it. omp also reads a repository's own .omp/mcp.json and the other tools' project files, which this does not reach."
   },
-  "guards": {
-    "dir": "omp/extensions",
-    "installTo": "extensions",
-    "hookProtocol": "extension",
-    "readOnlyEnv": "SEATWORKS_READ_ONLY",
-    "shellBridge": "shell-guard.ts",
-    "shellBridgeNote": "a guard whose name ends in .sh is not installed in the seat directory here. setup installs this bridge instead, and the bridge runs every .sh guard in the role's guards list out of harness/common/guards/, feeding it the hook input those guards read and turning its exit-2 stderr into a blocked tool call.",
-    "shellTool": "bash"
-  },
-  "deny": {
-    "mechanism": "settings",
-    "settingsPath": "tools.approval",
-    "settingsValue": "deny",
-    "intents": {
-      "subagents": [
-        "task",
-        "hub"
-      ],
-      "web-search": [
-        "web_search"
-      ],
-      "todo-list": [
-        "todo"
-      ],
-      "code-eval": [
-        "eval"
-      ],
-      "lsp": [
-        "lsp"
-      ],
-      "file-edit": [
-        "edit",
-        "write",
-        "ast_edit",
-        "notebook"
-      ],
-      "ide-refactor": [
-        "mcp__intellij_index_ide_refactor_rename",
-        "mcp__intellij_index_ide_move_file",
-        "mcp__intellij_index_ide_refactor_safe_delete"
-      ],
-      "agent-messaging": [
-        "hub"
-      ],
-      "debugger": [
-        "debug"
-      ],
-      "user-question": [
-        "ask"
-      ],
-      "notebook-edit": [
-        "notebook"
-      ]
-    },
-    "enforcedByGuard": [
-      "agent-cli",
-      "forge-cli",
-      "git-push",
-      "local-worktree",
-      "paseo-cli",
-      "web-fetch"
-    ],
-    "absent": [
-      "artifact-publish",
-      "background-tasks",
-      "cron",
-      "design-sync",
-      "host-surfaces",
-      "plan-mode",
-      "workflows"
-    ],
-    "absentNote": "intents this harness has no capability for, so there is nothing to deny and nothing to report. Everything else a seat asks for and this manifest does not map is reported as unenforced.",
-    "note": "Paseo hands this provider's disallowedTools to nothing: mergeOmpRuntimeSettings carries the list and the OMP client never reads it. The seat's own settings file is the deny point, and tools.approval.<tool>: deny is absolute in every approval mode, including inside a subagent. A denied tool is still offered to the model, so setup also passes the same names as SEATWORKS_DENIED_TOOLS and peer-guard.ts drops omp's own denied tools from the active set at session start. Paseo's own tools are not in this map: each role's paseoTools in seats.json goes to its Paseo provider, and Paseo 0.8 leaves a disabled tool out of the catalog it hands the seat. eval is denied on every seat because it reaches a shell the guard extension does not parse. todo-list is mapped but no role denies it: a coding agent keeps its task list. plan-mode is absent: omp's plan mode is a session mode, not a tool.",
-    "mcpNamesNote": "the MCP tool names above were read off a running seat, not guessed: omp registers mcp__<server with - as _>_<tool>, so intellij-index/ide_refactor_rename becomes mcp__intellij_index_ide_refactor_rename and semble/search becomes mcp__semble_search."
-  },
   "skillLoad": {
     "tool": "read",
-    "phrase": "a read of skill://NAME",
     "force": "/skill:NAME",
-    "transcriptMatch": null,
     "descriptionBudget": null,
-    "phraseNote": "a noun phrase, because guards say \"Load it with <phrase>\"",
     "placeholders": []
   },
   "probe": {
@@ -123,7 +51,7 @@
     ],
     "credentialFromBase": true,
     "live": "run probe.command with the seat's configDirEnv set and ask it to list its skills",
-    "note": "the skills directory, the prompt file, the extensions directory and the deny map were verified by running a seat against a scratch agent directory; a version other than the verified one re-opens those questions"
+    "note": "the skills directory, the prompt file and the settings keys were verified by running a seat against a scratch agent directory; a version other than the verified one re-opens those questions"
   },
   "versionCommand": "omp --version",
   "provider": {
@@ -142,7 +70,7 @@
     "command": [
       "KIT/harness/common/bin/seat-room"
     ],
-    "commandNote": "every harness launches through the shared room, which resolves the project from the agent's working directory, points configDirEnv at that project's seat directory, and execs the binary in provider.env.SEATWORKS_AGENT_BIN with every argument untouched"
+    "commandNote": "every harness launches through the shared room, which forces forceFlags and execs the binary in provider.env.SEATWORKS_AGENT_BIN. The Paseo plugin, not the room, resolves the project from the agent's working directory and sets configDirEnv to that project's seat directory, because a provider's env is the same for every project."
   },
   "contextFile": "AGENTS.md",
   "contextFileNeedsPointer": false,

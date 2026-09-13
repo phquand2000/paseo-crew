@@ -2,89 +2,50 @@
 set -eu
 
 bin=${SEATWORKS_AGENT_BIN:-}
-kit=${SEATWORKS_KIT:-}
-harness=${SEATWORKS_HARNESS:-}
-role=${SEATWORKS_ROLE:-}
+manifest=${SEATWORKS_KIT:-}/harness/${SEATWORKS_HARNESS:-}/harness.json
 
-run() {
-    if [ -z "$bin" ]; then
-        echo "Seat room: env.SEATWORKS_AGENT_BIN is unset on this seat's provider; run setup/setup-seats.fish." >&2
-        exit 2
-    fi
-    exec "$bin" ${1+"$@"}
+fail() {
+    echo "Seat room: $1" >&2
+    exit 2
 }
 
-manifest=$kit/harness/$harness/harness.json
-[ -n "$kit" ] && [ -n "$harness" ] && [ -n "$role" ] && [ -r "$manifest" ] || run ${1+"$@"}
-command -v jq >/dev/null 2>&1 || run ${1+"$@"}
+[ -n "$bin" ] || fail "env.SEATWORKS_AGENT_BIN is unset on this seat's provider; run setup/setup-seats.fish."
+command -v jq >/dev/null 2>&1 || fail "jq is not on PATH, so this seat's launch flags can't be read."
+[ -r "$manifest" ] || fail "$manifest can't be read; set env.SEATWORKS_KIT and env.SEATWORKS_HARNESS on this seat's provider and rerun setup/setup-seats.fish."
 
-repo=$PWD
-while [ "$repo" != / ] && [ ! -d "$repo/.seatworks" ]; do repo=$(dirname "$repo"); done
-[ -d "$repo/.seatworks" ] || run ${1+"$@"}
-
-project=$repo/.seatworks/project.json
-slug=$(jq -r '.slug // empty' "$project" 2>/dev/null || true)
-[ -n "$slug" ] || slug=$(basename "$repo")
-
-root=$(jq -r '.profileRoot // empty' "$manifest" 2>/dev/null || true)
-[ -n "$root" ] || run ${1+"$@"}
-case $root in HOME/*) root=$HOME/${root#HOME/} ;; esac
-dir=$root/$role-$slug
-[ -d "$dir" ] || run ${1+"$@"}
-
-export SEATWORKS_REPO=$repo
-export SEATWORKS_SLUG=$slug
-export SEATWORKS_SEAT=$role-$slug
-
-var=$(jq -r '.configDirEnv // empty' "$manifest" 2>/dev/null || true)
-[ -n "$var" ] && export "$var=$dir"
-
-forced=$(jq -r '.provider.forceFlags // {} | to_entries[] | .key + "\t" + (.value | tostring)' "$manifest" 2>/dev/null || true)
-if [ -n "$forced" ]; then
-    while IFS="$(printf '\t')" read -r flag value; do
-        [ -n "$flag" ] || continue
-        args=()
-        drop=0
-        seen=0
-        for arg in ${1+"$@"}; do
-            if [ "$drop" = 1 ]; then
-                drop=0
-                continue
-            fi
-            case $arg in
-            "$flag")
-                seen=1
-                drop=1
-                args+=("$flag" "$value")
-                ;;
-            "$flag"=*)
-                seen=1
-                args+=("$flag=$value")
-                ;;
-            *) args+=("$arg") ;;
-            esac
-        done
-        [ "$seen" = 1 ] || args+=("$flag" "$value")
-        set -- ${args[@]+"${args[@]}"}
-    done <<FORCED
-$forced
-FORCED
+var=$(jq -r '.configDirEnv // empty' "$manifest")
+if [ -n "$var" ] && [ -z "$(printenv "$var" || true)" ]; then
+    exec "$bin" ${1+"$@"}
 fi
 
-model=$(jq -r --arg r "$role" '.models[$r] // empty' "$project" 2>/dev/null || true)
-if [ -n "$model" ]; then
+forced=$(jq -r '.provider.forceFlags // {} | to_entries[] | .key + "\t" + (.value | tostring)' "$manifest")
+while IFS="$(printf '\t')" read -r flag value; do
+    [ -n "$flag" ] || continue
     args=()
-    swap=0
+    drop=0
+    seen=0
     for arg in ${1+"$@"}; do
-        if [ "$swap" = 1 ]; then
-            args+=("$model")
-            swap=0
+        if [ "$drop" = 1 ]; then
+            drop=0
             continue
         fi
-        args+=("$arg")
-        [ "$arg" = --model ] && swap=1
+        case $arg in
+        "$flag")
+            seen=1
+            drop=1
+            args+=("$flag" "$value")
+            ;;
+        "$flag"=*)
+            seen=1
+            args+=("$flag=$value")
+            ;;
+        *) args+=("$arg") ;;
+        esac
     done
+    [ "$seen" = 1 ] || args+=("$flag" "$value")
     set -- ${args[@]+"${args[@]}"}
-fi
+done <<FORCED
+$forced
+FORCED
 
-run ${1+"$@"}
+exec "$bin" ${1+"$@"}

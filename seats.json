@@ -7,10 +7,6 @@
       "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",
       "extraSkills": [],
-      "guards": [
-        "lead-guard.sh",
-        "record-check.sh"
-      ],
       "paseoTools": {
         "disabledTools": [
           "set_agent_mode",
@@ -18,9 +14,6 @@
           "update_schedule"
         ]
       },
-      "deny": [],
-      "readOnly": false,
-      "hidesOrchestration": false,
       "required": true,
       "carriesKitPath": true,
       "notes": "Start here. Meets the Human, settles intent into an owner directive, creates the Lead, and watches coordination.",
@@ -44,16 +37,6 @@
       ],
       "description": "Supervisor seat: meets the Human, relays decisions, answers attention events, keeps the notebook",
       "entry": true,
-      "denyIntents": [
-        "ide-refactor",
-        "lsp",
-        "notebook-edit"
-      ],
-      "writes": [
-        ".seatworks",
-        ".seatworks/*"
-      ],
-      "writesRule": "The Supervisor writes only in .seatworks/; code and tests go to a Lead, whose Peers write them.",
       "mayStart": [
         "lead",
         "watcher",
@@ -68,13 +51,6 @@
       "prompt": "prompts/LEAD.md",
       "skills": "lead",
       "extraSkills": [],
-      "guards": [
-        "lead-guard.sh",
-        "record-check.sh"
-      ],
-      "deny": [],
-      "readOnly": false,
-      "hidesOrchestration": false,
       "required": true,
       "anchor": true,
       "notes": "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task.",
@@ -97,11 +73,6 @@
         }
       ],
       "description": "Lead seat: framing, delegation, review, acceptance",
-      "denyIntents": [
-        "ide-refactor",
-        "lsp",
-        "notebook-edit"
-      ],
       "paseoTools": {
         "disabledTools": [
           "archive_workspace",
@@ -111,18 +82,6 @@
           "update_schedule"
         ]
       },
-      "writes": [
-        ".seatworks/records",
-        ".seatworks/records/lessons",
-        ".seatworks/records/lessons/*",
-        "docs",
-        "docs/*",
-        "doc",
-        "doc/*",
-        "CONTEXT.md"
-      ],
-      "writesAlsoContextFiles": true,
-      "writesRule": "The Lead writes only its own coordination records: the lesson log under .seatworks/records/lessons/, the plans, ADRs, design docs and review records under docs/ (or doc/), CONTEXT.md, and the repository instruction files. The rest of .seatworks/ is the Supervisor's, code and tests go to an Engineer Peer through a brief, and nothing outside this repository is the Lead's to change.",
       "mayStart": [
         "peer",
         "reviewer"
@@ -138,14 +97,6 @@
       "prompt": "prompts/WATCHER.md",
       "skills": null,
       "extraSkills": [],
-      "guards": [
-        "lead-guard.sh",
-        "peer-guard.ts",
-        "shell-guard.ts"
-      ],
-      "deny": [],
-      "readOnly": false,
-      "hidesOrchestration": false,
       "required": false,
       "notes": "The Supervisor starts one per project with the first Lead. The orchestrator wakes it with SWEEP after Lead and Peer activity and brings its ATTENTION events to the Supervisor.",
       "models": [
@@ -156,15 +107,6 @@
         }
       ],
       "description": "Attention watcher: sweeps Lead and Peer activity when woken and raises ATTENTION events for the Supervisor",
-      "denyIntents": [
-        "code-eval",
-        "debugger",
-        "file-edit",
-        "ide-refactor",
-        "lsp",
-        "web-fetch",
-        "web-search"
-      ],
       "paseoTools": {
         "disabledTools": [
           "archive_agent",
@@ -192,10 +134,6 @@
           "update_schedule"
         ]
       },
-      "writes": [
-        ".seatworks/records/attention/?*"
-      ],
-      "writesRule": "The watcher writes only its log in .seatworks/records/attention/; everything else goes to the Supervisor as an attention event.",
       "mayStart": [],
       "hidesWords": [],
       "thinking": "low",
@@ -208,14 +146,6 @@
       "prompt": "prompts/PEER.md",
       "skills": "peer",
       "extraSkills": [],
-      "guards": [
-        "peer-guard.ts",
-        "lead-guard.sh",
-        "shell-guard.ts"
-      ],
-      "deny": [],
-      "readOnly": false,
-      "hidesOrchestration": true,
       "required": true,
       "notes": "Every Peer runs here. An Engineer owns a writable scope; an Architect or Scout gets the same profile with owned scope none, and the brief holds it read-only.",
       "models": [
@@ -227,10 +157,6 @@
       ],
       "thinking": "max",
       "description": "Peer seat: implementation, evidence, handoff",
-      "denyIntents": [
-        "code-eval",
-        "web-search"
-      ],
       "paseoTools": {
         "enabled": false
       },
@@ -241,20 +167,7 @@
         "watcher",
         "seat",
         "seats"
-      ],
-      "hidesPaths": [
-        ".seatworks/prompts/SUPERVISOR.md",
-        ".seatworks/prompts/LEAD.md",
-        ".seatworks/prompts/WATCHER.md",
-        ".seatworks/guides",
-        ".seatworks/records",
-        ".seatworks/skills/lead",
-        ".seatworks/skills/supervisor"
-      ],
-      "writes": [
-        "*"
-      ],
-      "writesRule": "A Peer writes inside this repository and nowhere else, and the brief's owned scope narrows it further; scratch files go under $TMPDIR. The kit, the orchestrator config and the seat profiles all sit outside the repository, and each one decides what this seat may do."
+      ]
     },
     {
       "role": "reviewer",
@@ -267,27 +180,12 @@
         "peer:security-check",
         "peer:diagnosing-bugs"
       ],
-      "guards": [
-        "peer-guard.ts",
-        "lead-guard.sh",
-        "shell-guard.ts"
-      ],
-      "deny": [],
-      "readOnly": true,
-      "hidesOrchestration": true,
       "required": false,
-      "notes": "The only read-only seat: every review of a change, and every read-only lane a skill opens (council seats, ultra-review scouts, audit readers). Read-only is enforced, not asked for.",
+      "notes": "The only read-only seat: every review of a change, and every read-only lane a skill opens (council seats, ultra-review scouts, audit readers). Read-only is enforced by its settings, not asked for.",
       "models": [],
       "thinking": "max",
       "description": "Reviewer seat: read-only review, council and audit lanes",
       "reviewSeat": true,
-      "denyIntents": [
-        "code-eval",
-        "debugger",
-        "file-edit",
-        "ide-refactor",
-        "web-search"
-      ],
       "paseoTools": {
         "enabled": false
       },
@@ -298,18 +196,7 @@
         "watcher",
         "seat",
         "seats"
-      ],
-      "hidesPaths": [
-        ".seatworks/prompts/SUPERVISOR.md",
-        ".seatworks/prompts/LEAD.md",
-        ".seatworks/prompts/WATCHER.md",
-        ".seatworks/guides",
-        ".seatworks/records",
-        ".seatworks/skills/lead",
-        ".seatworks/skills/supervisor"
-      ],
-      "writes": [],
-      "writesRule": "A review writes nothing: notes and long output go under $TMPDIR through the shell, and everything else is a finding."
+      ]
     }
   ],
   "mcpServers": {
@@ -327,95 +214,14 @@
       "url": "http://127.0.0.1:29170/index-mcp/streamable-http"
     }
   },
-  "mcpServersNote": "the MCP servers every seat gets, spelled the way both harnesses already read one: a map of name to a stdio or http entry. setup-seats.fish writes exactly this map into the file each harness names under mcp.file, at mcp.path, and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code where no guard in this kit can see them, so every seat but the Peer denies them through the ide-refactor intent; the rest of its tools read.",
+  "mcpServersNote": "the MCP servers every seat gets, spelled the way both harnesses already read one: a map of name to a stdio or http entry. setup-seats.fish writes exactly this map into the file each harness names under mcp.file, at mcp.path, and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code, so every role's settings but the Peer's deny them; the rest of its tools read.",
   "researchNote": "searching is the Supervisor's and the Lead's: they keep web search and web fetch, and name every outside source a Peer or Reviewer needs in its brief. Those two roles read named URLs with their read tool and have no search, so a product's sources are the ones its brief or handoff lists; the watcher has neither. On omp, web_search needs a key the Human sets in the base provider's environment (EXA_API_KEY, BRAVE_API_KEY, TAVILY_API_KEY or PERPLEXITY_API_KEY), which matters only if a role is given search back.",
   "promptBudget": 16384,
-  "recordShapes": [
-    {
-      "roles": [
-        "lead"
-      ],
-      "paths": [
-        "docs/exec-plans/active/*.md",
-        "doc/exec-plans/active/*.md"
-      ],
-      "maxLines": 200,
-      "template": ".seatworks/guides/PLANS.md",
-      "tail": "In this kit a plan is current state: an update replaces its row or line, each section's size is in its heading, and reviews, the reasoning behind rulings, evidence and incidents each have a file of their own, listed in .seatworks/guides/PLANS.md."
-    },
-    {
-      "roles": [
-        "supervisor"
-      ],
-      "paths": [
-        ".seatworks/guides/WORKSPACE_PROTOCOL.md"
-      ],
-      "maxLines": 40,
-      "tail": "The protocol holds one line per standing decision; rules for code, rulings, episodes, reasons and seat models each have another home, listed at the top of .seatworks/records/NOTEBOOK.md."
-    },
-    {
-      "roles": [
-        "supervisor"
-      ],
-      "paths": [
-        ".seatworks/records/NOTEBOOK.md"
-      ],
-      "maxLines": 70,
-      "tail": "The notebook holds one row per pattern, at most 30: an episode raises Seen and Last on its row, and events, rulings and decisions go where the table at its top says."
-    }
-  ],
-  "recordShapesNote": "read by record-check.sh, which never refuses a write: for each record a role keeps, the paths, the size in lines, an optional template whose ## headings and \"up to N lines\" sizes are checked, and the closing sentence of the note it adds once per new drift. REFERENCE.md holds the reasons for each size.",
-  "skillGates": [],
-  "skillGatesNote": "empty on purpose. A gate refuses a named call until its skill is in the transcript, and it was holding three procedures the Lead now carries in its own prompt, where nothing can skip them. Gates also only hold on a harness whose skillLoad.transcriptMatch is set, so they never held for an omp seat at all. The mechanism stays because a future procedure may earn one; a gate needs an observed skip and a because line, not a wish.",
-  "denyCommonIntents": [
-    "agent-cli",
-    "agent-messaging",
-    "artifact-publish",
-    "background-tasks",
-    "code-eval",
-    "cron",
-    "design-sync",
-    "forge-cli",
-    "git-push",
-    "host-surfaces",
-    "local-worktree",
-    "paseo-cli",
-    "plan-mode",
-    "subagents",
-    "workflows"
-  ],
-  "denyBecause": {
-    "subagents": "a seat is already a subagent with its own context and its own guards. A sub-agent started inside one runs under the seat's identity with none of the ownership the brief assigns, and its work reaches the Lead as the seat's own.",
-    "workflows": "a workflow fans out dozens of agents on one approval, and the Human's appetite is set per directive, not per fan-out.",
-    "code-eval": "the eval tool reaches an interpreter the shell guard cannot parse, so every writable path the guards hold would be reachable through it. Bash stays, because the guard reads it.",
-    "agent-cli": "a coding agent started from a shell runs outside Paseo, so no profile, guard, deny list or workspace applies to it.",
-    "git-push": "a push leaves this machine and is the Human's call, per seat prompt and directive.",
-    "forge-cli": "gh writes to the forge: issues, comments, reviews, releases. Outward-facing, and the Human's call.",
-    "ide-refactor": "the IDE index's rename, move and safe-delete tools write code through the IDE, where no guard in this kit can see the write. The rest of that server reads.",
-    "lsp": "the language server's own edit and format actions write the same way, past the guards.",
-    "file-edit": "the read-only seats: review, council and audit lanes write nothing but temporary files, through the shell.",
-    "web-search": "searching decides which sources a result rests on, and that is the Lead's call: a Peer's or Reviewer's product rests only on the sources its brief or handoff names, which it reads with its read tool, so the Lead can tell what the product stands on. The watcher has no question the web answers.",
-    "artifact-publish": "the Artifact tool publishes a page to the web and the link outlives the session. Outward-facing, and the Human's call, for the same reason git-push and the forge CLI are.",
-    "local-worktree": "the Lead's paseoTools take orchestrator worktrees off it, and these tools make a git worktree directly, which is the same decision through another door. On omp the shell guard holds it instead, and git worktree list still reads.",
-    "cron": "the kit schedules through the orchestrator, whose plugin wakes the watcher and whose schedules are listed and can be deleted. A second scheduler nobody lists is a job that outlives every seat that knew about it. The claude provider env sets CLAUDE_CODE_DISABLE_CRON and the tools were offered anyway, so the deny is what holds.",
-    "agent-messaging": "the orchestrator is the only way a seat reaches another, because that is where the message labels, the plugin's launch checks and archiving live. A second channel bypasses all three.",
-    "design-sync": "it reads and writes a design tool over the network. Outward-facing, and nothing in this kit asks for it.",
-    "background-tasks": "a background process or task keeps running and feeding the session after the turn that started it. Long work starts through the orchestrator, where it is listed and can be stopped, and the shell tool still runs whatever a turn needs.",
-    "host-surfaces": "a push notification or the host app's findings panel reaches the Human's devices or screen around the report the Supervisor sends, so the Human hears the same thing twice, out of order, or from a seat that should not be talking to them.",
-    "plan-mode": "leaving plan mode waits for an approval no one gives an unattended seat, and under bypass permissions the mode restricts nothing; a plan is a file instead.",
-    "notebook-edit": "the coordinating seats write records, plans and decisions, never a notebook.",
-    "paseo-cli": "the orchestrator's command line does what its tools do, but outside the hooks that check each launch against its profile and a Lead's workspace limits, so agents are managed through the tools alone. The watcher keeps the read-only paseo logs its sweep uses.",
-    "debugger": "the debug tool launches and drives programs through a debug adapter, outside the shell the guards read, and neither a read-only seat nor the watcher needs one.",
-    "web-fetch": "the watcher reads activity and matches triggers, and its read tool reaches the web too, so a guard keeps its reads local."
-  },
-  "denyIntentsNote": "An intent names a capability no seat may have. Each harness manifest maps it to its own tool names under deny.intents, or lists it under deny.enforcedByGuard when a guard rather than a deny list holds it. An intent a harness does neither with is reported as unenforced, so moving a role says which limits stopped holding. denyBecause holds one line per intent: an intent with no reason recorded there is a limit nobody can review, and setup refuses it.",
-  "paseoToolsNote": "paseoTools is copied verbatim to the role's Paseo provider, where Paseo 0.8 leaves every disabled tool out of the catalog the seat is handed, on every harness alike, so the orchestrator's tools need no intent and no per-harness name map. Peers and Reviewers get none: each believes it works directly for a human, and a control-plane tool would show it the layer above it. The Lead gets no workspace tools, because a worktree buys isolation only when two writers hold disjoint scopes, and three Engineers on one worktree were measured instead. The watcher gets only the read half, because the Paseo plugin in plugin/ wakes it and carries its events to the Supervisor. The Supervisor and the Lead lose set_agent_mode and update_schedule, and the Supervisor update_agent too, because a seat keeps the mode and model the plugin gave it at launch; the Lead keeps update_agent for council labels. Paseo documents this as a catalog limit, not a security boundary: a seat with a shell can still run the paseo CLI, which the paseo-cli intent covers.",
-  "writesNote":"writes lists the repository paths a seat may change, as shell glob patterns relative to the repository root; harness/common/guards/lead-guard.sh reads them and refuses every other path with writesRule. A seat with no writes entry may change nothing, so a new role fails closed. Outside the repository the same guard allows only the seat's temporary directory, because the kit, the Paseo config and the seat profiles all live outside it and each one is a file that decides what the seat may do. A seat whose only pattern is * owns the whole repository, so the guard also lets it edit in place; every narrower seat must leave a diff.",
+  "paseoToolsNote": "paseoTools is copied verbatim to the role's Paseo provider, where Paseo 0.8 leaves every disabled tool out of the catalog the seat is handed, on every harness alike. Peers and Reviewers get none: each believes it works directly for a human, and a control-plane tool would show it the layer above it. The Lead gets no workspace tools, because a worktree buys isolation only when two writers hold disjoint scopes, and three Engineers on one worktree were measured instead. The watcher gets only the read half, because the Paseo plugin in plugin/ wakes it and carries its events to the Supervisor. The Supervisor and the Lead lose set_agent_mode and update_schedule, and the Supervisor update_agent too, because a seat keeps the mode and model the plugin gave it at launch. Paseo documents this as a catalog limit, not a security boundary: a seat with a shell could still run the paseo CLI, which every role's harness settings deny.",
+  "limitsNote": "every other limit on a seat is a setting of the coding agent it runs on, in files setup links or merges unchanged: harness/claude/settings/ROLE.settings.json holds permissions.deny and sandbox, and harness/omp/settings.json with settings/ROLE.settings.json holds the per-tool enabled keys, tools.approval and bash.patterns. Paseo's own disallowedTools would be the orchestrator-level spelling, but its omp provider never reads it, so each harness keeps its own list and nothing in the kit runs as a guard. What no setting can say stays a line in the role's prompt, as part of the job: which repository files the Supervisor and the Lead write, a Peer's owned scope, and that a Peer works from its brief rather than the coordination records. REFERENCE.md says what each setting holds and how it was verified.",
   "mayStartNote": "mayStart lists the roles a seat may launch; the Paseo plugin in plugin/ archives a new agent whose parent's list does not name its role, whether it came from create_agent, the paseo CLI or a schedule, and tells the parent why, so an empty list means the seat starts nothing. With one provider per role the provider name is the role, which is what the plugin matches.",
-  "sweepMinutesNote": "set on the one seat the Paseo plugin wakes: after a Lead, Peer or Reviewer turn ends in a project, the plugin sends that project's seat SWEEP at most once per this many minutes, and carries the ATTENTION blocks its sweep ends with to the entry seat.",
+  "sweepMinutesNote": "set on the one seat the Paseo plugin wakes: after a Lead, Peer or Reviewer turn ends in a project, the plugin sends that project's seat SWEEP at most once per this many minutes, logs the ATTENTION blocks its sweep ends with in .seatworks/records/attention/, sends a log-class block once it has recurred on three sweeps, and carries the rest to the entry seat. The plugin also raises DECISION:, DETOUR: and HANDOFF lines, pushback unanswered for two sweep periods, and failed turns itself, so the seat's prompt names only the triggers that take judgment.",
   "hidesWordsNote": "hidesWords lists words a seat must never see: setup-seats.fish refuses the seat prompt and every skill it links if one of them appears as a whole word, case-insensitively. Peers and Reviewers believe they work directly for a human, and a Lead knows only the three message labels, so nothing may name the seat above it.",
-  "hidesPathsNote": "hidesPaths lists repository paths a seat may not read, because the project keeps every seat prompt in one directory: a Peer that opened .seatworks/prompts/SUPERVISOR.md would learn about the layer above it. A directory entry hides everything under it, so guides/ and records/ are hidden whole and a new file there is hidden by default. setup-seats.fish passes the list to the seat as SEATWORKS_HIDDEN_PATHS and its guard refuses a read there. Anything a Peer needs from those files belongs in its brief or in the repository instruction file.",
-  "guardsNote": "guards names the files a seat installs, so moving a role to another harness moves everything in seats.json except this list: a hook-protocol harness takes the shell guards under harness/common/guards/, and a harness whose guards.hookProtocol is \"extension\" needs its own, as harness/omp/extensions/ shows. A harness that declares guards.shellBridge takes both: it installs the bridge instead of the .sh files and runs them out of the kit. Check the target harness has an equivalent before you change a role's harness, and read report_unenforced's output, which names every intent the new harness enforces with neither a deny list nor a guard.",
   "promptLineBudget": 200,
   "promptLineBudgetNote": "the line limit WRITING_GUIDE.md rule 2 sets for a seat prompt, enforced here so it cannot drift: bytes and lines measure different things, and a prompt can sit well under 16 KB while growing past what a reader holds."
 }

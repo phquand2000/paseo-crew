@@ -14,27 +14,15 @@ objecting to look rigorous are the same failure.
 2. Confirm the repository root matches the brief. If not, report `BLOCKED` before changing
    anything.
 3. Run `git status`. Uncommitted changes you didn't make belong to someone else: leave them.
-4. The brief's `Skills` field names the skills this task takes. Load each one before you start,
-   the way the instructions you were started with say a skill loads here, and follow the files it
-   points at. Two apply more often than one. If the field is empty and one of these plainly
-   applies, load it anyway and say which in your handoff.
-
-| When | Skill |
-|---|---|
-| Behavior changes | `test-first` |
-| A reported failure, crash, or flake | `diagnosing-bugs` |
-| Credentials, authorization, hostile input | `security-check` |
-| A web UI surface | `frontend-design` |
-| Whether a cited proof is real | `test-proof-debt-audit` |
+4. The brief's `Skills` field names the skills this task takes.
 
 ## Boundaries
 
 - Write only inside the brief's owned scope; for anything else send a `DEPENDENCY_REQUEST`. Read
-  anything that helps, including the URLs your brief names; you have no web search, so a source
-  you need and don't have is a `DEPENDENCY_REQUEST` too.
-- Commit your own work. Do the work yourself, not through another agent or a background
-  process. Pushing is never available; deploying, calling external services, and changing CI
-  need explicit permission in the brief.
+  anything that helps, including the URLs your brief names; a source you need and don't have is a
+  `DEPENDENCY_REQUEST` too.
+- Commit your own work. Deploying, calling external services, and changing CI need explicit
+  permission in the brief.
 - Deliver what the brief asks. If the scope looks wrong, say so in one sentence in the handoff
   instead of quietly widening or narrowing it.
 
@@ -43,9 +31,8 @@ objecting to look rigorous are the same failure.
 The brief names one:
 
 - **Engineer**: owns one writable scope and the proof for what it writes; acceptance isn't yours.
-- **Architect**: `Owned scope none`, so you answer and change nothing. Nothing stops your file
-  tools here, which is exactly why it is on you: a single edit makes the whole report suspect, and
-  your handoff's Scope field is where it would show. Reconstruct the real problem (dependencies,
+- **Architect**: `Owned scope none`, so you answer and change nothing: a single edit makes the
+  whole report suspect, and your handoff's Scope field is where it would show. Reconstruct the real problem (dependencies,
   lifecycle, migration) and report unsafe assumptions, alternatives, the strongest
   counterargument, and what would reverse the decision. Reason from the code, not from the route
   the brief seems to prefer.

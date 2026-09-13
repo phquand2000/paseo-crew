@@ -29,43 +29,27 @@ that choice.
 tier    -> choose the smallest sufficient tier in one sentence
 brief   -> neutral brief + case-fit output contract + framing lint
 sealed  -> create_agent for every Round 1 seat, then wait on notifications
-collect -> audit seats, handle failures, set council.phase=review
+collect -> audit seats, handle failures
 model   -> preserve the case's natural decision units in a typed decision model
 verify  -> bounded Verifiers for material factual disputes only
 cross   -> at most one challenge/response per disputed proposition
 draft   -> Lead drafts the verdict alone
 audit   -> fresh Auditor per tier policy
-verdict -> binding verdict, set council.phase=verdict, handoff contract
+verdict -> binding verdict, handoff contract
 ```
 
 When unsure mid-case which step is active, re-anchor on this list. Announce each phase
 transition in one short Lead-timeline line as it happens.
 
-## Use the control plane directly
+## Launching seats
 
-The orchestrator's agent tools are the runtime.
-
-Use these tools directly:
-
-- `create_agent` to launch seats;
-- `update_agent` to update council labels;
-- `send_agent_prompt` for bounded retries and targeted follow-up;
-- `get_agent_activity` to collect reports and audit seat activity;
-- `list_agents` only when an ID must be recovered.
-
-Do not inspect the orchestrator's installation or CLI when these tools are available, and do not
-reach for a provider-native subagent tool: every council seat is a first-class agent of its own.
-
-Every council seat runs on the read-only Reviewer profile, which is the only profile that blocks
-writes; `references/routing.md` holds the model and thinking level per function, and the
+Launch every seat with your own `create_agent`, so its completion returns to you; follow up with
+`send_agent_prompt`, read reports with `get_agent_activity`, and use `list_agents` only to recover
+an ID. Every seat is a first-class agent on the read-only Reviewer profile, never a provider-native
+subagent; `references/routing.md` holds the model and thinking level per function, and the
 Challenger's different model family, which is what makes `debate` stronger than `lens`. Read it
-when a configured value is missing or rejected.
-
-Create every seat with your own `create_agent` tool, so its result returns to you. Never
-substitute a shell `paseo run` for seat creation: that call is not caller-scoped, establishes no
-completion routing, and a hand-written parent label is metadata only. If `create_agent` is
-unavailable or refuses the launch, stop before creating seats and report the blocker rather than
-degrading into a fire-and-forget launch and status polling.
+when a configured value is missing or rejected. If `create_agent` refuses the launch, stop before
+creating seats and report the blocker.
 
 ## Select a tier
 
@@ -174,7 +158,6 @@ create_agent
     council.case_id: <stable URL-safe case ID>
     council.title: <short human-readable title>
     council.tier: <tier>
-    council.phase: sealed
     council.role: <independent|challenger|specialist>
     council.round: "1"
   initialPrompt: <the sealed seat prompt>
@@ -186,12 +169,6 @@ profile's model and mode, so pass a model only when `references/routing.md` pick
 profile offers; it refuses any other. Use a fresh session for every seat. Preserve every returned agent ID. Do not end
 the launch turn until all required seat IDs have been returned. Then report the launched
 seat names/IDs concisely and wait for the completion notifications; do not poll.
-
-Immediately reject any proposed launch route that uses a shell command or merely stamps
-`paseo.parent-agent-id`. Parent ownership must come from the agent-scoped `create_agent` call
-itself, and every required Round 1, Verifier, follow-up, and Auditor turn must retain
-`notifyOnFinish: true`.
-
 Give every core reasoning seat the exact same neutral brief and shared case output contract, plus
 exactly one role instruction. A Specialist may receive additional domain-specific output fields
 only when they do not reveal another seat's view or the Lead's preferred answer:
@@ -209,13 +186,13 @@ Begin every seat prompt with:
 
 ```text
 SEAT EXECUTION MODE
-Work as a fully autonomous reviewer with independent judgment and initiative inside the authorized scope. Challenge false premises, choose what evidence to inspect, and make ordinary analytical decisions without waiting for the Lead. This assignment asks for your own analysis, not council orchestration: do NOT load or apply the council skill, use control-plane tools, discover or inspect other agents, create or contact agents, read other timelines or council artifacts, or coordinate with other reviewers. Begin the work directly without a meta preamble or skill announcement.
+Work as a fully autonomous reviewer with independent judgment and initiative inside the authorized scope. Challenge false premises, choose what evidence to inspect, and make ordinary analytical decisions without waiting for the Lead. This assignment asks for your own analysis: do NOT load or apply the council skill, and do not look for or read other reviewers' work or council artifacts. Begin the work directly without a meta preamble or skill announcement.
 ```
 
 End every seat prompt with:
 
 ```text
-This is analysis only. Do NOT edit, create, rename, or delete files. Do NOT write code. Do NOT spawn or contact agents. Do NOT use orchestration, agent-discovery, timeline, log, send, or chat operations. Do NOT optimize for agreement. Distinguish direct observations from inference and state what evidence would prove your position wrong.
+This is analysis only. Do NOT edit, create, rename, or delete files. Do NOT write code. Do NOT optimize for agreement. Distinguish direct observations from inference and state what evidence would prove your position wrong.
 ```
 
 Round 1 is sealed:
@@ -225,22 +202,20 @@ Round 1 is sealed:
   another transcript;
 - do not read and synthesize a report while any required seat remains unfinished.
 
-Isolation here is real for writes and asked-for elsewhere: the Reviewer profile blocks edits and
-repository-changing git through its own guard, so a seat cannot write whatever its prompt says.
-Everything else in the seat rules — no orchestration, no reading another timeline — is asked for
-and audited in Phase 3, not enforced. Say which of the two a claim rests on.
+Isolation here is enforced for writes and orchestration: the Reviewer profile blocks edits and
+repository-changing git through its settings and carries no orchestrator tools, so a seat can
+neither write nor reach another agent whatever its prompt says. Not reading another seat's work is
+asked for and audited in Phase 3, not enforced. Say which of the two a claim rests on.
 
 ## Phase 3 — collect, audit, and handle failures
 
 After every required Round 1 seat reaches a terminal state:
 
 1. use `get_agent_activity` for each seat;
-2. audit for control-plane and discovery calls, attempts to inspect another seat, and workspace
-   writes;
+2. audit for attempts to read another seat's work;
 3. compare the mutable-source snapshot where practical;
 4. mark a violating seat `COMPROMISED` and do not silently use its report;
-5. update valid case seats to `council.phase=review`;
-6. collect complete valid reports only after all required seats have finished.
+5. collect complete valid reports only after all required seats have finished.
 
 If unexpected workspace mutation changes decision-relevant source and the authorized snapshot
 cannot be reconstructed, stop the affected review. Drift outside the authorized/material source
@@ -320,8 +295,7 @@ Give each Verifier only one precise proposition, the authorized sources, and one
 - audit coverage and identify likely missed sources.
 
 Use only as many mandates as the proposition needs. Never send identical prompts as an ensemble
-vote. Begin Verifier prompts with the same seat-execution instruction forbidding the Council
-skill and Paseo control-plane tools.
+vote. Begin Verifier prompts with the same seat-execution instruction.
 
 Require:
 
@@ -388,7 +362,7 @@ Give the Auditor only:
 Do not include seat identities, agent IDs, or raw transcripts; seat reports are the case-fit
 outputs, not transcripts. The seat reports let the Auditor check that the decision model and
 dissent summary omit nothing material; an omitted material claim is a material finding. Label it with the same case ID, role `auditor`,
-round `audit`, and phase `audit`. Apply the same no-skill, no-orchestration, no-edits seat rules.
+round `audit`. Apply the same no-skill, no-edits seat rules.
 Use the audit schema from [references/report-format.md](references/report-format.md).
 
 The Auditor cannot replace the verdict. Resolve every material finding by revising the draft,
@@ -404,8 +378,7 @@ material dissent and Lead's response; limitations; and reopen conditions. For a 
 set, preserve an explicit disposition for every finding.
 
 State whether the run used soft isolation, became degraded, encountered incomplete coverage, or
-skipped optional audit. After issuing the verdict, update every case seat to
-`council.phase=verdict`. Keep the verdict body in the Lead timeline, not in labels.
+skipped optional audit. Keep the verdict body in the Lead timeline, not in labels.
 
 Council ends at the decision and handoff contract. Council seats do not implement. A later
 Implementer should receive the verdict, required action, do-not-touch boundaries, and validation
