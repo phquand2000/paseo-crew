@@ -177,7 +177,7 @@ micro for the Peer, and review for the Reviewer. [S, SK, OMP]
     output reaches the context, and it can't be paraphrased into a different procedure. Name the
     path as `SKILL_DIR/scripts/NAME`, say to run it, and keep its reasons in `REFERENCE.md`
     by the no-comment rule. `review_pack.py` and `create_ultra_review_report.py` are the kit's
-    two, both vendored. [S]
+    two, both from SLP. [S]
 11. Keep the disclosure flat: one level of references under `SKILL.md`, and no index of
     descriptions layered above it. A routing layer whose entries sit in context permanently
     recreates the pressure the split was meant to relieve, and measures worse than a flat pack.

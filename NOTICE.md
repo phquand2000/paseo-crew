@@ -1,6 +1,6 @@
 # Skill sources
 
-The twelve skills in `project/skills/` fall into three groups, and the difference matters for
+The ten skills in `project/skills/` fall into three groups, and the difference matters for
 credit. Seven are **SLP files** installed here with targeted edits — model names, Windows paths,
 Codex-only tooling, and the launch shapes replaced with this kit's — and their text is the SLP
 author's. Four are **written for this kit**, adapting a mechanism (a procedure, a gate, or a
@@ -23,17 +23,20 @@ history at `db20bff^`.
 
 | Skill | Source file | What changed here |
 |---|---|---|
-| `lead/council` | SLP `council/` with `references/report-format.md` | `$ARGUMENTS` and the Codex room-role guard removed; the Lead-only guard dropped for a `permissions.ask` rule in the Lead's settings; launch mechanics the orchestrator handles removed, and the brief given inline field hints; `model-routing.md` cut to a thinking-level table in the skill, without the preferences file; the audit for reviewers reading each other's work dropped, since the Reviewer's settings give it no view of other agents |
-| `lead/ultra-review` | SLP `ultra-review/` | fixed model names replaced with the Reviewer profile; the author's absolute Windows script path replaced; the `$ultra-review-receive` handoff replaced with the Lead's ruling and an Engineer brief; its Human gate is a `permissions.ask` rule in the Lead's settings |
-| `lead/review-pack` | SLP `review-pack/` | the `codex-chatgpt-control` upload section removed; Windows paths, PowerShell continuations, and the description's Codex framing converted |
-| `lead/repo-refresh` | SLP `repo-refresh/` | the apply mode's deletions sent out as Engineer briefs, since the Lead writes only `docs/` and its records; the `$repo-refresh` invocation replaced by a `permissions.ask` rule |
+| `lead/council` | SLP `council/` with `references/report-format.md` | `$ARGUMENTS` and the Codex room-role guard removed; the Lead-only guard dropped, since only the Lead's seat carries the skill, and the Lead opens a council on its own judgment; launch mechanics the orchestrator handles removed, and the brief given inline field hints; `model-routing.md` cut to a thinking-level table in the skill, without the preferences file, and each position's model and thinking level read from the workspace protocol's Routing; and a same-family Challenger named in the verdict's limitations; the audit for reviewers reading each other's work dropped, since the Reviewer's settings give it no view of other agents |
+| `lead/ultra-review` | SLP `ultra-review/` and `review-pack/` | merged into one skill with a hunt and a pack mode, where Open Code Review's delegation and scan previews select the files and group them by rule; the scouts' model and thinking level read from the workspace protocol's Routing, with the machine pass skipped; the author's absolute Windows paths, PowerShell continuations, Codex framing and `codex-chatgpt-control` upload section removed; the `$ultra-review-receive` handoff replaced with a rulings table and an Engineer brief |
+| `lead/repo-refresh` | SLP `repo-refresh/` | the apply mode's deletions sent out as Engineer briefs, since the Lead writes only `docs/` and its records; the `$repo-refresh` invocation dropped, so the Lead opens it on its own judgment |
 | `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | the user as requester replaced by the brief; the catalog installed as `references/proof-debt-catalog.md`, cut to its search families and routes |
-| `supervisor/architecture-premise-audit` | SLP `SKILL.md` | its explicit-request gate is a `permissions.ask` rule in the Supervisor's settings |
-| `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | condensed; every lens, the domain examples and the exoneration verdicts kept |
+| `supervisor/architecture-premise-audit` | SLP `SKILL.md` | its explicit-request gate dropped, so the Supervisor opens it on its own judgment |
+| `.seatworks/guides/STRUCTURAL_LENSES.md` | SLP `structural-antipatterns.md` | condensed; every lens, the domain examples and the exoneration verdicts kept |
 | `.seatworks/guides/FEATURE_INTAKE.md`, `.seatworks/guides/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/`; the Design Gate's record pointed at an ADR; `PLANS.md` since rewritten, listed below |
 
-Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
-`lead/ultra-review/scripts/create_ultra_review_report.py`, are SLP files kept byte-for-byte.
+Both scripts, `lead/ultra-review/scripts/review_pack.py` and
+`lead/ultra-review/scripts/create_ultra_review_report.py`, come from SLP. The report script now
+builds a coverage ledger and a scout assignment from Open Code Review's JSON and ends in a rulings
+table; the pack script was cut to packing what that JSON selects, with the change's diff and a fixed
+reviewer prompt, dropping its language profiles, line excerpts, review kinds and Rust impact report. Their comments
+and docstrings were removed, as the kit's scripts carry none.
 
 On 2026-09-14 every skill was cut to the job and how to do it, drawing on Anthropic's skill
 authoring best practices and agentskills.io (what the agent would get wrong without it, one reason
@@ -48,7 +51,7 @@ the records this kit's guides define in their guides' layout.
 | `peer/test-first` | superpowers `test-driven-development`; a Codex `test-driven-development` adaptation (evidence first, proof surfaces, the relevant-test gate, the wrapper and bridge rule); mattpocock `tdd`; SLP material (test discipline and hard-cut rules); the SLP author's talk (minted APIs, a short anti-pattern list) |
 | `peer/diagnosing-bugs` | mattpocock `diagnosing-bugs`; superpowers `systematic-debugging` and its root-cause tracing |
 | `peer/security-check` | addyosmani `security-and-hardening`; trailofbits `sharp-edges` (ideas only) |
-| `reviewer/reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns); alibaba/open-code-review (its `delegate` contract: scope, exclusion reasons, and rules resolved per file pattern) |
+| `.seatworks/prompts/REVIEWER.md` (the review procedure, from the retired `reviewing-a-change` skill) | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns); alibaba/open-code-review (its `delegate` contract: scope, exclusion reasons, and rules resolved per file pattern); OpenAI Codex's review rubric (a strict bar for what counts, then every qualifying finding with priority and confidence); Anthropic's Claude Code code-review command (validate each finding before reporting, quote the rule it breaks); Atlassian's review-agent ablation and BitsAI-CR (standing rules as the strongest lever, a verification pass for precision); the PR-description bias study (read the change before its description) |
 | `supervisor/pre-mortem` | Gary Klein, "Performing a Project Premortem" (prospective hindsight, and the shift from what could go wrong to what did); SLP material (`council` sealed seats, one lens per seat) |
 | `supervisor/retrospective` | Cemri et al., "Why Do Multi-Agent LLM Systems Fail?" (the three failure classes, and organizational design over model capability); the SLP author's talk (a weekly review that distills the period into rules) |
 | `.seatworks/guides/PLANS.md` (rewritten), `ADR.md`, `REVIEW.md` | Nygard's ADR and MADR (sections, statuses, superseding); Zdun et al.'s Y-statement (the decision sentence); AWS and Azure ADR guidance (an accepted record is not edited; when a decision earns one); HumanLayer's plans and GitHub Spec Kit (the plan as current state, acceptance per unit of work); Rust tracking issues and stabilization reports, and Kubernetes KEPs (progress, review and deviations kept out of the design); OpenAI's ExecPlans (restartable from the plan alone); Anthropic's prompting guidance and BMAD's templates (sizes in the headings, destinations instead of prohibitions, field hints inside the template, the same news written right and wrong); OpenAI's harness-engineering lints and Factory's lint-driven agents (a check that informs with the fix instead of refusing) |

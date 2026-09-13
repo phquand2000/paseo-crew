@@ -1,6 +1,6 @@
-# Structural misfit and avoidable-tax lenses
+# Structural lenses
 
-Open this when a change or a system adds machinery, cites a proof, or names an outcome. These are search lenses, not a checklist every design must pass: report only what the code you read supports, and exonerate what earns its cost.
+Read this when a change or a system adds machinery, cites a proof, or names an outcome. These are search lenses, not a checklist every design must pass: report only what the code you read supports, and exonerate what earns its cost.
 
 ## Causal mechanism
 

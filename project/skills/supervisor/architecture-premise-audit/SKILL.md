@@ -1,6 +1,6 @@
 ---
 name: architecture-premise-audit
-description: "Audits whether a whole project is built around the right kind of system, by deriving the capabilities its product needs before trusting the repository's own vocabulary, and returns one verdict with ranked, falsifiable findings. Use when the Human asks whether the project is the right kind of system. Not for reviewing a change or one named design concern."
+description: "Audits whether a whole project is built around the right kind of system, by deriving the capabilities its product needs before trusting the repository's own vocabulary, and returns one verdict with ranked, falsifiable findings. Use when the Human asks, or the evidence suggests, that the project may be the wrong kind of system. Not for reviewing a change or one named design concern."
 ---
 
 # Architecture premise audit
@@ -17,7 +17,7 @@ You judge whether the project is built around the right system archetype, not wh
 1. **Set the claim:** product category, boundary, expected outcome, assumptions, and when you are done.
 2. **Build the expected atlas** from product needs and established domain mechanisms: the responsibilities that should exist, their likely owners, scaling variables, and work that must be bounded or isolated. Slice by product responsibility, not by module: each slice names its job and consumer, its authoritative owner, state and lifecycle, its inputs, outputs and trust boundaries, its scaling or adversarial variable, and its failure and backpressure behavior.
 3. **Build the observed map:** production entry points, authoritative state, durable effects, expensive operations, queues and schedulers, external outputs, deployment boundaries and cited proof, without copying the repository's decomposition untested.
-4. **Compare every slice.** What demonstrated requirement forces each mechanism? Does cost follow useful work? Are the normal and exceptional paths reversed? What is lost by removing or moving it? Use `.seatworks/skills/reviewer/reviewing-a-change/references/structural-lenses.md` as search lenses; its domain examples show the detail an expected mechanism needs.
+4. **Compare every slice.** What demonstrated requirement forces each mechanism? Does cost follow useful work? Are the normal and exceptional paths reversed? What is lost by removing or moving it? Use `.seatworks/guides/STRUCTURAL_LENSES.md` as search lenses; its domain examples show the detail an expected mechanism needs.
 5. **Deep-check serious candidates:** trace real callers, name the amplification route, build the cleaner counterfactual and the machinery it removes, and give the strongest counterargument and the evidence that would falsify the finding.
 6. **Stop on coverage,** when every ingress, state family, durable effect, expensive operation and external output is in the ledger or excluded by scope.
 

@@ -1,37 +1,56 @@
 ---
 name: ultra-review
-description: "Runs a maximum-recall bug hunt over one named scope with ten independent read-only scouts assigned overlapping concerns, and consolidates every candidate into one durable report with a verification queue. Use when the Human asks for an ultra review. Not for an ordinary review of a change, which is one Reviewer."
+description: "Hunts bugs across one named scope with ten independent read-only scouts, or packs the scope for an outside reviewer, with Open Code Review selecting the files and grouping them by review rule. Use at the protocol's ultra-review gate, when a missed bug would cost more than ten scouts, or when someone outside the project is to review it. Not for reviewing one change, which is one Reviewer."
 ---
 
 # Ultra review
 
-The goal is recall, so noise and false positives are acceptable: no candidate leaves the report for being speculative, unique, low-confidence, weakly evidenced or duplicated. Verification is your ruling after the report exists, not part of the hunt.
+**hunt**, the default, is for recall: a false positive costs a verification step and a missed bug costs far more, so no candidate leaves the report for being speculative, unique, low-confidence or duplicated, and verification is your ruling after the report exists. **pack** gives a reviewer outside the project one artifact it can read without the repository. The scripts own file selection, scout assignment and the report's layout; your judgment goes into concerns, prompts and rulings.
 
-## Assign concerns
+## 1. Scope
 
-The review brief gives the scope, its sha256 digest, and optionally numbered directives `D01`, `D02`, ...
+```sh
+ocr delegate preview --format json --commit "$sha" > "$TMPDIR/ocr-preview.json"   # or --from BASE --to "$sha"
+ocr scan --preview --path PATH,PATH --format json > "$TMPDIR/ocr-preview.json"     # an area, no diff
+ocr delegate rule --format json $(jq -r '(.reviewable_files // [.files[] | select(.will_review)])[].path' "$TMPDIR/ocr-preview.json") > "$TMPDIR/ocr-rules.json"
+```
 
-- With no directives, derive concerns `G01`, `G02`, ... from the scope, repository contracts, change intent, adjacent owners, call paths, lifecycle, data flow and blast radius.
-- Every directive is mandatory: give each to at least three scouts and expand it into search angles without weakening it.
+Skip the rule call when nothing is reviewable. The tool filters by file type, so an excluded file is not a cleared one; the hunt script keeps excluded files in scope. Without `ocr`, say so and run the scripts without the two JSON files.
 
-Launch ten scouts, `scout-01` to `scout-10`, each a fresh agent from the `reviewer` profile. Every scout has at least one concern and may report any bug it meets in scope. Overlap on risky areas uses different traces, lifecycle phases, owners, adversarial cases or disconfirming approaches, never copies of one prompt, and no candidate is shared before consolidation. Relaunch only scouts whose report never arrived, under their original ID and assignment.
+The review brief gives the scope, its sha256 and optional directives `D01`, `D02`, .... Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius.
 
-Each scout prompt carries the exact scope, change intent, relevant repository contracts and prior-round warnings; its concern IDs with tailored search angles; the full production surface to inspect, not only the diff; static inspection only, with no tests, builds or package managers; and a request for every candidate, speculative ones included, with the finding fields below. Lenses to combine for a slice: state-machine correctness; ownership and lifecycle gaps; caller, schema and protocol contracts; concurrency, cancellation and cleanup; error masking, fallback and retry; authorization and adversarial input; hot-path cost; generated artifacts, fixtures and docs; fake-pass proof; compatibility paths and duplicate state; missing essential mechanisms.
-
-Before round 2 or later, read every earlier report of the same review name and give relevant scouts short warnings: confirmed fixes, rejected false positives, unresolved routes, regression risks. A prior rejection is a warning, not a filter; a scout may revive it, and the report keeps it.
-
-## Write the report
+## 2a. hunt
 
 ```bash
 python3 .seatworks/skills/lead/ultra-review/scripts/create_ultra_review_report.py \
-  --workspace "$(git rev-parse --show-toplevel)" --review-name REVIEW_NAME \
-  --scope "SCOPE" --review-brief-sha256 BRIEF_SHA256 --scout-count 10 --directive-count DIRECTIVE_COUNT
+  --workspace "$(git rev-parse --show-toplevel)" --review-name NAME --scope "SCOPE" \
+  --review-brief-sha256 SHA256 --directive-count N \
+  --ocr-preview "$TMPDIR/ocr-preview.json" --ocr-rules "$TMPDIR/ocr-rules.json"
 ```
 
-The script owns the path under `docs/ultrareview/` and the round number. Write only to its `report_path`, never overwrite a report, and replace every `TODO` and the script's comment block. Group candidates by root cause into findings `F001`, `F002`, ..., each with severity `P0`–`P3`, confidence, `file:line`, evidence observed, the contract violated, a plausible failure mode, a durable fix hypothesis, and a read-only disconfirming check. A finding holds only what someone needs to verify and fix it: no raw candidate ledger or merge notes. If scouts reported nothing, write `No candidates reported.` under Findings.
+It writes this round's report under `docs/ultrareview/`, never over an earlier one, with a coverage ledger, and prints the units (each rule group with its files and rule text, plus the excluded files) and each scout's units and directives: two scouts per unit, three per directive. Give a risky unit a third scout yourself.
 
-Keep the script's metadata lines and headings: `Prior Round Guard`, `Findings`, `Verification Queue` (every finding with its disconfirming check), `Strongest Reason Not To Merge Yet`, and `Next Receive Prompt`, whose placeholder line you replace with the handoff below.
+Launch `scout-01` to `scout-10`, each a fresh agent from the `reviewer` profile with the model and thinking level of the `Ultra-review scouts` line in `.seatworks/guides/WORKSPACE_PROTOCOL.md`, or the profile's defaults without it. Each prompt carries:
+
+- the scope, change intent and relevant repository contracts;
+- its units' files and rule text, and its directives and concerns, each with a search angle no other scout on that unit has, because copies of one prompt find the same bugs twice;
+- warnings from earlier rounds: confirmed fixes, rejected false positives, open routes, where a rejection is a warning, not a filter;
+- `Machine pass: skip` and static inspection only, since ten scouts building and testing at once collide;
+- the ask: every candidate, speculative ones included, with severity `P0`–`P3`, confidence, `file:line`, evidence, contract violated, plausible failure, durable fix hypothesis and a read-only disconfirming check; and each assigned file marked reviewed, or skipped with a reason.
+
+Share no candidate before consolidation, and relaunch only a scout whose report never arrived, under its original ID and assignment. Then fill the report's TODOs: each file's coverage status, findings `F001`, `F002`, ... grouped by root cause with the fields above and no raw candidate list, one Verification Queue line per finding, and the strongest reason not to merge yet; with no candidates, `No candidates reported.` under Findings.
+
+## 2b. pack
+
+```bash
+python3 .seatworks/skills/lead/ultra-review/scripts/review_pack.py create --root "$(git rev-parse --show-toplevel)" \
+  --ocr-preview "$TMPDIR/ocr-preview.json" --ocr-rules "$TMPDIR/ocr-rules.json" \
+  --include AGENTS.md --exclude-tests --task "BRIEF" --out "$TMPDIR/NAME-review.md" --dry-run
+```
+
+It packs the reviewable files with the change's diff, turns each rule group into a reviewer question, and writes the reviewer prompt. Add `--focus` for an excluded file that carries behavior and `--include` for each governing document the reviewer needs to judge the architecture. For a large or architecture review, `--format zip` builds a source snapshot without the diff and writes the prompt beside it, so the reviewer reads source truth rather than a patch. Show the Human the dry run's file count and size, then build without `--dry-run`.
 
 ## Ends in
 
-The report, the only file the review creates; print its path and content. Then rule on every finding in the Verification Queue: each confirmed fix goes to an Engineer as an ordinary brief naming the finding IDs, owned scope, and the disconfirming check as acceptance, and a rejected finding keeps its row with your reason.
+- **hunt:** the report, the only file the review creates. Fill its Rulings table: a confirmed finding goes to an Engineer as a brief naming the finding IDs, the owned scope, and its disconfirming check as acceptance; a rejected one keeps its row with your reason.
+- **pack:** the artifact and its prompt, given to the Human, who decides where they go.

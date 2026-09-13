@@ -110,20 +110,16 @@ function check_skill --argument-names label skill
     end
 end
 
-function seat_skill_entries --argument-names label skills_dir
+function seat_skill_entries --argument-names label skills_dir peer_dir
     if test -n "$skills_dir"
         for skill in $skills_dir/*/
             set skill (path resolve $skill)
             test -f $skill/SKILL.md; and echo (path basename $skill)=$skill
         end
     end
-    for name in $argv[3..-1]
+    for name in $argv[4..-1]
         if string match -q 'peer:*' -- $name
-            test -n "$skills_dir"; or begin
-                fail "$label: extra skill '$name' needs a skill set to resolve against, and this role's skills is null" >&2
-                continue
-            end
-            set -l shared (path resolve $skills_dir/../peer/(string replace 'peer:' '' -- $name))
+            set -l shared (path resolve $peer_dir/(string replace 'peer:' '' -- $name))
             if test -f $shared/SKILL.md
                 echo (path basename $shared)=$shared
             else
@@ -300,7 +296,7 @@ function build_seat --argument-names role slug repo_dir
             check_skill $key (path resolve $skill) $hides
         end
     end
-    link_skills $key $dir $skills_sub $dry (seat_skill_entries $key $skills_dir $extras)
+    link_skills $key $dir $skills_sub $dry (seat_skill_entries $key "$skills_dir" $repo_dir/.seatworks/skills/peer $extras)
     probe_skills $key $harness $dir $skills_sub $repo_dir
     test $live -eq 1; and probe_live $key $harness $dir $skills_sub $repo_dir
 

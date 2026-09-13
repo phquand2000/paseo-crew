@@ -1,6 +1,6 @@
 ---
 name: council
-description: "Settles one non-trivial architecture, code, product, research, strategy, policy, or incident decision with fresh read-only reviewers writing sealed independent reports, bounded verification of factual disputes, and one binding verdict the Lead drafts alone. Use when the Human or an owner directive asks for a council."
+description: "Settles one non-trivial architecture, code, product, research, strategy, policy, or incident decision with sealed independent reports, bounded verification, and one binding verdict the Lead drafts alone. Use when a decision has several defensible answers and is expensive or hard to reverse, or when the Human or an owner directive asks for one; not for a choice a cheap slice settles."
 ---
 
 # Council
@@ -26,18 +26,9 @@ Re-anchor on this list whenever you're unsure which step is active.
 - `lens`: one Independent.
 - `debate` (default): Independent + Premise Challenger.
 - `debate-with-proof`: `debate`, plus Verifiers as needed and a draft audit by default.
-- `high-risk`: Independent at the highest thinking level + Premise Challenger, optionally one Specialist, Verifiers as needed, mandatory draft audit.
+- `high-risk`: Independent + Premise Challenger at the strongest level the protocol allows, optionally one Specialist, Verifiers as needed, mandatory draft audit.
 
-Set each agent's thinking level when you create it:
-
-| Role | Thinking | Why |
-|---|---|---|
-| Independent, Premise Challenger, Specialist, deep Verifier or Auditor | high | they deliberate |
-| Independent in `high-risk` | max | the strongest reasoning offered |
-| Verifier | low | cheap, bounded coverage |
-| Auditor | medium | a bounded audit of the draft |
-
-Give the Challenger a model from a different strong family whenever the profile offers one. Sealing removes contamination, not correlation: two reviewers on one model share its blind spots, so their agreement is weak evidence. When no second family is offered, use the same model and list "same-family Challenger" under the verdict's limitations. Cheap agents add coverage; strong ones deliberate; you adjudicate.
+Create each position with the model and thinking level the `Council models` line of `.seatworks/guides/WORKSPACE_PROTOCOL.md` names for it; without that line, use the `reviewer` profile's defaults and say so in the verdict's limitations. Cheap agents add coverage, strong ones deliberate, and you adjudicate. Sealing removes contamination, not correlation: when the Independent and the Challenger run one model family, treat their agreement as weak evidence, look hardest where they agree without independent sources, and list "same-family Challenger" under the verdict's limitations.
 
 ## 1. Neutral brief
 

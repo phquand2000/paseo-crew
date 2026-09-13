@@ -53,11 +53,12 @@ source.
 - **`sandbox`:** `enabled`, `failIfUnavailable: true` and `allowUnsandboxedCommands: false`, and
   the Lead also sets `network.allowLocalBinding`. It refused a Bash write outside the working
   directory and allowed one inside it, a git commit, and an HTTPS request.
-- **`permissions.ask` on a skill:** `Skill(skill:council)` holds in `bypassPermissions`, while
-  `Skill(council)` matches nothing. Through Paseo the call waits as a permission request for the
+- **`permissions.ask` on a skill:** `Skill(skill:NAME)` holds in `bypassPermissions`, while
+  `Skill(NAME)` matches nothing. Through Paseo the call waits as a permission request for the
   agent that started the seat, and a deny's message reaches the seat; verified with a Lead seat
   on `repo-refresh`. `disable-model-invocation` can't do this job: the skill then opens only from
-  a message that starts with `/NAME`, so a relayed `OWNER DIRECTIVE:` never reaches it.
+  a message that starts with `/NAME`, so a relayed `OWNER DIRECTIVE:` never reaches it. The kit sets none: a role uses its own
+  skills on its own judgment.
 - **No write allow-list inside the repository.** A `sandbox.filesystem.denyWrite` entry beats an
   `allowWrite` inside it, so which repository files the Supervisor and the Lead write is a line in
   their prompts.

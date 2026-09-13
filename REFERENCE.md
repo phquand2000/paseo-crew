@@ -379,6 +379,19 @@ stay) and
 - **Response:** send anything meant for a Peer through its Lead (the Supervisor's `CHECK:`
   questions work this way), and message a running agent only when it can't wait.
 
+## A question for the Human reaches the Supervisor
+
+- **Symptom:** a Peer's or the Lead's question is answered without you, or the Lead can't answer a
+  Peer's question itself.
+- **Cause:** Paseo tells only the agent that started the asker about a pending question. The
+  Paseo plugin also sends every question from a seat other than the Supervisor to the project's
+  running Supervisor as a `QUESTION:` message with the request, and logs it and its answer in the
+  attention log; `respond_to_permission` answers any agent's request, and the Lead's copy of that
+  tool is off, so the Supervisor is the one who chooses. With no Supervisor running, the question
+  waits for the agent that started the asker, or for you.
+- **Response:** expected. The Supervisor brings you only a question that changes the project's
+  concept; answer a pending one yourself with `paseo permit allow AGENT REQUEST --input JSON`.
+
 ## The watcher has its own seat
 
 - **Symptom:** the Supervisor finds no Watcher profile, or `setup-seats.fish` notes that
@@ -401,7 +414,7 @@ stay) and
   `exclude_reason`, and `rule` returns the rule text resolved per file pattern. The filter is by
   extension, so a change that is all Markdown, config, or deleted files comes back with nothing
   reviewable. That is a scope answer, not a verdict.
-- **Response:** `reviewing-a-change` says to review the excluded files anyway, from
+- **Response:** `REVIEWER.md` says to review the excluded files anyway, from
   `git show --stat`, and to put the excluded list with its reasons in the handoff, which is the
   coverage ledger. A repository with its own standards ships a rule file and the brief names it
   for `--rule`. The `ocr review` path, which sends the diff to a model OCR is configured with, is

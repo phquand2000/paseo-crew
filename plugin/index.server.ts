@@ -23,9 +23,9 @@ export default function contribute(server: PluginServerContext) {
 
   server.on("agent.turn_started", (event) => onTurnStarted(event));
 
-  server.on("agent.permission_requested", (event) => {
+  server.on("agent.permission_requested", async (event, { paseo }) => {
     const kit = loadKit();
-    if (kit) onPermissionRequested(kit, event);
+    if (kit) await onPermissionRequested(paseo, kit, event);
   });
 
   server.on("agent.permission_resolved", (event) => onPermissionResolved(event));

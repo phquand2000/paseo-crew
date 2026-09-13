@@ -88,7 +88,7 @@ async function flush(paseo: PaseoApi, agentId: string): Promise<void> {
   for (const entry of waiting) entry.sent?.();
 }
 
-async function findSeat(paseo: PaseoApi, root: string, role: string) {
+export async function findSeat(paseo: PaseoApi, root: string, role: string) {
   const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
   return entries
     .map((entry) => entry.agent)

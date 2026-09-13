@@ -1,6 +1,6 @@
 ---
 name: repo-refresh
-description: "Refreshes one named repository around current production truth: audits documentation, plans, issues, tests, proof machinery, scripts and generated debris, classifies each suspect, and has the stale ones merged or deleted. Use when the Human asks for a repository refresh."
+description: "Refreshes one named repository around current production truth: audits documentation, plans, issues, tests, proof machinery, scripts and generated debris, classifies each suspect, and has the stale ones merged or deleted. Use when documentation, plans, tests or scripts have drifted from what production does, or when a refresh is asked for."
 ---
 
 # Repository refresh
@@ -9,10 +9,10 @@ You refresh the named repository around what is true in production now. It is a 
 
 ## Mode
 
-Take it from the Human's wording:
+Take it from the request's wording, or audit when you start one yourself:
 
 - **audit**, the default for a bare request: inspect and report.
-- **apply**, when the Human says refresh, clean, fix, remove or consolidate: audit, get the cut made, and verify. The audit and `docs/` are yours; every other change goes to an Engineer, one brief per coherent group of deletions, with the audit rows as its objective, the paths as its owned scope and step 5 as its acceptance. Verify from the returned SHA, not the summary.
+- **apply**, when the request says refresh, clean, fix, remove or consolidate: audit, get the cut made, and verify. The audit and `docs/` are yours; every other change goes to an Engineer, one brief per coherent group of deletions, with the audit rows as its objective, the paths as its owned scope and step 5 as its acceptance. Verify from the returned SHA, not the summary.
 - **verify:** check an earlier refresh without widening its scope.
 
 An age threshold marks suspects, never deletion targets. Leave unrelated and pre-existing changes where they are, and don't change production behavior to simplify the cleanup; report a production defect separately. Git is the history: no archives, backup folders or compatibility copies inside the repository.

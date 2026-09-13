@@ -79,7 +79,8 @@
           "create_workspace",
           "rename_workspace",
           "set_agent_mode",
-          "update_schedule"
+          "update_schedule",
+          "respond_to_permission"
         ]
       },
       "mayStart": [
@@ -174,15 +175,25 @@
       "harness": "omp",
       "label": "Reviewer",
       "prompt": "prompts/REVIEWER.md",
-      "skills": "reviewer",
+      "skills": null,
       "extraSkills": [
         "peer:test-proof-debt-audit",
         "peer:security-check",
         "peer:diagnosing-bugs"
       ],
       "required": false,
-      "notes": "The only read-only seat: every review of a change, and every read-only lane a skill opens (council seats, ultra-review scouts, audit readers). Read-only is enforced by its settings, not asked for.",
-      "models": [],
+      "notes": "The only read-only seat: every review of a change, and every read-only lane a skill opens (council seats, ultra-review scouts, audit readers). Its models list is what a workspace protocol may route those lanes to. Read-only is enforced by its settings, not asked for.",
+      "models": [
+        {
+          "id": "zai/glm-5.3",
+          "label": "GLM-5.3",
+          "isDefault": true
+        },
+        {
+          "id": "zai/glm-5.3-flash",
+          "label": "GLM-5.3-Flash"
+        }
+      ],
       "thinking": "max",
       "description": "Reviewer seat: read-only review, council and audit lanes",
       "reviewSeat": true,
@@ -218,7 +229,7 @@
   "researchNote": "searching is the Supervisor's and the Lead's: they keep web search and web fetch, and name every outside source a Peer or Reviewer needs in its brief. Those two roles read named URLs with their read tool and have no search, so a product's sources are the ones its brief or handoff lists; the watcher has neither. On omp, web_search needs a key the Human sets in the base provider's environment (EXA_API_KEY, BRAVE_API_KEY, TAVILY_API_KEY or PERPLEXITY_API_KEY), which matters only if a role is given search back.",
   "promptBudget": 16384,
   "paseoToolsNote": "paseoTools is copied verbatim to the role's Paseo provider, where Paseo 0.8 leaves every disabled tool out of the catalog the seat is handed, on every harness alike. Peers and Reviewers get none: each believes it works directly for a human, and a control-plane tool would show it the layer above it. The Lead gets no workspace tools, because a worktree buys isolation only when two writers hold disjoint scopes, and three Engineers on one worktree were measured instead. The watcher gets only the read half, because the Paseo plugin in plugin/ wakes it and carries its events to the Supervisor. The Supervisor and the Lead lose set_agent_mode and update_schedule, and the Supervisor update_agent too, because a seat keeps the mode and model the plugin gave it at launch. Paseo documents this as a catalog limit, not a security boundary: a seat with a shell could still run the paseo CLI, which every role's harness settings deny.",
-  "limitsNote": "every other limit on a seat is a setting of the coding agent it runs on, in files setup links or merges unchanged: harness/claude/settings/ROLE.settings.json holds permissions.deny and sandbox, and harness/omp/settings.json with settings/ROLE.settings.json holds the per-tool enabled keys, tools.approval and bash.patterns. Paseo's own disallowedTools would be the orchestrator-level spelling, but its omp provider never reads it, so each harness keeps its own list and nothing in the kit runs as a guard. A skill that costs several agents is a permissions.ask rule on Skill(skill:NAME): loading it waits for the agent that started the seat, and the Paseo plugin logs each request and its answer in the attention log. What no setting can say stays a line in the role's prompt, as part of the job: which repository files the Supervisor and the Lead write, a Peer's owned scope, and that a Peer works from its brief rather than the coordination records. REFERENCE.md says what each setting holds and how it was verified.",
+  "limitsNote": "every other limit on a seat is a setting of the coding agent it runs on, in files setup links or merges unchanged: harness/claude/settings/ROLE.settings.json holds permissions.deny and sandbox, and harness/omp/settings.json with settings/ROLE.settings.json holds the per-tool enabled keys, tools.approval and bash.patterns. Paseo's own disallowedTools would be the orchestrator-level spelling, but its omp provider never reads it, so each harness keeps its own list and nothing in the kit runs as a guard. No skill waits for permission: a role uses its own skills on its own judgment. A question an agent raises for the Human goes to the project's Supervisor, which the Paseo plugin delivers as QUESTION: and logs, and the Lead's respond_to_permission is off so the Supervisor is the one who answers. What no setting can say stays a line in the role's prompt, as part of the job: which repository files the Supervisor and the Lead write, a Peer's owned scope, and that a Peer works from its brief rather than the coordination records. REFERENCE.md says what each setting holds and how it was verified.",
   "mayStartNote": "mayStart lists the roles a seat may launch; the Paseo plugin in plugin/ archives a new agent whose parent's list does not name its role, whether it came from create_agent, the paseo CLI or a schedule, and tells the parent why, so an empty list means the seat starts nothing. With one provider per role the provider name is the role, which is what the plugin matches.",
   "sweepMinutesNote": "set on the one seat the Paseo plugin wakes: after a Lead, Peer or Reviewer turn ends in a project, the plugin sends that project's seat SWEEP at most once per this many minutes, logs the ATTENTION blocks its sweep ends with in .seatworks/records/attention/, sends a log-class block once it has recurred on three sweeps, and carries the rest to the entry seat. The plugin also raises DECISION:, DETOUR: and HANDOFF lines, pushback unanswered for two sweep periods, and failed turns itself, so the seat's prompt names only the triggers that take judgment.",
   "hidesWordsNote": "hidesWords lists words a seat must never see: setup-seats.fish refuses the seat prompt and every skill it links if one of them appears as a whole word, case-insensitively. Peers and Reviewers believe they work directly for a human, and a Lead knows only the three message labels, so nothing may name the seat above it.",

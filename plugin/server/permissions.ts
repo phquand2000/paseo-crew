@@ -1,33 +1,51 @@
-import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
-import { logLine } from "./attention";
+import type { PluginHookContext, PluginLifecycleEvents } from "@getpaseo/plugin/server";
+import { deliver, findSeat, logLine } from "./attention";
 import { type Kit, projectRoot, seatFor } from "./kit";
 
+type PaseoApi = PluginHookContext["paseo"];
 type Requested = PluginLifecycleEvents["agent.permission_requested"];
 type Resolved = PluginLifecycleEvents["agent.permission_resolved"];
 
-const asked = new Map<string, { root: string; fields: string }>();
+const routed = new Map<string, { root: string; fields: string }>();
 
-function skillOf(request: Requested["request"]): string | undefined {
-  if (request.name !== "Skill") return undefined;
-  const skill = (request.input as { skill?: unknown } | undefined)?.skill;
-  return typeof skill === "string" ? skill : undefined;
-}
-
-export function onPermissionRequested(kit: Kit, event: Requested): void {
-  const skill = skillOf(event.request);
+export async function onPermissionRequested(paseo: PaseoApi, kit: Kit, event: Requested): Promise<void> {
+  if (event.request.kind !== "question") return;
   const seat = seatFor(kit, event.agent.provider);
+  const entry = kit.seats.find((candidate) => candidate.entry);
   const root = projectRoot(event.agent.cwd);
-  if (!skill || !seat || !root) return;
-  const fields = `${event.agent.id} (${seat.role})  skill ${skill}`;
-  asked.set(event.request.id, { root, fields });
-  logLine(root, `${fields}  -> asked`);
+  if (!seat || !entry || !root || seat.role === entry.role) return;
+  const fields = `${event.agent.id} (${seat.role})  question`;
+  routed.set(event.request.id, { root, fields });
+  const owner = await findSeat(paseo, root, entry.role);
+  if (!owner) {
+    logLine(root, `${fields}  -> no ${entry.role} running, left to the agent that started it`);
+    return;
+  }
+  if (event.agent.parentAgentId === owner.id) {
+    logLine(root, `${fields}  -> ${entry.role} started it and was told`);
+    return;
+  }
+  const text = [
+    `QUESTION: ${event.agent.id} (${seat.role}) is waiting on a question meant for the Human.`,
+    'Choose the answer yourself unless it changes the project\'s concept, and send it with respond_to_permission using the agentId and requestId below: response {"behavior": "allow", "updatedInput": {"questions": <the request\'s questions>, "answers": {<each question\'s text, or "Response" when the request is a select>: <your choice>}}}.',
+    `<permission-request>\n${JSON.stringify({ agentId: event.agent.id, requestId: event.request.id, request: event.request }, null, 2)}\n</permission-request>`,
+  ].join("\n\n");
+  let sent = false;
+  await deliver(paseo, owner.id, text, false, () => {
+    sent = true;
+    logLine(root, `${fields}  -> sent to ${entry.role}`);
+  });
+  if (!sent) logLine(root, `${fields}  -> held for ${entry.role}`);
 }
 
 export function onPermissionResolved(event: Resolved): void {
-  const entry = asked.get(event.requestId);
+  const entry = routed.get(event.requestId);
   if (!entry) return;
-  asked.delete(event.requestId);
-  const resolution = event.resolution;
-  const said = resolution.behavior === "deny" && resolution.message ? `  "${resolution.message.slice(0, 160)}"` : "";
-  logLine(entry.root, `${entry.fields}  -> ${resolution.behavior === "allow" ? "allowed" : "denied"}${said}`);
+  routed.delete(event.requestId);
+  const resolution = event.resolution as { behavior: string; message?: string; updatedInput?: { answers?: unknown } };
+  const said =
+    resolution.behavior === "allow"
+      ? JSON.stringify(resolution.updatedInput?.answers ?? {}).slice(0, 160)
+      : `"${(resolution.message ?? "").slice(0, 160)}"`;
+  logLine(entry.root, `${entry.fields}  -> ${resolution.behavior === "allow" ? "answered" : "denied"}  ${said}`);
 }

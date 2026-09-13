@@ -88,12 +88,12 @@ the global profile. A role the file doesn't name keeps its profile's model.
 directory, so an edit to `REPO/.seatworks/prompts/LEAD.md` takes effect for the next Lead you start
 there.
 
-Twelve skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
+Ten skills, and none of them is a step in the ordinary loop. What a Lead or Supervisor does
 every session lives in its prompt, where nothing can skip it; a skill is for the situation that
-doesn't come up every time. Four belong to the Lead and every one waits for you to ask by name
-(`council`, `ultra-review`, `review-pack`, `repo-refresh`); four belong to the Peer and are
+doesn't come up every time. Three belong to the Lead, which uses each when its situation comes up
+(`council`, `ultra-review`, `repo-refresh`); four belong to the Peer and are
 named in its brief (`test-first`, `diagnosing-bugs`, `security-check`,
-`test-proof-debt-audit`); the Reviewer has `reviewing-a-change`; and the Supervisor has three that each end in something
+`test-proof-debt-audit`), three of which the Reviewer borrows; and the Supervisor has three that each end in something
 you read (`pre-mortem` before a hard-to-reverse directive, `retrospective` to turn the logs into
 one proposed change, `architecture-premise-audit` to ask whether the project is the right kind of
 system at all). The Supervisor alone keeps its harness's auto memory, in its own
@@ -157,9 +157,10 @@ that question:
 - The Supervisor logs most events. For the rest it sends a neutral `CHECK:` question through
   the Lead ("which of the names your new tests call existed before this task?"), because asking
   an agent to look again at a named source catches more than telling it that it is wrong.
-- Hard decisions go to sealed lanes when you ask for one: two or three read-only seats answer the
+- Hard decisions go to sealed lanes the Lead opens itself: two or three read-only seats answer the
   same open question without seeing the Lead's view or each other's, and the Lead rules on them.
-  The Lead cannot open that lane itself, because it costs several seats and rounds of waiting.
+- A question any agent asks for you reaches the Supervisor instead, which answers it and brings
+  you only what would change what the project is.
 - When you're away, the Supervisor keeps attending and gives you a short report when you're
   back, and proposes a rule change only for a pattern the notebook has seen twice.
 
