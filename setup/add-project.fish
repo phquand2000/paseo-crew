@@ -133,7 +133,7 @@ for src in (find $stage -type f ! -name .DS_Store ! -path '*/__pycache__/*')
         test $refresh -eq 1; or continue
         set -l replaceable 0
         if test $rel = guides/WORKSPACE_PROTOCOL.md
-            grep -qE 'STRICTNESS_LEVEL|REVIEW_RULE' $seat/$rel; and set replaceable 1
+            grep -qE 'STRICTNESS_LEVEL|REVIEW_RULE|<which changes get an independent Reviewer' $seat/$rel; and set replaceable 1
         else if contains -- $rel $prompts
             set replaceable 1
         else if string match -q 'skills/*' -- $rel; or string match -q 'guides/*' -- $rel
@@ -240,7 +240,7 @@ echo "Seats for $slug: "(for role in $roles
 end | string trim)
 command -q ocr
 or echo "  · every review starts from Open Code Review, which isn't installed: npm install -g @alibaba-group/open-code-review. It needs no key; without it the Reviewer scopes from git show --stat and says so."
-echo "Next: fill in the UPPER_SNAKE_CASE placeholders in AGENTS.md and"
+echo "Next: replace each <hint> in AGENTS.md and"
 echo ".seatworks/guides/WORKSPACE_PROTOCOL.md, or delete a line there to keep the Lead's default."
 echo "Then start the $entry profile in this repository."
 exit $seats_status
