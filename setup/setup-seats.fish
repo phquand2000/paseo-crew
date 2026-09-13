@@ -901,7 +901,7 @@ for id in (seats_get '[.seats[].harness] | unique | .[]')
         end
         test -n "$hook_key"; or continue
         for guard in (seat_field $role '.guards[]?')
-            jq -e --arg g $guard --arg k $hook_key '[getpath($k | split("."))[]?.hooks[]?.command] | any(test($g))' $file >/dev/null 2>&1
+            jq -e --arg g $guard --arg k $hook_key '[getpath($k | split("."))[]?[]?.hooks[]?.command] | any(test($g))' $file >/dev/null 2>&1
             or fail "$file has no $hook_key entry running $guard, so that guard never runs for the $role seat."
         end
     end

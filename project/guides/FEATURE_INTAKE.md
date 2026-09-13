@@ -42,9 +42,9 @@ proof does.
 ## Design Gate
 
 Before implementation, resolve any choice that materially changes ownership, public behavior,
-safety, compatibility, data consequences, or another expensive-to-reverse direction. Record
-constraints, meaningful alternatives, the decision, and likely failure modes. Do not prescribe
-files, symbols, pseudocode, or private control flow.
+safety, compatibility, data consequences, or another expensive-to-reverse direction. Record each
+one as an ADR per `.seatworks/guides/ADR.md`: constraints, meaningful alternatives, the decision,
+and likely failure modes. Do not prescribe files, symbols, pseudocode, or private control flow.
 
 Human confirmation is required when the requested behavior, destructive scope, or proof weakening
 remains materially ambiguous. Compatibility is not an implementation choice available through
@@ -52,7 +52,7 @@ ordinary intake.
 
 ## Intake Result
 
-State this in your reply before you brief anyone, and in the ExecPlan when the lane needs one:
+State this in your reply before you brief anyone; a plan carries its lane and reason in its header:
 
 ```text
 Lane: tiny | normal | high-risk

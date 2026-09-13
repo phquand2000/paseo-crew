@@ -43,15 +43,23 @@ and asks for `--probe`.
 - **Deny lists:** Paseo applies `disallowedTools` to its `claude` provider (and to `omp`), which
   is why `deny.mechanism` is `disallowedTools` here; a harness Paseo does not cover that way
   falls back to `hooks`.
-- **Hooks:** `PreToolUse`, one entry per guard in the role settings. Every entry whose matcher
-  matches runs, and any exit code 2 blocks the call, so the guards compose without chaining;
-  this was confirmed with two overlapping matchers where the second refused.
+- **Hooks:** one entry per guard in the role settings, under the event it answers: `PreToolUse`
+  for a guard that can refuse, `PostToolUse` or `SessionStart` for a note. Every entry whose
+  matcher matches runs, and any `PreToolUse` exit code 2 blocks the call, so the guards compose
+  without chaining; this was confirmed with two overlapping matchers where the second refused.
 - **Hook input:** `cwd`, `hook_event_name`, `permission_mode`, `prompt_id`, `session_id`,
   `tool_input`, `tool_name`, `tool_use_id`, `transcript_path`. The transcript path is what makes
   a skill gate possible at all.
-- **Hook protocol:** `exit-code` — stderr plus exit 2, which is the only form
+- **Hook protocol:** `exit-code` — stderr plus exit 2, the form `block` in
   `harness/common/hook-io.sh` writes. A harness that answers hooks another way needs its own
   guards, as `guards.hookProtocol` records and `harness/omp/extensions/` shows.
+- **Notes to the model (`guards.noteProtocol`):** measured on 2.1.236 by pointing a seat at a
+  local server that answered one Write tool call and captured the next request. The write ran in
+  every case. `hookSpecificOutput.additionalContext` from `PostToolUse` or `PreToolUse` arrived in
+  the next user message as a `<system-reminder>` reading "hook additional context"; `PostToolUse`
+  exit 2 with stderr, and `decision: "block"` with `reason`, arrived too, but as a "hook blocking
+  error". The first is the note channel `note` writes. `SessionStart` with matcher `compact`
+  delivers `additionalContext` by the docs.
 - **`permissions.deny` is not equivalent** to a provider deny list, so the role settings leave
   it out.
 

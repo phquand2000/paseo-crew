@@ -31,7 +31,7 @@ history at `db20bff^`.
 | `peer/test-proof-debt-audit` | SLP `test-proof-debt-audit-SKILL.md` and `catalog.md` | unchanged; the catalog installed as `references/proof-debt-catalog.md` |
 | `supervisor/architecture-premise-audit` | SLP `SKILL.md` | unchanged |
 | `reviewer/reviewing-a-change/references/structural-lenses.md` | SLP `structural-antipatterns.md` | unchanged |
-| `.seatworks/guides/FEATURE_INTAKE.md`, `.seatworks/guides/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/` |
+| `.seatworks/guides/FEATURE_INTAKE.md`, `.seatworks/guides/PLANS.md` | SLP `FEATURE_INTAKE.md`, `PLANS.md` | the compatibility hard-cut made conditional on the project's `AGENTS.md`; the intake-result and plan paths pointed at `.seatworks/`; the Design Gate's record pointed at an ADR; `PLANS.md` since rewritten, listed below |
 
 Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 `lead/ultra-review/scripts/create_ultra_review_report.py`, are SLP files kept byte-for-byte.
@@ -46,6 +46,7 @@ Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 | `reviewer/reviewing-a-change` | mattpocock `code-review` (two separate axes); SLP material (`ultra-review` finding schema, structural anti-patterns); alibaba/open-code-review (its `delegate` contract: scope, exclusion reasons, and rules resolved per file pattern) |
 | `supervisor/pre-mortem` | Gary Klein, "Performing a Project Premortem" (prospective hindsight, and the shift from what could go wrong to what did); SLP material (`council` sealed seats, one lens per seat) |
 | `supervisor/retrospective` | Cemri et al., "Why Do Multi-Agent LLM Systems Fail?" (the three failure classes, and organizational design over model capability); the SLP author's talk (a weekly review that distills the period into rules) |
+| `.seatworks/guides/PLANS.md` (rewritten), `ADR.md`, `REVIEW.md` | Nygard's ADR and MADR (sections, statuses, superseding); Zdun et al.'s Y-statement (the short form); AWS and Azure ADR guidance (an accepted record is not edited; when a decision earns one); HumanLayer's plans and GitHub Spec Kit (the plan as current state, acceptance per unit of work); Rust tracking issues and stabilization reports, and Kubernetes KEPs (progress, review and deviations kept out of the design); OpenAI's ExecPlans (restartable from the plan alone); Anthropic's prompting guidance and BMAD's templates (sizes in the headings, destinations instead of prohibitions, one worked example); OpenAI's harness-engineering lints and Factory's lint-driven agents (a check that informs with the fix instead of refusing) |
 
 ## Sources and licenses
 
@@ -58,6 +59,17 @@ Both vendored scripts, `lead/review-pack/scripts/review_pack.py` and
 | trailofbits/skills, `sharp-edges` | https://github.com/trailofbits/skills | CC-BY-SA-4.0; ideas only, no text |
 | Gary Klein, "Performing a Project Premortem" | https://hbr.org/2007/09/performing-a-project-premortem | © Harvard Business Review; ideas only |
 | Cemri et al., "Why Do Multi-Agent LLM Systems Fail?" | https://arxiv.org/abs/2503.13657 | ideas only; the taxonomy's three classes, not its text |
+| Michael Nygard, "Documenting Architecture Decisions" | https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions | ideas only |
+| MADR | https://adr.github.io/madr/ | ideas only; section names |
+| Y-statement form (Zdun et al.) | https://socadk.github.io/design-practice-repository/artifact-templates/DPR-ArchitecturalDecisionRecordYForm.html | ideas only; the sentence form |
+| AWS Prescriptive Guidance, ADR process | https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/adr-process.html | ideas only |
+| HumanLayer, advanced context engineering for coding agents | https://github.com/humanlayer/advanced-context-engineering-for-coding-agents | ideas only |
+| GitHub Spec Kit | https://github.com/github/spec-kit | ideas only |
+| OpenAI Cookbook, ExecPlans | https://developers.openai.com/cookbook/articles/codex_exec_plans | ideas only |
+| Rust RFCs and stabilization guide | https://rustc-dev-guide.rust-lang.org/stabilization-guide.html | ideas only |
+| Anthropic, Claude prompting best practices | https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices | ideas only |
+| BMAD-METHOD | https://github.com/bmad-code-org/BMAD-METHOD | ideas only; per-section size budgets |
+| Factory, "Using linters to direct agents" | https://factory.ai/news/using-linters-to-direct-agents | ideas only |
 | SLP material | the kit owner's `SLP/` folder | no license stated; used and adapted with the owner's agreement |
 
 Sources that only the retired skills drew on are listed with those skills in git history, not

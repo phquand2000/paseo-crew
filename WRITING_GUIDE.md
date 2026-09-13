@@ -207,6 +207,9 @@ Use these terms, and only these, for the following concepts:
 | disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout. An Architect or Scout is a Peer with `Owned scope none`, which the brief holds rather than a guard |
 | owned scope | The paths a Peer may write |
 | acceptance | The decision, by the Lead or the Human, that work is done |
+| ExecPlan | The Lead's plan for one high-risk outcome under `docs/exec-plans/active/`, shaped by `PLANS.md`; it holds current state only |
+| ADR | A decision record under `docs/adr/`, shaped by `ADR.md`; superseded by a new one, never edited |
+| review record | The Lead's file for one review round under `docs/reviews/`, shaped by `REVIEW.md`: each finding and the ruling on it |
 | owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a Human decision |
 | advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
 | check | A neutral question, labeled `CHECK:`, that asks a Lead, or a Peer through its Lead, to look again at its work against a named source |

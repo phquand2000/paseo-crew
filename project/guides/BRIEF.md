@@ -44,7 +44,7 @@ Replace the following:
   input take `security-check`; a web UI surface takes `frontend-design`; a doubtful proof takes
   `test-proof-debt-audit`. Two apply more often than one.
 - `DECISIONS`: settled decisions and rejected approaches that bound the slice, each with its ADR
-  number or plan line, or `none`.
+  number or the plan heading it sits under, or `none`. The Peer can open the ADR itself.
 - `STARTING_POINTS`: files, docs, and SHAs worth reading first, including the ExecPlan path.
 - `OWNED_GLOBS`: the paths this Peer may write, as concrete globs. Before you write them, name
   the files the slice's change reaches that lie outside them, and either bring each one inside
@@ -60,9 +60,10 @@ Replace the following:
   slices agree on names. Tests in the slice may call only what exists at the base SHA or what
   Consumes and Produces name; a test that needs anything else would invent the contract.
 - `GLOBAL_CONSTRAINTS`: requirements that bind every slice (exact values, formats, limits, and
-  version floors), copied word for word from the spec, the owner directive, or `AGENTS.md`; a
+  version floors), copied word for word from an ADR, the owner directive, or `AGENTS.md`; a
   paraphrase loses the exact value.
-- `VERIFICATION_COMMANDS`: the exact commands to run, one per line.
+- `VERIFICATION_COMMANDS`: the exact commands to run, one per line, starting from the slice's
+  Acceptance cell in the plan.
 - `TEST_LANE`: whether this Peer may run the full suite, hold a port, or use the test database.
 - `OPEN_QUESTIONS`: what you don't know and want the Peer's judgment on, or `none`. Ask each
   one open, not as a choice between answers you picked.
@@ -76,7 +77,7 @@ Disposition         Engineer
 Objective           GET /invoices/export?format=csv returns the filtered invoice list as CSV.
 Skills              test-first
 Decided / ruled out ADR 0007: amounts are integer cents; floats ruled out.
-                    Streaming the response is ruled out for now (plan line 14): lists cap at 5,000 rows.
+                    Streaming the response is ruled out for now (plan: Outcome and non-goals): lists cap at 5,000 rows.
 Starting points     docs/exec-plans/active/invoice-csv.md, src/invoices/query.ts, 4c1d9e2 (S1 skeleton)
 Owned scope         src/invoices/export/**, test/invoices/export/**
 Excluded scope      src/invoices/query.ts (S3 owns it)

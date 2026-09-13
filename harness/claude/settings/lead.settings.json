@@ -43,6 +43,28 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_CONFIG_DIR/plan-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_CONFIG_DIR/plan-check.sh\"; if [ -x \"$f\" ]; then exec \"$f\"; fi; exit 0"
+          }
+        ]
+      }
     ]
   }
 }

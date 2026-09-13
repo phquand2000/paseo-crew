@@ -234,7 +234,7 @@ whole rule:
 |---|---|---|
 | `project.json` | the slug, and any model pinned per role | never replaced |
 | `prompts/` | one prompt per seat | replaced |
-| `guides/` | the shapes a seat reads when it needs one: `WORKSPACE_PROTOCOL.md`, `DIRECTIVE.md`, `FEATURE_INTAKE.md`, `PLANS.md`, `BRIEF.md` | replaced, except `WORKSPACE_PROTOCOL.md` once its placeholders are filled in |
+| `guides/` | the shapes a seat reads when it needs one: `WORKSPACE_PROTOCOL.md`, `DIRECTIVE.md`, `FEATURE_INTAKE.md`, `PLANS.md`, `ADR.md`, `REVIEW.md`, `BRIEF.md` | replaced, except `WORKSPACE_PROTOCOL.md` once its placeholders are filled in |
 | `skills/` | each role's skills | replaced, and a skill the kit dropped is retired into `records/drafts/` |
 | `records/` | what the seats write: `NOTEBOOK.md`, `attention/`, `lessons/`, `drafts/` | never replaced |
 

@@ -66,6 +66,7 @@
       ],
       "guards": [
         "lead-guard.sh",
+        "plan-check.sh",
         "profile-guard.sh"
       ],
       "deny": [],
@@ -109,7 +110,7 @@
         "CONTEXT.md"
       ],
       "writesAlsoContextFiles": true,
-      "writesRule": "The Lead writes only its own coordination records: the lesson log under .seatworks/records/lessons/, the plans, decision records and review reports under docs/ (or doc/), CONTEXT.md, and the repository instruction files. The rest of .seatworks/ is the Supervisor's, code and tests go to an Engineer Peer through a brief, and nothing outside this repository is the Lead's to change.",
+      "writesRule": "The Lead writes only its own coordination records: the lesson log under .seatworks/records/lessons/, the plans, ADRs, design docs and review records under docs/ (or doc/), CONTEXT.md, and the repository instruction files. The rest of .seatworks/ is the Supervisor's, code and tests go to an Engineer Peer through a brief, and nothing outside this repository is the Lead's to change.",
       "mayStart": [
         "peer",
         "reviewer"
@@ -280,6 +281,14 @@
   "mcpServersNote": "the MCP servers every seat gets, spelled the way both harnesses already read one: a map of name to a stdio or http entry. setup-seats.fish writes exactly this map into the file each harness names under mcp.file, at mcp.path, and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code where no guard in this kit can see them, so every seat but the Peer denies them through the ide-refactor intent; the rest of its tools read.",
   "researchNote": "a seat that cannot find a source cannot check one, so web search and web fetch are left on for every seat but the watcher. On the claude harness both arrive with the harness. On omp, web_search is a built-in tool but its backend needs a key the Human sets themselves in the base provider's environment: one of EXA_API_KEY, BRAVE_API_KEY, TAVILY_API_KEY or PERPLEXITY_API_KEY. Without one the tool is offered and fails, which reads to the seat as a broken tool rather than a missing key, so set it or deny web-search on the omp roles.",
   "promptBudget": 16384,
+  "planShape": {
+    "paths": [
+      "docs/exec-plans/active/*.md",
+      "doc/exec-plans/active/*.md"
+    ],
+    "maxLines": 200
+  },
+  "planShapeNote": "read by plan-check.sh on the Lead, which never refuses a write: after a write to a plan under these paths it notes, once per new drift, a plan past maxLines, a section past the size its heading names, or a heading outside the template in the project's .seatworks/guides/PLANS.md. 200 lines is roughly what a person still reads in a plan; REFERENCE.md holds the reasons.",
   "skillGates": [],
   "skillGatesNote": "empty on purpose. A gate refuses a named call until its skill is in the transcript, and it was holding three procedures the Lead now carries in its own prompt, where nothing can skip them. Gates also only hold on a harness whose skillLoad.transcriptMatch is set, so they never held for an omp seat at all. The mechanism stays because a future procedure may earn one; a gate needs an observed skip and a because line, not a wish.",
   "denyCommonIntents": [

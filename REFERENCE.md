@@ -114,9 +114,9 @@ invalidate this page, and no entry here names a coding agent or its tools.
   tool call it would otherwise choose, and a gate on a step the model already does right is a
   rule without a failure behind it.
 
-## The Peer's model list comes from its harness
+## The Reviewer's model list comes from its harness
 
-- **Symptom:** `peer` offers every model that harness's login can reach.
+- **Symptom:** `reviewer` offers every model that harness's login can reach.
 - **Cause:** a seat whose role names no `models` in `seats.json` gets no `models` list, so Paseo
   asks the harness. An empty `models` list likewise means the full runtime catalog, not "nothing
   to run".
@@ -235,6 +235,27 @@ invalidate this page, and no entry here names a coding agent or its tools.
   something outside, and this kit does not try to stop that.
 - **Response:** treat the guards as protection against accidents. Keep credentials that could
   do damage out of the Peer's environment.
+
+## The plan check nudges, and never refuses a write
+
+- **Symptom:** after writing a plan, a Lead receives a note that the plan is past its size, that a
+  section is past the size in its heading, or that a heading is outside the template.
+- **Cause:** the plans three Leads wrote reached 264, 307 and 1005 lines. The transcripts show why
+  a rule in the guide alone did not hold: the Lead read `PLANS.md` once, at its second step, then
+  wrote the plan 27 times, 7 to 161 steps later and across a compaction whose summary kept none of
+  the guide, and every one of those writes went through the shell. The template now carries the
+  rule itself (a size in each heading, a current-state line under the title), and
+  `plan-check.sh` puts it back in view: after a file-tool write to a plan, or a shell command that
+  names a plan directory, it measures the plans and adds a note to the Lead's context, once per new
+  drift in a session; after a compaction it lists the active plans with the rule. It reads the
+  headings and section sizes from the project's `.seatworks/guides/PLANS.md` and the page size and
+  directories from `planShape` in `seats.json`. It exits 0 in every case, including a missing jq
+  or template, so a write is never lost to it.
+- **Response:** follow the note, or ignore it when the drift is deliberate; it does not repeat
+  until something new drifts. To change the page size or the directories, edit `planShape`; to
+  change a section's size, edit its heading in `project/guides/PLANS.md` and refresh the project.
+  The note needs a harness whose `guards.noteProtocol` is set, so the check is wired only to roles
+  on such a harness.
 
 ## Information hiding lives in the prompts
 
@@ -376,7 +397,7 @@ invalidate this page, and no entry here names a coding agent or its tools.
 - **Cause:** Paseo loads an agent's timeline from its working directory, and `archive_workspace`
   removes the worktree, so agents that ran there can no longer be read, even archived ones.
 - **Response:** before archiving a worktree workspace, keep what a retrospective will need: the
-  Peer's handoff, in the acceptance summary or the ExecPlan.
+  Peer's handoff, in the acceptance summary or the review record.
 
 ## A message to a running agent replaces its turn
 
