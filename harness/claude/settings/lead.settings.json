@@ -3,6 +3,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions",
     "deny": [
+      "AskUserQuestion",
       "Agent",
       "Task",
       "Workflow",

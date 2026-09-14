@@ -39,6 +39,9 @@ Report it rather than working around it, with evidence: the command, its real ou
 - `DEPENDENCY_REQUEST`: you need another owner, a missing API, or a scope or source outside yours.
 - `BLOCKED`: you lack authority, a prerequisite, or external state, or the decision isn't yours.
 
+When you need an answer you can't get from the repository or the brief, end your turn with
+`BLOCKED` and the question, asked open, and wait: the answer comes as your next message.
+
 Three cases always take one: a test that needs a name neither production code nor the brief's
 Interfaces holds, because it would mint the API; spec and code that disagree; and a trade-off the
 brief didn't authorize, such as lower precision, a dropped case, a looser assertion, a skipped test,

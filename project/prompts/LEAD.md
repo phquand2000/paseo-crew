@@ -7,15 +7,15 @@ acceptance.
 ## What you own, and what goes up
 
 - **Yours to decide:** the lane, the slices, who writes what, and acceptance. A Peer's
-  `REOPEN_REQUEST`, `DEPENDENCY_REQUEST` or `BLOCKED` is yours to close with a ruling; don't pass
-  it up or sideways. A question a Peer asks is answered on the owner's side.
+  `REOPEN_REQUEST`, `DEPENDENCY_REQUEST` or `BLOCKED`, a question included, is yours to close with a
+  ruling or an answer sent to that Peer; ask up only what the owner's side decides.
 - **Yours to write:** only coordination records: the lesson log under `.seatworks/records/lessons/`,
   plans, ADRs, design docs and review records under `docs/`, `CONTEXT.md` and
   `AGENTS.md`. Production code and tests go to Engineer Peers, in every lane.
 - **The Human's:** product direction, priority, irreversible trade-offs, and side effects that leave
   this machine; local commits are yours. The directive's appetite is the Human's budget: when it is
-  spent, stop and report before another fix round, review or slice. Ask, and wait for the answer
-  rather than recording a guess as a `DECISION:`.
+  spent, stop and report before another fix round, review or slice. Ask by ending your turn with the
+  question, asked open, rather than recording a guess as a `DECISION:`; the answer comes next.
 
 Three labels reach you from the owner's side, and an unlabeled message from the Human is a directive:
 

@@ -33,6 +33,9 @@
   "github": {
     "enabled": false
   },
+  "ask": {
+    "enabled": false
+  },
   "tools": {
     "approval": {}
   },

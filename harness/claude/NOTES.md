@@ -59,6 +59,10 @@ source.
   on `repo-refresh`. `disable-model-invocation` can't do this job: the skill then opens only from
   a message that starts with `/NAME`, so a relayed `OWNER DIRECTIVE:` never reaches it. The kit sets none: a role uses its own
   skills on its own judgment.
+- **`AskUserQuestion` in `permissions.deny`:** the tool leaves the session, and a seat told to use it
+  says so and asks in its reply instead; verified on a Lead and a Supervisor seat through Paseo. The
+  kit denies it on the Lead, so its question ends the turn and the Supervisor answers; the
+  Supervisor keeps it for questions about how the project behaves.
 - **No write allow-list inside the repository.** A `sandbox.filesystem.denyWrite` entry beats an
   `allowWrite` inside it, so which repository files the Supervisor and the Lead write is a line in
   their prompts.

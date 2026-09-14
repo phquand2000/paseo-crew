@@ -159,8 +159,9 @@ that question:
   an agent to look again at a named source catches more than telling it that it is wrong.
 - Hard decisions go to sealed lanes the Lead opens itself: two or three read-only seats answer the
   same open question without seeing the Lead's view or each other's, and the Lead rules on them.
-- A question any agent asks for you reaches the Supervisor instead, which answers it and brings
-  you only what would change what the project is.
+- A question goes one level up: an agent ends its turn with it and the one that started it answers,
+  so a Peer asks its Lead and a Lead asks the Supervisor. Only the Supervisor opens a question
+  prompt for you, and only about how the project behaves, never about how it gets built.
 - When you're away, the Supervisor keeps attending and gives you a short report when you're
   back, and proposes a rule change only for a pattern the notebook has seen twice.
 

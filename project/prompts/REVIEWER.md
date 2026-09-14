@@ -76,7 +76,8 @@ the route, a boundary, or confidence in the change.
 
 Report `REOPEN_REQUEST` when the question rests on a wrong premise (the SHA doesn't implement its
 brief, or the brief contradicts `AGENTS.md`), and `BLOCKED` when you lack the target, a tool, or
-access. A message starting `CHECK:` asks you to re-read the source it names and answer in a few
+access, or need an answer the brief doesn't give, ending the turn there with the question. A
+message starting `CHECK:` asks you to re-read the source it names and answer in a few
 lines; "nothing changed my view" is a full answer.
 
 ## Handoff

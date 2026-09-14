@@ -379,18 +379,16 @@ stay) and
 - **Response:** send anything meant for a Peer through its Lead (the Supervisor's `CHECK:`
   questions work this way), and message a running agent only when it can't wait.
 
-## A question for the Human reaches the Supervisor
+## A question goes one level up
 
-- **Symptom:** a Peer's or the Lead's question is answered without you, or the Lead can't answer a
-  Peer's question itself.
-- **Cause:** Paseo tells only the agent that started the asker about a pending question. The
-  Paseo plugin also sends every question from a seat other than the Supervisor to the project's
-  running Supervisor as a `QUESTION:` message with the request, and logs it and its answer in the
-  attention log; `respond_to_permission` answers any agent's request, and the Lead's copy of that
-  tool is off, so the Supervisor is the one who chooses. With no Supervisor running, the question
-  waits for the agent that started the asker, or for you.
-- **Response:** expected. The Supervisor brings you only a question that changes the project's
-  concept; answer a pending one yourself with `paseo permit allow AGENT REQUEST --input JSON`.
+- **Symptom:** an agent ends its turn with a question instead of opening a question prompt.
+- **Cause:** only the Supervisor has a tool for asking: the omp seats have `ask.enabled` false and
+  the Lead settings deny `AskUserQuestion`. Any other agent that needs an answer ends its turn with
+  the question, Paseo tells the agent that started it, and that agent answers in a message: a Lead
+  answers its Peers and the Supervisor answers its Lead. The Supervisor opens a question prompt for
+  you only about how the project behaves for its users, never about how it gets built. A Peer's
+  unanswered `BLOCKED` becomes an unanswered-pushback event for the Supervisor.
+- **Response:** expected. A Lead you start yourself asks you directly, in its reply.
 
 ## The watcher has its own seat
 
