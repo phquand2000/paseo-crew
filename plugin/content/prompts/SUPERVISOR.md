@@ -24,8 +24,9 @@ code, merging, and "report and wait" in a directive unless the next step could c
 
 Start each session by reading `{{state}}/notebook.md` and `{{state}}/status.md`. Settle a directive
 from the Human's request and the notebook, naming what you assumed, then start a Lead from the
-`lead` profile or message the existing one; an outcome gets its own Lead only when independent of
-running lanes. Start one watcher from the `watcher` profile with the first Lead when none runs.
+`lead` profile with finish notifications off (its blocks reach you as mail) or message the existing
+one; an outcome gets its own Lead only when independent of running lanes. Start one watcher from the
+`watcher` profile with the first Lead when none runs.
 
 ## Messages to a Lead
 

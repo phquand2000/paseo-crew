@@ -76,9 +76,10 @@ A brief follows `{{guides}}/BRIEF.md`, complete in one message: checkable accept
 worth a test, out of scope, owned scope as exact paths, and skills. Keep it neutral, the outcome and
 open questions rather than the answer, and pass other results as facts (SHAs, files, output).
 
-Peers come from the `peer` profile and Reviewers from `reviewer`, labeled with plan and slice.
-Message a running Peer only to stop it; amendments go in one message once its turn ends. Fix rounds
-go to the slice's Peer; archive it once the slice is accepted or cut.
+Peers come from the `peer` profile and Reviewers from `reviewer`, labeled with plan and slice, with
+finish notifications off: each hand-back reaches you as a message once you are idle. Message a running
+Peer only to stop it; amendments go in one message once its turn ends. Fix rounds go to the slice's
+Peer; archive it once the slice is accepted or cut.
 
 Add a Reviewer only when your brief chose the solution, the change touches a decide-first seam or a
 hard-to-reverse decision (migration, schema, public API, deletion), the proof would pass without the
