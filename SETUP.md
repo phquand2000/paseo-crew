@@ -231,11 +231,12 @@ prove each seat loads its own.
    fish KIT_DIR/setup/setup-seats.fish --check --probe
    ```
 
-2. Ask each seat for its heading, one at a time, always with `--cwd REPO_DIR`, copying model, mode
-   and thinking option from the role's profile, and leaving out whichever the profile doesn't set:
+2. Ask each seat for its heading, one at a time, always in the workspace `paseo workspace ls` shows
+   for REPO_DIR (without `--workspace`, `paseo run` makes a new one), copying model, mode and
+   thinking option from the role's profile, and leaving out whichever the profile doesn't set:
 
    ```fish
-   paseo run --provider ROLE/MODEL_ID --mode MODE_ID --thinking THINKING_ID --cwd REPO_DIR 'Without running any tool, quote the "# " heading of your instructions, and say whether they mention Paseo.'
+   paseo run --provider ROLE/MODEL_ID --mode MODE_ID --thinking THINKING_ID --workspace WORKSPACE_ID 'Without running any tool, quote the "# " heading of your instructions, and say whether they mention Paseo.'
    paseo archive AGENT_ID
    ```
 

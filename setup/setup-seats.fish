@@ -873,7 +873,7 @@ for repo_dir in $projects
 end
 
 set -l known (seats_get '.seats[].role') (all_harnesses | while read -l id; harness_get $id .baseProvider; end)
-for key in (jq -r '.agents.providers | keys[]' $paseo_config 2>/dev/null)
+for key in (jq -r '.agents.providers | to_entries[] | select(.value.extends != null or .value.enabled != false) | .key' $paseo_config 2>/dev/null)
     contains -- $key $known; and continue
     set -l profiles (jq -r --arg k $key '[.daemon.agentProfiles[]? | select(.provider == $k)] | length' $paseo_config)
     echo "  · provider $key is not a role in seats.json, and $profiles profile(s) still point at it. A retired role's provider, profiles and seat directories are left alone, so nothing is deleted behind you: remove them yourself once no agent runs on them. list_profiles still offers it, and the Paseo plugin archives it when a seat starts it."
