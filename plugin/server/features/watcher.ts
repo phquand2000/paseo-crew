@@ -1,14 +1,12 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { type PaseoApi, on } from "../hooks.ts";
-import { projectRoot, seatFor, sweepMs, watcherSeat } from "../kit.ts";
+import { projectRoot, seatFor, watcherSeat } from "../kit.ts";
 import { ATTENTION_HEADER, type AttentionKind, logFields, sweepPrompt } from "../messages.ts";
 import type { Runtime } from "../runtime.ts";
 import { lastUserText, outputText } from "../timeline.ts";
 
 export type Block = { kind?: AttentionKind; trigger: string; agentId: string; role: string; quote: string; text: string };
 export type Step = { block: Block; send?: string; now: boolean };
-
-const ESCALATE_AFTER = 3;
 
 export function attentionBlocks(text: string): Block[] {
   return text
@@ -26,6 +24,7 @@ export function planBlocks(
   blocks: Block[],
   swept: boolean,
   before: Map<string, number>,
+  escalateAfter: number,
 ): { steps: Step[]; seen: Map<string, number> } {
   const seen = new Map<string, number>();
   const steps = blocks.map((block): Step => {
@@ -33,7 +32,7 @@ export function planBlocks(
     const key = `${block.agentId} ${block.trigger}`;
     const count = swept ? (before.get(key) ?? 0) + 1 : 0;
     if (swept) seen.set(key, count);
-    if (count < ESCALATE_AFTER) return { block, now: false };
+    if (count < escalateAfter) return { block, now: false };
     return { block, send: block.text.replace(/^ATTENTION \(log\):/, "ATTENTION:"), now: false };
   });
   return { steps, seen };
@@ -48,7 +47,7 @@ export function register(server: PluginServerContext, runtime: Runtime): void {
     const seat = kit ? watcherSeat(kit) : undefined;
     if (!kit || !seat) return;
     const last = lastSweep.get(root);
-    const wait = (last ?? 0) + sweepMs(kit) - Date.now();
+    const wait = (last ?? 0) + runtime.project(root).attention.sweepMinutes * 60_000 - Date.now();
     if (wait > 0) return runtime.later(`sweep:${root}`, wait, () => sweep(paseo, root));
     const watcher = await runtime.findSeat(paseo, root, seat.role);
     if (!watcher) return;
@@ -70,7 +69,7 @@ export function register(server: PluginServerContext, runtime: Runtime): void {
     }
     const swept = lastUserText(event.timeline).trimStart().startsWith("SWEEP");
     const blocks = attentionBlocks(outputText(event.timeline));
-    const { steps, seen } = planBlocks(blocks, swept, streaks.get(root) ?? new Map());
+    const { steps, seen } = planBlocks(blocks, swept, streaks.get(root) ?? new Map(), runtime.project(root).attention.escalateAfter);
     for (const { block, send, now } of steps) {
       const fields = logFields(block.agentId, block.role, block.trigger, block.quote);
       if (send === undefined) runtime.log(root, `${fields}  -> logged`);

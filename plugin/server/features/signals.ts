@@ -1,6 +1,6 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { on } from "../hooks.ts";
-import { projectRoot, seatFor, sweepMs } from "../kit.ts";
+import { projectRoot, seatFor } from "../kit.ts";
 import { clock } from "../log.ts";
 import { attention, logFields } from "../messages.ts";
 import type { Runtime } from "../runtime.ts";
@@ -70,7 +70,7 @@ export function register(server: PluginServerContext, runtime: Runtime): void {
     const quote = findPushback(text);
     if (!quote) return;
     pushbacks.set(agentId, { root, role: seat.role, quote, at: Date.now() });
-    runtime.later(`pushback:${agentId}`, 2 * sweepMs(kit), async () => {
+    runtime.later(`pushback:${agentId}`, runtime.project(root).attention.pushbackMinutes * 60_000, async () => {
       const entry = pushbacks.get(agentId);
       if (!entry) return;
       pushbacks.delete(agentId);

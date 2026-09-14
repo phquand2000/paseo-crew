@@ -4,6 +4,7 @@ import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { type PaseoApi, on } from "./hooks.ts";
 import { type Kit, entrySeat, home, projectRoot, roleOf } from "./kit.ts";
 import { type Log, writeLog } from "./log.ts";
+import { PROJECT_FILE, type Project, projectAt } from "./project.ts";
 
 export type Feature = { register(server: PluginServerContext, runtime: Runtime): void };
 
@@ -39,6 +40,7 @@ export class Runtime {
   private readonly awaiting = new Map<string, number>();
   private readonly lanes = new Map<string, Promise<unknown>>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly reported = new Set<string>();
   private counter = 0;
 
   constructor(options: RuntimeOptions) {
@@ -60,6 +62,18 @@ export class Runtime {
 
   log(root: string, line: string): void {
     if (root) this.writeLine(root, line);
+  }
+
+  project(root: string): Project {
+    const project = projectAt(root, this.kit());
+    for (const problem of project.problems) {
+      const key = `${root}\n${problem}`;
+      if (this.reported.has(key)) continue;
+      this.reported.add(key);
+      console.error(`seatworks ${join(root, PROJECT_FILE)} ${problem}`);
+      this.log(root, `${PROJECT_FILE}  ${problem}`);
+    }
+    return project;
   }
 
   letters(): Letter[] {

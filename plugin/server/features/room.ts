@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginBeforeRequests, PluginServerContext } from "@getpaseo/plugin/server";
-import { type Kit, type Project, expandHome, projectAt, projectRoot, seatFor } from "../kit.ts";
+import { type Kit, expandHome, projectRoot, seatFor } from "../kit.ts";
 import { refusal } from "../messages.ts";
+import type { Project } from "../project.ts";
 import type { Runtime } from "../runtime.ts";
 
 type SessionOpen = PluginBeforeRequests["agent.session_open"];
@@ -39,6 +40,6 @@ export function register(server: PluginServerContext, runtime: Runtime): void {
     const kit = runtime.kit();
     if (!kit) return request;
     const root = projectRoot(request.cwd);
-    return seatEnv(kit, request, root ? projectAt(root) : undefined);
+    return seatEnv(kit, request, root ? runtime.project(root) : undefined);
   });
 }

@@ -28,14 +28,16 @@ test("attentionBlocks splits a sweep into blocks and reads each header and quote
   );
 });
 
-test("planBlocks sends urgent at once, reports normally, and logs a log block until its third sweep in a row", () => {
+test("planBlocks sends urgent at once, reports normally, and logs a log block until the project's escalateAfter sweeps in a row", () => {
   const blocks: Block[] = attentionBlocks(text);
-  const first = planBlocks(blocks, true, new Map());
+  const first = planBlocks(blocks, true, new Map(), 3);
   assert.deepEqual(first.steps.map(({ send, now }) => [send !== undefined, now]), [[true, true], [false, false], [true, false]]);
   assert.deepEqual([...first.seen], [["a2 struggle", 1]]);
-  const third = planBlocks(blocks, true, new Map([["a2 struggle", 2]]));
+  const third = planBlocks(blocks, true, new Map([["a2 struggle", 2]]), 3);
   assert.match(third.steps[1]?.send ?? "", /^ATTENTION: struggle in a2 \(lead\)/);
-  const unswept = planBlocks(blocks, false, new Map([["a2 struggle", 2]]));
+  const unswept = planBlocks(blocks, false, new Map([["a2 struggle", 2]]), 3);
   assert.equal(unswept.steps[1]?.send, undefined);
   assert.equal(unswept.seen.size, 0);
+  const sooner = planBlocks(blocks, true, new Map([["a2 struggle", 1]]), 2);
+  assert.match(sooner.steps[1]?.send ?? "", /^ATTENTION: struggle in a2 \(lead\)/);
 });

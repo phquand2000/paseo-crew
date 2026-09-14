@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Kit, Project } from "../kit.ts";
+import type { Kit } from "../kit.ts";
+import { type Project, readProject } from "../project.ts";
 import { seatEnv } from "./room.ts";
 
 type Request = Parameters<typeof seatEnv>[1];
@@ -11,7 +12,7 @@ const kit: Kit = {
   providers: {},
   harnesses: { claude: { profileRoot: "/profiles", configDirEnv: "CLAUDE_CONFIG_DIR" } },
 };
-const project: Project = { root: "/repo", slug: "demo", models: {} };
+const project: Project = readProject("/repo", { slug: "demo" });
 const request = (purpose: "interactive" | "history", provider = "lead"): Request => ({
   agentId: "a1",
   workspaceId: null,

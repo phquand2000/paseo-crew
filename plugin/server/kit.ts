@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 
 export type Seat = { role: string; harness: string; entry?: boolean; mayStart?: string[]; sweepMinutes?: number };
 export type Profile = { provider: string; model?: string; modeId?: string; thinkingOptionId?: string };
@@ -11,7 +11,6 @@ export type Kit = {
   providers: Record<string, ProviderEntry>;
   harnesses: Record<string, Harness>;
 };
-export type Project = { root: string; slug: string; models: Record<string, string> };
 
 type PaseoConfig = {
   daemon?: { agentProfiles?: Profile[] };
@@ -89,10 +88,6 @@ export function watcherSeat(kit: Kit): Seat | undefined {
   return kit.seats.find((seat) => seat.sweepMinutes);
 }
 
-export function sweepMs(kit: Kit): number {
-  return (watcherSeat(kit)?.sweepMinutes ?? 10) * 60_000;
-}
-
 export function expandHome(path: string): string {
   return path.replace(/^(?:HOME|~)(?=\/|$)/, home);
 }
@@ -105,9 +100,4 @@ export function projectRoot(cwd: string): string | undefined {
     if (up === dir) return undefined;
     dir = up;
   }
-}
-
-export function projectAt(root: string): Project {
-  const project = readJson<{ slug?: string; models?: Record<string, string> }>(join(root, ".seatworks", "project.json"));
-  return { root, slug: project?.slug || basename(root), models: project?.models ?? {} };
 }

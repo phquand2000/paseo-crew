@@ -1,240 +1,129 @@
 # Writing guide
 
-These rules apply to everything in this kit: the seat prompts in `project/`, the templates in
-`examples/`, and the docs. Scripts carry no comments or docstrings (except the two vendored scripts `NOTICE.md` names), so their reasons
-live in REFERENCE.md, or in `harness/<id>/NOTES.md` when the reason is one coding agent's
-behavior rather than the kit's. The Supervisor follows these rules when it patches a prompt. Each rule
-names its source in brackets; the sources are listed at the end.
+Rules for the seat prompts, skills, templates and docs in this kit. Scripts carry no comments
+(except the vendored ones NOTICE.md names), so their reasons live in REFERENCE.md, or in
+`harness/<id>/NOTES.md` for one coding agent's behavior. Bracketed tags name sources, listed at the
+end.
 
 ## Seat prompts
 
-A seat prompt is loaded into context on every turn, so each line has to be worth its tokens.
+A prompt is in context on every turn, so each line must earn its place.
 
-1. Test every line: would the agent make a mistake without it? If not, cut it. Leave out what a
-   capable model already knows and what it can learn by reading the code. [BP, S]
-2. Stay under 200 lines and the 16 KB budget. Adherence drops as files grow, and instructions
-   in a long list are dropped silently rather than refused. [M, IFS]
-3. Write calm, plain instructions. A capable model follows the system prompt closely, and
-   capitals or "MUST" make it over-apply a rule. Save emphasis for a single rule you have
-   seen skipped. A prompt is read by whichever model its role's harness runs, so tune it to
-   the weakest one you intend to use, not the strongest. [P, BP]
-4. Say what to do rather than what to avoid. [P]
-5. Give the reason with each rule; the model generalizes from the reason. [P]
-6. Make each rule checkable by naming the command, field, or threshold. "Run `X`" works better
-   than "test your changes". [M]
-7. Write heuristics, not if/else scripts or vague advice. Be exact only where a mistake is
-   costly. [CE, S]
-8. Open with one sentence that states the role, then go straight to behavior. [P]
-9. Put the most important rules early, and restate the single most important rule briefly at
-   the end. [O5, LIM]
-10. Use one term per concept, as listed under Terminology. When two layers contradict each
-    other, the model may follow either one. [M, S]
-11. State scope explicitly. A strong model tends to widen a task, while a cheaper one reads the
-    instruction literally; a prompt that names its scope survives both. [O5]
-12. Name a runnable check instead of writing a generic "verify" or "double-check"; current
-    models over-verify when told to. [O5]
-13. Enforce hard limits outside the prompt, because a prompt is guidance, not enforcement. A
-    limit on a harness's own tools is a native setting of that coding agent, in the role's
-    settings under `harness/<id>/`, using keys its `NOTES.md` records as verified. A limit on
-    Paseo's own tools is a role's `paseoTools`, and one on launching or messaging agents belongs
-    in the Paseo plugin under `plugin/`, which sees every harness. Don't restate an enforced
-    limit in the prompt; what no setting can say, such as which repository files a role writes,
-    stays in the prompt as part of the job. [M]
-14. Write every `.md` to load unchanged on every harness: no HTML comments anywhere, and no
-    harness's tool names. A maintainer note goes under "What each demo prompt expects you to
-    add" in this guide, and a rule about a tool names what the tool does ("your read tool"), not
-    what one harness calls it. The setup script refuses `<!--` in any prompt or skill and refuses
-    `$ARGUMENTS` and `${CLAUDE_SKILL_DIR}`. Only a seat's profile is allowed to differ per
-    harness. A script vendored from another kit is the one exception and keeps its upstream form,
-    comments included, so it can be re-synced; `NOTICE.md` says which files those are. [M]
-15. Add a rule only after an observed failure, with a reproducible reason and a removal trigger.
-    [HL, CUR]
-16. Put what a seat does every session in its prompt, and keep a skill for the situation that
-    doesn't come up every time. A prompt rule cannot be skipped and is cached after the first
-    turn; a skill has to be chosen, and measurement says it often isn't — a replica Peer seat
-    carried all eight of its skills in its system prompt and no session ever read one. Where a
-    skill genuinely applies only sometimes, have the Lead name it in the brief's `Skills` field
-    rather than leaving the seat to route itself. [M]
-17. Name no coding agent in a seat prompt, a skill, or a doc other than `harness/<id>/NOTES.md`.
-    A role can move to another harness, and a prompt that names one goes stale silently. Where
-    the behavior genuinely differs, cite the manifest field instead.
-18. Keep the prompt static for the life of a session. A seat prompt and the skill descriptions
-    sit in the cached prefix, so after the first turn they cost about a tenth of their first
-    price, and a byte that changes mid-session throws the cache away from that point on. Cut a
-    prompt to hold attention, not to lower the bill, and put nothing dated, timed, counted, or
-    session-specific in one: the seat reads those from its tools. [TP, PC]
+1. Cut any line whose absence wouldn't cause a mistake, and what the model knows or can read in
+   the code. [BP, S]
+2. Stay under 200 lines and 16 KB: adherence drops silently as files grow. [M, IFS]
+3. Write calm, plain instructions; capitals and "MUST" make a model over-apply a rule. Tune for
+   the weakest model the role runs on. [P, BP]
+4. Say what to do, not what to avoid. [P]
+5. Give each rule its reason; the model generalizes from it. [P]
+6. Make rules checkable by naming the command, field or threshold. [M]
+7. Write heuristics, exact only where a mistake is costly. [CE, S]
+8. Open with one sentence stating the role, then behavior. [P]
+9. Put the most important rules first, and restate the top one at the end. [O5, LIM]
+10. Use one term per concept, from Terminology. [M, S]
+11. State scope: strong models widen a task, cheaper ones read it literally. [O5]
+12. Name a runnable check instead of "verify"; current models over-verify. [O5]
+13. Enforce hard limits outside the prompt: a harness tool in the role's settings under
+    `harness/<id>/`, a Paseo tool in `paseoTools`, a launch or message rule in `plugin/`. Don't
+    restate an enforced limit; what no setting can say stays as part of the job. [M]
+14. Write every `.md` to load unchanged on every harness: no HTML comments, no harness tool names
+    ("your read tool"), no `$ARGUMENTS` or `${CLAUDE_SKILL_DIR}`. Setup refuses them. [M]
+15. Add a rule only after an observed failure, with its reason and a removal trigger. [HL, CUR]
+16. Put every-session behavior in the prompt and situational behavior in a skill; the Lead names a
+    Peer's skills in the brief, because seats rarely open one unprompted. [M]
+17. Name no coding agent outside `harness/<id>/NOTES.md`; cite the manifest field instead.
+18. Keep a prompt static for a session: it sits in the cached prefix, and nothing dated or counted
+    belongs in it. [TP, PC]
 
-## What each demo prompt expects you to add
+What each demo prompt expects you to extend:
 
-No `.md` here carries an HTML comment, by rule 14, so the notes that used to sit at the top of
-each prompt live here instead. Every seat prompt is a demo file: the structure is real, the rules
-are generic, and the value is your own. `setup-seats.fish` holds each to `promptBudget` in
-`seats.json`; exceeding it is an error, and the fix is to cut, not to raise the budget.
-
-| Prompt | What to extend, by section |
+| Prompt | Extend |
 |---|---|
-| `PEER.md` | Boundaries, the handoff's six fields, the evidence standard |
-| `REVIEWER.md` | Findings, the axes a review covers, the handoff shape |
-| `LEAD.md` | "What you own, and what goes up", with the decisions your project reserves for the Human; the Reviewer conditions under Delegation; the Acceptance checks |
-| `SUPERVISOR.md` | "Attention", with the signals worth a look; intervention rights under "Operating, detours and replacing a Lead"; when a kit change is proposed |
-| `WATCHER.md` | The trigger table. It runs on a small model and is re-read on every sweep, so keep it short: a small model loses rules faster than a large one as a prompt grows. The Supervisor proposes a change to it; the Human applies it in the kit. |
+| `PEER.md` | Boundaries, the handoff fields, the evidence standard |
+| `REVIEWER.md` | Findings, review axes, the handoff shape |
+| `LEAD.md` | Decisions reserved for the Human, Reviewer conditions, acceptance checks |
+| `SUPERVISOR.md` | Attention signals, intervention rights, when a kit change is proposed |
+| `WATCHER.md` | The trigger table; keep it short, since a small model rereads it every sweep |
 
-## Delegation briefs and handoffs
+## Briefs and handoffs
 
-1. Every brief states the objective, the output format, where to start looking, and the
-   boundaries. Without them, sub-agents misread the task or duplicate each other's work. [MA]
-2. Pass along decisions already made and approaches already ruled out, not just the task. [COG]
-3. Scale effort to the task, and skip delegation when a few reads would answer the
-   question. [MA, O5]
+1. A brief states objective, output format, where to start and boundaries. [MA]
+2. Pass along decisions made and approaches ruled out. [COG]
+3. Scale effort to the task; skip delegation when a few reads answer it. [MA, O5]
 4. Give parallel writers disjoint scopes. [COG]
-5. Keep handoffs condensed: put long logs in files and pass the paths. [CE, MA]
-6. Ask Reviewers for every finding with severity and confidence, and filter afterwards. Current
-   models follow "report only serious issues" literally and hold findings back. [O5]
+5. Keep handoffs condensed; long logs go in files. [CE, MA]
+6. Ask Reviewers for every finding with severity and confidence, and filter afterwards. [O5]
 
-## Human-facing docs
+## Docs
 
-Classify each document by what its reader is doing, and keep the types apart. [DX]
+Keep document types apart by what the reader is doing. [DX] The README says what the kit is, how
+to start and where to go next [GHR]; SETUP.md holds only actions; REFERENCE.md holds facts in one
+entry pattern.
 
-- The README is a landing page: what the kit is, why it's useful, how to start, and where to
-  go next. [GHR]
-- SETUP.md is a how-to guide containing only actions.
-- REFERENCE.md is reference material: facts to look up, each entry in the same pattern.
-
-When you write a procedure: [G]
-
-- List the prerequisites before the first step.
-- Introduce the procedure with a sentence that ends in a colon.
-- Put one action in each numbered step, start it with an imperative verb, and put any
-  condition before the instruction.
-- End each step with a runnable **Done** check and its expected result.
-- State branches explicitly ("If X, go back to …"), note which steps are safe to repeat, and
-  give a rollback.
-- Put commands in fenced code blocks with a language tag.
-
-In general, write in the second person, active voice, and present tense. Use sentence-case
-headings without numbers, code font for commands, paths, and values, and link text that
-describes its target. [G, MS]
+In a procedure [G]: list prerequisites first, put one imperative action per numbered step with any
+condition first, end each step with a runnable **Done** check, state branches, repeatable steps and
+rollback, and fence commands with a language tag. Write in second person, active voice and present
+tense, with sentence-case headings. [G, MS]
 
 ## Templates
 
-- Describe each field inside a seat's template as a short `<hint>`, never in a separate list, and
-  add an example only where output drifted, as the same news written right and wrong. [GP]
-- Put copyable template content in a fenced block, so the instructions around it aren't
-  copied along with it.
+Describe each field as a short `<hint>` inside the template, add an example only where output
+drifted, and fence copyable content. [GP]
 
 ## Skills
 
-Skills live in `project/skills/<role>/`, and must work unchanged on every harness a role might
-run on. Each role's set matches its altitude: strategy for the Supervisor, macro for the Lead,
-micro for the Peer, and review for the Reviewer. [S, SK, OMP]
+Skills live in `project/skills/<role>/` at the role's altitude: strategy for the Supervisor, macro
+for the Lead, micro for the Peer. [S, SK, OMP]
 
-1. Use only `name` (equal to the directory name: lowercase letters, digits, hyphens) and
-   `description` in the frontmatter, plus `disable-model-invocation: true` for skills that run
-   only when asked. Harnesses disagree on whether the command follows the directory or `name`,
-   so the two must match.
-2. Write the description as one double-quoted line in the third person: what the skill does,
-   then "Use when …", naming concrete triggers. Make it the shortest line that still tells the
-   skill apart from its siblings in the same role, and cap it at 400 characters; there is no
-   floor, because padding the one layer that is always in context buys nothing. Where a sibling
-   covers nearby ground, end with a "Not for …" clause naming what takes that case instead: the
-   common retrieval failure is the right family and the wrong skill, not a missed family. Every
-   "when to use" belongs here and not in the body; every harness triggers on it, and none reads
-   `when_to_use`. [S, SR, RF]
-3. Keep `SKILL.md` under 500 lines, and move long catalogs and templates into `references/`,
-   linked by a relative path that says when to read it. Keep references one level deep, because
-   a harness may only preview a file reached from another; open one over 100 lines with a
-   contents list. Open every reference with one line naming what it holds and when to open it,
-   so a seat can decide against it without reading it. [S, SR]
-4. Refer to input as "the request given with this skill". Not every harness substitutes
-   `$ARGUMENTS`, `${CLAUDE_SKILL_DIR}`, `` !`command` ``, or `@file`, and the setup script
-   refuses the first two.
-5. Add a procedure the seat prompt doesn't already carry, and name the artifact the skill
-   produces and where it goes.
-6. A skill carries none of the words its role's `hidesWords` lists in `seats.json`. The
-   no-comment rule is not theirs alone: it applies to every skill.
-7. Borrow mechanisms, not prose, from third-party skills, and record the source and its
-   license in `NOTICE.md`.
-8. Budget attention, not bytes. Recall falls as input grows, well before a window is full: a
-   model with a 200K window already degrades measurably around 50K, and it degrades on every
-   model tested, so a long session invents rather than reports. A loaded skill never leaves the
-   context, and a finished procedure still in the right format distracts harder than irrelevant
-   text does. So the number to hold is open procedures, not bytes per file. Give every skill one
-   written artifact it ends in — a result block, a brief, an ADR, a report, a summary — and say
-   so in the skill, because once the artifact exists nothing later depends on re-reading the
-   skill and the turns that carried it can be compacted away. Two open procedures is one seat's
-   working limit; a third is the signal to finish one or hand off, not to load another skill.
-   Keep the whole working context under about 50K tokens, counting every skill the seat loaded
-   plus the code it read. [CR, CE, IFS]
-9. Put a section a seat reaches in a later turn in `references/`, not in `SKILL.md`: a fix-round
-   cap read only when findings come back, a lane the seat picks against, a report format used
-   after subagents report. It costs the same when reached, and nothing when it isn't, and it
-   arrives after the planning turns can be compacted away. Keep the decision that chooses it,
-   and the rule that matters most, in `SKILL.md`. Sort the rest by content type before you
-   split: operational rules, decision criteria, and thresholds stay; background, rationale,
-   worked examples, and templates go to `references/`; an exact repeat goes nowhere. A body cut
-   this way loses no behavior and often gains some, because what stays distracts less. [S, CE, SR]
-10. Put deterministic work in `scripts/`, not in prose: a script is run, not read, so only its
-    output reaches the context, and it can't be paraphrased into a different procedure. Name the
-    path as `SKILL_DIR/scripts/NAME`, say to run it, and keep its reasons in `REFERENCE.md`
-    by the no-comment rule. `review_pack.py` and `create_ultra_review_report.py` are the kit's
-    two, both from SLP. [S]
-11. Keep the disclosure flat: one level of references under `SKILL.md`, and no index of
-    descriptions layered above it. A routing layer whose entries sit in context permanently
-    recreates the pressure the split was meant to relieve, and measures worse than a flat pack.
-    The one allowed second copy is the trigger table in a seat prompt, because a skill a seat
-    never loads helps nobody: it names the situation and the skill and nothing else, never the
-    skill's procedure, so the two layers cannot disagree. [PD, S]
+1. Frontmatter holds only `name`, equal to the directory name, and `description`. No skill is gated
+   behind permission; a role uses its skills on its own judgment.
+2. The description is one quoted third-person line: what the skill does, then "Use when…" with
+   concrete triggers, at most 400 characters, with "Not for…" where a sibling covers nearby ground.
+   Every trigger belongs there, not in the body. [S, SR, RF]
+3. Keep `SKILL.md` under 500 lines; move catalogs and templates one level down into `references/`,
+   each opening with a line saying what it holds and when to read it. [S, SR]
+4. Refer to input as "the request given with this skill". [S]
+5. Add only procedure the prompt lacks, and end in a named artifact, so the turns that carried the
+   skill can be compacted away. Two open procedures is a seat's working limit. [CR, CE, IFS]
+6. Put what a seat reaches in a later turn in `references/`; keep rules, decisions and thresholds
+   in the body and drop background. [S, CE, SR]
+7. Put deterministic work in `scripts/`, named as `SKILL_DIR/scripts/NAME`. [S]
+8. Keep disclosure flat: no index layer above the skills. A seat prompt's trigger table may name a
+   situation and a skill, never its procedure. [PD, S]
+9. Carry none of the role's `hidesWords`, and borrow mechanisms, not prose, crediting the source in
+   NOTICE.md.
 
 ## Terminology
 
-Use these terms, and only these, for the following concepts:
-
 | Term | Meaning |
 |---|---|
-| Human | The owner, who decides what changes the project's concept: what it does and how it behaves |
-| Supervisor | The seat that decides for the Human everything short of the project's concept, relays, observes, and keeps the notebook |
-| Lead | The seat that owns one project: framing, delegation, acceptance |
-| Peer | The seat that does assigned work and returns evidence |
-| Reviewer | The read-only seat: it reviews changes, and takes every read-only lane a skill opens (council seats, ultra-review scouts, audit readers) |
-| seat | A harness profile together with its Paseo provider, named for its role |
-| brief | The Lead's assignment to a Peer |
-| handoff | The Peer's six-field report at the end of a task |
-| disposition | The role a brief assigns: Engineer, Architect, Reviewer, or Scout. An Architect or Scout is a Peer with `Owned scope none`, which the brief holds rather than a setting |
+| Human | The owner, who decides the project's concept: what it does and how it behaves |
+| Supervisor | Decides everything short of the concept for the Human, relays, observes, keeps the notebook |
+| Lead | Owns one project: framing, delegation, acceptance |
+| Peer | Does assigned work and returns evidence |
+| Reviewer | The read-only seat: reviews and every read-only lane a skill opens |
+| watcher | The small-model seat that sweeps activity when the plugin wakes it |
+| seat | A harness profile with its Paseo provider, named for its role |
+| harness | The coding agent hosting a role, described by `harness/<id>/harness.json` |
+| brief / handoff | The Lead's assignment to a Peer / the Peer's report at the end |
+| disposition | Engineer, Architect, Reviewer or Scout; Architect and Scout have `Owned scope none` |
 | owned scope | The paths a Peer may write |
-| acceptance | The decision, by the Lead or the Human, that work is done |
-| ExecPlan | The Lead's plan for one high-risk outcome under `docs/exec-plans/active/`, shaped by `PLANS.md`; it holds current state only |
-| ADR | A decision record under `docs/adr/`, shaped by `ADR.md`; superseded by a new one, never edited |
-| review record | The Lead's file for one review round under `docs/reviews/`, shaped by `REVIEW.md`: each finding and the ruling on it |
-| owner directive | A message to a Lead, labeled `OWNER DIRECTIVE:`, that carries a decision from the owner's side: the Human's, or the Supervisor's on the Human's behalf |
-| advice | A message to a Lead, labeled `ADVICE:`, that the Lead may dispute once with evidence |
-| check | A neutral question, labeled `CHECK:`, that asks a Lead, or a Peer through its Lead, to look again at its work against a named source |
-| attention event | A message the Paseo plugin brings the Supervisor, labeled `ATTENTION:`, reporting a trigger the watcher matched or a marked line, pushback or failure the plugin saw itself |
-| watcher | The `watcher` seat, on a small model, which sweeps Lead and Peer activity when the Paseo plugin wakes it and raises attention events |
-| harness | The coding agent that hosts a role, described by `harness/<id>/harness.json` |
+| acceptance | The Lead's or Human's decision that work is done |
+| ExecPlan, ADR, review record | Records under `docs/`, shaped by `PLANS.md`, `ADR.md`, `REVIEW.md` |
+| owner directive, advice, check | Messages to a Lead labeled `OWNER DIRECTIVE:`, `ADVICE:`, `CHECK:` |
+| attention event | An `ATTENTION:` message the plugin brings the Supervisor |
 
-`seats.json`'s `hidesWords` says which words each seat never sees, and the setup script checks
-every prompt and skill against it: `.seatworks/prompts/PEER.md` and `.seatworks/prompts/REVIEWER.md` never use
-Supervisor, watcher, seat, or Paseo, and `.seatworks/prompts/LEAD.md` never names the Supervisor.
-No setting hides a path, so those seats can still read `.seatworks/`.
+`hidesWords` in `seats.json` keeps Supervisor, watcher, seat and Paseo out of the Peer's and
+Reviewer's files, and the Supervisor out of the Lead's; setup checks it.
 
-## Where sources disagree, and what this kit chose
+## Where sources disagree
 
-- **Emphasis:** one guide discourages it, another allows it on a single line. None by default.
-- **Prompt or setting:** the prompting guides treat instructions as the whole mechanism. This kit
-  treats a prompt as guidance and puts anything that must hold in Paseo's config or plugin, or in
-  the coding agent's own settings, after two evaluation runs where a Lead skipped a step its
-  prompt named.
-- **File length:** recommendations range from about 60 lines to 500. This kit uses 16 KB and
-  roughly 200 lines.
-- **Description length:** the skills guide caps a description at 1,024 characters and this kit
-  once set a 200-character floor as well. The floor is gone, since it padded the always-resident
-  layer; the 400-character cap stays.
-- **Disclosure depth:** the skills guide describes layers without a limit, and one controlled
-  study measured a deep routing layer as worse than a flat one. This kit keeps one level, with
-  the seat prompt's trigger table as the single deliberate duplicate.
-- **Multi-agent or single thread:** [MA] parallelizes research, [COG] prefers a single thread.
-  This kit parallelizes reading and review, and keeps each write scope to one writer.
-- **Numbered headings:** [G] avoids them; SETUP.md links its steps from a numbered list instead.
+- **Prompt or setting:** guides treat instructions as the mechanism; this kit puts what must hold
+  in settings or the plugin, after Leads skipped prompted steps.
+- **File length:** advice ranges from 60 to 500 lines; this kit uses 200 lines and 16 KB.
+- **Disclosure depth:** one level, since a deep routing layer measured worse. [PD]
+- **Multi-agent:** [MA] parallelizes, [COG] prefers one thread; this kit parallelizes reading and
+  review and keeps one writer per scope.
 
 ## Sources
 
@@ -257,9 +146,9 @@ No setting hides a path, so those seats can still read `.seatworks/`.
 - [GP] [Google developer documentation style guide: placeholders](https://developers.google.com/style/placeholders)
 - [GHR] [GitHub: About READMEs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)
 - [MS] [Microsoft Writing Style Guide: top 10 tips](https://learn.microsoft.com/en-us/style-guide/top-10-tips-style-voice)
-- [CR] [Context rot: how increasing input tokens impacts LLM performance](https://www.trychroma.com/research/context-rot)
-- [SR] [SkillReducer: optimizing LLM agent skills for token efficiency](https://arxiv.org/abs/2603.29919)
+- [CR] [Context rot](https://www.trychroma.com/research/context-rot)
+- [SR] [SkillReducer](https://arxiv.org/abs/2603.29919)
 - [PD] [Is progressive disclosure all you need for long-context agents?](https://arxiv.org/abs/2607.17598)
-- [RF] [Right family, wrong skill: benchmarking risk exposure in agent skill retrieval](https://arxiv.org/abs/2606.10388)
-- [TP] [TokenPilot: cache-efficient context management for LLM agents](https://arxiv.org/abs/2606.17016)
+- [RF] [Right family, wrong skill](https://arxiv.org/abs/2606.10388)
+- [TP] [TokenPilot](https://arxiv.org/abs/2606.17016)
 - [PC] [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)

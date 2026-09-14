@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -56,6 +56,17 @@ test("a launch with a model the seat does not offer fails before the agent exist
     () => request("agent.create", { config: { provider: "reviewer", cwd: root, model: "claude-opus-5" } }, paseo),
     /runs zai\/glm-5\.3/,
   );
+});
+
+test("a bad project setting is logged once, and the launch still goes ahead on defaults", () => {
+  const { root, lines, start } = project();
+  writeFileSync(join(root, ".seatworks", "project.json"), JSON.stringify({ attention: { sweepMinutes: -1 } }));
+  const { request } = start();
+  const { paseo } = fakePaseo([]);
+  for (let launch = 0; launch < 2; launch++) {
+    request("agent.create", { config: { provider: "reviewer", cwd: root } }, paseo);
+  }
+  assert.deepEqual(lines, [".seatworks/project.json  attention.sweepMinutes must be a whole number of at least 1; using 10"]);
 });
 
 test("an agent a parent may not start is archived and the parent is told", async () => {

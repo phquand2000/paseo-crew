@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { kitLoader, projectAt, projectRoot, roleOf } from "./kit.ts";
+import { kitLoader, projectRoot, roleOf } from "./kit.ts";
 
 function writeJson(path: string, value: unknown, aheadMs = 0): void {
   writeFileSync(path, JSON.stringify(value));
@@ -35,12 +35,10 @@ test("kitLoader finds no kit when no provider names one", () => {
   assert.equal(kitLoader(join(dir, "config.json"))(), undefined);
 });
 
-test("projectRoot finds the nearest .seatworks, and projectAt reads its slug and pinned models", () => {
+test("projectRoot finds the nearest .seatworks", () => {
   const dir = mkdtempSync(join(tmpdir(), "seatworks-root-"));
   mkdirSync(join(dir, ".seatworks"));
   mkdirSync(join(dir, "src", "deep"), { recursive: true });
-  writeJson(join(dir, ".seatworks", "project.json"), { slug: "demo", models: { lead: "claude-opus-5" } });
   assert.equal(projectRoot(join(dir, "src", "deep")), dir);
-  assert.deepEqual(projectAt(dir), { root: dir, slug: "demo", models: { lead: "claude-opus-5" } });
   assert.equal(roleOf("peer/zai/glm-5.3"), "peer");
 });

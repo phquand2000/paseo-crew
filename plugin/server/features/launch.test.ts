@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Kit, Project } from "../kit.ts";
+import type { Kit } from "../kit.ts";
+import { type Project, readProject } from "../project.ts";
 import { applyProfile, launchReasons } from "./launch.ts";
 
 type Config = Parameters<typeof applyProfile>[1];
@@ -18,7 +19,7 @@ const kit: Kit = {
   providers: { reviewer: { models: [{ id: "zai/glm-5.3" }, { id: "zai/glm-5.3-flash" }] } },
   harnesses: {},
 };
-const project: Project = { root: "/repo", slug: "repo", models: {} };
+const project: Project = readProject("/repo", {});
 const config = (extra: Partial<Config> = {}): Config => ({ provider: "reviewer", cwd: "/repo", ...extra }) as Config;
 
 test("a provider that is not a seat passes through untouched", () => {

@@ -1,7 +1,8 @@
 import type { PluginBeforeRequests, PluginServerContext } from "@getpaseo/plugin/server";
 import { on } from "../hooks.ts";
-import { type Kit, type Project, projectAt, projectRoot, roleOf, seatFor } from "../kit.ts";
+import { type Kit, projectRoot, roleOf, seatFor } from "../kit.ts";
 import { archivedAtStart, logFields, refusal } from "../messages.ts";
+import type { Project } from "../project.ts";
 import type { Runtime } from "../runtime.ts";
 
 type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
@@ -49,7 +50,7 @@ export function register(server: PluginServerContext, runtime: Runtime): void {
     const kit = runtime.kit();
     if (!kit) return request;
     const root = projectRoot(request.config.cwd);
-    return { ...request, config: applyProfile(kit, request.config, root ? projectAt(root) : undefined) };
+    return { ...request, config: applyProfile(kit, request.config, root ? runtime.project(root) : undefined) };
   });
 
   on(server, "launch", "agent.created", async ({ agent }, { paseo }) => {
