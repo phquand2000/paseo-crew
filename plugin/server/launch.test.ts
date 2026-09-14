@@ -31,6 +31,15 @@ test("a Devin Peer gets no thinking option and no system prompt", () => {
   assert.equal(next.systemPrompt, undefined);
 });
 
+test("a Claude seat may write its project's state through the sandbox, keeping existing options", () => {
+  const config = { provider: "sw2-lead", cwd: "/repo", providerOptions: { disallowedTools: ["X"], settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } } } as unknown as AgentConfig;
+  const next = applyRole(kit, config, render, "/state/repo") as unknown as { providerOptions: any };
+  assert.deepEqual(next.providerOptions.disallowedTools, ["X"]);
+  assert.deepEqual(next.providerOptions.settings.sandbox.filesystem.allowWrite, ["/tmp", "/state/repo"]);
+  const peer = applyRole(kit, { provider: "sw2-peer", cwd: "/repo" } as AgentConfig, render, "/state/repo");
+  assert.equal(peer.providerOptions, undefined);
+});
+
 test("providers outside the kit are left untouched", () => {
   const config = { provider: "claude", cwd: "/repo", model: "x" } as AgentConfig;
   assert.equal(applyRole(kit, config, render), config);

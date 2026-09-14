@@ -5,7 +5,16 @@ export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
 export type RenderPrompt = (role: RoleSpec) => string;
 
-export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt): AgentConfig {
+function allowStateWrites(options: unknown, state: string): Record<string, unknown> {
+  const base = (options && typeof options === "object" ? options : {}) as Record<string, any>;
+  const settings = { ...(base.settings ?? {}) };
+  const sandbox = { ...(settings.sandbox ?? {}) };
+  const filesystem = { ...(sandbox.filesystem ?? {}) };
+  filesystem.allowWrite = [...new Set([...(filesystem.allowWrite ?? []), state])];
+  return { ...base, settings: { ...settings, sandbox: { ...sandbox, filesystem } } };
+}
+
+export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt, state?: string): AgentConfig {
   const role = roleOf(kit, config.provider);
   if (!role) return config;
   const harness = harnessOf(kit, role);
@@ -24,6 +33,9 @@ export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt): 
   if (harness.systemPrompt === "config") {
     const prompt = render(role);
     next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
+  }
+  if (harness.stateAccess === "sandboxAllowWrite" && state) {
+    next.providerOptions = allowStateWrites(config.providerOptions, state) as AgentConfig["providerOptions"];
   }
   return next;
 }

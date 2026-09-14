@@ -33,6 +33,7 @@ export type HarnessSpec = {
   skillsDir: string;
   hasThinking?: boolean;
   systemPrompt?: "config" | "file";
+  stateAccess?: "sandboxAllowWrite";
   settings: { mode: "link" | "merge"; file: string; source: string; roleSource?: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
   state?: { file: string; seed?: string };

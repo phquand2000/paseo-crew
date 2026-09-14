@@ -66,6 +66,7 @@ export function makeKit(): Kit {
     profileRoot: "HOME/.claude/profiles",
     skillsDir: "skills",
     systemPrompt: "config",
+    stateAccess: "sandboxAllowWrite",
     settings: { mode: "link", file: "settings.json", source: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     state: { file: ".claude.json", seed: "{\"hasCompletedOnboarding\": true}" },

@@ -101,8 +101,11 @@ export class Runtime {
       if (!role) return request;
       this.ensureSeat(role);
       const project = projectOf(request.config.cwd);
-      const config = applyRole(this.kit, request.config, (entry) =>
-        renderPrompt(this.kit, entry, { guides: guidesDir(), state: project.state }),
+      const config = applyRole(
+        this.kit,
+        request.config,
+        (entry) => renderPrompt(this.kit, entry, { guides: guidesDir(), state: project.state }),
+        project.state,
       );
       return { ...request, config };
     });
