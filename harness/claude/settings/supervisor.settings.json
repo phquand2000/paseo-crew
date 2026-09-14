@@ -50,7 +50,7 @@
     "allowUnsandboxedCommands": false
   },
   "enabledPlugins": {},
-  "autoCompactWindow": 333000,
+  "autoCompactWindow": 558000,
   "precomputeCompactionEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "workflowKeywordTriggerEnabled": false,

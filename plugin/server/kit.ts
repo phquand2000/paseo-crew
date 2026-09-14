@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 
 export type Seat = { role: string; harness: string; entry?: boolean; mayStart?: string[]; sweepMinutes?: number };
 export type Profile = { provider: string; model?: string; modeId?: string; thinkingOptionId?: string };
-export type Harness = { profileRoot?: string; configDirEnv?: string };
+export type Harness = { profileRoot?: string; configDirEnv?: string; hasThinking?: boolean };
 export type ProviderEntry = { env?: Record<string, string>; models?: { id: string }[] };
 export type Kit = {
   seats: Seat[];

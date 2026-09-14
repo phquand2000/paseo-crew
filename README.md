@@ -34,7 +34,7 @@ directory. `harness/common/bin/seat-room`, the command every provider runs, forc
 flags and execs the coding agent. A seat started outside a project is refused.
 
 ```
-seats.json                      each role's harness, skills, Paseo tools and model; the MCP servers
+seats.json                      each role's harness, models per harness, skills, Paseo tools; MCP servers
 harness/<id>/harness.json       one harness: config directory, prompt file, skills directory, settings
 harness/<id>/NOTES.md           that harness's verified behavior
 ~/.paseo/config.json            five providers and five profiles, composed from the two above
@@ -89,16 +89,23 @@ problem itself. The kit is built around that question:
 
 ## Changing which agent runs a role
 
-Edit the role's `harness` in `seats.json` and rerun setup; prompts and skills stay as they are.
-Tool limits don't travel, because each is a native setting of one coding agent: first give the
-role its settings under the new harness's directory, in keys its `NOTES.md` records as verified.
-`--check` reports a harness whose installed version differs from `verified`, and `--probe` asks it
-which skills it really loads.
+A role is ready for a harness once `seats.json` lists its models under `byHarness.<id>` and
+`harness/<id>/settings/<role>.settings.json` holds its tool limits, in keys that harness's
+`NOTES.md` records as verified. Both stay when the role moves away, so moving a role, and moving it
+back, is one line and a setup run; prompts and skills stay as they are:
 
-A role's models are listed under `models` in `seats.json`, or pinned for one project in
-`project.json`. An API key is never written into the kit: the manifest's
-`provider.baseCredential` names the variable, you set it on the base provider in the Paseo config,
-and every seat inherits it.
+```fish
+jq '(.seats[] | select(.role == "peer")).harness = "devin"' seats.json >seats.json.new; and mv seats.json.new seats.json
+fish setup/setup-seats.fish; and paseo reload
+```
+
+Archive the role's running agents first, since they keep the agent they started on. Setup fails on
+a missing entry or settings file, and warns when a project's `WORKSPACE_PROTOCOL.md` or
+`project.json` still names a model of the old harness. A coding agent the kit doesn't know yet is a
+new `harness/<id>/`: copy the closest directory, change the names in `harness.json` from that
+agent's docs, and record in `NOTES.md` how you verified each. An API key is never written into the
+kit: the manifest's `provider.baseCredential` names the variable, you set it on the base provider
+in the Paseo config, and every seat inherits it.
 
 ## Daily use
 

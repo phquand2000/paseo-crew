@@ -44,13 +44,13 @@ agent live in that harness's `NOTES.md` under [harness/](harness/), so this page
 
 - **Symptom:** a launch on another model is refused, a hand-edited profile changes back, or a
   harness rejects a mode with "Available modes: (none)".
-- **Cause:** agent profiles are global, one per role, rewritten from `seats.json` on every setup
-  run. The plugin sets each launch's model from a project pin or the profile, sets `modeId` only
-  where the manifest's `hasModes` allows one, fills a missing thinking option, and refuses a model
-  the role doesn't offer. A role with no `models` in `seats.json` gets its harness's
-  `provider.defaultModel`.
-- **Response:** change a model for every project in `seats.json`, for one project under `models` in
-  `project.json`; never pass another model to `create_agent`.
+- **Cause:** agent profiles are global, one per role, rewritten on every setup run from the role's
+  `byHarness` entry for its current harness, else the manifest's `provider.defaultModel`. The
+  plugin sets each launch's model from a project pin or the profile and its mode from the profile,
+  fills a missing thinking option, drops one where the manifest's `hasThinking` is false, and
+  refuses a model the role doesn't offer.
+- **Response:** change a model for every project under `byHarness` in `seats.json`, for one project
+  under `models` in `project.json`; never pass another model to `create_agent`.
 
 ## Paseo tools reach seats through two switches
 
@@ -65,8 +65,9 @@ agent live in that harness's `NOTES.md` under [harness/](harness/), so this page
 - **Symptom:** a seat does something its prompt rules out.
 - **Cause:** a prompt is guidance. What holds is the coding agent's own settings in the manifest's
   `settings.source` and `settings.roleSource`, linked or merged unchanged. Paseo's
-  `disallowedTools` isn't read by every provider, so setup deletes it. Only one harness has a
-  filesystem sandbox; on the other, where a seat writes rests on command rules and its brief.
+  `disallowedTools` isn't read by every provider, so setup deletes it. Not every harness has a
+  filesystem sandbox; without one, where a seat writes rests on command rules and its brief. On
+  some harnesses a refused call ends the seat's turn instead of returning an error; `NOTES.md` says.
   Neither can allow-list writes inside the repository, so which files the Supervisor and the Lead
   write is a prompt line. The plugin enforces launches: model, project, and the parent's `mayStart`.
   The files that set limits (`seats.json`, the Paseo config, seat settings) live outside the
@@ -96,10 +97,10 @@ agent live in that harness's `NOTES.md` under [harness/](harness/), so this page
 ## A seat gets only the skills seats.json chose
 
 - **Symptom:** a repository's own skills don't reach a seat.
-- **Cause:** both harnesses discover skills from several roots by default, including the
-  repository's. The kit pins them: `harness/omp/settings.json` enables only the seat's own skills
-  root, and `harness/claude/harness.json` forces `--setting-sources user` through `seat-room`.
-  Setup reports drift in those keys.
+- **Cause:** harnesses discover skills from several roots by default, including the repository's.
+  The kit turns off every root a harness lets it, through that harness's settings or forced flags,
+  and setup reports drift. A root a harness can't turn off is under `sharedSkillDirs` in its
+  manifest and in its `NOTES.md`.
 - **Response:** expected; a skill the kit didn't choose was never checked against the role's
   `hidesWords`. Paseo's own orchestration skills reach a seat only through a role's `extraSkills`,
   and no role names them.
@@ -167,8 +168,8 @@ agent live in that harness's `NOTES.md` under [harness/](harness/), so this page
 ## A question goes one level up
 
 - **Symptom:** an agent ends its turn with a question instead of opening a question prompt.
-- **Cause:** only the Supervisor has an ask tool: the omp seats set `ask.enabled` false and the Lead
-  denies `AskUserQuestion`. An agent ends its turn with the question, Paseo tells its creator, and
+- **Cause:** only the Supervisor has an ask tool; every other seat's harness offers none or its
+  settings deny it. An agent ends its turn with the question, Paseo tells its creator, and
   the creator answers. The Supervisor asks you only about how the project behaves. A Peer's
   unanswered `BLOCKED` becomes an attention event.
 - **Response:** expected. A Lead you started yourself asks you in its reply.

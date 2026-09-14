@@ -22,8 +22,8 @@ lines: a new decision replaces the line it changes.
 - Independent review: <which changes get an independent Reviewer and how many, e.g. two Reviewers, one axis each, for anything under billing/; otherwise the Lead reads the diff>.
 - Design before code: <the condition that puts an Architect before an Engineer>.
 - Council: <decisions that always get a council, or never do, where the Lead's own judgment isn't wanted>.
-- Council models: <the model and thinking level of each council position, from those the reviewer profile offers, e.g. Independent and Challenger zai/glm-5.3 max, Verifiers zai/glm-5.3-flash low, Auditor zai/glm-5.3 high>.
-- Ultra-review scouts: <the model and thinking level of the ten scouts, e.g. zai/glm-5.3-flash high>.
+- Council models: <the model, and thinking level where it takes one, of each council position, from those the reviewer profile offers, e.g. Independent and Challenger on its strongest, Verifiers on its cheapest>.
+- Ultra-review scouts: <the model, and thinking level where it takes one, of the ten scouts, from those the reviewer profile offers>.
 - Hand off to a fresh Lead: <when, e.g. when an outcome closes, or when it can no longer name its own open decisions>.
 
 ## Gates

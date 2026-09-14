@@ -81,6 +81,7 @@ for id in (jq -r '[.seats[].harness] | unique | .[]' $seats_file)
         exit 1
     end
     set -l base (jq -r '.baseProvider' $manifest)
+    test $base = acp; and continue
     jq -e --arg b $base '.agents.providers[$b]' $paseo_config >/dev/null 2>&1
     or begin
         echo "! $paseo_config has no base provider `$base`, which harness $id extends; add it from examples/paseo-providers.json (SETUP.md, \"Add the base providers to Paseo\")."
@@ -171,7 +172,7 @@ set -l project $seat/project.json
 set -l models '{}'
 if test -n "$model"
     set models (jq -c --slurpfile s $seats_file --arg m $model '
-        reduce ($s[0].seats[] | select((.models | length) == 0) | .role) as $r ({}; .[$r] = $m)' -n)
+        reduce ($s[0].seats[] | select(((.byHarness[.harness].models // []) | length) == 0) | .role) as $r ({}; .[$r] = $m)' -n)
 end
 set -l new_project (jq -n --arg s $slug --argjson m "$models" '{slug: $s} + (if $m == {} then {} else {models: $m} end)')
 if not test -f $project

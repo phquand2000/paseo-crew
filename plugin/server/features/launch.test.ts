@@ -53,6 +53,13 @@ test("a model the project pins wins over the profile's", () => {
   assert.equal(applyProfile(kit, config(), pinned).model, "zai/glm-5.3-flash");
 });
 
+test("a harness without thinking levels drops the one passed at launch and the profile's", () => {
+  const seats = kit.seats.map((seat) => (seat.role === "reviewer" ? { ...seat, harness: "devin" } : seat));
+  const devin: Kit = { ...kit, seats, harnesses: { devin: { hasThinking: false } } };
+  assert.equal(applyProfile(devin, config({ thinkingOptionId: "high" }), project).thinkingOptionId, undefined);
+  assert.equal(applyProfile(devin, config(), project).thinkingOptionId, undefined);
+});
+
 test("launchReasons names a role the parent may not start and a start in another project", () => {
   const rootOf = (cwd: string) => (cwd.startsWith("/a") ? "/a" : cwd.startsWith("/b") ? "/b" : undefined);
   assert.deepEqual(launchReasons(kit, { provider: "peer", cwd: "/a/x" }, { provider: "lead", cwd: "/a" }, rootOf), []);

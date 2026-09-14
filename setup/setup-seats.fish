@@ -475,12 +475,13 @@ function seat_provider --argument-names role
             --arg k $key --arg b (harness_get $harness .baseProvider) \
             --arg l (seat_field $role .label) --arg d (seat_field $role .description)
     end
-    for field in label description
+    for field in extends label description
         set -l want (seat_field $role .$field)
+        test $field = extends; and set want (harness_get $harness .baseProvider)
         set -l have (jq -r --arg k $key --arg f $field '.agents.providers[$k][$f] // ""' $paseo_config)
         test "$have" = "$want"; and continue
         if test $dry -eq 1
-            fail "provider $key: $field is \"$have\" but seats.json says \"$want\" (rerun without --check)"
+            fail "provider $key: $field is \"$have\" but its harness and seats.json make it \"$want\" (rerun without --check)"
         else
             paseo_write $paseo_config "provider $key: $field set from seats.json" \
                 '.agents.providers[$k][$f] = $v' --arg k $key --arg f $field --arg v $want
@@ -532,8 +533,12 @@ function seat_provider --argument-names role
     end
 end
 
+function seat_models --argument-names role
+    seat_field $role '[(.byHarness[.harness].models // [])[]]' | jq -c .
+end
+
 function provider_models --argument-names key role
-    set -l want (seat_field $role '[.models[]?]' | jq -c .)
+    set -l want (seat_models $role)
     test "$want" = '[]'; and return
     set -l have (jq -c --arg k $key '.agents.providers[$k].models // []' $paseo_config)
     test "$have" = "$want"; and return
@@ -551,7 +556,8 @@ function seat_profile --argument-names role
         def dflt: (map(select(.isDefault == true)) + .)[0];
         ($s[0].seats[] | select(.role == $r)) as $seat
         | $h[0] as $hx
-        | ($seat.models | if length > 0 then dflt else null end) as $d
+        | ($seat.byHarness[$seat.harness] // {}) as $o
+        | ($o.models // [] | if length > 0 then dflt else null end) as $d
         | { id: $r, name: $seat.label, provider: $r }
           + (if $d then { model: $d.id }
              elif $hx.provider.defaultModel then { model: $hx.provider.defaultModel }
@@ -559,7 +565,7 @@ function seat_profile --argument-names role
           + (if $hx.provider.profileModeId then { modeId: $hx.provider.profileModeId } else {} end)
           + (($d.thinkingOptions // [] | dflt.id) as $t
              | if $t then { thinkingOptionId: $t }
-               elif $seat.thinking then { thinkingOptionId: $seat.thinking }
+               elif $o.thinking then { thinkingOptionId: $o.thinking }
                else {} end)
           + { notes: $seat.notes }')
     set -l have (jq -c --arg r $role '[(.daemon.agentProfiles // [])[] | select(.id == $r)][0] // null' $paseo_config)
@@ -617,6 +623,19 @@ end
 
 function project_slug --argument-names repo_dir
     jq -r '.slug // empty' $repo_dir/.seatworks/project.json 2>/dev/null
+end
+
+function stale_models --argument-names repo_dir
+    set -l current (seats_get '.seats[] | (.byHarness[.harness].models // [])[] | .id')
+    set -l protocol $repo_dir/.seatworks/guides/WORKSPACE_PROTOCOL.md
+    for id in (seats_get '[.seats[] | (.byHarness // {})[] | (.models // [])[] | .id] | unique | .[]')
+        contains -- $id $current; and continue
+        test -f $protocol; and grep -qwF -- $id $protocol
+        and echo "  · "(string replace -- "$repo_dir/" '' $protocol)" names $id, which no role runs on its current harness; route to a model seats.json lists under that role's byHarness."
+        for role in (jq -r --arg m $id '(.models // {}) | to_entries[] | select(.value == $m) | .key' $repo_dir/.seatworks/project.json 2>/dev/null)
+            echo "  · .seatworks/project.json pins $role to $id, a model of a harness it no longer runs on; change or remove the pin."
+        end
+    end
 end
 
 command -q jq; or begin
@@ -689,6 +708,17 @@ for role in (seats_get '.seats[].role')
     end
     check_budget $file (seats_get .promptBudget) (seats_get '.promptLineBudget // 0')
     hidden_words "role $role" $file (seat_field $role '.hidesWords[]?')
+    set -l h (seat_field $role .harness)
+    test -f (harness_file $h); or continue
+    set -l default_model (harness_get $h '.provider.defaultModel // empty')
+    test (seat_field $role "(.byHarness.\"$h\".models // []) | length") -gt 0; or test -n "$default_model"
+    or fail "role $role runs on $h, but seats.json lists no models under its byHarness.$h and harness/$h names no defaultModel"
+    for src in (harness_get $h '.settings.source') (harness_get $h '.settings.roleSource // empty')
+        string match -q '*ROLE*' -- $src; or continue
+        set -l need $harness_dir/$h/(string replace ROLE $role $src)
+        test -f $need
+        or fail "role $role runs on $h, which has no "(string replace -- "$kit/" '' $need)"; write the role's limits there, starting from a copy of another role's file, before moving it"
+    end
 end
 
 for id in (seats_get '[.seats[].harness] | unique | .[]')
@@ -712,21 +742,15 @@ for id in (all_harnesses)
 end
 
 for id in (seats_get '[.seats[].harness] | unique | .[]')
-    set -l harness_roles (seats_get --arg h $id '.seats[] | select(.harness == $h) | .role')
     for source in (harness_get $id '.settings.source') (harness_get $id '.settings.roleSource // empty')
         test -n "$source"; or continue
         string match -q '*ROLE*' -- $source; or continue
         set -l dir (path dirname $source)
         test "$dir" != .; or continue
-        set -l tail (string replace ROLE '' (path basename $source))
         for file in $harness_dir/$id/$dir/*
             test -f $file; or continue
-            set -l named (string replace -- $tail '' (path basename $file))
-            if not contains -- "$named" $harness_roles
-                echo "  · harness/$id/$dir/"(path basename $file)" is a settings file for role '$named', which seats.json does not put on this harness. Nothing reads it: delete it, or move the role back."
-            else if not jq -e . $file >/dev/null 2>&1
-                fail "$file is not valid JSON; fix it by hand."
-            end
+            jq -e . $file >/dev/null 2>&1
+            or fail "$file is not valid JSON; fix it by hand."
         end
     end
 
@@ -845,6 +869,7 @@ for repo_dir in $projects
     for role in (seats_get '.seats[].role')
         build_seat $role $slug $repo_dir
     end
+    stale_models $repo_dir
 end
 
 set -l known (seats_get '.seats[].role') (all_harnesses | while read -l id; harness_get $id .baseProvider; end)

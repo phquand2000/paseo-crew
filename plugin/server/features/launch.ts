@@ -21,11 +21,12 @@ export function applyProfile(kit: Kit, config: AgentConfig, project: Project | u
   if (model && allowed.length > 0 && !allowed.includes(model)) {
     throw new Error(refusal.modelNotOffered(seat.role, allowed));
   }
+  const thinks = kit.harnesses[seat.harness]?.hasThinking !== false;
   return {
     ...config,
     model,
     modeId: profile.modeId ?? config.modeId,
-    thinkingOptionId: config.thinkingOptionId ?? profile.thinkingOptionId,
+    thinkingOptionId: thinks ? (config.thinkingOptionId ?? profile.thinkingOptionId) : undefined,
   };
 }
 

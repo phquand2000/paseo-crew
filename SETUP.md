@@ -85,14 +85,16 @@ daemon starts.
 
 ## Add the base providers to Paseo
 
-Every seat extends its harness's base provider and inherits its credentials.
-`examples/paseo-providers.json` holds one base entry per harness.
+A seat extends its harness's base provider and inherits its credentials, except where the
+manifest's `baseProvider` is `acp`: Paseo launches that agent over ACP with no base entry, and it
+logs in through its own CLI. `examples/paseo-providers.json` holds the base entries.
 
 1. Check which base providers exist:
 
    ```fish
    for h in (jq -r '[.seats[].harness] | unique | .[]' KIT_DIR/seats.json)
        set -l b (jq -r .baseProvider KIT_DIR/harness/$h/harness.json)
+       test $b = acp; and continue
        jq -r --arg b $b '"\($b): \(if .agents.providers[$b] then "present" else "missing" end)"' ~/.paseo/config.json
    end
    ```
@@ -176,7 +178,7 @@ code, and stops asking for `--slug` if another repository has the slug.
 1. Read each seat's model; a role naming none uses its harness's `provider.defaultModel`:
 
    ```fish
-   jq -r '.seats[] | "\(.role): \((.models[0].id // "from its harness"))"' KIT_DIR/seats.json
+   jq -r '.seats[] | "\(.role) on \(.harness): \(.byHarness[.harness].models[0].id // "from its harness")"' KIT_DIR/seats.json
    ```
 
 2. Run it, adding `--slug SLUG` if the directory name isn't the short name you want:
@@ -230,7 +232,7 @@ prove each seat loads its own.
    ```
 
 2. Ask each seat for its heading, one at a time, always with `--cwd REPO_DIR`, copying model, mode
-   and thinking option from the role's profile (a harness with `hasModes: false` rejects `--mode`):
+   and thinking option from the role's profile, and leaving out whichever the profile doesn't set:
 
    ```fish
    paseo run --provider ROLE/MODEL_ID --mode MODE_ID --thinking THINKING_ID --cwd REPO_DIR 'Without running any tool, quote the "# " heading of your instructions, and say whether they mention Paseo.'

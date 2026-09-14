@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "deny": [
+      "web_search",
+      "edit",
+      "write",
+      "notebook_edit",
+      "Write(**)",
+      "mcp__intellij-index__ide_refactor_rename",
+      "mcp__intellij-index__ide_move_file",
+      "mcp__intellij-index__ide_refactor_safe_delete",
+      "Exec(git push)",
+      "Exec(git worktree)",
+      "Exec(gh)",
+      "Exec(paseo)",
+      "Exec(devin)",
+      "Exec(claude)",
+      "Exec(omp)",
+      "Exec(codex)",
+      "Exec(opencode)",
+      "Exec(git add)",
+      "Exec(git commit)",
+      "Exec(git reset)",
+      "Exec(git checkout)",
+      "Exec(git switch)",
+      "Exec(git restore)",
+      "Exec(git merge)",
+      "Exec(git rebase)",
+      "Exec(git cherry-pick)",
+      "Exec(git revert)",
+      "Exec(git clean)",
+      "Exec(git rm)",
+      "Exec(git mv)",
+      "Exec(git stash)",
+      "Exec(git apply)",
+      "Exec(git am)",
+      "Exec(git pull)",
+      "Exec(git update-ref)",
+      "Exec(git config)"
+    ]
+  }
+}
