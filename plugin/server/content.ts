@@ -10,7 +10,15 @@ export function hiddenWordsIn(text: string, words: string[]): string[] {
 
 export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): string {
   const source = readFileSync(join(kit.dir, "content", role.prompt), "utf-8");
-  const text = source.replaceAll("{{guides}}", paths.guides).replaceAll("{{state}}", paths.state);
+  const text = source
+    .replaceAll("{{guides}}", paths.guides)
+    .replaceAll("{{state}}", paths.state)
+    .replace(/\{\{profile:([a-z0-9-]+)\}\}/g, (_match, name: string) => {
+      if (!kit.roles.some((entry) => entry.role === name)) {
+        throw new Error(`the ${role.role} prompt names the profile of unknown role ${name}`);
+      }
+      return `${kit.prefix}${name}`;
+    });
   const hidden = hiddenWordsIn(text, role.hidesWords ?? []);
   if (hidden.length > 0) {
     throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);

@@ -31,6 +31,13 @@ test("a Lead is not stalled while a seat under it runs, while it asks, or before
   assert.deepEqual(stalledLeads([seat("lead-3", "running", 40)], [], [], now, 15 * 60_000, new Map()), []);
 });
 
+test("the status file shows an entry seat waiting on the Human first", () => {
+  const supervisor = { ...seat("sup-1", "running", 1), pendingPermissions: [{ name: "AskUserQuestion", title: "Guest prices?" }] };
+  const text = statusText("/repo", [], [supervisor], [], now, [supervisor]);
+  assert.match(text, /## Waiting on the Human\n\n- sup-1 \(sup-1\): Guest prices\?/);
+  assert.ok(text.indexOf("Waiting on the Human") < text.indexOf("## Leads"));
+});
+
 test("the status file lists Leads with their seats and the open requests", () => {
   const lead = seat("lead-1", "idle", 20);
   const peer = seat("peer-1", "running", 1, "lead-1");

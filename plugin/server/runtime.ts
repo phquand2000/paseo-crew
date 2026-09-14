@@ -161,7 +161,11 @@ export class Runtime {
 
     this.on(server, "agent.permission_requested", async ({ agent, request }, { paseo }) => {
       const role = roleOf(this.kit, agent.provider);
-      if (!role || !agent.parentAgentId) return;
+      if (!role) return;
+      if (!agent.parentAgentId) {
+        this.log(projectOf(agent.cwd), `waiting on the Human: ${role.role} ${agent.id} ${request.kind} ${request.title ?? request.name}`);
+        return;
+      }
       await this.outbox.post(paseo, {
         to: agent.parentAgentId,
         key: `permission:${agent.id}:${request.id}`,
@@ -232,7 +236,8 @@ export class Runtime {
       }
       try {
         mkdirSync(project.state, { recursive: true });
-        writeFileSync(join(project.state, "status.md"), statusText(project.root, leads, group, loadAsks(project.state), now));
+        const waiting = group.filter((seat) => roleOf(this.kit, seat.provider)?.entry && (seat.pendingPermissions?.length ?? 0) > 0);
+        writeFileSync(join(project.state, "status.md"), statusText(project.root, leads, group, loadAsks(project.state), now, waiting));
       } catch (error) {
         console.error("seatworks-v2: status write failed:", error);
       }

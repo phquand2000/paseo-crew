@@ -12,6 +12,7 @@ export type Seat = {
   updatedAt: string;
   archivedAt?: string | null;
   labels?: Record<string, string>;
+  pendingPermissions?: { title?: string; name?: string }[];
 };
 
 export function parentOf(seat: Seat): string | undefined {
@@ -36,8 +37,17 @@ export function stalledLeads(
   });
 }
 
-export function statusText(project: string, leads: Seat[], all: Seat[], asks: Ask[], now: number): string {
-  const lines = [`# Status: ${project}`, "", `Updated ${new Date(now).toISOString()}`, "", "## Leads", ""];
+export function statusText(project: string, leads: Seat[], all: Seat[], asks: Ask[], now: number, waiting: Seat[] = []): string {
+  const lines = [`# Status: ${project}`, "", `Updated ${new Date(now).toISOString()}`, ""];
+  if (waiting.length > 0) {
+    lines.push("## Waiting on the Human", "");
+    for (const seat of waiting) {
+      const asked = (seat.pendingPermissions ?? []).map((request) => request.title ?? request.name ?? "a request").join("; ");
+      lines.push(`- ${seat.title ?? seat.id} (${seat.id}): ${asked}`);
+    }
+    lines.push("");
+  }
+  lines.push("## Leads", "");
   if (leads.length === 0) lines.push("None running.");
   for (const lead of leads) {
     const children = all.filter((seat) => parentOf(seat) === lead.id && !seat.archivedAt);

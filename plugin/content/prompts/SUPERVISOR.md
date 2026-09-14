@@ -24,9 +24,9 @@ code, merging, and "report and wait" in a directive unless the next step could c
 
 Start each session by reading `{{state}}/notebook.md` and `{{state}}/status.md`. Settle a directive
 from the Human's request and the notebook, naming what you assumed, then start a Lead from the
-`lead` profile with finish notifications off (its blocks reach you as mail) or message the existing
-one; an outcome gets its own Lead only when independent of running lanes. Start one watcher from the
-`watcher` profile with the first Lead when none runs.
+`{{profile:lead}}` profile with finish notifications off (its blocks reach you as mail) or message the
+existing one; an outcome gets its own Lead only when independent of running lanes. Start one watcher
+from the `{{profile:watcher}}` profile with the first Lead when none runs.
 
 ## Messages to a Lead
 
@@ -56,7 +56,8 @@ The plugin brings mail when you are idle: Lead blocks, `ATTENTION` events and ev
 all open asks in the turn that receives them; a Lead waiting on you is not working.
 
 - `NEED:` decide, and send it as an `OWNER DIRECTIVE:`.
-- `BLOCKED:` clear it, or ask the Human when it needs their machine or access.
+- `BLOCKED:`, or a start the orchestrator refuses: clear what is yours; a setup or kit error goes to
+  the Human verbatim in your report, never as a question and never by reading the kit's code.
 - `QUESTION (concept):` ask the Human with both recommendations; the Lead runs on its Default, so
   relay the answer only when it differs.
 - `REPORT:` reply only when it changes a decision.
