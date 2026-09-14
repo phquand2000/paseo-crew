@@ -1,103 +1,124 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-export type Seat = { role: string; harness: string; entry?: boolean; mayStart?: string[]; sweepMinutes?: number };
-export type Profile = { provider: string; model?: string; modeId?: string; thinkingOptionId?: string };
-export type Harness = { profileRoot?: string; configDirEnv?: string; hasThinking?: boolean };
-export type ProviderEntry = { env?: Record<string, string>; models?: { id: string }[] };
+export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
+export type ModelSpec = { id: string; label: string; isDefault?: boolean; thinkingOptions?: ThinkingSpec[] };
+export type McpServers = Record<string, unknown>;
+export type Reports = "blocks" | "handback" | "attention";
+
+export type RoleSpec = {
+  role: string;
+  label: string;
+  description?: string;
+  harness: string;
+  byHarness: Record<string, { models?: ModelSpec[]; thinking?: string }>;
+  prompt: string;
+  skills: string | null;
+  extraSkills?: string[];
+  extraMcpServers?: McpServers;
+  paseoTools?: { enabled?: boolean; disabledTools?: string[] };
+  mayStart?: string[];
+  entry?: boolean;
+  hidesWords?: string[];
+  reports?: Reports;
+};
+
+export type HarnessSpec = {
+  id: string;
+  label: string;
+  baseProvider: string;
+  configDirEnv: string;
+  profileRoot: string;
+  promptFile?: string;
+  skillsDir: string;
+  hasThinking?: boolean;
+  systemPrompt?: "config" | "file";
+  settings: { mode: "link" | "merge"; file: string; source: string; roleSource?: string; ownedPaths?: string[] };
+  links?: { link: string; target: string; optional?: boolean }[];
+  state?: { file: string; seed?: string };
+  provider: { env?: Record<string, string>; profileModeId?: string; command?: string[] };
+};
+
+export type Attention = {
+  leadIdleMinutes: number;
+  askRemindMinutes: number;
+  maxReminders: number;
+  tickSeconds: number;
+};
+
 export type Kit = {
-  seats: Seat[];
-  profiles: Profile[];
-  providers: Record<string, ProviderEntry>;
-  harnesses: Record<string, Harness>;
+  dir: string;
+  prefix: string;
+  roles: RoleSpec[];
+  harnesses: Record<string, HarnessSpec>;
+  mcpServers: McpServers;
+  attention: Attention;
 };
 
-type PaseoConfig = {
-  daemon?: { agentProfiles?: Profile[] };
-  agents?: { providers?: Record<string, ProviderEntry> };
-};
+const ATTENTION: Attention = { leadIdleMinutes: 15, askRemindMinutes: 20, maxReminders: 3, tickSeconds: 60 };
 
-export const home = process.env.HOME ?? "";
-
-export function readJson<T>(path: string): T | undefined {
-  try {
-    return JSON.parse(readFileSync(path, "utf-8")) as T;
-  } catch {
-    return undefined;
+export function loadKit(dir: string): Kit {
+  const raw = JSON.parse(readFileSync(join(dir, "roles.json"), "utf-8"));
+  const harnesses: Record<string, HarnessSpec> = {};
+  const harnessRoot = join(dir, "harness");
+  for (const id of readdirSync(harnessRoot)) {
+    const file = join(harnessRoot, id, "harness.json");
+    if (existsSync(file)) harnesses[id] = JSON.parse(readFileSync(file, "utf-8")) as HarnessSpec;
   }
-}
-
-function stamp(path: string): string {
-  try {
-    return String(statSync(path).mtimeMs);
-  } catch {
-    return "missing";
-  }
-}
-
-export function readKit(configPath: string): { kit?: Kit; files: string[] } {
-  const files = [configPath];
-  const config = readJson<PaseoConfig>(configPath);
-  const providers = config?.agents?.providers ?? {};
-  const kitPath = Object.values(providers)
-    .map((provider) => provider.env?.SEATWORKS_KIT)
-    .find((path): path is string => Boolean(path));
-  if (!kitPath) return { files };
-  const seatsPath = join(kitPath, "seats.json");
-  files.push(seatsPath);
-  const seats = readJson<{ seats?: Seat[] }>(seatsPath)?.seats;
-  if (!seats) return { files };
-  const harnesses: Record<string, Harness> = {};
-  for (const id of new Set(seats.map((seat) => seat.harness))) {
-    const path = join(kitPath, "harness", id, "harness.json");
-    files.push(path);
-    harnesses[id] = readJson<Harness>(path) ?? {};
-  }
-  return { kit: { seats, profiles: config?.daemon?.agentProfiles ?? [], providers, harnesses }, files };
-}
-
-export function kitLoader(configPath = join(home, ".paseo", "config.json")): () => Kit | undefined {
-  let files: string[] = [];
-  let stamps = "";
-  let kit: Kit | undefined;
-  return () => {
-    if (files.length === 0 || files.map(stamp).join("|") !== stamps) {
-      const read = readKit(configPath);
-      files = read.files;
-      kit = read.kit;
-      stamps = files.map(stamp).join("|");
+  const roles = (raw.seats ?? raw.roles ?? []) as RoleSpec[];
+  for (const role of roles) {
+    if (!harnesses[role.harness]) {
+      throw new Error(`role ${role.role} runs on harness ${role.harness}, which has no harness/${role.harness}/harness.json`);
     }
-    return kit;
+  }
+  return {
+    dir,
+    prefix: typeof raw.providerPrefix === "string" ? raw.providerPrefix : "",
+    roles,
+    harnesses,
+    mcpServers: (raw.mcpServers ?? {}) as McpServers,
+    attention: { ...ATTENTION, ...(raw.attention ?? {}) },
   };
 }
 
-export function roleOf(provider: string): string {
-  return provider.split("/")[0] ?? provider;
+export function providerId(kit: Kit, role: string): string {
+  return `${kit.prefix}${role}`;
 }
 
-export function seatFor(kit: Kit, provider: string): Seat | undefined {
-  const role = roleOf(provider);
-  return kit.seats.find((seat) => seat.role === role);
+export function roleOf(kit: Kit, provider: string | null | undefined): RoleSpec | undefined {
+  if (!provider) return undefined;
+  const id = provider.split("/")[0] ?? "";
+  if (!id.startsWith(kit.prefix)) return undefined;
+  const name = id.slice(kit.prefix.length);
+  return kit.roles.find((role) => role.role === name);
 }
 
-export function entrySeat(kit: Kit): Seat | undefined {
-  return kit.seats.find((seat) => seat.entry);
+export function harnessOf(kit: Kit, role: RoleSpec): HarnessSpec {
+  const harness = kit.harnesses[role.harness];
+  if (!harness) throw new Error(`role ${role.role} runs on unknown harness ${role.harness}`);
+  return harness;
 }
 
-export function watcherSeat(kit: Kit): Seat | undefined {
-  return kit.seats.find((seat) => seat.sweepMinutes);
+export function modelsOf(role: RoleSpec): ModelSpec[] {
+  return role.byHarness[role.harness]?.models ?? [];
 }
 
-export function expandHome(path: string): string {
-  return path.replace(/^(?:HOME|~)(?=\/|$)/, home);
+function pickDefault<T extends { isDefault?: boolean }>(list: T[]): T | undefined {
+  return list.find((item) => item.isDefault) ?? list[0];
 }
 
-export function projectRoot(cwd: string): string | undefined {
-  let dir = expandHome(cwd);
-  for (;;) {
-    if (existsSync(join(dir, ".seatworks"))) return dir;
-    const up = dirname(dir);
-    if (up === dir) return undefined;
-    dir = up;
-  }
+export function defaultModel(role: RoleSpec): ModelSpec | undefined {
+  return pickDefault(modelsOf(role));
+}
+
+export function defaultThinking(role: RoleSpec, model: ModelSpec | undefined): string | undefined {
+  return pickDefault(model?.thinkingOptions ?? [])?.id ?? role.byHarness[role.harness]?.thinking;
+}
+
+export function entryRole(kit: Kit): RoleSpec | undefined {
+  return kit.roles.find((role) => role.entry);
+}
+
+export function mcpServersFor(kit: Kit, role: RoleSpec): McpServers {
+  return { ...kit.mcpServers, ...(role.extraMcpServers ?? {}) };
 }

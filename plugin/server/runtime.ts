@@ -1,217 +1,250 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import type { PluginServerContext } from "@getpaseo/plugin/server";
-import { type PaseoApi, on } from "./hooks.ts";
-import { type Kit, entrySeat, home, projectRoot, roleOf } from "./kit.ts";
-import { type Log, writeLog } from "./log.ts";
-import { PROJECT_FILE, type Project, projectAt } from "./project.ts";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
+import { type Ask, dropAgent, dueReminders, loadAsks, markReminded, saveAsks, settle } from "./asks.ts";
+import { renderPrompt } from "./content.ts";
+import { decide } from "./decide.ts";
+import { type Kit, type RoleSpec, entryRole, roleOf } from "./kit.ts";
+import { applyRole, launchRefusal, seatEnv } from "./launch.ts";
+import { letters } from "./messages.ts";
+import { type Letter, Outbox, type PaseoApi } from "./outbox.ts";
+import { guidesDir, outboxPath, stateRoot } from "./paths.ts";
+import { type Project, projectOf } from "./project.ts";
+import { applyReconcile, reloadDaemon } from "./providers.ts";
+import { ensureLink, materialize, seatDir, seedRecords } from "./seats.ts";
+import { type Seat, parentOf, stalledLeads, statusText } from "./stall.ts";
 
-export type Feature = { register(server: PluginServerContext, runtime: Runtime): void };
-
-export type Letter = {
-  id: string;
-  root: string;
-  role: string;
-  agentId?: string;
-  text: string;
-  fields: string;
-  urgent?: boolean;
-  at: number;
-};
-
-export type Posted = "sent" | "held" | "logged";
-
-type Placed = { id: string; provider: string; cwd: string };
-type Handle = ReturnType<PaseoApi["agents"]["ref"]>;
-
-const TURN_GRACE_MS = 10 * 60_000;
-const KEEP_MS = 7 * 24 * 3_600_000;
-
-export function busy(status: string | null | undefined): boolean {
-  return status === "running" || status === "initializing";
-}
-
-export type RuntimeOptions = { kit: () => Kit | undefined; log?: Log; outbox?: string };
+type EventName = keyof PluginLifecycleEvents;
 
 export class Runtime {
-  readonly kit: () => Kit | undefined;
-  private readonly writeLine: Log;
-  private readonly outbox: string;
-  private readonly awaiting = new Map<string, number>();
-  private readonly lanes = new Map<string, Promise<unknown>>();
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
-  private readonly reported = new Set<string>();
-  private counter = 0;
+  readonly kit: Kit;
+  readonly outbox: Outbox;
+  private api: PaseoApi | undefined;
+  private timer: ReturnType<typeof setInterval> | undefined;
+  private readonly flagged = new Map<string, string>();
+  private readonly seated = new Set<string>();
 
-  constructor(options: RuntimeOptions) {
-    this.kit = options.kit;
-    this.writeLine = options.log ?? writeLog;
-    this.outbox = options.outbox ?? join(home, ".paseo", "seatworks", "outbox.json");
+  constructor(kit: Kit, outboxFile = outboxPath()) {
+    this.kit = kit;
+    this.outbox = new Outbox(outboxFile, (to, list) => this.compose(to, list));
+  }
+
+  prepare(): void {
+    try {
+      mkdirSync(stateRoot(), { recursive: true });
+      ensureLink(guidesDir(), join(this.kit.dir, "content", "guides"));
+    } catch (error) {
+      console.error("seatworks-v2: could not link the guides directory:", error);
+    }
+    for (const role of this.kit.roles) this.ensureSeat(role);
+    try {
+      const changed = applyReconcile(this.kit);
+      if (changed.length > 0) {
+        console.log(`seatworks-v2: config updated (${changed.join(", ")}); reloading the daemon`);
+        void reloadDaemon();
+      }
+    } catch (error) {
+      console.error("seatworks-v2: could not reconcile role providers:", error);
+    }
+  }
+
+  ensureSeat(role: RoleSpec): void {
+    if (this.seated.has(role.role)) return;
+    try {
+      const changes = materialize(this.kit, role);
+      if (changes.length > 0) console.log(`seatworks-v2: seat ${role.role} updated: ${changes.join(", ")}`);
+      this.seated.add(role.role);
+    } catch (error) {
+      console.error(`seatworks-v2: seat ${role.role} could not be built:`, error);
+    }
+  }
+
+  log(project: Project, line: string): void {
+    try {
+      mkdirSync(project.state, { recursive: true });
+      appendFileSync(join(project.state, "attention.log"), `${new Date().toISOString()}  ${line}\n`);
+    } catch (error) {
+      console.error("seatworks-v2: attention log write failed:", error);
+    }
+  }
+
+  private async compose(to: string, list: Letter[]): Promise<string> {
+    const text = list.map((letter) => letter.text).join("\n\n---\n\n");
+    if (!this.api) return text;
+    const handle = this.api.agents.ref(to);
+    await handle.refresh();
+    const snapshot = handle.current();
+    const role = roleOf(this.kit, snapshot?.provider);
+    if (!role?.entry || !snapshot?.cwd) return text;
+    const open = letters.openAsks(loadAsks(projectOf(snapshot.cwd).state));
+    return open ? `${text}\n\n---\n\n${open}` : text;
+  }
+
+  private on<N extends EventName>(
+    server: PluginServerContext,
+    name: N,
+    handler: (event: PluginLifecycleEvents[N], context: PluginHookContext) => Promise<void>,
+  ): void {
+    server.on(name, async (event, context) => {
+      this.api = context.paseo;
+      try {
+        await handler(event, context);
+      } catch (error) {
+        console.error(`seatworks-v2: ${name} handler failed:`, error);
+      }
+    });
   }
 
   register(server: PluginServerContext): void {
-    on(server, "delivery", "agent.turn_ended", async ({ agent }, { paseo }) => {
-      this.awaiting.delete(agent.id);
-      await this.pump(paseo, agent);
-    });
-    on(server, "delivery", "agent.archived", ({ agent }) => {
-      this.awaiting.delete(agent.id);
-      this.drop((letter) => letter.agentId === agent.id);
-    });
-  }
-
-  log(root: string, line: string): void {
-    if (root) this.writeLine(root, line);
-  }
-
-  project(root: string): Project {
-    const project = projectAt(root, this.kit());
-    for (const problem of project.problems) {
-      const key = `${root}\n${problem}`;
-      if (this.reported.has(key)) continue;
-      this.reported.add(key);
-      console.error(`seatworks ${join(root, PROJECT_FILE)} ${problem}`);
-      this.log(root, `${PROJECT_FILE}  ${problem}`);
-    }
-    return project;
-  }
-
-  letters(): Letter[] {
-    try {
-      const stored = JSON.parse(readFileSync(this.outbox, "utf-8")) as Letter[];
-      return Array.isArray(stored) ? stored.filter((letter) => Date.now() - letter.at < KEEP_MS) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private save(letters: Letter[]): void {
-    mkdirSync(dirname(this.outbox), { recursive: true });
-    const staging = `${this.outbox}.${process.pid}.tmp`;
-    writeFileSync(staging, `${JSON.stringify(letters, null, 2)}\n`);
-    renameSync(staging, this.outbox);
-  }
-
-  private drop(test: (letter: Letter) => boolean): Letter[] {
-    const all = this.letters();
-    const gone = all.filter(test);
-    if (gone.length > 0) this.save(all.filter((letter) => !test(letter)));
-    return gone;
-  }
-
-  private lane<T>(key: string, run: () => Promise<T>): Promise<T> {
-    const next = (this.lanes.get(key) ?? Promise.resolve()).then(run, run);
-    this.lanes.set(key, next.catch(() => undefined));
-    return next;
-  }
-
-  private occupied(agentId: string, handle: Handle): { byPermission: boolean; byTurn: boolean } {
-    const since = this.awaiting.get(agentId);
-    return {
-      byPermission: (handle.pendingPermissions?.length ?? 0) > 0,
-      byTurn: busy(handle.status) || (since !== undefined && Date.now() - since < TURN_GRACE_MS),
-    };
-  }
-
-  async findSeat(paseo: PaseoApi, root: string, role: string) {
-    const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
-    return entries
-      .map((entry) => entry.agent)
-      .filter((agent) => !agent.archivedAt && roleOf(agent.provider) === role && projectRoot(agent.cwd) === root)
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0];
-  }
-
-  private async target(paseo: PaseoApi, letter: Pick<Letter, "root" | "role" | "agentId">): Promise<Placed | undefined> {
-    if (!letter.agentId) return this.findSeat(paseo, letter.root, letter.role);
-    const handle = paseo.agents.ref(letter.agentId);
-    await handle.refresh();
-    const snapshot = handle.current();
-    return snapshot && !snapshot.archivedAt ? snapshot : undefined;
-  }
-
-  async post(paseo: PaseoApi, letter: Omit<Letter, "id" | "at">): Promise<Posted> {
-    const target = await this.target(paseo, letter);
-    if (!target) {
-      this.log(letter.root, `${letter.fields}  -> logged`);
-      return "logged";
-    }
-    const stored: Letter = { ...letter, id: `${Date.now()}-${process.pid}-${++this.counter}`, at: Date.now() };
-    this.save([...this.letters(), stored]);
-    const sent = await this.pump(paseo, target);
-    if (sent.has(stored.id) || !this.letters().some((entry) => entry.id === stored.id)) return "sent";
-    this.log(letter.root, `${letter.fields}  -> held`);
-    return "held";
-  }
-
-  pump(paseo: PaseoApi, target: Placed): Promise<Set<string>> {
-    return this.lane(target.id, async () => {
-      const root = projectRoot(target.cwd) ?? "";
-      const role = roleOf(target.provider);
-      const mine = this.letters().filter(
-        (letter) => letter.agentId === target.id || (!letter.agentId && letter.role === role && letter.root === root),
+    server.before("agent.create", ({ request }) => {
+      const role = roleOf(this.kit, request.config.provider);
+      if (!role) return request;
+      this.ensureSeat(role);
+      const project = projectOf(request.config.cwd);
+      const config = applyRole(this.kit, request.config, (entry) =>
+        renderPrompt(this.kit, entry, { guides: guidesDir(), state: project.state }),
       );
-      if (mine.length === 0) return new Set<string>();
-      const handle = paseo.agents.ref(target.id);
-      await handle.refresh();
-      if (handle.archivedAt) return new Set<string>();
-      const { byPermission, byTurn } = this.occupied(target.id, handle);
-      if (byPermission) return new Set<string>();
-      const ready: Letter[] = [];
-      for (const letter of mine) {
-        if (byTurn && !letter.urgent) continue;
-        ready.push(letter);
+      return { ...request, config };
+    });
+
+    server.before("agent.session_open", ({ request }) => {
+      const role = roleOf(this.kit, request.provider);
+      if (!role) return request;
+      this.ensureSeat(role);
+      const project = projectOf(request.cwd);
+      try {
+        const seeded = seedRecords(this.kit, project.state);
+        if (seeded.length > 0) this.log(project, `seeded ${seeded.join(", ")}`);
+      } catch (error) {
+        console.error("seatworks-v2: could not seed project records:", error);
       }
-      if (ready.length === 0) return new Set<string>();
-      await handle.send(ready.map((letter) => letter.text).join("\n\n"));
-      this.awaiting.set(target.id, Date.now());
-      const ids = new Set(ready.map((letter) => letter.id));
-      this.drop((letter) => ids.has(letter.id));
-      for (const letter of ready) this.log(letter.root, `${letter.fields}  -> sent`);
-      return ids;
+      return seatEnv(this.kit, request, (entry) => seatDir(this.kit, entry), project);
     });
+
+    this.on(server, "agent.created", async ({ agent }, { paseo }) => {
+      if (!agent.parentAgentId || !roleOf(this.kit, agent.provider)) return;
+      const parent = paseo.agents.ref(agent.parentAgentId);
+      await parent.refresh();
+      const refusal = launchRefusal(this.kit, parent.current()?.provider, agent.provider);
+      if (!refusal) return;
+      await paseo.agents.ref(agent.id).archive();
+      const project = projectOf(agent.cwd);
+      this.log(project, `refused ${refusal.child.role} ${agent.id} started by ${refusal.parent.role} ${agent.parentAgentId}`);
+      await this.outbox.post(paseo, {
+        to: agent.parentAgentId,
+        key: `refused:${agent.id}`,
+        text: letters.refused(refusal.parent.role, refusal.child.role, refusal.parent.mayStart ?? []),
+      });
+    });
+
+    this.on(server, "agent.turn_ended", async ({ agent, turnId, outcome, timeline }, { paseo }) => {
+      this.outbox.turnEnded(agent.id);
+      const role = roleOf(this.kit, agent.provider);
+      if (role) {
+        const project = projectOf(agent.cwd);
+        const decision = decide({ role, agent, turnId, outcome, timeline });
+        if (decision.requests !== null) {
+          const result = settle(loadAsks(project.state), agent.id, agent.title ?? agent.id, decision.requests, Date.now());
+          if (result.opened.length > 0 || result.closed.length > 0) {
+            saveAsks(project.state, result.asks);
+            for (const ask of result.opened) this.log(project, `open ${ask.kind} ${ask.id}`);
+            for (const ask of result.closed) this.log(project, `closed ${ask.kind} ${ask.id}`);
+          }
+        }
+        for (const letter of decision.letters) {
+          const posted = await this.outbox.post(paseo, letter);
+          this.log(project, `letter ${letter.key} ${agent.id} -> ${letter.to}: ${posted}`);
+        }
+      }
+      await this.outbox.pump(paseo, agent.id);
+    });
+
+    this.on(server, "agent.permission_requested", async ({ agent, request }, { paseo }) => {
+      const role = roleOf(this.kit, agent.provider);
+      if (!role || !agent.parentAgentId) return;
+      await this.outbox.post(paseo, {
+        to: agent.parentAgentId,
+        key: `permission:${agent.id}:${request.id}`,
+        text: letters.permission(agent.title, agent.id, role.role, request.kind, request.title ?? request.name),
+      });
+    });
+
+    this.on(server, "agent.archived", async ({ agent }) => {
+      this.outbox.archived(agent.id);
+      this.flagged.delete(agent.id);
+      if (!roleOf(this.kit, agent.provider)) return;
+      const project = projectOf(agent.cwd);
+      const asks = loadAsks(project.state);
+      const kept = dropAgent(asks, agent.id);
+      if (kept.length !== asks.length) saveAsks(project.state, kept);
+    });
+
+    this.timer = setInterval(() => {
+      this.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
+    }, this.kit.attention.tickSeconds * 1000);
   }
 
-  sendNow(paseo: PaseoApi, agentId: string, text: string): Promise<boolean> {
-    return this.lane(agentId, async () => {
-      const handle = paseo.agents.ref(agentId);
-      await handle.refresh();
-      const { byPermission, byTurn } = this.occupied(agentId, handle);
-      if (handle.archivedAt || byPermission || byTurn) return false;
-      await handle.send(text);
-      this.awaiting.set(agentId, Date.now());
-      return true;
-    });
-  }
-
-  async raise(paseo: PaseoApi, root: string, text: string, fields: string, urgent = false): Promise<Posted> {
-    const kit = this.kit();
-    const entry = kit ? entrySeat(kit) : undefined;
-    if (!entry) {
-      this.log(root, `${fields}  -> logged`);
-      return "logged";
+  async tick(now = Date.now()): Promise<void> {
+    const paseo = this.api;
+    if (!paseo) return;
+    const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
+    const seats = entries.map((entry) => entry.agent as unknown as Seat).filter((seat) => !seat.archivedAt);
+    const ours = seats.filter((seat) => roleOf(this.kit, seat.provider));
+    const byProject = new Map<string, { project: Project; seats: Seat[] }>();
+    for (const seat of ours) {
+      const project = projectOf(seat.cwd);
+      const group = byProject.get(project.slug) ?? { project, seats: [] };
+      group.seats.push(seat);
+      byProject.set(project.slug, group);
     }
-    return this.post(paseo, { root, role: entry.role, text, fields, urgent });
-  }
-
-  later(key: string, ms: number, run: () => Promise<void>): void {
-    if (this.timers.has(key)) return;
-    this.timers.set(
-      key,
-      setTimeout(() => {
-        this.timers.delete(key);
-        run().catch((error) => console.error(`seatworks ${key} failed:`, error));
-      }, ms),
-    );
-  }
-
-  cancel(key: string): void {
-    const timer = this.timers.get(key);
-    if (timer) clearTimeout(timer);
-    this.timers.delete(key);
+    const entry = entryRole(this.kit);
+    const { leadIdleMinutes, askRemindMinutes, maxReminders } = this.kit.attention;
+    for (const { project, seats: group } of byProject.values()) {
+      const leads = group.filter((seat) => roleOf(this.kit, seat.provider)?.reports === "blocks");
+      const asks = loadAsks(project.state);
+      const upward = (lead: Seat): string | undefined => {
+        const parent = parentOf(lead);
+        if (parent && group.some((seat) => seat.id === parent)) return parent;
+        return group
+          .filter((seat) => entry && roleOf(this.kit, seat.provider)?.role === entry.role)
+          .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0]?.id;
+      };
+      for (const lead of stalledLeads(leads, group, asks, now, leadIdleMinutes * 60_000, this.flagged)) {
+        this.flagged.set(lead.id, lead.updatedAt);
+        const to = upward(lead);
+        if (!to) continue;
+        const minutes = Math.round((now - Date.parse(lead.updatedAt)) / 60_000);
+        const posted = await this.outbox.post(paseo, { to, key: `stalled:${lead.id}:${lead.updatedAt}`, text: letters.stalled(lead.title, lead.id, minutes) });
+        this.log(project, `stalled ${lead.id} ${minutes}m -> ${to}: ${posted}`);
+      }
+      const due = dueReminders(asks, now, askRemindMinutes * 60_000, maxReminders).filter((ask) =>
+        leads.some((lead) => lead.id === ask.agentId && lead.status === "idle"),
+      );
+      if (due.length > 0) {
+        for (const ask of due) {
+          const lead = leads.find((seat) => seat.id === ask.agentId);
+          const to = lead ? upward(lead) : undefined;
+          if (!to) continue;
+          const minutes = Math.round((now - ask.openedAt) / 60_000);
+          await this.outbox.post(paseo, { to, key: `reminder:${ask.id}:${ask.reminders}`, text: letters.reminder(ask, minutes) });
+        }
+        saveAsks(project.state, markReminded(asks, new Set(due.map((ask) => ask.id)), now));
+      }
+      try {
+        mkdirSync(project.state, { recursive: true });
+        writeFileSync(join(project.state, "status.md"), statusText(project.root, leads, group, loadAsks(project.state), now));
+      } catch (error) {
+        console.error("seatworks-v2: status write failed:", error);
+      }
+    }
+    const targets = new Set(this.outbox.letters().map((letter) => letter.to));
+    for (const to of targets) await this.outbox.pump(paseo, to);
   }
 
   dispose(): void {
-    for (const timer of this.timers.values()) clearTimeout(timer);
-    this.timers.clear();
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
   }
 }
+
+export type { Ask };

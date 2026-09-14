@@ -1,0 +1,75 @@
+{
+  "id": "devin",
+  "label": "Devin CLI",
+  "baseProvider": "acp",
+  "verified": "3000.10.21",
+  "profileRoot": "HOME/.devin/seats",
+  "configDirEnv": "XDG_CONFIG_HOME",
+  "promptFile": "devin/AGENTS.md",
+  "skillsDir": "devin/skills",
+  "promptComments": "shown",
+  "hasModes": true,
+  "hasThinking": false,
+  "settings": {
+    "mode": "merge",
+    "file": "devin/config.json",
+    "source": "settings.json",
+    "roleSource": "settings/ROLE.settings.json",
+    "ownedPaths": [
+      "permissions",
+      "read_config_from"
+    ]
+  },
+  "links": [
+    {
+      "link": "git",
+      "target": "HOME/.config/git",
+      "optional": true
+    }
+  ],
+  "state": {
+    "file": "devin/mcp_config.json",
+    "seed": "{}",
+    "clearMcp": "{mcpServers: $servers}",
+    "checkMcp": "(.mcpServers // {}) == $servers"
+  },
+  "skillLoad": {
+    "tool": "skill",
+    "force": "/NAME",
+    "descriptionBudget": null,
+    "placeholders": []
+  },
+  "probe": {
+    "kind": "version",
+    "command": [
+      "devin",
+      "--model",
+      "swe-2-max",
+      "--permission-mode",
+      "auto",
+      "--respect-workspace-trust",
+      "false",
+      "-p"
+    ],
+    "credentialFromBase": false
+  },
+  "versionCommand": "devin --version",
+  "provider": {
+    "env": {
+      "SEATWORKS_HARNESS": "devin",
+      "SEATWORKS_AGENT_BIN": "devin"
+    },
+    "profileModeId": "bypass",
+    "defaultModel": null,
+    "command": [
+      "KIT/bin/seat-room",
+      "acp"
+    ]
+  },
+  "contextFile": "AGENTS.md",
+  "contextFileNeedsPointer": false,
+  "sharedSkillDirs": [
+    "HOME/.agents/skills"
+  ],
+  "systemPrompt": "file"
+}

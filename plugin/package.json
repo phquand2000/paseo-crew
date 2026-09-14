@@ -1,11 +1,11 @@
 {
-  "name": "seatworks-paseo-plugin",
+  "name": "seatworks-v2-paseo-plugin",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"server/**/*.test.ts\"",
+    "test": "node --test server/*.test.ts",
     "check": "npm run typecheck && npm test"
   },
   "devDependencies": {

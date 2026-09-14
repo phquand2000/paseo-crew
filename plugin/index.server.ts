@@ -1,10 +1,22 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
-import { wire } from "./server/features/index.ts";
-import { kitLoader } from "./server/kit.ts";
+import { loadKit } from "./server/kit.ts";
+import { PLUGIN_ID, pluginDir } from "./server/paths.ts";
 import { Runtime } from "./server/runtime.ts";
 
 export default function contribute(server: PluginServerContext) {
-  const runtime = new Runtime({ kit: kitLoader() });
-  wire(server, runtime);
+  const dir = pluginDir();
+  if (!dir) {
+    console.error(`${PLUGIN_ID}: this plugin's directory is not in ~/.paseo/config.json under plugins.${PLUGIN_ID}`);
+    return () => {};
+  }
+  let runtime: Runtime;
+  try {
+    runtime = new Runtime(loadKit(dir));
+  } catch (error) {
+    console.error(`${PLUGIN_ID}: the kit in ${dir} failed to load:`, error);
+    return () => {};
+  }
+  runtime.prepare();
+  runtime.register(server);
   return () => runtime.dispose();
 }

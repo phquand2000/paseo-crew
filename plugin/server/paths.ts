@@ -1,0 +1,43 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+export const PLUGIN_ID = "seatworks-v2";
+
+export function home(): string {
+  return process.env.HOME || homedir();
+}
+
+export function expandHome(value: string, homeDir = home()): string {
+  if (value === "HOME" || value === "~") return homeDir;
+  if (value.startsWith("HOME/")) return join(homeDir, value.slice(5));
+  if (value.startsWith("~/")) return join(homeDir, value.slice(2));
+  return value;
+}
+
+export function paseoConfigPath(homeDir = home()): string {
+  return join(homeDir, ".paseo", "config.json");
+}
+
+export function stateRoot(homeDir = home()): string {
+  return join(homeDir, ".local", "share", "seatworks-v2");
+}
+
+export function guidesDir(homeDir = home()): string {
+  return join(stateRoot(homeDir), "guides");
+}
+
+export function outboxPath(homeDir = home()): string {
+  return join(stateRoot(homeDir), "outbox.json");
+}
+
+export function pluginDir(configPath = paseoConfigPath()): string | undefined {
+  if (process.env.SEATWORKS_PLUGIN_DIR) return process.env.SEATWORKS_PLUGIN_DIR;
+  try {
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    const entry = config?.plugins?.[PLUGIN_ID];
+    return entry?.source === "directory" && typeof entry.path === "string" ? entry.path : undefined;
+  } catch {
+    return undefined;
+  }
+}

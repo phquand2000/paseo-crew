@@ -1,54 +1,25 @@
-export type AttentionKind = "urgent" | "log";
+import type { Ask } from "./asks.ts";
 
-export type Attention = {
-  kind?: AttentionKind;
-  trigger: string;
-  agentId: string;
-  role: string;
-  what: string;
-  quote?: string;
-  where?: string;
-};
+const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim())?.trim() ?? "";
+const name = (title: string | null | undefined, id: string) => `"${title ?? "untitled"}" (${id})`;
 
-export const ATTENTION_HEADER = /^ATTENTION(?: \((urgent|log)\))?: (.+?) in (\S+) \(([^)]+)\)[ \t]*$/m;
-
-export function quoted(text: string): string {
-  return `"${(text.trim().split("\n")[0] ?? "").replace(/"/g, "'").slice(0, 160)}"`;
-}
-
-export function attention(event: Attention): string {
-  const head = `ATTENTION${event.kind ? ` (${event.kind})` : ""}: ${event.trigger} in ${event.agentId} (${event.role})`;
-  return [
-    head,
-    `What: ${event.what}`,
-    ...(event.quote ? [`Quote: ${event.quote}`] : []),
-    ...(event.where ? [`Where: ${event.where}`] : []),
-  ].join("\n");
-}
-
-export function logFields(agentId: string, role: string, trigger: string, quote?: string): string {
-  return `${agentId} (${role})  ${trigger}${quote === undefined ? "" : `  ${quoted(quote)}`}`;
-}
-
-export function sweepPrompt(since: Date): string {
-  return `SWEEP since ${since.toISOString()}`;
-}
-
-export function archivedAtStart(agentId: string, role: string, reasons: string[]): string {
-  return `Agent ${agentId} (${role}) was archived as soon as it started: ${reasons.join("; ")}.`;
-}
-
-export const refusal = {
-  launchOutsideProject: (role: string, cwd: string) =>
-    `a ${role} starts only inside a project that has .seatworks/, and ${cwd} has none. Leave the workspace out to start it beside you.`,
-  modelNotOffered: (role: string, allowed: string[]) =>
-    `a ${role} runs ${allowed.join(" or ")}, as its profile says. Leave the model out, or pass ${allowed.length > 1 ? "one of those" : "that one"}.`,
-  sessionOutsideProject: (role: string, cwd: string) =>
-    `a ${role} runs only inside a project that has .seatworks/, and ${cwd} has none.`,
-  seatMissing: (dir: string, role: string, root: string) =>
-    `${dir} does not exist, so this ${role} would start without its prompt, skills and settings. Run setup/add-project.fish ${root} first.`,
-  mayStart: (parentRole: string, mayStart: string[]) =>
-    `a ${parentRole} starts ${mayStart.length > 0 ? `only ${mayStart.join(", ")}` : "no agents"}`,
-  otherProject: (home: string) =>
-    `it runs outside ${home}, where a seat would load another project's prompts and records`,
+export const letters = {
+  fromLead: (title: string | null, id: string, body: string) => `SEATWORKS from Lead ${name(title, id)}\n\n${body}`,
+  handback: (title: string | null, id: string, body: string) => `HANDBACK from ${name(title, id)}\n\n${body}`,
+  failed: (title: string | null, id: string, role: string, message: string) =>
+    `SEAT FAILED: ${name(title, id)}, a ${role}, ended its turn with an error: ${message}`,
+  denied: (title: string | null, id: string, role: string, call: string) =>
+    `SEAT STOPPED: ${name(title, id)}, a ${role}, ended its turn right after a refused call (${call}). It is idle until it gets a new instruction.`,
+  permission: (title: string | null, id: string, role: string, kind: string, what: string) =>
+    `PERMISSION PENDING: ${name(title, id)}, a ${role}, is waiting on a ${kind} request: ${what}.`,
+  stalled: (title: string | null, id: string, minutes: number) =>
+    `LANE STALLED: Lead ${name(title, id)} has been idle for ${minutes} minutes with no running seat under it and no open request.`,
+  reminder: (ask: Ask, minutes: number) =>
+    `STILL OPEN after ${minutes} minutes: ${ask.kind} from ${name(ask.title, ask.agentId)}\n${ask.text}`,
+  refused: (parentRole: string, childRole: string, allowed: string[]) =>
+    `LAUNCH REFUSED: a ${parentRole} may start ${allowed.length > 0 ? allowed.join(", ") : "no seats"}, so the ${childRole} it just started was archived.`,
+  openAsks: (asks: Ask[]) =>
+    asks.length === 0
+      ? ""
+      : `Open requests (${asks.length}):\n${asks.map((ask) => `- ${ask.kind} from ${name(ask.title, ask.agentId)}: ${firstLine(ask.text)}`).join("\n")}`,
 };

@@ -1,56 +1,43 @@
-# Seatworks Paseo plugin
+# Seatworks v2 Paseo plugin
 
-The kit's server plugin for Paseo 0.8. It applies a seat's profile when an agent is created, points
-a seat at its project's config directory, and turns markers, failed turns and watcher sweeps into
-attention events.
+Seatworks runs a Supervisor, Leads, Peers, Reviewers and a Watcher as Paseo agents. In v2 the whole
+kit is this plugin: it writes one Paseo provider and profile per role, builds each role's seat
+directory, gives every new agent its role prompt, and carries messages between seats itself.
+
+## What it does
+
+| Area | Behaviour |
+|---|---|
+| Roles | `roles.json` names each role's harness, models, skills, MCP servers and Paseo tool limits. On load the plugin writes a provider and an agent profile per role (`providerPrefix` + role) into `~/.paseo/config.json` and reloads the daemon when anything changed. |
+| Harnesses | `harness/<id>/harness.json` says how a harness takes a role: Claude gets the prompt as a system prompt and its hand-made `settings/<role>.settings.json` linked into the seat; Devin gets a real `devin/AGENTS.md`, merged `devin/config.json`, `mcp_config.json` and linked skills. `bin/seat-room` forces launch flags such as `--setting-sources user`. |
+| Launch | Before an agent is created the plugin sets the role's model (any unknown model becomes the role default), mode, thinking level and prompt. A seat that its parent's `mayStart` does not name is archived and the parent is told why. |
+| Delivery | Seats start children with finish notifications off. When a turn ends, the plugin reads it: a Lead's `REPORT` / `NEED` / `BLOCKED` / `QUESTION (concept)` blocks go to its parent, a Peer's or Reviewer's reply goes to its Lead as a hand-back, and failed turns, turns stopped by a refused call and pending permissions are reported. Letters wait in an outbox until the recipient is idle and go out together. |
+| Open requests | `NEED`, `BLOCKED` and `QUESTION` stay open until a later turn of that Lead no longer raises them; every letter to the entry role lists them, and they are re-sent when they sit unanswered. |
+| Stalls | A Lead idle past `attention.leadIdleMinutes` with no running seat under it and no open request is reported once per idle period. |
+| Records | Per project, outside the repository, in `~/.local/share/seatworks-v2/projects/<slug>/`: `status.md`, `asks.json`, `attention.log`, and the seeded `notebook.md`, `protocol.md`, `lessons.md`. |
 
 ## Layout
 
 | Path | Holds |
 |---|---|
-| `index.server.ts` | Builds the runtime and calls `wire()` |
-| `server/kit.ts` | The kit model read from the daemon config, `seats.json` and harness manifests, cached until one of those files changes; finding a project's root |
-| `server/project.ts` | A project's `.seatworks/project.json`: slug, pinned models and attention settings, with defaults and the problems found; read again on every use |
-| `server/runtime.ts` | What features share: the outbox, seat lookup, raising an attention event, timers |
-| `server/messages.ts` | Every text an agent or the attention log receives |
-| `server/hooks.ts` | `on()`, which logs a failing event handler with its feature's name |
-| `server/log.ts`, `server/timeline.ts` | The attention log file, and reading a turn's timeline |
-| `server/features/*.ts` | One behavior each: pure functions, plus `register(server, runtime)` for the Paseo calls |
-| `server/features/index.ts` | The feature list and `wire()` |
-| `server/fakes.ts` | A fake server and a fake `paseo` for tests that go through `wire()` |
+| `index.server.ts` | Loads the kit and starts the runtime |
+| `roles.json` | Role specs, shared MCP servers, provider prefix, attention settings |
+| `harness/` | Harness manifests, hand-made role settings, harness notes |
+| `bin/seat-room` | The launcher every role provider runs |
+| `content/prompts/` | Role prompts with `{{guides}}` and `{{state}}` placeholders |
+| `content/guides/`, `content/skills/`, `content/records/` | Guides linked at `~/.local/share/seatworks-v2/guides`, skills linked into seats, record templates |
+| `server/kit.ts`, `content.ts` | Reading the kit, rendering prompts, finding skills |
+| `server/providers.ts`, `seats.ts` | Provider and profile reconcile; seat directories and records |
+| `server/launch.ts` | Role config at create, seat env at session open, `mayStart` |
+| `server/decide.ts`, `markers.ts`, `timeline.ts` | What a finished turn sends and to whom |
+| `server/outbox.ts`, `asks.ts`, `stall.ts` | Delivery when idle, open requests, stalls and the status file |
+| `server/runtime.ts` | Wiring hooks and the timer |
 
-## Adding or changing a feature
-
-1. Put the decision in a pure function that takes the kit and the event and returns data, and keep
-   the Paseo calls in `register`.
-2. Put any text an agent reads in `messages.ts`.
-3. Add the module to `features` in `server/features/index.ts`.
-4. Test the pure function in a `*.test.ts` beside it, and the behavior end to end in
-   `server/wiring.test.ts`.
-5. A setting one project may want different goes in `project.ts`, read through
-   `runtime.project(root)`: give it a default, and turn an invalid value into a problem and the
-   default rather than a failure. `runtime.project` logs each problem once.
-
-## Delivery
-
-Every message the plugin sends an agent goes through `runtime.post()`. It lands in
-`~/.paseo/seatworks/outbox.json` first, so a plugin reload or daemon restart loses nothing. It is
-sent only when the recipient is idle, has no question of its own open, and has no message from us
-still starting; letters waiting then go together when its turn ends, and a letter to an archived agent is
-dropped. Only an urgent attention event interrupts a running turn.
-
-A `before` hook that throws fails the operation with its message, which is how a launch is refused;
-an `on` handler that throws is only logged. Hooks time out after 30 seconds, and events can overlap
-or arrive out of order.
-
-## Checking and loading
+## Develop
 
 ```bash
-npm install
 npm run check
-paseo plugin reload seatworks
 ```
 
-`npm run check` runs `tsc` and `node --test`. Paseo compiles the plugin with esbuild and never
-typechecks it. Import local files with their `.ts` extension and SDK types with `import type`, so
-Node runs the tests without a build step.
+Tests run with `node --test` on the TypeScript sources; `server/kit.real.test.ts` builds every role's
+seat from the shipped kit in a temporary home.
