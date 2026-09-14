@@ -133,7 +133,7 @@ demo rules with your own, the last step in SETUP.md.
 | [REFERENCE.md](REFERENCE.md) | Paseo and kit behavior the config doesn't show |
 | [WRITING_GUIDE.md](WRITING_GUIDE.md) | Rules for writing the prompts, skills and docs |
 | [NOTICE.md](NOTICE.md) | Where the skills come from, with licenses |
-| [seats.json](seats.json) | Every seat, plus the MCP servers every seat gets |
+| [seats.json](seats.json) | Every seat, plus the MCP servers every seat gets and those one role adds |
 | [harness/](harness/) | One directory per harness: manifest, role settings holding each seat's tool limits, `NOTES.md` |
 | [plugin/](plugin/) | The Paseo plugin: profiles and project directories at launch, launch refusals, watcher sweeps, attention delivery |
 | [project/](project/) | Templates copied into each project's `.seatworks/` |

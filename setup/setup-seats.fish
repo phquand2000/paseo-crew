@@ -284,7 +284,7 @@ function build_seat --argument-names role slug repo_dir
     build_seat_settings $key $harness $role $dir
     build_seat_links $key $harness $dir
     retire_seat_links $key $harness $dir
-    build_seat_state $key $harness $dir
+    build_seat_state $key $harness $role $dir
 
     if test -n "$skills_dir"; and not test -d $skills_dir
         fail "$key: seats.json gives role $role the skill set '$skills_name', but $skills_dir does not exist. Fix the name, or set skills to null for a role with no own skills."
@@ -425,13 +425,18 @@ function retire_seat_links --argument-names key harness dir
     end
 end
 
-function build_seat_state --argument-names key harness dir
+function seat_mcp_servers --argument-names role
+    jq -c --arg r $role '(.mcpServers // {}) + ((.seats[] | select(.role == $r) | .extraMcpServers) // {})' $seats_file
+end
+
+function build_seat_state --argument-names key harness role dir
     set -l file (harness_get $harness '.state.file // empty')
     test -n "$file"; or return
     set -l optional (harness_get $harness '.state.optional // false')
     set -l seed (harness_get $harness '.state.seed // empty')
     set -l clear (harness_get $harness '.state.clearMcp // empty')
     set -l check (harness_get $harness '.state.checkMcp // empty')
+    set -l servers (seat_mcp_servers $role)
     for name in (harness_get $harness '.state.forbid[]?')
         test -e $dir/$name
         and fail "$key: $dir/$name exists; delete it."
@@ -439,11 +444,10 @@ function build_seat_state --argument-names key harness dir
     if test "$optional" = true
         test -f $dir/$file; or return
         test -n "$check"; or return
-        jq -e --argjson servers (seats_get -c '.mcpServers // {}') "$check" $dir/$file >/dev/null 2>&1
+        jq -e --argjson servers "$servers" "$check" $dir/$file >/dev/null 2>&1
         or fail "$key: $dir/$file fails the harness check `$check`; fix it."
         return
     end
-    set -l servers (seats_get -c '.mcpServers // {}')
     if test $dry -eq 0
         test -n "$seed"; and begin
             test -e $dir/$file; or echo $seed >$dir/$file

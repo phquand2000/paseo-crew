@@ -29,6 +29,12 @@
       "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",
       "extraSkills": [],
+      "extraMcpServers": {
+        "figma": {
+          "type": "http",
+          "url": "https://mcp.figma.com/mcp"
+        }
+      },
       "paseoTools": {
         "disabledTools": [
           "set_agent_mode",
@@ -77,6 +83,12 @@
       "prompt": "prompts/LEAD.md",
       "skills": "lead",
       "extraSkills": [],
+      "extraMcpServers": {
+        "figma": {
+          "type": "http",
+          "url": "https://mcp.figma.com/mcp"
+        }
+      },
       "required": true,
       "anchor": true,
       "notes": "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task.",
@@ -273,7 +285,7 @@
       "url": "http://127.0.0.1:29170/index-mcp/streamable-http"
     }
   },
-  "mcpServersNote": "the MCP servers every seat gets, as a map of name to a stdio or http entry that every harness reads unchanged. setup-seats.fish writes exactly this map into the file each manifest names under state.file and clears every other server there, so a seat has these and nothing else. semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code, so every role's settings but the Peer's deny them; the rest of its tools read.",
+  "mcpServersNote": "the MCP servers every seat gets, as a map of name to a stdio or http entry that every harness reads unchanged; a seat's extraMcpServers adds servers in the same form for that role alone. setup-seats.fish writes exactly the two maps together into the file each manifest names under state.file and clears every other server there, so a seat has these and nothing else, and a role takes its servers along when its harness line changes. figma, on the Supervisor and the Lead, is Figma's remote server: it signs in with OAuth, which a harness keeps per seat directory, so each new seat directory needs one login (SETUP.md, Add a project). semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code, so every role's settings but the Peer's deny them; the rest of its tools read.",
   "researchNote": "searching is the Supervisor's and the Lead's: they keep web search and web fetch, and name every outside source a Peer or Reviewer needs in its brief. Those two roles read named URLs and have no search, so a product's sources are the ones its brief or handoff lists; the watcher has neither.",
   "promptBudget": 16384,
   "paseoToolsNote": "paseoTools is copied verbatim to the role's Paseo provider, where Paseo 0.8 leaves every disabled tool out of the catalog the seat is handed, on every harness alike. Peers and Reviewers get none: each believes it works directly for a human, and a control-plane tool would show it the layer above it. The Lead gets no workspace tools, because a worktree buys isolation only when two writers hold disjoint scopes, and three Engineers on one worktree were measured instead. The watcher gets only the read half, because the Paseo plugin in plugin/ wakes it and carries its events to the Supervisor. The Supervisor and the Lead lose set_agent_mode and update_schedule, and the Supervisor update_agent too, because a seat keeps the mode and model the plugin gave it at launch. Paseo documents this as a catalog limit, not a security boundary: a seat with a shell could still run the paseo CLI, which every role's harness settings deny.",

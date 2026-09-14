@@ -73,7 +73,7 @@ step 5 for every project.
 
    ```fish
    jq -r '(.links // [])[] | select(.required) | "\(.target): \(.required)"' KIT_DIR/harness/*/harness.json
-   jq -r '.mcpServers | to_entries[] | "\(.key): \(.value.url // .value.command)"' KIT_DIR/seats.json
+   jq -r '(.mcpServers | to_entries[] | "\(.key): \(.value.url // .value.command)"), (.seats[] | .role as $r | (.extraMcpServers // {}) | to_entries[] | "\(.key), \($r) only: \(.value.url // .value.command)")' KIT_DIR/seats.json
    ```
 
    A missing MCP program costs a seat only that server's tools.
@@ -190,9 +190,19 @@ code, and stops asking for `--slug` if another repository has the slug.
 3. If the repository already had an `AGENTS.md`, add the sections of
    `examples/AGENTS_MD_SNIPPET.md` by hand, and move any rules out of a pointer file into
    `AGENTS.md`, leaving the pointer as the single line `@AGENTS.md`.
+4. A server in a role's `extraMcpServers` that signs in with OAuth, such as `figma`, needs one
+   login per seat directory, in a browser. Ask the user to run it for each role and server the
+   first command lists, with that seat's directory as its harness's `configDirEnv`:
+
+   ```fish
+   jq -r '.seats[] | select(.extraMcpServers) | "\(.role) on \(.harness): \(.extraMcpServers | keys | join(", "))"' KIT_DIR/seats.json
+   env CLAUDE_CONFIG_DIR=$HOME/.claude/profiles/ROLE-SLUG claude mcp login figma
+   ```
 
 **Done:** the script exits 0 with a `✓` line per seat and no base-credential warning (if there is
-one, go back to step 3), and these show the slug, the project, and the routing placeholders:
+one, go back to step 3), `env CLAUDE_CONFIG_DIR=$HOME/.claude/profiles/ROLE-SLUG claude mcp list`
+shows each step 4 server connected, and these show the slug, the project, and the routing
+placeholders:
 
 ```fish
 jq -r .slug REPO_DIR/.seatworks/project.json
