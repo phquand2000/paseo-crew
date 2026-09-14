@@ -15,7 +15,8 @@ test("a role provider carries its harness base, launcher, env, models and tool l
   assert.equal(entry.models.length, 2);
   const peer = kit.roles.find((role) => role.role === "peer")!;
   assert.deepEqual(desiredProvider(kit, peer).paseoTools, { enabled: false });
-  assert.deepEqual(desiredProfile(kit, peer), { id: "sw2-peer", name: "Peer", provider: "sw2-peer", model: "swe", modeId: "bypass" });
+  assert.deepEqual(desiredProfile(kit, peer), { id: "sw2-peer", name: "Peer (sw2)", provider: "sw2-peer", model: "swe", modeId: "bypass" });
+  assert.equal(desiredProvider(kit, peer).label, "Peer (sw2)");
 });
 
 test("reconcile adds the role providers and profiles and is idempotent", () => {

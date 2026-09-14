@@ -19,6 +19,8 @@ export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): stri
       }
       return `${kit.prefix}${name}`;
     });
+  const leftover = text.match(/\{\{[^}]*\}\}/);
+  if (leftover) throw new Error(`the ${role.role} prompt still holds the placeholder ${leftover[0]}`);
   const hidden = hiddenWordsIn(text, role.hidesWords ?? []);
   if (hidden.length > 0) {
     throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);

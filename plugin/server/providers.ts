@@ -6,11 +6,16 @@ import { sameJson } from "./store.ts";
 
 type Json = Record<string, any>;
 
+export function labelFor(kit: Kit, role: RoleSpec): string {
+  const tag = kit.prefix.replace(/[-_]+$/, "");
+  return tag ? `${role.label} (${tag})` : role.label;
+}
+
 export function desiredProvider(kit: Kit, role: RoleSpec): Json {
   const harness = harnessOf(kit, role);
   const entry: Json = {
     extends: harness.baseProvider,
-    label: role.label,
+    label: labelFor(kit, role),
     env: { ...(harness.provider.env ?? {}), SEATWORKS_ROLE: role.role, SEATWORKS_KIT: kit.dir },
   };
   if (role.description) entry.description = role.description;
@@ -25,7 +30,7 @@ export function desiredProvider(kit: Kit, role: RoleSpec): Json {
 export function desiredProfile(kit: Kit, role: RoleSpec): Json {
   const harness = harnessOf(kit, role);
   const model = defaultModel(role);
-  const profile: Json = { id: providerId(kit, role.role), name: role.label, provider: providerId(kit, role.role) };
+  const profile: Json = { id: providerId(kit, role.role), name: labelFor(kit, role), provider: providerId(kit, role.role) };
   if (model) profile.model = model.id;
   if (harness.provider.profileModeId) profile.modeId = harness.provider.profileModeId;
   const thinking = harness.hasThinking === false ? undefined : defaultThinking(role, model);

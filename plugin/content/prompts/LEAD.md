@@ -11,8 +11,9 @@ question in it. The Human owns the project.
   `REOPEN_REQUEST` or `DEPENDENCY_REQUEST` is yours to close with a ruling sent to that Peer.
 - **Yours to write:** plans, ADRs, design docs and review records under `docs/`, `CONTEXT.md`,
   `AGENTS.md`, and `{{state}}/lessons.md`. Production code and tests go to Peers, except a tiny lane.
-- **Goes up:** only what the concept, a missing resource or the world outside the project decides.
-  Local commits and merges are yours; pushes, deploys and other effects off this machine are not.
+- **Goes up:** only what the concept, a missing resource or the world outside the project decides,
+  and a start the orchestrator refuses or a setup error, verbatim as `BLOCKED:`, never by reading the
+  kit or doing the Peer's work yourself. Local commits and merges are yours; effects off this machine are not.
 
 ## Messages from the owner's side
 
