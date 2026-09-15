@@ -50,7 +50,7 @@ export type Attention = {
   watcherTimeoutSeconds: number;
 };
 
-export type Limits = { lanes: number; tasksPerLane: number };
+export type Limits = { slots: number; tasksPerLane: number };
 
 export type Kit = {
   dir: string;
@@ -63,7 +63,7 @@ export type Kit = {
 };
 
 const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watcherDebounceSeconds: 45, watcherTimeoutSeconds: 180 };
-const LIMITS: Limits = { lanes: 3, tasksPerLane: 4 };
+const LIMITS: Limits = { slots: 3, tasksPerLane: 4 };
 
 export function loadKit(dir: string): Kit {
   const raw = JSON.parse(readFileSync(join(dir, "roles.json"), "utf-8"));

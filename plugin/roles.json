@@ -1,7 +1,7 @@
 {
   "providerPrefix": "sw2-",
   "limits": {
-    "lanes": 3,
+    "slots": 3,
     "tasksPerLane": 4
   },
   "attention": {
@@ -29,8 +29,15 @@
               "label": "Opus 5",
               "isDefault": true,
               "thinkingOptions": [
-                { "id": "medium", "label": "Medium" },
-                { "id": "high", "label": "High", "isDefault": true }
+                {
+                  "id": "medium",
+                  "label": "Medium"
+                },
+                {
+                  "id": "high",
+                  "label": "High",
+                  "isDefault": true
+                }
               ]
             }
           ]
@@ -39,9 +46,17 @@
       "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",
       "extraMcpServers": {
-        "figma": { "type": "http", "url": "https://mcp.figma.com/mcp" }
+        "figma": {
+          "type": "http",
+          "url": "https://mcp.figma.com/mcp"
+        }
       },
-      "paseoTools": { "allow": ["get_agent_activity", "list_pending_permissions"] },
+      "paseoTools": {
+        "allow": [
+          "get_agent_activity",
+          "list_pending_permissions"
+        ]
+      },
       "hidesWords": []
     },
     {
@@ -58,8 +73,15 @@
               "label": "Opus 5",
               "isDefault": true,
               "thinkingOptions": [
-                { "id": "medium", "label": "Medium", "isDefault": true },
-                { "id": "high", "label": "High" }
+                {
+                  "id": "medium",
+                  "label": "Medium",
+                  "isDefault": true
+                },
+                {
+                  "id": "high",
+                  "label": "High"
+                }
               ]
             }
           ]
@@ -68,10 +90,20 @@
       "prompt": "prompts/LEAD.md",
       "skills": "lead",
       "extraMcpServers": {
-        "figma": { "type": "http", "url": "https://mcp.figma.com/mcp" }
+        "figma": {
+          "type": "http",
+          "url": "https://mcp.figma.com/mcp"
+        }
       },
-      "paseoTools": { "allow": ["get_agent_activity"] },
-      "hidesWords": ["supervisor", "watcher"]
+      "paseoTools": {
+        "allow": [
+          "get_agent_activity"
+        ]
+      },
+      "hidesWords": [
+        "supervisor",
+        "watcher"
+      ]
     },
     {
       "role": "peer",
@@ -80,13 +112,38 @@
       "harness": "devin",
       "team": "peer",
       "byHarness": {
-        "devin": { "models": [{ "id": "swe-2-max", "label": "SWE-2 Max", "isDefault": true }] },
-        "omp": { "models": [{ "id": "zai/glm-5.3-flash", "label": "GLM-5.3-Flash", "isDefault": true }], "thinking": "max" }
+        "devin": {
+          "models": [
+            {
+              "id": "swe-2-max",
+              "label": "SWE-2 Max",
+              "isDefault": true
+            }
+          ]
+        },
+        "omp": {
+          "models": [
+            {
+              "id": "zai/glm-5.3-flash",
+              "label": "GLM-5.3-Flash",
+              "isDefault": true
+            }
+          ],
+          "thinking": "max"
+        }
       },
       "prompt": "prompts/PEER.md",
       "skills": "peer",
-      "paseoTools": { "enabled": false },
-      "hidesWords": ["paseo", "supervisor", "watcher", "seat", "seats"]
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "watcher",
+        "seat",
+        "seats"
+      ]
     },
     {
       "role": "reviewer",
@@ -95,14 +152,43 @@
       "harness": "devin",
       "team": "reviewer",
       "byHarness": {
-        "devin": { "models": [{ "id": "swe-2-max", "label": "SWE-2 Max", "isDefault": true }] },
-        "omp": { "models": [{ "id": "zai/glm-5.3", "label": "GLM-5.3", "isDefault": true }], "thinking": "max" }
+        "devin": {
+          "models": [
+            {
+              "id": "swe-2-max",
+              "label": "SWE-2 Max",
+              "isDefault": true
+            }
+          ]
+        },
+        "omp": {
+          "models": [
+            {
+              "id": "zai/glm-5.3",
+              "label": "GLM-5.3",
+              "isDefault": true
+            }
+          ],
+          "thinking": "max"
+        }
       },
       "prompt": "prompts/REVIEWER.md",
       "skills": null,
-      "extraSkills": ["peer:test-proof-debt-audit", "peer:security-check", "peer:diagnosing-bugs"],
-      "paseoTools": { "enabled": false },
-      "hidesWords": ["paseo", "supervisor", "watcher", "seat", "seats"]
+      "extraSkills": [
+        "peer:test-proof-debt-audit",
+        "peer:security-check",
+        "peer:diagnosing-bugs"
+      ],
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "watcher",
+        "seat",
+        "seats"
+      ]
     },
     {
       "role": "watcher",
@@ -111,8 +197,24 @@
       "harness": "devin",
       "headless": true,
       "byHarness": {
-        "devin": { "models": [{ "id": "swe-2-max", "label": "SWE-2 Max", "isDefault": true }] },
-        "omp": { "models": [{ "id": "zai/glm-5.3-flash", "label": "GLM-5.3-Flash", "isDefault": true }] }
+        "devin": {
+          "models": [
+            {
+              "id": "swe-2-max",
+              "label": "SWE-2 Max",
+              "isDefault": true
+            }
+          ]
+        },
+        "omp": {
+          "models": [
+            {
+              "id": "zai/glm-5.3-flash",
+              "label": "GLM-5.3-Flash",
+              "isDefault": true
+            }
+          ]
+        }
       },
       "prompt": "prompts/WATCHER.md",
       "skills": null,

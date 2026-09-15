@@ -45,6 +45,14 @@ export function statusText(project: Project, ledger: Ledger, config: ProjectConf
     }
     lines.push("");
   }
+  if (!laneId) {
+    const slots = Object.values(ledger.slots ?? {});
+    if (slots.length > 0) {
+      lines.push("## Working copies", "");
+      for (const slot of slots) lines.push(`- ${slot.id} ${slot.path}: ${slot.lane ? `lane ${slot.lane}` : slot.task ? `task ${slot.task}` : "free"}`);
+      lines.push("");
+    }
+  }
   const asks = Object.values(ledger.asks).filter((ask) => ask.status === "open" && (laneId ? ask.lane === laneId : true));
   lines.push("## Open asks", "");
   if (asks.length === 0) lines.push("None.");

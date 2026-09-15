@@ -2,7 +2,7 @@
   "supervisor": [
     {
       "name": "open_lane",
-      "description": "Open a lane for one outcome: creates its branch and working copy and starts a Lead there with this directive. One lane per independent outcome.",
+      "description": "Open a lane for one outcome: it takes one of the project's long-lived working copies, creates the lane branch there and starts a Lead with this directive. Lanes run one at a time by default; a second open lane needs writeSet and contracts that don't overlap the open lanes.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -42,6 +42,20 @@
           "base": {
             "type": "string",
             "description": "Optional base branch; defaults to the project's."
+          },
+          "writeSet": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Paths or globs this lane will write. Required when another lane is open."
+          },
+          "contracts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Shared files or modules this lane depends on without writing."
           }
         },
         "required": [
@@ -134,6 +148,17 @@
               "task"
             ],
             "description": "lane (default): run the gate when a lane is reported ready and before landing. task: also run it on every task merge."
+          },
+          "parallelLanes": {
+            "type": "number",
+            "description": "How many lanes may be open at once (default 1). Raise it only for projects whose outcomes are independent, like separate endpoints or pages."
+          },
+          "serialOnly": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Globs no parallel lane or task may write: lockfiles, migrations, registries, project settings, scenes and assets."
           }
         }
       }
@@ -150,7 +175,7 @@
   "lead": [
     {
       "name": "start_task",
-      "description": "Start a Peer on one task in its own branch and working copy, off your lane branch. Default to one task for the whole lane; add another only when its write set is independent and it can run in parallel, and say why in context. A task never needs to build on its own. The brief is built from these fields.",
+      "description": "Start a Peer on one task. By default it works in your lane's working copy and commits straight onto the lane branch, one writer at a time; accepting it needs no merge. Set parallel only when the task's owned paths are independent of every active task and touch no shared contract: it then gets its own working copy and branch and merges back when accepted. Default to one task for the whole lane.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -192,6 +217,10 @@
               "type": "string"
             },
             "description": "Skills the Peer should open."
+          },
+          "parallel": {
+            "type": "boolean",
+            "description": "Run beside the lane's writer in a separate working copy. Only for an independent write set."
           }
         },
         "required": [
@@ -204,7 +233,7 @@
     },
     {
       "name": "start_review",
-      "description": "Start a read-only reviewer with clean context. With task: it reviews that task's branch. Without task: it answers the open question on your lane branch, which is how a council seat, a scout or an audit reader starts.",
+      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. Without task: it answers the open question on your lane branch, which is how a council seat, a scout or an audit reader starts.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -266,7 +295,7 @@
     },
     {
       "name": "accept",
-      "description": "Accept a finished task: its branch merges into your lane branch. A task does not have to build or pass tests on its own; the gate runs on the whole lane when you report it ready.",
+      "description": "Accept a finished task. A task in the lane's working copy is already on the lane branch; a parallel task merges into it. Neither needs to build on its own: the gate runs on the whole lane when you report it ready.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -300,7 +329,7 @@
     },
     {
       "name": "cut",
-      "description": "Cut a task or finish with a reviewer: its agent stops and its branch is not merged.",
+      "description": "Cut a task or finish with a reviewer: its agent stops. A cut task in the lane's working copy has its commits and changes since it started removed; a parallel task's branch is dropped.",
       "inputSchema": {
         "type": "object",
         "properties": {

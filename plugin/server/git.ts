@@ -26,6 +26,11 @@ export async function isClean(cwd: string): Promise<boolean> {
   return run.code === 0 && run.stdout.trim() === "";
 }
 
+export async function isPristine(cwd: string): Promise<boolean> {
+  const run = await git(cwd, ["status", "--porcelain"]);
+  return run.code === 0 && run.stdout.trim() === "";
+}
+
 export async function branchExists(cwd: string, branch: string): Promise<boolean> {
   return (await git(cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;
 }

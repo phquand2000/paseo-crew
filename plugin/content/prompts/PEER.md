@@ -15,7 +15,8 @@ own the judgment inside it, working on your own branch in your own working copy.
 - Don't add shims, adapters, re-exports, dual paths, flags or placeholder stubs to make a half-done
   change compile. Nothing here has shipped unless `AGENTS.md` says so. If you think a compatibility
   layer is needed, name the shipped consumer that needs it and `ask`.
-- Change only the owned paths. Prove each acceptance behavior with one focused check at the level a
+- Change only the owned paths. If shared code outside them is broken, `ask` with what you found
+  instead of fixing it there. Prove each acceptance behavior with one focused check at the level a
   user sees it. Add unit tests only for money, state changes, permissions, migrations or concurrency.
 - Update existing tests the change makes wrong, but don't weaken one that still describes wanted
   behavior. Don't add tests, mocks, comments or docs the acceptance doesn't need.

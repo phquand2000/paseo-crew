@@ -57,26 +57,29 @@ export const letters = {
       `Context: ${task.context?.trim() || "none"}`,
       task.skills && task.skills.length > 0 ? `\nSkills to open: ${task.skills.join(", ")}` : "",
       "",
-      `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit your work on this branch, then call done.`,
+      task.mode === "parallel"
+        ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit your work on this branch, then call done.`
+        : `You work on branch ${lane.branch} in the lane's working copy. Commit your work there, then call done.`,
     ]
       .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
       .join("\n");
   },
 
   reviewBrief(review: Task, target: Task | undefined, focus: string, laneBranch: string): string {
+    const range = target ? (target.mode === "parallel" ? `git diff ${laneBranch}...HEAD` : `git diff ${target.startSha ?? laneBranch}..HEAD`) : "";
     const lines = target
       ? [
           `REVIEW ${review.id} of ${target.id}: ${target.title}`,
           "",
-          `Your working copy is on a copy of ${target.branch}. The change is git diff ${laneBranch}...HEAD.`,
+          `Your working copy holds the change; see it with ${range}.`,
           "",
           `Goal of the change: ${target.goal}`,
           "",
           "Acceptance it must meet:",
           list(target.acceptance),
         ]
-      : [`REVIEW ${review.id}: ${review.title}`, "", `Your working copy is on a copy of ${laneBranch}. Read whatever the question needs.`];
-    lines.push("", "Open question:", focus, "", "Read only. When finished, call done with your verdict and findings.");
+      : [`REVIEW ${review.id}: ${review.title}`, "", `Your working copy is on ${laneBranch}. Read whatever the question needs.`];
+    lines.push("", "Open question:", focus, "", "Read only: don't edit files or commit. When finished, call done with your verdict and findings.");
     return lines.join("\n");
   },
 

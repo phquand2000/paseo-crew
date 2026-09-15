@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -13,11 +13,13 @@ const { loadKit } = await import("./kit.ts");
 const { loadLedger } = await import("./ledger.ts");
 const { projectOf } = await import("./project.ts");
 const { Runtime } = await import("./runtime.ts");
+const { firstOverlap, serialHits, SERIAL_ONLY } = await import("./scope.ts");
 
 type Fake = { id: string; provider: string; cwd: string; title: string; status: string; archivedAt: string | null; updatedAt: string; sent: string[]; prompt?: string };
 
 function fakePaseo() {
   const agents = new Map<string, Fake>();
+  const workspaces = new Map<string, string>();
   let count = 0;
   const ref = (id: string) => {
     const agent = agents.get(id);
@@ -38,6 +40,14 @@ function fakePaseo() {
     agents.set(id, { id, provider, cwd, title, status, archivedAt: null, updatedAt: new Date().toISOString(), sent: [], prompt });
     return id;
   };
+  const workspace = (id: string) => ({
+    id,
+    agents: {
+      async create(options: { config: { provider: string }; title: string; prompt: string }) {
+        return ref(add(options.config.provider, workspaces.get(id)!, options.title, "running", options.prompt));
+      },
+    },
+  });
   const paseo = {
     agents: {
       ref,
@@ -47,23 +57,21 @@ function fakePaseo() {
     },
     workspaces: {
       async create({ source }: { source: { path: string } }) {
-        return {
-          agents: {
-            async create(options: { config: { provider: string }; title: string; prompt: string }) {
-              return ref(add(options.config.provider, source.path, options.title, "running", options.prompt));
-            },
-          },
-        };
+        const id = `ws-${workspaces.size + 1}`;
+        workspaces.set(id, source.path);
+        return workspace(id);
       },
+      ref: workspace,
     },
   };
-  return { paseo: paseo as never, agents, add };
+  return { paseo: paseo as never, agents, add, workspaces };
 }
 
 function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
   const root = mkdtempSync(join(tmpdir(), "sw2-flow-repo-"));
   const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   writeFileSync(join(root, "a.txt"), "one\ntwo\nthree\n");
+  writeFileSync(join(root, "b.txt"), "bee\n");
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
   git(root, "commit", "-qm", "seed");
@@ -72,157 +80,186 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), ".."));
 
-test("a lane runs tasks through hand-back, merge, a failing gate, a conflict and landing", async () => {
+function harness(outbox: string) {
   const { root, git } = repo();
-  const { paseo, agents, add } = fakePaseo();
-  const runtime = new Runtime(kit, join(HOME, "outbox.json"));
-  const desk = runtime.desk;
+  const { paseo, agents, add, workspaces } = fakePaseo();
+  const runtime = new Runtime(kit, join(HOME, outbox));
   const project = projectOf(root);
   let n = 0;
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>) =>
-    desk.handle(paseo, { id: `r${++n}`, agent, role, tool, args, cwd: root, at: Date.now() });
+    runtime.desk.handle(paseo, { id: `${outbox}-${++n}`, agent, role, tool, args, cwd: root, at: Date.now() });
   const idle = async (id: string) => {
     agents.get(id)!.status = "idle";
     runtime.outbox.turnEnded(id);
     await runtime.outbox.pump(paseo, id);
-  };
-
-  const sup = add("sw2-supervisor/claude-opus-5", root, "sup");
-  assert.equal((await call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "task" })).ok, true);
-  const opened = await call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["a.txt has four"] });
-  assert.equal(opened.ok, true, opened.text);
-  const lane = loadLedger(project.state).lanes.L1!;
-  assert.equal(agents.get(lane.lead!)!.cwd, lane.worktree);
-  assert.match(agents.get(lane.lead!)!.prompt ?? "", /OWNER DIRECTIVE L1/);
-
-  const start = async (title: string) => {
-    const reply = await call(lane.lead!, "lead", "start_task", { title, goal: title, acceptance: ["done"], owned: ["a.txt", "BROKEN"] });
-    assert.equal(reply.ok, true, reply.text);
-    return Object.values(loadLedger(project.state).tasks).find((task) => task.title === title)!;
-  };
-  const finished = async (peer: string, summary: string) => {
-    assert.equal((await call(peer, "peer", "done", { outcome: "complete", summary })).ok, true);
-    agents.get(peer)!.status = "idle";
   };
   const commit = (cwd: string, file: string, text: string) => {
     writeFileSync(join(cwd, file), text);
     git(cwd, "add", "-A");
     git(cwd, "commit", "-qm", `edit ${file}`);
   };
+  const ledger = () => loadLedger(project.state);
+  return { root, git, paseo, agents, add, workspaces, runtime, project, call, idle, commit, ledger };
+}
 
-  const t1 = await start("Add four");
-  assert.equal(git(t1.worktree!, "branch", "--show-current").trim(), t1.branch);
-  commit(t1.worktree!, "a.txt", "one\ntwo\nthree\nfour\n");
-  await finished(t1.peer!, "added four");
-  await idle(lane.lead!);
-  assert.match(agents.get(lane.lead!)!.sent.at(-1)!, /HANDBACK L1-T1/);
+test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
+  assert.equal(firstOverlap(["src/pages/"], ["src/api/"]), undefined);
+  assert.ok(firstOverlap(["src/"], ["src/api/users.ts"]));
+  assert.ok(firstOverlap(["src/**/*.ts"], ["src/api/users.ts"]));
+  assert.ok(firstOverlap(["**/*.ts"], ["lib/x.ts"]));
+  assert.deepEqual(serialHits(["db/migrations/0003.sql", "src/app.ts"], SERIAL_ONLY), ["db/migrations/0003.sql"]);
+  assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], SERIAL_ONLY), ["Assets/Scenes/Main.unity"]);
+});
 
-  assert.equal((await call(lane.lead!, "lead", "accept", { task: t1.id })).ok, true);
-  await desk.settled(project);
-  assert.equal(loadLedger(project.state).tasks[t1.id]!.status, "merged");
-  await idle(lane.lead!);
-  assert.match(agents.get(lane.lead!)!.sent.at(-1)!, /MERGED L1-T1/);
-  assert.equal(agents.get(t1.peer!)!.archivedAt !== null, true);
+test("a lane works serially in one long-lived working copy that the next lane reuses", async () => {
+  const h = harness("outbox-serial.json");
+  const sup = h.add("sw2-supervisor/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"] });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = h.ledger().lanes.L1!;
+  const slot = h.ledger().slots.S0!;
+  assert.equal(h.agents.get(lane.lead!)!.cwd, slot.path);
+  assert.equal(h.git(slot.path, "branch", "--show-current").trim(), lane.branch);
 
-  const t2 = await start("Break the gate");
-  commit(t2.worktree!, "BROKEN", "x\n");
-  await finished(t2.peer!, "broke it");
-  const before = git(lane.worktree!, "rev-parse", "HEAD").trim();
-  await call(lane.lead!, "lead", "accept", { task: t2.id });
-  await desk.settled(project);
-  assert.equal(loadLedger(project.state).tasks[t2.id]!.status, "failed");
-  assert.equal(git(lane.worktree!, "rev-parse", "HEAD").trim(), before);
-  await idle(lane.lead!);
-  assert.match(agents.get(lane.lead!)!.sent.join("\n"), /MERGE FAILED L1-T2/);
+  const second = await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", acceptance: ["y"] });
+  assert.equal(second.ok, false);
+  assert.match(second.text, /1 at a time/);
 
-  const t3 = await start("Change two");
-  const t4 = await start("Change two again");
-  commit(t3.worktree!, "a.txt", "one\nTWO\nthree\nfour\n");
-  commit(t4.worktree!, "a.txt", "one\n2\nthree\nfour\n");
-  await finished(t3.peer!, "TWO");
-  await finished(t4.peer!, "2");
-  await call(lane.lead!, "lead", "accept", { task: t3.id });
-  await call(lane.lead!, "lead", "accept", { task: t4.id });
-  await desk.settled(project);
-  const tasks = loadLedger(project.state).tasks;
-  assert.deepEqual([tasks[t3.id]!.status, tasks[t4.id]!.status], ["merged", "rework"]);
-  await idle(lane.lead!);
-  assert.match(agents.get(lane.lead!)!.sent.join("\n"), /MERGE CONFLICT L1-T4[\s\S]*a\.txt/);
+  const t1 = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
+  assert.equal(t1.ok, true, t1.text);
+  const task1 = h.ledger().tasks["L1-T1"]!;
+  assert.equal(h.agents.get(task1.peer!)!.cwd, slot.path);
+  assert.equal(task1.branch, lane.branch);
+  const blocked = await h.call(lane.lead!, "lead", "start_task", { title: "More", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.text, /one writer at a time/);
 
-  assert.equal((await call(sup, "supervisor", "set_project", { gateOn: "lane" })).ok, true);
-  const t5 = await start("Break it late");
-  commit(t5.worktree!, "BROKEN", "late\n");
-  await finished(t5.peer!, "broke it late");
-  await call(lane.lead!, "lead", "accept", { task: t5.id });
-  await desk.settled(project);
-  assert.equal(loadLedger(project.state).tasks[t5.id]!.status, "merged");
-  const refused = await call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+  writeFileSync(join(slot.path, "a.txt"), "one\ntwo\nthree\nfour\n");
+  assert.equal((await h.call(task1.peer!, "peer", "done", { outcome: "complete", summary: "four" })).ok, true);
+  h.agents.get(task1.peer!)!.status = "idle";
+  const dirty = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  assert.equal(dirty.ok, false);
+  assert.match(dirty.text, /uncommitted/);
+  h.git(slot.path, "commit", "-qam", "add four");
+  const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  assert.equal(accepted.ok, true, accepted.text);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.ok(h.agents.get(task1.peer!)!.archivedAt);
+
+  await h.call(lane.lead!, "lead", "start_task", { title: "Break it", goal: "g", acceptance: ["a"], owned: ["BROKEN"] });
+  const task2 = h.ledger().tasks["L1-T2"]!;
+  h.commit(slot.path, "BROKEN", "x\n");
+  const cut = await h.call(lane.lead!, "lead", "cut", { task: "L1-T2", reason: "wrong" });
+  assert.equal(cut.ok, true, cut.text);
+  assert.equal(existsSync(join(slot.path, "BROKEN")), false);
+  assert.ok(h.agents.get(task2.peer!)!.archivedAt);
+
+  await h.call(lane.lead!, "lead", "start_task", { title: "Late break", goal: "g", acceptance: ["a"], owned: ["BROKEN"] });
+  const task3 = h.ledger().tasks["L1-T3"]!;
+  h.commit(slot.path, "BROKEN", "late\n");
+  await h.call(task3.peer!, "peer", "done", { outcome: "complete", summary: "late" });
+  h.agents.get(task3.peer!)!.status = "idle";
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T3" });
+  const refused = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   assert.equal(refused.ok, false);
-  assert.match(refused.text, /not ready[\s\S]*exit 1/);
-  const notLanded = await call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
-  assert.equal(notLanded.ok, false);
-  git(lane.worktree!, "rm", "-q", "BROKEN");
-  git(lane.worktree!, "commit", "-qm", "unbreak");
-  assert.equal((await call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
+  assert.match(refused.text, /not ready/);
+  h.git(slot.path, "rm", "-q", "BROKEN");
+  h.git(slot.path, "commit", "-qm", "unbreak");
+  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
 
-  await call(lane.lead!, "lead", "cut", { task: t2.id, reason: "wrong" });
-  await call(lane.lead!, "lead", "cut", { task: t4.id, reason: "superseded" });
-  const closed = await call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
-  assert.match(closed.text, /fast-forwarded main/);
-  assert.equal(git(root, "show", "main:a.txt"), "one\nTWO\nthree\nfour\n");
-  runtime.dispose();
+  assert.equal(h.git(h.root, "show", "main:a.txt"), "one\ntwo\nthree\nfour\n");
+  assert.equal(h.ledger().slots.S0!.lane, undefined);
+
+  const reopened = await h.call(sup, "supervisor", "open_lane", { title: "Next", outcome: "b.txt changes", acceptance: ["z"] });
+  assert.equal(reopened.ok, true, reopened.text);
+  assert.equal(h.ledger().lanes.L2!.slot, "S0");
+  assert.equal(h.workspaces.size, 1);
+  assert.equal(h.git(slot.path, "branch", "--show-current").trim(), h.ledger().lanes.L2!.branch);
+  h.runtime.dispose();
+});
+
+test("parallel work needs independent write sets and merges back from its own working copy", async () => {
+  const h = harness("outbox-parallel.json");
+  const sup = h.add("sw2-supervisor/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a", "b"], writeSet: ["a.txt", "b.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "A", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
+  const overlap = await h.call(lane.lead!, "lead", "start_task", { title: "A again", goal: "g", acceptance: ["a"], owned: ["a.txt"], parallel: true });
+  assert.equal(overlap.ok, false);
+  assert.match(overlap.text, /overlap L1-T1/);
+  const serial = await h.call(lane.lead!, "lead", "start_task", { title: "Lock", goal: "g", acceptance: ["a"], owned: ["package-lock.json"], parallel: true });
+  assert.equal(serial.ok, false);
+  const par = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], parallel: true });
+  assert.equal(par.ok, true, par.text);
+  const taskB = h.ledger().tasks["L1-T2"]!;
+  assert.equal(taskB.slot, "S1");
+  assert.equal(h.agents.get(taskB.peer!)!.cwd, h.ledger().slots.S1!.path);
+
+  const taskA = h.ledger().tasks["L1-T1"]!;
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(taskA.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(taskA.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+
+  h.commit(taskB.worktree!, "b.txt", "B\n");
+  await h.call(taskB.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+  h.agents.get(taskB.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
+  assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "B\n");
+  assert.equal(h.ledger().slots.S1!.task, undefined);
+
+  await h.call(sup, "supervisor", "set_project", { parallelLanes: 2 });
+  const noScope = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"] });
+  assert.equal(noScope.ok, false);
+  const clash = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], writeSet: ["b.txt"] });
+  assert.equal(clash.ok, false);
+  assert.match(clash.text, /overlaps lane L1/);
+  const fine = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], writeSet: ["c.txt"] });
+  assert.equal(fine.ok, true, fine.text);
+  assert.equal(h.ledger().lanes.L2!.slot, "S1");
+  h.runtime.dispose();
 });
 
 test("asks reach the level above, answers come back, and a silent Peer is nudged then reported", async () => {
-  const { root } = repo();
-  const { paseo, agents, add } = fakePaseo();
-  const runtime = new Runtime(kit, join(HOME, "outbox-2.json"));
-  const desk = runtime.desk;
-  const project = projectOf(root);
-  let n = 0;
-  const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>) =>
-    desk.handle(paseo, { id: `q${++n}`, agent, role, tool, args, cwd: root, at: Date.now() });
-  const idle = async (id: string) => {
-    agents.get(id)!.status = "idle";
-    runtime.outbox.turnEnded(id);
-    await runtime.outbox.pump(paseo, id);
-  };
+  const h = harness("outbox-asks.json");
   const turnEnded = (id: string, text: string) =>
-    (runtime as unknown as { turnEnded: (p: unknown, e: unknown) => Promise<void> }).turnEnded(paseo, {
-      agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
-      turnId: `t${++n}`,
+    (h.runtime as unknown as { turnEnded: (p: unknown, e: unknown) => Promise<void> }).turnEnded(h.paseo, {
+      agent: { id, provider: h.agents.get(id)!.provider, cwd: h.agents.get(id)!.cwd, title: h.agents.get(id)!.title, parentAgentId: null, workspaceId: null },
+      turnId: `t-${id}-${Date.now()}`,
       outcome: { kind: "completed" },
       timeline: [{ type: "user_message", text: "go" }, { type: "assistant_message", text }],
     });
+  const sup = h.add("sw2-supervisor/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["y"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.idle(lane.lead!);
 
-  const sup = add("sw2-supervisor/claude-opus-5", root, "sup");
-  await call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["y"] });
-  const lane = loadLedger(project.state).lanes.L1!;
-  await idle(lane.lead!);
-
-  const asked = await call(lane.lead!, "lead", "ask", { kind: "question", text: "Round half up or down?", default: "half up" });
+  const asked = await h.call(lane.lead!, "lead", "ask", { kind: "question", text: "Round half up or down?", default: "half up" });
   assert.equal(asked.ok, true, asked.text);
-  await idle(sup);
-  assert.match(agents.get(sup)!.sent.at(-1)!, /ASK A1 \(question\)[\s\S]*half up/);
-  assert.equal((await call(sup, "supervisor", "answer", { ask: "A1", text: "Half up." })).ok, true);
-  await idle(lane.lead!);
-  assert.match(agents.get(lane.lead!)!.sent.join("\n"), /ANSWER to your ask A1[\s\S]*Half up/);
-  assert.equal(loadLedger(project.state).asks.A1!.status, "answered");
+  await h.idle(sup);
+  assert.match(h.agents.get(sup)!.sent.at(-1)!, /ASK A1 \(question\)[\s\S]*half up/);
+  assert.equal((await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up." })).ok, true);
+  await h.idle(lane.lead!);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /ANSWER to your ask A1[\s\S]*Half up/);
 
-  await call(lane.lead!, "lead", "start_task", { title: "Quiet one", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
-  const task = loadLedger(project.state).tasks["L1-T1"]!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Quiet one", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
+  const task = h.ledger().tasks["L1-T1"]!;
   await new Promise((resolve) => setTimeout(resolve, 5));
-  agents.get(task.peer!)!.status = "idle";
+  h.agents.get(task.peer!)!.status = "idle";
   await turnEnded(task.peer!, "I looked around.");
-  await runtime.outbox.pump(paseo, task.peer!);
-  assert.match(agents.get(task.peer!)!.sent.at(-1)!, /without calling done or ask/);
-  runtime.outbox.turnEnded(task.peer!);
+  await h.runtime.outbox.pump(h.paseo, task.peer!);
+  assert.match(h.agents.get(task.peer!)!.sent.at(-1)!, /without calling done or ask/);
+  h.runtime.outbox.turnEnded(task.peer!);
   await turnEnded(task.peer!, "Still looking.");
-  assert.equal(loadLedger(project.state).tasks["L1-T1"]!.status, "stalled");
-  agents.get(lane.lead!)!.status = "idle";
-  runtime.outbox.turnEnded(lane.lead!);
-  await runtime.outbox.pump(paseo, lane.lead!);
-  assert.match(agents.get(lane.lead!)!.sent.join("\n"), /SILENT L1-T1[\s\S]*Still looking/);
-  runtime.dispose();
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
+  h.agents.get(lane.lead!)!.status = "idle";
+  h.runtime.outbox.turnEnded(lane.lead!);
+  await h.runtime.outbox.pump(h.paseo, lane.lead!);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /SILENT L1-T1[\s\S]*Still looking/);
+  h.runtime.dispose();
 });

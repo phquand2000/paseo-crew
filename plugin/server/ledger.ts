@@ -17,6 +17,9 @@ export type Lane = {
   base: string;
   branch: string;
   worktree?: string;
+  slot?: string;
+  writeSet: string[];
+  contracts: string[];
   lead?: string;
   opener: string;
   status: LaneStatus;
@@ -31,6 +34,7 @@ export type Task = {
   id: string;
   lane: string;
   kind: "code" | "review";
+  mode: "lane" | "parallel";
   of?: string;
   title: string;
   goal: string;
@@ -42,6 +46,8 @@ export type Task = {
   peer?: string;
   branch?: string;
   worktree?: string;
+  slot?: string;
+  startSha?: string;
   status: TaskStatus;
   openedAt: number;
   updatedAt: number;
@@ -67,6 +73,8 @@ export type Ask = {
   answer?: string;
 };
 
+export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number };
+
 export type AgentRef = { id: string; role: string; lane?: string; task?: string; turnStartedAt?: number; recordedAt?: number };
 
 export type Ledger = {
@@ -76,10 +84,11 @@ export type Ledger = {
   tasks: Record<string, Task>;
   asks: Record<string, Ask>;
   agents: Record<string, AgentRef>;
+  slots: Record<string, Slot>;
 };
 
 export function emptyLedger(): Ledger {
-  return { version: 1, seq: { lane: 0, ask: 0 }, lanes: {}, tasks: {}, asks: {}, agents: {} };
+  return { version: 1, seq: { lane: 0, ask: 0 }, lanes: {}, tasks: {}, asks: {}, agents: {}, slots: {} };
 }
 
 export function ledgerFile(state: string): string {

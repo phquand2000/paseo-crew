@@ -16,9 +16,12 @@ first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 Plan for agents, not a human team. One strong agent finishes most features and foundation changes in
 one sitting, so the default is one task for the whole lane.
 
-- **Add a task only for a reason you can name.** Its write set is independent of the others and can
-  run in parallel, or the work is a mechanical fan-out too large for one sitting. Put the reason in
-  the task's context.
+- **Add a task only for a reason you can name.** Tasks run one after another in the lane's working
+  copy by default. Use `parallel` only when a task's owned paths are independent of every active task
+  and touch no shared contract; say why in context. The desk refuses overlapping write sets.
+- **A foundation gap goes up, not sideways.** When a Peer finds shared code outside its owned paths
+  broken, it asks you. Widen its task if nothing else running depends on that code; otherwise `ask`
+  with kind need, and don't let two tasks fix the same foundation in different directions.
 - **Don't split to keep builds green.** Never split one contract change into producer and consumer
   tasks, by layer, or into phases that exist so half-built states compile. The writer changes the
   contract and every caller together.

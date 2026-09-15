@@ -21,8 +21,11 @@ one sitting, so an outcome is one lane, not a sequence of phases.
 Settle the Human's request into outcomes and size each honestly, reading
 `{{guides}}/FEATURE_INTAKE.md` when unsure. A tiny change needs no lane: tell the Human it runs best in
 one session. Call `open_lane` once per independent outcome. Keep the outcome to a few sentences, and
-put decisions in acceptance and out of scope. Lanes run side by side only when they don't write the
-same contract, schema or files; otherwise settle the shared contract in one lane first.
+put decisions in acceptance and out of scope. Lanes run one at a time: one long-lived working copy busy
+for a day beats four fighting over the same foundation. Open a second lane only for an outcome whose
+write set and contracts don't overlap the open lane, after raising `parallelLanes` with `set_project`
+for projects whose work is genuinely horizontal. When a Lead reports a foundation gap that another
+lane touches, name one owner for the fix and have the other lane wait for it.
 
 Nothing in the project has shipped unless the Human or `AGENTS.md` says so, so don't ask a Lead to
 keep old shapes, freeze old tests or stay compatible. Sample data in designs and screenshots is a

@@ -1,8 +1,21 @@
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { runGate } from "./gate.ts";
-import { addWorktree, branchExists, git, commitsAhead, currentBranch, diffCounts, headSha, isClean, landLane, mergeBranch, outsideOwned, removeWorktree, resetHard } from "./git.ts";
+import {
+  addWorktree,
+  branchExists,
+  commitsAhead,
+  currentBranch,
+  diffCounts,
+  git,
+  headSha,
+  isPristine,
+  landLane,
+  mergeBranch,
+  outsideOwned,
+  resetHard,
+} from "./git.ts";
 import { fetchIssue, type Issue } from "./issue.ts";
 import { type Kit, type RoleSpec, type TeamRole, defaultModel, defaultThinking, harnessOf, providerId, roleOf, roleWithTeam } from "./kit.ts";
 import {
@@ -10,6 +23,7 @@ import {
   type AskKind,
   type Lane,
   type Ledger,
+  type Slot,
   type Task,
   type TaskStatus,
   activeTasks,
@@ -28,12 +42,13 @@ import { clip, letters } from "./letters.ts";
 import type { Outbox, PaseoApi } from "./outbox.ts";
 import { worktreeRoot } from "./paths.ts";
 import { type Project, detectGate, loadConfig, projectOf, saveConfig } from "./project.ts";
+import { firstOverlap, serialHits } from "./scope.ts";
 import type { ToolReply, ToolRequest } from "./spool.ts";
 import { type SeatView, statusText } from "./status.ts";
 
 type Args = Record<string, unknown>;
 type Caller = { id: string; role: RoleSpec; team: TeamRole; title: string; project: Project };
-type Worktree = { branch: string; base: string };
+type Holder = { lane?: string; task?: string };
 
 const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 const strs = (value: unknown) =>
@@ -41,11 +56,13 @@ const strs = (value: unknown) =>
 const ok = (text: string): ToolReply => ({ ok: true, text });
 const no = (text: string): ToolReply => ({ ok: false, text });
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const WRITING: TaskStatus[] = ["running", "rework"];
 
 export const hash = (...parts: string[]) => createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
 
 export class Desk {
   readonly projects = new Map<string, Project>();
+  readonly pendingArchive = new Set<string>();
   private readonly kit: Kit;
   private readonly outbox: Outbox;
   private readonly logLine: (project: Project, line: string) => void;
@@ -69,6 +86,10 @@ export class Desk {
     });
     this.locks.set(project.slug, run.catch(() => undefined));
     return run;
+  }
+
+  settled(project: Project): Promise<unknown> {
+    return this.merges.get(project.slug) ?? Promise.resolve();
   }
 
   event(project: Project, data: Record<string, unknown>): void {
@@ -101,12 +122,6 @@ export class Desk {
     return found[0]?.id ?? preferred;
   }
 
-  readonly pendingArchive = new Set<string>();
-
-  settled(project: Project): Promise<unknown> {
-    return this.merges.get(project.slug) ?? Promise.resolve();
-  }
-
   async archive(paseo: PaseoApi, agentId: string | undefined, force = false): Promise<void> {
     if (!agentId) return;
     try {
@@ -125,17 +140,6 @@ export class Desk {
     }
   }
 
-  async deleteBranch(project: Project, branch: string | undefined): Promise<void> {
-    if (!branch) return;
-    await git(project.root, ["branch", "-D", branch]);
-  }
-
-  async retire(paseo: PaseoApi, project: Project, task: Pick<Task, "peer" | "worktree" | "branch" | "kind">, dropBranch = false): Promise<void> {
-    await this.archive(paseo, task.peer);
-    await removeWorktree(project.root, task.worktree);
-    if (dropBranch || task.kind === "review") await this.deleteBranch(project, task.branch);
-  }
-
   async setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.ledger(project, (ledger) => {
       const task = ledger.tasks[taskId];
@@ -144,6 +148,80 @@ export class Desk {
       task.updatedAt = Date.now();
       return { ...task };
     });
+  }
+
+  async retire(paseo: PaseoApi, project: Project, task: Task, dropBranch = false): Promise<void> {
+    await this.archive(paseo, task.peer);
+    if (task.kind === "code" && task.mode === "parallel") await this.releaseSlot(project, task.slot, dropBranch ? task.branch : undefined);
+  }
+
+  private async acquireSlot(paseo: PaseoApi, project: Project, branch: string, base: string, holder: Holder): Promise<Slot> {
+    const picked = await this.ledger(project, (ledger) => {
+      const free = Object.values(ledger.slots)
+        .filter((slot) => !slot.lane && !slot.task)
+        .sort((a, b) => a.createdAt - b.createdAt)[0];
+      if (free) {
+        Object.assign(free, holder);
+        return { ...free };
+      }
+      const count = Object.keys(ledger.slots).length;
+      if (count >= this.kit.limits.slots) return undefined;
+      const id = `S${count}`;
+      const slot: Slot = { id, path: join(worktreeRoot(), project.slug, id), createdAt: Date.now(), ...holder };
+      ledger.slots[id] = slot;
+      return { ...slot };
+    });
+    if (!picked) throw new Error(`all ${this.kit.limits.slots} working copies of this project are in use`);
+    try {
+      if (!(await branchExists(project.root, base))) throw new Error(`the base branch ${base} does not exist`);
+      if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
+      if (existsSync(join(picked.path, ".git"))) {
+        if (!(await isPristine(picked.path))) throw new Error(`working copy ${picked.id} has uncommitted changes`);
+        const run = await git(picked.path, ["switch", "-c", branch, base]);
+        if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
+      } else {
+        mkdirSync(dirname(picked.path), { recursive: true });
+        const added = await addWorktree(project.root, picked.path, branch, base);
+        if (!added.ok) throw new Error(added.message);
+      }
+      let workspaceId = picked.workspaceId;
+      if (!workspaceId) {
+        const workspace = await paseo.workspaces.create({ title: `${project.slug} ${picked.id}`, source: { kind: "directory", path: picked.path } });
+        workspaceId = workspace.id;
+        await this.ledger(project, (ledger) => {
+          const slot = ledger.slots[picked.id];
+          if (slot) slot.workspaceId = workspaceId;
+        });
+      }
+      this.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
+      return { ...picked, workspaceId };
+    } catch (error) {
+      await this.ledger(project, (ledger) => {
+        const slot = ledger.slots[picked.id];
+        if (slot) {
+          delete slot.lane;
+          delete slot.task;
+        }
+      });
+      throw error;
+    }
+  }
+
+  private async releaseSlot(project: Project, slotId: string | undefined, dropBranch?: string): Promise<void> {
+    if (!slotId) return;
+    const slot = loadLedger(project.state).slots[slotId];
+    if (slot && existsSync(slot.path)) {
+      await git(slot.path, ["switch", "--detach"]);
+      if (dropBranch) await git(project.root, ["branch", "-D", dropBranch]);
+    }
+    await this.ledger(project, (ledger) => {
+      const entry = ledger.slots[slotId];
+      if (entry) {
+        delete entry.lane;
+        delete entry.task;
+      }
+    });
+    this.event(project, { kind: "slot.released", slot: slotId });
   }
 
   async handle(paseo: PaseoApi, request: ToolRequest): Promise<ToolReply> {
@@ -224,42 +302,33 @@ export class Desk {
   private async startAgent(
     paseo: PaseoApi,
     project: Project,
+    slot: Pick<Slot, "path" | "workspaceId">,
     team: TeamRole,
-    options: { parent: string; title: string; prompt: string; worktree: Worktree; labels: Record<string, string> },
-  ): Promise<{ id: string; cwd: string }> {
+    options: { parent: string; title: string; prompt: string; labels: Record<string, string> },
+  ): Promise<string> {
     const role = roleWithTeam(this.kit, team);
     if (!role) throw new Error(`roles.json has no role for ${team}`);
+    if (!slot.workspaceId) throw new Error("the working copy has no workspace");
     const harness = harnessOf(this.kit, role);
     const model = defaultModel(role);
     const config: Record<string, unknown> = { provider: model ? `${providerId(this.kit, role.role)}/${model.id}` : providerId(this.kit, role.role) };
     if (harness.provider.profileModeId) config.modeId = harness.provider.profileModeId;
     const thinking = harness.hasThinking === false ? undefined : defaultThinking(role, model);
     if (thinking) config.thinkingOptionId = thinking;
-    const cwd = join(worktreeRoot(), project.slug, options.worktree.branch.replace(/[^A-Za-z0-9._-]+/g, "-"));
-    mkdirSync(join(worktreeRoot(), project.slug), { recursive: true });
-    const added = await addWorktree(project.root, cwd, options.worktree.branch, options.worktree.base);
-    if (!added.ok) throw new Error(added.message);
-    try {
-      const workspace = await paseo.workspaces.create({ title: options.title.slice(0, 60), source: { kind: "directory", path: cwd } });
-      const handle = await workspace.agents.create({
-        config: config as never,
-        parent: options.parent,
-        title: options.title.slice(0, 60),
-        prompt: options.prompt,
-        labels: { ...options.labels, "seatworks.project": project.slug },
-      });
-      await handle.refresh();
-      const actual = handle.cwd ?? handle.current()?.cwd;
-      if (actual && actual !== cwd) {
-        await this.archive(paseo, handle.id);
-        throw new Error(`the agent was placed in ${actual} instead of its working copy ${cwd}`);
-      }
-      return { id: handle.id, cwd };
-    } catch (error) {
-      await removeWorktree(project.root, cwd);
-      await this.deleteBranch(project, options.worktree.branch);
-      throw error;
+    const handle = await paseo.workspaces.ref(slot.workspaceId).agents.create({
+      config: config as never,
+      parent: options.parent,
+      title: options.title.slice(0, 60),
+      prompt: options.prompt,
+      labels: { ...options.labels, "seatworks.project": project.slug },
+    });
+    await handle.refresh();
+    const actual = handle.cwd ?? handle.current()?.cwd;
+    if (actual && actual !== slot.path) {
+      await this.archive(paseo, handle.id, true);
+      throw new Error(`the agent was placed in ${actual} instead of ${slot.path}`);
     }
+    return handle.id;
   }
 
   private async openLane(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
@@ -272,6 +341,24 @@ export class Desk {
     const base = str(args.base) || config.base || (await currentBranch(project.root)) || "main";
     if (!(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
     if (!config.base || !config.gate) saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
+    const writeSet = strs(args.writeSet);
+    const contracts = strs(args.contracts);
+    const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
+    if (open.length >= config.parallelLanes) {
+      return no(
+        `${open.length} lane${open.length === 1 ? " is" : "s are"} open and this project runs ${config.parallelLanes} at a time. Fold this outcome into ${open[0]?.id ?? "the open lane"} with message, wait for it to land, or raise parallelLanes with set_project only if the work is genuinely independent.`,
+      );
+    }
+    if (open.length > 0) {
+      if (writeSet.length === 0) return no("Another lane is open, so this lane needs writeSet (and contracts) to prove it doesn't overlap.");
+      const serial = serialHits(writeSet, config.serialOnly);
+      if (serial.length > 0) return no(`writeSet includes paths that only one lane at a time may write (${serial.join(", ")}); open this lane after the current one lands.`);
+      for (const other of open) {
+        if (other.writeSet.length === 0) return no(`Lane ${other.id} declared no writeSet, so it may write anywhere; open this lane after it lands.`);
+        const clash = firstOverlap(writeSet, [...other.writeSet, ...other.contracts]) ?? firstOverlap(contracts, other.writeSet);
+        if (clash) return no(`This lane overlaps lane ${other.id} at ${clash}; fold it in or open it after ${other.id} lands.`);
+      }
+    }
     let issue: Issue | undefined;
     if (str(args.issue)) {
       const fetched = await fetchIssue(str(args.issue), project.root);
@@ -279,8 +366,6 @@ export class Desk {
       issue = fetched;
     }
     const lane = await this.ledger(project, (ledger) => {
-      const open = Object.values(ledger.lanes).filter((entry) => entry.status === "open");
-      if (open.length >= this.kit.limits.lanes) return undefined;
       const id = nextLaneId(ledger);
       const entry: Lane = {
         id,
@@ -293,6 +378,8 @@ export class Desk {
         issue: issue?.url,
         base,
         branch: `lane/${id.toLowerCase()}-${slugify(title, 24)}`,
+        writeSet,
+        contracts,
         opener: caller.id,
         status: "open",
         openedAt: Date.now(),
@@ -301,37 +388,39 @@ export class Desk {
       ledger.lanes[id] = entry;
       return { ...entry };
     });
-    if (!lane) return no(`${this.kit.limits.lanes} lanes are already open. Close one, or fold this outcome into an open lane with message.`);
-    const closeFailed = () =>
-      this.ledger(project, (ledger) => {
+    const fail = async (reason: string, slot?: string) => {
+      await this.ledger(project, (ledger) => {
         const entry = ledger.lanes[lane.id];
         if (entry) Object.assign(entry, { status: "closed", closedAt: Date.now() });
       });
-    if (await branchExists(project.root, lane.branch)) {
-      await closeFailed();
-      return no(`The branch ${lane.branch} already exists; delete it or pick another title.`);
+      if (slot) await this.releaseSlot(project, slot, lane.branch);
+      return no(reason);
+    };
+    let slot: Slot;
+    try {
+      slot = await this.acquireSlot(paseo, project, lane.branch, base, { lane: lane.id });
+    } catch (error) {
+      return fail(`The lane could not get a working copy: ${message(error)}`);
     }
     try {
-      const seat = await this.startAgent(paseo, project, "lead", {
+      const lead = await this.startAgent(paseo, project, slot, "lead", {
         parent: caller.id,
         title: `${lane.id} ${title}`,
         prompt: letters.directive(lane, issue),
-        worktree: { branch: lane.branch, base },
         labels: { "seatworks.lane": lane.id, "seatworks.role": "lead" },
       });
       await this.ledger(project, (ledger) => {
         const entry = ledger.lanes[lane.id];
-        if (entry) Object.assign(entry, { lead: seat.id, worktree: seat.cwd });
-        ledger.agents[seat.id] = { id: seat.id, role: "lead", lane: lane.id };
+        if (entry) Object.assign(entry, { lead, worktree: slot.path, slot: slot.id });
+        ledger.agents[lead] = { id: lead, role: "lead", lane: lane.id };
       });
-      this.event(project, { kind: "lane.opened", lane: lane.id, lead: seat.id, branch: lane.branch, base });
+      this.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id });
       const gate = loadConfig(project.state).gate;
       return ok(
-        `Lane ${lane.id} is open on ${lane.branch} (off ${base}) and its Lead ${seat.id} is starting. Gate: ${gate ?? "none; call set_project with the project's test command"}. Reports and asks arrive as mail; nothing to wait for now.`,
+        `Lane ${lane.id} is open on ${lane.branch} (off ${base}) in working copy ${slot.id}, and its Lead ${lead} is starting. Gate: ${gate ?? "none; call set_project with the project's test command"}. Reports and asks arrive as mail; nothing to wait for now.`,
       );
     } catch (error) {
-      await closeFailed();
-      return no(`The Lead could not start: ${message(error)}`);
+      return fail(`The Lead could not start: ${message(error)}`, slot.id);
     }
   }
 
@@ -382,10 +471,21 @@ export class Desk {
     return ok(`Answered ${result.id}; the asker gets it when idle.`);
   }
 
+  private async laneGate(project: Project, lane: Lane): Promise<{ ok: boolean; text: string }> {
+    const config = loadConfig(project.state);
+    if (!config.gate || !lane.worktree) return { ok: true, text: "no gate set" };
+    if (!(await isPristine(lane.worktree))) return { ok: false, text: "the lane working copy has uncommitted changes" };
+    const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
+    const result = await runGate(config.gate, lane.worktree, logFile, config.gateTimeoutMinutes * 60_000);
+    this.event(project, { kind: result.ok ? "gate.passed" : "gate.failed", lane: lane.id, seconds: result.seconds });
+    if (result.ok) return { ok: true, text: `${config.gate} passed on the lane branch in ${result.seconds}s` };
+    const reason = result.timedOut ? `timed out after ${config.gateTimeoutMinutes} minutes` : `failed with exit ${result.code}`;
+    return { ok: false, text: `${config.gate} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}` };
+  }
+
   private async closeLane(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
     const { project } = caller;
-    const ledger = loadLedger(project.state);
-    const lane = findLane(ledger, str(args.lane));
+    const lane = findLane(loadLedger(project.state), str(args.lane));
     if (!lane) return no(`There is no lane ${str(args.lane)}.`);
     if (lane.status !== "open") return no(`Lane ${lane.id} is already closed.`);
     let landing = `the branch ${lane.branch} is kept for the Human`;
@@ -395,21 +495,21 @@ export class Desk {
       const result = await landLane(project.root, lane.base, lane.branch);
       landing = result.landed ? `${result.how}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
     }
-    const seats = await this.ledger(project, (current) => {
+    const retired = await this.ledger(project, (current) => {
       const entry = current.lanes[lane.id];
       if (entry) Object.assign(entry, { status: "closed", closedAt: Date.now() });
-      const retired: Task[] = [];
+      const tasks: Task[] = [];
       for (const task of Object.values(current.tasks).filter((item) => item.lane === lane.id)) {
         if (["running", "rework", "queued", "done", "failed", "stalled"].includes(task.status)) task.status = "cut";
-        retired.push({ ...task });
+        tasks.push({ ...task });
       }
-      return retired;
+      return tasks;
     });
-    for (const task of seats) await this.retire(paseo, project, task);
+    for (const task of retired) await this.retire(paseo, project, task, task.status !== "merged");
     await this.archive(paseo, lane.lead);
-    await removeWorktree(project.root, lane.worktree);
+    await this.releaseSlot(project, lane.slot);
     this.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason) });
-    return ok(`Lane ${lane.id} closed and its agents archived; ${landing}.`);
+    return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. Its working copy is free for the next lane.`);
   }
 
   private async setProject(caller: Caller, args: Args): Promise<ToolReply> {
@@ -417,14 +517,20 @@ export class Desk {
     const base = str(args.base);
     if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
     const minutes = Number(args.gateTimeoutMinutes);
+    const lanes = Number(args.parallelLanes);
     const next = {
-      gateOn: args.gateOn === "task" ? ("task" as const) : args.gateOn === "lane" ? ("lane" as const) : config.gateOn,
+      ...config,
       base: base || config.base,
       gate: typeof args.gate === "string" ? args.gate.trim() || undefined : config.gate,
       gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
+      gateOn: args.gateOn === "task" ? ("task" as const) : args.gateOn === "lane" ? ("lane" as const) : config.gateOn,
+      parallelLanes: Number.isInteger(lanes) && lanes > 0 ? lanes : config.parallelLanes,
+      serialOnly: Array.isArray(args.serialOnly) ? strs(args.serialOnly) : config.serialOnly,
     };
     saveConfig(caller.project.state, next);
-    return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.`);
+    return ok(
+      `Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes; ${next.parallelLanes} lane(s) at a time.`,
+    );
   }
 
   private async status(paseo: PaseoApi, caller: Caller): Promise<ToolReply> {
@@ -441,19 +547,37 @@ export class Desk {
     const goal = str(args.goal);
     const acceptance = strs(args.acceptance);
     const owned = strs(args.owned);
+    const parallel = args.parallel === true;
     if (!title || !goal || acceptance.length === 0 || owned.length === 0) return no("start_task needs a title, a goal, acceptance and owned paths.");
-    const current = laneOfLead(loadLedger(project.state), caller.id);
-    if (!current) return no("You have no open lane.");
-    const task = await this.ledger(project, (ledger) => {
-      const lane = ledger.lanes[current.id];
-      if (!lane) return undefined;
-      if (activeTasks(ledger, lane.id).filter((item) => item.kind === "code").length >= this.kit.limits.tasksPerLane) return null;
-      const id = nextTaskId(ledger, lane, "code");
+    const ledger = loadLedger(project.state);
+    const lane = laneOfLead(ledger, caller.id);
+    if (!lane?.slot || !lane.worktree) return no("You have no open lane.");
+    const active = activeTasks(ledger, lane.id).filter((task) => task.kind === "code");
+    if (active.length >= this.kit.limits.tasksPerLane) return no(`${this.kit.limits.tasksPerLane} tasks are already active in your lane; accept, cut or wait for one first.`);
+    if (!parallel) {
+      const writer = active.find((task) => task.mode !== "parallel" && WRITING.includes(task.status));
+      if (writer) {
+        return no(`${writer.id} is still writing in the lane's working copy, and it holds one writer at a time. Wait for its hand-back, or set parallel only for owned paths independent of it.`);
+      }
+    } else {
+      const config = loadConfig(project.state);
+      const serial = serialHits(owned, config.serialOnly);
+      if (serial.length > 0) return no(`A parallel task can't own ${serial.join(", ")}; run it in the lane's working copy instead.`);
+      for (const task of active) {
+        const clash = firstOverlap(owned, task.owned);
+        if (clash) return no(`The owned paths overlap ${task.id} at ${clash}; run it after ${task.id} instead of in parallel.`);
+      }
+    }
+    const startSha = parallel ? undefined : await headSha(lane.worktree);
+    const task = await this.ledger(project, (current) => {
+      const entry = current.lanes[lane.id]!;
+      const id = nextTaskId(current, entry, "code");
       const now = Date.now();
-      const entry: Task = {
+      const created: Task = {
         id,
         lane: lane.id,
         kind: "code",
+        mode: parallel ? "parallel" : "lane",
         title,
         goal,
         acceptance,
@@ -461,35 +585,46 @@ export class Desk {
         outOfScope: strs(args.outOfScope),
         context: str(args.context) || undefined,
         skills: strs(args.skills),
-        branch: `task/${id.toLowerCase()}-${slugify(title, 24)}`,
+        branch: parallel ? `task/${id.toLowerCase()}-${slugify(title, 24)}` : lane.branch,
+        worktree: parallel ? undefined : lane.worktree,
+        slot: parallel ? undefined : lane.slot,
+        startSha,
         status: "running",
         openedAt: now,
         updatedAt: now,
         silent: 0,
       };
-      ledger.tasks[id] = entry;
-      return { ...entry };
+      current.tasks[id] = created;
+      return { ...created };
     });
-    if (task === undefined) return no("Your lane is gone.");
-    if (task === null) return no(`${this.kit.limits.tasksPerLane} tasks are already active in your lane; accept, cut or wait for one first.`);
     try {
-      const seat = await this.startAgent(paseo, project, "peer", {
+      let slot: Pick<Slot, "id" | "path" | "workspaceId">;
+      if (parallel) {
+        slot = await this.acquireSlot(paseo, project, task.branch!, lane.branch, { task: task.id });
+        await this.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
+      } else {
+        slot = loadLedger(project.state).slots[lane.slot]!;
+      }
+      const peer = await this.startAgent(paseo, project, slot, "peer", {
         parent: caller.id,
         title: `${task.id} ${title}`,
-        prompt: letters.brief(task, current),
-        worktree: { branch: task.branch!, base: current.branch },
-        labels: { "seatworks.lane": current.id, "seatworks.task": task.id, "seatworks.role": "peer" },
+        prompt: letters.brief(task, lane),
+        labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": "peer" },
       });
-      await this.setTask(project, task.id, (entry) => Object.assign(entry, { peer: seat.id, worktree: seat.cwd }));
-      await this.ledger(project, (ledger) => {
-        ledger.agents[seat.id] = { id: seat.id, role: "peer", lane: current.id, task: task.id };
-      });
-      this.event(project, { kind: "task.started", task: task.id, peer: seat.id, branch: task.branch });
-      return ok(`Started ${task.id} on ${task.branch} with Peer ${seat.id}. Its hand-back arrives as mail; there is nothing to wait for in this turn.`);
-    } catch (error) {
       await this.setTask(project, task.id, (entry) => {
+        entry.peer = peer;
+      });
+      await this.ledger(project, (current) => {
+        current.agents[peer] = { id: peer, role: "peer", lane: lane.id, task: task.id };
+      });
+      this.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id });
+      const where = parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}`;
+      return ok(`Started ${task.id} ${where} with Peer ${peer}. Its hand-back arrives as mail; there is nothing to wait for in this turn.`);
+    } catch (error) {
+      const failed = await this.setTask(project, task.id, (entry) => {
         entry.status = "cut";
       });
+      if (failed && parallel) await this.releaseSlot(project, failed.slot, failed.branch);
       return no(`The Peer could not start: ${message(error)}`);
     }
   }
@@ -500,17 +635,21 @@ export class Desk {
     if (!focus) return no("start_review needs a focus: the open question for the reviewer.");
     const ledger = loadLedger(project.state);
     const lane = laneOfLead(ledger, caller.id);
-    if (!lane) return no("You have no open lane.");
+    if (!lane?.slot) return no("You have no open lane.");
     const target = str(args.task) ? findTask(ledger, str(args.task)) : undefined;
-    if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code" || !target.branch)) return no(`${str(args.task)} is not a code task in your lane.`);
+    if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code")) return no(`${str(args.task)} is not a code task in your lane.`);
+    const slotId = target?.mode === "parallel" && target.slot && ledger.slots[target.slot]?.task === target.id ? target.slot : lane.slot;
+    const slot = ledger.slots[slotId];
+    if (!slot) return no("The working copy for that review is gone.");
     const review = await this.ledger(project, (current) => {
       const entry = current.lanes[lane.id]!;
       const id = nextTaskId(current, entry, "review");
       const now = Date.now();
-      const task: Task = {
+      const created: Task = {
         id,
         lane: lane.id,
         kind: "review",
+        mode: "lane",
         of: target?.id,
         title: target ? `Review ${target.id}` : str(args.title) || clip(focus.split(/\r?\n/)[0] ?? "Review", 50),
         goal: focus,
@@ -518,29 +657,30 @@ export class Desk {
         owned: [],
         outOfScope: [],
         context: lane.branch,
-        branch: `review/${id.toLowerCase()}`,
+        worktree: slot.path,
         status: "running",
         openedAt: now,
         updatedAt: now,
         silent: 0,
       };
-      current.tasks[id] = task;
-      return { ...task };
+      current.tasks[id] = created;
+      return { ...created };
     });
     try {
-      const seat = await this.startAgent(paseo, project, "reviewer", {
+      const reviewer = await this.startAgent(paseo, project, slot, "reviewer", {
         parent: caller.id,
         title: `${review.id} ${target?.title ?? review.title}`,
         prompt: letters.reviewBrief(review, target, focus, lane.branch),
-        worktree: { branch: review.branch!, base: target?.branch ?? lane.branch },
         labels: { "seatworks.lane": lane.id, "seatworks.task": review.id, "seatworks.role": "reviewer" },
       });
-      await this.setTask(project, review.id, (entry) => Object.assign(entry, { peer: seat.id, worktree: seat.cwd }));
-      await this.ledger(project, (current) => {
-        current.agents[seat.id] = { id: seat.id, role: "reviewer", lane: lane.id, task: review.id };
+      await this.setTask(project, review.id, (entry) => {
+        entry.peer = reviewer;
       });
-      this.event(project, { kind: "review.started", task: review.id, of: target?.id ?? null, reviewer: seat.id });
-      return ok(`Started ${review.id}${target ? ` on ${target.id}` : ""} with reviewer ${seat.id}. The verdict arrives as mail.`);
+      await this.ledger(project, (current) => {
+        current.agents[reviewer] = { id: reviewer, role: "reviewer", lane: lane.id, task: review.id };
+      });
+      this.event(project, { kind: "review.started", task: review.id, of: target?.id ?? null, reviewer });
+      return ok(`Started ${review.id}${target ? ` on ${target.id}` : ""} with reviewer ${reviewer}. The verdict arrives as mail.`);
     } catch (error) {
       await this.setTask(project, review.id, (entry) => {
         entry.status = "cut";
@@ -559,23 +699,33 @@ export class Desk {
 
   private async accept(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
     const { project } = caller;
-    const id = str(args.task);
-    const result = await this.ledger(project, (ledger): Task | string => {
-      const found = this.laneTask(ledger, caller, id);
-      if (typeof found === "string") return found;
-      const { task } = found;
-      if (task.kind !== "code") return `${task.id} is a review; accept the task it reviewed.`;
-      if (task.status === "merged") return `${task.id} is already merged.`;
-      if (task.status === "queued" || task.status === "merging") return `${task.id} is already in the merge queue.`;
-      if (task.status === "cut") return `${task.id} was cut.`;
-      task.status = "queued";
-      task.updatedAt = Date.now();
-      return { ...task };
+    const found = this.laneTask(loadLedger(project.state), caller, str(args.task));
+    if (typeof found === "string") return no(found);
+    const { lane, task } = found;
+    if (task.kind !== "code") return no(`${task.id} is a review; cut it when you are done with it.`);
+    if (["merged", "queued", "merging", "cut"].includes(task.status)) return no(`${task.id} is ${task.status}.`);
+    if (task.mode !== "parallel") {
+      if (!lane.worktree || !(await isPristine(lane.worktree))) {
+        return no(`The lane's working copy has uncommitted changes; send rework asking the Peer on ${task.id} to commit everything, then accept again.`);
+      }
+      const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
+      if (counts.files.length === 0) return no(`${task.id} has no commits since it started.`);
+      const updated = await this.setTask(project, task.id, (entry) => {
+        entry.status = "merged";
+      });
+      const config = loadConfig(project.state);
+      const gate = config.gate ? "runs on the whole lane when you report it ready" : "none set";
+      await this.post(paseo, lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
+      if (updated) await this.retire(paseo, project, updated);
+      this.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
+      return ok(`${task.id} is accepted; its commits are already on ${lane.branch}. The working copy is free for the next task.`);
+    }
+    await this.setTask(project, task.id, (entry) => {
+      entry.status = "queued";
     });
-    if (typeof result === "string") return no(result);
-    const ahead = Object.values(loadLedger(project.state).tasks).filter((task) => task.status === "queued" || task.status === "merging").length - 1;
-    this.enqueueMerge(paseo, project, result.id);
-    return ok(`${result.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED or MERGE FAILED arrives as mail.`);
+    const ahead = Object.values(loadLedger(project.state).tasks).filter((entry) => entry.status === "queued" || entry.status === "merging").length - 1;
+    this.enqueueMerge(paseo, project, task.id);
+    return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED or MERGE FAILED arrives as mail.`);
   }
 
   private enqueueMerge(paseo: PaseoApi, project: Project, taskId: string): void {
@@ -610,7 +760,9 @@ export class Desk {
     };
     const cwd = lane.worktree;
     if (!cwd) return finish("failed", letters.mergeFailed(task, "the lane has no working copy", ""));
-    if (!(await isClean(cwd))) return finish("failed", letters.mergeFailed(task, "the lane working copy has uncommitted changes; commit or discard them there first", ""));
+    if (!(await isPristine(cwd))) {
+      return finish("done", letters.mergeFailed(task, "the lane's working copy has uncommitted changes from its current writer; accept again after that task hands back", ""));
+    }
     if (!task.branch || (await commitsAhead(cwd, "HEAD", task.branch)) === 0) {
       return finish("failed", letters.mergeFailed(task, `${task.branch ?? "the task branch"} has no commits beyond the lane branch`, ""));
     }
@@ -661,19 +813,25 @@ export class Desk {
   }
 
   private async cut(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
-    const result = await this.ledger(caller.project, (ledger): Task | string => {
-      const found = this.laneTask(ledger, caller, str(args.task));
-      if (typeof found === "string") return found;
-      const { task } = found;
-      if (task.status === "merged") return `${task.id} is already merged.`;
-      task.status = "cut";
-      task.updatedAt = Date.now();
-      return { ...task };
+    const { project } = caller;
+    const found = this.laneTask(loadLedger(project.state), caller, str(args.task));
+    if (typeof found === "string") return no(found);
+    const { lane, task } = found;
+    if (task.status === "merged") return no(`${task.id} is already accepted.`);
+    const updated = await this.setTask(project, task.id, (entry) => {
+      entry.status = "cut";
     });
-    if (typeof result === "string") return no(result);
-    await this.retire(paseo, caller.project, result);
-    this.event(caller.project, { kind: "task.cut", task: result.id, reason: str(args.reason) });
-    return ok(`${result.id} is cut and its Peer archived; ${result.branch ?? "its branch"} stays unmerged.`);
+    if (!updated) return no(`${task.id} is gone.`);
+    await this.archive(paseo, task.peer, true);
+    let undone = "";
+    if (task.kind === "code" && task.mode === "lane" && task.startSha && lane.worktree) {
+      await resetHard(lane.worktree, task.startSha);
+      await git(lane.worktree, ["clean", "-fd"]);
+      undone = ` The lane's working copy is back at ${task.startSha.slice(0, 7)}.`;
+    }
+    if (task.kind === "code" && task.mode === "parallel") await this.releaseSlot(project, task.slot, task.branch);
+    this.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason) });
+    return ok(`${task.id} is cut and its agent stopped.${undone}`);
   }
 
   private async leadAsk(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
@@ -706,18 +864,6 @@ export class Desk {
     return ok(`Asked as ${ask.id}. Keep working on your default where you can; the answer arrives as mail.`);
   }
 
-  private async laneGate(project: Project, lane: Lane): Promise<{ ok: boolean; text: string }> {
-    const config = loadConfig(project.state);
-    if (!config.gate || !lane.worktree) return { ok: true, text: "no gate set" };
-    if (!(await isClean(lane.worktree))) return { ok: false, text: "the lane working copy has uncommitted changes" };
-    const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
-    const result = await runGate(config.gate, lane.worktree, logFile, config.gateTimeoutMinutes * 60_000);
-    this.event(project, { kind: result.ok ? "gate.passed" : "gate.failed", lane: lane.id, seconds: result.seconds });
-    if (result.ok) return { ok: true, text: `${config.gate} passed on the lane branch in ${result.seconds}s` };
-    const reason = result.timedOut ? `timed out after ${config.gateTimeoutMinutes} minutes` : `failed with exit ${result.code}`;
-    return { ok: false, text: `${config.gate} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}` };
-  }
-
   private async report(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
     const summary = str(args.summary);
     if (!summary) return no("report needs a summary.");
@@ -735,18 +881,20 @@ export class Desk {
 
   private async done(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
     const { project } = caller;
-    const task = taskOfPeer(loadLedger(project.state), caller.id);
+    const ledger = loadLedger(project.state);
+    const task = taskOfPeer(ledger, caller.id);
     if (!task) return no("No task is assigned to you.");
-    if (["merged", "cut"].includes(task.status)) return no(`This task is already ${task.status}; there is nothing to hand back.`);
-    const lane = loadLedger(project.state).lanes[task.lane];
+    if (["merged", "cut"].includes(task.status)) return no(`This task is already ${task.status === "merged" ? "accepted" : "cut"}; there is nothing to hand back.`);
+    const lane = ledger.lanes[task.lane];
     const review = task.kind === "review";
     const outcome = review ? str(args.verdict) || "changes" : str(args.outcome) || "complete";
     const commit = review ? undefined : str(args.commit) || (task.worktree ? await headSha(task.worktree) : undefined);
+    const uncommitted = !review && task.worktree ? !(await isPristine(task.worktree)) : false;
     const sections = review
       ? [`Verdict: ${outcome}`, "", str(args.findings) || "No findings given.", "", `Checks: ${str(args.checks) || "not given"}`]
       : [
           `Outcome: ${outcome}`,
-          `Commit: ${commit ?? "none"}`,
+          `Commit: ${commit ?? "none"}${uncommitted ? " (the working copy still has uncommitted changes)" : ""}`,
           "",
           str(args.summary) || "No summary given.",
           "",
@@ -766,7 +914,8 @@ export class Desk {
     const heading = review ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
     await this.post(paseo, lane?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body));
     this.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
-    return ok("Handed back. End your turn now; if anything changes you will get a message.");
+    const reminder = uncommitted ? " Your working copy still has uncommitted changes: commit them before ending your turn." : "";
+    return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
   }
 
   private async peerAsk(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
