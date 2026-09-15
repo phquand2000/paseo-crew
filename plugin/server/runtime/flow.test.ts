@@ -9,11 +9,11 @@ import { fileURLToPath } from "node:url";
 const HOME = mkdtempSync(join(tmpdir(), "sw2-flow-home-"));
 process.env.HOME = HOME;
 
-const { loadKit } = await import("./kit.ts");
-const { loadLedger } = await import("./ledger.ts");
-const { projectOf } = await import("./project.ts");
+const { loadKit } = await import("../catalog/kit.ts");
+const { loadLedger } = await import("../desk/ledger.ts");
+const { projectOf } = await import("../desk/project.ts");
 const { Runtime } = await import("./runtime.ts");
-const { firstOverlap, serialHits, SERIAL_ONLY } = await import("./scope.ts");
+const { firstOverlap, serialHits, SERIAL_ONLY } = await import("../core/scope.ts");
 
 type Fake = { id: string; provider: string; cwd: string; title: string; status: string; archivedAt: string | null; updatedAt: string; sent: string[]; prompt?: string };
 
@@ -78,7 +78,7 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
   return { root, git };
 }
 
-const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), ".."));
+const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 
 const ideCalls: { kind: "open" | "sync"; path: string }[] = [];
 const ide = {

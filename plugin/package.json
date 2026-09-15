@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test server/*.test.ts",
+    "test": "node --test 'server/**/*.test.ts'",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {

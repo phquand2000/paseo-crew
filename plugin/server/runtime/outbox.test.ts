@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
 import { Outbox, type PaseoApi } from "./outbox.ts";
-import { tempDir } from "./testkit.ts";
+import { tempDir } from "../catalog/testkit.ts";
 
 type FakeAgent = { status: string; pendingPermissions: unknown[]; archivedAt: string | null; sent: string[] };
 

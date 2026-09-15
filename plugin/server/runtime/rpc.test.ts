@@ -9,7 +9,7 @@ process.env.HOME = HOME;
 
 const { Runtime } = await import("./runtime.ts");
 const { registerRpc } = await import("./rpc.ts");
-const { makeKit } = await import("./testkit.ts");
+const { makeKit } = await import("../catalog/testkit.ts");
 
 function served() {
   const kit = makeKit();

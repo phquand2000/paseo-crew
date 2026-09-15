@@ -4,7 +4,7 @@ import { realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { clearProjects, gitRoot, projectOf, slugFor } from "./project.ts";
-import { tempDir } from "./testkit.ts";
+import { tempDir } from "../catalog/testkit.ts";
 
 test("a slug is stable and readable", () => {
   assert.equal(slugFor("/Users/me/project/OMS"), slugFor("/Users/me/project/OMS"));

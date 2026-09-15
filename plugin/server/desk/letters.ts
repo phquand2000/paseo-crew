@@ -1,4 +1,4 @@
-import type { Counts } from "./git.ts";
+import type { Counts } from "../core/git.ts";
 import type { Ask, Lane, Task } from "./ledger.ts";
 
 const list = (items: string[] | undefined, empty = "none") => (items && items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : empty);

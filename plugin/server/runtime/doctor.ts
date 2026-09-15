@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
-import type { Kit } from "./kit.ts";
-import { type Team, proxyUrl } from "./team.ts";
+import type { Kit } from "../catalog/kit.ts";
+import { type Team, proxyUrl } from "../catalog/team.ts";
 
 export type Check = { id: string; ok: boolean; detail: string };
 

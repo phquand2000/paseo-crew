@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Check } from "./doctor.ts";
-import type { ReadResult, WriteResult } from "./settings.ts";
+import type { ReadResult, WriteResult } from "../catalog/settings.ts";
 
 const project = z.string().min(1).optional();
 

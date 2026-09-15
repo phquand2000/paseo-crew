@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type Probes, doctor } from "./doctor.ts";
-import { resolveTeam } from "./team.ts";
-import { makeKit } from "./testkit.ts";
+import { resolveTeam } from "../catalog/team.ts";
+import { makeKit } from "../catalog/testkit.ts";
 
 const kit = makeKit();
 

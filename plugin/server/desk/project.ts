@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { stateRoot } from "./paths.ts";
-import { SERIAL_ONLY } from "./scope.ts";
-import { readJson, writeJson } from "./store.ts";
+import { stateRoot } from "../core/paths.ts";
+import { SERIAL_ONLY } from "../core/scope.ts";
+import { readJson, writeJson } from "../core/store.ts";
 
 export type Project = { root: string; slug: string; state: string };
 

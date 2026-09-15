@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { ideClient } from "./ide.ts";
 
-const PROXY = join(dirname(fileURLToPath(import.meta.url)), "..", "mcp", "code.mjs");
+const PROXY = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "code.mjs");
 
 type Call = { name: string; args: Record<string, unknown> };
 

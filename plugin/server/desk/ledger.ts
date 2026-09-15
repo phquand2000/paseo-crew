@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { readJson, writeJson } from "./store.ts";
+import { readJson, writeJson } from "../core/store.ts";
 
 export type LaneStatus = "open" | "closed";
 export type TaskStatus = "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";

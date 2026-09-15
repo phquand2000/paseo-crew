@@ -2,8 +2,8 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSy
 import { dirname, join } from "node:path";
 import { renderPrompt, renderText, skillSources } from "./content.ts";
 import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
-import { expandHome, guidesDir, home } from "./paths.ts";
-import { readJson, sameJson } from "./store.ts";
+import { expandHome, guidesDir, home } from "../core/paths.ts";
+import { readJson, sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
 
 type Json = Record<string, unknown>;

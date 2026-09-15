@@ -10,7 +10,7 @@ import { materialize, seatDir, seedRecords } from "./seats.ts";
 import { resolveTeam, serversFor } from "./team.ts";
 import { tempDir } from "./testkit.ts";
 
-const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 test("the shipped kit resolves to a complete team, and every role's seat builds with no hidden word in it", () => {
   const kit = loadKit(pluginRoot);

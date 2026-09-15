@@ -1,5 +1,5 @@
 import type { PluginHookContext } from "@getpaseo/plugin/server";
-import { readJson, writeJson } from "./store.ts";
+import { readJson, writeJson } from "../core/store.ts";
 
 export type PaseoApi = PluginHookContext["paseo"];
 

@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, paseoToolsPolicy, providerId, seatRoles, supportsRole } from "./kit.ts";
-import { paseoConfigPath } from "./paths.ts";
-import { sameJson } from "./store.ts";
+import { paseoConfigPath } from "../core/paths.ts";
+import { sameJson } from "../core/store.ts";
 import type { Team } from "./team.ts";
 
 type Json = Record<string, any>;

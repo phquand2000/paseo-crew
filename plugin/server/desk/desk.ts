@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { runGate } from "./gate.ts";
+import { runGate } from "../core/gate.ts";
 import {
   addWorktree,
   branchExists,
@@ -15,11 +15,11 @@ import {
   mergeBranch,
   outsideOwned,
   resetHard,
-} from "./git.ts";
-import { type Ide, excludeIdeFiles } from "./ide.ts";
+} from "../core/git.ts";
+import { type Ide, excludeIdeFiles } from "../runtime/ide.ts";
 import { fetchIssue, type Issue } from "./issue.ts";
-import { type Kit, type RoleSpec, type TeamRole, providerId, roleWithTeam, seatOf } from "./kit.ts";
-import type { Team } from "./team.ts";
+import { type Kit, type RoleSpec, type TeamRole, providerId, roleWithTeam, seatOf } from "../catalog/kit.ts";
+import type { Team } from "../catalog/team.ts";
 import {
   type Ask,
   type AskKind,
@@ -41,11 +41,11 @@ import {
   taskOfPeer,
 } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
-import type { Outbox, PaseoApi } from "./outbox.ts";
-import { worktreeRoot } from "./paths.ts";
+import type { Outbox, PaseoApi } from "../runtime/outbox.ts";
+import { worktreeRoot } from "../core/paths.ts";
 import { type Project, detectGate, loadConfig, projectOf, saveConfig } from "./project.ts";
-import { firstOverlap, serialHits } from "./scope.ts";
-import type { ToolReply, ToolRequest } from "./spool.ts";
+import { firstOverlap, serialHits } from "../core/scope.ts";
+import type { ToolReply, ToolRequest } from "../runtime/spool.ts";
 import { type SeatView, statusText } from "./status.ts";
 
 type Args = Record<string, unknown>;

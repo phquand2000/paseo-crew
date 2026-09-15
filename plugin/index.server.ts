@@ -1,7 +1,7 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
-import { loadKit } from "./server/kit.ts";
-import { PLUGIN_ID, pluginDir } from "./server/paths.ts";
-import { Runtime } from "./server/runtime.ts";
+import { loadKit } from "./server/catalog/kit.ts";
+import { PLUGIN_ID, pluginDir } from "./server/core/paths.ts";
+import { Runtime } from "./server/runtime/runtime.ts";
 
 export default function contribute(server: PluginServerContext) {
   const dir = pluginDir();

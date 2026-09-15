@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
-import { readJson, sortKeys, writeJson } from "./store.ts";
+import { readJson, sortKeys, writeJson } from "../core/store.ts";
 
 const Scalar = z.union([z.string(), z.number(), z.boolean()]);
 
