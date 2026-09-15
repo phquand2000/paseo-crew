@@ -99,7 +99,7 @@ const work = (calls: Call[]) => calls.filter((call) => !["ide_sync_files", "ide_
 
 test("the IDE server carries the navigation rule, lists only the role's tools and hides the project argument", async () => {
   const ide = await fakeIde({ openEnabled: true });
-  const code = proxy(repo(), { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(repo(), { name: "intellij-index", instructions: "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.", ide: ide.url, semble: [], tools: ["ide_find_references"] });
   try {
     const started = await code.rpc("initialize", { protocolVersion: "2025-06-18" });
     assert.equal(started.result.serverInfo.name, "intellij-index");

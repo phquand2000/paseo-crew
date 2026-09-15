@@ -16,8 +16,8 @@ records, mail waits until the recipient's turn ends, and silence is detected. Se
 
 ## Install
 
-You need Paseo 0.8, Node 22 or later, git, and the coding agents `plugin/roles.json` names (Claude
-Code for Supervisor and Lead, Devin CLI for Peer, Reviewer and Watcher by default), logged in.
+You need Paseo 0.8, Node 22 or later, git, jq, and the coding agents your settings choose (by default
+Claude Code for the Supervisor and Lead, Devin CLI for the Peer, Reviewer and Watcher), logged in.
 
 ```bash
 cd plugin && npm install && npm run check
@@ -27,19 +27,63 @@ cd plugin && npm install && npm run check
 paseo plugin install ./plugin
 ```
 
-The plugin writes one Paseo provider and profile per role (`sw2-supervisor`, `sw2-lead`, `sw2-peer`,
-`sw2-reviewer`) and builds each role's seat directory. After editing server code, run
-`paseo plugin reload seatworks-v2`.
+The plugin writes one Paseo provider and profile for each role on each harness that has settings for
+it (`sw2-supervisor-claude`, `sw2-lead-claude`, `sw2-peer-devin`, `sw2-reviewer-devin`) and builds
+each role's seat directory per project the first time an agent of that role starts there. After
+editing server code, run `paseo plugin reload seatworks-v2`.
+
+The same plugin runs on any machine: nothing in it names a path, port or login of this one. Choices
+that differ per machine or per project live in settings, not in the plugin.
 
 ## Use
 
-Start an agent from the `sw2-supervisor` profile in your repository and tell it what you want. Project
-state (ledger, status, hand-backs, gate logs, notebook) lives in
+Start an agent from the `sw2-supervisor-claude` profile in your repository and tell it what you
+want. Project state (ledger, status, hand-backs, gate logs, notebook, project settings) lives in
 `~/.local/share/seatworks-v2/projects/<repo>-<hash>/`, never in your repository; `status.md` there is
 the one-screen view. Lanes land on your base branch when the Supervisor closes them; pushing is yours.
 
-## Change a role's coding agent
+## Settings
 
-Set the role's `harness` in `plugin/roles.json` to another directory under `plugin/harness/`, make
-sure the role lists models for it under `byHarness`, and reload the plugin. Prompts and skills stay
-as they are.
+Settings come in two layers over the catalog defaults: the machine layer in
+`~/.local/share/seatworks-v2/settings.json`, and a project layer in each project's state directory.
+A project value overrides the machine value, which overrides the catalog.
+
+```json
+{
+  "roles": { "peer": { "harness": "devin", "model": "swe-2-max" } },
+  "mcp": { "context7": { "enabled": false }, "intellij-index": { "settings": { "port": 29170 } } },
+  "limits": { "slots": 3 },
+  "rules": "Use pnpm."
+}
+```
+
+- `roles.<role>`: the harness, model and thinking option. The harness needs settings for that role
+  under `plugin/harness/<id>/settings/`.
+- `mcp.<id>`: turn a catalog server on or off, narrow the roles that get it, or set its settings.
+  Turning one on also adds its rule to the seats' `CLAUDE.md` or `AGENTS.md` and links its skills.
+- `limits`, `attention` (machine only) and `rules`, free text appended to every seat's rules.
+
+A web app manages them through the plugin's RPC, called with the Paseo client's
+`invokePluginRpc("seatworks-v2", method, input)`:
+
+| Method | Input | Returns |
+|---|---|---|
+| `seatworks.catalog.read` | | roles, harnesses with models, MCP servers with their settings |
+| `seatworks.projects.list` | | projects seen on this machine |
+| `seatworks.settings.read` | `project?` | `ready` with `revision` and `values`, or `invalid` |
+| `seatworks.settings.write` | `project?`, `revision`, `values` | `saved`, `conflict` or `invalid` with the reason |
+| `seatworks.settings.reset` | `project?`, `revision` | as write |
+| `seatworks.team.read` | `project?` | each role's harness, provider, model, servers, tools, skills and rules, plus errors |
+| `seatworks.doctor.run` | `project?` | checks: agents, jq, git, IDE tools, reachable servers |
+| `seatworks.status.read` | `project` | the project's status text |
+
+A write that leaves a role without a working harness, model or server is refused with the reason.
+New agents pick changes up; running agents keep what they started with.
+
+## Add a harness or an MCP server
+
+- **Harness:** a directory under `plugin/harness/<id>/` with `harness.json` (how it takes a prompt,
+  rules, skills and MCP servers, its models and launcher) and `settings/<role>.settings.json` for
+  each role it can run.
+- **MCP server:** a directory under `plugin/catalog/mcp/<id>/` with `mcp.json`, an optional
+  `rule.md` and `skills/`. It shows up in the catalog and can be turned on from settings.

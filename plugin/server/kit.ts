@@ -5,22 +5,20 @@ export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
 export type ModelSpec = { id: string; label: string; isDefault?: boolean; thinkingOptions?: ThinkingSpec[] };
 export type McpServers = Record<string, unknown>;
 export type TeamRole = "supervisor" | "lead" | "peer" | "reviewer";
+export type McpTransport = "stdio" | "http";
 
 export type RoleSpec = {
   role: string;
   label: string;
   description?: string;
-  harness: string;
   team?: TeamRole;
   headless?: boolean;
-  byHarness: Record<string, { models?: ModelSpec[]; thinking?: string }>;
+  entry?: boolean;
+  defaults: { harness: string; model?: string; thinking?: string };
   prompt: string;
   skills: string | null;
   extraSkills?: string[];
-  extraMcpServers?: McpServers;
-  codeTools?: string[];
   paseoTools?: { enabled?: boolean; disabledTools?: string[]; allow?: string[] };
-  entry?: boolean;
   hidesWords?: string[];
 };
 
@@ -38,9 +36,35 @@ export type HarnessSpec = {
   stateAccess?: "sandboxAllowWrite";
   settings: { mode: "link" | "merge"; file: string; source: string; roleSource?: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
-  state?: { file: string; seed?: string };
+  models?: ModelSpec[];
+  mcp: { file: string; delivery: "launch" | "file"; seed?: string; isolateProjects?: boolean; needsListing?: boolean; transports: McpTransport[] };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[] };
   headless?: string[];
+  versionCommand?: string;
+};
+
+export type McpSetting = { type: "number" | "string" | "boolean"; label: string; default?: string | number | boolean };
+
+export type McpEntry = {
+  id: string;
+  label: string;
+  description?: string;
+  order?: number;
+  dir: string;
+  kind: "proxy" | "server";
+  proxy?: "intellij" | "semble";
+  url?: string;
+  command?: string[];
+  instructions?: string;
+  server?: Record<string, unknown> & { type: McpTransport };
+  settings: Record<string, McpSetting>;
+  defaults: { enabled: boolean };
+  tools?: Record<string, string[]>;
+  roles?: string[];
+  internalTools?: string[];
+  rule?: string;
+  roleNotes?: Record<string, string>;
+  skills?: string[];
 };
 
 export type Attention = {
@@ -54,60 +78,82 @@ export type Attention = {
 
 export type Limits = { slots: number; tasksPerLane: number };
 
-export type CodeConfig = { ide?: string; semble?: string[] };
-
 export type Kit = {
   dir: string;
   prefix: string;
   roles: RoleSpec[];
   harnesses: Record<string, HarnessSpec>;
-  mcpServers: McpServers;
+  mcp: Record<string, McpEntry>;
   attention: Attention;
   limits: Limits;
-  code: CodeConfig;
-  rules?: string;
 };
 
 const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watcherDebounceSeconds: 45, watcherTimeoutSeconds: 180 };
 const LIMITS: Limits = { slots: 3, tasksPerLane: 4 };
 
+function subdirs(root: string): string[] {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+}
+
+function loadMcp(dir: string): Record<string, McpEntry> {
+  const root = join(dir, "catalog", "mcp");
+  const entries: Record<string, McpEntry> = {};
+  for (const id of subdirs(root)) {
+    const file = join(root, id, "mcp.json");
+    if (!existsSync(file)) continue;
+    const raw = JSON.parse(readFileSync(file, "utf-8")) as Omit<McpEntry, "dir">;
+    if (raw.id !== id) throw new Error(`catalog/mcp/${id}/mcp.json names itself ${raw.id}`);
+    if (raw.kind === "proxy" && raw.proxy !== "intellij" && raw.proxy !== "semble") throw new Error(`MCP ${id} is a proxy with no known proxy kind`);
+    if (raw.kind === "server" && !raw.server?.type) throw new Error(`MCP ${id} is a server with no transport type`);
+    if (raw.rule && !existsSync(join(root, id, raw.rule))) throw new Error(`MCP ${id} names rule ${raw.rule}, which is missing`);
+    for (const skill of raw.skills ?? []) {
+      if (!existsSync(join(root, id, "skills", skill, "SKILL.md"))) throw new Error(`MCP ${id} names skill ${skill}, but its SKILL.md is missing`);
+    }
+    entries[id] = { ...raw, settings: raw.settings ?? {}, defaults: { enabled: raw.defaults?.enabled ?? false }, dir: join(root, id) };
+  }
+  return entries;
+}
+
 export function loadKit(dir: string): Kit {
   const raw = JSON.parse(readFileSync(join(dir, "roles.json"), "utf-8"));
   const harnesses: Record<string, HarnessSpec> = {};
-  const harnessRoot = join(dir, "harness");
-  for (const id of readdirSync(harnessRoot)) {
-    const file = join(harnessRoot, id, "harness.json");
+  for (const id of subdirs(join(dir, "harness"))) {
+    const file = join(dir, "harness", id, "harness.json");
     if (existsSync(file)) harnesses[id] = JSON.parse(readFileSync(file, "utf-8")) as HarnessSpec;
   }
-  const roles = (raw.roles ?? raw.seats ?? []) as RoleSpec[];
+  const roles = (raw.roles ?? []) as RoleSpec[];
   for (const role of roles) {
-    if (!harnesses[role.harness]) {
-      throw new Error(`role ${role.role} runs on harness ${role.harness}, which has no harness/${role.harness}/harness.json`);
-    }
+    if (!role.defaults?.harness) throw new Error(`role ${role.role} has no default harness`);
+    if (!harnesses[role.defaults.harness]) throw new Error(`role ${role.role} defaults to harness ${role.defaults.harness}, which has no harness/${role.defaults.harness}/harness.json`);
   }
   return {
     dir,
     prefix: typeof raw.providerPrefix === "string" ? raw.providerPrefix : "",
     roles,
     harnesses,
-    mcpServers: (raw.mcpServers ?? {}) as McpServers,
+    mcp: loadMcp(dir),
     attention: { ...ATTENTION, ...(raw.attention ?? {}) },
     limits: { ...LIMITS, ...(raw.limits ?? {}) },
-    code: (raw.code ?? {}) as CodeConfig,
-    rules: typeof raw.rules === "string" ? raw.rules : undefined,
   };
 }
 
-export function providerId(kit: Kit, role: string): string {
-  return `${kit.prefix}${role}`;
+export function providerId(kit: Kit, role: string, harness: string): string {
+  return `${kit.prefix}${role}-${harness}`;
 }
 
-export function roleOf(kit: Kit, provider: string | null | undefined): RoleSpec | undefined {
+export function seatOf(kit: Kit, provider: string | null | undefined): { role: RoleSpec; harness: HarnessSpec } | undefined {
   if (!provider) return undefined;
   const id = provider.split("/")[0] ?? "";
   if (!id.startsWith(kit.prefix)) return undefined;
-  const name = id.slice(kit.prefix.length);
-  return kit.roles.find((role) => role.role === name && !role.headless);
+  for (const role of seatRoles(kit)) {
+    for (const harness of Object.values(kit.harnesses)) {
+      if (id === providerId(kit, role.role, harness.id)) return { role, harness };
+    }
+  }
+  return undefined;
 }
 
 export function roleNamed(kit: Kit, name: string): RoleSpec | undefined {
@@ -118,26 +164,8 @@ export function seatRoles(kit: Kit): RoleSpec[] {
   return kit.roles.filter((role) => !role.headless);
 }
 
-export function harnessOf(kit: Kit, role: RoleSpec): HarnessSpec {
-  const harness = kit.harnesses[role.harness];
-  if (!harness) throw new Error(`role ${role.role} runs on unknown harness ${role.harness}`);
-  return harness;
-}
-
-export function modelsOf(role: RoleSpec): ModelSpec[] {
-  return role.byHarness[role.harness]?.models ?? [];
-}
-
-function pickDefault<T extends { isDefault?: boolean }>(list: T[]): T | undefined {
-  return list.find((item) => item.isDefault) ?? list[0];
-}
-
-export function defaultModel(role: RoleSpec): ModelSpec | undefined {
-  return pickDefault(modelsOf(role));
-}
-
-export function defaultThinking(role: RoleSpec, model: ModelSpec | undefined): string | undefined {
-  return pickDefault(model?.thinkingOptions ?? [])?.id ?? role.byHarness[role.harness]?.thinking;
+export function headlessRole(kit: Kit): RoleSpec | undefined {
+  return kit.roles.find((role) => role.headless);
 }
 
 export function entryRole(kit: Kit): RoleSpec | undefined {
@@ -146,6 +174,15 @@ export function entryRole(kit: Kit): RoleSpec | undefined {
 
 export function roleWithTeam(kit: Kit, team: TeamRole): RoleSpec | undefined {
   return kit.roles.find((role) => role.team === team);
+}
+
+export function roleSettingsFile(kit: Kit, harness: HarnessSpec, role: RoleSpec): string {
+  const template = harness.settings.roleSource ?? harness.settings.source;
+  return join(kit.dir, "harness", harness.id, template.replace("ROLE", role.role));
+}
+
+export function supportsRole(kit: Kit, harness: HarnessSpec, role: RoleSpec): boolean {
+  return existsSync(roleSettingsFile(kit, harness, role));
 }
 
 export const PASEO_TOOLS = [
@@ -169,21 +206,4 @@ export function paseoToolsPolicy(role: RoleSpec): { enabled?: boolean; disabledT
 export function teamServer(kit: Kit, role: RoleSpec, spool: string, node: string): McpServers {
   if (!role.team) return {};
   return { team: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "team.mjs"), role.team, spool] } };
-}
-
-export function codeServer(kit: Kit, role: RoleSpec, node: string): McpServers {
-  const tools = role.codeTools ?? [];
-  const servers: McpServers = {};
-  const add = (name: string, list: string[]) => {
-    if (list.length === 0) return;
-    const config = JSON.stringify({ name, ide: kit.code.ide ?? "", semble: kit.code.semble ?? [], tools: list });
-    servers[name] = { type: "stdio", command: node, args: [join(kit.dir, "mcp", "code.mjs"), config] };
-  };
-  add("intellij-index", tools.filter((tool) => tool.startsWith("ide_")));
-  add("code-search", tools.filter((tool) => !tool.startsWith("ide_")));
-  return servers;
-}
-
-export function mcpServersFor(kit: Kit, role: RoleSpec, team: McpServers = {}): McpServers {
-  return { ...kit.mcpServers, ...(role.extraMcpServers ?? {}), ...team };
 }

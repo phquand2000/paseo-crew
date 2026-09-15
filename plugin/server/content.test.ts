@@ -5,11 +5,10 @@ import { test } from "node:test";
 import { renderPrompt } from "./content.ts";
 import { makeKit } from "./testkit.ts";
 
-test("a profile placeholder renders as the role's provider id", () => {
+test("guides and state placeholders render into the prompt", () => {
   const kit = makeKit();
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  writeFileSync(join(kit.dir, "content/prompts/LEAD.md"), "Peers come from the `{{profile:peer}}` profile.\n");
-  assert.equal(renderPrompt(kit, lead, { guides: "/g", state: "/s" }), "Peers come from the `sw2-peer` profile.\n");
+  const supervisor = kit.roles.find((role) => role.role === "supervisor")!;
+  assert.equal(renderPrompt(kit, supervisor, { guides: "/g", state: "/s" }), "# Supervisor\n\nGuides live in /g; state in /s.\n");
 });
 
 test("a placeholder the renderer does not know is refused rather than shipped", () => {
@@ -17,11 +16,4 @@ test("a placeholder the renderer does not know is refused rather than shipped", 
   const lead = kit.roles.find((role) => role.role === "lead")!;
   writeFileSync(join(kit.dir, "content/prompts/LEAD.md"), "Read {{notes}} first.\n");
   assert.throws(() => renderPrompt(kit, lead, { guides: "/g", state: "/s" }), /placeholder \{\{notes\}\}/);
-});
-
-test("a profile placeholder for an unknown role is refused", () => {
-  const kit = makeKit();
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  writeFileSync(join(kit.dir, "content/prompts/LEAD.md"), "Start a `{{profile:scout}}`.\n");
-  assert.throws(() => renderPrompt(kit, lead, { guides: "/g", state: "/s" }), /unknown role scout/);
 });

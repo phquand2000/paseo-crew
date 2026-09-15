@@ -1,51 +1,71 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { desiredProfile, desiredProvider, reconcile } from "./providers.ts";
+import { desiredProfile, desiredProvider, reconcile, seatPairs } from "./providers.ts";
+import { resolveTeam } from "./team.ts";
 import { makeKit } from "./testkit.ts";
 
 const kit = makeKit();
+const team = resolveTeam(kit);
+const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
 
-test("a role provider carries its harness base, launcher, env, models and tool limits", () => {
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  const entry = desiredProvider(kit, lead);
+test("every role gets a provider on each harness that has settings for it", () => {
+  assert.deepEqual(
+    seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(),
+    ["lead-claude", "lead-devin", "peer-devin", "supervisor-claude"],
+  );
+});
+
+test("a role provider carries its harness base, launcher, env, models with the chosen defaults, and tool limits", () => {
+  const entry = desiredProvider(kit, team, role("lead"), kit.harnesses.claude!);
   assert.equal(entry.extends, "claude");
+  assert.equal(entry.label, "Lead · Claude Code (sw2)");
   assert.deepEqual(entry.command, [`${kit.dir}/bin/seat-room`]);
   assert.equal(entry.env.SEATWORKS_ROLE, "lead");
   assert.equal(entry.env.SEATWORKS_KIT, kit.dir);
-  assert.equal(entry.models.length, 2);
-  const peer = kit.roles.find((role) => role.role === "peer")!;
-  assert.deepEqual(desiredProvider(kit, peer).paseoTools, { enabled: false });
-  assert.deepEqual(desiredProfile(kit, peer), { id: "sw2-peer", name: "Peer (sw2)", provider: "sw2-peer", model: "swe", modeId: "bypass" });
-  assert.equal(desiredProvider(kit, peer).label, "Peer (sw2)");
+  assert.deepEqual(entry.models[0], { id: "opus", label: "Opus", isDefault: true, thinkingOptions: [{ id: "medium", label: "M", isDefault: true }, { id: "high", label: "H", isDefault: false }] });
+  assert.equal(entry.models[1].isDefault, false);
+  const chosen = desiredProvider(kit, resolveTeam(kit, { roles: { lead: { thinking: "high" } } }), role("lead"), kit.harnesses.claude!);
+  assert.equal(chosen.models[0].thinkingOptions[1].isDefault, true);
+  assert.deepEqual(desiredProvider(kit, team, role("peer"), kit.harnesses.devin!).paseoTools, { enabled: false });
+  assert.deepEqual(desiredProfile(kit, team, role("peer"), kit.harnesses.devin!), { id: "sw2-peer-devin", name: "Peer · Devin CLI (sw2)", provider: "sw2-peer-devin", model: "swe", modeId: "bypass" });
 });
 
 test("reconcile adds the role providers and profiles and is idempotent", () => {
   const config = { agents: { providers: { claude: { env: { TOKEN: "keep" } } } }, daemon: { agentProfiles: [{ id: "mine", provider: "claude" }] } };
-  const first = reconcile(config, kit);
+  const first = reconcile(config, kit, team);
   assert.deepEqual(first.changed.sort(), [
-    "profile sw2-lead",
-    "profile sw2-peer",
-    "profile sw2-supervisor",
-    "provider sw2-lead",
-    "provider sw2-peer",
-    "provider sw2-supervisor",
+    "profile sw2-lead-claude",
+    "profile sw2-lead-devin",
+    "profile sw2-peer-devin",
+    "profile sw2-supervisor-claude",
+    "provider sw2-lead-claude",
+    "provider sw2-lead-devin",
+    "provider sw2-peer-devin",
+    "provider sw2-supervisor-claude",
   ]);
   assert.equal(first.config.agents.providers.claude.env.TOKEN, "keep");
   assert.equal(first.config.daemon.agentProfiles[0].id, "mine");
-  assert.deepEqual(reconcile(first.config, kit).changed, []);
+  assert.deepEqual(reconcile(first.config, kit, team).changed, []);
 });
 
-test("reconcile keeps a user's own env keys and drops keys from another harness", () => {
+test("reconcile removes providers the kit no longer defines and keeps a user's own env keys", () => {
   const config = {
     agents: {
       providers: {
-        "sw2-peer": { extends: "claude", env: { MY_KEY: "x", CLAUDE_CODE_DISABLE_CRON: "1", CLAUDE_CONFIG_DIR: "/old", SEATWORKS_SLUG: "old" }, description: "stale" },
+        "sw2-peer": { extends: "acp" },
+        "sw2-peer-devin": { extends: "claude", env: { MY_KEY: "x", CLAUDE_CODE_DISABLE_CRON: "1", CLAUDE_CONFIG_DIR: "/old", SEATWORKS_SLUG: "old" }, description: "stale" },
+        peer: { extends: "acp" },
       },
     },
+    daemon: { agentProfiles: [{ id: "sw2-peer", provider: "sw2-peer" }] },
   };
-  const { config: next } = reconcile(config, kit);
-  const peer = next.agents.providers["sw2-peer"];
+  const { config: next, changed } = reconcile(config, kit, team);
+  assert.ok(changed.includes("provider sw2-peer removed"));
+  assert.ok(changed.includes("profile sw2-peer removed"));
+  assert.equal("sw2-peer" in next.agents.providers, false);
+  assert.ok("peer" in next.agents.providers);
+  const peer = next.agents.providers["sw2-peer-devin"];
   assert.equal(peer.extends, "acp");
-  assert.deepEqual(Object.keys(peer.env).sort(), ["MY_KEY", "SEATWORKS_HARNESS", "SEATWORKS_KIT", "SEATWORKS_ROLE"]);
+  assert.deepEqual(Object.keys(peer.env).sort(), ["MY_KEY", "SEATWORKS_AGENT_BIN", "SEATWORKS_HARNESS", "SEATWORKS_KIT", "SEATWORKS_ROLE"]);
   assert.equal("description" in peer, false);
 });

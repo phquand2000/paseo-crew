@@ -56,8 +56,9 @@ the effort spent on docs and tests. The design moves all of that into code.
 ```
 plugin/
   index.server.ts        wires Runtime
-  roles.json             roles: harness, models, prompt, skills, tools, limits
-  harness/<id>/          harness manifest, settings, NOTES.md
+  roles.json             roles: default harness and model, prompt, skills, limits
+  harness/<id>/          harness manifest (models, delivery), role settings, NOTES.md
+  catalog/mcp/<id>/      MCP servers settings can enable: mcp.json, rule.md, skills/
   content/prompts/       one prompt per role
   content/guides/        guides a role reads on demand
   content/skills/<set>/  skills linked into seats
@@ -83,7 +84,7 @@ projects/<slug>/
 
 ## Flow
 
-1. The Human talks to a Supervisor started from the `sw2-supervisor` profile.
+1. The Human talks to a Supervisor started from the `sw2-supervisor-claude` profile.
 2. `open_lane` creates the lane branch and worktree and starts a Lead there with the directive.
 3. The Lead reads, usually gives the whole lane to one task, and calls `start_task`: the plugin
    creates the task branch and worktree and starts a Peer with a brief built from the call. A second
@@ -97,8 +98,23 @@ projects/<slug>/
    `close_lane` reruns the gate, lands the lane on the base branch by fast-forward or merge when
    asked, and archives the lane's seats.
 
-## Switching a role's provider
+## Settings, catalog and harness adapters
 
-A role names its `harness` in `roles.json` and keeps its models per harness under `byHarness`.
-Moving a role is that one line; the plugin rewrites the Paseo provider and profile and rebuilds the
-seat directory on load. A new harness is a directory under `harness/` with a manifest.
+Nothing machine- or project-specific lives in the plugin. The plugin holds a catalog (roles,
+harness adapters, MCP servers) and code that knows none of their names; settings choose from the
+catalog in two layers, machine then project, each validated before it is saved.
+
+- A harness adapter says how that agent takes a prompt (launch config or a file), where its rules go
+  (`CLAUDE.md`, the end of `AGENTS.md`), where skills link, how MCP servers reach it (launch config
+  or a JSON file) and over which transports, whether it must list a server's tools before calling,
+  its models and its headless command. Moving a role to another harness is a setting; adding a
+  harness is a directory.
+- An MCP entry says what the server is (a proxied IDE or search backend, or a plain stdio/http
+  server), its settings with defaults, which roles it serves and with which tools, its rule and its
+  skills. Rules and tool lists are generated per seat from the enabled entries, so role prompts
+  never name a tool that may be switched off.
+- Every role gets a provider per harness that has settings for it (`sw2-<role>-<harness>`), so one
+  project's Lead can run on Devin while another's runs on Claude. Seat directories are per role,
+  harness and project, because rules and servers can differ per project.
+- The plugin serves the catalog, both settings layers, the resolved team, doctor checks and status
+  over RPC, so a web app manages it without touching files.

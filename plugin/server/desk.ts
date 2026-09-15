@@ -18,7 +18,8 @@ import {
 } from "./git.ts";
 import { type Ide, excludeIdeFiles } from "./ide.ts";
 import { fetchIssue, type Issue } from "./issue.ts";
-import { type Kit, type RoleSpec, type TeamRole, defaultModel, defaultThinking, harnessOf, providerId, roleOf, roleWithTeam } from "./kit.ts";
+import { type Kit, type RoleSpec, type TeamRole, providerId, roleWithTeam, seatOf } from "./kit.ts";
+import type { Team } from "./team.ts";
 import {
   type Ask,
   type AskKind,
@@ -69,13 +70,15 @@ export class Desk {
   private readonly logLine: (project: Project, line: string) => void;
   private readonly locks = new Map<string, Promise<unknown>>();
   private readonly merges = new Map<string, Promise<unknown>>();
-  private readonly ide: Ide | null;
+  private readonly teamFor: (project?: Project) => Team;
+  private readonly ideFor: (project: Project) => Ide | null;
 
-  constructor(kit: Kit, outbox: Outbox, log: (project: Project, line: string) => void, ide: Ide | null = null) {
+  constructor(kit: Kit, outbox: Outbox, log: (project: Project, line: string) => void, teamFor: (project?: Project) => Team, ideFor: (project: Project) => Ide | null = () => null) {
     this.kit = kit;
     this.outbox = outbox;
     this.logLine = log;
-    this.ide = ide;
+    this.teamFor = teamFor;
+    this.ideFor = ideFor;
   }
 
   ledger<T>(project: Project, change: (ledger: Ledger) => T | Promise<T>): Promise<T> {
@@ -120,7 +123,7 @@ export class Desk {
     const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
     const found = entries
       .map((entry) => entry.agent as unknown as SeatView)
-      .filter((seat) => !seat.archivedAt && roleOf(this.kit, seat.provider)?.team === "supervisor" && projectOf(seat.cwd).slug === project.slug)
+      .filter((seat) => !seat.archivedAt && seatOf(this.kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug)
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
     return found[0]?.id ?? preferred;
   }
@@ -168,13 +171,13 @@ export class Desk {
         return { ...free };
       }
       const count = Object.keys(ledger.slots).length;
-      if (count >= this.kit.limits.slots) return undefined;
+      if (count >= this.teamFor(project).limits.slots) return undefined;
       const id = `S${count}`;
       const slot: Slot = { id, path: join(worktreeRoot(), project.slug, id), createdAt: Date.now(), ...holder };
       ledger.slots[id] = slot;
       return { ...slot };
     });
-    if (!picked) throw new Error(`all ${this.kit.limits.slots} working copies of this project are in use`);
+    if (!picked) throw new Error(`all ${this.teamFor(project).limits.slots} working copies of this project are in use`);
     try {
       if (!(await branchExists(project.root, base))) throw new Error(`the base branch ${base} does not exist`);
       if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
@@ -213,7 +216,7 @@ export class Desk {
   }
 
   private indexSlot(project: Project, slot: Slot, reused: boolean): void {
-    const ide = this.ide;
+    const ide = this.ideFor(project);
     if (!ide) return;
     excludeIdeFiles(project.root);
     const work = ide.open(slot.path).then((opened) => (opened.ok && reused ? ide.sync(slot.path) : opened));
@@ -264,7 +267,7 @@ export class Desk {
     const handle = paseo.agents.ref(request.agent);
     await handle.refresh();
     const snapshot = handle.current();
-    const role = roleOf(this.kit, snapshot?.provider);
+    const role = seatOf(this.kit, snapshot?.provider)?.role;
     if (!snapshot || !role?.team) return { error: "This agent is not part of the team." };
     if (role.team !== request.role) return { error: `This agent is a ${role.team}, so ${request.role} tools are not available to it.` };
     return { id: request.agent, role, team: role.team, title: snapshot.title ?? request.agent, project: projectOf(snapshot.cwd ?? request.cwd) };
@@ -322,12 +325,12 @@ export class Desk {
     const role = roleWithTeam(this.kit, team);
     if (!role) throw new Error(`roles.json has no role for ${team}`);
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
-    const harness = harnessOf(this.kit, role);
-    const model = defaultModel(role);
-    const config: Record<string, unknown> = { provider: model ? `${providerId(this.kit, role.role)}/${model.id}` : providerId(this.kit, role.role) };
-    if (harness.provider.profileModeId) config.modeId = harness.provider.profileModeId;
-    const thinking = harness.hasThinking === false ? undefined : defaultThinking(role, model);
-    if (thinking) config.thinkingOptionId = thinking;
+    const seat = this.teamFor(project).roles[role.role];
+    if (!seat) throw new Error(`the team settings leave the ${role.label} without a harness`);
+    const provider = providerId(this.kit, role.role, seat.harness.id);
+    const config: Record<string, unknown> = { provider: seat.model ? `${provider}/${seat.model.id}` : provider };
+    if (seat.harness.provider.profileModeId) config.modeId = seat.harness.provider.profileModeId;
+    if (seat.thinking) config.thinkingOptionId = seat.thinking;
     const handle = await paseo.workspaces.ref(slot.workspaceId).agents.create({
       config: config as never,
       parent: options.parent,
@@ -567,7 +570,7 @@ export class Desk {
     const lane = laneOfLead(ledger, caller.id);
     if (!lane?.slot || !lane.worktree) return no("You have no open lane.");
     const active = activeTasks(ledger, lane.id).filter((task) => task.kind === "code");
-    if (active.length >= this.kit.limits.tasksPerLane) return no(`${this.kit.limits.tasksPerLane} tasks are already active in your lane; accept, cut or wait for one first.`);
+    if (active.length >= this.teamFor(project).limits.tasksPerLane) return no(`${this.teamFor(project).limits.tasksPerLane} tasks are already active in your lane; accept, cut or wait for one first.`);
     if (!parallel) {
       const writer = active.find((task) => task.mode !== "parallel" && WRITING.includes(task.status));
       if (writer) {

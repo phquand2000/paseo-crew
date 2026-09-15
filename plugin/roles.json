@@ -4,16 +4,6 @@
     "slots": 3,
     "tasksPerLane": 4
   },
-  "code": {
-    "ide": "http://127.0.0.1:29170/index-mcp/streamable-http",
-    "semble": [
-      "uvx",
-      "--from",
-      "semble[mcp]==0.5.4",
-      "semble"
-    ]
-  },
-  "rules": "prompts/RULES.md",
   "attention": {
     "tickSeconds": 30,
     "leadIdleMinutes": 12,
@@ -22,54 +12,20 @@
     "watcherDebounceSeconds": 45,
     "watcherTimeoutSeconds": 180
   },
-  "mcpServers": {},
   "roles": [
     {
       "role": "supervisor",
       "label": "Supervisor",
       "description": "Works with the Human, decides everything short of the concept, opens lanes and answers Leads",
+      "defaults": {
+        "harness": "claude",
+        "model": "claude-opus-5",
+        "thinking": "high"
+      },
       "entry": true,
-      "harness": "claude",
       "team": "supervisor",
-      "byHarness": {
-        "claude": {
-          "models": [
-            {
-              "id": "claude-opus-5",
-              "label": "Opus 5",
-              "isDefault": true,
-              "thinkingOptions": [
-                {
-                  "id": "medium",
-                  "label": "Medium"
-                },
-                {
-                  "id": "high",
-                  "label": "High",
-                  "isDefault": true
-                }
-              ]
-            }
-          ]
-        }
-      },
       "prompt": "prompts/SUPERVISOR.md",
-      "codeTools": [
-        "ide_find_symbol",
-        "ide_find_references",
-        "ide_type_hierarchy",
-        "search"
-      ],
-      "extraMcpServers": {
-        "context7": {
-          "type": "http",
-          "url": "https://mcp.context7.com/mcp"
-        }
-      },
       "skills": "supervisor",
-      "extraSkills": [
-        "shared:ide-index-mcp"
-      ],
       "paseoTools": {
         "allow": [
           "get_agent_activity",
@@ -82,52 +38,14 @@
       "role": "lead",
       "label": "Lead",
       "description": "Owns one lane: splits it into tasks, starts Peers, accepts and integrates",
-      "harness": "claude",
+      "defaults": {
+        "harness": "claude",
+        "model": "claude-opus-5",
+        "thinking": "medium"
+      },
       "team": "lead",
-      "byHarness": {
-        "claude": {
-          "models": [
-            {
-              "id": "claude-opus-5",
-              "label": "Opus 5",
-              "isDefault": true,
-              "thinkingOptions": [
-                {
-                  "id": "medium",
-                  "label": "Medium",
-                  "isDefault": true
-                },
-                {
-                  "id": "high",
-                  "label": "High"
-                }
-              ]
-            }
-          ]
-        }
-      },
       "prompt": "prompts/LEAD.md",
-      "codeTools": [
-        "ide_find_symbol",
-        "ide_find_references",
-        "ide_type_hierarchy",
-        "search",
-        "ide_find_file",
-        "ide_search_text",
-        "ide_find_definition",
-        "ide_call_hierarchy",
-        "ide_find_implementations"
-      ],
-      "extraMcpServers": {
-        "context7": {
-          "type": "http",
-          "url": "https://mcp.context7.com/mcp"
-        }
-      },
       "skills": "lead",
-      "extraSkills": [
-        "shared:ide-index-mcp"
-      ],
       "paseoTools": {
         "allow": [
           "get_agent_activity"
@@ -142,48 +60,13 @@
       "role": "peer",
       "label": "Peer",
       "description": "Does one task on its own branch and hands it back",
-      "harness": "devin",
+      "defaults": {
+        "harness": "devin",
+        "model": "swe-2-max"
+      },
       "team": "peer",
-      "byHarness": {
-        "devin": {
-          "models": [
-            {
-              "id": "swe-2-max",
-              "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        }
-      },
       "prompt": "prompts/PEER.md",
-      "codeTools": [
-        "ide_find_symbol",
-        "ide_find_references",
-        "ide_type_hierarchy",
-        "search",
-        "ide_find_file",
-        "ide_search_text",
-        "ide_find_definition",
-        "ide_call_hierarchy",
-        "ide_find_implementations",
-        "ide_symbol_info",
-        "ide_find_super_methods",
-        "ide_diagnostics",
-        "ide_refactor_rename",
-        "ide_move_file",
-        "ide_refactor_safe_delete",
-        "ide_change_signature"
-      ],
-      "extraMcpServers": {
-        "context7": {
-          "type": "http",
-          "url": "https://mcp.context7.com/mcp"
-        }
-      },
       "skills": "peer",
-      "extraSkills": [
-        "shared:ide-index-mcp"
-      ],
       "paseoTools": {
         "enabled": false
       },
@@ -199,46 +82,17 @@
       "role": "reviewer",
       "label": "Reviewer",
       "description": "Read-only Peer that reviews a task branch with clean context",
-      "harness": "devin",
+      "defaults": {
+        "harness": "devin",
+        "model": "swe-2-max"
+      },
       "team": "reviewer",
-      "byHarness": {
-        "devin": {
-          "models": [
-            {
-              "id": "swe-2-max",
-              "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        }
-      },
       "prompt": "prompts/REVIEWER.md",
-      "codeTools": [
-        "ide_find_symbol",
-        "ide_find_references",
-        "ide_type_hierarchy",
-        "search",
-        "ide_find_file",
-        "ide_search_text",
-        "ide_find_definition",
-        "ide_call_hierarchy",
-        "ide_find_implementations",
-        "ide_symbol_info",
-        "ide_find_super_methods",
-        "ide_diagnostics"
-      ],
-      "extraMcpServers": {
-        "context7": {
-          "type": "http",
-          "url": "https://mcp.context7.com/mcp"
-        }
-      },
       "skills": null,
       "extraSkills": [
         "peer:test-proof-debt-audit",
         "peer:security-check",
-        "peer:diagnosing-bugs",
-        "shared:ide-index-mcp"
+        "peer:diagnosing-bugs"
       ],
       "paseoTools": {
         "enabled": false
@@ -255,19 +109,11 @@
       "role": "watcher",
       "label": "Watcher",
       "description": "Cheap model run headless by the plugin on flagged turn endings; raises attention for the Supervisor",
-      "harness": "devin",
-      "headless": true,
-      "byHarness": {
-        "devin": {
-          "models": [
-            {
-              "id": "swe-2-max",
-              "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        }
+      "defaults": {
+        "harness": "devin",
+        "model": "swe-2-max"
       },
+      "headless": true,
       "prompt": "prompts/WATCHER.md",
       "skills": null,
       "hidesWords": []

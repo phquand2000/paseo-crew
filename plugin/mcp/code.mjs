@@ -265,7 +265,7 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: {} },
         serverInfo: { name: serverName, version: "2.0.0" },
-        instructions: INSTRUCTIONS[serverName] ?? "",
+        instructions: config.instructions ?? "",
       },
     });
   } else if (method === "tools/list") {

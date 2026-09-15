@@ -1,5 +1,6 @@
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
-import { type Kit, type McpServers, type RoleSpec, defaultModel, defaultThinking, harnessOf, modelsOf, roleOf } from "./kit.ts";
+import { type Kit, type McpServers, type RoleSpec, seatOf } from "./kit.ts";
+import type { Team } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
@@ -14,26 +15,34 @@ function allowStateWrites(options: unknown, state: string): Record<string, unkno
   return { ...base, settings: { ...settings, sandbox: { ...sandbox, filesystem } } };
 }
 
-export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt, state?: string, team: McpServers = {}): AgentConfig {
-  const role = roleOf(kit, config.provider);
-  if (!role) return config;
-  const harness = harnessOf(kit, role);
-  const models = modelsOf(role);
-  const model = models.find((entry) => entry.id === config.model) ?? defaultModel(role);
+export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {
+  const seat = seatOf(kit, config.provider);
+  if (!seat) return config;
+  const { role, harness } = seat;
+  const chosen = team.roles[role.role];
+  const sameHarness = chosen?.harness.id === harness.id;
+  const models = harness.models ?? [];
+  const model =
+    models.find((entry) => entry.id === config.model) ??
+    (sameHarness ? chosen?.model : undefined) ??
+    models.find((entry) => entry.isDefault) ??
+    models[0];
   const next: AgentConfig = { ...config };
   if (model) next.model = model.id;
   if (harness.provider.profileModeId) next.modeId = harness.provider.profileModeId;
-  if (harness.hasThinking === false) delete next.thinkingOptionId;
+  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  if (options.length === 0) delete next.thinkingOptionId;
   else {
-    const valid = model?.thinkingOptions?.some((option) => option.id === config.thinkingOptionId) ?? false;
-    const thinking = valid ? config.thinkingOptionId : defaultThinking(role, model);
-    if (thinking) next.thinkingOptionId = thinking;
-    else delete next.thinkingOptionId;
+    const preferred = sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
+    const valid = (id: string | undefined) => Boolean(id) && options.some((option) => option.id === id);
+    next.thinkingOptionId = [config.thinkingOptionId, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
   }
   if (harness.systemPrompt === "config") {
     const prompt = render(role);
     next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
-    if (Object.keys(team).length > 0) next.mcpServers = { ...(config.mcpServers ?? {}), ...team } as AgentConfig["mcpServers"];
+  }
+  if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
+    next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
   }
   if (harness.stateAccess === "sandboxAllowWrite" && state) {
     next.providerOptions = allowStateWrites(config.providerOptions, state) as AgentConfig["providerOptions"];
@@ -41,16 +50,15 @@ export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt, s
   return next;
 }
 
-export function seatEnv(kit: Kit, request: SessionOpen, seat: (role: RoleSpec) => string, project: { root: string; state: string }): SessionOpen {
-  const role = roleOf(kit, request.provider);
-  if (!role) return request;
-  const harness = harnessOf(kit, role);
+export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, project: { root: string; state: string }): SessionOpen {
+  const seat = seatOf(kit, request.provider);
+  if (!seat) return request;
   return {
     ...request,
     env: {
       ...request.env,
-      [harness.configDirEnv]: seat(role),
-      SEATWORKS_ROLE: role.role,
+      [seat.harness.configDirEnv]: seatPath,
+      SEATWORKS_ROLE: seat.role.role,
       SEATWORKS_PROJECT: project.root,
       SEATWORKS_STATE: project.state,
     },

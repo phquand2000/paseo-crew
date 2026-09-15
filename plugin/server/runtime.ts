@@ -1,21 +1,25 @@
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { readJson, writeJson } from "./store.ts";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "./content.ts";
 import { Desk, hash } from "./desk.ts";
-import { type Kit, type RoleSpec, defaultModel, codeServer, harnessOf, roleOf, seatRoles, teamServer } from "./kit.ts";
+import { type Check, doctor } from "./doctor.ts";
+import { type Ide, ideClient } from "./ide.ts";
+import { type HarnessSpec, type Kit, type RoleSpec, headlessRole, providerId, seatOf, supportsRole } from "./kit.ts";
 import { applyRole, seatEnv } from "./launch.ts";
 import { activeTasks, laneOfLead, loadLedger, openAsksFrom, openAsksTo, taskOfPeer } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
 import { type Letter, Outbox, type PaseoApi } from "./outbox.ts";
-import { type Ide, ideClient } from "./ide.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "./paths.ts";
 import { type Project, loadConfig, projectOf } from "./project.ts";
 import { applyReconcile, reloadDaemon } from "./providers.ts";
+import { type Control, registerRpc } from "./rpc.ts";
 import { ensureLink, materialize, seatDir, seedRecords } from "./seats.ts";
+import { type Layer, MachineLayerSchema, ProjectLayerSchema, type ReadResult, type WriteResult, layerValues, readLayer, writeLayer } from "./settings.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { type SeatView, statusText } from "./status.ts";
+import { readJson, writeJson } from "./store.ts";
+import { type Team, eligibleRoles, ideUrl, resolveTeam, rulesFor, serversFor, skillDirsFor, transportOf, withHarness } from "./team.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 import { URGENT, parseVerdicts, runWatcher, watcherPrompt } from "./watcher.ts";
 
@@ -27,7 +31,9 @@ const watchFile = () => join(stateRoot(), "watch-queue.json");
 const CUES =
   /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed)|shim|adapter|compat(ibility)?|bridge|backward|legacy|temporar(y|ily)|stub|placeholder|re-?export)\b|chờ|đợi|tạm dừng|dừng lại|không chắc|hóa ra|hoá ra|sai rồi|bỏ qua|tạm thời|tương thích|xóa|xoá/i;
 
-export class Runtime {
+export type RuntimeOptions = { outboxFile?: string; ideClient?: (url: string) => Ide | null; reloadDaemon?: () => Promise<boolean> };
+
+export class Runtime implements Control {
   readonly kit: Kit;
   readonly outbox: Outbox;
   readonly desk: Desk;
@@ -38,19 +44,82 @@ export class Runtime {
   private watchTimer: ReturnType<typeof setTimeout> | undefined;
   private watching = false;
   private watchFailures = 0;
+  private readonly makeIde: (url: string) => Ide | null;
+  private readonly reload: () => Promise<boolean>;
   private readonly watchQueue: Watch[] = [];
   private readonly seated = new Set<string>();
+  private readonly remembered = new Set<string>();
   private readonly turnStart = new Map<string, number>();
   private readonly lastEnding = new Map<string, string>();
   private readonly idleFlag = new Map<string, string>();
   private readonly goneFlag = new Set<string>();
 
-  constructor(kit: Kit, outboxFile = outboxPath(), ide: Ide | null = kit.code.ide ? ideClient(kit.code.ide) : null) {
+  constructor(kit: Kit, options: RuntimeOptions = {}) {
     this.kit = kit;
-    this.outbox = new Outbox(outboxFile, (to, list) => this.compose(to, list));
-    this.desk = new Desk(kit, this.outbox, (project, line) => this.log(project, line), ide);
+    this.makeIde = options.ideClient ?? ((url) => ideClient(url));
+    this.reload = options.reloadDaemon ?? reloadDaemon;
+    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list));
+    this.desk = new Desk(
+      kit,
+      this.outbox,
+      (project, line) => this.log(project, line),
+      (project) => this.teamFor(project),
+      (project) => this.ideFor(project),
+    );
     const saved = readJson<Watch[]>(watchFile(), []);
     if (Array.isArray(saved)) this.watchQueue.push(...saved);
+  }
+
+  machineSettingsFile(): string {
+    return join(stateRoot(), "settings.json");
+  }
+
+  projectSettingsFile(project: Project): string {
+    return join(project.state, "settings.json");
+  }
+
+  teamFor(project?: Project): Team {
+    const machine = layerValues(this.machineSettingsFile(), MachineLayerSchema);
+    const local = project ? layerValues(this.projectSettingsFile(project), ProjectLayerSchema) : {};
+    return resolveTeam(this.kit, machine, local);
+  }
+
+  private ideFor(project: Project): Ide | null {
+    const url = ideUrl(this.teamFor(project));
+    return url ? this.makeIde(url) : null;
+  }
+
+  private settingsKey(project?: Project): string {
+    const machine = readLayer(this.machineSettingsFile(), MachineLayerSchema).revision;
+    const local = project ? readLayer(this.projectSettingsFile(project), ProjectLayerSchema).revision : "";
+    return `${machine}:${local}`;
+  }
+
+  private rememberProject(project: Project): void {
+    this.desk.projects.set(project.slug, project);
+    if (this.remembered.has(project.slug)) return;
+    try {
+      mkdirSync(project.state, { recursive: true });
+      writeJson(join(project.state, "meta.json"), { root: project.root, slug: project.slug });
+      this.remembered.add(project.slug);
+    } catch (error) {
+      console.error("seatworks-v2: could not record the project:", error);
+    }
+  }
+
+  private knownProjects(): Project[] {
+    const root = join(stateRoot(), "projects");
+    if (!existsSync(root)) return [];
+    const found: Project[] = [];
+    for (const slug of readdirSync(root)) {
+      const meta = readJson<{ root?: string; slug?: string }>(join(root, slug, "meta.json"), {});
+      if (typeof meta.root === "string" && meta.slug === slug) found.push({ root: meta.root, slug, state: join(root, slug) });
+    }
+    return found.sort((a, b) => a.slug.localeCompare(b.slug));
+  }
+
+  private projectNamed(slug: string): Project | undefined {
+    return this.knownProjects().find((project) => project.slug === slug);
   }
 
   private saveWatchQueue(): void {
@@ -69,31 +138,39 @@ export class Runtime {
     } catch (error) {
       console.error("seatworks-v2: could not prepare the state directory:", error);
     }
-    for (const role of this.kit.roles) this.ensureSeat(role);
+    const team = this.teamFor();
+    for (const problem of team.errors) console.error(`seatworks-v2: settings: ${problem}`);
+    const watcher = headlessRole(this.kit);
+    const seat = watcher ? team.roles[watcher.role] : undefined;
+    if (watcher && seat) this.ensureSeat(watcher.role, seat.harness);
+    this.reconcileProviders(team);
+  }
+
+  private reconcileProviders(team: Team): void {
     try {
-      const changed = applyReconcile(this.kit);
+      const changed = applyReconcile(this.kit, team);
       if (changed.length > 0) {
         console.log(`seatworks-v2: config updated (${changed.join(", ")}); reloading the daemon`);
-        void reloadDaemon();
+        void this.reload();
       }
     } catch (error) {
       console.error("seatworks-v2: could not reconcile role providers:", error);
     }
   }
 
-  servers(role: RoleSpec) {
-    return { ...teamServer(this.kit, role, this.spool, this.node), ...codeServer(this.kit, role, this.node) };
-  }
-
-  ensureSeat(role: RoleSpec): void {
-    if (this.seated.has(role.role)) return;
+  private ensureSeat(roleName: string, harness: HarnessSpec, project?: Project): Team {
+    const team = withHarness(this.teamFor(project), roleName, harness);
+    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.settingsKey(project)}`;
+    if (this.seated.has(key)) return team;
     try {
-      const changes = materialize(this.kit, role, home(), this.servers(role));
-      if (changes.length > 0) console.log(`seatworks-v2: seat ${role.role} updated: ${changes.join(", ")}`);
-      this.seated.add(role.role);
+      const servers = serversFor(this.kit, team, roleName, { node: this.node, spool: this.spool });
+      const changes = materialize(this.kit, team, roleName, home(), project, servers);
+      if (changes.length > 0) console.log(`seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
+      this.seated.add(key);
     } catch (error) {
-      console.error(`seatworks-v2: seat ${role.role} could not be built:`, error);
+      console.error(`seatworks-v2: seat ${roleName} on ${harness.id} could not be built:`, error);
     }
+    return team;
   }
 
   log(project: Project, line: string): void {
@@ -137,35 +214,39 @@ export class Runtime {
   register(server: PluginServerContext): void {
     const direct = (server as unknown as { paseo?: PaseoApi }).paseo;
     if (direct) this.api = direct;
+    registerRpc(server, this);
 
     server.before("agent.create", ({ request }, context) => {
       this.api = context.paseo;
-      const role = roleOf(this.kit, request.config.provider);
-      if (!role) return request;
-      this.ensureSeat(role);
+      const seat = seatOf(this.kit, request.config.provider);
+      if (!seat) return request;
       const project = projectOf(request.config.cwd);
+      this.rememberProject(project);
+      const team = this.ensureSeat(seat.role.role, seat.harness, project);
       const config = applyRole(
         this.kit,
+        team,
         request.config,
         (entry) => renderPrompt(this.kit, entry, { guides: guidesDir(), state: project.state }),
         project.state,
-        this.servers(role),
+        serversFor(this.kit, team, seat.role.role, { node: this.node, spool: this.spool }),
       );
       return { ...request, config };
     });
 
     server.before("agent.session_open", ({ request }, context) => {
       this.api = context.paseo;
-      const role = roleOf(this.kit, request.provider);
-      if (!role) return request;
-      this.ensureSeat(role);
+      const seat = seatOf(this.kit, request.provider);
+      if (!seat) return request;
       const project = projectOf(request.cwd);
+      this.rememberProject(project);
       try {
         seedRecords(this.kit, project.state);
       } catch (error) {
         console.error("seatworks-v2: could not seed project records:", error);
       }
-      return seatEnv(this.kit, request, (entry) => seatDir(this.kit, entry), project);
+      this.ensureSeat(seat.role.role, seat.harness, project);
+      return seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project);
     });
 
     this.on(server, "agent.turn_started", async ({ agent }) => {
@@ -183,7 +264,7 @@ export class Runtime {
     });
 
     this.on(server, "agent.permission_requested", async ({ agent, request }, { paseo }) => {
-      const role = roleOf(this.kit, agent.provider);
+      const role = seatOf(this.kit, agent.provider)?.role;
       if (!role?.team) return;
       const project = projectOf(agent.cwd);
       const what = request.title ?? request.name ?? request.kind;
@@ -206,8 +287,128 @@ export class Runtime {
       setInterval(() => this.serveSpool(), 500),
       setInterval(() => {
         this.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
-      }, this.kit.attention.tickSeconds * 1000),
+      }, this.teamFor().attention.tickSeconds * 1000),
     );
+  }
+
+  catalog(): unknown {
+    const kit = this.kit;
+    return {
+      roles: kit.roles.map((role) => ({
+        id: role.role,
+        label: role.label,
+        description: role.description ?? "",
+        team: role.team ?? null,
+        headless: Boolean(role.headless),
+        defaults: role.defaults,
+        harnesses: Object.values(kit.harnesses)
+          .filter((harness) => supportsRole(kit, harness, role) && (!role.headless || Boolean(harness.headless)))
+          .map((harness) => harness.id),
+      })),
+      harnesses: Object.values(kit.harnesses).map((harness) => ({
+        id: harness.id,
+        label: harness.label,
+        models: harness.models ?? [],
+        thinking: harness.hasThinking !== false,
+        transports: harness.mcp.transports,
+        headless: Boolean(harness.headless),
+      })),
+      mcp: Object.values(kit.mcp)
+        .sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
+        .map((entry) => ({
+          id: entry.id,
+          label: entry.label,
+          description: entry.description ?? "",
+          kind: entry.kind,
+          transport: transportOf(entry),
+          settings: entry.settings,
+          defaults: entry.defaults,
+          roles: eligibleRoles(entry),
+        })),
+    };
+  }
+
+  private settingsTarget(slug?: string): { file: string; schema: typeof MachineLayerSchema | typeof ProjectLayerSchema; project?: Project } | { error: string } {
+    if (!slug) return { file: this.machineSettingsFile(), schema: MachineLayerSchema };
+    const project = this.projectNamed(slug);
+    if (!project) return { error: `No project named ${slug} has been seen on this machine.` };
+    return { file: this.projectSettingsFile(project), schema: ProjectLayerSchema, project };
+  }
+
+  readSettings(slug?: string): ReadResult {
+    const target = this.settingsTarget(slug);
+    if ("error" in target) return { status: "invalid", revision: "", error: target.error };
+    return readLayer(target.file, target.schema);
+  }
+
+  writeSettings(slug: string | undefined, revision: string, values: unknown): WriteResult {
+    const target = this.settingsTarget(slug);
+    if ("error" in target) return { status: "invalid", error: target.error };
+    const machine = layerValues(this.machineSettingsFile(), MachineLayerSchema);
+    const check = (layer: Layer) => (target.project ? resolveTeam(this.kit, machine, layer) : resolveTeam(this.kit, layer)).errors;
+    const result = writeLayer(target.file, target.schema, revision, values, check);
+    if (result.status === "saved") {
+      this.seated.clear();
+      if (!target.project) this.reconcileProviders(this.teamFor());
+    }
+    return result;
+  }
+
+  resetSettings(slug: string | undefined, revision: string): WriteResult {
+    return this.writeSettings(slug, revision, {});
+  }
+
+  projects(): unknown {
+    return this.knownProjects().map((project) => ({ slug: project.slug, root: project.root }));
+  }
+
+  team(slug?: string): unknown {
+    const project = slug ? this.projectNamed(slug) : undefined;
+    if (slug && !project) return { errors: [`No project named ${slug} has been seen on this machine.`] };
+    const team = this.teamFor(project);
+    return {
+      project: project?.slug ?? null,
+      errors: team.errors,
+      limits: team.limits,
+      attention: team.attention,
+      rules: team.rules,
+      mcp: Object.fromEntries(Object.entries(team.mcp).map(([id, state]) => [id, { enabled: state.enabled, roles: state.roles, settings: state.settings }])),
+      roles: Object.fromEntries(
+        Object.entries(team.roles).map(([name, seat]) => [
+          name,
+          {
+            harness: seat.harness.id,
+            provider: seat.role.headless ? null : providerId(this.kit, name, seat.harness.id),
+            model: seat.model?.id ?? null,
+            thinking: seat.thinking ?? null,
+            mcp: seat.mcp,
+            tools: Object.fromEntries(seat.mcp.map((id) => [id, team.mcp[id]!.entry.tools?.[name] ?? []])),
+            skills: [...skillDirsFor(team, name).keys()],
+            rules: rulesFor(team, name),
+          },
+        ]),
+      ),
+    };
+  }
+
+  async doctor(slug?: string): Promise<Check[]> {
+    const project = slug ? this.projectNamed(slug) : undefined;
+    if (slug && !project) return [{ id: "project", ok: false, detail: `No project named ${slug} has been seen on this machine.` }];
+    return doctor(this.kit, this.teamFor(project));
+  }
+
+  async status(slug: string): Promise<unknown> {
+    const project = this.projectNamed(slug);
+    if (!project) return { text: "", error: `No project named ${slug} has been seen on this machine.` };
+    const seats = new Map<string, SeatView>();
+    if (this.api) {
+      const { entries } = await this.api.agents.list({ filter: { includeArchived: false } });
+      for (const entry of entries) {
+        const seat = entry.agent as unknown as SeatView;
+        if (!seat.archivedAt) seats.set(seat.id, seat);
+      }
+    }
+    return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now()) };
   }
 
   private serveSpool(): void {
@@ -238,10 +439,10 @@ export class Runtime {
 
   private async turnEnded(paseo: PaseoApi, event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     const { agent, outcome, timeline } = event;
-    const role = roleOf(this.kit, agent.provider);
+    const role = seatOf(this.kit, agent.provider)?.role;
     if (!role?.team) return;
     const project = projectOf(agent.cwd);
-    this.desk.projects.set(project.slug, project);
+    this.rememberProject(project);
     const started = this.turnStart.get(agent.id) ?? Date.now() - 30 * 60_000;
     this.turnStart.delete(agent.id);
     if (outcome.kind === "canceled") return;
@@ -289,8 +490,7 @@ export class Runtime {
   }
 
   private watch(item: Watch): void {
-    const watcher = this.kit.roles.find((role) => role.headless);
-    if (!watcher || !item.text.trim()) return;
+    if (!headlessRole(this.kit) || !item.text.trim()) return;
     this.watchQueue.push({ ...item, text: clip(item.text.slice(-1500), 1500) });
     this.saveWatchQueue();
     this.scheduleWatch();
@@ -301,23 +501,26 @@ export class Runtime {
     this.watchTimer = setTimeout(() => {
       this.watchTimer = undefined;
       this.runWatch().catch((error) => console.error("seatworks-v2: watcher failed:", error));
-    }, this.kit.attention.watcherDebounceSeconds * 1000);
+    }, this.teamFor().attention.watcherDebounceSeconds * 1000);
   }
 
   private async runWatch(): Promise<void> {
     const paseo = this.api;
-    const watcher = this.kit.roles.find((role) => role.headless);
+    const watcher = headlessRole(this.kit);
+    const team = this.teamFor();
+    const seat = watcher ? team.roles[watcher.role] : undefined;
     const batch = this.watchQueue.splice(0, 10);
     this.saveWatchQueue();
-    if (!paseo || !watcher || batch.length === 0) return;
+    if (!paseo || !watcher || !seat || batch.length === 0) return;
     this.watching = true;
     try {
-      const command = harnessOf(this.kit, watcher).headless;
+      const command = seat.harness.headless;
       if (!command) return;
+      this.ensureSeat(watcher.role, seat.harness);
       const instructions = readFileSync(join(this.kit.dir, "content", watcher.prompt), "utf-8");
       const endings = batch.map((item, index) => ({ n: index + 1, agent: item.agent, role: item.role, title: item.where, text: item.text }));
-      const seat = { [harnessOf(this.kit, watcher).configDirEnv]: seatDir(this.kit, watcher) };
-      const run = await runWatcher(command, watcherPrompt(instructions, endings), defaultModel(watcher)?.id ?? "", this.kit.attention.watcherTimeoutSeconds * 1000, seat);
+      const env = { [seat.harness.configDirEnv]: seatDir(this.kit, watcher, seat.harness, home()) };
+      const run = await runWatcher(command, watcherPrompt(instructions, endings), seat.model?.id ?? "", team.attention.watcherTimeoutSeconds * 1000, env);
       const verdicts = run.ok ? parseVerdicts(run.output, endings.length) : [];
       if (verdicts.length === 0) {
         this.watchFailures += 1;
@@ -360,12 +563,9 @@ export class Runtime {
       const seat = entry.agent as unknown as SeatView;
       if (seat.archivedAt) continue;
       seats.set(seat.id, seat);
-      if (roleOf(this.kit, seat.provider)?.team) {
-        const project = projectOf(seat.cwd);
-        this.desk.projects.set(project.slug, project);
-      }
+      if (seatOf(this.kit, seat.provider)?.role.team) this.rememberProject(projectOf(seat.cwd));
     }
-    const { leadIdleMinutes, askRemindMinutes, maxReminders } = this.kit.attention;
+    const { leadIdleMinutes, askRemindMinutes, maxReminders } = this.teamFor().attention;
     for (const project of this.desk.projects.values()) {
       const ledger = loadLedger(project.state);
       for (const lane of Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead)) {
@@ -408,7 +608,7 @@ export class Runtime {
       }
       try {
         const waiting = [...seats.values()].filter(
-          (seat) => roleOf(this.kit, seat.provider)?.team === "supervisor" && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
+          (seat) => seatOf(this.kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
         );
         mkdirSync(project.state, { recursive: true });
         writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, undefined, waiting));

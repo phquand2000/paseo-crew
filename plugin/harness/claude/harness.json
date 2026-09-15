@@ -7,6 +7,36 @@
   "configDirEnv": "CLAUDE_CONFIG_DIR",
   "promptFile": "CLAUDE.md",
   "skillsDir": "skills",
+  "models": [
+    {
+      "id": "claude-opus-5",
+      "label": "Opus 5",
+      "thinkingOptions": [
+        {
+          "id": "medium",
+          "label": "Medium"
+        },
+        {
+          "id": "high",
+          "label": "High"
+        }
+      ]
+    }
+  ],
+  "mcp": {
+    "file": ".claude.json",
+    "delivery": "launch",
+    "transports": [
+      "stdio",
+      "http"
+    ],
+    "seed": "{\"hasCompletedOnboarding\": true}",
+    "isolateProjects": true,
+    "forbid": [
+      ".credentials.json"
+    ],
+    "mcpNote": "$servers is seats.json's mcpServers map, passed in by setup-seats.fish. The seat gets those at user scope in its own .claude.json and nothing else: project-scoped servers stay cleared, because a repository could otherwise hand a seat a server the kit never chose."
+  },
   "promptComments": "stripped",
   "hasModes": true,
   "settings": {
@@ -23,16 +53,6 @@
       "target": "HOME/.claude/projects"
     }
   ],
-  "state": {
-    "file": ".claude.json",
-    "seed": "{\"hasCompletedOnboarding\": true}",
-    "clearMcp": ".mcpServers = $servers | .enabledMcpjsonServers = [] | del(.enableAllProjectMcpServers) | .projects = ((.projects // {}) | with_entries(.value.mcpServers = {}))",
-    "checkMcp": "(.mcpServers // {}) == $servers and ((.enabledMcpjsonServers // []) | length) == 0",
-    "forbid": [
-      ".credentials.json"
-    ],
-    "mcpNote": "$servers is seats.json's mcpServers map, passed in by setup-seats.fish. The seat gets those at user scope in its own .claude.json and nothing else: project-scoped servers stay cleared, because a repository could otherwise hand a seat a server the kit never chose."
-  },
   "skillLoad": {
     "tool": "Skill",
     "force": "/NAME",

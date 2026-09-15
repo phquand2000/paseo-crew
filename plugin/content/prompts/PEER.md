@@ -23,21 +23,6 @@ own the judgment inside it, working on your own branch in your own working copy.
 - Commit on your branch with a short subject; for a longer message, write it to a file and use
   `git commit -F`. Never switch branches, push, or rewrite history.
 
-## Finding and changing code
-
-- List the `intellij-index` tools once before your first code search, so you can call them.
-- A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
-- Code you can describe but not name: `search`.
-- Before changing a contract: `ide_find_references` and `ide_call_hierarchy`; for types and overrides,
-  `ide_type_hierarchy`, `ide_find_implementations` and `ide_find_super_methods`; for a signature or
-  its docs, `ide_symbol_info`.
-- Rename, move, delete and change signatures only with `ide_refactor_rename`, `ide_move_file`,
-  `ide_refactor_safe_delete` and `ide_change_signature`, never with `git mv` or hand edits, so every
-  reference changes with it.
-- Run `ide_diagnostics` on the files you changed, then the project's checks, before `done`.
-- The shell only for files the index doesn't cover, or when a tool says the IDE can't serve your
-  working copy.
-
 ## Finishing
 
 Call `done` once, at the end, when the whole task works, with:

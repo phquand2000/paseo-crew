@@ -1,14 +1,18 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { renderContent, renderPrompt, skillSources } from "./content.ts";
-import { type Kit, type McpServers, type RoleSpec, harnessOf, mcpServersFor } from "./kit.ts";
+import { renderPrompt, renderText, skillSources } from "./content.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
 import { expandHome, guidesDir, home } from "./paths.ts";
 import { readJson, sameJson } from "./store.ts";
+import { type Team, rulesFor, skillDirsFor } from "./team.ts";
 
 type Json = Record<string, unknown>;
 
-export function seatDir(kit: Kit, role: RoleSpec, homeDir = home()): string {
-  return join(expandHome(harnessOf(kit, role).profileRoot, homeDir), `${kit.prefix}${role.role}`);
+export type SeatProject = { slug: string; state: string };
+
+export function seatDir(kit: Kit, role: RoleSpec, harness: HarnessSpec, homeDir = home(), project?: SeatProject): string {
+  const name = `${kit.prefix}${role.role}-${harness.id}${project ? `-${project.slug}` : ""}`;
+  return join(expandHome(harness.profileRoot, homeDir), name);
 }
 
 function isLink(path: string): boolean {
@@ -108,9 +112,24 @@ export function seedRecords(kit: Kit, state: string): string[] {
   return seeded;
 }
 
-export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: McpServers = {}): string[] {
-  const harness = harnessOf(kit, role);
-  const dir = seatDir(kit, role, homeDir);
+function mcpState(harness: HarnessSpec, current: Json, servers: McpServers): Json {
+  if (harness.mcp.delivery === "file") return { ...current, mcpServers: servers };
+  const next: Json = { ...current, mcpServers: {} };
+  if (harness.mcp.isolateProjects) {
+    next.enabledMcpjsonServers = [];
+    delete next.enableAllProjectMcpServers;
+    if (isPlain(next.projects)) {
+      next.projects = Object.fromEntries(Object.entries(next.projects).map(([key, value]) => [key, { ...(isPlain(value) ? value : {}), mcpServers: {} }]));
+    }
+  }
+  return next;
+}
+
+export function materialize(kit: Kit, team: Team, roleName: string, homeDir = home(), project?: SeatProject, servers: McpServers = {}): string[] {
+  const seat = team.roles[roleName];
+  if (!seat) throw new Error(`the team has no ${roleName} seat`);
+  const { role, harness } = seat;
+  const dir = seatDir(kit, role, harness, homeDir, project);
   const changes: string[] = [];
   const note = (changed: boolean, what: string) => {
     if (changed) changes.push(what);
@@ -142,27 +161,12 @@ export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: Mc
     }
   }
 
-  if (harness.state?.file) {
-    const stateFile = join(dir, harness.state.file);
-    const servers = mcpServersFor(kit, role, harness.systemPrompt === "config" ? {} : team);
-    if (harness.state.file === ".claude.json") {
-      const seed = JSON.parse(harness.state.seed ?? "{}") as Json;
-      const current = readJson<Json>(stateFile, seed);
-      const next: Json = { ...current, mcpServers: servers, enabledMcpjsonServers: [] };
-      delete next.enableAllProjectMcpServers;
-      if (isPlain(next.projects)) {
-        next.projects = Object.fromEntries(
-          Object.entries(next.projects).map(([key, value]) => [key, { ...(isPlain(value) ? value : {}), mcpServers: {} }]),
-        );
-      }
-      note(writeJsonIfChanged(stateFile, next), harness.state.file);
-    } else {
-      note(writeJsonIfChanged(stateFile, { mcpServers: servers }), harness.state.file);
-    }
-  }
+  const mcpFile = join(dir, harness.mcp.file);
+  const current = readJson<Json>(mcpFile, JSON.parse(harness.mcp.seed ?? "{}") as Json);
+  note(writeJsonIfChanged(mcpFile, mcpState(harness, current, servers)), harness.mcp.file);
 
-  const paths = { guides: guidesDir(homeDir), state: "$SEATWORKS_STATE" };
-  const rules = !role.headless && kit.rules ? renderContent(kit, role, kit.rules, paths) : "";
+  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" };
+  const rules = renderText(kit, role, rulesFor(team, roleName), paths);
   if (harness.systemPrompt === "file" && harness.promptFile) {
     const promptPath = join(dir, harness.promptFile);
     if (role.headless) {
@@ -174,13 +178,18 @@ export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: Mc
       const prompt = renderPrompt(kit, role, paths);
       note(writeReal(promptPath, rules ? `${prompt.trimEnd()}\n\n${rules}` : prompt), harness.promptFile);
     }
-  } else if (harness.contextFile && rules) {
-    note(writeReal(join(dir, harness.contextFile), rules), harness.contextFile);
+  } else if (harness.contextFile) {
+    const contextPath = join(dir, harness.contextFile);
+    if (rules) note(writeReal(contextPath, rules), harness.contextFile);
+    else if (present(contextPath)) {
+      unlinkSync(contextPath);
+      changes.push(`${harness.contextFile} removed`);
+    }
   }
 
   const skillsDir = join(dir, harness.skillsDir);
   mkdirSync(skillsDir, { recursive: true });
-  const wanted = skillSources(kit, role);
+  const wanted = skillSources(kit, role, skillDirsFor(team, roleName));
   for (const [name, source] of wanted) note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
   for (const name of readdirSync(skillsDir)) {
     const path = join(skillsDir, name);

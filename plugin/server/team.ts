@@ -1,0 +1,214 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  type Attention,
+  type HarnessSpec,
+  type Kit,
+  type Limits,
+  type McpEntry,
+  type McpServers,
+  type McpTransport,
+  type ModelSpec,
+  type RoleSpec,
+  supportsRole,
+  teamServer,
+} from "./kit.ts";
+import type { Layer } from "./settings.ts";
+
+export type SettingValue = string | number | boolean;
+export type McpState = { entry: McpEntry; enabled: boolean; roles: string[]; settings: Record<string, SettingValue> };
+export type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec; thinking?: string; mcp: string[] };
+export type Team = {
+  roles: Record<string, RoleSeat>;
+  mcp: Record<string, McpState>;
+  limits: Limits;
+  attention: Attention;
+  rules: string;
+  errors: string[];
+};
+
+export function eligibleRoles(entry: McpEntry): string[] {
+  return entry.kind === "proxy" ? Object.keys(entry.tools ?? {}) : (entry.roles ?? []);
+}
+
+export function transportOf(entry: McpEntry): McpTransport {
+  return entry.kind === "proxy" ? "stdio" : (entry.server?.type ?? "stdio");
+}
+
+export function fill(template: string, settings: Record<string, SettingValue>): string {
+  return template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in settings ? String(settings[key]) : whole));
+}
+
+function resolveMcp(kit: Kit, layers: Layer[], errors: string[]): Record<string, McpState> {
+  const states: Record<string, McpState> = {};
+  for (const entry of Object.values(kit.mcp)) {
+    const choices = layers.map((layer) => layer.mcp?.[entry.id]).filter((choice) => choice !== undefined);
+    let enabled = entry.defaults.enabled;
+    let roles: string[] | undefined;
+    const settings: Record<string, SettingValue> = {};
+    for (const [key, spec] of Object.entries(entry.settings)) if (spec.default !== undefined) settings[key] = spec.default;
+    for (const choice of choices) {
+      if (choice.enabled !== undefined) enabled = choice.enabled;
+      if (choice.roles) roles = choice.roles;
+      for (const [key, value] of Object.entries(choice.settings ?? {})) {
+        const spec = entry.settings[key];
+        if (!spec) errors.push(`${entry.label} has no setting named ${key}`);
+        else if (typeof value !== spec.type) errors.push(`${entry.label} setting ${key} must be a ${spec.type}`);
+        else settings[key] = value;
+      }
+    }
+    const eligible = eligibleRoles(entry);
+    for (const role of roles ?? []) {
+      if (!eligible.includes(role)) errors.push(`${entry.label} can't be given to the ${role} role: its catalog entry has nothing for that role`);
+    }
+    states[entry.id] = { entry, enabled, roles: (roles ?? eligible).filter((role) => eligible.includes(role)), settings };
+  }
+  return states;
+}
+
+function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<string, McpState>, errors: string[]): RoleSeat | undefined {
+  let choice: { harness: string; model?: string; thinking?: string } = { ...role.defaults };
+  for (const layer of layers) {
+    const next = layer.roles?.[role.role];
+    if (!next) continue;
+    if (next.harness && next.harness !== choice.harness) choice = { harness: next.harness };
+    if (next.model) choice.model = next.model;
+    if (next.thinking) choice.thinking = next.thinking;
+  }
+  const harness = kit.harnesses[choice.harness];
+  if (!harness) {
+    errors.push(`The ${role.label} runs on ${choice.harness}, which is not in the harness catalog`);
+    return undefined;
+  }
+  if (!supportsRole(kit, harness, role)) {
+    errors.push(`${harness.label} has no ${role.role} settings under harness/${harness.id}/settings, so it can't run the ${role.label}`);
+  }
+  if (role.headless && !harness.headless) errors.push(`${harness.label} has no headless command, so it can't run the ${role.label}`);
+  const models = harness.models ?? [];
+  let model = choice.model ? models.find((entry) => entry.id === choice.model) : undefined;
+  if (choice.model && !model && models.length > 0) errors.push(`${harness.label} has no model ${choice.model} for the ${role.label}`);
+  model ??= models.find((entry) => entry.isDefault) ?? models[0];
+  let thinking: string | undefined;
+  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  if (options.length > 0) {
+    if (choice.thinking && !options.some((option) => option.id === choice.thinking)) {
+      errors.push(`${model!.label} on ${harness.label} has no thinking option ${choice.thinking} for the ${role.label}`);
+    }
+    thinking = options.some((option) => option.id === choice.thinking) ? choice.thinking : (options.find((option) => option.isDefault) ?? options[0])!.id;
+  }
+  const enabled = role.headless
+    ? []
+    : Object.values(mcp)
+        .filter((state) => state.enabled && state.roles.includes(role.role))
+        .sort((a, b) => (a.entry.order ?? 100) - (b.entry.order ?? 100))
+        .map((state) => state.entry.id);
+  for (const id of enabled) {
+    const transport = transportOf(mcp[id]!.entry);
+    if (!harness.mcp.transports.includes(transport)) {
+      errors.push(`${harness.label} can't reach ${mcp[id]!.entry.label} over ${transport}, so the ${role.label} can't use it`);
+    }
+  }
+  return { role, harness, model, thinking, mcp: enabled };
+}
+
+export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}): Team {
+  const errors: string[] = [];
+  const layers = [machine, project];
+  layers.forEach((layer, index) => {
+    const where = index === 0 ? "The machine settings" : "The project settings";
+    for (const name of Object.keys(layer.roles ?? {})) if (!kit.roles.some((role) => role.role === name)) errors.push(`${where} name an unknown role ${name}`);
+    for (const id of Object.keys(layer.mcp ?? {})) if (!kit.mcp[id]) errors.push(`${where} name an unknown MCP server ${id}`);
+  });
+  const mcp = resolveMcp(kit, layers, errors);
+  const roles: Record<string, RoleSeat> = {};
+  for (const role of kit.roles) {
+    const seat = resolveRole(kit, role, layers, mcp, errors);
+    if (seat) roles[role.role] = seat;
+  }
+  return {
+    roles,
+    mcp,
+    limits: { ...kit.limits, ...stripUndefined(machine.limits), ...stripUndefined(project.limits) },
+    attention: { ...kit.attention, ...stripUndefined(machine.attention) },
+    rules: [machine.rules, project.rules].filter((text) => text && text.trim()).join("\n\n"),
+    errors,
+  };
+}
+
+function stripUndefined<T extends object>(value: T | undefined): Partial<T> {
+  return Object.fromEntries(Object.entries(value ?? {}).filter(([, entry]) => entry !== undefined)) as Partial<T>;
+}
+
+export function withHarness(team: Team, roleName: string, harness: HarnessSpec): Team {
+  const seat = team.roles[roleName];
+  if (!seat || seat.harness.id === harness.id) return team;
+  const models = harness.models ?? [];
+  const model = models.find((entry) => entry.isDefault) ?? models[0];
+  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  const thinking = (options.find((option) => option.isDefault) ?? options[0])?.id;
+  return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
+}
+
+export function proxyUrl(state: McpState): string {
+  return state.entry.url ? fill(state.entry.url, state.settings) : "";
+}
+
+export function ideUrl(team: Team): string | undefined {
+  const state = Object.values(team.mcp).find((entry) => entry.enabled && entry.entry.proxy === "intellij");
+  return state ? proxyUrl(state) : undefined;
+}
+
+export function serversFor(kit: Kit, team: Team, roleName: string, context: { node: string; spool: string }): McpServers {
+  const seat = team.roles[roleName];
+  if (!seat) return {};
+  const servers: McpServers = { ...teamServer(kit, seat.role, context.spool, context.node) };
+  for (const id of seat.mcp) {
+    const state = team.mcp[id]!;
+    const { entry } = state;
+    if (entry.kind === "proxy") {
+      const tools = entry.tools?.[roleName] ?? [];
+      if (tools.length === 0) continue;
+      const config = {
+        name: id,
+        instructions: entry.instructions ?? "",
+        tools,
+        ide: entry.proxy === "intellij" ? proxyUrl(state) : "",
+        semble: entry.proxy === "semble" ? (entry.command ?? []) : [],
+      };
+      servers[id] = { type: "stdio", command: context.node, args: [join(kit.dir, "mcp", "code.mjs"), JSON.stringify(config)] };
+    } else if (entry.server) {
+      servers[id] = JSON.parse(fill(JSON.stringify(entry.server), state.settings));
+    }
+  }
+  return servers;
+}
+
+export function rulesFor(team: Team, roleName: string): string {
+  const seat = team.roles[roleName];
+  if (!seat || seat.role.headless) return "";
+  const parts: string[] = [];
+  for (const id of seat.mcp) {
+    const { entry } = team.mcp[id]!;
+    const lines: string[] = [];
+    if (entry.rule) lines.push(readFileSync(join(entry.dir, entry.rule), "utf-8").trim());
+    const tools = entry.kind === "proxy" ? (entry.tools?.[roleName] ?? []) : [];
+    if (tools.length > 0) lines.push(`Your ${entry.label} tools: ${tools.map((tool) => `\`${tool}\``).join(", ")}.`);
+    const note = entry.roleNotes?.[roleName];
+    if (note) lines.push(note);
+    if (lines.length > 0) parts.push(lines.join("\n\n"));
+  }
+  if (seat.harness.mcp.needsListing && seat.mcp.length > 0) parts.push("List a server's tools once before your first call to it, so you can call them.");
+  if (team.rules) parts.push(`## Rules from the Human\n\n${team.rules.trim()}`);
+  return parts.length > 0 ? `# Working rules\n\n${parts.join("\n\n")}\n` : "";
+}
+
+export function skillDirsFor(team: Team, roleName: string): Map<string, string> {
+  const found = new Map<string, string>();
+  const seat = team.roles[roleName];
+  if (!seat) return found;
+  for (const id of seat.mcp) {
+    const { entry } = team.mcp[id]!;
+    for (const skill of entry.skills ?? []) found.set(skill, join(entry.dir, "skills", skill));
+  }
+  return found;
+}

@@ -8,17 +8,8 @@ export function hiddenWordsIn(text: string, words: string[]): string[] {
   return words.filter((word) => new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text));
 }
 
-export function renderContent(kit: Kit, role: RoleSpec, file: string, paths: PromptPaths): string {
-  const source = readFileSync(join(kit.dir, "content", file), "utf-8");
-  const text = source
-    .replaceAll("{{guides}}", paths.guides)
-    .replaceAll("{{state}}", paths.state)
-    .replace(/\{\{profile:([a-z0-9-]+)\}\}/g, (_match, name: string) => {
-      if (!kit.roles.some((entry) => entry.role === name)) {
-        throw new Error(`the ${role.role} prompt names the profile of unknown role ${name}`);
-      }
-      return `${kit.prefix}${name}`;
-    });
+export function renderText(kit: Kit, role: RoleSpec, source: string, paths: PromptPaths): string {
+  const text = source.replaceAll("{{guides}}", paths.guides).replaceAll("{{state}}", paths.state);
   const leftover = text.match(/\{\{[^}]*\}\}/);
   if (leftover) throw new Error(`the ${role.role} prompt still holds the placeholder ${leftover[0]}`);
   const hidden = hiddenWordsIn(text, role.hidesWords ?? []);
@@ -29,7 +20,7 @@ export function renderContent(kit: Kit, role: RoleSpec, file: string, paths: Pro
 }
 
 export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): string {
-  return renderContent(kit, role, role.prompt, paths);
+  return renderText(kit, role, readFileSync(join(kit.dir, "content", role.prompt), "utf-8"), paths);
 }
 
 function skillDirs(root: string): string[] {
@@ -37,7 +28,7 @@ function skillDirs(root: string): string[] {
   return readdirSync(root).filter((name) => statSync(join(root, name)).isDirectory());
 }
 
-export function skillSources(kit: Kit, role: RoleSpec): Map<string, string> {
+export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map()): Map<string, string> {
   const root = join(kit.dir, "content", "skills");
   const found = new Map<string, string>();
   if (role.skills) {
@@ -50,5 +41,6 @@ export function skillSources(kit: Kit, role: RoleSpec): Map<string, string> {
     if (!existsSync(join(dir, "SKILL.md"))) throw new Error(`role ${role.role} names extra skill ${extra}, but ${dir}/SKILL.md is missing`);
     found.set(name, dir);
   }
+  for (const [name, dir] of extra) found.set(name, dir);
   return found;
 }

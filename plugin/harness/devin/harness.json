@@ -7,6 +7,22 @@
   "configDirEnv": "XDG_CONFIG_HOME",
   "promptFile": "devin/AGENTS.md",
   "skillsDir": "devin/skills",
+  "models": [
+    {
+      "id": "swe-2-max",
+      "label": "SWE-2 Max"
+    }
+  ],
+  "mcp": {
+    "file": "devin/mcp_config.json",
+    "delivery": "file",
+    "transports": [
+      "stdio",
+      "http"
+    ],
+    "seed": "{}",
+    "needsListing": true
+  },
   "promptComments": "shown",
   "hasModes": true,
   "hasThinking": false,
@@ -27,12 +43,6 @@
       "optional": true
     }
   ],
-  "state": {
-    "file": "devin/mcp_config.json",
-    "seed": "{}",
-    "clearMcp": "{mcpServers: $servers}",
-    "checkMcp": "(.mcpServers // {}) == $servers"
-  },
   "skillLoad": {
     "tool": "skill",
     "force": "/NAME",

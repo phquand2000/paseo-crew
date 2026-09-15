@@ -95,7 +95,7 @@ const ide = {
 function harness(outbox: string) {
   const { root, git } = repo();
   const { paseo, agents, add, workspaces } = fakePaseo();
-  const runtime = new Runtime(kit, join(HOME, outbox), ide);
+  const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), ideClient: () => ide, reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>) =>
@@ -125,7 +125,7 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
 
 test("a lane works serially in one long-lived working copy that the next lane reuses", async () => {
   const h = harness("outbox-serial.json");
-  const sup = h.add("sw2-supervisor/claude-opus-5", h.root, "sup");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"] });
   assert.equal(opened.ok, true, opened.text);
@@ -199,7 +199,7 @@ test("a lane works serially in one long-lived working copy that the next lane re
 
 test("parallel work needs independent write sets and merges back from its own working copy", async () => {
   const h = harness("outbox-parallel.json");
-  const sup = h.add("sw2-supervisor/claude-opus-5", h.root, "sup");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a", "b"], writeSet: ["a.txt", "b.txt"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "A", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
@@ -250,7 +250,7 @@ test("asks reach the level above, answers come back, and a silent Peer is nudged
       outcome: { kind: "completed" },
       timeline: [{ type: "user_message", text: "go" }, { type: "assistant_message", text }],
     });
-  const sup = h.add("sw2-supervisor/claude-opus-5", h.root, "sup");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["y"] });
   const lane = h.ledger().lanes.L1!;
   await h.idle(lane.lead!);

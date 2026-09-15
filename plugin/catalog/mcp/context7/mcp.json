@@ -1,0 +1,22 @@
+{
+  "id": "context7",
+  "label": "Context7",
+  "order": 30,
+  "description": "Current documentation and examples for libraries, frameworks, SDKs and CLIs. Queries leave the machine.",
+  "kind": "server",
+  "server": {
+    "type": "http",
+    "url": "https://mcp.context7.com/mcp"
+  },
+  "settings": {},
+  "defaults": {
+    "enabled": true
+  },
+  "roles": [
+    "supervisor",
+    "lead",
+    "reviewer",
+    "peer"
+  ],
+  "rule": "rule.md"
+}

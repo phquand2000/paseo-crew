@@ -1,0 +1,81 @@
+{
+  "id": "intellij-index",
+  "label": "IntelliJ index",
+  "order": 10,
+  "description": "Code navigation and refactoring through the IDE Index MCP Server plugin of a running JetBrains IDE.",
+  "kind": "proxy",
+  "proxy": "intellij",
+  "instructions": "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring. Every call answers for your own working copy, and paths are relative to it.",
+  "url": "http://127.0.0.1:{port}/index-mcp/streamable-http",
+  "settings": {
+    "port": {
+      "type": "number",
+      "label": "IDE MCP port",
+      "default": 29170
+    }
+  },
+  "defaults": {
+    "enabled": true
+  },
+  "internalTools": [
+    "ide_open_project",
+    "ide_index_status",
+    "ide_sync_files",
+    "ide_project_status"
+  ],
+  "tools": {
+    "supervisor": [
+      "ide_find_symbol",
+      "ide_find_references",
+      "ide_type_hierarchy"
+    ],
+    "lead": [
+      "ide_find_symbol",
+      "ide_find_references",
+      "ide_type_hierarchy",
+      "ide_find_file",
+      "ide_search_text",
+      "ide_find_definition",
+      "ide_call_hierarchy",
+      "ide_find_implementations"
+    ],
+    "peer": [
+      "ide_find_symbol",
+      "ide_find_references",
+      "ide_type_hierarchy",
+      "ide_find_file",
+      "ide_search_text",
+      "ide_find_definition",
+      "ide_call_hierarchy",
+      "ide_find_implementations",
+      "ide_symbol_info",
+      "ide_find_super_methods",
+      "ide_diagnostics",
+      "ide_refactor_rename",
+      "ide_move_file",
+      "ide_refactor_safe_delete",
+      "ide_change_signature"
+    ],
+    "reviewer": [
+      "ide_find_symbol",
+      "ide_find_references",
+      "ide_type_hierarchy",
+      "ide_find_file",
+      "ide_search_text",
+      "ide_find_definition",
+      "ide_call_hierarchy",
+      "ide_find_implementations",
+      "ide_symbol_info",
+      "ide_find_super_methods",
+      "ide_diagnostics"
+    ]
+  },
+  "rule": "rule.md",
+  "roleNotes": {
+    "peer": "Run `ide_diagnostics` on the files you changed, then the project's checks, before you hand back.",
+    "reviewer": "Run `ide_diagnostics` on the files the change touched."
+  },
+  "skills": [
+    "ide-index-mcp"
+  ]
+}

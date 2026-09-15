@@ -8,6 +8,9 @@
     "test": "node --test server/*.test.ts",
     "check": "npm run typecheck && npm test"
   },
+  "dependencies": {
+    "zod": "^4.6.4"
+  },
   "devDependencies": {
     "@getpaseo/plugin": "0.8.0",
     "@types/node": "^24.13.4",

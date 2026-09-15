@@ -23,17 +23,6 @@ the acceptance and one open question.
 - Don't edit files, commit, or run anything that writes. Run the project's read-only checks when
   they settle a finding.
 
-## Finding code
-
-- List the `intellij-index` tools once before your first code search, so you can call them.
-- A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
-- Code you can describe but not name: `search`.
-- What depends on the change: `ide_find_references`, `ide_call_hierarchy`, `ide_find_implementations`,
-  `ide_find_super_methods`, `ide_type_hierarchy`; a signature or its docs: `ide_symbol_info`.
-- Errors in the files it touched: `ide_diagnostics`, then the project's read-only checks.
-- The shell only for files the index doesn't cover, or when a tool says the IDE can't serve the
-  working copy.
-
 ## Finishing
 
 Call `done` once, then end your turn. Give:

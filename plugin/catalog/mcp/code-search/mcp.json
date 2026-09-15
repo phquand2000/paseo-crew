@@ -1,0 +1,34 @@
+{
+  "id": "code-search",
+  "label": "Code search",
+  "order": 20,
+  "description": "Semantic code search over the working copy, backed by semble.",
+  "kind": "proxy",
+  "proxy": "semble",
+  "instructions": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
+  "command": [
+    "uvx",
+    "--from",
+    "semble[mcp]==0.5.4",
+    "semble"
+  ],
+  "settings": {},
+  "defaults": {
+    "enabled": true
+  },
+  "tools": {
+    "supervisor": [
+      "search"
+    ],
+    "lead": [
+      "search"
+    ],
+    "peer": [
+      "search"
+    ],
+    "reviewer": [
+      "search"
+    ]
+  },
+  "rule": "rule.md"
+}

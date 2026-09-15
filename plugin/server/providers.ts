@@ -1,41 +1,67 @@
 import { execFile } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { type Kit, type RoleSpec, defaultModel, defaultThinking, harnessOf, modelsOf, paseoToolsPolicy, providerId, seatRoles } from "./kit.ts";
+import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, paseoToolsPolicy, providerId, seatRoles, supportsRole } from "./kit.ts";
 import { paseoConfigPath } from "./paths.ts";
 import { sameJson } from "./store.ts";
+import type { Team } from "./team.ts";
 
 type Json = Record<string, any>;
 
-export function labelFor(kit: Kit, role: RoleSpec): string {
+export function labelFor(kit: Kit, role: RoleSpec, harness: HarnessSpec): string {
   const tag = kit.prefix.replace(/[-_]+$/, "");
-  return tag ? `${role.label} (${tag})` : role.label;
+  const base = `${role.label} · ${harness.label}`;
+  return tag ? `${base} (${tag})` : base;
 }
 
-export function desiredProvider(kit: Kit, role: RoleSpec): Json {
-  const harness = harnessOf(kit, role);
+export function seatPairs(kit: Kit): { role: RoleSpec; harness: HarnessSpec }[] {
+  const pairs: { role: RoleSpec; harness: HarnessSpec }[] = [];
+  for (const role of seatRoles(kit)) {
+    for (const harness of Object.values(kit.harnesses)) if (supportsRole(kit, harness, role)) pairs.push({ role, harness });
+  }
+  return pairs;
+}
+
+function choiceFor(team: Team, role: RoleSpec, harness: HarnessSpec): { model?: string; thinking?: string } {
+  const seat = team.roles[role.role];
+  if (seat && seat.harness.id === harness.id) return { model: seat.model?.id, thinking: seat.thinking };
+  const model = harness.models?.find((entry) => entry.isDefault) ?? harness.models?.[0];
+  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  return { model: model?.id, thinking: (options.find((option) => option.isDefault) ?? options[0])?.id };
+}
+
+function modelsFor(harness: HarnessSpec, choice: { model?: string; thinking?: string }): ModelSpec[] {
+  return (harness.models ?? []).map((model) => {
+    const entry: ModelSpec = { id: model.id, label: model.label, isDefault: model.id === choice.model };
+    if (harness.hasThinking !== false && model.thinkingOptions?.length) {
+      entry.thinkingOptions = model.thinkingOptions.map((option) => ({ id: option.id, label: option.label, isDefault: model.id === choice.model && option.id === choice.thinking }));
+    }
+    return entry;
+  });
+}
+
+export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
   const entry: Json = {
     extends: harness.baseProvider,
-    label: labelFor(kit, role),
+    label: labelFor(kit, role, harness),
     env: { ...(harness.provider.env ?? {}), SEATWORKS_ROLE: role.role, SEATWORKS_KIT: kit.dir },
   };
   if (role.description) entry.description = role.description;
   const command = (harness.provider.command ?? []).map((part) => part.replaceAll("KIT", kit.dir));
   if (command.length > 0) entry.command = command;
-  const models = modelsOf(role);
+  const models = modelsFor(harness, choiceFor(team, role, harness));
   if (models.length > 0) entry.models = models;
   const tools = paseoToolsPolicy(role);
   if (tools) entry.paseoTools = tools;
   return entry;
 }
 
-export function desiredProfile(kit: Kit, role: RoleSpec): Json {
-  const harness = harnessOf(kit, role);
-  const model = defaultModel(role);
-  const profile: Json = { id: providerId(kit, role.role), name: labelFor(kit, role), provider: providerId(kit, role.role) };
-  if (model) profile.model = model.id;
+export function desiredProfile(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
+  const id = providerId(kit, role.role, harness.id);
+  const choice = choiceFor(team, role, harness);
+  const profile: Json = { id, name: labelFor(kit, role, harness), provider: id };
+  if (choice.model) profile.model = choice.model;
   if (harness.provider.profileModeId) profile.modeId = harness.provider.profileModeId;
-  const thinking = harness.hasThinking === false ? undefined : defaultThinking(role, model);
-  if (thinking) profile.thinkingOptionId = thinking;
+  if (choice.thinking) profile.thinkingOptionId = choice.thinking;
   return profile;
 }
 
@@ -48,7 +74,7 @@ function managedEnvKeys(kit: Kit): Set<string> {
   return keys;
 }
 
-export function reconcile(config: Json, kit: Kit): { config: Json; changed: string[] } {
+export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; changed: string[] } {
   const next: Json = structuredClone(config);
   next.agents ??= {};
   next.agents.providers ??= {};
@@ -56,30 +82,33 @@ export function reconcile(config: Json, kit: Kit): { config: Json; changed: stri
   next.daemon.agentProfiles ??= [];
   const managed = managedEnvKeys(kit);
   const changed: string[] = [];
-  for (const role of kit.roles.filter((entry) => entry.headless)) {
-    const id = providerId(kit, role.role);
-    if (next.agents.providers[id]) {
-      delete next.agents.providers[id];
-      changed.push(`provider ${id} removed`);
+  const pairs = seatPairs(kit);
+  const wanted = new Set(pairs.map((pair) => providerId(kit, pair.role.role, pair.harness.id)));
+  if (kit.prefix) {
+    for (const id of Object.keys(next.agents.providers)) {
+      if (id.startsWith(kit.prefix) && !wanted.has(id)) {
+        delete next.agents.providers[id];
+        changed.push(`provider ${id} removed`);
+      }
     }
-    const before = next.daemon.agentProfiles.length;
-    next.daemon.agentProfiles = next.daemon.agentProfiles.filter((entry: Json) => entry.id !== id);
-    if (next.daemon.agentProfiles.length !== before) changed.push(`profile ${id} removed`);
+    next.daemon.agentProfiles = next.daemon.agentProfiles.filter((entry: Json) => {
+      const stale = typeof entry.id === "string" && entry.id.startsWith(kit.prefix) && !wanted.has(entry.id);
+      if (stale) changed.push(`profile ${entry.id} removed`);
+      return !stale;
+    });
   }
-  for (const role of seatRoles(kit)) {
-    const id = providerId(kit, role.role);
+  for (const { role, harness } of pairs) {
+    const id = providerId(kit, role.role, harness.id);
     const have: Json = next.agents.providers[id] ?? {};
-    const want = desiredProvider(kit, role);
-    const kept = Object.fromEntries(
-      Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("SEATWORKS_") && !managed.has(key)),
-    );
+    const want = desiredProvider(kit, team, role, harness);
+    const kept = Object.fromEntries(Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("SEATWORKS_") && !managed.has(key)));
     const merged: Json = { ...have, ...want, env: { ...kept, ...want.env } };
     for (const key of ["command", "models", "paseoTools", "description"]) if (!(key in want)) delete merged[key];
     if (!sameJson(merged, have)) {
       next.agents.providers[id] = merged;
       changed.push(`provider ${id}`);
     }
-    const profile = desiredProfile(kit, role);
+    const profile = desiredProfile(kit, team, role, harness);
     const profiles: Json[] = next.daemon.agentProfiles;
     const index = profiles.findIndex((entry) => entry.id === profile.id);
     const current = index >= 0 ? profiles[index] : undefined;
@@ -94,9 +123,9 @@ export function reconcile(config: Json, kit: Kit): { config: Json; changed: stri
   return { config: next, changed };
 }
 
-export function applyReconcile(kit: Kit, configPath = paseoConfigPath()): string[] {
+export function applyReconcile(kit: Kit, team: Team, configPath = paseoConfigPath()): string[] {
   const config = JSON.parse(readFileSync(configPath, "utf-8")) as Json;
-  const { config: next, changed } = reconcile(config, kit);
+  const { config: next, changed } = reconcile(config, kit, team);
   if (changed.length > 0) writeFileSync(configPath, `${JSON.stringify(next, null, 2)}\n`);
   return changed;
 }
