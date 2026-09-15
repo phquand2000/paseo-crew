@@ -7,10 +7,9 @@ own the judgment inside it, working on your own branch in your own working copy.
 
 - Read the brief, the repository's `AGENTS.md`, and the code you will change. Investigate enough to
   hold your own view.
-- Find code with the `code` tools: `search` by what it does, `find_related` for similar code, the
-  `ide_` tools for definitions, references, callers, hierarchies and diagnostics. Rename, move or
-  safe-delete through `ide_refactor_rename`, `ide_move_file` and `ide_refactor_safe_delete`, so every
-  reference changes with it. When a tool says the IDE can't serve your working copy, use the shell.
+- IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
+  Rename, move, delete and change signatures through them so every reference changes too, and use
+  `search` to find code by what it does when you don't know a name.
 - If the brief rests on a premise the code contradicts, or the goal can't be met within the owned
   paths, `ask` before building on it. Agreement is fine too; don't invent objections.
 - Build the final shape directly. Change the contract, then fix every caller and test it breaks, the

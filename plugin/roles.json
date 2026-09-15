@@ -55,12 +55,9 @@
       "prompt": "prompts/SUPERVISOR.md",
       "codeTools": [
         "search",
-        "find_related",
         "ide_find_symbol",
         "ide_find_references",
-        "ide_type_hierarchy",
-        "ide_call_hierarchy",
-        "ide_file_structure"
+        "ide_call_hierarchy"
       ],
       "skills": "supervisor",
       "extraMcpServers": {
@@ -109,16 +106,12 @@
       "codeTools": [
         "search",
         "find_related",
+        "ide_find_symbol",
         "ide_find_definition",
         "ide_find_references",
-        "ide_find_implementations",
         "ide_call_hierarchy",
-        "ide_type_hierarchy",
-        "ide_find_symbol",
-        "ide_symbol_info",
-        "ide_file_structure",
-        "ide_diagnostics",
-        "ide_sync_files"
+        "ide_find_implementations",
+        "ide_type_hierarchy"
       ],
       "skills": "lead",
       "extraMcpServers": {
@@ -168,20 +161,16 @@
       "codeTools": [
         "search",
         "find_related",
+        "ide_find_symbol",
         "ide_find_definition",
         "ide_find_references",
-        "ide_find_implementations",
         "ide_call_hierarchy",
+        "ide_find_implementations",
         "ide_type_hierarchy",
-        "ide_find_symbol",
-        "ide_symbol_info",
-        "ide_file_structure",
-        "ide_diagnostics",
-        "ide_sync_files",
-        "ide_find_super_methods",
         "ide_refactor_rename",
         "ide_move_file",
-        "ide_refactor_safe_delete"
+        "ide_refactor_safe_delete",
+        "ide_change_signature"
       ],
       "skills": "peer",
       "paseoTools": {
@@ -226,17 +215,12 @@
       "codeTools": [
         "search",
         "find_related",
+        "ide_find_symbol",
         "ide_find_definition",
         "ide_find_references",
-        "ide_find_implementations",
         "ide_call_hierarchy",
-        "ide_type_hierarchy",
-        "ide_find_symbol",
-        "ide_symbol_info",
-        "ide_file_structure",
-        "ide_diagnostics",
-        "ide_sync_files",
-        "ide_find_super_methods"
+        "ide_find_implementations",
+        "ide_type_hierarchy"
       ],
       "skills": null,
       "extraSkills": [

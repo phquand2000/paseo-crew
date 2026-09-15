@@ -4,11 +4,20 @@ import { isAbsolute, join, relative } from "node:path";
 import { createInterface } from "node:readline";
 
 const config = JSON.parse(process.argv[2] ?? "{}");
+const serverName = config.name ?? "intellij-index";
 const allowed = new Set(config.tools ?? []);
 const ideUrl = config.ide ?? "";
 const sembleCommand = config.semble ?? [];
-const WRITES = new Set(["ide_refactor_rename", "ide_move_file", "ide_refactor_safe_delete"]);
 const OPEN_SECONDS = Number(process.env.SEATWORKS_IDE_OPEN_SECONDS ?? 300);
+const INDEX_WAIT_MS = Number(process.env.SEATWORKS_IDE_INDEX_WAIT_MS ?? 180000);
+const INDEX_POLL_MS = Number(process.env.SEATWORKS_IDE_INDEX_POLL_MS ?? 5000);
+const MAX_SYNC_PATHS = 100;
+
+const RULE = "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.";
+const INSTRUCTIONS = {
+  "intellij-index": `${RULE} Every call answers for your own working copy, and paths are relative to it.`,
+  semble: "Code search in your own working copy: search finds code by what it does, find_related finds code similar to a known location.",
+};
 
 const SEMBLE_TOOLS = [
   {
@@ -42,21 +51,23 @@ const SEMBLE_TOOLS = [
   },
 ];
 
-function workingCopy() {
+function gitOut(args, cwd = process.cwd()) {
   try {
-    return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return execFileSync("git", args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
   } catch {
-    return process.cwd();
+    return undefined;
   }
 }
 
-const root = workingCopy();
+const root = gitOut(["rev-parse", "--show-toplevel"])?.trim() || process.cwd();
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const text = (value, isError = false) => ({ content: [{ type: "text", text: value }], isError });
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function excludeIdeFiles() {
   try {
-    const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const common = gitOut(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)?.trim();
+    if (!common) return;
     const file = join(common, "info", "exclude");
     const current = existsSync(file) ? readFileSync(file, "utf-8") : "";
     if (current.split(/\r?\n/).includes(".idea/")) return;
@@ -67,15 +78,15 @@ function excludeIdeFiles() {
 
 let rpcId = 0;
 async function ide(name, args, timeoutMs = 120000) {
+  const listing = name === "tools/list";
   const response = await fetch(ideUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: name === "tools/list" ? "tools/list" : "tools/call", params: name === "tools/list" ? {} : { name, arguments: args } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: listing ? "tools/list" : "tools/call", params: listing ? {} : { name, arguments: args } }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const body = await response.text();
-  const data = body.slice(body.indexOf("{"), body.lastIndexOf("}") + 1);
-  const parsed = JSON.parse(data);
+  const parsed = JSON.parse(body.slice(body.indexOf("{"), body.lastIndexOf("}") + 1));
   if (parsed.error) throw new Error(parsed.error.message ?? "IDE error");
   return parsed.result;
 }
@@ -86,7 +97,10 @@ function withoutKey(schema, key) {
   const properties = { ...(schema?.properties ?? {}) };
   delete properties[key];
   const required = (schema?.required ?? []).filter((name) => name !== key);
-  return { ...schema, type: "object", properties, ...(required.length > 0 ? { required } : { required: undefined }) };
+  const next = { ...schema, type: "object", properties };
+  if (required.length > 0) next.required = required;
+  else delete next.required;
+  return next;
 }
 
 async function ideTools() {
@@ -97,7 +111,7 @@ async function ideTools() {
     const byName = new Map(listed.tools.map((tool) => [tool.name, tool]));
     return wanted.map((name) => {
       const tool = byName.get(name);
-      if (!tool) return { name, description: "IDE tool not enabled in the IDE right now; it answers with an error until it is.", inputSchema: { type: "object", properties: {} } };
+      if (!tool) return { name, description: "Switched off in the IDE right now; calls fail until it is switched on.", inputSchema: { type: "object", properties: {} } };
       return { name, description: tool.description, inputSchema: withoutKey(tool.inputSchema, "project_path") };
     });
   } catch {
@@ -105,34 +119,73 @@ async function ideTools() {
   }
 }
 
-function notOpen(result) {
-  return result?.isError && /project_not_found|No open project matches/.test(firstText(result));
-}
+const notOpen = (result) => result?.isError && /project_not_found|No open project matches/.test(firstText(result));
+const indexing = (result) => result?.isError && /dumb mode|index is not ready/i.test(firstText(result));
+const switchedOff = (result) => result?.isError && /^Tool \S+ not found/.test(firstText(result));
 
 async function openHere() {
   excludeIdeFiles();
   const opened = await ide("ide_open_project", { path: root, timeoutSeconds: OPEN_SECONDS }, (OPEN_SECONDS + 30) * 1000);
-  if (opened?.isError) {
-    const why = firstText(opened);
-    return /not found/i.test(why) ? "the IDE can't open projects by path (ide_open_project is switched off in the IDE)" : why;
+  if (!opened?.isError) return "";
+  const why = firstText(opened);
+  return /not found/i.test(why) ? "the IDE can't open projects by path (ide_open_project is switched off in the IDE)" : why;
+}
+
+async function waitForIndex() {
+  const until = Date.now() + INDEX_WAIT_MS;
+  while (Date.now() < until) {
+    await sleep(INDEX_POLL_MS);
+    const status = await ide("ide_index_status", { project_path: root }).catch(() => undefined);
+    if (status && !status.isError && !/"isDumbMode"\s*:\s*true/.test(firstText(status))) return true;
   }
-  return "";
+  return false;
+}
+
+function statusPaths(porcelain) {
+  const paths = new Set();
+  const entries = porcelain.split("\0");
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (!entry || entry.length < 4) continue;
+    paths.add(entry.slice(3));
+    if (/[RC]/.test(entry.slice(0, 2)) && entries[i + 1]) paths.add(entries[++i]);
+  }
+  return paths;
+}
+
+let seenHead;
+let seenStatus;
+async function syncChanges() {
+  const head = gitOut(["rev-parse", "HEAD"], root)?.trim() ?? "";
+  const status = gitOut(["status", "--porcelain", "-z", "--untracked-files=all"], root) ?? "";
+  const firstCall = seenHead === undefined;
+  if (!firstCall && head === seenHead && status === seenStatus) return;
+  const changed = new Set([...statusPaths(status), ...(firstCall ? [] : statusPaths(seenStatus))]);
+  const whole = (!firstCall && head !== seenHead) || changed.size > MAX_SYNC_PATHS;
+  seenHead = head;
+  seenStatus = status;
+  if (!whole && changed.size === 0) return;
+  const args = whole ? { project_path: root } : { project_path: root, paths: [...changed] };
+  const result = await ide("ide_sync_files", args).catch(() => undefined);
+  if (!whole && result?.isError) await ide("ide_sync_files", { project_path: root }).catch(() => undefined);
 }
 
 async function callIde(name, args) {
   if (!ideUrl) return text("No IDE is configured for this team; use search and the shell.", true);
   const request = { ...(args ?? {}), project_path: root };
   try {
-    if (WRITES.has(name)) await ide("ide_sync_files", { project_path: root }).catch(() => undefined);
+    await syncChanges();
     let result = await ide(name, request);
     if (notOpen(result)) {
       const problem = await openHere();
       if (problem) return text(`The IDE has not opened this working copy (${root}) and ${problem}. Use search and the shell instead.`, true);
       result = await ide(name, request);
     }
-    if (result?.isError && /^Tool \S+ not found/.test(firstText(result))) {
-      return text(`The IDE has ${name} switched off. Use the other code tools or the shell instead.`, true);
+    if (indexing(result)) {
+      if (!(await waitForIndex())) return text("The IDE is still indexing this working copy. Use search and the shell meanwhile, and try again in a few minutes.", true);
+      result = await ide(name, request);
     }
+    if (switchedOff(result)) return text(`The IDE has ${name} switched off. Use the other code tools or the shell instead.`, true);
     return result;
   } catch (error) {
     const reason = error?.name === "TimeoutError" ? "did not answer in time" : "is not reachable";
@@ -213,8 +266,8 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
       result: {
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "code", version: "2.0.0" },
-        instructions: "Code intelligence for your own working copy. Paths are relative to it. search finds code by meaning; the ide_ tools answer definitions, references, hierarchies and diagnostics from the IDE's index.",
+        serverInfo: { name: serverName, version: "2.0.0" },
+        instructions: INSTRUCTIONS[serverName] ?? "",
       },
     });
   } else if (method === "tools/list") {

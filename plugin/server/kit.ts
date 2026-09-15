@@ -169,9 +169,16 @@ export function teamServer(kit: Kit, role: RoleSpec, spool: string, node: string
 }
 
 export function codeServer(kit: Kit, role: RoleSpec, node: string): McpServers {
-  if (!role.codeTools || role.codeTools.length === 0) return {};
-  const config = JSON.stringify({ ide: kit.code.ide ?? "", semble: kit.code.semble ?? [], tools: role.codeTools });
-  return { code: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "code.mjs"), config] } };
+  const tools = role.codeTools ?? [];
+  const servers: McpServers = {};
+  const add = (name: string, list: string[]) => {
+    if (list.length === 0) return;
+    const config = JSON.stringify({ name, ide: kit.code.ide ?? "", semble: kit.code.semble ?? [], tools: list });
+    servers[name] = { type: "stdio", command: node, args: [join(kit.dir, "mcp", "code.mjs"), config] };
+  };
+  add("intellij-index", tools.filter((tool) => tool.startsWith("ide_")));
+  add("semble", tools.filter((tool) => !tool.startsWith("ide_")));
+  return servers;
 }
 
 export function mcpServersFor(kit: Kit, role: RoleSpec, team: McpServers = {}): McpServers {

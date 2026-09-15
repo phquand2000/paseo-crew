@@ -12,9 +12,10 @@ const PROXY = join(dirname(fileURLToPath(import.meta.url)), "..", "mcp", "code.m
 
 type Call = { name: string; args: Record<string, unknown> };
 
-async function fakeIde(options: { openEnabled: boolean }) {
+async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number }) {
   const calls: Call[] = [];
   const open = new Set<string>();
+  let dumb = options.dumbCalls ?? 0;
   const server = createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
@@ -34,8 +35,13 @@ async function fakeIde(options: { openEnabled: boolean }) {
         return text("opened");
       }
       if (name === "ide_sync_files") return text("synced");
+      if (name === "ide_index_status") return text(JSON.stringify({ isDumbMode: dumb > 0 }));
       if (name === "ide_find_symbol") return text(`Tool ${name} not found`, true);
       if (!open.has(String(args.project_path))) return text('{"error":"project_not_found","message":"No open project matches"}', true);
+      if (dumb > 0) {
+        dumb--;
+        return text("IDE index is not ready (dumb mode) — IntelliJ is indexing in the background.", true);
+      }
       text(`references in ${args.project_path}`);
     });
   });
@@ -67,7 +73,8 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 }
 
 function proxy(cwd: string, config: object) {
-  const child = spawn(process.execPath, [PROXY, JSON.stringify(config)], { cwd, stdio: ["pipe", "pipe", "inherit"] });
+  const env = { ...process.env, SEATWORKS_IDE_INDEX_POLL_MS: "10", SEATWORKS_IDE_INDEX_WAIT_MS: "2000" };
+  const child = spawn(process.execPath, [PROXY, JSON.stringify(config)], { cwd, env, stdio: ["pipe", "pipe", "inherit"] });
   const waiting = new Map<number, (value: any) => void>();
   createInterface({ input: child.stdout }).on("line", (line) => {
     const message = JSON.parse(line);
@@ -83,17 +90,19 @@ function proxy(cwd: string, config: object) {
   return { rpc, stop: () => child.kill() };
 }
 
-test("the code proxy lists only the role's tools and hides the project argument", async () => {
+const work = (calls: Call[]) => calls.filter((call) => !["ide_sync_files", "ide_index_status"].includes(call.name)).map((call) => call.name);
+
+test("the IDE server carries the navigation rule, lists only the role's tools and hides the project argument", async () => {
   const ide = await fakeIde({ openEnabled: true });
-  const cwd = repo();
-  const code = proxy(cwd, { ide: ide.url, semble: [], tools: ["search", "ide_find_references"] });
+  const code = proxy(repo(), { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
   try {
+    const started = await code.rpc("initialize", { protocolVersion: "2025-06-18" });
+    assert.equal(started.result.serverInfo.name, "intellij-index");
+    assert.match(started.result.instructions, /IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring\./);
     const listed = await code.rpc("tools/list");
-    const names = listed.result.tools.map((tool: { name: string }) => tool.name);
-    assert.deepEqual(names, ["search", "ide_find_references"]);
-    const refs = listed.result.tools[1];
-    assert.equal(refs.inputSchema.properties.project_path, undefined);
-    assert.equal(refs.inputSchema.required, undefined);
+    assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["ide_find_references"]);
+    assert.equal(listed.result.tools[0].inputSchema.properties.project_path, undefined);
+    assert.equal(listed.result.tools[0].inputSchema.required, undefined);
     const refused = await code.rpc("tools/call", { name: "ide_refactor_rename", arguments: {} });
     assert.equal(refused.result.isError, true);
   } finally {
@@ -102,16 +111,16 @@ test("the code proxy lists only the role's tools and hides the project argument"
   }
 });
 
-test("an IDE call is pinned to the working copy and opens it on first use", async () => {
+test("an IDE call is pinned to the working copy, opens it on first use, and reports a switched-off tool", async () => {
   const ide = await fakeIde({ openEnabled: true });
   const cwd = repo();
-  const code = proxy(join(cwd), { ide: ide.url, semble: [], tools: ["ide_find_references", "ide_find_symbol"] });
+  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references", "ide_find_symbol"] });
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: { file: "a.ts", project_path: "/somewhere/else" } });
     assert.equal(reply.result.isError, false);
     assert.equal(reply.result.content[0].text, `references in ${cwd}`);
-    assert.deepEqual(ide.calls.map((call) => call.name), ["ide_find_references", "ide_open_project", "ide_find_references"]);
-    assert.equal(ide.calls[1]!.args.path, cwd);
+    assert.deepEqual(work(ide.calls), ["ide_find_references", "ide_open_project", "ide_find_references"]);
+    assert.equal(ide.calls.find((call) => call.name === "ide_open_project")!.args.path, cwd);
     assert.match(readFileSync(join(cwd, ".git", "info", "exclude"), "utf-8"), /^\.idea\/$/m);
     const off = await code.rpc("tools/call", { name: "ide_find_symbol", arguments: { query: "x" } });
     assert.equal(off.result.isError, true);
@@ -122,9 +131,42 @@ test("an IDE call is pinned to the working copy and opens it on first use", asyn
   }
 });
 
+test("a call made while the IDE indexes waits for the index and is retried", async () => {
+  const ide = await fakeIde({ openEnabled: true, dumbCalls: 1 });
+  const cwd = repo();
+  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  try {
+    const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
+    assert.equal(reply.result.isError, false, reply.result.content[0].text);
+    assert.ok(ide.calls.some((call) => call.name === "ide_index_status"));
+  } finally {
+    code.stop();
+    ide.close();
+  }
+});
+
+test("files changed outside the IDE are synced before the next call, and nothing is synced when nothing changed", async () => {
+  const ide = await fakeIde({ openEnabled: true });
+  const cwd = repo();
+  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const syncs = () => ide.calls.filter((call) => call.name === "ide_sync_files");
+  try {
+    await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
+    assert.equal(syncs().length, 0);
+    writeFileSync(join(cwd, "new.ts"), "export const x = 1;\n");
+    await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
+    assert.deepEqual(syncs().map((call) => call.args.paths), [["new.ts"]]);
+    await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
+    assert.equal(syncs().length, 1);
+  } finally {
+    code.stop();
+    ide.close();
+  }
+});
+
 test("when the IDE can't open the working copy the agent is told to use search and the shell", async () => {
   const ide = await fakeIde({ openEnabled: false });
-  const code = proxy(repo(), { ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(repo(), { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
     assert.equal(reply.result.isError, true);
@@ -136,7 +178,7 @@ test("when the IDE can't open the working copy the agent is told to use search a
 });
 
 test("an unreachable IDE fails the call with a way forward", async () => {
-  const code = proxy(repo(), { ide: "http://127.0.0.1:9/mcp", semble: [], tools: ["ide_find_references"] });
+  const code = proxy(repo(), { name: "intellij-index", ide: "http://127.0.0.1:9/mcp", semble: [], tools: ["ide_find_references"] });
   try {
     const listed = await code.rpc("tools/list");
     assert.equal(listed.result.tools.length, 1);
@@ -150,8 +192,10 @@ test("an unreachable IDE fails the call with a way forward", async () => {
 
 test("code search runs against the working copy with a relative path", async () => {
   const cwd = repo();
-  const code = proxy(cwd, { ide: "", semble: [process.execPath, fakeSemble()], tools: ["find_related"] });
+  const code = proxy(cwd, { name: "semble", ide: "", semble: [process.execPath, fakeSemble()], tools: ["search", "find_related"] });
   try {
+    const listed = await code.rpc("tools/list");
+    assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["search", "find_related"]);
     const reply = await code.rpc("tools/call", { name: "find_related", arguments: { file_path: join(cwd, "src", "a.ts"), line: 3, repo: "/elsewhere" } });
     assert.deepEqual(JSON.parse(reply.result.content[0].text), { file_path: join("src", "a.ts"), line: 3, repo: cwd });
   } finally {
