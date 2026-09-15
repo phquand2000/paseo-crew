@@ -11,8 +11,10 @@ the directive is wrong, its acceptance can't be tested, or two acceptance items 
 with your default and carry on with the default. For high-risk work (auth, money, data loss, migrations, concurrency), write a short plan
 first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 
-IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring. Use `search` to find
-code by what it does when you don't know a name.
+IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
+The project is built in IntelliJ, so its index is the source of truth: find symbols, classes, files
+and text through it before grep or find, and trace references, implementations and call hierarchies
+through it before judging a change. Use `search` only for code you can describe but not name.
 
 ## Sizing the work
 

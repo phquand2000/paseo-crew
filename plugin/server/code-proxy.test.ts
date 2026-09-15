@@ -37,6 +37,7 @@ async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number }) {
       if (name === "ide_sync_files") return text("synced");
       if (name === "ide_index_status") return text(JSON.stringify({ isDumbMode: dumb > 0 }));
       if (name === "ide_find_symbol") return text(`Tool ${name} not found`, true);
+      if (name === "ide_diagnostics") return text("java.util.concurrent.ExecutionException: com.redhat.devtools.lsp4ij.server.CannotStartProcessException: harper-ls", true);
       if (!open.has(String(args.project_path))) return text('{"error":"project_not_found","message":"No open project matches"}', true);
       if (dumb > 0) {
         dumb--;
@@ -114,7 +115,7 @@ test("the IDE server carries the navigation rule, lists only the role's tools an
 test("an IDE call is pinned to the working copy, opens it on first use, and reports a switched-off tool", async () => {
   const ide = await fakeIde({ openEnabled: true });
   const cwd = repo();
-  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references", "ide_find_symbol"] });
+  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references", "ide_find_symbol", "ide_diagnostics"] });
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: { file: "a.ts", project_path: "/somewhere/else" } });
     assert.equal(reply.result.isError, false);
@@ -125,6 +126,8 @@ test("an IDE call is pinned to the working copy, opens it on first use, and repo
     const off = await code.rpc("tools/call", { name: "ide_find_symbol", arguments: { query: "x" } });
     assert.equal(off.result.isError, true);
     assert.match(off.result.content[0].text, /switched off/);
+    const broken = await code.rpc("tools/call", { name: "ide_diagnostics", arguments: { file: "a.ts" } });
+    assert.match(broken.result.content[0].text, /language server plugin inside the IDE failed/);
   } finally {
     code.stop();
     ide.close();

@@ -16,7 +16,7 @@ const MAX_SYNC_PATHS = 100;
 const RULE = "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.";
 const INSTRUCTIONS = {
   "intellij-index": `${RULE} Every call answers for your own working copy, and paths are relative to it.`,
-  semble: "Code search in your own working copy: search finds code by what it does, find_related finds code similar to a known location.",
+  semble: "Code search in your own working copy, for code you can describe but not name. For symbols, references, hierarchies and refactoring, prefer the intellij-index tools.",
 };
 
 const SEMBLE_TOOLS = [
@@ -121,6 +121,7 @@ async function ideTools() {
 
 const notOpen = (result) => result?.isError && /project_not_found|No open project matches/.test(firstText(result));
 const indexing = (result) => result?.isError && /dumb mode|index is not ready/i.test(firstText(result));
+const brokenPlugin = (result) => result?.isError && /CannotStartProcessException|ProcessNotCreatedException|lsp4ij/.test(firstText(result));
 const switchedOff = (result) => result?.isError && /^Tool \S+ not found/.test(firstText(result));
 
 async function openHere() {
@@ -185,6 +186,7 @@ async function callIde(name, args) {
       if (!(await waitForIndex())) return text("The IDE is still indexing this working copy. Use search and the shell meanwhile, and try again in a few minutes.", true);
       result = await ide(name, request);
     }
+    if (brokenPlugin(result)) return text(`The IDE could not run ${name} because a language server plugin inside the IDE failed to start. Use the other intellij-index tools, and the build or tests for errors.`, true);
     if (switchedOff(result)) return text(`The IDE has ${name} switched off. Use the other code tools or the shell instead.`, true);
     return result;
   } catch (error) {

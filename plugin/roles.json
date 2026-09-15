@@ -54,10 +54,14 @@
       },
       "prompt": "prompts/SUPERVISOR.md",
       "codeTools": [
-        "search",
         "ide_find_symbol",
+        "ide_find_class",
+        "ide_find_file",
         "ide_find_references",
-        "ide_call_hierarchy"
+        "ide_call_hierarchy",
+        "ide_type_hierarchy",
+        "ide_file_structure",
+        "search"
       ],
       "skills": "supervisor",
       "extraMcpServers": {
@@ -104,14 +108,21 @@
       },
       "prompt": "prompts/LEAD.md",
       "codeTools": [
-        "search",
-        "find_related",
         "ide_find_symbol",
+        "ide_find_class",
+        "ide_find_file",
+        "ide_search_text",
         "ide_find_definition",
+        "ide_symbol_info",
         "ide_find_references",
         "ide_call_hierarchy",
         "ide_find_implementations",
-        "ide_type_hierarchy"
+        "ide_find_super_methods",
+        "ide_type_hierarchy",
+        "ide_file_structure",
+        "ide_diagnostics",
+        "search",
+        "find_related"
       ],
       "skills": "lead",
       "extraMcpServers": {
@@ -159,18 +170,25 @@
       },
       "prompt": "prompts/PEER.md",
       "codeTools": [
-        "search",
-        "find_related",
         "ide_find_symbol",
+        "ide_find_class",
+        "ide_find_file",
+        "ide_search_text",
         "ide_find_definition",
+        "ide_symbol_info",
         "ide_find_references",
         "ide_call_hierarchy",
         "ide_find_implementations",
+        "ide_find_super_methods",
         "ide_type_hierarchy",
+        "ide_file_structure",
+        "ide_diagnostics",
         "ide_refactor_rename",
         "ide_move_file",
         "ide_refactor_safe_delete",
-        "ide_change_signature"
+        "ide_change_signature",
+        "search",
+        "find_related"
       ],
       "skills": "peer",
       "paseoTools": {
@@ -213,14 +231,21 @@
       },
       "prompt": "prompts/REVIEWER.md",
       "codeTools": [
-        "search",
-        "find_related",
         "ide_find_symbol",
+        "ide_find_class",
+        "ide_find_file",
+        "ide_search_text",
         "ide_find_definition",
+        "ide_symbol_info",
         "ide_find_references",
         "ide_call_hierarchy",
         "ide_find_implementations",
-        "ide_type_hierarchy"
+        "ide_find_super_methods",
+        "ide_type_hierarchy",
+        "ide_file_structure",
+        "ide_diagnostics",
+        "search",
+        "find_related"
       ],
       "skills": null,
       "extraSkills": [

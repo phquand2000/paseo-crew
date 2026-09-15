@@ -65,7 +65,8 @@
       "CLAUDE_CODE_DISABLE_WORKFLOWS": "1",
       "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1",
       "SEATWORKS_HARNESS": "claude",
-      "SEATWORKS_AGENT_BIN": "claude"
+      "SEATWORKS_AGENT_BIN": "claude",
+      "ENABLE_TOOL_SEARCH": "false"
     },
     "profileModeId": "bypassPermissions",
     "defaultModel": null,

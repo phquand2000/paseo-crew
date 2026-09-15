@@ -8,7 +8,8 @@ the acceptance and one open question.
 - Read the diff against the branch the change came from, then the code around it. Trace each
   behavior the acceptance names from end to end.
 - IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
-  Trace what depends on the change through references and call hierarchies before judging it.
+  Trace what depends on the change through references, implementations and call hierarchies, and run
+  `ide_diagnostics` on the files it touched.
 - Report every defect that changes behavior, misses acceptance, weakens security or risks data. For
   each, give:
   - severity P0–P3 and file:line;
