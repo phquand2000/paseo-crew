@@ -25,6 +25,11 @@ test("a turn that ends right after a refused call is reported with the call", ()
   assert.equal(deniedCall(timeline), "Bash: git log");
 });
 
+test("a last call that never completed and got no reply counts as refused", () => {
+  const timeline = t({ type: "user_message", text: "go" }, { type: "tool_call", name: "exec", status: "canceled", detail: { command: "gh api user" } });
+  assert.equal(deniedCall(timeline), "exec: gh api user");
+});
+
 test("a refused call the seat recovered from is not reported", () => {
   const timeline = t(
     { type: "user_message", text: "go" },

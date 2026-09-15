@@ -1,4 +1,5 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readJson, writeJson } from "./store.ts";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "./content.ts";
@@ -14,14 +15,16 @@ import { applyReconcile, reloadDaemon } from "./providers.ts";
 import { ensureLink, materialize, seatDir, seedRecords } from "./seats.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { type SeatView, statusText } from "./status.ts";
-import { deniedCall, outputText } from "./timeline.ts";
+import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 import { URGENT, parseVerdicts, runWatcher, watcherPrompt } from "./watcher.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string };
 
+const watchFile = () => join(stateRoot(), "watch-queue.json");
+
 const CUES =
-  /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed)|shim|adapter|compat(ibility)?|bridge|backward|legacy|temporar(y|ily)|stub|placeholder|re-?export)\b/i;
+  /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed)|shim|adapter|compat(ibility)?|bridge|backward|legacy|temporar(y|ily)|stub|placeholder|re-?export)\b|chờ|đợi|tạm dừng|dừng lại|không chắc|hóa ra|hoá ra|sai rồi|bỏ qua|tạm thời|tương thích|xóa|xoá/i;
 
 export class Runtime {
   readonly kit: Kit;
@@ -45,6 +48,16 @@ export class Runtime {
     this.kit = kit;
     this.outbox = new Outbox(outboxFile, (to, list) => this.compose(to, list));
     this.desk = new Desk(kit, this.outbox, (project, line) => this.log(project, line));
+    const saved = readJson<Watch[]>(watchFile(), []);
+    if (Array.isArray(saved)) this.watchQueue.push(...saved);
+  }
+
+  private saveWatchQueue(): void {
+    try {
+      writeJson(watchFile(), this.watchQueue);
+    } catch (error) {
+      console.error("seatworks-v2: watch queue write failed:", error);
+    }
   }
 
   prepare(): void {
@@ -183,6 +196,7 @@ export class Runtime {
       this.lastEnding.delete(agent.id);
     });
 
+    this.scheduleWatch();
     this.timers.push(
       setInterval(() => this.serveSpool(), 500),
       setInterval(() => {
@@ -245,6 +259,7 @@ export class Runtime {
         return;
       }
       const denied = deniedCall(timeline);
+      this.desk.event(project, { kind: "turn.silent", task: task.id, denied: denied ?? null, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
       const updated = await this.desk.setTask(project, task.id, (entry) => {
         entry.silent += 1;
         if (entry.silent >= 2 || denied) entry.status = "stalled";
@@ -272,7 +287,12 @@ export class Runtime {
     const watcher = this.kit.roles.find((role) => role.headless);
     if (!watcher || !item.text.trim()) return;
     this.watchQueue.push({ ...item, text: clip(item.text.slice(-1500), 1500) });
-    if (this.watchTimer || this.watching) return;
+    this.saveWatchQueue();
+    this.scheduleWatch();
+  }
+
+  private scheduleWatch(): void {
+    if (this.watchTimer || this.watching || this.watchQueue.length === 0) return;
     this.watchTimer = setTimeout(() => {
       this.watchTimer = undefined;
       this.runWatch().catch((error) => console.error("seatworks-v2: watcher failed:", error));
@@ -283,6 +303,7 @@ export class Runtime {
     const paseo = this.api;
     const watcher = this.kit.roles.find((role) => role.headless);
     const batch = this.watchQueue.splice(0, 10);
+    this.saveWatchQueue();
     if (!paseo || !watcher || batch.length === 0) return;
     this.watching = true;
     try {
@@ -316,7 +337,7 @@ export class Runtime {
       }
     } finally {
       this.watching = false;
-      if (this.watchQueue.length > 0) this.watch(this.watchQueue.shift()!);
+      this.scheduleWatch();
     }
   }
 

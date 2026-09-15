@@ -13,6 +13,16 @@ function lastUserIndex(list: Item[]): number {
   return -1;
 }
 
+export function lastToolCall(timeline: Timeline): Record<string, unknown> | undefined {
+  const list = items(timeline);
+  for (let index = list.length - 1; index >= 0; index--) {
+    const item = list[index];
+    if (item?.type === "user_message") return undefined;
+    if (item?.type === "tool_call") return { name: item.name, status: item.status, error: item.error, detail: item.detail };
+  }
+  return undefined;
+}
+
 export function outputText(timeline: Timeline): string {
   const list = items(timeline);
   return list
@@ -36,7 +46,10 @@ export function deniedCall(timeline: Timeline, quietChars = 200): string | undef
   }
   if (lastTool < 0) return undefined;
   const call = turn[lastTool];
-  if (!call || call.status !== "failed" || !REFUSED.test(JSON.stringify(call.error ?? ""))) return undefined;
+  if (!call) return undefined;
+  const refused = call.status === "failed" && REFUSED.test(JSON.stringify(call.error ?? ""));
+  const unanswered = call.status !== "completed" && turn.slice(lastTool + 1).every((item) => item.type !== "assistant_message");
+  if (!refused && !unanswered) return undefined;
   const after = turn
     .slice(lastTool + 1)
     .filter((item) => item.type === "assistant_message" && typeof item.text === "string")
