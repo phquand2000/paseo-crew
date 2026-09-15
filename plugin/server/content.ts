@@ -8,8 +8,8 @@ export function hiddenWordsIn(text: string, words: string[]): string[] {
   return words.filter((word) => new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text));
 }
 
-export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): string {
-  const source = readFileSync(join(kit.dir, "content", role.prompt), "utf-8");
+export function renderContent(kit: Kit, role: RoleSpec, file: string, paths: PromptPaths): string {
+  const source = readFileSync(join(kit.dir, "content", file), "utf-8");
   const text = source
     .replaceAll("{{guides}}", paths.guides)
     .replaceAll("{{state}}", paths.state)
@@ -26,6 +26,10 @@ export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): stri
     throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);
   }
   return text;
+}
+
+export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): string {
+  return renderContent(kit, role, role.prompt, paths);
 }
 
 function skillDirs(root: string): string[] {

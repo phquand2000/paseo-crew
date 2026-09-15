@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { renderPrompt, skillSources } from "./content.ts";
+import { renderContent, renderPrompt, skillSources } from "./content.ts";
 import { type Kit, type McpServers, type RoleSpec, harnessOf, mcpServersFor } from "./kit.ts";
 import { expandHome, guidesDir, home } from "./paths.ts";
 import { readJson, sameJson } from "./store.ts";
@@ -161,6 +161,8 @@ export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: Mc
     }
   }
 
+  const paths = { guides: guidesDir(homeDir), state: "$SEATWORKS_STATE" };
+  const rules = !role.headless && kit.rules ? renderContent(kit, role, kit.rules, paths) : "";
   if (harness.systemPrompt === "file" && harness.promptFile) {
     const promptPath = join(dir, harness.promptFile);
     if (role.headless) {
@@ -169,9 +171,11 @@ export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: Mc
         changes.push(`${harness.promptFile} removed`);
       }
     } else {
-      const prompt = renderPrompt(kit, role, { guides: guidesDir(homeDir), state: "$SEATWORKS_STATE" });
-      note(writeReal(promptPath, prompt), harness.promptFile);
+      const prompt = renderPrompt(kit, role, paths);
+      note(writeReal(promptPath, rules ? `${prompt.trimEnd()}\n\n${rules}` : prompt), harness.promptFile);
     }
+  } else if (harness.contextFile && rules) {
+    note(writeReal(join(dir, harness.contextFile), rules), harness.contextFile);
   }
 
   const skillsDir = join(dir, harness.skillsDir);

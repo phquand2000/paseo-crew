@@ -13,8 +13,6 @@ first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 
 ## Finding code
 
-IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
-
 - A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
 - Code you can describe but not name: `search`.
 - What a change touches: `ide_find_references`, `ide_call_hierarchy`, `ide_find_implementations`,

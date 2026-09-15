@@ -33,6 +33,11 @@ test("the shipped kit loads, and every role's seat builds with no hidden word in
       const prompt = renderPrompt(kit, role, { guides: join(home, ".local/share/seatworks-v2/guides"), state: "/state" });
       assert.doesNotMatch(prompt, /\{\{/, `${role.role} prompt has no placeholder left`);
     }
+    if (!role.headless) {
+      const context = readFileSync(join(dir, harness.systemPrompt === "file" ? harness.promptFile! : harness.contextFile!), "utf-8");
+      assert.match(context, /intellij-index MCP tools/, `${role.role} seat carries the IntelliJ rule`);
+      assert.match(context, /context7/, `${role.role} seat carries the docs rule`);
+    }
   }
 });
 

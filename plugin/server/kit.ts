@@ -31,6 +31,7 @@ export type HarnessSpec = {
   configDirEnv: string;
   profileRoot: string;
   promptFile?: string;
+  contextFile?: string;
   skillsDir: string;
   hasThinking?: boolean;
   systemPrompt?: "config" | "file";
@@ -64,6 +65,7 @@ export type Kit = {
   attention: Attention;
   limits: Limits;
   code: CodeConfig;
+  rules?: string;
 };
 
 const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watcherDebounceSeconds: 45, watcherTimeoutSeconds: 180 };
@@ -92,6 +94,7 @@ export function loadKit(dir: string): Kit {
     attention: { ...ATTENTION, ...(raw.attention ?? {}) },
     limits: { ...LIMITS, ...(raw.limits ?? {}) },
     code: (raw.code ?? {}) as CodeConfig,
+    rules: typeof raw.rules === "string" ? raw.rules : undefined,
   };
 }
 

@@ -68,7 +68,7 @@ Human asks how a run went.
 
 ## Finding code
 
-IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring. When a decision needs the code: `ide_find_symbol` for a name,
+When a decision needs the code: `ide_find_symbol` for a name,
 `search` for behavior you can describe, `ide_find_references` and `ide_type_hierarchy` for what a
 foundation touches.
 
