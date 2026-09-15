@@ -2,7 +2,6 @@
   "id": "claude",
   "label": "Claude Code",
   "baseProvider": "claude",
-  "verified": "2.1.236",
   "profileRoot": "HOME/.claude/profiles",
   "configDirEnv": "CLAUDE_CONFIG_DIR",
   "promptFile": "CLAUDE.md",
@@ -31,21 +30,12 @@
       "http"
     ],
     "seed": "{\"hasCompletedOnboarding\": true}",
-    "isolateProjects": true,
-    "forbid": [
-      ".credentials.json"
-    ],
-    "mcpNote": "$servers is seats.json's mcpServers map, passed in by setup-seats.fish. The seat gets those at user scope in its own .claude.json and nothing else: project-scoped servers stay cleared, because a repository could otherwise hand a seat a server the kit never chose."
+    "isolateProjects": true
   },
-  "promptComments": "stripped",
-  "hasModes": true,
   "settings": {
-    "mode": "link",
     "file": "settings.json",
-    "source": "settings/ROLE.settings.json",
-    "retentionKey": "cleanupPeriodDays",
-    "valueNote": "autoCompactWindow is 558000 so compaction lands at 525000, because this harness offsets it: read from the 2.1.236 binary, the headless runner compacts when tokens exceed Jir(model, autoCompactWindow), which is min(modelWindow, autoCompactWindow) minus min(model max output, 20000) minus 13000. claude-opus-5 reports a 1M window and a 64000 output default, so the offset is a flat 33000. Two consequences worth knowing before changing it: the setting can only shrink the window, never grow it, and a CLAUDE_CODE_MAX_OUTPUT_TOKENS under 20000 in a provider env would raise the real point.",
-    "limitsNote": "a seat's tool limits are this file's permissions.deny and sandbox, which hold in bypassPermissions, the mode Paseo launches these seats in, and load because the room forces --setting-sources user and this file is the user source. Verified on 2.1.236 with claude -p against a scratch config directory: a bare tool name in permissions.deny takes the tool out of the model's context; sandbox.enabled with allowUnsandboxedCommands false refused a Bash write outside the working directory and allowed one inside it, a git commit and an HTTPS request; an Edit deny rule refused a Write to that path. permissions.ask with Skill(skill:NAME) holds in that mode too, where Skill(NAME) matches nothing: through the orchestrator the call waits as a permission request for the agent that started the seat. The kit sets no such rule, because a role uses its own skills on its own judgment. A sandbox.filesystem.denyWrite entry beats an allowWrite inside it, so a write allow-list inside the repository cannot be said here, and which repository files a role writes stays in its prompt. Bash rules match the command text; the sandbox is what holds a write whatever the command looks like."
+    "source": "settings.json",
+    "roleSource": "settings/ROLE.settings.json"
   },
   "links": [
     {
@@ -53,67 +43,25 @@
       "target": "HOME/.claude/projects"
     }
   ],
-  "skillLoad": {
-    "tool": "Skill",
-    "force": "/NAME",
-    "descriptionBudget": 8000,
-    "placeholders": [
-      "$ARGUMENTS",
-      "${CLAUDE_SKILL_DIR}"
-    ],
-    "placeholdersNote": "substitutions this harness performs. setup-seats.fish refuses every harness's placeholders in every skill, because a skill has to load unchanged where none of them are substituted."
-  },
-  "probe": {
-    "kind": "version",
-    "command": [
-      "claude",
-      "-p",
-      "--model",
-      "claude-haiku-4-5"
-    ],
-    "credentialFromBase": true,
-    "live": "run probe.command with the seat's configDirEnv set and ask it to list its skills",
-    "note": "the skills directory and symlink following were verified by running a seat against a scratch profile; a version other than the verified one re-opens that question"
-  },
-  "versionCommand": "claude --version",
   "provider": {
     "env": {
-      "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1",
-      "CLAUDE_CODE_DISABLE_CRON": "1",
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
       "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
-      "CLAUDE_CODE_DISABLE_WORKFLOWS": "1",
       "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1",
       "SEATWORKS_HARNESS": "claude",
       "SEATWORKS_AGENT_BIN": "claude",
-      "ENABLE_TOOL_SEARCH": "false"
+      "ENABLE_TOOL_SEARCH": "false",
+      "ENABLE_PROMPT_CACHING_1H": "1"
     },
     "profileModeId": "bypassPermissions",
-    "defaultModel": null,
-    "defaultModelNote": "the model a role on this harness gets when seats.json names none and --model is not passed.",
-    "baseCredential": {
-      "env": "CLAUDE_CODE_OAUTH_TOKEN",
-      "create": "claude setup-token",
-      "note": "set on the base provider so every seat inherits it through extends. The kit never reads it from anywhere but the user."
-    },
     "command": [
       "KIT/bin/seat-room"
     ],
-    "commandNote": "every harness launches through the shared room, which forces forceFlags and execs the binary in provider.env.SEATWORKS_AGENT_BIN. The Paseo plugin, not the room, resolves the project from the agent's working directory and sets configDirEnv to that project's seat directory, because a provider's env is the same for every project.",
     "forceFlags": {
       "--setting-sources": "user"
-    },
-    "forceFlagsNote": "flags the room replaces in the argv the orchestrator built, or appends when absent, because the kit writes the provider but not its arguments. --setting-sources user drops the repository own .claude/settings.json and .claude/skills/ while keeping the seat own settings.json, which is the user source: measured from this harness debug log, user,project,local loads 2 skills (user: 1, project: 1) and user loads 1 (user: 1, project: 0), and the watch list names the seat file first. Without it a repository adds skills, settings and permission rules to a seat that no hidesWords check and no skill set ever saw."
+    }
   },
   "contextFile": "CLAUDE.md",
-  "contextFileNeedsPointer": true,
-  "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat.",
-  "userSettings": "HOME/.claude/settings.json",
-  "userSettingsNote": "the user's own settings file. setup-seats.fish requires each role settings file to carry the same settings.retentionKey value, because a seat prunes the shared directories in links on startup.",
-  "retiredLinks": [
-    "plugins"
-  ],
-  "retiredLinksNote": "links this harness once made and must not have now. setup deletes each one from every seat directory, because build_seat_links only creates what links declares and would otherwise leave a retired symlink in place. plugins is retired because no seat uses a plugin: the Human asked for none, both LSP plugins were enabled on seats whose settings deny the LSP tool, they ship no skills, and installed_plugins.json recorded their install path inside a profile directory the kit had stopped creating.",
   "systemPrompt": "config",
   "stateAccess": "sandboxAllowWrite",
   "headless": [

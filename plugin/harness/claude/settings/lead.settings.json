@@ -1,89 +1,12 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "deny": [
-      "AskUserQuestion",
-      "Agent",
-      "Task",
-      "Workflow",
-      "EnterPlanMode",
-      "ExitPlanMode",
-      "EnterWorktree",
-      "ExitWorktree",
-      "CronCreate",
-      "CronDelete",
-      "CronList",
-      "ScheduleWakeup",
-      "SendMessage",
-      "ListAgents",
-      "Monitor",
-      "TaskOutput",
-      "TaskStop",
-      "PushNotification",
-      "ReportFindings",
-      "Artifact",
-      "DesignSync",
-      "NotebookEdit",
-      "LSP",
-      "Bash(git push *)",
-      "Bash(gh *)",
-      "Bash(paseo *)",
-      "Bash(claude *)",
-      "Bash(npx claude *)",
-      "Bash(bunx claude *)",
-      "Bash(codex *)",
-      "Bash(opencode *)",
-      "Edit(~/.paseo/**)",
-      "Edit(~/.claude/settings.json)",
-      "Edit(~/.claude/profiles/*/settings.json)",
-      "Edit(~/.claude/profiles/*/.claude.json)",
-      "Bash(git commit *)",
-      "Bash(git merge *)",
-      "Bash(git checkout *)",
-      "Bash(git switch *)",
-      "Bash(git reset *)",
-      "Bash(git rebase *)",
-      "Bash(git update-ref *)",
-      "Bash(git branch -f *)",
-      "Bash(git branch -D *)",
-      "Bash(git cherry-pick *)",
-      "Bash(git stash *)",
-      "Bash(git worktree *)",
-      "Bash(git -C * commit *)",
-      "Bash(git -C * merge *)",
-      "Bash(git -C * checkout *)",
-      "Bash(git -C * reset *)",
-      "Bash(git -C * update-ref *)",
-      "Bash(git -C * rebase *)"
+      "AskUserQuestion"
     ]
   },
   "sandbox": {
-    "enabled": true,
-    "failIfUnavailable": true,
-    "allowUnsandboxedCommands": false,
     "network": {
       "allowLocalBinding": true
     }
-  },
-  "enabledPlugins": {},
-  "autoCompactWindow": 558000,
-  "precomputeCompactionEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
-  "workflowKeywordTriggerEnabled": false,
-  "disableWorkflows": true,
-  "env": {
-    "BASH_DEFAULT_TIMEOUT_MS": "300000"
-  },
-  "language": "vietnamese",
-  "autoMemoryEnabled": false,
-  "attribution": {
-    "commit": "",
-    "pr": "",
-    "sessionUrl": false
-  },
-  "outputStyle": "Concise",
-  "disableBundledSkills": true,
-  "askUserQuestionTimeout": "never",
-  "promptCacheTtl": "1h"
+  }
 }

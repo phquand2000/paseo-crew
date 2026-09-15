@@ -34,13 +34,12 @@ export type HarnessSpec = {
   hasThinking?: boolean;
   systemPrompt?: "config" | "file";
   stateAccess?: "sandboxAllowWrite";
-  settings: { mode: "link" | "merge"; file: string; source: string; roleSource?: string; ownedPaths?: string[] };
+  settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
   models?: ModelSpec[];
   mcp: { file: string; delivery: "launch" | "file"; seed?: string; isolateProjects?: boolean; needsListing?: boolean; transports: McpTransport[] };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[] };
   headless?: string[];
-  versionCommand?: string;
 };
 
 export type McpSetting = { type: "number" | "string" | "boolean"; label: string; default?: string | number | boolean };
@@ -177,8 +176,7 @@ export function roleWithTeam(kit: Kit, team: TeamRole): RoleSpec | undefined {
 }
 
 export function roleSettingsFile(kit: Kit, harness: HarnessSpec, role: RoleSpec): string {
-  const template = harness.settings.roleSource ?? harness.settings.source;
-  return join(kit.dir, "harness", harness.id, template.replace("ROLE", role.role));
+  return join(kit.dir, "harness", harness.id, harness.settings.roleSource.replace("ROLE", role.role));
 }
 
 export function supportsRole(kit: Kit, harness: HarnessSpec, role: RoleSpec): boolean {

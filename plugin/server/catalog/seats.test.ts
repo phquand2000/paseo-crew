@@ -10,7 +10,7 @@ import { tempDir } from "../core/testing.ts";
 const project = { slug: "shop-abc123", state: "/state/shop" };
 const context = { node: "/bin/node", spool: "/spool" };
 
-test("a Claude seat per project links settings and skills, clears MCP files and writes the rules to CLAUDE.md", () => {
+test("a Claude seat per project writes shared plus role settings, links skills, clears MCP files and writes the rules to CLAUDE.md", () => {
   const kit = makeKit();
   const team = resolveTeam(kit);
   const home = tempDir("sw2-home-");
@@ -20,10 +20,12 @@ test("a Claude seat per project links settings and skills, clears MCP files and 
   assert.equal(basename(dir), "sw2-lead-claude-shop-abc123");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, ".claude.json"), JSON.stringify({ userID: "u", mcpServers: { old: {} }, enableAllProjectMcpServers: true, projects: { "/x": { mcpServers: { rogue: {} }, trust: true } } }));
+  symlinkSync(join(kit.dir, "harness/claude/settings/lead.settings.json"), join(dir, "settings.json"));
 
   const changes = materialize(kit, team, "lead", home, project, serversFor(kit, team, "lead", context));
   assert.ok(changes.length > 0);
-  assert.equal(readlinkSync(join(dir, "settings.json")), join(kit.dir, "harness/claude/settings/lead.settings.json"));
+  assert.equal(lstatSync(join(dir, "settings.json")).isSymbolicLink(), false);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, "settings.json"), "utf-8")), { autoMemoryEnabled: false, permissions: { deny: ["WebSearch", "Agent"] } });
   assert.equal(readlinkSync(join(dir, "projects")), join(home, ".claude", "projects"));
   assert.equal(readlinkSync(join(dir, "skills", "ide-guide")), join(kit.dir, "catalog/mcp/ide/skills/ide-guide"));
   const state = JSON.parse(readFileSync(join(dir, ".claude.json"), "utf-8"));
@@ -82,7 +84,7 @@ test("the headless watcher seat is per machine, with no prompt, no MCP servers a
   materialize(kit, team, "watcher", home, undefined, serversFor(kit, team, "watcher", context));
   assert.equal(existsSync(join(dir, "devin", "AGENTS.md")), false);
   assert.deepEqual(JSON.parse(readFileSync(join(dir, "devin", "mcp_config.json"), "utf-8")).mcpServers, {});
-  assert.deepEqual(JSON.parse(readFileSync(join(dir, "devin", "config.json"), "utf-8")).permissions, { deny: ["exec"] });
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, "devin", "config.json"), "utf-8")).permissions, { deny: ["Exec(git push)", "exec"] });
 });
 
 test("a prompt carrying a word its role must not see is refused", () => {

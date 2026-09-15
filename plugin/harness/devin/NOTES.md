@@ -1,11 +1,10 @@
 # Devin CLI as a harness
 
-Facts about this harness that `harness.json` encodes, and how each one was established. Every
-entry here is Devin CLI behavior; nothing in `project/` or the setup docs should repeat it.
+Facts about this harness that `harness.json` and the settings encode, and how each one was
+established. Every entry here is Devin CLI behavior; the prompts and the README should not repeat it.
 
 Verified on Devin CLI **3000.10.21**, with a JSON-RPC client driving `devin acp` the way Paseo
-does, against seat directories `setup-seats.fish` built. When setup finds another version it says
-so.
+does, against seat directories the kit built.
 
 ## Launch
 
@@ -31,16 +30,17 @@ so.
 - **Side effect:** every command a seat runs inherits the variable, so git would miss
   `~/.config/git/ignore`; the manifest links `git` into the seat. `~/.gitconfig` is unaffected.
 - **Devin writes** `version`, `devin.org_id`, `shell.setup_complete` and `theme_mode` into
-  `config.json` on first use; merge mode keeps them.
+  `config.json` on first use; the plugin merges into that file and replaces only `permissions` and
+  `read_config_from` (`settings.ownedPaths`), so they stay.
 
 ## Prompt and skills
 
 - **Prompt:** `devin/AGENTS.md` loads as an always-on rule named `AGENTS`, beside the repository's
-  own `AGENTS.md`. HTML comments aren't stripped as far as anyone checked, so `promptComments` says
-  `shown`.
+  own `AGENTS.md`. HTML comments aren't stripped as far as anyone checked, so no `.md` in the kit
+  carries one.
 - **Imports:** by default Devin also loads Claude Code's `CLAUDE.md`, `~/.claude/skills` and MCP
   servers, and Cursor's and Windsurf's; `read_config_from` turns all three off, seen in the skill list.
-- **Roots that stay on:** `~/.agents/skills` (hence `sharedSkillDirs`), the repository's
+- **Roots that stay on:** `~/.agents/skills`, the repository's
   `.devin/skills`, `.cognition/skills` and `.agents/skills`, and three built-ins: `devin-cli`,
   `declarative-repo-setup`, `upload-secrets`. `devin-cli` was seen invoking itself unasked.
   `upload-secrets` works through `devin cloud`, which the shared settings deny.
@@ -52,6 +52,8 @@ so.
   bare tool names and `mcp__server__tool`; deny beats ask beats allow. Verified in `bypass`:
   `Exec(git push)` refused a push, `Exec(paseo daemon)` refused `paseo daemon status` while
   `paseo ls` ran, and `Write(**)` refused the write tool.
+- **Layers:** `settings.json` is shared and `settings/<role>.settings.json` adds to it; lists such as
+  `permissions.deny` add up, so a role file names only its extra rules, and `{}` when it has none.
 - **A bare tool name refuses the call but leaves the tool listed**, so `web_search` still shows.
 - **A refused call ends the turn.** The prompt returns `end_turn` with no further model call and no
   reply, even when told to report the refusal; seen on four models. A seat that runs a denied

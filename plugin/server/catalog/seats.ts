@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillSources } from "./content.ts";
-import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
+import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, roleSettingsFile } from "./kit.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
 import { readJson, sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
@@ -63,6 +63,14 @@ export function deepMerge(base: unknown, over: unknown): unknown {
   return out;
 }
 
+export function layerSettings(base: unknown, over: unknown): unknown {
+  if (Array.isArray(base) && Array.isArray(over)) return [...new Set([...base, ...over])];
+  if (!isPlain(base) || !isPlain(over)) return over === undefined ? base : over;
+  const out: Json = { ...base };
+  for (const [key, value] of Object.entries(over)) out[key] = layerSettings(base[key], value);
+  return out;
+}
+
 function getPath(value: unknown, path: string[]): unknown {
   let cursor = value;
   for (const part of path) cursor = isPlain(cursor) ? cursor[part] : undefined;
@@ -91,7 +99,7 @@ export function composeSettings(existing: Json, kitValue: Json, owned: string[])
 }
 
 function writeJsonIfChanged(path: string, value: unknown): boolean {
-  if (present(path) && sameJson(readJson(path, null), value)) return false;
+  if (present(path) && !isLink(path) && sameJson(readJson(path, null), value)) return false;
   mkdirSync(dirname(path), { recursive: true });
   if (isLink(path)) unlinkSync(path);
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
@@ -139,19 +147,13 @@ function recorder(): Recorder {
 }
 
 function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder): void {
-  const harnessDir = join(kit.dir, "harness", harness.id);
-  const settingsFile = join(dir, harness.settings.file);
-  if (harness.settings.mode === "link") {
-    const source = join(harnessDir, harness.settings.source.replace("ROLE", role.role));
-    if (!existsSync(source)) throw new Error(`${role.role}: ${source} is missing`);
-    record.note(ensureLink(settingsFile, source), harness.settings.file);
-    return;
-  }
-  const base = readJson<Json>(join(harnessDir, harness.settings.source), {});
-  const overlayFile = harness.settings.roleSource?.replace("ROLE", role.role);
-  const overlay = overlayFile ? readJson<Json>(join(harnessDir, overlayFile), {}) : {};
-  const next = composeSettings(readJson<Json>(settingsFile, {}), deepMerge(base, overlay) as Json, harness.settings.ownedPaths ?? []);
-  record.note(writeJsonIfChanged(settingsFile, next), harness.settings.file);
+  const { file, source, ownedPaths } = harness.settings;
+  const roleFile = roleSettingsFile(kit, harness, role);
+  if (!existsSync(roleFile)) throw new Error(`${role.role}: ${roleFile} is missing`);
+  const wanted = layerSettings(readJson<Json>(join(kit.dir, "harness", harness.id, source), {}), readJson<Json>(roleFile, {})) as Json;
+  const settingsFile = join(dir, file);
+  const next = ownedPaths ? composeSettings(isLink(settingsFile) ? {} : readJson<Json>(settingsFile, {}), wanted, ownedPaths) : wanted;
+  record.note(writeJsonIfChanged(settingsFile, next), file);
 }
 
 function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: Recorder): void {

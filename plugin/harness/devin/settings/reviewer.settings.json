@@ -1,18 +1,9 @@
 {
   "permissions": {
     "deny": [
-      "web_search",
       "edit",
       "write",
       "notebook_edit",
-      "Write(**)",
-      "Exec(git push)",
-      "Exec(gh)",
-      "Exec(paseo)",
-      "Exec(devin)",
-      "Exec(claude)",
-      "Exec(codex)",
-      "Exec(opencode)",
       "Exec(git add)",
       "Exec(git commit)",
       "Exec(git reset)",

@@ -9,7 +9,6 @@ function put(root: string, path: string, value: unknown): void {
   writeFileSync(file, typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}\n`);
 }
 
-
 export function makeKit(): Kit {
   const dir = tempDir("sw2-kit-");
   put(dir, "roles.json", {
@@ -67,7 +66,7 @@ export function makeKit(): Kit {
     skillsDir: "skills",
     systemPrompt: "config",
     stateAccess: "sandboxAllowWrite",
-    settings: { mode: "link", file: "settings.json", source: "settings/ROLE.settings.json" },
+    settings: { file: "settings.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     models: [
       { id: "opus", label: "Opus", thinkingOptions: [{ id: "medium", label: "M" }, { id: "high", label: "H" }] },
@@ -76,7 +75,8 @@ export function makeKit(): Kit {
     mcp: { file: ".claude.json", delivery: "launch", seed: "{\"hasCompletedOnboarding\": true}", isolateProjects: true, transports: ["stdio", "http"] },
     provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
   });
-  put(dir, "harness/claude/settings/supervisor.settings.json", { permissions: { deny: ["WebSearch"] } });
+  put(dir, "harness/claude/settings.json", { autoMemoryEnabled: false, permissions: { deny: ["WebSearch"] } });
+  put(dir, "harness/claude/settings/supervisor.settings.json", { askUserQuestionTimeout: "never" });
   put(dir, "harness/claude/settings/lead.settings.json", { permissions: { deny: ["Agent"] } });
   put(dir, "harness/devin/harness.json", {
     id: "devin",
@@ -88,7 +88,7 @@ export function makeKit(): Kit {
     skillsDir: "devin/skills",
     hasThinking: false,
     systemPrompt: "file",
-    settings: { mode: "merge", file: "devin/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
+    settings: { file: "devin/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "swe", label: "SWE" }],
     mcp: { file: "devin/mcp_config.json", delivery: "file", seed: "{}", needsListing: true, transports: ["stdio", "http"] },

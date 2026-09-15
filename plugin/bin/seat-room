@@ -9,9 +9,9 @@ fail() {
     exit 2
 }
 
-[ -n "$bin" ] || fail "env.SEATWORKS_AGENT_BIN is unset on this seat's provider; run setup/setup-seats.fish."
+[ -n "$bin" ] || fail "env.SEATWORKS_AGENT_BIN is unset on this seat's provider; reload the seatworks-v2 plugin."
 command -v jq >/dev/null 2>&1 || fail "jq is not on PATH, so this seat's launch flags can't be read."
-[ -r "$manifest" ] || fail "$manifest can't be read; set env.SEATWORKS_KIT and env.SEATWORKS_HARNESS on this seat's provider and rerun setup/setup-seats.fish."
+[ -r "$manifest" ] || fail "$manifest can't be read; set env.SEATWORKS_KIT and env.SEATWORKS_HARNESS on this seat's provider and reload the seatworks-v2 plugin."
 
 var=$(jq -r '.configDirEnv // empty' "$manifest")
 if [ -n "$var" ] && [ -z "$(printenv "$var" || true)" ]; then

@@ -83,7 +83,7 @@ New agents pick changes up; running agents keep what they started with.
 ## Add a harness or an MCP server
 
 - **Harness:** a directory under `plugin/harness/<id>/` with `harness.json` (how it takes a prompt,
-  rules, skills and MCP servers, its models and launcher) and `settings/<role>.settings.json` for
-  each role it can run.
+  rules, skills and MCP servers, its models and launcher), `settings.json` shared by its roles, and
+  `settings/<role>.settings.json` with what each role it can run adds (`{}` for nothing).
 - **MCP server:** a directory under `plugin/catalog/mcp/<id>/` with `mcp.json`, an optional
   `rule.md` and `skills/`. It shows up in the catalog and can be turned on from settings.
