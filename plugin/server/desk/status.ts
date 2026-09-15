@@ -1,17 +1,7 @@
+import type { SeatView } from "../core/paseo.ts";
 import type { Ledger } from "./ledger.ts";
 import type { Project, ProjectConfig } from "./project.ts";
 
-export type SeatView = {
-  id: string;
-  title?: string | null;
-  provider: string;
-  cwd: string;
-  status: string;
-  updatedAt: string;
-  archivedAt?: string | null;
-  labels?: Record<string, string>;
-  pendingPermissions?: { title?: string; name?: string }[];
-};
 
 const minutes = (now: number, at: number | string) => Math.max(0, Math.round((now - (typeof at === "string" ? Date.parse(at) : at)) / 60_000));
 

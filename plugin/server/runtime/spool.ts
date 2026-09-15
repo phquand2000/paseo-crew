@@ -1,8 +1,7 @@
+import type { ToolReply, ToolRequest } from "../desk/context.ts";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
-export type ToolReply = { ok: boolean; text: string };
 
 const STALE_MS = 10 * 60_000;
 

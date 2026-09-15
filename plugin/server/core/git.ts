@@ -1,4 +1,6 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export type Run = { code: number; stdout: string; stderr: string };
 
@@ -126,4 +128,25 @@ export async function landLane(root: string, base: string, branch: string): Prom
   }
   const run = await git(root, ["branch", "-f", base, branch]);
   return run.code === 0 ? { landed: true, how: `moved ${base} to ${branch}` } : { landed: false, how: run.stderr.trim() || "branch update failed" };
+}
+
+export function gitCommonDir(cwd: string): string | undefined {
+  try {
+    const out = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf-8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return out || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function excludeFromGit(repo: string, pattern: string): void {
+  const common = gitCommonDir(repo);
+  if (!common) return;
+  try {
+    const file = join(common, "info", "exclude");
+    const current = existsSync(file) ? readFileSync(file, "utf-8") : "";
+    if (current.split(/\r?\n/).includes(pattern)) return;
+    mkdirSync(join(common, "info"), { recursive: true });
+    appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}${pattern}\n`);
+  } catch {}
 }

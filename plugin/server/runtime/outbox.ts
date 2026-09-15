@@ -1,7 +1,5 @@
-import type { PluginHookContext } from "@getpaseo/plugin/server";
+import type { PaseoApi } from "../core/paseo.ts";
 import { readJson, writeJson } from "../core/store.ts";
-
-export type PaseoApi = PluginHookContext["paseo"];
 
 export type Letter = { id: string; to: string; key: string; text: string; at: number };
 export type Posted = "sent" | "held" | "duplicate";

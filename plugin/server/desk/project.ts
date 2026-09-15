@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { gitCommonDir } from "../core/git.ts";
 import { stateRoot } from "../core/paths.ts";
 import { SERIAL_ONLY } from "../core/scope.ts";
 import { readJson, writeJson } from "../core/store.ts";
@@ -15,17 +15,9 @@ export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: 
 const cache = new Map<string, Project>();
 
 export function gitRoot(cwd: string): string {
-  try {
-    const out = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
-      encoding: "utf-8",
-      timeout: 5000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    if (!out) return cwd;
-    return basename(out) === ".git" ? dirname(out) : out;
-  } catch {
-    return cwd;
-  }
+  const common = gitCommonDir(cwd);
+  if (!common) return cwd;
+  return basename(common) === ".git" ? dirname(common) : common;
 }
 
 export function slugFor(root: string): string {

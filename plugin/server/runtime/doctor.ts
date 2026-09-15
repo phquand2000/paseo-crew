@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { postJsonRpc } from "../core/jsonrpc.ts";
 import type { Kit } from "../catalog/kit.ts";
 import { type Team, proxyUrl } from "../catalog/team.ts";
 
@@ -18,22 +19,7 @@ export const realProbes: Probes = {
       return false;
     }
   },
-  async post(url, body, timeoutMs) {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      const text = await response.text();
-      const start = text.indexOf("{");
-      const json = start >= 0 ? JSON.parse(text.slice(start, text.lastIndexOf("}") + 1)) : undefined;
-      return { ok: response.ok, json };
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
-    }
-  },
+  post: postJsonRpc,
 };
 
 export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes): Promise<Check[]> {
