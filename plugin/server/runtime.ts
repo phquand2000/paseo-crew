@@ -332,6 +332,10 @@ export class Runtime {
         const raise = URGENT.includes(verdict.label) && (item.role === "lead" || verdict.label !== "unheard-wait");
         if (!raise) continue;
         const lane = loadLedger(item.project.state).lanes[item.lane];
+        if (!lane || lane.status !== "open") continue;
+        const handle = paseo.agents.ref(item.agent);
+        await handle.refresh();
+        if (handle.archivedAt) continue;
         const to = await this.desk.supervisorFor(paseo, item.project, lane?.opener);
         await this.desk.post(paseo, to, `attention:${item.agent}:${hash(verdict.label, verdict.quote)}`, letters.attention(verdict.label, item.where, verdict.quote || clip(item.text.trim(), 200)));
       }

@@ -416,8 +416,9 @@ export class Desk {
       });
       this.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id });
       const gate = loadConfig(project.state).gate;
+      const issueText = issue ? `\n\nIssue #${issue.number} as the Lead received it: ${issue.title} (${issue.url})\n<issue>\n${clip(issue.body, 4000)}\n</issue>` : "";
       return ok(
-        `Lane ${lane.id} is open on ${lane.branch} (off ${base}) in working copy ${slot.id}, and its Lead ${lead} is starting. Gate: ${gate ?? "none; call set_project with the project's test command"}. Reports and asks arrive as mail; nothing to wait for now.`,
+        `Lane ${lane.id} is open on ${lane.branch} (off ${base}) in working copy ${slot.id}, and its Lead ${lead} is starting. Gate: ${gate ?? "none; call set_project with the project's test command"}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`,
       );
     } catch (error) {
       return fail(`The Lead could not start: ${message(error)}`, slot.id);

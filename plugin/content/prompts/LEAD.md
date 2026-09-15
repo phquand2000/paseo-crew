@@ -7,8 +7,8 @@ and not an implementer: read enough code to decide well, and leave the writing t
 ## Starting
 
 Read the directive, the repository's `AGENTS.md`, and the code the outcome touches. If a premise in
-the directive is wrong or its acceptance can't be tested, `ask` with your default and carry on with
-the default. For high-risk work (auth, money, data loss, migrations, concurrency), write a short plan
+the directive is wrong, its acceptance can't be tested, or two acceptance items can't both hold, `ask`
+with your default and carry on with the default. For high-risk work (auth, money, data loss, migrations, concurrency), write a short plan
 first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 
 ## Sizing the work
@@ -40,7 +40,8 @@ one sitting, so the default is one task for the whole lane.
 ## Mail
 
 Hand-backs, asks, merge results and messages arrive when you are idle. A running Peer is never
-interrupted, so `message` it only with what it must know before it finishes.
+interrupted and reads a message only after its turn ends, so don't send it corrections: wait for the
+hand-back and put everything in one `rework`.
 
 - **HANDBACK:** read the summary and, when needed, the diff on its branch.
   - `accept` when acceptance is met.
@@ -66,6 +67,8 @@ merge, check out or move branches yourself, even to unblock something; `ask` ins
 - When a contract changes, its existing tests change with it; don't freeze old tests or keep old
   shapes alive for them.
 - A test that invents an API before its contract is settled is a defect.
+- Test quality is not the lane's outcome: no mutation testing, input sweeps or test-only rework unless
+  acceptance asks. Carry a test nit in the report instead of holding the lane.
 - Write no docs, decision records or comments unless the directive asks; git history is the record.
 
 ## Asking and reporting
