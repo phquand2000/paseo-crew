@@ -198,7 +198,7 @@ export function rulesFor(team: Team, roleName: string): string {
     if (note) lines.push(note);
     if (lines.length > 0) parts.push(lines.join("\n\n"));
   }
-  if (seat.harness.mcp.needsListing && seat.mcp.length > 0) parts.push("List a server's tools once before your first call to it, so you can call them.");
+  if (seat.harness.mcp.rule && seat.mcp.length > 0) parts.push(seat.harness.mcp.rule);
   if (team.rules) parts.push(`## Rules from the Human\n\n${team.rules.trim()}`);
   return parts.length > 0 ? `# Working rules\n\n${parts.join("\n\n")}\n` : "";
 }

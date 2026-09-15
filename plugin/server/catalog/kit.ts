@@ -33,11 +33,21 @@ export type HarnessSpec = {
   skillsDir: string;
   hasThinking?: boolean;
   systemPrompt?: "config" | "file";
-  stateAccess?: "sandboxAllowWrite";
+  stateWrites?: string;
+  refused?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
   models?: ModelSpec[];
-  mcp: { file: string; delivery: "launch" | "file"; seed?: string; isolateProjects?: boolean; needsListing?: boolean; transports: McpTransport[] };
+  mcp: {
+    file: string;
+    delivery: "launch" | "file";
+    transports: McpTransport[];
+    seed?: Record<string, unknown>;
+    key?: string;
+    shape?: Partial<Record<McpTransport, unknown>>;
+    clear?: { set?: Record<string, unknown>; remove?: string[]; setInEach?: Record<string, Record<string, unknown>> };
+    rule?: string;
+  };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[] };
   headless?: string[];
 };
@@ -137,7 +147,10 @@ export function loadKit(dir: string): Kit {
   const harnesses: Record<string, HarnessSpec> = {};
   for (const id of subdirs(join(dir, "harness"))) {
     const file = join(dir, "harness", id, "harness.json");
-    if (existsSync(file)) harnesses[id] = JSON.parse(readFileSync(file, "utf-8")) as HarnessSpec;
+    if (!existsSync(file)) continue;
+    const harness = JSON.parse(readFileSync(file, "utf-8")) as HarnessSpec;
+    if (harness.mcp.delivery === "file" && !harness.mcp.key) throw new Error(`harness ${id} delivers MCP servers in a file but names no mcp.key`);
+    harnesses[id] = harness;
   }
   const roles = (raw.roles ?? []) as RoleSpec[];
   for (const role of roles) {

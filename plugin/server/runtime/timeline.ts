@@ -32,9 +32,9 @@ export function outputText(timeline: Timeline): string {
     .join("");
 }
 
-const REFUSED = /permission|denied|not allowed|refused|blocked by/i;
+export const REFUSED = "permission|denied|not allowed|refused|blocked by";
 
-export function deniedCall(timeline: Timeline, quietChars = 200): string | undefined {
+export function deniedCall(timeline: Timeline, refused = REFUSED, quietChars = 200): string | undefined {
   const list = items(timeline);
   const turn = list.slice(lastUserIndex(list) + 1);
   let lastTool = -1;
@@ -47,9 +47,9 @@ export function deniedCall(timeline: Timeline, quietChars = 200): string | undef
   if (lastTool < 0) return undefined;
   const call = turn[lastTool];
   if (!call) return undefined;
-  const refused = call.status === "failed" && REFUSED.test(JSON.stringify(call.error ?? ""));
+  const denied = call.status === "failed" && new RegExp(refused, "i").test(JSON.stringify(call.error ?? ""));
   const unanswered = call.status !== "completed" && turn.slice(lastTool + 1).every((item) => item.type !== "assistant_message");
-  if (!refused && !unanswered) return undefined;
+  if (!denied && !unanswered) return undefined;
   const after = turn
     .slice(lastTool + 1)
     .filter((item) => item.type === "assistant_message" && typeof item.text === "string")

@@ -77,7 +77,7 @@ export class TurnRules {
       if (lane && CUES.test(text)) this.deps.watch({ project, lane: lane.id, agent: agent.id, role: team, where: `the Peer on ${task.id} (${task.title})`, text });
       return;
     }
-    const denied = deniedCall(timeline);
+    const denied = deniedCall(timeline, seatOf(this.deps.kit, agent.provider)?.harness.refused);
     desk.event(project, { kind: "turn.silent", task: task.id, denied: denied ?? null, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
     const updated = await desk.setTask(project, task.id, (entry) => {
       entry.silent += 1;

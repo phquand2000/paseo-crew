@@ -128,10 +128,12 @@ harness adapters, MCP servers) and code that knows none of their names; settings
 catalog in two layers, machine then project, each validated before it is saved.
 
 - A harness adapter says how that agent takes a prompt (launch config or a file), where its rules go
-  (`CLAUDE.md`, the end of `AGENTS.md`), where skills link, how MCP servers reach it (launch config
-  or a JSON file) and over which transports, whether it must list a server's tools before calling,
-  its models and its headless command. Moving a role to another harness is a setting; adding a
-  harness is a directory.
+  (`CLAUDE.md`, the end of `AGENTS.md`), where skills link, how MCP servers reach it (launch config,
+  or a file with the key and per-transport shape its servers take) and over which transports, what
+  to clear in its own config so a repository can't add servers, where its launch options let a seat
+  write the project's state, a rule of its own for seats with servers, how its refused calls read,
+  its models and its headless command. Its config files are JSON or TOML by extension. Moving a
+  role to another harness is a setting; adding a harness is a directory.
 - An MCP entry says what the server is (a plain stdio/http server, or a backend the proxy pins to
   each seat's working copy: its http or stdio backend, pinned argument, the tools that open, wait for
   and sync a working copy, error guidance and tool descriptions), its settings with defaults, which roles it serves and with which tools, its rule and its

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
+import { parse } from "smol-toml";
+import { loadKit } from "./kit.ts";
 import { composeSettings, materialize, seatDir } from "./seats.ts";
 import { resolveTeam, serversFor } from "./team.ts";
 import { makeKit } from "./testkit.ts";
@@ -96,4 +98,41 @@ test("a prompt carrying a word its role must not see is refused", () => {
 
 test("composeSettings deletes an owned key the kit no longer sets", () => {
   assert.deepEqual(composeSettings({ a: 1, permissions: { deny: ["x"] } }, { b: 2 }, ["permissions"]), { a: 1, b: 2 });
+});
+
+test("a harness with TOML config files gets its layered settings and its MCP servers in its own shape", () => {
+  const base = makeKit();
+  const put = (path: string, value: unknown) => {
+    mkdirSync(dirname(join(base.dir, path)), { recursive: true });
+    writeFileSync(join(base.dir, path), typeof value === "string" ? value : JSON.stringify(value));
+  };
+  put("harness/toml/harness.json", {
+    id: "toml",
+    label: "Toml CLI",
+    baseProvider: "acp",
+    configDirEnv: "TOML_HOME",
+    profileRoot: "HOME/.toml",
+    promptFile: "AGENTS.md",
+    skillsDir: "skills",
+    systemPrompt: "file",
+    settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml", ownedPaths: ["sandbox", "approval"] },
+    models: [{ id: "m", label: "M" }],
+    mcp: { file: "config.toml", delivery: "file", key: "mcp_servers", shape: { stdio: { command: "{command}", args: ["{...args}"] }, http: { url: "{url}" } }, transports: ["stdio", "http"] },
+    provider: {},
+  });
+  put("harness/toml/settings.toml", 'sandbox = "workspace-write"\n');
+  put("harness/toml/settings/peer.settings.toml", 'approval = "never"\n');
+  const kit = loadKit(base.dir);
+  const team = resolveTeam(kit, { roles: { peer: { harness: "toml" } }, mcp: { docs: { enabled: true } } });
+  assert.deepEqual(team.errors, []);
+  const home = tempDir("sw2-home-");
+  const servers = serversFor(kit, team, "peer", context);
+  assert.ok(materialize(kit, team, "peer", home, project, servers).length > 0);
+  const dir = seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project);
+  const config = parse(readFileSync(join(dir, "config.toml"), "utf-8")) as Record<string, any>;
+  assert.equal(config.sandbox, "workspace-write");
+  assert.equal(config.approval, "never");
+  assert.deepEqual(config.mcp_servers.team, { command: "/bin/node", args: [join(kit.dir, "mcp", "team.mjs"), "peer", "/spool"] });
+  assert.deepEqual(config.mcp_servers.docs, { url: "https://docs.example/mcp" });
+  assert.deepEqual(materialize(kit, team, "peer", home, project, servers), []);
 });

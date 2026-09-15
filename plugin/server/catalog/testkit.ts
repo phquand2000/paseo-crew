@@ -65,14 +65,20 @@ export function makeKit(): Kit {
     contextFile: "CLAUDE.md",
     skillsDir: "skills",
     systemPrompt: "config",
-    stateAccess: "sandboxAllowWrite",
+    stateWrites: "settings.sandbox.filesystem.allowWrite",
     settings: { file: "settings.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     models: [
       { id: "opus", label: "Opus", thinkingOptions: [{ id: "medium", label: "M" }, { id: "high", label: "H" }] },
       { id: "haiku", label: "Haiku" },
     ],
-    mcp: { file: ".claude.json", delivery: "launch", seed: "{\"hasCompletedOnboarding\": true}", isolateProjects: true, transports: ["stdio", "http"] },
+    mcp: {
+      file: ".claude.json",
+      delivery: "launch",
+      seed: { hasCompletedOnboarding: true },
+      clear: { set: { mcpServers: {}, enabledMcpjsonServers: [] }, remove: ["enableAllProjectMcpServers"], setInEach: { projects: { mcpServers: {} } } },
+      transports: ["stdio", "http"],
+    },
     provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
   });
   put(dir, "harness/claude/settings.json", { autoMemoryEnabled: false, permissions: { deny: ["WebSearch"] } });
@@ -91,7 +97,7 @@ export function makeKit(): Kit {
     settings: { file: "devin/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "swe", label: "SWE" }],
-    mcp: { file: "devin/mcp_config.json", delivery: "file", seed: "{}", needsListing: true, transports: ["stdio", "http"] },
+    mcp: { file: "devin/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
     provider: { env: { SEATWORKS_HARNESS: "devin", SEATWORKS_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
     headless: ["devin", "--model", "{model}", "-p", "--prompt-file", "{promptFile}"],
   });

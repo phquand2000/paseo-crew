@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillSources } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, roleSettingsFile } from "./kit.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
-import { readJson, sameJson } from "../core/store.ts";
+import { formatConfig, readConfig } from "../core/config-file.ts";
+import { sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
 
 type Json = Record<string, unknown>;
@@ -98,11 +99,11 @@ export function composeSettings(existing: Json, kitValue: Json, owned: string[])
   return merged;
 }
 
-function writeJsonIfChanged(path: string, value: unknown): boolean {
-  if (present(path) && !isLink(path) && sameJson(readJson(path, null), value)) return false;
+function writeConfigIfChanged(path: string, value: unknown): boolean {
+  if (present(path) && !isLink(path) && sameJson(readConfig(path, null), value)) return false;
   mkdirSync(dirname(path), { recursive: true });
   if (isLink(path)) unlinkSync(path);
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  writeFileSync(path, formatConfig(path, value), { mode: 0o600 });
   return true;
 }
 
@@ -120,16 +121,58 @@ export function seedRecords(kit: Kit, state: string): string[] {
   return seeded;
 }
 
-function mcpState(harness: HarnessSpec, current: Json, servers: McpServers): Json {
-  if (harness.mcp.delivery === "file") return { ...current, mcpServers: servers };
-  const next: Json = { ...current, mcpServers: {} };
-  if (harness.mcp.isolateProjects) {
-    next.enabledMcpjsonServers = [];
-    delete next.enableAllProjectMcpServers;
-    if (isPlain(next.projects)) {
-      next.projects = Object.fromEntries(Object.entries(next.projects).map(([key, value]) => [key, { ...(isPlain(value) ? value : {}), mcpServers: {} }]));
-    }
+function clearMcp(harness: HarnessSpec, current: Json): Json {
+  const next = structuredClone(current);
+  const clear = harness.mcp.clear;
+  if (!clear) return next;
+  for (const [path, value] of Object.entries(clear.set ?? {})) setPath(next, path.split("."), structuredClone(value));
+  for (const path of clear.remove ?? []) setPath(next, path.split("."), undefined);
+  for (const [path, fields] of Object.entries(clear.setInEach ?? {})) {
+    const group = getPath(next, path.split("."));
+    if (!isPlain(group)) continue;
+    for (const [key, item] of Object.entries(group)) group[key] = { ...(isPlain(item) ? item : {}), ...structuredClone(fields) };
   }
+  return next;
+}
+
+export function shapeServer(template: unknown, server: Json): unknown {
+  if (typeof template === "string") {
+    const whole = /^\{(\w+)\}$/.exec(template);
+    if (whole) return server[whole[1]!];
+    return template.replace(/\{(\w+)\}/g, (text, key: string) => (typeof server[key] === "string" ? String(server[key]) : text));
+  }
+  if (Array.isArray(template)) {
+    return template.flatMap((item) => {
+      const spread = typeof item === "string" ? /^\{\.\.\.(\w+)\}$/.exec(item) : null;
+      if (spread) {
+        const value = server[spread[1]!];
+        return Array.isArray(value) ? value : [];
+      }
+      const value = shapeServer(item, server);
+      return value === undefined ? [] : [value];
+    });
+  }
+  if (!isPlain(template)) return template;
+  const out: Json = {};
+  for (const [key, item] of Object.entries(template)) {
+    const value = shapeServer(item, server);
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
+function mcpState(harness: HarnessSpec, current: Json, servers: McpServers): Json {
+  const next = clearMcp(harness, current);
+  const { delivery, key, shape } = harness.mcp;
+  if (delivery !== "file" || !key) return next;
+  const shaped = Object.fromEntries(
+    Object.entries(servers).map(([name, server]) => {
+      const config = server as Json;
+      const template = shape?.[config.type as keyof typeof shape];
+      return [name, template ? shapeServer(template, config) : config];
+    }),
+  );
+  setPath(next, key.split("."), shaped);
   return next;
 }
 
@@ -150,10 +193,10 @@ function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: 
   const { file, source, ownedPaths } = harness.settings;
   const roleFile = roleSettingsFile(kit, harness, role);
   if (!existsSync(roleFile)) throw new Error(`${role.role}: ${roleFile} is missing`);
-  const wanted = layerSettings(readJson<Json>(join(kit.dir, "harness", harness.id, source), {}), readJson<Json>(roleFile, {})) as Json;
+  const wanted = layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {})) as Json;
   const settingsFile = join(dir, file);
-  const next = ownedPaths ? composeSettings(isLink(settingsFile) ? {} : readJson<Json>(settingsFile, {}), wanted, ownedPaths) : wanted;
-  record.note(writeJsonIfChanged(settingsFile, next), file);
+  const next = ownedPaths ? composeSettings(isLink(settingsFile) ? {} : readConfig<Json>(settingsFile, {}), wanted, ownedPaths) : wanted;
+  record.note(writeConfigIfChanged(settingsFile, next), file);
 }
 
 function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: Recorder): void {
@@ -170,8 +213,8 @@ function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: 
 
 function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, record: Recorder): void {
   const file = join(dir, harness.mcp.file);
-  const current = readJson<Json>(file, JSON.parse(harness.mcp.seed ?? "{}") as Json);
-  record.note(writeJsonIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
+  const current = readConfig<Json>(file, structuredClone(harness.mcp.seed ?? {}));
+  record.note(writeConfigIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
 }
 
 function removeIfPresent(path: string, what: string, record: Recorder): void {

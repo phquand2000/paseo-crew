@@ -9,6 +9,7 @@
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {
+    "smol-toml": "^1.8.0",
     "zod": "^4.6.4"
   },
   "devDependencies": {

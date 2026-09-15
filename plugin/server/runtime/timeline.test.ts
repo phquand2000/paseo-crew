@@ -44,3 +44,13 @@ test("a refused call the seat recovered from is not reported", () => {
   );
   assert.equal(deniedCall(recovered), undefined);
 });
+
+test("a harness names how its refusals read, and only those count as refused", () => {
+  const timeline = t(
+    { type: "user_message", text: "go" },
+    { type: "tool_call", name: "shell", status: "failed", error: "policy says no", detail: { command: "rm -rf build" } },
+    { type: "assistant_message", text: "Stopped." },
+  );
+  assert.equal(deniedCall(timeline), undefined);
+  assert.equal(deniedCall(timeline, "policy says no"), "shell: rm -rf build");
+});

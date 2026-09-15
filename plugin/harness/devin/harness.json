@@ -19,8 +19,8 @@
       "stdio",
       "http"
     ],
-    "seed": "{}",
-    "needsListing": true
+    "key": "mcpServers",
+    "rule": "List a server's tools once before your first call to it, so you can call them."
   },
   "hasThinking": false,
   "settings": {
