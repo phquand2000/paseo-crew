@@ -18,6 +18,7 @@ export type RoleSpec = {
   skills: string | null;
   extraSkills?: string[];
   extraMcpServers?: McpServers;
+  codeTools?: string[];
   paseoTools?: { enabled?: boolean; disabledTools?: string[]; allow?: string[] };
   entry?: boolean;
   hidesWords?: string[];
@@ -52,6 +53,8 @@ export type Attention = {
 
 export type Limits = { slots: number; tasksPerLane: number };
 
+export type CodeConfig = { ide?: string; semble?: string[] };
+
 export type Kit = {
   dir: string;
   prefix: string;
@@ -60,6 +63,7 @@ export type Kit = {
   mcpServers: McpServers;
   attention: Attention;
   limits: Limits;
+  code: CodeConfig;
 };
 
 const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watcherDebounceSeconds: 45, watcherTimeoutSeconds: 180 };
@@ -87,6 +91,7 @@ export function loadKit(dir: string): Kit {
     mcpServers: (raw.mcpServers ?? {}) as McpServers,
     attention: { ...ATTENTION, ...(raw.attention ?? {}) },
     limits: { ...LIMITS, ...(raw.limits ?? {}) },
+    code: (raw.code ?? {}) as CodeConfig,
   };
 }
 
@@ -161,6 +166,12 @@ export function paseoToolsPolicy(role: RoleSpec): { enabled?: boolean; disabledT
 export function teamServer(kit: Kit, role: RoleSpec, spool: string, node: string): McpServers {
   if (!role.team) return {};
   return { team: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "team.mjs"), role.team, spool] } };
+}
+
+export function codeServer(kit: Kit, role: RoleSpec, node: string): McpServers {
+  if (!role.codeTools || role.codeTools.length === 0) return {};
+  const config = JSON.stringify({ ide: kit.code.ide ?? "", semble: kit.code.semble ?? [], tools: role.codeTools });
+  return { code: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "code.mjs"), config] } };
 }
 
 export function mcpServersFor(kit: Kit, role: RoleSpec, team: McpServers = {}): McpServers {

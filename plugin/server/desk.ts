@@ -16,6 +16,7 @@ import {
   outsideOwned,
   resetHard,
 } from "./git.ts";
+import { type Ide, excludeIdeFiles } from "./ide.ts";
 import { fetchIssue, type Issue } from "./issue.ts";
 import { type Kit, type RoleSpec, type TeamRole, defaultModel, defaultThinking, harnessOf, providerId, roleOf, roleWithTeam } from "./kit.ts";
 import {
@@ -68,11 +69,13 @@ export class Desk {
   private readonly logLine: (project: Project, line: string) => void;
   private readonly locks = new Map<string, Promise<unknown>>();
   private readonly merges = new Map<string, Promise<unknown>>();
+  private readonly ide: Ide | null;
 
-  constructor(kit: Kit, outbox: Outbox, log: (project: Project, line: string) => void) {
+  constructor(kit: Kit, outbox: Outbox, log: (project: Project, line: string) => void, ide: Ide | null = null) {
     this.kit = kit;
     this.outbox = outbox;
     this.logLine = log;
+    this.ide = ide;
   }
 
   ledger<T>(project: Project, change: (ledger: Ledger) => T | Promise<T>): Promise<T> {
@@ -175,7 +178,8 @@ export class Desk {
     try {
       if (!(await branchExists(project.root, base))) throw new Error(`the base branch ${base} does not exist`);
       if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
-      if (existsSync(join(picked.path, ".git"))) {
+      const reused = existsSync(join(picked.path, ".git"));
+      if (reused) {
         if (!(await isPristine(picked.path))) throw new Error(`working copy ${picked.id} has uncommitted changes`);
         const run = await git(picked.path, ["switch", "-c", branch, base]);
         if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
@@ -194,6 +198,7 @@ export class Desk {
         });
       }
       this.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
+      this.indexSlot(project, picked, reused);
       return { ...picked, workspaceId };
     } catch (error) {
       await this.ledger(project, (ledger) => {
@@ -205,6 +210,14 @@ export class Desk {
       });
       throw error;
     }
+  }
+
+  private indexSlot(project: Project, slot: Slot, reused: boolean): void {
+    const ide = this.ide;
+    if (!ide) return;
+    excludeIdeFiles(project.root);
+    const work = reused ? ide.sync(slot.path).then(() => ({ ok: true, text: "synced" })) : ide.open(slot.path);
+    void work.then((result) => this.event(project, { kind: reused ? "ide.synced" : "ide.opened", slot: slot.id, ok: result.ok, detail: clip(result.text, 200) }));
   }
 
   private async releaseSlot(project: Project, slotId: string | undefined, dropBranch?: string): Promise<void> {

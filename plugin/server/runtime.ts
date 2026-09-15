@@ -4,11 +4,12 @@ import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "./content.ts";
 import { Desk, hash } from "./desk.ts";
-import { type Kit, type RoleSpec, defaultModel, harnessOf, roleOf, seatRoles, teamServer } from "./kit.ts";
+import { type Kit, type RoleSpec, defaultModel, codeServer, harnessOf, roleOf, seatRoles, teamServer } from "./kit.ts";
 import { applyRole, seatEnv } from "./launch.ts";
 import { activeTasks, laneOfLead, loadLedger, openAsksFrom, openAsksTo, taskOfPeer } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
 import { type Letter, Outbox, type PaseoApi } from "./outbox.ts";
+import { type Ide, ideClient } from "./ide.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "./paths.ts";
 import { type Project, loadConfig, projectOf } from "./project.ts";
 import { applyReconcile, reloadDaemon } from "./providers.ts";
@@ -44,10 +45,10 @@ export class Runtime {
   private readonly idleFlag = new Map<string, string>();
   private readonly goneFlag = new Set<string>();
 
-  constructor(kit: Kit, outboxFile = outboxPath()) {
+  constructor(kit: Kit, outboxFile = outboxPath(), ide: Ide | null = kit.code.ide ? ideClient(kit.code.ide) : null) {
     this.kit = kit;
     this.outbox = new Outbox(outboxFile, (to, list) => this.compose(to, list));
-    this.desk = new Desk(kit, this.outbox, (project, line) => this.log(project, line));
+    this.desk = new Desk(kit, this.outbox, (project, line) => this.log(project, line), ide);
     const saved = readJson<Watch[]>(watchFile(), []);
     if (Array.isArray(saved)) this.watchQueue.push(...saved);
   }
@@ -80,10 +81,14 @@ export class Runtime {
     }
   }
 
+  servers(role: RoleSpec) {
+    return { ...teamServer(this.kit, role, this.spool, this.node), ...codeServer(this.kit, role, this.node) };
+  }
+
   ensureSeat(role: RoleSpec): void {
     if (this.seated.has(role.role)) return;
     try {
-      const changes = materialize(this.kit, role, home(), teamServer(this.kit, role, this.spool, this.node));
+      const changes = materialize(this.kit, role, home(), this.servers(role));
       if (changes.length > 0) console.log(`seatworks-v2: seat ${role.role} updated: ${changes.join(", ")}`);
       this.seated.add(role.role);
     } catch (error) {
@@ -144,7 +149,7 @@ export class Runtime {
         request.config,
         (entry) => renderPrompt(this.kit, entry, { guides: guidesDir(), state: project.state }),
         project.state,
-        teamServer(this.kit, role, this.spool, this.node),
+        this.servers(role),
       );
       return { ...request, config };
     });

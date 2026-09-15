@@ -44,8 +44,7 @@ in, and load because the room forces `--setting-sources user`, which makes this 
 source.
 
 - **`permissions.deny`:** a bare tool name (`Agent`, `Task`, `Workflow`, `EnterPlanMode`,
-  `EnterWorktree`, the Cron tools, `SendMessage`, `Monitor`, `Artifact`, `NotebookEdit`, `LSP`,
-  the three `intellij-index` refactor tools) takes the tool out of the model's context. A Bash
+  `EnterWorktree`, the Cron tools, `SendMessage`, `Monitor`, `Artifact`, `NotebookEdit`, `LSP`) takes the tool out of the model's context. A Bash
   rule such as `Bash(git push *)`, `Bash(gh *)`, `Bash(paseo *)`, `Bash(claude *)` or
   `Bash(omp *)` matches the command text. An `Edit` rule refused a Write to its path; the rules
   name `~/.paseo`, `~/.omp`, `~/.claude/settings.json` and each seat profile's `settings.json`

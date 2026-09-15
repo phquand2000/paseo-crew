@@ -10,10 +10,7 @@
       "edit": "deny",
       "write": "deny",
       "ast_edit": "deny",
-      "notebook": "deny",
-      "mcp__intellij_index_ide_refactor_rename": "deny",
-      "mcp__intellij_index_ide_move_file": "deny",
-      "mcp__intellij_index_ide_refactor_safe_delete": "deny"
+      "notebook": "deny"
     }
   },
   "bash": {

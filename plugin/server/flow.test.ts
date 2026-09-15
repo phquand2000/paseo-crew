@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -80,10 +80,21 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), ".."));
 
+const ideCalls: { kind: "open" | "sync"; path: string }[] = [];
+const ide = {
+  async open(path: string) {
+    ideCalls.push({ kind: "open" as const, path });
+    return { ok: true, text: "opened" };
+  },
+  async sync(path: string) {
+    ideCalls.push({ kind: "sync" as const, path });
+  },
+};
+
 function harness(outbox: string) {
   const { root, git } = repo();
   const { paseo, agents, add, workspaces } = fakePaseo();
-  const runtime = new Runtime(kit, join(HOME, outbox));
+  const runtime = new Runtime(kit, join(HOME, outbox), ide);
   const project = projectOf(root);
   let n = 0;
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>) =>
@@ -121,6 +132,9 @@ test("a lane works serially in one long-lived working copy that the next lane re
   const slot = h.ledger().slots.S0!;
   assert.equal(h.agents.get(lane.lead!)!.cwd, slot.path);
   assert.equal(h.git(slot.path, "branch", "--show-current").trim(), lane.branch);
+  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path), [{ kind: "open", path: slot.path }]);
+  assert.match(h.git(h.root, "rev-parse", "--git-path", "info/exclude").trim() && readFileSync(join(h.root, ".git", "info", "exclude"), "utf-8"), /^\.idea\/$/m);
+  assert.equal(h.git(slot.path, "status", "--porcelain"), "");
 
   const second = await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", acceptance: ["y"] });
   assert.equal(second.ok, false);
@@ -177,6 +191,7 @@ test("a lane works serially in one long-lived working copy that the next lane re
   assert.equal(reopened.ok, true, reopened.text);
   assert.equal(h.ledger().lanes.L2!.slot, "S0");
   assert.equal(h.workspaces.size, 1);
+  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path).map((call) => call.kind), ["open", "sync"]);
   assert.equal(h.git(slot.path, "branch", "--show-current").trim(), h.ledger().lanes.L2!.branch);
   h.runtime.dispose();
 });

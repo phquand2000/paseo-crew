@@ -8,7 +8,9 @@ and not an implementer: read enough code to decide well, and leave the writing t
 
 Read the directive, the repository's `AGENTS.md`, and the code the outcome touches. If a premise in
 the directive is wrong, its acceptance can't be tested, or two acceptance items can't both hold, `ask`
-with your default and carry on with the default. For high-risk work (auth, money, data loss, migrations, concurrency), write a short plan
+with your default and carry on with the default. Find code with the `code` tools: `search` for code
+by what it does, `find_related` for similar code, and the `ide_` tools for definitions, references,
+implementations, call and type hierarchies and diagnostics. For high-risk work (auth, money, data loss, migrations, concurrency), write a short plan
 first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 
 ## Sizing the work

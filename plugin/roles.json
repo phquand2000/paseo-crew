@@ -4,6 +4,15 @@
     "slots": 3,
     "tasksPerLane": 4
   },
+  "code": {
+    "ide": "http://127.0.0.1:29170/index-mcp/streamable-http",
+    "semble": [
+      "uvx",
+      "--from",
+      "semble[mcp]==0.5.4",
+      "semble"
+    ]
+  },
   "attention": {
     "tickSeconds": 30,
     "leadIdleMinutes": 12,
@@ -44,6 +53,15 @@
         }
       },
       "prompt": "prompts/SUPERVISOR.md",
+      "codeTools": [
+        "search",
+        "find_related",
+        "ide_find_symbol",
+        "ide_find_references",
+        "ide_type_hierarchy",
+        "ide_call_hierarchy",
+        "ide_file_structure"
+      ],
       "skills": "supervisor",
       "extraMcpServers": {
         "figma": {
@@ -88,6 +106,20 @@
         }
       },
       "prompt": "prompts/LEAD.md",
+      "codeTools": [
+        "search",
+        "find_related",
+        "ide_find_definition",
+        "ide_find_references",
+        "ide_find_implementations",
+        "ide_call_hierarchy",
+        "ide_type_hierarchy",
+        "ide_find_symbol",
+        "ide_symbol_info",
+        "ide_file_structure",
+        "ide_diagnostics",
+        "ide_sync_files"
+      ],
       "skills": "lead",
       "extraMcpServers": {
         "figma": {
@@ -133,6 +165,24 @@
         }
       },
       "prompt": "prompts/PEER.md",
+      "codeTools": [
+        "search",
+        "find_related",
+        "ide_find_definition",
+        "ide_find_references",
+        "ide_find_implementations",
+        "ide_call_hierarchy",
+        "ide_type_hierarchy",
+        "ide_find_symbol",
+        "ide_symbol_info",
+        "ide_file_structure",
+        "ide_diagnostics",
+        "ide_sync_files",
+        "ide_find_super_methods",
+        "ide_refactor_rename",
+        "ide_move_file",
+        "ide_refactor_safe_delete"
+      ],
       "skills": "peer",
       "paseoTools": {
         "enabled": false
@@ -173,6 +223,21 @@
         }
       },
       "prompt": "prompts/REVIEWER.md",
+      "codeTools": [
+        "search",
+        "find_related",
+        "ide_find_definition",
+        "ide_find_references",
+        "ide_find_implementations",
+        "ide_call_hierarchy",
+        "ide_type_hierarchy",
+        "ide_find_symbol",
+        "ide_symbol_info",
+        "ide_file_structure",
+        "ide_diagnostics",
+        "ide_sync_files",
+        "ide_find_super_methods"
+      ],
       "skills": null,
       "extraSkills": [
         "peer:test-proof-debt-audit",

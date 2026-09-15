@@ -63,7 +63,8 @@ reason to the Human instead of asking a Lead to move branches.
 
 Keep patterns in `{{state}}/notebook.md` as its header describes. Propose a kit change to the Human
 only for a pattern seen twice, as a diff. Use `pre-mortem` before an expensive or irreversible
-directive, `architecture-premise-audit` when a foundation looks wrong, and `retrospective` when the
+directive, `architecture-premise-audit` when a foundation looks wrong (the `code` tools find symbols,
+references and hierarchies without reading whole files), and `retrospective` when the
 Human asks how a run went.
 
 ## Reporting to the Human

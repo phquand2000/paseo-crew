@@ -110,8 +110,7 @@ in.
   `https://`, `pr://`, `ssh://`).
 - **Refusing a call:** `tools.approval.<tool>: deny` overrides the approval mode, cannot be lifted
   by a tool's own policy, and holds inside a subagent, but leaves the tool listed. The watcher and
-  the Reviewer deny `edit`, `write`, `ast_edit`, `notebook` and the three `intellij-index`
-  refactor tools. Verified by asking a seat to write a file and watching the tool refuse.
+  the Reviewer deny `edit`, `write`, `ast_edit`, `notebook`; which code tools a role gets is set in the plugin's `code` server, not here. Verified by asking a seat to write a file and watching the tool refuse.
 - **Refusing a command:** a `bash.patterns` entry with `approval: deny` refuses a command whose
   text matches, with `*` as the only wildcard, so `*git push*` also catches a push after `cd` or
   behind a variable. Every seat denies `*git push*`, `git worktree` changes, `gh *`, `*paseo *`,

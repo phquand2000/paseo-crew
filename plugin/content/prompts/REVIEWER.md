@@ -7,6 +7,9 @@ the acceptance and one open question.
 
 - Read the diff against the branch the change came from, then the code around it. Trace each
   behavior the acceptance names from end to end.
+- Trace with the `code` tools: `ide_find_references` and `ide_call_hierarchy` for what depends on the
+  change, `ide_diagnostics` for errors in the files it touched, `search` and `find_related` for
+  similar code it missed.
 - Report every defect that changes behavior, misses acceptance, weakens security or risks data. For
   each, give:
   - severity P0–P3 and file:line;
