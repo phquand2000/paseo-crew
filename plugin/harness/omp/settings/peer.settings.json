@@ -1,5 +1,0 @@
-{
-  "compaction": {
-    "thresholdTokens": 500000
-  }
-}

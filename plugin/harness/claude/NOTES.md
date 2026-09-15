@@ -45,9 +45,9 @@ source.
 
 - **`permissions.deny`:** a bare tool name (`Agent`, `Task`, `Workflow`, `EnterPlanMode`,
   `EnterWorktree`, the Cron tools, `SendMessage`, `Monitor`, `Artifact`, `NotebookEdit`, `LSP`) takes the tool out of the model's context. A Bash
-  rule such as `Bash(git push *)`, `Bash(gh *)`, `Bash(paseo *)`, `Bash(claude *)` or
-  `Bash(omp *)` matches the command text. An `Edit` rule refused a Write to its path; the rules
-  name `~/.paseo`, `~/.omp`, `~/.claude/settings.json` and each seat profile's `settings.json`
+  rule such as `Bash(git push *)`, `Bash(gh *)`, `Bash(paseo *)` or `Bash(claude *)`
+  matches the command text. An `Edit` rule refused a Write to its path; the rules
+  name `~/.paseo`, `~/.claude/settings.json` and each seat profile's `settings.json`
   and `.claude.json`.
 - **`sandbox`:** `enabled`, `failIfUnavailable: true` and `allowUnsandboxedCommands: false`, and
   the Lead also sets `network.allowLocalBinding`. It refused a Bash write outside the working
@@ -65,7 +65,7 @@ source.
 - **No write allow-list inside the repository.** A `sandbox.filesystem.denyWrite` entry beats an
   `allowWrite` inside it, so which repository files the Supervisor and the Lead write is a line in
   their prompts.
-- **Paseo's `disallowedTools` is not used.** Its OMP client never reads the list, so each harness
+- **Paseo's `disallowedTools` is not used.** The kit keeps each harness's own list instead, so each harness
   keeps its own, and setup deletes one it finds on a provider.
 
 - **`AskUserQuestion` is offered only with `--permission-prompt-tool`,** which the orchestrator

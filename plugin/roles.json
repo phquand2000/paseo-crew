@@ -156,16 +156,6 @@
               "isDefault": true
             }
           ]
-        },
-        "omp": {
-          "models": [
-            {
-              "id": "zai/glm-5.3-flash",
-              "label": "GLM-5.3-Flash",
-              "isDefault": true
-            }
-          ],
-          "thinking": "max"
         }
       },
       "prompt": "prompts/PEER.md",
@@ -217,16 +207,6 @@
               "isDefault": true
             }
           ]
-        },
-        "omp": {
-          "models": [
-            {
-              "id": "zai/glm-5.3",
-              "label": "GLM-5.3",
-              "isDefault": true
-            }
-          ],
-          "thinking": "max"
         }
       },
       "prompt": "prompts/REVIEWER.md",
@@ -276,15 +256,6 @@
             {
               "id": "swe-2-max",
               "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        },
-        "omp": {
-          "models": [
-            {
-              "id": "zai/glm-5.3-flash",
-              "label": "GLM-5.3-Flash",
               "isDefault": true
             }
           ]
