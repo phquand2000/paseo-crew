@@ -1,9 +1,7 @@
 import { callTool } from "../core/jsonrpc.ts";
+import type { IdeClient } from "../desk/context.ts";
 
-export type Ide = {
-  open(path: string): Promise<{ ok: boolean; text: string }>;
-  sync(path: string): Promise<{ ok: boolean; text: string }>;
-};
+export type Ide = IdeClient;
 
 function routeHint(text: string): string | undefined {
   try {

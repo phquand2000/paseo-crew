@@ -1,10 +1,8 @@
 import type { Team } from "../catalog/team.ts";
 import { type Kit, seatOf } from "../catalog/kit.ts";
 import type { PaseoApi } from "../core/paseo.ts";
-import type { Ide } from "../runtime/ide.ts";
-import type { Outbox } from "../runtime/outbox.ts";
 import { Agents } from "./agents.ts";
-import { type Args, type Caller, DeskContext, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
+import { type Args, type Caller, DeskContext, type IdeClient, type Mailer, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
 import type { Ledger, Task } from "./ledger.ts";
 import { clip } from "./letters.ts";
 import { MergeQueue } from "./merge.ts";
@@ -44,7 +42,7 @@ export class Desk {
   readonly pendingArchive: Set<string>;
   private readonly services: DeskServices;
 
-  constructor(kit: Kit, outbox: Outbox, log: (project: Project, line: string) => void, teamFor: (project?: Project) => Team, ideFor: (project: Project) => Ide | null = () => null) {
+  constructor(kit: Kit, outbox: Mailer, log: (project: Project, line: string) => void, teamFor: (project?: Project) => Team, ideFor: (project: Project) => IdeClient | null = () => null) {
     const ctx = new DeskContext({ kit, outbox, log, teamFor, ideFor });
     const slots = new Slots(ctx);
     const agents = new Agents(ctx, slots);

@@ -3,12 +3,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { runGate } from "../core/gate.ts";
-import { issueArgs } from "./issue.ts";
-import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "./ledger.ts";
-import { letters } from "./letters.ts";
-import { takeRequests, writeReply } from "../runtime/spool.ts";
+import { issueArgs } from "../desk/issue.ts";
+import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../desk/ledger.ts";
+import { letters } from "../desk/letters.ts";
+import { takeRequests, writeReply } from "./spool.ts";
 import { tempDir } from "../catalog/testkit.ts";
-import { fillCommand, parseVerdicts } from "../runtime/watcher.ts";
+import { fillCommand, parseVerdicts } from "./watcher.ts";
 
 const lane: Lane = {
   id: "L1",

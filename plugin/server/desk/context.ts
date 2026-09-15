@@ -4,8 +4,6 @@ import { join } from "node:path";
 import type { Team } from "../catalog/team.ts";
 import { type Kit, type RoleSpec, type TeamRole, seatOf } from "../catalog/kit.ts";
 import { type PaseoApi, openSeats } from "../core/paseo.ts";
-import type { Ide } from "../runtime/ide.ts";
-import type { Outbox } from "../runtime/outbox.ts";
 import { type Ledger, type Task, loadLedger, saveLedger } from "./ledger.ts";
 import { type Project, projectOf } from "./project.ts";
 
@@ -22,12 +20,19 @@ export const no = (text: string): ToolReply => ({ ok: false, text });
 export const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 export const hash = (...parts: string[]): string => createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
 
+export type IdeClient = {
+  open(path: string): Promise<{ ok: boolean; text: string }>;
+  sync(path: string): Promise<{ ok: boolean; text: string }>;
+};
+
+export type Mailer = { post(paseo: PaseoApi, letter: { to: string; key: string; text: string }): Promise<unknown> };
+
 export type DeskDeps = {
   kit: Kit;
-  outbox: Outbox;
+  outbox: Mailer;
   log: (project: Project, line: string) => void;
   teamFor: (project?: Project) => Team;
-  ideFor: (project: Project) => Ide | null;
+  ideFor: (project: Project) => IdeClient | null;
 };
 
 export class DeskContext {
@@ -46,7 +51,7 @@ export class DeskContext {
     return this.deps.teamFor(project);
   }
 
-  ide(project: Project): Ide | null {
+  ide(project: Project): IdeClient | null {
     return this.deps.ideFor(project);
   }
 

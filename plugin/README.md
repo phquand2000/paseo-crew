@@ -8,14 +8,14 @@
 | `catalog/mcp/<id>/` | MCP servers the settings can turn on: `mcp.json`, `rule.md`, `skills/` |
 | `mcp/team.mjs`, `mcp/tools.json` | The team tool server each seat runs and its tools per role |
 | `mcp/code.mjs` | The proxy that pins IDE and code-search calls to the caller's working copy |
-| `content/prompts/` | One prompt per role |
-| `content/guides/` | Guides a role reads when needed |
-| `content/skills/<set>/` | Skills linked into seats |
-| `content/records/` | Files seeded into each project's state directory |
-| `server/desk.ts` | Tool handlers: lanes, tasks, asks, merge queue |
-| `server/runtime.ts` | Hooks, spool, turn-end rules, watcher, patrol, settings RPC |
-| `server/settings.ts`, `server/team.ts` | Settings layers, and resolving catalog plus settings into a team |
-| `server/rpc.ts`, `server/doctor.ts` | RPC contracts for a web app, and machine checks |
-| `server/*.ts` | Ledger, git, gate, letters, outbox, seats, providers |
+| `content/prompts/`, `content/guides/`, `content/skills/<set>/`, `content/records/` | Role prompts, guides, skills, and files seeded into project state |
+| `server/core/` | Leaf helpers with no plugin knowledge: git, gate, scope, paths, JSON store, JSON-RPC client, Paseo types |
+| `server/catalog/` | Loading the catalog, settings layers, resolving a team, providers, seat directories, launch config |
+| `server/desk/` | The team desk: `desk.ts` routes tool calls; `context.ts` owns ledger, events and mail; `slots.ts`, `agents.ts`, `merge.ts`, `gates.ts`; `tools/` holds each role's tools |
+| `server/runtime/` | `runtime.ts` wires hooks; `team-source.ts`, `seating.ts`, `turns.ts`, `watch-queue.ts`, `patrol.ts`, `control.ts` and `rpc.ts` do the work; outbox, spool, IDE client, doctor |
+
+Tests sit next to the module they cover. Dependencies point one way: `runtime` uses `desk`,
+`catalog` and `core`; `desk` uses `catalog` and `core` and declares the IDE client and mailer it
+needs; `catalog` uses `core`; `core` uses nothing of the plugin. Tests follow the same direction.
 
 `npm run check` typechecks and runs the unit tests.
