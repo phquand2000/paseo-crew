@@ -27,6 +27,7 @@ own the judgment inside it, working on your own branch in your own working copy.
 
 IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
 
+- List the `intellij-index` tools once before your first code search, so you can call them.
 - A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
 - Code you can describe but not name: `search`.
 - Before changing a contract: `ide_find_references` and `ide_call_hierarchy`; for types and overrides,

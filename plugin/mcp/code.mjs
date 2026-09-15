@@ -16,7 +16,7 @@ const MAX_SYNC_PATHS = 100;
 const RULE = "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.";
 const INSTRUCTIONS = {
   "intellij-index": `${RULE} Every call answers for your own working copy, and paths are relative to it.`,
-  semble: "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
+  "code-search": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
 };
 
 const SEMBLE_TOOLS = [

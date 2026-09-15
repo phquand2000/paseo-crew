@@ -195,7 +195,7 @@ test("an unreachable IDE fails the call with a way forward", async () => {
 
 test("code search runs against the working copy", async () => {
   const cwd = repo();
-  const code = proxy(cwd, { name: "semble", ide: "", semble: [process.execPath, fakeSemble()], tools: ["search"] });
+  const code = proxy(cwd, { name: "code-search", ide: "", semble: [process.execPath, fakeSemble()], tools: ["search"] });
   try {
     const listed = await code.rpc("tools/list");
     assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["search"]);

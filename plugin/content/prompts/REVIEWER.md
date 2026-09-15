@@ -27,6 +27,7 @@ the acceptance and one open question.
 
 IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
 
+- List the `intellij-index` tools once before your first code search, so you can call them.
 - A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
 - Code you can describe but not name: `search`.
 - What depends on the change: `ide_find_references`, `ide_call_hierarchy`, `ide_find_implementations`,

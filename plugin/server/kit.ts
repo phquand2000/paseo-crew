@@ -177,7 +177,7 @@ export function codeServer(kit: Kit, role: RoleSpec, node: string): McpServers {
     servers[name] = { type: "stdio", command: node, args: [join(kit.dir, "mcp", "code.mjs"), config] };
   };
   add("intellij-index", tools.filter((tool) => tool.startsWith("ide_")));
-  add("semble", tools.filter((tool) => !tool.startsWith("ide_")));
+  add("code-search", tools.filter((tool) => !tool.startsWith("ide_")));
   return servers;
 }
 
