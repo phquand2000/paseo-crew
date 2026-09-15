@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { tempDir } from "../core/testing.ts";
 import { type Kit, loadKit } from "./kit.ts";
 
 function put(root: string, path: string, value: unknown): void {
@@ -9,9 +9,6 @@ function put(root: string, path: string, value: unknown): void {
   writeFileSync(file, typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}\n`);
 }
 
-export function tempDir(prefix = "sw2-test-"): string {
-  return mkdtempSync(join(tmpdir(), prefix));
-}
 
 export function makeKit(): Kit {
   const dir = tempDir("sw2-kit-");

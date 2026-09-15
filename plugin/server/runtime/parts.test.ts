@@ -7,7 +7,7 @@ import { issueArgs } from "../desk/issue.ts";
 import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { takeRequests, writeReply } from "./spool.ts";
-import { tempDir } from "../catalog/testkit.ts";
+import { tempDir } from "../core/testing.ts";
 import { fillCommand, parseVerdicts } from "./watcher.ts";
 
 const lane: Lane = {

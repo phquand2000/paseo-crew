@@ -8,7 +8,7 @@ import { loadKit } from "./kit.ts";
 import { seatPairs } from "./providers.ts";
 import { materialize, seatDir, seedRecords } from "./seats.ts";
 import { resolveTeam, serversFor } from "./team.ts";
-import { tempDir } from "./testkit.ts";
+import { tempDir } from "../core/testing.ts";
 
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 

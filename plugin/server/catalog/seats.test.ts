@@ -4,7 +4,8 @@ import { basename, join } from "node:path";
 import { test } from "node:test";
 import { composeSettings, materialize, seatDir } from "./seats.ts";
 import { resolveTeam, serversFor } from "./team.ts";
-import { makeKit, tempDir } from "./testkit.ts";
+import { makeKit } from "./testkit.ts";
+import { tempDir } from "../core/testing.ts";
 
 const project = { slug: "shop-abc123", state: "/state/shop" };
 const context = { node: "/bin/node", spool: "/spool" };

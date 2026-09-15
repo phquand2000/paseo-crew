@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import type { PaseoApi } from "../core/paseo.ts";
 import { Outbox } from "./outbox.ts";
-import { tempDir } from "../catalog/testkit.ts";
+import { tempDir } from "../core/testing.ts";
 
 type FakeAgent = { status: string; pendingPermissions: unknown[]; archivedAt: string | null; sent: string[] };
 
