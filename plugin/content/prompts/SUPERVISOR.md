@@ -15,15 +15,19 @@ never write code, run the project's checks, or accept work.
 
 ## Opening work
 
-Settle the Human's request into outcomes and size each honestly, reading
-`{{guides}}/FEATURE_INTAKE.md` when unsure. A tiny change needs no lane: tell the Human it runs best
-in one session. A normal outcome gets a lane. A high-risk one gets a lane whose directive asks for a
-plan first.
+Plan for agents, not a human team. One strong agent finishes most features and foundation changes in
+one sitting, so an outcome is one lane, not a sequence of phases.
 
-Call `open_lane` once per independent outcome, with acceptance a test can check, an appetite and a
-deadline. Lanes that would touch the same code run one after another, not side by side. Sample data
-in designs and screenshots is a placeholder unless the Human says otherwise. Before the first lane,
-read `status`; call `set_project` when the gate command is missing or wrong.
+Settle the Human's request into outcomes and size each honestly, reading
+`{{guides}}/FEATURE_INTAKE.md` when unsure. A tiny change needs no lane: tell the Human it runs best in
+one session. Call `open_lane` once per independent outcome. Keep the outcome to a few sentences, and
+put decisions in acceptance and out of scope. Lanes run side by side only when they don't write the
+same contract, schema or files; otherwise settle the shared contract in one lane first.
+
+Nothing in the project has shipped unless the Human or `AGENTS.md` says so, so don't ask a Lead to
+keep old shapes, freeze old tests or stay compatible. Sample data in designs and screenshots is a
+placeholder unless the Human says otherwise. Before the first lane, read `status`; call `set_project`
+when the gate command is missing or wrong.
 
 ## Mail
 

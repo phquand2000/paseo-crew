@@ -12,14 +12,14 @@
           },
           "outcome": {
             "type": "string",
-            "description": "The observable change, and what you assumed."
+            "description": "The observable change and what you assumed, in a few sentences (under 800 characters). Decisions go in acceptance and outOfScope."
           },
           "acceptance": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Checks that show the outcome done."
+            "description": "Checks that show the outcome done, including the decisions you made, one per item."
           },
           "appetite": {
             "type": "string",
@@ -114,7 +114,7 @@
     },
     {
       "name": "set_project",
-      "description": "Set this project's base branch or gate command (the command that must pass before a task merges, for example npm test).",
+      "description": "Set this project's base branch and gate: the command that proves the lane works (for example npm test). By default it runs once on the whole lane, when its Lead reports it ready and before it lands, so tasks merge into the lane without each having to build on its own.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -126,6 +126,14 @@
           },
           "gateTimeoutMinutes": {
             "type": "number"
+          },
+          "gateOn": {
+            "type": "string",
+            "enum": [
+              "lane",
+              "task"
+            ],
+            "description": "lane (default): run the gate when a lane is reported ready and before landing. task: also run it on every task merge."
           }
         }
       }
@@ -142,7 +150,7 @@
   "lead": [
     {
       "name": "start_task",
-      "description": "Start a Peer on one task in its own branch and working copy, off your lane branch. Split by coupling: files that change together belong to one task. The brief is built from these fields.",
+      "description": "Start a Peer on one task in its own branch and working copy, off your lane branch. Default to one task for the whole lane; add another only when its write set is independent and it can run in parallel, and say why in context. A task never needs to build on its own. The brief is built from these fields.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -258,7 +266,7 @@
     },
     {
       "name": "accept",
-      "description": "Accept a finished task. It joins the merge queue: its branch is merged into your lane branch and the project's gate runs; you get MERGED or MERGE FAILED.",
+      "description": "Accept a finished task: its branch merges into your lane branch. A task does not have to build or pass tests on its own; the gate runs on the whole lane when you report it ready.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -347,7 +355,7 @@
           },
           "ready": {
             "type": "boolean",
-            "description": "True when the lane branch holds the whole outcome and the gate passed."
+            "description": "True when the lane branch holds the whole outcome. The desk runs the gate on the lane branch first and refuses the report if it fails."
           },
           "carried": {
             "type": "array",

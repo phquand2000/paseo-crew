@@ -390,6 +390,8 @@ export class Desk {
     if (lane.status !== "open") return no(`Lane ${lane.id} is already closed.`);
     let landing = `the branch ${lane.branch} is kept for the Human`;
     if (args.land === true) {
+      const gate = await this.laneGate(project, lane);
+      if (!gate.ok) return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, or close it with land false.`);
       const result = await landLane(project.root, lane.base, lane.branch);
       landing = result.landed ? `${result.how}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
     }
@@ -416,12 +418,13 @@ export class Desk {
     if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
     const minutes = Number(args.gateTimeoutMinutes);
     const next = {
+      gateOn: args.gateOn === "task" ? ("task" as const) : args.gateOn === "lane" ? ("lane" as const) : config.gateOn,
       base: base || config.base,
       gate: typeof args.gate === "string" ? args.gate.trim() || undefined : config.gate,
       gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
     };
     saveConfig(caller.project.state, next);
-    return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}; gate timeout ${next.gateTimeoutMinutes} minutes.`);
+    return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.`);
   }
 
   private async status(paseo: PaseoApi, caller: Caller): Promise<ToolReply> {
@@ -620,8 +623,8 @@ export class Desk {
     const counts = await diffCounts(cwd, merged.before, merged.after);
     const outside = outsideOwned(counts.files, task.owned);
     const config = loadConfig(project.state);
-    let gate = "none set";
-    if (config.gate) {
+    let gate = config.gate ? "runs on the whole lane when you report it ready" : "none set";
+    if (config.gate && config.gateOn === "task") {
       const logFile = join(project.state, "gates", `${taskId}-${Date.now()}.log`);
       const result = await runGate(config.gate, cwd, logFile, config.gateTimeoutMinutes * 60_000);
       if (!result.ok) {
@@ -703,11 +706,27 @@ export class Desk {
     return ok(`Asked as ${ask.id}. Keep working on your default where you can; the answer arrives as mail.`);
   }
 
+  private async laneGate(project: Project, lane: Lane): Promise<{ ok: boolean; text: string }> {
+    const config = loadConfig(project.state);
+    if (!config.gate || !lane.worktree) return { ok: true, text: "no gate set" };
+    if (!(await isClean(lane.worktree))) return { ok: false, text: "the lane working copy has uncommitted changes" };
+    const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
+    const result = await runGate(config.gate, lane.worktree, logFile, config.gateTimeoutMinutes * 60_000);
+    this.event(project, { kind: result.ok ? "gate.passed" : "gate.failed", lane: lane.id, seconds: result.seconds });
+    if (result.ok) return { ok: true, text: `${config.gate} passed on the lane branch in ${result.seconds}s` };
+    const reason = result.timedOut ? `timed out after ${config.gateTimeoutMinutes} minutes` : `failed with exit ${result.code}`;
+    return { ok: false, text: `${config.gate} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}` };
+  }
+
   private async report(paseo: PaseoApi, caller: Caller, args: Args): Promise<ToolReply> {
     const summary = str(args.summary);
     if (!summary) return no("report needs a summary.");
     const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
     if (!lane) return no("You have no open lane.");
+    if (args.ready === true) {
+      const gate = await this.laneGate(caller.project, lane);
+      if (!gate.ok) return no(`Not reported: the lane is not ready because ${gate.text}\nFix it with rework or start_task, then report again.`);
+    }
     const to = await this.supervisorFor(paseo, caller.project, lane.opener);
     await this.post(paseo, to, `report:${lane.id}:${hash(summary)}`, letters.report(lane, summary, args.ready === true, strs(args.carried)));
     this.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true });

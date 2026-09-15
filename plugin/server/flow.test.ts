@@ -88,7 +88,7 @@ test("a lane runs tasks through hand-back, merge, a failing gate, a conflict and
   };
 
   const sup = add("sw2-supervisor/claude-opus-5", root, "sup");
-  assert.equal((await call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" })).ok, true);
+  assert.equal((await call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "task" })).ok, true);
   const opened = await call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["a.txt has four"] });
   assert.equal(opened.ok, true, opened.text);
   const lane = loadLedger(project.state).lanes.L1!;
@@ -148,6 +148,22 @@ test("a lane runs tasks through hand-back, merge, a failing gate, a conflict and
   assert.deepEqual([tasks[t3.id]!.status, tasks[t4.id]!.status], ["merged", "rework"]);
   await idle(lane.lead!);
   assert.match(agents.get(lane.lead!)!.sent.join("\n"), /MERGE CONFLICT L1-T4[\s\S]*a\.txt/);
+
+  assert.equal((await call(sup, "supervisor", "set_project", { gateOn: "lane" })).ok, true);
+  const t5 = await start("Break it late");
+  commit(t5.worktree!, "BROKEN", "late\n");
+  await finished(t5.peer!, "broke it late");
+  await call(lane.lead!, "lead", "accept", { task: t5.id });
+  await desk.settled(project);
+  assert.equal(loadLedger(project.state).tasks[t5.id]!.status, "merged");
+  const refused = await call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+  assert.equal(refused.ok, false);
+  assert.match(refused.text, /not ready[\s\S]*exit 1/);
+  const notLanded = await call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
+  assert.equal(notLanded.ok, false);
+  git(lane.worktree!, "rm", "-q", "BROKEN");
+  git(lane.worktree!, "commit", "-qm", "unbreak");
+  assert.equal((await call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
 
   await call(lane.lead!, "lead", "cut", { task: t2.id, reason: "wrong" });
   await call(lane.lead!, "lead", "cut", { task: t4.id, reason: "superseded" });

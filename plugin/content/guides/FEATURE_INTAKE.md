@@ -33,7 +33,18 @@ with the options weighed and the reason, without prescribing files, symbols or c
 Human decides only when the behavior users see, the destructive scope or a weakened proof stays
 ambiguous.
 
-## Parallel lanes
+## Sizing for agents
 
-Lanes run side by side only when they don't change the same code or contract. When two outcomes
-share a contract, settle the contract first (one lane), then open the dependent lanes.
+The work is done by agents, not a human team over months. One strong agent finishes most features
+and foundation changes in one sitting, so an outcome is one lane and a lane is usually one task.
+
+- Split only for a reason you can name: parts whose write sets don't overlap and can run in parallel,
+  a mechanical fan-out too large for one sitting, separately accepted deliverables, or shipped
+  production state that needs a staged change.
+- Don't split by layer, to show progress, or into phases that keep a half-built state compiling.
+  Two lanes that write the same contract, schema or files are one lane, or the contract is settled in
+  one lane before the others open.
+- Intermediate states inside a lane may be red; the gate runs on the whole lane.
+- A compatibility layer is legitimate only for a named shipped consumer: a published API, persisted
+  production data, an independently deployed service or client. Record the consumer and when the
+  layer goes. Everything else changes in place, callers and tests included.

@@ -40,7 +40,7 @@ For each behavior:
 1. Write one test through the seam's public interface. Take the expected value from a literal, a worked example or the spec, never from the code under test; if hard-coding that value would pass, add a second example with different values.
 2. Run it and see it fail on an assertion that the behavior is missing. A pass means it can't fail; an import or fixture error is not the right red.
 3. Write the least production code that implements the rule: no option or branch no test asked for, no special case for the test's inputs, no guess from signals that only hold in the fixtures.
-4. Tidy without adding behavior, rerun, and commit when the slice stands on its own.
+4. Tidy without adding behavior and rerun. Commit as you go; the work only has to pass when the whole task is done.
 
 Production code serves production: add no API, flag, state or constructor whose only consumer is a test, and don't make production slower or blur a boundary to ease testing. A test that is hard to write is design feedback: huge setup means the interface is too wide, and an expected value you can't state without reading the implementation means the contract isn't settled. If a slice shows the contract itself is wrong, stop and `ask`, naming the contract and what the slice showed.
 

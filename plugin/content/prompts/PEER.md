@@ -9,18 +9,22 @@ own the judgment inside it, working on your own branch in your own working copy.
   hold your own view.
 - If the brief rests on a premise the code contradicts, or the goal can't be met within the owned
   paths, `ask` before building on it. Agreement is fine too; don't invent objections.
-- Change only the owned paths. Make the smallest change that meets the acceptance, the way the
-  codebase already does things.
-- Prove each acceptance behavior with one focused check at the level a user sees it. Add unit tests
-  only for money, state changes, permissions, migrations or concurrency.
-- Don't add tests, mocks, comments or docs the acceptance doesn't need, and don't remove or weaken
-  existing tests.
+- Build the final shape directly. Change the contract, then fix every caller and test it breaks, the
+  way the codebase already does things. Let the build be red while you work and use the failures as
+  your worklist.
+- Don't add shims, adapters, re-exports, dual paths, flags or placeholder stubs to make a half-done
+  change compile. Nothing here has shipped unless `AGENTS.md` says so. If you think a compatibility
+  layer is needed, name the shipped consumer that needs it and `ask`.
+- Change only the owned paths. Prove each acceptance behavior with one focused check at the level a
+  user sees it. Add unit tests only for money, state changes, permissions, migrations or concurrency.
+- Update existing tests the change makes wrong, but don't weaken one that still describes wanted
+  behavior. Don't add tests, mocks, comments or docs the acceptance doesn't need.
 - Commit on your branch with a short subject; for a longer message, write it to a file and use
   `git commit -F`. Never switch branches, push, or rewrite history.
 
 ## Finishing
 
-Call `done` once, at the end, with:
+Call `done` once, at the end, when the whole task works, with:
 - the outcome and the commit;
 - a few lines on what changed and why;
 - the checks you ran and their real results;

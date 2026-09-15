@@ -1,44 +1,44 @@
 # Lane plans
 
-A plan is the page a successor reads to resume a high-risk lane: where it stands now. It lives
-outside the repository, in the project's `plans/` state directory, so it never lands in a commit.
-Normal lanes need no plan; the directive and the tasks are enough.
+A plan is the page a successor reads to resume a high-risk lane. It lives in the project's `plans/`
+state directory, outside the repository, and holds the present only. Normal lanes need no plan.
 
-Keep it under 120 lines and replace lines instead of adding them:
+Write it for agents, not a human team: the lane is usually one task done in one sitting, so the plan
+names the final shape and the one check that proves it, not a schedule of phases. Keep it under 80
+lines and replace lines instead of adding them.
 
 ```md
 # <lane id> <outcome>
 
-## Outcome and non-goals (up to 6 lines)
+## Outcome (up to 5 lines)
 
-<the outcome and its success check>
-Not doing: <non-goals>
+<what is observably true when done>
+Not doing: <out of scope>
+
+## Final contract (up to 15 lines)
+
+<the shape of the types, schema, API or protocol after the change; this is written first and every
+caller and test moves to it in the same change>
+
+## Tasks (one row each)
+
+| Task | Write set | Why it is separate |
+|---|---|---|
+| <L1-T1> | <paths> | only task, or the named reason: independent write set run in parallel, mechanical fan-out, separate deliverable |
+
+## Intermediate states
+
+Red inside the lane is fine. No compatibility, bridge or transition code, unless a shipped consumer
+needs it: <none, or the consumer, why, and when the layer goes>.
 
 ## Decisions (one line each)
 
 - <decision>: <what was chosen, the option set aside, and why>
 
-## Contracts to settle first (one row each)
+## End check
 
-| Contract | State | Settled by |
-|---|---|---|
-| <API shape, data model, message format, migration> | open or settled | <task id or the decision line> |
-
-## Tasks (one row each)
-
-| Task | Outcome | Depends on | Status |
-|---|---|---|---|
-| <L1-T1> | <what a caller can observe> | none | started, merged or cut |
-
-## Open questions (one line each, deleted once answered)
-
-- <question> (blocks <task>; answered by <owner or Lead>)
-
-## Acceptance and recovery (up to 10 lines)
-
-- Claim: <claim>. Shown false by: <evidence>.
-- Rollback: <how>.
+<the command or scenario that proves the outcome on the whole lane>
 ```
 
-A decision belongs here when it changes ownership, public behavior, safety, compatibility or data,
-or is expensive to reverse. Everything else lives in git history and the task hand-backs.
+A decision belongs here when it changes ownership, public behavior, safety or data, or is expensive
+to reverse. Everything else lives in git history and the task hand-backs.

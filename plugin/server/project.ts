@@ -7,7 +7,9 @@ import { readJson, writeJson } from "./store.ts";
 
 export type Project = { root: string; slug: string; state: string };
 
-export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number };
+export type GateOn = "lane" | "task";
+
+export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn };
 
 const cache = new Map<string, Project>();
 
@@ -82,6 +84,7 @@ export function loadConfig(state: string): ProjectConfig {
     base: typeof stored.base === "string" && stored.base ? stored.base : undefined,
     gate: typeof stored.gate === "string" && stored.gate ? stored.gate : undefined,
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
+    gateOn: stored.gateOn === "task" ? "task" : "lane",
   };
 }
 

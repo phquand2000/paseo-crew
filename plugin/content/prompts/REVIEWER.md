@@ -17,6 +17,8 @@ the acceptance and one open question.
   Confidence is high only for what you traced.
 - Report ceremony as findings too: tests that mirror the code or pin details the acceptance doesn't
   name, mocks around untouched code, comments that narrate, docs nobody needs.
+- Report compatibility, bridge or transition code on unshipped or internal paths as a defect: shims,
+  adapters for old shapes, re-exports, dual paths, flags or stubs kept so unfinished work compiles.
 - Answer the open question directly. Say "no material findings" when that is true.
 - Don't edit files, commit, or run anything that writes. Run the project's read-only checks when
   they settle a finding.

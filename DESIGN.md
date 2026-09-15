@@ -35,15 +35,20 @@ the effort spent on docs and tests. The design moves all of that into code.
 5. **Every turn ends in a recorded state.** A Peer turn without `done` or `ask` is nudged once, then
    reported to its Lead with the turn's ending. A refused call is named in that report.
 6. **A branch and worktree per lane and per task.** The Lead's lane branch is the integration branch;
-   each Peer works on a task branch off it. Accepting a task queues it: the plugin merges it into the
-   lane worktree and runs the project's gate command, one project at a time, then reports MERGED or
-   MERGE FAILED. Landing a lane is a fast-forward the Supervisor asks for; pushing stays the Human's.
+   each Peer works on a task branch off it. Accepting a task merges it into the lane. The project's
+   gate runs once on the whole lane, when its Lead reports it ready and again before it lands, so a
+   task never has to build on its own. Landing is a fast-forward or merge the Supervisor asks for;
+   pushing stays the Human's.
 7. **Watchers are cheap and cannot disappear.** Tier 0 is plugin code (timers, silent ends, stale
    asks, idle lanes). Tier 1 is a headless run of a cheap model the plugin launches on flagged turn
    endings; it answers one label per ending. There is no watcher seat to lose.
 8. **Fixed-shape hand-backs, full text on disk.** A letter carries the summary; the full hand-back and
    gate logs live in the project's state directory, named by path.
-9. **Acceptance first, code focus.** A task carries its acceptance checks and owned paths. The merge
+9. **Plans are for agents, not a human team.** One strong agent finishes most features and foundation
+   changes in one sitting, so a lane is usually one task. Work splits only where write sets are
+   independent. Unshipped code changes in place with its callers and tests: no compatibility, bridge
+   or transition layer between slices, and the watcher and reviewer flag one when it appears.
+10. **Acceptance first, code focus.** A task carries its acceptance checks and owned paths. The merge
    report counts source, test and docs lines so ceremony is visible where it is decided.
 
 ## Layout
@@ -80,15 +85,17 @@ projects/<slug>/
 
 1. The Human talks to a Supervisor started from the `sw2-supervisor` profile.
 2. `open_lane` creates the lane branch and worktree and starts a Lead there with the directive.
-3. The Lead reads, splits the outcome by coupling, and calls `start_task` per task: the plugin
-   creates the task branch and worktree and starts a Peer with a brief built from the call.
+3. The Lead reads, usually gives the whole lane to one task, and calls `start_task`: the plugin
+   creates the task branch and worktree and starts a Peer with a brief built from the call. A second
+   task only exists for an independent write set.
 4. The Peer commits on its branch and calls `done`. The plugin stores the hand-back and mails the
    Lead when it is idle.
 5. The Lead calls `accept`, `rework`, `start_review` or `cut`. `accept` enters the merge queue.
 6. Questions: a Peer's `ask` goes to its Lead, a Lead's `ask` to the Supervisor. Each is a ledger
    record, repeated in every letter to the recipient until answered, and escalated when stale.
-7. The Lead's `report` goes to the Supervisor. `close_lane` archives the lane's seats and, when asked,
-   fast-forwards the base branch.
+7. The Lead's `report` ready runs the gate on the whole lane, then goes to the Supervisor.
+   `close_lane` reruns the gate, lands the lane on the base branch by fast-forward or merge when
+   asked, and archives the lane's seats.
 
 ## Switching a role's provider
 

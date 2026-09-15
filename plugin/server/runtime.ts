@@ -21,7 +21,7 @@ type EventName = keyof PluginLifecycleEvents;
 type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string };
 
 const CUES =
-  /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed))\b/i;
+  /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed)|shim|adapter|compat(ibility)?|bridge|backward|legacy|temporar(y|ily)|stub|placeholder|re-?export)\b/i;
 
 export class Runtime {
   readonly kit: Kit;
@@ -308,7 +308,7 @@ export class Runtime {
         const item = batch[verdict.n - 1];
         if (!item) continue;
         this.desk.event(item.project, { kind: "watch", agent: item.agent, label: verdict.label, quote: verdict.quote });
-        const raise = URGENT.includes(verdict.label) && (item.role === "lead" || verdict.label === "destructive" || verdict.label === "wrong-premise");
+        const raise = URGENT.includes(verdict.label) && (item.role === "lead" || verdict.label !== "unheard-wait");
         if (!raise) continue;
         const lane = loadLedger(item.project.state).lanes[item.lane];
         const to = await this.desk.supervisorFor(paseo, item.project, lane?.opener);

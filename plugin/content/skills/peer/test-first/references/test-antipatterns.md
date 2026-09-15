@@ -14,7 +14,7 @@ Check every test you added or changed against each row before `done`. A test can
 | Never seen red | You never ran it against code without the behavior. | Watch it fail for the right reason before the code exists. |
 | Weakened to green | A loosened assertion, wider tolerance, raised timeout, or added skip. | Fix the cause, or `ask` about the trade-off. |
 | Swallowing mock | A mock returns success or a partial structure, so a failure path or later field read never runs. | Mock only what you don't control (external services, clock, randomness), below the side effects the test needs, returning the full real structure. |
-| Wrapper or bridge test | Tests for a layer that only forwards data, or for bridge code a later slice removes. | Prove the behavior at the long-lived owner seam. |
+| Wrapper or bridge test | Tests for a layer that only forwards data, or for bridge code kept so unfinished work compiles. | Delete the bridge, build the final shape, and prove the behavior at the long-lived owner seam. |
 | Retired-value negative | A negative case pinned to an old width, tag, version, field or offset. | Derive invalid inputs from current constants, such as `WIDTH - 1`. |
 | Absence test | Its only claim is that a removed name or dependency is gone. | Cover the current contract positively, then delete it. |
 | Source or prose check | It reads source text, help text, headings or registration names. | Execute the behavior, or parse machine-readable output. |
