@@ -10,7 +10,7 @@ You judge whether the project is built around the right system archetype, not wh
 - Build the expected model from the product before you treat repository terms, architecture docs, tests or benchmarks as authoritative.
 - Passing proof is evidence about an implementation, not proof the mechanism should exist.
 - Complexity is a finding only when it lacks a product need, owner, lifecycle, consumer, scaling contract or failure contract.
-- Ask only when one missing fact would reverse the verdict and no stated assumption can bound it.
+- Ask the Human only when one missing fact would reverse the verdict and no stated assumption can bound it.
 
 ## Procedure
 
@@ -23,12 +23,12 @@ You judge whether the project is built around the right system archetype, not wh
 
 Classify each supported candidate as architecture defect, owner defect, implementation drift, justified divergence, quarantined scaffold, or insufficient evidence; generic improvements aren't findings.
 
-A project too large to read alone splits into slices, one or a few per reader. Each reader is a fresh agent from the `reviewer` profile with a brief from `~/.local/share/seatworks-v2/guides/BRIEF.md` (disposition Architect, owned scope `none`), the claim and its atlas rows, asking for observed-map rows and candidates with file and line evidence. Leave out the other readers' findings and your own suspicion, so each report stays an independent judgment, and archive each reader once its report is in.
+You read the repository yourself for the atlas and the comparison. A project too large to map alone gets a read-only lane: `open_lane` with outcome "observed-map rows and candidates for these slices", out of scope any code change, and a directive giving the claim and the atlas rows and asking its Lead for one sealed reviewer per slice or few slices, each started with `start_review` whose focus asks for observed-map rows and candidates with file and line evidence. Leave out your own suspicion so each reader stays an independent judgment. Use the Lead's report, then `close_lane` with land false.
 
 ## Ends in
 
-A report at `$SEATWORKS_STATE/audits/REPO-YYYY-MM-DD.md` that leads with one verdict, `KEEP_FOUNDATION`, `REPAIR_FIRST`, `REDIRECT_RECOMMENDED`, `STOP_AND_REDIRECT` or `INSUFFICIENT_EVIDENCE`, followed only by the sections that support it: expected versus observed map, coverage ledger and exclusions, ranked findings with evidence, hidden premise and amplification route, the counterfactual, counterarguments and falsifiers, `STOP_OPTIMIZING` and `PROBABLY_JUSTIFIED` items, and the decisions it asks for. Make the best judgment the evidence supports; don't end with an unranked option menu.
+A report at `$SEATWORKS_STATE/architecture-premise-audit/YYYY-MM-DD.md` that leads with one verdict, `KEEP_FOUNDATION`, `REPAIR_FIRST`, `REDIRECT_RECOMMENDED`, `STOP_AND_REDIRECT` or `INSUFFICIENT_EVIDENCE`, followed only by the sections that support it: expected versus observed map, coverage ledger and exclusions, ranked findings with evidence, hidden premise and amplification route, the counterfactual, counterarguments and falsifiers, `STOP_OPTIMIZING` and `PROBABLY_JUSTIFIED` items, and the decisions it asks for. Make the best judgment the evidence supports; don't end with an unranked option menu.
 
-Take the verdict, top findings and decisions to the Human, observation kept apart from inference. The Human's decision reaches the Lead as an `OWNER DIRECTIVE:` that quotes the findings it rests on with file and line, since the Lead doesn't read your records.
+Take the verdict, top findings and decisions to the Human, observation kept apart from inference. The resulting work reaches a Lead as a `message` or a new lane's directive that quotes the findings it rests on with file and line, since the Lead doesn't read your report.
 
 The rule that matters most: build the expected atlas from the product before you read the repository's account of itself.

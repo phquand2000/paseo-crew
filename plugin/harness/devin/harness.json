@@ -71,5 +71,17 @@
   "sharedSkillDirs": [
     "HOME/.agents/skills"
   ],
-  "systemPrompt": "file"
+  "systemPrompt": "file",
+  "headless": [
+    "devin",
+    "--model",
+    "{model}",
+    "--permission-mode",
+    "auto",
+    "--respect-workspace-trust",
+    "false",
+    "-p",
+    "--prompt-file",
+    "{promptFile}"
+  ]
 }

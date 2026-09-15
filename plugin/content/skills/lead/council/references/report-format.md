@@ -1,6 +1,6 @@
 # Council report patterns
 
-Open this when you write the case output contract, and again for a cross-examination or a draft audit. Adapt what the case needs; never copy every heading into every prompt. Every contract separates direct observation, authority, inference and uncertainty, and shows which action each conclusion changes.
+Open this when you write the case output contract, and again for a cross-examination or a draft audit. The chosen pattern goes into each reviewer's `focus` and comes back in its `done` findings. Adapt what the case needs; never copy every heading into every focus. Every contract separates direct observation, authority, inference and uncertainty, and shows which action each conclusion changes.
 
 ## Focused decision
 

@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { renderPrompt, skillSources } from "./content.ts";
-import { type Kit, type RoleSpec, harnessOf, mcpServersFor } from "./kit.ts";
+import { type Kit, type McpServers, type RoleSpec, harnessOf, mcpServersFor } from "./kit.ts";
 import { expandHome, guidesDir, home } from "./paths.ts";
 import { readJson, sameJson } from "./store.ts";
 
@@ -108,7 +108,7 @@ export function seedRecords(kit: Kit, state: string): string[] {
   return seeded;
 }
 
-export function materialize(kit: Kit, role: RoleSpec, homeDir = home()): string[] {
+export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: McpServers = {}): string[] {
   const harness = harnessOf(kit, role);
   const dir = seatDir(kit, role, homeDir);
   const changes: string[] = [];
@@ -142,9 +142,9 @@ export function materialize(kit: Kit, role: RoleSpec, homeDir = home()): string[
     }
   }
 
-  const servers = mcpServersFor(kit, role);
   if (harness.state?.file) {
     const stateFile = join(dir, harness.state.file);
+    const servers = mcpServersFor(kit, role, harness.systemPrompt === "config" ? {} : team);
     if (harness.state.file === ".claude.json") {
       const seed = JSON.parse(harness.state.seed ?? "{}") as Json;
       const current = readJson<Json>(stateFile, seed);

@@ -1,8 +1,26 @@
 {
-  "seats": [
+  "providerPrefix": "sw2-",
+  "limits": {
+    "lanes": 3,
+    "tasksPerLane": 4
+  },
+  "attention": {
+    "tickSeconds": 30,
+    "leadIdleMinutes": 12,
+    "askRemindMinutes": 15,
+    "maxReminders": 2,
+    "watcherDebounceSeconds": 45,
+    "watcherTimeoutSeconds": 180
+  },
+  "mcpServers": {},
+  "roles": [
     {
       "role": "supervisor",
+      "label": "Supervisor",
+      "description": "Works with the Human, decides everything short of the concept, opens lanes and answers Leads",
+      "entry": true,
       "harness": "claude",
+      "team": "supervisor",
       "byHarness": {
         "claude": {
           "models": [
@@ -11,52 +29,27 @@
               "label": "Opus 5",
               "isDefault": true,
               "thinkingOptions": [
-                {
-                  "id": "medium",
-                  "label": "Medium"
-                },
-                {
-                  "id": "high",
-                  "label": "High",
-                  "isDefault": true
-                }
+                { "id": "medium", "label": "Medium" },
+                { "id": "high", "label": "High", "isDefault": true }
               ]
             }
           ]
         }
       },
-      "label": "Supervisor",
       "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",
-      "extraSkills": [],
       "extraMcpServers": {
-        "figma": {
-          "type": "http",
-          "url": "https://mcp.figma.com/mcp"
-        }
+        "figma": { "type": "http", "url": "https://mcp.figma.com/mcp" }
       },
-      "paseoTools": {
-        "disabledTools": [
-          "set_agent_mode",
-          "update_agent",
-          "update_schedule"
-        ]
-      },
-      "required": true,
-      "carriesKitPath": true,
-      "notes": "Start here. Meets the Human, settles intent into an owner directive, creates the Lead, and watches coordination.",
-      "description": "Supervisor seat: meets the Human, relays decisions, answers attention events, keeps the notebook",
-      "entry": true,
-      "mayStart": [
-        "lead",
-        "watcher",
-        "reviewer"
-      ],
+      "paseoTools": { "allow": ["get_agent_activity", "list_pending_permissions"] },
       "hidesWords": []
     },
     {
       "role": "lead",
+      "label": "Lead",
+      "description": "Owns one lane: splits it into tasks, starts Peers, accepts and integrates",
       "harness": "claude",
+      "team": "lead",
       "byHarness": {
         "claude": {
           "models": [
@@ -65,242 +58,65 @@
               "label": "Opus 5",
               "isDefault": true,
               "thinkingOptions": [
-                {
-                  "id": "medium",
-                  "label": "Medium",
-                  "isDefault": true
-                },
-                {
-                  "id": "high",
-                  "label": "High"
-                }
+                { "id": "medium", "label": "Medium", "isDefault": true },
+                { "id": "high", "label": "High" }
               ]
             }
           ]
         }
       },
-      "label": "Lead",
       "prompt": "prompts/LEAD.md",
       "skills": "lead",
-      "extraSkills": [],
       "extraMcpServers": {
-        "figma": {
-          "type": "http",
-          "url": "https://mcp.figma.com/mcp"
-        }
+        "figma": { "type": "http", "url": "https://mcp.figma.com/mcp" }
       },
-      "required": true,
-      "anchor": true,
-      "notes": "Owns this project: framing, breakdown, Peers, integration, acceptance. The Supervisor creates it; start one directly only for a small, settled task.",
-      "description": "Lead seat: framing, delegation, review, acceptance",
-      "paseoTools": {
-        "disabledTools": [
-          "archive_workspace",
-          "create_workspace",
-          "rename_workspace",
-          "set_agent_mode",
-          "update_schedule",
-          "respond_to_permission"
-        ]
-      },
-      "mayStart": [
-        "peer",
-        "reviewer"
-      ],
-      "hidesWords": [
-        "supervisor"
-      ],
-      "reports": "blocks"
-    },
-    {
-      "role": "watcher",
-      "harness": "devin",
-      "byHarness": {
-        "devin": {
-          "models": [
-            {
-              "id": "swe-2-max",
-              "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        },
-        "omp": {
-          "models": [
-            {
-              "id": "zai/glm-5.3-flash",
-              "label": "GLM-5.3-Flash",
-              "isDefault": true
-            }
-          ],
-          "thinking": "low"
-        }
-      },
-      "label": "Watcher",
-      "prompt": "prompts/WATCHER.md",
-      "skills": null,
-      "extraSkills": [],
-      "required": false,
-      "notes": "The Supervisor starts one per project with the first Lead. The orchestrator wakes it with SWEEP after Lead and Peer activity and brings its ATTENTION events to the Supervisor.",
-      "description": "Attention watcher: sweeps Lead and Peer activity when woken and raises ATTENTION events for the Supervisor",
-      "paseoTools": {
-        "disabledTools": [
-          "archive_agent",
-          "archive_workspace",
-          "cancel_agent",
-          "create_agent",
-          "create_heartbeat",
-          "create_schedule",
-          "create_terminal",
-          "create_workspace",
-          "delete_heartbeat",
-          "delete_schedule",
-          "kill_agent",
-          "kill_terminal",
-          "pause_schedule",
-          "rename_workspace",
-          "respond_to_permission",
-          "resume_schedule",
-          "run_schedule_once",
-          "send_terminal_keys",
-          "set_agent_mode",
-          "start_workspace_script",
-          "stop_workspace_script",
-          "update_agent",
-          "update_schedule"
-        ]
-      },
-      "mayStart": [],
-      "hidesWords": [],
-      "reports": "attention"
+      "paseoTools": { "allow": ["get_agent_activity"] },
+      "hidesWords": ["supervisor", "watcher"]
     },
     {
       "role": "peer",
-      "harness": "devin",
-      "byHarness": {
-        "devin": {
-          "models": [
-            {
-              "id": "swe-2-max",
-              "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        },
-        "omp": {
-          "models": [
-            {
-              "id": "zai/glm-5.3-flash",
-              "label": "GLM-5.3-Flash",
-              "isDefault": true
-            }
-          ],
-          "thinking": "max"
-        }
-      },
       "label": "Peer",
+      "description": "Does one task on its own branch and hands it back",
+      "harness": "devin",
+      "team": "peer",
+      "byHarness": {
+        "devin": { "models": [{ "id": "swe-2-max", "label": "SWE-2 Max", "isDefault": true }] },
+        "omp": { "models": [{ "id": "zai/glm-5.3-flash", "label": "GLM-5.3-Flash", "isDefault": true }], "thinking": "max" }
+      },
       "prompt": "prompts/PEER.md",
       "skills": "peer",
-      "extraSkills": [],
-      "required": true,
-      "notes": "Every Peer runs here. An Engineer owns a writable scope; an Architect or Scout gets the same profile with owned scope none, and the brief holds it read-only.",
-      "description": "Peer seat: implementation, evidence, handoff",
-      "paseoTools": {
-        "enabled": false
-      },
-      "mayStart": [],
-      "hidesWords": [
-        "paseo",
-        "supervisor",
-        "watcher",
-        "seat",
-        "seats"
-      ],
-      "reports": "handback"
+      "paseoTools": { "enabled": false },
+      "hidesWords": ["paseo", "supervisor", "watcher", "seat", "seats"]
     },
     {
       "role": "reviewer",
-      "harness": "devin",
-      "byHarness": {
-        "devin": {
-          "models": [
-            {
-              "id": "swe-2-max",
-              "label": "SWE-2 Max",
-              "isDefault": true
-            }
-          ]
-        },
-        "omp": {
-          "models": [
-            {
-              "id": "zai/glm-5.3",
-              "label": "GLM-5.3",
-              "isDefault": true
-            },
-            {
-              "id": "zai/glm-5.3-flash",
-              "label": "GLM-5.3-Flash"
-            }
-          ],
-          "thinking": "max"
-        }
-      },
       "label": "Reviewer",
+      "description": "Read-only Peer that reviews a task branch with clean context",
+      "harness": "devin",
+      "team": "reviewer",
+      "byHarness": {
+        "devin": { "models": [{ "id": "swe-2-max", "label": "SWE-2 Max", "isDefault": true }] },
+        "omp": { "models": [{ "id": "zai/glm-5.3", "label": "GLM-5.3", "isDefault": true }], "thinking": "max" }
+      },
       "prompt": "prompts/REVIEWER.md",
       "skills": null,
-      "extraSkills": [
-        "peer:test-proof-debt-audit",
-        "peer:security-check",
-        "peer:diagnosing-bugs"
-      ],
-      "required": false,
-      "notes": "The only read-only seat: every review of a change, and every read-only lane a skill opens (council seats, ultra-review scouts, audit readers). Its models list is what a workspace protocol may route those lanes to. Read-only is enforced by its settings, not asked for.",
-      "description": "Reviewer seat: read-only review, council and audit lanes",
-      "reviewSeat": true,
-      "paseoTools": {
-        "enabled": false
-      },
-      "mayStart": [],
-      "hidesWords": [
-        "paseo",
-        "supervisor",
-        "watcher",
-        "seat",
-        "seats"
-      ],
-      "reports": "handback"
-    }
-  ],
-  "byHarnessNote": "harness names the coding agent a role runs on, one directory under harness/. byHarness keeps, per harness, the models the role may run there (the isDefault one is its profile's) and, where that harness takes a thinking level outside the model id, thinking. A role is ready for a harness once it has a byHarness entry and harness/<id>/settings/ROLE.settings.json. Both stay when the role moves away, so moving it back and forth is the harness line plus a setup run, which names anything missing and any project still routing to a model of the old harness.",
-  "mcpServers": {
-    "semble": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "--from",
-        "semble[mcp]==0.5.4",
-        "semble"
-      ]
+      "extraSkills": ["peer:test-proof-debt-audit", "peer:security-check", "peer:diagnosing-bugs"],
+      "paseoTools": { "enabled": false },
+      "hidesWords": ["paseo", "supervisor", "watcher", "seat", "seats"]
     },
-    "intellij-index": {
-      "type": "http",
-      "url": "http://127.0.0.1:29170/index-mcp/streamable-http"
+    {
+      "role": "watcher",
+      "label": "Watcher",
+      "description": "Cheap model run headless by the plugin on flagged turn endings; raises attention for the Supervisor",
+      "harness": "devin",
+      "headless": true,
+      "byHarness": {
+        "devin": { "models": [{ "id": "swe-2-max", "label": "SWE-2 Max", "isDefault": true }] },
+        "omp": { "models": [{ "id": "zai/glm-5.3-flash", "label": "GLM-5.3-Flash", "isDefault": true }] }
+      },
+      "prompt": "prompts/WATCHER.md",
+      "skills": null,
+      "hidesWords": []
     }
-  },
-  "mcpServersNote": "the MCP servers every seat gets, as a map of name to a stdio or http entry that every harness reads unchanged; a seat's extraMcpServers adds servers in the same form for that role alone. setup-seats.fish writes exactly the two maps together into the file each manifest names under state.file and clears every other server there, so a seat has these and nothing else, and a role takes its servers along when its harness line changes. figma, on the Supervisor and the Lead, is Figma's remote server: it signs in with OAuth, which a harness keeps per seat directory, so each new seat directory needs one login (SETUP.md, Add a project). semble is code search and needs `uv tool install semble` on PATH. intellij-index is the IDE Index MCP Server plugin and its port is per IDE: 29170 is IntelliJ IDEA, and PyCharm, WebStorm and GoLand differ, so change the URL here if you run another one. Its rename, move and safe-delete tools write code, so every role's settings but the Peer's deny them; the rest of its tools read.",
-  "researchNote": "searching is the Supervisor's and the Lead's: they keep web search and web fetch, and name every outside source a Peer or Reviewer needs in its brief. Those two roles read named URLs and have no search, so a product's sources are the ones its brief or handoff lists; the watcher has neither.",
-  "paseoToolsNote": "paseoTools is copied verbatim to the role's Paseo provider, where Paseo 0.8 leaves every disabled tool out of the catalog the seat is handed, on every harness alike. Peers and Reviewers get none: each believes it works directly for a human, and a control-plane tool would show it the layer above it. The Lead gets no workspace tools, because a worktree buys isolation only when two writers hold disjoint scopes, and three Engineers on one worktree were measured instead. The watcher gets only the read half, because the Paseo plugin in plugin/ wakes it and carries its events to the Supervisor. The Supervisor and the Lead lose set_agent_mode and update_schedule, and the Supervisor update_agent too, because a seat keeps the mode and model the plugin gave it at launch. Paseo documents this as a catalog limit, not a security boundary: a seat with a shell could still run the paseo CLI, which every role's harness settings deny.",
-  "limitsNote": "every other limit on a seat is a setting of the coding agent it runs on: harness/<id>/settings/ROLE.settings.json, over harness/<id>/settings.json where that harness merges a shared file, linked or merged into the seat unchanged. Each harness's NOTES.md records which keys hold there and what a refused call does. Paseo's own disallowedTools isn't read by every provider, so nothing relies on it and nothing in the kit runs as a guard. No skill waits for permission: a role uses its own skills on its own judgment. Only the Supervisor has a tool for asking, and only about how the project behaves: every other seat has none or denies it, so an agent that needs an answer ends its turn with the question and the agent that started it answers in a message. What no setting can say stays a line in the role's prompt, as part of the job: which repository files the Supervisor and the Lead write, a Peer's owned scope, and that a Peer works from its brief rather than the coordination records. REFERENCE.md says what each setting holds and how it was verified.",
-  "promptLineBudget": 200,
-  "promptLineBudgetNote": "the line limit WRITING_GUIDE.md rule 2 sets for a seat prompt, enforced here so it cannot drift: bytes and lines measure different things, and a prompt can sit well under 16 KB while growing past what a reader holds.",
-  "providerPrefix": "sw2-",
-  "attention": {
-    "leadIdleMinutes": 15,
-    "askRemindMinutes": 20,
-    "maxReminders": 3,
-    "tickSeconds": 60
-  },
-  "reportsNote": "reports says how a role talks to the seat that started it. blocks: the plugin reads REPORT, NEED, BLOCKED and QUESTION (concept) blocks at the end of each turn and carries them up, tracking NEED, BLOCKED and QUESTION as open requests until a later turn no longer raises them. handback: every turn end is carried to the parent as a hand-back letter. attention: the watcher, woken by the plugin. A role without reports sends nothing up.",
-  "providerPrefixNote": "the plugin writes one Paseo provider and one agent profile per role, named providerPrefix plus the role. v2 uses sw2- so it can run beside the v1 kit on one daemon; set it to an empty string at cutover."
+  ]
 }

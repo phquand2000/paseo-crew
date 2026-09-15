@@ -41,7 +41,25 @@
       "Edit(~/.omp/**)",
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/profiles/*/settings.json)",
-      "Edit(~/.claude/profiles/*/.claude.json)"
+      "Edit(~/.claude/profiles/*/.claude.json)",
+      "Bash(git commit *)",
+      "Bash(git merge *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git reset *)",
+      "Bash(git rebase *)",
+      "Bash(git update-ref *)",
+      "Bash(git branch -f *)",
+      "Bash(git branch -D *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git stash *)",
+      "Bash(git worktree *)",
+      "Bash(git -C * commit *)",
+      "Bash(git -C * merge *)",
+      "Bash(git -C * checkout *)",
+      "Bash(git -C * reset *)",
+      "Bash(git -C * update-ref *)",
+      "Bash(git -C * rebase *)"
     ]
   },
   "sandbox": {
@@ -59,7 +77,7 @@
     "BASH_DEFAULT_TIMEOUT_MS": "300000"
   },
   "language": "vietnamese",
-  "autoMemoryEnabled": true,
+  "autoMemoryEnabled": false,
   "attribution": {
     "commit": "",
     "pr": "",

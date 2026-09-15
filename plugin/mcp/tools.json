@@ -1,0 +1,485 @@
+{
+  "supervisor": [
+    {
+      "name": "open_lane",
+      "description": "Open a lane for one outcome: creates its branch and working copy and starts a Lead there with this directive. One lane per independent outcome.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short name, at most 60 characters."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "The observable change, and what you assumed."
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Checks that show the outcome done."
+          },
+          "appetite": {
+            "type": "string",
+            "description": "What the outcome is worth, as a budget."
+          },
+          "deadline": {
+            "type": "string",
+            "description": "When to cut scope and keep going, or none."
+          },
+          "outOfScope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "issue": {
+            "type": "string",
+            "description": "Optional GitHub issue: #12, owner/repo#12 or a URL."
+          },
+          "base": {
+            "type": "string",
+            "description": "Optional base branch; defaults to the project's."
+          }
+        },
+        "required": [
+          "title",
+          "outcome",
+          "acceptance"
+        ]
+      }
+    },
+    {
+      "name": "message",
+      "description": "Send a Lead (by lane id) or, for a recovery, a Peer (by task id) one message. It is delivered when the recipient's turn ends; a message to a Peer is copied to its Lead.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "description": "Lane id (L1) or task id (L1-T2)."
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "answer",
+      "description": "Answer an open ask by its id. The asker gets the answer when idle and the ask closes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ask": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ask",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "close_lane",
+      "description": "Close a lane and archive its agents. With land true the desk lands the lane branch on the base branch: a fast-forward, or a merge in the main working copy when the base moved; if that is not possible the reason comes back and the branch stays for the Human.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "lane": {
+            "type": "string"
+          },
+          "land": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lane",
+          "land"
+        ]
+      }
+    },
+    {
+      "name": "set_project",
+      "description": "Set this project's base branch or gate command (the command that must pass before a task merges, for example npm test).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "gate": {
+            "type": "string"
+          },
+          "gateTimeoutMinutes": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "name": "status",
+      "description": "The current status of every lane, task and open ask in this project.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "lead": [
+    {
+      "name": "start_task",
+      "description": "Start a Peer on one task in its own branch and working copy, off your lane branch. Split by coupling: files that change together belong to one task. The brief is built from these fields.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short name, at most 60 characters."
+          },
+          "goal": {
+            "type": "string",
+            "description": "The outcome, not the implementation."
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Behaviors that show the task done; each needs one focused check."
+          },
+          "owned": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Exact paths the Peer may change."
+          },
+          "outOfScope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "context": {
+            "type": "string",
+            "description": "Decisions made, approaches ruled out, where to start reading."
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Skills the Peer should open."
+          }
+        },
+        "required": [
+          "title",
+          "goal",
+          "acceptance",
+          "owned"
+        ]
+      }
+    },
+    {
+      "name": "start_review",
+      "description": "Start a read-only reviewer with clean context. With task: it reviews that task's branch. Without task: it answers the open question on your lane branch, which is how a council seat, a scout or an audit reader starts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Optional task id whose branch is reviewed."
+          },
+          "focus": {
+            "type": "string",
+            "description": "The open question for the reviewer, asked neutrally, with any output format it must follow."
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional short name, at most 60 characters."
+          }
+        },
+        "required": [
+          "focus"
+        ]
+      }
+    },
+    {
+      "name": "message",
+      "description": "Send one of your Peers (by task id) a message. It is delivered when the Peer's turn ends; a running Peer is never interrupted.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "answer",
+      "description": "Answer a Peer's open ask by its id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ask": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ask",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "accept",
+      "description": "Accept a finished task. It joins the merge queue: its branch is merged into your lane branch and the project's gate runs; you get MERGED or MERGE FAILED.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task"
+        ]
+      }
+    },
+    {
+      "name": "rework",
+      "description": "Send a task back to its Peer with what must change.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "cut",
+      "description": "Cut a task or finish with a reviewer: its agent stops and its branch is not merged.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "reason"
+        ]
+      }
+    },
+    {
+      "name": "ask",
+      "description": "Ask the owner. need: a resource or decision from above. blocked: something outside the project stops you. question: user-visible behavior the directive leaves open. Give your default and keep working on it unless the step can't be undone.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "need",
+              "blocked",
+              "question"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "report",
+      "description": "Report the lane to the owner: when it is ready to land, when it is cut, or when a decision above you changed. At most 15 lines.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean",
+            "description": "True when the lane branch holds the whole outcome and the gate passed."
+          },
+          "carried": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Known gaps carried forward."
+          }
+        },
+        "required": [
+          "summary",
+          "ready"
+        ]
+      }
+    },
+    {
+      "name": "status",
+      "description": "The current status of your lane's tasks and open asks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "peer": [
+    {
+      "name": "done",
+      "description": "Hand the task back. Call it once at the end of the task, after committing on your branch.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "partial",
+              "blocked"
+            ]
+          },
+          "commit": {
+            "type": "string",
+            "description": "The commit holding the work."
+          },
+          "summary": {
+            "type": "string",
+            "description": "What changed and why, in a few lines."
+          },
+          "checks": {
+            "type": "string",
+            "description": "Commands run and their real results."
+          },
+          "leftUndone": {
+            "type": "string"
+          },
+          "discovered": {
+            "type": "string",
+            "description": "Problems found outside the task, including a premise that turned out wrong."
+          }
+        },
+        "required": [
+          "outcome",
+          "summary"
+        ]
+      }
+    },
+    {
+      "name": "ask",
+      "description": "Ask whoever assigned the task, when you cannot continue without an answer. End your turn after asking; the answer arrives as a message.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "tried": {
+            "type": "string",
+            "description": "What you checked and your best guess."
+          }
+        },
+        "required": [
+          "question"
+        ]
+      }
+    }
+  ],
+  "reviewer": [
+    {
+      "name": "done",
+      "description": "Hand the review back. Call it once at the end.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "changes",
+              "reopen"
+            ]
+          },
+          "findings": {
+            "type": "string",
+            "description": "One finding per paragraph: severity P0-P3, file:line, the failure, the smallest fix."
+          },
+          "checks": {
+            "type": "string",
+            "description": "What you read and ran."
+          }
+        },
+        "required": [
+          "verdict",
+          "findings"
+        ]
+      }
+    },
+    {
+      "name": "ask",
+      "description": "Ask whoever assigned the review, when you cannot continue without an answer.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "tried": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ]
+      }
+    }
+  ]
+}

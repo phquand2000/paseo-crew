@@ -1,0 +1,59 @@
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
+export type ToolReply = { ok: boolean; text: string };
+
+const STALE_MS = 10 * 60_000;
+
+export function spoolDirs(spool: string): { requests: string; replies: string } {
+  const requests = join(spool, "requests");
+  const replies = join(spool, "replies");
+  mkdirSync(requests, { recursive: true });
+  mkdirSync(replies, { recursive: true });
+  return { requests, replies };
+}
+
+export function takeRequests(spool: string, now = Date.now()): ToolRequest[] {
+  const { requests, replies } = spoolDirs(spool);
+  const taken: ToolRequest[] = [];
+  for (const name of readdirSync(requests).sort()) {
+    const path = join(requests, name);
+    if (name.endsWith(".tmp")) {
+      try {
+        if (now - statSync(path).mtimeMs > STALE_MS) unlinkSync(path);
+      } catch {}
+      continue;
+    }
+    if (!name.endsWith(".json")) continue;
+    try {
+      const request = JSON.parse(readFileSync(path, "utf-8")) as ToolRequest;
+      unlinkSync(path);
+      if (now - request.at > STALE_MS) continue;
+      taken.push(request);
+    } catch {
+      try {
+        unlinkSync(path);
+      } catch {}
+    }
+  }
+  for (const name of readdirSync(replies)) {
+    const path = join(replies, name);
+    try {
+      if (now - statSync(path).mtimeMs > STALE_MS) unlinkSync(path);
+    } catch {}
+  }
+  return taken;
+}
+
+export function writeReply(spool: string, id: string, reply: ToolReply): void {
+  const { replies } = spoolDirs(spool);
+  const temp = join(replies, `${id}.tmp`);
+  writeFileSync(temp, JSON.stringify(reply));
+  renameSync(temp, join(replies, `${id}.json`));
+}
+
+export function hasRequests(spool: string): boolean {
+  const requests = join(spool, "requests");
+  return existsSync(requests) && readdirSync(requests).some((name) => name.endsWith(".json"));
+}

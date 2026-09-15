@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { type Kit, type RoleSpec, defaultModel, defaultThinking, harnessOf, modelsOf, providerId } from "./kit.ts";
+import { type Kit, type RoleSpec, defaultModel, defaultThinking, harnessOf, modelsOf, paseoToolsPolicy, providerId, seatRoles } from "./kit.ts";
 import { paseoConfigPath } from "./paths.ts";
 import { sameJson } from "./store.ts";
 
@@ -23,7 +23,8 @@ export function desiredProvider(kit: Kit, role: RoleSpec): Json {
   if (command.length > 0) entry.command = command;
   const models = modelsOf(role);
   if (models.length > 0) entry.models = models;
-  if (role.paseoTools) entry.paseoTools = role.paseoTools;
+  const tools = paseoToolsPolicy(role);
+  if (tools) entry.paseoTools = tools;
   return entry;
 }
 
@@ -55,7 +56,17 @@ export function reconcile(config: Json, kit: Kit): { config: Json; changed: stri
   next.daemon.agentProfiles ??= [];
   const managed = managedEnvKeys(kit);
   const changed: string[] = [];
-  for (const role of kit.roles) {
+  for (const role of kit.roles.filter((entry) => entry.headless)) {
+    const id = providerId(kit, role.role);
+    if (next.agents.providers[id]) {
+      delete next.agents.providers[id];
+      changed.push(`provider ${id} removed`);
+    }
+    const before = next.daemon.agentProfiles.length;
+    next.daemon.agentProfiles = next.daemon.agentProfiles.filter((entry: Json) => entry.id !== id);
+    if (next.daemon.agentProfiles.length !== before) changed.push(`profile ${id} removed`);
+  }
+  for (const role of seatRoles(kit)) {
     const id = providerId(kit, role.role);
     const have: Json = next.agents.providers[id] ?? {};
     const want = desiredProvider(kit, role);

@@ -174,6 +174,7 @@ def parse_args() -> argparse.Namespace:
         description="Create an ultra-review round report with its coverage ledger and scout assignment."
     )
     parser.add_argument("--workspace", default=".", help="repository root")
+    parser.add_argument("--report-dir", required=True, help="directory for round reports, outside the repository")
     parser.add_argument("--review-name", required=True, help="review name shared by every round")
     parser.add_argument("--scope", required=True, help="the scope, as the review brief states it")
     parser.add_argument("--review-brief-sha256", required=True, help="sha256 of the review brief")
@@ -206,10 +207,9 @@ def main() -> int:
         print("--date must use yy-mm-dd format", file=sys.stderr)
         return 2
 
-    report_dir = workspace / "docs" / "ultrareview"
+    report_dir = Path(args.report_dir).expanduser().resolve()
     round_number, prior_reports = next_round(report_dir, review_name)
-    relative = Path("docs") / "ultrareview" / f"{date_slug}-{review_name}-round-{round_number}.md"
-    report_path = workspace / relative
+    report_path = report_dir / f"{date_slug}-{review_name}-round-{round_number}.md"
     if report_path.exists():
         print(f"refusing to overwrite existing report: {report_path}", file=sys.stderr)
         return 3
@@ -224,7 +224,7 @@ def main() -> int:
         "date": date_slug,
         "scope": args.scope.strip(),
         "review_brief_sha256": args.review_brief_sha256,
-        "report_path": relative.as_posix(),
+        "report_path": report_path.as_posix(),
         "prior_reports": [
             (path.relative_to(workspace) if path.is_relative_to(workspace) else path).as_posix()
             for path in prior_reports

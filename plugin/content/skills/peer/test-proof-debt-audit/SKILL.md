@@ -1,11 +1,11 @@
 ---
 name: test-proof-debt-audit
-description: "Audits one named behavioral claim and the test, validator, benchmark, or gate cited as its proof, and says whether that proof would notice the behavior disappearing. Use when a brief asks whether a specific proof really proves its claim. Not for ordinary implementation, a failing test, weak coverage, or the mere presence of mocks."
+description: "Audits one named behavioral claim and the test, validator, benchmark, or gate cited as its proof, and says whether that proof would notice the behavior disappearing. Use when a brief or review focus asks whether a specific proof really proves its claim. Not for ordinary implementation, a failing test, weak coverage, or the mere presence of mocks."
 ---
 
 # Test proof debt audit
 
-You audit only the claim and the proof the brief names; don't widen it into a repository-wide audit.
+You audit only the claim and the proof the brief or focus names; don't widen it into a repository-wide audit.
 
 1. Name the claim and the production behavior that makes it true.
 2. Name the cited proof.
@@ -18,4 +18,4 @@ Expected values that exist only because of history are debt: a test pinning a re
 
 ## Ends in
 
-A report per proof: location, claimed behavior, actual observation, a scenario where it passes with the behavior broken, your disposition, and the smallest replacement; for assessment only, report and stop. For a broad audit or concrete replacement routes, read [references/proof-debt-catalog.md](references/proof-debt-catalog.md).
+One entry per proof in `done`: location, claimed behavior, actual observation, a scenario where it passes with the behavior broken, your disposition, and the smallest replacement; for assessment only, report and stop. For a broad audit or concrete replacement routes, read [references/proof-debt-catalog.md](references/proof-debt-catalog.md).

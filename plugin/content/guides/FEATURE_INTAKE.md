@@ -1,13 +1,13 @@
 # Feature intake
 
 Pick the smallest lane that honestly covers the work's blast radius, reversibility, uncertainty and
-proof, and state the result before you brief anyone.
+proof, and decide it before any work starts.
 
-| Lane | When | What it takes |
+| Size | When | What it takes |
 |---|---|---|
-| Tiny | local, reversible, directly verifiable | patch it and keep affected docs true |
-| Normal | one owner and contract, local rollback, an honest way to validate | acceptance in the task; no repository artifact unless state must outlive it |
-| High-risk | a hard gate below, irreversible state, broad uncertainty, weak proof, or a restart or handoff | an ExecPlan per `PLANS.md` before implementation |
+| Tiny | local, reversible, directly verifiable | no lane: one session patches it |
+| Normal | one owner and contract, local rollback, an honest way to validate | a lane whose acceptance is checkable; no repository artifact |
+| High-risk | a hard gate below, irreversible state, broad uncertainty, or weak proof | a lane whose Lead writes a plan per `PLANS.md` before any task starts |
 
 ## Hard gates
 
@@ -20,26 +20,20 @@ Work is high-risk when it materially changes:
 - runtime owner boundaries, concurrency, lifecycle or ordering;
 - proof that protects a security, data, contract or external-system claim;
 - compatibility (a fallback, shim, dual read/write, legacy parser or version branch) unless
-  `AGENTS.md` allows it, because such a layer outlives whoever asked for it: it is the Human's
+  `AGENTS.md` allows it, because such a layer outlives whoever asked for it. That is the Human's
   call and needs a recorded removal condition.
 
-A label alone does not set the lane; material impact does.
+A label alone does not set the size; material impact does.
 
 ## Design gate
 
-Before implementation, settle every choice that changes ownership, public behavior, safety,
-compatibility or data, or is otherwise expensive to reverse, as an ADR per
-`ADR.md`, without prescribing files, symbols or control flow. Ask the Human when
-the requested behavior, the destructive scope or a weakened proof stays ambiguous.
+Settle every choice that changes ownership, public behavior, safety, compatibility or data, or is
+otherwise expensive to reverse, before tasks that depend on it start. Record it in the lane's plan
+with the options weighed and the reason, without prescribing files, symbols or control flow. The
+Human decides only when the behavior users see, the destructive scope or a weakened proof stays
+ambiguous.
 
-## Intake result
+## Parallel lanes
 
-State these five lines in your reply; a plan carries its lane and reason in its header:
-
-```text
-Lane: <tiny | normal | high-risk>
-Reason: <the material reason>
-Owners: <the canonical docs and contracts>
-Plan: <the active plan's path, or none>
-Validation: <the evidence that would show the claim>
-```
+Lanes run side by side only when they don't change the same code or contract. When two outcomes
+share a contract, settle the contract first (one lane), then open the dependent lanes.

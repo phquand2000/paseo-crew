@@ -94,5 +94,15 @@
   ],
   "retiredLinksNote": "links this harness once made and must not have now. setup deletes each one from every seat directory, because build_seat_links only creates what links declares and would otherwise leave a retired symlink in place. plugins is retired because no seat uses a plugin: the Human asked for none, both LSP plugins were enabled on seats whose settings deny the LSP tool, they ship no skills, and installed_plugins.json recorded their install path inside a profile directory the kit had stopped creating.",
   "systemPrompt": "config",
-  "stateAccess": "sandboxAllowWrite"
+  "stateAccess": "sandboxAllowWrite",
+  "headless": [
+    "claude",
+    "-p",
+    "{prompt}",
+    "--model",
+    "{model}",
+    "--no-session-persistence",
+    "--tools",
+    ""
+  ]
 }

@@ -1,42 +1,61 @@
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
-import { type Ask, dropAgent, dueReminders, loadAsks, markReminded, saveAsks, settle } from "./asks.ts";
 import { renderPrompt } from "./content.ts";
-import { decide } from "./decide.ts";
-import { type Kit, type RoleSpec, entryRole, roleOf } from "./kit.ts";
-import { applyRole, launchRefusal, seatEnv } from "./launch.ts";
-import { letters } from "./messages.ts";
+import { Desk, hash } from "./desk.ts";
+import { type Kit, type RoleSpec, defaultModel, harnessOf, roleOf, seatRoles, teamServer } from "./kit.ts";
+import { applyRole, seatEnv } from "./launch.ts";
+import { activeTasks, laneOfLead, loadLedger, openAsksFrom, openAsksTo, taskOfPeer } from "./ledger.ts";
+import { clip, letters } from "./letters.ts";
 import { type Letter, Outbox, type PaseoApi } from "./outbox.ts";
-import { guidesDir, outboxPath, stateRoot } from "./paths.ts";
-import { type Project, projectOf } from "./project.ts";
+import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "./paths.ts";
+import { type Project, loadConfig, projectOf } from "./project.ts";
 import { applyReconcile, reloadDaemon } from "./providers.ts";
 import { ensureLink, materialize, seatDir, seedRecords } from "./seats.ts";
-import { type Seat, parentOf, stalledLeads, statusText } from "./stall.ts";
+import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
+import { type SeatView, statusText } from "./status.ts";
+import { deniedCall, outputText } from "./timeline.ts";
+import { URGENT, parseVerdicts, runWatcher, watcherPrompt } from "./watcher.ts";
 
 type EventName = keyof PluginLifecycleEvents;
+type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string };
+
+const CUES =
+  /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed))\b/i;
 
 export class Runtime {
   readonly kit: Kit;
   readonly outbox: Outbox;
+  readonly desk: Desk;
+  readonly spool = spoolDir();
+  readonly node = nodeBin();
   private api: PaseoApi | undefined;
-  private timer: ReturnType<typeof setInterval> | undefined;
-  private readonly flagged = new Map<string, string>();
+  private timers: ReturnType<typeof setInterval>[] = [];
+  private watchTimer: ReturnType<typeof setTimeout> | undefined;
+  private watching = false;
+  private watchFailures = 0;
+  private readonly watchQueue: Watch[] = [];
   private readonly seated = new Set<string>();
+  private readonly turnStart = new Map<string, number>();
+  private readonly lastEnding = new Map<string, string>();
+  private readonly idleFlag = new Map<string, string>();
+  private readonly goneFlag = new Set<string>();
 
   constructor(kit: Kit, outboxFile = outboxPath()) {
     this.kit = kit;
     this.outbox = new Outbox(outboxFile, (to, list) => this.compose(to, list));
+    this.desk = new Desk(kit, this.outbox, (project, line) => this.log(project, line));
   }
 
   prepare(): void {
     try {
       mkdirSync(stateRoot(), { recursive: true });
+      spoolDirs(this.spool);
       ensureLink(guidesDir(), join(this.kit.dir, "content", "guides"));
     } catch (error) {
-      console.error("seatworks-v2: could not link the guides directory:", error);
+      console.error("seatworks-v2: could not prepare the state directory:", error);
     }
-    for (const role of this.kit.roles) this.ensureSeat(role);
+    for (const role of seatRoles(this.kit)) this.ensureSeat(role);
     try {
       const changed = applyReconcile(this.kit);
       if (changed.length > 0) {
@@ -51,7 +70,7 @@ export class Runtime {
   ensureSeat(role: RoleSpec): void {
     if (this.seated.has(role.role)) return;
     try {
-      const changes = materialize(this.kit, role);
+      const changes = materialize(this.kit, role, home(), teamServer(this.kit, role, this.spool, this.node));
       if (changes.length > 0) console.log(`seatworks-v2: seat ${role.role} updated: ${changes.join(", ")}`);
       this.seated.add(role.role);
     } catch (error) {
@@ -69,15 +88,17 @@ export class Runtime {
   }
 
   private async compose(to: string, list: Letter[]): Promise<string> {
-    const text = list.map((letter) => letter.text).join("\n\n---\n\n");
-    if (!this.api) return text;
-    const handle = this.api.agents.ref(to);
-    await handle.refresh();
-    const snapshot = handle.current();
-    const role = roleOf(this.kit, snapshot?.provider);
-    if (!role?.entry || !snapshot?.cwd) return text;
-    const open = letters.openAsks(loadAsks(projectOf(snapshot.cwd).state));
-    return open ? `${text}\n\n---\n\n${open}` : text;
+    const items = list.map((letter) => letter.text);
+    if (!this.api) return letters.mailbox(items, []);
+    try {
+      const handle = this.api.agents.ref(to);
+      await handle.refresh();
+      const cwd = handle.cwd ?? handle.current()?.cwd;
+      if (!cwd) return letters.mailbox(items, []);
+      return letters.mailbox(items, openAsksTo(loadLedger(projectOf(cwd).state), to));
+    } catch {
+      return letters.mailbox(items, []);
+    }
   }
 
   private on<N extends EventName>(
@@ -96,7 +117,11 @@ export class Runtime {
   }
 
   register(server: PluginServerContext): void {
-    server.before("agent.create", ({ request }) => {
+    const direct = (server as unknown as { paseo?: PaseoApi }).paseo;
+    if (direct) this.api = direct;
+
+    server.before("agent.create", ({ request }, context) => {
+      this.api = context.paseo;
       const role = roleOf(this.kit, request.config.provider);
       if (!role) return request;
       this.ensureSeat(role);
@@ -106,141 +131,256 @@ export class Runtime {
         request.config,
         (entry) => renderPrompt(this.kit, entry, { guides: guidesDir(), state: project.state }),
         project.state,
+        teamServer(this.kit, role, this.spool, this.node),
       );
       return { ...request, config };
     });
 
-    server.before("agent.session_open", ({ request }) => {
+    server.before("agent.session_open", ({ request }, context) => {
+      this.api = context.paseo;
       const role = roleOf(this.kit, request.provider);
       if (!role) return request;
       this.ensureSeat(role);
       const project = projectOf(request.cwd);
       try {
-        const seeded = seedRecords(this.kit, project.state);
-        if (seeded.length > 0) this.log(project, `seeded ${seeded.join(", ")}`);
+        seedRecords(this.kit, project.state);
       } catch (error) {
         console.error("seatworks-v2: could not seed project records:", error);
       }
       return seatEnv(this.kit, request, (entry) => seatDir(this.kit, entry), project);
     });
 
-    this.on(server, "agent.created", async ({ agent }, { paseo }) => {
-      if (!agent.parentAgentId || !roleOf(this.kit, agent.provider)) return;
-      const parent = paseo.agents.ref(agent.parentAgentId);
-      await parent.refresh();
-      const refusal = launchRefusal(this.kit, parent.current()?.provider, agent.provider);
-      if (!refusal) return;
-      await paseo.agents.ref(agent.id).archive();
-      const project = projectOf(agent.cwd);
-      this.log(project, `refused ${refusal.child.role} ${agent.id} started by ${refusal.parent.role} ${agent.parentAgentId}`);
-      await this.outbox.post(paseo, {
-        to: agent.parentAgentId,
-        key: `refused:${agent.id}`,
-        text: letters.refused(refusal.parent.role, refusal.child.role, refusal.parent.mayStart ?? []),
-      });
+    this.on(server, "agent.turn_started", async ({ agent }) => {
+      this.turnStart.set(agent.id, Date.now());
     });
 
-    this.on(server, "agent.turn_ended", async ({ agent, turnId, outcome, timeline }, { paseo }) => {
-      this.outbox.turnEnded(agent.id);
-      const role = roleOf(this.kit, agent.provider);
-      if (role) {
-        const project = projectOf(agent.cwd);
-        const decision = decide({ role, agent, turnId, outcome, timeline });
-        if (decision.requests !== null) {
-          const result = settle(loadAsks(project.state), agent.id, agent.title ?? agent.id, decision.requests, Date.now());
-          if (result.opened.length > 0 || result.closed.length > 0) {
-            saveAsks(project.state, result.asks);
-            for (const ask of result.opened) this.log(project, `open ${ask.kind} ${ask.id}`);
-            for (const ask of result.closed) this.log(project, `closed ${ask.kind} ${ask.id}`);
-          }
-        }
-        for (const letter of decision.letters) {
-          const posted = await this.outbox.post(paseo, letter);
-          this.log(project, `letter ${letter.key} ${agent.id} -> ${letter.to}: ${posted}`);
-        }
+    this.on(server, "agent.turn_ended", async (event, { paseo }) => {
+      this.outbox.turnEnded(event.agent.id);
+      if (this.desk.pendingArchive.has(event.agent.id)) {
+        await this.desk.archive(paseo, event.agent.id, true);
+        return;
       }
-      await this.outbox.pump(paseo, agent.id);
+      await this.turnEnded(paseo, event);
+      await this.outbox.pump(paseo, event.agent.id);
     });
 
     this.on(server, "agent.permission_requested", async ({ agent, request }, { paseo }) => {
       const role = roleOf(this.kit, agent.provider);
-      if (!role) return;
-      if (!agent.parentAgentId) {
-        this.log(projectOf(agent.cwd), `waiting on the Human: ${role.role} ${agent.id} ${request.kind} ${request.title ?? request.name}`);
+      if (!role?.team) return;
+      const project = projectOf(agent.cwd);
+      const what = request.title ?? request.name ?? request.kind;
+      if (role.team === "supervisor") {
+        this.log(project, `waiting on the Human: ${agent.id} ${what}`);
         return;
       }
-      await this.outbox.post(paseo, {
-        to: agent.parentAgentId,
-        key: `permission:${agent.id}:${request.id}`,
-        text: letters.permission(agent.title, agent.id, role.role, request.kind, request.title ?? request.name),
-      });
+      const owner = await this.ownerOf(paseo, project, agent.id, role);
+      await this.desk.post(paseo, owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, what));
     });
 
     this.on(server, "agent.archived", async ({ agent }) => {
       this.outbox.archived(agent.id);
-      this.flagged.delete(agent.id);
-      if (!roleOf(this.kit, agent.provider)) return;
-      const project = projectOf(agent.cwd);
-      const asks = loadAsks(project.state);
-      const kept = dropAgent(asks, agent.id);
-      if (kept.length !== asks.length) saveAsks(project.state, kept);
+      this.turnStart.delete(agent.id);
+      this.lastEnding.delete(agent.id);
     });
 
-    this.timer = setInterval(() => {
-      this.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
-    }, this.kit.attention.tickSeconds * 1000);
+    this.timers.push(
+      setInterval(() => this.serveSpool(), 500),
+      setInterval(() => {
+        this.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
+      }, this.kit.attention.tickSeconds * 1000),
+    );
+  }
+
+  private serveSpool(): void {
+    const paseo = this.api;
+    if (!paseo) return;
+    let requests;
+    try {
+      requests = takeRequests(this.spool);
+    } catch (error) {
+      console.error("seatworks-v2: spool read failed:", error);
+      return;
+    }
+    for (const request of requests) {
+      this.desk
+        .handle(paseo, request)
+        .catch((error) => ({ ok: false, text: `The desk failed: ${error instanceof Error ? error.message : String(error)}` }))
+        .then((reply) => writeReply(this.spool, request.id, reply))
+        .catch((error) => console.error("seatworks-v2: spool reply failed:", error));
+    }
+  }
+
+  private async ownerOf(paseo: PaseoApi, project: Project, agentId: string, role: RoleSpec): Promise<string | undefined> {
+    const ledger = loadLedger(project.state);
+    if (role.team === "lead") return this.desk.supervisorFor(paseo, project, laneOfLead(ledger, agentId)?.opener);
+    const task = taskOfPeer(ledger, agentId);
+    return task ? ledger.lanes[task.lane]?.lead : undefined;
+  }
+
+  private async turnEnded(paseo: PaseoApi, event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
+    const { agent, outcome, timeline } = event;
+    const role = roleOf(this.kit, agent.provider);
+    if (!role?.team) return;
+    const project = projectOf(agent.cwd);
+    this.desk.projects.set(project.slug, project);
+    const started = this.turnStart.get(agent.id) ?? Date.now() - 30 * 60_000;
+    this.turnStart.delete(agent.id);
+    if (outcome.kind === "canceled") return;
+    const text = outputText(timeline);
+    this.lastEnding.set(agent.id, text);
+    if (outcome.kind === "failed") {
+      const owner = await this.ownerOf(paseo, project, agent.id, role);
+      await this.desk.post(paseo, owner, `failed:${agent.id}:${event.turnId ?? Date.now()}`, letters.failed(`${role.label} ${agent.title ?? agent.id}`, outcome.error.message));
+      return;
+    }
+    const ledger = loadLedger(project.state);
+    const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
+    if (role.team === "peer" || role.team === "reviewer") {
+      const task = taskOfPeer(ledger, agent.id);
+      if (!task) return;
+      const lane = ledger.lanes[task.lane];
+      if (["merged", "cut", "queued", "merging"].includes(task.status)) return;
+      if (recorded || task.status === "done") {
+        if (lane && CUES.test(text)) this.watch({ project, lane: lane.id, agent: agent.id, role: role.team, where: `the Peer on ${task.id} (${task.title})`, text });
+        return;
+      }
+      const denied = deniedCall(timeline);
+      const updated = await this.desk.setTask(project, task.id, (entry) => {
+        entry.silent += 1;
+        if (entry.silent >= 2 || denied) entry.status = "stalled";
+      });
+      if (!updated) return;
+      if (updated.status !== "stalled") {
+        await this.desk.post(paseo, agent.id, `nudge:${task.id}:${updated.silent}:${Date.now()}`, letters.nudge("done"));
+        return;
+      }
+      await this.desk.post(paseo, lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, denied));
+      this.desk.event(project, { kind: "task.silent", task: task.id, denied: denied ?? null });
+      return;
+    }
+    if (role.team === "lead") {
+      const lane = laneOfLead(ledger, agent.id);
+      if (!lane) return;
+      const busy = activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, agent.id).length > 0;
+      if (CUES.test(text) || (!recorded && !busy)) {
+        this.watch({ project, lane: lane.id, agent: agent.id, role: "lead", where: `the Lead of ${lane.id} (${lane.title})`, text });
+      }
+    }
+  }
+
+  private watch(item: Watch): void {
+    const watcher = this.kit.roles.find((role) => role.headless);
+    if (!watcher || !item.text.trim()) return;
+    this.watchQueue.push({ ...item, text: clip(item.text.slice(-1500), 1500) });
+    if (this.watchTimer || this.watching) return;
+    this.watchTimer = setTimeout(() => {
+      this.watchTimer = undefined;
+      this.runWatch().catch((error) => console.error("seatworks-v2: watcher failed:", error));
+    }, this.kit.attention.watcherDebounceSeconds * 1000);
+  }
+
+  private async runWatch(): Promise<void> {
+    const paseo = this.api;
+    const watcher = this.kit.roles.find((role) => role.headless);
+    const batch = this.watchQueue.splice(0, 10);
+    if (!paseo || !watcher || batch.length === 0) return;
+    this.watching = true;
+    try {
+      const command = harnessOf(this.kit, watcher).headless;
+      if (!command) return;
+      const instructions = readFileSync(join(this.kit.dir, "content", watcher.prompt), "utf-8");
+      const endings = batch.map((item, index) => ({ n: index + 1, agent: item.agent, role: item.role, title: item.where, text: item.text }));
+      const run = await runWatcher(command, watcherPrompt(instructions, endings), defaultModel(watcher)?.id ?? "", this.kit.attention.watcherTimeoutSeconds * 1000);
+      const verdicts = run.ok ? parseVerdicts(run.output, endings.length) : [];
+      if (verdicts.length === 0) {
+        this.watchFailures += 1;
+        for (const item of batch) this.log(item.project, `watcher gave no verdicts (${this.watchFailures} in a row): ${clip(run.output.trim(), 300)}`);
+        if (this.watchFailures === 3) {
+          const first = batch[0]!;
+          const lane = loadLedger(first.project.state).lanes[first.lane];
+          const to = await this.desk.supervisorFor(paseo, first.project, lane?.opener);
+          await this.desk.post(paseo, to, `watcher-down:${Date.now()}`, letters.attention("watcher unavailable", "the team", clip(run.output.trim(), 400)));
+        }
+        return;
+      }
+      this.watchFailures = 0;
+      for (const verdict of verdicts) {
+        const item = batch[verdict.n - 1];
+        if (!item) continue;
+        this.desk.event(item.project, { kind: "watch", agent: item.agent, label: verdict.label, quote: verdict.quote });
+        const raise = URGENT.includes(verdict.label) && (item.role === "lead" || verdict.label === "destructive" || verdict.label === "wrong-premise");
+        if (!raise) continue;
+        const lane = loadLedger(item.project.state).lanes[item.lane];
+        const to = await this.desk.supervisorFor(paseo, item.project, lane?.opener);
+        await this.desk.post(paseo, to, `attention:${item.agent}:${hash(verdict.label, verdict.quote)}`, letters.attention(verdict.label, item.where, verdict.quote || clip(item.text.trim(), 200)));
+      }
+    } finally {
+      this.watching = false;
+      if (this.watchQueue.length > 0) this.watch(this.watchQueue.shift()!);
+    }
   }
 
   async tick(now = Date.now()): Promise<void> {
     const paseo = this.api;
     if (!paseo) return;
     const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
-    const seats = entries.map((entry) => entry.agent as unknown as Seat).filter((seat) => !seat.archivedAt);
-    const ours = seats.filter((seat) => roleOf(this.kit, seat.provider));
-    const byProject = new Map<string, { project: Project; seats: Seat[] }>();
-    for (const seat of ours) {
-      const project = projectOf(seat.cwd);
-      const group = byProject.get(project.slug) ?? { project, seats: [] };
-      group.seats.push(seat);
-      byProject.set(project.slug, group);
-    }
-    const entry = entryRole(this.kit);
-    const { leadIdleMinutes, askRemindMinutes, maxReminders } = this.kit.attention;
-    for (const { project, seats: group } of byProject.values()) {
-      const leads = group.filter((seat) => roleOf(this.kit, seat.provider)?.reports === "blocks");
-      const asks = loadAsks(project.state);
-      const upward = (lead: Seat): string | undefined => {
-        const parent = parentOf(lead);
-        if (parent && group.some((seat) => seat.id === parent)) return parent;
-        return group
-          .filter((seat) => entry && roleOf(this.kit, seat.provider)?.role === entry.role)
-          .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0]?.id;
-      };
-      for (const lead of stalledLeads(leads, group, asks, now, leadIdleMinutes * 60_000, this.flagged)) {
-        this.flagged.set(lead.id, lead.updatedAt);
-        const to = upward(lead);
-        if (!to) continue;
-        const minutes = Math.round((now - Date.parse(lead.updatedAt)) / 60_000);
-        const posted = await this.outbox.post(paseo, { to, key: `stalled:${lead.id}:${lead.updatedAt}`, text: letters.stalled(lead.title, lead.id, minutes) });
-        this.log(project, `stalled ${lead.id} ${minutes}m -> ${to}: ${posted}`);
+    const seats = new Map<string, SeatView>();
+    for (const entry of entries) {
+      const seat = entry.agent as unknown as SeatView;
+      if (seat.archivedAt) continue;
+      seats.set(seat.id, seat);
+      if (roleOf(this.kit, seat.provider)?.team) {
+        const project = projectOf(seat.cwd);
+        this.desk.projects.set(project.slug, project);
       }
-      const due = dueReminders(asks, now, askRemindMinutes * 60_000, maxReminders).filter((ask) =>
-        leads.some((lead) => lead.id === ask.agentId && lead.status === "idle"),
+    }
+    const { leadIdleMinutes, askRemindMinutes, maxReminders } = this.kit.attention;
+    for (const project of this.desk.projects.values()) {
+      const ledger = loadLedger(project.state);
+      for (const lane of Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead)) {
+        const lead = seats.get(lane.lead!);
+        if (!lead || lead.status !== "idle") continue;
+        const idle = now - Date.parse(lead.updatedAt);
+        if (idle < leadIdleMinutes * 60_000 || this.idleFlag.get(lead.id) === lead.updatedAt) continue;
+        if (activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, lead.id).length > 0) continue;
+        this.idleFlag.set(lead.id, lead.updatedAt);
+        const to = await this.desk.supervisorFor(paseo, project, lane.opener);
+        await this.desk.post(paseo, to, `idle:${lane.id}:${lead.updatedAt}`, letters.laneIdle(lane, Math.round(idle / 60_000), this.lastEnding.get(lead.id) ?? ""));
+      }
+      for (const task of Object.values(ledger.tasks).filter((entry) => ["running", "rework"].includes(entry.status) && entry.peer)) {
+        if (seats.has(task.peer!) || this.goneFlag.has(task.id)) continue;
+        this.goneFlag.add(task.id);
+        await this.desk.setTask(project, task.id, (entry) => {
+          entry.status = "stalled";
+        });
+        await this.desk.post(paseo, ledger.lanes[task.lane]?.lead, `gone:${task.id}`, letters.failed(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"));
+      }
+      const due = Object.values(ledger.asks).filter(
+        (ask) => ask.status === "open" && seats.get(ask.to)?.status === "idle" && now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000,
       );
-      if (due.length > 0) {
-        for (const ask of due) {
-          const lead = leads.find((seat) => seat.id === ask.agentId);
-          const to = lead ? upward(lead) : undefined;
-          if (!to) continue;
-          const minutes = Math.round((now - ask.openedAt) / 60_000);
-          await this.outbox.post(paseo, { to, key: `reminder:${ask.id}:${ask.reminders}`, text: letters.reminder(ask, minutes) });
-        }
-        saveAsks(project.state, markReminded(asks, new Set(due.map((ask) => ask.id)), now));
+      for (const ask of due) {
+        const age = Math.round((now - ask.openedAt) / 60_000);
+        if (ask.reminders < maxReminders) {
+          await this.desk.post(paseo, ask.to, `remind:${ask.id}:${ask.reminders}`, letters.reminder(ask, age));
+        } else if (ask.fromRole !== "lead" && !ask.escalated) {
+          const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
+          const to = await this.desk.supervisorFor(paseo, project, lane?.opener);
+          await this.desk.post(paseo, to, `escalate:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"));
+        } else continue;
+        await this.desk.ledger(project, (current) => {
+          const entry = current.asks[ask.id];
+          if (!entry) return;
+          if (entry.reminders < maxReminders) entry.reminders += 1;
+          else entry.escalated = true;
+          entry.remindedAt = now;
+        });
       }
       try {
+        const waiting = [...seats.values()].filter(
+          (seat) => roleOf(this.kit, seat.provider)?.team === "supervisor" && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
+        );
         mkdirSync(project.state, { recursive: true });
-        const waiting = group.filter((seat) => roleOf(this.kit, seat.provider)?.entry && (seat.pendingPermissions?.length ?? 0) > 0);
-        writeFileSync(join(project.state, "status.md"), statusText(project.root, leads, group, loadAsks(project.state), now, waiting));
+        writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, undefined, waiting));
       } catch (error) {
         console.error("seatworks-v2: status write failed:", error);
       }
@@ -250,9 +390,9 @@ export class Runtime {
   }
 
   dispose(): void {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = undefined;
+    for (const timer of this.timers) clearInterval(timer);
+    this.timers = [];
+    if (this.watchTimer) clearTimeout(this.watchTimer);
+    this.watchTimer = undefined;
   }
 }
-
-export type { Ask };

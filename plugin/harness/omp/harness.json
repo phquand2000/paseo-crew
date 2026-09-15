@@ -76,5 +76,15 @@
   "contextFileNeedsPointer": false,
   "promptCommentsNote": "informational. Every .md in this kit is comment-free so it loads unchanged on every harness; setup refuses `<!--` whatever this says. A safety review reads it to know whether a leaked note would reach the seat.",
   "sharedSkillDirsNote": "removed: HOME/.agents/skills is no longer a shared root for this harness, because settings.json pins skills.enableAgentsUser to false. Restore the field only if that pin is dropped, since setup reports the directory as reaching every seat when a harness declares it.",
-  "systemPrompt": "config"
+  "systemPrompt": "config",
+  "headless": [
+    "omp",
+    "-p",
+    "--model",
+    "{model}",
+    "--no-tools",
+    "--no-session",
+    "--no-lsp",
+    "{prompt}"
+  ]
 }

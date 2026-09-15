@@ -1,5 +1,5 @@
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
-import { type Kit, type RoleSpec, defaultModel, defaultThinking, harnessOf, modelsOf, roleOf } from "./kit.ts";
+import { type Kit, type McpServers, type RoleSpec, defaultModel, defaultThinking, harnessOf, modelsOf, roleOf } from "./kit.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
@@ -14,7 +14,7 @@ function allowStateWrites(options: unknown, state: string): Record<string, unkno
   return { ...base, settings: { ...settings, sandbox: { ...sandbox, filesystem } } };
 }
 
-export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt, state?: string): AgentConfig {
+export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt, state?: string, team: McpServers = {}): AgentConfig {
   const role = roleOf(kit, config.provider);
   if (!role) return config;
   const harness = harnessOf(kit, role);
@@ -33,6 +33,7 @@ export function applyRole(kit: Kit, config: AgentConfig, render: RenderPrompt, s
   if (harness.systemPrompt === "config") {
     const prompt = render(role);
     next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
+    if (Object.keys(team).length > 0) next.mcpServers = { ...(config.mcpServers ?? {}), ...team } as AgentConfig["mcpServers"];
   }
   if (harness.stateAccess === "sandboxAllowWrite" && state) {
     next.providerOptions = allowStateWrites(config.providerOptions, state) as AgentConfig["providerOptions"];
@@ -54,11 +55,4 @@ export function seatEnv(kit: Kit, request: SessionOpen, seat: (role: RoleSpec) =
       SEATWORKS_STATE: project.state,
     },
   };
-}
-
-export function launchRefusal(kit: Kit, parentProvider: string | null | undefined, childProvider: string): { parent: RoleSpec; child: RoleSpec } | undefined {
-  const parent = roleOf(kit, parentProvider);
-  const child = roleOf(kit, childProvider);
-  if (!parent || !child) return undefined;
-  return (parent.mayStart ?? []).includes(child.role) ? undefined : { parent, child };
 }

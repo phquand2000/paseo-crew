@@ -1,6 +1,6 @@
 ---
 name: repo-refresh
-description: "Refreshes one named repository around current production truth: audits documentation, plans, issues, tests, proof machinery, scripts and generated debris, classifies each suspect, and has the stale ones merged or deleted. Use when documentation, plans, tests or scripts have drifted from what production does, or when a refresh is asked for."
+description: "Refreshes one named repository around current production truth: audits documentation, plans, issues, tests, proof machinery, scripts and generated debris, classifies each suspect, and has the stale ones merged or deleted through tasks. Use when documentation, plans, tests or scripts have drifted from what production does, or when the owner asks for a refresh."
 ---
 
 # Repository refresh
@@ -9,13 +9,13 @@ You refresh the named repository around what is true in production now. It is a 
 
 ## Mode
 
-Take it from the request's wording, or audit when you start one yourself:
+Take it from the directive's wording, or audit when you start one yourself:
 
 - **audit**, the default for a bare request: inspect and report.
-- **apply**, when the request says refresh, clean, fix, remove or consolidate: audit, get the cut made, and verify. The audit and `docs/` are yours; every other change goes to an Engineer, one brief per coherent group of deletions, with the audit rows as its objective, the paths as its owned scope and step 5 as its acceptance. Verify from the returned SHA, not the summary.
+- **apply**, when the directive says refresh, clean, fix, remove or consolidate: audit, get the cut made, and verify. The audit is yours; every change goes through `start_task`, one per coherent group of deletions, with the audit rows as its goal and context, the paths as its owned paths and step 5 as its acceptance. Verify from the handback's commit, not its summary, before you `accept`.
 - **verify:** check an earlier refresh without widening its scope.
 
-An age threshold marks suspects, never deletion targets. Leave unrelated and pre-existing changes where they are, and don't change production behavior to simplify the cleanup; report a production defect separately. Git is the history: no archives, backup folders or compatibility copies inside the repository.
+An age threshold marks suspects, never deletion targets. Leave unrelated and pre-existing changes where they are, and don't change production behavior to simplify the cleanup; `ask` about a production defect separately. Git is the history: no archives, backup folders or compatibility copies inside the repository.
 
 ## Procedure
 
@@ -27,4 +27,4 @@ An age threshold marks suspects, never deletion targets. Leave unrelated and pre
 
 ## Ends in
 
-A report of the before and after inventory; what was merged, deleted, rewritten and deliberately kept; the proof machinery removed or demoted and why; the validation actually run; and blocked decisions with remaining debt. It isn't complete while live references point at removed material, two documents own one contract, finished plans still read as active, or a mandatory proof route has no named risk and consumer.
+A report at `$SEATWORKS_STATE/repo-refresh/YYYY-MM-DD.md` of the before and after inventory; what was merged, deleted, rewritten and deliberately kept; the proof machinery removed or demoted and why; the validation actually run; and blocked decisions with remaining debt, summarized to the owner in `report`. It isn't complete while live references point at removed material, two documents own one contract, finished plans still read as active, or a mandatory proof route has no named risk and consumer.

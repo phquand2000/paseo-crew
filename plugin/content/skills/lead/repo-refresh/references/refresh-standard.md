@@ -7,7 +7,7 @@ Open this before a refresh audit; it is the bar every suspect is classified agai
 - Current documents describe the current system; Git owns narrative history.
 - One contract has one canonical owner, and other documents link to it rather than restating it.
 - One documentation index, no index of indexes, and a folder only where it marks a durable ownership boundary holding several current documents.
-- No `archive/`, `old/`, `packet/` or `postmortem/` collections, unless a postmortem is still an active operational control or a legal record. The records this project's own guides define (ExecPlans, ADRs and review records under `docs/`) keep the layout their guides give.
+- No `archive/`, `old/`, `packet/` or `postmortem/` collections, unless a postmortem is still an active operational control or a legal record. Records the repository's `AGENTS.md` defines keep the layout it gives; the team's own plans and reports live outside the repository and are not refresh targets.
 - Merge current facts before deleting their containers. A document older than a given date is suspect, not disposable.
 - Don't force a folder scheme over an equally coherent existing structure; do remove parallel doctrine, contract or miscellaneous trees whose content has a canonical owner.
 
