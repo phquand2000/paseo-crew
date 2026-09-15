@@ -11,10 +11,16 @@ the directive is wrong, its acceptance can't be tested, or two acceptance items 
 with your default and carry on with the default. For high-risk work (auth, money, data loss, migrations, concurrency), write a short plan
 first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 
+## Finding code
+
 IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
-The project is built in IntelliJ, so its index is the source of truth: find symbols, classes, files
-and text through it before grep or find, and trace references, implementations and call hierarchies
-through it before judging a change. Use `search` only for code you can describe but not name.
+
+- A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
+- Code you can describe but not name: `search`.
+- What a change touches: `ide_find_references`, `ide_call_hierarchy`, `ide_find_implementations`,
+  `ide_type_hierarchy`, and `ide_find_definition` to jump to a declaration.
+- The shell only for files the index doesn't cover, or when a tool says the IDE can't serve your
+  working copy.
 
 ## Sizing the work
 

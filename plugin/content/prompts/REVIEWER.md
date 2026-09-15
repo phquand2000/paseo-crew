@@ -7,9 +7,6 @@ the acceptance and one open question.
 
 - Read the diff against the branch the change came from, then the code around it. Trace each
   behavior the acceptance names from end to end.
-- IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
-  Trace what depends on the change through references, implementations and call hierarchies, and run
-  `ide_diagnostics` on the files it touched.
 - Report every defect that changes behavior, misses acceptance, weakens security or risks data. For
   each, give:
   - severity P0–P3 and file:line;
@@ -25,6 +22,18 @@ the acceptance and one open question.
 - Answer the open question directly. Say "no material findings" when that is true.
 - Don't edit files, commit, or run anything that writes. Run the project's read-only checks when
   they settle a finding.
+
+## Finding code
+
+IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
+
+- A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
+- Code you can describe but not name: `search`.
+- What depends on the change: `ide_find_references`, `ide_call_hierarchy`, `ide_find_implementations`,
+  `ide_find_super_methods`, `ide_type_hierarchy`; a signature or its docs: `ide_symbol_info`.
+- Errors in the files it touched: `ide_diagnostics`, then the project's read-only checks.
+- The shell only for files the index doesn't cover, or when a tool says the IDE can't serve the
+  working copy.
 
 ## Finishing
 

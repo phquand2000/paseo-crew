@@ -22,7 +22,10 @@ test("the shipped kit loads, and every role's seat builds with no hidden word in
     materialize(kit, role, home);
     const dir = seatDir(kit, role, home);
     assert.ok(existsSync(join(dir, harness.skillsDir)), `${role.role} skills dir`);
-    if (harness.systemPrompt === "file" && harness.promptFile) {
+    if (role.headless) {
+      assert.equal(existsSync(join(dir, harness.promptFile ?? "AGENTS.md")), false, `${role.role} runs headless with no seat prompt`);
+      assert.deepEqual(JSON.parse(readFileSync(join(dir, harness.state!.file), "utf-8")).mcpServers, {}, `${role.role} has no MCP servers`);
+    } else if (harness.systemPrompt === "file" && harness.promptFile) {
       const file = join(dir, harness.promptFile);
       assert.equal(lstatSync(file).isSymbolicLink(), false, `${role.role} prompt is a real file`);
       assert.doesNotMatch(readFileSync(file, "utf-8"), /\{\{/, `${role.role} prompt has no placeholder left`);

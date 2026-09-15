@@ -55,21 +55,11 @@
       "prompt": "prompts/SUPERVISOR.md",
       "codeTools": [
         "ide_find_symbol",
-        "ide_find_class",
-        "ide_find_file",
         "ide_find_references",
-        "ide_call_hierarchy",
         "ide_type_hierarchy",
-        "ide_file_structure",
         "search"
       ],
       "skills": "supervisor",
-      "extraMcpServers": {
-        "figma": {
-          "type": "http",
-          "url": "https://mcp.figma.com/mcp"
-        }
-      },
       "paseoTools": {
         "allow": [
           "get_agent_activity",
@@ -109,28 +99,16 @@
       "prompt": "prompts/LEAD.md",
       "codeTools": [
         "ide_find_symbol",
-        "ide_find_class",
+        "ide_find_references",
+        "ide_type_hierarchy",
+        "search",
         "ide_find_file",
         "ide_search_text",
         "ide_find_definition",
-        "ide_symbol_info",
-        "ide_find_references",
         "ide_call_hierarchy",
-        "ide_find_implementations",
-        "ide_find_super_methods",
-        "ide_type_hierarchy",
-        "ide_file_structure",
-        "ide_diagnostics",
-        "search",
-        "find_related"
+        "ide_find_implementations"
       ],
       "skills": "lead",
-      "extraMcpServers": {
-        "figma": {
-          "type": "http",
-          "url": "https://mcp.figma.com/mcp"
-        }
-      },
       "paseoTools": {
         "allow": [
           "get_agent_activity"
@@ -161,24 +139,21 @@
       "prompt": "prompts/PEER.md",
       "codeTools": [
         "ide_find_symbol",
-        "ide_find_class",
+        "ide_find_references",
+        "ide_type_hierarchy",
+        "search",
         "ide_find_file",
         "ide_search_text",
         "ide_find_definition",
-        "ide_symbol_info",
-        "ide_find_references",
         "ide_call_hierarchy",
         "ide_find_implementations",
+        "ide_symbol_info",
         "ide_find_super_methods",
-        "ide_type_hierarchy",
-        "ide_file_structure",
         "ide_diagnostics",
         "ide_refactor_rename",
         "ide_move_file",
         "ide_refactor_safe_delete",
-        "ide_change_signature",
-        "search",
-        "find_related"
+        "ide_change_signature"
       ],
       "skills": "peer",
       "paseoTools": {
@@ -212,20 +187,17 @@
       "prompt": "prompts/REVIEWER.md",
       "codeTools": [
         "ide_find_symbol",
-        "ide_find_class",
+        "ide_find_references",
+        "ide_type_hierarchy",
+        "search",
         "ide_find_file",
         "ide_search_text",
         "ide_find_definition",
-        "ide_symbol_info",
-        "ide_find_references",
         "ide_call_hierarchy",
         "ide_find_implementations",
+        "ide_symbol_info",
         "ide_find_super_methods",
-        "ide_type_hierarchy",
-        "ide_file_structure",
-        "ide_diagnostics",
-        "search",
-        "find_related"
+        "ide_diagnostics"
       ],
       "skills": null,
       "extraSkills": [

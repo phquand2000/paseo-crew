@@ -28,7 +28,7 @@ export function makeKit(): Kit {
         byHarness: { claude: { models: [{ id: "opus", label: "Opus", isDefault: true, thinkingOptions: [{ id: "medium", label: "M" }, { id: "high", label: "H", isDefault: true }] }] } },
         prompt: "prompts/SUPERVISOR.md",
         skills: "supervisor",
-        extraMcpServers: { figma: { type: "http", url: "https://figma.example/mcp" } },
+        extraMcpServers: { designs: { type: "http", url: "https://designs.example/mcp" } },
         paseoTools: { disabledTools: ["update_agent"] },
         mayStart: ["lead"],
       },

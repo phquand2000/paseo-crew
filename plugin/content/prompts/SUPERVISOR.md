@@ -66,7 +66,11 @@ only for a pattern seen twice, as a diff. Use `pre-mortem` before an expensive o
 directive, `architecture-premise-audit` when a foundation looks wrong, and `retrospective` when the
 Human asks how a run went.
 
-IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
+## Finding code
+
+IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring. When a decision needs the code: `ide_find_symbol` for a name,
+`search` for behavior you can describe, `ide_find_references` and `ide_type_hierarchy` for what a
+foundation touches.
 
 ## Reporting to the Human
 

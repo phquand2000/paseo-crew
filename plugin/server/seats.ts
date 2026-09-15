@@ -162,8 +162,16 @@ export function materialize(kit: Kit, role: RoleSpec, homeDir = home(), team: Mc
   }
 
   if (harness.systemPrompt === "file" && harness.promptFile) {
-    const prompt = renderPrompt(kit, role, { guides: guidesDir(homeDir), state: "$SEATWORKS_STATE" });
-    note(writeReal(join(dir, harness.promptFile), prompt), harness.promptFile);
+    const promptPath = join(dir, harness.promptFile);
+    if (role.headless) {
+      if (present(promptPath)) {
+        unlinkSync(promptPath);
+        changes.push(`${harness.promptFile} removed`);
+      }
+    } else {
+      const prompt = renderPrompt(kit, role, { guides: guidesDir(homeDir), state: "$SEATWORKS_STATE" });
+      note(writeReal(promptPath, prompt), harness.promptFile);
+    }
   }
 
   const skillsDir = join(dir, harness.skillsDir);

@@ -20,7 +20,7 @@ test("a Claude seat links its settings and skills and writes only the kit's MCP 
   assert.equal(readlinkSync(join(dir, "projects")), join(home, ".claude", "projects"));
   assert.equal(readlinkSync(join(dir, "skills", "plan-check")), join(kit.dir, "content/skills/supervisor/plan-check"));
   const state = JSON.parse(readFileSync(join(dir, ".claude.json"), "utf-8"));
-  assert.deepEqual(Object.keys(state.mcpServers).sort(), ["figma", "search"]);
+  assert.deepEqual(Object.keys(state.mcpServers).sort(), ["designs", "search"]);
   assert.equal(state.userID, "u");
   assert.equal("enableAllProjectMcpServers" in state, false);
   assert.deepEqual(state.projects["/x"], { mcpServers: {}, trust: true });

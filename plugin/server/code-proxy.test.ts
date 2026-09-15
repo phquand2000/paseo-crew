@@ -193,14 +193,14 @@ test("an unreachable IDE fails the call with a way forward", async () => {
   }
 });
 
-test("code search runs against the working copy with a relative path", async () => {
+test("code search runs against the working copy", async () => {
   const cwd = repo();
-  const code = proxy(cwd, { name: "semble", ide: "", semble: [process.execPath, fakeSemble()], tools: ["search", "find_related"] });
+  const code = proxy(cwd, { name: "semble", ide: "", semble: [process.execPath, fakeSemble()], tools: ["search"] });
   try {
     const listed = await code.rpc("tools/list");
-    assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["search", "find_related"]);
-    const reply = await code.rpc("tools/call", { name: "find_related", arguments: { file_path: join(cwd, "src", "a.ts"), line: 3, repo: "/elsewhere" } });
-    assert.deepEqual(JSON.parse(reply.result.content[0].text), { file_path: join("src", "a.ts"), line: 3, repo: cwd });
+    assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["search"]);
+    const reply = await code.rpc("tools/call", { name: "search", arguments: { query: "retry a failed payment", repo: "/elsewhere" } });
+    assert.deepEqual(JSON.parse(reply.result.content[0].text), { query: "retry a failed payment", repo: cwd });
   } finally {
     code.stop();
   }

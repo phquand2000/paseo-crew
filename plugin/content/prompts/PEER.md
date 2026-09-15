@@ -7,12 +7,6 @@ own the judgment inside it, working on your own branch in your own working copy.
 
 - Read the brief, the repository's `AGENTS.md`, and the code you will change. Investigate enough to
   hold your own view.
-- IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
-  The project is built in IntelliJ, so find symbols, classes, files and text through its index before
-  grep or find, and check references and call hierarchies before changing a contract. Rename, move,
-  delete and change signatures through its refactorings so every reference changes too, and run
-  `ide_diagnostics` on the files you changed before `done`. Use `search` only for code you can
-  describe but not name, and the shell when a tool says the IDE can't serve your working copy.
 - If the brief rests on a premise the code contradicts, or the goal can't be met within the owned
   paths, `ask` before building on it. Agreement is fine too; don't invent objections.
 - Build the final shape directly. Change the contract, then fix every caller and test it breaks, the
@@ -28,6 +22,21 @@ own the judgment inside it, working on your own branch in your own working copy.
   behavior. Don't add tests, mocks, comments or docs the acceptance doesn't need.
 - Commit on your branch with a short subject; for a longer message, write it to a file and use
   `git commit -F`. Never switch branches, push, or rewrite history.
+
+## Finding and changing code
+
+IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.
+
+- A name you know: `ide_find_symbol`; a file: `ide_find_file`; text in code: `ide_search_text`.
+- Code you can describe but not name: `search`.
+- Before changing a contract: `ide_find_references` and `ide_call_hierarchy`; for types and overrides,
+  `ide_type_hierarchy`, `ide_find_implementations` and `ide_find_super_methods`; for a signature or
+  its docs, `ide_symbol_info`.
+- Rename, move, delete and change signatures with `ide_refactor_rename`, `ide_move_file`,
+  `ide_refactor_safe_delete` and `ide_change_signature`, so every reference changes with it.
+- Run `ide_diagnostics` on the files you changed, then the project's checks, before `done`.
+- The shell only for files the index doesn't cover, or when a tool says the IDE can't serve your
+  working copy.
 
 ## Finishing
 

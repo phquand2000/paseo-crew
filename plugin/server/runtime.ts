@@ -69,7 +69,7 @@ export class Runtime {
     } catch (error) {
       console.error("seatworks-v2: could not prepare the state directory:", error);
     }
-    for (const role of seatRoles(this.kit)) this.ensureSeat(role);
+    for (const role of this.kit.roles) this.ensureSeat(role);
     try {
       const changed = applyReconcile(this.kit);
       if (changed.length > 0) {
@@ -316,7 +316,8 @@ export class Runtime {
       if (!command) return;
       const instructions = readFileSync(join(this.kit.dir, "content", watcher.prompt), "utf-8");
       const endings = batch.map((item, index) => ({ n: index + 1, agent: item.agent, role: item.role, title: item.where, text: item.text }));
-      const run = await runWatcher(command, watcherPrompt(instructions, endings), defaultModel(watcher)?.id ?? "", this.kit.attention.watcherTimeoutSeconds * 1000);
+      const seat = { [harnessOf(this.kit, watcher).configDirEnv]: seatDir(this.kit, watcher) };
+      const run = await runWatcher(command, watcherPrompt(instructions, endings), defaultModel(watcher)?.id ?? "", this.kit.attention.watcherTimeoutSeconds * 1000, seat);
       const verdicts = run.ok ? parseVerdicts(run.output, endings.length) : [];
       if (verdicts.length === 0) {
         this.watchFailures += 1;

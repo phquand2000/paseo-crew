@@ -81,9 +81,9 @@ source.
   never chose.
 - `claude mcp list` run with `CLAUDE_CONFIG_DIR` set to a built seat reported both servers
   connected, which is how the file location was confirmed.
-- **An OAuth login belongs to one config directory.** `claude mcp list` showed `figma` connected
-  under the user's own config and `! Needs authentication` with `CLAUDE_CONFIG_DIR` at a scratch
-  directory holding the same entry, so a server that signs in needs
+- **An OAuth login belongs to one config directory.** `claude mcp list` showed an OAuth server
+  connected under the user's own config and `! Needs authentication` with `CLAUDE_CONFIG_DIR` at a
+  scratch directory holding the same entry, so a server that signs in needs
   `CLAUDE_CONFIG_DIR=SEAT_DIR claude mcp login NAME` once per seat directory.
 - Tool names are `mcp__<server>__<tool>`, with the server name exactly as the config spells it.
   That is the documented form, not one read off a running seat here; a wrong name in a deny list

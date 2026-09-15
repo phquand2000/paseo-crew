@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { isAbsolute, join, relative } from "node:path";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 const config = JSON.parse(process.argv[2] ?? "{}");
@@ -16,14 +16,14 @@ const MAX_SYNC_PATHS = 100;
 const RULE = "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.";
 const INSTRUCTIONS = {
   "intellij-index": `${RULE} Every call answers for your own working copy, and paths are relative to it.`,
-  semble: "Code search in your own working copy, for code you can describe but not name. For symbols, references, hierarchies and refactoring, prefer the intellij-index tools.",
+  semble: "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
 };
 
 const SEMBLE_TOOLS = [
   {
     name: "search",
     description:
-      "Search this working copy once with a focused query describing what the code does or its name. Write queries using function or class names or behavior descriptions, not error messages. Returns file paths, line numbers and snippets.",
+      "Find code in this working copy by what it does when you don't know its name. Describe the behavior in one focused query, not an error message. Returns file paths, line numbers and snippets. When you know a name, use ide_find_symbol or ide_search_text instead.",
     inputSchema: {
       type: "object",
       properties: {
@@ -32,21 +32,6 @@ const SEMBLE_TOOLS = [
         max_snippet_lines: { type: "integer", description: "Lines per snippet." },
       },
       required: ["query"],
-    },
-  },
-  {
-    name: "find_related",
-    description:
-      "Find code similar to a known location in this working copy: other implementations of an interface, callers of a function, or tests for a class. Use after search.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        file_path: { type: "string", description: "File path relative to the working copy." },
-        line: { type: "integer", description: "1-based line number." },
-        top_k: { type: "integer", description: "How many results. Default 5." },
-        max_snippet_lines: { type: "integer", description: "Lines per snippet." },
-      },
-      required: ["file_path", "line"],
     },
   },
 ];
@@ -247,7 +232,6 @@ async function callSemble(name, args) {
   const started = await client.ready;
   if (started.error) return text(`Code search could not start: ${started.error.message}. Use the shell.`, true);
   const request = { ...(args ?? {}), repo: root };
-  if (typeof request.file_path === "string" && isAbsolute(request.file_path)) request.file_path = relative(root, request.file_path);
   const reply = await client.request("tools/call", { name, arguments: request });
   if (reply.error) return text(`Code search failed: ${reply.error.message}. Use the shell.`, true);
   return reply.result;

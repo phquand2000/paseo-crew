@@ -32,7 +32,7 @@ export function fillCommand(template: string[], values: Record<string, string>):
   return template.map((part) => part.replace(/\{(\w+)\}/g, (whole, key: string) => values[key] ?? whole));
 }
 
-export function runWatcher(command: string[], prompt: string, model: string, timeoutMs: number): Promise<{ ok: boolean; output: string }> {
+export function runWatcher(command: string[], prompt: string, model: string, timeoutMs: number, env: Record<string, string> = {}): Promise<{ ok: boolean; output: string }> {
   const dir = mkdtempSync(join(tmpdir(), "sw2-watch-"));
   const promptFile = join(dir, "prompt.txt");
   const work = join(dir, "work");
@@ -45,7 +45,7 @@ export function runWatcher(command: string[], prompt: string, model: string, tim
       resolve({ ok: false, output: "no watcher command" });
       return;
     }
-    execFile(bin, args, { cwd: work, timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile(bin, args, { cwd: work, env: { ...process.env, ...env }, timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
       rmSync(dir, { recursive: true, force: true });
       resolve({ ok: !error, output: error ? `${String(stdout)}\n${String(stderr) || error.message}` : String(stdout) });
     });
