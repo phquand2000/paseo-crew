@@ -67,6 +67,9 @@
         }
       },
       "skills": "supervisor",
+      "extraSkills": [
+        "shared:ide-index-mcp"
+      ],
       "paseoTools": {
         "allow": [
           "get_agent_activity",
@@ -122,6 +125,9 @@
         }
       },
       "skills": "lead",
+      "extraSkills": [
+        "shared:ide-index-mcp"
+      ],
       "paseoTools": {
         "allow": [
           "get_agent_activity"
@@ -175,6 +181,9 @@
         }
       },
       "skills": "peer",
+      "extraSkills": [
+        "shared:ide-index-mcp"
+      ],
       "paseoTools": {
         "enabled": false
       },
@@ -228,7 +237,8 @@
       "extraSkills": [
         "peer:test-proof-debt-audit",
         "peer:security-check",
-        "peer:diagnosing-bugs"
+        "peer:diagnosing-bugs",
+        "shared:ide-index-mcp"
       ],
       "paseoTools": {
         "enabled": false
