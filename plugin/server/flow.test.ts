@@ -88,6 +88,7 @@ const ide = {
   },
   async sync(path: string) {
     ideCalls.push({ kind: "sync" as const, path });
+    return { ok: true, text: "synced" };
   },
 };
 
@@ -191,7 +192,7 @@ test("a lane works serially in one long-lived working copy that the next lane re
   assert.equal(reopened.ok, true, reopened.text);
   assert.equal(h.ledger().lanes.L2!.slot, "S0");
   assert.equal(h.workspaces.size, 1);
-  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path).map((call) => call.kind), ["open", "sync"]);
+  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path).map((call) => call.kind), ["open", "open", "sync"]);
   assert.equal(h.git(slot.path, "branch", "--show-current").trim(), h.ledger().lanes.L2!.branch);
   h.runtime.dispose();
 });

@@ -216,8 +216,8 @@ export class Desk {
     const ide = this.ide;
     if (!ide) return;
     excludeIdeFiles(project.root);
-    const work = reused ? ide.sync(slot.path).then(() => ({ ok: true, text: "synced" })) : ide.open(slot.path);
-    void work.then((result) => this.event(project, { kind: reused ? "ide.synced" : "ide.opened", slot: slot.id, ok: result.ok, detail: clip(result.text, 200) }));
+    const work = ide.open(slot.path).then((opened) => (opened.ok && reused ? ide.sync(slot.path) : opened));
+    void work.then((result) => this.event(project, { kind: "ide.opened", slot: slot.id, reused, ok: result.ok, detail: clip(result.text, 200) }));
   }
 
   private async releaseSlot(project: Project, slotId: string | undefined, dropBranch?: string): Promise<void> {

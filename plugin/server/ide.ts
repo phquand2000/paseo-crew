@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 export type Ide = {
   open(path: string): Promise<{ ok: boolean; text: string }>;
-  sync(path: string): Promise<void>;
+  sync(path: string): Promise<{ ok: boolean; text: string }>;
 };
 
 async function call(url: string, name: string, args: Record<string, unknown>, timeoutMs: number): Promise<{ ok: boolean; text: string }> {
@@ -39,8 +39,6 @@ export function excludeIdeFiles(repo: string): void {
 export function ideClient(url: string): Ide {
   return {
     open: (path) => call(url, "ide_open_project", { path, timeoutSeconds: 900 }, 930_000),
-    async sync(path) {
-      await call(url, "ide_sync_files", { project_path: path }, 60_000);
-    },
+    sync: (path) => call(url, "ide_sync_files", { project_path: path }, 60_000),
   };
 }
