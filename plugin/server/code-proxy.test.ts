@@ -7,12 +7,13 @@ import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { ideClient } from "./ide.ts";
 
 const PROXY = join(dirname(fileURLToPath(import.meta.url)), "..", "mcp", "code.mjs");
 
 type Call = { name: string; args: Record<string, unknown> };
 
-async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number }) {
+async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number; routeRequired?: boolean }) {
   const calls: Call[] = [];
   const open = new Set<string>();
   let dumb = options.dumbCalls ?? 0;
@@ -31,6 +32,9 @@ async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number }) {
       const text = (value: string, isError = false) => reply({ content: [{ type: "text", text: value }], isError });
       if (name === "ide_open_project") {
         if (!options.openEnabled) return text(`Tool ${name} not found`, true);
+        if (options.routeRequired && !args.project_path) {
+          return text(JSON.stringify({ error: "multiple_projects_open", message: "Multiple projects are open.", available_projects: [{ name: "main", path: "/already/open" }] }), true);
+        }
         open.add(String(args.path));
         return text("opened");
       }
@@ -203,5 +207,32 @@ test("code search runs against the working copy", async () => {
     assert.deepEqual(JSON.parse(reply.result.content[0].text), { query: "retry a failed payment", repo: cwd });
   } finally {
     code.stop();
+  }
+});
+
+test("opening a working copy while other projects are open is routed through one of them", async () => {
+  const ide = await fakeIde({ openEnabled: true, routeRequired: true });
+  const cwd = repo();
+  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  try {
+    const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
+    assert.equal(reply.result.isError, false, reply.result.content[0].text);
+    const opens = ide.calls.filter((call) => call.name === "ide_open_project");
+    assert.deepEqual(opens.map((call) => call.args.project_path), [undefined, "/already/open"]);
+    assert.equal(opens[1]!.args.path, cwd);
+  } finally {
+    code.stop();
+    ide.close();
+  }
+});
+
+test("the desk opens a slot through an open project when the IDE asks for one", async () => {
+  const ide = await fakeIde({ openEnabled: true, routeRequired: true });
+  try {
+    const result = await ideClient(ide.url).open("/slots/S1");
+    assert.equal(result.ok, true, result.text);
+    assert.deepEqual(ide.calls.map((call) => [call.args.path, call.args.project_path]), [["/slots/S1", undefined], ["/slots/S1", "/already/open"]]);
+  } finally {
+    ide.close();
   }
 });

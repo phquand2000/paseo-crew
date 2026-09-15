@@ -109,9 +109,21 @@ const indexing = (result) => result?.isError && /dumb mode|index is not ready/i.
 const brokenPlugin = (result) => result?.isError && /CannotStartProcessException|ProcessNotCreatedException|lsp4ij/.test(firstText(result));
 const switchedOff = (result) => result?.isError && /^Tool \S+ not found/.test(firstText(result));
 
+function routeHint(value) {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed.error === "multiple_projects_open" ? parsed.available_projects?.find((project) => project.path)?.path : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function openHere() {
   excludeIdeFiles();
-  const opened = await ide("ide_open_project", { path: root, timeoutSeconds: OPEN_SECONDS }, (OPEN_SECONDS + 30) * 1000);
+  const args = { path: root, timeoutSeconds: OPEN_SECONDS };
+  let opened = await ide("ide_open_project", args, (OPEN_SECONDS + 30) * 1000);
+  const route = routeHint(firstText(opened));
+  if (route) opened = await ide("ide_open_project", { ...args, project_path: route }, (OPEN_SECONDS + 30) * 1000);
   if (!opened?.isError) return "";
   const why = firstText(opened);
   return /not found/i.test(why) ? "the IDE can't open projects by path (ide_open_project is switched off in the IDE)" : why;
