@@ -3,6 +3,29 @@
 Seatworks runs the SLPW team (Supervisor, Lead, Peer, Watcher) on Paseo as one plugin. The people in
 the team are agents; the plugin is the desk they all work through. This file is for maintainers.
 
+## Goal
+
+Seatworks is a Paseo plugin whose job is to make the SLPW way of working hold: the roles and their
+authority, lanes, tasks, hand-backs, asks, merges and attention. That concept is the only thing the
+code owns.
+
+Everything around the concept is the user's choice and lives in data, never in code:
+
+- which harness (Claude Code, Devin, Pi…), model and thinking option the Supervisor, Lead, Peer,
+  Reviewer and Watcher each run on;
+- which MCP servers, tools, IDE and search backends are on, for which roles, with which rules and
+  skills;
+- what differs per machine or project: paths, ports, logins.
+
+Settings choose these, in a machine and a project layer a web app manages over RPC, from a catalog
+of files: `roles.json` defaults, `harness/<id>/` and `catalog/mcp/<id>/`. Switching a role's agent or
+model, or turning a server or tool on or off, is a settings change. Supporting a new harness or
+server is a new catalog directory. Neither needs an edit under `server/` or `mcp/`.
+
+The test for any change: if picking another agent, model, tool or MCP server would force a code
+edit, the code has a defect, and that knowledge moves into the catalog. Code names the concept
+(roles, lanes, tasks, the desk); it names no vendor, model, tool or server.
+
 ## The concept kept
 
 - **Authority by axis.** The Human owns intent. The Supervisor acts for the Human, decides every
