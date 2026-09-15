@@ -9,6 +9,7 @@ import {
   type McpServers,
   type McpTransport,
   type ModelSpec,
+  type ProxySpec,
   type RoleSpec,
   supportsRole,
   teamServer,
@@ -149,13 +150,19 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 
-export function proxyUrl(state: McpState): string {
-  return state.entry.url ? fill(state.entry.url, state.settings) : "";
+export type IndexedProxy = ProxySpec & { id: string; label: string; backend: { type: "http"; url: string } };
+
+export function proxyOf(state: McpState): ProxySpec | undefined {
+  return state.entry.proxy ? (JSON.parse(fill(JSON.stringify(state.entry.proxy), state.settings)) as ProxySpec) : undefined;
 }
 
-export function ideUrl(team: Team): string | undefined {
-  const state = Object.values(team.mcp).find((entry) => entry.enabled && entry.entry.proxy === "intellij");
-  return state ? proxyUrl(state) : undefined;
+export function indexedProxies(team: Team): IndexedProxy[] {
+  const found: IndexedProxy[] = [];
+  for (const state of Object.values(team.mcp)) {
+    const proxy = state.enabled ? proxyOf(state) : undefined;
+    if (proxy?.open && proxy.backend.type === "http") found.push({ ...proxy, backend: proxy.backend, id: state.entry.id, label: state.entry.label });
+  }
+  return found;
 }
 
 export function serversFor(kit: Kit, team: Team, roleName: string, context: { node: string; spool: string }): McpServers {
@@ -168,13 +175,7 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
     if (entry.kind === "proxy") {
       const tools = entry.tools?.[roleName] ?? [];
       if (tools.length === 0) continue;
-      const config = {
-        name: id,
-        instructions: entry.instructions ?? "",
-        tools,
-        ide: entry.proxy === "intellij" ? proxyUrl(state) : "",
-        semble: entry.proxy === "semble" ? (entry.command ?? []) : [],
-      };
+      const config = { name: id, label: entry.label, instructions: entry.instructions ?? "", tools, ...proxyOf(state) };
       servers[id] = { type: "stdio", command: context.node, args: [join(kit.dir, "mcp", "code.mjs"), JSON.stringify(config)] };
     } else if (entry.server) {
       servers[id] = JSON.parse(fill(JSON.stringify(entry.server), state.settings));

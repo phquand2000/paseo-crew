@@ -4,14 +4,23 @@
   "order": 20,
   "description": "Semantic code search over the working copy, backed by semble.",
   "kind": "proxy",
-  "proxy": "semble",
+  "proxy": {
+    "backend": {
+      "type": "stdio",
+      "command": [
+        "uvx",
+        "--from",
+        "semble[mcp]==0.5.4",
+        "semble"
+      ]
+    },
+    "pin": "repo",
+    "descriptions": {
+      "search": "Find code in this working copy by what it does when you don't know its name. Describe the behavior in one focused query, not an error message. Returns file paths, line numbers and snippets. When you know a name, use ide_find_symbol or ide_search_text instead."
+    }
+  },
+  "help": "Install uv so `uvx` can start semble.",
   "instructions": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
-  "command": [
-    "uvx",
-    "--from",
-    "semble[mcp]==0.5.4",
-    "semble"
-  ],
   "settings": {},
   "defaults": {
     "enabled": true

@@ -96,10 +96,10 @@ export class Slots {
   }
 
   private index(project: Project, slot: Slot, reused: boolean): void {
-    const ide = this.ctx.ide(project);
-    if (!ide) return;
-    excludeFromGit(project.root, ".idea/");
-    const work = ide.open(slot.path).then((opened) => (opened.ok && reused ? ide.sync(slot.path) : opened));
-    void work.then((result) => this.ctx.event(project, { kind: "ide.opened", slot: slot.id, reused, ok: result.ok, detail: clip(result.text, 200) }));
+    for (const index of this.ctx.indexes(project)) {
+      for (const pattern of index.gitExclude) excludeFromGit(project.root, pattern);
+      const work = index.open(slot.path).then((opened) => (opened.ok && reused ? index.sync(slot.path) : opened));
+      void work.then((result) => this.ctx.event(project, { kind: "index.opened", server: index.id, slot: slot.id, reused, ok: result.ok, detail: clip(result.text, 200) }));
+    }
   }
 }

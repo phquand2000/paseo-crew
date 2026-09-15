@@ -4,37 +4,12 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 const config = JSON.parse(process.argv[2] ?? "{}");
-const serverName = config.name ?? "intellij-index";
+const label = config.label ?? config.name ?? "The code server";
 const allowed = new Set(config.tools ?? []);
-const ideUrl = config.ide ?? "";
-const sembleCommand = config.semble ?? [];
-const OPEN_SECONDS = Number(process.env.SEATWORKS_IDE_OPEN_SECONDS ?? 300);
-const INDEX_WAIT_MS = Number(process.env.SEATWORKS_IDE_INDEX_WAIT_MS ?? 180000);
-const INDEX_POLL_MS = Number(process.env.SEATWORKS_IDE_INDEX_POLL_MS ?? 5000);
-const MAX_SYNC_PATHS = 100;
-
-const RULE = "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.";
-const INSTRUCTIONS = {
-  "intellij-index": `${RULE} Every call answers for your own working copy, and paths are relative to it.`,
-  "code-search": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
-};
-
-const SEMBLE_TOOLS = [
-  {
-    name: "search",
-    description:
-      "Find code in this working copy by what it does when you don't know its name. Describe the behavior in one focused query, not an error message. Returns file paths, line numbers and snippets. When you know a name, use ide_find_symbol or ide_search_text instead.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "What the code does, or its name." },
-        top_k: { type: "integer", description: "How many results. Default 5." },
-        max_snippet_lines: { type: "integer", description: "Lines per snippet." },
-      },
-      required: ["query"],
-    },
-  },
-];
+const backend = config.backend ?? {};
+const pin = config.pin;
+const CALL_MS = (config.timeoutSeconds ?? 180) * 1000;
+const LIST_MS = backend.type === "stdio" ? 20000 : 3000;
 
 function gitOut(args, cwd = process.cwd()) {
   try {
@@ -48,37 +23,113 @@ const root = gitOut(["rev-parse", "--show-toplevel"])?.trim() || process.cwd();
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const text = (value, isError = false) => ({ content: [{ type: "text", text: value }], isError });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const replyText = (result) => (result?.content ?? []).map((part) => part.text ?? "").join("\n");
+const failed = (pattern, result) => Boolean(pattern && result?.isError) && new RegExp(pattern, "i").test(replyText(result));
+const pinned = (args = {}, path = root) => (pin ? { ...args, [pin]: path } : { ...args });
 
-function excludeIdeFiles() {
+function withRoot(value, path) {
+  if (typeof value === "string") return value.replaceAll("{root}", path);
+  if (Array.isArray(value)) return value.map((item) => withRoot(item, path));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withRoot(item, path)]));
+  return value;
+}
+
+function excludeFromGit() {
+  const patterns = config.gitExclude ?? [];
+  if (patterns.length === 0) return;
   try {
     const common = gitOut(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)?.trim();
     if (!common) return;
     const file = join(common, "info", "exclude");
     const current = existsSync(file) ? readFileSync(file, "utf-8") : "";
-    if (current.split(/\r?\n/).includes(".idea/")) return;
+    const missing = patterns.filter((pattern) => !current.split(/\r?\n/).includes(pattern));
+    if (missing.length === 0) return;
     mkdirSync(join(common, "info"), { recursive: true });
-    appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}.idea/\n`);
+    appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}${missing.join("\n")}\n`);
   } catch {}
 }
 
-let rpcId = 0;
-async function ide(name, args, timeoutMs = 120000) {
-  const listing = name === "tools/list";
-  const response = await fetch(ideUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: listing ? "tools/list" : "tools/call", params: listing ? {} : { name, arguments: args } }),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  const body = await response.text();
-  const parsed = JSON.parse(body.slice(body.indexOf("{"), body.lastIndexOf("}") + 1));
-  if (parsed.error) throw new Error(parsed.error.message ?? "IDE error");
-  return parsed.result;
+function backendError(error) {
+  const problem = new Error(error?.message ?? "server error");
+  if (error?.timeout) problem.name = "TimeoutError";
+  return problem;
 }
 
-const firstText = (result) => (result?.content ?? []).map((part) => part.text ?? "").join("\n");
+function httpBackend(url) {
+  let id = 0;
+  return async (method, params, timeoutMs) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const body = await response.text();
+    const parsed = JSON.parse(body.slice(body.indexOf("{"), body.lastIndexOf("}") + 1));
+    if (parsed.error) throw backendError(parsed.error);
+    return parsed.result;
+  };
+}
+
+function stdioBackend(command = []) {
+  let client;
+  const start = () => {
+    const [bin, ...args] = command;
+    const child = spawn(bin, args, { cwd: root, stdio: ["pipe", "pipe", "ignore"] });
+    const waiting = new Map();
+    let next = 0;
+    createInterface({ input: child.stdout }).on("line", (line) => {
+      try {
+        const message = JSON.parse(line);
+        const done = waiting.get(message.id);
+        if (done) {
+          waiting.delete(message.id);
+          done(message);
+        }
+      } catch {}
+    });
+    const stop = (error) => {
+      for (const done of waiting.values()) done({ error });
+      waiting.clear();
+      client = undefined;
+    };
+    child.on("exit", () => stop({ message: "stopped" }));
+    child.on("error", (error) => stop({ message: error.message }));
+    const request = (method, params, timeoutMs) =>
+      new Promise((resolve) => {
+        const id = ++next;
+        const timer = setTimeout(() => {
+          waiting.delete(id);
+          resolve({ error: { message: "no answer in time", timeout: true } });
+        }, timeoutMs);
+        waiting.set(id, (message) => {
+          clearTimeout(timer);
+          resolve(message);
+        });
+        child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+      });
+    const ready = request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-code", version: "2.0.0" } }, CALL_MS).then((reply) => {
+      if (!reply.error) child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
+      return reply;
+    });
+    return { request, ready };
+  };
+  return async (method, params, timeoutMs) => {
+    if (!command[0]) throw new Error("no command is set");
+    client ??= start();
+    const started = await client.ready;
+    if (started.error) throw backendError(started.error);
+    const reply = await client.request(method, params, timeoutMs);
+    if (reply.error) throw backendError(reply.error);
+    return reply.result;
+  };
+}
+
+const rpc = backend.type === "stdio" ? stdioBackend(backend.command) : httpBackend(backend.url);
+const tool = (name, args, timeoutMs = CALL_MS) => rpc("tools/call", { name, arguments: args }, timeoutMs);
 
 function withoutKey(schema, key) {
+  if (!key) return schema;
   const properties = { ...(schema?.properties ?? {}) };
   delete properties[key];
   const required = (schema?.required ?? []).filter((name) => name !== key);
@@ -88,53 +139,59 @@ function withoutKey(schema, key) {
   return next;
 }
 
-async function ideTools() {
-  const wanted = [...allowed].filter((name) => name.startsWith("ide_"));
-  if (wanted.length === 0 || !ideUrl) return [];
+async function listTools() {
+  const wanted = [...allowed];
+  if (wanted.length === 0) return [];
+  const describe = (name, fallback) => config.descriptions?.[name] ?? fallback;
   try {
-    const listed = await ide("tools/list", {}, 3000);
-    const byName = new Map(listed.tools.map((tool) => [tool.name, tool]));
+    const listed = await rpc("tools/list", {}, LIST_MS);
+    const byName = new Map((listed?.tools ?? []).map((entry) => [entry.name, entry]));
     return wanted.map((name) => {
-      const tool = byName.get(name);
-      if (!tool) return { name, description: "Switched off in the IDE right now; calls fail until it is switched on.", inputSchema: { type: "object", properties: {} } };
-      return { name, description: tool.description, inputSchema: withoutKey(tool.inputSchema, "project_path") };
+      const found = byName.get(name);
+      if (!found) return { name, description: `Switched off in ${label} right now; calls fail until it is switched on.`, inputSchema: { type: "object", properties: {} } };
+      return { name, description: describe(name, found.description), inputSchema: withoutKey(found.inputSchema, pin) };
     });
   } catch {
-    return wanted.map((name) => ({ name, description: "IDE code intelligence for this working copy. The IDE was not reachable when this session started; calls fail until it runs.", inputSchema: { type: "object", properties: {}, additionalProperties: true } }));
+    const note = `${label} was not reachable when this session started; calls fail until it runs.`;
+    return wanted.map((name) => ({ name, description: describe(name, note), inputSchema: { type: "object", properties: {}, additionalProperties: true } }));
   }
 }
 
-const notOpen = (result) => result?.isError && /project_not_found|No open project matches/.test(firstText(result));
-const indexing = (result) => result?.isError && /dumb mode|index is not ready/i.test(firstText(result));
-const brokenPlugin = (result) => result?.isError && /CannotStartProcessException|ProcessNotCreatedException|lsp4ij/.test(firstText(result));
-const switchedOff = (result) => result?.isError && /^Tool \S+ not found/.test(firstText(result));
+function explain(result, name) {
+  const match = (config.errors ?? []).find((entry) => failed(entry.when, result));
+  return match ? text(match.reply.replaceAll("{tool}", name), true) : undefined;
+}
 
-function routeHint(value) {
+function routeOf(result, route) {
+  const body = replyText(result);
+  if (!route || !new RegExp(route.when, "i").test(body)) return undefined;
   try {
-    const parsed = JSON.parse(value);
-    return parsed.error === "multiple_projects_open" ? parsed.available_projects?.find((project) => project.path)?.path : undefined;
+    const list = JSON.parse(body)?.[route.from];
+    return Array.isArray(list) ? list.find((item) => typeof item?.[route.field] === "string")?.[route.field] : undefined;
   } catch {
     return undefined;
   }
 }
 
 async function openHere() {
-  excludeIdeFiles();
-  const args = { path: root, timeoutSeconds: OPEN_SECONDS };
-  let opened = await ide("ide_open_project", args, (OPEN_SECONDS + 30) * 1000);
-  const route = routeHint(firstText(opened));
-  if (route) opened = await ide("ide_open_project", { ...args, project_path: route }, (OPEN_SECONDS + 30) * 1000);
-  if (!opened?.isError) return "";
-  const why = firstText(opened);
-  return /not found/i.test(why) ? "the IDE can't open projects by path (ide_open_project is switched off in the IDE)" : why;
+  const hook = config.open;
+  excludeFromGit();
+  const args = withRoot(hook.args ?? pinned(), root);
+  const timeoutMs = (hook.timeoutSeconds ?? 330) * 1000;
+  let opened = await tool(hook.tool, args, timeoutMs);
+  const route = routeOf(opened, hook.route);
+  if (route) opened = await tool(hook.tool, pinned(args, route), timeoutMs);
+  if (!opened?.isError) return undefined;
+  return explain(opened, hook.tool) ?? text(`${label} could not open this working copy (${root}): ${replyText(opened)} Use the other tools and the shell instead.`, true);
 }
 
-async function waitForIndex() {
-  const until = Date.now() + INDEX_WAIT_MS;
+async function waitReady() {
+  const hook = config.wait;
+  const until = Date.now() + (hook.seconds ?? 180) * 1000;
   while (Date.now() < until) {
-    await sleep(INDEX_POLL_MS);
-    const status = await ide("ide_index_status", { project_path: root }).catch(() => undefined);
-    if (status && !status.isError && !/"isDumbMode"\s*:\s*true/.test(firstText(status))) return true;
+    await sleep((hook.pollSeconds ?? 5) * 1000);
+    const status = await tool(hook.tool, withRoot(hook.args ?? pinned(), root)).catch(() => undefined);
+    if (status && !status.isError && !(hook.busy && new RegExp(hook.busy, "i").test(replyText(status)))) return true;
   }
   return false;
 }
@@ -154,99 +211,40 @@ function statusPaths(porcelain) {
 let seenHead;
 let seenStatus;
 async function syncChanges() {
+  const hook = config.sync;
+  if (!hook) return;
   const head = gitOut(["rev-parse", "HEAD"], root)?.trim() ?? "";
   const status = gitOut(["status", "--porcelain", "-z", "--untracked-files=all"], root) ?? "";
   const firstCall = seenHead === undefined;
   if (!firstCall && head === seenHead && status === seenStatus) return;
   const changed = new Set([...statusPaths(status), ...(firstCall ? [] : statusPaths(seenStatus))]);
-  const whole = (!firstCall && head !== seenHead) || changed.size > MAX_SYNC_PATHS;
+  const whole = (!firstCall && head !== seenHead) || changed.size > (hook.maxPaths ?? 100) || (!hook.paths && changed.size > 0);
   seenHead = head;
   seenStatus = status;
   if (!whole && changed.size === 0) return;
-  const args = whole ? { project_path: root } : { project_path: root, paths: [...changed] };
-  const result = await ide("ide_sync_files", args).catch(() => undefined);
-  if (!whole && result?.isError) await ide("ide_sync_files", { project_path: root }).catch(() => undefined);
+  const result = await tool(hook.tool, whole ? pinned() : pinned({ [hook.paths]: [...changed] })).catch(() => undefined);
+  if (!whole && result?.isError) await tool(hook.tool, pinned()).catch(() => undefined);
 }
 
-async function callIde(name, args) {
-  if (!ideUrl) return text("No IDE is configured for this team; use search and the shell.", true);
-  const request = { ...(args ?? {}), project_path: root };
+async function callTool(name, args) {
+  const request = pinned(args ?? {});
   try {
     await syncChanges();
-    let result = await ide(name, request);
-    if (notOpen(result)) {
+    let result = await tool(name, request);
+    if (config.open && failed(config.open.when, result)) {
       const problem = await openHere();
-      if (problem) return text(`The IDE has not opened this working copy (${root}) and ${problem}. Use search and the shell instead.`, true);
-      result = await ide(name, request);
+      if (problem) return problem;
+      result = await tool(name, request);
     }
-    if (indexing(result)) {
-      if (!(await waitForIndex())) return text("The IDE is still indexing this working copy. Use search and the shell meanwhile, and try again in a few minutes.", true);
-      result = await ide(name, request);
+    if (config.wait && failed(config.wait.when, result)) {
+      if (!(await waitReady())) return text(`${label} is still preparing this working copy. Use the other tools and the shell meanwhile, and try again in a few minutes.`, true);
+      result = await tool(name, request);
     }
-    if (brokenPlugin(result)) return text(`The IDE could not run ${name} because a language server plugin inside the IDE failed to start. Use the other intellij-index tools, and the build or tests for errors.`, true);
-    if (switchedOff(result)) return text(`The IDE has ${name} switched off. Use the other code tools or the shell instead.`, true);
-    return result;
+    return explain(result, name) ?? result;
   } catch (error) {
     const reason = error?.name === "TimeoutError" ? "did not answer in time" : "is not reachable";
-    return text(`The IDE ${reason}. Use search and the shell instead.`, true);
+    return text(`${label} ${reason}. Use the other tools and the shell instead.`, true);
   }
-}
-
-let semble;
-function sembleClient() {
-  if (semble) return semble;
-  const [command, ...args] = sembleCommand;
-  if (!command) return undefined;
-  const child = spawn(command, args, { cwd: root, stdio: ["pipe", "pipe", "ignore"] });
-  const waiting = new Map();
-  let next = 0;
-  createInterface({ input: child.stdout }).on("line", (line) => {
-    try {
-      const message = JSON.parse(line);
-      const done = waiting.get(message.id);
-      if (done) {
-        waiting.delete(message.id);
-        done(message);
-      }
-    } catch {}
-  });
-  const failAll = () => {
-    for (const done of waiting.values()) done({ error: { message: "semble stopped" } });
-    waiting.clear();
-    semble = undefined;
-  };
-  child.on("exit", failAll);
-  child.on("error", failAll);
-  const request = (method, params, timeoutMs = 180000) =>
-    new Promise((resolve) => {
-      const id = ++next;
-      const timer = setTimeout(() => {
-        waiting.delete(id);
-        resolve({ error: { message: "semble did not answer in time" } });
-      }, timeoutMs);
-      waiting.set(id, (message) => {
-        clearTimeout(timer);
-        resolve(message);
-      });
-      child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
-    });
-  const ready = request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-code", version: "2.0.0" } }).then((reply) => {
-    child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
-    return reply;
-  });
-  semble = { request, ready };
-  return semble;
-}
-
-async function callSemble(name, args) {
-  const client = sembleClient();
-  if (!client) return text("Code search is not configured for this team; use the shell.", true);
-  const started = await client.ready;
-  if (started.error) return text(`Code search could not start: ${started.error.message}. Use the shell.`, true);
-  const request = { ...(args ?? {}), repo: root };
-  const reply = await client.request("tools/call", { name, arguments: request });
-  if (reply.error) return text(`Code search failed: ${reply.error.message}. Use the shell.`, true);
-  return reply.result;
 }
 
 createInterface({ input: process.stdin }).on("line", async (line) => {
@@ -264,21 +262,19 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
       result: {
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: serverName, version: "2.0.0" },
+        serverInfo: { name: config.name ?? "code", version: "2.0.0" },
         instructions: config.instructions ?? "",
       },
     });
   } else if (method === "tools/list") {
-    const tools = [...SEMBLE_TOOLS.filter((tool) => allowed.has(tool.name)), ...(await ideTools())];
-    send({ jsonrpc: "2.0", id, result: { tools } });
+    send({ jsonrpc: "2.0", id, result: { tools: await listTools() } });
   } else if (method === "tools/call") {
     const name = params?.name;
     if (!allowed.has(name)) {
       send({ jsonrpc: "2.0", id, result: text(`Unknown tool ${name}.`, true) });
       return;
     }
-    const result = name.startsWith("ide_") ? await callIde(name, params?.arguments) : await callSemble(name, params?.arguments);
-    send({ jsonrpc: "2.0", id, result });
+    send({ jsonrpc: "2.0", id, result: await callTool(name, params?.arguments) });
   } else if (method === "ping") {
     send({ jsonrpc: "2.0", id, result: {} });
   } else if (id !== undefined && id !== null) {

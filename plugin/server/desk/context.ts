@@ -20,7 +20,9 @@ export const no = (text: string): ToolReply => ({ ok: false, text });
 export const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 export const hash = (...parts: string[]): string => createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
 
-export type IdeClient = {
+export type CodeIndex = {
+  id: string;
+  gitExclude: string[];
   open(path: string): Promise<{ ok: boolean; text: string }>;
   sync(path: string): Promise<{ ok: boolean; text: string }>;
 };
@@ -32,7 +34,7 @@ export type DeskDeps = {
   outbox: Mailer;
   log: (project: Project, line: string) => void;
   teamFor: (project?: Project) => Team;
-  ideFor: (project: Project) => IdeClient | null;
+  indexesFor: (project: Project) => CodeIndex[];
 };
 
 export class DeskContext {
@@ -51,8 +53,8 @@ export class DeskContext {
     return this.deps.teamFor(project);
   }
 
-  ide(project: Project): IdeClient | null {
-    return this.deps.ideFor(project);
+  indexes(project: Project): CodeIndex[] {
+    return this.deps.indexesFor(project);
   }
 
   log(project: Project, line: string): void {

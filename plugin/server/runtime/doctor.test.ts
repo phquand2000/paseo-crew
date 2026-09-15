@@ -35,5 +35,5 @@ test("doctor passes a machine that has everything, and skips servers nobody uses
   assert.ok(checks.every((check) => check.ok), JSON.stringify(checks));
   assert.equal(checks.some((check) => check.id === "mcp:docs"), false);
   const down = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], null));
-  assert.match(down.find((check) => check.id === "mcp:ide")!.detail, /No IDE answered/);
+  assert.match(down.find((check) => check.id === "mcp:ide")!.detail, /No IDE server answered/);
 });

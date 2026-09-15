@@ -95,7 +95,7 @@ const ide = {
 function harness(outbox: string) {
   const { root, git } = repo();
   const { paseo, agents, add, workspaces } = fakePaseo();
-  const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), ideClient: () => ide, reloadDaemon: async () => true });
+  const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>) =>

@@ -40,7 +40,8 @@ test("the project layer overrides the machine layer, and switching harness drops
   assert.deepEqual(leadServers.docs, { type: "http", url: "https://docs.example/mcp" });
   const peerServers = serversFor(kit, team, "peer", context) as Record<string, any>;
   const proxy = JSON.parse(peerServers.ide.args[1]);
-  assert.equal(proxy.ide, "http://127.0.0.1:1234/mcp");
+  assert.equal(proxy.backend.url, "http://127.0.0.1:1234/mcp");
+  assert.equal(proxy.open.args.path, "{root}");
   assert.deepEqual(proxy.tools, ["ide_find_references", "ide_refactor_rename"]);
   assert.equal(proxy.instructions, "Prefer the IDE tools.");
 });

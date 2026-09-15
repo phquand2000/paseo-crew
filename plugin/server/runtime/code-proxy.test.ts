@@ -7,9 +7,11 @@ import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { ideClient } from "./ide.ts";
+import { codeIndex } from "./code-index.ts";
 
-const PROXY = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "code.mjs");
+const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const PROXY = join(PLUGIN, "mcp", "code.mjs");
+const entry = (id: string) => JSON.parse(readFileSync(join(PLUGIN, "catalog", "mcp", id, "mcp.json"), "utf-8"));
 
 type Call = { name: string; args: Record<string, unknown> };
 
@@ -66,10 +68,14 @@ function fakeSemble(): string {
   writeFileSync(
     file,
     `import { createInterface } from "node:readline";
+const tools = [
+  { name: "search", description: "semble search", inputSchema: { type: "object", properties: { query: { type: "string" }, repo: { type: "string" } }, required: ["query", "repo"] } },
+  { name: "find_related", description: "related", inputSchema: { type: "object", properties: {} } },
+];
 createInterface({ input: process.stdin }).on("line", (line) => {
   const m = JSON.parse(line);
   if (m.id === undefined) return;
-  const result = m.method === "tools/call" ? { content: [{ type: "text", text: JSON.stringify(m.params.arguments) }] } : {};
+  const result = m.method === "tools/call" ? { content: [{ type: "text", text: JSON.stringify(m.params.arguments) }] } : m.method === "tools/list" ? { tools } : {};
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: m.id, result }) + "\\n");
 });
 `,
@@ -77,9 +83,13 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   return file;
 }
 
+function ideConfig(url: string, tools: string[]) {
+  const { label, instructions, proxy } = entry("intellij-index");
+  return { name: "intellij-index", label, instructions, tools, ...proxy, backend: { type: "http", url }, wait: { ...proxy.wait, seconds: 2, pollSeconds: 0.01 } };
+}
+
 function proxy(cwd: string, config: object) {
-  const env = { ...process.env, SEATWORKS_IDE_INDEX_POLL_MS: "10", SEATWORKS_IDE_INDEX_WAIT_MS: "2000" };
-  const child = spawn(process.execPath, [PROXY, JSON.stringify(config)], { cwd, env, stdio: ["pipe", "pipe", "inherit"] });
+  const child = spawn(process.execPath, [PROXY, JSON.stringify(config)], { cwd, stdio: ["pipe", "pipe", "inherit"] });
   const waiting = new Map<number, (value: any) => void>();
   createInterface({ input: child.stdout }).on("line", (line) => {
     const message = JSON.parse(line);
@@ -99,11 +109,11 @@ const work = (calls: Call[]) => calls.filter((call) => !["ide_sync_files", "ide_
 
 test("the IDE server carries the navigation rule, lists only the role's tools and hides the project argument", async () => {
   const ide = await fakeIde({ openEnabled: true });
-  const code = proxy(repo(), { name: "intellij-index", instructions: "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring.", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(repo(), ideConfig(ide.url, ["ide_find_references"]));
   try {
     const started = await code.rpc("initialize", { protocolVersion: "2025-06-18" });
     assert.equal(started.result.serverInfo.name, "intellij-index");
-    assert.match(started.result.instructions, /IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring\./);
+    assert.match(started.result.instructions, /prefer using intellij-index MCP tools for code navigation and refactoring/);
     const listed = await code.rpc("tools/list");
     assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["ide_find_references"]);
     assert.equal(listed.result.tools[0].inputSchema.properties.project_path, undefined);
@@ -119,7 +129,7 @@ test("the IDE server carries the navigation rule, lists only the role's tools an
 test("an IDE call is pinned to the working copy, opens it on first use, and reports a switched-off tool", async () => {
   const ide = await fakeIde({ openEnabled: true });
   const cwd = repo();
-  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references", "ide_find_symbol", "ide_diagnostics"] });
+  const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references", "ide_find_symbol", "ide_diagnostics"]));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: { file: "a.ts", project_path: "/somewhere/else" } });
     assert.equal(reply.result.isError, false);
@@ -141,7 +151,7 @@ test("an IDE call is pinned to the working copy, opens it on first use, and repo
 test("a call made while the IDE indexes waits for the index and is retried", async () => {
   const ide = await fakeIde({ openEnabled: true, dumbCalls: 1 });
   const cwd = repo();
-  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
     assert.equal(reply.result.isError, false, reply.result.content[0].text);
@@ -155,7 +165,7 @@ test("a call made while the IDE indexes waits for the index and is retried", asy
 test("files changed outside the IDE are synced before the next call, and nothing is synced when nothing changed", async () => {
   const ide = await fakeIde({ openEnabled: true });
   const cwd = repo();
-  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
   const syncs = () => ide.calls.filter((call) => call.name === "ide_sync_files");
   try {
     await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
@@ -171,13 +181,13 @@ test("files changed outside the IDE are synced before the next call, and nothing
   }
 });
 
-test("when the IDE can't open the working copy the agent is told to use search and the shell", async () => {
+test("when the IDE can't open the working copy the agent is told the open tool is switched off", async () => {
   const ide = await fakeIde({ openEnabled: false });
-  const code = proxy(repo(), { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(repo(), ideConfig(ide.url, ["ide_find_references"]));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
     assert.equal(reply.result.isError, true);
-    assert.match(reply.result.content[0].text, /switched off in the IDE.*search and the shell/);
+    assert.match(reply.result.content[0].text, /ide_open_project switched off/);
   } finally {
     code.stop();
     ide.close();
@@ -185,7 +195,7 @@ test("when the IDE can't open the working copy the agent is told to use search a
 });
 
 test("an unreachable IDE fails the call with a way forward", async () => {
-  const code = proxy(repo(), { name: "intellij-index", ide: "http://127.0.0.1:9/mcp", semble: [], tools: ["ide_find_references"] });
+  const code = proxy(repo(), ideConfig("http://127.0.0.1:9/mcp", ["ide_find_references"]));
   try {
     const listed = await code.rpc("tools/list");
     assert.equal(listed.result.tools.length, 1);
@@ -197,12 +207,16 @@ test("an unreachable IDE fails the call with a way forward", async () => {
   }
 });
 
-test("code search runs against the working copy", async () => {
+test("code search lists the backend's tool with the catalog's description, hides the pinned argument and runs against the working copy", async () => {
   const cwd = repo();
-  const code = proxy(cwd, { name: "code-search", ide: "", semble: [process.execPath, fakeSemble()], tools: ["search"] });
+  const { label, instructions, proxy: spec } = entry("code-search");
+  const code = proxy(cwd, { name: "code-search", label, instructions, tools: ["search"], ...spec, backend: { type: "stdio", command: [process.execPath, fakeSemble()] } });
   try {
     const listed = await code.rpc("tools/list");
     assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["search"]);
+    assert.equal(listed.result.tools[0].description, spec.descriptions.search);
+    assert.deepEqual(listed.result.tools[0].inputSchema.required, ["query"]);
+    assert.equal(listed.result.tools[0].inputSchema.properties.repo, undefined);
     const reply = await code.rpc("tools/call", { name: "search", arguments: { query: "retry a failed payment", repo: "/elsewhere" } });
     assert.deepEqual(JSON.parse(reply.result.content[0].text), { query: "retry a failed payment", repo: cwd });
   } finally {
@@ -213,7 +227,7 @@ test("code search runs against the working copy", async () => {
 test("opening a working copy while other projects are open is routed through one of them", async () => {
   const ide = await fakeIde({ openEnabled: true, routeRequired: true });
   const cwd = repo();
-  const code = proxy(cwd, { name: "intellij-index", ide: ide.url, semble: [], tools: ["ide_find_references"] });
+  const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
     assert.equal(reply.result.isError, false, reply.result.content[0].text);
@@ -229,7 +243,8 @@ test("opening a working copy while other projects are open is routed through one
 test("the desk opens a slot through an open project when the IDE asks for one", async () => {
   const ide = await fakeIde({ openEnabled: true, routeRequired: true });
   try {
-    const result = await ideClient(ide.url).open("/slots/S1");
+    const { label, proxy: spec } = entry("intellij-index");
+    const result = await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).open("/slots/S1");
     assert.equal(result.ok, true, result.text);
     assert.deepEqual(ide.calls.map((call) => [call.args.path, call.args.project_path]), [["/slots/S1", undefined], ["/slots/S1", "/already/open"]]);
   } finally {

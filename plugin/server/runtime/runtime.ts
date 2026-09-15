@@ -6,15 +6,16 @@ import { type Kit, headlessRole, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
-import { type Team, ideUrl } from "../catalog/team.ts";
+import { type IndexedProxy, type Team, indexedProxies } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
 import type { PaseoApi } from "../core/paseo.ts";
+import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { loadLedger, openAsksTo } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
-import { type Ide, ideClient } from "./ide.ts";
+import { codeIndex } from "./code-index.ts";
 import { type Letter, Outbox } from "./outbox.ts";
 import { Patrol } from "./patrol.ts";
 import { registerRpc } from "./rpc.ts";
@@ -26,7 +27,7 @@ import { WatchQueue } from "./watch-queue.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
-export type RuntimeOptions = { outboxFile?: string; ideClient?: (url: string) => Ide | null; reloadDaemon?: () => Promise<boolean> };
+export type RuntimeOptions = { outboxFile?: string; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
 
 export class Runtime {
   readonly kit: Kit;
@@ -39,14 +40,14 @@ export class Runtime {
   private readonly turns: TurnRules;
   private readonly watches: WatchQueue;
   private readonly patrol: Patrol;
-  private readonly makeIde: (url: string) => Ide | null;
+  private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
   private api: PaseoApi | undefined;
   private timers: ReturnType<typeof setInterval>[] = [];
 
   constructor(kit: Kit, options: RuntimeOptions = {}) {
     this.kit = kit;
-    this.makeIde = options.ideClient ?? ((url) => ideClient(url));
+    this.makeIndex = options.codeIndex ?? codeIndex;
     this.reload = options.reloadDaemon ?? reloadDaemon;
     this.source = new TeamSource(kit);
     this.seating = new Seating(kit, this.source, { node: nodeBin(), spool: this.spool });
@@ -54,7 +55,7 @@ export class Runtime {
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
     const api = () => this.api;
-    this.desk = new Desk(kit, this.outbox, log, (project) => this.source.teamFor(project), (project) => this.ideFor(project));
+    this.desk = new Desk(kit, this.outbox, log, (project) => this.source.teamFor(project), (project) => this.indexesFor(project));
     this.watches = new WatchQueue({ kit, source: this.source, seating: this.seating, desk: this.desk, log, api });
     this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.watches.add(item) });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, outbox: this.outbox, turns: this.turns, remember });
@@ -163,9 +164,8 @@ export class Runtime {
     this.source.record(project);
   }
 
-  private ideFor(project: Project): Ide | null {
-    const url = ideUrl(this.source.teamFor(project));
-    return url ? this.makeIde(url) : null;
+  private indexesFor(project: Project): CodeIndex[] {
+    return indexedProxies(this.source.teamFor(project)).map((proxy) => this.makeIndex(proxy));
   }
 
   private reconcileProviders(team: Team): void {

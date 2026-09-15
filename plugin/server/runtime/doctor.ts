@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { postJsonRpc } from "../core/jsonrpc.ts";
-import type { Kit } from "../catalog/kit.ts";
-import { type Team, proxyUrl } from "../catalog/team.ts";
+import { type Kit, hookTools } from "../catalog/kit.ts";
+import { type Team, proxyOf } from "../catalog/team.ts";
 
 export type Check = { id: string; ok: boolean; detail: string };
 
@@ -41,24 +41,26 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
     const { entry } = state;
     const users = Object.values(team.roles).filter((seat) => seat.mcp.includes(entry.id));
     if (users.length === 0) continue;
-    if (entry.kind === "proxy" && entry.proxy === "semble") {
-      const bin = entry.command?.[0] ?? "";
+    const proxy = proxyOf(state);
+    const help = entry.help ? ` ${entry.help}` : "";
+    if (proxy?.backend.type === "stdio") {
+      const bin = proxy.backend.command[0] ?? "";
       const ok = Boolean(bin) && probes.has(bin);
-      checks.push({ id: `mcp:${entry.id}`, ok, detail: ok ? `${entry.label} starts through ${bin}.` : `${entry.label} needs \`${bin}\` on PATH.` });
-    } else if (entry.kind === "proxy" && entry.proxy === "intellij") {
-      const url = proxyUrl(state);
+      checks.push({ id: `mcp:${entry.id}`, ok, detail: ok ? `${entry.label} starts through ${bin}.` : `${entry.label} needs \`${bin}\` on PATH.${help}` });
+    } else if (proxy?.backend.type === "http") {
+      const { url } = proxy.backend;
       const listed = await probes.post(url, { jsonrpc: "2.0", id: 1, method: "tools/list" }, 3000);
       if (!listed.ok || !Array.isArray(listed.json?.result?.tools)) {
-        checks.push({ id: `mcp:${entry.id}`, ok: false, detail: `No IDE answered at ${url}. Open the IDE with the Index MCP Server plugin, or change the port.` });
+        checks.push({ id: `mcp:${entry.id}`, ok: false, detail: `No ${entry.label} server answered at ${url}.${help}` });
         continue;
       }
       const exposed = new Set<string>(listed.json.result.tools.map((tool: { name: string }) => tool.name));
-      const needed = new Set<string>([...(entry.internalTools ?? []), ...users.flatMap((seat) => entry.tools?.[seat.role.role] ?? [])]);
+      const needed = new Set<string>([...hookTools(proxy), ...users.flatMap((seat) => entry.tools?.[seat.role.role] ?? [])]);
       const missing = [...needed].filter((tool) => !exposed.has(tool)).sort();
       checks.push({
         id: `mcp:${entry.id}`,
         ok: missing.length === 0,
-        detail: missing.length === 0 ? `The IDE at ${url} exposes every tool the team uses.` : `Switch these tools on in the IDE's Index MCP Server settings: ${missing.join(", ")}.`,
+        detail: missing.length === 0 ? `${entry.label} at ${url} exposes every tool the team uses.` : `${entry.label} at ${url} doesn't expose ${missing.join(", ")}.${help}`,
       });
     } else if (entry.server?.type === "http" && typeof entry.server.url === "string") {
       const answered = await probes.post(String(entry.server.url), { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-doctor", version: "2" } } }, 8000);

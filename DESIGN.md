@@ -132,8 +132,9 @@ catalog in two layers, machine then project, each validated before it is saved.
   or a JSON file) and over which transports, whether it must list a server's tools before calling,
   its models and its headless command. Moving a role to another harness is a setting; adding a
   harness is a directory.
-- An MCP entry says what the server is (a proxied IDE or search backend, or a plain stdio/http
-  server), its settings with defaults, which roles it serves and with which tools, its rule and its
+- An MCP entry says what the server is (a plain stdio/http server, or a backend the proxy pins to
+  each seat's working copy: its http or stdio backend, pinned argument, the tools that open, wait for
+  and sync a working copy, error guidance and tool descriptions), its settings with defaults, which roles it serves and with which tools, its rule and its
   skills. Rules and tool lists are generated per seat from the enabled entries, so role prompts
   never name a tool that may be switched off.
 - Every role gets a provider per harness that has settings for it (`sw2-<role>-<harness>`), so one

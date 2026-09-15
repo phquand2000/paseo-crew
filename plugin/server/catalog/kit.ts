@@ -42,6 +42,21 @@ export type HarnessSpec = {
   headless?: string[];
 };
 
+export type ProxyBackend = { type: "http"; url: string } | { type: "stdio"; command: string[] };
+export type ProxyHook = { tool: string; args?: Record<string, unknown>; when?: string; timeoutSeconds?: number };
+
+export type ProxySpec = {
+  backend: ProxyBackend;
+  pin?: string;
+  gitExclude?: string[];
+  open?: ProxyHook & { route?: { when: string; from: string; field: string } };
+  wait?: ProxyHook & { busy?: string; seconds?: number; pollSeconds?: number };
+  sync?: { tool: string; paths?: string; maxPaths?: number };
+  errors?: { when: string; reply: string }[];
+  descriptions?: Record<string, string>;
+  timeoutSeconds?: number;
+};
+
 export type McpSetting = { type: "number" | "string" | "boolean"; label: string; default?: string | number | boolean };
 
 export type McpEntry = {
@@ -51,19 +66,17 @@ export type McpEntry = {
   order?: number;
   dir: string;
   kind: "proxy" | "server";
-  proxy?: "intellij" | "semble";
-  url?: string;
-  command?: string[];
+  proxy?: ProxySpec;
   instructions?: string;
   server?: Record<string, unknown> & { type: McpTransport };
   settings: Record<string, McpSetting>;
   defaults: { enabled: boolean };
   tools?: Record<string, string[]>;
   roles?: string[];
-  internalTools?: string[];
   rule?: string;
   roleNotes?: Record<string, string>;
   skills?: string[];
+  help?: string;
 };
 
 export type Attention = {
@@ -105,7 +118,10 @@ function loadMcp(dir: string): Record<string, McpEntry> {
     if (!existsSync(file)) continue;
     const raw = JSON.parse(readFileSync(file, "utf-8")) as Omit<McpEntry, "dir">;
     if (raw.id !== id) throw new Error(`catalog/mcp/${id}/mcp.json names itself ${raw.id}`);
-    if (raw.kind === "proxy" && raw.proxy !== "intellij" && raw.proxy !== "semble") throw new Error(`MCP ${id} is a proxy with no known proxy kind`);
+    const backend = raw.kind === "proxy" ? raw.proxy?.backend : undefined;
+    if (raw.kind === "proxy" && !(backend?.type === "http" && backend.url) && !(backend?.type === "stdio" && backend.command?.length)) {
+      throw new Error(`MCP ${id} is a proxy with no http url or stdio command for its backend`);
+    }
     if (raw.kind === "server" && !raw.server?.type) throw new Error(`MCP ${id} is a server with no transport type`);
     if (raw.rule && !existsSync(join(root, id, raw.rule))) throw new Error(`MCP ${id} names rule ${raw.rule}, which is missing`);
     for (const skill of raw.skills ?? []) {
@@ -153,6 +169,10 @@ export function seatOf(kit: Kit, provider: string | null | undefined): { role: R
     }
   }
   return undefined;
+}
+
+export function hookTools(proxy: ProxySpec | undefined): string[] {
+  return [proxy?.open?.tool, proxy?.wait?.tool, proxy?.sync?.tool].filter((name): name is string => Boolean(name));
 }
 
 export function roleNamed(kit: Kit, name: string): RoleSpec | undefined {

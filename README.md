@@ -74,7 +74,7 @@ A web app manages them through the plugin's RPC, called with the Paseo client's
 | `seatworks.settings.write` | `project?`, `revision`, `values` | `saved`, `conflict` or `invalid` with the reason |
 | `seatworks.settings.reset` | `project?`, `revision` | as write |
 | `seatworks.team.read` | `project?` | each role's harness, provider, model, servers, tools, skills and rules, plus errors |
-| `seatworks.doctor.run` | `project?` | checks: agents, jq, git, IDE tools, reachable servers |
+| `seatworks.doctor.run` | `project?` | checks: agents, jq, git, proxied servers and their tools, reachable servers |
 | `seatworks.status.read` | `project` | the project's status text |
 
 A write that leaves a role without a working harness, model or server is refused with the reason.
