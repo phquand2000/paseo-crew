@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { renderPrompt, renderText, skillSources } from "./content.ts";
+import { type PromptPaths, renderPrompt, renderText, skillSources } from "./content.ts";
 import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
 import { readJson, sameJson } from "../core/store.ts";
@@ -125,78 +125,100 @@ function mcpState(harness: HarnessSpec, current: Json, servers: McpServers): Jso
   return next;
 }
 
-export function materialize(kit: Kit, team: Team, roleName: string, homeDir = home(), project?: SeatProject, servers: McpServers = {}): string[] {
-  const seat = team.roles[roleName];
-  if (!seat) throw new Error(`the team has no ${roleName} seat`);
-  const { role, harness } = seat;
-  const dir = seatDir(kit, role, harness, homeDir, project);
-  const changes: string[] = [];
-  const note = (changed: boolean, what: string) => {
-    if (changed) changes.push(what);
-  };
-  mkdirSync(dir, { recursive: true });
+type Recorder = { changes: string[]; note(changed: boolean, what: string): void; removed(what: string): void };
 
+function recorder(): Recorder {
+  const changes: string[] = [];
+  return {
+    changes,
+    note: (changed, what) => {
+      if (changed) changes.push(what);
+    },
+    removed: (what) => changes.push(`${what} removed`),
+  };
+}
+
+function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder): void {
   const harnessDir = join(kit.dir, "harness", harness.id);
   const settingsFile = join(dir, harness.settings.file);
   if (harness.settings.mode === "link") {
     const source = join(harnessDir, harness.settings.source.replace("ROLE", role.role));
     if (!existsSync(source)) throw new Error(`${role.role}: ${source} is missing`);
-    note(ensureLink(settingsFile, source), harness.settings.file);
-  } else {
-    const base = readJson<Json>(join(harnessDir, harness.settings.source), {});
-    const overlayFile = harness.settings.roleSource?.replace("ROLE", role.role);
-    const overlay = overlayFile ? readJson<Json>(join(harnessDir, overlayFile), {}) : {};
-    const kitValue = deepMerge(base, overlay) as Json;
-    const next = composeSettings(readJson<Json>(settingsFile, {}), kitValue, harness.settings.ownedPaths ?? []);
-    note(writeJsonIfChanged(settingsFile, next), harness.settings.file);
+    record.note(ensureLink(settingsFile, source), harness.settings.file);
+    return;
   }
+  const base = readJson<Json>(join(harnessDir, harness.settings.source), {});
+  const overlayFile = harness.settings.roleSource?.replace("ROLE", role.role);
+  const overlay = overlayFile ? readJson<Json>(join(harnessDir, overlayFile), {}) : {};
+  const next = composeSettings(readJson<Json>(settingsFile, {}), deepMerge(base, overlay) as Json, harness.settings.ownedPaths ?? []);
+  record.note(writeJsonIfChanged(settingsFile, next), harness.settings.file);
+}
 
+function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: Recorder): void {
   for (const link of harness.links ?? []) {
     const target = expandHome(link.target, homeDir);
     const path = join(dir, link.link);
-    if (existsSync(target)) note(ensureLink(path, target), link.link);
+    if (existsSync(target)) record.note(ensureLink(path, target), link.link);
     else if (link.optional && isLink(path)) {
       unlinkSync(path);
-      changes.push(`${link.link} removed`);
+      record.removed(link.link);
     }
   }
+}
 
-  const mcpFile = join(dir, harness.mcp.file);
-  const current = readJson<Json>(mcpFile, JSON.parse(harness.mcp.seed ?? "{}") as Json);
-  note(writeJsonIfChanged(mcpFile, mcpState(harness, current, servers)), harness.mcp.file);
+function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, record: Recorder): void {
+  const file = join(dir, harness.mcp.file);
+  const current = readJson<Json>(file, JSON.parse(harness.mcp.seed ?? "{}") as Json);
+  record.note(writeJsonIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
+}
 
-  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" };
+function removeIfPresent(path: string, what: string, record: Recorder): void {
+  if (!present(path)) return;
+  unlinkSync(path);
+  record.removed(what);
+}
+
+function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, paths: PromptPaths, record: Recorder): void {
+  const { role, harness } = team.roles[roleName]!;
   const rules = renderText(kit, role, rulesFor(team, roleName), paths);
   if (harness.systemPrompt === "file" && harness.promptFile) {
     const promptPath = join(dir, harness.promptFile);
-    if (role.headless) {
-      if (present(promptPath)) {
-        unlinkSync(promptPath);
-        changes.push(`${harness.promptFile} removed`);
-      }
-    } else {
-      const prompt = renderPrompt(kit, role, paths);
-      note(writeReal(promptPath, rules ? `${prompt.trimEnd()}\n\n${rules}` : prompt), harness.promptFile);
-    }
-  } else if (harness.contextFile) {
-    const contextPath = join(dir, harness.contextFile);
-    if (rules) note(writeReal(contextPath, rules), harness.contextFile);
-    else if (present(contextPath)) {
-      unlinkSync(contextPath);
-      changes.push(`${harness.contextFile} removed`);
-    }
+    if (role.headless) return removeIfPresent(promptPath, harness.promptFile, record);
+    const prompt = renderPrompt(kit, role, paths);
+    record.note(writeReal(promptPath, rules ? `${prompt.trimEnd()}\n\n${rules}` : prompt), harness.promptFile);
+    return;
   }
+  if (!harness.contextFile) return;
+  const contextPath = join(dir, harness.contextFile);
+  if (rules) record.note(writeReal(contextPath, rules), harness.contextFile);
+  else removeIfPresent(contextPath, harness.contextFile, record);
+}
 
+function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, record: Recorder): void {
+  const { role, harness } = team.roles[roleName]!;
   const skillsDir = join(dir, harness.skillsDir);
   mkdirSync(skillsDir, { recursive: true });
   const wanted = skillSources(kit, role, skillDirsFor(team, roleName));
-  for (const [name, source] of wanted) note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
+  for (const [name, source] of wanted) record.note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
   for (const name of readdirSync(skillsDir)) {
     const path = join(skillsDir, name);
     if (!wanted.has(name) && isLink(path)) {
       unlinkSync(path);
-      changes.push(`skill ${name} removed`);
+      record.removed(`skill ${name}`);
     }
   }
-  return changes;
+}
+
+export function materialize(kit: Kit, team: Team, roleName: string, homeDir = home(), project?: SeatProject, servers: McpServers = {}): string[] {
+  const seat = team.roles[roleName];
+  if (!seat) throw new Error(`the team has no ${roleName} seat`);
+  const dir = seatDir(kit, seat.role, seat.harness, homeDir, project);
+  const record = recorder();
+  mkdirSync(dir, { recursive: true });
+  writeRoleSettings(kit, seat.harness, seat.role, dir, record);
+  linkShared(seat.harness, dir, homeDir, record);
+  writeMcpFile(seat.harness, dir, servers, record);
+  writeInstructions(kit, team, roleName, dir, { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" }, record);
+  linkSkills(kit, team, roleName, dir, record);
+  return record.changes;
 }

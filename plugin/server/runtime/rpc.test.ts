@@ -15,7 +15,7 @@ function served() {
   const kit = makeKit();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, "outbox.json"), reloadDaemon: async () => true });
   const handlers = new Map<string, (input: any) => any>();
-  const names = registerRpc({ handle: (contract: { name: string; input: { parse(value: unknown): unknown } }, handler: (input: unknown) => unknown) => handlers.set(contract.name, (input) => handler(contract.input.parse(input))) }, runtime);
+  const names = registerRpc({ handle: (contract: { name: string; input: { parse(value: unknown): unknown } }, handler: (input: unknown) => unknown) => handlers.set(contract.name, (input) => handler(contract.input.parse(input))) }, runtime.control);
   const call = async (name: string, input: unknown = {}) => {
     const handler = handlers.get(name);
     assert.ok(handler, `no handler for ${name}`);
