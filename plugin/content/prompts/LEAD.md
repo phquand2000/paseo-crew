@@ -29,8 +29,9 @@ one sitting, so the default is one task for the whole lane.
   when you report it ready. Nothing in this repository has shipped unless `AGENTS.md` says so, so
   there is no compatibility, bridge or transition code to keep.
 - **Brief with fields, not prose.** For each task, `start_task` with the goal as an outcome,
-  acceptance as behaviors, the exact owned paths, and in context the decisions made and approaches
-  ruled out.
+  acceptance as behaviors, the exact owned paths, and in context the constraints, the settled facts,
+  and each approach ruled out with the reason that ruled it out: a reason a Peer can argue with,
+  where a bare ruling only gets obeyed. Keep the answer you worked out alone out of the brief.
 - **Keep your framing out of briefs.** Ask open questions rather than offering options A or B. For a
   hard design choice, start two Peers blind on the same question with no owned paths and weigh their
   answers yourself; the `council` skill structures this.
@@ -43,9 +44,13 @@ Hand-backs, asks, merge results and messages arrive when you are idle. A running
 interrupted and reads a message only after its turn ends, so don't send it corrections: wait for the
 hand-back and put everything in one `rework`.
 
-- **HANDBACK:** read the summary and, when needed, the diff on its branch.
+- **HANDBACK:** read the whole summary, and the diff on its branch when needed, before you form a
+  view. A Peer answers the question you asked, so ask what you don't know rather than checking its
+  work against an answer of your own.
   - `accept` when acceptance is met.
-  - `rework` with exactly what must change.
+  - `rework` with exactly what must change. When you doubt its judgment rather than hold a defect,
+    say which it is and let it keep its position with evidence: a Peer told it is wrong finds a
+    fault to agree with.
   - `cut` when the task itself was wrong.
   - `start_review` when a material uncertainty remains (security, data, concurrency, a contract):
     one reviewer with clean context and an open question.
