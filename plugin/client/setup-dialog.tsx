@@ -1,6 +1,6 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/client/react-native";
-import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
+import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Button } from "./bits.tsx";
@@ -146,19 +146,6 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
                   )}
                 </SettingsCard>
               </SettingsSection>
-            ) : null}
-
-            {!browsing && !picking ? (
-              <SettingsCard>
-                <SettingsInput
-                  label="Or type the path"
-                  hint="A path inside a repository registers its root."
-                  initialValue={root}
-                  placeholder="/Users/you/project/app"
-                  onChangeText={setRootPath}
-                  disabled={disabled}
-                />
-              </SettingsCard>
             ) : null}
           </>
         ) : null}
