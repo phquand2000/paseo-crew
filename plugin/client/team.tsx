@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsCard, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
 import { useState } from "react";
-import { Facts, Revert, sourceLabel } from "./bits.tsx";
+import { Revert, sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, RoleChoice, TeamView } from "./data.ts";
 import { clearRole, setRole, sourceOf } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
@@ -67,14 +67,6 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
             {revert("thinking")}
           </SettingsSelect>
         ) : null}
-        <Facts
-          theme={theme}
-          items={[
-            ...(role.headless ? [] : [{ label: "Profile", value: seat?.provider ?? "none" }]),
-            { label: "Servers", value: seat?.mcp.join(", ") || "none" },
-            { label: "Skills", value: String(seat?.skills.length ?? 0) },
-          ]}
-        />
       </SettingsCard>
     </SettingsSection>
   );

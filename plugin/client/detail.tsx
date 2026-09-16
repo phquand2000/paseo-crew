@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { TabBar } from "./tabs.tsx";
 
-export type DetailTab = "team" | "agents" | "servers" | "health";
+export type DetailTab = "team" | "flow" | "mcp" | "health";
 
 type Props = {
   title: string;
@@ -57,8 +57,8 @@ export function Detail({ title, subtitle, tab, theme, disabled, onBack, onTab, o
         onPick={(id) => onTab(id as DetailTab)}
         tabs={[
           { id: "team", label: "Team" },
-          { id: "agents", label: "Agents" },
-          { id: "servers", label: "Servers" },
+          { id: "flow", label: "Flow" },
+          { id: "mcp", label: "MCP" },
           { id: "health", label: "Health" },
         ]}
       />

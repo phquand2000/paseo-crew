@@ -1,6 +1,6 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { catalogRpc, doctorRpc, mcpParseRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
 export type Scalar = string | number | boolean;
 export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
@@ -29,6 +29,13 @@ export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, M
 export type ProjectRow = { slug: string; root: string };
 export type PaseoProject = { name: string; root: string };
 export type Check = { id: string; ok: boolean; detail: string };
+export type FlowSeat = { id: string; status: string; minutes: number; waiting: string[] };
+export type FlowTask = { id: string; title: string; status: string; kind: string; of: string | null; peer: FlowSeat | null; minutes: number; handback: number | null };
+export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[] };
+export type FlowAsk = { id: string; kind: string; from: string; fromRole: string; to: string; lane: string | null; task: string | null; minutes: number; text: string };
+export type FlowRole = { id: string; label: string; harness: string; model: string | null; headless: boolean; seats: FlowSeat[] };
+export type FlowView = { project: string; root: string; at: number; base: string | null; gate: string | null; roles: FlowRole[]; lanes: FlowLane[]; asks: FlowAsk[] };
+export type FlowResult = FlowView | { error: string };
 type SettingsRead = ({ status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string }) & { machine: Layer };
 type WriteResult = { status: "saved" } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
 type AddResult = { slug: string; root: string } | { error: string };
@@ -63,6 +70,7 @@ type Calls = {
   team: Call<{ project?: string }, TeamView>;
   doctor: Call<{ project?: string }, Check[]>;
   status: Call<{ project: string }, { text: string; error?: string }>;
+  flow: Call<{ project: string }, FlowResult>;
 };
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -80,6 +88,7 @@ export function useSeatworks(project?: string) {
     team: useRpc(teamRpc),
     doctor: useRpc(doctorRpc),
     status: useRpc(statusRpc),
+    flow: useRpc(flowRpc),
   };
   const paseo = usePaseo();
   const latest = useRef(bound as unknown as Calls);
@@ -245,6 +254,45 @@ export function useSeatworks(project?: string) {
   const runDoctor = useCallback(() => latest.current.doctor({ project }), [project]);
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
   return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, runDoctor, readStatus };
+}
+
+export function useFlow(project: string | undefined, everyMs = 5000): { flow: FlowView | null; error: string | null } {
+  const call = useRpc(flowRpc) as unknown as Call<{ project: string }, FlowResult>;
+  const latest = useRef(call);
+  latest.current = call;
+  const [flow, setFlow] = useState<FlowView | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!project) {
+      setFlow(null);
+      setError(null);
+      return;
+    }
+    let alive = true;
+    const read = async (): Promise<void> => {
+      try {
+        const answer = await latest.current({ project });
+        if (!alive) return;
+        if ("error" in answer) {
+          setError(answer.error);
+          return;
+        }
+        setFlow(answer);
+        setError(null);
+      } catch (problem) {
+        if (alive) setError(message(problem));
+      }
+    };
+    void read();
+    const timer = setInterval(() => void read(), everyMs);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [project, everyMs]);
+
+  return { flow, error };
 }
 
 export type Source = "here" | "machine" | "default";

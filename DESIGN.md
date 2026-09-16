@@ -146,5 +146,6 @@ catalog in two layers, machine then project, each validated before it is saved.
 - Every role gets a provider per harness that has settings for it (`sw2-<role>-<harness>`), so one
   project's Lead can run on Devin while another's runs on Claude. Seat directories are per role,
   harness and project, because rules and servers can differ per project.
-- The plugin serves the catalog, both settings layers, the resolved team, doctor checks and status
-  over RPC, so a web app manages it without touching files.
+- The plugin serves the catalog, both settings layers, the resolved team, doctor checks, status and
+  the live flow of open lanes, their tasks, the seats holding them and the open asks over RPC, so a
+  web app manages it without touching files.

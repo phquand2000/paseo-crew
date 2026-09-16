@@ -75,7 +75,7 @@ export function ProjectList({ projects, nameOf, team, waiting, theme, disabled, 
           row(project.slug, nameOf(project.slug, project.root).slice(0, 1), tones[index % tones.length]!, nameOf(project.slug, project.root), project.root, "", project.slug, index === projects.length - 1),
         )}
       </View>
-      <Text style={styles.sub}>{waiting > 0 ? `${waiting} repository${waiting === 1 ? "" : " choices"} Paseo knows are not set up yet.` : "Every repository Paseo knows is set up."}</Text>
+      <Text style={styles.sub}>{waiting > 0 ? `${waiting} more repository${waiting === 1 ? "" : " choices"} Paseo knows can be set up.` : "Set up any repository on this machine with Set up a project."}</Text>
     </View>
   );
 }

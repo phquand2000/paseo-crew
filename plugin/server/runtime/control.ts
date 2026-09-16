@@ -6,6 +6,7 @@ import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transpor
 import { gitCommonDir } from "../core/git.ts";
 import { type PaseoApi, openSeats } from "../core/paseo.ts";
 import { worktreeRoot } from "../core/paths.ts";
+import { flowView } from "../desk/flow.ts";
 import { loadLedger } from "../desk/ledger.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -259,6 +260,14 @@ export class SettingsControl implements Control {
     const api = this.deps.api();
     const seats = new Map(api ? (await openSeats(api)).map((seat) => [seat.id, seat]) : []);
     return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now()) };
+  }
+
+  async flow(slug: string): Promise<unknown> {
+    const project = this.deps.source.named(slug);
+    if (!project) return { error: unknownProject(slug) };
+    const api = this.deps.api();
+    const seats = new Map(api ? (await openSeats(api)).map((seat) => [seat.id, seat]) : []);
+    return flowView(project, loadLedger(project.state), loadConfig(project.state), this.deps.source.teamFor(project), seats, Date.now());
   }
 
   private target(slug?: string): Target | string {

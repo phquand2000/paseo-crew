@@ -30,6 +30,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
   assert.deepEqual(names.sort(), [
     "seatworks.catalog.read",
     "seatworks.doctor.run",
+    "seatworks.flow.read",
     "seatworks.mcp.parse",
     "seatworks.projects.add",
     "seatworks.projects.candidates",

@@ -3,11 +3,11 @@ import { ScrollView, useToast } from "@getpaseo/plugin/client/react-native";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
-import { AgentsSection } from "./agents.tsx";
 import { Empty } from "./bits.tsx";
 import type { Check } from "./data.ts";
-import { useSeatworks } from "./data.ts";
+import { useFlow, useSeatworks } from "./data.ts";
 import { type DetailTab, Detail } from "./detail.tsx";
+import { FlowSection } from "./flow.tsx";
 import { HealthSection } from "./health.tsx";
 import { MACHINE, ProjectList } from "./projects.tsx";
 import { ServersSection } from "./servers.tsx";
@@ -21,6 +21,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [checks, setChecks] = useState<Check[] | null>(null);
   const project = open && open !== MACHINE ? open : undefined;
   const { data, save, reload, saving, saveError, addServer, attach, detach, runDoctor, readStatus } = useSeatworks(project);
+  const { flow, error: flowError } = useFlow(tab === "flow" ? project : undefined);
   const toast = useToast();
   const wasSaving = useRef(false);
   const styles = useMemo(
@@ -130,8 +131,8 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         {tab === "team" ? (
           <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} />
         ) : null}
-        {tab === "agents" ? <AgentsSection catalog={data.catalog} checks={checks} theme={theme} /> : null}
-        {tab === "servers" ? (
+        {tab === "flow" ? <FlowSection flow={flow} error={flowError} theme={theme} /> : null}
+        {tab === "mcp" ? (
           <ServersSection
             catalog={data.catalog}
             team={data.team}

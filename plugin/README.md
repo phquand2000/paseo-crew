@@ -3,7 +3,7 @@
 | Path | Holds |
 |---|---|
 | `index.server.ts` | Wires the runtime |
-| `index.client.tsx`, `client/` | The Seatworks screen in Paseo's sidebar, two levels deep: `projects.tsx` lists the projects, `detail.tsx` is the shell behind one of them with Team, Agents, Servers and Health tabs (`team.tsx`, `agents.tsx`, `servers.tsx`, `health.tsx`), `setup-dialog.tsx` attaches a project, `tabs.tsx` and `bits.tsx` are the shared pieces |
+| `index.client.tsx`, `client/` | The Seatworks screen in Paseo's sidebar, two levels deep: `projects.tsx` lists the projects, `detail.tsx` is the shell behind one of them with Team, Flow, MCP and Health tabs (`team.tsx`, `flow.tsx`, `servers.tsx`, `health.tsx`), `setup-dialog.tsx` is the four-step wizard that attaches a project, `tabs.tsx` and `bits.tsx` are the shared pieces |
 | `shared/rpc.ts` | The RPC contracts both sides use |
 | `roles.json` | Roles with their default harness, model and thinking; limits; attention timings |
 | `harness/<id>/` | Harness manifest (models, prompt, rules, skills and MCP delivery), role settings, `NOTES.md` |

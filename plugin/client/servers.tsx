@@ -1,7 +1,9 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
-import { useState } from "react";
-import { Chips, Facts, Revert, sourceLabel } from "./bits.tsx";
+import { TextInput } from "@getpaseo/plugin/client/react-native";
+import { useMemo, useState } from "react";
+import { View } from "react-native";
+import { Chips, Revert, sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, McpChoice, Scalar, SettingSpec, TeamView } from "./data.ts";
 import { clearMcp, clearMcpSetting, setMcp, sourceOf } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
@@ -21,6 +23,7 @@ type Props = {
 };
 
 const ADD = "__add__";
+const EXAMPLE = '{\n  "mcp": {\n    "context7": {\n      "type": "local",\n      "command": ["npx", "-y", "@upstash/context7-mcp"],\n      "enabled": true\n    }\n  }\n}';
 
 function Tuning({ entry, current, theme, disabled, save, labelOf, setHere }: {
   entry: Entry;
@@ -92,23 +95,37 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
   const state = team.mcp[active];
   const entry = catalog.mcp.find((item) => item.id === active);
   const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), { id: ADD, label: "Add a server" }];
+  const styles = useMemo(
+    () => ({
+      chips: { paddingHorizontal: 18, paddingBottom: 14, marginTop: -8 },
+      box: { marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 10, backgroundColor: theme.colors.surface2 },
+      boxText: { color: theme.colors.foreground, fontSize: 12, lineHeight: 18, minHeight: 190 },
+    }),
+    [theme],
+  );
 
   if (active === ADD || !state) {
     return (
-      <SettingsSection title="Servers" info="Paste the snippet a server gives you. Everything else you choose here afterwards.">
+      <SettingsSection title="MCP servers" info="Paste the snippet a server gives you. Everything else you choose here afterwards.">
         <TabBar theme={theme} active={ADD} disabled={disabled} onPick={setActive} tabs={tabs} />
         <SettingsCard>
-          <SettingsInput
-            label="Connection"
-            hint={'Example: {"mcp": {"context7": {"type": "local", "command": ["npx", "-y", "@upstash/context7-mcp"]}}}'}
-            initialValue=""
-            placeholder='{"mcp": { … }}'
-            onChangeText={setPaste}
-            disabled={disabled}
-          />
+          <SettingsRow label="Connection" hint="Anything the server hands you: mcp, mcpServers, or a bare object." />
+          <View style={styles.box}>
+            <TextInput
+              style={styles.boxText}
+              value={paste}
+              onChangeText={setPaste}
+              placeholder={EXAMPLE}
+              placeholderTextColor={theme.colors.foregroundMuted}
+              editable={!disabled}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel="The server's connection snippet"
+            />
+          </View>
           <SettingsAction
             label="Add it"
-            hint={paste.trim() ? "Saved switched on, given to every role. Narrow it below." : "Paste the snippet first."}
+            hint={paste.trim() ? "Saved switched on, given to every role. Narrow it below." : "Paste the snippet first. One server at a time."}
             actionLabel="Add"
             disabled={disabled || !paste.trim()}
             onPress={() =>
@@ -131,7 +148,7 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
     source(field) === "here" ? <Revert theme={theme} disabled={disabled} onPress={() => save((current) => clearMcp(current, active, field))} /> : null;
 
   return (
-    <SettingsSection title="Servers" info={entry?.description ?? (state.connect ? "Added here from a pasted snippet." : "")}>
+    <SettingsSection title="MCP servers" info={entry?.description ?? (state.connect ? "Added here from a pasted snippet." : "")}>
       <TabBar theme={theme} active={active} disabled={disabled} onPick={setActive} tabs={tabs} />
       <SettingsCard>
         <SettingsSwitch
@@ -144,6 +161,9 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
           {revert("enabled")}
         </SettingsSwitch>
         <SettingsRow label="Roles that get it" hint={sourceLabel(source("roles"), layer)}>
+          {revert("roles")}
+        </SettingsRow>
+        <View style={styles.chips}>
           <Chips
             theme={theme}
             disabled={disabled || !on}
@@ -153,8 +173,7 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
               save((current) => setMcp(current, active, { roles: want ? [...new Set([...roles, role])] : roles.filter((other) => other !== role) }))
             }
           />
-          {revert("roles")}
-        </SettingsRow>
+        </View>
         {entry ? (
           <Tuning
             entry={entry}
@@ -167,7 +186,7 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
           />
         ) : null}
         <SettingsAction
-          label={state.template ? "Remove this server" : "Remove this server"}
+          label="Remove this server"
           hint={state.template ? "It stays in the catalog; add it again whenever you want." : "It was added here, so removing it drops it."}
           actionLabel="Remove"
           disabled={disabled}
@@ -178,15 +197,6 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
               return next;
             })
           }
-        />
-        <Facts
-          theme={theme}
-          items={[
-            { label: "Reached over", value: state.transport },
-            { label: "Source", value: state.template ? "catalog template" : "pasted here" },
-            ...(state.connect?.command ? [{ label: "Command", value: state.connect.command.join(" ") }] : []),
-            ...(state.connect?.url ? [{ label: "Url", value: state.connect.url }] : []),
-          ]}
         />
       </SettingsCard>
     </SettingsSection>

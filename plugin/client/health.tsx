@@ -15,6 +15,10 @@ type Props = {
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+const GROUPS = ["This machine", "Agents", "Servers"] as const;
+
+const groupOf = (id: string): (typeof GROUPS)[number] => (id.startsWith("harness:") ? "Agents" : id.startsWith("mcp:") ? "Servers" : "This machine");
+
 export function HealthSection({ project, theme, checks, onChecks, runDoctor, readStatus }: Props) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -23,8 +27,10 @@ export function HealthSection({ project, theme, checks, onChecks, runDoctor, rea
     () => ({
       report: { padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface1 },
       text: { color: theme.colors.foregroundMuted, fontSize: 12, lineHeight: 18 },
-      good: { color: theme.colors.statusSuccess, fontSize: 13 },
-      bad: { color: theme.colors.statusDanger, fontSize: 13 },
+      heading: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
+      headingText: { color: theme.colors.foregroundMuted, fontSize: 11, fontWeight: "500" as const, letterSpacing: 0.6 },
+      good: { color: theme.colors.statusSuccess, fontSize: 12, fontWeight: "500" as const },
+      bad: { color: theme.colors.statusDanger, fontSize: 12, fontWeight: "500" as const },
     }),
     [theme],
   );
@@ -41,23 +47,37 @@ export function HealthSection({ project, theme, checks, onChecks, runDoctor, rea
     }
   };
 
-  const failing = (checks ?? []).filter((check) => !check.ok);
+  const all = checks ?? [];
+  const failing = all.filter((check) => !check.ok);
+  const summary = all.length === 0 ? "Agents, tools and servers." : failing.length === 0 ? `All ${all.length} pass. Everything the team needs is here.` : `${all.length - failing.length} of ${all.length} pass. ${failing.length} needs work.`;
+
   return (
     <SettingsSection title="Health" info="What this machine still needs before the team can work.">
       <SettingsCard>
         <SettingsAction
           label="Doctor"
-          hint={checks ? (failing.length === 0 ? "Everything the team needs is here." : `${failing.length} of ${checks.length} need work.`) : "Agents, tools and servers."}
+          hint={summary}
           error={error}
           actionLabel={busy ? "Checking" : "Run"}
           disabled={busy}
           onPress={() => void run(async () => onChecks(await runDoctor()))}
         />
-        {(checks ?? []).map((check) => (
-          <SettingsRow key={check.id} label={check.id} hint={check.detail}>
-            <Text style={check.ok ? styles.good : styles.bad}>{check.ok ? "OK" : "Needs work"}</Text>
-          </SettingsRow>
-        ))}
+        {GROUPS.map((group) => {
+          const mine = all.filter((check) => groupOf(check.id) === group);
+          if (mine.length === 0) return null;
+          return (
+            <View key={group}>
+              <View style={styles.heading}>
+                <Text style={styles.headingText}>{group.toUpperCase()}</Text>
+              </View>
+              {mine.map((check) => (
+                <SettingsRow key={check.id} label={check.id} hint={check.detail}>
+                  <Text style={check.ok ? styles.good : styles.bad}>{check.ok ? "OK" : "Needs work"}</Text>
+                </SettingsRow>
+              ))}
+            </View>
+          );
+        })}
       </SettingsCard>
       {project ? (
         <SettingsCard>
