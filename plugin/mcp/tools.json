@@ -205,7 +205,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Limits the owned paths don't already hold: what the Peer must leave alone, not do, or not decide."
           },
           "context": {
             "type": "string",
@@ -227,7 +228,8 @@
           "title",
           "goal",
           "acceptance",
-          "owned"
+          "owned",
+          "outOfScope"
         ]
       }
     },

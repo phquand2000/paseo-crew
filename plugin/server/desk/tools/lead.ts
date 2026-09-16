@@ -87,7 +87,8 @@ export const startTask: Tool = async (desk, paseo, caller, args) => {
   const { project } = caller;
   const owned = strs(args.owned);
   const parallel = args.parallel === true;
-  if (!str(args.title) || !str(args.goal) || strs(args.acceptance).length === 0 || owned.length === 0) return no("start_task needs a title, a goal, acceptance and owned paths.");
+  if (!str(args.title) || !str(args.goal) || strs(args.acceptance).length === 0 || owned.length === 0 || strs(args.outOfScope).length === 0)
+    return no("start_task needs a title, a goal, acceptance, owned paths and what is out of scope.");
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
   if (!lane?.slot || !lane.worktree) return no("You have no open lane.");
