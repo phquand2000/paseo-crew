@@ -1,16 +1,17 @@
 import type { z } from "zod";
 import { contracts } from "../../shared/rpc.ts";
 import type { Check } from "./doctor.ts";
-import type { ReadResult, WriteResult } from "../catalog/settings.ts";
+import type { SettingsView, WriteResult } from "../catalog/settings.ts";
 
 export { contracts };
 
 export interface Control {
   catalog(): unknown;
-  readSettings(project?: string): ReadResult;
+  readSettings(project?: string): SettingsView;
   writeSettings(project: string | undefined, revision: string, values: unknown): WriteResult;
   resetSettings(project: string | undefined, revision: string): WriteResult;
   projects(): unknown;
+  addProject(root: string): unknown;
   team(project?: string): unknown;
   doctor(project?: string): Promise<Check[]>;
   status(project: string): Promise<unknown>;
@@ -25,6 +26,7 @@ export function registerRpc(server: { handle: unknown }, control: Control): stri
   handle(contracts.settingsWrite, (input) => control.writeSettings(input.project, input.revision, input.values));
   handle(contracts.settingsReset, (input) => control.resetSettings(input.project, input.revision));
   handle(contracts.projects, () => control.projects());
+  handle(contracts.projectsAdd, (input) => control.addProject(input.root));
   handle(contracts.team, (input) => control.team(input.project));
   handle(contracts.doctor, (input) => control.doctor(input.project));
   handle(contracts.status, (input) => control.status(input.project));

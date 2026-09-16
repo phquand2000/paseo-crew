@@ -28,8 +28,10 @@ paseo plugin install ./plugin
 ```
 
 Paseo shows a **Seatworks** item in its sidebar: one screen to choose each role's agent, model and
-thinking, turn MCP servers on or off per role, run the doctor and read a project's status, for the
-machine layer or for one project.
+thinking, turn MCP servers on or off per role, run the doctor and read a project's status. Pick the
+machine layer or any project Paseo knows — choosing one registers it — and each line says whether the
+value is set in this layer, inherited from the machine layer, or the catalog default, with a button
+to clear the ones set here.
 
 The plugin writes one Paseo provider and profile for each role on each harness that has settings for
 it (`sw2-supervisor-claude`, `sw2-lead-claude`, `sw2-peer-devin`, `sw2-reviewer-devin`) and builds
@@ -74,7 +76,8 @@ A web app manages them through the plugin's RPC, called with the Paseo client's
 |---|---|---|
 | `seatworks.catalog.read` | | roles, harnesses with models, MCP servers with their settings |
 | `seatworks.projects.list` | | projects seen on this machine |
-| `seatworks.settings.read` | `project?` | `ready` with `revision` and `values`, or `invalid` |
+| `seatworks.projects.add` | `root` | registers a project by any path inside it, so its layer can be written before an agent runs there |
+| `seatworks.settings.read` | `project?` | `ready` with `revision` and `values`, or `invalid`; plus `machine`, the layer below a project |
 | `seatworks.settings.write` | `project?`, `revision`, `values` | `saved`, `conflict` or `invalid` with the reason |
 | `seatworks.settings.reset` | `project?`, `revision` | as write |
 | `seatworks.team.read` | `project?` | each role's harness, provider, model, servers, tools, skills and rules, plus errors |

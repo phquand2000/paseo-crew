@@ -1,9 +1,10 @@
+import { existsSync, statSync } from "node:fs";
 import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
-import { type Layer, MachineLayerSchema, ProjectLayerSchema, type ReadResult, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
+import { type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, eligibleRoles, resolveTeam, rulesFor, skillDirsFor, transportOf } from "../catalog/team.ts";
 import { type PaseoApi, openSeats } from "../core/paseo.ts";
 import { loadLedger } from "../desk/ledger.ts";
-import { type Project, loadConfig } from "../desk/project.ts";
+import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
 import { type Check, doctor } from "./doctor.ts";
 import type { Control } from "./rpc.ts";
@@ -95,10 +96,11 @@ export class SettingsControl implements Control {
     return describeCatalog(this.deps.kit);
   }
 
-  readSettings(slug?: string): ReadResult {
+  readSettings(slug?: string): SettingsView {
+    const machine = slug ? this.deps.source.machineLayer() : {};
     const target = this.target(slug);
-    if (typeof target === "string") return { status: "invalid", revision: "", error: target };
-    return readLayer(target.file, target.schema);
+    if (typeof target === "string") return { status: "invalid", revision: "", error: target, machine };
+    return { ...readLayer(target.file, target.schema), machine };
   }
 
   writeSettings(slug: string | undefined, revision: string, values: unknown): WriteResult {
@@ -120,6 +122,14 @@ export class SettingsControl implements Control {
 
   projects(): unknown {
     return this.deps.source.known().map((project) => ({ slug: project.slug, root: project.root }));
+  }
+
+  addProject(root: string): unknown {
+    const path = root.trim();
+    if (!path || !existsSync(path) || !statSync(path).isDirectory()) return { error: `${path || "That path"} is not a directory on this machine.` };
+    const project = projectOf(path);
+    this.deps.source.record(project);
+    return { slug: project.slug, root: project.root };
   }
 
   team(slug?: string): unknown {

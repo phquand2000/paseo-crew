@@ -46,6 +46,7 @@ export type Layer = z.infer<typeof MachineLayerSchema>;
 export type LayerSchema = typeof MachineLayerSchema | typeof ProjectLayerSchema;
 
 export type ReadResult = { status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string };
+export type SettingsView = ReadResult & { machine: Layer };
 export type WriteResult = { status: "saved"; revision: string; values: Layer } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
 
 export function revisionOf(values: unknown): string {

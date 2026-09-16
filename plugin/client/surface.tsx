@@ -11,9 +11,10 @@ import { TeamSection } from "./team.tsx";
 const MACHINE = "";
 
 export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
+  const [root, setRoot] = useState<string>(MACHINE);
   const [project, setProject] = useState<string>(MACHINE);
-  const chosen = project === MACHINE ? undefined : project;
-  const { data, save, reload, saving, saveError, runDoctor, readStatus } = useSeatworks(chosen);
+  const [busy, setBusy] = useState(false);
+  const { data, save, reload, saving, saveError, addProject, runDoctor, readStatus } = useSeatworks(project === MACHINE ? undefined : project);
   const styles = useMemo(
     () => ({
       screen: { flex: 1, backgroundColor: theme.colors.surface0 },
@@ -41,31 +42,57 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
     );
   }
 
+  const byRoot = new Map(data.projects.map((entry) => [entry.root, entry.slug]));
+  const roots = [...new Set([...data.projects.map((entry) => entry.root), ...data.known.map((entry) => entry.root)])].sort();
+  const nameOf = (path: string) => data.known.find((entry) => entry.root === path)?.name ?? byRoot.get(path) ?? path;
+  const pick = async (next: string): Promise<void> => {
+    setRoot(next);
+    if (next === MACHINE) {
+      setProject(MACHINE);
+      return;
+    }
+    const known = byRoot.get(next);
+    if (known) {
+      setProject(known);
+      return;
+    }
+    setBusy(true);
+    const slug = await addProject(next);
+    setBusy(false);
+    if (slug) setProject(slug);
+    else setRoot(MACHINE);
+  };
+
+  const layer = project === MACHINE ? "machine" : "project";
   const problems = [...(data.settingsError ? [data.settingsError] : []), ...(saveError ? [saveError] : []), ...data.team.errors];
+  const locked = saving || busy;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.body}>
-      <SettingsSection title="Settings layer" info="The machine layer holds your defaults; a project layer overrides them for that repository.">
-        <SettingsSelect
-          label="Editing"
-          hint={saving ? "Saving" : "Changes reach new agents, not running ones."}
-          value={project}
-          options={[{ label: "This machine", value: MACHINE }, ...data.projects.map((entry) => ({ label: entry.slug, value: entry.slug }))]}
-          onValueChange={setProject}
-          disabled={saving}
-        />
+      <SettingsSection title="Settings layer" info="The machine layer holds your defaults; a project layer overrides them for that repository only.">
+        <SettingsCard>
+          <SettingsSelect
+            label="Editing"
+            hint={locked ? "Saving" : "Changes reach new agents, not running ones."}
+            value={root}
+            options={[{ label: "This machine", value: MACHINE }, ...roots.map((path) => ({ label: nameOf(path), value: path }))]}
+            onValueChange={(next) => void pick(next)}
+            disabled={locked}
+          />
+          {project === MACHINE ? null : <SettingsRow label="Project" hint={`${root} · ${project}`} />}
+        </SettingsCard>
       </SettingsSection>
       {problems.length > 0 ? (
         <SettingsSection title="Problems">
           <SettingsCard>
             {problems.map((problem) => (
-              <SettingsRow key={problem} label="" hint={problem} error={problem} />
+              <SettingsRow key={problem} label="Problem" error={problem} />
             ))}
           </SettingsCard>
         </SettingsSection>
       ) : null}
-      <TeamSection catalog={data.catalog} team={data.team} disabled={saving} save={(change) => void save(change)} />
-      <McpSection catalog={data.catalog} team={data.team} disabled={saving} save={(change) => void save(change)} />
-      <MachineSection project={chosen} theme={theme} runDoctor={runDoctor} readStatus={readStatus} />
+      <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} disabled={locked} save={(change) => void save(change)} />
+      <McpSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} disabled={locked} save={(change) => void save(change)} />
+      <MachineSection project={project === MACHINE ? undefined : project} theme={theme} runDoctor={runDoctor} readStatus={readStatus} />
     </ScrollView>
   );
 }

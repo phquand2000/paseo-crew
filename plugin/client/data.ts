@@ -1,6 +1,6 @@
-import { useRpc } from "@getpaseo/plugin/client";
+import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { catalogRpc, doctorRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+import { catalogRpc, doctorRpc, projectsAddRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
 export type Scalar = string | number | boolean;
 export type SettingSpec = { type: "number" | "string" | "boolean"; label: string; default?: Scalar };
@@ -20,27 +20,37 @@ export type TeamView = {
   roles: Record<string, { harness: string; provider: string | null; model: string | null; thinking: string | null; mcp: string[]; tools: Record<string, string[]>; skills: string[]; rules: string }>;
 };
 
-export type Layer = {
-  roles?: Record<string, { harness?: string; model?: string; thinking?: string }>;
-  mcp?: Record<string, { enabled?: boolean; roles?: string[]; settings?: Record<string, Scalar> }>;
-  rules?: string;
-  limits?: { slots?: number; tasksPerLane?: number };
-};
+export type RoleChoice = { harness?: string; model?: string; thinking?: string };
+export type McpChoice = { enabled?: boolean; roles?: string[]; settings?: Record<string, Scalar> };
+export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; limits?: { slots?: number; tasksPerLane?: number } };
 
 export type ProjectRow = { slug: string; root: string };
+export type PaseoProject = { name: string; root: string };
 export type Check = { id: string; ok: boolean; detail: string };
-type SettingsRead = { status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string };
+type SettingsRead = ({ status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string }) & { machine: Layer };
 type WriteResult = { status: "saved" } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
+type AddResult = { slug: string; root: string } | { error: string };
 
 export type Data =
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "ready"; catalog: Catalog; team: TeamView; projects: ProjectRow[]; values: Layer; revision: string; settingsError: string | null };
+  | {
+      status: "ready";
+      catalog: Catalog;
+      team: TeamView;
+      projects: ProjectRow[];
+      known: PaseoProject[];
+      values: Layer;
+      machine: Layer;
+      revision: string;
+      settingsError: string | null;
+    };
 
 type Call<Input, Output> = (input: Input) => Promise<Output>;
 type Calls = {
   catalog: Call<Record<string, never>, Catalog>;
   projects: Call<Record<string, never>, ProjectRow[]>;
+  add: Call<{ root: string }, AddResult>;
   settings: Call<{ project?: string }, SettingsRead>;
   write: Call<{ project?: string; revision: string; values: Layer }, WriteResult>;
   team: Call<{ project?: string }, TeamView>;
@@ -54,12 +64,14 @@ export function useSeatworks(project?: string) {
   const bound = {
     catalog: useRpc(catalogRpc),
     projects: useRpc(projectsRpc),
+    add: useRpc(projectsAddRpc),
     settings: useRpc(settingsReadRpc),
     write: useRpc(settingsWriteRpc),
     team: useRpc(teamRpc),
     doctor: useRpc(doctorRpc),
     status: useRpc(statusRpc),
   };
+  const paseo = usePaseo();
   const latest = useRef(bound as unknown as Calls);
   latest.current = bound as unknown as Calls;
   const [data, setData] = useState<Data>({ status: "loading" });
@@ -69,16 +81,34 @@ export function useSeatworks(project?: string) {
 
   useEffect(() => {
     let alive = true;
+    const paseoProjects = async (): Promise<PaseoProject[]> => {
+      try {
+        const listed = (await paseo.projects.list()) as { projects?: { projectDisplayName?: string; projectRootPath?: string }[] };
+        return (listed.projects ?? [])
+          .filter((entry): entry is { projectDisplayName?: string; projectRootPath: string } => typeof entry.projectRootPath === "string")
+          .map((entry) => ({ name: entry.projectDisplayName ?? entry.projectRootPath, root: entry.projectRootPath }));
+      } catch {
+        return [];
+      }
+    };
     const load = async (): Promise<void> => {
       const call = latest.current;
-      const [catalog, projects, team, settings] = await Promise.all([call.catalog({}), call.projects({}), call.team({ project }), call.settings({ project })]);
+      const [catalog, projects, team, settings, known] = await Promise.all([
+        call.catalog({}),
+        call.projects({}),
+        call.team({ project }),
+        call.settings({ project }),
+        paseoProjects(),
+      ]);
       if (!alive) return;
       setData({
         status: "ready",
         catalog,
         projects,
+        known,
         team,
         values: settings.status === "ready" ? settings.values : {},
+        machine: settings.machine ?? {},
         revision: settings.revision,
         settingsError: settings.status === "ready" ? null : settings.error,
       });
@@ -90,7 +120,7 @@ export function useSeatworks(project?: string) {
     return () => {
       alive = false;
     };
-  }, [project, nonce]);
+  }, [project, nonce, paseo]);
 
   const reload = useCallback(() => setNonce((value) => value + 1), []);
 
@@ -112,17 +142,80 @@ export function useSeatworks(project?: string) {
     [data, project, reload],
   );
 
+  const addProject = useCallback(async (root: string): Promise<string | null> => {
+    setSaveError(null);
+    try {
+      const result = await latest.current.add({ root });
+      if ("error" in result) {
+        setSaveError(result.error);
+        return null;
+      }
+      return result.slug;
+    } catch (error) {
+      setSaveError(message(error));
+      return null;
+    }
+  }, []);
+
   const runDoctor = useCallback(() => latest.current.doctor({ project }), [project]);
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
-  return { data, save, reload, saving, saveError, runDoctor, readStatus };
+  return { data, save, reload, saving, saveError, addProject, runDoctor, readStatus };
 }
 
-export function setRole(values: Layer, role: string, choice: { harness?: string; model?: string; thinking?: string }, replace = false): Layer {
-  const current = replace ? {} : (values.roles?.[role] ?? {});
-  return { ...values, roles: { ...values.roles, [role]: { ...current, ...choice } } };
+export type Source = "here" | "machine" | "default";
+
+export function sourceOf(values: Layer, machine: Layer, pick: (layer: Layer) => unknown, layer: "machine" | "project"): Source {
+  if (pick(values) !== undefined) return "here";
+  if (layer === "project" && pick(machine) !== undefined) return "machine";
+  return "default";
 }
 
-export function setMcp(values: Layer, id: string, choice: { enabled?: boolean; roles?: string[]; settings?: Record<string, Scalar> }): Layer {
+export function sourceText(source: Source, layer: "machine" | "project"): string {
+  if (source === "here") return layer === "machine" ? "set for this machine" : "set for this project";
+  if (source === "machine") return "from the machine layer";
+  return "catalog default";
+}
+
+function prune<T extends object>(values: Layer, key: "roles" | "mcp", id: string, entry: T): Layer {
+  const group = { ...(values[key] as Record<string, T> | undefined) };
+  if (Object.keys(entry).length === 0) delete group[id];
+  else group[id] = entry;
+  const next = { ...values };
+  if (Object.keys(group).length === 0) delete next[key];
+  else (next[key] as Record<string, T>) = group;
+  return next;
+}
+
+export function setRole(values: Layer, role: string, choice: RoleChoice, replace = false): Layer {
+  return prune(values, "roles", role, { ...(replace ? {} : (values.roles?.[role] ?? {})), ...choice });
+}
+
+export function clearRole(values: Layer, role: string, field: keyof RoleChoice): Layer {
+  const entry = { ...(values.roles?.[role] ?? {}) };
+  delete entry[field];
+  return prune(values, "roles", role, entry);
+}
+
+export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
   const current = values.mcp?.[id] ?? {};
-  return { ...values, mcp: { ...values.mcp, [id]: { ...current, ...choice, settings: { ...current.settings, ...choice.settings } } } };
+  const settings = { ...current.settings, ...choice.settings };
+  const entry: McpChoice = { ...current, ...choice };
+  if (Object.keys(settings).length > 0) entry.settings = settings;
+  else delete entry.settings;
+  return prune(values, "mcp", id, entry);
+}
+
+export function clearMcp(values: Layer, id: string, field: keyof McpChoice): Layer {
+  const entry = { ...(values.mcp?.[id] ?? {}) };
+  delete entry[field];
+  return prune(values, "mcp", id, entry);
+}
+
+export function clearMcpSetting(values: Layer, id: string, key: string): Layer {
+  const entry = { ...(values.mcp?.[id] ?? {}) };
+  const settings = { ...entry.settings };
+  delete settings[key];
+  if (Object.keys(settings).length === 0) delete entry.settings;
+  else entry.settings = settings;
+  return prune(values, "mcp", id, entry);
 }
