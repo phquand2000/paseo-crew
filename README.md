@@ -30,7 +30,9 @@ paseo plugin install ./plugin
 Paseo shows a **Seatworks** item in its sidebar. Its top tabs are this machine, each project
 Seatworks is set up for, and **Add project**: that one walks through a repository Paseo knows,
 each role's agent and model, and the servers to switch on, then attaches Seatworks to it. Inside a
-tab, the team is split by role and the servers by server, each line says whether the value is set in
+tab, the team is split by role and the servers by server. **Add project** lists only repositories
+worth offering: the lane and task worktrees Seatworks makes are left out, so are directories that no
+longer exist and projects already set up. Each line says whether the value is set in
 this layer, inherited from the machine layer, or the catalog default, and a line set here gets a
 button to clear it. The same screen runs the doctor and reads a project's status, and detaches a
 project whose lanes are all closed.
@@ -80,6 +82,7 @@ A web app manages them through the plugin's RPC, called with the Paseo client's
 | `seatworks.projects.list` | | projects seen on this machine |
 | `seatworks.projects.add` | `root` | registers a project by any path inside it, so its layer can be written before an agent runs there |
 | `seatworks.projects.remove` | `project` | drops a project's settings again; refused while it has lanes or tasks on record |
+| `seatworks.projects.candidates` | `roots` | of the paths given, the repositories worth offering: no lane worktrees, nothing gone from disk, nothing already set up |
 | `seatworks.settings.read` | `project?` | `ready` with `revision` and `values`, or `invalid`; plus `machine`, the layer below a project |
 | `seatworks.settings.write` | `project?`, `revision`, `values` | `saved`, `conflict` or `invalid` with the reason |
 | `seatworks.settings.reset` | `project?`, `revision` | as write |

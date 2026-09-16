@@ -1,9 +1,11 @@
-import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
 import { type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, eligibleRoles, resolveTeam, rulesFor, skillDirsFor, transportOf } from "../catalog/team.ts";
+import { gitCommonDir } from "../core/git.ts";
 import { type PaseoApi, openSeats } from "../core/paseo.ts";
+import { worktreeRoot } from "../core/paths.ts";
 import { loadLedger } from "../desk/ledger.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -131,6 +133,28 @@ export class SettingsControl implements Control {
     const project = projectOf(path);
     this.deps.source.record(project);
     return { slug: project.slug, root: project.root };
+  }
+
+  candidateProjects(roots: string[]): unknown {
+    const attached = new Set(this.deps.source.known().map((project) => project.root));
+    const worktrees = worktreeRoot();
+    const keep: string[] = [];
+    for (const given of roots) {
+      const path = given.trim();
+      if (!path || path === worktrees || path.startsWith(`${worktrees}/`)) continue;
+      let real: string;
+      try {
+        if (!statSync(path).isDirectory()) continue;
+        real = realpathSync(path);
+      } catch {
+        continue;
+      }
+      if (!gitCommonDir(real)) continue;
+      const project = projectOf(real);
+      if (project.root !== real || attached.has(project.root)) continue;
+      keep.push(given);
+    }
+    return keep;
   }
 
   removeProject(slug: string): unknown {

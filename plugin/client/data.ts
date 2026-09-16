@@ -1,6 +1,6 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { catalogRpc, doctorRpc, projectsAddRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+import { catalogRpc, doctorRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
 export type Scalar = string | number | boolean;
 export type SettingSpec = { type: "number" | "string" | "boolean"; label: string; default?: Scalar };
@@ -41,6 +41,7 @@ export type Data =
       team: TeamView;
       projects: ProjectRow[];
       known: PaseoProject[];
+      candidates: PaseoProject[];
       values: Layer;
       machine: Layer;
       revision: string;
@@ -53,6 +54,7 @@ type Calls = {
   projects: Call<Record<string, never>, ProjectRow[]>;
   add: Call<{ root: string }, AddResult>;
   remove: Call<{ project: string }, RemoveResult>;
+  candidates: Call<{ roots: string[] }, string[]>;
   settings: Call<{ project?: string }, SettingsRead>;
   write: Call<{ project?: string; revision: string; values: Layer }, WriteResult>;
   team: Call<{ project?: string }, TeamView>;
@@ -68,6 +70,7 @@ export function useSeatworks(project?: string) {
     projects: useRpc(projectsRpc),
     add: useRpc(projectsAddRpc),
     remove: useRpc(projectsRemoveRpc),
+    candidates: useRpc(projectsCandidatesRpc),
     settings: useRpc(settingsReadRpc),
     write: useRpc(settingsWriteRpc),
     team: useRpc(teamRpc),
@@ -103,12 +106,14 @@ export function useSeatworks(project?: string) {
         call.settings({ project }),
         paseoProjects(),
       ]);
+      const offerable = new Set(known.length > 0 ? await call.candidates({ roots: known.map((entry) => entry.root) }) : []);
       if (!alive) return;
       setData({
         status: "ready",
         catalog,
         projects,
         known,
+        candidates: known.filter((entry) => offerable.has(entry.root)),
         team,
         values: settings.status === "ready" ? settings.values : {},
         machine: settings.machine ?? {},

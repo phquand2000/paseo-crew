@@ -44,8 +44,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
     );
   }
 
-  const attached = new Set(data.projects.map((entry) => entry.root));
-  const available = data.known.filter((entry) => !attached.has(entry.root));
+  const available = data.candidates;
   const nameOf = (slug: string, root: string) => data.known.find((entry) => entry.root === root)?.name ?? slug;
   const tabs = [
     { id: MACHINE, label: "This machine", hint: "defaults" },

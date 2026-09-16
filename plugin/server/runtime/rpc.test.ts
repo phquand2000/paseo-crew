@@ -31,6 +31,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.catalog.read",
     "seatworks.doctor.run",
     "seatworks.projects.add",
+    "seatworks.projects.candidates",
     "seatworks.projects.list",
     "seatworks.projects.remove",
     "seatworks.settings.read",
@@ -125,4 +126,22 @@ test("attaching a project is undone by detaching it, unless the project has work
   const listed = await call("seatworks.projects.list");
   assert.equal(listed.some((entry: { slug: string }) => entry.slug === added.slug), false);
   assert.match((await call("seatworks.projects.remove", { project: added.slug })).error, /has been seen/);
+});
+
+test("the projects a setup screen may offer leave out worktrees, gone directories and the ones already set up", async () => {
+  const { call } = served();
+  const repo = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-live-")));
+  execFileSync("git", ["init", "-q", repo]);
+  execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: repo });
+  const linked = join(realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-linked-"))), "wt");
+  execFileSync("git", ["worktree", "add", "-q", "-b", "side", linked], { cwd: repo });
+  const plain = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-plain-")));
+  const ours = join(HOME, ".local/share/seatworks-v2/worktrees/shop-ef484b/S0");
+  mkdirSync(ours, { recursive: true });
+  const taken = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-taken-")));
+  execFileSync("git", ["init", "-q", taken]);
+  await call("seatworks.projects.add", { root: taken });
+
+  const roots = [repo, linked, plain, ours, join(repo, "nowhere"), taken];
+  assert.deepEqual(await call("seatworks.projects.candidates", { roots }), [repo]);
 });
