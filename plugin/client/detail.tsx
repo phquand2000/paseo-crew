@@ -25,7 +25,7 @@ export function Detail({ title, subtitle, tab, theme, disabled, onBack, onTab, o
       header: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12 },
       back: { minWidth: 32, minHeight: 32, alignItems: "center" as const, justifyContent: "center" as const },
       backText: { color: theme.colors.foregroundMuted, fontSize: 20 },
-      titles: { flex: 1, gap: 3 },
+      titles: { flex: 1, gap: 4 },
       title: { color: theme.colors.foreground, fontSize: 20, fontWeight: "600" as const },
       sub: { color: theme.colors.foregroundMuted, fontSize: 12 },
     }),

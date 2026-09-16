@@ -52,7 +52,7 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
           />
         ) : models.length === 1 ? (
           <SettingsRow label="Model" hint={`${harness?.label ?? "This agent"} runs one model.`}>
-            <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{models[0]!.label}</Text>
+            <Text style={{ color: theme.colors.foreground, fontSize: 14 }}>{models[0]!.label}</Text>
           </SettingsRow>
         ) : null}
         {thinking.length > 0 ? (

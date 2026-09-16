@@ -36,7 +36,7 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
   const [trouble, setTrouble] = useState<string | null>(null);
   const styles = useMemo(
     () => ({
-      footer: { flexDirection: "row" as const, alignItems: "center" as const, gap: 10, paddingTop: 8 },
+      footer: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8, paddingTop: 8 },
       summary: { flex: 1, color: theme.colors.foregroundMuted, fontSize: 12 },
       pair: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8 },
     }),

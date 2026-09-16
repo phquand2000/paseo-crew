@@ -17,7 +17,7 @@ type Props = {
 };
 
 const NODE_W = 232;
-const NODE_H = 68;
+const NODE_H = 80;
 const COL_GAP = 44;
 const ROW_GAP = 12;
 const PAD = 16;
@@ -33,10 +33,10 @@ const seatText = (seat: FlowSeat | null): string => {
 function useStyles(theme: PluginTheme) {
   return useMemo(
     () => ({
-      canvas: { borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface0, overflow: "hidden" as const },
-      node: { width: NODE_W, height: NODE_H, gap: 3, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
+      canvas: { borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface0, overflow: "hidden" as const },
+      node: { width: NODE_W, height: NODE_H, gap: 4, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
       head: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8 },
-      title: { flex: 1, color: theme.colors.foreground, fontSize: 13, fontWeight: "500" as const },
+      title: { flex: 1, color: theme.colors.foreground, fontSize: 14, fontWeight: "500" as const },
       caret: { color: theme.colors.foregroundMuted, fontSize: 12 },
       hint: { color: theme.colors.foregroundMuted, fontSize: 12 },
       alive: { color: theme.colors.statusSuccess, fontSize: 12, fontWeight: "500" as const },
@@ -47,8 +47,8 @@ function useStyles(theme: PluginTheme) {
       rail: { width: 1, backgroundColor: theme.colors.border },
       link: { width: COL_GAP / 2, height: 1, backgroundColor: theme.colors.border },
       spine: { width: COL_GAP / 2, height: 1, backgroundColor: theme.colors.border, alignSelf: "center" as const },
-      row: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, paddingHorizontal: 18, paddingVertical: 12 },
-      labels: { flex: 1, gap: 3 },
+      row: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+      labels: { flex: 1, gap: 4 },
       line: { height: 1, backgroundColor: theme.colors.border },
     }),
     [theme],

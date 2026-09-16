@@ -13,11 +13,11 @@ export function TabBar({ tabs, active, theme, disabled, onPick }: {
 }) {
   const styles = useMemo(
     () => ({
-      row: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 4, padding: 4, borderRadius: 12, backgroundColor: theme.colors.surface1 },
-      tab: { minHeight: 36, justifyContent: "center" as const, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
+      row: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 2, padding: 2, minHeight: 32, borderRadius: 8, backgroundColor: theme.colors.surface1 },
+      tab: { minHeight: 28, justifyContent: "center" as const, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
       on: { backgroundColor: theme.colors.surface2 },
-      label: { color: theme.colors.foregroundMuted, fontSize: 13 },
-      labelOn: { color: theme.colors.foreground, fontWeight: "600" as const },
+      label: { color: theme.colors.foregroundMuted, fontSize: 14 },
+      labelOn: { color: theme.colors.foreground },
     }),
     [theme],
   );

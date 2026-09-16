@@ -88,10 +88,10 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
   const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), { id: ADD, label: "Add a server" }];
   const styles = useMemo(
     () => ({
-      block: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 16, gap: 10 },
+      block: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, gap: 8 },
       label: { color: theme.colors.foreground, fontSize: 14, fontWeight: "500" as const },
       hint: { color: theme.colors.foregroundMuted, fontSize: 12 },
-      box: { marginHorizontal: 18, marginBottom: 12, padding: 14, borderRadius: 10, backgroundColor: theme.colors.surface2 },
+      box: { marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface2 },
       boxText: { color: theme.colors.foreground, fontSize: 12, lineHeight: 18, minHeight: 190 },
     }),
     [theme],

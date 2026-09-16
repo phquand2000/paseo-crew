@@ -25,10 +25,10 @@ export function HealthSection({ project, theme, checks, onChecks, runDoctor, rea
   const [error, setError] = useState<string | null>(null);
   const styles = useMemo(
     () => ({
-      report: { padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface1 },
+      report: { padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface2 },
       text: { color: theme.colors.foregroundMuted, fontSize: 12, lineHeight: 18 },
-      heading: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
-      headingText: { color: theme.colors.foregroundMuted, fontSize: 11, fontWeight: "500" as const, letterSpacing: 0.6 },
+      heading: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
+      headingText: { color: theme.colors.foregroundMuted, fontSize: 12, fontWeight: "500" as const, letterSpacing: 0.6 },
       good: { color: theme.colors.statusSuccess, fontSize: 12, fontWeight: "500" as const },
       bad: { color: theme.colors.statusDanger, fontSize: 12, fontWeight: "500" as const },
     }),

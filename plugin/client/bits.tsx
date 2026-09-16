@@ -60,24 +60,28 @@ export function Button({ label, theme, tone = "plain", disabled, onPress }: {
   );
 }
 
-export function Avatar({ letter, tone, theme }: { letter: string; tone: string; theme: PluginTheme }) {
-  const tones: Record<string, string> = {
-    grey: "#6B7280",
-    green: theme.colors.accent,
-    purple: "#8B7BD8",
-    blue: "#5A99E6",
-    amber: "#D9A441",
-  };
+export function Avatar({ letter, theme }: { letter: string; theme: PluginTheme }) {
   return (
-    <View style={{ width: 30, height: 30, borderRadius: CONTROL.radius, alignItems: "center", justifyContent: "center", backgroundColor: tones[tone] ?? tones.grey }}>
-      <Text style={{ color: "#0B1F16", fontSize: 12, fontWeight: "500" }}>{letter.toUpperCase()}</Text>
+    <View
+      style={{
+        width: CONTROL.height,
+        height: CONTROL.height,
+        borderRadius: CONTROL.radius,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.surface2,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>{letter.toUpperCase()}</Text>
     </View>
   );
 }
 
 export function Badge({ label, tone, theme }: { label: string; tone: "good" | "quiet"; theme: PluginTheme }) {
   return (
-    <View style={{ paddingHorizontal: CONTROL.padding, paddingVertical: 5, borderRadius: CONTROL.radius, borderWidth: 1, borderColor: theme.colors.border }}>
+    <View style={{ paddingHorizontal: CONTROL.padding, paddingVertical: 4, borderRadius: CONTROL.radius, borderWidth: 1, borderColor: theme.colors.border }}>
       <Text style={{ fontSize: 12, color: tone === "good" ? theme.colors.statusSuccess : theme.colors.foregroundMuted }}>{label}</Text>
     </View>
   );
@@ -135,7 +139,7 @@ export function Empty({ title, body, theme }: { title: string; body: string; the
     () => ({
       box: { padding: 24, gap: 6, alignItems: "center" as const },
       title: { color: theme.colors.foreground, fontSize: 15, fontWeight: "500" as const },
-      body: { color: theme.colors.foregroundMuted, fontSize: 13, textAlign: "center" as const },
+      body: { color: theme.colors.foregroundMuted, fontSize: 14, textAlign: "center" as const },
     }),
     [theme],
   );
