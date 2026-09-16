@@ -15,7 +15,7 @@ export const mcpParseRpc = defineRpc({ name: "seatworks.mcp.parse", input: z.obj
 export const teamRpc = defineRpc({ name: "seatworks.team.read", input: z.object({ project }), output: z.json() });
 export const doctorRpc = defineRpc({ name: "seatworks.doctor.run", input: z.object({ project }), output: z.json() });
 export const statusRpc = defineRpc({ name: "seatworks.status.read", input: z.object({ project: z.string().min(1) }), output: z.json() });
-export const flowRpc = defineRpc({ name: "seatworks.flow.read", input: z.object({ project: z.string().min(1) }), output: z.json() });
+export const flowRpc = defineRpc({ name: "seatworks.flow.read", input: z.object({ project: z.string().min(1), since: z.string().optional() }), output: z.json() });
 
 export const contracts = {
   catalog: catalogRpc,

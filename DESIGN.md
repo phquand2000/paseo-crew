@@ -148,4 +148,6 @@ catalog in two layers, machine then project, each validated before it is saved.
   harness and project, because rules and servers can differ per project.
 - The plugin serves the catalog, both settings layers, the resolved team, doctor checks, status and
   the live flow of open lanes, their tasks, the seats holding them and the open asks over RPC, so a
-  web app manages it without touching files.
+  web app manages it without touching files. Following the flow live is itself a setting, so it can
+  be switched off; a poll that changes nothing is answered with its revision alone, and the ledger is
+  parsed again only when the file on disk has moved.

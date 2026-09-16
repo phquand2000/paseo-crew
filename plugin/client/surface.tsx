@@ -21,7 +21,10 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [checks, setChecks] = useState<Check[] | null>(null);
   const project = open && open !== MACHINE ? open : undefined;
   const { data, save, reload, saving, saveError, addServer, attach, detach, runDoctor, readStatus } = useSeatworks(project);
-  const { flow, error: flowError } = useFlow(tab === "flow" ? project : undefined);
+  const settings = data.status === "ready" ? data : null;
+  const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
+  const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
+  const { flow, error: flowError } = useFlow(tab === "flow" && flowLive ? project : undefined, flowEvery * 1000);
   const toast = useToast();
   const wasSaving = useRef(false);
   const styles = useMemo(
@@ -131,7 +134,16 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         {tab === "team" ? (
           <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} />
         ) : null}
-        {tab === "flow" ? <FlowSection flow={flow} error={flowError} theme={theme} /> : null}
+        {tab === "flow" ? (
+          <FlowSection
+            flow={flow}
+            error={flowError}
+            live={flowLive}
+            theme={theme}
+            disabled={saving}
+            onLive={(next) => void save((values) => ({ ...values, flow: { ...values.flow, live: next } }))}
+          />
+        ) : null}
         {tab === "mcp" ? (
           <ServersSection
             catalog={data.catalog}

@@ -1,11 +1,11 @@
 import type { PluginTheme } from "@getpaseo/plugin";
-import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { TextInput } from "@getpaseo/plugin/client/react-native";
+import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { useMemo, useState } from "react";
-import { View } from "react-native";
-import { Chips, Revert, sourceLabel } from "./bits.tsx";
+import { Text, View } from "react-native";
+import { Chips, sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, McpChoice, Scalar, SettingSpec, TeamView } from "./data.ts";
-import { clearMcp, clearMcpSetting, setMcp, sourceOf } from "./data.ts";
+import { setMcp, sourceOf } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Entry = Catalog["mcp"][number];
@@ -25,14 +25,12 @@ type Props = {
 const ADD = "__add__";
 const EXAMPLE = '{\n  "mcp": {\n    "context7": {\n      "type": "local",\n      "command": ["npx", "-y", "@upstash/context7-mcp"],\n      "enabled": true\n    }\n  }\n}';
 
-function Tuning({ entry, current, theme, disabled, save, labelOf, setHere }: {
+function Tuning({ entry, current, disabled, save, labelOf }: {
   entry: Entry;
   current: Record<string, Scalar>;
-  theme: PluginTheme;
   disabled: boolean;
   save: Props["save"];
   labelOf(key: string): string;
-  setHere(key: string): boolean;
 }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const value = (key: string, spec: SettingSpec): Scalar => {
@@ -77,13 +75,6 @@ function Tuning({ entry, current, theme, disabled, save, labelOf, setHere }: {
           }}
         />
       ) : null}
-      {Object.keys(entry.settings)
-        .filter((key) => setHere(key))
-        .map((key) => (
-          <SettingsRow key={`revert-${key}`} label={entry.settings[key]!.label} hint="Set here">
-            <Revert theme={theme} disabled={disabled} onPress={() => save((values) => clearMcpSetting(values, entry.id, key))} />
-          </SettingsRow>
-        ))}
     </>
   );
 }
@@ -97,8 +88,10 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
   const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), { id: ADD, label: "Add a server" }];
   const styles = useMemo(
     () => ({
-      chips: { paddingHorizontal: 18, paddingBottom: 14, marginTop: -8 },
-      box: { marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 10, backgroundColor: theme.colors.surface2 },
+      block: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 16, gap: 10 },
+      label: { color: theme.colors.foreground, fontSize: 14, fontWeight: "500" as const },
+      hint: { color: theme.colors.foregroundMuted, fontSize: 12 },
+      box: { marginHorizontal: 18, marginBottom: 12, padding: 14, borderRadius: 10, backgroundColor: theme.colors.surface2 },
       boxText: { color: theme.colors.foreground, fontSize: 12, lineHeight: 18, minHeight: 190 },
     }),
     [theme],
@@ -144,8 +137,6 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
   const roles = state.roles;
   const on = state.enabled;
   const source = (field: keyof McpChoice) => sourceOf(values, machine, (current) => current.mcp?.[active]?.[field], layer);
-  const revert = (field: keyof McpChoice) =>
-    source(field) === "here" ? <Revert theme={theme} disabled={disabled} onPress={() => save((current) => clearMcp(current, active, field))} /> : null;
 
   return (
     <SettingsSection title="MCP servers" info={entry?.description ?? (state.connect ? "Added here from a pasted snippet." : "")}>
@@ -157,13 +148,12 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
           value={on}
           onValueChange={(next) => save((current) => setMcp(current, active, { enabled: next }))}
           disabled={disabled}
-        >
-          {revert("enabled")}
-        </SettingsSwitch>
-        <SettingsRow label="Roles that get it" hint={sourceLabel(source("roles"), layer)}>
-          {revert("roles")}
-        </SettingsRow>
-        <View style={styles.chips}>
+        />
+        <View style={styles.block}>
+          <View>
+            <Text style={styles.label}>Roles that get it</Text>
+            <Text style={styles.hint}>{on ? sourceLabel(source("roles"), layer) : "The server is switched off, so no role reaches it."}</Text>
+          </View>
           <Chips
             theme={theme}
             disabled={disabled || !on}
@@ -178,11 +168,9 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
           <Tuning
             entry={entry}
             current={state.settings}
-            theme={theme}
             disabled={disabled}
             save={(change) => save(change)}
             labelOf={(key) => sourceLabel(sourceOf(values, machine, (current) => current.mcp?.[active]?.settings?.[key], layer), layer)}
-            setHere={(key) => sourceOf(values, machine, (current) => current.mcp?.[active]?.settings?.[key], layer) === "here"}
           />
         ) : null}
         <SettingsAction

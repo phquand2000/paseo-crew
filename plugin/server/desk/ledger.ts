@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
 
@@ -102,7 +103,25 @@ export function loadLedger(state: string): Ledger {
 }
 
 export function saveLedger(state: string, ledger: Ledger): void {
+  cached.delete(state);
   writeJson(ledgerFile(state), ledger);
+}
+
+const cached = new Map<string, { mtimeMs: number; size: number; ledger: Ledger }>();
+
+export function readLedger(state: string): Ledger {
+  let stamp: { mtimeMs: number; size: number };
+  try {
+    stamp = statSync(ledgerFile(state));
+  } catch {
+    cached.delete(state);
+    return emptyLedger();
+  }
+  const hit = cached.get(state);
+  if (hit && hit.mtimeMs === stamp.mtimeMs && hit.size === stamp.size) return hit.ledger;
+  const ledger = loadLedger(state);
+  cached.set(state, { mtimeMs: stamp.mtimeMs, size: stamp.size, ledger });
+  return ledger;
 }
 
 export function nextLaneId(ledger: Ledger): string {

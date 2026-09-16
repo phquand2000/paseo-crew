@@ -1,173 +1,159 @@
 import type { PluginTheme } from "@getpaseo/plugin";
-import { SettingsCard, SettingsSection } from "@getpaseo/plugin/client/ui";
-import { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { SettingsCard, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
+import { memo, useMemo } from "react";
+import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import type { FlowAsk, FlowLane, FlowRole, FlowSeat, FlowTask, FlowView } from "./data.ts";
+import type { FlowLane, FlowSeat, FlowTask, FlowView } from "./data.ts";
 
-type Props = { flow: FlowView | null; error: string | null; theme: PluginTheme };
+type Props = {
+  flow: FlowView | null;
+  error: string | null;
+  live: boolean;
+  theme: PluginTheme;
+  disabled: boolean;
+  onLive(live: boolean): void;
+};
 
 const ago = (minutes: number): string => (minutes < 1 ? "just now" : `${minutes} min`);
 
-function seatLine(seat: FlowSeat | null): string {
+const seatText = (seat: FlowSeat | null): string => {
   if (!seat) return "no seat";
-  if (seat.waiting.length > 0) return `waiting on you: ${seat.waiting[0]}`;
+  if (seat.waiting.length > 0) return `waiting on you · ${seat.waiting[0]}`;
   return `${seat.status} · ${ago(seat.minutes)}`;
-}
+};
 
-export function FlowSection({ flow, error, theme }: Props) {
-  const styles = useMemo(
+function useStyles(theme: PluginTheme) {
+  return useMemo(
     () => ({
-      head: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 6 },
-      headLabels: { flex: 1, gap: 3 },
-      title: { color: theme.colors.foreground, fontSize: 14, fontWeight: "500" as const },
+      lane: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 12, gap: 10 },
+      node: { gap: 4, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
+      name: { color: theme.colors.foreground, fontSize: 13, fontWeight: "500" as const },
       hint: { color: theme.colors.foregroundMuted, fontSize: 12 },
-      chain: { flexDirection: "row" as const, alignItems: "center" as const, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 16 },
-      node: { gap: 5, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface2, minWidth: 132 },
-      nodeName: { color: theme.colors.foreground, fontSize: 13, fontWeight: "500" as const },
-      nodeAgent: { color: theme.colors.foregroundMuted, fontSize: 11 },
-      link: { width: 26, height: 1, backgroundColor: theme.colors.border },
-      row: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, paddingHorizontal: 18, paddingVertical: 14 },
-      rowLabels: { flex: 1, gap: 4 },
+      live: { color: theme.colors.statusSuccess, fontSize: 11, fontWeight: "500" as const },
+      quiet: { color: theme.colors.foregroundMuted, fontSize: 11, fontWeight: "500" as const },
+      branch: { flexDirection: "row" as const, gap: 10 },
+      rail: { width: 1, backgroundColor: theme.colors.border, marginLeft: 16 },
+      children: { flex: 1, gap: 8, paddingBottom: 4 },
+      stub: { flexDirection: "row" as const, alignItems: "center" as const, gap: 0 },
+      link: { width: 14, height: 1, backgroundColor: theme.colors.border },
+      row: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, paddingHorizontal: 18, paddingVertical: 12 },
+      labels: { flex: 1, gap: 3 },
       line: { height: 1, backgroundColor: theme.colors.border },
-      live: { fontSize: 11, fontWeight: "500" as const, color: theme.colors.statusSuccess },
-      quiet: { fontSize: 11, fontWeight: "500" as const, color: theme.colors.foregroundMuted },
-      trailing: { fontSize: 12, fontWeight: "500" as const, color: theme.colors.foregroundMuted },
     }),
     [theme],
   );
+}
 
-  if (error) {
-    return (
-      <SettingsSection title="Flow" info="What the team holds right now.">
+const Node = memo(function Node({ title, hint, state, alive, theme }: { title: string; hint: string; state: string; alive: boolean; theme: PluginTheme }) {
+  const styles = useStyles(theme);
+  return (
+    <View style={styles.node}>
+      <Text style={styles.name}>{title}</Text>
+      <Text style={styles.hint} numberOfLines={1}>
+        {hint}
+      </Text>
+      <Text style={alive ? styles.live : styles.quiet}>{state}</Text>
+    </View>
+  );
+});
+
+const Lane = memo(function Lane({ lane, theme }: { lane: FlowLane; theme: PluginTheme }) {
+  const styles = useStyles(theme);
+  const alive = (task: FlowTask) => task.status === "running" || task.status === "rework";
+  return (
+    <SettingsCard>
+      <View style={styles.lane}>
+        <Node
+          theme={theme}
+          title={`Lead · ${lane.id} ${lane.title}`}
+          hint={`${lane.branch} off ${lane.base}`}
+          state={seatText(lane.lead)}
+          alive={Boolean(lane.lead && lane.lead.status !== "gone")}
+        />
+        {lane.tasks.length > 0 ? (
+          <View style={styles.branch}>
+            <View style={styles.rail} />
+            <View style={styles.children}>
+              {lane.tasks.map((task) => (
+                <View key={task.id} style={styles.stub}>
+                  <View style={styles.link} />
+                  <View style={{ flex: 1 }}>
+                    <Node
+                      theme={theme}
+                      title={`${task.kind === "review" ? "Reviewer" : "Peer"} · ${task.id} ${task.title}`}
+                      hint={task.handback !== null ? `handed back ${ago(task.handback)} ago` : seatText(task.peer)}
+                      state={task.status}
+                      alive={alive(task)}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </SettingsCard>
+  );
+});
+
+export function FlowSection({ flow, error, live, theme, disabled, onLive }: Props) {
+  const styles = useStyles(theme);
+  const empty = flow !== null && flow.lanes.length === 0 && flow.supervisor === null;
+
+  return (
+    <SettingsSection title="Flow" info="Only what the team is holding right now.">
+      <SettingsCard>
+        <SettingsSwitch
+          label="Follow the team live"
+          hint={live ? "Reads the ledger every few seconds while this tab is open." : "Switched off, so this tab costs nothing."}
+          value={live}
+          onValueChange={onLive}
+          disabled={disabled}
+        />
+      </SettingsCard>
+
+      {!live ? null : error ? (
         <SettingsCard>
           <Empty theme={theme} title="The flow could not be read" body={error} />
         </SettingsCard>
-      </SettingsSection>
-    );
-  }
-  if (!flow) {
-    return (
-      <SettingsSection title="Flow" info="What the team holds right now.">
+      ) : flow === null ? (
         <SettingsCard>
-          <Empty theme={theme} title="Reading the lanes" body="This refreshes on its own every few seconds." />
+          <Empty theme={theme} title="Reading the ledger" body="This refreshes on its own." />
         </SettingsCard>
-      </SettingsSection>
-    );
-  }
-
-  const chain = flow.roles.filter((role) => !role.headless);
-  const headless = flow.roles.filter((role) => role.headless);
-
-  const node = (role: FlowRole, index: number) => (
-    <View key={role.id} style={{ flexDirection: "row", alignItems: "center" }}>
-      {index > 0 ? <View style={styles.link} /> : null}
-      <View style={styles.node}>
-        <Text style={styles.nodeName}>{role.label}</Text>
-        <Text style={styles.nodeAgent}>{[role.harness, role.model].filter(Boolean).join(" · ")}</Text>
-        <Text style={role.seats.length > 0 ? styles.live : styles.quiet}>{role.seats.length > 0 ? seatLine(role.seats[0]!) : "no seat"}</Text>
-      </View>
-    </View>
-  );
-
-  const task = (entry: FlowTask, last: boolean) => (
-    <View key={entry.id}>
-      <View style={styles.line} />
-      <View style={styles.row}>
-        <View style={styles.rowLabels}>
-          <Text style={styles.title}>{`${entry.id} · ${entry.title}`}</Text>
-          <Text style={styles.hint}>
-            {entry.peer ? `Peer ${entry.peer.id} · ${seatLine(entry.peer)}` : entry.handback !== null ? `Handed back ${ago(entry.handback)} ago` : `Updated ${ago(entry.minutes)} ago`}
-          </Text>
-        </View>
-        <Text style={styles.trailing}>{entry.status}</Text>
-      </View>
-      {last ? null : null}
-    </View>
-  );
-
-  const lane = (entry: FlowLane) => (
-    <SettingsCard key={entry.id}>
-      <View style={styles.row}>
-        <View style={styles.rowLabels}>
-          <Text style={styles.title}>{`${entry.id} · ${entry.title}`}</Text>
-          <Text style={styles.hint}>{`Branch ${entry.branch} off ${entry.base}. Lead ${entry.lead ? `${entry.lead.id}, ${seatLine(entry.lead)}` : "not seated"}.`}</Text>
-        </View>
-        <Text style={styles.trailing}>{entry.status}</Text>
-      </View>
-      {entry.tasks.length === 0 ? (
+      ) : empty ? (
+        <SettingsCard>
+          <Empty theme={theme} title="Nothing is running" body="Open a lane and its Lead, Peers and asks appear here." />
+        </SettingsCard>
+      ) : (
         <>
-          <View style={styles.line} />
-          <View style={styles.row}>
-            <Text style={styles.hint}>The Lead has not split this lane into a task yet.</Text>
-          </View>
-        </>
-      ) : (
-        entry.tasks.map((item, index) => task(item, index === entry.tasks.length - 1))
-      )}
-    </SettingsCard>
-  );
-
-  const ask = (entry: FlowAsk) => (
-    <View key={entry.id}>
-      <View style={styles.line} />
-      <View style={styles.row}>
-        <View style={styles.rowLabels}>
-          <Text style={styles.title}>{`${entry.id} · ${entry.text}`}</Text>
-          <Text style={styles.hint}>{`${entry.kind} · from ${entry.fromRole} ${entry.from} to ${entry.to}`}</Text>
-        </View>
-        <Text style={styles.trailing}>{ago(entry.minutes)}</Text>
-      </View>
-    </View>
-  );
-
-  return (
-    <SettingsSection title="Flow" info="Who holds what right now. It refreshes on its own.">
-      <SettingsCard>
-        <View style={styles.head}>
-          <View style={styles.headLabels}>
-            <Text style={styles.title}>The team</Text>
-            <Text style={styles.hint}>A hand-back goes back up the chain it came down.</Text>
-          </View>
-          <Text style={styles.hint}>{flow.gate ? `gate ${flow.gate}` : "no gate"}</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chain}>
-          {chain.map((role, index) => node(role, index))}
-        </ScrollView>
-        {headless.map((role) => (
-          <View key={role.id}>
-            <View style={styles.line} />
-            <View style={styles.row}>
-              <View style={styles.rowLabels}>
-                <Text style={styles.title}>{role.label}</Text>
-                <Text style={styles.hint}>Headless. The plugin wakes it on a flagged turn ending; it raises attention to the Supervisor.</Text>
+          {flow.supervisor ? (
+            <SettingsCard>
+              <View style={styles.lane}>
+                <Node theme={theme} title="Supervisor" hint={flow.supervisor.id} state={seatText(flow.supervisor)} alive={flow.supervisor.status !== "gone"} />
               </View>
-              <Text style={styles.quiet}>{[role.harness, role.model].filter(Boolean).join(" · ")}</Text>
-            </View>
-          </View>
-        ))}
-      </SettingsCard>
-
-      {flow.lanes.length === 0 ? (
-        <SettingsCard>
-          <Empty theme={theme} title="No lane is open" body="The Supervisor opens one when the Human asks for work." />
-        </SettingsCard>
-      ) : (
-        flow.lanes.map((entry) => lane(entry))
+            </SettingsCard>
+          ) : null}
+          {flow.lanes.map((lane) => (
+            <Lane key={lane.id} lane={lane} theme={theme} />
+          ))}
+          {flow.asks.length > 0 ? (
+            <SettingsCard>
+              {flow.asks.map((ask, index) => (
+                <View key={ask.id}>
+                  {index > 0 ? <View style={styles.line} /> : null}
+                  <View style={styles.row}>
+                    <View style={styles.labels}>
+                      <Text style={styles.name}>{`${ask.id} · ${ask.text}`}</Text>
+                      <Text style={styles.hint}>{`${ask.kind} from the ${ask.fromRole}`}</Text>
+                    </View>
+                    <Text style={styles.quiet}>{ago(ask.minutes)}</Text>
+                  </View>
+                </View>
+              ))}
+            </SettingsCard>
+          ) : null}
+        </>
       )}
-
-      {flow.asks.length > 0 ? (
-        <SettingsCard>
-          <View style={styles.row}>
-            <View style={styles.rowLabels}>
-              <Text style={styles.title}>Open asks</Text>
-              <Text style={styles.hint}>Each one is repeated in every letter until it is answered.</Text>
-            </View>
-            <Text style={styles.trailing}>{`${flow.asks.length} open`}</Text>
-          </View>
-          {flow.asks.map((entry) => ask(entry))}
-        </SettingsCard>
-      ) : null}
     </SettingsSection>
   );
 }

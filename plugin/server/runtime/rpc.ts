@@ -18,7 +18,7 @@ export interface Control {
   team(project?: string): unknown;
   doctor(project?: string): Promise<Check[]>;
   status(project: string): Promise<unknown>;
-  flow(project: string): Promise<unknown>;
+  flow(project: string, since?: string): Promise<unknown>;
 }
 
 type Handle = (contract: { name: string; input: z.ZodType; output: z.ZodType }, handler: (input: any) => unknown) => void;
@@ -37,6 +37,6 @@ export function registerRpc(server: { handle: unknown }, control: Control): stri
   handle(contracts.team, (input) => control.team(input.project));
   handle(contracts.doctor, (input) => control.doctor(input.project));
   handle(contracts.status, (input) => control.status(input.project));
-  handle(contracts.flow, (input) => control.flow(input.project));
+  handle(contracts.flow, (input) => control.flow(input.project, input.since));
   return Object.values(contracts).map((contract) => contract.name);
 }

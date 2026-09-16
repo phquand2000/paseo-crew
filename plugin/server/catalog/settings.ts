@@ -48,11 +48,17 @@ const AttentionChoice = z.strictObject({
   watcherTimeoutSeconds: z.number().int().min(10).optional(),
 });
 
+const FlowChoice = z.strictObject({
+  live: z.boolean().optional(),
+  everySeconds: z.number().int().min(2).max(120).optional(),
+});
+
 const shared = {
   roles: z.record(z.string(), RoleChoice).optional(),
   mcp: z.record(z.string(), McpChoice).optional(),
   rules: z.string().optional(),
   limits: LimitsChoice.optional(),
+  flow: FlowChoice.optional(),
 };
 
 export const ProjectLayerSchema = z.strictObject(shared);

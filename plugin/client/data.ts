@@ -24,18 +24,17 @@ export type TeamView = {
 
 export type RoleChoice = { harness?: string; model?: string; thinking?: string };
 export type McpChoice = { enabled?: boolean; removed?: boolean; label?: string; connect?: Connect; roles?: string[]; tools?: Record<string, string[]>; rule?: string; settings?: Record<string, Scalar> };
-export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; limits?: { slots?: number; tasksPerLane?: number } };
+export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; limits?: { slots?: number; tasksPerLane?: number }; flow?: { live?: boolean; everySeconds?: number } };
 
 export type ProjectRow = { slug: string; root: string };
 export type PaseoProject = { name: string; root: string };
 export type Check = { id: string; ok: boolean; detail: string };
-export type FlowSeat = { id: string; status: string; minutes: number; waiting: string[] };
-export type FlowTask = { id: string; title: string; status: string; kind: string; of: string | null; peer: FlowSeat | null; minutes: number; handback: number | null };
+export type FlowSeat = { id: string; role: string; status: string; minutes: number; waiting: string[] };
+export type FlowTask = { id: string; title: string; status: string; kind: string; peer: FlowSeat | null; minutes: number; handback: number | null };
 export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[] };
-export type FlowAsk = { id: string; kind: string; from: string; fromRole: string; to: string; lane: string | null; task: string | null; minutes: number; text: string };
-export type FlowRole = { id: string; label: string; harness: string; model: string | null; headless: boolean; seats: FlowSeat[] };
-export type FlowView = { project: string; root: string; at: number; base: string | null; gate: string | null; roles: FlowRole[]; lanes: FlowLane[]; asks: FlowAsk[] };
-export type FlowResult = FlowView | { error: string };
+export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
+export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; asks: FlowAsk[] };
+export type FlowResult = FlowView | { unchanged: true; revision: string } | { error: string };
 type SettingsRead = ({ status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string }) & { machine: Layer };
 type WriteResult = { status: "saved" } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
 type AddResult = { slug: string; root: string } | { error: string };
@@ -70,7 +69,7 @@ type Calls = {
   team: Call<{ project?: string }, TeamView>;
   doctor: Call<{ project?: string }, Check[]>;
   status: Call<{ project: string }, { text: string; error?: string }>;
-  flow: Call<{ project: string }, FlowResult>;
+  flow: Call<{ project: string; since?: string }, FlowResult>;
 };
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -257,7 +256,7 @@ export function useSeatworks(project?: string) {
 }
 
 export function useFlow(project: string | undefined, everyMs = 5000): { flow: FlowView | null; error: string | null } {
-  const call = useRpc(flowRpc) as unknown as Call<{ project: string }, FlowResult>;
+  const call = useRpc(flowRpc) as unknown as Call<{ project: string; since?: string }, FlowResult>;
   const latest = useRef(call);
   latest.current = call;
   const [flow, setFlow] = useState<FlowView | null>(null);
@@ -270,16 +269,19 @@ export function useFlow(project: string | undefined, everyMs = 5000): { flow: Fl
       return;
     }
     let alive = true;
+    let since: string | undefined;
     const read = async (): Promise<void> => {
       try {
-        const answer = await latest.current({ project });
+        const answer = await latest.current(since ? { project, since } : { project });
         if (!alive) return;
         if ("error" in answer) {
           setError(answer.error);
           return;
         }
-        setFlow(answer);
         setError(null);
+        if ("unchanged" in answer) return;
+        since = answer.revision;
+        setFlow(answer);
       } catch (problem) {
         if (alive) setError(message(problem));
       }
@@ -323,12 +325,6 @@ export function setRole(values: Layer, role: string, choice: RoleChoice, replace
   return prune(values, "roles", role, { ...(replace ? {} : (values.roles?.[role] ?? {})), ...choice });
 }
 
-export function clearRole(values: Layer, role: string, field: keyof RoleChoice): Layer {
-  const entry = { ...(values.roles?.[role] ?? {}) };
-  delete entry[field];
-  return prune(values, "roles", role, entry);
-}
-
 export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
   const current = values.mcp?.[id] ?? {};
   const settings = { ...current.settings, ...choice.settings };
@@ -338,17 +334,3 @@ export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
   return prune(values, "mcp", id, entry);
 }
 
-export function clearMcp(values: Layer, id: string, field: keyof McpChoice): Layer {
-  const entry = { ...(values.mcp?.[id] ?? {}) };
-  delete entry[field];
-  return prune(values, "mcp", id, entry);
-}
-
-export function clearMcpSetting(values: Layer, id: string, key: string): Layer {
-  const entry = { ...(values.mcp?.[id] ?? {}) };
-  const settings = { ...entry.settings };
-  delete settings[key];
-  if (Object.keys(settings).length === 0) delete entry.settings;
-  else entry.settings = settings;
-  return prune(values, "mcp", id, entry);
-}

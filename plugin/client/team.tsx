@@ -1,9 +1,9 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsCard, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
 import { useState } from "react";
-import { Revert, sourceLabel } from "./bits.tsx";
+import { sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, RoleChoice, TeamView } from "./data.ts";
-import { clearRole, setRole, sourceOf } from "./data.ts";
+import { setRole, sourceOf } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {
@@ -24,10 +24,9 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
   const seat = team.roles[role.id];
   const harness = catalog.harnesses.find((entry) => entry.id === seat?.harness);
   const models = harness?.models ?? [];
-  const thinking = harness?.thinking === false ? [] : (models.find((model) => model.id === seat?.model)?.thinkingOptions ?? []);
+  const model = seat?.model ?? models[0]?.id ?? "";
+  const thinking = harness?.thinking === false ? [] : (models.find((entry) => entry.id === model)?.thinkingOptions ?? []);
   const source = (field: keyof RoleChoice) => sourceOf(values, machine, (entry) => entry.roles?.[role.id]?.[field], layer);
-  const revert = (field: keyof RoleChoice) =>
-    source(field) === "here" ? <Revert theme={theme} disabled={disabled} onPress={() => save((current) => clearRole(current, role.id, field))} /> : null;
 
   return (
     <SettingsSection title="Team" info={role.description}>
@@ -40,20 +39,16 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
           options={role.harnesses.map((id) => ({ label: catalog.harnesses.find((entry) => entry.id === id)?.label ?? id, value: id }))}
           onValueChange={(next) => save((current) => setRole(current, role.id, { harness: next }, true))}
           disabled={disabled}
-        >
-          {revert("harness")}
-        </SettingsSelect>
-        {models.length > 1 ? (
+        />
+        {models.length > 0 ? (
           <SettingsSelect
             label="Model"
-            hint={sourceLabel(source("model"), layer)}
-            value={seat?.model ?? models[0]!.id}
-            options={models.map((model) => ({ label: model.label, value: model.id }))}
+            hint={models.length === 1 ? `The only model ${harness?.label ?? "this agent"} offers.` : sourceLabel(source("model"), layer)}
+            value={model}
+            options={models.map((entry) => ({ label: entry.label, value: entry.id }))}
             onValueChange={(next) => save((current) => setRole(current, role.id, { model: next }))}
-            disabled={disabled}
-          >
-            {revert("model")}
-          </SettingsSelect>
+            disabled={disabled || models.length === 1}
+          />
         ) : null}
         {thinking.length > 0 ? (
           <SettingsSelect
@@ -63,9 +58,7 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
             options={thinking.map((entry) => ({ label: entry.label, value: entry.id }))}
             onValueChange={(next) => save((current) => setRole(current, role.id, { thinking: next }))}
             disabled={disabled}
-          >
-            {revert("thinking")}
-          </SettingsSelect>
+          />
         ) : null}
       </SettingsCard>
     </SettingsSection>
