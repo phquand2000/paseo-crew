@@ -27,6 +27,10 @@ cd plugin && npm install && npm run check
 paseo plugin install ./plugin
 ```
 
+Paseo shows a **Seatworks** item in its sidebar: one screen to choose each role's agent, model and
+thinking, turn MCP servers on or off per role, run the doctor and read a project's status, for the
+machine layer or for one project.
+
 The plugin writes one Paseo provider and profile for each role on each harness that has settings for
 it (`sw2-supervisor-claude`, `sw2-lead-claude`, `sw2-peer-devin`, `sw2-reviewer-devin`) and builds
 each role's seat directory per project the first time an agent of that role starts there. After

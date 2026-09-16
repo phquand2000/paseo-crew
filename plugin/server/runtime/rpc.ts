@@ -1,19 +1,9 @@
-import { z } from "zod";
+import type { z } from "zod";
+import { contracts } from "../../shared/rpc.ts";
 import type { Check } from "./doctor.ts";
 import type { ReadResult, WriteResult } from "../catalog/settings.ts";
 
-const project = z.string().min(1).optional();
-
-export const contracts = {
-  catalog: { name: "seatworks.catalog.read", input: z.object({}), output: z.json() },
-  settingsRead: { name: "seatworks.settings.read", input: z.object({ project }), output: z.json() },
-  settingsWrite: { name: "seatworks.settings.write", input: z.object({ project, revision: z.string(), values: z.json() }), output: z.json() },
-  settingsReset: { name: "seatworks.settings.reset", input: z.object({ project, revision: z.string() }), output: z.json() },
-  projects: { name: "seatworks.projects.list", input: z.object({}), output: z.json() },
-  team: { name: "seatworks.team.read", input: z.object({ project }), output: z.json() },
-  doctor: { name: "seatworks.doctor.run", input: z.object({ project }), output: z.json() },
-  status: { name: "seatworks.status.read", input: z.object({ project: z.string().min(1) }), output: z.json() },
-} as const;
+export { contracts };
 
 export interface Control {
   catalog(): unknown;

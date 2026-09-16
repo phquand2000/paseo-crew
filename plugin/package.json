@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json",
     "test": "node --test 'server/**/*.test.ts'",
     "check": "npm run typecheck && npm test"
   },
@@ -15,6 +15,9 @@
   "devDependencies": {
     "@getpaseo/plugin": "0.8.0",
     "@types/node": "^24.13.4",
+    "@types/react": "~19.2.0",
+    "react": "^19.1.0",
+    "react-native": "^0.81.5",
     "typescript": "^5.9.3"
   }
 }

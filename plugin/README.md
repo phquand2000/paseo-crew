@@ -3,6 +3,8 @@
 | Path | Holds |
 |---|---|
 | `index.server.ts` | Wires the runtime |
+| `index.client.tsx`, `client/` | The Seatworks screen in Paseo's sidebar: team, MCP servers, doctor and status |
+| `shared/rpc.ts` | The RPC contracts both sides use |
 | `roles.json` | Roles with their default harness, model and thinking; limits; attention timings |
 | `harness/<id>/` | Harness manifest (models, prompt, rules, skills and MCP delivery), role settings, `NOTES.md` |
 | `catalog/mcp/<id>/` | MCP servers the settings can turn on: `mcp.json`, `rule.md`, `skills/` |
@@ -24,4 +26,5 @@ sync hooks, error guidance and tool descriptions are its `mcp.json` `proxy` spec
 key and server shape, what it clears, where a seat may write state, its own rule and how its refusals
 read are in its `harness.json`.
 
-`npm run check` typechecks and runs the unit tests.
+`npm run check` typechecks both sides and runs the unit tests. The server compiles with Node types
+(`tsconfig.json`), the screen with React types (`tsconfig.client.json`); only `shared/` is in both.
