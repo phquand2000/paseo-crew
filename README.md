@@ -1,5 +1,8 @@
 # Seatworks
 
+> **Warning:** this project is 100% vibe-coded and supported by nobody — if you need something from
+> it, fork it.
+
 Seatworks runs an SLPW agent team — Supervisor, Lead, Peer, Watcher — on
 [Paseo](https://getpaseo.com) as one plugin.
 
