@@ -4,7 +4,7 @@
 > it, fork it.
 
 Seatworks runs an SLPW agent team — Supervisor, Lead, Peer, Watcher — on
-[Paseo](https://getpaseo.com) as one plugin.
+[Paseo](https://paseo.sh) as one plugin.
 
 You talk to the Supervisor. It opens a lane per outcome. Each Lead splits its lane into tasks, each
 Peer works on its own branch, and the plugin merges accepted work through a gated queue.
