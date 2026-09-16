@@ -48,9 +48,50 @@ export type HarnessSpec = {
     clear?: { set?: Record<string, unknown>; remove?: string[]; setInEach?: Record<string, Record<string, unknown>> };
     rule?: string;
   };
-  provider: { env?: Record<string, string>; profileModeId?: string; command?: string[] };
+  provider: { env?: Record<string, string>; profileModeId?: string; command?: string[]; forceFlags?: Record<string, string> };
   headless?: string[];
 };
+
+const HARNESS_FIELDS = new Set([
+  "id",
+  "label",
+  "baseProvider",
+  "configDirEnv",
+  "profileRoot",
+  "promptFile",
+  "contextFile",
+  "skillsDir",
+  "hasThinking",
+  "systemPrompt",
+  "stateWrites",
+  "refused",
+  "settings",
+  "links",
+  "models",
+  "mcp",
+  "provider",
+  "headless",
+]);
+const HARNESS_REQUIRED = ["id", "label", "baseProvider", "configDirEnv", "profileRoot", "skillsDir", "settings", "mcp", "provider"];
+
+export function harnessProblems(id: string, raw: Record<string, unknown>): string[] {
+  const problems: string[] = [];
+  for (const key of Object.keys(raw)) if (!HARNESS_FIELDS.has(key)) problems.push(`names ${key}, which is no harness field`);
+  for (const key of HARNESS_REQUIRED) if (raw[key] === undefined) problems.push(`has no ${key}`);
+  if (raw.id !== undefined && raw.id !== id) problems.push(`calls itself ${String(raw.id)} but sits in harness/${id}`);
+  const settings = raw.settings as Record<string, unknown> | undefined;
+  if (settings) for (const key of ["file", "source", "roleSource"]) if (settings[key] === undefined) problems.push(`has no settings.${key}`);
+  const mcp = raw.mcp as Record<string, unknown> | undefined;
+  if (mcp) {
+    for (const key of ["file", "delivery", "transports"]) if (mcp[key] === undefined) problems.push(`has no mcp.${key}`);
+    if (mcp.delivery !== undefined && mcp.delivery !== "launch" && mcp.delivery !== "file") problems.push(`delivers MCP servers as ${String(mcp.delivery)}, which is neither launch nor file`);
+    if (mcp.delivery === "file" && !mcp.key) problems.push("delivers MCP servers in a file but names no mcp.key");
+    if (Array.isArray(mcp.transports) && mcp.transports.length === 0) problems.push("lists no mcp.transports");
+  }
+  if (raw.systemPrompt !== undefined && raw.systemPrompt !== "config" && raw.systemPrompt !== "file") problems.push(`takes its prompt as ${String(raw.systemPrompt)}, which is neither config nor file`);
+  if (raw.systemPrompt === "file" && !raw.promptFile) problems.push("takes its prompt as a file but names no promptFile");
+  return problems;
+}
 
 export type ProxyBackend = { type: "http"; url: string } | { type: "stdio"; command: string[] };
 export type ProxyHook = { tool: string; args?: Record<string, unknown>; when?: string; timeoutSeconds?: number };
@@ -148,9 +189,10 @@ export function loadKit(dir: string): Kit {
   for (const id of subdirs(join(dir, "harness"))) {
     const file = join(dir, "harness", id, "harness.json");
     if (!existsSync(file)) continue;
-    const harness = JSON.parse(readFileSync(file, "utf-8")) as HarnessSpec;
-    if (harness.mcp.delivery === "file" && !harness.mcp.key) throw new Error(`harness ${id} delivers MCP servers in a file but names no mcp.key`);
-    harnesses[id] = harness;
+    const raw = JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown>;
+    const problems = harnessProblems(id, raw);
+    if (problems.length > 0) throw new Error(`harness ${id} ${problems.join("; ")}`);
+    harnesses[id] = raw as unknown as HarnessSpec;
   }
   const roles = (raw.roles ?? []) as RoleSpec[];
   for (const role of roles) {
