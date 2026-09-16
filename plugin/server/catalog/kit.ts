@@ -4,7 +4,7 @@ import { join } from "node:path";
 export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
 export type ModelSpec = { id: string; label: string; isDefault?: boolean; thinkingOptions?: ThinkingSpec[] };
 export type McpServers = Record<string, unknown>;
-export type TeamRole = "supervisor" | "lead" | "peer" | "reviewer";
+export type TeamRole = "supervisor" | "lead" | "peer" | "reviewer" | "watcher";
 export type McpTransport = "stdio" | "http" | "sse";
 
 export type RoleSpec = {
@@ -236,10 +236,6 @@ export function roleNamed(kit: Kit, name: string): RoleSpec | undefined {
 
 export function seatRoles(kit: Kit): RoleSpec[] {
   return kit.roles.filter((role) => !role.headless);
-}
-
-export function headlessRole(kit: Kit): RoleSpec | undefined {
-  return kit.roles.find((role) => role.headless);
 }
 
 export function entryRole(kit: Kit): RoleSpec | undefined {

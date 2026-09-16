@@ -36,6 +36,7 @@ export class Patrol {
     const seats: Seats = new Map((await openSeats(paseo)).map((seat) => [seat.id, seat]));
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.team) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
+      await this.seatWatcher(paseo, project, loadLedger(project.state), seats);
       await this.idleLanes(paseo, project, loadLedger(project.state), seats, now);
       await this.goneTasks(paseo, project, loadLedger(project.state), seats);
       await this.dueAsks(paseo, project, loadLedger(project.state), seats, now);
@@ -43,6 +44,15 @@ export class Patrol {
     }
     const targets = new Set(outbox.letters().map((letter) => letter.to));
     for (const to of targets) await outbox.pump(paseo, to);
+  }
+
+  private async seatWatcher(paseo: PaseoApi, project: Project, ledger: Ledger, seats: Seats): Promise<void> {
+    if (!Object.values(ledger.lanes).some((lane) => lane.status === "open")) return;
+    try {
+      await this.deps.desk.ensureWatcher(paseo, project, seats.values());
+    } catch (error) {
+      console.error(`seatworks-v2: the Watcher could not be seated on ${project.slug}:`, error);
+    }
   }
 
   private async idleLanes(paseo: PaseoApi, project: Project, ledger: Ledger, seats: Seats, now: number): Promise<void> {

@@ -8,9 +8,7 @@
     "tickSeconds": 30,
     "leadIdleMinutes": 12,
     "askRemindMinutes": 15,
-    "maxReminders": 2,
-    "watcherDebounceSeconds": 45,
-    "watcherTimeoutSeconds": 180
+    "maxReminders": 2
   },
   "roles": [
     {
@@ -108,15 +106,15 @@
     {
       "role": "watcher",
       "label": "Watcher",
-      "description": "Cheap model run headless by the plugin on flagged turn endings; raises attention for the Supervisor",
+      "description": "Reads flagged turn endings and raises attention for the owner; it cannot touch the work",
       "defaults": {
         "harness": "devin",
         "model": "swe-2-max"
       },
-      "headless": true,
       "prompt": "prompts/WATCHER.md",
       "skills": null,
-      "hidesWords": []
+      "hidesWords": [],
+      "team": "watcher"
     }
   ]
 }

@@ -6,12 +6,13 @@ import { type Ledger, activeTasks, laneOfLead, loadLedger, openAsksFrom, taskOfP
 import { letters } from "../desk/letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
-import type { Watch } from "./watch-queue.ts";
 
 export const CUES =
   /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed)|shim|adapter|compat(ibility)?|bridge|backward|legacy|temporar(y|ily)|stub|placeholder|re-?export)\b|chờ|đợi|tạm dừng|dừng lại|không chắc|hóa ra|hoá ra|sai rồi|bỏ qua|tạm thời|tương thích|xóa|xoá/i;
 
 type TurnEnded = PluginLifecycleEvents["agent.turn_ended"];
+
+export type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string };
 
 export type TurnDeps = {
   kit: Kit;
@@ -74,7 +75,10 @@ export class TurnRules {
     if (!task || ["merged", "cut", "queued", "merging"].includes(task.status)) return;
     const lane = ledger.lanes[task.lane];
     if (recorded || task.status === "done") {
-      if (lane && CUES.test(text)) this.deps.watch({ project, lane: lane.id, agent: agent.id, role: team, where: `the Peer on ${task.id} (${task.title})`, text });
+      const claimedComplete = task.status === "done" && task.handback?.outcome === "complete";
+      if (lane && (CUES.test(text) || claimedComplete)) {
+        this.deps.watch({ project, lane: lane.id, agent: agent.id, role: team, where: `the Peer on ${task.id} (${task.title})`, text });
+      }
       return;
     }
     const denied = deniedCall(timeline, seatOf(this.deps.kit, agent.provider)?.harness.refused);

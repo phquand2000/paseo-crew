@@ -8,7 +8,6 @@ import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, s
 import { letters } from "../../server/desk/letters.ts";
 import { takeRequests, writeReply } from "../../server/runtime/spool.ts";
 import { tempDir } from "../../server/core/testing.ts";
-import { fillCommand, parseVerdicts } from "../../server/runtime/watcher.ts";
 
 const lane: Lane = {
   id: "L1",
@@ -60,14 +59,6 @@ test("what a Peer and a Lead read carries none of the words hidden from them", (
   for (const word of ["supervisor", "watcher"]) assert.equal(new RegExp(`\\b${word}\\b`, "i").test(leadText), false, word);
 });
 
-test("watcher output parses to one verdict per ending and ignores noise", () => {
-  const output = "Working...\n1 unheard-wait | \"once that lands I'll dispatch\"\n2. normal | done\n**3 wrong-premise** | turns out V9 is missing\n3 normal | duplicate\n9 struggle | out of range\n";
-  assert.deepEqual(
-    parseVerdicts(output, 3).map((verdict) => verdict.label),
-    ["unheard-wait", "normal", "wrong-premise"],
-  );
-  assert.deepEqual(fillCommand(["devin", "--model", "{model}", "--prompt-file", "{promptFile}"], { model: "swe", promptFile: "/p" }), ["devin", "--model", "swe", "--prompt-file", "/p"]);
-});
 
 test("issue references resolve to gh arguments", () => {
   assert.deepEqual(issueArgs("#12"), ["issue", "view", "12"]);

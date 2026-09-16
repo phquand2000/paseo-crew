@@ -2,13 +2,13 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "../catalog/content.ts";
-import { type Kit, headlessRole, seatOf } from "../catalog/kit.ts";
+import { type Kit, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
 import { type IndexedProxy, type Team, indexedProxies } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
-import type { PaseoApi } from "../core/paseo.ts";
+import { type PaseoApi, openSeats } from "../core/paseo.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { loadLedger, openAsksTo } from "../desk/ledger.ts";
@@ -23,7 +23,6 @@ import { Seating } from "./seating.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
-import { WatchQueue } from "./watch-queue.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
@@ -38,7 +37,6 @@ export class Runtime {
   private readonly source: TeamSource;
   private readonly seating: Seating;
   private readonly turns: TurnRules;
-  private readonly watches: WatchQueue;
   private readonly patrol: Patrol;
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
@@ -56,10 +54,20 @@ export class Runtime {
     const remember = (project: Project) => this.remember(project);
     const api = () => this.api;
     this.desk = new Desk(kit, this.outbox, log, (project) => this.source.teamFor(project), (project) => this.indexesFor(project));
-    this.watches = new WatchQueue({ kit, source: this.source, seating: this.seating, desk: this.desk, log, api });
-    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.watches.add(item) });
+    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item) });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, outbox: this.outbox, turns: this.turns, remember });
     this.control = new SettingsControl({ kit, source: this.source, seating: this.seating, reconcile: (team) => this.reconcileProviders(team), api });
+  }
+
+  private tellWatcher(item: { project: Project; agent: string; where: string; text: string }): void {
+    const paseo = this.api;
+    if (!paseo || !item.text.trim()) return;
+    void (async () => {
+      const seats = await openSeats(paseo);
+      const watcher = await this.desk.ensureWatcher(paseo, item.project, seats);
+      if (!watcher) return;
+      await this.desk.post(paseo, watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text));
+    })().catch((error) => console.error("seatworks-v2: an ending could not reach the Watcher:", error));
   }
 
   prepare(): void {
@@ -72,9 +80,6 @@ export class Runtime {
     }
     const team = this.source.teamFor();
     for (const problem of team.errors) console.error(`seatworks-v2: settings: ${problem}`);
-    const watcher = headlessRole(this.kit);
-    const seat = watcher ? team.roles[watcher.role] : undefined;
-    if (watcher && seat) this.seating.ensure(watcher.role, seat.harness);
     this.reconcileProviders(team);
   }
 
@@ -97,7 +102,6 @@ export class Runtime {
       this.outbox.archived(agent.id);
       this.turns.forget(agent.id);
     });
-    this.watches.schedule();
     this.timers.push(
       setInterval(() => this.serveSpool(), 500),
       setInterval(() => {
@@ -109,7 +113,6 @@ export class Runtime {
   dispose(): void {
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
-    this.watches.dispose();
   }
 
   private launchConfig(config: AgentConfig): AgentConfig {
@@ -137,6 +140,7 @@ export class Runtime {
   }
 
   private async turnEnded(paseo: PaseoApi, event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
+    this.api ??= paseo;
     this.outbox.turnEnded(event.agent.id);
     if (this.desk.pendingArchive.has(event.agent.id)) {
       await this.desk.archive(paseo, event.agent.id, true);

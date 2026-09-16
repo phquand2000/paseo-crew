@@ -1,6 +1,6 @@
 import type { Team } from "../catalog/team.ts";
 import { type Kit, seatOf } from "../catalog/kit.ts";
-import type { PaseoApi } from "../core/paseo.ts";
+import type { PaseoApi, SeatView } from "../core/paseo.ts";
 import { Agents } from "./agents.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
 import type { Ledger, Task } from "./ledger.ts";
@@ -12,6 +12,7 @@ import { Slots } from "./slots.ts";
 import * as lead from "./tools/lead.ts";
 import * as shared from "./tools/shared.ts";
 import * as supervisor from "./tools/supervisor.ts";
+import * as watcher from "./tools/watcher.ts";
 import * as worker from "./tools/worker.ts";
 
 const TOOLS: Record<string, Tool> = {
@@ -35,6 +36,7 @@ const TOOLS: Record<string, Tool> = {
   "peer.ask": worker.ask,
   "reviewer.done": worker.done,
   "reviewer.ask": worker.ask,
+  "watcher.raise": watcher.raise,
 };
 
 export class Desk {
@@ -77,6 +79,18 @@ export class Desk {
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.services.ctx.setTask(project, taskId, change);
+  }
+
+  async ensureWatcher(paseo: PaseoApi, project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
+    const kit = this.services.ctx.kit;
+    for (const seat of seats) {
+      if (seatOf(kit, seat.provider)?.role.team === "watcher" && seat.cwd === project.root) return seat.id;
+    }
+    return this.services.agents.startResident(paseo, project, "watcher", {
+      title: `Watcher ${project.slug}`,
+      prompt: "You are seated on this project. Turn endings arrive as mail; label each one and raise what is not normal. Nothing to do until mail arrives.",
+      labels: { "seatworks.role": "watcher" },
+    });
   }
 
   async handle(paseo: PaseoApi, request: ToolRequest): Promise<ToolReply> {

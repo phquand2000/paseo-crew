@@ -522,5 +522,41 @@
         ]
       }
     }
+  ],
+  "watcher": [
+    {
+      "name": "raise",
+      "description": "Record how one turn ended, and raise it to the owner when the label is not normal.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "enum": [
+              "unheard-wait",
+              "wrong-premise",
+              "destructive",
+              "drift",
+              "struggle",
+              "normal"
+            ],
+            "description": "The first label that matches the ending."
+          },
+          "where": {
+            "type": "string",
+            "description": "Whose ending it was, as it was given to you."
+          },
+          "quote": {
+            "type": "string",
+            "description": "The exact words from the ending that show the label, at most 15 words."
+          }
+        },
+        "required": [
+          "label",
+          "where",
+          "quote"
+        ]
+      }
+    }
   ]
 }

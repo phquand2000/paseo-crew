@@ -21,7 +21,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   assert.deepEqual(team.errors, []);
   assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["lead", "peer", "reviewer", "supervisor", "watcher"]);
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);
-  assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), ["lead-claude", "peer-claude", "peer-devin", "reviewer-claude", "reviewer-devin", "supervisor-claude"]);
+  assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), ["lead-claude", "peer-claude", "peer-devin", "reviewer-claude", "reviewer-devin", "supervisor-claude", "watcher-devin"]);
   const home = tempDir("sw2-real-home-");
   const project = { slug: "demo-000000", state: "/state/demo" };
   for (const [name, seat] of Object.entries(team.roles)) {
@@ -45,6 +45,11 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
       context = readFileSync(join(dir, harness.contextFile!), "utf-8");
     }
     assert.doesNotMatch(context, /\{\{/, `${name} seat has no placeholder left`);
+    if (seat.mcp.length === 0) {
+      assert.doesNotMatch(context, /intellij-index MCP tools/, `${name} takes no server, so it carries no server rule`);
+      assert.equal(existsSync(join(dir, harness.skillsDir, "ide-index-mcp", "SKILL.md")), false, `${name} takes no server, so it has no IDE skill`);
+      continue;
+    }
     assert.match(context, /intellij-index MCP tools/, `${name} seat carries the IntelliJ rule`);
     assert.match(context, /context7/, `${name} seat carries the docs rule`);
     assert.ok(existsSync(join(dir, harness.skillsDir, "ide-index-mcp", "SKILL.md")), `${name} has the IDE skill`);
