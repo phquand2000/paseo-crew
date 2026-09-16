@@ -68,7 +68,8 @@ function openedReply(project: Project, lane: Lane, slot: Slot, lead: string, iss
 export const openLane: Tool = async (desk, paseo, caller, args) => {
   const { ctx, slots, agents } = desk;
   const { project } = caller;
-  if (!str(args.title) || !str(args.outcome) || strs(args.acceptance).length === 0) return no("open_lane needs a title, an outcome and at least one acceptance check.");
+  if (!str(args.title) || !str(args.outcome) || strs(args.acceptance).length === 0 || strs(args.outOfScope).length === 0)
+    return no("open_lane needs a title, an outcome, at least one acceptance check and what is out of scope.");
   const config = loadConfig(project.state);
   const base = str(args.base) || config.base || (await currentBranch(project.root)) || "main";
   if (!(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
