@@ -29,9 +29,10 @@ one sitting, so the default is one task for the whole lane.
   when you report it ready. Nothing in this repository has shipped unless `AGENTS.md` says so, so
   there is no compatibility, bridge or transition code to keep.
 - **Brief with fields, not prose.** For each task, `start_task` with the goal as an outcome,
-  acceptance as behaviors, the exact owned paths, and in context the constraints, the settled facts,
-  and each approach ruled out with the reason that ruled it out: a reason a Peer can argue with,
-  where a bare ruling only gets obeyed. Keep the answer you worked out alone out of the brief.
+  acceptance as behaviors, and every limit in `owned` and out of scope, where a limit survives the
+  reading that prose loses. Context carries what no field holds: the settled facts, and each approach
+  ruled out with the reason that ruled it out, a reason a Peer can argue with where a bare ruling
+  only gets obeyed. Keep the answer you worked out alone out of the brief.
 - **Keep your framing out of briefs.** Ask open questions rather than offering options A or B. For a
   hard design choice, start two Peers blind on the same question with no owned paths and weigh their
   answers yourself; the `council` skill structures this.
