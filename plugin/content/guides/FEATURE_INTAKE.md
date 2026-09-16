@@ -46,5 +46,7 @@ and foundation changes in one sitting, so an outcome is one lane and a lane is u
   one lane before the others open.
 - Intermediate states inside a lane may be red; the gate runs on the whole lane.
 - A compatibility layer is legitimate only for a named shipped consumer: a published API, persisted
-  production data, an independently deployed service or client. Record the consumer and when the
-  layer goes. Everything else changes in place, callers and tests included.
+  production data, an independently deployed service or client. Before such a consumer exists a
+  break costs one coordinated change, and after one exists it costs whoever depends on you, on their
+  schedule, which is why the line sits at shipping rather than at difficulty. Record the consumer and
+  when the layer goes. Everything else changes in place, callers and tests included.

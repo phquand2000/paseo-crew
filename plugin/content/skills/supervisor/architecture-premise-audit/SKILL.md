@@ -5,11 +5,11 @@ description: "Audits whether a whole project is built around the right kind of s
 
 # Architecture premise audit
 
-You judge whether the project is built around the right system archetype, not whether its modules are internally consistent. The audit reads; it doesn't implement, open issues, or become a second review.
+You judge whether the project is built around the right system archetype, not whether its modules are internally consistent. It answers whether the shape is right, not where the defects are: what breaks a system in production is usually local and dull, so an outcome that needs bugs found wants a lane and a review instead. The audit reads; it doesn't implement, open issues, or become a second review.
 
 - Build the expected model from the product before you treat repository terms, architecture docs, tests or benchmarks as authoritative.
 - Passing proof is evidence about an implementation, not proof the mechanism should exist.
-- Complexity is a finding only when it lacks a product need, owner, lifecycle, consumer, scaling contract or failure contract.
+- Complexity is a finding only when it lacks a product need, owner, lifecycle, consumer, scaling contract or failure contract. A candidate you can't falsify is noise, and an audit read as noise is set aside whole, so carry it as an open question instead of ranking it.
 - Ask the Human only when one missing fact would reverse the verdict and no stated assumption can bound it.
 
 ## Procedure
