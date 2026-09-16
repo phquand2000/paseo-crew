@@ -5,9 +5,12 @@ import type { Project } from "./project.ts";
 
 export type FlowSeat = { id: string; role: string; status: string; minutes: number; waiting: string[] };
 export type FlowTask = { id: string; title: string; status: string; kind: string; peer: FlowSeat | null; minutes: number; handback: number | null };
-export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[] };
+export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[]; taskCount: number; running: number; open: boolean };
 export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
-export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; asks: FlowAsk[] };
+export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
+
+/** A lane costs a row; its tasks cost a row each. Only the lanes the screen has opened carry tasks. */
+export const LANE_CAP = 50;
 
 const minutes = (now: number, at: number | string | undefined): number =>
   at === undefined ? 0 : Math.max(0, Math.round((now - (typeof at === "string" ? Date.parse(at) : at)) / 60_000));
@@ -25,10 +28,17 @@ function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: stri
   };
 }
 
-export function flowView(project: Project, ledger: Ledger, seats: Map<string, SeatView>, now: number): FlowView {
-  const byLane = new Map<string, FlowTask[]>();
+export function flowView(project: Project, ledger: Ledger, seats: Map<string, SeatView>, now: number, open: ReadonlySet<string> = new Set(), cap = LANE_CAP): FlowView {
+  const counts = new Map<string, { total: number; running: number }>();
+  const held = new Map<string, FlowTask[]>();
+
   for (const task of Object.values(ledger.tasks)) {
     if (task.status === "merged" || task.status === "cut") continue;
+    const count = counts.get(task.lane) ?? { total: 0, running: 0 };
+    count.total += 1;
+    if (task.status === "running" || task.status === "rework") count.running += 1;
+    counts.set(task.lane, count);
+    if (!open.has(task.lane)) continue;
     const built: FlowTask = {
       id: task.id,
       title: task.title,
@@ -38,14 +48,20 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
       minutes: minutes(now, task.updatedAt),
       handback: task.handback ? minutes(now, task.handback.at) : null,
     };
-    const held = byLane.get(task.lane);
-    if (held) held.push(built);
-    else byLane.set(task.lane, [built]);
+    const list = held.get(task.lane);
+    if (list) list.push(built);
+    else held.set(task.lane, [built]);
   }
 
   const lanes: FlowLane[] = [];
+  let moreLanes = 0;
   for (const lane of Object.values(ledger.lanes)) {
     if (lane.status !== "open") continue;
+    if (lanes.length >= cap) {
+      moreLanes += 1;
+      continue;
+    }
+    const count = counts.get(lane.id) ?? { total: 0, running: 0 };
     lanes.push({
       id: lane.id,
       title: lane.title,
@@ -53,7 +69,10 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
       branch: lane.branch,
       base: lane.base,
       lead: seatOf(seats, lane.lead, "lead", now),
-      tasks: byLane.get(lane.id) ?? [],
+      tasks: held.get(lane.id) ?? [],
+      taskCount: count.total,
+      running: count.running,
+      open: open.has(lane.id),
     });
   }
 
@@ -77,7 +96,7 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
     break;
   }
 
-  const body = { project: project.slug, supervisor, lanes, asks };
+  const body = { project: project.slug, supervisor, lanes, moreLanes, asks };
   const revision = createHash("sha1").update(JSON.stringify(body)).digest("hex").slice(0, 16);
   return { ...body, at: now, revision };
 }

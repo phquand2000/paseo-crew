@@ -1,6 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
-import { SettingsCard, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
+import { SettingsCard, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
 import { useState } from "react";
+import { Text } from "react-native";
 import { sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, RoleChoice, TeamView } from "./data.ts";
 import { setRole, sourceOf } from "./data.ts";
@@ -40,15 +41,19 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
           onValueChange={(next) => save((current) => setRole(current, role.id, { harness: next }, true))}
           disabled={disabled}
         />
-        {models.length > 0 ? (
+        {models.length > 1 ? (
           <SettingsSelect
             label="Model"
-            hint={models.length === 1 ? `The only model ${harness?.label ?? "this agent"} offers.` : sourceLabel(source("model"), layer)}
+            hint={sourceLabel(source("model"), layer)}
             value={model}
             options={models.map((entry) => ({ label: entry.label, value: entry.id }))}
             onValueChange={(next) => save((current) => setRole(current, role.id, { model: next }))}
-            disabled={disabled || models.length === 1}
+            disabled={disabled}
           />
+        ) : models.length === 1 ? (
+          <SettingsRow label="Model" hint={`${harness?.label ?? "This agent"} runs one model.`}>
+            <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{models[0]!.label}</Text>
+          </SettingsRow>
         ) : null}
         {thinking.length > 0 ? (
           <SettingsSelect

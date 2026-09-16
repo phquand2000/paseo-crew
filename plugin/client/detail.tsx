@@ -2,6 +2,7 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
+import { Button } from "./bits.tsx";
 import { TabBar } from "./tabs.tsx";
 
 export type DetailTab = "team" | "flow" | "mcp" | "health";
@@ -27,8 +28,6 @@ export function Detail({ title, subtitle, tab, theme, disabled, onBack, onTab, o
       titles: { flex: 1, gap: 3 },
       title: { color: theme.colors.foreground, fontSize: 20, fontWeight: "600" as const },
       sub: { color: theme.colors.foregroundMuted, fontSize: 12 },
-      detach: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9, borderWidth: 1, borderColor: theme.colors.border, minHeight: 36, justifyContent: "center" as const },
-      detachText: { color: theme.colors.foregroundMuted, fontSize: 13, fontWeight: "500" as const },
     }),
     [theme],
   );
@@ -44,11 +43,7 @@ export function Detail({ title, subtitle, tab, theme, disabled, onBack, onTab, o
             {subtitle}
           </Text>
         </View>
-        {onDetach ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Detach Seatworks from this project" disabled={disabled} style={styles.detach} onPress={onDetach}>
-            <Text style={styles.detachText}>Detach</Text>
-          </Pressable>
-        ) : null}
+        {onDetach ? <Button label="Detach" theme={theme} disabled={disabled} onPress={onDetach} /> : null}
       </View>
       <TabBar
         theme={theme}

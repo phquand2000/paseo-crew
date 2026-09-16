@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Avatar } from "./bits.tsx";
+import { Avatar, Button } from "./bits.tsx";
 import type { ProjectRow, TeamView } from "./data.ts";
 
 export const MACHINE = "machine";
@@ -26,8 +26,6 @@ export function ProjectList({ projects, nameOf, team, waiting, theme, disabled, 
       titles: { flex: 1, gap: 4 },
       title: { color: theme.colors.foreground, fontSize: 20, fontWeight: "600" as const },
       sub: { color: theme.colors.foregroundMuted, fontSize: 13 },
-      button: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: theme.colors.accent, minHeight: 40, justifyContent: "center" as const },
-      buttonText: { color: theme.colors.accentForeground, fontSize: 13, fontWeight: "600" as const },
       card: { borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface1, overflow: "hidden" as const },
       row: { flexDirection: "row" as const, alignItems: "center" as const, gap: 14, paddingHorizontal: 18, paddingVertical: 16, minHeight: 64 },
       labels: { flex: 1, gap: 3 },
@@ -65,9 +63,7 @@ export function ProjectList({ projects, nameOf, team, waiting, theme, disabled, 
           <Text style={styles.title}>Seatworks</Text>
           <Text style={styles.sub}>Pick a project, or edit the defaults this machine uses.</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Set up a project" disabled={disabled} style={styles.button} onPress={onSetup}>
-          <Text style={styles.buttonText}>Set up a project</Text>
-        </Pressable>
+        <Button label="Add project" tone="accent" theme={theme} disabled={disabled} onPress={onSetup} />
       </View>
       <View style={styles.card}>
         {row("machine", "M", "grey", "Machine defaults", "Used by every project that sets nothing of its own", agents, MACHINE, projects.length === 0)}

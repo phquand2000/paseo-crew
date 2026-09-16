@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
@@ -262,13 +263,32 @@ export class SettingsControl implements Control {
     return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now()) };
   }
 
-  async flow(slug: string, since?: string): Promise<unknown> {
+  async flow(slug: string, since?: string, open?: string[]): Promise<unknown> {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
     const api = this.deps.api();
     const seats = new Map(api ? (await openSeats(api)).map((seat) => [seat.id, seat]) : []);
-    const view = flowView(project, readLedger(project.state), seats, Date.now());
+    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []));
     return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
+  }
+
+  listPaths(path?: string): unknown {
+    const asked = path && path.trim() ? path.trim() : homedir();
+    let here: string;
+    try {
+      here = realpathSync(asked);
+      if (!statSync(here).isDirectory()) return { error: `${asked} is not a directory on this machine.` };
+    } catch {
+      return { error: `${asked} is not a directory on this machine.` };
+    }
+    const parent = dirname(here);
+    const folders = readdirSync(here, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+      .map((entry) => join(here, entry.name))
+      .sort((left, right) => left.localeCompare(right))
+      .slice(0, 300)
+      .map((child) => ({ name: child.slice(here.length + 1), path: child, repository: Boolean(gitCommonDir(child)) }));
+    return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), folders };
   }
 
   private target(slug?: string): Target | string {

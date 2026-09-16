@@ -19,12 +19,13 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [tab, setTab] = useState<DetailTab>("team");
   const [dialog, setDialog] = useState(false);
   const [checks, setChecks] = useState<Check[] | null>(null);
+  const [openLanes, setOpenLanes] = useState<string[]>([]);
   const project = open && open !== MACHINE ? open : undefined;
-  const { data, save, reload, saving, saveError, addServer, attach, detach, runDoctor, readStatus } = useSeatworks(project);
+  const { data, save, reload, saving, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus } = useSeatworks(project);
   const settings = data.status === "ready" ? data : null;
   const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
   const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
-  const { flow, error: flowError } = useFlow(tab === "flow" && flowLive ? project : undefined, flowEvery * 1000);
+  const { flow, error: flowError } = useFlow(tab === "flow" && flowLive ? project : undefined, flowEvery * 1000, openLanes.slice().sort().join(","));
   const toast = useToast();
   const wasSaving = useRef(false);
   const styles = useMemo(
@@ -84,6 +85,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
       disabled={saving}
       onOpenChange={setDialog}
       attach={attach}
+      listFolders={listFolders}
       onAttached={(slug) => {
         setOpen(slug);
         setTab("team");
@@ -139,9 +141,11 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             flow={flow}
             error={flowError}
             live={flowLive}
+            open={openLanes}
             theme={theme}
             disabled={saving}
             onLive={(next) => void save((values) => ({ ...values, flow: { ...values.flow, live: next } }))}
+            onOpen={(lane) => setOpenLanes((current) => (current.includes(lane) ? current.filter((id) => id !== lane) : [...current, lane]))}
           />
         ) : null}
         {tab === "mcp" ? (

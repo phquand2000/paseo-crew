@@ -1,10 +1,11 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/client/react-native";
-import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSelect, SettingsSwitch } from "@getpaseo/plugin/client/ui";
+import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import type { Catalog, Layer, PaseoProject } from "./data.ts";
-import { setMcp, setRole } from "./data.ts";
+import { Text, View } from "react-native";
+import { Button } from "./bits.tsx";
+import type { Catalog, Folders, Layer, PaseoProject } from "./data.ts";
+import { setRole } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {
@@ -15,52 +16,66 @@ type Props = {
   disabled: boolean;
   onOpenChange(open: boolean): void;
   attach(root: string, values: Layer): Promise<string | null>;
+  listFolders(path?: string): Promise<Folders | { error: string }>;
   onAttached(slug: string): void;
 };
 
 const STEPS = [
-  { id: "repository", label: "1 Repository" },
-  { id: "team", label: "2 Team" },
-  { id: "servers", label: "3 Servers" },
-  { id: "check", label: "4 Check" },
+  { id: "repository", label: "Repository" },
+  { id: "team", label: "Team" },
+  { id: "check", label: "Check" },
 ];
 
-export function SetupDialog({ open, catalog, available, theme, disabled, onOpenChange, attach, onAttached }: Props) {
+export function SetupDialog({ open, catalog, available, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
   const [step, setStep] = useState(0);
   const [root, setRootPath] = useState("");
   const [draft, setDraft] = useState<Layer>({});
   const [role, setActiveRole] = useState(catalog.roles[0]?.id ?? "");
+  const [browsing, setBrowsing] = useState<Folders | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [trouble, setTrouble] = useState<string | null>(null);
   const styles = useMemo(
     () => ({
       footer: { flexDirection: "row" as const, alignItems: "center" as const, gap: 10, paddingTop: 8 },
       summary: { flex: 1, color: theme.colors.foregroundMuted, fontSize: 12 },
-      ghost: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9, borderWidth: 1, borderColor: theme.colors.border, minHeight: 38, justifyContent: "center" as const },
-      ghostText: { color: theme.colors.foregroundMuted, fontSize: 13 },
-      go: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 9, backgroundColor: theme.colors.accent, minHeight: 38, justifyContent: "center" as const },
-      goText: { color: theme.colors.accentForeground, fontSize: 13, fontWeight: "600" as const },
+      pair: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8 },
     }),
     [theme],
   );
 
   const chosen = catalog.roles.find((entry) => entry.id === role) ?? catalog.roles[0];
   const harnessOf = (id: string) => draft.roles?.[id]?.harness ?? catalog.roles.find((entry) => entry.id === id)?.defaults.harness ?? "";
-  const models = catalog.harnesses.find((entry) => entry.id === harnessOf(chosen?.id ?? ""))?.models ?? [];
-  const off = catalog.mcp.filter((entry) => !(draft.mcp?.[entry.id]?.enabled ?? entry.defaults.enabled)).map((entry) => entry.label);
+  const harness = catalog.harnesses.find((entry) => entry.id === harnessOf(chosen?.id ?? ""));
+  const models = harness?.models ?? [];
+  const model = draft.roles?.[chosen?.id ?? ""]?.model ?? models[0]?.id ?? "";
   const path = root.trim();
-  const named = available.find((entry) => entry.root === path);
 
   const close = () => {
     setDraft({});
     setRootPath("");
     setStep(0);
+    setBrowsing(null);
+    setPicking(false);
+    setTrouble(null);
     onOpenChange(false);
   };
 
+  const browse = (where?: string) =>
+    void listFolders(where).then((answer) => {
+      if ("error" in answer) {
+        setTrouble(answer.error);
+        return;
+      }
+      setTrouble(null);
+      setPicking(false);
+      setBrowsing(answer);
+    });
+
   const summary = () => {
-    if (!path) return "Give a repository path to start.";
-    if (step === 1) return `${chosen?.label ?? "Every role"} on ${catalog.harnesses.find((entry) => entry.id === harnessOf(chosen?.id ?? ""))?.label ?? "its default agent"}.`;
-    if (step === 2) return off.length > 0 ? `${off.join(", ")} switched off.` : "Every server switched on.";
-    return `${named?.name ?? path.split("/").filter(Boolean).slice(-1)[0] ?? path} · ${off.length > 0 ? `${off.join(", ")} off` : "every server on"}`;
+    if (trouble) return trouble;
+    if (!path) return "Choose a repository to start.";
+    if (step === 1) return `${chosen?.label ?? "Every role"} on ${harness?.label ?? "its default agent"}${models.length > 0 ? ` · ${model}` : ""}.`;
+    return path;
   };
 
   return (
@@ -71,28 +86,78 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
         {step === 0 ? (
           <>
             <SettingsCard>
-              <SettingsInput
-                label="Repository"
-                hint="Any repository on this machine. A path inside one registers its root."
-                initialValue={root}
-                placeholder="/Users/you/project/app"
-                onChangeText={setRootPath}
-                disabled={disabled}
-              />
+              <SettingsRow label="Repository" hint={path || "No folder chosen yet."}>
+                <View style={styles.pair}>
+                  <Button label="Browse" theme={theme} disabled={disabled} onPress={() => browse(path || undefined)} />
+                  <Button label="Pick" theme={theme} disabled={disabled} onPress={() => { setBrowsing(null); setPicking(true); }} />
+                </View>
+              </SettingsRow>
             </SettingsCard>
-            {available.length > 0 ? (
-              <SettingsCard>
-                <SettingsRow label="Or pick one Paseo already knows" hint="These have no Seatworks settings yet." />
-                {available.map((entry) => (
+
+            {browsing ? (
+              <SettingsSection title={browsing.path} info={browsing.repository ? "This folder is a repository." : "Open a folder, or go up."}>
+                <SettingsCard>
                   <SettingsAction
-                    key={entry.root}
-                    label={entry.name}
-                    hint={entry.root}
-                    actionLabel={entry.root === path ? "Picked" : "Pick"}
+                    label={browsing.repository ? "Use this folder" : "Use it anyway"}
+                    hint={browsing.repository ? "A git repository." : "Seatworks will register it as its own project."}
+                    actionLabel="Use"
                     disabled={disabled}
-                    onPress={() => setRootPath(entry.root)}
+                    onPress={() => {
+                      setRootPath(browsing.path);
+                      setBrowsing(null);
+                    }}
                   />
-                ))}
+                  {browsing.parent ? (
+                    <SettingsAction label="Up one folder" hint={browsing.parent} actionLabel="Open" disabled={disabled} onPress={() => browse(browsing.parent ?? undefined)} />
+                  ) : null}
+                  {browsing.folders.map((folder) => (
+                    <SettingsAction
+                      key={folder.path}
+                      label={folder.name}
+                      hint={folder.repository ? "repository" : ""}
+                      actionLabel="Open"
+                      disabled={disabled}
+                      onPress={() => browse(folder.path)}
+                    />
+                  ))}
+                </SettingsCard>
+              </SettingsSection>
+            ) : null}
+
+            {picking ? (
+              <SettingsSection title="Projects Paseo knows" info="These have no Seatworks settings yet.">
+                <SettingsCard>
+                  {available.length === 0 ? (
+                    <SettingsRow label="Nothing to pick" hint="Every project Paseo knows is already set up." />
+                  ) : (
+                    available.map((entry) => (
+                      <SettingsAction
+                        key={entry.root}
+                        label={entry.name}
+                        hint={entry.root}
+                        actionLabel="Choose"
+                        disabled={disabled}
+                        onPress={() => {
+                          setRootPath(entry.root);
+                          setPicking(false);
+                        }}
+                      />
+                    ))
+                  )}
+                </SettingsCard>
+              </SettingsSection>
+            ) : null}
+
+            {!browsing && !picking ? (
+              <SettingsCard>
+                <SettingsInput
+                  label="Or type the path"
+                  hint="A path inside a repository registers its root."
+                  initialValue={root}
+                  placeholder="/Users/you/project/app"
+                  onChangeText={setRootPath}
+                  disabled={disabled}
+                />
               </SettingsCard>
             ) : null}
           </>
@@ -114,11 +179,15 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
                 <SettingsSelect
                   label="Model"
                   hint="Used for every lane here."
-                  value={draft.roles?.[chosen.id]?.model ?? models[0]!.id}
-                  options={models.map((model) => ({ label: model.label, value: model.id }))}
+                  value={model}
+                  options={models.map((entry) => ({ label: entry.label, value: entry.id }))}
                   onValueChange={(next) => setDraft((current) => setRole(current, chosen.id, { model: next }))}
                   disabled={disabled}
                 />
+              ) : models.length === 1 ? (
+                <SettingsRow label="Model" hint={`${harness?.label ?? "This agent"} runs one model.`}>
+                  <Text style={{ color: theme.colors.foreground, fontSize: 14 }}>{models[0]!.label}</Text>
+                </SettingsRow>
               ) : null}
             </SettingsCard>
           </>
@@ -126,31 +195,15 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
 
         {step === 2 ? (
           <SettingsCard>
-            <SettingsRow label="MCP servers" hint="Switch off what this repository should not reach. You can paste more later." />
-            {catalog.mcp.map((entry) => (
-              <SettingsSwitch
-                key={entry.id}
-                label={entry.label}
-                hint={entry.description}
-                value={draft.mcp?.[entry.id]?.enabled ?? entry.defaults.enabled}
-                onValueChange={(next) => setDraft((current) => setMcp(current, entry.id, { enabled: next }))}
-                disabled={disabled}
-              />
-            ))}
-          </SettingsCard>
-        ) : null}
-
-        {step === 3 ? (
-          <SettingsCard>
             <SettingsRow label="Repository" hint={path || "none"} />
             {catalog.roles.map((entry) => (
               <SettingsRow
                 key={entry.id}
                 label={entry.label}
-                hint={catalog.harnesses.find((harness) => harness.id === harnessOf(entry.id))?.label ?? harnessOf(entry.id)}
+                hint={`${catalog.harnesses.find((item) => item.id === harnessOf(entry.id))?.label ?? harnessOf(entry.id)}${draft.roles?.[entry.id]?.model ? ` · ${draft.roles[entry.id]!.model}` : ""}`}
               />
             ))}
-            <SettingsRow label="Servers" hint={off.length > 0 ? `${off.join(", ")} off` : "every server on"} />
+            <SettingsRow label="MCP servers" hint="Left as they are. Set them per project in the MCP tab." />
           </SettingsCard>
         ) : null}
 
@@ -158,30 +211,16 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
           <Text style={styles.summary} numberOfLines={1}>
             {summary()}
           </Text>
-          {step > 0 ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Back a step" style={styles.ghost} onPress={() => setStep(step - 1)}>
-              <Text style={styles.ghostText}>Back</Text>
-            </Pressable>
-          ) : null}
-          <Pressable accessibilityRole="button" accessibilityLabel="Cancel" style={styles.ghost} onPress={close}>
-            <Text style={styles.ghostText}>Cancel</Text>
-          </Pressable>
+          {step > 0 ? <Button label="Back" theme={theme} onPress={() => setStep(step - 1)} /> : null}
+          <Button label="Cancel" theme={theme} onPress={close} />
           {step < STEPS.length - 1 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Next step"
-              disabled={disabled || !path}
-              style={[styles.go, disabled || !path ? { opacity: 0.5 } : null]}
-              onPress={() => setStep(step + 1)}
-            >
-              <Text style={styles.goText}>Next</Text>
-            </Pressable>
+            <Button label="Next" tone="accent" theme={theme} disabled={disabled || !path} onPress={() => setStep(step + 1)} />
           ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Attach Seatworks to this project"
+            <Button
+              label="Attach"
+              tone="accent"
+              theme={theme}
               disabled={disabled || !path}
-              style={[styles.go, disabled || !path ? { opacity: 0.5 } : null]}
               onPress={() =>
                 void attach(path, draft).then((slug) => {
                   if (!slug) return;
@@ -189,9 +228,7 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
                   onAttached(slug);
                 })
               }
-            >
-              <Text style={styles.goText}>Attach</Text>
-            </Pressable>
+            />
           )}
         </View>
       </Modal.Content>

@@ -32,6 +32,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.doctor.run",
     "seatworks.flow.read",
     "seatworks.mcp.parse",
+    "seatworks.paths.list",
     "seatworks.projects.add",
     "seatworks.projects.candidates",
     "seatworks.projects.list",
@@ -188,4 +189,24 @@ test("a server pasted into the settings reaches the seats, and a shipped one can
   assert.deepEqual(team.mcp.notes.connect, { type: "stdio", command: ["npx", "notes-mcp"] });
   assert.deepEqual(team.roles.lead.mcp, ["notes"]);
   assert.match(team.roles.lead.rules, /Look things up in the notes\./);
+});
+
+test("the setup screen can walk this machine's folders to find a repository", async () => {
+  const { call } = served();
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-browse-")));
+  mkdirSync(join(root, "plain"), { recursive: true });
+  execFileSync("git", ["init", "-q", join(root, "repo")]);
+
+  const listed = await call("seatworks.paths.list", { path: root });
+  assert.equal(listed.path, root);
+  assert.equal(typeof listed.parent, "string", "a folder that is not the root offers the way up");
+  assert.deepEqual(
+    listed.folders.map((folder: { name: string; repository: boolean }) => [folder.name, folder.repository]).sort(),
+    [["plain", false], ["repo", true]],
+    "a repository is marked as one",
+  );
+
+  const inside = await call("seatworks.paths.list", { path: join(root, "repo") });
+  assert.equal(inside.repository, true);
+  assert.match((await call("seatworks.paths.list", { path: join(root, "nowhere") })).error, /is not a directory/);
 });

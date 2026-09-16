@@ -1,6 +1,6 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, pathsRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
 export type Scalar = string | number | boolean;
 export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
@@ -31,9 +31,11 @@ export type PaseoProject = { name: string; root: string };
 export type Check = { id: string; ok: boolean; detail: string };
 export type FlowSeat = { id: string; role: string; status: string; minutes: number; waiting: string[] };
 export type FlowTask = { id: string; title: string; status: string; kind: string; peer: FlowSeat | null; minutes: number; handback: number | null };
-export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[] };
+export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[]; taskCount: number; running: number; open: boolean };
 export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
-export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; asks: FlowAsk[] };
+export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
+export type Folder = { name: string; path: string; repository: boolean };
+export type Folders = { path: string; parent: string | null; repository: boolean; folders: Folder[] };
 export type FlowResult = FlowView | { unchanged: true; revision: string } | { error: string };
 type SettingsRead = ({ status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string }) & { machine: Layer };
 type WriteResult = { status: "saved" } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
@@ -69,7 +71,8 @@ type Calls = {
   team: Call<{ project?: string }, TeamView>;
   doctor: Call<{ project?: string }, Check[]>;
   status: Call<{ project: string }, { text: string; error?: string }>;
-  flow: Call<{ project: string; since?: string }, FlowResult>;
+  flow: Call<{ project: string; since?: string; open?: string[] }, FlowResult>;
+  paths: Call<{ path?: string }, Folders | { error: string }>;
 };
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -88,6 +91,7 @@ export function useSeatworks(project?: string) {
     doctor: useRpc(doctorRpc),
     status: useRpc(statusRpc),
     flow: useRpc(flowRpc),
+    paths: useRpc(pathsRpc),
   };
   const paseo = usePaseo();
   const latest = useRef(bound as unknown as Calls);
@@ -250,13 +254,14 @@ export function useSeatworks(project?: string) {
     [save],
   );
 
+  const listFolders = useCallback((path?: string) => latest.current.paths(path ? { path } : {}), []);
   const runDoctor = useCallback(() => latest.current.doctor({ project }), [project]);
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
-  return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, runDoctor, readStatus };
+  return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, listFolders, runDoctor, readStatus };
 }
 
-export function useFlow(project: string | undefined, everyMs = 5000): { flow: FlowView | null; error: string | null } {
-  const call = useRpc(flowRpc) as unknown as Call<{ project: string; since?: string }, FlowResult>;
+export function useFlow(project: string | undefined, everyMs = 5000, openKey = ""): { flow: FlowView | null; error: string | null } {
+  const call = useRpc(flowRpc) as unknown as Call<{ project: string; since?: string; open?: string[] }, FlowResult>;
   const latest = useRef(call);
   latest.current = call;
   const [flow, setFlow] = useState<FlowView | null>(null);
@@ -272,7 +277,8 @@ export function useFlow(project: string | undefined, everyMs = 5000): { flow: Fl
     let since: string | undefined;
     const read = async (): Promise<void> => {
       try {
-        const answer = await latest.current(since ? { project, since } : { project });
+        const open = openKey ? openKey.split(",") : [];
+        const answer = await latest.current(since ? { project, since, open } : { project, open });
         if (!alive) return;
         if ("error" in answer) {
           setError(answer.error);
@@ -292,7 +298,7 @@ export function useFlow(project: string | undefined, everyMs = 5000): { flow: Fl
       alive = false;
       clearInterval(timer);
     };
-  }, [project, everyMs]);
+  }, [project, everyMs, openKey]);
 
   return { flow, error };
 }
