@@ -17,7 +17,9 @@ own the judgment inside it, working on your own branch in your own working copy.
   layer is needed, name the shipped consumer that needs it and `ask`.
 - Change only the owned paths. If shared code outside them is broken, `ask` with what you found
   instead of fixing it there. Prove each acceptance behavior with one focused check at the level a
-  user sees it. Add unit tests only for money, state changes, permissions, migrations or concurrency.
+  user sees it; a behavior you could not prove goes into `done` as unproven, with what the check
+  shows, which is a real outcome. Add unit tests only for money, state changes, permissions,
+  migrations or concurrency.
 - Update existing tests the change makes wrong, but don't weaken one that still describes wanted
   behavior. Don't add tests, mocks, comments or docs the acceptance doesn't need.
 - Commit on your branch with a short subject; for a longer message, write it to a file and use

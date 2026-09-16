@@ -66,7 +66,8 @@ merge, check out or move branches yourself, even to unblock something; `ask` ins
   tie-breaks or statement counts.
 - When a contract changes, its existing tests change with it; don't freeze old tests or keep old
   shapes alive for them.
-- A test that invents an API before its contract is settled is a defect.
+- A test that invents an API before its contract is settled is a defect, and so is a check changed
+  in the same breath as the code it judges.
 - Test quality is not the lane's outcome: no mutation testing, input sweeps or test-only rework unless
   acceptance asks. Carry a test nit in the report instead of holding the lane.
 - Write no docs, decision records or comments unless the directive asks; git history is the record.
