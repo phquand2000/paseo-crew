@@ -26,15 +26,10 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   const project = { slug: "demo-000000", state: "/state/demo" };
   for (const [name, seat] of Object.entries(team.roles)) {
     const { role, harness } = seat;
-    const where = role.headless ? undefined : project;
+    const where = project;
     materialize(kit, team, name, home, where, serversFor(kit, team, name, { node: "/bin/node", spool: "/spool" }));
     const dir = seatDir(kit, role, harness, home, where);
     assert.ok(existsSync(join(dir, harness.skillsDir)), `${name} skills dir`);
-    if (role.headless) {
-      assert.equal(existsSync(join(dir, harness.promptFile ?? "AGENTS.md")), false, `${name} runs headless with no seat prompt`);
-      assert.deepEqual(JSON.parse(readFileSync(join(dir, harness.mcp.file), "utf-8")).mcpServers, {}, `${name} has no MCP servers`);
-      continue;
-    }
     let context: string;
     if (harness.systemPrompt === "file" && harness.promptFile) {
       const file = join(dir, harness.promptFile);

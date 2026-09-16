@@ -131,7 +131,6 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   if (!supportsRole(kit, harness, role)) {
     errors.push(`${harness.label} has no ${role.role} settings under harness/${harness.id}/settings, so it can't run the ${role.label}`);
   }
-  if (role.headless && !harness.headless) errors.push(`${harness.label} has no headless command, so it can't run the ${role.label}`);
   const models = harness.models ?? [];
   let model = choice.model ? models.find((entry) => entry.id === choice.model) : undefined;
   if (choice.model && !model && models.length > 0) errors.push(`${harness.label} has no model ${choice.model} for the ${role.label}`);
@@ -144,12 +143,10 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     }
     thinking = options.some((option) => option.id === choice.thinking) ? choice.thinking : (options.find((option) => option.isDefault) ?? options[0])!.id;
   }
-  const enabled = role.headless
-    ? []
-    : Object.values(mcp)
-        .filter((state) => state.enabled && state.roles.includes(role.role))
-        .sort((a, b) => (a.entry?.order ?? 100) - (b.entry?.order ?? 100))
-        .map((state) => state.id);
+  const enabled = Object.values(mcp)
+    .filter((state) => state.enabled && state.roles.includes(role.role))
+    .sort((a, b) => (a.entry?.order ?? 100) - (b.entry?.order ?? 100))
+    .map((state) => state.id);
   for (const id of enabled) {
     const transport = transportOf(mcp[id]!);
     if (!harness.mcp.transports.includes(transport)) {
@@ -233,7 +230,7 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
 
 export function rulesFor(team: Team, roleName: string): string {
   const seat = team.roles[roleName];
-  if (!seat || seat.role.headless) return "";
+  if (!seat) return "";
   const parts: string[] = [];
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;

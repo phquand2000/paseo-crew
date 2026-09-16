@@ -52,10 +52,9 @@ export function describeCatalog(kit: Kit): unknown {
       label: role.label,
       description: role.description ?? "",
       team: role.team ?? null,
-      headless: Boolean(role.headless),
       defaults: role.defaults,
       harnesses: Object.values(kit.harnesses)
-        .filter((harness) => supportsRole(kit, harness, role) && (!role.headless || Boolean(harness.headless)))
+        .filter((harness) => supportsRole(kit, harness, role))
         .map((harness) => harness.id),
     })),
     harnesses: Object.values(kit.harnesses).map((harness) => ({
@@ -64,7 +63,6 @@ export function describeCatalog(kit: Kit): unknown {
       models: harness.models ?? [],
       thinking: harness.hasThinking !== false,
       transports: harness.mcp.transports,
-      headless: Boolean(harness.headless),
     })),
     mcp: Object.values(kit.mcp)
       .sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
@@ -109,7 +107,7 @@ export function describeTeam(kit: Kit, team: Team, project?: Project): unknown {
         name,
         {
           harness: seat.harness.id,
-          provider: seat.role.headless ? null : providerId(kit, name, seat.harness.id),
+          provider: providerId(kit, name, seat.harness.id),
           model: seat.model?.id ?? null,
           thinking: seat.thinking ?? null,
           mcp: seat.mcp,

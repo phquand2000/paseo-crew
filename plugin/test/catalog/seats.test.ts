@@ -76,19 +76,6 @@ test("a Devin seat merges settings, writes its MCP file and a real prompt with t
   assert.equal(existsSync(join(dir, "git")), false);
 });
 
-test("the headless watcher seat is per machine, with no prompt, no MCP servers and no rules", () => {
-  const kit = makeKit();
-  const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
-  const home = tempDir("sw2-home-");
-  const watcher = team.roles.watcher!;
-  const dir = seatDir(kit, watcher.role, watcher.harness, home);
-  assert.equal(basename(dir), "sw2-watcher-devin");
-  materialize(kit, team, "watcher", home, undefined, serversFor(kit, team, "watcher", context));
-  assert.equal(existsSync(join(dir, "devin", "AGENTS.md")), false);
-  assert.deepEqual(JSON.parse(readFileSync(join(dir, "devin", "mcp_config.json"), "utf-8")).mcpServers, {});
-  assert.deepEqual(JSON.parse(readFileSync(join(dir, "devin", "config.json"), "utf-8")).permissions, { deny: ["Exec(git push)", "exec"] });
-});
-
 test("a prompt carrying a word its role must not see is refused", () => {
   const kit = makeKit();
   const home = tempDir("sw2-home-");

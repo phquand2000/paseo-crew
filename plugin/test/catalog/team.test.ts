@@ -72,7 +72,9 @@ test("rules gather each enabled server's rule, the role's tools and notes, harne
   assert.match(peer, /List a server's tools once/);
   assert.match(peer, /## Rules from the Human\n\nKeep diffs small\./);
   assert.doesNotMatch(rulesFor(team, "lead"), /List a server's tools/);
-  assert.equal(rulesFor(team, "watcher"), "");
+  const watcher = rulesFor(team, "watcher");
+  assert.match(watcher, /## Rules from the Human\n\nKeep diffs small\./);
+  assert.doesNotMatch(watcher, /IDE|ide_find_references|List a server's tools/);
   assert.equal(rulesFor(resolveTeam(kit), "supervisor"), "");
 });
 

@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, paseoToolsPolicy, providerId, seatRoles, supportsRole } from "./kit.ts";
+import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, paseoToolsPolicy, providerId, supportsRole } from "./kit.ts";
 import { paseoConfigPath } from "../core/paths.ts";
 import { sameJson } from "../core/store.ts";
 import type { Team } from "./team.ts";
@@ -15,7 +15,7 @@ export function labelFor(kit: Kit, role: RoleSpec, harness: HarnessSpec): string
 
 export function seatPairs(kit: Kit): { role: RoleSpec; harness: HarnessSpec }[] {
   const pairs: { role: RoleSpec; harness: HarnessSpec }[] = [];
-  for (const role of seatRoles(kit)) {
+  for (const role of kit.roles) {
     for (const harness of Object.values(kit.harnesses)) if (supportsRole(kit, harness, role)) pairs.push({ role, harness });
   }
   return pairs;

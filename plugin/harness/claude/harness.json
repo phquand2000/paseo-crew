@@ -79,15 +79,5 @@
   },
   "contextFile": "CLAUDE.md",
   "systemPrompt": "config",
-  "stateWrites": "settings.sandbox.filesystem.allowWrite",
-  "headless": [
-    "claude",
-    "-p",
-    "{prompt}",
-    "--model",
-    "{model}",
-    "--no-session-persistence",
-    "--tools",
-    ""
-  ]
+  "stateWrites": "settings.sandbox.filesystem.allowWrite"
 }

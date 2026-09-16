@@ -12,7 +12,6 @@ export type RoleSpec = {
   label: string;
   description?: string;
   team?: TeamRole;
-  headless?: boolean;
   entry?: boolean;
   defaults: { harness: string; model?: string; thinking?: string };
   prompt: string;
@@ -49,7 +48,6 @@ export type HarnessSpec = {
     rule?: string;
   };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[]; forceFlags?: Record<string, string> };
-  headless?: string[];
 };
 
 const HARNESS_FIELDS = new Set([
@@ -70,7 +68,6 @@ const HARNESS_FIELDS = new Set([
   "models",
   "mcp",
   "provider",
-  "headless",
 ]);
 const HARNESS_REQUIRED = ["id", "label", "baseProvider", "configDirEnv", "profileRoot", "skillsDir", "settings", "mcp", "provider"];
 
@@ -218,7 +215,7 @@ export function seatOf(kit: Kit, provider: string | null | undefined): { role: R
   if (!provider) return undefined;
   const id = provider.split("/")[0] ?? "";
   if (!id.startsWith(kit.prefix)) return undefined;
-  for (const role of seatRoles(kit)) {
+  for (const role of kit.roles) {
     for (const harness of Object.values(kit.harnesses)) {
       if (id === providerId(kit, role.role, harness.id)) return { role, harness };
     }
@@ -232,10 +229,6 @@ export function hookTools(proxy: ProxySpec | undefined): string[] {
 
 export function roleNamed(kit: Kit, name: string): RoleSpec | undefined {
   return kit.roles.find((role) => role.role === name);
-}
-
-export function seatRoles(kit: Kit): RoleSpec[] {
-  return kit.roles.filter((role) => !role.headless);
 }
 
 export function entryRole(kit: Kit): RoleSpec | undefined {

@@ -9,8 +9,8 @@ export type SettingSpec = { type: "number" | "string" | "boolean"; label: string
 export type ModelView = { id: string; label: string; isDefault?: boolean; thinkingOptions?: { id: string; label: string; isDefault?: boolean }[] };
 
 export type Catalog = {
-  roles: { id: string; label: string; description: string; team: string | null; headless: boolean; defaults: { harness: string; model?: string; thinking?: string }; harnesses: string[] }[];
-  harnesses: { id: string; label: string; models: ModelView[]; thinking: boolean; transports: string[]; headless: boolean }[];
+  roles: { id: string; label: string; description: string; team: string | null; defaults: { harness: string; model?: string; thinking?: string }; harnesses: string[] }[];
+  harnesses: { id: string; label: string; models: ModelView[]; thinking: boolean; transports: string[] }[];
   mcp: { id: string; label: string; description: string; kind: string; transport: string; settings: Record<string, SettingSpec>; defaults: { enabled: boolean }; roles: string[] }[];
 };
 
@@ -19,7 +19,7 @@ export type TeamView = {
   errors: string[];
   rules: string;
   mcp: Record<string, { label: string; enabled: boolean; roles: string[]; settings: Record<string, Scalar>; transport: string; template: boolean; connect: Connect | null; rule: string | null }>;
-  roles: Record<string, { harness: string; provider: string | null; model: string | null; thinking: string | null; mcp: string[]; tools: Record<string, string[]>; skills: string[]; rules: string }>;
+  roles: Record<string, { harness: string; provider: string; model: string | null; thinking: string | null; mcp: string[]; tools: Record<string, string[]>; skills: string[]; rules: string }>;
 };
 
 export type RoleChoice = { harness?: string; model?: string; thinking?: string };

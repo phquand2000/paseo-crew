@@ -228,7 +228,6 @@ function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, 
   const rules = renderText(kit, role, rulesFor(team, roleName), paths);
   if (harness.systemPrompt === "file" && harness.promptFile) {
     const promptPath = join(dir, harness.promptFile);
-    if (role.headless) return removeIfPresent(promptPath, harness.promptFile, record);
     const prompt = renderPrompt(kit, role, paths);
     record.note(writeReal(promptPath, rules ? `${prompt.trimEnd()}\n\n${rules}` : prompt), harness.promptFile);
     return;

@@ -52,7 +52,7 @@ enforces.
 ### Optional
 
 `promptFile`, `contextFile`, `systemPrompt` (`config` or `file`), `hasThinking`, `stateWrites`,
-`refused`, `models[]`, `links[]`, `headless[]`, `settings.ownedPaths`, `mcp.key`, `mcp.seed`,
+`refused`, `models[]`, `links[]`, `settings.ownedPaths`, `mcp.key`, `mcp.seed`,
 `mcp.shape`, `mcp.clear`, `mcp.rule`, `provider.env`, `provider.command`, `provider.profileModeId`,
 `provider.forceFlags`.
 
