@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { codeIndex } from "./code-index.ts";
+import { codeIndex } from "../../server/runtime/code-index.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PROXY = join(PLUGIN, "mcp", "code.mjs");

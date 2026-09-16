@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { MachineLayerSchema, ProjectLayerSchema, readLayer, revisionOf, writeLayer } from "./settings.ts";
-import { tempDir } from "../core/testing.ts";
+import { MachineLayerSchema, ProjectLayerSchema, readLayer, revisionOf, writeLayer } from "../../server/catalog/settings.ts";
+import { tempDir } from "../../server/core/testing.ts";
 
 const ok = () => [];
 

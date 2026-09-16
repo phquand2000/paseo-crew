@@ -8,9 +8,9 @@ import { test } from "node:test";
 const HOME = mkdtempSync(join(tmpdir(), "sw2-rpc-home-"));
 process.env.HOME = HOME;
 
-const { Runtime } = await import("./runtime.ts");
-const { registerRpc } = await import("./rpc.ts");
-const { makeKit } = await import("../catalog/testkit.ts");
+const { Runtime } = await import("../../server/runtime/runtime.ts");
+const { registerRpc } = await import("../../server/runtime/rpc.ts");
+const { makeKit } = await import("../../server/catalog/testkit.ts");
 
 function served() {
   const kit = makeKit();

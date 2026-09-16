@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import { realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { clearProjects, gitRoot, projectOf, slugFor } from "./project.ts";
-import { tempDir } from "../core/testing.ts";
+import { clearProjects, gitRoot, projectOf, slugFor } from "../../server/desk/project.ts";
+import { tempDir } from "../../server/core/testing.ts";
 
 test("a slug is stable and readable", () => {
   assert.equal(slugFor("/Users/me/project/OMS"), slugFor("/Users/me/project/OMS"));

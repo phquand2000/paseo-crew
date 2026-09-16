@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { desiredProfile, desiredProvider, reconcile, seatPairs } from "./providers.ts";
-import { resolveTeam } from "./team.ts";
-import { makeKit } from "./testkit.ts";
+import { desiredProfile, desiredProvider, reconcile, seatPairs } from "../../server/catalog/providers.ts";
+import { resolveTeam } from "../../server/catalog/team.ts";
+import { makeKit } from "../../server/catalog/testkit.ts";
 
 const kit = makeKit();
 const team = resolveTeam(kit);

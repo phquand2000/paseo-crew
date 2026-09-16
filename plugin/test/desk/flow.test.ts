@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { SeatView } from "../core/paseo.ts";
-import { tempDir } from "../core/testing.ts";
-import { flowView } from "./flow.ts";
-import { emptyLedger, readLedger, saveLedger } from "./ledger.ts";
-import type { Project } from "./project.ts";
+import type { SeatView } from "../../server/core/paseo.ts";
+import { tempDir } from "../../server/core/testing.ts";
+import { flowView } from "../../server/desk/flow.ts";
+import { emptyLedger, readLedger, saveLedger } from "../../server/desk/ledger.ts";
+import type { Project } from "../../server/desk/project.ts";
 
 const now = Date.parse("2026-09-16T04:00:00.000Z");
 const project: Project = { root: "/work/shop", slug: "shop-abc123", state: "/state/shop-abc123" };

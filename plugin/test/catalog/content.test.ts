@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { renderPrompt } from "./content.ts";
-import { makeKit } from "./testkit.ts";
+import { renderPrompt } from "../../server/catalog/content.ts";
+import { makeKit } from "../../server/catalog/testkit.ts";
 
 test("guides and state placeholders render into the prompt", () => {
   const kit = makeKit();

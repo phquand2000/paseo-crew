@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Timeline, deniedCall, outputText } from "./timeline.ts";
+import { type Timeline, deniedCall, outputText } from "../../server/runtime/timeline.ts";
 
 const t = (...items: object[]) => items as unknown as Timeline;
 

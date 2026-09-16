@@ -19,7 +19,7 @@ the writing rules, and what the machine checks — is in [SPEC.md](../SPEC.md).
 | `server/desk/` | The team desk: `desk.ts` routes tool calls; `context.ts` owns ledger, events and mail; `slots.ts`, `agents.ts`, `merge.ts`, `gates.ts`; `tools/` holds each role's tools |
 | `server/runtime/` | `runtime.ts` wires hooks; `team-source.ts`, `seating.ts`, `turns.ts`, `watch-queue.ts`, `patrol.ts`, `control.ts` and `rpc.ts` do the work; outbox, spool, `code-index.ts` (opens a new working copy in indexed proxies), doctor |
 
-Tests sit next to the module they cover. Dependencies point one way: `runtime` uses `desk`,
+Tests live in `test/`, one directory per layer mirroring `server/`. Dependencies point one way: `runtime` uses `desk`,
 `catalog` and `core`; `desk` uses `catalog` and `core` and declares the code index and mailer it
 needs; `catalog` uses `core`; `core` uses nothing of the plugin. Tests follow the same direction.
 

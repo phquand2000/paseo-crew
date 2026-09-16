@@ -3,11 +3,11 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSy
 import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
-import { loadKit } from "./kit.ts";
-import { composeSettings, materialize, seatDir } from "./seats.ts";
-import { resolveTeam, serversFor } from "./team.ts";
-import { makeKit } from "./testkit.ts";
-import { tempDir } from "../core/testing.ts";
+import { loadKit } from "../../server/catalog/kit.ts";
+import { composeSettings, materialize, seatDir } from "../../server/catalog/seats.ts";
+import { resolveTeam, serversFor } from "../../server/catalog/team.ts";
+import { makeKit } from "../../server/catalog/testkit.ts";
+import { tempDir } from "../../server/core/testing.ts";
 
 const project = { slug: "shop-abc123", state: "/state/shop" };
 const context = { node: "/bin/node", spool: "/spool" };

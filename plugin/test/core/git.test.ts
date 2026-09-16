@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { countNumstat, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "./git.ts";
-import { tempDir } from "./testing.ts";
+import { countNumstat, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "../../server/core/git.ts";
+import { tempDir } from "../../server/core/testing.ts";
 
 function repo(): { root: string; run: (...args: string[]) => string; commit: (file: string, text: string, message: string) => void } {
   const root = tempDir("sw2-git-");

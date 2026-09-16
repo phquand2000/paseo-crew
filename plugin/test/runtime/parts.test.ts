@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { runGate } from "../core/gate.ts";
-import { issueArgs } from "../desk/issue.ts";
-import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../desk/ledger.ts";
-import { letters } from "../desk/letters.ts";
-import { takeRequests, writeReply } from "./spool.ts";
-import { tempDir } from "../core/testing.ts";
-import { fillCommand, parseVerdicts } from "./watcher.ts";
+import { runGate } from "../../server/core/gate.ts";
+import { issueArgs } from "../../server/desk/issue.ts";
+import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../../server/desk/ledger.ts";
+import { letters } from "../../server/desk/letters.ts";
+import { takeRequests, writeReply } from "../../server/runtime/spool.ts";
+import { tempDir } from "../../server/core/testing.ts";
+import { fillCommand, parseVerdicts } from "../../server/runtime/watcher.ts";
 
 const lane: Lane = {
   id: "L1",

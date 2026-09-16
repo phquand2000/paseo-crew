@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { resolveTeam, rulesFor, serversFor, skillDirsFor, withHarness } from "./team.ts";
-import { makeKit } from "./testkit.ts";
+import { resolveTeam, rulesFor, serversFor, skillDirsFor, withHarness } from "../../server/catalog/team.ts";
+import { makeKit } from "../../server/catalog/testkit.ts";
 
 const kit = makeKit();
 const context = { node: "/bin/node", spool: "/spool" };

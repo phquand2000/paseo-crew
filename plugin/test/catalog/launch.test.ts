@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "./launch.ts";
-import { resolveTeam } from "./team.ts";
-import { makeKit } from "./testkit.ts";
+import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../../server/catalog/launch.ts";
+import { resolveTeam } from "../../server/catalog/team.ts";
+import { makeKit } from "../../server/catalog/testkit.ts";
 
 const kit = makeKit();
 const team = resolveTeam(kit);

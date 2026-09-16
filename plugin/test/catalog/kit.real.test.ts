@@ -3,12 +3,12 @@ import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { renderPrompt } from "./content.ts";
-import { loadKit } from "./kit.ts";
-import { seatPairs } from "./providers.ts";
-import { materialize, seatDir, seedRecords } from "./seats.ts";
-import { resolveTeam, serversFor } from "./team.ts";
-import { tempDir } from "../core/testing.ts";
+import { renderPrompt } from "../../server/catalog/content.ts";
+import { loadKit } from "../../server/catalog/kit.ts";
+import { seatPairs } from "../../server/catalog/providers.ts";
+import { materialize, seatDir, seedRecords } from "../../server/catalog/seats.ts";
+import { resolveTeam, serversFor } from "../../server/catalog/team.ts";
+import { tempDir } from "../../server/core/testing.ts";
 
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 

@@ -167,10 +167,11 @@ plugin/
   server/catalog/        catalog, settings, team, providers, seats
   server/desk/           the desk: tool routing, ledger, mail, merges
   server/runtime/        wiring, turns, outbox, patrol, RPC, doctor
+  test/<layer>/          tests, one directory per layer of server/
 ```
 
 Dependencies point one way: `runtime` → `desk` → `catalog` → `core`, and `core` uses nothing of the
-plugin. Tests sit next to the module they cover and follow the same direction.
+plugin. `test/` mirrors `server/`, and its tests follow the same direction.
 
 ## Contributing
 
