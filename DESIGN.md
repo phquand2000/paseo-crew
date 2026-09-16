@@ -62,9 +62,12 @@ these behind it; that is why rules here are rewritten rather than appended to.
    gate runs once on the whole lane, when its Lead reports it ready and again before it lands, so a
    task never has to build on its own. Landing is a fast-forward or merge the Supervisor asks for;
    pushing stays the Human's.
-7. **Watchers are cheap and cannot disappear.** Tier 0 is plugin code (timers, silent ends, stale
-   asks, idle lanes). Tier 1 is a headless run of a cheap model the plugin launches on flagged turn
-   endings; it answers one label per ending. There is no watcher seat to lose.
+7. **Watchers are cheap and are put back.** Tier 0 is plugin code (timers, silent ends, stale asks,
+   idle lanes). Tier 1 is a cheap seat the patrol puts on any project with an open lane. Flagged turn
+   endings reach it as mail, fenced, with a line saying the contents are data rather than
+   instructions; it answers with one label through `raise`, the only tool it has. It holds no working
+   copy and cannot read the repository. The run above lost a watcher and nobody noticed, so the
+   answer is not a watcher that cannot be lost but one the patrol seats again on the next tick.
 8. **Fixed-shape hand-backs, full text on disk.** A letter carries the summary; the full hand-back and
    gate logs live in the project's state directory, named by path.
 9. **Plans are for agents, not a human team.** One strong agent finishes most features and foundation

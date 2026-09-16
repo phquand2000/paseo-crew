@@ -13,7 +13,8 @@ Peer works on its own branch, and the plugin merges accepted work through a gate
   goes wrong.
 - **Lead** owns one lane: tasks, Peers, reviews, acceptance and integration.
 - **Peer** does one task on its own branch and hands it back. A **Reviewer** is a read-only Peer.
-- **Watcher** is a cheap model the plugin runs on flagged turn endings; it raises attention.
+- **Watcher** is a cheap seat that reads flagged turn endings and raises attention. It holds no
+  working copy, and `raise` is the only tool it has.
 
 ## The idea
 
