@@ -44,8 +44,6 @@ const AttentionChoice = z.strictObject({
   leadIdleMinutes: z.number().int().min(1).optional(),
   askRemindMinutes: z.number().int().min(1).optional(),
   maxReminders: z.number().int().min(0).optional(),
-  watcherDebounceSeconds: z.number().int().min(0).optional(),
-  watcherTimeoutSeconds: z.number().int().min(10).optional(),
 });
 
 const FlowChoice = z.strictObject({

@@ -2,13 +2,10 @@ import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
 import { type Kit, type RoleSpec, seatOf } from "../catalog/kit.ts";
 import type { PaseoApi } from "../core/paseo.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, activeTasks, laneOfLead, loadLedger, openAsksFrom, taskOfPeer } from "../desk/ledger.ts";
+import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
-
-export const CUES =
-  /\b(but|hold on|wait(ing)? (for|on)|actually|turns out|not sure|workaround|for now|instead|revert(ed)?|rm -rf|reset --hard|force[- ]push|drop (table|database)|skip(ped|ping)?|flaky|once .{1,40} lands?|let me know|should i|is (this|that) (ok|allowed)|shim|adapter|compat(ibility)?|bridge|backward|legacy|temporar(y|ily)|stub|placeholder|re-?export)\b|chờ|đợi|tạm dừng|dừng lại|không chắc|hóa ra|hoá ra|sai rồi|bỏ qua|tạm thời|tương thích|xóa|xoá/i;
 
 type TurnEnded = PluginLifecycleEvents["agent.turn_ended"];
 
@@ -65,7 +62,7 @@ export class TurnRules {
     const ledger = loadLedger(project.state);
     const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
     if (role.team === "peer" || role.team === "reviewer") await this.workerEnded(paseo, project, ledger, event, role.team, text, recorded);
-    else if (role.team === "lead") this.leadEnded(project, ledger, agent.id, text, recorded);
+    else if (role.team === "lead") this.leadEnded(project, ledger, agent.id, text);
   }
 
   private async workerEnded(paseo: PaseoApi, project: Project, ledger: Ledger, event: TurnEnded, team: "peer" | "reviewer", text: string, recorded: boolean): Promise<void> {
@@ -75,8 +72,7 @@ export class TurnRules {
     if (!task || ["merged", "cut", "queued", "merging"].includes(task.status)) return;
     const lane = ledger.lanes[task.lane];
     if (recorded || task.status === "done") {
-      const claimedComplete = task.status === "done" && task.handback?.outcome === "complete";
-      if (lane && (CUES.test(text) || claimedComplete)) {
+      if (lane) {
         this.deps.watch({ project, lane: lane.id, agent: agent.id, role: team, where: `the Peer on ${task.id} (${task.title})`, text });
       }
       return;
@@ -96,12 +92,9 @@ export class TurnRules {
     desk.event(project, { kind: "task.silent", task: task.id, denied: denied ?? null });
   }
 
-  private leadEnded(project: Project, ledger: Ledger, agentId: string, text: string, recorded: boolean): void {
+  private leadEnded(project: Project, ledger: Ledger, agentId: string, text: string): void {
     const lane = laneOfLead(ledger, agentId);
     if (!lane) return;
-    const busy = activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, agentId).length > 0;
-    if (CUES.test(text) || (!recorded && !busy)) {
-      this.deps.watch({ project, lane: lane.id, agent: agentId, role: "lead", where: `the Lead of ${lane.id} (${lane.title})`, text });
-    }
+    this.deps.watch({ project, lane: lane.id, agent: agentId, role: "lead", where: `the Lead of ${lane.id} (${lane.title})`, text });
   }
 }

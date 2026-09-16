@@ -30,7 +30,7 @@ edit, the code has a defect, and that knowledge moves into the catalog. Code nam
   lane: its breakdown, Peers, integration and acceptance. A Peer owns the judgment inside its task.
 - **One owner per scope, one writer per branch.** Hand-backs go to the Lead, which accepts.
 - **No group chat.** Owners decide who knows what. A Supervisor that touches a Peer tells its Lead.
-- **Attention is event-driven.** A cheap watcher reads flagged turn endings and raises attention to
+- **Attention is event-driven.** A cheap watcher reads how turns end and raises attention to
   the Supervisor; the Human gets decisions and digests, not status.
 - **Neutral questions, not accusations.** Lane size matches risk; no ceremony; git is the history.
 
@@ -63,8 +63,8 @@ these behind it; that is why rules here are rewritten rather than appended to.
    task never has to build on its own. Landing is a fast-forward or merge the Supervisor asks for;
    pushing stays the Human's.
 7. **Watchers are cheap and are put back.** Tier 0 is plugin code (timers, silent ends, stale asks,
-   idle lanes). Tier 1 is a cheap seat the patrol puts on any project with an open lane. Flagged turn
-   endings reach it as mail, fenced, with a line saying the contents are data rather than
+   idle lanes). Tier 1 is a cheap seat the patrol puts on any project with an open lane. Every turn
+   ending reaches it as mail, fenced, with a line saying the contents are data rather than
    instructions; it answers with one label through `raise`, the only tool it has. It holds no working
    copy and cannot read the repository. The run above lost a watcher and nobody noticed, so the
    answer is not a watcher that cannot be lost but one the patrol seats again on the next tick.

@@ -61,8 +61,9 @@ test("a hand-back claiming completion is watched even when its words trip no cue
   assert.equal(watched[0]!.agent, "seat-peer");
 });
 
-test("a hand-back that admits it is partial is not watched on that ground alone", async () => {
+test("the words an ending uses do not decide whether it is watched", async () => {
   const { watched, ended } = setup("partial");
   await ended(NEUTRAL);
-  assert.equal(watched.length, 0);
+  assert.equal(watched.length, 1, "a partial hand-back reaches the Watcher, rather than being filtered out by its wording");
+  assert.equal(watched[0]!.agent, "seat-peer");
 });
