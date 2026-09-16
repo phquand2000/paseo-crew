@@ -12,6 +12,7 @@ export interface Control {
   resetSettings(project: string | undefined, revision: string): WriteResult;
   projects(): unknown;
   addProject(root: string): unknown;
+  removeProject(project: string): unknown;
   team(project?: string): unknown;
   doctor(project?: string): Promise<Check[]>;
   status(project: string): Promise<unknown>;
@@ -27,6 +28,7 @@ export function registerRpc(server: { handle: unknown }, control: Control): stri
   handle(contracts.settingsReset, (input) => control.resetSettings(input.project, input.revision));
   handle(contracts.projects, () => control.projects());
   handle(contracts.projectsAdd, (input) => control.addProject(input.root));
+  handle(contracts.projectsRemove, (input) => control.removeProject(input.project));
   handle(contracts.team, (input) => control.team(input.project));
   handle(contracts.doctor, (input) => control.doctor(input.project));
   handle(contracts.status, (input) => control.status(input.project));

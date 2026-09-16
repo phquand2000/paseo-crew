@@ -32,6 +32,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.doctor.run",
     "seatworks.projects.add",
     "seatworks.projects.list",
+    "seatworks.projects.remove",
     "seatworks.settings.read",
     "seatworks.settings.reset",
     "seatworks.settings.write",
@@ -104,4 +105,24 @@ test("a project can be registered by its path before any agent has run in it", a
 
   const missing = await call("seatworks.projects.add", { root: join(root, "nowhere") });
   assert.match(missing.error, /is not a directory/);
+});
+
+test("attaching a project is undone by detaching it, unless the project has work on record", async () => {
+  const { call } = served();
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-attach-")));
+  execFileSync("git", ["init", "-q", root]);
+  const added = await call("seatworks.projects.add", { root });
+  const read = await call("seatworks.settings.read", { project: added.slug });
+  await call("seatworks.settings.write", { project: added.slug, revision: read.revision, values: { roles: { peer: { harness: "devin" } } } });
+
+  const state = join(HOME, ".local/share/seatworks-v2/projects", added.slug);
+  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: 1, lanes: { L1: { id: "L1" } }, tasks: {} }));
+  const refused = await call("seatworks.projects.remove", { project: added.slug });
+  assert.match(refused.error, /lane\(s\)/);
+
+  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: 1, lanes: {}, tasks: {} }));
+  assert.deepEqual(await call("seatworks.projects.remove", { project: added.slug }), { removed: added.slug });
+  const listed = await call("seatworks.projects.list");
+  assert.equal(listed.some((entry: { slug: string }) => entry.slug === added.slug), false);
+  assert.match((await call("seatworks.projects.remove", { project: added.slug })).error, /has been seen/);
 });

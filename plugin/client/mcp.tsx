@@ -1,7 +1,9 @@
+import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { useState } from "react";
 import type { Catalog, Layer, McpChoice, Scalar, SettingSpec, TeamView } from "./data.ts";
 import { clearMcp, clearMcpSetting, setMcp, sourceOf, sourceText } from "./data.ts";
+import { TabBar } from "./tabs.tsx";
 
 type Entry = Catalog["mcp"][number];
 
@@ -11,6 +13,7 @@ type Props = {
   values: Layer;
   machine: Layer;
   layer: "machine" | "project";
+  theme: PluginTheme;
   disabled: boolean;
   save(change: (values: Layer) => Layer): void;
 };
@@ -34,18 +37,39 @@ function ServerSettings({ entry, current, disabled, save, hintOf, resetOf }: {
   const wrong = edited.some((key) => entry.settings[key]?.type === "number" && !Number.isFinite(Number(draft[key])));
   return (
     <>
-      {Object.entries(entry.settings).map(([key, spec]) => (
-        <ServerSetting
-          key={key}
-          spec={spec}
-          hint={hintOf(key)}
-          value={current[key] ?? spec.default ?? ""}
-          disabled={disabled}
-          onBoolean={(next) => save((values) => setMcp(values, entry.id, { settings: { [key]: next } }))}
-          onText={(text) => setDraft((last) => ({ ...last, [key]: text }))}
-          onClear={resetOf(key) ? () => save((values) => clearMcpSetting(values, entry.id, key)) : undefined}
-        />
-      ))}
+      {Object.entries(entry.settings).map(([key, spec]) =>
+        spec.type === "boolean" ? (
+          <SettingsSwitch
+            key={key}
+            label={spec.label}
+            hint={hintOf(key)}
+            value={Boolean(current[key] ?? spec.default ?? false)}
+            onValueChange={(next) => save((values) => setMcp(values, entry.id, { settings: { [key]: next } }))}
+            disabled={disabled}
+          />
+        ) : (
+          <SettingsInput
+            key={key}
+            label={spec.label}
+            hint={hintOf(key)}
+            initialValue={String(current[key] ?? spec.default ?? "")}
+            onChangeText={(text) => setDraft((last) => ({ ...last, [key]: text }))}
+            disabled={disabled}
+          />
+        ),
+      )}
+      {Object.keys(entry.settings)
+        .filter((key) => resetOf(key))
+        .map((key) => (
+          <SettingsAction
+            key={`clear-${key}`}
+            label={`${entry.settings[key]!.label} is set here`}
+            hint="Clear it to follow the layer below."
+            actionLabel="Clear"
+            disabled={disabled}
+            onPress={() => save((values) => clearMcpSetting(values, entry.id, key))}
+          />
+        ))}
       {edited.length > 0 ? (
         <SettingsAction
           label="Apply"
@@ -64,79 +88,67 @@ function ServerSettings({ entry, current, disabled, save, hintOf, resetOf }: {
   );
 }
 
-function ServerSetting({ spec, hint, value, disabled, onBoolean, onText, onClear }: {
-  spec: SettingSpec;
-  hint: string;
-  value: Scalar;
-  disabled: boolean;
-  onBoolean(next: boolean): void;
-  onText(text: string): void;
-  onClear?: () => void;
-}) {
-  return (
-    <>
-      {spec.type === "boolean" ? (
-        <SettingsSwitch label={spec.label} hint={hint} value={Boolean(value)} onValueChange={onBoolean} disabled={disabled} />
-      ) : (
-        <SettingsInput label={spec.label} hint={hint} initialValue={String(value)} onChangeText={onText} disabled={disabled} />
-      )}
-      {onClear ? <SettingsAction label={`${spec.label} is set here`} hint="Clear it to follow the layer below." actionLabel="Clear" disabled={disabled} onPress={onClear} /> : null}
-    </>
-  );
-}
-
-export function McpSection({ catalog, team, values, machine, layer, disabled, save }: Props) {
-  const hint = (id: string, field: keyof McpChoice) => sourceText(sourceOf(values, machine, (entry) => entry.mcp?.[id]?.[field], layer), layer);
-  const setHere = (id: string, field: keyof McpChoice) => sourceOf(values, machine, (entry) => entry.mcp?.[id]?.[field], layer) === "here";
-  const clear = (id: string, field: keyof McpChoice, label: string) =>
-    setHere(id, field) ? (
+export function McpSection({ catalog, team, values, machine, layer, theme, disabled, save }: Props) {
+  const [active, setActive] = useState(catalog.mcp[0]?.id ?? "");
+  const entry = catalog.mcp.find((item) => item.id === active) ?? catalog.mcp[0];
+  if (!entry) return null;
+  const state = team.mcp[entry.id];
+  const roles = state?.roles ?? entry.roles;
+  const on = state?.enabled ?? entry.defaults.enabled;
+  const source = (field: keyof McpChoice) => sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.[field], layer);
+  const clear = (field: keyof McpChoice, label: string) =>
+    source(field) === "here" ? (
       <SettingsAction
         label={`${label} is set here`}
         hint={layer === "machine" ? "Clearing it goes back to the catalog default." : "Clearing it follows the machine layer again."}
         actionLabel="Clear"
         disabled={disabled}
-        onPress={() => save((current) => clearMcp(current, id, field))}
+        onPress={() => save((current) => clearMcp(current, entry.id, field))}
       />
     ) : null;
 
   return (
     <SettingsSection title="MCP servers" info="Servers the seats get, and the roles that get them.">
-      {catalog.mcp.map((entry) => {
-        const state = team.mcp[entry.id];
-        const roles = state?.roles ?? entry.roles;
-        const on = state?.enabled ?? entry.defaults.enabled;
-        return (
-          <SettingsCard key={entry.id}>
-            <SettingsSwitch
-              label={entry.label}
-              hint={`${hint(entry.id, "enabled")} · ${entry.description}`}
-              value={on}
-              onValueChange={(next) => save((current) => setMcp(current, entry.id, { enabled: next }))}
-              disabled={disabled}
-            />
-            {clear(entry.id, "enabled", "On or off")}
-            {entry.roles.map((role) => (
-              <SettingsSwitch
-                key={role}
-                label={`Given to the ${role}`}
-                value={roles.includes(role)}
-                onValueChange={(next) => save((current) => setMcp(current, entry.id, { roles: toggle(roles, role, next) }))}
-                disabled={disabled || !on}
-              />
-            ))}
-            {clear(entry.id, "roles", "The roles")}
-            <ServerSettings
-              entry={entry}
-              current={state?.settings ?? {}}
-              disabled={disabled}
-              save={save}
-              hintOf={(key) => sourceText(sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.settings?.[key], layer), layer)}
-              resetOf={(key) => sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.settings?.[key], layer) === "here"}
-            />
-            <SettingsRow label="Reached over" hint={entry.transport} />
-          </SettingsCard>
-        );
-      })}
+      <TabBar
+        theme={theme}
+        active={entry.id}
+        disabled={disabled}
+        onPick={setActive}
+        tabs={catalog.mcp.map((item) => ({
+          id: item.id,
+          label: item.label,
+          hint: (team.mcp[item.id]?.enabled ?? item.defaults.enabled) ? "on" : "off",
+        }))}
+      />
+      <SettingsCard>
+        <SettingsSwitch
+          label={entry.label}
+          hint={`${sourceText(source("enabled"), layer)} · ${entry.description}`}
+          value={on}
+          onValueChange={(next) => save((current) => setMcp(current, entry.id, { enabled: next }))}
+          disabled={disabled}
+        />
+        {clear("enabled", "On or off")}
+        {entry.roles.map((role) => (
+          <SettingsSwitch
+            key={role}
+            label={`Given to the ${role}`}
+            value={roles.includes(role)}
+            onValueChange={(next) => save((current) => setMcp(current, entry.id, { roles: toggle(roles, role, next) }))}
+            disabled={disabled || !on}
+          />
+        ))}
+        {clear("roles", "The roles")}
+        <ServerSettings
+          entry={entry}
+          current={state?.settings ?? {}}
+          disabled={disabled}
+          save={save}
+          hintOf={(key) => sourceText(sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.settings?.[key], layer), layer)}
+          resetOf={(key) => sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.settings?.[key], layer) === "here"}
+        />
+        <SettingsRow label="Reached over" hint={entry.transport} />
+      </SettingsCard>
     </SettingsSection>
   );
 }

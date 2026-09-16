@@ -1,4 +1,5 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
 import { type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, eligibleRoles, resolveTeam, rulesFor, skillDirsFor, transportOf } from "../catalog/team.ts";
@@ -130,6 +131,21 @@ export class SettingsControl implements Control {
     const project = projectOf(path);
     this.deps.source.record(project);
     return { slug: project.slug, root: project.root };
+  }
+
+  removeProject(slug: string): unknown {
+    const project = this.deps.source.named(slug);
+    if (!project) return { error: unknownProject(slug) };
+    const ledger = loadLedger(project.state);
+    const lanes = Object.keys(ledger.lanes).length;
+    const tasks = Object.keys(ledger.tasks).length;
+    if (lanes > 0 || tasks > 0) return { error: `${slug} has ${lanes} lane(s) and ${tasks} task(s) on record, so its settings stay. Close the lanes first.` };
+    for (const name of ["settings.json", "meta.json"]) rmSync(join(project.state, name), { force: true });
+    try {
+      if (readdirSync(project.state).length === 0) rmSync(project.state, { recursive: true, force: true });
+    } catch {}
+    this.deps.seating.forget();
+    return { removed: slug };
   }
 
   team(slug?: string): unknown {

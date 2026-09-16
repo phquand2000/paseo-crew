@@ -1,6 +1,6 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { catalogRpc, doctorRpc, projectsAddRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+import { catalogRpc, doctorRpc, projectsAddRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
 export type Scalar = string | number | boolean;
 export type SettingSpec = { type: "number" | "string" | "boolean"; label: string; default?: Scalar };
@@ -30,6 +30,7 @@ export type Check = { id: string; ok: boolean; detail: string };
 type SettingsRead = ({ status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string }) & { machine: Layer };
 type WriteResult = { status: "saved" } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
 type AddResult = { slug: string; root: string } | { error: string };
+type RemoveResult = { removed: string } | { error: string };
 
 export type Data =
   | { status: "loading" }
@@ -51,6 +52,7 @@ type Calls = {
   catalog: Call<Record<string, never>, Catalog>;
   projects: Call<Record<string, never>, ProjectRow[]>;
   add: Call<{ root: string }, AddResult>;
+  remove: Call<{ project: string }, RemoveResult>;
   settings: Call<{ project?: string }, SettingsRead>;
   write: Call<{ project?: string; revision: string; values: Layer }, WriteResult>;
   team: Call<{ project?: string }, TeamView>;
@@ -65,6 +67,7 @@ export function useSeatworks(project?: string) {
     catalog: useRpc(catalogRpc),
     projects: useRpc(projectsRpc),
     add: useRpc(projectsAddRpc),
+    remove: useRpc(projectsRemoveRpc),
     settings: useRpc(settingsReadRpc),
     write: useRpc(settingsWriteRpc),
     team: useRpc(teamRpc),
@@ -157,9 +160,58 @@ export function useSeatworks(project?: string) {
     }
   }, []);
 
+  const attach = useCallback(
+    async (root: string, values: Layer): Promise<string | null> => {
+      setSaving(true);
+      setSaveError(null);
+      try {
+        const added = await latest.current.add({ root });
+        if ("error" in added) {
+          setSaveError(added.error);
+          return null;
+        }
+        if (Object.keys(values).length > 0) {
+          const read = await latest.current.settings({ project: added.slug });
+          const written = await latest.current.write({ project: added.slug, revision: read.revision, values });
+          if (written.status !== "saved") setSaveError(written.error);
+        }
+        return added.slug;
+      } catch (error) {
+        setSaveError(message(error));
+        return null;
+      } finally {
+        setSaving(false);
+        reload();
+      }
+    },
+    [reload],
+  );
+
+  const detach = useCallback(
+    async (slug: string): Promise<boolean> => {
+      setSaving(true);
+      setSaveError(null);
+      try {
+        const result = await latest.current.remove({ project: slug });
+        if ("error" in result) {
+          setSaveError(result.error);
+          return false;
+        }
+        return true;
+      } catch (error) {
+        setSaveError(message(error));
+        return false;
+      } finally {
+        setSaving(false);
+        reload();
+      }
+    },
+    [reload],
+  );
+
   const runDoctor = useCallback(() => latest.current.doctor({ project }), [project]);
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
-  return { data, save, reload, saving, saveError, addProject, runDoctor, readStatus };
+  return { data, save, reload, saving, saveError, addProject, attach, detach, runDoctor, readStatus };
 }
 
 export type Source = "here" | "machine" | "default";
