@@ -8,7 +8,9 @@
     "tickSeconds": 30,
     "leadIdleMinutes": 12,
     "askRemindMinutes": 15,
-    "maxReminders": 2
+    "maxReminders": 2,
+    "watchEveryClean": 4,
+    "digestMinutes": 60
   },
   "roles": [
     {
@@ -106,13 +108,19 @@
     {
       "role": "watcher",
       "label": "Watcher",
-      "description": "Reads flagged turn endings and raises attention for the owner; it cannot touch the work",
+      "description": "Reads how turns end and raises attention for the owner; it cannot touch the work",
       "defaults": {
         "harness": "devin",
-        "model": "swe-2-max"
+        "model": "swe-2-medium"
       },
       "prompt": "prompts/WATCHER.md",
       "skills": null,
+      "paseoTools": {
+        "allow": [
+          "get_agent_activity",
+          "list_agents"
+        ]
+      },
       "hidesWords": [],
       "team": "watcher"
     }

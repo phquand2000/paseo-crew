@@ -77,15 +77,17 @@ export class Desk {
     return this.services.ctx.archive(paseo, agentId, force);
   }
 
+  recordReading(project: Project, where: string, notes: string[]): void {
+    this.services.ctx.recordReading(project, where, notes);
+  }
+
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.services.ctx.setTask(project, taskId, change);
   }
 
   async ensureWatcher(paseo: PaseoApi, project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
-    const kit = this.services.ctx.kit;
-    for (const seat of seats) {
-      if (seatOf(kit, seat.provider)?.role.team === "watcher" && seat.cwd === project.root) return seat.id;
-    }
+    const seated = this.services.ctx.watcherSeat(project, seats);
+    if (seated) return seated;
     return this.services.agents.startResident(paseo, project, "watcher", {
       title: `Watcher ${project.slug}`,
       prompt: "You are seated on this project. Turn endings arrive as mail; label each one and raise what is not normal. Nothing to do until mail arrives.",

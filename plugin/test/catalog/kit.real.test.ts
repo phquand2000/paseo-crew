@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderPrompt } from "../../server/catalog/content.ts";
-import { loadKit } from "../../server/catalog/kit.ts";
-import { seatPairs } from "../../server/catalog/providers.ts";
+import { PASEO_TOOLS, loadKit } from "../../server/catalog/kit.ts";
+import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
 import { materialize, seatDir, seedRecords } from "../../server/catalog/seats.ts";
 import { resolveTeam, serversFor } from "../../server/catalog/team.ts";
 import { tempDir } from "../../server/core/testing.ts";
@@ -57,4 +57,23 @@ test("project records are seeded once and never overwritten", () => {
   const first = seedRecords(kit, state);
   assert.ok(first.includes("notebook.md"));
   assert.deepEqual(seedRecords(kit, state), []);
+});
+
+test("no shipped role is left with Paseo's own tools at their default", () => {
+  const kit = loadKit(pluginRoot);
+  const team = resolveTeam(kit);
+  for (const { role, harness } of seatPairs(kit)) {
+    const entry = desiredProvider(kit, team, role, harness);
+    assert.ok(entry.paseoTools, `${role.role} on ${harness.id} carries no Paseo tool policy, so every Paseo tool stays on`);
+  }
+  const watcher = kit.roles.find((role) => role.role === "watcher")!;
+  const policy = desiredProvider(kit, team, watcher, kit.harnesses.devin!).paseoTools as { disabledTools: string[] };
+  assert.deepEqual(
+    PASEO_TOOLS.filter((tool) => !policy.disabledTools.includes(tool)).sort(),
+    ["get_agent_activity", "list_agents"],
+    "the Watcher reads what the other seats did, and that is the whole of its reach",
+  );
+  for (const acting of ["create_agent", "kill_agent", "archive_agent", "send_agent_prompt", "cancel_agent", "update_agent", "respond_to_permission"]) {
+    assert.ok(policy.disabledTools.includes(acting), `the Watcher watches the work and must not be able to ${acting}`);
+  }
 });

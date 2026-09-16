@@ -137,6 +137,7 @@ export const closeLane: Tool = async ({ ctx, slots, agents }, paseo, caller, arg
   });
   for (const task of retired) await agents.retire(paseo, project, task, task.status !== "merged");
   await ctx.archive(paseo, lane.lead);
+  if (!Object.values(loadLedger(project.state).lanes).some((entry) => entry.status === "open")) await ctx.retireWatcher(paseo, project);
   await slots.release(project, lane.slot);
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason) });
   return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. Its working copy is free for the next lane.`);

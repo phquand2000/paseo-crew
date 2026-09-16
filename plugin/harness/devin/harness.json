@@ -10,6 +10,10 @@
     {
       "id": "swe-2-max",
       "label": "SWE-2 Max"
+    },
+    {
+      "id": "swe-2-medium",
+      "label": "SWE-2 Medium"
     }
   ],
   "mcp": {

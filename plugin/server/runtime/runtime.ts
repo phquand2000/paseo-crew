@@ -22,7 +22,7 @@ import { registerRpc } from "./rpc.ts";
 import { Seating } from "./seating.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
-import { TurnRules } from "./turns.ts";
+import { TurnRules, type Watch } from "./turns.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
@@ -54,19 +54,20 @@ export class Runtime {
     const remember = (project: Project) => this.remember(project);
     const api = () => this.api;
     this.desk = new Desk(kit, this.outbox, log, (project) => this.source.teamFor(project), (project) => this.indexesFor(project));
-    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item) });
+    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: () => this.source.teamFor().attention });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, outbox: this.outbox, turns: this.turns, remember });
     this.control = new SettingsControl({ kit, source: this.source, seating: this.seating, reconcile: (team) => this.reconcileProviders(team), api });
   }
 
-  private tellWatcher(item: { project: Project; agent: string; where: string; text: string }): void {
+  private tellWatcher(item: Watch): void {
     const paseo = this.api;
-    if (!paseo || !item.text.trim()) return;
+    if (!paseo || !(item.text.trim() || item.reading.record.length > 0)) return;
     void (async () => {
       const seats = await openSeats(paseo);
       const watcher = await this.desk.ensureWatcher(paseo, item.project, seats);
       if (!watcher) return;
-      await this.desk.post(paseo, watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text));
+      this.desk.recordReading(item.project, item.where, item.reading.notes);
+      await this.desk.post(paseo, watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record));
     })().catch((error) => console.error("seatworks-v2: an ending could not reach the Watcher:", error));
   }
 

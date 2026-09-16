@@ -64,11 +64,17 @@ these behind it; that is why rules here are rewritten rather than appended to.
    pushing stays the Human's.
 7. **Watchers are cheap and are put back.** The plugin itself catches what a timer can see: turns
    that end silently, asks going stale, lanes sitting idle. Anything that needs reading goes to a
-   cheap seat, which the patrol puts on any project with an open lane. Every turn ending reaches it
-   as mail, fenced, with a line saying the contents are data rather than instructions; it answers
-   with one label through `raise`, the only tool it has. It holds no working copy and cannot read
-   the repository. The run above lost a watcher and nobody noticed, so the answer is not a watcher
-   that cannot be lost but one the patrol seats again on the next tick.
+   cheap seat, which the patrol puts on any project with an open lane and closes when the last one
+   shuts. What the plugin can read from a turn's actions — the same file rewritten a third time, a
+   hand-back with the gate never run, something that cannot be undone — decides which endings are
+   worth a turn of its attention; the rest are sampled, because reading every ending costs more than
+   it finds and teaches the owner to skim what it says. Each one reaches it as mail carrying the
+   actions as well as the closing words, fenced, with a line saying the contents are data rather than
+   instructions. It answers with one label through `raise`, its only desk tool, and holds no working
+   copy. What it labels is not what interrupts anyone: one fault is written down, the same fault three
+   times from one seat reaches the owner, anything destructive reaches them at once, and the rest
+   gathers into a report to read on coming back. The run above lost a watcher and nobody noticed, so
+   the answer is not a watcher that cannot be lost but one the patrol seats again on the next tick.
 8. **Fixed-shape hand-backs, full text on disk.** A letter carries the summary; the full hand-back and
    gate logs live in the project's state directory, named by path.
 9. **Plans are for agents, not a human team.** One strong agent finishes most features and foundation

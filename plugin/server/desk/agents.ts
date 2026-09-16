@@ -28,9 +28,24 @@ export class Agents {
     return { role, config };
   }
 
+  private async keptWorkspace(paseo: PaseoApi, name: string): Promise<string | undefined> {
+    let cursor: string | undefined;
+    for (let page = 0; page < 20; page++) {
+      const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
+      for (const entry of result.entries) {
+        if (entry.name === name && !entry.archivingAt) return entry.id;
+      }
+      if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) return undefined;
+      cursor = result.pageInfo.nextCursor;
+    }
+    return undefined;
+  }
+
   async startResident(paseo: PaseoApi, project: Project, team: TeamRole, options: StartOptions): Promise<string> {
     const { role, config } = this.seatConfig(project, team);
-    const workspace = await paseo.workspaces.create({ title: `${project.slug} ${role!.role}`, source: { kind: "directory", path: project.root } });
+    const name = `${project.slug} ${role!.role}`;
+    const kept = await this.keptWorkspace(paseo, name).catch(() => undefined);
+    const workspace = kept ? paseo.workspaces.ref(kept) : await paseo.workspaces.create({ title: name, source: { kind: "directory", path: project.root } });
     const handle = await workspace.agents.create({
       config: config as never,
       title: options.title.slice(0, 60),

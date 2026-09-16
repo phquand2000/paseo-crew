@@ -132,6 +132,8 @@ export type Attention = {
   leadIdleMinutes: number;
   askRemindMinutes: number;
   maxReminders: number;
+  watchEveryClean: number;
+  digestMinutes: number;
 };
 
 export type Limits = { slots: number; tasksPerLane: number };
@@ -146,7 +148,7 @@ export type Kit = {
   limits: Limits;
 };
 
-const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2 };
+const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60 };
 const LIMITS: Limits = { slots: 3, tasksPerLane: 4 };
 
 function subdirs(root: string): string[] {

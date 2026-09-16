@@ -1,27 +1,30 @@
 import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
-import { type Kit, type RoleSpec, seatOf } from "../catalog/kit.ts";
+import { type Attention, type Kit, type RoleSpec, seatOf } from "../catalog/kit.ts";
 import type { PaseoApi } from "../core/paseo.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
-import { type Project, projectOf } from "../desk/project.ts";
+import { type Project, loadConfig, projectOf } from "../desk/project.ts";
+import { type Reading, read } from "./signals.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 
 type TurnEnded = PluginLifecycleEvents["agent.turn_ended"];
 
-export type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string };
+export type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string; reading: Reading };
 
 export type TurnDeps = {
   kit: Kit;
   desk: Desk;
   remember: (project: Project) => void;
   watch: (item: Watch) => void;
+  attention?: () => Attention;
 };
 
 export class TurnRules {
   readonly lastEnding = new Map<string, string>();
   private readonly deps: TurnDeps;
   private readonly startedAt = new Map<string, number>();
+  private readonly clean = new Map<string, number>();
 
   constructor(deps: TurnDeps) {
     this.deps = deps;
@@ -61,19 +64,39 @@ export class TurnRules {
     }
     const ledger = loadLedger(project.state);
     const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
-    if (role.team === "peer" || role.team === "reviewer") await this.workerEnded(paseo, project, ledger, event, role.team, text, recorded);
-    else if (role.team === "lead") this.leadEnded(project, ledger, agent.id, text);
+    const reading = read(timeline, { gate: loadConfig(project.state).gate, recorded });
+    if (role.team === "peer" || role.team === "reviewer") await this.workerEnded(paseo, project, ledger, event, role.team, text, recorded, reading);
+    else if (role.team === "lead") this.leadEnded(project, ledger, agent.id, text, reading);
   }
 
-  private async workerEnded(paseo: PaseoApi, project: Project, ledger: Ledger, event: TurnEnded, team: "peer" | "reviewer", text: string, recorded: boolean): Promise<void> {
+  private watchable(project: Project, reading: Reading, claimed = false): boolean {
+    if (claimed || reading.score > 0) return true;
+    const every = Math.max(1, this.deps.attention?.().watchEveryClean ?? this.deps.kit.attention.watchEveryClean);
+    const next = (this.clean.get(project.slug) ?? 0) + 1;
+    this.clean.set(project.slug, next % every);
+    return next % every === 0;
+  }
+
+  private async workerEnded(
+    paseo: PaseoApi,
+    project: Project,
+    ledger: Ledger,
+    event: TurnEnded,
+    team: "peer" | "reviewer",
+    text: string,
+    recorded: boolean,
+    reading: Reading,
+  ): Promise<void> {
     const { desk } = this.deps;
     const { agent, timeline } = event;
     const task = taskOfPeer(ledger, agent.id);
-    if (!task || ["merged", "cut", "queued", "merging"].includes(task.status)) return;
+    if (!task) return;
+    const settled = ["merged", "cut", "queued", "merging"].includes(task.status);
+    if (settled && !recorded) return;
     const lane = ledger.lanes[task.lane];
     if (recorded || task.status === "done") {
-      if (lane) {
-        this.deps.watch({ project, lane: lane.id, agent: agent.id, role: team, where: `the Peer on ${task.id} (${task.title})`, text });
+      if (lane && this.watchable(project, reading, recorded)) {
+        this.deps.watch({ project, lane: lane.id, agent: agent.id, role: team, where: `the Peer on ${task.id} (${task.title})`, text, reading });
       }
       return;
     }
@@ -92,9 +115,10 @@ export class TurnRules {
     desk.event(project, { kind: "task.silent", task: task.id, denied: denied ?? null });
   }
 
-  private leadEnded(project: Project, ledger: Ledger, agentId: string, text: string): void {
+  private leadEnded(project: Project, ledger: Ledger, agentId: string, text: string, reading: Reading): void {
     const lane = laneOfLead(ledger, agentId);
     if (!lane) return;
-    this.deps.watch({ project, lane: lane.id, agent: agentId, role: "lead", where: `the Lead of ${lane.id} (${lane.title})`, text });
+    if (!this.watchable(project, reading)) return;
+    this.deps.watch({ project, lane: lane.id, agent: agentId, role: "lead", where: `the Lead of ${lane.id} (${lane.title})`, text, reading });
   }
 }

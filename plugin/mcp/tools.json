@@ -526,35 +526,48 @@
   "watcher": [
     {
       "name": "raise",
-      "description": "Record how one turn ended, and raise it to the owner when the label is not normal.",
+      "description": "Record how one turn ended. The desk decides from what you send whether it waits for the report, or reaches the owner now.",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "label": {
-            "type": "string",
-            "enum": [
-              "unheard-wait",
-              "wrong-premise",
-              "destructive",
-              "drift",
-              "struggle",
-              "normal"
-            ],
-            "description": "The first label that matches the ending."
-          },
           "where": {
             "type": "string",
             "description": "Whose ending it was, as it was given to you."
           },
-          "quote": {
-            "type": "string",
-            "description": "The exact words from the ending that show the label, at most 15 words."
+          "findings": {
+            "type": "array",
+            "description": "Every fault this ending shows, judged one at a time and each on its own merits. An ending with nothing wrong sends an empty list, which is the common and correct answer.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "enum": [
+                    "destructive",
+                    "repetition",
+                    "mismatch",
+                    "unverified",
+                    "off-spec",
+                    "unasked",
+                    "early-stop",
+                    "derailed"
+                  ]
+                },
+                "quote": {
+                  "type": "string",
+                  "description": "Words copied exactly from the ending or from the actions listed with it, at most 15, that show this fault. A fault you cannot quote is one you should not send."
+                }
+              },
+              "required": [
+                "label",
+                "quote"
+              ]
+            }
           }
         },
         "required": [
-          "label",
           "where",
-          "quote"
+          "findings"
         ]
       }
     }

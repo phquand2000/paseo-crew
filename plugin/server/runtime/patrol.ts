@@ -7,6 +7,7 @@ import { type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledg
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
+import { loadWatching, pending, reported, saveWatching } from "../desk/watching.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
@@ -40,6 +41,7 @@ export class Patrol {
       await this.idleLanes(paseo, project, loadLedger(project.state), seats, now);
       await this.goneTasks(paseo, project, loadLedger(project.state), seats);
       await this.dueAsks(paseo, project, loadLedger(project.state), seats, now);
+      await this.sendDigest(paseo, project, now);
       this.writeStatus(project, seats, now);
     }
     const targets = new Set(outbox.letters().map((letter) => letter.to));
@@ -104,6 +106,25 @@ export class Patrol {
         else entry.escalated = true;
         entry.remindedAt = now;
       });
+    }
+  }
+
+  private async sendDigest(paseo: PaseoApi, project: Project, now: number): Promise<void> {
+    const { desk } = this.deps;
+    const { digestMinutes } = this.deps.source.teamFor().attention;
+    try {
+      const watching = loadWatching(project.state);
+      const waiting = pending(watching);
+      if (waiting.length === 0) return;
+      const oldest = Math.min(...waiting.map((strike) => strike.first));
+      if (now - oldest < digestMinutes * 60_000) return;
+      const to = await desk.supervisorFor(paseo, project);
+      if (!to) return;
+      await desk.post(paseo, to, `digest:${project.slug}:${oldest}`, letters.digest(waiting, Math.round((now - oldest) / 60_000)));
+      saveWatching(project.state, reported(watching, now));
+      desk.event(project, { kind: "watch.digest", items: waiting.length });
+    } catch (error) {
+      console.error(`seatworks-v2: the report for ${project.slug} could not be sent:`, error);
     }
   }
 

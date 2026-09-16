@@ -2,7 +2,7 @@ import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
 
 export type Timeline = PluginLifecycleEvents["agent.turn_ended"]["timeline"];
 
-type Item = { type: string; text?: unknown; status?: unknown; error?: unknown; name?: unknown; detail?: unknown };
+export type Item = { type: string; text?: unknown; status?: unknown; error?: unknown; name?: unknown; detail?: unknown; callId?: unknown };
 
 function items(timeline: Timeline): Item[] {
   return timeline as unknown as Item[];
@@ -11,6 +11,11 @@ function items(timeline: Timeline): Item[] {
 function lastUserIndex(list: Item[]): number {
   for (let index = list.length - 1; index >= 0; index--) if (list[index]?.type === "user_message") return index;
   return -1;
+}
+
+export function turnItems(timeline: Timeline): Item[] {
+  const list = items(timeline);
+  return list.slice(lastUserIndex(list) + 1);
 }
 
 export function lastToolCall(timeline: Timeline): Record<string, unknown> | undefined {

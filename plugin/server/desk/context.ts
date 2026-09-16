@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Team } from "../catalog/team.ts";
 import { type Kit, type RoleSpec, type TeamRole, seatOf } from "../catalog/kit.ts";
-import { type PaseoApi, openSeats } from "../core/paseo.ts";
+import { type PaseoApi, type SeatView, openSeats } from "../core/paseo.ts";
 import { type Ledger, type Task, loadLedger, saveLedger } from "./ledger.ts";
 import { type Project, projectOf } from "./project.ts";
 
@@ -41,6 +41,7 @@ export class DeskContext {
   readonly kit: Kit;
   readonly projects = new Map<string, Project>();
   readonly pendingArchive = new Set<string>();
+  private readonly readings = new Map<string, string[]>();
   private readonly deps: DeskDeps;
   private readonly locks = new Map<string, Promise<unknown>>();
 
@@ -83,6 +84,14 @@ export class DeskContext {
     }
   }
 
+  recordReading(project: Project, where: string, notes: string[]): void {
+    this.readings.set(`${project.slug}:${where}`, notes);
+  }
+
+  reading(project: Project, where: string): string[] {
+    return this.readings.get(`${project.slug}:${where}`) ?? [];
+  }
+
   async post(paseo: PaseoApi, to: string | undefined, key: string, text: string): Promise<void> {
     if (!to) return;
     await this.deps.outbox.post(paseo, { to, key, text });
@@ -100,6 +109,16 @@ export class DeskContext {
       .filter((seat) => seatOf(this.kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug)
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
     return found[0]?.id ?? preferred;
+  }
+
+  watcherSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
+    for (const seat of seats) if (seatOf(this.kit, seat.provider)?.role.team === "watcher" && projectOf(seat.cwd).slug === project.slug) return seat.id;
+    return undefined;
+  }
+
+  async retireWatcher(paseo: PaseoApi, project: Project): Promise<void> {
+    const seated = this.watcherSeat(project, await openSeats(paseo));
+    if (seated) await this.archive(paseo, seated);
   }
 
   async archive(paseo: PaseoApi, agentId: string | undefined, force = false): Promise<void> {
