@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
-import { useState } from "react";
-import { Text } from "react-native";
+import { useMemo, useState } from "react";
+import { Text, View } from "react-native";
 import type { Check } from "./data.ts";
 
 type Props = {
@@ -18,6 +18,15 @@ export function MachineSection({ project, theme, runDoctor, readStatus }: Props)
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const styles = useMemo(
+    () => ({
+      report: { padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface1 },
+      text: { color: theme.colors.foregroundMuted, fontSize: 12, lineHeight: 18 },
+      good: { color: theme.colors.statusSuccess, fontSize: 13 },
+      bad: { color: theme.colors.statusDanger, fontSize: 13 },
+    }),
+    [theme],
+  );
 
   const run = async (work: () => Promise<void>): Promise<void> => {
     setBusy(true);
@@ -31,26 +40,29 @@ export function MachineSection({ project, theme, runDoctor, readStatus }: Props)
     }
   };
 
+  const failing = (checks ?? []).filter((check) => !check.ok);
   return (
-    <SettingsSection title="Machine" info="What this machine still needs, and what the project is doing.">
+    <SettingsSection title="Health" info="What this machine still needs before the team can work.">
       <SettingsCard>
         <SettingsAction
           label="Doctor"
-          hint="Checks the agents, tools and servers this team needs."
+          hint={checks ? (failing.length === 0 ? "Everything the team needs is here." : `${failing.length} of ${checks.length} need work.`) : "Agents, tools and servers."}
           error={error}
           actionLabel={busy ? "Checking" : "Run"}
           disabled={busy}
           onPress={() => void run(async () => setChecks(await runDoctor()))}
         />
         {(checks ?? []).map((check) => (
-          <SettingsRow key={check.id} label={`${check.ok ? "OK" : "Needs work"} · ${check.id}`} hint={check.detail} />
+          <SettingsRow key={check.id} label={check.id} hint={check.detail}>
+            <Text style={check.ok ? styles.good : styles.bad}>{check.ok ? "OK" : "Needs work"}</Text>
+          </SettingsRow>
         ))}
       </SettingsCard>
       {project ? (
         <SettingsCard>
           <SettingsAction
             label="Status"
-            hint={`What ${project} is doing right now.`}
+            hint="Lanes, tasks and open asks right now."
             actionLabel={busy ? "Reading" : "Read"}
             disabled={busy}
             onPress={() =>
@@ -60,7 +72,11 @@ export function MachineSection({ project, theme, runDoctor, readStatus }: Props)
               })
             }
           />
-          {status ? <Text style={{ color: theme.colors.foregroundMuted, fontFamily: "monospace", fontSize: 12 }}>{status}</Text> : null}
+          {status ? (
+            <View style={styles.report}>
+              <Text style={styles.text}>{status.trim()}</Text>
+            </View>
+          ) : null}
         </SettingsCard>
       ) : null}
     </SettingsSection>
