@@ -10,7 +10,7 @@
   },
   "settings": {},
   "defaults": {
-    "enabled": true
+    "enabled": false
   },
   "roles": [
     "supervisor",

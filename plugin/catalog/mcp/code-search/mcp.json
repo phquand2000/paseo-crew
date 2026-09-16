@@ -23,7 +23,7 @@
   "instructions": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
   "settings": {},
   "defaults": {
-    "enabled": true
+    "enabled": false
   },
   "tools": {
     "supervisor": [

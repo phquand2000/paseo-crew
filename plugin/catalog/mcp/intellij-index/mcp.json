@@ -60,7 +60,7 @@
     }
   },
   "defaults": {
-    "enabled": true
+    "enabled": false
   },
   "tools": {
     "supervisor": [

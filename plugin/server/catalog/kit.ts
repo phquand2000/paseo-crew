@@ -5,7 +5,7 @@ export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
 export type ModelSpec = { id: string; label: string; isDefault?: boolean; thinkingOptions?: ThinkingSpec[] };
 export type McpServers = Record<string, unknown>;
 export type TeamRole = "supervisor" | "lead" | "peer" | "reviewer";
-export type McpTransport = "stdio" | "http";
+export type McpTransport = "stdio" | "http" | "sse";
 
 export type RoleSpec = {
   role: string;

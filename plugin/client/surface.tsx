@@ -17,7 +17,7 @@ const ADD = "add";
 export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [tab, setTab] = useState<string>(MACHINE);
   const project = tab === MACHINE || tab === ADD ? undefined : tab;
-  const { data, save, reload, saving, saveError, attach, detach, runDoctor, readStatus } = useSeatworks(project);
+  const { data, save, reload, saving, saveError, addServer, attach, detach, runDoctor, readStatus } = useSeatworks(project);
   const toast = useToast();
   const wasSaving = useRef(false);
   const styles = useMemo(
@@ -104,7 +104,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             </SettingsSection>
           ) : null}
           <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} />
-          <McpSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} />
+          <McpSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} addServer={addServer} />
           <MachineSection project={project} theme={theme} runDoctor={runDoctor} readStatus={readStatus} />
         </>
       )}

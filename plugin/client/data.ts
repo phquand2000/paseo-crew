@@ -1,8 +1,10 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { catalogRpc, doctorRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+import { catalogRpc, doctorRpc, mcpParseRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
 export type Scalar = string | number | boolean;
+export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
+export type Parsed = { id: string; label: string; connect: Connect } | { error: string };
 export type SettingSpec = { type: "number" | "string" | "boolean"; label: string; default?: Scalar };
 export type ModelView = { id: string; label: string; isDefault?: boolean; thinkingOptions?: { id: string; label: string; isDefault?: boolean }[] };
 
@@ -16,12 +18,12 @@ export type TeamView = {
   project: string | null;
   errors: string[];
   rules: string;
-  mcp: Record<string, { enabled: boolean; roles: string[]; settings: Record<string, Scalar> }>;
+  mcp: Record<string, { label: string; enabled: boolean; roles: string[]; settings: Record<string, Scalar>; transport: string; template: boolean; connect: Connect | null; rule: string | null }>;
   roles: Record<string, { harness: string; provider: string | null; model: string | null; thinking: string | null; mcp: string[]; tools: Record<string, string[]>; skills: string[]; rules: string }>;
 };
 
 export type RoleChoice = { harness?: string; model?: string; thinking?: string };
-export type McpChoice = { enabled?: boolean; roles?: string[]; settings?: Record<string, Scalar> };
+export type McpChoice = { enabled?: boolean; removed?: boolean; label?: string; connect?: Connect; roles?: string[]; tools?: Record<string, string[]>; rule?: string; settings?: Record<string, Scalar> };
 export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; limits?: { slots?: number; tasksPerLane?: number } };
 
 export type ProjectRow = { slug: string; root: string };
@@ -55,6 +57,7 @@ type Calls = {
   add: Call<{ root: string }, AddResult>;
   remove: Call<{ project: string }, RemoveResult>;
   candidates: Call<{ roots: string[] }, string[]>;
+  parseMcp: Call<{ text: string }, Parsed>;
   settings: Call<{ project?: string }, SettingsRead>;
   write: Call<{ project?: string; revision: string; values: Layer }, WriteResult>;
   team: Call<{ project?: string }, TeamView>;
@@ -71,6 +74,7 @@ export function useSeatworks(project?: string) {
     add: useRpc(projectsAddRpc),
     remove: useRpc(projectsRemoveRpc),
     candidates: useRpc(projectsCandidatesRpc),
+    parseMcp: useRpc(mcpParseRpc),
     settings: useRpc(settingsReadRpc),
     write: useRpc(settingsWriteRpc),
     team: useRpc(teamRpc),
@@ -214,9 +218,33 @@ export function useSeatworks(project?: string) {
     [reload],
   );
 
+  const addServer = useCallback(
+    async (text: string): Promise<string | null> => {
+      setSaveError(null);
+      try {
+        const parsed = await latest.current.parseMcp({ text });
+        if ("error" in parsed) {
+          setSaveError(parsed.error);
+          return null;
+        }
+        const id = parsed.id.trim();
+        if (!id) {
+          setSaveError("That snippet does not name the server; paste it as {\"mcp\": {\"name\": { … }}}.");
+          return null;
+        }
+        await save((values) => setMcp(values, id, { enabled: true, label: parsed.label || id, connect: parsed.connect, removed: false }));
+        return id;
+      } catch (error) {
+        setSaveError(message(error));
+        return null;
+      }
+    },
+    [save],
+  );
+
   const runDoctor = useCallback(() => latest.current.doctor({ project }), [project]);
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
-  return { data, save, reload, saving, saveError, addProject, attach, detach, runDoctor, readStatus };
+  return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, runDoctor, readStatus };
 }
 
 export type Source = "here" | "machine" | "default";

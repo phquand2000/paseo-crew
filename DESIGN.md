@@ -134,7 +134,11 @@ catalog in two layers, machine then project, each validated before it is saved.
   write the project's state, a rule of its own for seats with servers, how its refused calls read,
   its models and its headless command. Its config files are JSON or TOML by extension. Moving a
   role to another harness is a setting; adding a harness is a directory.
-- An MCP entry says what the server is (a plain stdio/http server, or a backend the proxy pins to
+- MCP servers belong to the settings, not to the kit. A pasted connection snippet is enough to make
+  one exist; which roles get it, which tools, its label and its rule are chosen afterwards. The three
+  entries under `catalog/mcp/` are templates: they ship switched off, carry rules and skills the
+  settings reuse, and can be removed outright.
+- A template says what the server is (a plain stdio/http server, or a backend the proxy pins to
   each seat's working copy: its http or stdio backend, pinned argument, the tools that open, wait for
   and sync a working copy, error guidance and tool descriptions), its settings with defaults, which roles it serves and with which tools, its rule and its
   skills. Rules and tool lists are generated per seat from the enabled entries, so role prompts

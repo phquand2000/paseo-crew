@@ -14,10 +14,20 @@ import {
   supportsRole,
   teamServer,
 } from "./kit.ts";
-import type { Layer } from "./settings.ts";
+import type { Connect, Layer, McpChoice } from "./settings.ts";
 
 export type SettingValue = string | number | boolean;
-export type McpState = { entry: McpEntry; enabled: boolean; roles: string[]; settings: Record<string, SettingValue> };
+export type McpState = {
+  id: string;
+  label: string;
+  entry?: McpEntry;
+  connect?: Connect;
+  rule?: string;
+  tools?: Record<string, string[]>;
+  enabled: boolean;
+  roles: string[];
+  settings: Record<string, SettingValue>;
+};
 export type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec; thinking?: string; mcp: string[] };
 export type Team = {
   roles: Record<string, RoleSeat>;
@@ -28,12 +38,30 @@ export type Team = {
   errors: string[];
 };
 
-export function eligibleRoles(entry: McpEntry): string[] {
+export function templateRoles(entry: McpEntry): string[] {
   return entry.kind === "proxy" ? Object.keys(entry.tools ?? {}) : (entry.roles ?? []);
 }
 
-export function transportOf(entry: McpEntry): McpTransport {
-  return entry.kind === "proxy" ? "stdio" : (entry.server?.type ?? "stdio");
+export function eligibleRoles(state: McpState, kit: Kit): string[] {
+  const entry = state.entry;
+  if (entry?.kind === "proxy") return Object.keys(state.tools ?? entry.tools ?? {});
+  if (entry) return entry.roles ?? kit.roles.filter((role) => role.team).map((role) => role.role);
+  return kit.roles.filter((role) => role.team).map((role) => role.role);
+}
+
+export function transportOf(state: McpState): McpTransport {
+  if (state.entry?.kind === "proxy") return "stdio";
+  return state.connect?.type ?? (state.entry?.server?.type as McpTransport | undefined) ?? "stdio";
+}
+
+export function connectToServer(connect: Connect): Record<string, unknown> | undefined {
+  if (connect.type === "stdio") {
+    const [command, ...args] = connect.command ?? [];
+    if (!command) return undefined;
+    return { type: "stdio", command, ...(args.length > 0 ? { args } : {}), ...(connect.env ? { env: connect.env } : {}) };
+  }
+  if (!connect.url) return undefined;
+  return { type: connect.type, url: connect.url, ...(connect.headers ? { headers: connect.headers } : {}) };
 }
 
 export function fill(template: string, settings: Record<string, SettingValue>): string {
@@ -42,27 +70,46 @@ export function fill(template: string, settings: Record<string, SettingValue>): 
 
 function resolveMcp(kit: Kit, layers: Layer[], errors: string[]): Record<string, McpState> {
   const states: Record<string, McpState> = {};
-  for (const entry of Object.values(kit.mcp)) {
-    const choices = layers.map((layer) => layer.mcp?.[entry.id]).filter((choice) => choice !== undefined);
-    let enabled = entry.defaults.enabled;
-    let roles: string[] | undefined;
+  const ids = new Set([...Object.keys(kit.mcp), ...layers.flatMap((layer) => Object.keys(layer.mcp ?? {}))]);
+  for (const id of ids) {
+    const entry = kit.mcp[id];
+    const choices = layers.map((layer) => layer.mcp?.[id]).filter((choice): choice is McpChoice => choice !== undefined);
     const settings: Record<string, SettingValue> = {};
-    for (const [key, spec] of Object.entries(entry.settings)) if (spec.default !== undefined) settings[key] = spec.default;
+    for (const [key, spec] of Object.entries(entry?.settings ?? {})) if (spec.default !== undefined) settings[key] = spec.default;
+    let enabled = entry?.defaults.enabled ?? false;
+    let removed = false;
+    let label = entry?.label ?? id;
+    let connect: Connect | undefined;
+    let rule: string | undefined;
+    let tools = entry?.tools;
+    let roles: string[] | undefined;
     for (const choice of choices) {
       if (choice.enabled !== undefined) enabled = choice.enabled;
+      if (choice.removed !== undefined) removed = choice.removed;
+      if (choice.label) label = choice.label;
+      if (choice.connect) connect = choice.connect;
+      if (choice.rule !== undefined) rule = choice.rule;
+      if (choice.tools) tools = { ...tools, ...choice.tools };
       if (choice.roles) roles = choice.roles;
       for (const [key, value] of Object.entries(choice.settings ?? {})) {
-        const spec = entry.settings[key];
-        if (!spec) errors.push(`${entry.label} has no setting named ${key}`);
-        else if (typeof value !== spec.type) errors.push(`${entry.label} setting ${key} must be a ${spec.type}`);
+        const spec = entry?.settings[key];
+        if (!spec) errors.push(`${label} has no setting named ${key}`);
+        else if (typeof value !== spec.type) errors.push(`${label} setting ${key} must be a ${spec.type}`);
         else settings[key] = value;
       }
     }
-    const eligible = eligibleRoles(entry);
-    for (const role of roles ?? []) {
-      if (!eligible.includes(role)) errors.push(`${entry.label} can't be given to the ${role} role: its catalog entry has nothing for that role`);
+    if (removed) continue;
+    if (!entry && !connect) {
+      errors.push(`The MCP server ${id} has nothing to connect to; paste its connection details or remove it`);
+      continue;
     }
-    states[entry.id] = { entry, enabled, roles: (roles ?? eligible).filter((role) => eligible.includes(role)), settings };
+    const state: McpState = { id, label, entry, connect, rule, tools, enabled, roles: [], settings };
+    const eligible = eligibleRoles(state, kit);
+    for (const role of roles ?? []) {
+      if (!eligible.includes(role)) errors.push(`${label} can't be given to the ${role} role: it has nothing for that role`);
+    }
+    state.roles = (roles ?? eligible).filter((role) => eligible.includes(role));
+    states[id] = state;
   }
   return states;
 }
@@ -101,12 +148,12 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     ? []
     : Object.values(mcp)
         .filter((state) => state.enabled && state.roles.includes(role.role))
-        .sort((a, b) => (a.entry.order ?? 100) - (b.entry.order ?? 100))
-        .map((state) => state.entry.id);
+        .sort((a, b) => (a.entry?.order ?? 100) - (b.entry?.order ?? 100))
+        .map((state) => state.id);
   for (const id of enabled) {
-    const transport = transportOf(mcp[id]!.entry);
+    const transport = transportOf(mcp[id]!);
     if (!harness.mcp.transports.includes(transport)) {
-      errors.push(`${harness.label} can't reach ${mcp[id]!.entry.label} over ${transport}, so the ${role.label} can't use it`);
+      errors.push(`${harness.label} can't reach ${mcp[id]!.label} over ${transport}, so the ${role.label} can't use it`);
     }
   }
   return { role, harness, model, thinking, mcp: enabled };
@@ -118,7 +165,6 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}):
   layers.forEach((layer, index) => {
     const where = index === 0 ? "The machine settings" : "The project settings";
     for (const name of Object.keys(layer.roles ?? {})) if (!kit.roles.some((role) => role.role === name)) errors.push(`${where} name an unknown role ${name}`);
-    for (const id of Object.keys(layer.mcp ?? {})) if (!kit.mcp[id]) errors.push(`${where} name an unknown MCP server ${id}`);
   });
   const mcp = resolveMcp(kit, layers, errors);
   const roles: Record<string, RoleSeat> = {};
@@ -153,14 +199,14 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
 export type IndexedProxy = ProxySpec & { id: string; label: string; backend: { type: "http"; url: string } };
 
 export function proxyOf(state: McpState): ProxySpec | undefined {
-  return state.entry.proxy ? (JSON.parse(fill(JSON.stringify(state.entry.proxy), state.settings)) as ProxySpec) : undefined;
+  return state.entry?.proxy ? (JSON.parse(fill(JSON.stringify(state.entry.proxy), state.settings)) as ProxySpec) : undefined;
 }
 
 export function indexedProxies(team: Team): IndexedProxy[] {
   const found: IndexedProxy[] = [];
   for (const state of Object.values(team.mcp)) {
     const proxy = state.enabled ? proxyOf(state) : undefined;
-    if (proxy?.open && proxy.backend.type === "http") found.push({ ...proxy, backend: proxy.backend, id: state.entry.id, label: state.entry.label });
+    if (proxy?.open && proxy.backend.type === "http") found.push({ ...proxy, backend: proxy.backend, id: state.id, label: state.label });
   }
   return found;
 }
@@ -172,14 +218,15 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;
     const { entry } = state;
-    if (entry.kind === "proxy") {
-      const tools = entry.tools?.[roleName] ?? [];
+    if (entry?.kind === "proxy") {
+      const tools = (state.tools ?? entry.tools)?.[roleName] ?? [];
       if (tools.length === 0) continue;
-      const config = { name: id, label: entry.label, instructions: entry.instructions ?? "", tools, ...proxyOf(state) };
+      const config = { name: id, label: state.label, instructions: entry.instructions ?? "", tools, ...proxyOf(state) };
       servers[id] = { type: "stdio", command: context.node, args: [join(kit.dir, "mcp", "code.mjs"), JSON.stringify(config)] };
-    } else if (entry.server) {
-      servers[id] = JSON.parse(fill(JSON.stringify(entry.server), state.settings));
+      continue;
     }
+    const shaped = state.connect ? connectToServer(state.connect) : entry?.server ? JSON.parse(fill(JSON.stringify(entry.server), state.settings)) : undefined;
+    if (shaped) servers[id] = shaped;
   }
   return servers;
 }
@@ -189,12 +236,14 @@ export function rulesFor(team: Team, roleName: string): string {
   if (!seat || seat.role.headless) return "";
   const parts: string[] = [];
   for (const id of seat.mcp) {
-    const { entry } = team.mcp[id]!;
+    const state = team.mcp[id]!;
+    const { entry } = state;
     const lines: string[] = [];
-    if (entry.rule) lines.push(readFileSync(join(entry.dir, entry.rule), "utf-8").trim());
-    const tools = entry.kind === "proxy" ? (entry.tools?.[roleName] ?? []) : [];
-    if (tools.length > 0) lines.push(`Your ${entry.label} tools: ${tools.map((tool) => `\`${tool}\``).join(", ")}.`);
-    const note = entry.roleNotes?.[roleName];
+    const rule = state.rule ?? (entry?.rule ? readFileSync(join(entry.dir, entry.rule), "utf-8").trim() : "");
+    if (rule.trim()) lines.push(rule.trim());
+    const tools = entry?.kind === "proxy" ? ((state.tools ?? entry.tools)?.[roleName] ?? []) : [];
+    if (tools.length > 0) lines.push(`Your ${state.label} tools: ${tools.map((tool) => `\`${tool}\``).join(", ")}.`);
+    const note = entry?.roleNotes?.[roleName];
     if (note) lines.push(note);
     if (lines.length > 0) parts.push(lines.join("\n\n"));
   }
@@ -209,7 +258,7 @@ export function skillDirsFor(team: Team, roleName: string): Map<string, string> 
   if (!seat) return found;
   for (const id of seat.mcp) {
     const { entry } = team.mcp[id]!;
-    for (const skill of entry.skills ?? []) found.set(skill, join(entry.dir, "skills", skill));
+    if (entry) for (const skill of entry.skills ?? []) found.set(skill, join(entry.dir, "skills", skill));
   }
   return found;
 }

@@ -30,6 +30,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
   assert.deepEqual(names.sort(), [
     "seatworks.catalog.read",
     "seatworks.doctor.run",
+    "seatworks.mcp.parse",
     "seatworks.projects.add",
     "seatworks.projects.candidates",
     "seatworks.projects.list",
@@ -144,4 +145,46 @@ test("the projects a setup screen may offer leave out worktrees, gone directorie
 
   const roots = [repo, linked, plain, ours, join(repo, "nowhere"), taken];
   assert.deepEqual(await call("seatworks.projects.candidates", { roots }), [repo]);
+});
+
+test("a pasted server is understood whatever dialect it is written in", async () => {
+  const { call } = served();
+  const nested = await call("seatworks.mcp.parse", {
+    text: JSON.stringify({ mcp: { context7: { type: "local", command: ["npx", "-y", "@upstash/context7-mcp", "--api-key", "KEY"], enabled: true } } }),
+  });
+  assert.equal(nested.id, "context7");
+  assert.deepEqual(nested.connect, { type: "stdio", command: ["npx", "-y", "@upstash/context7-mcp", "--api-key", "KEY"] });
+
+  const claudeStyle = await call("seatworks.mcp.parse", {
+    text: JSON.stringify({ mcpServers: { docs: { command: "npx", args: ["docs-mcp"], env: { TOKEN: "x" } } } }),
+  });
+  assert.equal(claudeStyle.id, "docs");
+  assert.deepEqual(claudeStyle.connect, { type: "stdio", command: ["npx", "docs-mcp"], env: { TOKEN: "x" } });
+
+  const remote = await call("seatworks.mcp.parse", { text: JSON.stringify({ type: "remote", url: "https://mcp.example/mcp", headers: { Authorization: "Bearer x" } }) });
+  assert.deepEqual(remote.connect, { type: "http", url: "https://mcp.example/mcp", headers: { Authorization: "Bearer x" } });
+
+  assert.match((await call("seatworks.mcp.parse", { text: "not json" })).error, /not JSON/);
+  assert.match((await call("seatworks.mcp.parse", { text: JSON.stringify({ type: "local" }) })).error, /needs a command/);
+});
+
+test("a server pasted into the settings reaches the seats, and a shipped one can be removed", async () => {
+  const { call } = served();
+  const read = await call("seatworks.settings.read");
+  const saved = await call("seatworks.settings.write", {
+    revision: read.revision,
+    values: {
+      mcp: {
+        notes: { enabled: true, label: "Notes", connect: { type: "stdio", command: ["npx", "notes-mcp"] }, roles: ["lead"], rule: "Look things up in the notes." },
+        ide: { removed: true },
+      },
+    },
+  });
+  assert.equal(saved.status, "saved", JSON.stringify(saved));
+  const team = await call("seatworks.team.read");
+  assert.equal(team.mcp.ide, undefined, "a removed server is gone from the team");
+  assert.equal(team.mcp.notes.template, false);
+  assert.deepEqual(team.mcp.notes.connect, { type: "stdio", command: ["npx", "notes-mcp"] });
+  assert.deepEqual(team.roles.lead.mcp, ["notes"]);
+  assert.match(team.roles.lead.rules, /Look things up in the notes\./);
 });

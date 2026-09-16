@@ -12,11 +12,27 @@ const RoleChoice = z.strictObject({
   thinking: z.string().min(1).optional(),
 });
 
+const Connect = z.strictObject({
+  type: z.enum(["stdio", "http", "sse"]),
+  command: z.array(z.string().min(1)).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+  url: z.string().min(1).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+});
+
 const McpChoice = z.strictObject({
   enabled: z.boolean().optional(),
+  removed: z.boolean().optional(),
+  label: z.string().min(1).optional(),
+  connect: Connect.optional(),
   roles: z.array(z.string()).optional(),
+  tools: z.record(z.string(), z.array(z.string())).optional(),
+  rule: z.string().optional(),
   settings: z.record(z.string(), Scalar).optional(),
 });
+
+export type Connect = z.infer<typeof Connect>;
+export type McpChoice = z.infer<typeof McpChoice>;
 
 const LimitsChoice = z.strictObject({
   slots: z.number().int().min(1).max(10).optional(),

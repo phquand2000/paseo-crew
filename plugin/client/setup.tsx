@@ -41,7 +41,7 @@ export function SetupSection({ catalog, available, theme, disabled, attach, onAt
   const picked = available.find((entry) => entry.root === root);
 
   return (
-    <SettingsSection title="Add a project" info="Pick a repository, choose who works on it, then attach.">
+    <SettingsSection title="Add a project" info={`Pick a repository, choose who works on it, then attach. ${chosen.label}: ${chosen.description}`}>
       <SettingsCard>
         <SettingsSelect
           label="Repository"
@@ -57,7 +57,7 @@ export function SetupSection({ catalog, available, theme, disabled, attach, onAt
         <TabBar theme={theme} active={chosen.id} disabled={disabled} onPick={setActiveRole} tabs={catalog.roles.map((entry) => ({ id: entry.id, label: entry.label }))} />
         <SettingsSelect
           label="Agent"
-          hint={chosen.description}
+          hint={`Runs every ${chosen.label} turn in this repository.`}
           value={harnessOf(chosen.id)}
           options={chosen.harnesses.map((id) => ({ label: catalog.harnesses.find((entry) => entry.id === id)?.label ?? id, value: id }))}
           onValueChange={(next) => setDraft((current) => setRole(current, chosen.id, { harness: next }, true))}

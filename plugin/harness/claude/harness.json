@@ -27,7 +27,8 @@
     "delivery": "launch",
     "transports": [
       "stdio",
-      "http"
+      "http",
+      "sse"
     ],
     "seed": {
       "hasCompletedOnboarding": true

@@ -9,6 +9,20 @@ export function sourceLabel(source: Source, layer: "machine" | "project"): strin
   return "Catalog default";
 }
 
+export function Revert({ theme, disabled, onPress }: { theme: PluginTheme; disabled?: boolean; onPress(): void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Revert this to the layer below"
+      disabled={disabled}
+      onPress={onPress}
+      style={{ minHeight: 32, justifyContent: "center", paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border }}
+    >
+      <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>Revert</Text>
+    </Pressable>
+  );
+}
+
 export function Chips({ options, chosen, theme, disabled, onToggle }: {
   options: { id: string; label: string }[];
   chosen: string[];

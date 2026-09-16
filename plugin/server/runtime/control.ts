@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
-import { type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
-import { type Team, eligibleRoles, resolveTeam, rulesFor, skillDirsFor, transportOf } from "../catalog/team.ts";
+import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
+import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
 import { type PaseoApi, openSeats } from "../core/paseo.ts";
 import { worktreeRoot } from "../core/paths.ts";
@@ -17,6 +17,31 @@ import type { TeamSource } from "./team-source.ts";
 type Target = { file: string; schema: typeof MachineLayerSchema | typeof ProjectLayerSchema; project?: Project };
 
 const unknownProject = (slug: string) => `No project named ${slug} has been seen on this machine.`;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const strings = (value: unknown): string[] | undefined =>
+  typeof value === "string" ? [value] : Array.isArray(value) && value.every((item) => typeof item === "string") ? (value as string[]) : undefined;
+
+const pairs = (value: unknown): Record<string, string> | undefined =>
+  isRecord(value) && Object.values(value).every((item) => typeof item === "string") ? (value as Record<string, string>) : undefined;
+
+function connectFrom(value: unknown): Connect | string {
+  if (!isRecord(value)) return "A server needs a JSON object with its connection details.";
+  const raw = typeof value.type === "string" ? value.type.toLowerCase() : "";
+  const command = [...(strings(value.command) ?? []), ...(strings(value.args) ?? [])];
+  const url = typeof value.url === "string" ? value.url : undefined;
+  const type = raw === "local" || raw === "stdio" ? "stdio" : raw === "sse" ? "sse" : raw === "remote" || raw === "http" ? "http" : command.length > 0 ? "stdio" : url ? "http" : undefined;
+  if (!type) return "Give the server a command to run or a url to reach.";
+  if (type === "stdio") {
+    if (command.length === 0) return "A local server needs a command to run.";
+    const env = pairs(value.env);
+    return { type, command, ...(env ? { env } : {}) };
+  }
+  if (!url) return "A remote server needs a url.";
+  const headers = pairs(value.headers);
+  return { type, url, ...(headers ? { headers } : {}) };
+}
 
 export function describeCatalog(kit: Kit): unknown {
   return {
@@ -46,10 +71,11 @@ export function describeCatalog(kit: Kit): unknown {
         label: entry.label,
         description: entry.description ?? "",
         kind: entry.kind,
-        transport: transportOf(entry),
+        transport: entry.kind === "proxy" ? "stdio" : (entry.server?.type ?? "stdio"),
         settings: entry.settings,
         defaults: entry.defaults,
-        roles: eligibleRoles(entry),
+        roles: templateRoles(entry),
+        template: true,
       })),
   };
 }
@@ -61,7 +87,21 @@ export function describeTeam(kit: Kit, team: Team, project?: Project): unknown {
     limits: team.limits,
     attention: team.attention,
     rules: team.rules,
-    mcp: Object.fromEntries(Object.entries(team.mcp).map(([id, state]) => [id, { enabled: state.enabled, roles: state.roles, settings: state.settings }])),
+    mcp: Object.fromEntries(
+      Object.entries(team.mcp).map(([id, state]) => [
+        id,
+        {
+          label: state.label,
+          enabled: state.enabled,
+          roles: state.roles,
+          settings: state.settings,
+          transport: transportOf(state),
+          template: Boolean(state.entry),
+          connect: state.connect ?? null,
+          rule: state.rule ?? null,
+        },
+      ]),
+    ),
     roles: Object.fromEntries(
       Object.entries(team.roles).map(([name, seat]) => [
         name,
@@ -71,7 +111,7 @@ export function describeTeam(kit: Kit, team: Team, project?: Project): unknown {
           model: seat.model?.id ?? null,
           thinking: seat.thinking ?? null,
           mcp: seat.mcp,
-          tools: Object.fromEntries(seat.mcp.map((id) => [id, team.mcp[id]!.entry.tools?.[name] ?? []])),
+          tools: Object.fromEntries(seat.mcp.map((id) => [id, (team.mcp[id]!.tools ?? team.mcp[id]!.entry?.tools)?.[name] ?? []])),
           skills: [...skillDirsFor(team, name).keys()],
           rules: rulesFor(team, name),
         },
@@ -155,6 +195,35 @@ export class SettingsControl implements Control {
       keep.push(given);
     }
     return keep;
+  }
+
+  parseMcp(text: string): unknown {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      return { error: `That is not JSON: ${error instanceof Error ? error.message : String(error)}` };
+    }
+    if (!isRecord(parsed)) return { error: "Paste a JSON object, not a list or a bare value." };
+    const map = isRecord(parsed.mcp) ? parsed.mcp : isRecord(parsed.mcpServers) ? parsed.mcpServers : undefined;
+    if (map) {
+      const names = Object.keys(map);
+      if (names.length !== 1) return { error: `Paste one server at a time; this one names ${names.length}.` };
+      const id = names[0]!;
+      const connect = connectFrom(map[id]);
+      return typeof connect === "string" ? { error: connect } : { id, label: id, connect };
+    }
+    const direct = connectFrom(parsed);
+    if (typeof direct === "string") {
+      const names = Object.keys(parsed);
+      if (names.length === 1 && isRecord(parsed[names[0]!])) {
+        const id = names[0]!;
+        const nested = connectFrom(parsed[id]);
+        return typeof nested === "string" ? { error: nested } : { id, label: id, connect: nested };
+      }
+      return { error: direct };
+    }
+    return { id: "", label: "", connect: direct };
   }
 
   removeProject(slug: string): unknown {

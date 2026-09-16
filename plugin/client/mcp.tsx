@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { useState } from "react";
-import { Chips, Facts, sourceLabel } from "./bits.tsx";
+import { Chips, Facts, Revert, sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, McpChoice, Scalar, SettingSpec, TeamView } from "./data.ts";
 import { clearMcp, clearMcpSetting, setMcp, sourceOf } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
@@ -17,11 +17,15 @@ type Props = {
   theme: PluginTheme;
   disabled: boolean;
   save(change: (values: Layer) => Layer): void;
+  addServer(text: string): Promise<string | null>;
 };
 
-function Tuning({ entry, current, disabled, save, labelOf, setHere }: {
+const ADD = "__add__";
+
+function Tuning({ entry, current, theme, disabled, save, labelOf, setHere }: {
   entry: Entry;
   current: Record<string, Scalar>;
+  theme: PluginTheme;
   disabled: boolean;
   save: Props["save"];
   labelOf(key: string): string;
@@ -73,71 +77,117 @@ function Tuning({ entry, current, disabled, save, labelOf, setHere }: {
       {Object.keys(entry.settings)
         .filter((key) => setHere(key))
         .map((key) => (
-          <SettingsAction
-            key={`revert-${key}`}
-            label={entry.settings[key]!.label}
-            hint="Back to the layer below"
-            actionLabel="Revert"
-            disabled={disabled}
-            onPress={() => save((values) => clearMcpSetting(values, entry.id, key))}
-          />
+          <SettingsRow key={`revert-${key}`} label={entry.settings[key]!.label} hint="Set here">
+            <Revert theme={theme} disabled={disabled} onPress={() => save((values) => clearMcpSetting(values, entry.id, key))} />
+          </SettingsRow>
         ))}
     </>
   );
 }
 
-export function McpSection({ catalog, team, values, machine, layer, theme, disabled, save }: Props) {
-  const [active, setActive] = useState(catalog.mcp[0]?.id ?? "");
-  const entry = catalog.mcp.find((item) => item.id === active) ?? catalog.mcp[0];
-  if (!entry) return null;
-  const state = team.mcp[entry.id];
-  const roles = state?.roles ?? entry.roles;
-  const on = state?.enabled ?? entry.defaults.enabled;
-  const source = (field: keyof McpChoice) => sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.[field], layer);
-  const revert = (field: keyof McpChoice, label: string) =>
-    source(field) === "here" ? (
-      <SettingsAction
-        label={label}
-        hint={layer === "machine" ? "Back to the catalog default" : "Back to this machine's choice"}
-        actionLabel="Revert"
-        disabled={disabled}
-        onPress={() => save((current) => clearMcp(current, entry.id, field))}
-      />
-    ) : null;
+export function McpSection({ catalog, team, values, machine, layer, theme, disabled, save, addServer }: Props) {
+  const ids = Object.keys(team.mcp);
+  const [active, setActive] = useState(ids[0] ?? ADD);
+  const [paste, setPaste] = useState("");
+  const state = team.mcp[active];
+  const entry = catalog.mcp.find((item) => item.id === active);
+  const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), { id: ADD, label: "Add a server" }];
+
+  if (active === ADD || !state) {
+    return (
+      <SettingsSection title="Servers" info="Paste the snippet a server gives you. Everything else you choose here afterwards.">
+        <TabBar theme={theme} active={ADD} disabled={disabled} onPick={setActive} tabs={tabs} />
+        <SettingsCard>
+          <SettingsInput
+            label="Connection"
+            hint={'Example: {"mcp": {"context7": {"type": "local", "command": ["npx", "-y", "@upstash/context7-mcp"]}}}'}
+            initialValue=""
+            placeholder='{"mcp": { … }}'
+            onChangeText={setPaste}
+            disabled={disabled}
+          />
+          <SettingsAction
+            label="Add it"
+            hint={paste.trim() ? "Saved switched on, given to every role. Narrow it below." : "Paste the snippet first."}
+            actionLabel="Add"
+            disabled={disabled || !paste.trim()}
+            onPress={() =>
+              void addServer(paste).then((id) => {
+                if (!id) return;
+                setPaste("");
+                setActive(id);
+              })
+            }
+          />
+        </SettingsCard>
+      </SettingsSection>
+    );
+  }
+
+  const roles = state.roles;
+  const on = state.enabled;
+  const source = (field: keyof McpChoice) => sourceOf(values, machine, (current) => current.mcp?.[active]?.[field], layer);
+  const revert = (field: keyof McpChoice) =>
+    source(field) === "here" ? <Revert theme={theme} disabled={disabled} onPress={() => save((current) => clearMcp(current, active, field))} /> : null;
 
   return (
-    <SettingsSection title="Servers" info={entry.description}>
-      <TabBar theme={theme} active={entry.id} disabled={disabled} onPick={setActive} tabs={catalog.mcp.map((item) => ({ id: item.id, label: item.label }))} />
+    <SettingsSection title="Servers" info={entry?.description ?? (state.connect ? "Added here from a pasted snippet." : "")}>
+      <TabBar theme={theme} active={active} disabled={disabled} onPick={setActive} tabs={tabs} />
       <SettingsCard>
         <SettingsSwitch
           label="Switched on"
           hint={sourceLabel(source("enabled"), layer)}
           value={on}
-          onValueChange={(next) => save((current) => setMcp(current, entry.id, { enabled: next }))}
+          onValueChange={(next) => save((current) => setMcp(current, active, { enabled: next }))}
           disabled={disabled}
-        />
-        {revert("enabled", "Switched on")}
+        >
+          {revert("enabled")}
+        </SettingsSwitch>
         <SettingsRow label="Roles that get it" hint={sourceLabel(source("roles"), layer)}>
           <Chips
             theme={theme}
             disabled={disabled || !on}
             chosen={roles}
-            options={entry.roles.map((role) => ({ id: role, label: role }))}
+            options={(entry ? entry.roles : catalog.roles.filter((role) => role.team).map((role) => role.id)).map((role) => ({ id: role, label: role }))}
             onToggle={(role, want) =>
-              save((current) => setMcp(current, entry.id, { roles: want ? [...new Set([...roles, role])] : roles.filter((entry2) => entry2 !== role) }))
+              save((current) => setMcp(current, active, { roles: want ? [...new Set([...roles, role])] : roles.filter((other) => other !== role) }))
             }
           />
+          {revert("roles")}
         </SettingsRow>
-        {revert("roles", "Roles that get it")}
-        <Tuning
-          entry={entry}
-          current={state?.settings ?? {}}
+        {entry ? (
+          <Tuning
+            entry={entry}
+            current={state.settings}
+            theme={theme}
+            disabled={disabled}
+            save={(change) => save(change)}
+            labelOf={(key) => sourceLabel(sourceOf(values, machine, (current) => current.mcp?.[active]?.settings?.[key], layer), layer)}
+            setHere={(key) => sourceOf(values, machine, (current) => current.mcp?.[active]?.settings?.[key], layer) === "here"}
+          />
+        ) : null}
+        <SettingsAction
+          label={state.template ? "Remove this server" : "Remove this server"}
+          hint={state.template ? "It stays in the catalog; add it again whenever you want." : "It was added here, so removing it drops it."}
+          actionLabel="Remove"
           disabled={disabled}
-          save={save}
-          labelOf={(key) => sourceLabel(sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.settings?.[key], layer), layer)}
-          setHere={(key) => sourceOf(values, machine, (current) => current.mcp?.[entry.id]?.settings?.[key], layer) === "here"}
+          onPress={() =>
+            save((current) => {
+              const next = setMcp(current, active, { removed: true, enabled: false });
+              setActive(ids.find((id) => id !== active) ?? ADD);
+              return next;
+            })
+          }
         />
-        <Facts theme={theme} items={[{ label: "Reached over", value: entry.transport }, { label: "Kind", value: entry.kind }]} />
+        <Facts
+          theme={theme}
+          items={[
+            { label: "Reached over", value: state.transport },
+            { label: "Source", value: state.template ? "catalog template" : "pasted here" },
+            ...(state.connect?.command ? [{ label: "Command", value: state.connect.command.join(" ") }] : []),
+            ...(state.connect?.url ? [{ label: "Url", value: state.connect.url }] : []),
+          ]}
+        />
       </SettingsCard>
     </SettingsSection>
   );

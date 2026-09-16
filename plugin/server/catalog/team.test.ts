@@ -54,7 +54,7 @@ test("settings that can't describe a working team are reported, not guessed arou
   );
   const text = team.errors.join("\n");
   assert.match(text, /unknown role scout/);
-  assert.match(text, /unknown MCP server nope/);
+  assert.match(text, /The MCP server nope has nothing to connect to/);
   assert.match(text, /Claude Code has no model gpt for the Lead/);
   assert.match(text, /IDE setting port must be a number/);
   assert.match(text, /IDE has no setting named host/);

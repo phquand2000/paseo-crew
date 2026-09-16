@@ -14,7 +14,10 @@ const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 test("the shipped kit resolves to a complete team, and every role's seat builds with no hidden word in it", () => {
   const kit = loadKit(pluginRoot);
-  const team = resolveTeam(kit);
+  const off = resolveTeam(kit);
+  assert.deepEqual(off.errors, []);
+  assert.deepEqual(Object.values(off.mcp).filter((state) => state.enabled), [], "the kit ships no server switched on");
+  const team = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
   assert.deepEqual(team.errors, []);
   assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["lead", "peer", "reviewer", "supervisor", "watcher"]);
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);

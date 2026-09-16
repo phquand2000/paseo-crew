@@ -69,8 +69,10 @@ A project value overrides the machine value, which overrides the catalog.
 
 - `roles.<role>`: the harness, model and thinking option. The harness needs settings for that role
   under `plugin/harness/<id>/settings/`.
-- `mcp.<id>`: turn a catalog server on or off, narrow the roles that get it, or set its settings.
-  Turning one on also adds its rule to the seats' `CLAUDE.md` or `AGENTS.md` and links its skills.
+- `mcp.<id>`: a server. Paste its connection snippet and it exists; `enabled`, `roles`, `tools`,
+  `label` and `rule` are yours to choose afterwards. `removed: true` drops one, including the three
+  the kit ships. Turning a server on adds its rule to the seats' `CLAUDE.md` or `AGENTS.md` and links
+  any skills it brings.
 - `limits`, `attention` (machine only) and `rules`, free text appended to every seat's rules.
 
 A web app manages them through the plugin's RPC, called with the Paseo client's
@@ -83,6 +85,7 @@ A web app manages them through the plugin's RPC, called with the Paseo client's
 | `seatworks.projects.add` | `root` | registers a project by any path inside it, so its layer can be written before an agent runs there |
 | `seatworks.projects.remove` | `project` | drops a project's settings again; refused while it has lanes or tasks on record |
 | `seatworks.projects.candidates` | `roots` | of the paths given, the repositories worth offering: no lane worktrees, nothing gone from disk, nothing already set up |
+| `seatworks.mcp.parse` | `text` | reads a pasted MCP snippet in any common dialect and answers with the server's id and connection |
 | `seatworks.settings.read` | `project?` | `ready` with `revision` and `values`, or `invalid`; plus `machine`, the layer below a project |
 | `seatworks.settings.write` | `project?`, `revision`, `values` | `saved`, `conflict` or `invalid` with the reason |
 | `seatworks.settings.reset` | `project?`, `revision` | as write |
