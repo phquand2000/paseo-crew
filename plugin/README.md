@@ -1,5 +1,8 @@
 # seatworks-v2 plugin
 
+A map of what sits where. The contract a change has to satisfy — the harness and catalog schemas,
+the writing rules, and what the machine checks — is in [SPEC.md](../SPEC.md).
+
 | Path | Holds |
 |---|---|
 | `index.server.ts` | Wires the runtime |

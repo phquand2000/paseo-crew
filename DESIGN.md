@@ -1,7 +1,10 @@
 # Seatworks design
 
+Why the shape is this way. [SPEC.md](SPEC.md) says what the shape is; this file is the reasoning
+behind it, for maintainers.
+
 Seatworks runs the SLPW team (Supervisor, Lead, Peer, Watcher) on Paseo as one plugin. The people in
-the team are agents; the plugin is the desk they all work through. This file is for maintainers.
+the team are agents; the plugin is the desk they all work through.
 
 ## Goal
 
@@ -11,16 +14,10 @@ code owns.
 
 Everything around the concept is the user's choice and lives in data, never in code:
 
-- which harness (Claude Code, Devin, Pi…), model and thinking option the Supervisor, Lead, Peer,
-  Reviewer and Watcher each run on;
+- which harness (Claude Code, Devin, Pi…), model and thinking option each role runs on;
 - which MCP servers, tools, IDE and search backends are on, for which roles, with which rules and
   skills;
 - what differs per machine or project: paths, ports, logins.
-
-Settings choose these, in a machine and a project layer a web app manages over RPC, from a catalog
-of files: `roles.json` defaults, `harness/<id>/` and `catalog/mcp/<id>/`. Switching a role's agent or
-model, or turning a server or tool on or off, is a settings change. Supporting a new harness or
-server is a new catalog directory. Neither needs an edit under `server/` or `mcp/`.
 
 The test for any change: if picking another agent, model, tool or MCP server would force a code
 edit, the code has a defect, and that knowledge moves into the catalog. Code names the concept
@@ -44,10 +41,13 @@ cancelling turns, Lead turns nobody heard, asks lost at compaction, many writers
 builds competing, a watcher that vanished, refused calls ending turns silently, and three quarters of
 the effort spent on docs and tests. The design moves all of that into code.
 
+This section is the evidence base for the principles below. A new rule needs a failure like one of
+these behind it; that is why rules here are rewritten rather than appended to.
+
 ## Principles
 
 1. **Code decides state; models propose.** Only the plugin writes the ledger, creates seats and
-   worktrees, merges and runs the gate (Symphony, Gas Town).
+   worktrees, merges and runs the gate.
 2. **Every seat talks through typed tools.** The `team` MCP server gives each role a few tools
    (`start_task`, `done`, `ask`, `accept`…). A tool call is a state change the plugin records. Paseo's
    own agent tools are off except reading an agent's activity.
@@ -72,38 +72,7 @@ the effort spent on docs and tests. The design moves all of that into code.
    independent. Unshipped code changes in place with its callers and tests: no compatibility, bridge
    or transition layer between slices, and the watcher and reviewer flag one when it appears.
 10. **Acceptance first, code focus.** A task carries its acceptance checks and owned paths. The merge
-   report counts source, test and docs lines so ceremony is visible where it is decided.
-
-## Layout
-
-```
-plugin/
-  index.server.ts        wires Runtime
-  roles.json             roles: default harness and model, prompt, skills, limits
-  harness/<id>/          harness manifest (models, delivery), role settings, NOTES.md
-  catalog/mcp/<id>/      MCP servers settings can enable: mcp.json, rule.md, skills/
-  content/prompts/       one prompt per role
-  content/guides/        guides a role reads on demand
-  content/skills/<set>/  skills linked into seats
-  mcp/team.mjs           the team MCP server, no dependencies
-  bin/seat-room          launcher that forces harness flags
-  server/                plugin code
-```
-
-State lives outside every repository, in `~/.local/share/seatworks-v2/`:
-
-```
-guides/                         link to content/guides
-spool/requests, spool/replies   tool calls between team.mjs and the plugin
-outbox.json                     letters waiting for an idle recipient
-projects/<slug>/
-  project.json                  base branch, gate command, limits
-  ledger.json                   lanes, tasks, asks, agents
-  events.log                    one JSON line per event
-  status.md                     generated view for the Supervisor and the Human
-  handbacks/, gates/            full hand-backs and gate logs
-  notebook.md                   the Supervisor's pattern notebook
-```
+    report counts source, test and docs lines so ceremony is visible where it is decided.
 
 ## Flow
 
@@ -121,33 +90,28 @@ projects/<slug>/
    `close_lane` reruns the gate, lands the lane on the base branch by fast-forward or merge when
    asked, and archives the lane's seats.
 
-## Settings, catalog and harness adapters
+## Why settings and a catalog, rather than code
 
-Nothing machine- or project-specific lives in the plugin. The plugin holds a catalog (roles,
-harness adapters, MCP servers) and code that knows none of their names; settings choose from the
-catalog in two layers, machine then project, each validated before it is saved.
+Nothing machine- or project-specific lives in the plugin. The plugin holds a catalog (roles, harness
+adapters, MCP servers) and code that knows none of their names; settings choose from the catalog in
+two layers, machine then project, each validated before it is saved. [SPEC.md](SPEC.md) holds the
+contracts; the reasoning is here.
 
-- A harness adapter says how that agent takes a prompt (launch config or a file), where its rules go
-  (`CLAUDE.md`, the end of `AGENTS.md`), where skills link, how MCP servers reach it (launch config,
-  or a file with the key and per-transport shape its servers take) and over which transports, what
-  to clear in its own config so a repository can't add servers, where its launch options let a seat
-  write the project's state, a rule of its own for seats with servers, how its refused calls read,
-  its models and its headless command. Its config files are JSON or TOML by extension. Moving a
-  role to another harness is a setting; adding a harness is a directory.
-- MCP servers belong to the settings, not to the kit. A pasted connection snippet is enough to make
-  one exist; which roles get it, which tools, its label and its rule are chosen afterwards. The three
-  entries under `catalog/mcp/` are templates: they ship switched off, carry rules and skills the
-  settings reuse, and can be removed outright.
-- A template says what the server is (a plain stdio/http server, or a backend the proxy pins to
-  each seat's working copy: its http or stdio backend, pinned argument, the tools that open, wait for
-  and sync a working copy, error guidance and tool descriptions), its settings with defaults, which roles it serves and with which tools, its rule and its
-  skills. Rules and tool lists are generated per seat from the enabled entries, so role prompts
-  never name a tool that may be switched off.
-- Every role gets a provider per harness that has settings for it (`sw2-<role>-<harness>`), so one
-  project's Lead can run on Devin while another's runs on Claude. Seat directories are per role,
-  harness and project, because rules and servers can differ per project.
-- The plugin serves the catalog, both settings layers, the resolved team, doctor checks, status and
-  the live flow of open lanes, their tasks, the seats holding them and the open asks over RPC, so a
-  web app manages it without touching files. Following the flow live is itself a setting, so it can
-  be switched off; a poll that changes nothing is answered with its revision alone, and the ledger is
-  parsed again only when the file on disk has moved.
+- **A harness is an adapter, because agents differ in mechanical ways only.** How an agent takes a
+  prompt, where its rules go, where skills link, how servers reach it and over which transports,
+  what to clear in its own config so a repository cannot add servers — all of that is a fact about
+  that agent, not about the team. Writing it as data means a new agent is a directory, and moving a
+  role between agents is a setting.
+- **Servers belong to the settings, not to the kit.** A pasted connection snippet is enough to make
+  one exist. The three entries under `catalog/mcp/` are templates: they ship switched off and can be
+  removed outright. Rules and tool lists are generated per seat from what is enabled, so a role
+  prompt never names a tool that may be switched off.
+- **A tool a role must not use is left out of its list,** rather than forbidden in prose. Making the
+  wrong action absent is enforcement; asking for it is a suggestion with a compliance rate.
+- **Every role gets a provider per harness that has settings for it**, so one project's Lead can run
+  on Devin while another's runs on Claude. Seat directories are per role, harness and project,
+  because rules and servers can differ per project.
+- **The plugin serves the catalog, both settings layers, the resolved team, doctor checks, status
+  and the live flow over RPC**, so a web app manages it without touching files. Following the flow
+  live is itself a setting; a poll that changes nothing is answered with its revision alone, and the
+  ledger is parsed again only when the file on disk has moved.

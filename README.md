@@ -1,8 +1,10 @@
 # Seatworks
 
-Seatworks runs an SLPW agent team (Supervisor, Lead, Peer, Watcher) on [Paseo](https://getpaseo.com)
-as one plugin. You talk to the Supervisor. It opens a lane per outcome, each Lead splits its lane into
-tasks, each Peer works on its own branch, and the plugin merges accepted work through a gated queue.
+Seatworks runs an SLPW agent team — Supervisor, Lead, Peer, Watcher — on
+[Paseo](https://getpaseo.com) as one plugin.
+
+You talk to the Supervisor. It opens a lane per outcome. Each Lead splits its lane into tasks, each
+Peer works on its own branch, and the plugin merges accepted work through a gated queue.
 
 - **Supervisor** decides everything short of the project's concept for you, and steps in when a lane
   goes wrong.
@@ -10,14 +12,32 @@ tasks, each Peer works on its own branch, and the plugin merges accepted work th
 - **Peer** does one task on its own branch and hands it back. A **Reviewer** is a read-only Peer.
 - **Watcher** is a cheap model the plugin runs on flagged turn endings; it raises attention.
 
-Coordination is code, not chat: every hand-back, ask, merge and report is a tool call the plugin
-records, mail waits until the recipient's turn ends, and silence is detected. See
-[DESIGN.md](DESIGN.md) for how and why.
+## The idea
 
-## Install
+**Coordination is code, not chat.**
 
-You need Paseo 0.8, Node 22 or later, git, jq, and the coding agents your settings choose (by default
-Claude Code for the Supervisor and Lead, Devin CLI for the Peer, Reviewer and Watcher), logged in.
+Every hand-back, ask, merge and report is a tool call the plugin records. Mail waits until the
+recipient's turn ends, so nothing interrupts a running turn. Silence is detected rather than hoped
+against. Two tasks can never hold overlapping write sets, because the desk refuses.
+
+The second idea follows from the first: **the code owns only the concept.** Which agent, model, tool
+or MCP server a role runs on is data. Moving a Lead from Claude Code to Devin is a setting. Adding a
+coding agent is a directory. Neither touches code.
+
+<!-- Screenshots go here. Drop them in docs/images/ and link them:
+     ![The team tab](docs/images/team.png)
+     ![A lane in flight](docs/images/flow.png) -->
+
+## Start here
+
+| | |
+|---|---|
+| **[SETUP.md](SETUP.md)** | Install it, log the agents in, attach a project, and what to do when something is wrong |
+| **[SPEC.md](SPEC.md)** | The contract: what a fork may change, how to add an agent or a server, and what the machine checks |
+| **[DESIGN.md](DESIGN.md)** | Why the shape is this way, and what the run that caused it taught |
+| **[NOTICE.md](NOTICE.md)** | Where the skills came from, with their licences |
+
+## Quick install
 
 ```bash
 cd plugin && npm install && npm run check
@@ -27,80 +47,12 @@ cd plugin && npm install && npm run check
 paseo plugin install ./plugin
 ```
 
-Paseo shows a **Seatworks** item in its sidebar. Its top tabs are this machine, each project
-Seatworks is set up for, and **Add project**: that one walks through a repository Paseo knows,
-each role's agent and model, and the servers to switch on, then attaches Seatworks to it. Inside a
-tab, the team is split by role and the servers by server. **Add project** lists only repositories
-worth offering: the lane and task worktrees Seatworks makes are left out, so are directories that no
-longer exist and projects already set up. Each line says whether the value is set in
-this layer, inherited from the machine layer, or the catalog default, and a line set here gets a
-button to clear it. The same screen runs the doctor and reads a project's status, and detaches a
-project whose lanes are all closed.
+Then start an agent from the `sw2-supervisor-claude` profile in your repository and tell it what you
+want. Lanes land on your base branch when the Supervisor closes them; pushing stays yours.
 
-The plugin writes one Paseo provider and profile for each role on each harness that has settings for
-it (`sw2-supervisor-claude`, `sw2-lead-claude`, `sw2-peer-devin`, `sw2-reviewer-devin`) and builds
-each role's seat directory per project the first time an agent of that role starts there. After
-editing server code, run `paseo plugin reload seatworks-v2`.
+Nothing Seatworks writes goes into your repository — the ledger, hand-backs, gate logs and notebook
+live in `~/.local/share/seatworks-v2/`.
 
-The same plugin runs on any machine: nothing in it names a path, port or login of this one. Choices
-that differ per machine or per project live in settings, not in the plugin.
+## Licence
 
-## Use
-
-Start an agent from the `sw2-supervisor-claude` profile in your repository and tell it what you
-want. Project state (ledger, status, hand-backs, gate logs, notebook, project settings) lives in
-`~/.local/share/seatworks-v2/projects/<repo>-<hash>/`, never in your repository; `status.md` there is
-the one-screen view. Lanes land on your base branch when the Supervisor closes them; pushing is yours.
-
-## Settings
-
-Settings come in two layers over the catalog defaults: the machine layer in
-`~/.local/share/seatworks-v2/settings.json`, and a project layer in each project's state directory.
-A project value overrides the machine value, which overrides the catalog.
-
-```json
-{
-  "roles": { "peer": { "harness": "devin", "model": "swe-2-max" } },
-  "mcp": { "context7": { "enabled": false }, "intellij-index": { "settings": { "port": 29170 } } },
-  "limits": { "slots": 3 },
-  "rules": "Use pnpm."
-}
-```
-
-- `roles.<role>`: the harness, model and thinking option. The harness needs settings for that role
-  under `plugin/harness/<id>/settings/`.
-- `mcp.<id>`: a server. Paste its connection snippet and it exists; `enabled`, `roles`, `tools`,
-  `label` and `rule` are yours to choose afterwards. `removed: true` drops one, including the three
-  the kit ships. Turning a server on adds its rule to the seats' `CLAUDE.md` or `AGENTS.md` and links
-  any skills it brings.
-- `limits`, `attention` (machine only) and `rules`, free text appended to every seat's rules.
-
-A web app manages them through the plugin's RPC, called with the Paseo client's
-`invokePluginRpc("seatworks-v2", method, input)`:
-
-| Method | Input | Returns |
-|---|---|---|
-| `seatworks.catalog.read` | | roles, harnesses with models, MCP servers with their settings |
-| `seatworks.projects.list` | | projects seen on this machine |
-| `seatworks.projects.add` | `root` | registers a project by any path inside it, so its layer can be written before an agent runs there |
-| `seatworks.projects.remove` | `project` | drops a project's settings again; refused while it has lanes or tasks on record |
-| `seatworks.projects.candidates` | `roots` | of the paths given, the repositories worth offering: no lane worktrees, nothing gone from disk, nothing already set up |
-| `seatworks.mcp.parse` | `text` | reads a pasted MCP snippet in any common dialect and answers with the server's id and connection |
-| `seatworks.settings.read` | `project?` | `ready` with `revision` and `values`, or `invalid`; plus `machine`, the layer below a project |
-| `seatworks.settings.write` | `project?`, `revision`, `values` | `saved`, `conflict` or `invalid` with the reason |
-| `seatworks.settings.reset` | `project?`, `revision` | as write |
-| `seatworks.team.read` | `project?` | each role's harness, provider, model, servers, tools, skills and rules, plus errors |
-| `seatworks.doctor.run` | `project?` | checks: agents, jq, git, proxied servers and their tools, reachable servers |
-| `seatworks.status.read` | `project` | the project's status text |
-
-A write that leaves a role without a working harness, model or server is refused with the reason.
-New agents pick changes up; running agents keep what they started with.
-
-## Add a harness or an MCP server
-
-- **Harness:** a directory under `plugin/harness/<id>/` with `harness.json` (how it takes a prompt,
-  rules, skills and MCP servers, its models and launcher), `settings.json` shared by its roles, and
-  `settings/<role>.settings.json` with what each role it can run adds (`{}` for nothing). A file
-  ending in `.toml`, in the kit or in a seat, is read and written as TOML; any other as JSON.
-- **MCP server:** a directory under `plugin/catalog/mcp/<id>/` with `mcp.json`, an optional
-  `rule.md` and `skills/`. It shows up in the catalog and can be turned on from settings.
+MIT, see [LICENSE](LICENSE). Third-party material is attributed in [NOTICE.md](NOTICE.md).
