@@ -1,7 +1,9 @@
 {
   "permissions": {
     "deny": [
-      "AskUserQuestion"
+      "AskUserQuestion",
+      "Bash(git commit *)",
+      "Bash(git -C * commit *)"
     ]
   },
   "sandbox": {

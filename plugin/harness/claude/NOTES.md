@@ -114,7 +114,12 @@ provider would move the real point.
 ## Settings files
 
 `settings.json` holds what every Claude role shares and `settings/<role>.settings.json` only what
-that role adds. A role with nothing to add still needs its file, because the plugin offers a role
+that role adds. Lists add up and nothing can be taken back, so a rule belongs in the shared file
+only when every role on this harness must be denied it. That is why the shared file denies every git
+command that moves a branch or rewrites history, which the desk does for the whole team, while
+`Bash(git commit *)` sits in the Supervisor, Lead and Reviewer files: the Peer is the one role that
+commits. The Reviewer file also denies `Edit`, `Write`, `MultiEdit`, `WebSearch` and the git commands
+that stage or restore files, because it only reads. A role with nothing to add still needs its file, because the plugin offers a role
 on a harness only when that file exists. The plugin writes the two layered into the seat's
 `settings.json`: objects merge, lists such as `permissions.deny` add up, and the seat file is
 replaced whole, so an edit made there is gone on the next launch.

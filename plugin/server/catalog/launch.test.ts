@@ -77,3 +77,14 @@ test("a seat's session gets its config directory and project variables", () => {
     SEATWORKS_STATE: "/state/repo",
   });
 });
+
+test("a seat keeps its own harness's model and thinking when the settings put that role on another harness", () => {
+  const onDevin = resolveTeam(kit, { roles: { lead: { harness: "devin", model: "swe" } } });
+  assert.equal(onDevin.roles.lead!.harness.id, "devin");
+  const devinSeat = applyRole(kit, onDevin, { provider: "sw2-lead-devin", cwd: "/repo" } as AgentConfig, render);
+  assert.equal(devinSeat.model, "swe");
+  const claudeSeat = applyRole(kit, onDevin, { provider: "sw2-lead-claude", cwd: "/repo" } as AgentConfig, render);
+  assert.equal(claudeSeat.model, "opus");
+  assert.equal(claudeSeat.thinkingOptionId, "medium");
+  assert.equal(applyRole(kit, onDevin, { provider: "sw2-lead-claude", cwd: "/repo", model: "haiku" } as AgentConfig, render).model, "haiku");
+});

@@ -1,3 +1,9 @@
 {
+  "permissions": {
+    "deny": [
+      "Bash(git commit *)",
+      "Bash(git -C * commit *)"
+    ]
+  },
   "askUserQuestionTimeout": "never"
 }

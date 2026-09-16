@@ -18,7 +18,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   assert.deepEqual(team.errors, []);
   assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["lead", "peer", "reviewer", "supervisor", "watcher"]);
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);
-  assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), ["lead-claude", "peer-devin", "reviewer-devin", "supervisor-claude"]);
+  assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), ["lead-claude", "peer-claude", "peer-devin", "reviewer-claude", "reviewer-devin", "supervisor-claude"]);
   const home = tempDir("sw2-real-home-");
   const project = { slug: "demo-000000", state: "/state/demo" };
   for (const [name, seat] of Object.entries(team.roles)) {
