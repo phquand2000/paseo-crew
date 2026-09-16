@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { type PromptPaths, renderPrompt, renderText, skillSources } from "./content.ts";
+import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, roleSettingsFile } from "./kit.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
 import { formatConfig, readConfig } from "../core/config-file.ts";
@@ -244,7 +244,11 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, record:
   const skillsDir = join(dir, harness.skillsDir);
   mkdirSync(skillsDir, { recursive: true });
   const wanted = skillSources(kit, role, skillDirsFor(team, roleName));
-  for (const [name, source] of wanted) record.note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
+  for (const [name, source] of wanted) {
+    const problems = skillProblems(role, name, source);
+    if (problems.length > 0) throw new Error(problems.join("; "));
+    record.note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
+  }
   for (const name of readdirSync(skillsDir)) {
     const path = join(skillsDir, name);
     if (!wanted.has(name) && isLink(path)) {

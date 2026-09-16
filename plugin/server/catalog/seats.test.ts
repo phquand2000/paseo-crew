@@ -96,6 +96,16 @@ test("a prompt carrying a word its role must not see is refused", () => {
   assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /must not see: seat/);
 });
 
+test("a skill carrying a word its role must not see, or a placeholder nothing fills in, is refused", () => {
+  const kit = makeKit();
+  const home = tempDir("sw2-home-");
+  const skill = join(kit.dir, "content/skills/peer/test-first/SKILL.md");
+  writeFileSync(skill, "---\nname: test-first\ndescription: tests\n---\n\nAsk the seat above you.\n");
+  assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /skill test-first shows the peer words it must not see in SKILL.md: seat/);
+  writeFileSync(skill, "---\nname: test-first\ndescription: tests\n---\n\nRead {{guides}}/BRIEF.md.\n");
+  assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /skill test-first holds \{\{guides\}\}/);
+});
+
 test("composeSettings deletes an owned key the kit no longer sets", () => {
   assert.deepEqual(composeSettings({ a: 1, permissions: { deny: ["x"] } }, { b: 2 }, ["permissions"]), { a: 1, b: 2 });
 });
