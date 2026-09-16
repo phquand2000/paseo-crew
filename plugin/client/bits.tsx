@@ -23,6 +23,29 @@ export function Revert({ theme, disabled, onPress }: { theme: PluginTheme; disab
   );
 }
 
+export function Avatar({ letter, tone, theme }: { letter: string; tone: string; theme: PluginTheme }) {
+  const tones: Record<string, string> = {
+    grey: "#6B7280",
+    green: theme.colors.accent,
+    purple: "#8B7BD8",
+    blue: "#5A99E6",
+    amber: "#D9A441",
+  };
+  return (
+    <View style={{ width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: tones[tone] ?? tones.grey }}>
+      <Text style={{ color: "#0B1F16", fontSize: 12, fontWeight: "600" }}>{letter.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+export function Badge({ label, tone, theme }: { label: string; tone: "good" | "quiet"; theme: PluginTheme }) {
+  return (
+    <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border }}>
+      <Text style={{ fontSize: 11, fontWeight: "500", color: tone === "good" ? theme.colors.statusSuccess : theme.colors.foregroundMuted }}>{label}</Text>
+    </View>
+  );
+}
+
 export function Chips({ options, chosen, theme, disabled, onToggle }: {
   options: { id: string; label: string }[];
   chosen: string[];

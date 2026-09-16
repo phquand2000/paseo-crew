@@ -7,14 +7,15 @@ import type { Check } from "./data.ts";
 type Props = {
   project?: string;
   theme: PluginTheme;
+  checks: Check[] | null;
+  onChecks(checks: Check[]): void;
   runDoctor(): Promise<Check[]>;
   readStatus(slug: string): Promise<{ text: string; error?: string }>;
 };
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-export function MachineSection({ project, theme, runDoctor, readStatus }: Props) {
-  const [checks, setChecks] = useState<Check[] | null>(null);
+export function HealthSection({ project, theme, checks, onChecks, runDoctor, readStatus }: Props) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export function MachineSection({ project, theme, runDoctor, readStatus }: Props)
           error={error}
           actionLabel={busy ? "Checking" : "Run"}
           disabled={busy}
-          onPress={() => void run(async () => setChecks(await runDoctor()))}
+          onPress={() => void run(async () => onChecks(await runDoctor()))}
         />
         {(checks ?? []).map((check) => (
           <SettingsRow key={check.id} label={check.id} hint={check.detail}>

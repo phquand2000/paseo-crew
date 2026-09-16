@@ -85,7 +85,7 @@ function Tuning({ entry, current, theme, disabled, save, labelOf, setHere }: {
   );
 }
 
-export function McpSection({ catalog, team, values, machine, layer, theme, disabled, save, addServer }: Props) {
+export function ServersSection({ catalog, team, values, machine, layer, theme, disabled, save, addServer }: Props) {
   const ids = Object.keys(team.mcp);
   const [active, setActive] = useState(ids[0] ?? ADD);
   const [paste, setPaste] = useState("");

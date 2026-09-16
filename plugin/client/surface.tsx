@@ -3,20 +3,23 @@ import { ScrollView, useToast } from "@getpaseo/plugin/client/react-native";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
-import { Empty, Facts } from "./bits.tsx";
+import { AgentsSection } from "./agents.tsx";
+import { Empty } from "./bits.tsx";
+import type { Check } from "./data.ts";
 import { useSeatworks } from "./data.ts";
-import { MachineSection } from "./machine.tsx";
-import { McpSection } from "./mcp.tsx";
-import { SetupSection } from "./setup.tsx";
-import { TabBar } from "./tabs.tsx";
+import { type DetailTab, Detail } from "./detail.tsx";
+import { HealthSection } from "./health.tsx";
+import { MACHINE, ProjectList } from "./projects.tsx";
+import { ServersSection } from "./servers.tsx";
+import { SetupDialog } from "./setup-dialog.tsx";
 import { TeamSection } from "./team.tsx";
 
-const MACHINE = "machine";
-const ADD = "add";
-
 export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
-  const [tab, setTab] = useState<string>(MACHINE);
-  const project = tab === MACHINE || tab === ADD ? undefined : tab;
+  const [open, setOpen] = useState<string | null>(null);
+  const [tab, setTab] = useState<DetailTab>("team");
+  const [dialog, setDialog] = useState(false);
+  const [checks, setChecks] = useState<Check[] | null>(null);
+  const project = open && open !== MACHINE ? open : undefined;
   const { data, save, reload, saving, saveError, addServer, attach, detach, runDoctor, readStatus } = useSeatworks(project);
   const toast = useToast();
   const wasSaving = useRef(false);
@@ -53,61 +56,97 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   }
 
   const nameOf = (slug: string, root: string) => data.known.find((entry) => entry.root === root)?.name ?? slug;
-  const tabs = [
-    { id: MACHINE, label: "This machine" },
-    ...data.projects.map((entry) => ({ id: entry.slug, label: nameOf(entry.slug, entry.root) })),
-    { id: ADD, label: "Add project", count: data.candidates.length },
-  ];
   const here = data.projects.find((entry) => entry.slug === project);
   const layer = project ? "project" : "machine";
   const problems = [...(data.settingsError ? [data.settingsError] : []), ...(saveError ? [saveError] : []), ...data.team.errors];
 
+  const trouble =
+    problems.length > 0 ? (
+      <SettingsSection title="Needs your attention">
+        <SettingsCard>
+          {problems.map((problem) => (
+            <SettingsRow key={problem} label="Problem" error={problem} />
+          ))}
+        </SettingsCard>
+      </SettingsSection>
+    ) : null;
+
+  const dialogNode = (
+    <SetupDialog
+      open={dialog}
+      catalog={data.catalog}
+      available={data.candidates}
+      theme={theme}
+      disabled={saving}
+      onOpenChange={setDialog}
+      attach={attach}
+      onAttached={(slug) => {
+        setOpen(slug);
+        setTab("team");
+      }}
+    />
+  );
+
+  if (!open) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.body}>
+        {trouble}
+        <ProjectList
+          projects={data.projects}
+          nameOf={nameOf}
+          team={data.team}
+          waiting={data.candidates.length}
+          theme={theme}
+          disabled={saving}
+          onOpen={(target) => {
+            setOpen(target);
+            setTab("team");
+          }}
+          onSetup={() => setDialog(true)}
+        />
+        {data.projects.length === 0 ? (
+          <SettingsCard>
+            <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Set up a project to add one." />
+          </SettingsCard>
+        ) : null}
+        {dialogNode}
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.body}>
-      <TabBar theme={theme} tabs={tabs} active={tab} disabled={saving} onPick={setTab} />
-      {problems.length > 0 ? (
-        <SettingsSection title="Needs your attention">
-          <SettingsCard>
-            {problems.map((problem) => (
-              <SettingsRow key={problem} label="Problem" error={problem} />
-            ))}
-          </SettingsCard>
-        </SettingsSection>
-      ) : null}
-      {tab === ADD ? (
-        <SetupSection catalog={data.catalog} available={data.candidates} theme={theme} disabled={saving} attach={attach} onAttached={setTab} />
-      ) : (
-        <>
-          {tab === MACHINE && data.projects.length === 0 ? (
-            <SettingsSection title="Projects">
-              <SettingsCard>
-                <Empty
-                  theme={theme}
-                  title="No project uses Seatworks yet"
-                  body="These choices are this machine's defaults. Open Add project to set a repository up."
-                />
-              </SettingsCard>
-            </SettingsSection>
-          ) : null}
-          {here ? (
-            <SettingsSection title={nameOf(here.slug, here.root)} info="These choices apply to this repository only.">
-              <SettingsCard>
-                <Facts theme={theme} items={[{ label: "Path", value: here.root }, { label: "State", value: here.slug }]} />
-                <SettingsAction
-                  label="Remove from this project"
-                  hint="Keeps the repository in Paseo. Refused while lanes or tasks are on record."
-                  actionLabel="Detach"
-                  disabled={saving}
-                  onPress={() => void detach(here.slug).then((gone) => gone && setTab(MACHINE))}
-                />
-              </SettingsCard>
-            </SettingsSection>
-          ) : null}
+      <Detail
+        title={here ? nameOf(here.slug, here.root) : "Machine defaults"}
+        subtitle={here ? here.root : "Every project that sets nothing of its own follows these."}
+        tab={tab}
+        theme={theme}
+        disabled={saving}
+        onBack={() => setOpen(null)}
+        onTab={setTab}
+        onDetach={here ? () => void detach(here.slug).then((gone) => gone && setOpen(null)) : undefined}
+      >
+        {trouble}
+        {tab === "team" ? (
           <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} />
-          <McpSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} addServer={addServer} />
-          <MachineSection project={project} theme={theme} runDoctor={runDoctor} readStatus={readStatus} />
-        </>
-      )}
+        ) : null}
+        {tab === "agents" ? <AgentsSection catalog={data.catalog} checks={checks} theme={theme} /> : null}
+        {tab === "servers" ? (
+          <ServersSection
+            catalog={data.catalog}
+            team={data.team}
+            values={data.values}
+            machine={data.machine}
+            layer={layer}
+            theme={theme}
+            disabled={saving}
+            save={(change) => void save(change)}
+            addServer={addServer}
+          />
+        ) : null}
+        {tab === "health" ? <HealthSection project={project} theme={theme} checks={checks} onChecks={setChecks} runDoctor={runDoctor} readStatus={readStatus} /> : null}
+      </Detail>
+      {dialogNode}
     </ScrollView>
   );
 }
