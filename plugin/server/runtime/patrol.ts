@@ -38,13 +38,13 @@ export class Patrol {
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
-      await this.seatWatcher(project, loadLedger(project.state), seats);
-      await this.idleLanes(project, loadLedger(project.state), seats, now);
-      await this.goneTasks(project, loadLedger(project.state), seats);
-      await this.dueAsks(project, loadLedger(project.state), seats, now);
-      await this.sendDigest(project, now);
-      await this.sweep(project, loadLedger(project.state), seats);
-      this.writeStatus(project, seats, now);
+      await this.step(project, "the Watcher could not be settled", () => this.seatWatcher(project, loadLedger(project.state), seats));
+      await this.step(project, "idle lanes could not be read", () => this.idleLanes(project, loadLedger(project.state), seats, now));
+      await this.step(project, "a task whose Peer is gone could not be recorded", () => this.goneTasks(project, loadLedger(project.state), seats));
+      await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
+      await this.step(project, "the report could not be sent", () => this.sendDigest(project, now));
+      await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
+      await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
     }
     const targets = new Set(outbox.letters().map((letter) => letter.to));
     for (const to of targets) {
@@ -56,28 +56,29 @@ export class Patrol {
     }
   }
 
-  private async seatWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
+  /** One project's round is made of steps, and a step that fails is the only thing that fails. */
+  private async step(project: Project, what: string, run: () => Promise<void>): Promise<void> {
     try {
-      const watching = this.deps.source.teamFor(project).attention.watch;
-      if (watching && Object.values(ledger.lanes).some((lane) => lane.status === "open")) {
-        await this.deps.desk.ensureWatcher(project, seats.values());
-        return;
-      }
-      await this.deps.desk.retireWatcher(project, seats.values(), !watching);
+      await run();
     } catch (error) {
-      console.error(`seatworks-v2: the Watcher on ${project.slug} could not be settled:`, error);
+      console.error(`seatworks-v2: ${project.slug}: ${what}:`, error);
     }
+  }
+
+  private async seatWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
+    const watching = this.deps.source.teamFor(project).attention.watch;
+    if (watching && Object.values(ledger.lanes).some((lane) => lane.status === "open")) {
+      await this.deps.desk.ensureWatcher(project, seats.values());
+      return;
+    }
+    await this.deps.desk.retireWatcher(project, seats.values(), !watching);
   }
 
   private async sweep(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const busy =
       Object.values(ledger.lanes).some((lane) => lane.status === "open") ||
       [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === project.slug);
-    try {
-      await this.deps.desk.sweep(project, ledger, busy);
-    } catch (error) {
-      console.error(`seatworks-v2: sweeping ${project.slug} failed:`, error);
-    }
+    await this.deps.desk.sweep(project, ledger, busy);
   }
 
   private async idleLanes(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
@@ -135,33 +136,25 @@ export class Patrol {
   private async sendDigest(project: Project, now: number): Promise<void> {
     const { desk } = this.deps;
     const { digestMinutes } = this.deps.source.teamFor(project).attention;
-    try {
-      const watching = loadWatching(project.state);
-      const waiting = pending(watching);
-      if (waiting.length === 0) return;
-      const oldest = Math.min(...waiting.map((strike) => strike.first));
-      if (now - oldest < digestMinutes * 60_000) return;
-      const to = await desk.supervisorFor(project);
-      if (!to) return;
-      await desk.post(to, `digest:${project.slug}:${oldest}`, letters.digest(waiting, Math.round((now - oldest) / 60_000)));
-      saveWatching(project.state, reported(watching, now));
-      desk.event(project, { kind: "watch.digest", items: waiting.length });
-    } catch (error) {
-      console.error(`seatworks-v2: the report for ${project.slug} could not be sent:`, error);
-    }
+    const watching = loadWatching(project.state);
+    const waiting = pending(watching);
+    if (waiting.length === 0) return;
+    const oldest = Math.min(...waiting.map((strike) => strike.first));
+    if (now - oldest < digestMinutes * 60_000) return;
+    const to = await desk.supervisorFor(project);
+    if (!to) return;
+    await desk.post(to, `digest:${project.slug}:${oldest}`, letters.digest(waiting, Math.round((now - oldest) / 60_000)));
+    saveWatching(project.state, reported(watching, now));
+    desk.event(project, { kind: "watch.digest", items: waiting.length });
   }
 
   private writeStatus(project: Project, seats: SeatMap, now: number): void {
     const { kit } = this.deps;
-    try {
-      const waiting = [...seats.values()].filter(
-        (seat) => can(seatOf(kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
-      );
-      mkdirSync(project.state, { recursive: true });
-      const held = this.deps.outbox.letters(now);
-      writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, undefined, waiting, held));
-    } catch (error) {
-      console.error("seatworks-v2: status write failed:", error);
-    }
+    const waiting = [...seats.values()].filter(
+      (seat) => can(seatOf(kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
+    );
+    mkdirSync(project.state, { recursive: true });
+    const held = this.deps.outbox.letters(now);
+    writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, undefined, waiting, held));
   }
 }
