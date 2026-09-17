@@ -637,6 +637,25 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   h.runtime.dispose();
 });
 
+test("a copy waiting on a seat that never ends its turn is put away in the round, not left for good", async () => {
+  const h = harness("outbox-reap.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Abandoned", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "the outcome was wrong" });
+  assert.equal(existsSync(lane.worktree!), true, "the Lead is mid-turn, so the copy waits for it");
+  assert.deepEqual(h.ledger().slots[lane.slot!]!.releasing!.writers, [lane.lead!], "and what it is waiting on is on the record, not only in memory");
+
+  // The turn never ends: the owner archived the seat, it crashed, or a restart took the desk's own
+  // memory of this with it. Either way nothing is writing there any more.
+  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
+  await h.runtime.patrol.tick(Date.now());
+
+  assert.equal(existsSync(lane.worktree!), false, "the round puts it away rather than leaving a copy and a workspace for good");
+  assert.deepEqual(Object.keys(h.ledger().slots), []);
+  h.runtime.dispose();
+});
+
 test("a copy two seats are writing in is put away by the last of them to stop, not the first", async () => {
   const h = harness("outbox-lastout.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

@@ -80,7 +80,10 @@ export type Ask = {
   answer?: string;
 };
 
-export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number };
+/** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
+export type Releasing = { writers: string[]; dropBranch?: string; into?: string };
+
+export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 
 export type AgentRef = { id: string; role: string; lane?: string; task?: string; turnStartedAt?: number; recordedAt?: number };
 

@@ -28,6 +28,7 @@ export class Patrol {
   private readonly deps: PatrolDeps;
   private readonly idleFlag = new Map<string, string>();
   private readonly goneFlag = new Set<string>();
+  private reaped = false;
 
   constructor(deps: PatrolDeps) {
     this.deps = deps;
@@ -44,7 +45,19 @@ export class Patrol {
       await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
       await this.step(project, "the report could not be sent", () => this.sendDigest(project, now));
       await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
+      await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
       await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
+    }
+    // A restart is the one thing that loses a teardown waiting on a seat's turn, and a project with
+    // no seats left is not in the round at all — so on the first round, every project on record gets
+    // one look. Not every round: there is nothing else to do for a project nobody is working in.
+    if (!this.reaped) {
+      this.reaped = true;
+      const live = new Set(seats.keys());
+      for (const project of this.deps.source.known()) {
+        if (desk.projects.has(project.slug)) continue;
+        await this.step(project, "a copy left behind by a restart could not be put away", () => desk.reapSlots(project, live));
+      }
     }
     const targets = new Set(outbox.letters().map((letter) => letter.to));
     for (const to of targets) {

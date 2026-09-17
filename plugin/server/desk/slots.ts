@@ -16,7 +16,8 @@ export type Teardown = { project: Project; slot?: string; dropBranch?: string; i
 export class Slots {
   private readonly ctx: DeskContext;
   private readonly workspaces: Workspaces;
-  private readonly held = new Map<string, { teardown: Teardown; writers: Set<string> }>();
+  /** Only the in-place case: putting the project's own branch back leaks nothing if it never happens. */
+  private readonly restoring = new Map<string, { base: string; writers: Set<string> }>();
 
   constructor(ctx: DeskContext, workspaces: Workspaces) {
     this.ctx = ctx;
@@ -69,18 +70,55 @@ export class Slots {
    * teardown waits with it, and runs when the last writer there stops.
    */
   async putAway(teardown: Teardown, writers: string[] = []): Promise<string | undefined> {
-    if (writers.length === 0 || (!teardown.slot && !teardown.restore)) return this.run(teardown);
-    this.held.set(teardown.slot ?? teardown.project.slug, { teardown, writers: new Set(writers) });
-    this.ctx.event(teardown.project, { kind: "slot.heldOpen", slot: teardown.slot ?? "in place", writers });
+    const waiting = [...new Set(writers)];
+    if (waiting.length === 0 || (!teardown.slot && !teardown.restore)) return this.run(teardown);
+    if (teardown.slot) {
+      await this.ctx.ledger(teardown.project, (ledger) => {
+        const slot = ledger.slots[teardown.slot!];
+        if (slot) slot.releasing = { writers: waiting, dropBranch: teardown.dropBranch, into: teardown.into };
+      });
+    } else this.restoring.set(teardown.project.slug, { base: teardown.restore!, writers: new Set(waiting) });
+    this.ctx.event(teardown.project, { kind: "slot.heldOpen", slot: teardown.slot ?? "in place", writers: waiting });
     return undefined;
   }
 
   /** Finishes what a seat's own turn was holding up, once nothing else is writing in that copy. */
   async stopped(agentId: string): Promise<void> {
-    for (const [key, entry] of [...this.held]) {
-      if (!entry.writers.delete(agentId) || entry.writers.size > 0) continue;
-      this.held.delete(key);
-      await this.run(entry.teardown);
+    for (const project of this.ctx.projects.values()) {
+      await this.finish(project, (id) => id === agentId);
+      const restoring = this.restoring.get(project.slug);
+      if (restoring?.writers.delete(agentId) && restoring.writers.size === 0) {
+        this.restoring.delete(project.slug);
+        await this.restore(project, restoring.base);
+      }
+    }
+  }
+
+  /**
+   * A writer that is not a seat any more has stopped for good.
+   *
+   * The end of a turn is the ordinary way a teardown finishes, and it does not always come: a seat
+   * can be archived by its owner, crash, or be left behind by a daemon restart that took the
+   * in-memory half of this with it. Without this the copy, its workspace and its branch would sit
+   * there for good, and the sweep will not touch a copy the ledger still lists.
+   */
+  reap(project: Project, live: Set<string>): Promise<void> {
+    return this.finish(project, (id) => !live.has(id));
+  }
+
+  private async finish(project: Project, stopped: (agentId: string) => boolean): Promise<void> {
+    for (const slot of Object.values(loadLedger(project.state).slots)) {
+      const waiting = slot.releasing?.writers ?? [];
+      const left = waiting.filter((id) => !stopped(id));
+      if (waiting.length === 0 || left.length === waiting.length) continue;
+      if (left.length > 0) {
+        await this.ctx.ledger(project, (ledger) => {
+          const entry = ledger.slots[slot.id];
+          if (entry?.releasing) entry.releasing.writers = left;
+        });
+        continue;
+      }
+      await this.release(project, slot.id, slot.releasing?.dropBranch, slot.releasing?.into);
     }
   }
 

@@ -103,6 +103,11 @@ export class Desk {
     return this.services.slots.stopped(agentId);
   }
 
+  /** In the round: finish a teardown whose writers are not seats any more. */
+  reapSlots(project: Project, live: Set<string>): Promise<void> {
+    return this.services.slots.reap(project, live);
+  }
+
   recordReading(project: Project, where: string, notes: string[]): void {
     this.services.ctx.recordReading(project, where, notes);
   }
