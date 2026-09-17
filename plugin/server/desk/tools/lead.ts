@@ -30,6 +30,14 @@ import type { DeskServices, Tool } from "../services.ts";
  */
 const HOLDS: TaskStatus[] = ["running", "rework", "done"];
 
+/** What is in the way, named: a stray message file reads as unfinished work otherwise. */
+async function uncommittedIn(cwd: string): Promise<string> {
+  const run = await git(cwd, ["status", "--porcelain"]);
+  const lines = run.stdout.split("\n").filter((line) => line.trim());
+  const shown = lines.slice(0, 6).map((line) => line.trim()).join(", ");
+  return lines.length > 6 ? `${shown} and ${lines.length - 6} more` : shown || "something git reports but does not name";
+}
+
 /** The lane-mode task that has the lane's working copy, if any. */
 function holderOf(ledger: Ledger, lane: Lane, except?: string): Task | undefined {
   return Object.values(ledger.tasks).find(
@@ -248,14 +256,15 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
       `The lane's working copy is not on ${lane.branch}, so nothing committed in it is on the lane branch. Send rework asking the Peer on ${task.id} to put the copy back on ${lane.branch} — if it bisected, git bisect reset — and to commit its work there, then accept again.`,
     );
   }
-  if (!lane.worktree || !(await isPristine(lane.worktree))) {
+  if (!lane.worktree) return no(`Lane ${lane.id} has no working copy.`);
+  if (!(await isPristine(lane.worktree))) {
     // Whose uncommitted work it is decides what to do about it, so it has to be named correctly: the
     // old text said to rework this task, which would have woken its Peer into another one's writing.
     const other = holderOf(loadLedger(project.state), lane, task.id);
     return no(
       other
         ? `The lane's working copy has uncommitted changes, and ${other.id} is the task holding it — they are not ${task.id}'s. Accept ${task.id} once ${other.id} has handed back and been accepted or cut.`
-        : `The lane's working copy has uncommitted changes; send rework asking the Peer on ${task.id} to commit everything, then accept again.`,
+        : `The lane's working copy has uncommitted changes: ${await uncommittedIn(lane.worktree)}. Send rework asking the Peer on ${task.id} for those, then accept again.`,
     );
   }
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
@@ -293,8 +302,12 @@ export const rework: Tool = async ({ ctx, roster }, caller, args) => {
   if (!result.peer) return no(`${result.id} has no Peer.`);
   const seat = await roster.look(result.peer);
   if (seat.archivedAt) return no(`The Peer on ${result.id} is gone; cut the task and start a new one.`);
-  await ctx.post(result.peer, `rework:${result.id}:${hash(text)}`, letters.rework(text));
-  return ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
+  // Keyed by the task's own clock, not by the words: a Lead repeating an instruction is a second
+  // instruction, and keying it by its text dropped it as a duplicate while telling the Lead it went.
+  const posted = await ctx.post(result.peer, `rework:${result.id}:${result.updatedAt}`, letters.rework(text));
+  return posted === "duplicate"
+    ? no(`That rework was already sent to the Peer on ${result.id} and it has not ended a turn since, so this would be the same letter twice. Wait for its hand-back, or cut it.`)
+    : ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
 };
 
 export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {

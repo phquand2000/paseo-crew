@@ -98,28 +98,50 @@ export function kindOf(path: string): "src" | "test" | "docs" {
   return "src";
 }
 
+/**
+ * Counts from `git diff -z --numstat`.
+ *
+ * With -z a rename is three fields — counts, then the old path, then the new one — instead of the
+ * display form `src/{old.ts => new.ts}`, which is not a path any seat can open and matches no owned
+ * path, so a rename inside a task's own paths was reported to its Lead as a write outside them.
+ * Both sides are counted: the file that went and the file that came.
+ */
 export function countNumstat(numstat: string): Counts {
   const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
-  for (const line of numstat.split("\n")) {
-    const [added, removed, ...rest] = line.split("\t");
-    const path = rest.join("\t").trim();
-    if (!path) continue;
+  const fields = numstat.split("\0");
+  for (let index = 0; index < fields.length; index++) {
+    const row = fields[index];
+    if (!row?.trim()) continue;
+    const [added, removed, inline] = row.split("\t");
     const lines = (Number(added) || 0) + (Number(removed) || 0);
-    counts[kindOf(path)] += lines;
-    counts.files.push(path);
+    const paths: string[] = [];
+    if (inline?.trim()) paths.push(inline.trim());
+    else {
+      // A rename or a copy: the two paths follow as their own fields.
+      const from = fields[index + 1];
+      const to = fields[index + 2];
+      if (from) paths.push(from);
+      if (to) paths.push(to);
+      index += 2;
+    }
+    for (const path of paths) {
+      counts[kindOf(path)] += lines;
+      counts.files.push(path);
+    }
   }
   return counts;
 }
 
 export async function diffCounts(cwd: string, from: string, to: string): Promise<Counts> {
-  const run = await git(cwd, ["diff", "--numstat", `${from}..${to}`]);
+  const run = await git(cwd, ["diff", "-z", "--numstat", `${from}..${to}`]);
   return countNumstat(run.stdout);
 }
 
 export function outsideOwned(files: string[], owned: string[]): string[] {
   if (owned.length === 0) return [];
   const prefixes = owned.map((path) => path.replace(/^\.\//, "").replace(/\*+.*$/, ""));
-  return files.filter((file) => !prefixes.some((prefix) => file === prefix || file.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`) || (prefix !== "" && file.startsWith(prefix))));
+  // On a path boundary: an owned "src/app" is not ownership of "src/apparel/secret.ts".
+  return files.filter((file) => !prefixes.some((prefix) => file === prefix || (prefix !== "" && file.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`))));
 }
 
 export type LandResult = { landed: boolean; how: string };

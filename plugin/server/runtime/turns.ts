@@ -63,8 +63,11 @@ export class TurnRules {
     }
     const ledger = loadLedger(project.state);
     const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
+    // Heard from at all, and heard from in a way that reaches somebody, are different questions: the
+    // read-only status tool is the first but not the second, and only the second is not being silent.
+    const spoke = (ledger.agents[agent.id]?.spokeAt ?? 0) >= started;
     const reading = read(timeline, { gate: loadConfig(project.state).gate, recorded });
-    if (can(role, "work")) await this.workerEnded(project, ledger, event, role.role, text, recorded, reading);
+    if (can(role, "work")) await this.workerEnded(project, ledger, event, role.role, text, recorded, spoke, reading);
     else if (can(role, "lead")) this.leadEnded(project, ledger, agent.id, text, reading);
   }
 
@@ -83,6 +86,7 @@ export class TurnRules {
     roleName: string,
     text: string,
     recorded: boolean,
+    spoke: boolean,
     reading: Reading,
   ): Promise<void> {
     const { desk } = this.deps;
@@ -93,6 +97,10 @@ export class TurnRules {
     if (settled && !recorded) return;
     const lane = ledger.lanes[task.lane];
     if (recorded || task.status === "done") {
+      // Heard from, so the count of quiet turns starts again. Left standing, it was a lifetime tally:
+      // a task that went quiet once, asked its question, and went quiet again was marked stalled on
+      // its second-ever quiet turn, under a letter saying its turn had ended twice without an ask.
+      if (spoke && task.silent > 0) await desk.setTask(project, task.id, (entry) => { entry.silent = 0; });
       if (lane && this.watchable(project, reading, recorded)) {
         this.deps.watch({ project, lane: lane.id, agent: agent.id, role: roleName, where: `the Peer on ${task.id} (${task.title})`, text, reading });
       }

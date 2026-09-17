@@ -65,9 +65,24 @@ test("lines are counted as source, tests or docs, and files outside owned paths 
   assert.equal(kindOf("test/pricing.test.js"), "test");
   assert.equal(kindOf("src/main/java/OrderServiceTest.java"), "test");
   assert.equal(kindOf("docs/design.md"), "docs");
-  const counts = countNumstat("10\t2\tsrc/a.js\n5\t0\ttest/a.test.js\n3\t3\tREADME.md\n");
+  const counts = countNumstat(["10\t2\tsrc/a.js", "5\t0\ttest/a.test.js", "3\t3\tREADME.md", ""].join("\0"));
   assert.deepEqual({ src: counts.src, test: counts.test, docs: counts.docs }, { src: 12, test: 5, docs: 6 });
   assert.deepEqual(outsideOwned(["src/a.js", "src/b/c.js", "lib/x.js"], ["src/a.js", "src/b/"]), ["lib/x.js"]);
+  assert.deepEqual(outsideOwned(["src/apparel/secret.ts"], ["src/app"]), ["src/apparel/secret.ts"], "an owned src/app is not ownership of src/apparel");
+});
+
+test("a rename is counted as the two real paths it moved between, not as git's display form", async () => {
+  const { root, run, commit } = repo();
+  mkdirSync(join(root, "src"), { recursive: true });
+  commit("src/pricing.ts", "export const rate = 1;\n".repeat(40), "pricing");
+  const before = (await headSha(root))!;
+  run("mv", "src/pricing.ts", "src/price.ts");
+  run("commit", "-qm", "rename it");
+
+  const counts = await diffCounts(root, before, "HEAD");
+  assert.deepEqual(counts.files.sort(), ["src/price.ts", "src/pricing.ts"], "both sides are real paths a seat can open");
+  // The task was asked to do exactly this rename, so its Lead must not be told it wrote elsewhere.
+  assert.deepEqual(outsideOwned(counts.files, ["src/pricing.ts", "src/price.ts"]), []);
 });
 
 test("a path with a character outside ASCII is read back as itself, not as git's escaped form", async () => {

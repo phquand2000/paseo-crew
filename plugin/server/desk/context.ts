@@ -26,7 +26,10 @@ export type CodeIndex = {
   sync(path: string): Promise<{ ok: boolean; text: string }>;
 };
 
-export type Mailer = { post(letter: { to: string; key: string; text: string }): Promise<unknown> };
+/** What the outbox did with a letter. "duplicate" means it was dropped as a repeat of one already sent. */
+export type Posted = "sent" | "held" | "duplicate";
+
+export type Mailer = { post(letter: { to: string; key: string; text: string }): Promise<Posted> };
 
 export type DeskDeps = {
   kit: Kit;
@@ -92,9 +95,10 @@ export class DeskContext {
     return this.readings.get(`${project.slug}:${where}`) ?? [];
   }
 
-  async post(to: string | undefined, key: string, text: string): Promise<void> {
-    if (!to) return;
-    await this.deps.outbox.post({ to, key, text });
+  /** What became of the letter: sent, held for a seat that is busy, or dropped as a repeat of one already sent. */
+  async post(to: string | undefined, key: string, text: string): Promise<Posted | "nobody"> {
+    if (!to) return "nobody";
+    return this.deps.outbox.post({ to, key, text });
   }
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {

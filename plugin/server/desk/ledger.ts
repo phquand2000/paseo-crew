@@ -85,7 +85,7 @@ export type Releasing = { writers: string[]; dropBranch?: string; into?: string 
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 
-export type AgentRef = { id: string; role: string; lane?: string; task?: string; turnStartedAt?: number; recordedAt?: number };
+export type AgentRef = { id: string; role: string; lane?: string; task?: string; turnStartedAt?: number; recordedAt?: number; spokeAt?: number };
 
 export type Ledger = {
   version: 1;

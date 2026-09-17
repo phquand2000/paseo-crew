@@ -136,6 +136,9 @@ function harness(outbox: string) {
   };
   const ledger = () => loadLedger(project.state);
   const tick = (now?: number) => (runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick(now);
+  // Paseo fires a turn start before a turn end, and what the desk heard from a seat "this turn" is
+  // measured from it; without one, every turn is measured from half an hour ago.
+  const beginTurn = (id: string) => (runtime as unknown as { turns: { started(agentId: string): void } }).turns.started(id);
   const endTurn = (id: string, text: string, ...calls: unknown[]) =>
     (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
@@ -143,7 +146,7 @@ function harness(outbox: string) {
       outcome: { kind: "completed" },
       timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
     });
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick };
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
@@ -338,6 +341,49 @@ test("asks reach the level above, answers come back, and a silent Peer is nudged
   h.runtime.outbox.turnEnded(lane.lead!);
   await h.runtime.outbox.pump(lane.lead!);
   assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /SILENT L1-T1[\s\S]*Still looking/);
+  h.runtime.dispose();
+});
+
+test("a Peer that asked is not stalled on its next quiet turn, and a repeated rework is not called sent", async () => {
+  const h = harness("outbox-silent.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  const peer = task.peer!;
+
+  // Turn one: still working, nothing said. The desk nudges it.
+  h.agents.get(peer)!.status = "idle";
+  h.beginTurn(peer);
+  await h.endTurn(peer, "still reading");
+  await h.runtime.outbox.pump(peer);
+  assert.equal(h.ledger().tasks["L1-T1"]!.silent, 1);
+  assert.match(h.agents.get(peer)!.sent.at(-1)!, /without calling done or ask/);
+
+  // Turn two: it hits a question and asks. That is the opposite of silence.
+  h.runtime.outbox.turnEnded(peer);
+  h.beginTurn(peer);
+  assert.equal((await h.call(peer, "peer", "ask", { question: "Round half up or down?", tried: "read the spec" })).ok, true);
+  await h.endTurn(peer, "asked and waiting");
+  assert.equal(h.ledger().tasks["L1-T1"]!.silent, 0, "the count is of consecutive quiet turns, not a lifetime tally");
+
+  // Turn three: applying the answer, quiet again. One quiet turn is a nudge, not a stall.
+  h.runtime.outbox.turnEnded(peer);
+  h.beginTurn(peer);
+  await h.endTurn(peer, "applying it");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "a Peer that asked in between has not gone silent twice");
+  assert.equal(h.ledger().tasks["L1-T1"]!.silent, 1);
+
+  // And the same instruction twice: the letter is keyed by the event, so the second one really goes.
+  const first = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "Commit your work." });
+  assert.equal(first.ok, true, first.text);
+  const again = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "Commit your work." });
+  assert.equal(again.ok, true, "a Lead repeating itself is a second instruction, not a double post");
+  h.runtime.outbox.turnEnded(peer);
+  await h.runtime.outbox.pump(peer);
+  const told = h.agents.get(peer)!.sent.join("\n");
+  assert.equal(told.match(/Commit your work/g)?.length, 2, "both went; keyed by its words, the second was dropped and the Lead was told it was sent");
   h.runtime.dispose();
 });
 

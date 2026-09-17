@@ -37,8 +37,9 @@ own only when the brief says so. Either way, commit where the brief tells you an
   migrations or concurrency.
 - Update existing tests the change makes wrong, but don't weaken one that still describes wanted
   behavior. Don't add tests, mocks, comments or docs the acceptance doesn't need.
-- Commit on your branch with a short subject; for a longer message, write it to a file and use
-  `git commit -F`. Never switch branches, push, or rewrite history.
+- Commit on your branch with a short subject; for a longer message, write it under `$TMPDIR` and use
+  `git commit -F "$TMPDIR/msg"` — a message file left in the working copy counts as work you have not
+  finished and holds up your own hand-back. Never switch branches, push, or rewrite history.
 
 ## Finishing
 

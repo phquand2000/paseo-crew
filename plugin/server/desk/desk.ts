@@ -2,7 +2,7 @@ import type { Team } from "../catalog/team.ts";
 import { type Kit, type RoleSpec, can, roleThatCan, seatOf, toolsOf } from "../catalog/kit.ts";
 import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
-import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
+import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
 import type { Ledger, Task } from "./ledger.ts";
 import { clip } from "./letters.ts";
 import { MergeQueue } from "./merge.ts";
@@ -53,6 +53,9 @@ export type DeskOptions = {
   indexesFor?: (project: Project) => CodeIndex[];
 };
 
+/** Tools whose whole point is that somebody else reads the result. Reading the room is not speaking. */
+const SPEAKS = ["done", "ask", "answer", "message", "report", "raise"];
+
 export class Desk {
   readonly projects: Map<string, Project>;
   readonly pendingArchive: Set<string>;
@@ -86,7 +89,7 @@ export class Desk {
     this.services.ctx.event(project, data);
   }
 
-  post(to: string | undefined, key: string, text: string): Promise<void> {
+  post(to: string | undefined, key: string, text: string): Promise<Posted | "nobody"> {
     return this.services.ctx.post(to, key, text);
   }
 
@@ -156,6 +159,7 @@ export class Desk {
         await ctx.ledger(caller.project, (ledger) => {
           const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
           ref.recordedAt = Date.now();
+          if (SPEAKS.includes(request.tool)) ref.spokeAt = ref.recordedAt;
           ledger.agents[caller.id] = ref;
         });
       } catch (error) {
