@@ -22,26 +22,58 @@ const unknownProject = (slug: string) => `No project named ${slug} has been seen
 
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const strings = (value: unknown): string[] | undefined =>
-  typeof value === "string" ? [value] : Array.isArray(value) && value.every((item) => typeof item === "string") ? (value as string[]) : undefined;
+// A vendor's README writes a port or a flag as a number, and a snippet is pasted as it was found.
+// Everything here ends up in a process environment or a header, where it is text either way; what
+// has no text form is named back rather than dropped, since a server saved without its token is a
+// server that fails later for no visible reason.
+const scalar = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : undefined;
 
-const pairs = (value: unknown): Record<string, string> | undefined =>
-  isRecord(value) && Object.values(value).every((item) => typeof item === "string") ? (value as Record<string, string>) : undefined;
+/** The words, or — as a string — the one that is not a word. */
+const words = (value: unknown): string[] | string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const out: string[] = [];
+  for (const item of Array.isArray(value) ? value : [value]) {
+    const text = scalar(item);
+    if (text === undefined) return JSON.stringify(item);
+    out.push(text);
+  }
+  return out;
+};
+
+/** The names and their values, or — as a string — the name whose value has no text form. */
+const table = (value: unknown): Record<string, string> | string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) return JSON.stringify(value);
+  const out: Record<string, string> = {};
+  for (const [name, item] of Object.entries(value)) {
+    const text = scalar(item);
+    if (text === undefined) return name;
+    out[name] = text;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+};
 
 function connectFrom(value: unknown): Connect | string {
   if (!isRecord(value)) return "A server needs a JSON object with its connection details.";
   const raw = typeof value.type === "string" ? value.type.toLowerCase() : "";
-  const command = [...(strings(value.command) ?? []), ...(strings(value.args) ?? [])];
+  const run = words(value.command);
+  if (typeof run === "string") return `The server's command has ${run} in it, which is not text.`;
+  const rest = words(value.args);
+  if (typeof rest === "string") return `The server's args have ${rest} in them, which is not text.`;
+  const command = [...(run ?? []), ...(rest ?? [])];
   const url = typeof value.url === "string" ? value.url : undefined;
   const type = raw === "local" || raw === "stdio" ? "stdio" : raw === "sse" ? "sse" : raw === "remote" || raw === "http" ? "http" : command.length > 0 ? "stdio" : url ? "http" : undefined;
   if (!type) return "Give the server a command to run or a url to reach.";
   if (type === "stdio") {
     if (command.length === 0) return "A local server needs a command to run.";
-    const env = pairs(value.env);
+    const env = table(value.env);
+    if (typeof env === "string") return `The server's env gives ${env} a value that is not text.`;
     return { type, command, ...(env ? { env } : {}) };
   }
   if (!url) return "A remote server needs a url.";
-  const headers = pairs(value.headers);
+  const headers = table(value.headers);
+  if (typeof headers === "string") return `The server's headers give ${headers} a value that is not text.`;
   return { type, url, ...(headers ? { headers } : {}) };
 }
 

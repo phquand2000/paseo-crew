@@ -166,8 +166,16 @@ test("a pasted server is understood whatever dialect it is written in", async ()
   const remote = await call("seatworks.mcp.parse", { text: JSON.stringify({ type: "remote", url: "https://mcp.example/mcp", headers: { Authorization: "Bearer x" } }) });
   assert.deepEqual(remote.connect, { type: "http", url: "https://mcp.example/mcp", headers: { Authorization: "Bearer x" } });
 
+  // A README writes a port as a number, and the snippet is pasted as it was found. Dropping the
+  // table it appears in loses the token beside it, and the server then fails for no visible reason.
+  const fromReadme = await call("seatworks.mcp.parse", {
+    text: JSON.stringify({ mcpServers: { db: { command: "npx", args: ["db-mcp", 8080], env: { PORT: 5432, DEBUG: false, TOKEN: "keep me" } } } }),
+  });
+  assert.deepEqual(fromReadme.connect, { type: "stdio", command: ["npx", "db-mcp", "8080"], env: { PORT: "5432", DEBUG: "false", TOKEN: "keep me" } });
+
   assert.match((await call("seatworks.mcp.parse", { text: "not json" })).error, /not JSON/);
   assert.match((await call("seatworks.mcp.parse", { text: JSON.stringify({ type: "local" }) })).error, /needs a command/);
+  assert.match((await call("seatworks.mcp.parse", { text: JSON.stringify({ command: "npx", env: { KEY: { from: "keychain" } } }) })).error, /env gives KEY/, "what has no text form is named, not dropped");
 });
 
 test("a server pasted into the settings reaches the seats, and a shipped one can be removed", async () => {
