@@ -27,7 +27,7 @@ export type McpState = {
   roles: string[];
   settings: Record<string, SettingValue>;
 };
-export type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec; thinking?: string; mcp: string[] };
+export type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec; thinking?: string; rules: string; mcp: string[] };
 export type Team = {
   roles: Record<string, RoleSeat>;
   mcp: Record<string, McpState>;
@@ -114,12 +114,14 @@ function resolveMcp(kit: Kit, layers: Layer[], errors: string[]): Record<string,
 
 function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<string, McpState>, errors: string[]): RoleSeat | undefined {
   let choice: { harness: string; model?: string; thinking?: string } = { ...role.defaults };
+  const ownRules: string[] = [];
   for (const layer of layers) {
     const next = layer.roles?.[role.role];
     if (!next) continue;
     if (next.harness && next.harness !== choice.harness) choice = { harness: next.harness };
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
+    if (next.rules?.trim()) ownRules.push(next.rules.trim());
   }
   const harness = kit.harnesses[choice.harness];
   if (!harness) {
@@ -130,8 +132,9 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     errors.push(`${harness.label} has no ${role.role} settings under harness/${harness.id}/settings, so it can't run the ${role.label}`);
   }
   const models = harness.models ?? [];
-  let model = choice.model ? models.find((entry) => entry.id === choice.model) : undefined;
-  if (choice.model && !model && models.length > 0) errors.push(`${harness.label} has no model ${choice.model} for the ${role.label}`);
+  // The catalog is what the settings screen offers, not a fence. Which model a seat runs is the owner's
+  // choice, and the evidence for several lenses is about different models, not one model resampled.
+  let model = choice.model ? (models.find((entry) => entry.id === choice.model) ?? { id: choice.model, label: choice.model }) : undefined;
   model ??= models.find((entry) => entry.isDefault) ?? models[0];
   let thinking: string | undefined;
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
@@ -151,7 +154,7 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
       errors.push(`${harness.label} can't reach ${mcp[id]!.label} over ${transport}, so the ${role.label} can't use it`);
     }
   }
-  return { role, harness, model, thinking, mcp: enabled };
+  return { role, harness, model, thinking, rules: ownRules.join("\n\n"), mcp: enabled };
 }
 
 export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}): Team {
@@ -243,6 +246,7 @@ export function rulesFor(team: Team, roleName: string): string {
   }
   if (seat.harness.mcp.rule && seat.mcp.length > 0) parts.push(seat.harness.mcp.rule);
   if (team.rules) parts.push(`## Rules from the Human\n\n${team.rules.trim()}`);
+  if (seat.rules) parts.push(`## Rules from the Human, for the ${seat.role.label}\n\n${seat.rules}`);
   return parts.length > 0 ? `# Working rules\n\n${parts.join("\n\n")}\n` : "";
 }
 

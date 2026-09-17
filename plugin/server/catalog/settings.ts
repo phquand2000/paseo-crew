@@ -10,6 +10,8 @@ const RoleChoice = z.strictObject({
   harness: z.string().min(1).optional(),
   model: z.string().min(1).optional(),
   thinking: z.string().min(1).optional(),
+  /** What this one seat is told, on top of what every seat is told. A role is settings, and its instruction is one of them. */
+  rules: z.string().optional(),
 });
 
 const Connect = z.strictObject({

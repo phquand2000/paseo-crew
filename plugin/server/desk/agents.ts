@@ -33,27 +33,32 @@ export class Agents {
     return { role, config };
   }
 
+  /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
+  private marks(role: RoleSpec, project: Project): Record<string, string> {
+    return { "seatworks.project": project.slug, "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) };
+  }
+
   async startResident(project: Project, roleName: string, options: StartOptions): Promise<string> {
-    const { config } = this.seatConfig(project, roleName);
+    const { role, config } = this.seatConfig(project, roleName);
     const workspace = await this.slots.projectWorkspace(project);
     const started = await this.workspaces.seat(workspace, {
       config,
       title: options.title,
       prompt: options.prompt,
-      labels: { ...options.labels, "seatworks.project": project.slug },
+      labels: { ...this.marks(role, project), ...options.labels },
     });
     return started.id;
   }
 
   async start(project: Project, slot: Pick<Slot, "path" | "workspaceId">, roleName: string, options: StartOptions): Promise<string> {
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
-    const { config } = this.seatConfig(project, roleName);
+    const { role, config } = this.seatConfig(project, roleName);
     const started = await this.workspaces.seat(slot.workspaceId, {
       config,
       parent: options.parent,
       title: options.title,
       prompt: options.prompt,
-      labels: { ...options.labels, "seatworks.project": project.slug },
+      labels: { ...this.marks(role, project), ...options.labels },
     });
     const actual = started.cwd;
     if (actual && actual !== slot.path) {

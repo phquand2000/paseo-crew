@@ -53,11 +53,26 @@ test("settings that can't describe a working team are reported, not guessed arou
   const text = team.errors.join("\n");
   assert.match(text, /unknown role scout/);
   assert.match(text, /The MCP server nope has nothing to connect to/);
-  assert.match(text, /Claude Code has no model gpt for the Lead/);
   assert.match(text, /IDE setting port must be a number/);
   assert.match(text, /IDE has no setting named host/);
   assert.match(text, /Devin CLI has no supervisor settings/);
   assert.match(text, /Docs can't be given to the watcher role/);
+});
+
+test("one seat can be told something the others are not", () => {
+  const team = resolveTeam(kit, { rules: "Keep diffs small." }, { roles: { peer: { rules: "Never touch the generated client." } } });
+  assert.deepEqual(team.errors, []);
+  const peer = rulesFor(team, "peer");
+  assert.match(peer, /Keep diffs small\./, "what every seat is told still reaches this one");
+  assert.match(peer, /Rules from the Human, for the Peer/);
+  assert.match(peer, /Never touch the generated client\./);
+  assert.doesNotMatch(rulesFor(team, "lead"), /generated client/, "and no other seat is told it");
+});
+
+test("a seat may run a model the harness catalog does not list", () => {
+  const team = resolveTeam(kit, { roles: { lead: { model: "gpt-5.6-sol" } } });
+  assert.deepEqual(team.errors, [], "the catalog is what the screen offers, not what the owner is allowed");
+  assert.equal(team.roles.lead!.model?.id, "gpt-5.6-sol");
 });
 
 test("rules gather each enabled server's rule, the role's tools and notes, harness hints and the Human's rules", () => {
