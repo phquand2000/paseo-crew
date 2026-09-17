@@ -54,11 +54,8 @@ function samplePath(pattern: string): string {
 export function patternsOverlap(a: string, b: string): boolean {
   const pa = literalPrefix(a);
   const pb = literalPrefix(b);
-  if (pa === "" || pb === "") return true;
-  if (!(pa.startsWith(pb) || pb.startsWith(pa))) {
-    return globToRegex(a).test(samplePath(b)) || globToRegex(b).test(samplePath(a));
-  }
-  return true;
+  if (pa !== "" && pb !== "" && (pa.startsWith(pb) || pb.startsWith(pa))) return true;
+  return globToRegex(a).test(samplePath(b)) || globToRegex(b).test(samplePath(a));
 }
 
 export function firstOverlap(left: string[], right: string[]): string | undefined {

@@ -8,13 +8,16 @@ import { clip, letters } from "../letters.ts";
 import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 
-function scopeProblem(config: ProjectConfig, open: Lane[], writeSet: string[], contracts: string[]): string | undefined {
+function scopeProblem(config: ProjectConfig, open: Lane[], sharing: Lane[], writeSet: string[], contracts: string[]): string | undefined {
   if (open.length === 0) return undefined;
-  if (writeSet.length === 0) return "Another lane is open, so this lane needs writeSet (and contracts) to prove it doesn't overlap.";
   const serial = serialHits(writeSet, config.serialOnly);
   if (serial.length > 0) return `writeSet includes paths that only one lane at a time may write (${serial.join(", ")}); open this lane after the current one lands.`;
-  for (const other of open) {
-    if (other.writeSet.length === 0) return `Lane ${other.id} declared no writeSet, so it may write anywhere; open this lane after it lands.`;
+  if (sharing.length === 0) return undefined;
+  if (writeSet.length === 0)
+    return "Another lane is working in the project's own copy, so this lane needs writeSet (and contracts) to prove it doesn't overlap, or isolate to give it a working copy of its own.";
+  for (const other of sharing) {
+    if (other.writeSet.length === 0)
+      return `Lane ${other.id} is working in the project's own copy and declared no writeSet, so what it writes is unknown; pass isolate to give this lane a copy of its own, or open it after ${other.id} lands.`;
     const clash = firstOverlap(writeSet, [...other.writeSet, ...other.contracts]) ?? firstOverlap(contracts, other.writeSet);
     if (clash) return `This lane overlaps lane ${other.id} at ${clash}; fold it in or open it after ${other.id} lands.`;
   }
@@ -71,8 +74,10 @@ export const openLane: Tool = async (desk, caller, args) => {
   const base = str(args.base) || config.base || (await currentBranch(project.root)) || "main";
   if (!(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
   if (!config.base || !config.gate) saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
+  const isolate = args.isolate === true;
   const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
-  const problem = scopeProblem(config, open, strs(args.writeSet), strs(args.contracts));
+  const sharing = isolate ? [] : open.filter((lane) => !lane.slot);
+  const problem = scopeProblem(config, open, sharing, strs(args.writeSet), strs(args.contracts));
   if (problem) return no(problem);
   const issue = await readIssue(args, project);
   if (typeof issue === "string") return no(issue);
@@ -85,7 +90,6 @@ export const openLane: Tool = async (desk, caller, args) => {
     if (slot) await slots.release(project, slot, lane.branch);
     return no(reason);
   };
-  const isolate = args.isolate === true;
   let slot: { id?: string; path: string; workspaceId?: string };
   try {
     slot = isolate ? await slots.acquire(project, lane.branch, base, { lane: lane.id }) : await slots.inPlace(project, lane.branch, base);

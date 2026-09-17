@@ -141,6 +141,8 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.ok(firstOverlap(["src/"], ["src/api/users.ts"]));
   assert.ok(firstOverlap(["src/**/*.ts"], ["src/api/users.ts"]));
   assert.ok(firstOverlap(["**/*.ts"], ["lib/x.ts"]));
+  // A pattern that starts with a glob has no literal prefix to compare, which used to be read as "overlaps everything".
+  assert.equal(firstOverlap(["**/*.ts"], ["src/app.py"]), undefined);
   assert.deepEqual(serialHits(["db/migrations/0003.sql", "src/app.ts"], SERIAL_ONLY), ["db/migrations/0003.sql"]);
   assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], SERIAL_ONLY), ["Assets/Scenes/Main.unity"]);
 });
@@ -169,7 +171,7 @@ test("a lane works serially in the project's own copy and hands it back on its b
 
   const second = await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", acceptance: ["y"], outOfScope: ["anything else in the repository"] });
   assert.equal(second.ok, false);
-  assert.match(second.text, /needs writeSet/, "no count caps lanes now; what a second lane still needs is a write set that proves it doesn't overlap");
+  assert.match(second.text, /needs writeSet/, "no count caps lanes now; a second lane in the same copy still proves it doesn't overlap, or takes a copy of its own");
 
   const unbounded = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
   assert.equal(unbounded.ok, false);
@@ -531,4 +533,26 @@ test("what was never urgent gathers into one report the owner reads when they co
   await h.idle(sup);
   assert.equal(h.agents.get(sup)!.sent.join("\n").match(/WHILE YOU WERE AWAY/g)?.length, 1, "a report already read is not sent a second time");
   h.runtime.dispose();
+});
+
+test("a lane that declared no write set does not lock the project to one lane: the next lane takes a copy of its own", async () => {
+  const h = harness("outbox-lockout.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+
+  // The first lane is allowed to open with no write set, and takes the project's own copy.
+  const first = await h.call(sup, "supervisor", "open_lane", { title: "Authorization", outcome: "roles gate the api", acceptance: ["a"], ...scope });
+  assert.equal(first.ok, true, first.text);
+
+  // Sharing the project's copy with a lane whose scope is unknown is still refused, and now says how to get out of it.
+  const sharing = await h.call(sup, "supervisor", "open_lane", { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], writeSet: ["src/auth/**"], ...scope });
+  assert.equal(sharing.ok, false);
+  assert.match(sharing.text, /isolate/, "the refusal has to name the way out, or the project is stuck on one lane");
+
+  // The DETOUR of the concept: a hole found mid-lane gets its own Lead. Its own working copy means there is nothing to prove about overlap.
+  const detour = await h.call(sup, "supervisor", "open_lane", { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], isolate: true, ...scope });
+  assert.equal(detour.ok, true, detour.text);
+  const lanes = h.ledger().lanes;
+  assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 2);
+  assert.notEqual(h.agents.get(lanes.L2!.lead!)!.cwd, h.agents.get(lanes.L1!.lead!)!.cwd, "the second lane runs in a working copy of its own");
 });
