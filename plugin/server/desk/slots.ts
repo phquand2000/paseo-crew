@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addWorktree, branchExists, commitsAhead, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
+import { addWorktree, branchExists, contains, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -109,7 +109,7 @@ export class Slots {
       // A branch whose commits are not in `into` holds work nothing else has, and for a cut task
       // those commits are all the Peer leaves behind. Clutter is cheaper than deleting them.
       if (dropBranch) {
-        const landed = Boolean(into) && (await commitsAhead(project.root, into!, dropBranch)) === 0;
+        const landed = into ? (await contains(project.root, into, dropBranch)) === true : false;
         if (landed) await git(project.root, ["branch", "-D", dropBranch]);
         else kept = dropBranch;
       }

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { countNumstat, diffCounts, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "../../server/core/git.ts";
+import { contains, countNumstat, diffCounts, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "../../server/core/git.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
 function repo(): { root: string; run: (...args: string[]) => string; commit: (file: string, text: string, message: string) => void } {
@@ -85,4 +85,20 @@ test("a path with a character outside ASCII is read back as itself, not as git's
   assert.equal(counts.src, 1);
   // And it is inside the paths the task owned, which the escaped form would not have been.
   assert.deepEqual(outsideOwned(counts.files, ["src/**"]), []);
+});
+
+test("whether a branch is already in another is answered from the branches, not from what is checked out", async () => {
+  const { root, run, commit } = repo();
+  run("checkout", "-qb", "lane/l1");
+  commit("b.txt", "lane\n", "lane work");
+  run("checkout", "-qb", "task/l1-t1");
+  commit("c.txt", "task\n", "task work");
+  run("checkout", "-q", "lane/l1");
+  run("merge", "-q", "--no-ff", "-m", "Merge L1-T1", "task/l1-t1");
+  // main is what a plain `branch -d` would read here, and the task's work is not in main at all.
+  run("checkout", "-q", "main");
+
+  assert.equal(await contains(root, "lane/l1", "task/l1-t1"), true, "everything on the task branch is in the lane branch");
+  assert.equal(await contains(root, "main", "task/l1-t1"), false);
+  assert.equal(await contains(root, "lane/l1", "task/gone"), undefined, "a branch that is not there is not an answer to delete on");
 });

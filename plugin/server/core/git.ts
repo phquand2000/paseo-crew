@@ -50,6 +50,14 @@ export async function commitsAhead(cwd: string, base: string, branch: string): P
   return run.code === 0 ? Number(run.stdout.trim()) || 0 : 0;
 }
 
+/** Whether everything on `branch` is already in `into` — undefined when git could not say, because a branch is about to be deleted on this answer. */
+export async function contains(cwd: string, into: string, branch: string): Promise<boolean | undefined> {
+  if (!(await branchExists(cwd, branch))) return undefined;
+  const run = await git(cwd, ["rev-list", "--count", `${into}..${branch}`]);
+  const count = Number(run.stdout.trim());
+  return run.code === 0 && Number.isInteger(count) ? count === 0 : undefined;
+}
+
 export async function addWorktree(root: string, path: string, branch: string, base: string): Promise<{ ok: boolean; message: string }> {
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
