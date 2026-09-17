@@ -1,12 +1,10 @@
-import { join } from "node:path";
-import { runGate } from "../core/gate.ts";
 import { commitsAhead, diffCounts, isPristine, mergeBranch, outsideOwned, resetHard } from "../core/git.ts";
 import type { Agents } from "./agents.ts";
 import { type DeskContext, errorText } from "./context.ts";
-import { gateNote } from "./gates.ts";
+import { gateNote, taskGate } from "./gates.ts";
 import type { TaskStatus } from "./ledger.ts";
 import { letters } from "./letters.ts";
-import { type Project, loadConfig } from "./project.ts";
+import type { Project } from "./project.ts";
 
 export class MergeQueue {
   private readonly ctx: DeskContext;
@@ -67,17 +65,14 @@ export class MergeQueue {
         : finish("failed", letters.mergeFailed(task, "git merge failed", merged.message));
     }
     const counts = await diffCounts(cwd, merged.before, merged.after);
-    const config = loadConfig(project.state);
     let gate = gateNote(project);
-    if (config.gate && config.gateOn === "task") {
-      const logFile = join(project.state, "gates", `${taskId}-${Date.now()}.log`);
-      const result = await runGate(config.gate, cwd, logFile, config.gateTimeoutMinutes * 60_000);
-      if (!result.ok) {
+    const run = await taskGate(project, taskId, cwd);
+    if (run) {
+      if (!run.ok) {
         await resetHard(cwd, merged.before);
-        const reason = result.timedOut ? `the gate timed out after ${config.gateTimeoutMinutes} minutes` : `the gate failed with exit ${result.code}`;
-        return finish("failed", letters.mergeFailed(task, reason, result.tail, logFile));
+        return finish("failed", letters.mergeFailed(task, run.reason, run.tail, run.logFile));
       }
-      gate = `${config.gate} passed in ${result.seconds}s`;
+      gate = run.note;
     }
     await finish("merged", letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
     await this.agents.retire(project, task, true);

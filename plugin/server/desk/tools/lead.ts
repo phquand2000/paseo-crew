@@ -1,7 +1,7 @@
 import { diffCounts, git, headSha, isPristine, outsideOwned, resetHard } from "../../core/git.ts";
 import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
-import { gateNote, laneGate } from "../gates.ts";
+import { gateNote, laneGate, taskGate } from "../gates.ts";
 import {
   type Ask,
   type AskKind,
@@ -204,10 +204,12 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
   }
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
   if (counts.files.length === 0) return no(`${task.id} has no commits since it started.`);
+  const run = await taskGate(project, task.id, lane.worktree);
+  const gate = run ? run.note : gateNote(project);
   const updated = await ctx.setTask(project, task.id, (entry) => {
     entry.status = "merged";
   });
-  await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gateNote(project)));
+  await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
   if (updated) await agents.retire(project, updated);
   ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
   return ok(`${task.id} is accepted; its commits are already on ${lane.branch}. The working copy is free for the next task.`);

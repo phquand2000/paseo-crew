@@ -19,6 +19,18 @@ export async function laneGate(ctx: DeskContext, project: Project, lane: Lane): 
   return { ok: false, text: `${config.gate} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}` };
 }
 
+export type GateRun = { ok: boolean; note: string; reason: string; tail: string; logFile: string };
+
+/** The one owner of "run the gate on a task". Returns undefined when this project does not gate tasks. */
+export async function taskGate(project: Project, taskId: string, cwd: string): Promise<GateRun | undefined> {
+  const config = loadConfig(project.state);
+  if (!config.gate || config.gateOn !== "task") return undefined;
+  const logFile = join(project.state, "gates", `${taskId}-${Date.now()}.log`);
+  const result = await runGate(config.gate, cwd, logFile, config.gateTimeoutMinutes * 60_000);
+  const reason = result.timedOut ? `the gate timed out after ${config.gateTimeoutMinutes} minutes` : `the gate failed with exit ${result.code}`;
+  return { ok: result.ok, note: result.ok ? `${config.gate} passed in ${result.seconds}s` : `${config.gate}: ${reason}`, reason, tail: result.tail, logFile };
+}
+
 export function gateNote(project: Project): string {
   return loadConfig(project.state).gate ? "runs on the whole lane when you report it ready" : "none set";
 }

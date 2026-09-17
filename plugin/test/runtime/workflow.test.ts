@@ -556,3 +556,26 @@ test("a lane that declared no write set does not lock the project to one lane: t
   assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 2);
   assert.notEqual(h.agents.get(lanes.L2!.lead!)!.cwd, h.agents.get(lanes.L1!.lead!)!.cwd, "the second lane runs in a working copy of its own");
 });
+
+test("with gateOn task, the gate really runs on a lane-mode task and the Lead is told the result, not a description", async () => {
+  const h = harness("outbox-taskgate.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "task" });
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+
+  await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], ...scope });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  h.commit(lane.worktree!, "a.txt", "one\ntwo\nthree\nfour\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "four" });
+  h.agents.get(peer)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+
+  // The task is on the default, non-parallel path — the one where the task gate used to be skipped in silence.
+  await h.idle(lane.lead!);
+  const letter = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(letter, /MERGED L1-T1/);
+  assert.match(letter, /Gate: test ! -f BROKEN passed in/, "the Lead has to be told what the gate did, not what it would do later");
+  assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
+});
