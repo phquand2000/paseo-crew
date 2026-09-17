@@ -622,3 +622,27 @@ test("a seat reaches only the tools its own role holds, whatever it asks for", a
   assert.equal(borrowed.ok, false);
   assert.match(borrowed.text, /lead tools are not available to it/);
 });
+
+test("two supervising seats hold one project, and each lane's mail goes to the seat that opened it", async () => {
+  const h = harness("outbox-two-sups.json");
+  const architecture = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "architecture");
+  const safety = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "safety");
+  const scope = { outOfScope: ["anything else"] };
+
+  await h.call(architecture, "supervisor", "open_lane", { title: "Schema", outcome: "the schema moves", acceptance: ["a"], ...scope });
+  // The hole found mid-lane gets its own Lead and its own copy, rather than the first lane widening to swallow it.
+  await h.call(safety, "supervisor", "open_lane", { title: "Permissions", outcome: "writes are checked", acceptance: ["a"], isolate: true, detourOf: "L1", ...scope });
+  const lanes = h.ledger().lanes;
+  assert.equal(lanes.L1!.opener, architecture);
+  assert.equal(lanes.L2!.opener, safety);
+  assert.equal(lanes.L2!.detourOf, "L1");
+  assert.match(h.agents.get(lanes.L2!.lead!)!.prompt ?? "", /clears the way for L1/, "the detour's Lead is told what it is unblocking");
+
+  await h.call(lanes.L1!.lead!, "lead", "report", { summary: "schema done" });
+  await h.call(lanes.L2!.lead!, "lead", "report", { summary: "permissions done" });
+  await h.idle(architecture);
+  await h.idle(safety);
+  assert.match(h.agents.get(architecture)!.sent.join("\n"), /schema done/);
+  assert.doesNotMatch(h.agents.get(architecture)!.sent.join("\n"), /permissions done/, "one supervising seat does not read another's lane");
+  assert.match(h.agents.get(safety)!.sent.join("\n"), /permissions done/);
+});

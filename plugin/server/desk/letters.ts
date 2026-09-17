@@ -26,6 +26,9 @@ export const letters = {
       "",
       `Lane branch: ${lane.branch}, off ${lane.base}. Your working copy is on it; tasks merge into it.`,
     ];
+    if (lane.detourOf) {
+      parts.push("", `This lane clears the way for ${lane.detourOf}, which is waiting on it. Do what that needs and no more, then report; widening this lane is what opening it avoided.`);
+    }
     if (issue) {
       parts.push(
         "",

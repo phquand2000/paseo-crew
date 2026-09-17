@@ -61,6 +61,10 @@
               "type": "string"
             },
             "description": "Shared files or modules this lane depends on without writing."
+          },
+          "detourOf": {
+            "type": "string",
+            "description": "The lane this one clears the way for, when a Lead found a missing prerequisite mid-lane. The detour gets its own Lead and hands back; the lane it unblocks waits rather than widening."
           }
         },
         "required": [

@@ -44,7 +44,8 @@ export function statusText(
   const open = lanes.filter((lane) => lane.status === "open");
   if (open.length === 0) lines.push("No open lanes.", "");
   for (const lane of open) {
-    lines.push(`## ${lane.id} ${lane.title}`, "", `Branch ${lane.branch} off ${lane.base}. Lead ${seatLine(seats, lane.lead, now)}.`, "");
+    const detour = lane.detourOf ? ` Clearing the way for ${lane.detourOf}.` : "";
+    lines.push(`## ${lane.id} ${lane.title}`, "", `Branch ${lane.branch} off ${lane.base}. Lead ${seatLine(seats, lane.lead, now)}.${detour}`, "");
     const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
     if (tasks.length === 0) lines.push("- no tasks yet");
     for (const task of tasks) {

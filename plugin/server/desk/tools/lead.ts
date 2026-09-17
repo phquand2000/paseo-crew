@@ -270,7 +270,7 @@ export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
 export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const kind = str(args.kind) as AskKind;
   const text = str(args.text);
-  if (!["need", "blocked", "question"].includes(kind) || !text) return no("ask needs kind (need, blocked or question) and text.");
+  if (!kind || !text) return no("ask needs kind (need, blocked or question) and text.");
   const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
   if (!lane) return no("You have no open lane.");
   const to = await roster.supervisorFor(caller.project, lane.opener);

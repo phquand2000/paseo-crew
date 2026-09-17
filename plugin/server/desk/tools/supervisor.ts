@@ -47,6 +47,7 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
       issue: issue?.url,
       base,
       branch: `lane/${id.toLowerCase()}-${slugify(title, 24)}`,
+      detourOf: str(args.detourOf) || undefined,
       writeSet: strs(args.writeSet),
       contracts: strs(args.contracts),
       opener: caller.id,

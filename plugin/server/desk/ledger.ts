@@ -4,7 +4,8 @@ import { readJson, writeJson } from "../core/store.ts";
 
 export type LaneStatus = "open" | "closed";
 export type TaskStatus = "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
-export type AskKind = "need" | "blocked" | "question";
+/** What an ask is about. The tool schema offers the kinds the SLP preset uses; the ledger carries whatever it is told, because nothing routes on it. */
+export type AskKind = string;
 
 export type Lane = {
   id: string;
@@ -17,6 +18,8 @@ export type Lane = {
   issue?: string;
   base: string;
   branch: string;
+  /** The lane this one was opened to get out of the way of: a hole found mid-lane gets its own Lead, not a wider lane. */
+  detourOf?: string;
   worktree?: string;
   slot?: string;
   writeSet: string[];
