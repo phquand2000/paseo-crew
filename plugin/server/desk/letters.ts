@@ -137,13 +137,6 @@ export const letters = {
     return ["REWORK requested by your lead", "", text, "", "Commit the change on your branch, then call done again."].join("\n");
   },
 
-  mergeLane(laneBranch: string, conflicts: string[]): string {
-    return [
-      `Your branch conflicts with ${laneBranch} in: ${conflicts.join(", ")}.`,
-      `Run git merge ${laneBranch}, resolve the conflicts keeping both intents, commit, run your checks, then call done again.`,
-    ].join("\n");
-  },
-
   cut(reason: string): string {
     return [`STOP: your lead cut this task.`, "", reason, "", "Make no further changes."].join("\n");
   },
@@ -232,10 +225,6 @@ export const letters = {
 
   escalated(ask: Ask, minutes: number, lane: string): string {
     return [`UNANSWERED ${ask.id} in ${lane}: a Peer has waited ${minutes} minutes on its Lead.`, "", ask.text].join("\n");
-  },
-
-  refused(tool: string, reason: string): string {
-    return `${tool} refused: ${reason}`;
   },
 
   mailbox(items: string[], open: Ask[]): string {

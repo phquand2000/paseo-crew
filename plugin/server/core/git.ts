@@ -49,11 +49,6 @@ export async function addWorktree(root: string, path: string, branch: string, ba
   return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() };
 }
 
-export async function removeWorktree(root: string, path: string | undefined): Promise<void> {
-  if (!path) return;
-  await git(root, ["worktree", "remove", "--force", path], 60_000);
-}
-
 export type MergeResult = { ok: true; before: string; after: string } | { ok: false; conflicts: string[]; message: string };
 
 export async function mergeBranch(cwd: string, branch: string, message: string): Promise<MergeResult> {

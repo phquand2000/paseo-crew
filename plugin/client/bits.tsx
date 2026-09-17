@@ -79,14 +79,6 @@ export function Avatar({ letter, theme }: { letter: string; theme: PluginTheme }
   );
 }
 
-export function Badge({ label, tone, theme }: { label: string; tone: "good" | "quiet"; theme: PluginTheme }) {
-  return (
-    <View style={{ paddingHorizontal: CONTROL.padding, paddingVertical: 4, borderRadius: CONTROL.radius, borderWidth: 1, borderColor: theme.colors.border }}>
-      <Text style={{ fontSize: 12, color: tone === "good" ? theme.colors.statusSuccess : theme.colors.foregroundMuted }}>{label}</Text>
-    </View>
-  );
-}
-
 export function Chips({ options, chosen, theme, disabled, onToggle }: {
   options: { id: string; label: string }[];
   chosen: string[];

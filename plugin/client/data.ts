@@ -311,12 +311,6 @@ export function sourceOf(values: Layer, machine: Layer, pick: (layer: Layer) => 
   return "default";
 }
 
-export function sourceText(source: Source, layer: "machine" | "project"): string {
-  if (source === "here") return layer === "machine" ? "set for this machine" : "set for this project";
-  if (source === "machine") return "from the machine layer";
-  return "catalog default";
-}
-
 function prune<T extends object>(values: Layer, key: "roles" | "mcp", id: string, entry: T): Layer {
   const group = { ...(values[key] as Record<string, T> | undefined) };
   if (Object.keys(entry).length === 0) delete group[id];

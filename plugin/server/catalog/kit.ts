@@ -227,14 +227,6 @@ export function hookTools(proxy: ProxySpec | undefined): string[] {
   return [proxy?.open?.tool, proxy?.wait?.tool, proxy?.sync?.tool].filter((name): name is string => Boolean(name));
 }
 
-export function roleNamed(kit: Kit, name: string): RoleSpec | undefined {
-  return kit.roles.find((role) => role.role === name);
-}
-
-export function entryRole(kit: Kit): RoleSpec | undefined {
-  return kit.roles.find((role) => role.entry);
-}
-
 export function roleWithTeam(kit: Kit, team: TeamRole): RoleSpec | undefined {
   return kit.roles.find((role) => role.team === team);
 }

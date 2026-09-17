@@ -1,5 +1,5 @@
 import type { ToolReply, ToolRequest } from "../desk/context.ts";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 
@@ -50,9 +50,4 @@ export function writeReply(spool: string, id: string, reply: ToolReply): void {
   const temp = join(replies, `${id}.tmp`);
   writeFileSync(temp, JSON.stringify(reply));
   renameSync(temp, join(replies, `${id}.json`));
-}
-
-export function hasRequests(spool: string): boolean {
-  const requests = join(spool, "requests");
-  return existsSync(requests) && readdirSync(requests).some((name) => name.endsWith(".json"));
 }
