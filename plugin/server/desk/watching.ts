@@ -18,7 +18,7 @@ export type Strike = {
 
 export type Watching = { strikes: Record<string, Strike>; pages: number[] };
 
-export type WatchRules = { strikesAt: number; pagesPerWindow: number; windowHours: number; always: string[] };
+export type WatchRules = { strikesAt: number; pagesPerWindow: number; windowHours: number; always: string[]; watch?: boolean };
 
 export const WATCH_RULES: WatchRules = { strikesAt: 3, pagesPerWindow: 2, windowHours: 12, always: ["destructive"] };
 
@@ -47,7 +47,7 @@ export function keyOf(subject: string, label: string): string {
 }
 
 export function judge(watching: Watching, raised: Raised, now: number, rules: WatchRules = WATCH_RULES): { urgency: Urgency; watching: Watching; strike?: Strike } {
-  if (raised.label === "normal") return { urgency: "log", watching };
+  if (rules.watch === false) return { urgency: "log", watching };
 
   const key = keyOf(raised.subject, raised.label);
   const seen = watching.strikes[key];

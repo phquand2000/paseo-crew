@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, emptyWatching, judge, pending, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, emptyWatching, judge, pending, reported } from "../../server/desk/watching.ts";
 
 const NOW = Date.parse("2026-09-16T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -25,10 +25,11 @@ function run(entries: { raise: Raised; at: number }[]): { watching: Watching; ur
   return { watching, urgencies };
 }
 
-test("a normal ending is written down and interrupts nobody", () => {
-  const verdict = judge(emptyWatching(), raised({ label: "normal" }), NOW);
-  assert.equal(verdict.urgency, "log");
-  assert.deepEqual(verdict.watching, emptyWatching(), "a healthy ending leaves no trace to chase later");
+test("with watching switched off, a fault is still recorded and reaches nobody", () => {
+  const rules = { ...WATCH_RULES, watch: false };
+  const verdict = judge(emptyWatching(), raised({ label: "destructive" }), NOW, rules);
+  assert.equal(verdict.urgency, "log", "even the one label that always pages stays quiet when the owner has switched watching off");
+  assert.deepEqual(verdict.watching, emptyWatching());
 });
 
 test("one suspicious ending waits for the digest rather than interrupting", () => {

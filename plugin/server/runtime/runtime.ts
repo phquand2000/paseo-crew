@@ -46,6 +46,7 @@ export class Runtime {
   private readonly reload: () => Promise<boolean>;
   private api: PaseoApi | undefined;
   private timers: ReturnType<typeof setInterval>[] = [];
+  private tick: ReturnType<typeof setTimeout> | undefined;
 
   constructor(kit: Kit, options: RuntimeOptions = {}) {
     this.kit = kit;
@@ -98,8 +99,6 @@ export class Runtime {
   }
 
   register(server: PluginServerContext): void {
-    const direct = (server as unknown as { paseo?: PaseoApi }).paseo;
-    if (direct) this.api = direct;
     registerRpc(server, this.control);
     server.before("agent.create", ({ request }, context) => {
       this.api = context.paseo;
@@ -116,17 +115,20 @@ export class Runtime {
       this.outbox.archived(agent.id);
       this.turns.forget(agent.id);
     });
-    this.timers.push(
-      setInterval(() => this.serveSpool(), 500),
-      setInterval(() => {
-        if (this.api) this.patrol.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
-      }, this.source.teamFor().attention.tickSeconds * 1000),
-    );
+    this.timers.push(setInterval(() => this.serveSpool(), 500));
+    // The cadence is read every time round, so changing it in settings takes hold without a reload.
+    const patrol = () => {
+      if (this.api) this.patrol.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
+      this.tick = setTimeout(patrol, Math.max(5, this.source.teamFor().attention.tickSeconds) * 1000);
+    };
+    this.tick = setTimeout(patrol, this.source.teamFor().attention.tickSeconds * 1000);
   }
 
   dispose(): void {
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
+    if (this.tick) clearTimeout(this.tick);
+    this.tick = undefined;
   }
 
   private launchConfig(config: AgentConfig): AgentConfig {

@@ -31,7 +31,7 @@ test("values outside the schema or that fail the team check are refused and not 
   const { revision } = readLayer(file, MachineLayerSchema);
   const unknown = writeLayer(file, MachineLayerSchema, revision, { color: "red" }, ok);
   assert.equal(unknown.status, "invalid");
-  const project = writeLayer(file, ProjectLayerSchema, revision, { attention: { tickSeconds: 10 } }, ok);
+  const project = writeLayer(file, ProjectLayerSchema, revision, { watching: true }, ok);
   assert.equal(project.status, "invalid");
   const refused = writeLayer(file, MachineLayerSchema, revision, { roles: { lead: { harness: "x" } } }, () => ["The Lead runs on x"]);
   assert.deepEqual(refused, { status: "invalid", error: "The Lead runs on x" });

@@ -69,6 +69,15 @@ test("one seat can be told something the others are not", () => {
   assert.doesNotMatch(rulesFor(team, "lead"), /generated client/, "and no other seat is told it");
 });
 
+test("a project tunes what is worth its owner's attention, over the machine's default", () => {
+  const team = resolveTeam(kit, { attention: { digestMinutes: 30, strikesAt: 5 } }, { attention: { strikesAt: 2, watch: false } });
+  assert.deepEqual(team.errors, []);
+  assert.equal(team.attention.digestMinutes, 30, "what the project says nothing about it takes from the machine");
+  assert.equal(team.attention.strikesAt, 2, "and what it does say wins");
+  assert.equal(team.attention.watch, false, "a project can decide nothing is worth interrupting for");
+  assert.equal(resolveTeam(kit).attention.watch, true, "left alone, the kit watches");
+});
+
 test("a seat may run a model the harness catalog does not list", () => {
   const team = resolveTeam(kit, { roles: { lead: { model: "gpt-5.6-sol" } } });
   assert.deepEqual(team.errors, [], "the catalog is what the screen offers, not what the owner is allowed");

@@ -137,6 +137,11 @@ export type Attention = {
   maxReminders: number;
   watchEveryClean: number;
   digestMinutes: number;
+  /** Whether a fault may reach the seat above at all. Off still records what was seen; it stops the desk deciding it is worth a turn. */
+  watch: boolean;
+  strikesAt: number;
+  pagesPerWindow: number;
+  windowHours: number;
 };
 
 export type Kit = {
@@ -149,7 +154,7 @@ export type Kit = {
   attention: Attention;
 };
 
-const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60 };
+const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60, watch: true, strikesAt: 3, pagesPerWindow: 2, windowHours: 12 };
 
 function subdirs(root: string): string[] {
   if (!existsSync(root)) return [];

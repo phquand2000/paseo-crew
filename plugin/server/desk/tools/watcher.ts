@@ -1,8 +1,9 @@
 import { no, ok, str } from "../context.ts";
 import { letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
-import { type Urgency, type Watching, judge, loadWatching, saveWatching } from "../watching.ts";
+import { type Urgency, type Watching, WATCH_RULES, judge, loadWatching, saveWatching } from "../watching.ts";
 
+/** What the SLP preset asks a Watcher to distinguish. The kit names these; the desk only checks a finding carries one. */
 export const LABELS = ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"];
 
 const RANK: Record<Urgency, number> = { log: 0, digest: 1, page: 2 };
@@ -38,7 +39,9 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const counts = new Map<string, number>();
 
   for (const finding of findings) {
-    const verdict = judge(watching, { subject: where, label: finding.label, where, quote: finding.quote, evidence: recorded }, now);
+    const attention = ctx.team(caller.project).attention;
+    const rules = { ...WATCH_RULES, strikesAt: attention.strikesAt, pagesPerWindow: attention.pagesPerWindow, windowHours: attention.windowHours, watch: attention.watch };
+    const verdict = judge(watching, { subject: where, label: finding.label, where, quote: finding.quote, evidence: recorded }, now, rules);
     watching = verdict.watching;
     const count = verdict.strike?.count ?? 0;
     counts.set(finding.label, count);

@@ -4,7 +4,7 @@ import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
-import { type Reading, read } from "./signals.ts";
+import { type Reading, read } from "./risks.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 
 type TurnEnded = PluginLifecycleEvents["agent.turn_ended"];

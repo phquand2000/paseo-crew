@@ -1,6 +1,11 @@
+// What a turn DID, read mechanically from its tool calls: destructive commands, weakened tests,
+// thrashing, unverified writes, a compaction. It reads no prose and calls no model, so it cannot
+// see a Lead changing its mind or a Peer admitting it was wrong — the judgement the concept calls
+// attention is the seat above's, and this only hands it something to look at.
 import { type Item, type Timeline, turnItems } from "./timeline.ts";
 
-export type Signal = "destructive" | "test-weakened" | "repetition" | "unverified" | "compaction";
+/** What this reader can find. Open, so a kit can add one without the desk being rebuilt. */
+export type Risk = string;
 
 export const DESTRUCTIVE =
   "rm\\s+-[a-z]*[rf]|git\\s+reset\\s+--hard|git\\s+clean\\s+-[a-z]*f|git\\s+push\\s+[^|;&]*(--force|-f)\\b|--force-with-lease|git\\s+branch\\s+-D|drop\\s+(table|database)|truncate\\s+table";
@@ -11,7 +16,7 @@ export const ASSERTION = "\\b(assert|expect|should)\\b";
 
 export const SKIPPED = "\\.(skip|only|todo)\\b|\\bx(it|describe|test)\\b|@Disabled\\b|pytest\\.mark\\.skip\\b";
 
-export const WEIGHT: Record<Signal, number> = {
+export const WEIGHT: Record<Risk, number> = {
   destructive: 100,
   "test-weakened": 40,
   repetition: 25,
@@ -19,7 +24,7 @@ export const WEIGHT: Record<Signal, number> = {
   compaction: 10,
 };
 
-export type Reading = { signals: Signal[]; score: number; notes: string[]; record: string[] };
+export type Reading = { signals: Risk[]; score: number; notes: string[]; record: string[] };
 
 export type ReadOptions = {
   gate?: string;
@@ -82,7 +87,7 @@ export function read(timeline: Timeline, options: ReadOptions = {}): Reading {
   const writes = details.filter((detail) => detail.type === "edit" || detail.type === "write");
   const written = writes.map((detail) => String(detail.filePath ?? ""));
 
-  const signals: Signal[] = [];
+  const signals: Risk[] = [];
   const notes: string[] = [];
 
   const wrecked = commands.find((command) => destructive.test(command));
@@ -143,6 +148,6 @@ export function read(timeline: Timeline, options: ReadOptions = {}): Reading {
   if (gate) record.push(`${gate}: ${commands.filter((command) => command.includes(gate)).length} run(s) this turn`);
   if (turn.some((item) => item.type === "compaction")) record.push("context compacted inside this turn");
 
-  const score = signals.reduce((total, signal) => total + WEIGHT[signal], 0);
+  const score = signals.reduce((total, signal) => total + (WEIGHT[signal] ?? 0), 0);
   return { signals, score, notes, record };
 }

@@ -43,6 +43,10 @@ const AttentionChoice = z.strictObject({
   maxReminders: z.number().int().min(0).optional(),
   watchEveryClean: z.number().int().min(1).optional(),
   digestMinutes: z.number().int().min(1).optional(),
+  watch: z.boolean().optional(),
+  strikesAt: z.number().int().min(1).optional(),
+  pagesPerWindow: z.number().int().min(0).optional(),
+  windowHours: z.number().int().min(1).optional(),
 });
 
 const FlowChoice = z.strictObject({
@@ -57,7 +61,7 @@ const shared = {
   flow: FlowChoice.optional(),
 };
 
-export const ProjectLayerSchema = z.strictObject(shared);
+export const ProjectLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional() });
 export const MachineLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional() });
 
 export type Layer = z.infer<typeof MachineLayerSchema>;

@@ -173,7 +173,7 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}):
   return {
     roles,
     mcp,
-    attention: { ...kit.attention, ...stripUndefined(machine.attention) },
+    attention: { ...kit.attention, ...stripUndefined(machine.attention), ...stripUndefined(project.attention) },
     rules: [machine.rules, project.rules].filter((text) => text && text.trim()).join("\n\n"),
     errors,
   };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { read } from "../../server/runtime/signals.ts";
+import { read } from "../../server/runtime/risks.ts";
 
 const call = (detail: Record<string, unknown>) => ({ type: "tool_call", name: "tool", status: "completed", error: null, detail });
 const said = (text: string) => ({ type: "assistant_message", text });
