@@ -58,7 +58,9 @@ project's copy has uncommitted changes the desk refuses the first lane rather th
 Human's work hostage; tell them what is uncommitted and let them decide.
 
 When a Lead reports a foundation gap that another
-lane touches, name one owner for the fix and have the other lane wait for it.
+lane touches, name one owner for the fix and have the other lane wait for it: `open_lane` for the
+gap with `detourOf` set to the lane that is waiting, which tells its Lead to do that and no more,
+and tells the waiting Lead when it lands. Widening the lane that found the gap is what this avoids.
 
 Nothing in the project has shipped unless the Human or `AGENTS.md` says so, so don't ask a Lead to
 keep old shapes, freeze old tests or stay compatible. Sample data in designs and screenshots is a

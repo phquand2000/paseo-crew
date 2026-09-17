@@ -399,7 +399,7 @@
           },
           "ready": {
             "type": "boolean",
-            "description": "True when the lane branch holds the whole outcome. The desk runs the gate on the lane branch first and refuses the report if it fails."
+            "description": "True when the lane branch holds the whole outcome. The desk runs the gate on the lane branch first and puts what it did in the report, red or green; it does not hold the report back."
           },
           "carried": {
             "type": "array",

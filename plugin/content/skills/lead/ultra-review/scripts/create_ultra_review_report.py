@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import re
 import sys
@@ -177,7 +178,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report-dir", required=True, help="directory for round reports, outside the repository")
     parser.add_argument("--review-name", required=True, help="review name shared by every round")
     parser.add_argument("--scope", required=True, help="the scope, as the review brief states it")
-    parser.add_argument("--review-brief-sha256", required=True, help="sha256 of the review brief")
+    parser.add_argument("--review-brief", required=True, help="the brief file the scouts are given; the report stamps its sha256")
     parser.add_argument("--scout-count", type=int, default=10)
     parser.add_argument("--directive-count", type=int, default=0, help="numbered directives D01.. in the brief")
     parser.add_argument("--overlap", type=int, default=2, help="scouts per unit")
@@ -196,9 +197,13 @@ def main() -> int:
         print(f"workspace does not exist: {workspace}", file=sys.stderr)
         return 2
     review_name = slugify(args.review_name)
-    if not re.fullmatch(r"[0-9a-f]{64}", args.review_brief_sha256):
-        print("--review-brief-sha256 must be 64 lowercase hexadecimal characters", file=sys.stderr)
+    brief = Path(args.review_brief).expanduser()
+    if not brief.is_file():
+        print(f"--review-brief is not a file: {brief}", file=sys.stderr)
         return 2
+    # Hashed here rather than asked for: a hex string nothing on hand produces is a hex string that
+    # gets invented, and the stamp is worth having only if it is the brief the scouts were given.
+    brief_sha256 = hashlib.sha256(brief.read_bytes()).hexdigest()
     if args.scout_count <= 0 or args.directive_count < 0 or args.overlap <= 0 or args.directive_overlap <= 0:
         print("--scout-count, --overlap and --directive-overlap must be positive, --directive-count non-negative", file=sys.stderr)
         return 2
@@ -223,7 +228,7 @@ def main() -> int:
         "round": round_number,
         "date": date_slug,
         "scope": args.scope.strip(),
-        "review_brief_sha256": args.review_brief_sha256,
+        "review_brief_sha256": brief_sha256,
         "report_path": report_path.as_posix(),
         "prior_reports": [
             (path.relative_to(workspace) if path.is_relative_to(workspace) else path).as_posix()

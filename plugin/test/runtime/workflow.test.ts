@@ -573,6 +573,28 @@ test("a lane that declared no write set does not lock the project to one lane: t
   assert.equal(new Set(where).size, 3, "no two Leads are left writing in one checkout");
 });
 
+test("a detour hands back to the lane that was waiting on it, and cannot be opened for a lane that is not", async () => {
+  const h = harness("outbox-detour.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Checkout", outcome: "an order can be paid for", acceptance: ["a"], ...scope });
+  const waiting = h.ledger().lanes.L1!;
+
+  const nowhere = await h.call(sup, "supervisor", "open_lane", { title: "Money type", outcome: "money is not a float", acceptance: ["a"], detourOf: "L7", ...scope });
+  assert.equal(nowhere.ok, false, "a detour for a lane that does not exist is a letter with nowhere to go");
+
+  const detour = await h.call(sup, "supervisor", "open_lane", { title: "Money type", outcome: "money is not a float", acceptance: ["a"], detourOf: "l1", ...scope });
+  assert.equal(detour.ok, true, detour.text);
+  const lane = h.ledger().lanes.L2!;
+  assert.equal(lane.detourOf, "L1");
+  assert.match(h.agents.get(lane.lead!)!.prompt!, /clears the way for L1/, "the detour's Lead is told to do that and no more");
+
+  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L2", reason: "done" })).ok, true);
+  await h.idle(waiting.lead!);
+  assert.match(h.agents.get(waiting.lead!)!.sent.join("\n"), /CLEARED L2[\s\S]*ask if your work needs it there/, "the lane that waited cannot see the other one, so it has to be told");
+  h.runtime.dispose();
+});
+
 test("a lane closed while its Lead is still writing keeps the working copy until that turn ends", async () => {
   const h = harness("outbox-closerace.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

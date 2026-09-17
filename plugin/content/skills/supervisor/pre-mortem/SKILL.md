@@ -18,7 +18,7 @@ The mechanism is the tense. Each story starts from the directive having been car
    - **Assumption:** which stated premise turned out false, and what would have shown it early.
    - **Process** (when the work spans several tasks): where ownership overlapped, which decision nobody made, what acceptance let through.
 
-   For most lanes write them yourself, one lens at a time, finishing each story before starting the next. When the code must be read to tell the story, `open_lane` a read-only lane instead: outcome "a pre-mortem report", out of scope any code change, and a directive asking its Lead for one sealed reviewer per lens, each started with `start_review` whose focus holds the plan, the named failure and that lens in the past tense, with no other reviewer's answer. Use the Lead's report, then `close_lane` with land false.
+   For most lanes write them yourself, one lens at a time, finishing each story before starting the next. When the code must be read to tell the story, `open_lane` a read-only lane instead: outcome "a pre-mortem report on <the plan>", any code change out of scope; then `message` its Lead to use one sealed reviewer per lens, each started with `start_review` whose focus holds the plan, the named failure and that lens in the past tense, with no other reviewer's answer. Use the Lead's report, then `close_lane` with land false.
 4. **Merge, dropping nothing for being unlikely.** Keep every distinct cause; one you can't place in the system is marked unplaced, not deleted.
 5. **Turn each cause into a row.** A cause the directive can't act on is a worry, not a risk.
 

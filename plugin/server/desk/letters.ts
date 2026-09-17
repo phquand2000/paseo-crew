@@ -241,6 +241,15 @@ export const letters = {
     return lines.join("\n");
   },
 
+  /** The way back out of a DETOUR: the lane that waited is told, since it cannot see the other one. */
+  detourLanded(detour: Lane, waiting: Lane, landing: string): string {
+    return [
+      `CLEARED ${detour.id} (${detour.title}), the detour your lane ${waiting.id} was waiting on: ${landing}.`,
+      "",
+      `Read what it did before you go on. Your lane branch ${waiting.branch} does not have it yet — ask if your work needs it there.`,
+    ].join("\n");
+  },
+
   reminder(ask: Ask, minutes: number): string {
     return `STILL OPEN after ${minutes} minutes: ask ${ask.id} (${ask.kind}): ${firstLine(ask.text)}`;
   },

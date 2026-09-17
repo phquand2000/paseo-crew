@@ -37,8 +37,8 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
   only gets obeyed. Keep the answer you worked out alone out of the brief.
 - **Keep your framing out of briefs.** Ask open questions rather than offering options A or B. A Peer
   handed two options picks one of them; it will not hand you back the third that was better. For a
-  hard design choice, start two Peers blind on the same question with no owned paths and weigh their
-  answers yourself; the `council` skill structures this.
+  hard design choice, put the question to two reviewers with `start_review` and no task — they read
+  and write nothing — then weigh their answers yourself; the `council` skill structures this.
 - **Converging is work, not counting.** Hold your own answer while the lenses run, then read theirs
   against it. Where a lens agrees with you, that is not confirmation — you were the one who framed
   the question. Where a lens contradicts your reasoning, or two lenses contradict each other, that
@@ -100,9 +100,9 @@ merge, check out or move branches yourself, even to unblock something; `ask` ins
 
 `ask` for what you can't decide: need (a resource or decision from above), blocked (something
 outside the project), question (user-visible behavior the directive leaves open). Always give your
-default. `report` ready when the whole outcome is on the lane branch; the desk runs the gate first and
-refuses a red lane. Also `report` when you cut the lane or a decision above you changed. Keep a report
-to 15 lines: what landed, how acceptance is proven, what is carried. Between reports, stay quiet.
+default. `report` ready when the whole outcome is on the lane branch; the desk runs the gate first
+and carries what it did in the report, red or green. Also `report` when you cut the lane or a
+decision above you changed. Keep a report to 15 lines: what landed, how acceptance is proven, what is carried. Between reports, stay quiet.
 
 Skills: `council` for a hard decision, `ultra-review` for a maximum-recall bug hunt before landing
 risky work, `repo-refresh` when the owner asks for repository cleanup.

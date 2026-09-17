@@ -23,7 +23,7 @@ You judge whether the project is built around the right system archetype, not wh
 
 Classify each supported candidate as architecture defect, owner defect, implementation drift, justified divergence, quarantined scaffold, or insufficient evidence; generic improvements aren't findings.
 
-You read the repository yourself for the atlas and the comparison. A project too large to map alone gets a read-only lane: `open_lane` with outcome "observed-map rows and candidates for these slices", out of scope any code change, and a directive giving the claim and the atlas rows and asking its Lead for one sealed reviewer per slice or few slices, each started with `start_review` whose focus asks for observed-map rows and candidates with file and line evidence. Leave out your own suspicion so each reader stays an independent judgment. Use the Lead's report, then `close_lane` with land false.
+You read the repository yourself for the atlas and the comparison. A project too large to map alone gets a read-only lane: `open_lane` with the claim and the atlas rows in its outcome, "observed-map rows and candidates for these slices" in acceptance, and any code change out of scope; then `message` its Lead to use one sealed reviewer per slice or few slices, each started with `start_review` whose focus asks for observed-map rows and candidates with file and line evidence. Leave out your own suspicion so each reader stays an independent judgment. Use the Lead's report, then `close_lane` with land false.
 
 ## Ends in
 

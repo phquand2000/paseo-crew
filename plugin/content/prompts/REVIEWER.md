@@ -34,5 +34,4 @@ If you cannot review without an answer — the brief names a branch that isn't t
 question rests on a premise the code contradicts — call `ask` with what you found and your best
 reading, then end your turn; the answer arrives as a message.
 
-Skills: `test-proof-debt-audit` when tests may not prove what they claim, `security-check` for
-security-sensitive changes, `diagnosing-bugs` to confirm a suspected failure.
+Skills: `test-proof-debt-audit` when the proof a test claims to be is the question.

@@ -70,7 +70,7 @@ check at the level a user sees it.
 **A test that invents an API before its contract is settled is a defect** — not a style problem. If
 the field or type does not exist yet, implement it or ask; do not write a test that mints it, because
 the next agent will not hold your context, will read the red test as correct behaviour, and will bend
-the implementation to satisfy it. There is a 19-row catalogue of these in
+the implementation to satisfy it. The catalogue of them is
 `plugin/content/skills/peer/test-first/references/test-antipatterns.md`; read it before writing tests.
 
 **Do not keep dormant or speculative machinery.** No generic framework, plugin system or public

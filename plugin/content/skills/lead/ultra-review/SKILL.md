@@ -17,14 +17,14 @@ ocr delegate rule --format json $(jq -r '(.reviewable_files // [.files[] | selec
 
 Skip the rule call when nothing is reviewable. The tool filters by file type, so an excluded file is not a cleared one; the hunt script keeps excluded files in scope. Without `ocr`, say so and run the scripts without the two JSON files.
 
-The review brief gives the scope, its sha256 and optional directives `D01`, `D02`, .... Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius.
+Write the brief the scouts will be given — the scope, the change intent, the contracts that govern it and its directives `D01`, `D02`, ... — to `$SEATWORKS_STATE/ultra-review/NAME-brief.md`. The report stamps that file's sha256, so a later round can tell whether the brief it reviewed was this one. Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius.
 
 ## 2a. hunt
 
 ```bash
 python3 "$SEATWORKS_KIT/content/skills/lead/ultra-review/scripts/create_ultra_review_report.py" \
   --workspace "$(git rev-parse --show-toplevel)" --report-dir "$SEATWORKS_STATE/ultra-review" \
-  --review-name NAME --scope "SCOPE" --review-brief-sha256 SHA256 --directive-count N \
+  --review-name NAME --scope "SCOPE" --review-brief "$SEATWORKS_STATE/ultra-review/NAME-brief.md" --directive-count N \
   --ocr-preview "$TMPDIR/ocr-preview.json" --ocr-rules "$TMPDIR/ocr-rules.json"
 ```
 
@@ -38,7 +38,7 @@ Scouts read the lane branch, so merge the scope into it first. Start `scout-01` 
 - static inspection only: run nothing that builds or tests, since ten scouts building at once collide;
 - the ask, returned in `done` findings: every candidate, speculative ones included, with severity `P0`–`P3`, confidence, `file:line`, evidence, contract violated, plausible failure, durable fix hypothesis and a read-only disconfirming check; and each assigned file marked reviewed, or skipped with a reason.
 
-End your turn; handbacks arrive as mail. Share no candidate before consolidation, and restart only a scout that went silent without handing back, under its original title and assignment. Then fill the report's TODOs: each file's coverage status, findings `F001`, `F002`, ... grouped by root cause with the fields above and no raw candidate list, one Verification Queue line per finding, and the strongest reason not to merge yet; with no candidates, `No candidates reported.` under Findings.
+End your turn; handbacks arrive as mail. Share no candidate before consolidation, and restart only a scout that went silent without handing back, under its original title and assignment. `cut` each scout once its findings are in the report: ten seats left idle cost ten seats. Then fill the report's TODOs: each file's coverage status, findings `F001`, `F002`, ... grouped by root cause with the fields above and no raw candidate list, one Verification Queue line per finding, and the strongest reason not to merge yet; with no candidates, `No candidates reported.` under Findings.
 
 ## 2b. pack
 

@@ -100,3 +100,4 @@ The verdict, in the requester's vocabulary, conveys the decision and why, accept
 - One sealed Round 1; one retry or replacement per reviewer; one challenge and one response per disputed unit, with new factual claims sent to verification, not debate; one audit round.
 - No voting, group chat or shared room: in a shared room the most assertive model wins, not the best evidence.
 - The council ends at the verdict. Reviewers don't implement; `start_task` carries the required action as goal and acceptance, the boundaries as owned paths and out of scope, and the verdict's decisions in context.
+- `cut` each reviewer as soon as you have no further question for it — one you may still challenge stays, the rest are seats costing money to sit idle. A review is closed by `cut`, not `accept`.

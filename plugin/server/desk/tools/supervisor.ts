@@ -53,7 +53,7 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
       issue: issue?.url,
       base,
       branch: `lane/${id.toLowerCase()}-${slugify(title, 24)}`,
-      detourOf: str(args.detourOf) || undefined,
+      detourOf: str(args.detourOf).trim().toUpperCase() || undefined,
       writeSet: strs(args.writeSet),
       contracts: strs(args.contracts),
       opener: caller.id,
@@ -87,6 +87,10 @@ export const openLane: Tool = async (desk, caller, args) => {
   // Lead with it, and its commits would land on this lane's branch. So the desk takes a copy for it
   // rather than refusing the lane, and isolate stays for a copy asked for when nothing is in the way.
   const ownCopy = args.isolate === true || open.some((lane) => !lane.slot);
+  const detourOf = str(args.detourOf);
+  // A detour that names nothing real is a lane nobody is waiting on, and the letter back out of it
+  // would have nowhere to go.
+  if (detourOf && !open.some((lane) => lane.id === detourOf.trim().toUpperCase())) return no(`There is no open lane ${detourOf} for this one to clear the way for.`);
   const serial = open.length > 0 ? serialPaths(await trackedFiles(project.root), config.serialOnly) : [];
   const problem = scopeProblem(serial, open, strs(args.writeSet), strs(args.contracts));
   if (problem) return no(problem);
@@ -164,6 +168,10 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
   );
   const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base }, writers);
   if (branch) kept.push(branch);
+  if (lane.detourOf) {
+    const waiting = loadLedger(project.state).lanes[lane.detourOf];
+    if (waiting?.status === "open" && waiting.lead) await ctx.post(waiting.lead, `detour:${lane.id}:${Date.now()}`, letters.detourLanded(lane, waiting, landing));
+  }
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason), writers });
   const copy =
     writers.length > 0
