@@ -39,7 +39,10 @@ export class TeamSource {
   }
 
   record(project: Project): void {
-    if (this.recorded.has(project.slug)) return;
+    // The Set is a way of not writing the same file every turn, not proof that the file is there: a
+    // project detached in this same session left the record behind and the next attach wrote nothing,
+    // reported success, and opened a screen for a project no handler could find.
+    if (this.recorded.has(project.slug) && existsSync(join(project.state, "meta.json"))) return;
     try {
       mkdirSync(project.state, { recursive: true });
       writeJson(join(project.state, "meta.json"), { root: project.root, slug: project.slug });
@@ -47,6 +50,11 @@ export class TeamSource {
     } catch (error) {
       console.error("seatworks-v2: could not record the project:", error);
     }
+  }
+
+  /** A project that is no longer on record: the next attach has to write it again. */
+  forget(slug: string): void {
+    this.recorded.delete(slug);
   }
 
   known(): Project[] {

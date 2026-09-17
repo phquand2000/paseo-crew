@@ -199,6 +199,42 @@ test("a server pasted into the settings reaches the seats, and a shipped one can
   assert.match(team.roles.lead.rules, /Look things up in the notes\./);
 });
 
+test("a project detached in this session can be attached again, and setting one up twice keeps what it holds", async () => {
+  const { call, runtime } = served();
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "sw2-again-")));
+  const added = await call("seatworks.projects.add", { root });
+  assert.equal(typeof added.slug, "string");
+
+  // What the owner set up: a rule every seat is told, and a pasted server with its token.
+  const read = await call("seatworks.settings.read", { project: added.slug });
+  const saved = await call("seatworks.settings.write", {
+    project: added.slug,
+    revision: read.revision,
+    values: { rules: "Never touch the release branch.", mcp: { docs: { enabled: true, connect: { type: "http", url: "https://x", headers: { Authorization: "Bearer SECRET" } } } } },
+  });
+  assert.equal(saved.status, "saved", saved.error);
+
+  // Setting the same repository up again writes the whole layer, so the screen folds its draft into
+  // what is already there; this asserts the desk's half — the layer it reads back is still complete.
+  const again = await call("seatworks.projects.add", { root });
+  assert.equal(again.slug, added.slug, "the same repository is the same project");
+  const still = await call("seatworks.settings.read", { project: added.slug });
+  assert.equal(still.values.rules, "Never touch the release branch.");
+  assert.equal(still.values.mcp.docs.connect.headers.Authorization, "Bearer SECRET");
+
+  // Detach, then add it again in the same daemon: the record was kept in memory and the second add
+  // wrote nothing, reported success, and left every slug-addressed screen answering "never seen".
+  assert.deepEqual(await call("seatworks.projects.remove", { project: added.slug }), { removed: added.slug });
+  const back = await call("seatworks.projects.add", { root });
+  assert.equal(back.slug, added.slug);
+  assert.ok(
+    (await call("seatworks.projects.list", {})).some((entry: { slug: string }) => entry.slug === added.slug),
+    "an attach that reports a slug has to be an attach the rest of the plugin can find",
+  );
+  assert.equal((await call("seatworks.settings.read", { project: added.slug })).status, "ready");
+  runtime.dispose();
+});
+
 test("the setup screen can walk this machine's folders to find a repository", async () => {
   const { call } = served();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-browse-")));

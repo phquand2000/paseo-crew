@@ -12,6 +12,7 @@ type Props = {
   open: boolean;
   catalog: Catalog;
   available: PaseoProject[];
+  attached: string[];
   theme: PluginTheme;
   disabled: boolean;
   onOpenChange(open: boolean): void;
@@ -26,7 +27,7 @@ const STEPS = [
   { id: "check", label: "Check" },
 ];
 
-export function SetupDialog({ open, catalog, available, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
+export function SetupDialog({ open, catalog, available, attached, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
   const [step, setStep] = useState(0);
   const [root, setRootPath] = useState("");
   const [draft, setDraft] = useState<Layer>({});
@@ -99,7 +100,13 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
                 <SettingsCard>
                   <SettingsAction
                     label={browsing.repository ? "Use this folder" : "Use it anyway"}
-                    hint={browsing.repository ? "A git repository." : "Seatworks will register it as its own project."}
+                    hint={
+                      attached.includes(browsing.path)
+                        ? "Already set up. Going on from here changes the agents; everything else it holds is kept."
+                        : browsing.repository
+                          ? "A git repository."
+                          : "Seatworks will register it as its own project."
+                    }
                     actionLabel="Use"
                     disabled={disabled}
                     onPress={() => {
@@ -191,6 +198,7 @@ export function SetupDialog({ open, catalog, available, theme, disabled, onOpenC
               />
             ))}
             <SettingsRow label="MCP servers" hint="Left as they are. Set them per project in the MCP tab." />
+            {attached.includes(path) ? <SettingsRow label="This project is already set up" hint="Its rules, its servers and its attention stay as they are; only the agents above change." /> : null}
           </SettingsCard>
         ) : null}
 

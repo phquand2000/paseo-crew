@@ -204,6 +204,9 @@ export class SettingsControl implements Control {
     if (!path || !existsSync(path) || !statSync(path).isDirectory()) return { error: `${path || "That path"} is not a directory on this machine.` };
     const project = projectOf(path);
     this.deps.source.record(project);
+    // record() only logs what went wrong, and an attach that answers with a slug the rest of the
+    // plugin cannot find leaves every screen for it dead.
+    if (!this.deps.source.named(project.slug)) return { error: `${project.root} could not be put on record; see the daemon log.` };
     return { slug: project.slug, root: project.root };
   }
 
@@ -269,6 +272,7 @@ export class SettingsControl implements Control {
     try {
       if (readdirSync(project.state).length === 0) rmSync(project.state, { recursive: true, force: true });
     } catch {}
+    this.deps.source.forget(slug);
     this.deps.seating.forget();
     return { removed: slug };
   }

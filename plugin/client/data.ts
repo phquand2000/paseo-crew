@@ -199,7 +199,15 @@ export function useSeatworks(project?: string) {
         }
         if (Object.keys(values).length > 0) {
           const read = await latest.current.settings({ project: added.slug });
-          const written = await latest.current.write({ project: added.slug, revision: read.revision, values });
+          if (read.status !== "ready") {
+            setSaveError(read.error);
+            return added.slug;
+          }
+          // A write is the whole layer, so what the dialog collected is folded into what the project
+          // already holds. Sending the draft on its own erased the rules, the pasted servers with
+          // their tokens and the attention tuning of a project that turned out to be attached already.
+          const merged = Object.entries(values.roles ?? {}).reduce((into, [role, choice]) => setRole(into, role, choice), read.values);
+          const written = await latest.current.write({ project: added.slug, revision: read.revision, values: merged });
           if (written.status !== "saved") setSaveError(written.error);
         }
         return added.slug;

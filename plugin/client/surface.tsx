@@ -83,6 +83,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
       open={dialog}
       catalog={data.catalog}
       available={data.candidates}
+      attached={data.projects.map((entry) => entry.root)}
       theme={theme}
       disabled={saving}
       onOpenChange={setDialog}
