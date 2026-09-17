@@ -37,11 +37,29 @@ function lookOf(handle: Handle): SeatLook {
 export function seatsOn(bound: Bound): Seats {
   const ref = (id: string): Handle => reach(bound).agents.ref(id) as unknown as Handle;
   return {
+    /**
+     * Every seat that is open, paged the way the workspaces beside it are paged.
+     *
+     * An unpaged read is capped by the daemon and sorted by last activity, and this list is read as
+     * the whole roster: a seat missing from it is taken as gone, its task is marked stalled, its Lead
+     * is told its Peer was closed, and a working copy it is still writing in is torn down. Past the
+     * cap the seats that fall off are the quietest ones, which is exactly a Peer thinking.
+     */
     async open(): Promise<SeatView[]> {
       const paseo = bound();
       if (!paseo) return [];
-      const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
-      return entries.map((entry) => entry.agent as unknown as SeatView).filter((seat) => !seat.archivedAt);
+      const found: SeatView[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page++) {
+        const result = await paseo.agents.list({ filter: { includeArchived: false }, page: cursor ? { limit: 200, cursor } : { limit: 200 } });
+        for (const entry of result.entries) {
+          const seat = entry.agent as unknown as SeatView;
+          if (!seat.archivedAt) found.push(seat);
+        }
+        if (!result.pageInfo?.hasMore || !result.pageInfo.nextCursor) break;
+        cursor = result.pageInfo.nextCursor;
+      }
+      return found;
     },
     async look(id: string): Promise<SeatLook> {
       const handle = ref(id);

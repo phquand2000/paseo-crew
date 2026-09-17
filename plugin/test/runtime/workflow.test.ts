@@ -53,8 +53,17 @@ function fakePaseo() {
   const paseo = {
     agents: {
       ref,
-      async list() {
-        return { entries: [...agents.values()].map((agent) => ({ agent: { ...agent, pendingPermissions: [] } })) };
+      // The daemon caps a page at 200 rows whether or not one was asked for, and reports the rest
+      // through pageInfo. A fake that answers everything cannot show what reading one page costs.
+      async list(options?: { page?: { limit?: number; cursor?: string } }) {
+        const all = [...agents.values()].map((agent) => ({ agent: { ...agent, pendingPermissions: [] } }));
+        const from = Number(options?.page?.cursor ?? 0);
+        const limit = options?.page?.limit ?? 200;
+        const next = from + limit;
+        return {
+          entries: all.slice(from, next),
+          pageInfo: { hasMore: next < all.length, nextCursor: next < all.length ? String(next) : null, prevCursor: null },
+        };
       },
     },
     workspaces: {
@@ -344,6 +353,26 @@ test("asks reach the level above, answers come back, and a silent Peer is nudged
   h.runtime.dispose();
 });
 
+test("a working Peer past the first page of agents is not read as gone", async () => {
+  const h = harness("outbox-paged.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  // A long-lived daemon: plenty of other agents, more recently active than the Peer about to start.
+  for (let index = 0; index < 205; index++) h.add("sw2-supervisor-claude/claude-opus-5", h.root, `other-${index}`);
+
+  await h.call(sup, "supervisor", "open_lane", { title: "Busy machine", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  assert.equal(h.agents.size > 200, true, "the seats this lane needs are past the first page");
+
+  await h.tick(Date.now());
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "a seat the desk cannot see on one page is not a seat that is gone");
+  await h.idle(lane.lead!);
+  assert.doesNotMatch(h.agents.get(lane.lead!)!.sent.join("\n"), /was closed or archived/, "and its Lead is not told a working Peer was closed");
+  assert.equal(task.peer !== undefined, true);
+  h.runtime.dispose();
+});
+
 test("a Peer that asked is not stalled on its next quiet turn, and a repeated rework is not called sent", async () => {
   const h = harness("outbox-silent.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -361,8 +390,10 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
   assert.equal(h.ledger().tasks["L1-T1"]!.silent, 1);
   assert.match(h.agents.get(peer)!.sent.at(-1)!, /without calling done or ask/);
 
-  // Turn two: it hits a question and asks. That is the opposite of silence.
+  // Turn two: it hits a question and asks. That is the opposite of silence. (Real turns are seconds
+  // apart; what the desk heard "this turn" is measured in milliseconds, so the test has to move.)
   h.runtime.outbox.turnEnded(peer);
+  await new Promise((resolve) => setTimeout(resolve, 3));
   h.beginTurn(peer);
   assert.equal((await h.call(peer, "peer", "ask", { question: "Round half up or down?", tried: "read the spec" })).ok, true);
   await h.endTurn(peer, "asked and waiting");
@@ -370,6 +401,7 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
 
   // Turn three: applying the answer, quiet again. One quiet turn is a nudge, not a stall.
   h.runtime.outbox.turnEnded(peer);
+  await new Promise((resolve) => setTimeout(resolve, 3));
   h.beginTurn(peer);
   await h.endTurn(peer, "applying it");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "a Peer that asked in between has not gone silent twice");
@@ -1068,6 +1100,34 @@ test("a review hands back a verdict and its findings, and the Lead is told both"
   const toLead = h.agents.get(lane.lead!)!.sent.join("\n");
   assert.match(toLead, /Verdict: accept/);
   assert.match(toLead, /banker's rounding would be safer/, "the review itself reaches the Lead rather than being dropped");
+});
+
+test("a copy a reviewer is reading is not taken away when the task it reviews is accepted", async () => {
+  const h = harness("outbox-reviewshare.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Reviewed", outcome: "a changes", acceptance: ["a"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "A", goal: "g", acceptance: ["a"], owned: ["a.txt"], ...scope, parallel: true });
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "a.txt", "A\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(task.peer!)!.status = "idle";
+
+  // The documented way to review a task's commits: it reads them in that task's own working copy.
+  assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Is this right at the boundary?" })).ok, true);
+  const review = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review")!;
+  assert.equal(review.slot, task.slot, "the ledger says which copy the reviewer is living in");
+
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.equal(existsSync(review.worktree!), true, "the reviewer is mid-turn, and its verdict is what the Lead was told to wait for");
+
+  h.agents.get(review.peer!)!.status = "idle";
+  await h.endTurn(review.peer!, "verdict sent");
+  assert.equal(existsSync(review.worktree!), false, "once it stops, the copy goes as it always did");
+  h.runtime.dispose();
 });
 
 test("a review of a parallel task whose copy went back is pointed at the merge that holds the change", async () => {

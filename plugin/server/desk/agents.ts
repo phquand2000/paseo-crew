@@ -1,7 +1,7 @@
 import { type RoleSpec, providerId } from "../catalog/kit.ts";
 import type { Workspaces } from "../core/ports.ts";
 import type { DeskContext } from "./context.ts";
-import type { Slot, Task } from "./ledger.ts";
+import { type Slot, type Task, loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import type { Roster } from "./roster.ts";
 import type { Slots } from "./slots.ts";
@@ -72,7 +72,14 @@ export class Agents {
   async retire(project: Project, task: Task, into?: string): Promise<string | undefined> {
     await this.roster.archive(task.peer);
     if (task.kind !== "code" || task.mode !== "parallel") return undefined;
-    const writing = task.peer && this.roster.pendingArchive.has(task.peer) ? [task.peer] : [];
+    // Everyone the ledger puts in that copy, not only this task's own Peer: a review of this task
+    // reads it from the same checkout, and taking the directory away under a running reviewer loses
+    // the verdict its Lead was told to wait for.
+    const sharing = task.slot
+      ? Object.values(loadLedger(project.state).tasks).filter((other) => other.id !== task.id && other.slot === task.slot && other.status === "running")
+      : [];
+    for (const other of sharing) await this.roster.archive(other.peer);
+    const writing = [task.peer, ...sharing.map((other) => other.peer)].filter((id): id is string => typeof id === "string" && this.roster.pendingArchive.has(id));
     return this.slots.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
   }
 }

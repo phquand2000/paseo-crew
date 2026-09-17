@@ -202,6 +202,9 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
       outOfScope: [],
       context: lane.branch,
       worktree: slot.path,
+      // Which copy, not just which path: the teardown asks the ledger who is in a copy before it
+      // takes it away, and a reviewer reading a parallel task's own copy is in there too.
+      slot: slot.id,
       status: "running",
       openedAt: now,
       updatedAt: now,
@@ -295,6 +298,7 @@ export const rework: Tool = async ({ ctx, roster }, caller, args) => {
     if (holder) return `${holder.id} holds the lane's working copy; waking the Peer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
     task.status = "rework";
     task.silent = 0;
+    task.reworks = (task.reworks ?? 0) + 1;
     task.updatedAt = Date.now();
     return { ...task };
   });
@@ -304,7 +308,7 @@ export const rework: Tool = async ({ ctx, roster }, caller, args) => {
   if (seat.archivedAt) return no(`The Peer on ${result.id} is gone; cut the task and start a new one.`);
   // Keyed by the task's own clock, not by the words: a Lead repeating an instruction is a second
   // instruction, and keying it by its text dropped it as a duplicate while telling the Lead it went.
-  const posted = await ctx.post(result.peer, `rework:${result.id}:${result.updatedAt}`, letters.rework(text));
+  const posted = await ctx.post(result.peer, `rework:${result.id}:${result.reworks}`, letters.rework(text));
   return posted === "duplicate"
     ? no(`That rework was already sent to the Peer on ${result.id} and it has not ended a turn since, so this would be the same letter twice. Wait for its hand-back, or cut it.`)
     : ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);

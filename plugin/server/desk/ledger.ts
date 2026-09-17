@@ -59,6 +59,8 @@ export type Task = {
   openedAt: number;
   updatedAt: number;
   handback?: Handback;
+  /** How many times this task has been sent back, so each sending is its own event and not a repeat. */
+  reworks?: number;
   silent: number;
 };
 
