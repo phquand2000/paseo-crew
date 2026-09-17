@@ -55,7 +55,7 @@ test("ids count per ledger and per lane, and titles become branch slugs", () => 
 test("what a Peer and a Lead read carries none of the words hidden from them", () => {
   const peerText = [letters.brief(task, lane), letters.rework("fix it"), letters.cut("wrong"), letters.nudge("done"), letters.message("your lead", "hi"), letters.reviewBrief({ ...task, id: "L1-R2", kind: "review" }, task, "Is rounding right?", lane.branch)].join("\n");
   for (const word of ["paseo", "supervisor", "watcher", "seat"]) assert.equal(new RegExp(`\\b${word}\\b`, "i").test(peerText), false, word);
-  const leadText = [letters.directive(lane), letters.conflict(task, ["a.js"], lane.branch), letters.stalled(task, "bye"), letters.copied(task, "x")].join("\n");
+  const leadText = [letters.directive(lane), letters.conflict(task, ["a.js"], lane.branch), letters.stalled(task, "bye"), letters.reconciled(lane, task, "agent-9", "stop using the old client")].join("\n");
   for (const word of ["supervisor", "watcher"]) assert.equal(new RegExp(`\\b${word}\\b`, "i").test(leadText), false, word);
 });
 

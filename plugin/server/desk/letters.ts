@@ -106,8 +106,25 @@ export const letters = {
     return [`MESSAGE from ${from}`, "", text].join("\n");
   },
 
-  copied(task: Task, text: string): string {
-    return [`COPY: the owner messaged your Peer on ${task.id} directly`, "", text].join("\n");
+  /**
+   * The Supervisor may reach a Peer directly when going through the Lead is too slow or not enough,
+   * but it may never run a chain the Lead cannot see. This is the consistency mechanism: it carries
+   * the five things a Lead needs to put its picture of the room right again.
+   */
+  reconciled(lane: Lane, task: Task, peer: string, text: string): string {
+    return [
+      `RECONCILE ${lane.id}: the owner reached your Peer on ${task.id} directly.`,
+      "",
+      "What reached them:",
+      clip(text, 1500),
+      "",
+      `Current intent: ${lane.outcome}`,
+      `Ownership: ${task.id} (${task.title}) is still owned by ${peer}, on ${lane.branch}. The lane is still yours.`,
+      "Topology: unchanged. No seat was started, moved or put away.",
+      `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
+      "",
+      "If this changes what you were going to do, say so in your next report.",
+    ].join("\n");
   },
 
   merged(task: Task, counts: Counts, outside: string[], gate: string): string {

@@ -646,3 +646,33 @@ test("two supervising seats hold one project, and each lane's mail goes to the s
   assert.doesNotMatch(h.agents.get(architecture)!.sent.join("\n"), /permissions done/, "one supervising seat does not read another's lane");
   assert.match(h.agents.get(safety)!.sent.join("\n"), /permissions done/);
 });
+
+test("reaching a Peer directly tells its Lead what reached it, and is refused when there is no Lead to tell", async () => {
+  const h = harness("outbox-reconcile.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Pricing", outcome: "discounts round correctly", acceptance: ["a"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+
+  const reached = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "Use banker's rounding, not half-up." });
+  assert.equal(reached.ok, true, reached.text);
+  await h.idle(task.peer!);
+  await h.idle(lane.lead!);
+  assert.match(h.agents.get(task.peer!)!.sent.join("\n"), /banker's rounding/);
+
+  // The Lead is not merely copied: it is given back the five things it needs to hold the room's state.
+  const toLead = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(toLead, /RECONCILE L1/);
+  assert.match(toLead, /banker's rounding/, "what reached the Peer");
+  assert.match(toLead, /Current intent: discounts round correctly/);
+  assert.match(toLead, /Ownership: L1-T1 .* is still owned by/);
+  assert.match(toLead, /Topology: unchanged/);
+  assert.match(toLead, /Integration and acceptance: unchanged/);
+
+  // With no Lead to reconcile to, the intervention is refused rather than run behind its back.
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1" });
+  const orphaned = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "One more thing." });
+  assert.equal(orphaned.ok, false);
+  assert.match(orphaned.text, /no running Lead/);
+});

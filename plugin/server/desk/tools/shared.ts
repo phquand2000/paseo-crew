@@ -21,9 +21,17 @@ export const message: Tool = async ({ ctx }, caller, args) => {
     }
     const task = findTask(ledger, to);
     if (task?.peer) {
+      const laneOf = ledger.lanes[task.lane];
+      const lead = laneOf?.status === "open" ? laneOf.lead : undefined;
+      if (!laneOf || !lead) {
+        return no(
+          `${task.id} has no running Lead to tell. Reaching its Peer without one would leave nobody holding the room's state, which is the one thing this must not do. Reopen the lane's Lead, or say it to the lane.`,
+        );
+      }
+      // The Lead is told first, so it is never the last to know what reached its own Peer.
+      await ctx.post(lead, `reconcile:${key}`, letters.reconciled(laneOf, task, task.peer, text));
       await ctx.post(task.peer, key, letters.message("the project owner", text));
-      await ctx.post(ledger.lanes[task.lane]?.lead, `copy:${key}`, letters.copied(task, text));
-      return ok(`Queued for the Peer on ${task.id}; its Lead gets a copy.`);
+      return ok(`Queued for the Peer on ${task.id}. Its Lead has been told what reached it and what is still its own.`);
     }
     return no(`There is no lane or task ${to}.`);
   }
