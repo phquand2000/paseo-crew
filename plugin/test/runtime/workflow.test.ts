@@ -617,6 +617,32 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
 });
 
+test("a red gate the desk cannot undo safely leaves the merge in place and tells the Lead where it stands", async () => {
+  const h = harness("outbox-gateundo.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  // The gate writes in the lane's copy before it fails, standing in for the lane's own writer
+  // getting on with something while a long gate runs.
+  await h.call(sup, "supervisor", "set_project", { gate: "echo dirt >> a.txt; exit 1", gateOn: "task" });
+  await h.call(sup, "supervisor", "open_lane", { title: "Bee", outcome: "b.txt changes", acceptance: ["b"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  const started = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true });
+  assert.equal(started.ok, true, started.text);
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "b.txt", "B\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+  h.agents.get(task.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "failed");
+  assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/, "reset --hard would have taken the work in the copy with it, so the merge stays");
+  await h.idle(lane.lead!);
+  const told = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(told, /is merged into .* and stays there/);
+  assert.doesNotMatch(told, /The lane branch is unchanged/, "the Lead cannot be told the branch is unchanged when the merge is on it");
+  h.runtime.dispose();
+});
+
 test("a task whose honest answer is that nothing needed changing can be accepted, not only cut", async () => {
   const h = harness("outbox-nochange.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

@@ -144,8 +144,8 @@ export const letters = {
     return lines.join("\n");
   },
 
-  mergeFailed(task: Task, reason: string, tail: string, logFile?: string): string {
-    const lines = [`MERGE FAILED ${task.id} (${task.title}): ${reason}`, "The lane branch is unchanged."];
+  mergeFailed(task: Task, reason: string, tail: string, logFile?: string, state = "The lane branch is unchanged."): string {
+    const lines = [`MERGE FAILED ${task.id} (${task.title}): ${reason}`, state];
     if (tail) lines.push("", "```", tail, "```");
     if (logFile) lines.push("", `Full log: ${logFile}`);
     return lines.join("\n");

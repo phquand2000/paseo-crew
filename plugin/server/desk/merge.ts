@@ -1,4 +1,4 @@
-import { commitsAhead, diffCounts, isPristine, mergeBranch, outsideOwned, resetHard } from "../core/git.ts";
+import { commitsAhead, diffCounts, headSha, isClean, isPristine, mergeBranch, outsideOwned, resetHard } from "../core/git.ts";
 import type { Agents } from "./agents.ts";
 import { type DeskContext, errorText } from "./context.ts";
 import { gateNote, taskGate } from "./gates.ts";
@@ -69,8 +69,16 @@ export class MergeQueue {
     const run = await taskGate(project, taskId, cwd);
     if (run) {
       if (!run.ok) {
-        await resetHard(cwd, merged.before);
-        return finish("failed", letters.mergeFailed(task, run.reason, run.tail, run.logFile));
+        // The gate ran for as long as it took, in a copy the lane's own writer shares. If that
+        // writer has committed or touched a tracked file since, reset --hard takes its work as well,
+        // so what cannot be undone safely is left where it is and the Lead is told so rather than
+        // told the branch is unchanged.
+        const settled = (await headSha(cwd)) === merged.after && (await isClean(cwd));
+        const undone = settled && (await resetHard(cwd, merged.before));
+        const state = `${task.id} is merged into ${lane.branch} and stays there: ${
+          settled ? "the desk could not undo the merge" : "the lane's working copy has moved on since, and undoing the merge would take that work with it"
+        }. Undo it yourself, or send rework.`;
+        return finish("failed", letters.mergeFailed(task, run.reason, run.tail, run.logFile, undone ? undefined : state));
       }
       gate = run.note;
     }

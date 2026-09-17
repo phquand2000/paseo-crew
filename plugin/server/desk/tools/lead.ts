@@ -249,7 +249,8 @@ export const rework: Tool = async ({ ctx, roster }, caller, args) => {
 
 export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
   const { project } = caller;
-  const found = laneTask(loadLedger(project.state), caller, str(args.task));
+  const ledger = loadLedger(project.state);
+  const found = laneTask(ledger, caller, str(args.task));
   if (typeof found === "string") return no(found);
   const { lane, task } = found;
   if (task.status === "merged") return no(`${task.id} is already accepted.`);
@@ -260,9 +261,16 @@ export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
   await roster.archive(task.peer, true);
   let undone = "";
   if (task.kind === "code" && task.mode === "lane" && task.startSha && lane.worktree) {
-    await resetHard(lane.worktree, task.startSha);
-    await git(lane.worktree, ["clean", "-fd"]);
-    undone = ` The lane's working copy is back at ${task.startSha.slice(0, 7)}.`;
+    // Going back to where the task started would also drop whatever landed in the lane after it
+    // started, and the Peers of those tasks were told their work was in.
+    const since = Object.values(ledger.tasks).filter((other) => other.lane === lane.id && other.id !== task.id && other.status === "merged" && other.updatedAt > task.openedAt);
+    if (since.length > 0) {
+      undone = ` Its writing is left in the lane's working copy: ${since.map((other) => other.id).join(", ")} landed there after ${task.id} started, and going back to ${task.startSha.slice(0, 7)} would take that too. Undo what you want gone.`;
+    } else {
+      await resetHard(lane.worktree, task.startSha);
+      await git(lane.worktree, ["clean", "-fd"]);
+      undone = ` The lane's working copy is back at ${task.startSha.slice(0, 7)}.`;
+    }
   }
   const kept = task.kind === "code" && task.mode === "parallel" ? await slots.release(project, task.slot, task.branch) : undefined;
   ctx.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason), kept });
