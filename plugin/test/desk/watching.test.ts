@@ -29,7 +29,9 @@ test("with watching switched off, a fault is still recorded and reaches nobody",
   const rules = { ...WATCH_RULES, watch: false };
   const verdict = judge(emptyWatching(), raised({ label: "destructive" }), NOW, rules);
   assert.equal(verdict.urgency, "log", "even the one label that always pages stays quiet when the owner has switched watching off");
-  assert.deepEqual(verdict.watching, emptyWatching());
+  assert.equal(verdict.strike?.label, "destructive", "and it is written down, because the report it is promised has to be able to carry it");
+  assert.equal(Object.keys(verdict.watching.strikes).length, 1);
+  assert.deepEqual(verdict.watching.pages, [], "nothing was spent interrupting anyone");
 });
 
 test("one suspicious ending waits for the digest rather than interrupting", () => {

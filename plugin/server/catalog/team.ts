@@ -124,6 +124,11 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     if (next.thinking) choice.thinking = next.thinking;
     if (next.rules?.trim()) ownRules.push(next.rules.trim());
   }
+  if (role.tools && !kit.toolSets[role.tools]) {
+    errors.push(
+      `The ${role.label} is given the tool set ${role.tools}, which this kit does not have. A seat with no tools starts, offers none and can never answer; the sets it can be given are ${Object.keys(kit.toolSets).sort().join(", ") || "none"}.`,
+    );
+  }
   const unknownTools = (role.paseoTools?.allow ?? []).filter((tool) => !PASEO_TOOLS.includes(tool));
   if (unknownTools.length > 0) {
     errors.push(

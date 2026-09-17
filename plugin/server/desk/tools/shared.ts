@@ -6,7 +6,15 @@ import { loadConfig } from "../project.ts";
 import type { Tool } from "../services.ts";
 import { statusText } from "../status.ts";
 
-export const message: Tool = async ({ ctx }, caller, args) => {
+async function alive(roster: { look(id: string): Promise<{ archivedAt?: string | null }> }, agentId: string): Promise<boolean> {
+  try {
+    return !(await roster.look(agentId)).archivedAt;
+  } catch {
+    return false;
+  }
+}
+
+export const message: Tool = async ({ ctx, roster }, caller, args) => {
   const to = str(args.to);
   const text = str(args.text);
   if (!to || !text) return no("message needs to and text.");
@@ -22,7 +30,9 @@ export const message: Tool = async ({ ctx }, caller, args) => {
     const task = findTask(ledger, to);
     if (task?.peer) {
       const laneOf = ledger.lanes[task.lane];
-      const lead = laneOf?.status === "open" ? laneOf.lead : undefined;
+      const onLane = laneOf?.status === "open" ? laneOf.lead : undefined;
+      // The ledger says who the Lead is; only Paseo says whether it is still there to be told.
+      const lead = onLane && (await alive(roster, onLane)) ? onLane : undefined;
       if (!laneOf || !lead) {
         return no(
           `${task.id} has no running Lead to tell. Reaching its Peer without one would leave nobody holding the room's state, which is the one thing this must not do. Reopen the lane's Lead, or say it to the lane.`,

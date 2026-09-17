@@ -122,3 +122,11 @@ test("a Paseo tool the kit does not know is reported, because allowing one denie
   const fine = resolveTeam({ ...kit, roles: kit.roles.map((role) => (role.role === "lead" ? { ...role, paseoTools: { allow: ["get_agent_activity"] } } : role)) });
   assert.deepEqual(fine.errors, []);
 });
+
+test("a seat pointed at a tool set the kit does not have is reported, not seated mute", () => {
+  // An arrangement written outside the package names its own tool sets, and the sets still come from
+  // the package. A name that misses leaves a seat that boots, offers nothing and can never answer.
+  const wrong = resolveTeam({ ...kit, roles: kit.roles.map((role) => (role.role === "peer" ? { ...role, tools: "worker" } : role)) });
+  assert.match(wrong.errors.join("\n"), /Peer is given the tool set worker, which this kit does not have/);
+  assert.deepEqual(resolveTeam(kit).errors, []);
+});

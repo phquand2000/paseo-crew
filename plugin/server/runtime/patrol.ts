@@ -76,7 +76,7 @@ export class Patrol {
 
   private async idleLanes(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
     const { desk, turns } = this.deps;
-    const { leadIdleMinutes } = this.deps.source.teamFor().attention;
+    const { leadIdleMinutes } = this.deps.source.teamFor(project).attention;
     for (const lane of Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead)) {
       const lead = seats.get(lane.lead!);
       if (!lead || lead.status !== "idle") continue;
@@ -103,7 +103,7 @@ export class Patrol {
 
   private async dueAsks(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
     const { desk } = this.deps;
-    const { askRemindMinutes, maxReminders } = this.deps.source.teamFor().attention;
+    const { askRemindMinutes, maxReminders } = this.deps.source.teamFor(project).attention;
     const due = Object.values(ledger.asks).filter(
       (ask) => ask.status === "open" && seats.get(ask.to)?.status === "idle" && now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000,
     );
@@ -128,7 +128,7 @@ export class Patrol {
 
   private async sendDigest(project: Project, now: number): Promise<void> {
     const { desk } = this.deps;
-    const { digestMinutes } = this.deps.source.teamFor().attention;
+    const { digestMinutes } = this.deps.source.teamFor(project).attention;
     try {
       const watching = loadWatching(project.state);
       const waiting = pending(watching);

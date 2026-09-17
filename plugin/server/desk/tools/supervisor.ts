@@ -101,7 +101,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   }
   try {
     const leadRole = roleThatCan(ctx.kit, "lead");
-    if (!leadRole) return fail("No role in this kit can lead a lane.");
+    if (!leadRole) return fail("No role in this kit can lead a lane.", slot.id);
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
@@ -169,11 +169,11 @@ export const setProject: Tool = async ({ ctx }, caller, args) => {
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
     gateOn: args.gateOn === "task" ? "task" : args.gateOn === "lane" ? "lane" : config.gateOn,
     serialOnly: Array.isArray(args.serialOnly) ? strs(args.serialOnly) : config.serialOnly,
-    docs: Array.isArray(args.docs) ? asked : config.docs,
+    docs: args.docs === undefined ? config.docs.filter((name) => shelf[name]) : asked,
   };
   saveConfig(caller.project.state, next);
   // A page nobody asked for is never written, and a page already written is never written over.
-  const placed = next.docs.map((name) => ({ name, ...placeDoc(caller.project.state, shelf[name]!) }));
+  const placed = next.docs.flatMap((name) => (shelf[name] ? [{ name, ...placeDoc(caller.project.state, shelf[name]) }] : []));
   const started = placed.filter((entry) => entry.written).map((entry) => `${entry.name} (${entry.file})`);
   const kept = Object.keys(shelf).filter((name) => !next.docs.includes(name));
   const pages =

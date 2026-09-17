@@ -56,7 +56,8 @@ export class Roster {
 
   /** `now` is for an owner switching watching off: an instruction, rather than the work running out. */
   async retireWatcher(project: Project, known?: Iterable<SeatView>, now = false): Promise<void> {
-    const seats = known ?? (await this.seats.open());
+    // Materialised because callers hand over a Map iterator, and this reads the seats twice.
+    const seats = [...(known ?? (await this.seats.open()))];
     if (!now && this.supervisorSeat(project, seats)) return;
     const seated = this.watcherSeat(project, seats);
     if (seated) await this.archive(seated);

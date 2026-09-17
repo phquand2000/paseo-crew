@@ -47,8 +47,6 @@ export function keyOf(subject: string, label: string): string {
 }
 
 export function judge(watching: Watching, raised: Raised, now: number, rules: WatchRules = WATCH_RULES): { urgency: Urgency; watching: Watching; strike?: Strike } {
-  if (rules.watch === false) return { urgency: "log", watching };
-
   const key = keyOf(raised.subject, raised.label);
   const seen = watching.strikes[key];
   const strike: Strike = {
@@ -61,6 +59,10 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
     count: (seen?.count ?? 0) + 1,
     reportedAt: seen?.reportedAt,
   };
+
+  // Off records what was seen and stops the desk deciding any of it is worth a turn. The strike is
+  // built either way, so the report the seat is promised can still carry it.
+  if (rules.watch === false) return { urgency: "log", watching: { ...watching, strikes: { ...watching.strikes, [key]: strike } }, strike };
 
   const spent = watching.pages.filter((at) => now - at < rules.windowHours * 3_600_000);
   const irreversible = rules.always.includes(raised.label);

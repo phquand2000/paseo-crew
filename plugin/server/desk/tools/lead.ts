@@ -140,9 +140,11 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   const slot: { id?: string; path: string; workspaceId?: string } | undefined =
     own ?? (lane.slot ? ledger.slots[lane.slot] : { path: lane.worktree, workspaceId: lane.workspaceId });
   if (!slot) return no("The working copy for that review is gone.");
-  // A reviewer is a worker that reviews, so the kit is asked for that rather than for a role called "reviewer".
-  const reviewRole = roleThatCan(ctx.kit, "review") ?? roleThatCan(ctx.kit, "work");
-  if (!reviewRole) return no("No role in this kit can review.");
+  // A reviewer is a worker that reviews, so the kit is asked for that rather than for a role called
+  // "reviewer". There is no falling back to a plain worker: what keeps a review read-only is that
+  // role's own settings, not a capability, so a stand-in would review with the right to rewrite.
+  const reviewRole = roleThatCan(ctx.kit, "review");
+  if (!reviewRole) return no("No role in this kit can review, so there is nobody to ask a read-only question of.");
   const review = await ctx.ledger(project, (current) => {
     const id = nextTaskId(current, current.lanes[lane.id]!, "review");
     const now = Date.now();

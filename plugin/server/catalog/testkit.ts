@@ -138,6 +138,12 @@ export function makeKit(): Kit {
     rule: "rule.md",
   });
   put(dir, "catalog/mcp/docs/rule.md", "Look library APIs up in the docs.\n");
+  // The fixture carries tool sets like the real kit, because a role names one and the kit is asked for it.
+  put(dir, "mcp/tools.json", {
+    supervisor: [{ name: "open_lane" }, { name: "answer" }, { name: "status" }],
+    lead: [{ name: "start_task" }, { name: "report" }, { name: "ask" }, { name: "status" }],
+    peer: [{ name: "done" }, { name: "ask" }],
+  });
   put(dir, "content/prompts/SUPERVISOR.md", "# Supervisor\n\nGuides live in {{guides}}; state in {{state}}.\n");
   put(dir, "content/prompts/LEAD.md", "# Lead\n\nRead {{guides}}/BRIEF.md.\n");
   put(dir, "content/prompts/PEER.md", "# Peer\n\nRead {{guides}}/BRIEF.md.\n");
