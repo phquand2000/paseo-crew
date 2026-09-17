@@ -732,3 +732,35 @@ test("switching watching off puts the Watcher away, instead of paying for one wh
   await tick();
   assert.equal(watchers().length, 1, "and seats one again when it is turned back on");
 });
+
+test("a review hands back a verdict and its findings, and the Lead is told both", async () => {
+  const h = harness("outbox-review.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  h.commit(lane.worktree!, "a.txt", "rounded\n");
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "rounded" });
+  h.agents.get(peer)!.status = "idle";
+
+  const opened = await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Is half-up right for money here?" });
+  assert.equal(opened.ok, true, opened.text);
+  const review = Object.values(h.ledger().tasks).find((task) => task.kind === "review")!;
+  const reviewer = review.peer!;
+
+  // A reviewer hands back a judgement, not work. The words it is given to do that with are its own
+  // tool set's, and they have to survive all the way to the Lead.
+  const handed = await h.call(reviewer, "reviewer", "done", {
+    verdict: "accept",
+    findings: "P3 a.txt:1 — banker's rounding would be safer at the boundary, but half-up matches the spec.",
+    checks: "Read the diff and ran the rounding cases.",
+  });
+  assert.equal(handed.ok, true, handed.text);
+  assert.equal(h.ledger().tasks[review.id]!.handback?.outcome, "accept", "an accepted review is recorded as accepted, not as changes");
+
+  await h.idle(lane.lead!);
+  const toLead = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(toLead, /Verdict: accept/);
+  assert.match(toLead, /banker's rounding would be safer/, "the review itself reaches the Lead rather than being dropped");
+});

@@ -97,7 +97,7 @@
         "work",
         "review"
       ],
-      "tools": "peer",
+      "tools": "reviewer",
       "concern": "review",
       "prompt": "prompts/REVIEWER.md",
       "skills": null,

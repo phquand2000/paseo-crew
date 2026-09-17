@@ -108,3 +108,22 @@ test("every page the kit puts on the shelf says what it owns, when to take it, a
     assert.doesNotMatch(kit.templates[name]!.body, /directory tree|architecture overview|dependency list/i, `${name} asks for something measured not to help`);
   }
 });
+
+test("the arguments the desk reads back are the ones each seat's own tool set offers it", () => {
+  const kit = loadKit(pluginRoot);
+  const tools = JSON.parse(readFileSync(join(pluginRoot, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string; inputSchema?: { properties?: Record<string, unknown> } }[]>;
+  const propsOf = (set: string, tool: string) => Object.keys(tools[set]?.find((entry) => entry.name === tool)?.inputSchema?.properties ?? {});
+
+  // A hand-back is read differently for a review than for code — worker.ts takes verdict and
+  // findings from one and outcome and summary from the other — so each seat has to be OFFERED the
+  // words its own hand-back is read with. Two roles may share a tool set; these two must not,
+  // because a reviewer hands back a judgement and a peer hands back work.
+  const setFor = (roleName: string) => kit.roles.find((role) => role.role === roleName)!.tools!;
+  for (const field of ["verdict", "findings"]) {
+    assert.ok(propsOf(setFor("reviewer"), "done").includes(field), `a reviewer is never asked for its ${field}, so the desk would read an empty one`);
+  }
+  for (const field of ["outcome", "summary"]) {
+    assert.ok(propsOf(setFor("peer"), "done").includes(field), `a peer is never asked for its ${field}`);
+  }
+  assert.notDeepEqual(propsOf(setFor("reviewer"), "done"), propsOf(setFor("peer"), "done"));
+});
