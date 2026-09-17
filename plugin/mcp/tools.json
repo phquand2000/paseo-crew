@@ -42,7 +42,7 @@
           },
           "isolate": {
             "type": "boolean",
-            "description": "Give this lane a working copy of its own instead of the project's. Leave it off for ordinary work: a lane in the project's own copy creates nothing and leaves nothing behind. Turn it on only when the project's copy is already carrying another open lane, or the Human asked for it. The copy and everything it needed are torn down when the lane closes."
+            "description": "Give this lane a working copy of its own instead of the project's. You do not need it when another lane is already in the project's copy: the desk takes one for this lane on its own, because one checkout holds one branch. Pass it when the Human asked for their own checkout back, or to keep this lane out of it. The copy and everything it needed are torn down when the lane closes."
           },
           "base": {
             "type": "string",
@@ -53,7 +53,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Paths or globs this lane will write. Required when another lane is open."
+            "description": "Paths or globs this lane will write. Not required, and worth declaring: a lane that names the same paths as an open lane is refused, which is how you find out the two are really one lane."
           },
           "contracts": {
             "type": "array",

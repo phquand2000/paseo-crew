@@ -193,10 +193,6 @@ test("a lane works serially in the project's own copy and hands it back on its b
   assert.match(h.git(h.root, "rev-parse", "--git-path", "info/exclude").trim() && readFileSync(join(h.root, ".git", "info", "exclude"), "utf-8"), /^\.idea\/$/m);
   assert.equal(h.git(slot.path, "status", "--porcelain"), "");
 
-  const second = await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", acceptance: ["y"], outOfScope: ["anything else in the repository"] });
-  assert.equal(second.ok, false);
-  assert.match(second.text, /needs writeSet/, "no count caps lanes now; a second lane in the same copy still proves it doesn't overlap, or takes a copy of its own");
-
   const unbounded = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
   assert.equal(unbounded.ok, false);
   assert.match(unbounded.text, /out of scope/);
@@ -297,14 +293,12 @@ test("parallel work needs independent write sets and merges back from its own wo
   assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "B\n");
   assert.deepEqual(Object.keys(h.ledger().slots), [], "the copy a parallel task opened is torn down once its work is in");
 
-  const noScope = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"] });
-  assert.equal(noScope.ok, false);
   const clash = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
   assert.equal(clash.ok, false);
-  assert.match(clash.text, /overlaps lane L1/);
+  assert.match(clash.text, /overlaps lane L1/, "two lanes that declared the same file are one lane, whichever copy each of them writes in");
   const fine = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["c.txt"] });
   assert.equal(fine.ok, true, fine.text);
-  assert.equal(h.ledger().lanes.L2!.slot, undefined, "a second lane works in the project's own copy too; only a parallel task takes one of its own");
+  assert.ok(h.ledger().lanes.L2!.slot, "L1 is writing in the project's own copy, so the next lane is given one instead of switching the branch under it");
   h.runtime.dispose();
 });
 
@@ -564,17 +558,19 @@ test("a lane that declared no write set does not lock the project to one lane: t
   const first = await h.call(sup, "supervisor", "open_lane", { title: "Authorization", outcome: "roles gate the api", acceptance: ["a"], ...scope });
   assert.equal(first.ok, true, first.text);
 
-  // Sharing the project's copy with a lane whose scope is unknown is still refused, and now says how to get out of it.
-  const sharing = await h.call(sup, "supervisor", "open_lane", { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], writeSet: ["src/auth/**"], ...scope });
-  assert.equal(sharing.ok, false);
-  assert.match(sharing.text, /isolate/, "the refusal has to name the way out, or the project is stuck on one lane");
+  // The next lane is not refused for what the first one did not declare. One checkout is one branch,
+  // so it gets a copy of its own rather than switching the branch under the first lane's Lead.
+  const next = await h.call(sup, "supervisor", "open_lane", { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], writeSet: ["src/auth/**"], ...scope });
+  assert.equal(next.ok, true, next.text);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), h.ledger().lanes.L1!.branch, "the project's own copy stays on the lane it is carrying");
 
-  // The DETOUR of the concept: a hole found mid-lane gets its own Lead. Its own working copy means there is nothing to prove about overlap.
-  const detour = await h.call(sup, "supervisor", "open_lane", { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], isolate: true, ...scope });
+  // The DETOUR of the concept: a hole found mid-lane gets its own Lead, and a copy of its own too.
+  const detour = await h.call(sup, "supervisor", "open_lane", { title: "Sessions", outcome: "sessions last a day", acceptance: ["a"], isolate: true, ...scope });
   assert.equal(detour.ok, true, detour.text);
   const lanes = h.ledger().lanes;
-  assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 2);
-  assert.notEqual(h.agents.get(lanes.L2!.lead!)!.cwd, h.agents.get(lanes.L1!.lead!)!.cwd, "the second lane runs in a working copy of its own");
+  assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 3);
+  const where = [lanes.L1!, lanes.L2!, lanes.L3!].map((lane) => h.agents.get(lane.lead!)!.cwd);
+  assert.equal(new Set(where).size, 3, "no two Leads are left writing in one checkout");
 });
 
 test("a lane closed while its Lead is still writing keeps the working copy until that turn ends", async () => {
