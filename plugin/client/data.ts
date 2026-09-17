@@ -17,14 +17,20 @@ export type Catalog = {
 export type TeamView = {
   project: string | null;
   errors: string[];
+  attention: Required<AttentionChoice>;
   rules: string;
   mcp: Record<string, { label: string; enabled: boolean; roles: string[]; settings: Record<string, Scalar>; transport: string; template: boolean; connect: Connect | null; rule: string | null }>;
   roles: Record<string, { harness: string; provider: string; model: string | null; thinking: string | null; mcp: string[]; tools: Record<string, string[]>; skills: string[]; rules: string }>;
 };
 
-export type RoleChoice = { harness?: string; model?: string; thinking?: string };
+export type AttentionChoice = {
+  tickSeconds?: number; leadIdleMinutes?: number; askRemindMinutes?: number; maxReminders?: number;
+  watchEveryClean?: number; digestMinutes?: number; watch?: boolean; strikesAt?: number;
+  pagesPerWindow?: number; windowHours?: number;
+};
+export type RoleChoice = { harness?: string; model?: string; thinking?: string; rules?: string };
 export type McpChoice = { enabled?: boolean; removed?: boolean; label?: string; connect?: Connect; roles?: string[]; tools?: Record<string, string[]>; rule?: string; settings?: Record<string, Scalar> };
-export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; flow?: { live?: boolean; everySeconds?: number } };
+export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; attention?: AttentionChoice; flow?: { live?: boolean; everySeconds?: number } };
 
 export type ProjectRow = { slug: string; root: string };
 export type PaseoProject = { name: string; root: string };
@@ -321,8 +327,12 @@ function prune<T extends object>(values: Layer, key: "roles" | "mcp", id: string
   return next;
 }
 
-export function setRole(values: Layer, role: string, choice: RoleChoice, replace = false): Layer {
-  return prune(values, "roles", role, { ...(replace ? {} : (values.roles?.[role] ?? {})), ...choice });
+export function setRole(values: Layer, role: string, choice: RoleChoice, newHarness = false): Layer {
+  const current = values.roles?.[role] ?? {};
+  // A new harness invalidates the model and the thinking level picked for the old one. It does not
+  // invalidate what this seat was told: that is the owner's writing and holds whatever runs it.
+  const base: RoleChoice = newHarness ? (current.rules ? { rules: current.rules } : {}) : current;
+  return prune(values, "roles", role, { ...base, ...choice });
 }
 
 export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
