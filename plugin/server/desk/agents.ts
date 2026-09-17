@@ -68,10 +68,11 @@ export class Agents {
     return started.id;
   }
 
-  async retire(project: Project, task: Task, dropBranch = false): Promise<string | undefined> {
+  /** `into` is the branch the task's work was to land in: its own branch goes only once it is in there. */
+  async retire(project: Project, task: Task, into?: string): Promise<string | undefined> {
     await this.roster.archive(task.peer);
     if (task.kind !== "code" || task.mode !== "parallel") return undefined;
     const writing = task.peer && this.roster.pendingArchive.has(task.peer) ? [task.peer] : [];
-    return this.slots.putAway({ project, slot: task.slot, dropBranch: dropBranch ? task.branch : undefined }, writing);
+    return this.slots.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
   }
 }

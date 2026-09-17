@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addWorktree, branchExists, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
+import { addWorktree, branchExists, commitsAhead, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -11,7 +11,7 @@ import type { Project } from "./project.ts";
 export type Holder = { lane?: string; task?: string };
 
 /** What putting a lane's copy away means: the copy itself if it had one, the project's branch if not. */
-export type Teardown = { project: Project; slot?: string; dropBranch?: string; restore?: string };
+export type Teardown = { project: Project; slot?: string; dropBranch?: string; into?: string; restore?: string };
 
 export class Slots {
   private readonly ctx: DeskContext;
@@ -85,13 +85,19 @@ export class Slots {
   }
 
   private run(teardown: Teardown): Promise<string | undefined> {
-    if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch);
+    if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch, teardown.into);
     if (teardown.restore) return this.restore(teardown.project, teardown.restore).then(() => undefined);
     return Promise.resolve(undefined);
   }
 
-  /** Returns the branch it was asked to drop and kept, because the work on it is not in anything. */
-  async release(project: Project, slotId: string | undefined, dropBranch?: string): Promise<string | undefined> {
+  /**
+   * Returns the branch it was asked to drop and kept, because the work on it is not in `into` yet.
+   *
+   * `into` is the branch the work was supposed to land in, and it has to be named: `branch -d` reads
+   * whatever is checked out where it runs, which for a lane in a copy of its own is the base branch
+   * — so a task merged into its lane would look unmerged and every landed branch would pile up.
+   */
+  async release(project: Project, slotId: string | undefined, dropBranch?: string, into?: string): Promise<string | undefined> {
     if (!slotId) return undefined;
     const slot = loadLedger(project.state).slots[slotId];
     let kept: string | undefined;
@@ -100,9 +106,13 @@ export class Slots {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
       }
-      // -d, not -D: a branch git will not delete is one holding commits nothing else has, and a cut
-      // task's commits are all the Peer leaves behind. Clutter is cheaper than deleting them.
-      if (dropBranch && (await git(project.root, ["branch", "-d", dropBranch])).code !== 0) kept = dropBranch;
+      // A branch whose commits are not in `into` holds work nothing else has, and for a cut task
+      // those commits are all the Peer leaves behind. Clutter is cheaper than deleting them.
+      if (dropBranch) {
+        const landed = Boolean(into) && (await commitsAhead(project.root, into!, dropBranch)) === 0;
+        if (landed) await git(project.root, ["branch", "-D", dropBranch]);
+        else kept = dropBranch;
+      }
       if (slot.workspaceId) {
         try {
           await this.workspaces.archive(slot.workspaceId);

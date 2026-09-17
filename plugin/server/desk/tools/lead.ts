@@ -122,7 +122,7 @@ export const startTask: Tool = async (desk, caller, args) => {
     const failed = await ctx.setTask(project, task.id, (entry) => {
       entry.status = "cut";
     });
-    if (failed && parallel) await slots.release(project, failed.slot, failed.branch);
+    if (failed && parallel) await slots.release(project, failed.slot, failed.branch, lane.branch);
     return no(`The Peer could not start: ${errorText(error)}`);
   }
 };
@@ -236,7 +236,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     entry.status = "merged";
   });
   await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
-  if (updated) await agents.retire(project, updated);
+  if (updated) await agents.retire(project, updated, lane.branch);
   ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
   return ok(
     counts.files.length === 0
@@ -291,7 +291,7 @@ export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
       undone = ` The lane's working copy is back at ${task.startSha.slice(0, 7)}.`;
     }
   }
-  const kept = task.kind === "code" && task.mode === "parallel" ? await slots.release(project, task.slot, task.branch) : undefined;
+  const kept = task.kind === "code" && task.mode === "parallel" ? await slots.release(project, task.slot, task.branch, lane.branch) : undefined;
   ctx.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason), kept });
   const branch = kept ? ` Its branch ${kept} holds commits nothing else has and is kept.` : "";
   return ok(`${task.id} is cut and its agent stopped.${undone}${branch}`);

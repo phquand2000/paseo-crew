@@ -102,7 +102,7 @@ export const openLane: Tool = async (desk, caller, args) => {
       const entry = ledger.lanes[lane.id];
       if (entry) Object.assign(entry, { status: "closed", closedAt: Date.now() });
     });
-    if (slot) await slots.release(project, slot, lane.branch);
+    if (slot) await slots.release(project, slot, lane.branch, base);
     return no(reason);
   };
   let slot: { id?: string; path: string; workspaceId?: string };
@@ -156,7 +156,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
   });
   const kept: string[] = [];
   for (const task of retired) {
-    const branch = await agents.retire(project, task, task.status !== "merged");
+    const branch = await agents.retire(project, task, lane.branch);
     if (branch) kept.push(branch);
   }
   await roster.archive(lane.lead);
