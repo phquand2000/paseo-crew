@@ -158,10 +158,10 @@ export class Runtime {
 
   private async turnEnded(event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
-    if (this.desk.pendingArchive.has(event.agent.id)) {
-      await this.desk.archive(event.agent.id, true);
-      return;
-    }
+    const archiving = this.desk.pendingArchive.has(event.agent.id);
+    if (archiving) await this.desk.archive(event.agent.id, true);
+    await this.desk.stopped(event.agent.id);
+    if (archiving) return;
     await this.turns.ended(event);
     await this.outbox.pump(event.agent.id);
   }

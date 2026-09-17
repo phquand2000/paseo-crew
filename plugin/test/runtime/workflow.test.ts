@@ -135,7 +135,14 @@ function harness(outbox: string) {
     git(cwd, "commit", "-qm", `edit ${file}`);
   };
   const ledger = () => loadLedger(project.state);
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger };
+  const endTurn = (id: string, text: string, ...calls: unknown[]) =>
+    (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
+      agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
+      turnId: `t-${id}-${Date.now()}`,
+      outcome: { kind: "completed" },
+      timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
+    });
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
@@ -243,7 +250,11 @@ test("a lane works serially in the project's own copy and hands it back on its b
   const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
   assert.equal(h.git(h.root, "show", "main:a.txt"), "one\ntwo\nthree\nfour\n");
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "closing a lane gives the project's copy back on its base branch");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lane.branch, "the Lead is mid-turn, and switching the copy under it would put its next commit on main");
+  assert.match(closed.text, /put away once/);
+  h.agents.get(lane.lead!)!.status = "idle";
+  await h.endTurn(lane.lead!, "closing up");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "once the Lead stops, the project's copy is back on its base branch");
 
   const reopened = await h.call(sup, "supervisor", "open_lane", { title: "Next", outcome: "b.txt changes", acceptance: ["z"], outOfScope: ["anything else in the repository"] });
   assert.equal(reopened.ok, true, reopened.text);
@@ -299,13 +310,7 @@ test("parallel work needs independent write sets and merges back from its own wo
 
 test("asks reach the level above, answers come back, and a silent Peer is nudged then reported", async () => {
   const h = harness("outbox-asks.json");
-  const turnEnded = (id: string, text: string) =>
-    (h.runtime as unknown as { turnEnded: (e: unknown) => Promise<void> }).turnEnded({
-      agent: { id, provider: h.agents.get(id)!.provider, cwd: h.agents.get(id)!.cwd, title: h.agents.get(id)!.title, parentAgentId: null, workspaceId: null },
-      turnId: `t-${id}-${Date.now()}`,
-      outcome: { kind: "completed" },
-      timeline: [{ type: "user_message", text: "go" }, { type: "assistant_message", text }],
-    });
+  const turnEnded = h.endTurn;
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["y"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
@@ -421,13 +426,7 @@ test("a project with work running gets one resident Watcher seat, and only one",
 
 test("an ending reaches the Watcher seat as fenced mail", async () => {
   const h = harness("outbox-ending.json");
-  const turnEnded = (id: string, text: string, ...calls: unknown[]) =>
-    (h.runtime as unknown as { turnEnded: (e: unknown) => Promise<void> }).turnEnded({
-      agent: { id, provider: h.agents.get(id)!.provider, cwd: h.agents.get(id)!.cwd, title: h.agents.get(id)!.title, parentAgentId: null, workspaceId: null },
-      turnId: `t-${id}-${Date.now()}`,
-      outcome: { kind: "completed" },
-      timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
-    });
+  const turnEnded = h.endTurn;
 
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Ends", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
@@ -576,6 +575,27 @@ test("a lane that declared no write set does not lock the project to one lane: t
   const lanes = h.ledger().lanes;
   assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 2);
   assert.notEqual(h.agents.get(lanes.L2!.lead!)!.cwd, h.agents.get(lanes.L1!.lead!)!.cwd, "the second lane runs in a working copy of its own");
+});
+
+test("a lane closed while its Lead is still writing keeps the working copy until that turn ends", async () => {
+  const h = harness("outbox-closerace.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Cut short", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
+  const lane = h.ledger().lanes.L1!;
+  writeFileSync(join(lane.worktree!, "half-written.txt"), "not committed yet\n");
+
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "the outcome was wrong" });
+  assert.equal(closed.ok, true, closed.text);
+  assert.equal(existsSync(join(lane.worktree!, "half-written.txt")), true, "the Lead is mid-turn, and removing its copy --force would take what it has not committed");
+  assert.ok(h.ledger().slots[lane.slot!], "and the copy still belongs to the lane, so nothing else is sent into it");
+  assert.match(closed.text, new RegExp(`put away once ${lane.lead}`), "the Supervisor is told what it is waiting on, not that the copy is free");
+
+  h.agents.get(lane.lead!)!.status = "idle";
+  await h.endTurn(lane.lead!, "stopping");
+  assert.equal(existsSync(lane.worktree!), false, "once the Lead stops, the copy is put away");
+  assert.deepEqual(Object.keys(h.ledger().slots), []);
+  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim().length > 0, true, "the lane branch is kept for the Human either way");
+  h.runtime.dispose();
 });
 
 test("with gateOn task, the gate really runs on a lane-mode task and the Lead is told the result, not a description", async () => {

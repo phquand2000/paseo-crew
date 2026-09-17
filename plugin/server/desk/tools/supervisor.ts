@@ -150,13 +150,27 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
     }
     return tasks;
   });
-  for (const task of retired) await agents.retire(project, task, task.status !== "merged");
+  const kept: string[] = [];
+  for (const task of retired) {
+    const branch = await agents.retire(project, task, task.status !== "merged");
+    if (branch) kept.push(branch);
+  }
   await roster.archive(lane.lead);
   await roster.retireWatcher(project);
-  if (lane.slot) await slots.release(project, lane.slot);
-  else await slots.restore(project, lane.base);
-  ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason) });
-  return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. Its working copy is free for the next lane.`);
+  // Whoever is mid-turn is still writing in the lane's copy, and what they write is theirs until
+  // their turn ends; the copy goes away then, not under them.
+  const writers = [lane.lead, ...retired.filter((task) => task.mode !== "parallel").map((task) => task.peer)].filter(
+    (id): id is string => typeof id === "string" && roster.pendingArchive.has(id),
+  );
+  const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base }, writers);
+  if (branch) kept.push(branch);
+  ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason), writers });
+  const copy =
+    writers.length > 0
+      ? `Its working copy is put away once ${writers.join(" and ")} finish the turn they are in.`
+      : "Its working copy is free for the next lane.";
+  const branches = kept.length > 0 ? ` ${kept.join(" and ")} ${kept.length === 1 ? "holds commits" : "hold commits"} nothing else has and ${kept.length === 1 ? "is" : "are"} kept.` : "";
+  return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. ${copy}${branches}`);
 };
 
 export const setProject: Tool = async ({ ctx }, caller, args) => {

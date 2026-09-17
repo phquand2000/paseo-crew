@@ -264,9 +264,10 @@ export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
     await git(lane.worktree, ["clean", "-fd"]);
     undone = ` The lane's working copy is back at ${task.startSha.slice(0, 7)}.`;
   }
-  if (task.kind === "code" && task.mode === "parallel") await slots.release(project, task.slot, task.branch);
-  ctx.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason) });
-  return ok(`${task.id} is cut and its agent stopped.${undone}`);
+  const kept = task.kind === "code" && task.mode === "parallel" ? await slots.release(project, task.slot, task.branch) : undefined;
+  ctx.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason), kept });
+  const branch = kept ? ` Its branch ${kept} holds commits nothing else has and is kept.` : "";
+  return ok(`${task.id} is cut and its agent stopped.${undone}${branch}`);
 };
 
 export const ask: Tool = async ({ ctx, roster }, caller, args) => {

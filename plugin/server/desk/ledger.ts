@@ -138,6 +138,20 @@ export function nextTaskId(ledger: Ledger, lane: Lane, kind: Task["kind"]): stri
   return `${lane.id}-${kind === "review" ? "R" : "T"}${lane.tasks}`;
 }
 
+/**
+ * A name no working copy in the ledger is holding.
+ *
+ * Counting them would do: release deletes the entry, so with S0 and S1 open and S0 given back the
+ * count is 1 and the next copy is named S1 again — over the live record, on the live path, with a
+ * second agent sent to a checkout someone else is writing in. One past the highest cannot collide.
+ */
+export function nextSlotId(ledger: Ledger): string {
+  const taken = Object.keys(ledger.slots)
+    .map((id) => Number(id.replace(/^S/, "")))
+    .filter((n) => Number.isInteger(n));
+  return `S${Math.max(-1, ...taken) + 1}`;
+}
+
 export function nextAskId(ledger: Ledger): string {
   ledger.seq.ask += 1;
   return `A${ledger.seq.ask}`;

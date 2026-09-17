@@ -68,8 +68,10 @@ export class Agents {
     return started.id;
   }
 
-  async retire(project: Project, task: Task, dropBranch = false): Promise<void> {
+  async retire(project: Project, task: Task, dropBranch = false): Promise<string | undefined> {
     await this.roster.archive(task.peer);
-    if (task.kind === "code" && task.mode === "parallel") await this.slots.release(project, task.slot, dropBranch ? task.branch : undefined);
+    if (task.kind !== "code" || task.mode !== "parallel") return undefined;
+    const writing = task.peer && this.roster.pendingArchive.has(task.peer) ? [task.peer] : [];
+    return this.slots.putAway({ project, slot: task.slot, dropBranch: dropBranch ? task.branch : undefined }, writing);
   }
 }

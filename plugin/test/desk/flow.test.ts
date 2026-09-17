@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { SeatView } from "../../server/core/paseo.ts";
 import { tempDir } from "../../server/core/testing.ts";
 import { flowView } from "../../server/desk/flow.ts";
-import { emptyLedger, readLedger, saveLedger } from "../../server/desk/ledger.ts";
+import { emptyLedger, nextSlotId, readLedger, saveLedger } from "../../server/desk/ledger.ts";
 import type { Project } from "../../server/desk/project.ts";
 
 const now = Date.parse("2026-09-16T04:00:00.000Z");
@@ -120,4 +120,14 @@ test("the ledger is parsed again only when the file on disk has changed", () => 
   const after = readLedger(state);
   assert.notEqual(after, once, "a write drops the cached parse");
   assert.deepEqual(Object.keys(after.lanes).sort(), ["L1", "L2"]);
+});
+
+test("a working copy given back does not hand its name to the next one while a later copy still holds it", () => {
+  const ledger = emptyLedger();
+  ledger.slots.S0 = { id: "S0", path: "/w/shop/S0", createdAt: now, task: "L1-T1" };
+  ledger.slots.S1 = { id: "S1", path: "/w/shop/S1", createdAt: now + 1, task: "L1-T2" };
+  delete ledger.slots.S0;
+  assert.equal(nextSlotId(ledger), "S2", "S1 is still being written in, and naming the next copy S1 would send a second agent into it");
+  ledger.slots.S2 = { id: "S2", path: "/w/shop/S2", createdAt: now + 2 };
+  assert.equal(nextSlotId(ledger), "S3");
 });

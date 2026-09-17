@@ -4,15 +4,19 @@ import { addWorktree, branchExists, excludeFromGit, git, isPristine, removeWorkt
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
-import { type Ledger, type Slot, loadLedger } from "./ledger.ts";
+import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
 import { clip } from "./letters.ts";
 import type { Project } from "./project.ts";
 
 export type Holder = { lane?: string; task?: string };
 
+/** What putting a lane's copy away means: the copy itself if it had one, the project's branch if not. */
+export type Teardown = { project: Project; slot?: string; dropBranch?: string; restore?: string };
+
 export class Slots {
   private readonly ctx: DeskContext;
   private readonly workspaces: Workspaces;
+  private readonly held = new Map<string, { teardown: Teardown; writers: Set<string> }>();
 
   constructor(ctx: DeskContext, workspaces: Workspaces) {
     this.ctx = ctx;
@@ -56,15 +60,49 @@ export class Slots {
     await git(project.root, ["switch", base]);
   }
 
-  async release(project: Project, slotId: string | undefined, dropBranch?: string): Promise<void> {
-    if (!slotId) return;
+  /**
+   * Puts a lane's working copy away, or waits for the seats still writing in it to stop.
+   *
+   * A seat whose archive was deferred to the end of its turn is still writing: removing its copy
+   * --force takes the work it has not committed, dropping the branch takes the work it has, and
+   * switching the project's own copy back to base lets its next commit land on base. So the
+   * teardown waits with it, and runs when the last writer there stops.
+   */
+  async putAway(teardown: Teardown, writers: string[] = []): Promise<string | undefined> {
+    if (writers.length === 0 || (!teardown.slot && !teardown.restore)) return this.run(teardown);
+    this.held.set(teardown.slot ?? teardown.project.slug, { teardown, writers: new Set(writers) });
+    this.ctx.event(teardown.project, { kind: "slot.heldOpen", slot: teardown.slot ?? "in place", writers });
+    return undefined;
+  }
+
+  /** Finishes what a seat's own turn was holding up, once nothing else is writing in that copy. */
+  async stopped(agentId: string): Promise<void> {
+    for (const [key, entry] of [...this.held]) {
+      if (!entry.writers.delete(agentId) || entry.writers.size > 0) continue;
+      this.held.delete(key);
+      await this.run(entry.teardown);
+    }
+  }
+
+  private run(teardown: Teardown): Promise<string | undefined> {
+    if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch);
+    if (teardown.restore) return this.restore(teardown.project, teardown.restore).then(() => undefined);
+    return Promise.resolve(undefined);
+  }
+
+  /** Returns the branch it was asked to drop and kept, because the work on it is not in anything. */
+  async release(project: Project, slotId: string | undefined, dropBranch?: string): Promise<string | undefined> {
+    if (!slotId) return undefined;
     const slot = loadLedger(project.state).slots[slotId];
+    let kept: string | undefined;
     if (slot) {
       if (existsSync(slot.path)) {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
       }
-      if (dropBranch) await git(project.root, ["branch", "-D", dropBranch]);
+      // -d, not -D: a branch git will not delete is one holding commits nothing else has, and a cut
+      // task's commits are all the Peer leaves behind. Clutter is cheaper than deleting them.
+      if (dropBranch && (await git(project.root, ["branch", "-d", dropBranch])).code !== 0) kept = dropBranch;
       if (slot.workspaceId) {
         try {
           await this.workspaces.archive(slot.workspaceId);
@@ -74,7 +112,8 @@ export class Slots {
       }
     }
     await this.drop(project, slotId);
-    this.ctx.event(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot) });
+    this.ctx.event(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot), kept });
+    return kept;
   }
 
   private reserve(project: Project, holder: Holder): Promise<Slot> {
@@ -86,7 +125,7 @@ export class Slots {
         Object.assign(free, holder);
         return { ...free };
       }
-      const id = `S${Object.keys(ledger.slots).length}`;
+      const id = nextSlotId(ledger);
       const slot: Slot = { id, path: join(worktreeRoot(), project.slug, id), createdAt: Date.now(), ...holder };
       ledger.slots[id] = slot;
       return { ...slot };

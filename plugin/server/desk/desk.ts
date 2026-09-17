@@ -98,6 +98,11 @@ export class Desk {
     return this.services.roster.archive(agentId, force);
   }
 
+  /** A seat's turn ended: finish the teardown its own writing was holding up. */
+  stopped(agentId: string): Promise<void> {
+    return this.services.slots.stopped(agentId);
+  }
+
   recordReading(project: Project, where: string, notes: string[]): void {
     this.services.ctx.recordReading(project, where, notes);
   }
