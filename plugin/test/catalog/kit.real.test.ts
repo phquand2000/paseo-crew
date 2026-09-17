@@ -77,3 +77,16 @@ test("no shipped role is left with Paseo's own tools at their default", () => {
     assert.ok(policy.disabledTools.includes(acting), `the Watcher watches the work and must not be able to ${acting}`);
   }
 });
+
+test("the Supervisor can set its own cadence for reading the work, rather than the desk fixing one", () => {
+  const kit = loadKit(pluginRoot);
+  const team = resolveTeam(kit);
+  const supervisor = kit.roles.find((role) => role.role === "supervisor")!;
+  const policy = desiredProvider(kit, team, supervisor, kit.harnesses.claude!).paseoTools as { disabledTools: string[] };
+  for (const own of ["create_heartbeat", "delete_heartbeat", "list_schedules"]) {
+    assert.ok(!policy.disabledTools.includes(own), `a heartbeat is how a Supervisor decides when to look, so it must reach ${own}`);
+  }
+  for (const acting of ["create_agent", "kill_agent", "send_agent_prompt", "archive_agent"]) {
+    assert.ok(policy.disabledTools.includes(acting), `the Supervisor advises and must not ${acting} behind the desk`);
+  }
+});

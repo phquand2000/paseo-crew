@@ -27,7 +27,10 @@
       "paseoTools": {
         "allow": [
           "get_agent_activity",
-          "list_pending_permissions"
+          "list_pending_permissions",
+          "create_heartbeat",
+          "delete_heartbeat",
+          "list_schedules"
         ]
       },
       "hidesWords": []
