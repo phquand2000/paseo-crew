@@ -64,6 +64,8 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const here = data.projects.find((entry) => entry.slug === project);
   const layer = project ? "project" : "machine";
   const problems = [...(data.settingsError ? [data.settingsError] : []), ...(saveError ? [saveError] : []), ...data.team.errors];
+  // Settings that could not be read are shown as empty, so editing them would save that emptiness over what the file holds.
+  const locked = saving || data.settingsError !== null;
 
   const trouble =
     problems.length > 0 ? (
@@ -134,7 +136,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
       >
         {trouble}
         {tab === "team" ? (
-          <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={saving} save={(change) => void save(change)} />
+          <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} save={(change) => void save(change)} />
         ) : null}
         {tab === "flow" ? (
           <FlowSection
@@ -143,7 +145,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             live={flowLive}
             open={openLanes}
             theme={theme}
-            disabled={saving}
+            disabled={locked}
             onLive={(next) => void save((values) => ({ ...values, flow: { ...values.flow, live: next } }))}
             onOpen={(lane) => setOpenLanes((current) => (current.includes(lane) ? current.filter((id) => id !== lane) : [...current, lane]))}
           />
@@ -156,7 +158,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             machine={data.machine}
             layer={layer}
             theme={theme}
-            disabled={saving}
+            disabled={locked}
             save={(change) => void save(change)}
             addServer={addServer}
           />

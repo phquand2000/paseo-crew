@@ -82,8 +82,16 @@ export function layerValues(file: string, schema: LayerSchema): Layer {
 }
 
 export function writeLayer(file: string, schema: LayerSchema, revision: string, values: unknown, check: (values: Layer) => string[]): WriteResult {
-  if (revisionOf(readJson<unknown>(file, {})) !== revision) {
+  const current = readJson<unknown>(file, {});
+  if (revisionOf(current) !== revision) {
     return { status: "conflict", error: "The settings changed after they were read; read them again and reapply the change." };
+  }
+  const held = schema.safeParse(current);
+  if (!held.success) {
+    return {
+      status: "invalid",
+      error: `${file} could not be read, and saving over it would throw away what it holds:\n${z.prettifyError(held.error)}\nRepair the file by hand, then save again.`,
+    };
   }
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { status: "invalid", error: z.prettifyError(parsed.error) };
