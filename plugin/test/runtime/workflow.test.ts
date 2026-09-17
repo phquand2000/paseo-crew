@@ -159,6 +159,11 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.ok(firstOverlap(["src/**/*.ts"], ["**/api/*.ts"]), "src/api/x.ts matches both");
   assert.ok(firstOverlap(["server/**"], ["**/ledger.ts"]), "server/ledger.ts matches both");
   assert.equal(firstOverlap(["src/**/*.ts"], ["docs/**/*.md"]), undefined, "and nothing satisfies these");
+  // Inside one segment the same trap waits: a witness made up from either pattern matches neither.
+  assert.ok(firstOverlap(["src/*.ts"], ["src/app.*"]), "src/app.ts satisfies both");
+  assert.ok(firstOverlap(["app/a*.tsx"], ["app/*b.tsx"]), "app/ab.tsx satisfies both");
+  assert.ok(firstOverlap(["src/?.ts"], ["src/a.*"]), "src/a.ts satisfies both");
+  assert.equal(firstOverlap(["src/*.ts"], ["src/*.py"]), undefined, "and one extension cannot be the other");
   // The rules are globs and so are write sets, so they are resolved against the repository first:
   // a lane claiming a subtree is held back for the lock file that is really in it, not for one that
   // a glob says might be, or every lane claiming a subtree would wait for every other.

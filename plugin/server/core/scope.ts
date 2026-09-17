@@ -51,11 +51,33 @@ function samplePath(pattern: string): string {
   return normalize(pattern).replace(/\*\*\/?/g, "x/").replace(/\*/g, "x").replace(/\?/g, "x").replace(/\/$/, "/x");
 }
 
-/** Can one path segment satisfy both of these segment globs? No slashes here, so a sample each way decides it. */
+/**
+ * Can one path segment satisfy both of these segment globs?
+ *
+ * Sampling one against a made-up witness of the other fails here for the same reason it failed for
+ * whole paths: `*.ts` and `app.*` are both satisfied by `app.ts`, and neither matches a sample of
+ * the other. Only `*` and `?` occur inside a segment — `globToRegex` escapes the rest — so the two
+ * are walked together, `*` standing for any run of characters that is not a slash and `?` for one.
+ * A state reached twice cannot be reached a third way with a different answer, so it is not retried.
+ */
 function segmentsMeet(a: string, b: string): boolean {
   if (a === b || a === "*" || b === "*") return true;
-  const one = (pattern: string) => new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replaceAll("*", "[^/]*").replaceAll("?", "[^/]")}$`);
-  return one(a).test(b.replaceAll("*", "x").replaceAll("?", "x")) || one(b).test(a.replaceAll("*", "x").replaceAll("?", "x"));
+  const seen = new Set<number>();
+  const stars = (rest: string) => [...rest].every((char) => char === "*");
+  const walk = (i: number, j: number): boolean => {
+    const state = i * (b.length + 1) + j;
+    if (seen.has(state)) return false;
+    seen.add(state);
+    if (i === a.length) return stars(b.slice(j));
+    if (j === b.length) return stars(a.slice(i));
+    const left = a[i]!;
+    const right = b[j]!;
+    if (left === "*") return walk(i + 1, j) || walk(i, j + 1);
+    if (right === "*") return walk(i, j + 1) || walk(i + 1, j);
+    if (left === "?" || right === "?") return walk(i + 1, j + 1);
+    return left === right && walk(i + 1, j + 1);
+  };
+  return walk(0, 0);
 }
 
 /**
