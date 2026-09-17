@@ -21,6 +21,7 @@ function fakePaseo() {
   const agents = new Map<string, Fake>();
   const workspaces = new Map<string, string>();
   const workspaceNames = new Map<string, string>();
+  const archivedWorkspaces = new Set<string>();
   let count = 0;
   const ref = (id: string) => {
     const agent = agents.get(id);
@@ -65,9 +66,13 @@ function fakePaseo() {
       },
       async list() {
         return {
-          entries: [...workspaces.keys()].map((id) => ({ id, name: workspaceNames.get(id) ?? "", archivingAt: null })),
+          entries: [...workspaces.keys()].map((id) => ({ id, name: workspaceNames.get(id) ?? "", archivingAt: archivedWorkspaces.has(id) ? new Date().toISOString() : null })),
           pageInfo: { nextCursor: null, prevCursor: null, hasMore: false },
         };
+      },
+      async archive(id: string) {
+        archivedWorkspaces.add(typeof id === "string" ? id : (id as { id: string }).id);
+        return { archivedAt: new Date().toISOString() };
       },
       ref: workspace,
     },
@@ -134,7 +139,7 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], SERIAL_ONLY), ["Assets/Scenes/Main.unity"]);
 });
 
-test("a lane works serially in one long-lived working copy that the next lane reuses", async () => {
+test("a lane works serially in the project's own copy and hands it back on its base branch", async () => {
   const h = harness("outbox-serial.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
@@ -145,10 +150,14 @@ test("a lane works serially in one long-lived working copy that the next lane re
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
   assert.equal(opened.ok, true, opened.text);
   const lane = h.ledger().lanes.L1!;
-  const slot = h.ledger().slots.S0!;
+  const slot = { path: h.project.root };
+  assert.deepEqual(Object.keys(h.ledger().slots), [], "a lane opened without isolate takes the project's own copy, not a new one");
   assert.equal(h.agents.get(lane.lead!)!.cwd, slot.path);
   assert.equal(h.git(slot.path, "branch", "--show-current").trim(), lane.branch);
-  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path), [{ kind: "open", path: slot.path }]);
+  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path), [
+    { kind: "open", path: slot.path },
+    { kind: "sync", path: slot.path },
+  ]);
   assert.match(h.git(h.root, "rev-parse", "--git-path", "info/exclude").trim() && readFileSync(join(h.root, ".git", "info", "exclude"), "utf-8"), /^\.idea\/$/m);
   assert.equal(h.git(slot.path, "status", "--porcelain"), "");
 
@@ -205,13 +214,13 @@ test("a lane works serially in one long-lived working copy that the next lane re
   const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
   assert.equal(h.git(h.root, "show", "main:a.txt"), "one\ntwo\nthree\nfour\n");
-  assert.equal(h.ledger().slots.S0!.lane, undefined);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "closing a lane gives the project's copy back on its base branch");
 
   const reopened = await h.call(sup, "supervisor", "open_lane", { title: "Next", outcome: "b.txt changes", acceptance: ["z"], outOfScope: ["anything else in the repository"] });
   assert.equal(reopened.ok, true, reopened.text);
-  assert.equal(h.ledger().lanes.L2!.slot, "S0");
+  assert.equal(h.ledger().lanes.L2!.slot, undefined, "the next lane works in place too, so nothing is created to reuse");
   assert.equal(h.workspaces.size, 1);
-  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path).map((call) => call.kind), ["open", "open", "sync"]);
+  assert.deepEqual(ideCalls.filter((call) => call.path === slot.path).map((call) => call.kind), ["open", "sync", "open", "sync"]);
   assert.equal(h.git(slot.path, "branch", "--show-current").trim(), h.ledger().lanes.L2!.branch);
   h.runtime.dispose();
 });
@@ -230,8 +239,8 @@ test("parallel work needs independent write sets and merges back from its own wo
   const par = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true });
   assert.equal(par.ok, true, par.text);
   const taskB = h.ledger().tasks["L1-T2"]!;
-  assert.equal(taskB.slot, "S1");
-  assert.equal(h.agents.get(taskB.peer!)!.cwd, h.ledger().slots.S1!.path);
+  assert.equal(taskB.slot, "S0", "the lane itself is in place, so the parallel task takes the first working copy the desk makes");
+  assert.equal(h.agents.get(taskB.peer!)!.cwd, h.ledger().slots.S0!.path);
 
   const taskA = h.ledger().tasks["L1-T1"]!;
   h.commit(lane.worktree!, "a.txt", "A\n");
@@ -246,7 +255,7 @@ test("parallel work needs independent write sets and merges back from its own wo
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
   assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "B\n");
-  assert.equal(h.ledger().slots.S1!.task, undefined);
+  assert.deepEqual(Object.keys(h.ledger().slots), [], "the copy a parallel task opened is torn down once its work is in");
 
   const noScope = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"] });
   assert.equal(noScope.ok, false);
@@ -255,7 +264,7 @@ test("parallel work needs independent write sets and merges back from its own wo
   assert.match(clash.text, /overlaps lane L1/);
   const fine = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["c.txt"] });
   assert.equal(fine.ok, true, fine.text);
-  assert.equal(h.ledger().lanes.L2!.slot, "S1");
+  assert.equal(h.ledger().lanes.L2!.slot, undefined, "a second lane works in the project's own copy too; only a parallel task takes one of its own");
   h.runtime.dispose();
 });
 
@@ -311,7 +320,7 @@ test("each project gets the agent and model its own settings choose, and the mac
 
   writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ roles: { peer: { harness: "claude", model: "claude-opus-5" } } }));
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "done" });
-  h.commit(h.ledger().slots.S0!.path, "a.txt", "one\n");
+  h.commit(h.root, "a.txt", "one\n");
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   await h.call(lane.lead!, "lead", "start_task", { title: "Claude peer", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
   const switched = h.agents.get(h.ledger().tasks["L1-T2"]!.peer!)!.provider;
@@ -377,7 +386,7 @@ test("a project with work running gets one resident Watcher seat, and only one",
   await tick();
   assert.equal(watchers().length, 1, "a second tick must not seat a second Watcher");
 
-  assert.equal(Object.keys(h.ledger().slots).length, 1, "the Watcher takes no lane working copy");
+  assert.equal(Object.keys(h.ledger().slots).length, 0, "the Watcher takes no working copy, and a lane in place makes none");
   h.runtime.dispose();
 });
 
@@ -438,16 +447,20 @@ test("seating the Watcher again takes back the working copy it had rather than o
   h.runtime.dispose();
 });
 
-test("the Watcher is put away when the last lane closes", async () => {
+test("the Watcher outlives a lane and is put away only once no Supervisor holds the project", async () => {
   const h = harness("outbox-retire.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch");
   assert.equal(h.agents.get(watcher)!.archivedAt, null);
 
-  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "nothing left to watch" });
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "this lane is done" });
   assert.equal(closed.ok, true, closed.text);
-  assert.ok(h.agents.get(watcher)!.archivedAt, "the seat the plugin opened is the plugin's to close, not the Human's");
+  assert.equal(h.agents.get(watcher)!.archivedAt, null, "one lane ending is not the end of the watching; its Supervisor is still holding the project");
+
+  h.agents.get(sup)!.archivedAt = new Date().toISOString();
+  await (h.runtime.desk as unknown as { retireWatcher(project: unknown): Promise<void> }).retireWatcher(h.project);
+  assert.ok(h.agents.get(watcher)!.archivedAt, "with nobody left above it the Watcher has nothing to watch for, and is put away");
   h.runtime.dispose();
 });
 

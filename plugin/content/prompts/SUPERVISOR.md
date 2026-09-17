@@ -27,6 +27,13 @@ put decisions in acceptance and out of scope. Write acceptance a correct impleme
 leave how it is tested to the Lead. Open as many lanes as the work genuinely divides into; nothing
 caps the number. What a second lane needs is a write set and contracts that don't overlap any open
 lane, since two lanes writing the same files fight over the same foundation rather than sharing it.
+
+A lane works in the project's own checkout, on its own branch: nothing is created for it and nothing
+is left behind when it closes. Pass `isolate` only for a reason you can name — the project's copy is
+already carrying an open lane, or the Human asked for a copy of their own. Never pass it because the
+work sounds large. If the project's copy has uncommitted changes the desk refuses the lane rather
+than taking the Human's work hostage; tell them what is uncommitted and let them decide.
+
 When a Lead reports a foundation gap that another
 lane touches, name one owner for the fix and have the other lane wait for it.
 

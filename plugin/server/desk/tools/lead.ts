@@ -7,7 +7,6 @@ import {
   type AskKind,
   type Lane,
   type Ledger,
-  type Slot,
   type Task,
   type TaskStatus,
   activeTasks,
@@ -89,17 +88,17 @@ export const startTask: Tool = async (desk, caller, args) => {
     return no("start_task needs a title, a goal, acceptance, owned paths and what is out of scope.");
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
-  if (!lane?.slot || !lane.worktree) return no("You have no open lane.");
+  if (!lane?.worktree) return no("You have no open lane.");
   const problem = placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
   const task = await recordTask(desk, project, lane, args, parallel, parallel ? undefined : await headSha(lane.worktree));
   try {
-    let slot: Pick<Slot, "id" | "path" | "workspaceId">;
+    let slot: { id?: string; path: string; workspaceId?: string };
     if (parallel) {
       slot = await slots.acquire(project, task.branch!, lane.branch, { task: task.id });
       await ctx.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
     } else {
-      slot = loadLedger(project.state).slots[lane.slot]!;
+      slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree, workspaceId: lane.workspaceId };
     }
     const peer = await agents.start(project, slot, "peer", {
       parent: caller.id,
@@ -113,7 +112,7 @@ export const startTask: Tool = async (desk, caller, args) => {
     await ctx.ledger(project, (current) => {
       current.agents[peer] = { id: peer, role: "peer", lane: lane.id, task: task.id };
     });
-    ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id });
+    ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
     const where = parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}`;
     return ok(`Started ${task.id} ${where} with Peer ${peer}. Its hand-back arrives as mail; there is nothing to wait for in this turn.`);
   } catch (error) {
@@ -131,11 +130,12 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   if (!focus) return no("start_review needs a focus: the open question for the reviewer.");
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
-  if (!lane?.slot) return no("You have no open lane.");
+  if (!lane?.worktree) return no("You have no open lane.");
   const target = str(args.task) ? findTask(ledger, str(args.task)) : undefined;
   if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code")) return no(`${str(args.task)} is not a code task in your lane.`);
-  const slotId = target?.mode === "parallel" && target.slot && ledger.slots[target.slot]?.task === target.id ? target.slot : lane.slot;
-  const slot = ledger.slots[slotId];
+  const own = target?.mode === "parallel" && target.slot && ledger.slots[target.slot]?.task === target.id ? ledger.slots[target.slot] : undefined;
+  const slot: { id?: string; path: string; workspaceId?: string } | undefined =
+    own ?? (lane.slot ? ledger.slots[lane.slot] : { path: lane.worktree, workspaceId: lane.workspaceId });
   if (!slot) return no("The working copy for that review is gone.");
   const review = await ctx.ledger(project, (current) => {
     const id = nextTaskId(current, current.lanes[lane.id]!, "review");

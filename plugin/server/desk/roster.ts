@@ -1,15 +1,17 @@
 import { type Kit, seatOf } from "../catalog/kit.ts";
-import type { SeatLook, SeatView, Seats } from "../core/ports.ts";
+import type { SeatLook, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { type Project, projectOf } from "./project.ts";
 
 export class Roster {
   readonly pendingArchive = new Set<string>();
   private readonly kit: Kit;
   private readonly seats: Seats;
+  private readonly workspaces: Workspaces;
 
-  constructor(kit: Kit, seats: Seats) {
+  constructor(kit: Kit, seats: Seats, workspaces: Workspaces) {
     this.kit = kit;
     this.seats = seats;
+    this.workspaces = workspaces;
   }
 
   open(): Promise<SeatView[]> {
@@ -34,13 +36,28 @@ export class Roster {
   }
 
   watcherSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
-    for (const seat of seats) if (seatOf(this.kit, seat.provider)?.role.team === "watcher" && projectOf(seat.cwd).slug === project.slug) return seat.id;
+    return this.seatOfTeam(project, seats, "watcher");
+  }
+
+  supervisorSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
+    return this.seatOfTeam(project, seats, "supervisor");
+  }
+
+  private seatOfTeam(project: Project, seats: Iterable<SeatView>, team: string): string | undefined {
+    for (const seat of seats) if (seatOf(this.kit, seat.provider)?.role.team === team && projectOf(seat.cwd).slug === project.slug) return seat.id;
     return undefined;
   }
 
-  async retireWatcher(project: Project): Promise<void> {
-    const seated = this.watcherSeat(project, await this.seats.open());
-    if (seated) await this.archive(seated);
+  async retireWatcher(project: Project, known?: Iterable<SeatView>): Promise<void> {
+    const seats = known ?? (await this.seats.open());
+    if (this.supervisorSeat(project, seats)) return;
+    const seated = this.watcherSeat(project, seats);
+    if (!seated) return;
+    await this.archive(seated);
+    try {
+      const workspace = await this.workspaces.named(`${project.slug} watcher`);
+      if (workspace) await this.workspaces.archive(workspace);
+    } catch {}
   }
 
   async archive(agentId: string | undefined, force = false): Promise<void> {

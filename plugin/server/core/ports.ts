@@ -31,4 +31,5 @@ export type Workspaces = {
   named(name: string): Promise<string | undefined>;
   make(title: string, path: string): Promise<string>;
   seat(workspace: string, spec: SeatSpec): Promise<SeatLook>;
+  archive(workspace: string): Promise<void>;
 };

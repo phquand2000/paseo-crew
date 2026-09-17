@@ -76,6 +76,9 @@ export function workspacesOn(bound: Bound): Workspaces {
       const workspace = await reach(bound).workspaces.create({ title, source: { kind: "directory", path } });
       return workspace.id;
     },
+    async archive(workspace: string): Promise<void> {
+      await reach(bound).workspaces.archive(workspace);
+    },
     async seat(workspace: string, spec: SeatSpec): Promise<SeatLook> {
       const handle = (await reach(bound)
         .workspaces.ref(workspace)

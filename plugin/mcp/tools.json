@@ -2,7 +2,7 @@
   "supervisor": [
     {
       "name": "open_lane",
-      "description": "Open a lane for one outcome: it takes one of the project's long-lived working copies, creates the lane branch there and starts a Lead with this directive. Any number of lanes may be open at once; a second open lane needs writeSet and contracts that don't overlap the open lanes.",
+      "description": "Open a lane for one outcome: by default it takes over the project's own working copy, creates the lane branch there and starts a Lead with this directive, so nothing is created and nothing is left to clean up. Any number of lanes may be open at once; a second open lane needs writeSet and contracts that don't overlap the open lanes, and isolate so it does not fight over the project's copy.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -39,6 +39,10 @@
           "issue": {
             "type": "string",
             "description": "Optional GitHub issue: #12, owner/repo#12 or a URL."
+          },
+          "isolate": {
+            "type": "boolean",
+            "description": "Give this lane a working copy of its own instead of the project's. Leave it off for ordinary work: a lane in the project's own copy creates nothing and leaves nothing behind. Turn it on only when the project's copy is already carrying another open lane, or the Human asked for it. The copy and everything it needed are torn down when the lane closes."
           },
           "base": {
             "type": "string",

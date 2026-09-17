@@ -22,6 +22,7 @@ export type Lane = {
   writeSet: string[];
   contracts: string[];
   lead?: string;
+  workspaceId?: string;
   opener: string;
   status: LaneStatus;
   openedAt: number;

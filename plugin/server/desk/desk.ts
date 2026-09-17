@@ -63,7 +63,7 @@ export class Desk {
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
     });
-    const roster = new Roster(options.kit, options.seats);
+    const roster = new Roster(options.kit, options.seats, options.workspaces);
     const slots = new Slots(ctx, options.workspaces);
     const agents = new Agents(ctx, roster, slots, options.workspaces);
     this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx, agents) };
@@ -101,6 +101,10 @@ export class Desk {
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.services.ctx.setTask(project, taskId, change);
+  }
+
+  retireWatcher(project: Project, seats?: Iterable<SeatView>): Promise<void> {
+    return this.services.roster.retireWatcher(project, seats);
   }
 
   async ensureWatcher(project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {

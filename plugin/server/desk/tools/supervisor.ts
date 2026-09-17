@@ -3,7 +3,7 @@ import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
-import { type Lane, type Slot, type Task, findLane, loadLedger, nextLaneId, slugify } from "../ledger.ts";
+import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify } from "../ledger.ts";
 import { clip, letters } from "../letters.ts";
 import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
@@ -55,10 +55,11 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
   });
 }
 
-function openedReply(project: Project, lane: Lane, slot: Slot, lead: string, issue: Issue | undefined): string {
+function openedReply(project: Project, lane: Lane, slot: { id?: string }, lead: string, issue: Issue | undefined): string {
   const gate = loadConfig(project.state).gate ?? "none; call set_project with the project's test command";
   const issueText = issue ? `\n\nIssue #${issue.number} as the Lead received it: ${issue.title} (${issue.url})\n<issue>\n${clip(issue.body, 4000)}\n</issue>` : "";
-  return `Lane ${lane.id} is open on ${lane.branch} (off ${lane.base}) in working copy ${slot.id}, and its Lead ${lead} is starting. Gate: ${gate}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
+  const where = slot.id ? `in working copy ${slot.id}` : "in the project's own working copy";
+  return `Lane ${lane.id} is open on ${lane.branch} (off ${lane.base}) ${where}, and its Lead ${lead} is starting. Gate: ${gate}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
 }
 
 export const openLane: Tool = async (desk, caller, args) => {
@@ -84,9 +85,10 @@ export const openLane: Tool = async (desk, caller, args) => {
     if (slot) await slots.release(project, slot, lane.branch);
     return no(reason);
   };
-  let slot: Slot;
+  const isolate = args.isolate === true;
+  let slot: { id?: string; path: string; workspaceId?: string };
   try {
-    slot = await slots.acquire(project, lane.branch, base, { lane: lane.id });
+    slot = isolate ? await slots.acquire(project, lane.branch, base, { lane: lane.id }) : await slots.inPlace(project, lane.branch, base);
   } catch (error) {
     return fail(`The lane could not get a working copy: ${errorText(error)}`);
   }
@@ -99,10 +101,10 @@ export const openLane: Tool = async (desk, caller, args) => {
     });
     await ctx.ledger(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
-      if (entry) Object.assign(entry, { lead, worktree: slot.path, slot: slot.id });
+      if (entry) Object.assign(entry, { lead, worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId });
       ledger.agents[lead] = { id: lead, role: "lead", lane: lane.id };
     });
-    ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id });
+    ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id ?? "in place" });
     return ok(openedReply(project, lane, slot, lead, issue));
   } catch (error) {
     return fail(`The Lead could not start: ${errorText(error)}`, slot.id);
@@ -133,8 +135,9 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
   });
   for (const task of retired) await agents.retire(project, task, task.status !== "merged");
   await roster.archive(lane.lead);
-  if (!Object.values(loadLedger(project.state).lanes).some((entry) => entry.status === "open")) await roster.retireWatcher(project);
-  await slots.release(project, lane.slot);
+  await roster.retireWatcher(project);
+  if (lane.slot) await slots.release(project, lane.slot);
+  else await slots.restore(project, lane.base);
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason) });
   return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. Its working copy is free for the next lane.`);
 };

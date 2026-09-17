@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addWorktree, branchExists, excludeFromGit, git, isPristine } from "../core/git.ts";
+import { addWorktree, branchExists, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -33,15 +33,44 @@ export class Slots {
     }
   }
 
+  async inPlace(project: Project, branch: string, base: string): Promise<{ path: string; workspaceId: string }> {
+    if (!(await isPristine(project.root))) {
+      throw new Error("the project's own working copy has uncommitted changes, so a lane cannot take it over; commit or stash them, or open the lane with isolate true");
+    }
+    if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
+    const run = await git(project.root, ["switch", "-c", branch, base]);
+    if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
+    const kept = await this.workspaces.named(project.slug).catch(() => undefined);
+    const workspaceId = kept ?? (await this.workspaces.make(project.slug, project.root));
+    this.index(project, { id: "main", path: project.root, createdAt: Date.now() }, true);
+    this.ctx.event(project, { kind: "lane.inPlace", branch, base });
+    return { path: project.root, workspaceId };
+  }
+
+  async restore(project: Project, base: string): Promise<void> {
+    if (!(await isPristine(project.root))) return;
+    await git(project.root, ["switch", base]);
+  }
+
   async release(project: Project, slotId: string | undefined, dropBranch?: string): Promise<void> {
     if (!slotId) return;
     const slot = loadLedger(project.state).slots[slotId];
-    if (slot && existsSync(slot.path)) {
-      await git(slot.path, ["switch", "--detach"]);
+    if (slot) {
+      if (existsSync(slot.path)) {
+        await git(slot.path, ["switch", "--detach"]);
+        await removeWorktree(project.root, slot.path);
+      }
       if (dropBranch) await git(project.root, ["branch", "-D", dropBranch]);
+      if (slot.workspaceId) {
+        try {
+          await this.workspaces.archive(slot.workspaceId);
+        } catch (error) {
+          this.ctx.log(project, `workspace ${slot.workspaceId} could not be put away: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
     }
-    await this.free(project, slotId);
-    this.ctx.event(project, { kind: "slot.released", slot: slotId });
+    await this.drop(project, slotId);
+    this.ctx.event(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot) });
   }
 
   private reserve(project: Project, holder: Holder): Promise<Slot> {
@@ -91,6 +120,12 @@ export class Slots {
         delete entry.lane;
         delete entry.task;
       }
+    });
+  }
+
+  private drop(project: Project, slotId: string): Promise<void> {
+    return this.ctx.ledger(project, (ledger) => {
+      delete ledger.slots[slotId];
     });
   }
 
