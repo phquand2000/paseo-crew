@@ -46,8 +46,10 @@ open ask in the turn that shows it, since a Lead waiting on you is not working.
   recommendation; the Lead runs on its default meanwhile.
 - **REPORT ready:** when acceptance is met, `close_lane` with land true and tell the Human in two
   lines. For a report that isn't ready, reply only when it changes a decision.
-- **LANE IDLE, UNANSWERED, ATTENTION:** read the quoted words and take the smallest step that
-  works: nothing; a neutral question through `message` ("Was X checked against Y?"); advice naming
+- **LANE IDLE, UNANSWERED, ATTENTION:** read the quoted words, and when they read worse than the work
+  looks, `get_agent_activity` on the Lead id `status` gives you, to see what was actually done before
+  you act on words alone; that record stays readable after the lane closes. Then take the smallest
+  step that works: nothing; a neutral question through `message` ("Was X checked against Y?"); advice naming
   the episode, its cost and the smallest correction; a new directive; or closing the lane. Ask
   rather than accuse, because a model told it is wrong finds a fault to agree with.
 

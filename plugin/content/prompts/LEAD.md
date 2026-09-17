@@ -46,8 +46,11 @@ interrupted and reads a message only after its turn ends, so don't send it corre
 hand-back and put everything in one `rework`.
 
 - **HANDBACK:** read the whole summary, and the diff on its branch when needed, before you form a
-  view. A Peer answers the question you asked, so ask what you don't know rather than checking its
-  work against an answer of your own.
+  view. The header names the Peer that wrote it. When the summary and the diff disagree, or it claims
+  a check you cannot see, read what it actually did with `get_agent_activity` on that id; that record
+  outlives the task, so it is still there after you accept and its seat is put away. Weigh what it
+  did above any account of why, its own included. A Peer answers the question you asked, so ask what
+  you don't know rather than checking its work against an answer of your own.
   - `accept` when acceptance is met.
   - `rework` with exactly what must change. When you doubt its judgment rather than hold a defect,
     say which it is and let it keep its position with evidence: a Peer told it is wrong finds a

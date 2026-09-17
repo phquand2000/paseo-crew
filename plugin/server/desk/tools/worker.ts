@@ -44,7 +44,7 @@ export const done: Tool = async ({ ctx }, caller, args) => {
     entry.handback = { file, outcome, commit, summary: clip(str(args.summary) || str(args.findings), 400), at: Date.now() };
   });
   const heading = review ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
-  await ctx.post(ledger.lanes[task.lane]?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body));
+  await ctx.post(ledger.lanes[task.lane]?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body, caller.id));
   ctx.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
   const reminder = uncommitted ? " Your working copy still has uncommitted changes: commit them before ending your turn." : "";
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);

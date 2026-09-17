@@ -83,8 +83,9 @@ export const letters = {
     return lines.join("\n");
   },
 
-  handback(task: Task, file: string, body: string): string {
-    return [`HANDBACK ${task.id} (${task.title})`, "", clip(body, 2500), "", `Full hand-back: ${file}`].join("\n");
+  handback(task: Task, file: string, body: string, peer?: string): string {
+    const head = peer ? `HANDBACK ${task.id} (${task.title}) from ${peer}` : `HANDBACK ${task.id} (${task.title})`;
+    return [head, "", clip(body, 2500), "", `Full hand-back: ${file}`].join("\n");
   },
 
   askTo(ask: Ask, from: string): string {
