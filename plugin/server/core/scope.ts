@@ -51,11 +51,39 @@ function samplePath(pattern: string): string {
   return normalize(pattern).replace(/\*\*\/?/g, "x/").replace(/\*/g, "x").replace(/\?/g, "x").replace(/\/$/, "/x");
 }
 
+/** Can one path segment satisfy both of these segment globs? No slashes here, so a sample each way decides it. */
+function segmentsMeet(a: string, b: string): boolean {
+  if (a === b || a === "*" || b === "*") return true;
+  const one = (pattern: string) => new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replaceAll("*", "[^/]*").replaceAll("?", "[^/]")}$`);
+  return one(a).test(b.replaceAll("*", "x").replaceAll("?", "x")) || one(b).test(a.replaceAll("*", "x").replaceAll("?", "x"));
+}
+
+/**
+ * Whether any one path could match both patterns.
+ *
+ * Walked segment by segment, because testing one pattern against a single synthetic sample of the
+ * other misses every case where both sides hold a wildcard: `src/**\/*.ts` and `**\/*.test.ts` both
+ * match `src/pricing.test.ts`, and a sample of either matches neither. Two lanes are allowed to
+ * share a working copy on the strength of this answer, so a missed overlap lets both write one file.
+ */
+function meet(a: string[], b: string[]): boolean {
+  if (a.length === 0 || b.length === 0) {
+    // What is left can still match nothing only if every segment of it is allowed to. A trailing ""
+    // comes from a directory pattern and stands for everything under it; "**" spans zero segments.
+    const rest = a.length === 0 ? b : a;
+    return rest.every((segment) => segment === "**" || segment === "");
+  }
+  const [ax, ...at] = a;
+  const [bx, ...bt] = b;
+  if (ax === "" || bx === "") return true;
+  // "**" spans any number of segments, including none, on either side.
+  if (ax === "**") return meet(at, b) || meet(a, bt) || meet(at, bt);
+  if (bx === "**") return meet(a, bt) || meet(at, b) || meet(at, bt);
+  return segmentsMeet(ax!, bx!) && meet(at, bt);
+}
+
 export function patternsOverlap(a: string, b: string): boolean {
-  const pa = literalPrefix(a);
-  const pb = literalPrefix(b);
-  if (pa !== "" && pb !== "" && (pa.startsWith(pb) || pb.startsWith(pa))) return true;
-  return globToRegex(a).test(samplePath(b)) || globToRegex(b).test(samplePath(a));
+  return meet(normalize(a).split("/"), normalize(b).split("/"));
 }
 
 export function firstOverlap(left: string[], right: string[]): string | undefined {
@@ -63,6 +91,35 @@ export function firstOverlap(left: string[], right: string[]): string | undefine
   return undefined;
 }
 
-export function serialHits(writeSet: string[], serialOnly: string[]): string[] {
-  return writeSet.filter((pattern) => serialOnly.some((rule) => globToRegex(rule).test(samplePath(pattern)) || globToRegex(pattern).test(samplePath(rule))));
+/**
+ * The serial-only paths a repository really has.
+ *
+ * A rule is a glob and so is a write set, and of two globs it can only be said that they *might*
+ * meet: every lane claiming a subtree might hold a lock file or a migration somewhere under it.
+ * Refusing on might leaves a project stuck on one lane, so the rules are resolved against the files
+ * that exist and the write set is compared against real paths. A rule that reserves a whole
+ * directory yields the directory, so the next migration — which nobody has written yet — counts.
+ */
+export function serialPaths(tracked: string[], serialOnly: string[]): string[] {
+  const found = new Set<string>();
+  for (const rule of serialOnly) {
+    const matches = globToRegex(rule);
+    const reservesDir = normalize(rule).endsWith("**");
+    for (const file of tracked) {
+      if (!matches.test(file)) continue;
+      const cut = file.lastIndexOf("/");
+      found.add(reservesDir && cut > 0 ? file.slice(0, cut + 1) : file);
+    }
+  }
+  return [...found].sort();
+}
+
+/** Which of those paths a write set could reach, to compare one lane's reach against another's. */
+export function serialReach(writeSet: string[], serial: string[]): string[] {
+  return serial.filter((path) => writeSet.some((pattern) => patternsOverlap(pattern, path)));
+}
+
+/** Which of the write set's own patterns land on one, so a refusal can quote the seat's own words. */
+export function serialHits(writeSet: string[], serial: string[]): string[] {
+  return writeSet.filter((pattern) => serial.some((path) => patternsOverlap(pattern, path)));
 }

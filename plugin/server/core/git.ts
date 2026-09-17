@@ -36,6 +36,11 @@ export async function isPristine(cwd: string): Promise<boolean> {
   return run.code === 0 && run.stdout.trim() === "";
 }
 
+export async function trackedFiles(cwd: string): Promise<string[]> {
+  const run = await git(cwd, ["ls-files", "-z"]);
+  return run.code === 0 ? run.stdout.split("\0").filter(Boolean) : [];
+}
+
 export async function branchExists(cwd: string, branch: string): Promise<boolean> {
   return (await git(cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;
 }

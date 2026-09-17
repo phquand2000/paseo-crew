@@ -13,7 +13,7 @@ const { loadKit } = await import("../../server/catalog/kit.ts");
 const { loadLedger } = await import("../../server/desk/ledger.ts");
 const { projectOf } = await import("../../server/desk/project.ts");
 const { Runtime } = await import("../../server/runtime/runtime.ts");
-const { firstOverlap, serialHits, SERIAL_ONLY } = await import("../../server/core/scope.ts");
+const { firstOverlap, serialHits, serialPaths, SERIAL_ONLY } = await import("../../server/core/scope.ts");
 
 type Fake = { id: string; provider: string; cwd: string; title: string; status: string; archivedAt: string | null; updatedAt: string; sent: string[]; prompt?: string };
 
@@ -91,6 +91,8 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
   const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   writeFileSync(join(root, "a.txt"), "one\ntwo\nthree\n");
   writeFileSync(join(root, "b.txt"), "bee\n");
+  // A real one, because the desk now reads the serial-only rules against the files that exist.
+  writeFileSync(join(root, "package-lock.json"), "{}\n");
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
   git(root, "commit", "-qm", "seed");
@@ -141,10 +143,25 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.ok(firstOverlap(["src/"], ["src/api/users.ts"]));
   assert.ok(firstOverlap(["src/**/*.ts"], ["src/api/users.ts"]));
   assert.ok(firstOverlap(["**/*.ts"], ["lib/x.ts"]));
-  // A pattern that starts with a glob has no literal prefix to compare, which used to be read as "overlaps everything".
-  assert.equal(firstOverlap(["**/*.ts"], ["src/app.py"]), undefined);
-  assert.deepEqual(serialHits(["db/migrations/0003.sql", "src/app.ts"], SERIAL_ONLY), ["db/migrations/0003.sql"]);
-  assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], SERIAL_ONLY), ["Assets/Scenes/Main.unity"]);
+  assert.equal(firstOverlap(["**/*.ts"], ["src/app.py"]), undefined, "a glob at the front does not mean it overlaps everything");
+  // Two lanes share a working copy on the strength of this answer, so a wildcard on both sides has
+  // to be decided rather than sampled: each of these pairs is satisfied by one real path.
+  assert.ok(firstOverlap(["src/**/*.ts"], ["**/*.test.ts"]), "src/pricing.test.ts matches both");
+  assert.ok(firstOverlap(["src/**"], ["**/*.ts"]), "src/a.ts matches both");
+  assert.ok(firstOverlap(["src/**/*.ts"], ["**/api/*.ts"]), "src/api/x.ts matches both");
+  assert.ok(firstOverlap(["server/**"], ["**/ledger.ts"]), "server/ledger.ts matches both");
+  assert.equal(firstOverlap(["src/**/*.ts"], ["docs/**/*.md"]), undefined, "and nothing satisfies these");
+  // The rules are globs and so are write sets, so they are resolved against the repository first:
+  // a lane claiming a subtree is held back for the lock file that is really in it, not for one that
+  // a glob says might be, or every lane claiming a subtree would wait for every other.
+  const tracked = ["package-lock.json", "db/migrations/0001.sql", "src/app.ts", "Assets/Scenes/Main.unity"];
+  const serial = serialPaths(tracked, SERIAL_ONLY);
+  assert.deepEqual(serial, ["Assets/Scenes/Main.unity", "db/migrations/", "package-lock.json"], "the migration's directory is reserved, so the next one counts before it is written");
+  assert.deepEqual(serialHits(["app/**"], serial), [], "a tree with none of them in it is not held back for them");
+  assert.deepEqual(serialHits(["src/**", "package-lock.json"], serial), ["package-lock.json"]);
+  assert.deepEqual(serialHits(["db/**"], serial), ["db/**"], "and a tree that does hold one is");
+  assert.deepEqual(serialHits(["db/migrations/0002.sql"], serial), ["db/migrations/0002.sql"], "including a migration nobody has written yet");
+  assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], serial), ["Assets/Scenes/Main.unity"]);
 });
 
 test("a lane works serially in the project's own copy and hands it back on its base branch", async () => {
@@ -247,7 +264,7 @@ test("parallel work needs independent write sets and merges back from its own wo
   assert.equal(overlap.ok, false);
   assert.match(overlap.text, /overlap L1-T1/);
   const serial = await h.call(lane.lead!, "lead", "start_task", { title: "Lock", goal: "g", acceptance: ["a"], owned: ["package-lock.json"], outOfScope: ["the rest of the repository"], parallel: true });
-  assert.equal(serial.ok, false);
+  assert.equal(serial.ok, false, "the lock file is really in this repository, so a parallel task may not own it");
   const par = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true });
   assert.equal(par.ok, true, par.text);
   const taskB = h.ledger().tasks["L1-T2"]!;

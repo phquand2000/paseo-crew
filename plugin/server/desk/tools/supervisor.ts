@@ -1,7 +1,7 @@
-import { branchExists, currentBranch, landLane } from "../../core/git.ts";
+import { branchExists, currentBranch, landLane, trackedFiles } from "../../core/git.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
 import { docsDir, placeDoc } from "../../catalog/templates.ts";
-import { firstOverlap, serialHits } from "../../core/scope.ts";
+import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
@@ -10,10 +10,17 @@ import { clip, letters } from "../letters.ts";
 import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 
-function scopeProblem(config: ProjectConfig, open: Lane[], sharing: Lane[], writeSet: string[], contracts: string[]): string | undefined {
+function scopeProblem(serial: string[], open: Lane[], sharing: Lane[], writeSet: string[], contracts: string[]): string | undefined {
   if (open.length === 0) return undefined;
-  const serial = serialHits(writeSet, config.serialOnly);
-  if (serial.length > 0) return `writeSet includes paths that only one lane at a time may write (${serial.join(", ")}); open this lane after the current one lands.`;
+  const mine = serialReach(writeSet, serial);
+  for (const other of open) {
+    // A lane that declared no write set could be writing any of them, and no working copy of its own
+    // helps here: these are the files a merge cannot reconcile, so the second writer loses either way.
+    const theirs = other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial);
+    const both = mine.filter((path) => theirs.includes(path));
+    if (both.length > 0)
+      return `Lane ${other.id} may already be writing ${both.join(", ")}, and only one lane at a time may write those; open this lane after ${other.id} lands, or keep those paths out of it.`;
+  }
   if (sharing.length === 0) return undefined;
   if (writeSet.length === 0)
     return "Another lane is working in the project's own copy, so this lane needs writeSet (and contracts) to prove it doesn't overlap, or isolate to give it a working copy of its own.";
@@ -80,7 +87,8 @@ export const openLane: Tool = async (desk, caller, args) => {
   const isolate = args.isolate === true;
   const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
   const sharing = isolate ? [] : open.filter((lane) => !lane.slot);
-  const problem = scopeProblem(config, open, sharing, strs(args.writeSet), strs(args.contracts));
+  const serial = open.length > 0 ? serialPaths(await trackedFiles(project.root), config.serialOnly) : [];
+  const problem = scopeProblem(serial, open, sharing, strs(args.writeSet), strs(args.contracts));
   if (problem) return no(problem);
   const issue = await readIssue(args, project);
   if (typeof issue === "string") return no(issue);

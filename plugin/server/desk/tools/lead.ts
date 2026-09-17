@@ -1,6 +1,6 @@
 import { roleThatCan } from "../../catalog/kit.ts";
-import { diffCounts, git, headSha, isPristine, outsideOwned, resetHard } from "../../core/git.ts";
-import { firstOverlap, serialHits } from "../../core/scope.ts";
+import { diffCounts, git, headSha, isPristine, outsideOwned, resetHard, trackedFiles } from "../../core/git.ts";
+import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
 import { gateNote, laneGate, taskGate } from "../gates.ts";
 import {
@@ -32,7 +32,7 @@ function laneTask(ledger: Ledger, caller: Caller, id: string): { lane: Lane; tas
   return { lane, task };
 }
 
-function placementProblem(project: Project, ledger: Ledger, lane: Lane, owned: string[], parallel: boolean): string | undefined {
+async function placementProblem(project: Project, ledger: Ledger, lane: Lane, owned: string[], parallel: boolean): Promise<string | undefined> {
   const active = activeTasks(ledger, lane.id).filter((task) => task.kind === "code");
   if (!parallel) {
     const writer = active.find((task) => task.mode !== "parallel" && WRITING.includes(task.status));
@@ -40,7 +40,7 @@ function placementProblem(project: Project, ledger: Ledger, lane: Lane, owned: s
       ? `${writer.id} is still writing in the lane's working copy, and it holds one writer at a time. Wait for its hand-back, or set parallel only for owned paths independent of it.`
       : undefined;
   }
-  const serial = serialHits(owned, loadConfig(project.state).serialOnly);
+  const serial = serialHits(owned, serialPaths(await trackedFiles(lane.worktree ?? project.root), loadConfig(project.state).serialOnly));
   if (serial.length > 0) return `A parallel task can't own ${serial.join(", ")}; run it in the lane's working copy instead.`;
   for (const task of active) {
     const clash = firstOverlap(owned, task.owned);
@@ -90,7 +90,7 @@ export const startTask: Tool = async (desk, caller, args) => {
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
   if (!lane?.worktree) return no("You have no open lane.");
-  const problem = placementProblem(project, ledger, lane, owned, parallel);
+  const problem = await placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
   const workRole = roleThatCan(ctx.kit, "work");
   if (!workRole) return no("No role in this kit can take a task.");
