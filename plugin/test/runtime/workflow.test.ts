@@ -631,6 +631,7 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   h.agents.get(lane.lead!)!.status = "idle";
   await h.endTurn(lane.lead!, "stopping");
   assert.equal(existsSync(lane.worktree!), false, "once the Lead stops, the copy is put away");
+  assert.equal(existsSync(dirname(lane.worktree!)), false, "and the folder the desk made for this project's copies goes with the last of them");
   assert.deepEqual(Object.keys(h.ledger().slots), []);
   assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim().length > 0, true, "the lane branch is kept for the Human either way");
   h.runtime.dispose();

@@ -105,6 +105,11 @@ export class Slots {
       if (existsSync(slot.path)) {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
+        // And the directory the desk made for it. git leaves one behind often enough — a file it did
+        // not track, a removal it half did — and the only thing that swept it was a patrol round for
+        // a project the desk still remembers, which is not a promise. Four of these were sitting in
+        // the owner's worktree root, from projects that no longer had any state at all.
+        this.discard(project, slot.path);
       }
       // A branch whose commits are not in `into` holds work nothing else has, and for a cut task
       // those commits are all the Peer leaves behind. Clutter is cheaper than deleting them.
@@ -192,6 +197,16 @@ export class Slots {
       this.ctx.event(project, { kind: "worktree.swept", path });
     }
     try {
+      if (readdirSync(root).length === 0) rmdirSync(root);
+    } catch {}
+  }
+
+  /** Removes a path the desk made under its own worktree root, and the project's folder once empty. */
+  private discard(project: Project, path: string): void {
+    const root = join(worktreeRoot(), project.slug);
+    if (!path.startsWith(`${root}/`)) return;
+    try {
+      rmSync(path, { recursive: true, force: true });
       if (readdirSync(root).length === 0) rmdirSync(root);
     } catch {}
   }
