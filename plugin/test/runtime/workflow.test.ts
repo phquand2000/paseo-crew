@@ -636,6 +636,32 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   h.runtime.dispose();
 });
 
+test("a copy two seats are writing in is put away by the last of them to stop, not the first", async () => {
+  const h = harness("outbox-lastout.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Both in here", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "In the lane's copy", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  assert.equal(h.agents.get(task.peer!)!.cwd, lane.worktree, "a lane-mode Peer writes in the lane's own copy, beside its Lead");
+  writeFileSync(join(lane.worktree!, "half-written.txt"), "the Peer is mid-sentence\n");
+
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "the outcome was wrong" });
+  assert.equal(closed.ok, true, closed.text);
+  assert.match(closed.text, new RegExp(`${lane.lead} and ${task.peer}`), "both are named, because both are still writing there");
+
+  h.agents.get(task.peer!)!.status = "idle";
+  await h.endTurn(task.peer!, "stopping");
+  assert.equal(existsSync(join(lane.worktree!, "half-written.txt")), true, "the Peer stopped, and the Lead is still in there");
+  assert.ok(h.ledger().slots[lane.slot!], "so the copy is still the lane's");
+
+  h.agents.get(lane.lead!)!.status = "idle";
+  await h.endTurn(lane.lead!, "stopping too");
+  assert.equal(existsSync(lane.worktree!), false, "the last one out puts it away");
+  assert.deepEqual(Object.keys(h.ledger().slots), []);
+  h.runtime.dispose();
+});
+
 test("with gateOn task, the gate really runs on a lane-mode task and the Lead is told the result, not a description", async () => {
   const h = harness("outbox-taskgate.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
