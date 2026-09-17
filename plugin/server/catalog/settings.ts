@@ -34,11 +34,6 @@ const McpChoice = z.strictObject({
 export type Connect = z.infer<typeof Connect>;
 export type McpChoice = z.infer<typeof McpChoice>;
 
-const LimitsChoice = z.strictObject({
-  slots: z.number().int().min(1).max(10).optional(),
-  tasksPerLane: z.number().int().min(1).max(20).optional(),
-});
-
 const AttentionChoice = z.strictObject({
   tickSeconds: z.number().int().min(5).optional(),
   leadIdleMinutes: z.number().int().min(1).optional(),
@@ -57,7 +52,6 @@ const shared = {
   roles: z.record(z.string(), RoleChoice).optional(),
   mcp: z.record(z.string(), McpChoice).optional(),
   rules: z.string().optional(),
-  limits: LimitsChoice.optional(),
   flow: FlowChoice.optional(),
 };
 

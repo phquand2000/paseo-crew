@@ -135,8 +135,6 @@ export type Attention = {
   digestMinutes: number;
 };
 
-export type Limits = { slots: number; tasksPerLane: number };
-
 export type Kit = {
   dir: string;
   prefix: string;
@@ -144,11 +142,9 @@ export type Kit = {
   harnesses: Record<string, HarnessSpec>;
   mcp: Record<string, McpEntry>;
   attention: Attention;
-  limits: Limits;
 };
 
 const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60 };
-const LIMITS: Limits = { slots: 3, tasksPerLane: 4 };
 
 function subdirs(root: string): string[] {
   if (!existsSync(root)) return [];
@@ -202,7 +198,6 @@ export function loadKit(dir: string): Kit {
     harnesses,
     mcp: loadMcp(dir),
     attention: { ...ATTENTION, ...(raw.attention ?? {}) },
-    limits: { ...LIMITS, ...(raw.limits ?? {}) },
   };
 }
 

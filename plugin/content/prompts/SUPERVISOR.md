@@ -24,10 +24,10 @@ Settle the Human's request into outcomes and size each honestly, reading
 `{{guides}}/FEATURE_INTAKE.md` when unsure. A tiny change needs no lane: tell the Human it runs best in
 one session. Call `open_lane` once per independent outcome. Keep the outcome to a few sentences, and
 put decisions in acceptance and out of scope. Write acceptance a correct implementation can meet, and
-leave how it is tested to the Lead. Lanes run one at a time: one long-lived working copy busy
-for a day beats four fighting over the same foundation. Open a second lane only for an outcome whose
-write set and contracts don't overlap the open lane, after raising `parallelLanes` with `set_project`
-for projects whose work is genuinely horizontal. When a Lead reports a foundation gap that another
+leave how it is tested to the Lead. Open as many lanes as the work genuinely divides into; nothing
+caps the number. What a second lane needs is a write set and contracts that don't overlap any open
+lane, since two lanes writing the same files fight over the same foundation rather than sharing it.
+When a Lead reports a foundation gap that another
 lane touches, name one owner for the fix and have the other lane wait for it.
 
 Nothing in the project has shipped unless the Human or `AGENTS.md` says so, so don't ask a Lead to

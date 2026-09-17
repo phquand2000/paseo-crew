@@ -18,13 +18,12 @@ test("with no settings every role gets its catalog defaults and the MCP servers 
   assert.deepEqual(team.roles.supervisor!.mcp, []);
   assert.deepEqual(team.roles.watcher!.mcp, []);
   assert.equal(team.mcp.docs!.enabled, false);
-  assert.equal(team.limits.slots, 3);
   assert.equal(team.attention.leadIdleMinutes, 15);
 });
 
 test("the project layer overrides the machine layer, and switching harness drops the other harness's model", () => {
-  const machine = { mcp: { docs: { enabled: true }, ide: { settings: { port: 1234 } } }, limits: { slots: 2 }, rules: "Write tests first." };
-  const project = { roles: { lead: { harness: "devin" } }, mcp: { ide: { roles: ["peer"] } }, limits: { tasksPerLane: 1 }, rules: "Use pnpm." };
+  const machine = { mcp: { docs: { enabled: true }, ide: { settings: { port: 1234 } } }, rules: "Write tests first." };
+  const project = { roles: { lead: { harness: "devin" } }, mcp: { ide: { roles: ["peer"] } }, rules: "Use pnpm." };
   const team = resolveTeam(kit, machine, project);
   assert.deepEqual(team.errors, []);
   const lead = team.roles.lead!;
@@ -33,7 +32,6 @@ test("the project layer overrides the machine layer, and switching harness drops
   assert.equal(lead.thinking, undefined);
   assert.deepEqual(lead.mcp, ["docs"]);
   assert.deepEqual(team.roles.peer!.mcp, ["ide", "docs"]);
-  assert.deepEqual(team.limits, { slots: 2, tasksPerLane: 1 });
   assert.equal(team.rules, "Write tests first.\n\nUse pnpm.");
   const leadServers = serversFor(kit, team, "lead", context) as Record<string, any>;
   assert.deepEqual(Object.keys(leadServers).sort(), ["docs", "team"]);

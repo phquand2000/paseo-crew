@@ -32,10 +32,8 @@ function laneTask(ledger: Ledger, caller: Caller, id: string): { lane: Lane; tas
   return { lane, task };
 }
 
-function placementProblem(desk: DeskServices, project: Project, ledger: Ledger, lane: Lane, owned: string[], parallel: boolean): string | undefined {
+function placementProblem(project: Project, ledger: Ledger, lane: Lane, owned: string[], parallel: boolean): string | undefined {
   const active = activeTasks(ledger, lane.id).filter((task) => task.kind === "code");
-  const limit = desk.ctx.team(project).limits.tasksPerLane;
-  if (active.length >= limit) return `${limit} tasks are already active in your lane; accept, cut or wait for one first.`;
   if (!parallel) {
     const writer = active.find((task) => task.mode !== "parallel" && WRITING.includes(task.status));
     return writer
@@ -92,7 +90,7 @@ export const startTask: Tool = async (desk, caller, args) => {
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
   if (!lane?.slot || !lane.worktree) return no("You have no open lane.");
-  const problem = placementProblem(desk, project, ledger, lane, owned, parallel);
+  const problem = placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
   const task = await recordTask(desk, project, lane, args, parallel, parallel ? undefined : await headSha(lane.worktree));
   try {

@@ -9,10 +9,6 @@ import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } 
 import type { DeskServices, Tool } from "../services.ts";
 
 function scopeProblem(config: ProjectConfig, open: Lane[], writeSet: string[], contracts: string[]): string | undefined {
-  if (open.length >= config.parallelLanes) {
-    const plural = open.length === 1 ? " is" : "s are";
-    return `${open.length} lane${plural} open and this project runs ${config.parallelLanes} at a time. Fold this outcome into ${open[0]?.id ?? "the open lane"} with message, wait for it to land, or raise parallelLanes with set_project only if the work is genuinely independent.`;
-  }
   if (open.length === 0) return undefined;
   if (writeSet.length === 0) return "Another lane is open, so this lane needs writeSet (and contracts) to prove it doesn't overlap.";
   const serial = serialHits(writeSet, config.serialOnly);
@@ -148,16 +144,14 @@ export const setProject: Tool = async (_desk, caller, args) => {
   const base = str(args.base);
   if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
   const minutes = Number(args.gateTimeoutMinutes);
-  const lanes = Number(args.parallelLanes);
   const next: ProjectConfig = {
     ...config,
     base: base || config.base,
     gate: typeof args.gate === "string" ? args.gate.trim() || undefined : config.gate,
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
     gateOn: args.gateOn === "task" ? "task" : args.gateOn === "lane" ? "lane" : config.gateOn,
-    parallelLanes: Number.isInteger(lanes) && lanes > 0 ? lanes : config.parallelLanes,
     serialOnly: Array.isArray(args.serialOnly) ? strs(args.serialOnly) : config.serialOnly,
   };
   saveConfig(caller.project.state, next);
-  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes; ${next.parallelLanes} lane(s) at a time.`);
+  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.`);
 };

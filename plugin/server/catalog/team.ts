@@ -4,7 +4,6 @@ import {
   type Attention,
   type HarnessSpec,
   type Kit,
-  type Limits,
   type McpEntry,
   type McpServers,
   type McpTransport,
@@ -32,7 +31,6 @@ export type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec
 export type Team = {
   roles: Record<string, RoleSeat>;
   mcp: Record<string, McpState>;
-  limits: Limits;
   attention: Attention;
   rules: string;
   errors: string[];
@@ -172,7 +170,6 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}):
   return {
     roles,
     mcp,
-    limits: { ...kit.limits, ...stripUndefined(machine.limits), ...stripUndefined(project.limits) },
     attention: { ...kit.attention, ...stripUndefined(machine.attention) },
     rules: [machine.rules, project.rules].filter((text) => text && text.trim()).join("\n\n"),
     errors,

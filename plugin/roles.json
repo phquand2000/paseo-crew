@@ -1,9 +1,5 @@
 {
   "providerPrefix": "sw2-",
-  "limits": {
-    "slots": 3,
-    "tasksPerLane": 4
-  },
   "attention": {
     "tickSeconds": 30,
     "leadIdleMinutes": 12,

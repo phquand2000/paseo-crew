@@ -84,7 +84,6 @@ export function describeTeam(kit: Kit, team: Team, project?: Project): unknown {
   return {
     project: project?.slug ?? null,
     errors: team.errors,
-    limits: team.limits,
     attention: team.attention,
     rules: team.rules,
     mcp: Object.fromEntries(

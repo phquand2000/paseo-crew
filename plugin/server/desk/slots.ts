@@ -21,7 +21,6 @@ export class Slots {
 
   async acquire(project: Project, branch: string, base: string, holder: Holder): Promise<Slot> {
     const picked = await this.reserve(project, holder);
-    if (!picked) throw new Error(`all ${this.ctx.team(project).limits.slots} working copies of this project are in use`);
     try {
       const reused = await this.checkOut(project, picked, branch, base);
       const workspaceId = picked.workspaceId ?? (await this.createWorkspace(project, picked));
@@ -45,7 +44,7 @@ export class Slots {
     this.ctx.event(project, { kind: "slot.released", slot: slotId });
   }
 
-  private reserve(project: Project, holder: Holder): Promise<Slot | undefined> {
+  private reserve(project: Project, holder: Holder): Promise<Slot> {
     return this.ctx.ledger(project, (ledger) => {
       const free = Object.values(ledger.slots)
         .filter((slot) => !slot.lane && !slot.task)
@@ -54,9 +53,7 @@ export class Slots {
         Object.assign(free, holder);
         return { ...free };
       }
-      const count = Object.keys(ledger.slots).length;
-      if (count >= this.ctx.team(project).limits.slots) return undefined;
-      const id = `S${count}`;
+      const id = `S${Object.keys(ledger.slots).length}`;
       const slot: Slot = { id, path: join(worktreeRoot(), project.slug, id), createdAt: Date.now(), ...holder };
       ledger.slots[id] = slot;
       return { ...slot };

@@ -24,7 +24,7 @@ export type TeamView = {
 
 export type RoleChoice = { harness?: string; model?: string; thinking?: string };
 export type McpChoice = { enabled?: boolean; removed?: boolean; label?: string; connect?: Connect; roles?: string[]; tools?: Record<string, string[]>; rule?: string; settings?: Record<string, Scalar> };
-export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; limits?: { slots?: number; tasksPerLane?: number }; flow?: { live?: boolean; everySeconds?: number } };
+export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; flow?: { live?: boolean; everySeconds?: number } };
 
 export type ProjectRow = { slug: string; root: string };
 export type PaseoProject = { name: string; root: string };

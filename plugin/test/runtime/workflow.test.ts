@@ -154,7 +154,7 @@ test("a lane works serially in one long-lived working copy that the next lane re
 
   const second = await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", acceptance: ["y"], outOfScope: ["anything else in the repository"] });
   assert.equal(second.ok, false);
-  assert.match(second.text, /1 at a time/);
+  assert.match(second.text, /needs writeSet/, "no count caps lanes now; what a second lane still needs is a write set that proves it doesn't overlap");
 
   const unbounded = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
   assert.equal(unbounded.ok, false);
@@ -248,7 +248,6 @@ test("parallel work needs independent write sets and merges back from its own wo
   assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "B\n");
   assert.equal(h.ledger().slots.S1!.task, undefined);
 
-  await h.call(sup, "supervisor", "set_project", { parallelLanes: 2 });
   const noScope = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"] });
   assert.equal(noScope.ok, false);
   const clash = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });

@@ -2,7 +2,7 @@
   "supervisor": [
     {
       "name": "open_lane",
-      "description": "Open a lane for one outcome: it takes one of the project's long-lived working copies, creates the lane branch there and starts a Lead with this directive. Lanes run one at a time by default; a second open lane needs writeSet and contracts that don't overlap the open lanes.",
+      "description": "Open a lane for one outcome: it takes one of the project's long-lived working copies, creates the lane branch there and starts a Lead with this directive. Any number of lanes may be open at once; a second open lane needs writeSet and contracts that don't overlap the open lanes.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -151,10 +151,6 @@
             ],
             "description": "lane (default): run the gate when a lane is reported ready and before landing. task: also run it on every task merge."
           },
-          "parallelLanes": {
-            "type": "number",
-            "description": "How many lanes may be open at once (default 1). Raise it only for projects whose outcomes are independent, like separate endpoints or pages."
-          },
           "serialOnly": {
             "type": "array",
             "items": {
@@ -177,7 +173,7 @@
   "lead": [
     {
       "name": "start_task",
-      "description": "Start a Peer on one task. By default it works in your lane's working copy and commits straight onto the lane branch, one writer at a time; accepting it needs no merge. Set parallel only when the task's owned paths are independent of every active task and touch no shared contract: it then gets its own working copy and branch and merges back when accepted. Default to one task for the whole lane.",
+      "description": "Start a Peer on one task. By default it works in your lane's working copy and commits straight onto the lane branch, one writer at a time; accepting it needs no merge. Set parallel when the task's owned paths are independent of every active task and touch no shared contract: it then gets its own working copy and branch, runs beside the others, and merges back when accepted. No limit caps how many tasks a lane may run.",
       "inputSchema": {
         "type": "object",
         "properties": {

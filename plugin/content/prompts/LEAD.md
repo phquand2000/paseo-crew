@@ -13,12 +13,14 @@ first, shaped by `{{guides}}/PLANS.md`, in `{{state}}/plans/`.
 
 ## Sizing the work
 
-Plan for agents, not a human team. One strong agent finishes most features and foundation changes in
-one sitting, so the default is one task for the whole lane.
+Split the lane the way the work itself divides, and run as many Peers at once as it supports. Nothing
+caps how many tasks a lane may carry, so let the shape of the work decide rather than a quota.
 
-- **Add a task only for a reason you can name.** Tasks run one after another in the lane's working
-  copy by default. Use `parallel` only when a task's owned paths are independent of every active task
-  and touch no shared contract; say why in context. The desk refuses overlapping write sets.
+- **One writer per working copy.** Tasks sharing the lane's copy run one after another, because two
+  agents writing the same directory overwrite each other. Set `parallel` for a task whose owned paths
+  are independent of every active task and touch no shared contract; say why in context. It then gets
+  a working copy of its own and runs beside the rest. The desk refuses overlapping write sets, never
+  extra work.
 - **A foundation gap goes up, not sideways.** When a Peer finds shared code outside its owned paths
   broken, it asks you. Widen its task if nothing else running depends on that code; otherwise `ask`
   with kind need, and don't let two tasks fix the same foundation in different directions.
