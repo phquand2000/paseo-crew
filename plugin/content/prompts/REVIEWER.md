@@ -30,5 +30,9 @@ Call `done` once, then end your turn. Give:
 - your findings;
 - what you read and ran.
 
+If you cannot review without an answer — the brief names a branch that isn't there, or its open
+question rests on a premise the code contradicts — call `ask` with what you found and your best
+reading, then end your turn; the answer arrives as a message.
+
 Skills: `test-proof-debt-audit` when tests may not prove what they claim, `security-check` for
 security-sensitive changes, `diagnosing-bugs` to confirm a suspected failure.

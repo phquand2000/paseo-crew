@@ -67,6 +67,13 @@ test("a hand-back names the Peer that wrote it, so its lead can read what it did
   assert.match(anonymous, /^HANDBACK L1-T1 \(Apply discount\)$/m, "with no agent named the header still reads as a heading, not a dangling from");
 });
 
+test("an ending names the agent behind it, so the Watcher can read what it did", () => {
+  const named = letters.ending("the Peer on L1-T1 (Apply discount)", "Done.", ["ran npm test"], "agent-9");
+  assert.match(named, /ENDING from the Peer on L1-T1 \(Apply discount\), agent agent-9\./, "the Watcher is told which agent to read, in the mail that asks it to judge");
+  const anonymous = letters.ending("the Lead of L1", "Done.");
+  assert.match(anonymous, /^ENDING from the Lead of L1\.$/m, "with no agent named the header still reads as a heading");
+});
+
 test("issue references resolve to gh arguments", () => {
   assert.deepEqual(issueArgs("#12"), ["issue", "view", "12"]);
   assert.deepEqual(issueArgs("acme/shop#7"), ["issue", "view", "7", "-R", "acme/shop"]);

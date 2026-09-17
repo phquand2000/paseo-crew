@@ -80,7 +80,7 @@ export class Runtime {
       const watcher = await this.desk.ensureWatcher(item.project, seats);
       if (!watcher) return;
       this.desk.recordReading(item.project, item.where, item.reading.notes);
-      await this.desk.post(watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record));
+      await this.desk.post(watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record, item.agent));
     })().catch((error) => console.error("seatworks-v2: an ending could not reach the Watcher:", error));
   }
 

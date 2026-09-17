@@ -187,9 +187,9 @@ export const letters = {
     return lines.join("\n");
   },
 
-  ending(where: string, text: string, actions: string[] = []): string {
+  ending(where: string, text: string, actions: string[] = [], agent?: string): string {
     const inside = clip(text.replace(/\s+/g, " ").replace(/<\/?ending>/gi, "").trim() || "(nothing)", 1500);
-    const lines = [`ENDING from ${where}.`, ""];
+    const lines = [agent ? `ENDING from ${where}, agent ${agent}.` : `ENDING from ${where}.`, ""];
     if (actions.length > 0) {
       lines.push(
         "The desk's record of this turn. These are mechanical extracts from what the agent did. They were not judged by anything and carry no implication of fault:",
