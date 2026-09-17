@@ -79,7 +79,7 @@ test("a rename is counted as the two real paths it moved between, not as git's d
   run("mv", "src/pricing.ts", "src/price.ts");
   run("commit", "-qm", "rename it");
 
-  const counts = await diffCounts(root, before, "HEAD");
+  const counts = (await diffCounts(root, before, "HEAD"))!;
   assert.deepEqual(counts.files.sort(), ["src/price.ts", "src/pricing.ts"], "both sides are real paths a seat can open");
   // The task was asked to do exactly this rename, so its Lead must not be told it wrote elsewhere.
   assert.deepEqual(outsideOwned(counts.files, ["src/pricing.ts", "src/price.ts"]), []);
@@ -95,7 +95,7 @@ test("a path with a character outside ASCII is read back as itself, not as git's
   run("add", "-A");
   run("commit", "-qm", "add");
 
-  const counts = await diffCounts(root, "HEAD~1", "HEAD");
+  const counts = (await diffCounts(root, "HEAD~1", "HEAD"))!;
   assert.deepEqual(counts.files, ["src/giá-trị.ts"], "the Lead is shown the file that changed, not an octal escape of it");
   assert.equal(counts.src, 1);
   // And it is inside the paths the task owned, which the escaped form would not have been.

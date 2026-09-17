@@ -141,6 +141,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         ) : null}
         {tab === "flow" ? (
           <FlowSection
+            following={Boolean(project)}
             flow={flow}
             error={flowError}
             live={flowLive}

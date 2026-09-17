@@ -118,15 +118,21 @@ export function read(timeline: Timeline, options: ReadOptions = {}): Reading {
     }
     if (detail.type === "edit" || detail.type === "write") stretches[stretches.length - 1]!.push(String(detail.filePath ?? ""));
   }
-  const again =
-    stretches.map((stretch) => repeated(stretch, repeatsAt)).find(Boolean) ??
-    repeated(
-      commands.filter((command) => !(gate && command.includes(gate))),
-      repeatsAt,
-    );
-  if (again) {
+  const edited = stretches.map((stretch) => repeated(stretch, repeatsAt)).find(Boolean);
+  const ran = repeated(
+    commands.filter((command) => !(gate && command.includes(gate))),
+    repeatsAt,
+  );
+  if (edited || ran) {
     signals.push("repetition");
-    notes.push(`${again.slice(0, 120)} — ${repeatsAt} in a row with no run of the gate between them`);
+    // What each branch really counted: the same file written repeatedly between two runs of the
+    // gate, or the same command run repeatedly anywhere in the turn. The note used to claim both
+    // were adjacent and gate-free, which neither check establishes.
+    notes.push(
+      edited
+        ? `${edited.slice(0, 120)} — written ${repeatsAt} times between runs of the gate`
+        : `${ran!.slice(0, 120)} — run ${repeatsAt} times in this turn, not counting the gate`,
+    );
   }
 
   const ranGate = Boolean(gate) && commands.some((command) => command.includes(gate as string));

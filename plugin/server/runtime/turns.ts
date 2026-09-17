@@ -107,7 +107,7 @@ export class TurnRules {
       return;
     }
     const denied = deniedCall(timeline, seatOf(this.deps.kit, agent.provider)?.harness.refused);
-    desk.event(project, { kind: "turn.silent", task: task.id, denied: denied ?? null, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
+    desk.event(project, { kind: "turn.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
     const updated = await desk.setTask(project, task.id, (entry) => {
       entry.silent += 1;
       if (entry.silent >= 2 || denied) entry.status = "stalled";
@@ -117,8 +117,8 @@ export class TurnRules {
       await desk.post(agent.id, `nudge:${task.id}:${updated.silent}:${Date.now()}`, letters.nudge("done"));
       return;
     }
-    await desk.post(lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, denied));
-    desk.event(project, { kind: "task.silent", task: task.id, denied: denied ?? null });
+    await desk.post(lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, updated.silent, denied));
+    desk.event(project, { kind: "task.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false });
   }
 
   private leadEnded(project: Project, ledger: Ledger, agentId: string, text: string, reading: Reading): void {

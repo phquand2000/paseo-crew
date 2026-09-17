@@ -858,6 +858,29 @@ test("a commit made while the lane's copy is off its branch is not accepted as l
   h.runtime.dispose();
 });
 
+test("a task cannot be told to open a skill its Peer does not have", async () => {
+  const h = harness("outbox-skills.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Skilled", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  const scope = { goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] };
+
+  // Nothing in a Lead's own context lists the Peer's skills, so a guess reached the brief verbatim
+  // and told the Peer to open something that is not there.
+  const guessed = await h.call(lane.lead!, "lead", "start_task", { title: "Guessed", ...scope, skills: ["tdd"] });
+  assert.equal(guessed.ok, false);
+  assert.match(guessed.text, /no skill called tdd/);
+  assert.match(guessed.text, /They have: /, "and the refusal is where the Lead finds out what there is");
+
+  const real = guessed.text.split("They have: ")[1]!.replace(/\.$/, "").split(", ")[0]!;
+  const named = await h.call(lane.lead!, "lead", "start_task", { title: "Named", ...scope, skills: [real] });
+  assert.equal(named.ok, true, named.text);
+  const started = Object.values(h.ledger().tasks).find((task) => task.title === "Named")!;
+  assert.match(h.agents.get(started.peer!)!.prompt!, new RegExp(`Skills to open: ${real}`));
+  assert.equal(Object.values(h.ledger().tasks).some((task) => task.title === "Guessed"), false, "a refused task does not take an id either");
+  h.runtime.dispose();
+});
+
 test("a hand-back the Lead has not accepted still holds the lane's copy, so nothing is sent in beside it", async () => {
   const h = harness("outbox-holds.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

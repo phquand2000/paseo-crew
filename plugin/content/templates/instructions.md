@@ -8,7 +8,7 @@ ceremony: it holds an architecture overview, a directory tree or anything restat
 
 Start this file EMPTY and add a line only the second time something is got wrong. Measured: context files that restate the repository do not improve results and raise cost by over a fifth; what helps is a specific instruction the code does not already carry.
 
-# AGENTS.md
+# Project instructions
 
 Not every heading applies. Where one does not, say in a line why, and leave it. An empty heading is ceremony; a heading that says why it is empty is information.
 

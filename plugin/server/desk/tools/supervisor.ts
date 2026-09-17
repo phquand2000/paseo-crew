@@ -66,6 +66,13 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
   });
 }
 
+/** Which gate regime this project runs, because a Lead plans its splits against it. */
+function gateRegime(project: Project): string {
+  const config = loadConfig(project.state);
+  if (!config.gate) return "none set, so nothing is checked for you";
+  return config.gateOn === "task" ? `${config.gate} runs on every task, so a task that goes red does not land` : `${config.gate} runs on the whole lane when you report it ready`;
+}
+
 function openedReply(project: Project, lane: Lane, slot: { id?: string }, lead: string, issue: Issue | undefined): string {
   const gate = loadConfig(project.state).gate ?? "none; call set_project with the project's test command";
   const issueText = issue
@@ -119,7 +126,7 @@ export const openLane: Tool = async (desk, caller, args) => {
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
-      prompt: letters.directive(lane, issue, { names: config.docs, dir: docsDir(project.state) }),
+      prompt: letters.directive(lane, issue, { names: config.docs, dir: docsDir(project.state) }, gateRegime(project)),
       labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
     await ctx.ledger(project, (ledger) => {

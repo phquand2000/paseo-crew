@@ -81,11 +81,15 @@ function Tuning({ entry, current, disabled, save, labelOf }: {
 
 export function ServersSection({ catalog, team, values, machine, layer, theme, disabled, save, addServer }: Props) {
   const ids = Object.keys(team.mcp);
+  // A removed template keeps its tab, because the hint on Remove says it can be added again and this
+  // is the control that makes that true: resolving drops a removed server, so building the tabs from
+  // the resolved team alone left a catalogue entry with no tab, no switch and no way back.
+  const put = catalog.mcp.map((item) => item.id).filter((id) => !ids.includes(id));
   const [active, setActive] = useState(ids[0] ?? ADD);
   const [paste, setPaste] = useState("");
   const state = team.mcp[active];
   const entry = catalog.mcp.find((item) => item.id === active);
-  const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), { id: ADD, label: "Add a server" }];
+  const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), ...put.map((id) => ({ id, label: catalog.mcp.find((item) => item.id === id)?.label ?? id })), { id: ADD, label: "Add a server" }];
   const styles = useMemo(
     () => ({
       block: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, gap: 8 },
@@ -97,6 +101,22 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
     [theme],
   );
 
+  if (!state && entry) {
+    return (
+      <SettingsSection title="MCP servers" info={entry.description ?? ""}>
+        <TabBar theme={theme} active={active} disabled={disabled} onPick={setActive} tabs={tabs} />
+        <SettingsCard>
+          <SettingsAction
+            label={`${entry.label} was removed`}
+            hint="It stayed in the catalogue. Adding it back brings its switch and its settings with it."
+            actionLabel="Add it back"
+            disabled={disabled}
+            onPress={() => void save((current) => setMcp(current, entry.id, { removed: false }))}
+          />
+        </SettingsCard>
+      </SettingsSection>
+    );
+  }
   if (active === ADD || !state) {
     return (
       <SettingsSection title="MCP servers" info="Paste the snippet a server gives you. Everything else you choose here afterwards.">

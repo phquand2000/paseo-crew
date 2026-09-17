@@ -20,7 +20,12 @@ export function clip(text: string, limit: number): string {
 }
 
 export const letters = {
-  directive(lane: Lane, issue?: { number: number; title: string; url: string; body: string }, docs: { names: string[]; dir: string } = { names: [], dir: "" }): string {
+  directive(
+    lane: Lane,
+    issue?: { number: number; title: string; url: string; body: string },
+    docs: { names: string[]; dir: string } = { names: [], dir: "" },
+    gate = "runs on the whole lane when you report it ready",
+  ): string {
     const parts = [
       `OWNER DIRECTIVE ${lane.id}: ${lane.title}`,
       "",
@@ -36,6 +41,7 @@ export const letters = {
       list(lane.outOfScope),
       "",
       `Lane branch: ${lane.branch}, off ${lane.base}. Your working copy is on it; tasks merge into it.`,
+      `Gate: ${gate}`,
     ];
     if (docs.names.length > 0) {
       parts.push("", `This project keeps these pages under ${docs.dir}: ${docs.names.join(", ")}. Keep current the ones this lane makes wrong, and leave the rest alone.`);
@@ -163,7 +169,10 @@ export const letters = {
     ].join("\n");
   },
 
-  merged(task: Task, counts: Counts, outside: string[], gate: string): string {
+  merged(task: Task, counts: Counts | undefined, outside: string[], gate: string): string {
+    if (!counts) {
+      return [`MERGED ${task.id} (${task.title}) into the lane branch.`, "Lines changed: git could not say, so this is the merge without its size.", `Gate: ${gate}`].join("\n");
+    }
     const lines = [
       counts.files.length === 0
         ? `MERGED ${task.id} (${task.title}): it changed no files, so there was nothing to merge.`
@@ -204,9 +213,12 @@ export const letters = {
     return `Your turn ended without calling ${tool} or ask. If the work is finished or stuck, call ${tool} or ask now; if you are still working, continue.`;
   },
 
-  stalled(task: Task, ending: string, denied?: string): string {
-    const lines = [`SILENT ${task.id} (${task.title}): its turn ended twice without a hand-back or an ask.`];
-    if (denied) lines.push(`Its last call was refused: ${denied}. A refused call ends that agent's turn.`);
+  /** Told the count and what happened to the last call, rather than asserting both. */
+  stalled(task: Task, ending: string, quiet: number, denied?: { what: string; refused: boolean }): string {
+    const turns = quiet === 1 ? "its turn ended once" : `its turn ended ${quiet === 2 ? "twice" : `${quiet} times`}`;
+    const lines = [`SILENT ${task.id} (${task.title}): ${turns} without a hand-back or an ask.`];
+    if (denied?.refused) lines.push(`Its last call was refused: ${denied.what}. A refused call ends that agent's turn.`);
+    else if (denied) lines.push(`Its last call did not finish: ${denied.what}. A call that never comes back ends that agent's turn.`);
     lines.push("", "Its last words:", clip(ending.trim() || "(nothing)", 1500));
     return lines.join("\n");
   },

@@ -27,8 +27,9 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
 - **Don't split to keep builds green.** Never split one contract change into producer and consumer
   tasks, by layer, or into phases that exist so half-built states compile. The writer changes the
   contract and every caller together.
-- **Red is fine inside the lane.** Tasks have no gate of their own; the gate runs on the whole lane
-  when you report it ready. Nothing in this repository has shipped unless `AGENTS.md` says so, so
+- **Red is fine inside the lane** when the gate runs on the lane, which is the default and which the
+  directive you were opened with names. A project whose owner set the gate to run per task is told to
+  you the same way, and then a task that goes red does not land. Nothing in this repository has shipped unless `AGENTS.md` says so, so
   there is no compatibility, bridge or transition code to keep.
 - **Brief with fields, not prose.** For each task, `start_task` with the goal as an outcome,
   acceptance as behaviors, and every limit in `owned` and out of scope, where a limit survives the

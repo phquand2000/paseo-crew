@@ -44,7 +44,8 @@ and foundation changes in one sitting, so an outcome is one lane and a lane is u
 - Don't split by layer, to show progress, or into phases that keep a half-built state compiling.
   Two lanes that write the same contract, schema or files are one lane, or the contract is settled in
   one lane before the others open.
-- Intermediate states inside a lane may be red; the gate runs on the whole lane.
+- Intermediate states inside a lane may be red when the gate runs on the lane, which is the default;
+  a project can set it to run per task instead, and its lanes say so in the directive.
 - A compatibility layer is legitimate only for a named shipped consumer: a published API, persisted
   production data, an independently deployed service or client. Before such a consumer exists a
   break costs one coordinated change, and after one exists it costs whoever depends on you, on their

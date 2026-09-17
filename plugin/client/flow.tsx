@@ -6,6 +6,8 @@ import { Empty } from "./bits.tsx";
 import type { FlowLane, FlowSeat, FlowView } from "./data.ts";
 
 type Props = {
+  /** False on the machine screen, where there is no project to follow and nothing is read. */
+  following: boolean;
   flow: FlowView | null;
   error: string | null;
   live: boolean;
@@ -121,7 +123,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
   );
 });
 
-export function FlowSection({ flow, error, live, theme, disabled, onLive, onOpen }: Props) {
+export function FlowSection({ following, flow, error, live, theme, disabled, onLive, onOpen }: Props) {
   const styles = useStyles(theme);
   const empty = flow !== null && flow.lanes.length === 0 && flow.supervisor === null;
 
@@ -130,7 +132,7 @@ export function FlowSection({ flow, error, live, theme, disabled, onLive, onOpen
       <SettingsCard>
         <SettingsSwitch
           label="Follow the team live"
-          hint={live ? "Reads the ledger every few seconds while this tab is open." : "Switched off, so this tab costs nothing."}
+          hint={!following ? "The default every project starts with. A project's own Flow tab is what reads its ledger." : live ? "Reads the ledger every few seconds while this tab is open." : "Switched off, so this tab costs nothing."}
           value={live}
           onValueChange={onLive}
           disabled={disabled}
@@ -143,7 +145,7 @@ export function FlowSection({ flow, error, live, theme, disabled, onLive, onOpen
         </SettingsCard>
       ) : flow === null ? (
         <SettingsCard>
-          <Empty theme={theme} title="Reading the ledger" body="This refreshes on its own." />
+          <Empty theme={theme} title={following ? "Reading the ledger" : "Flow follows one project"} body={following ? "This refreshes on its own." : "Open a project to watch its lanes; the switch above only sets the default."} />
         </SettingsCard>
       ) : empty ? (
         <SettingsCard>

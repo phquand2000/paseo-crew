@@ -1,4 +1,6 @@
 import { roleThatCan } from "../../catalog/kit.ts";
+import { skillSources } from "../../catalog/content.ts";
+import { skillDirsFor } from "../../catalog/team.ts";
 import { branchExists, currentBranch, diffCounts, git, headSha, isPristine, outsideOwned, resetHard, trackedFiles } from "../../core/git.ts";
 import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
@@ -116,6 +118,13 @@ export const startTask: Tool = async (desk, caller, args) => {
   if (problem) return no(problem);
   const workRole = roleThatCan(ctx.kit, "work");
   if (!workRole) return no("No role in this kit can take a task.");
+  // A skill the Peer does not have is a line in its brief telling it to open something that is not
+  // there. Nothing in the Lead's own context lists them, so the refusal is where it finds out.
+  const held = [...skillSources(ctx.kit, workRole, skillDirsFor(ctx.team(project), workRole.role)).keys()];
+  const unknown = strs(args.skills).filter((name) => !held.includes(name));
+  if (unknown.length > 0) {
+    return no(held.length === 0 ? `This kit gives ${workRole.label}s no skills, so ${unknown.join(", ")} cannot be opened.` : `${workRole.label}s have no skill called ${unknown.join(", ")}. They have: ${held.sort().join(", ")}.`);
+  }
   const task = await recordTask(desk, project, lane, args, parallel, parallel ? undefined : await headSha(lane.worktree));
   try {
     let slot: { id?: string; path: string; workspaceId?: string };
@@ -276,11 +285,11 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
   const updated = await ctx.setTask(project, task.id, (entry) => {
     entry.status = "merged";
   });
-  await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
+  await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts?.files ?? [], task.owned), gate));
   if (updated) await agents.retire(project, updated, lane.branch);
   ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
   return ok(
-    counts.files.length === 0
+    counts && counts.files.length === 0
       ? `${task.id} is accepted; it changed nothing, so ${lane.branch} stands where it did. The working copy is free for the next task.`
       : `${task.id} is accepted; its commits are already on ${lane.branch}. The working copy is free for the next task.`,
   );

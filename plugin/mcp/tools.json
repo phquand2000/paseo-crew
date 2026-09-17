@@ -230,7 +230,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Skills the Peer should open."
+            "description": "Skills the Peer should open, by name. Only the ones it has: name one that it does not and the desk answers with the list it does have. Its own prompt already opens the obvious ones, so this is for a case it would not reach for."
           },
           "parallel": {
             "type": "boolean",
@@ -310,7 +310,7 @@
     },
     {
       "name": "accept",
-      "description": "Accept a finished task. A task in the lane's working copy is already on the lane branch; a parallel task merges into it. Neither needs to build on its own: the gate runs on the whole lane when you report it ready.",
+      "description": "Accept a finished task. A task in the lane's working copy is already on the lane branch; a parallel task merges into it. Whether a task has to be green on its own depends on the project: the gate runs on the whole lane when you report it ready unless the owner set it to run per task, and the directive you were opened with says which.",
       "inputSchema": {
         "type": "object",
         "properties": {

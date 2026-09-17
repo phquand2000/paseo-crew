@@ -85,7 +85,7 @@ export class MergeQueue {
     await this.ctx.setTask(project, taskId, (entry) => {
       entry.mergeSha = merged.after;
     });
-    await finish("merged", letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
+    await finish("merged", letters.merged(task, counts, outsideOwned(counts?.files ?? [], task.owned), gate));
     await this.agents.retire(project, task, lane.branch);
   }
 }

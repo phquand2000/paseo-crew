@@ -62,7 +62,9 @@ export async function addWorktree(root: string, path: string, branch: string, ba
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
   const run = await git(root, ["worktree", "add", "-b", branch, path, base], 120_000);
-  return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() };
+  // git says nothing at all when it could not be run — a timeout, a missing binary — and a refusal
+  // with an empty reason tells the Supervisor only that something went wrong.
+  return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say` };
 }
 
 export async function removeWorktree(root: string, path: string | undefined): Promise<void> {
@@ -132,9 +134,10 @@ export function countNumstat(numstat: string): Counts {
   return counts;
 }
 
-export async function diffCounts(cwd: string, from: string, to: string): Promise<Counts> {
+/** Undefined when git could not answer: zeroed counts read as "nothing changed", which is a claim. */
+export async function diffCounts(cwd: string, from: string, to: string): Promise<Counts | undefined> {
   const run = await git(cwd, ["diff", "-z", "--numstat", `${from}..${to}`]);
-  return countNumstat(run.stdout);
+  return run.code === 0 ? countNumstat(run.stdout) : undefined;
 }
 
 export function outsideOwned(files: string[], owned: string[]): string[] {

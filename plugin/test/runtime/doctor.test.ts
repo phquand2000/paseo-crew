@@ -37,3 +37,22 @@ test("doctor passes a machine that has everything, and skips servers nobody uses
   const down = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], null));
   assert.match(down.find((check) => check.id === "mcp:ide")!.detail, /No IDE server answered/);
 });
+
+test("a malformed answer from one server costs that server's check, not the whole report", async () => {
+  const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
+  // What an outside server answers is data. A null in its tools list used to throw out of the report
+  // and take the settings, git and harness checks — computed before it — with the exception.
+  const hostile: Probes = {
+    has: (bin) => ["git", "jq", "claude"].includes(bin),
+    async post(url) {
+      if (url.includes("127.0.0.1")) return { ok: true, json: { result: { tools: [null, { name: "ide_open_project" }, "ide_find_references", { name: 7 }] } } };
+      return { ok: true, json: { result: {} } };
+    },
+  };
+  const checks = await doctor(kit, team, hostile);
+  const byId = Object.fromEntries(checks.map((check) => [check.id, check]));
+  assert.equal(byId.settings!.ok, true, "the checks that have nothing to do with that server still arrive");
+  assert.equal(byId["mcp:ide"]!.ok, false);
+  assert.match(byId["mcp:ide"]!.detail, /doesn't expose/, "and the entries it could read are the ones counted");
+  assert.equal(byId["mcp:docs"]!.ok, true);
+});

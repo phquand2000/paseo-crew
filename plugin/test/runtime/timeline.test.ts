@@ -22,12 +22,14 @@ test("a turn that ends right after a refused call is reported with the call", ()
     { type: "tool_call", name: "Bash", status: "failed", error: { content: "Permission to use Bash with command git log has been denied." }, detail: { type: "shell", command: "git log" } },
     { type: "assistant_message", text: "" },
   );
-  assert.equal(deniedCall(timeline), "Bash: git log");
+  assert.deepEqual(deniedCall(timeline), { what: "Bash: git log", refused: true });
 });
 
-test("a last call that never completed and got no reply counts as refused", () => {
+test("a last call that never came back ends the turn too, and is not called a refusal", () => {
   const timeline = t({ type: "user_message", text: "go" }, { type: "tool_call", name: "exec", status: "canceled", detail: { command: "gh api user" } });
-  assert.equal(deniedCall(timeline), "exec: gh api user");
+  // It ends the turn the same way, and the Lead is told which of the two it was: one is a policy the
+  // owner set, the other is an ordinary tool failure, and they are not the same conversation.
+  assert.deepEqual(deniedCall(timeline), { what: "exec: gh api user", refused: false });
 });
 
 test("a refused call the seat recovered from is not reported", () => {
@@ -51,6 +53,6 @@ test("a harness names how its refusals read, and only those count as refused", (
     { type: "tool_call", name: "shell", status: "failed", error: "policy says no", detail: { command: "rm -rf build" } },
     { type: "assistant_message", text: "Stopped." },
   );
-  assert.equal(deniedCall(timeline), undefined);
-  assert.equal(deniedCall(timeline, "policy says no"), "shell: rm -rf build");
+  assert.equal(deniedCall(timeline), undefined, "it failed and the seat spoke after it, so the turn did not end on that call");
+  assert.deepEqual(deniedCall(timeline, "policy says no"), { what: "shell: rm -rf build", refused: true });
 });

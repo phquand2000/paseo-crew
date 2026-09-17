@@ -39,7 +39,10 @@ export function outputText(timeline: Timeline): string {
 
 export const REFUSED = "permission|denied|not allowed|refused|blocked by";
 
-export function deniedCall(timeline: Timeline, refused = REFUSED, quietChars = 200): string | undefined {
+/** What ended the turn on its last tool call: a refusal, or a call that simply never finished. */
+export type LastCall = { what: string; refused: boolean };
+
+export function deniedCall(timeline: Timeline, refused = REFUSED, quietChars = 200): LastCall | undefined {
   const list = items(timeline);
   const turn = list.slice(lastUserIndex(list) + 1);
   let lastTool = -1;
@@ -63,5 +66,5 @@ export function deniedCall(timeline: Timeline, refused = REFUSED, quietChars = 2
   if (after.trim().length > quietChars) return undefined;
   const detail = (call.detail ?? {}) as Record<string, unknown>;
   const what = typeof detail.command === "string" ? detail.command : typeof detail.filePath === "string" ? detail.filePath : "";
-  return [String(call.name ?? "tool"), what].filter(Boolean).join(": ");
+  return { what: [String(call.name ?? "tool"), what].filter(Boolean).join(": "), refused: denied };
 }
