@@ -22,7 +22,6 @@
         "model": "claude-opus-5",
         "thinking": "high"
       },
-      "entry": true,
       "team": "supervisor",
       "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",

@@ -12,7 +12,6 @@ export type RoleSpec = {
   label: string;
   description?: string;
   team?: TeamRole;
-  entry?: boolean;
   defaults: { harness: string; model?: string; thinking?: string };
   prompt: string;
   skills: string | null;

@@ -19,7 +19,6 @@ export function makeKit(): Kit {
         role: "supervisor",
         label: "Supervisor",
         team: "supervisor",
-        entry: true,
         defaults: { harness: "claude", model: "opus", thinking: "high" },
         prompt: "prompts/SUPERVISOR.md",
         skills: "supervisor",
