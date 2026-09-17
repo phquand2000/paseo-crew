@@ -59,10 +59,11 @@ test("after sending, a seat is left alone until its turn ends", async () => {
   assert.deepEqual(agents.sup.sent, ["first", "second"]);
 });
 
-test("a seat with a pending permission or an archived seat receives nothing", async () => {
+test("a seat with a pending permission or an archived seat receives nothing, and neither one's mail is thrown away", async () => {
   const agents = { a: { ...agent("idle"), pendingPermissions: [{}] }, b: { ...agent("idle"), archivedAt: "2026-01-01" } };
   const outbox = outboxOn(agents, (_to, list) => list[0]!.text);
   assert.equal(await outbox.post({ to: "a", key: "x", text: "t" }), "held");
   assert.equal(await outbox.post({ to: "b", key: "y", text: "t" }), "held");
-  assert.deepEqual(outbox.pending("b"), []);
+  assert.equal(outbox.pending("a").length, 1);
+  assert.equal(outbox.pending("b").length, 1, "a Lead's report must outlive the seat it was addressed to");
 });

@@ -12,8 +12,26 @@ function seatLine(seats: Map<string, SeatView>, id: string | undefined, now: num
   return seat.status === "idle" ? `${id} idle ${minutes(now, seat.updatedAt)} min` : `${id} ${seat.status}`;
 }
 
-export function statusText(project: Project, ledger: Ledger, config: ProjectConfig, seats: Map<string, SeatView>, now: number, laneId?: string, waiting: SeatView[] = []): string {
+export function statusText(
+  project: Project,
+  ledger: Ledger,
+  config: ProjectConfig,
+  seats: Map<string, SeatView>,
+  now: number,
+  laneId?: string,
+  waiting: SeatView[] = [],
+  held: { to: string; text: string; at: number }[] = [],
+): string {
   const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${config.gate ?? "none"}.`, ""];
+  const stranded = held.filter((letter) => !seats.has(letter.to));
+  if (stranded.length > 0) {
+    lines.push("## Mail with nobody to read it", "", "The seat each of these was addressed to is gone. Nothing is lost; they are held until a seat can take them.", "");
+    for (const letter of stranded) {
+      const first = letter.text.split(/\r?\n/).find((line) => line.trim()) ?? "";
+      lines.push(`- to ${letter.to}, waiting ${minutes(now, letter.at)} min: ${first.slice(0, 160)}`);
+    }
+    lines.push("");
+  }
   if (waiting.length > 0) {
     lines.push("## Waiting on the Human", "");
     for (const seat of waiting) {

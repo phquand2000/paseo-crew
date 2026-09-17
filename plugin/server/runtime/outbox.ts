@@ -60,7 +60,6 @@ export class Outbox {
 
   archived(agentId: string): void {
     this.awaiting.delete(agentId);
-    this.save(this.letters().filter((letter) => letter.to !== agentId));
   }
 
   pending(agentId: string): Letter[] {

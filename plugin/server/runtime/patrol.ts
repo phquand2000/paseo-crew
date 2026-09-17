@@ -151,7 +151,8 @@ export class Patrol {
         (seat) => seatOf(kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
       );
       mkdirSync(project.state, { recursive: true });
-      writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, undefined, waiting));
+      const held = this.deps.outbox.letters(now);
+      writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, undefined, waiting, held));
     } catch (error) {
       console.error("seatworks-v2: status write failed:", error);
     }
