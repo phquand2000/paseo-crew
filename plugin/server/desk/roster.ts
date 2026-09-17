@@ -54,9 +54,10 @@ export class Roster {
     return can(seatOf(this.kit, seat.provider)?.role, capability) && projectOf(seat.cwd).slug === project.slug;
   }
 
-  async retireWatcher(project: Project, known?: Iterable<SeatView>): Promise<void> {
+  /** `now` is for an owner switching watching off: an instruction, rather than the work running out. */
+  async retireWatcher(project: Project, known?: Iterable<SeatView>, now = false): Promise<void> {
     const seats = known ?? (await this.seats.open());
-    if (this.supervisorSeat(project, seats)) return;
+    if (!now && this.supervisorSeat(project, seats)) return;
     const seated = this.watcherSeat(project, seats);
     if (seated) await this.archive(seated);
   }

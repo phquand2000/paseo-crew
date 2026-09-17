@@ -52,11 +52,12 @@ export class Patrol {
 
   private async seatWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     try {
-      if (Object.values(ledger.lanes).some((lane) => lane.status === "open")) {
+      const watching = this.deps.source.teamFor(project).attention.watch;
+      if (watching && Object.values(ledger.lanes).some((lane) => lane.status === "open")) {
         await this.deps.desk.ensureWatcher(project, seats.values());
         return;
       }
-      await this.deps.desk.retireWatcher(project, seats.values());
+      await this.deps.desk.retireWatcher(project, seats.values(), !watching);
     } catch (error) {
       console.error(`seatworks-v2: the Watcher on ${project.slug} could not be settled:`, error);
     }

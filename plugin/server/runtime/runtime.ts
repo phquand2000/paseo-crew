@@ -69,13 +69,14 @@ export class Runtime {
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
     });
-    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: () => this.source.teamFor().attention });
+    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: (project) => this.source.teamFor(project).attention });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, remember });
     this.control = new SettingsControl({ kit, source: this.source, seating: this.seating, reconcile: (team) => this.reconcileProviders(team), seats: this.seats });
   }
 
   private tellWatcher(item: Watch): void {
     if (!this.api || !(item.text.trim() || item.reading.record.length > 0)) return;
+    if (!this.source.teamFor(item.project).attention.watch) return;
     void (async () => {
       const seats = await this.seats.open();
       const watcher = await this.desk.ensureWatcher(item.project, seats);

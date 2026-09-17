@@ -16,7 +16,7 @@ export type TurnDeps = {
   desk: Desk;
   remember: (project: Project) => void;
   watch: (item: Watch) => void;
-  attention?: () => Attention;
+  attention?: (project: Project) => Attention;
 };
 
 export class TurnRules {
@@ -70,7 +70,7 @@ export class TurnRules {
 
   private watchable(project: Project, reading: Reading, claimed = false): boolean {
     if (claimed || reading.score > 0) return true;
-    const every = Math.max(1, this.deps.attention?.().watchEveryClean ?? this.deps.kit.attention.watchEveryClean);
+    const every = Math.max(1, this.deps.attention?.(project).watchEveryClean ?? this.deps.kit.attention.watchEveryClean);
     const next = (this.clean.get(project.slug) ?? 0) + 1;
     this.clean.set(project.slug, next % every);
     return next % every === 0;

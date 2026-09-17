@@ -713,3 +713,22 @@ test("a project keeps the pages its owner asked for, and nothing it did not", as
   assert.match(dropped.text, /Pages kept: none/);
   assert.ok(existsSync(join(docsIn, "decision.md")), "dropping a page does not throw away what was written in it");
 });
+
+test("switching watching off puts the Watcher away, instead of paying for one whose findings go nowhere", async () => {
+  const h = harness("outbox-nowatch.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const watchers = () => [...h.agents.values()].filter((agent) => agent.provider.startsWith("sw2-watcher-") && !agent.archivedAt);
+  const tick = () => (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick();
+  await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
+  await tick();
+  assert.equal(watchers().length, 1, "a project being worked on is watched by default");
+
+  for (const seat of watchers()) h.agents.get(seat.id)!.status = "idle";
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { watch: false } }));
+  await tick();
+  assert.equal(watchers().length, 0, "told not to watch, the desk puts the seat away rather than seating one that reaches nobody");
+
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  await tick();
+  assert.equal(watchers().length, 1, "and seats one again when it is turned back on");
+});

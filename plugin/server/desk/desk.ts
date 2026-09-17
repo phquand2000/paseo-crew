@@ -110,8 +110,8 @@ export class Desk {
     return this.services.slots.sweep(project, ledger, busy);
   }
 
-  retireWatcher(project: Project, seats?: Iterable<SeatView>): Promise<void> {
-    return this.services.roster.retireWatcher(project, seats);
+  retireWatcher(project: Project, seats?: Iterable<SeatView>, now = false): Promise<void> {
+    return this.services.roster.retireWatcher(project, seats, now);
   }
 
   async ensureWatcher(project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
