@@ -135,6 +135,7 @@ function harness(outbox: string) {
     git(cwd, "commit", "-qm", `edit ${file}`);
   };
   const ledger = () => loadLedger(project.state);
+  const tick = (now?: number) => (runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick(now);
   const endTurn = (id: string, text: string, ...calls: unknown[]) =>
     (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
@@ -142,7 +143,7 @@ function harness(outbox: string) {
       outcome: { kind: "completed" },
       timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
     });
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn };
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
@@ -400,7 +401,7 @@ test("a Watcher seat has no tool that changes the work", async () => {
 
 test("a project with work running gets one resident Watcher seat, and only one", async () => {
   const h = harness("outbox-watcher-resident.json");
-  const tick = () => (h.runtime as unknown as { patrol: { tick: (now?: number) => Promise<void> } }).patrol.tick();
+  const tick = h.tick;
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
 
@@ -471,7 +472,7 @@ test("seating the Watcher again takes back the working copy it had rather than o
 
 test("what the desk opened and nothing holds any more is swept away without being asked", async () => {
   const h = harness("outbox-sweep.json");
-  const tick = () => (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick();
+  const tick = h.tick;
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Swept", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
 
@@ -489,7 +490,7 @@ test("what the desk opened and nothing holds any more is swept away without bein
 
 test("one workspace carries a whole project, and the desk puts it away when the project goes quiet", async () => {
   const h = harness("outbox-quiet.json");
-  const tick = () => (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick();
+  const tick = h.tick;
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
@@ -535,15 +536,14 @@ test("what was never urgent gathers into one report the owner reads when they co
   await h.idle(sup);
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /WHILE YOU WERE AWAY/, "the report waits rather than arriving a piece at a time");
 
-  const patrol = (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol;
-  await patrol.tick(Date.now() + 61 * 60_000);
+  await h.tick(Date.now() + 61 * 60_000);
   await h.idle(sup);
   const report = h.agents.get(sup)!.sent.join("\n");
   assert.match(report, /WHILE YOU WERE AWAY/);
   assert.match(report, /repetition/);
   assert.match(report, /unverified/);
 
-  await patrol.tick(Date.now() + 122 * 60_000);
+  await h.tick(Date.now() + 122 * 60_000);
   await h.idle(sup);
   assert.equal(h.agents.get(sup)!.sent.join("\n").match(/WHILE YOU WERE AWAY/g)?.length, 1, "a report already read is not sent a second time");
   h.runtime.dispose();
@@ -649,7 +649,7 @@ test("a copy waiting on a seat that never ends its turn is put away in the round
   // The turn never ends: the owner archived the seat, it crashed, or a restart took the desk's own
   // memory of this with it. Either way nothing is writing there any more.
   h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
-  await h.runtime.patrol.tick(Date.now());
+  await h.tick(Date.now());
 
   assert.equal(existsSync(lane.worktree!), false, "the round puts it away rather than leaving a copy and a workspace for good");
   assert.deepEqual(Object.keys(h.ledger().slots), []);
@@ -865,7 +865,7 @@ test("switching watching off puts the Watcher away, instead of paying for one wh
   const h = harness("outbox-nowatch.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const watchers = () => [...h.agents.values()].filter((agent) => agent.provider.startsWith("sw2-watcher-") && !agent.archivedAt);
-  const tick = () => (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick();
+  const tick = h.tick;
   await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
   await tick();
   assert.equal(watchers().length, 1, "a project being worked on is watched by default");
