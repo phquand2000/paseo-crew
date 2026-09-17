@@ -72,6 +72,22 @@ export function workspacesOn(bound: Bound): Workspaces {
       }
       return undefined;
     },
+    async owned(prefix: string): Promise<{ id: string; name: string }[]> {
+      const paseo = bound();
+      if (!paseo) return [];
+      const found: { id: string; name: string }[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page++) {
+        const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
+        for (const entry of result.entries) {
+          const name = entry.name ?? "";
+          if (!entry.archivingAt && (name === prefix || name.startsWith(`${prefix} `))) found.push({ id: entry.id, name });
+        }
+        if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) break;
+        cursor = result.pageInfo.nextCursor;
+      }
+      return found;
+    },
     async make(title: string, path: string): Promise<string> {
       const workspace = await reach(bound).workspaces.create({ title, source: { kind: "directory", path } });
       return workspace.id;

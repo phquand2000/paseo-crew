@@ -29,6 +29,7 @@ export type Seats = {
 
 export type Workspaces = {
   named(name: string): Promise<string | undefined>;
+  owned(prefix: string): Promise<{ id: string; name: string }[]>;
   make(title: string, path: string): Promise<string>;
   seat(workspace: string, spec: SeatSpec): Promise<SeatLook>;
   archive(workspace: string): Promise<void>;

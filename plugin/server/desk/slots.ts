@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { addWorktree, branchExists, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
-import { type Slot, loadLedger } from "./ledger.ts";
+import { type Ledger, type Slot, loadLedger } from "./ledger.ts";
 import { clip } from "./letters.ts";
 import type { Project } from "./project.ts";
 
@@ -40,11 +40,15 @@ export class Slots {
     if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
     const run = await git(project.root, ["switch", "-c", branch, base]);
     if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
-    const kept = await this.workspaces.named(project.slug).catch(() => undefined);
-    const workspaceId = kept ?? (await this.workspaces.make(project.slug, project.root));
+    const workspaceId = await this.projectWorkspace(project);
     this.index(project, { id: "main", path: project.root, createdAt: Date.now() }, true);
     this.ctx.event(project, { kind: "lane.inPlace", branch, base });
     return { path: project.root, workspaceId };
+  }
+
+  async projectWorkspace(project: Project): Promise<string> {
+    const kept = await this.workspaces.named(project.slug).catch(() => undefined);
+    return kept ?? (await this.workspaces.make(project.slug, project.root));
   }
 
   async restore(project: Project, base: string): Promise<void> {
@@ -111,6 +115,36 @@ export class Slots {
       if (entry) entry.workspaceId = workspaceId;
     });
     return workspaceId;
+  }
+
+  async sweep(project: Project, ledger: Ledger, busy = false): Promise<void> {
+    const held = new Set<string>();
+    for (const slot of Object.values(ledger.slots)) if (slot.workspaceId) held.add(slot.workspaceId);
+    for (const lane of Object.values(ledger.lanes)) if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
+    for (const workspace of await this.workspaces.owned(project.slug)) {
+      if (held.has(workspace.id) || (busy && workspace.name === project.slug)) continue;
+      try {
+        await this.workspaces.archive(workspace.id);
+        this.ctx.event(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });
+      } catch (error) {
+        this.ctx.log(project, `workspace ${workspace.name} could not be swept: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    const root = join(worktreeRoot(), project.slug);
+    if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
+    const live = new Set(Object.values(ledger.slots).map((slot) => slot.path));
+    for (const name of readdirSync(root)) {
+      const path = join(root, name);
+      if (live.has(path)) continue;
+      await removeWorktree(project.root, path);
+      try {
+        rmSync(path, { recursive: true, force: true });
+      } catch {}
+      this.ctx.event(project, { kind: "worktree.swept", path });
+    }
+    try {
+      if (readdirSync(root).length === 0) rmdirSync(root);
+    } catch {}
   }
 
   private free(project: Project, slotId: string): Promise<void> {

@@ -74,10 +74,16 @@ function fakePaseo() {
         archivedWorkspaces.add(typeof id === "string" ? id : (id as { id: string }).id);
         return { archivedAt: new Date().toISOString() };
       },
+      async owned(prefix: string) {
+        return [...workspaces.keys()]
+          .filter((id) => !archivedWorkspaces.has(id))
+          .map((id) => ({ id, name: workspaceNames.get(id) ?? "" }))
+          .filter((entry) => entry.name === prefix || entry.name.startsWith(`${prefix} `));
+      },
       ref: workspace,
     },
   };
-  return { paseo: paseo as never, agents, add, workspaces };
+  return { paseo: paseo as never, agents, add, workspaces, workspaceNames, archivedWorkspaces };
 }
 
 function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
@@ -110,7 +116,7 @@ function harness(outbox: string) {
   const state = join(HOME, ".local", "share", "seatworks-v2");
   mkdirSync(state, { recursive: true });
   writeFileSync(join(state, "settings.json"), JSON.stringify({ mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
-  const { paseo, agents, add, workspaces } = fakePaseo();
+  const { paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
@@ -127,7 +133,7 @@ function harness(outbox: string) {
     git(cwd, "commit", "-qm", `edit ${file}`);
   };
   const ledger = () => loadLedger(project.state);
-  return { root, git, paseo, agents, add, workspaces, runtime, project, call, idle, commit, ledger };
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
@@ -444,6 +450,44 @@ test("seating the Watcher again takes back the working copy it had rather than o
   assert.ok(second);
   assert.notEqual(second, first, "an archived seat is not handed back as if it were open");
   assert.equal(h.workspaces.size, 1, "a seat that is put back and opened again leaves nothing behind to collect");
+  h.runtime.dispose();
+});
+
+test("what the desk opened and nothing holds any more is swept away without being asked", async () => {
+  const h = harness("outbox-sweep.json");
+  const tick = () => (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Swept", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+
+  const ws = h.paseo as unknown as { workspaces: { create(options: { title: string; source: { kind: string; path: string } }): Promise<{ id: string }> } };
+  const orphan = await ws.workspaces.create({ title: `${h.project.slug} S9`, source: { kind: "directory", path: h.root } });
+  const inPlace = [...h.workspaceNames.entries()].find(([, name]) => name === h.project.slug)![0];
+  assert.equal(h.archivedWorkspaces.has(orphan.id), false, "the orphan starts out live");
+
+  await tick();
+
+  assert.equal(h.archivedWorkspaces.has(orphan.id), true, "a working copy the ledger no longer holds is put away by the desk, not by a human with a shell");
+  assert.equal(h.archivedWorkspaces.has(inPlace), false, "the copy the open lane is working in is left alone");
+  h.runtime.dispose();
+});
+
+test("one workspace carries a whole project, and the desk puts it away when the project goes quiet", async () => {
+  const h = harness("outbox-quiet.json");
+  const tick = () => (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+
+  const live = () =>
+    [...h.workspaceNames.entries()].filter(([id, name]) => (name === h.project.slug || name.startsWith(`${h.project.slug} `)) && !h.archivedWorkspaces.has(id));
+  assert.equal(live().length, 1, "a lane and the seat that watches it share the project's one working copy rather than opening one each");
+
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "done" });
+  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
+  h.agents.get(sup)!.archivedAt = new Date().toISOString();
+  await tick();
+
+  assert.equal(live().length, 0, "with the work finished and nobody seated, the desk takes back what it opened instead of leaving it for a human to delete");
   h.runtime.dispose();
 });
 

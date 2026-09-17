@@ -43,6 +43,7 @@ export class Patrol {
       await this.goneTasks(project, loadLedger(project.state), seats);
       await this.dueAsks(project, loadLedger(project.state), seats, now);
       await this.sendDigest(project, now);
+      await this.sweep(project, loadLedger(project.state), seats);
       this.writeStatus(project, seats, now);
     }
     const targets = new Set(outbox.letters().map((letter) => letter.to));
@@ -58,6 +59,17 @@ export class Patrol {
       await this.deps.desk.retireWatcher(project, seats.values());
     } catch (error) {
       console.error(`seatworks-v2: the Watcher on ${project.slug} could not be settled:`, error);
+    }
+  }
+
+  private async sweep(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
+    const busy =
+      Object.values(ledger.lanes).some((lane) => lane.status === "open") ||
+      [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.team && projectOf(seat.cwd).slug === project.slug);
+    try {
+      await this.deps.desk.sweep(project, ledger, busy);
+    } catch (error) {
+      console.error(`seatworks-v2: sweeping ${project.slug} failed:`, error);
     }
   }
 

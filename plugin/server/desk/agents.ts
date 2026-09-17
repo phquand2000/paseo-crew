@@ -34,10 +34,8 @@ export class Agents {
   }
 
   async startResident(project: Project, team: TeamRole, options: StartOptions): Promise<string> {
-    const { role, config } = this.seatConfig(project, team);
-    const name = `${project.slug} ${role!.role}`;
-    const kept = await this.workspaces.named(name).catch(() => undefined);
-    const workspace = kept ?? (await this.workspaces.make(name, project.root));
+    const { config } = this.seatConfig(project, team);
+    const workspace = await this.slots.projectWorkspace(project);
     const started = await this.workspaces.seat(workspace, {
       config,
       title: options.title,
