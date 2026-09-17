@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
@@ -81,6 +81,27 @@ test("a prompt carrying a word its role must not see is refused", () => {
   const home = tempDir("sw2-home-");
   writeFileSync(join(kit.dir, "content/prompts/PEER.md"), "# Peer\n\nAsk the seat above you.\n");
   assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /must not see: seat/);
+});
+
+test("a seat that cannot be built writes nothing, rather than a config with no instructions beside it", () => {
+  const kit = makeKit();
+  const home = tempDir("sw2-home-");
+
+  // The owner's own rules are folded into every seat's instructions, so an ordinary line naming the
+  // tool they are configuring refuses the Peer. The build used to write the config and the MCP file
+  // first and refuse when it reached the instructions: a seat that boots with no brief at all.
+  const owned = resolveTeam(kit, { rules: "Leave the Paseo config alone." });
+  assert.deepEqual(owned.errors, [], "nothing the schema or the team resolution objects to");
+  assert.throws(() => materialize(kit, owned, "peer", home, project), /must not see: paseo/);
+
+  const dir = seatDir(kit, owned.roles.peer!.role, owned.roles.peer!.harness, home, project);
+  const left = existsSync(dir) ? readdirSync(dir, { recursive: true }).filter((entry) => String(entry).includes(".")) : [];
+  assert.deepEqual(left, [], "nothing at all, because half a seat is worse than none");
+
+  // And with the rule rephrased, the same seat builds completely.
+  const fine = resolveTeam(kit, { rules: "Leave the daemon config alone." });
+  assert.equal(materialize(kit, fine, "peer", home, project).length > 0, true);
+  assert.match(readFileSync(join(dir, "devin/AGENTS.md"), "utf-8"), /Leave the daemon config alone/);
 });
 
 test("a skill carrying a word its role must not see, or a placeholder nothing fills in, is refused", () => {

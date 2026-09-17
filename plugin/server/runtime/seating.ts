@@ -32,7 +32,11 @@ export class Seating {
       if (changes.length > 0) console.log(`seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
       this.built.add(key);
     } catch (error) {
+      // Not swallowed: a seat whose instructions could not be written is a seat that would run with
+      // none, and the three before-hooks are the only places a plugin can refuse anything. Refusing
+      // the launch names the reason; letting it through hands a full-access agent no brief at all.
       console.error(`seatworks-v2: seat ${roleName} on ${harness.id} could not be built:`, error);
+      throw new Error(`the ${roleName} seat could not be built, so it was not started: ${error instanceof Error ? error.message : String(error)}`);
     }
     return team;
   }

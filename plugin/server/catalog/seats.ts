@@ -38,7 +38,10 @@ export function ensureLink(path: string, target: string): boolean {
     if (readlinkSync(path) === target) return false;
     unlinkSync(path);
   } else if (present(path)) {
-    throw new Error(`${path} exists and is not a link, so it was left alone`);
+    // Something real is there — a directory the harness made for itself, most likely. Deleting it to
+    // put a link in its place would take whatever it holds, and throwing left the rest of the seat
+    // unbuilt, so it is left alone and said out loud.
+    throw new LeftAlone(`${path} exists and is not a link, so it was left alone`);
   }
   mkdirSync(dirname(path), { recursive: true });
   symlinkSync(target, path);
@@ -199,11 +202,20 @@ function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: 
   record.note(writeConfigIfChanged(settingsFile, next), file);
 }
 
+export class LeftAlone extends Error {}
+
 function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: Recorder): void {
   for (const link of harness.links ?? []) {
     const target = expandHome(link.target, homeDir);
     const path = join(dir, link.link);
-    if (existsSync(target)) record.note(ensureLink(path, target), link.link);
+    if (existsSync(target)) {
+      try {
+        record.note(ensureLink(path, target), link.link);
+      } catch (error) {
+        if (!(error instanceof LeftAlone)) throw error;
+        console.error(`seatworks-v2: ${error.message}`);
+      }
+    }
     else if (link.optional && isLink(path)) {
       unlinkSync(path);
       record.removed(link.link);
@@ -257,16 +269,45 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, record:
   }
 }
 
+/**
+ * What a seat cannot be built from, said before anything is written.
+ *
+ * Rendering refuses for a placeholder nothing fills in and for a word the role must not see — and
+ * the owner's own rules are folded into that text, so an ordinary line like "leave the Paseo config
+ * alone" refuses every Peer. It used to refuse in the middle of building the seat, after the config
+ * and the MCP file were written and before the instructions were, which is a seat that boots with no
+ * instructions at all. Either the seat is rebuilt or it is left exactly as it was.
+ */
+export function seatProblems(kit: Kit, team: Team, roleName: string, paths: PromptPaths): string[] {
+  const seat = team.roles[roleName];
+  if (!seat) return [`the team has no ${roleName} seat`];
+  const problems: string[] = [];
+  const say = (error: unknown) => problems.push(error instanceof Error ? error.message : String(error));
+  try {
+    renderText(kit, seat.role, rulesFor(team, roleName), paths);
+    if (seat.harness.systemPrompt === "file" && seat.harness.promptFile) renderPrompt(kit, seat.role, paths);
+  } catch (error) {
+    say(error);
+  }
+  for (const [name, source] of skillSources(kit, seat.role, skillDirsFor(team, roleName))) {
+    problems.push(...skillProblems(seat.role, name, source));
+  }
+  return problems;
+}
+
 export function materialize(kit: Kit, team: Team, roleName: string, homeDir = home(), project?: SeatProject, servers: McpServers = {}): string[] {
   const seat = team.roles[roleName];
   if (!seat) throw new Error(`the team has no ${roleName} seat`);
   const dir = seatDir(kit, seat.role, seat.harness, homeDir, project);
+  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" };
+  const problems = seatProblems(kit, team, roleName, paths);
+  if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();
   mkdirSync(dir, { recursive: true });
   writeRoleSettings(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);
   writeMcpFile(seat.harness, dir, servers, record);
-  writeInstructions(kit, team, roleName, dir, { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" }, record);
+  writeInstructions(kit, team, roleName, dir, paths, record);
   linkSkills(kit, team, roleName, dir, record);
   return record.changes;
 }

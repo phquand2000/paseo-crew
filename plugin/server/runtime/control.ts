@@ -2,11 +2,12 @@ import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { type Kit, providerId, rolesThatCan, supportsRole } from "../catalog/kit.ts";
-import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
+import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
 import type { Seats } from "../core/ports.ts";
-import { worktreeRoot } from "../core/paths.ts";
+import { seatProblems } from "../catalog/seats.ts";
+import { guidesDir, worktreeRoot } from "../core/paths.ts";
 import { flowView } from "../desk/flow.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
@@ -182,7 +183,19 @@ export class SettingsControl implements Control {
     const { kit, source, seating, reconcile } = this.deps;
     const target = this.target(slug);
     if (typeof target === "string") return { status: "invalid", error: target };
-    const check = (layer: Layer) => (target.project ? resolveTeam(kit, source.machineLayer(), layer) : resolveTeam(kit, layer)).errors;
+    const resolve = (layer: Layer) => (target.project ? resolveTeam(kit, source.machineLayer(), layer) : resolveTeam(kit, layer));
+    const paths = { guides: guidesDir(), state: target.project?.state ?? "$SEATWORKS_STATE" };
+    const unbuildable = (team: Team) => Object.keys(team.roles).flatMap((role) => seatProblems(kit, team, role, paths));
+    const check = (layer: Layer) => {
+      const team = resolve(layer);
+      if (team.errors.length > 0) return team.errors;
+      // What the owner writes in rules is folded into every seat's instructions, so a line naming a
+      // word a role must not see refuses that seat's whole build — which used to happen well after
+      // the save, with nothing on screen to say so. Only what this save would introduce is refused:
+      // something already broken in the kit is not the owner's to fix from a settings screen.
+      const already = new Set(unbuildable(resolve(layerValues(target.file, target.schema))));
+      return unbuildable(team).filter((problem) => !already.has(problem));
+    };
     const result = writeLayer(target.file, target.schema, revision, values, check);
     if (result.status === "saved") {
       seating.forget();

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { MachineLayerSchema, ProjectLayerSchema, readLayer, revisionOf, writeLayer } from "../../server/catalog/settings.ts";
+import { type Layer, MachineLayerSchema, ProjectLayerSchema, readLayer, revisionOf, writeLayer } from "../../server/catalog/settings.ts";
+import { seatProblems } from "../../server/catalog/seats.ts";
+import { resolveTeam } from "../../server/catalog/team.ts";
+import { makeKit } from "../../server/catalog/testkit.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
 const ok = () => [];
@@ -65,4 +68,26 @@ test("a settings file that cannot be read is never saved over, because saving wo
   const alsoRefused = writeLayer(file, MachineLayerSchema, broken.revision, { flow: { live: false } }, ok);
   assert.equal(alsoRefused.status, "invalid");
   assert.match(readFileSync(file, "utf-8"), /keep me/, "the rules, the role choices and any pasted server's token are still there");
+});
+
+test("a rule that would leave a seat unbuildable is refused where it is written, not where it lands", () => {
+  const kit = makeKit();
+  const machine = join(tempDir("sw2-settings-"), "settings.json");
+  const paths = { guides: "/guides", state: "$SEATWORKS_STATE" };
+  const unbuildable = (layer: Layer) => {
+    const team = resolveTeam(kit, layer);
+    return team.errors.length > 0 ? team.errors : Object.keys(team.roles).flatMap((role) => seatProblems(kit, team, role, paths));
+  };
+
+  // The line a real owner writes about the tool they are configuring. Nothing in the schema or the
+  // team resolution objects to it, and every Peer and Reviewer seat then fails to build.
+  const rule = { rules: "Leave the Paseo config alone; ask before touching migrations." };
+  assert.deepEqual(resolveTeam(kit, rule).errors, []);
+  const refused = writeLayer(machine, MachineLayerSchema, readLayer(machine, MachineLayerSchema).revision, rule, unbuildable);
+  assert.equal(refused.status, "invalid");
+  assert.match(refused.status === "invalid" ? refused.error : "", /must not see: paseo/);
+  assert.equal(existsSync(machine), false, "and nothing was written, so there is nothing to undo");
+
+  const rephrased = { rules: "Leave the daemon config alone; ask before touching migrations." };
+  assert.equal(writeLayer(machine, MachineLayerSchema, readLayer(machine, MachineLayerSchema).revision, rephrased, unbuildable).status, "saved");
 });
