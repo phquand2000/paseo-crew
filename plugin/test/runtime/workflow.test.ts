@@ -756,6 +756,65 @@ test("a red gate the desk cannot undo safely leaves the merge in place and tells
   h.runtime.dispose();
 });
 
+test("a commit made while the lane's copy is off its branch is not accepted as landed", async () => {
+  const h = harness("outbox-detached.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Regression", outcome: "the bug goes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Find it", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+
+  // What a bisect leaves behind: a clean copy, on no branch, with the fix committed into nothing.
+  h.git(lane.worktree!, "checkout", "-q", "--detach", "HEAD");
+  h.commit(lane.worktree!, "a.txt", "fixed at the source\n");
+  const handed = await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "found and fixed it" });
+  assert.equal(handed.ok, true, "the hand-back is not refused — the Peer is told, while it can still put it right");
+  assert.match(handed.text, new RegExp(`not on ${lane.branch} any more`));
+  assert.match(handed.text, /git bisect reset/);
+
+  h.agents.get(task.peer!)!.status = "idle";
+  const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  assert.equal(accepted.ok, false, "clean and detached is what the desk used to read as landed");
+  assert.match(accepted.text, /nothing committed in it is on the lane branch/);
+  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:a.txt`), "one\ntwo\nthree\n", "and the lane branch really does not have it");
+  h.runtime.dispose();
+});
+
+test("a hand-back the Lead has not accepted still holds the lane's copy, so nothing is sent in beside it", async () => {
+  const h = harness("outbox-holds.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Two in a row", outcome: "a and b change", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "A", goal: "g", acceptance: ["a"], owned: ["a.txt"], ...scope });
+  const first = h.ledger().tasks["L1-T1"]!;
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(first.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(first.peer!)!.status = "idle";
+
+  // Its Peer is still seated and rework would wake it in that directory, so the copy is not free yet.
+  const second = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], ...scope });
+  assert.equal(second.ok, false);
+  assert.match(second.text, /L1-T1 has handed back and is waiting on you/);
+  assert.match(second.text, /Accept or cut it first/, "and the way out is named");
+
+  // With the second task never started, the copy is clean and the first accepts as it always did.
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  const now = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], ...scope });
+  assert.equal(now.ok, true, now.text);
+
+  // And a rework that would wake a Peer into another task's writing is refused, not prescribed.
+  const back = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "commit it" });
+  assert.equal(back.ok, false);
+  assert.match(back.text, /is merged/, "an accepted task has nothing to rework");
+  await h.call(lane.lead!, "lead", "start_task", { title: "C", goal: "g", acceptance: ["c"], owned: ["c.txt"], ...scope, parallel: true });
+  const par = Object.values(h.ledger().tasks).find((task) => task.title === "C")!;
+  writeFileSync(join(lane.worktree!, "b.txt"), "half\n");
+  const reworkPar = await h.call(lane.lead!, "lead", "rework", { task: par.id, text: "again" });
+  assert.equal(reworkPar.ok, true, "a parallel task has a copy of its own, so its rework is nobody else's business");
+  h.runtime.dispose();
+});
+
 test("a task whose honest answer is that nothing needed changing can be accepted, not only cut", async () => {
   const h = harness("outbox-nochange.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

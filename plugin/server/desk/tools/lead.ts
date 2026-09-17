@@ -1,5 +1,5 @@
 import { roleThatCan } from "../../catalog/kit.ts";
-import { branchExists, diffCounts, git, headSha, isPristine, outsideOwned, resetHard, trackedFiles } from "../../core/git.ts";
+import { branchExists, currentBranch, diffCounts, git, headSha, isPristine, outsideOwned, resetHard, trackedFiles } from "../../core/git.ts";
 import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
 import { gateNote, laneGate, taskGate } from "../gates.ts";
@@ -22,7 +22,20 @@ import { clip, letters } from "../letters.ts";
 import { type Project, loadConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 
-const WRITING: TaskStatus[] = ["running", "rework"];
+/**
+ * A lane-mode task holds the lane's one working copy from the moment it starts until it is accepted
+ * or cut — a task that has handed back still holds it, because its Peer is still seated and rework
+ * wakes it in that same directory. Reading the hold as "running or reworking" let a Lead start a
+ * second task over a hand-back it had not accepted, and then be told to rework the first one.
+ */
+const HOLDS: TaskStatus[] = ["running", "rework", "done"];
+
+/** The lane-mode task that has the lane's working copy, if any. */
+function holderOf(ledger: Ledger, lane: Lane, except?: string): Task | undefined {
+  return Object.values(ledger.tasks).find(
+    (task) => task.lane === lane.id && task.id !== except && task.kind === "code" && task.mode !== "parallel" && HOLDS.includes(task.status),
+  );
+}
 
 function laneTask(ledger: Ledger, caller: Caller, id: string): { lane: Lane; task: Task } | string {
   const lane = laneOfLead(ledger, caller.id);
@@ -35,10 +48,11 @@ function laneTask(ledger: Ledger, caller: Caller, id: string): { lane: Lane; tas
 async function placementProblem(project: Project, ledger: Ledger, lane: Lane, owned: string[], parallel: boolean): Promise<string | undefined> {
   const active = activeTasks(ledger, lane.id).filter((task) => task.kind === "code");
   if (!parallel) {
-    const writer = active.find((task) => task.mode !== "parallel" && WRITING.includes(task.status));
-    return writer
-      ? `${writer.id} is still writing in the lane's working copy, and it holds one writer at a time. Wait for its hand-back, or set parallel only for owned paths independent of it.`
-      : undefined;
+    const holder = holderOf(ledger, lane);
+    if (!holder) return undefined;
+    return holder.status === "done"
+      ? `${holder.id} has handed back and is waiting on you, and it still holds the lane's working copy — rework would wake its Peer in there. Accept or cut it first, or set parallel only for owned paths independent of it.`
+      : `${holder.id} is still writing in the lane's working copy, and it holds one writer at a time. Wait for its hand-back and accept or cut it, or set parallel only for owned paths independent of it.`;
   }
   const serial = serialHits(owned, serialPaths(await trackedFiles(lane.worktree ?? project.root), loadConfig(project.state).serialOnly));
   if (serial.length > 0) return `A parallel task can't own ${serial.join(", ")}; run it in the lane's working copy instead.`;
@@ -226,8 +240,23 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     merges.enqueue(project, task.id);
     return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED or MERGE FAILED arrives as mail.`);
   }
+  // "its commits are already on the lane branch" is the claim this tool makes, and a copy that is not
+  // on that branch makes it false — a commit made mid-bisect belongs to no branch at all and is
+  // collected once the copy goes. Clean and detached is exactly what accept used to read as landed.
+  if (lane.worktree && (await currentBranch(lane.worktree)) !== lane.branch) {
+    return no(
+      `The lane's working copy is not on ${lane.branch}, so nothing committed in it is on the lane branch. Send rework asking the Peer on ${task.id} to put the copy back on ${lane.branch} — if it bisected, git bisect reset — and to commit its work there, then accept again.`,
+    );
+  }
   if (!lane.worktree || !(await isPristine(lane.worktree))) {
-    return no(`The lane's working copy has uncommitted changes; send rework asking the Peer on ${task.id} to commit everything, then accept again.`);
+    // Whose uncommitted work it is decides what to do about it, so it has to be named correctly: the
+    // old text said to rework this task, which would have woken its Peer into another one's writing.
+    const other = holderOf(loadLedger(project.state), lane, task.id);
+    return no(
+      other
+        ? `The lane's working copy has uncommitted changes, and ${other.id} is the task holding it — they are not ${task.id}'s. Accept ${task.id} once ${other.id} has handed back and been accepted or cut.`
+        : `The lane's working copy has uncommitted changes; send rework asking the Peer on ${task.id} to commit everything, then accept again.`,
+    );
   }
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
   const run = await taskGate(project, task.id, lane.worktree);
@@ -251,8 +280,10 @@ export const rework: Tool = async ({ ctx, roster }, caller, args) => {
   const result = await ctx.ledger(caller.project, (ledger): Task | string => {
     const found = laneTask(ledger, caller, str(args.task));
     if (typeof found === "string") return found;
-    const { task } = found;
+    const { lane, task } = found;
     if (["merged", "cut", "queued", "merging"].includes(task.status)) return `${task.id} is ${task.status}.`;
+    const holder = task.mode === "parallel" ? undefined : holderOf(ledger, lane, task.id);
+    if (holder) return `${holder.id} holds the lane's working copy; waking the Peer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
     task.status = "rework";
     task.silent = 0;
     task.updatedAt = Date.now();

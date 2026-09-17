@@ -102,6 +102,22 @@ test("the gate reports exit, output tail and timeouts", async () => {
   const slow = await runGate("sleep 5", dir, join(dir, "g3.log"), 300);
   assert.deepEqual([slow.ok, slow.timedOut], [false, true]);
   assert.equal(existsSync(join(dir, "g3.log")), true);
+
+  // A suite that passes and leaves something running behind it — a watcher, a dev server, a docker
+  // helper. Its verdict is the command's own exit, and waiting for the output to end instead made a
+  // green gate in a moment into a timeout at the end of the limit, half an hour by default.
+  const started = Date.now();
+  const leftBehind = await runGate("echo 'ok 1 - everything passes'; sleep 30 & exit 0", dir, join(dir, "g4.log"), 3_000);
+  assert.deepEqual([leftBehind.ok, leftBehind.code, leftBehind.timedOut], [true, 0, false]);
+  assert.equal(Date.now() - started < 2_000, true, "and it answers when the command does, not when the limit runs out");
+  assert.match(leftBehind.tail, /everything passes/);
+
+  // The tail is read from the end of the log, so a gate that writes for its whole limit still
+  // explains itself; reading the file back whole allocates all of it and throws past half a gigabyte.
+  const noisy = await runGate("head -c 3000000 /dev/zero | tr '\\0' 'x'; echo; echo 'the last line is the reason'; exit 1", dir, join(dir, "g5.log"), 20_000);
+  assert.equal(noisy.code, 1);
+  assert.match(noisy.tail, /the last line is the reason/, "the reason is at the end, which is the part that has to survive");
+  assert.equal(noisy.tail.length <= 3000, true);
 });
 
 test("an issue cannot close the fence it is read inside, or speak on the line above it", () => {

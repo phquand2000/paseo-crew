@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { headSha, isPristine } from "../../core/git.ts";
+import { currentBranch, headSha, isPristine } from "../../core/git.ts";
 import { type Args, hash, no, ok, str } from "../context.ts";
 import { type Ask, type Task, loadLedger, nextAskId, taskOfPeer } from "../ledger.ts";
 import { clip, letters } from "../letters.ts";
@@ -46,7 +46,16 @@ export const done: Tool = async ({ ctx }, caller, args) => {
   const heading = review ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
   await ctx.post(ledger.lanes[task.lane]?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body, caller.id));
   ctx.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
-  const reminder = uncommitted ? " Your working copy still has uncommitted changes: commit them before ending your turn." : "";
+  // A commit made while the copy is off its branch — mid-bisect, most likely — belongs to no branch,
+  // and the copy's own record of it goes when the copy does. Said here, while it can still be fixed.
+  const branch = review ? undefined : ledger.lanes[task.lane]?.branch;
+  const meant = task.mode === "parallel" ? task.branch : branch;
+  const adrift = !review && meant && task.worktree ? (await currentBranch(task.worktree)) !== meant : false;
+  const reminder = uncommitted
+    ? " Your working copy still has uncommitted changes: commit them before ending your turn."
+    : adrift
+      ? ` Your working copy is not on ${meant} any more, so anything you committed is on no branch and will be collected. Put it back — after a bisect that is git bisect reset — and commit there before your turn ends.`
+      : "";
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 };
 

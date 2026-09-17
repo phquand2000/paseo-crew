@@ -9,7 +9,7 @@ You go from a symptom to its cause, and prove the fix with a command that fails 
 
 ## 1. Get a red command
 
-Build one command that fails with the reported symptom before you theorize: a failing test at a seam that reaches the bug, a CLI run on a fixture diffed against expected output, a replay of a captured request, a small harness, or `git bisect run` when the bug appeared between two known commits. Make it fast, deterministic (fixed clock, seeded randomness, isolated files) and assert the symptom, not "didn't crash".
+Build one command that fails with the reported symptom before you theorize: a failing test at a seam that reaches the bug, a CLI run on a fixture diffed against expected output, a replay of a captured request, a small harness, or a bisect when the bug appeared between two known commits — and bisect in a throwaway clone (`git clone --no-hardlinks . "$TMPDIR/bisect"`, `git bisect run` in there), never in your own working copy: bisect leaves it on no branch, and a commit made there belongs to no branch either. Make it fast, deterministic (fixed clock, seeded randomness, isolated files) and assert the symptom, not "didn't crash".
 
 For an intermittent failure, rerun it alone until you know its rate. If it fails only while another process holds the same port or test database, report the collision in `done` and change nothing; otherwise it is a race, order dependence or shared state, and you raise its rate until you can test against it.
 
@@ -25,7 +25,7 @@ Write three to five before testing any, so the first idea doesn't anchor you. Ea
 
 ## 4. Trace backward
 
-The line that throws is where the damage surfaced. Walk from the bad value to its caller, and its caller's caller, to where the value first went wrong; the fix belongs there, because a guard at the symptom hides the bug from every other caller. Prefer a debugger or REPL; tag any temporary debug line with one unique marker and `git grep` for it before `done`. For a performance regression, bisect against a measured baseline instead of reading logs.
+The line that throws is where the damage surfaced. Walk from the bad value to its caller, and its caller's caller, to where the value first went wrong; the fix belongs there, because a guard at the symptom hides the bug from every other caller. Prefer a debugger or REPL; tag any temporary debug line with one unique marker and `git grep` for it before `done`. For a performance regression, bisect against a measured baseline instead of reading logs — in a clone, as above.
 
 ## 5. Fix with a regression test
 
