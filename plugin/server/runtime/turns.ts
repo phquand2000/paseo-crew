@@ -1,6 +1,5 @@
 import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
 import { type Attention, type Kit, type RoleSpec, seatOf } from "../catalog/kit.ts";
-import type { PaseoApi } from "../core/paseo.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
@@ -39,14 +38,14 @@ export class TurnRules {
     this.lastEnding.delete(agentId);
   }
 
-  async ownerOf(paseo: PaseoApi, project: Project, agentId: string, role: RoleSpec): Promise<string | undefined> {
+  async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<string | undefined> {
     const ledger = loadLedger(project.state);
-    if (role.team === "lead") return this.deps.desk.supervisorFor(paseo, project, laneOfLead(ledger, agentId)?.opener);
+    if (role.team === "lead") return this.deps.desk.supervisorFor(project, laneOfLead(ledger, agentId)?.opener);
     const task = taskOfPeer(ledger, agentId);
     return task ? ledger.lanes[task.lane]?.lead : undefined;
   }
 
-  async ended(paseo: PaseoApi, event: TurnEnded): Promise<void> {
+  async ended(event: TurnEnded): Promise<void> {
     const { agent, outcome, timeline } = event;
     const role = seatOf(this.deps.kit, agent.provider)?.role;
     if (!role?.team) return;
@@ -58,14 +57,14 @@ export class TurnRules {
     const text = outputText(timeline);
     this.lastEnding.set(agent.id, text);
     if (outcome.kind === "failed") {
-      const owner = await this.ownerOf(paseo, project, agent.id, role);
-      await this.deps.desk.post(paseo, owner, `failed:${agent.id}:${event.turnId ?? Date.now()}`, letters.failed(`${role.label} ${agent.title ?? agent.id}`, outcome.error.message));
+      const owner = await this.ownerOf(project, agent.id, role);
+      await this.deps.desk.post(owner, `failed:${agent.id}:${event.turnId ?? Date.now()}`, letters.failed(`${role.label} ${agent.title ?? agent.id}`, outcome.error.message));
       return;
     }
     const ledger = loadLedger(project.state);
     const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
     const reading = read(timeline, { gate: loadConfig(project.state).gate, recorded });
-    if (role.team === "peer" || role.team === "reviewer") await this.workerEnded(paseo, project, ledger, event, role.team, text, recorded, reading);
+    if (role.team === "peer" || role.team === "reviewer") await this.workerEnded(project, ledger, event, role.team, text, recorded, reading);
     else if (role.team === "lead") this.leadEnded(project, ledger, agent.id, text, reading);
   }
 
@@ -78,7 +77,6 @@ export class TurnRules {
   }
 
   private async workerEnded(
-    paseo: PaseoApi,
     project: Project,
     ledger: Ledger,
     event: TurnEnded,
@@ -108,10 +106,10 @@ export class TurnRules {
     });
     if (!updated) return;
     if (updated.status !== "stalled") {
-      await desk.post(paseo, agent.id, `nudge:${task.id}:${updated.silent}:${Date.now()}`, letters.nudge("done"));
+      await desk.post(agent.id, `nudge:${task.id}:${updated.silent}:${Date.now()}`, letters.nudge("done"));
       return;
     }
-    await desk.post(paseo, lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, denied));
+    await desk.post(lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, denied));
     desk.event(project, { kind: "task.silent", task: task.id, denied: denied ?? null });
   }
 

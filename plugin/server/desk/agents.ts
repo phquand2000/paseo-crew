@@ -1,19 +1,24 @@
 import { type TeamRole, providerId, roleWithTeam } from "../catalog/kit.ts";
-import type { PaseoApi } from "../core/paseo.ts";
+import type { Workspaces } from "../core/ports.ts";
 import type { DeskContext } from "./context.ts";
 import type { Slot, Task } from "./ledger.ts";
 import type { Project } from "./project.ts";
+import type { Roster } from "./roster.ts";
 import type { Slots } from "./slots.ts";
 
 export type StartOptions = { parent?: string; title: string; prompt: string; labels: Record<string, string> };
 
 export class Agents {
   private readonly ctx: DeskContext;
+  private readonly roster: Roster;
   private readonly slots: Slots;
+  private readonly workspaces: Workspaces;
 
-  constructor(ctx: DeskContext, slots: Slots) {
+  constructor(ctx: DeskContext, roster: Roster, slots: Slots, workspaces: Workspaces) {
     this.ctx = ctx;
+    this.roster = roster;
     this.slots = slots;
+    this.workspaces = workspaces;
   }
 
   private seatConfig(project: Project, team: TeamRole): { role: ReturnType<typeof roleWithTeam>; config: Record<string, unknown> } {
@@ -28,35 +33,21 @@ export class Agents {
     return { role, config };
   }
 
-  private async keptWorkspace(paseo: PaseoApi, name: string): Promise<string | undefined> {
-    let cursor: string | undefined;
-    for (let page = 0; page < 20; page++) {
-      const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
-      for (const entry of result.entries) {
-        if (entry.name === name && !entry.archivingAt) return entry.id;
-      }
-      if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) return undefined;
-      cursor = result.pageInfo.nextCursor;
-    }
-    return undefined;
-  }
-
-  async startResident(paseo: PaseoApi, project: Project, team: TeamRole, options: StartOptions): Promise<string> {
+  async startResident(project: Project, team: TeamRole, options: StartOptions): Promise<string> {
     const { role, config } = this.seatConfig(project, team);
     const name = `${project.slug} ${role!.role}`;
-    const kept = await this.keptWorkspace(paseo, name).catch(() => undefined);
-    const workspace = kept ? paseo.workspaces.ref(kept) : await paseo.workspaces.create({ title: name, source: { kind: "directory", path: project.root } });
-    const handle = await workspace.agents.create({
-      config: config as never,
-      title: options.title.slice(0, 60),
+    const kept = await this.workspaces.named(name).catch(() => undefined);
+    const workspace = kept ?? (await this.workspaces.make(name, project.root));
+    const started = await this.workspaces.seat(workspace, {
+      config,
+      title: options.title,
       prompt: options.prompt,
       labels: { ...options.labels, "seatworks.project": project.slug },
     });
-    await handle.refresh();
-    return handle.id;
+    return started.id;
   }
 
-  async start(paseo: PaseoApi, project: Project, slot: Pick<Slot, "path" | "workspaceId">, team: TeamRole, options: StartOptions): Promise<string> {
+  async start(project: Project, slot: Pick<Slot, "path" | "workspaceId">, team: TeamRole, options: StartOptions): Promise<string> {
     const role = roleWithTeam(this.ctx.kit, team);
     if (!role) throw new Error(`roles.json has no role for ${team}`);
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
@@ -66,24 +57,23 @@ export class Agents {
     const config: Record<string, unknown> = { provider: seat.model ? `${provider}/${seat.model.id}` : provider };
     if (seat.harness.provider.profileModeId) config.modeId = seat.harness.provider.profileModeId;
     if (seat.thinking) config.thinkingOptionId = seat.thinking;
-    const handle = await paseo.workspaces.ref(slot.workspaceId).agents.create({
-      config: config as never,
+    const started = await this.workspaces.seat(slot.workspaceId, {
+      config,
       parent: options.parent,
-      title: options.title.slice(0, 60),
+      title: options.title,
       prompt: options.prompt,
       labels: { ...options.labels, "seatworks.project": project.slug },
     });
-    await handle.refresh();
-    const actual = handle.cwd ?? handle.current()?.cwd;
+    const actual = started.cwd;
     if (actual && actual !== slot.path) {
-      await this.ctx.archive(paseo, handle.id, true);
+      await this.roster.archive(started.id, true);
       throw new Error(`the agent was placed in ${actual} instead of ${slot.path}`);
     }
-    return handle.id;
+    return started.id;
   }
 
-  async retire(paseo: PaseoApi, project: Project, task: Task, dropBranch = false): Promise<void> {
-    await this.ctx.archive(paseo, task.peer);
+  async retire(project: Project, task: Task, dropBranch = false): Promise<void> {
+    await this.roster.archive(task.peer);
     if (task.kind === "code" && task.mode === "parallel") await this.slots.release(project, task.slot, dropBranch ? task.branch : undefined);
   }
 }

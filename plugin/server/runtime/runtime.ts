@@ -8,7 +8,9 @@ import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
 import { type IndexedProxy, type Team, indexedProxies } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
-import { type PaseoApi, openSeats } from "../core/paseo.ts";
+import { seatsOn, workspacesOn } from "../core/paseo-adapter.ts";
+import type { PaseoApi } from "../core/paseo.ts";
+import type { Seats, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { loadLedger, openAsksTo } from "../desk/ledger.ts";
@@ -26,7 +28,7 @@ import { TurnRules, type Watch } from "./turns.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
-export type RuntimeOptions = { outboxFile?: string; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
+export type RuntimeOptions = { outboxFile?: string; paseo?: PaseoApi; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
 
 export class Runtime {
   readonly kit: Kit;
@@ -34,6 +36,8 @@ export class Runtime {
   readonly desk: Desk;
   readonly control: SettingsControl;
   private readonly spool = spoolDir();
+  private readonly seats: Seats;
+  private readonly workspaces: Workspaces;
   private readonly source: TeamSource;
   private readonly seating: Seating;
   private readonly turns: TurnRules;
@@ -45,29 +49,38 @@ export class Runtime {
 
   constructor(kit: Kit, options: RuntimeOptions = {}) {
     this.kit = kit;
+    this.api = options.paseo;
     this.makeIndex = options.codeIndex ?? codeIndex;
     this.reload = options.reloadDaemon ?? reloadDaemon;
+    this.seats = seatsOn(() => this.api);
+    this.workspaces = workspacesOn(() => this.api);
     this.source = new TeamSource(kit);
     this.seating = new Seating(kit, this.source, { node: nodeBin(), spool: this.spool });
-    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list));
+    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list), this.seats);
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
-    const api = () => this.api;
-    this.desk = new Desk(kit, this.outbox, log, (project) => this.source.teamFor(project), (project) => this.indexesFor(project));
+    this.desk = new Desk({
+      kit,
+      outbox: this.outbox,
+      seats: this.seats,
+      workspaces: this.workspaces,
+      log,
+      teamFor: (project) => this.source.teamFor(project),
+      indexesFor: (project) => this.indexesFor(project),
+    });
     this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: () => this.source.teamFor().attention });
-    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, outbox: this.outbox, turns: this.turns, remember });
-    this.control = new SettingsControl({ kit, source: this.source, seating: this.seating, reconcile: (team) => this.reconcileProviders(team), api });
+    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, remember });
+    this.control = new SettingsControl({ kit, source: this.source, seating: this.seating, reconcile: (team) => this.reconcileProviders(team), seats: this.seats });
   }
 
   private tellWatcher(item: Watch): void {
-    const paseo = this.api;
-    if (!paseo || !(item.text.trim() || item.reading.record.length > 0)) return;
+    if (!this.api || !(item.text.trim() || item.reading.record.length > 0)) return;
     void (async () => {
-      const seats = await openSeats(paseo);
-      const watcher = await this.desk.ensureWatcher(paseo, item.project, seats);
+      const seats = await this.seats.open();
+      const watcher = await this.desk.ensureWatcher(item.project, seats);
       if (!watcher) return;
       this.desk.recordReading(item.project, item.where, item.reading.notes);
-      await this.desk.post(paseo, watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record));
+      await this.desk.post(watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record));
     })().catch((error) => console.error("seatworks-v2: an ending could not reach the Watcher:", error));
   }
 
@@ -97,8 +110,8 @@ export class Runtime {
       return this.openSession(request);
     });
     this.on(server, "agent.turn_started", async ({ agent }) => this.turns.started(agent.id));
-    this.on(server, "agent.turn_ended", (event, { paseo }) => this.turnEnded(paseo, event));
-    this.on(server, "agent.permission_requested", (event, { paseo }) => this.permissionRequested(paseo, event));
+    this.on(server, "agent.turn_ended", (event) => this.turnEnded(event));
+    this.on(server, "agent.permission_requested", (event) => this.permissionRequested(event));
     this.on(server, "agent.archived", async ({ agent }) => {
       this.outbox.archived(agent.id);
       this.turns.forget(agent.id);
@@ -106,7 +119,7 @@ export class Runtime {
     this.timers.push(
       setInterval(() => this.serveSpool(), 500),
       setInterval(() => {
-        if (this.api) this.patrol.tick(this.api).catch((error) => console.error("seatworks-v2: tick failed:", error));
+        if (this.api) this.patrol.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
       }, this.source.teamFor().attention.tickSeconds * 1000),
     );
   }
@@ -140,18 +153,17 @@ export class Runtime {
     return seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project);
   }
 
-  private async turnEnded(paseo: PaseoApi, event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
-    this.api ??= paseo;
+  private async turnEnded(event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
     if (this.desk.pendingArchive.has(event.agent.id)) {
-      await this.desk.archive(paseo, event.agent.id, true);
+      await this.desk.archive(event.agent.id, true);
       return;
     }
-    await this.turns.ended(paseo, event);
-    await this.outbox.pump(paseo, event.agent.id);
+    await this.turns.ended(event);
+    await this.outbox.pump(event.agent.id);
   }
 
-  private async permissionRequested(paseo: PaseoApi, { agent, request }: PluginLifecycleEvents["agent.permission_requested"]): Promise<void> {
+  private async permissionRequested({ agent, request }: PluginLifecycleEvents["agent.permission_requested"]): Promise<void> {
     const role = seatOf(this.kit, agent.provider)?.role;
     if (!role?.team) return;
     const project = projectOf(agent.cwd);
@@ -160,8 +172,8 @@ export class Runtime {
       this.log(project, `waiting on the Human: ${agent.id} ${what}`);
       return;
     }
-    const owner = await this.turns.ownerOf(paseo, project, agent.id, role);
-    await this.desk.post(paseo, owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, what));
+    const owner = await this.turns.ownerOf(project, agent.id, role);
+    await this.desk.post(owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, what));
   }
 
   private remember(project: Project): void {
@@ -195,13 +207,10 @@ export class Runtime {
 
   private async compose(to: string, list: Letter[]): Promise<string> {
     const items = list.map((letter) => letter.text);
-    if (!this.api) return letters.mailbox(items, []);
     try {
-      const handle = this.api.agents.ref(to);
-      await handle.refresh();
-      const cwd = handle.cwd ?? handle.current()?.cwd;
-      if (!cwd) return letters.mailbox(items, []);
-      return letters.mailbox(items, openAsksTo(loadLedger(projectOf(cwd).state), to));
+      const seat = await this.seats.look(to);
+      if (!seat.cwd) return letters.mailbox(items, []);
+      return letters.mailbox(items, openAsksTo(loadLedger(projectOf(seat.cwd).state), to));
     } catch {
       return letters.mailbox(items, []);
     }
@@ -219,8 +228,7 @@ export class Runtime {
   }
 
   private serveSpool(): void {
-    const paseo = this.api;
-    if (!paseo) return;
+    if (!this.api) return;
     let requests;
     try {
       requests = takeRequests(this.spool);
@@ -230,7 +238,7 @@ export class Runtime {
     }
     for (const request of requests) {
       this.desk
-        .handle(paseo, request)
+        .handle(request)
         .catch((error) => ({ ok: false, text: `The desk failed: ${error instanceof Error ? error.message : String(error)}` }))
         .then((reply) => writeReply(this.spool, request.id, reply))
         .catch((error) => console.error("seatworks-v2: spool reply failed:", error));

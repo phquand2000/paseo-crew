@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { addWorktree, branchExists, excludeFromGit, git, isPristine } from "../core/git.ts";
-import type { PaseoApi } from "../core/paseo.ts";
+import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
 import { type Slot, loadLedger } from "./ledger.ts";
@@ -12,17 +12,19 @@ export type Holder = { lane?: string; task?: string };
 
 export class Slots {
   private readonly ctx: DeskContext;
+  private readonly workspaces: Workspaces;
 
-  constructor(ctx: DeskContext) {
+  constructor(ctx: DeskContext, workspaces: Workspaces) {
     this.ctx = ctx;
+    this.workspaces = workspaces;
   }
 
-  async acquire(paseo: PaseoApi, project: Project, branch: string, base: string, holder: Holder): Promise<Slot> {
+  async acquire(project: Project, branch: string, base: string, holder: Holder): Promise<Slot> {
     const picked = await this.reserve(project, holder);
     if (!picked) throw new Error(`all ${this.ctx.team(project).limits.slots} working copies of this project are in use`);
     try {
       const reused = await this.checkOut(project, picked, branch, base);
-      const workspaceId = picked.workspaceId ?? (await this.createWorkspace(paseo, project, picked));
+      const workspaceId = picked.workspaceId ?? (await this.createWorkspace(project, picked));
       this.ctx.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
       this.index(project, picked, reused);
       return { ...picked, workspaceId };
@@ -76,13 +78,13 @@ export class Slots {
     return false;
   }
 
-  private async createWorkspace(paseo: PaseoApi, project: Project, slot: Slot): Promise<string> {
-    const workspace = await paseo.workspaces.create({ title: `${project.slug} ${slot.id}`, source: { kind: "directory", path: slot.path } });
+  private async createWorkspace(project: Project, slot: Slot): Promise<string> {
+    const workspaceId = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path);
     await this.ctx.ledger(project, (ledger) => {
       const entry = ledger.slots[slot.id];
-      if (entry) entry.workspaceId = workspace.id;
+      if (entry) entry.workspaceId = workspaceId;
     });
-    return workspace.id;
+    return workspaceId;
   }
 
   private free(project: Project, slotId: string): Promise<void> {

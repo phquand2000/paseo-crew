@@ -106,15 +106,15 @@ function harness(outbox: string) {
   mkdirSync(state, { recursive: true });
   writeFileSync(join(state, "settings.json"), JSON.stringify({ mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces } = fakePaseo();
-  const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
+  const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>) =>
-    runtime.desk.handle(paseo, { id: `${outbox}-${++n}`, agent, role, tool, args, cwd: root, at: Date.now() });
+    runtime.desk.handle({ id: `${outbox}-${++n}`, agent, role, tool, args, cwd: root, at: Date.now() });
   const idle = async (id: string) => {
     agents.get(id)!.status = "idle";
     runtime.outbox.turnEnded(id);
-    await runtime.outbox.pump(paseo, id);
+    await runtime.outbox.pump(id);
   };
   const commit = (cwd: string, file: string, text: string) => {
     writeFileSync(join(cwd, file), text);
@@ -263,7 +263,7 @@ test("parallel work needs independent write sets and merges back from its own wo
 test("asks reach the level above, answers come back, and a silent Peer is nudged then reported", async () => {
   const h = harness("outbox-asks.json");
   const turnEnded = (id: string, text: string) =>
-    (h.runtime as unknown as { turnEnded: (p: unknown, e: unknown) => Promise<void> }).turnEnded(h.paseo, {
+    (h.runtime as unknown as { turnEnded: (e: unknown) => Promise<void> }).turnEnded({
       agent: { id, provider: h.agents.get(id)!.provider, cwd: h.agents.get(id)!.cwd, title: h.agents.get(id)!.title, parentAgentId: null, workspaceId: null },
       turnId: `t-${id}-${Date.now()}`,
       outcome: { kind: "completed" },
@@ -287,14 +287,14 @@ test("asks reach the level above, answers come back, and a silent Peer is nudged
   await new Promise((resolve) => setTimeout(resolve, 5));
   h.agents.get(task.peer!)!.status = "idle";
   await turnEnded(task.peer!, "I looked around.");
-  await h.runtime.outbox.pump(h.paseo, task.peer!);
+  await h.runtime.outbox.pump(task.peer!);
   assert.match(h.agents.get(task.peer!)!.sent.at(-1)!, /without calling done or ask/);
   h.runtime.outbox.turnEnded(task.peer!);
   await turnEnded(task.peer!, "Still looking.");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   h.agents.get(lane.lead!)!.status = "idle";
   h.runtime.outbox.turnEnded(lane.lead!);
-  await h.runtime.outbox.pump(h.paseo, lane.lead!);
+  await h.runtime.outbox.pump(lane.lead!);
   assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /SILENT L1-T1[\s\S]*Still looking/);
   h.runtime.dispose();
 });
@@ -364,7 +364,7 @@ test("a Watcher seat has no tool that changes the work", async () => {
 
 test("a project with work running gets one resident Watcher seat, and only one", async () => {
   const h = harness("outbox-watcher-resident.json");
-  const tick = () => (h.runtime as unknown as { patrol: { tick: (p: unknown, now?: number) => Promise<void> } }).patrol.tick(h.paseo);
+  const tick = () => (h.runtime as unknown as { patrol: { tick: (now?: number) => Promise<void> } }).patrol.tick();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
 
@@ -385,7 +385,7 @@ test("a project with work running gets one resident Watcher seat, and only one",
 test("an ending reaches the Watcher seat as fenced mail", async () => {
   const h = harness("outbox-ending.json");
   const turnEnded = (id: string, text: string, ...calls: unknown[]) =>
-    (h.runtime as unknown as { turnEnded: (p: unknown, e: unknown) => Promise<void> }).turnEnded(h.paseo, {
+    (h.runtime as unknown as { turnEnded: (e: unknown) => Promise<void> }).turnEnded({
       agent: { id, provider: h.agents.get(id)!.provider, cwd: h.agents.get(id)!.cwd, title: h.agents.get(id)!.title, parentAgentId: null, workspaceId: null },
       turnId: `t-${id}-${Date.now()}`,
       outcome: { kind: "completed" },
@@ -425,14 +425,14 @@ test("an ending reaches the Watcher seat as fenced mail", async () => {
 
 test("seating the Watcher again takes back the working copy it had rather than opening another", async () => {
   const h = harness("outbox-reseat.json");
-  const desk = h.runtime.desk as unknown as { ensureWatcher(paseo: unknown, project: unknown, seats: unknown[]): Promise<string | undefined> };
+  const desk = h.runtime.desk as unknown as { ensureWatcher(project: unknown, seats: unknown[]): Promise<string | undefined> };
 
-  const first = await desk.ensureWatcher(h.paseo, h.project, []);
+  const first = await desk.ensureWatcher(h.project, []);
   assert.ok(first, "the first seating opens a Watcher");
   assert.equal(h.workspaces.size, 1);
 
   h.agents.get(first!)!.archivedAt = new Date().toISOString();
-  const second = await desk.ensureWatcher(h.paseo, h.project, []);
+  const second = await desk.ensureWatcher(h.project, []);
   assert.ok(second);
   assert.notEqual(second, first, "an archived seat is not handed back as if it were open");
   assert.equal(h.workspaces.size, 1, "a seat that is put back and opened again leaves nothing behind to collect");
@@ -463,15 +463,15 @@ test("what was never urgent gathers into one report the owner reads when they co
   await h.idle(sup);
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /WHILE YOU WERE AWAY/, "the report waits rather than arriving a piece at a time");
 
-  const patrol = (h.runtime as unknown as { patrol: { tick(paseo: unknown, now?: number): Promise<void> } }).patrol;
-  await patrol.tick(h.paseo, Date.now() + 61 * 60_000);
+  const patrol = (h.runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol;
+  await patrol.tick(Date.now() + 61 * 60_000);
   await h.idle(sup);
   const report = h.agents.get(sup)!.sent.join("\n");
   assert.match(report, /WHILE YOU WERE AWAY/);
   assert.match(report, /repetition/);
   assert.match(report, /unverified/);
 
-  await patrol.tick(h.paseo, Date.now() + 122 * 60_000);
+  await patrol.tick(Date.now() + 122 * 60_000);
   await h.idle(sup);
   assert.equal(h.agents.get(sup)!.sent.join("\n").match(/WHILE YOU WERE AWAY/g)?.length, 1, "a report already read is not sent a second time");
   h.runtime.dispose();

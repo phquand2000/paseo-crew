@@ -1,7 +1,6 @@
 import { join } from "node:path";
 import { runGate } from "../core/gate.ts";
 import { commitsAhead, diffCounts, isPristine, mergeBranch, outsideOwned, resetHard } from "../core/git.ts";
-import type { PaseoApi } from "../core/paseo.ts";
 import type { Agents } from "./agents.ts";
 import { type DeskContext, errorText } from "./context.ts";
 import { gateNote } from "./gates.ts";
@@ -23,10 +22,10 @@ export class MergeQueue {
     return this.queues.get(project.slug) ?? Promise.resolve();
   }
 
-  enqueue(paseo: PaseoApi, project: Project, taskId: string): void {
+  enqueue(project: Project, taskId: string): void {
     const previous = this.queues.get(project.slug) ?? Promise.resolve();
     const run = previous
-      .then(() => this.merge(paseo, project, taskId))
+      .then(() => this.merge(project, taskId))
       .catch((error) => {
         this.ctx.log(project, `merge ${taskId} crashed: ${errorText(error)}`);
         return this.ctx.setTask(project, taskId, (task) => {
@@ -36,7 +35,7 @@ export class MergeQueue {
     this.queues.set(project.slug, run);
   }
 
-  private async merge(paseo: PaseoApi, project: Project, taskId: string): Promise<void> {
+  private async merge(project: Project, taskId: string): Promise<void> {
     const picked = await this.ctx.ledger(project, (ledger) => {
       const task = ledger.tasks[taskId];
       const lane = task ? ledger.lanes[task.lane] : undefined;
@@ -50,7 +49,7 @@ export class MergeQueue {
       await this.ctx.setTask(project, taskId, (entry) => {
         entry.status = status;
       });
-      await this.ctx.post(paseo, lane.lead, `merge:${taskId}:${status}:${Date.now()}`, text);
+      await this.ctx.post(lane.lead, `merge:${taskId}:${status}:${Date.now()}`, text);
       this.ctx.event(project, { kind: `merge.${status}`, task: taskId });
     };
     const cwd = lane.worktree;
@@ -81,6 +80,6 @@ export class MergeQueue {
       gate = `${config.gate} passed in ${result.seconds}s`;
     }
     await finish("merged", letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
-    await this.agents.retire(paseo, project, task, true);
+    await this.agents.retire(project, task, true);
   }
 }

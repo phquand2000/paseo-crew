@@ -2,10 +2,9 @@ import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type RoleSpec, type TeamRole, seatOf } from "../catalog/kit.ts";
-import { type PaseoApi, type SeatView, openSeats } from "../core/paseo.ts";
+import type { Kit, RoleSpec, TeamRole } from "../catalog/kit.ts";
 import { type Ledger, type Task, loadLedger, saveLedger } from "./ledger.ts";
-import { type Project, projectOf } from "./project.ts";
+import type { Project } from "./project.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
 export type ToolReply = { ok: boolean; text: string };
@@ -27,7 +26,7 @@ export type CodeIndex = {
   sync(path: string): Promise<{ ok: boolean; text: string }>;
 };
 
-export type Mailer = { post(paseo: PaseoApi, letter: { to: string; key: string; text: string }): Promise<unknown> };
+export type Mailer = { post(letter: { to: string; key: string; text: string }): Promise<unknown> };
 
 export type DeskDeps = {
   kit: Kit;
@@ -40,7 +39,6 @@ export type DeskDeps = {
 export class DeskContext {
   readonly kit: Kit;
   readonly projects = new Map<string, Project>();
-  readonly pendingArchive = new Set<string>();
   private readonly readings = new Map<string, string[]>();
   private readonly deps: DeskDeps;
   private readonly locks = new Map<string, Promise<unknown>>();
@@ -92,51 +90,9 @@ export class DeskContext {
     return this.readings.get(`${project.slug}:${where}`) ?? [];
   }
 
-  async post(paseo: PaseoApi, to: string | undefined, key: string, text: string): Promise<void> {
+  async post(to: string | undefined, key: string, text: string): Promise<void> {
     if (!to) return;
-    await this.deps.outbox.post(paseo, { to, key, text });
-  }
-
-  async supervisorFor(paseo: PaseoApi, project: Project, preferred?: string): Promise<string | undefined> {
-    if (preferred) {
-      try {
-        const handle = paseo.agents.ref(preferred);
-        await handle.refresh();
-        if (!handle.archivedAt) return preferred;
-      } catch {}
-    }
-    const found = (await openSeats(paseo))
-      .filter((seat) => seatOf(this.kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug)
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-    return found[0]?.id ?? preferred;
-  }
-
-  watcherSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
-    for (const seat of seats) if (seatOf(this.kit, seat.provider)?.role.team === "watcher" && projectOf(seat.cwd).slug === project.slug) return seat.id;
-    return undefined;
-  }
-
-  async retireWatcher(paseo: PaseoApi, project: Project): Promise<void> {
-    const seated = this.watcherSeat(project, await openSeats(paseo));
-    if (seated) await this.archive(paseo, seated);
-  }
-
-  async archive(paseo: PaseoApi, agentId: string | undefined, force = false): Promise<void> {
-    if (!agentId) return;
-    try {
-      const handle = paseo.agents.ref(agentId);
-      if (!force) {
-        await handle.refresh();
-        if (handle.status === "running" || handle.status === "initializing") {
-          this.pendingArchive.add(agentId);
-          return;
-        }
-      }
-      this.pendingArchive.delete(agentId);
-      await handle.archive();
-    } catch (error) {
-      console.error(`seatworks-v2: archiving ${agentId} failed:`, error);
-    }
+    await this.deps.outbox.post({ to, key, text });
   }
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {

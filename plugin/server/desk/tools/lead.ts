@@ -82,7 +82,7 @@ function recordTask(desk: DeskServices, project: Project, lane: Lane, args: Args
   });
 }
 
-export const startTask: Tool = async (desk, paseo, caller, args) => {
+export const startTask: Tool = async (desk, caller, args) => {
   const { ctx, slots, agents } = desk;
   const { project } = caller;
   const owned = strs(args.owned);
@@ -98,12 +98,12 @@ export const startTask: Tool = async (desk, paseo, caller, args) => {
   try {
     let slot: Pick<Slot, "id" | "path" | "workspaceId">;
     if (parallel) {
-      slot = await slots.acquire(paseo, project, task.branch!, lane.branch, { task: task.id });
+      slot = await slots.acquire(project, task.branch!, lane.branch, { task: task.id });
       await ctx.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
     } else {
       slot = loadLedger(project.state).slots[lane.slot]!;
     }
-    const peer = await agents.start(paseo, project, slot, "peer", {
+    const peer = await agents.start(project, slot, "peer", {
       parent: caller.id,
       title: `${task.id} ${task.title}`,
       prompt: letters.brief(task, lane),
@@ -127,7 +127,7 @@ export const startTask: Tool = async (desk, paseo, caller, args) => {
   }
 };
 
-export const startReview: Tool = async ({ ctx, agents }, paseo, caller, args) => {
+export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   const { project } = caller;
   const focus = str(args.focus);
   if (!focus) return no("start_review needs a focus: the open question for the reviewer.");
@@ -164,7 +164,7 @@ export const startReview: Tool = async ({ ctx, agents }, paseo, caller, args) =>
     return { ...created };
   });
   try {
-    const reviewer = await agents.start(paseo, project, slot, "reviewer", {
+    const reviewer = await agents.start(project, slot, "reviewer", {
       parent: caller.id,
       title: `${review.id} ${target?.title ?? review.title}`,
       prompt: letters.reviewBrief(review, target, focus, lane.branch),
@@ -186,7 +186,7 @@ export const startReview: Tool = async ({ ctx, agents }, paseo, caller, args) =>
   }
 };
 
-export const accept: Tool = async ({ ctx, agents, merges }, paseo, caller, args) => {
+export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
   const { project } = caller;
   const found = laneTask(loadLedger(project.state), caller, str(args.task));
   if (typeof found === "string") return no(found);
@@ -198,7 +198,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, paseo, caller, args)
       entry.status = "queued";
     });
     const ahead = Object.values(loadLedger(project.state).tasks).filter((entry) => entry.status === "queued" || entry.status === "merging").length - 1;
-    merges.enqueue(paseo, project, task.id);
+    merges.enqueue(project, task.id);
     return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED or MERGE FAILED arrives as mail.`);
   }
   if (!lane.worktree || !(await isPristine(lane.worktree))) {
@@ -209,13 +209,13 @@ export const accept: Tool = async ({ ctx, agents, merges }, paseo, caller, args)
   const updated = await ctx.setTask(project, task.id, (entry) => {
     entry.status = "merged";
   });
-  await ctx.post(paseo, lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gateNote(project)));
-  if (updated) await agents.retire(paseo, project, updated);
+  await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gateNote(project)));
+  if (updated) await agents.retire(project, updated);
   ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
   return ok(`${task.id} is accepted; its commits are already on ${lane.branch}. The working copy is free for the next task.`);
 };
 
-export const rework: Tool = async ({ ctx }, paseo, caller, args) => {
+export const rework: Tool = async ({ ctx, roster }, caller, args) => {
   const text = str(args.text);
   if (!text) return no("rework needs text saying what must change.");
   const result = await ctx.ledger(caller.project, (ledger): Task | string => {
@@ -230,14 +230,13 @@ export const rework: Tool = async ({ ctx }, paseo, caller, args) => {
   });
   if (typeof result === "string") return no(result);
   if (!result.peer) return no(`${result.id} has no Peer.`);
-  const handle = paseo.agents.ref(result.peer);
-  await handle.refresh();
-  if (handle.archivedAt) return no(`The Peer on ${result.id} is gone; cut the task and start a new one.`);
-  await ctx.post(paseo, result.peer, `rework:${result.id}:${hash(text)}`, letters.rework(text));
+  const seat = await roster.look(result.peer);
+  if (seat.archivedAt) return no(`The Peer on ${result.id} is gone; cut the task and start a new one.`);
+  await ctx.post(result.peer, `rework:${result.id}:${hash(text)}`, letters.rework(text));
   return ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
 };
 
-export const cut: Tool = async ({ ctx, slots }, paseo, caller, args) => {
+export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
   const { project } = caller;
   const found = laneTask(loadLedger(project.state), caller, str(args.task));
   if (typeof found === "string") return no(found);
@@ -247,7 +246,7 @@ export const cut: Tool = async ({ ctx, slots }, paseo, caller, args) => {
     entry.status = "cut";
   });
   if (!updated) return no(`${task.id} is gone.`);
-  await ctx.archive(paseo, task.peer, true);
+  await roster.archive(task.peer, true);
   let undone = "";
   if (task.kind === "code" && task.mode === "lane" && task.startSha && lane.worktree) {
     await resetHard(lane.worktree, task.startSha);
@@ -259,13 +258,13 @@ export const cut: Tool = async ({ ctx, slots }, paseo, caller, args) => {
   return ok(`${task.id} is cut and its agent stopped.${undone}`);
 };
 
-export const ask: Tool = async ({ ctx }, paseo, caller, args) => {
+export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const kind = str(args.kind) as AskKind;
   const text = str(args.text);
   if (!["need", "blocked", "question"].includes(kind) || !text) return no("ask needs kind (need, blocked or question) and text.");
   const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
   if (!lane) return no("You have no open lane.");
-  const to = await ctx.supervisorFor(paseo, caller.project, lane.opener);
+  const to = await roster.supervisorFor(caller.project, lane.opener);
   if (!to) return no("Nobody above you is running to answer; keep working on your default and report when the lane is ready.");
   const entry = await ctx.ledger(caller.project, (ledger) => {
     const created: Ask = {
@@ -284,12 +283,12 @@ export const ask: Tool = async ({ ctx }, paseo, caller, args) => {
     ledger.asks[created.id] = created;
     return { ...created };
   });
-  await ctx.post(paseo, to, `ask:${entry.id}`, letters.askTo(entry, `the Lead of ${lane.id} (${lane.title})`));
+  await ctx.post(to, `ask:${entry.id}`, letters.askTo(entry, `the Lead of ${lane.id} (${lane.title})`));
   ctx.event(caller.project, { kind: "ask.opened", ask: entry.id, from: caller.id, to });
   return ok(`Asked as ${entry.id}. Keep working on your default where you can; the answer arrives as mail.`);
 };
 
-export const report: Tool = async ({ ctx }, paseo, caller, args) => {
+export const report: Tool = async ({ ctx, roster }, caller, args) => {
   const summary = str(args.summary);
   if (!summary) return no("report needs a summary.");
   const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
@@ -298,8 +297,8 @@ export const report: Tool = async ({ ctx }, paseo, caller, args) => {
     const gate = await laneGate(ctx, caller.project, lane);
     if (!gate.ok) return no(`Not reported: the lane is not ready because ${gate.text}\nFix it with rework or start_task, then report again.`);
   }
-  const to = await ctx.supervisorFor(paseo, caller.project, lane.opener);
-  await ctx.post(paseo, to, `report:${lane.id}:${hash(summary)}`, letters.report(lane, summary, args.ready === true, strs(args.carried)));
+  const to = await roster.supervisorFor(caller.project, lane.opener);
+  await ctx.post(to, `report:${lane.id}:${hash(summary)}`, letters.report(lane, summary, args.ready === true, strs(args.carried)));
   ctx.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true });
   return ok("Reported to the owner. Stay quiet until mail arrives.");
 };

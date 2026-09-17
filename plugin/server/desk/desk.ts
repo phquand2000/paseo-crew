@@ -1,12 +1,13 @@
 import type { Team } from "../catalog/team.ts";
 import { type Kit, seatOf } from "../catalog/kit.ts";
-import type { PaseoApi, SeatView } from "../core/paseo.ts";
+import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
 import type { Ledger, Task } from "./ledger.ts";
 import { clip } from "./letters.ts";
 import { MergeQueue } from "./merge.ts";
 import { type Project, projectOf } from "./project.ts";
+import { Roster } from "./roster.ts";
 import type { DeskServices, Tool } from "./services.ts";
 import { Slots } from "./slots.ts";
 import * as lead from "./tools/lead.ts";
@@ -39,18 +40,35 @@ const TOOLS: Record<string, Tool> = {
   "watcher.raise": watcher.raise,
 };
 
+export type DeskOptions = {
+  kit: Kit;
+  outbox: Mailer;
+  seats: Seats;
+  workspaces: Workspaces;
+  log: (project: Project, line: string) => void;
+  teamFor: (project?: Project) => Team;
+  indexesFor?: (project: Project) => CodeIndex[];
+};
+
 export class Desk {
   readonly projects: Map<string, Project>;
   readonly pendingArchive: Set<string>;
   private readonly services: DeskServices;
 
-  constructor(kit: Kit, outbox: Mailer, log: (project: Project, line: string) => void, teamFor: (project?: Project) => Team, indexesFor: (project: Project) => CodeIndex[] = () => []) {
-    const ctx = new DeskContext({ kit, outbox, log, teamFor, indexesFor });
-    const slots = new Slots(ctx);
-    const agents = new Agents(ctx, slots);
-    this.services = { ctx, slots, agents, merges: new MergeQueue(ctx, agents) };
+  constructor(options: DeskOptions) {
+    const ctx = new DeskContext({
+      kit: options.kit,
+      outbox: options.outbox,
+      log: options.log,
+      teamFor: options.teamFor,
+      indexesFor: options.indexesFor ?? (() => []),
+    });
+    const roster = new Roster(options.kit, options.seats);
+    const slots = new Slots(ctx, options.workspaces);
+    const agents = new Agents(ctx, roster, slots, options.workspaces);
+    this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx, agents) };
     this.projects = ctx.projects;
-    this.pendingArchive = ctx.pendingArchive;
+    this.pendingArchive = roster.pendingArchive;
   }
 
   ledger<T>(project: Project, change: (ledger: Ledger) => T | Promise<T>): Promise<T> {
@@ -65,16 +83,16 @@ export class Desk {
     this.services.ctx.event(project, data);
   }
 
-  post(paseo: PaseoApi, to: string | undefined, key: string, text: string): Promise<void> {
-    return this.services.ctx.post(paseo, to, key, text);
+  post(to: string | undefined, key: string, text: string): Promise<void> {
+    return this.services.ctx.post(to, key, text);
   }
 
-  supervisorFor(paseo: PaseoApi, project: Project, preferred?: string): Promise<string | undefined> {
-    return this.services.ctx.supervisorFor(paseo, project, preferred);
+  supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
+    return this.services.roster.supervisorFor(project, preferred);
   }
 
-  archive(paseo: PaseoApi, agentId: string | undefined, force = false): Promise<void> {
-    return this.services.ctx.archive(paseo, agentId, force);
+  archive(agentId: string | undefined, force = false): Promise<void> {
+    return this.services.roster.archive(agentId, force);
   }
 
   recordReading(project: Project, where: string, notes: string[]): void {
@@ -85,24 +103,24 @@ export class Desk {
     return this.services.ctx.setTask(project, taskId, change);
   }
 
-  async ensureWatcher(paseo: PaseoApi, project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
-    const seated = this.services.ctx.watcherSeat(project, seats);
+  async ensureWatcher(project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
+    const seated = this.services.roster.watcherSeat(project, seats);
     if (seated) return seated;
-    return this.services.agents.startResident(paseo, project, "watcher", {
+    return this.services.agents.startResident(project, "watcher", {
       title: `Watcher ${project.slug}`,
       prompt: "You are seated on this project. Turn endings arrive as mail; label each one and raise what is not normal. Nothing to do until mail arrives.",
       labels: { "seatworks.role": "watcher" },
     });
   }
 
-  async handle(paseo: PaseoApi, request: ToolRequest): Promise<ToolReply> {
-    const caller = await this.caller(paseo, request);
+  async handle(request: ToolRequest): Promise<ToolReply> {
+    const caller = await this.caller(request);
     if ("error" in caller) return no(caller.error);
     const { ctx } = this.services;
     const tool = TOOLS[`${caller.team}.${request.tool}`];
     let reply: ToolReply;
     try {
-      reply = tool ? await tool(this.services, paseo, caller, (request.args ?? {}) as Args) : no(`Unknown tool ${request.tool}.`);
+      reply = tool ? await tool(this.services, caller, (request.args ?? {}) as Args) : no(`Unknown tool ${request.tool}.`);
     } catch (error) {
       ctx.log(caller.project, `${caller.team} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
       reply = no(`${request.tool} failed: ${errorText(error)}`);
@@ -118,14 +136,12 @@ export class Desk {
     return reply;
   }
 
-  private async caller(paseo: PaseoApi, request: ToolRequest): Promise<Caller | { error: string }> {
+  private async caller(request: ToolRequest): Promise<Caller | { error: string }> {
     if (!request.agent) return { error: "This tool works only inside a team agent." };
-    const handle = paseo.agents.ref(request.agent);
-    await handle.refresh();
-    const snapshot = handle.current();
-    const role = seatOf(this.services.ctx.kit, snapshot?.provider)?.role;
-    if (!snapshot || !role?.team) return { error: "This agent is not part of the team." };
+    const seat = await this.services.roster.look(request.agent);
+    const role = seatOf(this.services.ctx.kit, seat.provider)?.role;
+    if (!role?.team) return { error: "This agent is not part of the team." };
     if (role.team !== request.role) return { error: `This agent is a ${role.team}, so ${request.role} tools are not available to it.` };
-    return { id: request.agent, role, team: role.team, title: snapshot.title ?? request.agent, project: projectOf(snapshot.cwd ?? request.cwd) };
+    return { id: request.agent, role, team: role.team, title: seat.title ?? request.agent, project: projectOf(seat.cwd ?? request.cwd) };
   }
 }

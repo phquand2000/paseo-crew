@@ -25,7 +25,7 @@ function handbackBody(task: Task, args: Args, commit: string | undefined, uncomm
   return { outcome, body: lines.join("\n") };
 }
 
-export const done: Tool = async ({ ctx }, paseo, caller, args) => {
+export const done: Tool = async ({ ctx }, caller, args) => {
   const { project } = caller;
   const ledger = loadLedger(project.state);
   const task = taskOfPeer(ledger, caller.id);
@@ -44,13 +44,13 @@ export const done: Tool = async ({ ctx }, paseo, caller, args) => {
     entry.handback = { file, outcome, commit, summary: clip(str(args.summary) || str(args.findings), 400), at: Date.now() };
   });
   const heading = review ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
-  await ctx.post(paseo, ledger.lanes[task.lane]?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body));
+  await ctx.post(ledger.lanes[task.lane]?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body));
   ctx.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
   const reminder = uncommitted ? " Your working copy still has uncommitted changes: commit them before ending your turn." : "";
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 };
 
-export const ask: Tool = async ({ ctx }, paseo, caller, args) => {
+export const ask: Tool = async ({ ctx }, caller, args) => {
   const question = str(args.question);
   if (!question) return no("ask needs a question.");
   const { project } = caller;
@@ -76,7 +76,7 @@ export const ask: Tool = async ({ ctx }, paseo, caller, args) => {
     current.asks[created.id] = created;
     return { ...created };
   });
-  await ctx.post(paseo, lane.lead, `ask:${entry.id}`, letters.askTo(entry, `the Peer on ${task.id} (${task.title})`));
+  await ctx.post(lane.lead, `ask:${entry.id}`, letters.askTo(entry, `the Peer on ${task.id} (${task.title})`));
   ctx.event(project, { kind: "ask.opened", ask: entry.id, from: caller.id, to: lane.lead });
   return ok(`Asked as ${entry.id}. End your turn; the answer arrives as a message.`);
 };

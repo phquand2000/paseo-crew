@@ -13,8 +13,3 @@ export type SeatView = {
   labels?: Record<string, string>;
   pendingPermissions?: { title?: string; name?: string }[];
 };
-
-export async function openSeats(paseo: PaseoApi): Promise<SeatView[]> {
-  const { entries } = await paseo.agents.list({ filter: { includeArchived: false } });
-  return entries.map((entry) => entry.agent as unknown as SeatView).filter((seat) => !seat.archivedAt);
-}

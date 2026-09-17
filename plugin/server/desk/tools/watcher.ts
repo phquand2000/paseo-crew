@@ -23,7 +23,7 @@ function findingsOf(value: unknown): Finding[] | string {
   return taken;
 }
 
-export const raise: Tool = async ({ ctx }, paseo, caller, args) => {
+export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const where = str(args.where);
   if (!where) return no("raise needs where the ending happened, copied from the mail as it reached you.");
   const findings = findingsOf(args.findings);
@@ -56,11 +56,11 @@ export const raise: Tool = async ({ ctx }, paseo, caller, args) => {
   const named = findings.map((finding) => finding.label).join(", ");
   if (worst !== "page") return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone. Keep reading endings.`);
 
-  const to = await ctx.supervisorFor(paseo, project);
+  const to = await roster.supervisorFor(project);
   if (!to) return no("Nobody above you is running to receive it; the ending is recorded either way.");
   for (const finding of paged) {
     const count = counts.get(finding.label) ?? 1;
-    await ctx.post(paseo, to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
+    await ctx.post(to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
   }
   return ok(`Raised ${paged.map((finding) => finding.label).join(", ")} to the owner. Keep reading endings; nothing to wait for.`);
 };

@@ -5,7 +5,7 @@ import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
-import { type PaseoApi, openSeats } from "../core/paseo.ts";
+import type { Seats } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import { flowView } from "../desk/flow.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
@@ -125,7 +125,7 @@ export type ControlDeps = {
   source: TeamSource;
   seating: Seating;
   reconcile: (team: Team) => void;
-  api: () => PaseoApi | undefined;
+  seats: Seats;
 };
 
 export class SettingsControl implements Control {
@@ -256,16 +256,14 @@ export class SettingsControl implements Control {
   async status(slug: string): Promise<unknown> {
     const project = this.deps.source.named(slug);
     if (!project) return { text: "", error: unknownProject(slug) };
-    const api = this.deps.api();
-    const seats = new Map(api ? (await openSeats(api)).map((seat) => [seat.id, seat]) : []);
+    const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now()) };
   }
 
   async flow(slug: string, since?: string, open?: string[]): Promise<unknown> {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
-    const api = this.deps.api();
-    const seats = new Map(api ? (await openSeats(api)).map((seat) => [seat.id, seat]) : []);
+    const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []));
     return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
   }

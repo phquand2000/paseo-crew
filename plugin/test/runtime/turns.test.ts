@@ -60,14 +60,14 @@ function setup(handbackOutcome: string, watchEveryClean = 4) {
     saveLedger(project.state, current);
   };
   const endedAs = (id: string, provider: string, text: string, ...calls: unknown[]) =>
-    turns.ended({} as never, {
+    turns.ended({
       agent: { id, provider, cwd: root, title: "seat", parentAgentId: null, workspaceId: null },
       turnId: "t1",
       outcome: { kind: "completed" },
       timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
     } as never);
   const ended = (text: string, ...calls: unknown[]) =>
-    turns.ended({} as never, {
+    turns.ended({
       agent: { id: "seat-peer", provider: "sw2-peer-devin/swe-2-max", cwd: root, title: "peer", parentAgentId: null, workspaceId: null },
       turnId: "t1",
       outcome: { kind: "completed" },

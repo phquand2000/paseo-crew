@@ -65,7 +65,7 @@ function openedReply(project: Project, lane: Lane, slot: Slot, lead: string, iss
   return `Lane ${lane.id} is open on ${lane.branch} (off ${lane.base}) in working copy ${slot.id}, and its Lead ${lead} is starting. Gate: ${gate}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
 }
 
-export const openLane: Tool = async (desk, paseo, caller, args) => {
+export const openLane: Tool = async (desk, caller, args) => {
   const { ctx, slots, agents } = desk;
   const { project } = caller;
   if (!str(args.title) || !str(args.outcome) || strs(args.acceptance).length === 0 || strs(args.outOfScope).length === 0)
@@ -90,12 +90,12 @@ export const openLane: Tool = async (desk, paseo, caller, args) => {
   };
   let slot: Slot;
   try {
-    slot = await slots.acquire(paseo, project, lane.branch, base, { lane: lane.id });
+    slot = await slots.acquire(project, lane.branch, base, { lane: lane.id });
   } catch (error) {
     return fail(`The lane could not get a working copy: ${errorText(error)}`);
   }
   try {
-    const lead = await agents.start(paseo, project, slot, "lead", {
+    const lead = await agents.start(project, slot, "lead", {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
       prompt: letters.directive(lane, issue),
@@ -113,7 +113,7 @@ export const openLane: Tool = async (desk, paseo, caller, args) => {
   }
 };
 
-export const closeLane: Tool = async ({ ctx, slots, agents }, paseo, caller, args) => {
+export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, args) => {
   const { project } = caller;
   const lane = findLane(loadLedger(project.state), str(args.lane));
   if (!lane) return no(`There is no lane ${str(args.lane)}.`);
@@ -135,15 +135,15 @@ export const closeLane: Tool = async ({ ctx, slots, agents }, paseo, caller, arg
     }
     return tasks;
   });
-  for (const task of retired) await agents.retire(paseo, project, task, task.status !== "merged");
-  await ctx.archive(paseo, lane.lead);
-  if (!Object.values(loadLedger(project.state).lanes).some((entry) => entry.status === "open")) await ctx.retireWatcher(paseo, project);
+  for (const task of retired) await agents.retire(project, task, task.status !== "merged");
+  await roster.archive(lane.lead);
+  if (!Object.values(loadLedger(project.state).lanes).some((entry) => entry.status === "open")) await roster.retireWatcher(project);
   await slots.release(project, lane.slot);
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason) });
   return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. Its working copy is free for the next lane.`);
 };
 
-export const setProject: Tool = async (_desk, _paseo, caller, args) => {
+export const setProject: Tool = async (_desk, caller, args) => {
   const config = loadConfig(caller.project.state);
   const base = str(args.base);
   if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
