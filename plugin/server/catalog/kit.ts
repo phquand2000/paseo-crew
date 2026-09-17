@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { join } from "node:path";
 
 export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
@@ -151,6 +152,7 @@ export type Kit = {
   harnesses: Record<string, HarnessSpec>;
   mcp: Record<string, McpEntry>;
   toolSets: Record<string, string[]>;
+  templates: Record<string, TemplateSpec>;
   attention: Attention;
 };
 
@@ -226,6 +228,7 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     harnesses,
     mcp: loadMcp(dir),
     toolSets: loadToolSets(dir),
+    templates: loadTemplates(dir),
     attention: { ...ATTENTION, ...(raw.attention ?? {}) },
   };
 }

@@ -1,5 +1,6 @@
 import { branchExists, currentBranch, landLane } from "../../core/git.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
+import { docsDir, placeDoc } from "../../catalog/templates.ts";
 import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
@@ -104,7 +105,7 @@ export const openLane: Tool = async (desk, caller, args) => {
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
-      prompt: letters.directive(lane, issue),
+      prompt: letters.directive(lane, issue, { names: config.docs, dir: docsDir(project.state) }),
       labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
     await ctx.ledger(project, (ledger) => {
@@ -150,8 +151,14 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
   return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. Its working copy is free for the next lane.`);
 };
 
-export const setProject: Tool = async (_desk, caller, args) => {
+export const setProject: Tool = async ({ ctx }, caller, args) => {
   const config = loadConfig(caller.project.state);
+  const shelf = ctx.kit.templates;
+  const asked = strs(args.docs);
+  const unknown = asked.filter((name) => !shelf[name]);
+  if (unknown.length > 0) {
+    return no(`This kit has no page called ${unknown.join(", ")}. It has: ${Object.keys(shelf).sort().join(", ")}.`);
+  }
   const base = str(args.base);
   if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
   const minutes = Number(args.gateTimeoutMinutes);
@@ -162,7 +169,16 @@ export const setProject: Tool = async (_desk, caller, args) => {
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
     gateOn: args.gateOn === "task" ? "task" : args.gateOn === "lane" ? "lane" : config.gateOn,
     serialOnly: Array.isArray(args.serialOnly) ? strs(args.serialOnly) : config.serialOnly,
+    docs: Array.isArray(args.docs) ? asked : config.docs,
   };
   saveConfig(caller.project.state, next);
-  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.`);
+  // A page nobody asked for is never written, and a page already written is never written over.
+  const placed = next.docs.map((name) => ({ name, ...placeDoc(caller.project.state, shelf[name]!) }));
+  const started = placed.filter((entry) => entry.written).map((entry) => `${entry.name} (${entry.file})`);
+  const kept = Object.keys(shelf).filter((name) => !next.docs.includes(name));
+  const pages =
+    next.docs.length === 0
+      ? `\nPages kept: none. On the shelf, unused: ${kept.sort().join(", ")}.`
+      : `\nPages kept: ${next.docs.join(", ")}.${started.length > 0 ? ` Started: ${started.join("; ")}.` : ""}${kept.length > 0 ? ` On the shelf, unused: ${kept.sort().join(", ")}.` : ""}`;
+  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.${pages}`);
 };

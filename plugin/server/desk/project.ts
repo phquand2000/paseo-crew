@@ -10,7 +10,7 @@ export type Project = { root: string; slug: string; state: string };
 
 export type GateOn = "lane" | "task";
 
-export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly: string[] };
+export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly: string[]; docs: string[] };
 
 const cache = new Map<string, Project>();
 
@@ -79,6 +79,7 @@ export function loadConfig(state: string): ProjectConfig {
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
     gateOn: stored.gateOn === "task" ? "task" : "lane",
     serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : SERIAL_ONLY,
+    docs: Array.isArray(stored.docs) ? stored.docs.map(String) : [],
   };
 }
 

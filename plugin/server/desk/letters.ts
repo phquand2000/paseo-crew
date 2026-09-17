@@ -9,7 +9,7 @@ export function clip(text: string, limit: number): string {
 }
 
 export const letters = {
-  directive(lane: Lane, issue?: { number: number; title: string; url: string; body: string }): string {
+  directive(lane: Lane, issue?: { number: number; title: string; url: string; body: string }, docs: { names: string[]; dir: string } = { names: [], dir: "" }): string {
     const parts = [
       `OWNER DIRECTIVE ${lane.id}: ${lane.title}`,
       "",
@@ -26,6 +26,9 @@ export const letters = {
       "",
       `Lane branch: ${lane.branch}, off ${lane.base}. Your working copy is on it; tasks merge into it.`,
     ];
+    if (docs.names.length > 0) {
+      parts.push("", `This project keeps these pages under ${docs.dir}: ${docs.names.join(", ")}. Keep current the ones this lane makes wrong, and leave the rest alone.`);
+    }
     if (lane.detourOf) {
       parts.push("", `This lane clears the way for ${lane.detourOf}, which is waiting on it. Do what that needs and no more, then report; widening this lane is what opening it avoided.`);
     }

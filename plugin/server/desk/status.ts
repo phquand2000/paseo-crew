@@ -23,6 +23,7 @@ export function statusText(
   held: { to: string; text: string; at: number }[] = [],
 ): string {
   const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${config.gate ?? "none"}.`, ""];
+  if (config.docs.length > 0) lines.push(`Pages this project keeps: ${config.docs.join(", ")}, under ${project.state}/docs.`, "");
   const stranded = held.filter((letter) => !seats.has(letter.to));
   if (stranded.length > 0) {
     lines.push("## Mail with nobody to read it", "", "The seat each of these was addressed to is gone. Nothing is lost; they are held until a seat can take them.", "");

@@ -676,3 +676,40 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   assert.equal(orphaned.ok, false);
   assert.match(orphaned.text, /no running Lead/);
 });
+
+test("a project keeps the pages its owner asked for, and nothing it did not", async () => {
+  const h = harness("outbox-docs.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const docsIn = join(h.project.state, "docs");
+
+  // Nothing is kept until somebody says so, and a project that keeps none is a project that works.
+  assert.equal(existsSync(docsIn), false);
+  const none = await h.call(sup, "supervisor", "set_project", {});
+  assert.match(none.text, /Pages kept: none/);
+  assert.match(none.text, /decision/, "the shelf says what is there to take");
+
+  const unknown = await h.call(sup, "supervisor", "set_project", { docs: ["retrospective-log"] });
+  assert.equal(unknown.ok, false);
+  assert.match(unknown.text, /no page called retrospective-log/);
+
+  const kept = await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour"] });
+  assert.equal(kept.ok, true, kept.text);
+  assert.ok(existsSync(join(docsIn, "decision.md")));
+  assert.ok(existsSync(join(docsIn, "detour.md")));
+  assert.equal(existsSync(join(docsIn, "postmortem.md")), false, "a page nobody asked for is never written");
+
+  // What the owner has written is never written over.
+  writeFileSync(join(docsIn, "decision.md"), "# D1: ours\n");
+  await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour"] });
+  assert.equal(readFileSync(join(docsIn, "decision.md"), "utf-8"), "# D1: ours\n");
+
+  // And a Lead is told which pages exist, since a page nobody updates is worse than no page.
+  await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
+  const lane = h.ledger().lanes.L1!;
+  assert.match(h.agents.get(lane.lead!)!.prompt ?? "", /keeps these pages .*decision, detour/);
+
+  // Dropping a page stops it being carried; what was written stays where it is.
+  const dropped = await h.call(sup, "supervisor", "set_project", { docs: [] });
+  assert.match(dropped.text, /Pages kept: none/);
+  assert.ok(existsSync(join(docsIn, "decision.md")), "dropping a page does not throw away what was written in it");
+});

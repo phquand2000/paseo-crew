@@ -90,3 +90,21 @@ test("the Supervisor can set its own cadence for reading the work, rather than t
     assert.ok(policy.disabledTools.includes(acting), `the Supervisor advises and must not ${acting} behind the desk`);
   }
 });
+
+test("every page the kit puts on the shelf says what it owns, when to take it, and when it is ceremony", () => {
+  const kit = loadKit(pluginRoot);
+  const names = Object.keys(kit.templates).sort();
+  assert.ok(names.length >= 10, `the shelf is worth having only if there is a choice on it: ${names.join(", ")}`);
+  for (const name of names) {
+    const spec = kit.templates[name]!;
+    for (const field of ["owns", "prevents", "activate", "ceremony"] as const) {
+      assert.ok(spec[field].length > 0, `${name} does not say its ${field}, so nobody can judge whether to keep it`);
+    }
+    assert.match(spec.body, /^# /m, `${name} has no heading to start from`);
+    assert.doesNotMatch(spec.body, /\{\{/, `${name} holds a placeholder nothing fills in`);
+  }
+  // The measured finding this shelf is built on: a page that restates the repository costs context and buys nothing.
+  for (const name of names) {
+    assert.doesNotMatch(kit.templates[name]!.body, /directory tree|architecture overview|dependency list/i, `${name} asks for something measured not to help`);
+  }
+});
