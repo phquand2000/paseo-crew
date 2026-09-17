@@ -146,11 +146,16 @@ export class Desk {
     }
     ctx.event(caller.project, { kind: "tool", agent: caller.id, role: caller.role.role, tool: request.tool, ok: reply.ok, reply: clip(reply.text, 300) });
     if (reply.ok) {
-      await ctx.ledger(caller.project, (ledger) => {
-        const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
-        ref.recordedAt = Date.now();
-        ledger.agents[caller.id] = ref;
-      });
+      // Noting that the seat was heard from must not turn a reply it has earned into a crash.
+      try {
+        await ctx.ledger(caller.project, (ledger) => {
+          const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
+          ref.recordedAt = Date.now();
+          ledger.agents[caller.id] = ref;
+        });
+      } catch (error) {
+        ctx.log(caller.project, `could not record that ${caller.id} was heard from: ${errorText(error)}`);
+      }
     }
     return reply;
   }

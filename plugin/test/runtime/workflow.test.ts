@@ -573,6 +573,26 @@ test("a lane that declared no write set does not lock the project to one lane: t
   assert.equal(new Set(where).size, 3, "no two Leads are left writing in one checkout");
 });
 
+test("a ledger the desk cannot read is not written over, and the seat is told why", async () => {
+  const h = harness("outbox-badledger.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Real work", outcome: "x", acceptance: ["a"], ...scope });
+  assert.ok(h.ledger().lanes.L1, "there is something on record to lose");
+
+  // Whatever put it there — a half-written disk, an editor, a newer plugin's version — what reads as
+  // nothing reads exactly like a project that has not started yet.
+  const file = join(h.project.state, "ledger.json");
+  const kept = '{ "version": 1, "lanes": ';
+  writeFileSync(file, kept);
+
+  const refused = await h.call(sup, "supervisor", "open_lane", { title: "After", outcome: "y", acceptance: ["a"], ...scope });
+  assert.equal(refused.ok, false);
+  assert.match(refused.text, /could not be read/, "the seat is told, rather than getting a lane in a project that forgot the first one");
+  assert.equal(readFileSync(file, "utf-8"), kept, "an empty ledger written over it forgets every lane, task and working copy on record");
+  h.runtime.dispose();
+});
+
 test("a detour hands back to the lane that was waiting on it, and cannot be opened for a lane that is not", async () => {
   const h = harness("outbox-detour.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

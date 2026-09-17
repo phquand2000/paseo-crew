@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
 
@@ -104,6 +104,29 @@ export function loadLedger(state: string): Ledger {
   const stored = readJson<Ledger | null>(ledgerFile(state), null);
   if (!stored || stored.version !== 1) return emptyLedger();
   return { ...emptyLedger(), ...stored };
+}
+
+/**
+ * Why the ledger on disk cannot be read, when it is there and cannot.
+ *
+ * An unreadable file parses as nothing, and nothing looks exactly like a project that has not
+ * started yet: every lane, task, ask and the paths of every live working copy would be forgotten,
+ * and the next write would put that emptiness on disk. A version this plugin does not know is the
+ * likely way in — a newer plugin wrote it and an older one is now running. Absent is not a fault.
+ */
+export function ledgerFault(state: string): string | undefined {
+  const file = ledgerFile(state);
+  if (!existsSync(file)) return undefined;
+  let stored: unknown;
+  try {
+    stored = JSON.parse(readFileSync(file, "utf-8"));
+  } catch (error) {
+    return `${file} is there but could not be read: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return `${file} does not hold a record`;
+  const version = (stored as { version?: unknown }).version;
+  if (version !== 1) return `${file} is version ${JSON.stringify(version)}, which this plugin does not know how to read`;
+  return undefined;
 }
 
 export function saveLedger(state: string, ledger: Ledger): void {

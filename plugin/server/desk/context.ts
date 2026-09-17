@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Team } from "../catalog/team.ts";
 import type { Kit, RoleSpec } from "../catalog/kit.ts";
-import { type Ledger, type Task, loadLedger, saveLedger } from "./ledger.ts";
+import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
@@ -64,6 +64,8 @@ export class DeskContext {
     this.projects.set(project.slug, project);
     const previous = this.locks.get(project.slug) ?? Promise.resolve();
     const run = previous.then(async () => {
+      const fault = ledgerFault(project.state);
+      if (fault) throw new Error(`${fault}. Nothing was written over it; move it aside or repair it, and what the desk has on record is in that file.`);
       const ledger = loadLedger(project.state);
       const result = await change(ledger);
       saveLedger(project.state, ledger);

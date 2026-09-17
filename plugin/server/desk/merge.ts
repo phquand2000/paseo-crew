@@ -76,7 +76,7 @@ export class MergeQueue {
         const settled = (await headSha(cwd)) === merged.after && (await isClean(cwd));
         const undone = settled && (await resetHard(cwd, merged.before));
         const state = `${task.id} is merged into ${lane.branch} and stays there: ${
-          settled ? "the desk could not undo the merge" : "the lane's working copy has moved on since, and undoing the merge would take that work with it"
+          settled ? "the desk could not undo the merge" : "the working copy is not where the merge left it, and undoing the merge would take whatever moved it"
         }. Undo it yourself, or send rework.`;
         return finish("failed", letters.mergeFailed(task, run.reason, run.tail, run.logFile, undone ? undefined : state));
       }
