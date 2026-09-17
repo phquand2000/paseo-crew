@@ -1,4 +1,4 @@
-import { type Kit, seatOf } from "../catalog/kit.ts";
+import { type Kit, can, seatOf } from "../catalog/kit.ts";
 import type { SeatLook, SeatView, Seats } from "../core/ports.ts";
 import { type Project, projectOf } from "./project.ts";
 
@@ -28,22 +28,30 @@ export class Roster {
       } catch {}
     }
     const found = (await this.seats.open())
-      .filter((seat) => seatOf(this.kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug)
+      .filter((seat) => this.holds(seat, "supervise", project))
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
     return found[0]?.id ?? preferred;
   }
 
   watcherSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
-    return this.seatOfTeam(project, seats, "watcher");
+    return this.seatThatCan(project, seats, "watch");
   }
 
   supervisorSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
-    return this.seatOfTeam(project, seats, "supervisor");
+    return this.seatThatCan(project, seats, "supervise");
   }
 
-  private seatOfTeam(project: Project, seats: Iterable<SeatView>, team: string): string | undefined {
-    for (const seat of seats) if (seatOf(this.kit, seat.provider)?.role.team === team && projectOf(seat.cwd).slug === project.slug) return seat.id;
-    return undefined;
+  /** Every seat on this project that can do the thing. Several may supervise it, each for its own concern. */
+  seatsThatCan(project: Project, seats: Iterable<SeatView>, capability: string): SeatView[] {
+    return [...seats].filter((seat) => this.holds(seat, capability, project));
+  }
+
+  private seatThatCan(project: Project, seats: Iterable<SeatView>, capability: string): string | undefined {
+    return this.seatsThatCan(project, seats, capability)[0]?.id;
+  }
+
+  private holds(seat: SeatView, capability: string, project: Project): boolean {
+    return can(seatOf(this.kit, seat.provider)?.role, capability) && projectOf(seat.cwd).slug === project.slug;
   }
 
   async retireWatcher(project: Project, known?: Iterable<SeatView>): Promise<void> {

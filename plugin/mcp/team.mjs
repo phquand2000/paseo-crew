@@ -5,9 +5,10 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 
 const role = process.argv[2] ?? "";
-const spool = process.argv[3] ?? "";
+const toolSet = process.argv[3] ?? "";
+const spool = process.argv[4] ?? "";
 const waitMs = Number(process.env.SEATWORKS_TOOL_WAIT_MS ?? 300000);
-const tools = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "tools.json"), "utf-8"))[role] ?? [];
+const tools = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "tools.json"), "utf-8"))[toolSet] ?? [];
 
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

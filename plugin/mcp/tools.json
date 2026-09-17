@@ -474,55 +474,6 @@
       }
     }
   ],
-  "reviewer": [
-    {
-      "name": "done",
-      "description": "Hand the review back. Call it once at the end.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "verdict": {
-            "type": "string",
-            "enum": [
-              "accept",
-              "changes",
-              "reopen"
-            ]
-          },
-          "findings": {
-            "type": "string",
-            "description": "One finding per paragraph: severity P0-P3, file:line, the failure, the smallest fix."
-          },
-          "checks": {
-            "type": "string",
-            "description": "What you read and ran."
-          }
-        },
-        "required": [
-          "verdict",
-          "findings"
-        ]
-      }
-    },
-    {
-      "name": "ask",
-      "description": "Ask whoever assigned the review, when you cannot continue without an answer.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "type": "string"
-          },
-          "tried": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "question"
-        ]
-      }
-    }
-  ],
   "watcher": [
     {
       "name": "raise",

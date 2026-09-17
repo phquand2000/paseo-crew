@@ -9,7 +9,7 @@ export type SettingSpec = { type: "number" | "string" | "boolean"; label: string
 export type ModelView = { id: string; label: string; isDefault?: boolean; thinkingOptions?: { id: string; label: string; isDefault?: boolean }[] };
 
 export type Catalog = {
-  roles: { id: string; label: string; description: string; team: string | null; defaults: { harness: string; model?: string; thinking?: string }; harnesses: string[] }[];
+  roles: { id: string; label: string; description: string; can: string[]; concern: string | null; defaults: { harness: string; model?: string; thinking?: string }; harnesses: string[] }[];
   harnesses: { id: string; label: string; models: ModelView[]; thinking: boolean; transports: string[] }[];
   mcp: { id: string; label: string; description: string; kind: string; transport: string; settings: Record<string, SettingSpec>; defaults: { enabled: boolean }; roles: string[] }[];
 };

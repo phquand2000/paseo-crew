@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { harnessProblems, loadKit } from "../../server/catalog/kit.ts";
+import { can, harnessProblems, loadKit, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
 const good = () => ({
@@ -52,4 +52,46 @@ test("the shipped harnesses satisfy their own contract", async () => {
   const { loadKit } = await import("../../server/catalog/kit.ts");
   const kit = loadKit(new URL("../..", import.meta.url).pathname);
   for (const [id, harness] of Object.entries(kit.harnesses)) assert.deepEqual(harnessProblems(id, harness as unknown as Record<string, unknown>), [], `harness ${id}`);
+});
+
+test("several seats can supervise one project, each for its own concern, declared as data", () => {
+  const dir = tempDir("sw2-concerns-");
+  mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
+  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
+  writeFileSync(join(dir, "harness", "acme", "settings.json"), "{}");
+  mkdirSync(join(dir, "mcp"), { recursive: true });
+  writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ supervisor: [{ name: "open_lane" }, { name: "answer" }], lead: [{ name: "report" }] }));
+
+  const role = (name: string, can: string[], tools: string, concern?: string) => {
+    writeFileSync(join(dir, "harness", "acme", "settings", `${name}.settings.json`), "{}");
+    return { role: name, label: name, can, tools, ...(concern ? { concern } : {}), defaults: { harness: "acme" }, prompt: `prompts/${name}.md`, skills: null };
+  };
+  writeFileSync(
+    join(dir, "roles.json"),
+    JSON.stringify({
+      providerPrefix: "sw2-",
+      roles: [
+        role("architecture", ["supervise"], "supervisor", "architecture"),
+        role("safety", ["supervise"], "supervisor", "safety"),
+        role("lead", ["lead"], "lead"),
+      ],
+    }),
+  );
+
+  const kit = loadKit(dir);
+  const supervising = rolesThatCan(kit, "supervise");
+  assert.deepEqual(
+    supervising.map((entry) => [entry.role, entry.concern]),
+    [
+      ["architecture", "architecture"],
+      ["safety", "safety"],
+    ],
+    "a project is not limited to one supervising seat, and each carries what it specialises in",
+  );
+  // Two roles share one tool set, so a specialisation costs no second copy of the tools.
+  assert.deepEqual(toolsOf(kit, supervising[0]), ["open_lane", "answer"]);
+  assert.deepEqual(toolsOf(kit, supervising[1]), ["open_lane", "answer"]);
+  assert.deepEqual(toolsOf(kit, roleThatCan(kit, "lead")), ["report"]);
+  assert.equal(can(supervising[0], "lead"), false);
+  assert.equal(toolsOf(kit, rolesThatCan(kit, "watch")[0]).length, 0, "a kit that declares no watching seat simply has none");
 });

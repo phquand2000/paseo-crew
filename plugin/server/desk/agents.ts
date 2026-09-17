@@ -1,4 +1,4 @@
-import { type TeamRole, providerId, roleWithTeam } from "../catalog/kit.ts";
+import { type RoleSpec, providerId } from "../catalog/kit.ts";
 import type { Workspaces } from "../core/ports.ts";
 import type { DeskContext } from "./context.ts";
 import type { Slot, Task } from "./ledger.ts";
@@ -21,9 +21,9 @@ export class Agents {
     this.workspaces = workspaces;
   }
 
-  private seatConfig(project: Project, team: TeamRole): { role: ReturnType<typeof roleWithTeam>; config: Record<string, unknown> } {
-    const role = roleWithTeam(this.ctx.kit, team);
-    if (!role) throw new Error(`roles.json has no role for ${team}`);
+  private seatConfig(project: Project, roleName: string): { role: RoleSpec; config: Record<string, unknown> } {
+    const role = this.ctx.kit.roles.find((entry) => entry.role === roleName);
+    if (!role) throw new Error(`roles.json has no role called ${roleName}`);
     const seat = this.ctx.team(project).roles[role.role];
     if (!seat) throw new Error(`the team settings leave the ${role.label} without a harness`);
     const provider = providerId(this.ctx.kit, role.role, seat.harness.id);
@@ -33,8 +33,8 @@ export class Agents {
     return { role, config };
   }
 
-  async startResident(project: Project, team: TeamRole, options: StartOptions): Promise<string> {
-    const { config } = this.seatConfig(project, team);
+  async startResident(project: Project, roleName: string, options: StartOptions): Promise<string> {
+    const { config } = this.seatConfig(project, roleName);
     const workspace = await this.slots.projectWorkspace(project);
     const started = await this.workspaces.seat(workspace, {
       config,
@@ -45,16 +45,9 @@ export class Agents {
     return started.id;
   }
 
-  async start(project: Project, slot: Pick<Slot, "path" | "workspaceId">, team: TeamRole, options: StartOptions): Promise<string> {
-    const role = roleWithTeam(this.ctx.kit, team);
-    if (!role) throw new Error(`roles.json has no role for ${team}`);
+  async start(project: Project, slot: Pick<Slot, "path" | "workspaceId">, roleName: string, options: StartOptions): Promise<string> {
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
-    const seat = this.ctx.team(project).roles[role.role];
-    if (!seat) throw new Error(`the team settings leave the ${role.label} without a harness`);
-    const provider = providerId(this.ctx.kit, role.role, seat.harness.id);
-    const config: Record<string, unknown> = { provider: seat.model ? `${provider}/${seat.model.id}` : provider };
-    if (seat.harness.provider.profileModeId) config.modeId = seat.harness.provider.profileModeId;
-    if (seat.thinking) config.thinkingOptionId = seat.thinking;
+    const { config } = this.seatConfig(project, roleName);
     const started = await this.workspaces.seat(slot.workspaceId, {
       config,
       parent: options.parent,

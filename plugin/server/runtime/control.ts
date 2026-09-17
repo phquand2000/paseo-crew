@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { type Kit, providerId, supportsRole } from "../catalog/kit.ts";
+import { type Kit, providerId, rolesThatCan, supportsRole } from "../catalog/kit.ts";
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
@@ -51,7 +51,8 @@ export function describeCatalog(kit: Kit): unknown {
       id: role.role,
       label: role.label,
       description: role.description ?? "",
-      team: role.team ?? null,
+      can: role.can ?? [],
+      concern: role.concern ?? null,
       defaults: role.defaults,
       harnesses: Object.values(kit.harnesses)
         .filter((harness) => supportsRole(kit, harness, role))
@@ -263,7 +264,8 @@ export class SettingsControl implements Control {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
-    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []));
+    const supervises = new Set(rolesThatCan(this.deps.kit, "supervise").map((role) => role.role));
+    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), undefined, supervises);
     return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
   }
 

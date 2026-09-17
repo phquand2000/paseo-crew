@@ -18,7 +18,8 @@ export function makeKit(): Kit {
       {
         role: "supervisor",
         label: "Supervisor",
-        team: "supervisor",
+        can: ["supervise"],
+        tools: "supervisor",
         defaults: { harness: "claude", model: "opus", thinking: "high" },
         prompt: "prompts/SUPERVISOR.md",
         skills: "supervisor",
@@ -27,7 +28,8 @@ export function makeKit(): Kit {
       {
         role: "lead",
         label: "Lead",
-        team: "lead",
+        can: ["lead"],
+        tools: "lead",
         defaults: { harness: "claude", model: "opus", thinking: "medium" },
         prompt: "prompts/LEAD.md",
         skills: null,
@@ -36,7 +38,8 @@ export function makeKit(): Kit {
       {
         role: "peer",
         label: "Peer",
-        team: "peer",
+        can: ["work"],
+        tools: "peer",
         defaults: { harness: "devin", model: "swe" },
         prompt: "prompts/PEER.md",
         skills: "peer",

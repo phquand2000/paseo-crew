@@ -1,5 +1,5 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, seatOf } from "../catalog/kit.ts";
+import { type Kit, type RoleSpec, can, roleThatCan, seatOf, toolsOf } from "../catalog/kit.ts";
 import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
@@ -17,28 +17,31 @@ import * as watcher from "./tools/watcher.ts";
 import * as worker from "./tools/worker.ts";
 
 const TOOLS: Record<string, Tool> = {
-  "supervisor.open_lane": supervisor.openLane,
-  "supervisor.close_lane": supervisor.closeLane,
-  "supervisor.set_project": supervisor.setProject,
-  "supervisor.message": shared.message,
-  "supervisor.answer": shared.answer,
-  "supervisor.status": shared.status,
-  "lead.start_task": lead.startTask,
-  "lead.start_review": lead.startReview,
-  "lead.accept": lead.accept,
-  "lead.rework": lead.rework,
-  "lead.cut": lead.cut,
-  "lead.ask": lead.ask,
-  "lead.report": lead.report,
-  "lead.message": shared.message,
-  "lead.answer": shared.answer,
-  "lead.status": shared.status,
-  "peer.done": worker.done,
-  "peer.ask": worker.ask,
-  "reviewer.done": worker.done,
-  "reviewer.ask": worker.ask,
-  "watcher.raise": watcher.raise,
+  open_lane: supervisor.openLane,
+  close_lane: supervisor.closeLane,
+  set_project: supervisor.setProject,
+  start_task: lead.startTask,
+  start_review: lead.startReview,
+  accept: lead.accept,
+  rework: lead.rework,
+  cut: lead.cut,
+  report: lead.report,
+  done: worker.done,
+  raise: watcher.raise,
+  message: shared.message,
+  answer: shared.answer,
+  status: shared.status,
 };
+
+// "ask" means one thing to every seat that holds it — reach the seat above me — and only what is above differs.
+const ASK: { capability: string; tool: Tool }[] = [
+  { capability: "lead", tool: lead.ask },
+  { capability: "work", tool: worker.ask },
+];
+
+function toolFor(role: RoleSpec, name: string): Tool | undefined {
+  return name === "ask" ? ASK.find((entry) => can(role, entry.capability))?.tool : TOOLS[name];
+}
 
 export type DeskOptions = {
   kit: Kit;
@@ -114,10 +117,12 @@ export class Desk {
   async ensureWatcher(project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
     const seated = this.services.roster.watcherSeat(project, seats);
     if (seated) return seated;
-    return this.services.agents.startResident(project, "watcher", {
-      title: `Watcher ${project.slug}`,
-      prompt: "You are seated on this project. Turn endings arrive as mail; label each one and raise what is not normal. Nothing to do until mail arrives.",
-      labels: { "seatworks.role": "watcher" },
+    const role = roleThatCan(this.services.ctx.kit, "watch");
+    if (!role) return undefined;
+    return this.services.agents.startResident(project, role.role, {
+      title: `${role.label} ${project.slug}`,
+      prompt: `You are seated on this project as its ${role.label}. Mail arrives when there is something to read; there is nothing to do until it does.`,
+      labels: { "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) },
     });
   }
 
@@ -125,18 +130,19 @@ export class Desk {
     const caller = await this.caller(request);
     if ("error" in caller) return no(caller.error);
     const { ctx } = this.services;
-    const tool = TOOLS[`${caller.team}.${request.tool}`];
+    const held = toolsOf(this.services.ctx.kit, caller.role).includes(request.tool);
+    const tool = held ? toolFor(caller.role, request.tool) : undefined;
     let reply: ToolReply;
     try {
       reply = tool ? await tool(this.services, caller, (request.args ?? {}) as Args) : no(`Unknown tool ${request.tool}.`);
     } catch (error) {
-      ctx.log(caller.project, `${caller.team} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
+      ctx.log(caller.project, `${caller.role.role} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
       reply = no(`${request.tool} failed: ${errorText(error)}`);
     }
-    ctx.event(caller.project, { kind: "tool", agent: caller.id, role: caller.team, tool: request.tool, ok: reply.ok, reply: clip(reply.text, 300) });
+    ctx.event(caller.project, { kind: "tool", agent: caller.id, role: caller.role.role, tool: request.tool, ok: reply.ok, reply: clip(reply.text, 300) });
     if (reply.ok) {
       await ctx.ledger(caller.project, (ledger) => {
-        const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.team };
+        const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
         ref.recordedAt = Date.now();
         ledger.agents[caller.id] = ref;
       });
@@ -148,8 +154,8 @@ export class Desk {
     if (!request.agent) return { error: "This tool works only inside a team agent." };
     const seat = await this.services.roster.look(request.agent);
     const role = seatOf(this.services.ctx.kit, seat.provider)?.role;
-    if (!role?.team) return { error: "This agent is not part of the team." };
-    if (role.team !== request.role) return { error: `This agent is a ${role.team}, so ${request.role} tools are not available to it.` };
-    return { id: request.agent, role, team: role.team, title: seat.title ?? request.agent, project: projectOf(seat.cwd ?? request.cwd) };
+    if (!role?.tools) return { error: "This agent is not part of the team." };
+    if (role.role !== request.role) return { error: `This agent is a ${role.label}, so ${request.role} tools are not available to it.` };
+    return { id: request.agent, role, title: seat.title ?? request.agent, project: projectOf(seat.cwd ?? request.cwd) };
   }
 }

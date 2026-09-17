@@ -63,7 +63,7 @@ export const ask: Tool = async ({ ctx }, caller, args) => {
     const created: Ask = {
       id: nextAskId(current),
       from: caller.id,
-      fromRole: caller.team,
+      fromRole: caller.role.role,
       to: lane.lead!,
       lane: lane.id,
       task: task.id,

@@ -1,4 +1,5 @@
 import { branchExists, currentBranch, landLane } from "../../core/git.ts";
+import { roleThatCan } from "../../catalog/kit.ts";
 import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
@@ -97,16 +98,18 @@ export const openLane: Tool = async (desk, caller, args) => {
     return fail(`The lane could not get a working copy: ${errorText(error)}`);
   }
   try {
-    const lead = await agents.start(project, slot, "lead", {
+    const leadRole = roleThatCan(ctx.kit, "lead");
+    if (!leadRole) return fail("No role in this kit can lead a lane.");
+    const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
       prompt: letters.directive(lane, issue),
-      labels: { "seatworks.lane": lane.id, "seatworks.role": "lead" },
+      labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
     await ctx.ledger(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
       if (entry) Object.assign(entry, { lead, worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId });
-      ledger.agents[lead] = { id: lead, role: "lead", lane: lane.id };
+      ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
     });
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id ?? "in place" });
     return ok(openedReply(project, lane, slot, lead, issue));

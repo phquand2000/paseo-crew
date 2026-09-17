@@ -54,6 +54,14 @@ test("a project with nothing running draws nothing", () => {
   assert.equal(view.moreLanes, 0);
 });
 
+test("whoever supervises is whoever the kit says supervises, not a seat with a particular name", () => {
+  assert.equal(flowView(project, working(), seats, now).supervisor, null, "told of no supervising role, the view names no supervisor");
+  const shown = flowView(project, working(), seats, now, new Set(), undefined, new Set(["supervisor"])).supervisor;
+  assert.equal(shown?.id, "seat-sup");
+  assert.equal(shown?.role, "supervisor", "the view reports the role the ledger recorded, not one it assumed");
+  assert.equal(flowView(project, working(), seats, now, new Set(), undefined, new Set(["architecture"])).supervisor, null);
+});
+
 test("a closed lane is counted by nobody and a shut lane carries counts instead of tasks", () => {
   const view = flowView(project, working(), seats, now);
   assert.deepEqual(view.lanes.map((entry) => entry.id), ["L1", "L2"], "a closed lane is not live");

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Kit, seatOf } from "../catalog/kit.ts";
+import { type Kit, can, seatOf } from "../catalog/kit.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
@@ -36,7 +36,7 @@ export class Patrol {
   async tick(now = Date.now()): Promise<void> {
     const { kit, desk, outbox } = this.deps;
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
-    for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.team) this.deps.remember(projectOf(seat.cwd));
+    for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
       await this.seatWatcher(project, loadLedger(project.state), seats);
       await this.idleLanes(project, loadLedger(project.state), seats, now);
@@ -65,7 +65,7 @@ export class Patrol {
   private async sweep(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const busy =
       Object.values(ledger.lanes).some((lane) => lane.status === "open") ||
-      [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.team && projectOf(seat.cwd).slug === project.slug);
+      [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === project.slug);
     try {
       await this.deps.desk.sweep(project, ledger, busy);
     } catch (error) {
@@ -148,7 +148,7 @@ export class Patrol {
     const { kit } = this.deps;
     try {
       const waiting = [...seats.values()].filter(
-        (seat) => seatOf(kit, seat.provider)?.role.team === "supervisor" && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
+        (seat) => can(seatOf(kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
       );
       mkdirSync(project.state, { recursive: true });
       const held = this.deps.outbox.letters(now);

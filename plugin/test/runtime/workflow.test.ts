@@ -602,3 +602,23 @@ test("a task whose honest answer is that nothing needed changing can be accepted
   await h.idle(lane.lead!);
   assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /changed no files/, "the letter says plainly that nothing moved");
 });
+
+test("a seat reaches only the tools its own role holds, whatever it asks for", async () => {
+  const h = harness("outbox-reach.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Edit", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+
+  // The tool exists on the desk, and this seat's role is not given it.
+  const reach = await h.call(peer, "peer", "open_lane", { title: "Mine", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
+  assert.equal(reach.ok, false);
+  assert.match(reach.text, /Unknown tool open_lane/);
+  assert.equal(Object.keys(h.ledger().lanes).length, 1, "nothing was opened");
+
+  // And a seat cannot borrow another role's name to get at them either.
+  const borrowed = await h.call(peer, "lead", "start_task", { title: "Mine", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["z"] });
+  assert.equal(borrowed.ok, false);
+  assert.match(borrowed.text, /lead tools are not available to it/);
+});

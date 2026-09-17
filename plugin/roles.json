@@ -18,7 +18,10 @@
         "model": "claude-opus-5",
         "thinking": "high"
       },
-      "team": "supervisor",
+      "can": [
+        "supervise"
+      ],
+      "tools": "supervisor",
       "prompt": "prompts/SUPERVISOR.md",
       "skills": "supervisor",
       "paseoTools": {
@@ -38,7 +41,10 @@
         "model": "claude-opus-5",
         "thinking": "medium"
       },
-      "team": "lead",
+      "can": [
+        "lead"
+      ],
+      "tools": "lead",
       "prompt": "prompts/LEAD.md",
       "skills": "lead",
       "paseoTools": {
@@ -59,7 +65,10 @@
         "harness": "devin",
         "model": "swe-2-max"
       },
-      "team": "peer",
+      "can": [
+        "work"
+      ],
+      "tools": "peer",
       "prompt": "prompts/PEER.md",
       "skills": "peer",
       "paseoTools": {
@@ -81,7 +90,12 @@
         "harness": "devin",
         "model": "swe-2-max"
       },
-      "team": "reviewer",
+      "can": [
+        "work",
+        "review"
+      ],
+      "tools": "peer",
+      "concern": "review",
       "prompt": "prompts/REVIEWER.md",
       "skills": null,
       "extraSkills": [
@@ -117,7 +131,10 @@
         ]
       },
       "hidesWords": [],
-      "team": "watcher"
+      "can": [
+        "watch"
+      ],
+      "tools": "watcher"
     }
   ]
 }

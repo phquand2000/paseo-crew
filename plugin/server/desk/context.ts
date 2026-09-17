@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Team } from "../catalog/team.ts";
-import type { Kit, RoleSpec, TeamRole } from "../catalog/kit.ts";
+import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
 export type ToolReply = { ok: boolean; text: string };
 export type Args = Record<string, unknown>;
-export type Caller = { id: string; role: RoleSpec; team: TeamRole; title: string; project: Project };
+export type Caller = { id: string; role: RoleSpec; title: string; project: Project };
 
 export const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 export const strs = (value: unknown): string[] =>

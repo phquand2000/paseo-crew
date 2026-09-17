@@ -4,14 +4,18 @@ import { join } from "node:path";
 export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
 export type ModelSpec = { id: string; label: string; isDefault?: boolean; thinkingOptions?: ThinkingSpec[] };
 export type McpServers = Record<string, unknown>;
-export type TeamRole = "supervisor" | "lead" | "peer" | "reviewer" | "watcher";
 export type McpTransport = "stdio" | "http" | "sse";
 
 export type RoleSpec = {
   role: string;
   label: string;
   description?: string;
-  team?: TeamRole;
+  /** What this seat specialises in, so several seats can supervise one project without being the same seat. */
+  concern?: string;
+  /** What this seat is allowed to be asked to do. An open set: the desk asks whether a seat can do a thing, never what it is called. */
+  can?: string[];
+  /** Which set of tools in mcp/tools.json this seat is given. Several roles may share one set. */
+  tools?: string;
   defaults: { harness: string; model?: string; thinking?: string };
   prompt: string;
   skills: string | null;
@@ -141,6 +145,7 @@ export type Kit = {
   roles: RoleSpec[];
   harnesses: Record<string, HarnessSpec>;
   mcp: Record<string, McpEntry>;
+  toolSets: Record<string, string[]>;
   attention: Attention;
 };
 
@@ -151,6 +156,13 @@ function subdirs(root: string): string[] {
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
+}
+
+function loadToolSets(dir: string): Record<string, string[]> {
+  const file = join(dir, "mcp", "tools.json");
+  if (!existsSync(file)) return {};
+  const raw = JSON.parse(readFileSync(file, "utf-8")) as Record<string, { name?: string }[]>;
+  return Object.fromEntries(Object.entries(raw).map(([set, tools]) => [set, tools.map((tool) => String(tool.name ?? ""))]));
 }
 
 function loadMcp(dir: string): Record<string, McpEntry> {
@@ -197,6 +209,7 @@ export function loadKit(dir: string): Kit {
     roles,
     harnesses,
     mcp: loadMcp(dir),
+    toolSets: loadToolSets(dir),
     attention: { ...ATTENTION, ...(raw.attention ?? {}) },
   };
 }
@@ -221,8 +234,20 @@ export function hookTools(proxy: ProxySpec | undefined): string[] {
   return [proxy?.open?.tool, proxy?.wait?.tool, proxy?.sync?.tool].filter((name): name is string => Boolean(name));
 }
 
-export function roleWithTeam(kit: Kit, team: TeamRole): RoleSpec | undefined {
-  return kit.roles.find((role) => role.team === team);
+export function can(role: RoleSpec | undefined, capability: string): boolean {
+  return role?.can?.includes(capability) ?? false;
+}
+
+export function rolesThatCan(kit: Kit, capability: string): RoleSpec[] {
+  return kit.roles.filter((role) => can(role, capability));
+}
+
+export function roleThatCan(kit: Kit, capability: string): RoleSpec | undefined {
+  return rolesThatCan(kit, capability)[0];
+}
+
+export function toolsOf(kit: Kit, role: RoleSpec | undefined): string[] {
+  return role?.tools ? (kit.toolSets[role.tools] ?? []) : [];
 }
 
 export function roleSettingsFile(kit: Kit, harness: HarnessSpec, role: RoleSpec): string {
@@ -252,6 +277,6 @@ export function paseoToolsPolicy(role: RoleSpec): { enabled?: boolean; disabledT
 }
 
 export function teamServer(kit: Kit, role: RoleSpec, spool: string, node: string): McpServers {
-  if (!role.team) return {};
-  return { team: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "team.mjs"), role.team, spool] } };
+  if (!role.tools) return {};
+  return { team: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "team.mjs"), role.role, role.tools, spool] } };
 }

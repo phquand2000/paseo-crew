@@ -1,3 +1,4 @@
+import { roleThatCan } from "../../catalog/kit.ts";
 import { diffCounts, git, headSha, isPristine, outsideOwned, resetHard } from "../../core/git.ts";
 import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
@@ -91,6 +92,8 @@ export const startTask: Tool = async (desk, caller, args) => {
   if (!lane?.worktree) return no("You have no open lane.");
   const problem = placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
+  const workRole = roleThatCan(ctx.kit, "work");
+  if (!workRole) return no("No role in this kit can take a task.");
   const task = await recordTask(desk, project, lane, args, parallel, parallel ? undefined : await headSha(lane.worktree));
   try {
     let slot: { id?: string; path: string; workspaceId?: string };
@@ -100,17 +103,17 @@ export const startTask: Tool = async (desk, caller, args) => {
     } else {
       slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree, workspaceId: lane.workspaceId };
     }
-    const peer = await agents.start(project, slot, "peer", {
+    const peer = await agents.start(project, slot, workRole.role, {
       parent: caller.id,
       title: `${task.id} ${task.title}`,
       prompt: letters.brief(task, lane),
-      labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": "peer" },
+      labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": workRole.role },
     });
     await ctx.setTask(project, task.id, (entry) => {
       entry.peer = peer;
     });
     await ctx.ledger(project, (current) => {
-      current.agents[peer] = { id: peer, role: "peer", lane: lane.id, task: task.id };
+      current.agents[peer] = { id: peer, role: workRole.role, lane: lane.id, task: task.id };
     });
     ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
     const where = parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}`;
@@ -137,6 +140,9 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   const slot: { id?: string; path: string; workspaceId?: string } | undefined =
     own ?? (lane.slot ? ledger.slots[lane.slot] : { path: lane.worktree, workspaceId: lane.workspaceId });
   if (!slot) return no("The working copy for that review is gone.");
+  // A reviewer is a worker that reviews, so the kit is asked for that rather than for a role called "reviewer".
+  const reviewRole = roleThatCan(ctx.kit, "review") ?? roleThatCan(ctx.kit, "work");
+  if (!reviewRole) return no("No role in this kit can review.");
   const review = await ctx.ledger(project, (current) => {
     const id = nextTaskId(current, current.lanes[lane.id]!, "review");
     const now = Date.now();
@@ -162,17 +168,17 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
     return { ...created };
   });
   try {
-    const reviewer = await agents.start(project, slot, "reviewer", {
+    const reviewer = await agents.start(project, slot, reviewRole.role, {
       parent: caller.id,
       title: `${review.id} ${target?.title ?? review.title}`,
       prompt: letters.reviewBrief(review, target, focus, lane.branch),
-      labels: { "seatworks.lane": lane.id, "seatworks.task": review.id, "seatworks.role": "reviewer" },
+      labels: { "seatworks.lane": lane.id, "seatworks.task": review.id, "seatworks.role": reviewRole.role },
     });
     await ctx.setTask(project, review.id, (entry) => {
       entry.peer = reviewer;
     });
     await ctx.ledger(project, (current) => {
-      current.agents[reviewer] = { id: reviewer, role: "reviewer", lane: lane.id, task: review.id };
+      current.agents[reviewer] = { id: reviewer, role: reviewRole.role, lane: lane.id, task: review.id };
     });
     ctx.event(project, { kind: "review.started", task: review.id, of: target?.id ?? null, reviewer });
     return ok(`Started ${review.id}${target ? ` on ${target.id}` : ""} with reviewer ${reviewer}. The verdict arrives as mail.`);

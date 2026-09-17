@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "../catalog/content.ts";
-import { type Kit, seatOf } from "../catalog/kit.ts";
+import { type Kit, can, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
@@ -165,10 +165,10 @@ export class Runtime {
 
   private async permissionRequested({ agent, request }: PluginLifecycleEvents["agent.permission_requested"]): Promise<void> {
     const role = seatOf(this.kit, agent.provider)?.role;
-    if (!role?.team) return;
+    if (!role?.tools) return;
     const project = projectOf(agent.cwd);
     const what = request.title ?? request.name ?? request.kind;
-    if (role.team === "supervisor") {
+    if (can(role, "supervise")) {
       this.log(project, `waiting on the Human: ${agent.id} ${what}`);
       return;
     }

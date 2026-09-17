@@ -129,7 +129,8 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   const config = parse(readFileSync(join(dir, "config.toml"), "utf-8")) as Record<string, any>;
   assert.equal(config.sandbox, "workspace-write");
   assert.equal(config.approval, "never");
-  assert.deepEqual(config.mcp_servers.team, { command: "/bin/node", args: [join(kit.dir, "mcp", "team.mjs"), "peer", "/spool"] });
+  // The seat is told which role it is and which tool set it holds, so two roles can share one set.
+  assert.deepEqual(config.mcp_servers.team, { command: "/bin/node", args: [join(kit.dir, "mcp", "team.mjs"), "peer", "peer", "/spool"] });
   assert.deepEqual(config.mcp_servers.docs, { url: "https://docs.example/mcp" });
   assert.deepEqual(materialize(kit, team, "peer", home, project, servers), []);
 });

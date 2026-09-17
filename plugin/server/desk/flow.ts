@@ -28,7 +28,7 @@ function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: stri
   };
 }
 
-export function flowView(project: Project, ledger: Ledger, seats: Map<string, SeatView>, now: number, open: ReadonlySet<string> = new Set(), cap = LANE_CAP): FlowView {
+export function flowView(project: Project, ledger: Ledger, seats: Map<string, SeatView>, now: number, open: ReadonlySet<string> = new Set(), cap: number = LANE_CAP, supervises: ReadonlySet<string> = new Set()): FlowView {
   const counts = new Map<string, { total: number; running: number }>();
   const held = new Map<string, FlowTask[]>();
 
@@ -44,7 +44,7 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
       title: task.title,
       status: task.status,
       kind: task.kind,
-      peer: seatOf(seats, task.peer, task.kind === "review" ? "reviewer" : "peer", now),
+      peer: seatOf(seats, task.peer, ledger.agents[task.peer ?? ""]?.role ?? task.kind, now),
       minutes: minutes(now, task.updatedAt),
       handback: task.handback ? minutes(now, task.handback.at) : null,
     };
@@ -68,7 +68,7 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
       status: lane.status,
       branch: lane.branch,
       base: lane.base,
-      lead: seatOf(seats, lane.lead, "lead", now),
+      lead: seatOf(seats, lane.lead, ledger.agents[lane.lead ?? ""]?.role ?? "lead", now),
       tasks: held.get(lane.id) ?? [],
       taskCount: count.total,
       running: count.running,
@@ -91,8 +91,8 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
 
   let supervisor: FlowSeat | null = null;
   for (const agent of Object.values(ledger.agents)) {
-    if (agent.role !== "supervisor") continue;
-    supervisor = seatOf(seats, agent.id, "supervisor", now);
+    if (!supervises.has(agent.role)) continue;
+    supervisor = seatOf(seats, agent.id, agent.role, now);
     break;
   }
 

@@ -158,7 +158,7 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
             theme={theme}
             disabled={disabled || !on}
             chosen={roles}
-            options={(entry ? entry.roles : catalog.roles.filter((role) => role.team).map((role) => role.id)).map((role) => ({ id: role, label: role }))}
+            options={(entry ? entry.roles : catalog.roles.filter((role) => role.can.length > 0).map((role) => role.id)).map((role) => ({ id: role, label: role }))}
             onToggle={(role, want) =>
               save((current) => setMcp(current, active, { roles: want ? [...new Set([...roles, role])] : roles.filter((other) => other !== role) }))
             }

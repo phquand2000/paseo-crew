@@ -1,3 +1,4 @@
+import { can } from "../../catalog/kit.ts";
 import { hash, no, ok, str } from "../context.ts";
 import { type Ask, findLane, findTask, laneOfLead, loadLedger } from "../ledger.ts";
 import { letters } from "../letters.ts";
@@ -11,7 +12,7 @@ export const message: Tool = async ({ ctx }, caller, args) => {
   if (!to || !text) return no("message needs to and text.");
   const ledger = loadLedger(caller.project.state);
   const key = `message:${caller.id}:${hash(to, text)}`;
-  if (caller.team === "supervisor") {
+  if (can(caller.role, "supervise")) {
     const lane = findLane(ledger, to);
     if (lane) {
       if (lane.status !== "open" || !lane.lead) return no(`Lane ${lane.id} has no running Lead.`);
@@ -41,7 +42,7 @@ export const answer: Tool = async ({ ctx }, caller, args) => {
     const ask = ledger.asks[id];
     if (!ask) return `There is no ask ${id}.`;
     if (ask.status !== "open") return `Ask ${id} is already answered.`;
-    if (ask.to !== caller.id && caller.team !== "supervisor") return `Ask ${id} was not addressed to you.`;
+    if (ask.to !== caller.id && !can(caller.role, "supervise")) return `Ask ${id} was not addressed to you.`;
     ask.status = "answered";
     ask.answer = text;
     return { ...ask };
@@ -55,6 +56,6 @@ export const answer: Tool = async ({ ctx }, caller, args) => {
 export const status: Tool = async ({ roster }, caller) => {
   const ledger = loadLedger(caller.project.state);
   const seats = new Map((await roster.open()).map((seat) => [seat.id, seat]));
-  const lane = caller.team === "lead" ? laneOfLead(ledger, caller.id)?.id : undefined;
+  const lane = can(caller.role, "lead") ? laneOfLead(ledger, caller.id)?.id : undefined;
   return ok(statusText(caller.project, ledger, loadConfig(caller.project.state), seats, Date.now(), lane));
 };
