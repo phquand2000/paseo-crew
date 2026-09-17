@@ -109,7 +109,9 @@ export const letters = {
 
   merged(task: Task, counts: Counts, outside: string[], gate: string): string {
     const lines = [
-      `MERGED ${task.id} (${task.title}) into the lane branch.`,
+      counts.files.length === 0
+        ? `MERGED ${task.id} (${task.title}): it changed no files, so there was nothing to merge.`
+        : `MERGED ${task.id} (${task.title}) into the lane branch.`,
       `Lines changed: source ${counts.src}, tests ${counts.test}, docs ${counts.docs}.`,
       `Gate: ${gate}`,
     ];
@@ -209,15 +211,11 @@ export const letters = {
     return lines.join("\n");
   },
 
-  report(lane: Lane, summary: string, ready: boolean, carried: string[] | undefined): string {
-    return [
-      `REPORT ${lane.id} (${lane.title}): ${ready ? "ready to land" : "not ready"}`,
-      "",
-      clip(summary, 2000),
-      "",
-      "Carried:",
-      list(carried),
-    ].join("\n");
+  report(lane: Lane, summary: string, ready: boolean, carried: string[] | undefined, gate?: { ok: boolean; text: string }): string {
+    const lines = [`REPORT ${lane.id} (${lane.title}): ${ready ? "ready to land" : "not ready"}`];
+    if (gate) lines.push("", `Gate: ${gate.text}`);
+    lines.push("", clip(summary, 2000), "", "Carried:", list(carried));
+    return lines.join("\n");
   },
 
   reminder(ask: Ask, minutes: number): string {

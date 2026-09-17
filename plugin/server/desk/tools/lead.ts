@@ -203,7 +203,6 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     return no(`The lane's working copy has uncommitted changes; send rework asking the Peer on ${task.id} to commit everything, then accept again.`);
   }
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
-  if (counts.files.length === 0) return no(`${task.id} has no commits since it started.`);
   const run = await taskGate(project, task.id, lane.worktree);
   const gate = run ? run.note : gateNote(project);
   const updated = await ctx.setTask(project, task.id, (entry) => {
@@ -212,7 +211,11 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
   await ctx.post(lane.lead, `merge:${task.id}:merged:${Date.now()}`, letters.merged(task, counts, outsideOwned(counts.files, task.owned), gate));
   if (updated) await agents.retire(project, updated);
   ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
-  return ok(`${task.id} is accepted; its commits are already on ${lane.branch}. The working copy is free for the next task.`);
+  return ok(
+    counts.files.length === 0
+      ? `${task.id} is accepted; it changed nothing, so ${lane.branch} stands where it did. The working copy is free for the next task.`
+      : `${task.id} is accepted; its commits are already on ${lane.branch}. The working copy is free for the next task.`,
+  );
 };
 
 export const rework: Tool = async ({ ctx, roster }, caller, args) => {
@@ -293,12 +296,13 @@ export const report: Tool = async ({ ctx, roster }, caller, args) => {
   if (!summary) return no("report needs a summary.");
   const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
   if (!lane) return no("You have no open lane.");
-  if (args.ready === true) {
-    const gate = await laneGate(ctx, caller.project, lane);
-    if (!gate.ok) return no(`Not reported: the lane is not ready because ${gate.text}\nFix it with rework or start_task, then report again.`);
-  }
+  const gate = args.ready === true ? await laneGate(ctx, caller.project, lane) : undefined;
   const to = await roster.supervisorFor(caller.project, lane.opener);
-  await ctx.post(to, `report:${lane.id}:${hash(summary)}`, letters.report(lane, summary, args.ready === true, strs(args.carried)));
-  ctx.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true });
-  return ok("Reported to the owner. Stay quiet until mail arrives.");
+  await ctx.post(to, `report:${lane.id}:${hash(summary)}`, letters.report(lane, summary, args.ready === true, strs(args.carried), gate));
+  ctx.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true, gate: gate?.ok });
+  return ok(
+    gate && !gate.ok
+      ? "Reported to the owner, with what the gate did in it. Stay quiet until mail arrives."
+      : "Reported to the owner. Stay quiet until mail arrives.",
+  );
 };

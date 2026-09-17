@@ -212,12 +212,16 @@ test("a lane works serially in the project's own copy and hands it back on its b
   await h.call(task3.peer!, "peer", "done", { outcome: "complete", summary: "late" });
   h.agents.get(task3.peer!)!.status = "idle";
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T3" });
-  const refused = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
-  assert.equal(refused.ok, false);
-  assert.match(refused.text, /not ready/);
+  // A red gate is evidence carried in the report, not a gag on the Lead: acceptance is the Lead's to claim and the Supervisor's to judge.
+  const onRed = await h.call(lane.lead!, "lead", "report", { summary: "the lane is done", ready: true });
+  assert.equal(onRed.ok, true, onRed.text);
   h.git(slot.path, "rm", "-q", "BROKEN");
   h.git(slot.path, "commit", "-qm", "unbreak");
-  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
+  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done, and green this time", ready: true })).ok, true);
+  await h.idle(sup);
+  const reports = h.agents.get(sup)!.sent.join("\n");
+  assert.match(reports, /Gate: .*failed with exit/, "the red gate has to reach the Supervisor, not stop the Lead from speaking");
+  assert.match(reports, /Gate: .*passed on the lane branch/);
 
   const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
@@ -578,4 +582,23 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   assert.match(letter, /MERGED L1-T1/);
   assert.match(letter, /Gate: test ! -f BROKEN passed in/, "the Lead has to be told what the gate did, not what it would do later");
   assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
+});
+
+test("a task whose honest answer is that nothing needed changing can be accepted, not only cut", async () => {
+  const h = harness("outbox-nochange.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Audit", outcome: "the parser is checked", acceptance: ["a"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Check the parser", goal: "find out whether it drops input", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+
+  // The Peer investigates, finds the code already correct, and commits nothing. That is a real outcome.
+  await h.call(peer, "peer", "done", { outcome: "nothing needed changing", summary: "the parser already handles it" });
+  h.agents.get(peer)!.status = "idle";
+  const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  assert.equal(accepted.ok, true, accepted.text);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "the Lead judges the hand-back; the desk does not decide that no diff means no work");
+
+  await h.idle(lane.lead!);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /changed no files/, "the letter says plainly that nothing moved");
 });
