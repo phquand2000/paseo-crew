@@ -69,12 +69,22 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
   const struckOut = strike.count >= rules.strikesAt;
   const urgency: Urgency = irreversible || (struckOut && spent.length < rules.pagesPerWindow) ? "page" : "digest";
 
-  if (urgency === "page") {
-    strike.reportedAt = now;
-    spent.push(now);
-  }
-
+  // Deciding to interrupt is not interrupting. Stamping it here dropped the finding from the digest —
+  // the only other way it is ever read — when there turned out to be nobody to interrupt.
   return { urgency, watching: { strikes: { ...watching.strikes, [key]: strike }, pages: spent }, strike };
+}
+
+/** What an interruption cost and what it settled, recorded once it has really gone somewhere. */
+export function delivered(watching: Watching, keys: string[], now: number): Watching {
+  const strikes = { ...watching.strikes };
+  const pages = [...watching.pages];
+  for (const key of keys) {
+    const strike = strikes[key];
+    if (!strike || strike.reportedAt) continue;
+    strikes[key] = { ...strike, reportedAt: now };
+    pages.push(now);
+  }
+  return { strikes, pages };
 }
 
 export function pending(watching: Watching): Strike[] {

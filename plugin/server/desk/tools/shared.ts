@@ -66,9 +66,14 @@ export const answer: Tool = async ({ ctx }, caller, args) => {
     return { ...ask };
   });
   if (typeof result === "string") return no(result);
+  // Answering an ask that was put to someone else is allowed — the round escalates unanswered ones
+  // upward for exactly that. Leaving whoever it was put to out of it is not: they are told first,
+  // the same way a message that reaches their Peer tells them first.
+  const waiting = result.to === caller.id ? undefined : result.to;
+  if (waiting) await ctx.post(waiting, `answeredFor:${result.id}`, letters.answeredFor(result, "the owner"));
   await ctx.post(result.from, `answer:${result.id}`, letters.answered(result));
-  ctx.event(caller.project, { kind: "ask.answered", ask: result.id, by: caller.id });
-  return ok(`Answered ${result.id}; the asker gets it when idle.`);
+  ctx.event(caller.project, { kind: "ask.answered", ask: result.id, by: caller.id, told: waiting ?? null });
+  return ok(`Answered ${result.id}; the asker gets it when idle.${waiting ? " Whoever it was waiting on has been told what it was answered with." : ""}`);
 };
 
 export const status: Tool = async ({ roster }, caller) => {

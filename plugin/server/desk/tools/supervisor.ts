@@ -6,7 +6,7 @@ import { type Args, type Caller, errorText, no, ok, str, strs } from "../context
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
 import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify } from "../ledger.ts";
-import { clip, letters } from "../letters.ts";
+import { letters, outside } from "../letters.ts";
 import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 
@@ -68,7 +68,9 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
 
 function openedReply(project: Project, lane: Lane, slot: { id?: string }, lead: string, issue: Issue | undefined): string {
   const gate = loadConfig(project.state).gate ?? "none; call set_project with the project's test command";
-  const issueText = issue ? `\n\nIssue #${issue.number} as the Lead received it: ${issue.title} (${issue.url})\n<issue>\n${clip(issue.body, 4000)}\n</issue>` : "";
+  const issueText = issue
+    ? `\n\nIssue #${issue.number} as the Lead received it: ${outside("issue", issue.title, 200)} (${outside("issue", issue.url, 300)})\n<issue>\n${outside("issue", issue.body, 4000)}\n</issue>`
+    : "";
   const where = slot.id ? `in working copy ${slot.id}` : "in the project's own working copy";
   return `Lane ${lane.id} is open on ${lane.branch} (off ${lane.base}) ${where}, and its Lead ${lead} is starting. Gate: ${gate}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
 }

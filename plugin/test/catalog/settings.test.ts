@@ -55,4 +55,14 @@ test("a settings file that cannot be read is never saved over, because saving wo
   assert.equal(refused.status, "invalid");
   assert.match(refused.status === "invalid" ? refused.error : "", /could not be read/);
   assert.deepEqual(JSON.parse(readFileSync(file, "utf-8")), onDisk);
+
+  // And a file that does not parse at all, which is the likelier hand edit: every key in a layer is
+  // optional, so the empty object it used to read as was a valid layer and the next save was allowed.
+  writeFileSync(file, `${JSON.stringify(onDisk).slice(0, -1)},}`);
+  const broken = readLayer(file, MachineLayerSchema);
+  assert.equal(broken.status, "invalid", "a trailing comma is not a project with no settings yet");
+  assert.match(broken.status === "invalid" ? broken.error : "", /is not JSON/);
+  const alsoRefused = writeLayer(file, MachineLayerSchema, broken.revision, { flow: { live: false } }, ok);
+  assert.equal(alsoRefused.status, "invalid");
+  assert.match(readFileSync(file, "utf-8"), /keep me/, "the rules, the role choices and any pasted server's token are still there");
 });

@@ -366,6 +366,26 @@ test("each project gets the agent and model its own settings choose, and the mac
 
 
 
+test("an irreversible finding raised while no Supervisor is running waits for one instead of counting as told", async () => {
+  const h = harness("outbox-nobodyhome.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch");
+
+  // The owner closes their seat while the lane runs on. The desk keeps the Watcher seated either way.
+  h.agents.get(sup)!.archivedAt = new Date().toISOString();
+  const raised = await h.call(watcher, "watcher", "raise", { where: "the Peer on L1-T1", findings: [{ label: "destructive", quote: "git push --force origin main" }] });
+  assert.equal(raised.ok, true, "the Watcher did its job; refusing would end its turn over that");
+  assert.match(raised.text, /waits in the report/);
+
+  // A new seat comes back. The one class the desk promises always to escalate has to still be there.
+  const back = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup2");
+  await h.tick(Date.now() + 61 * 60_000);
+  await h.idle(back);
+  assert.match(h.agents.get(back)!.sent.join("\n"), /destructive[\s\S]*git push --force/, "stamped as reported before delivery, it would have been dropped from the report as well");
+  h.runtime.dispose();
+});
+
 test("a Watcher seat holds one fault back and reaches the Supervisor over something irreversible", async () => {
   const h = harness("outbox-watcher.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -827,6 +847,34 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   const orphaned = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "One more thing." });
   assert.equal(orphaned.ok, false);
   assert.match(orphaned.text, /no running Lead/);
+});
+
+test("an ask answered by the owner over a Lead's head is told to that Lead, not run behind its back", async () => {
+  const h = harness("outbox-answeredfor.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Columns", outcome: "the column goes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Drop it", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+
+  // The Peer puts the question to its Lead. The round escalates unanswered asks to the owner, so the
+  // owner answering one is the design — being the only one who knows the answer is not.
+  const asked = await h.call(task.peer!, "peer", "ask", { question: "Drop the column or keep it nullable?", tried: "read the migration" });
+  assert.equal(asked.ok, true, asked.text);
+  const ask = Object.values(h.ledger().asks)[0]!;
+  assert.equal(ask.to, lane.lead, "an ask goes upward, to the Lead");
+
+  const answered = await h.call(sup, "supervisor", "answer", { ask: ask.id, text: "Drop it and migrate." });
+  assert.equal(answered.ok, true, answered.text);
+  await h.idle(task.peer!);
+  assert.match(h.agents.get(task.peer!)!.sent.join("\n"), /Drop it and migrate/, "the Peer gets its answer");
+
+  await h.idle(lane.lead!);
+  const toLead = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(toLead, new RegExp(`ANSWERED FOR YOU: ${ask.id}`), "the Lead cannot hold the room's state on an answer it never saw");
+  assert.match(toLead, /Drop it and migrate/);
+  assert.match(toLead, /accepting it is still yours to judge/);
+  h.runtime.dispose();
 });
 
 test("a project keeps the pages its owner asked for, and nothing it did not", async () => {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { readJson, sortKeys, writeJson } from "../core/store.ts";
@@ -75,7 +75,29 @@ export function revisionOf(values: unknown): string {
   return createHash("sha1").update(JSON.stringify(sortKeys(values ?? {}))).digest("hex").slice(0, 16);
 }
 
+/**
+ * Why a settings file could not be read, when it is there and cannot be.
+ *
+ * `readJson` answers `{}` for a file that will not parse, and `{}` is a valid layer — every key is
+ * optional — so a trailing comma or a truncated write reads as a layer the owner has not written
+ * anything into, and the next save puts that over the top: the rules, every role's harness and
+ * model, the attention tuning and every pasted server's connect block with its tokens in it. Absent
+ * is not a fault, because a layer nobody has written really is empty.
+ */
+function faultOf(file: string): string | undefined {
+  if (!existsSync(file)) return undefined;
+  let held: unknown;
+  try {
+    held = JSON.parse(readFileSync(file, "utf-8"));
+  } catch (error) {
+    return `${file} is there but is not JSON: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  return !held || typeof held !== "object" || Array.isArray(held) ? `${file} does not hold a settings object` : undefined;
+}
+
 export function readLayer(file: string, schema: LayerSchema): ReadResult {
+  const fault = faultOf(file);
+  if (fault) return { status: "invalid", revision: revisionOf(readJson<unknown>(file, {})), error: `${fault}\nRepair the file by hand, then read it again.` };
   const raw = readJson<unknown>(file, {});
   const revision = revisionOf(raw);
   const parsed = schema.safeParse(raw);
@@ -88,6 +110,10 @@ export function layerValues(file: string, schema: LayerSchema): Layer {
 }
 
 export function writeLayer(file: string, schema: LayerSchema, revision: string, values: unknown, check: (values: Layer) => string[]): WriteResult {
+  const fault = faultOf(file);
+  if (fault) {
+    return { status: "invalid", error: `${fault}, and saving over it would throw away what it holds.\nRepair the file by hand, then save again.` };
+  }
   const current = readJson<unknown>(file, {});
   if (revisionOf(current) !== revision) {
     return { status: "conflict", error: "The settings changed after they were read; read them again and reapply the change." };

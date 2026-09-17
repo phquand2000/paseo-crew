@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, WATCH_RULES, emptyWatching, judge, pending, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pending, reported } from "../../server/desk/watching.ts";
 
 const NOW = Date.parse("2026-09-16T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -48,7 +48,10 @@ test("the same fault from the same seat three times earns the interruption", () 
   ]);
   assert.deepEqual(urgencies, ["digest", "digest", "page"], "evidence accumulates before anyone is woken");
   assert.equal(watching.strikes["seat-peer:repetition"]!.count, 3);
-  assert.equal(watching.pages.length, 1);
+  assert.deepEqual(watching.pages, [], "deciding to interrupt costs nothing; interrupting does");
+  const sent = delivered(watching, [keyOf("seat-peer", "repetition")], NOW + minutes(9));
+  assert.equal(sent.pages.length, 1);
+  assert.deepEqual(pending(sent), [], "and what interrupted the owner is not repeated in the report");
 });
 
 test("different faults from one seat are counted apart", () => {
@@ -60,10 +63,19 @@ test("different faults from one seat are counted apart", () => {
   assert.deepEqual(urgencies, ["digest", "digest", "digest"], "two of one fault and one of another is nobody's third strike");
 });
 
-test("something that cannot be undone interrupts on its first sighting", () => {
+test("something that cannot be undone interrupts on its first sighting, and keeps waiting if nobody took it", () => {
   const verdict = judge(emptyWatching(), raised({ label: "destructive", quote: "git reset --hard origin/main" }), NOW);
   assert.equal(verdict.urgency, "page", "an irreversible act has no second chance to be caught");
-  assert.equal(verdict.watching.pages.length, 1);
+  assert.deepEqual(verdict.watching.pages, []);
+
+  // The one class the desk promises always to escalate. Stamped before delivery, it would be filtered
+  // out of the report as already reported, and the report is the only other way it is ever read.
+  assert.deepEqual(
+    pending(verdict.watching).map((strike) => strike.label),
+    ["destructive"],
+    "with nobody running to be interrupted, it stays waiting instead of being counted as told",
+  );
+  assert.deepEqual(pending(delivered(verdict.watching, [keyOf("seat-peer", "destructive")], NOW)), [], "once it has gone somewhere, it is settled");
 });
 
 test("the interruption budget holds, and what it refuses still reaches the digest", () => {
@@ -83,7 +95,7 @@ test("the digest holds what was never raised, and empties once it is sent", () =
     { raise: raised({ label: "derailed", subject: "seat-lead" }), at: NOW + minutes(2) },
     { raise: raised({ label: "destructive" }), at: NOW + minutes(3) },
   ]);
-  const waiting = pending(watching);
+  const waiting = pending(delivered(watching, [keyOf("seat-peer", "destructive")], NOW + minutes(3)));
   assert.deepEqual(
     waiting.map((strike) => strike.label),
     ["derailed", "unverified"],

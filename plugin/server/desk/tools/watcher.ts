@@ -1,7 +1,7 @@
 import { no, ok, str } from "../context.ts";
 import { letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
-import { type Urgency, type Watching, WATCH_RULES, judge, loadWatching, saveWatching } from "../watching.ts";
+import { type Urgency, type Watching, WATCH_RULES, delivered, judge, keyOf, loadWatching, saveWatching } from "../watching.ts";
 
 /** What the SLP preset asks a Watcher to distinguish. The kit names these; the desk only checks a finding carries one. */
 export const LABELS = ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"];
@@ -36,6 +36,7 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   let watching: Watching = loadWatching(project.state);
   let worst: Urgency = "log";
   const paged: Finding[] = [];
+  const pagedKeys: string[] = [];
   const counts = new Map<string, number>();
 
   for (const finding of findings) {
@@ -46,7 +47,10 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     const count = verdict.strike?.count ?? 0;
     counts.set(finding.label, count);
     if (RANK[verdict.urgency] > RANK[worst]) worst = verdict.urgency;
-    if (verdict.urgency === "page") paged.push(finding);
+    if (verdict.urgency === "page") {
+      paged.push(finding);
+      pagedKeys.push(keyOf(where, finding.label));
+    }
     ctx.event(project, { kind: "watch", agent: caller.id, label: finding.label, where, quote: finding.quote, urgency: verdict.urgency, count });
   }
 
@@ -55,15 +59,23 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     return ok("Recorded. An ending with nothing wrong needs nobody's attention, so nothing was sent.");
   }
 
-  saveWatching(project.state, watching);
   const named = findings.map((finding) => finding.label).join(", ");
-  if (worst !== "page") return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone. Keep reading endings.`);
+  if (worst !== "page") {
+    saveWatching(project.state, watching);
+    return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone. Keep reading endings.`);
+  }
 
   const to = await roster.supervisorFor(project);
-  if (!to) return no("Nobody above you is running to receive it; the ending is recorded either way.");
+  if (!to) {
+    // Nothing is stamped, so it stays in the report and reaches whoever opens a seat next. Refusing
+    // here would end this turn over something the Watcher did right.
+    saveWatching(project.state, watching);
+    return ok(`Recorded ${named}. Nobody above you is running to be interrupted, so it waits in the report for whoever comes back. Keep reading endings.`);
+  }
   for (const finding of paged) {
     const count = counts.get(finding.label) ?? 1;
     await ctx.post(to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
   }
+  saveWatching(project.state, delivered(watching, pagedKeys, now));
   return ok(`Raised ${paged.map((finding) => finding.label).join(", ")} to the owner. Keep reading endings; nothing to wait for.`);
 };
