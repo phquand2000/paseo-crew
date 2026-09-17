@@ -53,6 +53,8 @@ export type Task = {
   worktree?: string;
   slot?: string;
   startSha?: string;
+  /** The merge that brought a parallel task's work into the lane, which outlives its branch and copy. */
+  mergeSha?: string;
   status: TaskStatus;
   openedAt: number;
   updatedAt: number;

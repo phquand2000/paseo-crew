@@ -865,3 +865,40 @@ test("a review hands back a verdict and its findings, and the Lead is told both"
   assert.match(toLead, /Verdict: accept/);
   assert.match(toLead, /banker's rounding would be safer/, "the review itself reaches the Lead rather than being dropped");
 });
+
+test("a review of a parallel task whose copy went back is pointed at the merge that holds the change", async () => {
+  const h = harness("outbox-reviewgone.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt", "b.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "A", goal: "g", acceptance: ["a"], owned: ["a.txt"], ...scope, parallel: true });
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "a.txt", "A\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(task.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.equal(Object.keys(h.ledger().slots).length, 0, "the copy the task worked in has gone back");
+
+  const opened = await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Does this hold at the boundary?" });
+  assert.equal(opened.ok, true, opened.text);
+  const review = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review")!;
+  const merge = h.ledger().tasks["L1-T1"]!.mergeSha!;
+  const brief = h.agents.get(review.peer!)!.prompt!;
+  assert.match(brief, new RegExp(`The change is in ${lane.branch}, as the merge ${merge.slice(0, 7)}`), "its own copy and branch are both gone once the work lands");
+  assert.match(brief, new RegExp(`git diff ${merge}\\^1\\.\\.${merge}`), "a range that shows nothing is a review of nothing");
+  assert.equal(h.git(lane.worktree!, "diff", "--name-only", `${merge}^1..${merge}`).trim(), "a.txt", "and the range really shows the task's work");
+
+  // A task cut before it committed leaves neither a copy nor a branch, and there is nothing to read.
+  await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], ...scope, parallel: true });
+  const empty = Object.values(h.ledger().tasks).find((entry) => entry.title === "B")!;
+  const cutReply = await h.call(lane.lead!, "lead", "cut", { task: empty.id, reason: "wrong shape" });
+  assert.equal(cutReply.ok, true, cutReply.text);
+  assert.equal(h.git(h.root, "branch", "--list", empty.branch!).trim(), "", "a cut task with no commits of its own leaves no branch behind");
+  const nothing = await h.call(lane.lead!, "lead", "start_review", { task: empty.id, focus: "anything?" });
+  assert.equal(nothing.ok, false);
+  assert.match(nothing.text, /neither a merge nor a branch is left to read it from/);
+  h.runtime.dispose();
+});

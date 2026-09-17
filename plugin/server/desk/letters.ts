@@ -71,13 +71,13 @@ export const letters = {
       .join("\n");
   },
 
-  reviewBrief(review: Task, target: Task | undefined, focus: string, laneBranch: string): string {
-    const range = target ? (target.mode === "parallel" ? `git diff ${laneBranch}...HEAD` : `git diff ${target.startSha ?? laneBranch}..HEAD`) : "";
+  /** `change` says where the change can be read and how; the desk works it out, because where it is depends on what has happened to the task's copy and branch since. */
+  reviewBrief(review: Task, target: Task | undefined, focus: string, laneBranch: string, change?: { where: string; range: string }): string {
     const lines = target
       ? [
           `REVIEW ${review.id} of ${target.id}: ${target.title}`,
           "",
-          `Your working copy holds the change; see it with ${range}.`,
+          `${change?.where ?? "Your working copy holds the change"}; see it with ${change?.range ?? ""}.`,
           "",
           `Goal of the change: ${target.goal}`,
           "",
