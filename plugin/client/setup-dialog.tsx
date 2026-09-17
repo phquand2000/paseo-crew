@@ -62,15 +62,19 @@ export function SetupDialog({ open, catalog, available, attached, theme, disable
   };
 
   const browse = (where?: string) =>
-    void listFolders(where).then((answer) => {
-      if ("error" in answer) {
-        setTrouble(answer.error);
-        return;
-      }
-      setTrouble(null);
-      setPicking(false);
-      setBrowsing(answer);
-    });
+    void listFolders(where)
+      .then((answer) => {
+        if ("error" in answer) {
+          setTrouble(answer.error);
+          return;
+        }
+        setTrouble(null);
+        setPicking(false);
+        setBrowsing(answer);
+      })
+      // A call can fail for reasons the desk cannot answer with; without this the row went dead and
+      // the footer kept whatever it said before.
+      .catch((error: unknown) => setTrouble(error instanceof Error ? error.message : String(error)));
 
   const summary = () => {
     if (trouble) return trouble;

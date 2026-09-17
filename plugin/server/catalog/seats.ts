@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, roleSettingsFile } from "./kit.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
-import { formatConfig, readConfig } from "../core/config-file.ts";
+import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
 
@@ -106,7 +106,7 @@ function writeConfigIfChanged(path: string, value: unknown): boolean {
   if (present(path) && !isLink(path) && sameJson(readConfig(path, null), value)) return false;
   mkdirSync(dirname(path), { recursive: true });
   if (isLink(path)) unlinkSync(path);
-  writeFileSync(path, formatConfig(path, value), { mode: 0o600 });
+  writeConfigAtomic(path, formatConfig(path, value));
   return true;
 }
 
@@ -225,6 +225,13 @@ function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: 
 
 function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, record: Recorder): void {
   const file = join(dir, harness.mcp.file);
+  const fault = configFault(file);
+  if (fault) {
+    // The harness owns what else is in there. Substituting the seed would replace its account and
+    // its history with three keys and call it an MCP update.
+    console.error(`seatworks-v2: ${fault}, so its MCP servers were left alone`);
+    return;
+  }
   const current = readConfig<Json>(file, structuredClone(harness.mcp.seed ?? {}));
   record.note(writeConfigIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
 }

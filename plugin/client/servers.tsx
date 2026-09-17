@@ -118,7 +118,7 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
           </View>
           <SettingsAction
             label="Add it"
-            hint={paste.trim() ? "Saved switched on, given to every role. Narrow it below." : "Paste the snippet first. One server at a time."}
+            hint={paste.trim() ? "Saved switched on, given to the roles whose agent can reach it. Narrow it below." : "Paste the snippet first. One server at a time."}
             actionLabel="Add"
             disabled={disabled || !paste.trim()}
             onPress={() =>

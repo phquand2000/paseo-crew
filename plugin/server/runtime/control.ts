@@ -328,12 +328,23 @@ export class SettingsControl implements Control {
       return { error: `${asked} is not a directory on this machine.` };
     }
     const parent = dirname(here);
-    const folders = readdirSync(here, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
-      .map((entry) => join(here, entry.name))
+    let children: string[];
+    try {
+      // A folder can be listed and not readable — a protected one, or another user's. The screen
+      // handles a refusal and cannot handle a rejected promise, which left Open doing nothing at all.
+      children = readdirSync(here, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+        .map((entry) => join(here, entry.name));
+    } catch {
+      return { error: `${asked} is on this machine but could not be read.` };
+    }
+    // One stat per child, not one git process: 300 folders cost seconds of a blocked event loop, in
+    // the same process that is serving the seats' tool calls. A repository has .git, file or folder.
+    const looksLikeRepo = (child: string) => existsSync(join(child, ".git"));
+    const folders = children
       .sort((left, right) => left.localeCompare(right))
       .slice(0, 300)
-      .map((child) => ({ name: child.slice(here.length + 1), path: child, repository: Boolean(gitCommonDir(child)) }));
+      .map((child) => ({ name: child.slice(here.length + 1), path: child, repository: looksLikeRepo(child) }));
     return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), folders };
   }
 

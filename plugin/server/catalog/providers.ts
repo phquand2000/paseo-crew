@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, paseoToolsPolicy, providerId, supportsRole } from "./kit.ts";
+import { writeConfigAtomic } from "../core/config-file.ts";
 import { paseoConfigPath } from "../core/paths.ts";
 import { sameJson } from "../core/store.ts";
 import type { Team } from "./team.ts";
@@ -126,7 +127,12 @@ export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; c
 export function applyReconcile(kit: Kit, team: Team, configPath = paseoConfigPath()): string[] {
   const config = JSON.parse(readFileSync(configPath, "utf-8")) as Json;
   const { config: next, changed } = reconcile(config, kit, team);
-  if (changed.length > 0) writeFileSync(configPath, `${JSON.stringify(next, null, 2)}\n`);
+  // This is the owner's own Paseo config — every provider they have, their agent profiles, and the
+  // registration of this plugin. Written in place it was a prefix of itself until the write
+  // returned, and a daemon killed in that window cannot parse its own config or come back. Staged
+  // and renamed, it is either the old document or the new one. The mode is kept at the file's own,
+  // since a config Paseo keeps private must not be widened by being rewritten.
+  if (changed.length > 0) writeConfigAtomic(configPath, `${JSON.stringify(next, null, 2)}\n`, statSync(configPath).mode & 0o777);
   return changed;
 }
 

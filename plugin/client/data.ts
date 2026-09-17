@@ -155,15 +155,17 @@ export function useSeatworks(project?: string) {
   const reload = useCallback(() => setNonce((value) => value + 1), []);
 
   const save = useCallback(
-    async (change: (values: Layer) => Layer): Promise<void> => {
-      if (data.status !== "ready") return;
+    async (change: (values: Layer) => Layer): Promise<boolean> => {
+      if (data.status !== "ready") return false;
       setSaving(true);
       setSaveError(null);
       try {
         const result = await latest.current.write({ project, revision: data.revision, values: change(data.values) });
         if (result.status !== "saved") setSaveError(result.error);
+        return result.status === "saved";
       } catch (error) {
         setSaveError(message(error));
+        return false;
       } finally {
         setSaving(false);
         reload();
@@ -258,14 +260,28 @@ export function useSeatworks(project?: string) {
           setSaveError("That snippet does not name the server; paste it as {\"mcp\": {\"name\": { … }}}.");
           return null;
         }
-        await save((values) => setMcp(values, id, { enabled: true, label: parsed.label || id, connect: parsed.connect, removed: false }));
-        return id;
+        // Given only to the roles whose agent can reach it. Left to "every eligible role", a hosted
+        // server was refused for whichever role runs an agent with no transport for it — and the
+        // control that narrows it only appears once the server is saved, so it could never be added.
+        if (data.status !== "ready") return null;
+        const harnessOf = (role: { id: string; defaults: { harness: string } }) =>
+          data.values.roles?.[role.id]?.harness ?? data.machine.roles?.[role.id]?.harness ?? role.defaults.harness;
+        const reachable = data.catalog.roles
+          .filter((role) => (data.catalog.harnesses.find((entry) => entry.id === harnessOf(role))?.transports ?? []).includes(parsed.connect.type))
+          .map((role) => role.id);
+        if (reachable.length === 0) {
+          setSaveError(`No role's agent can reach a ${parsed.connect.type} server, so there is nobody to give it to.`);
+          return null;
+        }
+        const saved = await save((values) => setMcp(values, id, { enabled: true, label: parsed.label || id, connect: parsed.connect, removed: false, roles: reachable }));
+        // The snippet is the owner's only copy of what they pasted; it is not thrown away on a refusal.
+        return saved ? id : null;
       } catch (error) {
         setSaveError(message(error));
         return null;
       }
     },
-    [save],
+    [data, save],
   );
 
   const listFolders = useCallback((path?: string) => latest.current.paths(path ? { path } : {}), []);

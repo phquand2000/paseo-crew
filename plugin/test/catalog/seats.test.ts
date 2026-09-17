@@ -155,3 +155,25 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   assert.deepEqual(config.mcp_servers.docs, { url: "https://docs.example/mcp" });
   assert.deepEqual(materialize(kit, team, "peer", home, project, servers), []);
 });
+
+test("an MCP file the harness owns and the plugin cannot read is left alone, not replaced by the seed", () => {
+  const kit = makeKit();
+  const home = tempDir("sw2-home-");
+  const team = resolveTeam(kit);
+  materialize(kit, team, "lead", home, project);
+  const dir = seatDir(kit, team.roles.lead!.role, team.roles.lead!.harness, home, project);
+  const file = join(dir, team.roles.lead!.harness.mcp.file);
+
+  // The harness's own file, holding what only it knows, and unreadable at this moment — a crash
+  // mid-write, or a version this plugin does not parse. Read as "not there", the seed replaces the
+  // account, the machine id and the project history with three keys and calls it an MCP update.
+  const held = `{ "userID": "u-1", "oauthAccount": { "emailAddress": "owner@example.test" }, "projects": { "/work": {} },`;
+  writeFileSync(file, held);
+  const changes = materialize(kit, team, "lead", home, project);
+  assert.equal(readFileSync(file, "utf-8"), held, "left exactly as it was");
+  assert.equal(
+    changes.some((change) => change.includes(team.roles.lead!.harness.mcp.file)),
+    false,
+    "and not reported as a routine update",
+  );
+});

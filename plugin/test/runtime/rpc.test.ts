@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -197,6 +197,19 @@ test("a server pasted into the settings reaches the seats, and a shipped one can
   assert.deepEqual(team.mcp.notes.connect, { type: "stdio", command: ["npx", "notes-mcp"] });
   assert.deepEqual(team.roles.lead.mcp, ["notes"]);
   assert.match(team.roles.lead.rules, /Look things up in the notes\./);
+});
+
+test("a folder that is there and cannot be read is a refusal, not a rejected call", async () => {
+  const { call } = served();
+  const root = mkdtempSync(join(tmpdir(), "sw2-noread-"));
+  mkdirSync(join(root, "locked"));
+  chmodSync(join(root, "locked"), 0o000);
+  try {
+    const answer = await call("seatworks.paths.list", { path: join(root, "locked") });
+    assert.match(answer.error ?? "", /could not be read/, "the screen handles a refusal and cannot handle a rejection");
+  } finally {
+    chmodSync(join(root, "locked"), 0o700);
+  }
 });
 
 test("a project detached in this session can be attached again, and setting one up twice keeps what it holds", async () => {
