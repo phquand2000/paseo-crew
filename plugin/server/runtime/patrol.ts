@@ -47,7 +47,13 @@ export class Patrol {
       this.writeStatus(project, seats, now);
     }
     const targets = new Set(outbox.letters().map((letter) => letter.to));
-    for (const to of targets) await outbox.pump(to);
+    for (const to of targets) {
+      try {
+        await outbox.pump(to);
+      } catch (error) {
+        console.error(`seatworks-v2: mail for ${to} could not be delivered:`, error);
+      }
+    }
   }
 
   private async seatWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {

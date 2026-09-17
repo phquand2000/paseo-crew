@@ -70,7 +70,11 @@ export class Outbox {
     return this.lane(to, async () => {
       const mine = this.pending(to);
       if (mine.length === 0) return new Set<string>();
-      const seat = await this.seats.look(to);
+      // A seat Paseo cannot answer for is held, not thrown at the caller: mail is the one thing the
+      // desk must not lose, and one unanswerable address must not stop the round for the others.
+      // status.md lists what is held and how old it is, which is where a stuck letter surfaces.
+      const seat = await this.seats.look(to).catch(() => undefined);
+      if (!seat) return new Set<string>();
       if (seat.archivedAt) {
         this.archived(to);
         return new Set<string>();

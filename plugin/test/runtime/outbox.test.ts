@@ -67,3 +67,12 @@ test("a seat with a pending permission or an archived seat receives nothing, and
   assert.equal(outbox.pending("a").length, 1);
   assert.equal(outbox.pending("b").length, 1, "a Lead's report must outlive the seat it was addressed to");
 });
+
+test("mail for a seat Paseo cannot answer for is held, and the round goes on to the next seat", async () => {
+  const agents = { real: agent("idle") };
+  const outbox = outboxOn(agents, (_to, list) => list[0]!.text);
+  assert.equal(await outbox.post({ to: "gone", key: "x", text: "a report nobody can read yet" }), "held", "a tool that did its work is not failed by an address");
+  assert.equal(outbox.pending("gone").length, 1);
+  assert.equal(await outbox.post({ to: "real", key: "y", text: "and this still goes out" }), "sent");
+  assert.deepEqual(agents.real.sent, ["and this still goes out"]);
+});
