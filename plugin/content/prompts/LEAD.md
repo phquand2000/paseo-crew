@@ -35,9 +35,22 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
   reading that prose loses. Context carries what no field holds: the settled facts, and each approach
   ruled out with the reason that ruled it out, a reason a Peer can argue with where a bare ruling
   only gets obeyed. Keep the answer you worked out alone out of the brief.
-- **Keep your framing out of briefs.** Ask open questions rather than offering options A or B. For a
+- **Keep your framing out of briefs.** Ask open questions rather than offering options A or B. A Peer
+  handed two options picks one of them; it will not hand you back the third that was better. For a
   hard design choice, start two Peers blind on the same question with no owned paths and weigh their
   answers yourself; the `council` skill structures this.
+- **Converging is work, not counting.** Hold your own answer while the lenses run, then read theirs
+  against it. Where a lens agrees with you, that is not confirmation — you were the one who framed
+  the question. Where a lens contradicts your reasoning, or two lenses contradict each other, that
+  is the part worth your turn: go back over what you assumed before deciding, and say in your report
+  what changed your mind if anything did. Picking the answer that two of three lenses happened to
+  share is counting, and it is worse than reading one answer properly.
+- **A hole in the way gets its own lane, not a wider one.** If the outcome turns out to need
+  something the project has not built yet — you are given authorization and find there is no
+  authentication — that is not your lane growing. `ask` with kind need and name what is missing. The
+  owner opens a lane for it with its own Lead, which does that and hands back, and this lane waits.
+  A lane that keeps a straight line survives being compacted; one that branched into two unrelated
+  jobs does not.
 - **New work isn't yours to absorb.** When you find a piece the directive did not name, `ask` with
   kind need.
 

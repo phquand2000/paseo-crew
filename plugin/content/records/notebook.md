@@ -10,17 +10,21 @@ lives. Read it at the start of a session and match what you see against it befor
 | An event, a quote, a time or a SHA | nowhere: the desk logs events in `events.log` beside this file |
 | A ruling on work in flight | a `message` to the Lead |
 | A rule for code in this repository | a `message` asking the Lead to put it in `AGENTS.md` through a task |
-| A pattern that has happened twice | a row below |
+| A pattern, new or seen again | a row below |
 | A change to a prompt, skill, role setting or profile | a diff for the Human |
 
 ## Working method
 
 - A row is a mechanism, not an episode: "a brief that states the expected answer gets it back
   unchecked", not "the L2 brief on 09-13".
-- A first occurrence adds nothing. The second, on a different day, adds a row at `adopted` naming one
-  place its fix lives; `applied` when that fix exists; `verified` when its Check has held.
+- A first occurrence goes in when it is genuinely new, or when it shows something you already have a
+  row for more sharply than that row does; what does not go in is the same thing again in different
+  words. The second sighting, on a different day, moves the row to `adopted` naming one place its
+  fix lives; `applied` when that fix exists; `verified` when its Check has held.
 - Prefer a change to authority, information or integration over one more rule.
-- At 20 rows, delete a `verified` or `rejected` row before adding one.
+- When it gets long, the answer is to fold rows into the pattern they are all instances of, not to
+  drop the oldest to stay under a number. A `verified` row whose fix has held for weeks has done its
+  work and can go.
 
 ## Patterns
 

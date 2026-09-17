@@ -38,7 +38,18 @@ needs it: <none, or the consumer, why, and when the layer goes>.
 ## End check
 
 <the command or scenario that proves the outcome on the whole lane>
+
+## Getting back (only when this lane leaves state behind it)
+
+<how the work is undone, and what has to be repaired by hand if it is: a migration that has run, a
+record written outside this repository, an external call that cannot be taken back, a switch
+somebody else is now reading. "Revert the branch" when that is genuinely the whole of it.>
 ```
 
 A decision belongs here when it changes ownership, public behavior, safety or data, or is expensive
 to reverse. Everything else lives in git history and the task hand-backs.
+
+Getting back is not optional for a lane that migrates data, writes outside the repository, or makes
+a call nobody can take back. A plan that says how to reach the outcome and not how to get out of it
+is half a plan, and the half that is missing is the one that is needed under pressure. A lane that
+leaves nothing behind says so in one line and moves on.

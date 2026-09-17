@@ -89,7 +89,7 @@ When evidence leaves a material disagreement, `message` the original reviewer on
 
 ## 5. Draft, audit, verdict
 
-Draft alone, weighing: the authoritative outcome and hard constraints, options they exclude, verified and unresolved premises, fit under realistic failure, robustness if an assumption is wrong, reversibility, and whether serious dissent has stronger evidence. Don't vote or average: the number of reviewers never creates authority.
+Draft alone, weighing: the authoritative outcome and hard constraints, options they exclude, verified and unresolved premises, fit under realistic failure, robustness if an assumption is wrong, reversibility, and whether serious dissent has stronger evidence. Don't vote or average: the number of reviewers never creates authority. Read the positions in an order you did not choose for a reason — reverse the order you received them in, and check whether that changes which one you were about to favour. A position read first is favoured for being first, which is not evidence.
 
 The draft audit is optional in `debate` (use it for material dissent, high-impact unresolved claims or a fragile chain), the default in `debate-with-proof`, and mandatory in `high-risk`. The Auditor is a reviewer started with `start_review` whose focus holds the opening instruction without its ban on reading other work, the closing one, the brief, every valid report attributed by role, the decision model, verified evidence, the draft and material dissent, with no agent IDs, and asks for the audit response from the report patterns. It can't replace the verdict: resolve each material finding by revising, removing the claim, or returning it to its step.
 
