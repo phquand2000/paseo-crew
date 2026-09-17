@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { countNumstat, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "../../server/core/git.ts";
+import { countNumstat, diffCounts, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "../../server/core/git.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
 function repo(): { root: string; run: (...args: string[]) => string; commit: (file: string, text: string, message: string) => void } {
@@ -67,4 +68,21 @@ test("lines are counted as source, tests or docs, and files outside owned paths 
   const counts = countNumstat("10\t2\tsrc/a.js\n5\t0\ttest/a.test.js\n3\t3\tREADME.md\n");
   assert.deepEqual({ src: counts.src, test: counts.test, docs: counts.docs }, { src: 12, test: 5, docs: 6 });
   assert.deepEqual(outsideOwned(["src/a.js", "src/b/c.js", "lib/x.js"], ["src/a.js", "src/b/"]), ["lib/x.js"]);
+});
+
+test("a path with a character outside ASCII is read back as itself, not as git's escaped form", async () => {
+  const root = mkdtempSync(join(tmpdir(), "sw2-quotepath-"));
+  const run = (...args: string[]) => execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
+  run("init", "-q", "-b", "main");
+  run("commit", "-q", "--allow-empty", "-m", "seed");
+  mkdirSync(join(root, "src"), { recursive: true });
+  writeFileSync(join(root, "src", "giá-trị.ts"), "x\n");
+  run("add", "-A");
+  run("commit", "-qm", "add");
+
+  const counts = await diffCounts(root, "HEAD~1", "HEAD");
+  assert.deepEqual(counts.files, ["src/giá-trị.ts"], "the Lead is shown the file that changed, not an octal escape of it");
+  assert.equal(counts.src, 1);
+  // And it is inside the paths the task owned, which the escaped form would not have been.
+  assert.deepEqual(outsideOwned(counts.files, ["src/**"]), []);
 });

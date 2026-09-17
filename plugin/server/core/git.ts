@@ -6,7 +6,10 @@ export type Run = { code: number; stdout: string; stderr: string };
 
 export function git(cwd: string, args: string[], timeout = 60_000): Promise<Run> {
   return new Promise((resolve) => {
-    execFile("git", ["-C", cwd, ...args], { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
+    // core.quotePath=false because every path this module reads back is then matched against the
+    // owned paths and shown to a Lead. Left on, git wraps any path with a character outside ASCII
+    // in quotes and octal-escapes it, so a real file lands as gibberish that matches nothing.
+    execFile("git", ["-C", cwd, "-c", "core.quotePath=false", ...args], { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
       const code = error ? (typeof (error as { code?: unknown }).code === "number" ? ((error as { code: number }).code) : 1) : 0;
       resolve({ code, stdout: String(stdout), stderr: String(stderr) });
     });
