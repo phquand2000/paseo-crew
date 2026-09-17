@@ -277,6 +277,16 @@ export function supportsRole(kit: Kit, harness: HarnessSpec, role: RoleSpec): bo
   return existsSync(roleSettingsFile(kit, harness, role));
 }
 
+/**
+ * Paseo's own agent-facing tools, copied by hand because the SDK exports no list.
+ *
+ * A role's `allow` is turned into a denial of everything NOT on it, so this list is load-bearing in
+ * two directions and fails differently in each. A name in `allow` that is not here denies the role
+ * every Paseo tool — see the check in resolveRole, which turns that into a settings error instead of
+ * a silence. A tool Paseo adds that is not here is *enabled* for every role using `allow`, silently,
+ * which is the direction that cannot be caught from inside: keep this in step with Paseo, and treat
+ * a version bump as a reason to re-read it.
+ */
 export const PASEO_TOOLS = [
   "create_workspace", "list_workspaces", "archive_workspace", "create_agent", "send_agent_prompt", "get_agent_status",
   "list_agents", "cancel_agent", "archive_agent", "kill_agent", "update_agent", "rename_workspace", "list_workspace_scripts",

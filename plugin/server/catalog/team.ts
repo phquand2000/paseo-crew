@@ -10,6 +10,7 @@ import {
   type ModelSpec,
   type ProxySpec,
   type RoleSpec,
+  PASEO_TOOLS,
   supportsRole,
   teamServer,
 } from "./kit.ts";
@@ -122,6 +123,12 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
     if (next.rules?.trim()) ownRules.push(next.rules.trim());
+  }
+  const unknownTools = (role.paseoTools?.allow ?? []).filter((tool) => !PASEO_TOOLS.includes(tool));
+  if (unknownTools.length > 0) {
+    errors.push(
+      `The ${role.label} is allowed Paseo tools this kit does not know: ${unknownTools.join(", ")}. An allow list is applied by denying everything else, so an unknown name denies the ${role.label} every Paseo tool rather than granting it one.`,
+    );
   }
   const harness = kit.harnesses[choice.harness];
   if (!harness) {

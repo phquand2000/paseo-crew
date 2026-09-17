@@ -111,3 +111,14 @@ test("a seat opened on another harness than the settings choose gets that harnes
   assert.equal(team.roles.lead!.model!.id, "swe");
   assert.equal(team.roles.lead!.thinking, undefined);
 });
+
+test("a Paseo tool the kit does not know is reported, because allowing one denies all the others", () => {
+  // An allow list is applied by denying everything else, so a name that is not on the known list
+  // silently strips the role of every Paseo tool. That is worth an error rather than a surprise.
+  const typo = resolveTeam({ ...kit, roles: kit.roles.map((role) => (role.role === "lead" ? { ...role, paseoTools: { allow: ["get_agent_activty"] } } : role)) });
+  assert.match(typo.errors.join("\n"), /allowed Paseo tools this kit does not know: get_agent_activty/);
+  assert.match(typo.errors.join("\n"), /denies the Lead every Paseo tool rather than granting it one/);
+
+  const fine = resolveTeam({ ...kit, roles: kit.roles.map((role) => (role.role === "lead" ? { ...role, paseoTools: { allow: ["get_agent_activity"] } } : role)) });
+  assert.deepEqual(fine.errors, []);
+});
