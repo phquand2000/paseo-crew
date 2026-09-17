@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -126,4 +126,41 @@ test("the arguments the desk reads back are the ones each seat's own tool set of
     assert.ok(propsOf(setFor("peer"), "done").includes(field), `a peer is never asked for its ${field}`);
   }
   assert.notDeepEqual(propsOf(setFor("reviewer"), "done"), propsOf(setFor("peer"), "done"));
+});
+
+test("a prompt never tells a seat to use something that seat cannot reach", () => {
+  const kit = loadKit(pluginRoot);
+  const tools = JSON.parse(readFileSync(join(pluginRoot, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string }[]>;
+  const everySkill = new Set(
+    readdirSync(join(pluginRoot, "content", "skills"))
+      .flatMap((set) => readdirSync(join(pluginRoot, "content", "skills", set)).map((name) => name)),
+  );
+
+  for (const role of kit.roles) {
+    const text = readFileSync(join(pluginRoot, "content", role.prompt), "utf-8");
+    const ticked = new Set([...text.matchAll(/`([a-z][a-z_-]{2,})`/g)].map((hit) => hit[1]!));
+    const ownTools = new Set((tools[role.tools ?? ""] ?? []).map((entry) => entry.name));
+    const allowed = role.paseoTools?.allow;
+
+    for (const name of ticked) {
+      // A Paseo tool it names has to be one its own policy leaves on.
+      if (PASEO_TOOLS.includes(name)) {
+        const reachable = allowed ? allowed.includes(name) : role.paseoTools?.enabled !== false;
+        assert.ok(reachable, `${role.role}'s prompt says to use the Paseo tool ${name}, which its policy denies it`);
+      }
+      // A skill it names has to be one it is given.
+      if (everySkill.has(name)) {
+        const given = new Set([
+          ...(role.skills ? readdirSync(join(pluginRoot, "content", "skills", role.skills)) : []),
+          ...(role.extraSkills ?? []).map((entry) => entry.split(":")[1]!),
+        ]);
+        assert.ok(given.has(name), `${role.role}'s prompt says to open the skill ${name}, which it is not given`);
+      }
+      // A desk tool it names has to be in its own set. Names that are neither are ordinary prose.
+      const deskTool = Object.values(tools).some((set) => set.some((entry) => entry.name === name));
+      if (deskTool && !PASEO_TOOLS.includes(name)) {
+        assert.ok(ownTools.has(name), `${role.role}'s prompt says to call ${name}, which belongs to another seat's set`);
+      }
+    }
+  }
 });
