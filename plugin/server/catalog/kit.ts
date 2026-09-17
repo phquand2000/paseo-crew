@@ -192,8 +192,19 @@ function loadMcp(dir: string): Record<string, McpEntry> {
   return entries;
 }
 
-export function loadKit(dir: string): Kit {
-  const raw = JSON.parse(readFileSync(join(dir, "roles.json"), "utf-8"));
+/**
+ * Which roles this kit runs. The kit ships SLP as its preset; a file of the same name in the state
+ * root replaces it, so somebody who wants a different arrangement writes one rather than forking
+ * this. A role in that file may name its prompt and skills by absolute path, which is what makes an
+ * arrangement outside this package possible at all.
+ */
+export function rolesFile(dir: string, stateDir?: string): string {
+  const own = stateDir ? join(stateDir, "roles.json") : undefined;
+  return own && existsSync(own) ? own : join(dir, "roles.json");
+}
+
+export function loadKit(dir: string, stateDir?: string): Kit {
+  const raw = JSON.parse(readFileSync(rolesFile(dir, stateDir), "utf-8"));
   const harnesses: Record<string, HarnessSpec> = {};
   for (const id of subdirs(join(dir, "harness"))) {
     const file = join(dir, "harness", id, "harness.json");

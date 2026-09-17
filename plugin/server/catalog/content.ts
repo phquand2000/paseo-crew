@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import type { Kit, RoleSpec } from "./kit.ts";
 
 export type PromptPaths = { guides: string; state: string };
@@ -20,7 +20,7 @@ export function renderText(kit: Kit, role: RoleSpec, source: string, paths: Prom
 }
 
 export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): string {
-  return renderText(kit, role, readFileSync(join(kit.dir, "content", role.prompt), "utf-8"), paths);
+  return renderText(kit, role, readFileSync(contentPath(kit, role.prompt), "utf-8"), paths);
 }
 
 function markdownIn(dir: string): string[] {
@@ -50,11 +50,17 @@ function skillDirs(root: string): string[] {
   return readdirSync(root).filter((name) => statSync(join(root, name)).isDirectory());
 }
 
+/** A preset outside this package names its own files, so an absolute path is taken as given. */
+export function contentPath(kit: Kit, path: string): string {
+  return isAbsolute(path) ? path : join(kit.dir, "content", path);
+}
+
 export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map()): Map<string, string> {
   const root = join(kit.dir, "content", "skills");
   const found = new Map<string, string>();
   if (role.skills) {
-    for (const name of skillDirs(join(root, role.skills))) found.set(name, join(root, role.skills, name));
+    const own = isAbsolute(role.skills) ? role.skills : join(root, role.skills);
+    for (const name of skillDirs(own)) found.set(name, join(own, name));
   }
   for (const extra of role.extraSkills ?? []) {
     const [set, name] = extra.split(":");

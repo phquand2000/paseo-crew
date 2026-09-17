@@ -124,6 +124,32 @@ Verified against the installed SDK and the shipped daemon. Getting these wrong w
   `create_heartbeat` tool, a PTY API (`paseo.terminals`), and a `paseo.parent-agent-id` label.**
   Check for a native facility before building one.
 
+## SLP is the preset, not the plugin
+
+The plugin ships SLP and most people should take it. It is not the only thing the plugin can run,
+and keeping that true is a standing requirement rather than an aspiration.
+
+The pieces underneath it:
+
+- **Roles are data.** `roles.json` declares each seat's `can` (an open list of capabilities the desk
+  asks about — supervise, lead, work, review, watch), its `tools` (a set in `mcp/tools.json` that
+  several roles may share), and its `concern`. Nothing in `server/` compares a role to a name.
+- **A roles file in the state root replaces the shipped one**, and a role in it may give an absolute
+  path for its prompt and skills — so a different arrangement is written beside its own prompts
+  rather than by forking this package.
+- **Capabilities, not names, decide everything downstream**: who a report reaches, who may accept,
+  who watches, which seat a tool call is allowed to make.
+- **The desk's verbs are the interface**: `open_lane`, `start_task`, `accept`, `report`, `raise`,
+  `message`, `answer`, `ask`, `done`. A seat reaches the ones its own tool set holds.
+
+**The honest cost of going your own way**, because it should not be discovered later: the further
+you get from the preset, the more of the support is yours. The prompts, the skills and the guides
+are written for these seats and this flow; a different arrangement inherits the machinery and not
+the wording, and the way you coordinate will be unique to your situation.
+
+**The test that keeps this true:** if SLP were abandoned tomorrow for something else, would this
+plugin survive? If a change would make the answer no, it is the wrong change.
+
 ## Where things live that you would not guess
 
 - `plugin/content/**` is **not documentation** — it is the prompts, skills and guides shipped to

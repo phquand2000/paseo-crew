@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { can, harnessProblems, loadKit, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
+import { renderPrompt } from "../../server/catalog/content.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
 const good = () => ({
@@ -94,4 +95,30 @@ test("several seats can supervise one project, each for its own concern, declare
   assert.deepEqual(toolsOf(kit, roleThatCan(kit, "lead")), ["report"]);
   assert.equal(can(supervising[0], "lead"), false);
   assert.equal(toolsOf(kit, rolesThatCan(kit, "watch")[0]).length, 0, "a kit that declares no watching seat simply has none");
+});
+
+test("a roles file of one's own replaces the kit's preset, and may name its files anywhere", () => {
+  const dir = tempDir("sw2-preset-kit-");
+  mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
+  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
+  writeFileSync(join(dir, "harness", "acme", "settings", "lead.settings.json"), "{}");
+  writeFileSync(join(dir, "harness", "acme", "settings", "driver.settings.json"), "{}");
+  mkdirSync(join(dir, "mcp"), { recursive: true });
+  writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ lead: [{ name: "report" }] }));
+  const shipped = { role: "lead", label: "Lead", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: "prompts/LEAD.md", skills: null };
+  writeFileSync(join(dir, "roles.json"), JSON.stringify({ providerPrefix: "sw2-", roles: [shipped] }));
+  assert.deepEqual(loadKit(dir).roles.map((role) => role.role), ["lead"], "with nothing of the owner's, the kit runs what it ships");
+
+  // Somebody who wants a different arrangement writes one beside their own prompts, without forking the package.
+  const mine = tempDir("sw2-preset-mine-");
+  const ownPrompt = join(mine, "DRIVER.md");
+  writeFileSync(ownPrompt, "# Driver\n\nYou drive.\n");
+  writeFileSync(
+    join(mine, "roles.json"),
+    JSON.stringify({ providerPrefix: "sw2-", roles: [{ role: "driver", label: "Driver", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: ownPrompt, skills: null }] }),
+  );
+
+  const kit = loadKit(dir, mine);
+  assert.deepEqual(kit.roles.map((role) => role.role), ["driver"], "and that arrangement is the one that runs");
+  assert.match(renderPrompt(kit, kit.roles[0]!, { guides: "/g", state: "/s" }), /You drive\./, "its prompt is read from where it says, not from inside the package");
 });
