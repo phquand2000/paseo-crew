@@ -80,6 +80,36 @@ export class DeskContext {
   }
 
   /**
+   * Read the ledger in turn with its writers, and write nothing back.
+   *
+   * The sweep has to decide what is live in the same breath as it lists the directory, and doing that
+   * through `ledger` rewrote the file on every patrol round for no change at all — and created one for
+   * a project that had never opened a lane. An unreadable ledger still refuses: read as empty, every
+   * working copy on disk would look like a stray.
+   */
+  read<T>(project: Project, look: (ledger: Ledger) => T): Promise<T> {
+    const previous = this.locks.get(project.slug) ?? Promise.resolve();
+    const run = previous.then(() => {
+      const fault = ledgerFault(project.state);
+      if (fault) throw new Error(`${fault}. Nothing was read from it as if it were empty.`);
+      return look(loadLedger(project.state));
+    });
+    this.locks.set(project.slug, run.catch(() => undefined));
+    return run;
+  }
+
+  /** Whether an ending under this `where` was filed at all — which is not the same as having notes. */
+  hasReading(project: Project, where: string): boolean {
+    return this.readings.has(`${project.slug}:${where}`);
+  }
+
+  /** Whether anything has been filed for this project since the desk started. */
+  readsAny(project: Project): boolean {
+    for (const key of this.readings.keys()) if (key.startsWith(`${project.slug}:`)) return true;
+    return false;
+  }
+
+  /**
    * The Watcher's strike table, read and written under a lock of its own.
    *
    * Unlike the ledger this had none, and every writer of it loads, awaits something real — a roster

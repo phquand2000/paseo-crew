@@ -69,9 +69,13 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   });
   const { worst, paged, counts, room } = judged;
 
+  // Only when nothing at all was filed under this where while others were: a turn with no mechanical
+  // notes is filed with an empty list, and the first version said "no record" for every such turn —
+  // steering a Watcher that had it right to change a where that was correct. After a restart nothing
+  // is filed for anyone, and saying so for every raise would be the same false steer.
   const unknown =
-    recorded.length === 0
-      ? ` The desk has no record of a turn under "${clip(where, 120)}" — if that is not the where the mail gave you, this finding carries no evidence and counts on its own.`
+    !ctx.hasReading(project, where) && ctx.readsAny(project)
+      ? ` The desk has no ending filed under "${clip(where, 120)}" — if that is not the where the mail gave you, this finding carries no evidence and counts on its own.`
       : "";
   const named = findings.map((finding) => finding.label).join(", ");
   if (worst !== "page") return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone.${unknown} Keep reading endings.`);

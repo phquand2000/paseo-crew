@@ -1,6 +1,6 @@
 import type { SeatView } from "../core/paseo.ts";
 import type { Ledger } from "./ledger.ts";
-import type { Project, ProjectConfig } from "./project.ts";
+import { type Project, type ProjectConfig, projectOf } from "./project.ts";
 
 
 const minutes = (now: number, at: number | string) => Math.max(0, Math.round((now - (typeof at === "string" ? Date.parse(at) : at)) / 60_000));
@@ -22,13 +22,18 @@ export function statusText(
   waiting: SeatView[] = [],
   held: { to: string; text: string; at: number }[] = [],
 ): string {
-  const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${config.gate ?? "none"}.`, ""];
+  const gate = config.gate || (config.gate === "" ? "none, by this project's own choice" : "none");
+  const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${gate}.`, ""];
   if (config.docs.length > 0) lines.push(`Pages this project keeps: ${config.docs.join(", ")}, under ${project.state}/docs.`, "");
   // One outbox file holds every project's mail and a letter carries no project, so a page titled for
-  // this project used to print, and quote, letters addressed to seats of another one. A seat this
-  // project has on record is one that has called a tool here, which is the desk's own answer to
-  // whose letter this is.
-  const mine = held.filter((letter) => Boolean(ledger.agents[letter.to]));
+  // this project used to print, and quote, letters addressed to seats of another one. A seated
+  // recipient belongs to the project its working copy is in; one that has gone is this project's if it
+  // is on this project's record. The record alone missed every seat that had not yet completed a tool
+  // call — a Watcher stuck on its first permission prompt, with every ending piling up for it.
+  const mine = held.filter((letter) => {
+    const seat = seats.get(letter.to);
+    return seat ? Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug : Boolean(ledger.agents[letter.to]);
+  });
   const stranded = mine.filter((letter) => !seats.has(letter.to));
   const queued = mine.filter((letter) => seats.has(letter.to));
   if (stranded.length > 0) {

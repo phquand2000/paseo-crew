@@ -77,7 +77,9 @@ export class Outbox {
 
   async post(letter: Omit<Letter, "id" | "at">, now = Date.now()): Promise<Posted> {
     const sentAt = this.sentKeys.get(Outbox.held(letter));
-    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to)) {
+    // A letter past its time is not one still waiting: counted as a repeat, it blocked the same letter
+    // from being posted afresh for as long as nothing else was posted to prune it.
+    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to && now - entry.at < KEEP_MS)) {
       return "duplicate";
     }
     const stored: Letter = { ...letter, id: `${now}-${process.pid}-${++this.counter}`, at: now };

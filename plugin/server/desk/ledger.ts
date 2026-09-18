@@ -102,7 +102,7 @@ export type AgentRef = { id: string; role: string; lane?: string; task?: string;
 
 export type Ledger = {
   version: 1;
-  seq: { lane: number; ask: number };
+  seq: { lane: number; ask: number; slot?: number };
   lanes: Record<string, Lane>;
   tasks: Record<string, Task>;
   asks: Record<string, Ask>;
@@ -186,11 +186,17 @@ export function nextTaskId(ledger: Ledger, lane: Lane, kind: Task["kind"]): stri
  * count is 1 and the next copy is named S1 again — over the live record, on the live path, with a
  * second agent sent to a checkout someone else is writing in. One past the highest cannot collide.
  */
+/**
+ * Never handed out twice. Reusing the highest free number meant a copy the sweep was still removing
+ * had the same path as the next one being created, so the sweep could delete a lane's new copy.
+ */
 export function nextSlotId(ledger: Ledger): string {
   const taken = Object.keys(ledger.slots)
     .map((id) => Number(id.replace(/^S/, "")))
     .filter((n) => Number.isInteger(n));
-  return `S${Math.max(-1, ...taken) + 1}`;
+  const next = Math.max(ledger.seq.slot ?? -1, ...taken) + 1;
+  ledger.seq.slot = next;
+  return `S${next}`;
 }
 
 export function nextAskId(ledger: Ledger): string {

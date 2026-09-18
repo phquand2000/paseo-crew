@@ -348,12 +348,41 @@ test("a lane in the project's own copy lands even when its base has moved on", a
   h.git(h.project.root, "branch", "-f", "main", "side");
   h.git(h.project.root, "worktree", "remove", "--force", side);
 
+  // While the Lead is mid-turn in that copy, it is not switched under it: its next commit would land
+  // on main itself. The first version of this guard asked a set that fills only once an archive has
+  // found a seat running, before anything had been archived — so it never held, and this test, whose
+  // Lead was running the whole time, passed because of that.
+  const reports = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
+  assert.equal(reports.ok, true, reports.text);
+  assert.match(reports.text, /not landed/, reports.text);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lane.branch, "the copy under a running seat stays where the seat is");
+  assert.doesNotMatch(h.git(h.root, "show", "main:a.txt"), /four/);
+  h.runtime.dispose();
+});
+
+test("a lane in the project's own copy lands after its base moved, once nobody is writing there", async () => {
+  const h = harness("outbox-moved-idle.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = h.ledger().lanes.L1!;
+  writeFileSync(join(h.project.root, "a.txt"), "one\ntwo\nthree\nfour\n");
+  h.git(h.project.root, "add", "-A");
+  h.git(h.project.root, "commit", "-qm", "four");
+  const side = join(mkdtempSync(join(tmpdir(), "sw2-moved-")), "wt");
+  h.git(h.project.root, "worktree", "add", "-q", "-b", "side", side, "main");
+  h.git(side, "commit", "-qm", "moved", "--allow-empty");
+  h.git(h.project.root, "branch", "-f", "main", "side");
+  h.git(h.project.root, "worktree", "remove", "--force", side);
+
+  // The desk put the project's own copy on the lane branch to open the lane, and then refused to land
+  // over exactly that. With the Lead stopped, the copy may go back to main first.
+  h.agents.get(lane.lead!)!.status = "idle";
   const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
   assert.match(closed.text, /merged .* into main/, closed.text);
   assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "and the copy is left where the teardown was going to put it");
-  assert.equal(lane.slot, undefined);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
   h.runtime.dispose();
 });
 
@@ -448,6 +477,32 @@ test("a working Peer past the first page of agents is not read as gone", async (
   await h.idle(lane.lead!);
   assert.doesNotMatch(h.agents.get(lane.lead!)!.sent.join("\n"), /was closed or archived/, "and its Lead is not told a working Peer was closed");
   assert.equal(task.peer !== undefined, true);
+  h.runtime.dispose();
+});
+
+test("an escalation with nobody supervising seated waits for one instead of being marked sent", async () => {
+  const h = harness("outbox-escalate.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  assert.equal((await h.call(peer, "peer", "ask", { question: "Round half up or down?", tried: "read the spec" })).ok, true);
+  h.agents.get(lane.lead!)!.status = "idle";
+  Object.assign(h.agents.get(sup)!, { archivedAt: new Date().toISOString(), status: "closed" });
+
+  // Two reminders to the Lead, then the escalation. With the only Supervisor archived there is nobody
+  // to escalate to; marking it escalated anyway meant it was never sent, even once one sat down.
+  const start = Date.now();
+  for (const minutes of [16, 32, 48]) await h.tick(start + minutes * 60_000);
+  const ask = Object.values(h.ledger().asks)[0]!;
+  assert.equal(ask.escalated ?? false, false, "nobody received it, so it is not recorded as escalated");
+
+  const back = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup-2");
+  await h.tick(start + 64 * 60_000);
+  await h.idle(back);
+  assert.equal(Object.values(h.ledger().asks)[0]!.escalated, true);
+  assert.match(h.agents.get(back)!.sent.join("\n"), /Round half up or down\?/, "and the Supervisor who came back is the one told");
   h.runtime.dispose();
 });
 

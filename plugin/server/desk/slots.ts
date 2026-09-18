@@ -298,7 +298,7 @@ export class Slots {
     };
     for (const workspace of await this.workspaces.owned(project.slug)) {
       if (busy && workspace.name === project.slug) continue;
-      if (await this.ctx.ledger(project, (current) => heldIds(current).has(workspace.id))) continue;
+      if (await this.ctx.read(project, (current) => heldIds(current).has(workspace.id))) continue;
       try {
         await this.workspaces.archive(workspace.id);
         this.ctx.event(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });
@@ -308,14 +308,20 @@ export class Slots {
     }
     const root = join(worktreeRoot(), project.slug);
     if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
-    // Read and listed together inside the lock, so nothing can reserve a slot between the two.
-    const strays = await this.ctx.ledger(project, (current) => {
-      const live = new Set(Object.values(current.slots).map((slot) => slot.path));
+    // Read and listed together inside the lock, so nothing can reserve a slot between the two. The
+    // removal itself spans several awaits outside it; what keeps a new copy from being caught there is
+    // that a slot id is never handed out twice, so a stray's path is never a path `reserve` gives out.
+    const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => slot.path));
+    const strays = await this.ctx.read(project, (current) => {
+      const held = live(current);
       return readdirSync(root)
         .map((name) => join(root, name))
-        .filter((path) => !live.has(path));
+        .filter((path) => !held.has(path));
     });
     for (const path of strays) {
+      // And asked once more just before, for a row a reserve may have written for a path from before
+      // ids stopped being reused.
+      if (await this.ctx.read(project, (current) => live(current).has(path))) continue;
       await removeWorktree(project.root, path);
       try {
         rmSync(path, { recursive: true, force: true });

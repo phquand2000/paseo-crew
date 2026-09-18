@@ -107,6 +107,9 @@ export function useSeatworks(project?: string) {
   latest.current = bound as unknown as Calls;
   const [data, setData] = useState<Data>({ status: "loading" });
   const [saving, setSaving] = useState(false);
+  // Set by a save and cleared by the reload it asked for, so the controls stay locked until they are
+  // drawn from what the save produced.
+  const settling = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
 
@@ -133,6 +136,10 @@ export function useSeatworks(project?: string) {
       ]);
       const offerable = new Set(known.length > 0 ? await call.candidates({ roots: known.map((entry) => entry.root) }) : []);
       if (!alive) return;
+      if (settling.current) {
+        settling.current = false;
+        setSaving(false);
+      }
       setData({
         status: "ready",
         of: project ?? "",
@@ -154,7 +161,12 @@ export function useSeatworks(project?: string) {
     // different project would show one project's settings as another's, so what it is for is checked.
     setData((held) => (held.status === "ready" && held.of === (project ?? "") ? held : { status: "loading" }));
     load().catch((error: unknown) => {
-      if (alive) setData({ status: "error", error: message(error) });
+      if (!alive) return;
+      if (settling.current) {
+        settling.current = false;
+        setSaving(false);
+      }
+      setData({ status: "error", error: message(error) });
     });
     return () => {
       alive = false;
@@ -174,18 +186,16 @@ export function useSeatworks(project?: string) {
           setSaveError(result.error);
           return false;
         }
-        // The write already answers with what the file now holds, and this used to throw both away.
-        // `saving` is cleared in the same tick as the reload is asked for, and the reload is eight
-        // round-trips long — so the controls came back live while this callback still closed over the
-        // revision from before the save, and the owner's next click inside that window was refused as
-        // a conflict over their own change.
-        setData((held) => (held.status === "ready" && held.of === (project ?? "") ? { ...held, revision: result.revision, values: result.values } : held));
         return true;
       } catch (error) {
         setSaveError(message(error));
         return false;
       } finally {
-        setSaving(false);
+        // Locked until the reload this asks for has landed. Cleared here, the controls came back live
+        // while they were still drawn from the team read before the save: first a second click was
+        // refused as a conflict over the owner's own change, and then — once the new revision alone
+        // was adopted — it went through, built on a view one save behind, and silently undid the first.
+        settling.current = true;
         reload();
       }
     },
@@ -238,7 +248,7 @@ export function useSeatworks(project?: string) {
         setSaveError(message(error));
         return null;
       } finally {
-        setSaving(false);
+        settling.current = true;
         reload();
       }
     },
@@ -262,7 +272,7 @@ export function useSeatworks(project?: string) {
         setSaveError(message(error));
         return false;
       } finally {
-        setSaving(false);
+        settling.current = true;
         reload();
       }
     },

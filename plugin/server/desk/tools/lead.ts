@@ -405,11 +405,18 @@ export const report: Tool = async ({ ctx, roster }, caller, args) => {
   if (!lane) return no("You have no open lane.");
   const gate = args.ready === true ? await laneGate(ctx, caller.project, lane) : undefined;
   const to = await roster.supervisorFor(caller.project, lane.opener);
-  await ctx.post(to, `report:${lane.id}:${hash(summary)}`, letters.report(lane, summary, args.ready === true, strs(args.carried), gate));
-  ctx.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true, gate: gate?.ok });
+  const letter = letters.report(lane, summary, args.ready === true, strs(args.carried), gate);
+  const posted = await ctx.post(to, `report:${lane.id}:${hash(summary)}`, letter);
+  ctx.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true, gate: gate?.ok, to: to ?? null, text: posted === "nobody" ? letter : undefined });
+  // With nobody supervising seated, the post goes nowhere — and the Lead was told it had been
+  // reported and to wait, so the lane stopped with its report in no outbox, page or digest. It is kept
+  // whole in the project's event log, and the Lead is told the truth about it.
+  if (posted === "nobody") {
+    return ok(`Nobody supervising this project is seated, so the report reached no one. It is kept in ${caller.project.state}/events.log for whoever comes back; there is nothing to wait for until someone does.`);
+  }
   return ok(
     gate && !gate.ok
-      ? "Reported to the owner, with what the gate did in it. Stay quiet until mail arrives."
-      : "Reported to the owner. Stay quiet until mail arrives.",
+      ? `Reported to ${to}, with what the gate did in it. Stay quiet until mail arrives.`
+      : `Reported to ${to}. Stay quiet until mail arrives.`,
   );
 };

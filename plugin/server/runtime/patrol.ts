@@ -123,9 +123,10 @@ export class Patrol {
       const idle = now - Date.parse(lead.updatedAt);
       if (idle < leadIdleMinutes * 60_000 || this.idleFlag.get(lead.id) === lead.updatedAt) continue;
       if (activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, lead.id).length > 0) continue;
-      this.idleFlag.set(lead.id, lead.updatedAt);
       const to = await desk.supervisorFor(project, lane.opener);
-      await desk.post(to, `idle:${project.slug}:${lane.id}:${lead.updatedAt}`, letters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? ""));
+      const posted = await desk.post(to, `idle:${project.slug}:${lane.id}:${lead.updatedAt}`, letters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? ""));
+      // Noted as told only when somebody was: set first, a notice to nobody was never tried again.
+      if (posted !== "nobody") this.idleFlag.set(lead.id, lead.updatedAt);
     }
   }
 
@@ -158,7 +159,9 @@ export class Patrol {
       } else if (!can(roleNamed(this.deps.kit, ask.fromRole), "lead") && !ask.escalated) {
         const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
         const to = await desk.supervisorFor(project, lane?.opener);
-        await desk.post(to, `escalate:${project.slug}:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"));
+        // Marked escalated only once it has reached somebody: with nobody supervising seated it is
+        // tried again next round, rather than recorded as done and never sent.
+        if ((await desk.post(to, `escalate:${project.slug}:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"))) === "nobody") continue;
       } else continue;
       // Pinned to the count this round read. Two rounds that overlapped each added one to the same
       // number and the ask jumped past the owner's maximum without ever being reminded that often.

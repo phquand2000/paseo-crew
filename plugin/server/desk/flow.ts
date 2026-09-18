@@ -28,7 +28,21 @@ function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: stri
   };
 }
 
-export function flowView(project: Project, ledger: Ledger, seats: Map<string, SeatView>, now: number, open: ReadonlySet<string> = new Set(), cap: number = LANE_CAP, supervises: ReadonlySet<string> = new Set()): FlowView {
+/**
+ * `seated` is every open seat on this project that can supervise, newest first, with its role — asked
+ * of the roster by the caller, because a seat is on the ledger's record only once a tool call of its
+ * has succeeded, and a Supervisor that had just sat down was otherwise never the one shown.
+ */
+export function flowView(
+  project: Project,
+  ledger: Ledger,
+  seats: Map<string, SeatView>,
+  now: number,
+  open: ReadonlySet<string> = new Set(),
+  cap: number = LANE_CAP,
+  supervises: ReadonlySet<string> = new Set(),
+  seated: { id: string; role: string }[] = [],
+): FlowView {
   const counts = new Map<string, { total: number; running: number }>();
   const held = new Map<string, FlowTask[]>();
 
@@ -97,7 +111,7 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
   const live = recorded
     .filter((agent) => seats.has(agent.id))
     .sort((a, b) => Date.parse(seats.get(b.id)!.updatedAt) - Date.parse(seats.get(a.id)!.updatedAt));
-  const chosen = live[0] ?? recorded[recorded.length - 1];
+  const chosen = seated[0] ?? live[0] ?? recorded[recorded.length - 1];
   const supervisor: FlowSeat | null = chosen ? seatOf(seats, chosen.id, chosen.role, now) : null;
 
   const body = { project: project.slug, supervisor, lanes, moreLanes, asks };

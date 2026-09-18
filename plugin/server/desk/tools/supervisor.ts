@@ -184,10 +184,23 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     // branch, so that read refused every such lane over an arrangement the desk made and undid a
     // moment later. It may be moved back only while nobody is mid-turn in it: what a seat writes
     // there is its own until its turn ends, which is what the teardown waits for.
-    const held = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)].some(
-      (id) => typeof id === "string" && roster.pendingArchive.has(id),
+    // Asked of the seats themselves. The first version of this read `pendingArchive`, which fills only
+    // when an archive finds a seat running — and nothing in this lane had been archived yet — so it was
+    // empty every time, and the owner's copy was switched to base under a seat mid-turn whose next
+    // commit then landed on base itself. A seat the desk cannot see counts as writing.
+    const writers = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)];
+    const writing = await Promise.all(
+      writers.map(async (id) => {
+        if (typeof id !== "string") return false;
+        try {
+          const seat = await roster.look(id);
+          return !seat.archivedAt && (seat.status === "running" || seat.status === "initializing");
+        } catch {
+          return true;
+        }
+      }),
     );
-    const parked = !lane.slot && !held ? lane.branch : undefined;
+    const parked = !lane.slot && !writing.some(Boolean) ? lane.branch : undefined;
     const result = await landLane(project.root, lane.base, lane.branch, parked);
     landing = result.landed ? `${result.how}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
   }

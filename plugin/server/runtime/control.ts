@@ -285,10 +285,19 @@ export class SettingsControl implements Control {
     // the owner to close lanes they had already closed.
     const ledger = loadLedger(project.state);
     const open = Object.values(ledger.lanes).filter((lane) => lane.status === "open").length;
-    const copies = Object.keys(ledger.slots).length;
-    if (open > 0 || copies > 0) {
-      const held = [open > 0 ? `${open} open lane(s)` : "", copies > 0 ? `${copies} working cop${copies === 1 ? "y" : "ies"} still checked out` : ""].filter(Boolean);
-      return { error: `${slug} has ${held.join(" and ")}, so its settings stay. Close the lanes first.` };
+    // A closed lane still waiting to put the owner's own copy back is live work: detached, the project
+    // leaves the round after a restart and the repository stays on that lane's branch for good.
+    const restoring = Object.values(ledger.lanes).filter((lane) => lane.restoring).length;
+    // A slot row left free by a failed checkout is the desk's pool, not a copy anyone holds. Counting
+    // every row made one failed checkout another reason Detach could never work again.
+    const copies = Object.values(ledger.slots).filter((slot) => slot.lane || slot.task || slot.releasing).length;
+    if (open > 0 || copies > 0 || restoring > 0) {
+      const held = [
+        open > 0 ? `${open} open lane(s)` : "",
+        restoring > 0 ? `${restoring} closed lane(s) still putting the project's own copy back on its base branch` : "",
+        copies > 0 ? `${copies} working cop${copies === 1 ? "y" : "ies"} still checked out` : "",
+      ].filter(Boolean);
+      return { error: `${slug} has ${held.join(" and ")}, so its settings stay. ${open > 0 ? "Close the lanes first." : "That finishes when the seat writing there stops."}` };
     }
     for (const name of ["settings.json", "meta.json"]) rmSync(join(project.state, name), { force: true });
     try {
@@ -329,7 +338,12 @@ export class SettingsControl implements Control {
     if (!project) return { error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     const supervises = new Set(rolesThatCan(this.deps.kit, "supervise").map((role) => role.role));
-    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), undefined, supervises);
+    const seated = [...seats.values()]
+      .map((seat) => ({ seat, role: seatOf(this.deps.kit, seat.provider)?.role }))
+      .filter(({ seat, role }) => can(role, "supervise") && Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug)
+      .sort((a, b) => Date.parse(b.seat.updatedAt) - Date.parse(a.seat.updatedAt))
+      .map(({ seat, role }) => ({ id: seat.id, role: role!.role }));
+    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), undefined, supervises, seated);
     return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
   }
 
