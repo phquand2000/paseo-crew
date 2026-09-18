@@ -63,7 +63,7 @@
     {
       "role": "peer",
       "label": "Peer",
-      "description": "Does one task on its own branch and hands it back",
+      "description": "Does one task and hands it back",
       "defaults": {
         "harness": "devin",
         "model": "swe-2-max"

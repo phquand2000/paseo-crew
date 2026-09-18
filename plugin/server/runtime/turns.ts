@@ -48,6 +48,7 @@ export class TurnRules {
       } catch {}
       return this.deps.desk.supervisorFor(project, opener);
     }
+    if (can(role, "watch")) return this.deps.desk.supervisorFor(project);
     const ledger = loadLedger(project.state);
     const task = taskOfPeer(ledger, agentId);
     return task ? ledger.lanes[task.lane]?.lead : undefined;

@@ -1947,6 +1947,18 @@ test("a Peer stopped on a question is answered by its Lead's message, and one st
   assert.equal(h.runtime.outbox.pending(peer).length, 1, "and the message waits for it");
 });
 
+test("a Watcher stopped on a permission reaches whoever supervises the project", async () => {
+  const h = harness("outbox-watcher-permission.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup", "running");
+  const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch", "running");
+  const request: Pending = { id: "permission-w", kind: "tool", name: "Bash", title: "git log -5" };
+  h.agents.get(watcher)!.pending.push(request);
+  await h.permission(watcher, request);
+  await h.idle(sup);
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /WAITING FOR PERMISSION: Watcher watch[\s\S]*Bash: git log -5\n\nOnly the Human can answer this/);
+  h.runtime.dispose();
+});
+
 test("mail reaches a running seat inside its turn where its harness can take it there, and waits where it cannot", async () => {
   const h = harness("outbox-steer.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

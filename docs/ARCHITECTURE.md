@@ -289,7 +289,8 @@ waiting after 7 days is dropped the next time any letter is posted, and the drop
 | Lead | A letter to its Supervisor |
 | Peer or Reviewer on a task | A letter to the lane's Lead |
 | Supervisor | Logged in `attention.log` and listed in `status.md`. The Human answers it in Paseo |
-| Watcher, or a Peer or Reviewer with no task | Nowhere; it shows only in Paseo |
+| Watcher | A letter to whoever supervises the project |
+| Peer or Reviewer with no task | Nowhere; it shows only in Paseo |
 
 A question's letter lists the questions and their options. The owner answers with `message`, and the
 desk answers the question in Paseo on the seat's behalf. Any other letter to that seat waits, like
@@ -457,6 +458,5 @@ installed, because building one asks Codex for its model catalog. No test launch
 - **Claude compaction.** Paseo cannot steer Claude while it is compacting, so a steer that arrives
   then replaces the turn.
 - **A turn that was running before a daemon restart** is never steered, only held.
-- **A Watcher's permission request** reaches no seat.
 - **A project-layer settings save** does not rewrite the Paseo providers, so the defaults they show
   come from the machine layer.
