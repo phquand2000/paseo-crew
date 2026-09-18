@@ -140,8 +140,25 @@ export class DeskContext {
     }
   }
 
+  /**
+   * Added to what is already filed for this seat, not written over it. One slot per `where` handed a
+   * finding about an earlier turn the notes of whichever turn had ended last; what is kept here is
+   * everything since the Watcher last raised on that seat, bounded so a seat nobody raises on cannot
+   * grow it for ever.
+   */
   recordReading(project: Project, where: string, notes: string[]): void {
-    this.readings.set(`${project.slug}:${where}`, notes);
+    const key = `${project.slug}:${where}`;
+    const held = this.readings.get(key) ?? [];
+    this.readings.set(key, [...held, ...notes.filter((note) => !held.includes(note))].slice(-20));
+  }
+
+  /** What is filed for this seat, which a raise then consumes; the key stays, so it still counts as filed. */
+  takeReading(project: Project, where: string): string[] {
+    const key = `${project.slug}:${where}`;
+    const held = this.readings.get(key);
+    if (held === undefined) return [];
+    this.readings.set(key, []);
+    return held;
   }
 
   reading(project: Project, where: string): string[] {

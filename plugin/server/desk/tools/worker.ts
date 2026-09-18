@@ -26,7 +26,7 @@ function handbackBody(task: Task, args: Args, commit: string | undefined, uncomm
   return { outcome, body: lines.join("\n") };
 }
 
-export const done: Tool = async ({ ctx }, caller, args) => {
+export const done: Tool = async ({ ctx, roster }, caller, args) => {
   const { project } = caller;
   const ledger = loadLedger(project.state);
   const task = taskOfPeer(ledger, caller.id);
@@ -48,13 +48,31 @@ export const done: Tool = async ({ ctx }, caller, args) => {
   const file = join(project.state, "handbacks", `${task.id}-${Date.now()}.md`);
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
   writeFileSync(file, `# ${task.id} ${task.title}\n\n${body}\n`);
-  await ctx.setTask(project, task.id, (entry) => {
+  // Decided under the lock from the status as it is then, not from the read at the top: the gate and
+  // git ran in between, and an accept or a cut can land there. A parallel task the Lead had accepted
+  // is `queued`, and writing `done` over it made the merge queue skip it without a word.
+  const already = await ctx.ledger(project, (current) => {
+    const entry = current.tasks[task.id];
+    if (!entry) return "gone";
+    if (["queued", "merging", "merged", "cut"].includes(entry.status)) return entry.status;
     entry.status = "done";
     entry.silent = 0;
     entry.handback = { file, outcome, commit, summary: clip(str(args.summary) || str(args.findings), 400), at: Date.now() };
+    return undefined;
   });
+  if (already) {
+    return no(
+      already === "queued" || already === "merging"
+        ? `${task.id} is already accepted and waiting to be merged; handing it back again would take it out of the queue. End your turn.`
+        : `${task.id} is already ${already === "merged" ? "accepted" : already}; there is nothing to hand back.`,
+    );
+  }
   const heading = review ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
-  await ctx.post(ledger.lanes[task.lane]?.lead, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body, caller.id));
+  // To whoever can take it. A hand-back to a Lead that is no longer seated waits in the outbox for
+  // nobody; the level above is told instead, and can seat a Lead for it.
+  const lead = ledger.lanes[task.lane]?.lead;
+  const reader = lead && (await seated(roster, lead)) ? lead : await roster.supervisorFor(project, ledger.lanes[task.lane]?.opener);
+  await ctx.post(reader, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body, caller.id));
   ctx.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
   // A commit made while the copy is off its branch — mid-bisect, most likely — belongs to no branch,
   // and the copy's own record of it goes when the copy does. Said here, while it can still be fixed.
@@ -69,7 +87,16 @@ export const done: Tool = async ({ ctx }, caller, args) => {
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 };
 
-export const ask: Tool = async ({ ctx }, caller, args) => {
+/** Whether a seat is still there to read what is sent to it. */
+async function seated(roster: { look(id: string): Promise<{ archivedAt?: string | null }> }, id: string): Promise<boolean> {
+  try {
+    return !(await roster.look(id)).archivedAt;
+  } catch {
+    return false;
+  }
+}
+
+export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const question = str(args.question);
   if (!question) return no("ask needs a question.");
   const { project } = caller;
@@ -77,16 +104,22 @@ export const ask: Tool = async ({ ctx }, caller, args) => {
   const task = taskOfPeer(ledger, caller.id);
   const lane = task ? ledger.lanes[task.lane] : undefined;
   if (!task || !lane?.lead) return no("Nobody is assigned to answer you; end your turn with the question.");
+  // A Lead that has gone would never read it, never be reminded and never escalate it, while the
+  // Peer was told its answer was coming. It goes up a level instead, and the Peer is told so.
+  const to = (await seated(roster, lane.lead)) ? lane.lead : await roster.supervisorFor(project, lane.opener);
+  if (!to) return no("Your lead is not there and nobody above it is either, so nobody can answer now. Carry on with your default where you can, and end your turn with the question.");
   const tried = str(args.tried);
   const entry = await ctx.ledger(project, (current) => {
     const created: Ask = {
       id: nextAskId(current),
       from: caller.id,
       fromRole: caller.role.role,
-      to: lane.lead!,
+      to,
       lane: lane.id,
       task: task.id,
-      kind: "blocked",
+      // Not "blocked": a Peer asks to push back, to offer a third way or to check a premise as much
+      // as because it is stuck, and every one of those reached its Lead labelled as blocked.
+      kind: "question",
       text: tried ? `${question}\n\nTried: ${tried}` : question,
       status: "open",
       openedAt: Date.now(),
@@ -95,7 +128,7 @@ export const ask: Tool = async ({ ctx }, caller, args) => {
     current.asks[created.id] = created;
     return { ...created };
   });
-  await ctx.post(lane.lead, `ask:${entry.id}`, letters.askTo(entry, `the Peer on ${task.id} (${task.title})`));
-  ctx.event(project, { kind: "ask.opened", ask: entry.id, from: caller.id, to: lane.lead });
-  return ok(`Asked as ${entry.id}. End your turn; the answer arrives as a message.`);
+  await ctx.post(to, `ask:${entry.id}`, letters.askTo(entry, `the Peer on ${task.id} (${task.title})`));
+  ctx.event(project, { kind: "ask.opened", ask: entry.id, from: caller.id, to });
+  return ok(`Asked as ${entry.id}${to === lane.lead ? "" : ", of the owner, because your lead is not there"}. End your turn; the answer arrives as a message.`);
 };

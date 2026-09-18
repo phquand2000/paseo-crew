@@ -160,3 +160,30 @@ export function reported(watching: Watching, carried: Record<string, number>, at
 export function digestDue(watching: Watching, oldest: number, now: number, minutes: number): boolean {
   return now - (watching.digestedAt ?? oldest) >= minutes * 60_000;
 }
+
+/**
+ * Pages taken from the window before the letters go, so a raise running beside this one reads a
+ * budget that already counts them. Charged only after the post, two raises each read the same unspent
+ * window and each sent up to all of it — N raises in parallel cost N pages of a budget of one.
+ */
+export function reserve(watching: Watching, count: number, now: number): Watching {
+  return count > 0 ? { ...watching, pages: [...watching.pages, ...Array.from({ length: count }, () => now)] } : watching;
+}
+
+/** Pages reserved at `at` given back, when there turned out to be nobody to interrupt. */
+export function refund(watching: Watching, count: number, at: number): Watching {
+  const pages = [...watching.pages];
+  for (let left = count; left > 0; left--) {
+    const index = pages.lastIndexOf(at);
+    if (index < 0) break;
+    pages.splice(index, 1);
+  }
+  return { ...watching, pages };
+}
+
+/** What the letters that went settled, when their pages were already reserved. */
+export function told(watching: Watching, keys: string[]): Watching {
+  const strikes = { ...watching.strikes };
+  for (const key of keys) if (strikes[key]) strikes[key] = { ...strikes[key]!, told: strikes[key]!.count };
+  return { ...watching, strikes };
+}

@@ -701,6 +701,36 @@ test("an irreversible finding raised while no Supervisor is running waits for on
   h.runtime.dispose();
 });
 
+test("raises in parallel cannot spend more of the window than it has, and one ending is one sighting", async () => {
+  const h = harness("outbox-budget.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch");
+
+  // Three quotes of one fault in one ending are one sighting. Judged once each, they struck out a
+  // fault on its first appearance, under a letter calling it the third time.
+  const one = await h.call(watcher, "watcher", "raise", {
+    where: "the Peer on L1-T9",
+    findings: ["q1", "q2", "q3"].map((quote) => ({ label: "repetition", quote })),
+  });
+  assert.equal(one.ok, true, one.text);
+  assert.equal(JSON.parse(readFileSync(join(h.project.state, "watching.json"), "utf-8")).strikes["the Peer on L1-T9:repetition"].count, 1);
+
+  // Three seats each on their third sighting, raised at once, against a window of two pages. The
+  // budget was read in one lock and charged in another after the posts, so every raise read the same
+  // unspent window and all three went.
+  const file = join(h.project.state, "watching.json");
+  const held = JSON.parse(readFileSync(file, "utf-8"));
+  for (const where of ["w1", "w2", "w3"]) held.strikes[`${where}:repetition`] = { label: "repetition", where, quote: "again", evidence: [], first: Date.now(), last: Date.now(), count: 2 };
+  writeFileSync(file, JSON.stringify(held));
+  const raised = await Promise.all(["w1", "w2", "w3"].map((where) => h.call(watcher, "watcher", "raise", { where, findings: [{ label: "repetition", quote: "again" }] })));
+  for (const reply of raised) assert.equal(reply.ok, true, reply.text);
+  await h.idle(sup);
+  assert.equal(h.agents.get(sup)!.sent.join("\n").split("ATTENTION (repetition)").length - 1, 2, "two interruptions, the window's worth");
+  assert.equal(JSON.parse(readFileSync(file, "utf-8")).pages.length, 2);
+  h.runtime.dispose();
+});
+
 test("the letter that interrupts carries no more of the Watcher's words than a report would", async () => {
   const h = harness("outbox-bounds.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -1300,11 +1330,28 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   assert.match(toLead, /Topology: unchanged/);
   assert.match(toLead, /Integration and acceptance: unchanged/);
 
+  // The same instruction again is a second instruction: keyed on its words, it was dropped as a repeat
+  // for the Peer and for the Lead's reconcile both, while the Supervisor was told it went.
+  await h.idle(task.peer!);
+  await h.idle(lane.lead!);
+  assert.equal((await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "Use banker's rounding, not half-up." })).ok, true);
+  await h.idle(task.peer!);
+  await h.idle(lane.lead!);
+  assert.equal(h.agents.get(task.peer!)!.sent.join("\n").split("banker's rounding").length - 1, 2, "both reached the Peer");
+  assert.equal(h.agents.get(lane.lead!)!.sent.join("\n").split("RECONCILE L1").length - 1, 2, "and the Lead was told both times");
+
   // With no Lead to reconcile to, the intervention is refused rather than run behind its back.
-  await h.call(sup, "supervisor", "close_lane", { lane: "L1" });
+  Object.assign(h.agents.get(lane.lead!)!, { archivedAt: new Date().toISOString(), status: "closed" });
   const orphaned = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "One more thing." });
   assert.equal(orphaned.ok, false);
   assert.match(orphaned.text, /no running Lead/);
+
+  // And a task already cut has no Peer left to steer: the Lead was being told it "is still owned by"
+  // a Peer that had been put away, and still its to judge.
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1" });
+  const cut = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "One more thing." });
+  assert.equal(cut.ok, false);
+  assert.match(cut.text, /L1-T1 is cut/);
 });
 
 test("an ask answered by the owner over a Lead's head is told to that Lead, not run behind its back", async () => {

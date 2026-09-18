@@ -167,7 +167,9 @@ export const letters = {
       "The answer it was given:",
       ask.answer ?? "",
       "",
-      "Nothing else moved: the task is still owned by the same Peer, on the same branch, and accepting it is still yours to judge.",
+      // Only an ask that came with a task has a Peer and an acceptance to speak of; a Lead's own ask
+      // answered by a second seat above it was told about a task that did not exist.
+      ask.task ? `Nothing else moved: ${ask.task} is still owned by the same Peer, on the same branch, and accepting it is still yours to judge.` : "Nothing else moved.",
       "If this changes what you were going to do, say so in your next report.",
     ].join("\n");
   },

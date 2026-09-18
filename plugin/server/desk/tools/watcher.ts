@@ -1,7 +1,7 @@
 import { no, ok, str } from "../context.ts";
 import { clip, letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
-import { type Urgency, WATCH_RULES, delivered, judge, keyOf, pagesLeft } from "../watching.ts";
+import { type Urgency, WATCH_RULES, judge, keyOf, pagesLeft, refund, reserve, told } from "../watching.ts";
 
 const RANK: Record<Urgency, number> = { log: 0, digest: 1, page: 2 };
 
@@ -37,7 +37,11 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   // desk asks the Watcher to copy that string back. A paraphrase is not refused — naming what it saw
   // is the Watcher's — but it silently costs the finding its evidence and starts the strike count
   // again under a key of its own, so the reply says when nothing was filed under this one.
-  const recorded = ctx.reading(project, where);
+  // Everything the seat did since the Watcher last raised on it, not only its latest turn: a busy
+  // Watcher reads several endings of one seat from one mailbox, and a slot the next ending overwrote
+  // handed a finding about the first turn the evidence of the last.
+  const filed = ctx.hasReading(project, where);
+  const recorded = ctx.takeReading(project, where);
 
   if (findings.length === 0) {
     ctx.event(project, { kind: "watch", agent: caller.id, label: "none", where, quote: "", urgency: "log", count: 0 });
@@ -51,30 +55,39 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   // What was seen is recorded first and on its own, under the lock. Judging from a snapshot taken
   // before the letters went out lost a whole sighting whenever two Watchers were handed two endings in
   // the same mailbox, which is the ordinary case for a Watcher that was busy.
+  //
+  // One strike per label per ending. Judged once per finding, three quotes of one fault in one ending
+  // were three sightings, so a fault seen once paged on its first appearance under a letter calling it
+  // the third time. Each quote is still logged.
+  const byLabel = findings.filter((finding, index) => findings.findIndex((other) => other.label === finding.label) === index);
   const judged = await ctx.watching(project, (current) => {
     let next = current;
     let worst: Urgency = "log";
     const paged: Finding[] = [];
     const counts = new Map<string, number>();
-    for (const finding of findings) {
+    for (const finding of byLabel) {
       const verdict = judge(next, { subject: where, label: finding.label, where, quote: finding.quote, evidence: recorded }, now, rules);
       next = verdict.watching;
       const count = verdict.strike?.count ?? 0;
       counts.set(finding.label, count);
       if (RANK[verdict.urgency] > RANK[worst]) worst = verdict.urgency;
       if (verdict.urgency === "page") paged.push(finding);
-      ctx.event(project, { kind: "watch", agent: caller.id, label: finding.label, where, quote: finding.quote, urgency: verdict.urgency, count });
     }
-    return { save: next, result: { worst, paged, counts, room: pagesLeft(next, now, rules) } };
+    for (const finding of findings) ctx.event(project, { kind: "watch", agent: caller.id, label: finding.label, where, quote: finding.quote, urgency: paged.some((entry) => entry.label === finding.label) ? "page" : worst === "log" ? "log" : "digest", count: counts.get(finding.label) ?? 0 });
+    // The rationing and the reservation happen here, inside the same lock that read the budget.
+    const room = pagesLeft(next, now, rules);
+    const urgent = paged.filter((finding) => rules.always.includes(finding.label));
+    const sending = [...urgent, ...paged.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
+    return { save: reserve(next, sending.length, now), result: { worst, paged, counts, sending } };
   });
-  const { worst, paged, counts, room } = judged;
+  const { worst, paged, counts, sending } = judged;
 
   // Only when nothing at all was filed under this where while others were: a turn with no mechanical
   // notes is filed with an empty list, and the first version said "no record" for every such turn —
   // steering a Watcher that had it right to change a where that was correct. After a restart nothing
   // is filed for anyone, and saying so for every raise would be the same false steer.
   const unknown =
-    !ctx.hasReading(project, where) && ctx.readsAny(project)
+    !filed && ctx.readsAny(project)
       ? ` The desk has no ending filed under "${clip(where, 120)}" — if that is not the where the mail gave you, this finding carries no evidence and counts on its own.`
       : "";
   const named = findings.map((finding) => finding.label).join(", ");
@@ -84,31 +97,23 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   // three struck-out faults would send three. What does not fit is left with occurrences nobody has
   // been told about, which is what puts it in the report. A label the owner marked as always-interrupt
   // is never held back.
-  //
-  // One letter per key first, and only then the rationing: two findings under one label are a single
-  // interruption — they post the same key and the outbox drops the second — so letting them reserve
-  // two slots held a third, different fault back for a budget half of which was still free, and told
-  // the Watcher the budget was spent.
-  const once = paged.filter((finding, index) => paged.findIndex((other) => other.label === finding.label) === index);
-  const urgent = once.filter((finding) => rules.always.includes(finding.label));
-  const sending = [...urgent, ...once.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
-  const waiting = once.filter((finding) => !sending.includes(finding));
+  const waiting = paged.filter((finding) => !sending.includes(finding));
 
   const to = await roster.supervisorFor(project);
   if (!to) {
     // Nobody was told, so every occurrence is still owed to the report and reaches whoever opens a
     // seat next — including a recurrence of a fault an earlier report already carried. Refusing here
-    // would end this turn over something the Watcher did right.
+    // would end this turn over something the Watcher did right. The pages it reserved come back.
+    await ctx.watching(project, (current) => ({ save: refund(current, sending.length, now), result: undefined }));
     return ok(`Recorded ${named}. Nobody above you is running to be interrupted, so it waits in the report for whoever comes back.${unknown} Keep reading endings.`);
   }
   for (const finding of sending) {
     const count = counts.get(finding.label) ?? 1;
     await ctx.post(to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
   }
-  // Charged after the letters really went, on the table as it is then: two interruptions decided from
-  // one snapshot cost one page of a budget of two, and the window stopped bounding anything.
+  // The pages were reserved when the budget was read; what the letters settle is recorded now.
   const charged = sending.map((finding) => keyOf(where, finding.label));
-  await ctx.watching(project, (current) => ({ save: delivered(current, charged, now), result: undefined }));
+  await ctx.watching(project, (current) => ({ save: told(current, charged), result: undefined }));
   const waited = waiting.length > 0 ? ` ${waiting.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
   // Named, because it is not the owner: the letter goes to whichever seat supervises this project,
   // and what the Watcher is told about where its finding went is what it reasons from next.

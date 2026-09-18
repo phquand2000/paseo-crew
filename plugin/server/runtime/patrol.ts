@@ -4,7 +4,7 @@ import { type Kit, can, roleNamed, seatOf } from "../catalog/kit.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { hash } from "../desk/context.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
+import { type Ask, type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -146,12 +146,15 @@ export class Patrol {
   private async dueAsks(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
     const { desk } = this.deps;
     const { askRemindMinutes, maxReminders } = this.deps.source.teamFor(project).attention;
-    const due = Object.values(ledger.asks).filter(
-      (ask) => ask.status === "open" && seats.get(ask.to)?.status === "idle" && now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000,
-    );
+    const waited = (ask: Ask) => now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000;
+    // An ask whose reader has gone is due too. Only an idle reader was ever looked at, so an ask to a
+    // seat that had been archived was never reminded, never escalated, and never seen again.
+    const gone = (ask: Ask) => !seats.has(ask.to);
+    const due = Object.values(ledger.asks).filter((ask) => ask.status === "open" && waited(ask) && (seats.get(ask.to)?.status === "idle" || gone(ask)));
     for (const ask of due) {
       const age = Math.round((now - ask.openedAt) / 60_000);
-      if (ask.reminders < maxReminders) {
+      const reminding = ask.reminders < maxReminders && !gone(ask);
+      if (reminding) {
         await desk.post(ask.to, `remind:${project.slug}:${ask.id}:${ask.reminders}`, letters.reminder(ask, age));
         // Whether there is anyone above the asker, which is a capability and not a name: the Lead's own
         // ask has nobody above it to escalate to. Comparing to the literal "lead" worked only because
@@ -168,7 +171,7 @@ export class Patrol {
       await desk.ledger(project, (current) => {
         const entry = current.asks[ask.id];
         if (!entry || entry.reminders !== ask.reminders) return;
-        if (entry.reminders < maxReminders) entry.reminders += 1;
+        if (reminding) entry.reminders += 1;
         else entry.escalated = true;
         entry.remindedAt = now;
       });
