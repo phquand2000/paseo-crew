@@ -4,6 +4,8 @@ import { readJson, writeJson } from "../core/store.ts";
 export type Letter = { id: string; to: string; key: string; text: string; at: number };
 export type Posted = "sent" | "held" | "duplicate";
 export type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
+/** Told when a letter is given up on, so that the one thing the desk must not lose is not lost quietly. */
+export type Dropped = (letter: Letter, now: number) => void;
 
 const KEEP_MS = 7 * 24 * 3_600_000;
 const DUPLICATE_MS = 30 * 60_000;
@@ -17,6 +19,7 @@ export class Outbox {
   private readonly file: string;
   private readonly compose: Compose;
   private readonly seats: Seats;
+  private readonly dropped: Dropped | undefined;
   private readonly awaiting = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
 
@@ -33,15 +36,33 @@ export class Outbox {
   private readonly lanes = new Map<string, Promise<unknown>>();
   private counter = 0;
 
-  constructor(file: string, compose: Compose, seats: Seats) {
+  constructor(file: string, compose: Compose, seats: Seats, dropped?: Dropped) {
     this.file = file;
     this.compose = compose;
     this.seats = seats;
+    this.dropped = dropped;
   }
 
-  letters(now = Date.now()): Letter[] {
+  /**
+   * Everything the file holds, including what is about to age out.
+   *
+   * The age filter used to live here, and both writers rebuild the file from this read — so seven
+   * days was not a view, it was a delete, and it happened with nothing written down anywhere. A
+   * letter held for a seat that was busy every time the round came round simply stopped existing.
+   */
+  letters(): Letter[] {
     const stored = readJson<Letter[]>(this.file, []);
-    return Array.isArray(stored) ? stored.filter((letter) => now - letter.at < KEEP_MS) : [];
+    return Array.isArray(stored) ? stored.filter((letter) => Boolean(letter) && typeof letter.to === "string" && typeof letter.at === "number") : [];
+  }
+
+  /** The one place a letter is given up on, and it says so. */
+  private keep(letters: Letter[], now: number): Letter[] {
+    const kept: Letter[] = [];
+    for (const letter of letters) {
+      if (now - letter.at < KEEP_MS) kept.push(letter);
+      else this.dropped?.(letter, now);
+    }
+    return kept;
   }
 
   private save(letters: Letter[]): void {
@@ -56,11 +77,11 @@ export class Outbox {
 
   async post(letter: Omit<Letter, "id" | "at">, now = Date.now()): Promise<Posted> {
     const sentAt = this.sentKeys.get(Outbox.held(letter));
-    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters(now).some((entry) => entry.key === letter.key && entry.to === letter.to)) {
+    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to)) {
       return "duplicate";
     }
     const stored: Letter = { ...letter, id: `${now}-${process.pid}-${++this.counter}`, at: now };
-    this.save([...this.letters(now), stored]);
+    this.save([...this.keep(this.letters(), now), stored]);
     const sent = await this.pump(letter.to);
     return sent.has(stored.id) ? "sent" : "held";
   }

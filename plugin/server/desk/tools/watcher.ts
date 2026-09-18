@@ -98,5 +98,7 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const charged = sending.map((finding) => keyOf(where, finding.label));
   await ctx.watching(project, (current) => ({ save: delivered(current, charged, now), result: undefined }));
   const waited = waiting.length > 0 ? ` ${waiting.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
-  return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to the owner.${waited} Keep reading endings; nothing to wait for.`);
+  // Named, because it is not the owner: the letter goes to whichever seat supervises this project,
+  // and what the Watcher is told about where its finding went is what it reasons from next.
+  return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to ${to}, who supervises this project.${waited} Keep reading endings; nothing to wait for.`);
 };

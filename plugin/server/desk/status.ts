@@ -24,13 +24,26 @@ export function statusText(
 ): string {
   const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${config.gate ?? "none"}.`, ""];
   if (config.docs.length > 0) lines.push(`Pages this project keeps: ${config.docs.join(", ")}, under ${project.state}/docs.`, "");
-  const stranded = held.filter((letter) => !seats.has(letter.to));
+  // One outbox file holds every project's mail and a letter carries no project, so a page titled for
+  // this project used to print, and quote, letters addressed to seats of another one. A seat this
+  // project has on record is one that has called a tool here, which is the desk's own answer to
+  // whose letter this is.
+  const mine = held.filter((letter) => Boolean(ledger.agents[letter.to]));
+  const stranded = mine.filter((letter) => !seats.has(letter.to));
+  const queued = mine.filter((letter) => seats.has(letter.to));
   if (stranded.length > 0) {
     lines.push("## Mail with nobody to read it", "", "The seat each of these was addressed to is gone. Nothing is lost; they are held until a seat can take them.", "");
     for (const letter of stranded) {
       const first = letter.text.split(/\r?\n/).find((line) => line.trim()) ?? "";
       lines.push(`- to ${letter.to}, waiting ${minutes(now, letter.at)} min: ${first.slice(0, 160)}`);
     }
+    lines.push("");
+  }
+  // Held for a seat that is there but has not taken it: busy, waiting on a permission, or inside the
+  // grace after its last letter. This is where a letter that is going nowhere actually shows.
+  if (queued.length > 0) {
+    lines.push("## Mail waiting to be taken", "", "The seat is there and has not read these yet.", "");
+    for (const letter of queued) lines.push(`- to ${letter.to}, waiting ${minutes(now, letter.at)} min (${seats.get(letter.to)?.status ?? "unknown"})`);
     lines.push("");
   }
   if (waiting.length > 0) {

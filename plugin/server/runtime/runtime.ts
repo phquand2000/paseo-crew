@@ -57,7 +57,9 @@ export class Runtime {
     this.workspaces = workspacesOn(() => this.api);
     this.source = new TeamSource(kit);
     this.seating = new Seating(kit, this.source, { node: nodeBin(), spool: this.spool });
-    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list), this.seats);
+    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list), this.seats, (letter, at) =>
+      console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
+    );
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
     this.desk = new Desk({

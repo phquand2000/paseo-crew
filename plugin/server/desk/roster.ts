@@ -21,16 +21,21 @@ export class Roster {
   }
 
   async supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
+    let gone = false;
     if (preferred) {
       try {
         const seat = await this.seats.look(preferred);
         if (!seat.archivedAt) return preferred;
+        gone = true;
       } catch {}
     }
     const found = (await this.seats.open())
       .filter((seat) => this.holds(seat, "supervise", project))
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-    return found[0]?.id ?? preferred;
+    // Falling back to the preferred id handed back the very seat this method had just read as
+    // archived, and every letter to it was held for an address nobody will ever read. `undefined` is
+    // the answer callers already have a path for: nobody is seated to be told.
+    return found[0]?.id ?? (gone ? undefined : preferred);
   }
 
   watcherSeat(project: Project, seats: Iterable<SeatView>): string | undefined {

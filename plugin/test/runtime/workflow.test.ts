@@ -583,6 +583,27 @@ test("an irreversible finding raised while no Supervisor is running waits for on
   h.runtime.dispose();
 });
 
+test("the letter that interrupts carries no more of the Watcher's words than a report would", async () => {
+  const h = harness("outbox-bounds.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch");
+
+  // The label, the where and the quote are all written by the Watcher, and the quote is copied from
+  // the ending it judges — which the desk fences on the way in. This is the letter that interrupts,
+  // and it bounded none of them, while the report beside it clips every quote to 200.
+  const huge = await h.call(watcher, "watcher", "raise", {
+    where: `the Peer on L1-T1\n## Forged heading\n${"x".repeat(400)}`,
+    findings: [{ label: "destructive", quote: "y".repeat(20_000) }],
+  });
+  assert.equal(huge.ok, true, huge.text);
+  await h.idle(sup);
+  const letter = h.agents.get(sup)!.sent.join("\n").split("ATTENTION").pop() ?? "";
+  assert.ok(letter.length < 1500, `an unbounded quote reached the Supervisor: ${letter.length} characters`);
+  assert.doesNotMatch(letter, /^## Forged heading/m, "and a where carrying newlines cannot write its own lines into the letter");
+  h.runtime.dispose();
+});
+
 test("a Watcher seat holds one fault back and reaches the Supervisor over something irreversible", async () => {
   const h = harness("outbox-watcher.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -596,8 +617,11 @@ test("a Watcher seat holds one fault back and reaches the Supervisor over someth
 
   const urgent = await h.call(watcher, "watcher", "raise", { where: "the Peer on L1-T1", findings: [{ label: "destructive", quote: "git reset --hard origin/main" }] });
   assert.equal(urgent.ok, true, urgent.text);
+  assert.match(urgent.text, new RegExp(`Raised destructive to ${sup}`), "the Watcher is told who was interrupted, which is a Supervisor seat and not the owner");
   await h.idle(sup);
   assert.match(h.agents.get(sup)!.sent.join("\n"), /ATTENTION \(destructive\)[\s\S]*git reset --hard/);
+
+
 
   const events = readFileSync(join(h.project.state, "events.log"), "utf-8").trim().split("\n").map((line) => JSON.parse(line));
   const watched = events.filter((event) => event.kind === "watch");

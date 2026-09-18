@@ -263,10 +263,19 @@ export const letters = {
     ].join("\n");
   },
 
+  /**
+   * The one letter that interrupts, and the one that bounded nothing.
+   *
+   * Its label, its `where` and its quote are all written by the Watcher — the quote copied from the
+   * ending it is judging, which the desk itself fences on the way in. The report clips both to 200;
+   * this clipped neither, so a quote of any size at all went into the shared outbox file and into the
+   * Supervisor's turn, and a `where` carrying newlines wrote its own headings into the letter.
+   */
   attention(label: string, where: string, quote: string, count = 1, evidence: string[] = []): string {
-    const lines = [`ATTENTION (${label}) in ${where}: "${quote}"`];
+    const line = (text: string, limit: number) => clip(text.replace(/\s+/g, " ").trim(), limit);
+    const lines = [`ATTENTION (${line(label, 40)}) in ${line(where, 120)}: "${line(quote, 300)}"`];
     if (count > 1) lines.push("", `This is the ${count}${count === 2 ? "nd" : count === 3 ? "rd" : "th"} time that seat has shown it.`);
-    if (evidence.length > 0) lines.push("", "What it did:", list(evidence));
+    if (evidence.length > 0) lines.push("", "What it did:", list(evidence.map((item) => clip(item, 200))));
     return lines.join("\n");
   },
 
