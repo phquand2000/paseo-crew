@@ -3,7 +3,7 @@ import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@get
 import { memo, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import type { FlowLane, FlowSeat, FlowView } from "./data.ts";
+import { type FlowLane, type FlowSeat, type FlowView, countsInstead } from "./data.ts";
 
 type Props = {
   /** False on the machine screen, where there is no project to follow and nothing is read. */
@@ -25,6 +25,8 @@ const ROW_GAP = 12;
 const PAD = 16;
 
 const ago = (minutes: number): string => (minutes < 1 ? "just now" : `${minutes} min`);
+/** The whole phrase, because "just now" is not a duration and read as "handed back just now ago". */
+const since = (minutes: number): string => (minutes < 1 ? "just now" : `${minutes} min ago`);
 
 const seatText = (seat: FlowSeat | null): string => {
   if (!seat) return "no seat";
@@ -87,14 +89,13 @@ const Node = memo(function Node({ title, hint, state, alive, caret, theme, onPre
 
 const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme: PluginTheme; onOpen(id: string): void }) {
   const styles = useStyles(theme);
-  const shut = lane.taskCount > 0 && !lane.open;
   return (
     <View style={styles.lane}>
       <Node
         theme={theme}
         title={`Lead · ${lane.id} ${lane.title}`}
         hint={`${lane.branch} off ${lane.base}`}
-        state={shut ? `${lane.taskCount} task${lane.taskCount === 1 ? "" : "s"}, ${lane.running} running` : seatText(lane.lead)}
+        state={countsInstead(lane) ? `${lane.taskCount} task${lane.taskCount === 1 ? "" : "s"}, ${lane.running} running` : seatText(lane.lead)}
         alive={Boolean(lane.lead && lane.lead.status !== "gone")}
         caret={lane.taskCount === 0 ? undefined : lane.open ? "▾" : "▸"}
         onPress={lane.taskCount === 0 ? undefined : () => onOpen(lane.id)}
@@ -111,7 +112,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
                   theme={theme}
                   title={`${task.kind === "review" ? "Reviewer" : "Peer"} · ${task.id}`}
                   hint={task.title}
-                  state={task.handback !== null ? `${task.status} · handed back ${ago(task.handback)} ago` : `${task.status} · ${seatText(task.peer)}`}
+                  state={task.handback !== null ? `${task.status} · handed back ${since(task.handback)}` : `${task.status} · ${seatText(task.peer)}`}
                   alive={task.status === "running" || task.status === "rework"}
                 />
               </View>
@@ -170,7 +171,10 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
 
       {live && flow && flow.moreLanes > 0 ? (
         <SettingsCard>
-          <SettingsRow label={`${flow.moreLanes} more lane${flow.moreLanes === 1 ? "" : "s"}`} hint="Close a lane to bring the rest into view." />
+          <SettingsRow
+            label={`${flow.moreLanes} more lane${flow.moreLanes === 1 ? "" : "s"}`}
+            hint={`This screen draws the first ${flow.lanes.length} open lanes and no more. The rest are running; the status page lists every one of them.`}
+          />
         </SettingsCard>
       ) : null}
 

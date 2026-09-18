@@ -8,6 +8,8 @@ type Props = {
   project?: string;
   theme: PluginTheme;
   checks: Check[] | null;
+  /** Whether the settings have been saved since this report was run. */
+  stale: boolean;
   onChecks(checks: Check[]): void;
   runDoctor(): Promise<Check[]>;
   readStatus(slug: string): Promise<{ text: string; error?: string }>;
@@ -19,9 +21,12 @@ const GROUPS = ["This machine", "Agents", "Servers"] as const;
 
 const groupOf = (id: string): (typeof GROUPS)[number] => (id.startsWith("harness:") ? "Agents" : id.startsWith("mcp:") ? "Servers" : "This machine");
 
-export function HealthSection({ project, theme, checks, onChecks, runDoctor, readStatus }: Props) {
+export function HealthSection({ project, theme, checks, stale, onChecks, runDoctor, readStatus }: Props) {
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  // One flag drove both action labels and one error string was shown under Doctor whatever had
+  // failed, so a Status read that threw printed its message beside the wrong control.
+  const [busy, setBusy] = useState<"doctor" | "status" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const styles = useMemo(
     () => ({
@@ -35,21 +40,31 @@ export function HealthSection({ project, theme, checks, onChecks, runDoctor, rea
     [theme],
   );
 
-  const run = async (work: () => Promise<void>): Promise<void> => {
-    setBusy(true);
-    setError(null);
+  const run = async (which: "doctor" | "status", work: () => Promise<void>): Promise<void> => {
+    setBusy(which);
+    const fail = which === "doctor" ? setError : setStatusError;
+    fail(null);
     try {
       await work();
     } catch (problem) {
-      setError(message(problem));
+      fail(message(problem));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   const all = checks ?? [];
   const failing = all.filter((check) => !check.ok);
-  const summary = all.length === 0 ? "Agents, tools and servers." : failing.length === 0 ? `All ${all.length} pass. Everything the team needs is here.` : `${all.length - failing.length} of ${all.length} pass. ${failing.length} needs work.`;
+  // In the past tense, and only for the settings it was run against. Held across every save, a report
+  // from before a fix stated "3 of 4 pass" as current fact, with nothing on screen to say it was old.
+  const summary =
+    all.length === 0
+      ? "Agents, tools and servers."
+      : stale
+        ? `${all.length - failing.length} of ${all.length} passed before the last save. Run it again.`
+        : failing.length === 0
+          ? `All ${all.length} pass. Everything the team needs is here.`
+          : `${all.length - failing.length} of ${all.length} pass. ${failing.length} needs work.`;
 
   return (
     <SettingsSection title="Health" info="What this machine still needs before the team can work.">
@@ -58,9 +73,9 @@ export function HealthSection({ project, theme, checks, onChecks, runDoctor, rea
           label="Doctor"
           hint={summary}
           error={error}
-          actionLabel={busy ? "Checking" : "Run"}
-          disabled={busy}
-          onPress={() => void run(async () => onChecks(await runDoctor()))}
+          actionLabel={busy === "doctor" ? "Checking" : "Run"}
+          disabled={busy !== null}
+          onPress={() => void run("doctor", async () => onChecks(await runDoctor()))}
         />
         {GROUPS.map((group) => {
           const mine = all.filter((check) => groupOf(check.id) === group);
@@ -84,12 +99,15 @@ export function HealthSection({ project, theme, checks, onChecks, runDoctor, rea
           <SettingsAction
             label="Status"
             hint="Lanes, tasks and open asks right now."
-            actionLabel={busy ? "Reading" : "Read"}
-            disabled={busy}
+            error={statusError}
+            actionLabel={busy === "status" ? "Reading" : "Read"}
+            disabled={busy !== null}
             onPress={() =>
-              void run(async () => {
+              void run("status", async () => {
                 const answer = await readStatus(project);
-                setStatus(answer.error ?? answer.text);
+                // A refusal is not a report: shown in the report box it read as one, in the same style.
+                setStatusError(answer.error ?? null);
+                setStatus(answer.error ? "" : answer.text);
               })
             }
           />

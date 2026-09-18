@@ -73,7 +73,14 @@ export class Runtime {
     });
     this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: (project) => this.source.teamFor(project).attention });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, remember });
-    this.control = new SettingsControl({ kit, source: this.source, seating: this.seating, reconcile: (team) => this.reconcileProviders(team), seats: this.seats });
+    this.control = new SettingsControl({
+      kit,
+      source: this.source,
+      seating: this.seating,
+      reconcile: (team) => this.reconcileProviders(team),
+      seats: this.seats,
+      held: () => this.outbox.letters(),
+    });
   }
 
   private tellWatcher(item: Watch): void {

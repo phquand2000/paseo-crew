@@ -126,16 +126,24 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
             </SettingsCard>
 
             {browsing ? (
-              <SettingsSection title={browsing.path} info={browsing.repository ? "This folder is a repository." : "Open a folder, or go up."}>
+              <SettingsSection
+                title={browsing.path}
+                info={browsing.root ? `Inside the repository ${browsing.root}, which is what would be set up.` : browsing.repository ? "This folder is a repository." : "Open a folder, or go up."}
+              >
                 <SettingsCard>
                   <SettingsAction
                     label={browsing.repository ? "Use this folder" : "Use it anyway"}
+                    // Attaching a folder inside a repository registers the repository, so what to
+                    // compare against the projects already set up is that root and not the folder:
+                    // browsing into one of an attached project's subdirectories said nothing at all.
                     hint={
-                      attached.includes(browsing.path)
+                      attached.includes(browsing.root ?? browsing.path)
                         ? "Already set up. Going on from here changes the agents; everything else it holds is kept."
-                        : browsing.repository
-                          ? "A git repository."
-                          : "Seatworks will register it as its own project."
+                        : browsing.root
+                          ? `Setting this up sets up ${browsing.root}.`
+                          : browsing.repository
+                            ? "A git repository."
+                            : "Seatworks will register it as its own project."
                     }
                     actionLabel="Use"
                     disabled={disabled}

@@ -2,13 +2,14 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Avatar, Button } from "./bits.tsx";
-import type { ProjectRow, TeamView } from "./data.ts";
+import type { Catalog, ProjectRow, TeamView } from "./data.ts";
 
 export const MACHINE = "machine";
 
 type Props = {
   projects: ProjectRow[];
   nameOf(slug: string, root: string): string;
+  catalog: Catalog;
   team: TeamView;
   waiting: number;
   theme: PluginTheme;
@@ -17,7 +18,7 @@ type Props = {
   onSetup(): void;
 };
 
-export function ProjectList({ projects, nameOf, team, waiting, theme, disabled, onOpen, onSetup }: Props) {
+export function ProjectList({ projects, nameOf, catalog, team, waiting, theme, disabled, onOpen, onSetup }: Props) {
   const styles = useMemo(
     () => ({
       header: { flexDirection: "row" as const, alignItems: "center" as const, gap: 16 },
@@ -36,7 +37,9 @@ export function ProjectList({ projects, nameOf, team, waiting, theme, disabled, 
     [theme],
   );
 
-  const agents = [...new Set(Object.values(team.roles).map((seat) => seat.harness))].join(" · ");
+  // The team names a harness by id; every other screen shows the catalog's label for it.
+  const labelled = new Map(catalog.harnesses.map((harness) => [harness.id, harness.label]));
+  const agents = [...new Set(Object.values(team.roles).map((seat) => labelled.get(seat.harness) ?? seat.harness))].join(" · ");
   const row = (key: string, letter: string, name: string, detail: string, trailing: string, target: string, last: boolean) => (
     <View key={key}>
       <Pressable accessibilityRole="button" accessibilityLabel={name} disabled={disabled} style={styles.row} onPress={() => onOpen(target)}>
@@ -69,7 +72,8 @@ export function ProjectList({ projects, nameOf, team, waiting, theme, disabled, 
           row(project.slug, nameOf(project.slug, project.root).slice(0, 1), nameOf(project.slug, project.root), project.root, "", project.slug, index === projects.length - 1),
         )}
       </View>
-      <Text style={styles.sub}>{waiting > 0 ? `${waiting} more repository${waiting === 1 ? "" : " choices"} Paseo knows can be set up.` : "Set up any repository on this machine with Set up a project."}</Text>
+      {/* Both strings used to name a control called "Set up a project", which is not the label of anything. */}
+      <Text style={styles.sub}>{waiting > 0 ? `${waiting} more repository${waiting === 1 ? "" : " choices"} Paseo knows can be set up.` : "Set up any repository on this machine with Add project."}</Text>
     </View>
   );
 }

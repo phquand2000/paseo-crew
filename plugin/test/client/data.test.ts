@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, dropMcp, foldRoles, harnessInForce, keptRoles, modelRow, setRole } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelRow, setRole } from "../../client/data.ts";
 
 const held: Layer = {
   rules: "Keep diffs small.",
@@ -104,4 +104,17 @@ test("removing a server this layer added forgets it, token and all", () => {
   assert.equal(dropped.mcp, undefined, "the entry goes, rather than staying on disk marked removed");
   assert.equal(dropped.rules, "Keep diffs small.", "and nothing else in the layer is touched");
   assert.equal(JSON.stringify(dropped).includes("SECRET"), false, "so the token is really gone");
+});
+
+test("a collapsed lane gives up its counts for a Lead that is waiting or gone", () => {
+  const lane = (lead: { status: string; waiting: string[] } | null, open = false) => ({ taskCount: 3, open, lead });
+  assert.equal(countsInstead(lane({ status: "running", waiting: [] })), true, "the ordinary case is the counts");
+  assert.equal(countsInstead(lane({ status: "idle", waiting: [] }, true)), false, "an opened lane shows its Lead and its tasks");
+  assert.equal(countsInstead({ taskCount: 0, open: false, lead: { status: "idle", waiting: [] } }), false);
+
+  // Lanes start collapsed, and the Lead's line is the only place this screen shows a seat waiting on
+  // the owner: blocked on a permission, a Lead read as "3 tasks, 1 running" in healthy green.
+  assert.equal(countsInstead(lane({ status: "running", waiting: ["Write outside the working copy"] })), false);
+  assert.equal(countsInstead(lane({ status: "gone", waiting: [] })), false, "and a Lead that has gone is never news the counts may hide");
+  assert.equal(countsInstead(lane(null)), false);
 });

@@ -41,10 +41,11 @@ export type FlowLane = { id: string; title: string; status: string; branch: stri
 export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
 export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
 export type Folder = { name: string; path: string; repository: boolean };
-export type Folders = { path: string; parent: string | null; repository: boolean; folders: Folder[] };
+/** `root` is the repository this folder belongs to when it is not itself that repository's top. */
+export type Folders = { path: string; parent: string | null; repository: boolean; root?: string | null; folders: Folder[] };
 export type FlowResult = FlowView | { unchanged: true; revision: string } | { error: string };
 type SettingsRead = ({ status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string }) & { machine: Layer };
-type WriteResult = { status: "saved" } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
+type WriteResult = { status: "saved"; revision: string; values: Layer } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
 type AddResult = { slug: string; root: string } | { error: string };
 type RemoveResult = { removed: string } | { error: string };
 
@@ -169,8 +170,17 @@ export function useSeatworks(project?: string) {
       setSaveError(null);
       try {
         const result = await latest.current.write({ project, revision: data.revision, values: change(data.values) });
-        if (result.status !== "saved") setSaveError(result.error);
-        return result.status === "saved";
+        if (result.status !== "saved") {
+          setSaveError(result.error);
+          return false;
+        }
+        // The write already answers with what the file now holds, and this used to throw both away.
+        // `saving` is cleared in the same tick as the reload is asked for, and the reload is eight
+        // round-trips long — so the controls came back live while this callback still closed over the
+        // revision from before the save, and the owner's next click inside that window was refused as
+        // a conflict over their own change.
+        setData((held) => (held.status === "ready" && held.of === (project ?? "") ? { ...held, revision: result.revision, values: result.values } : held));
+        return true;
       } catch (error) {
         setSaveError(message(error));
         return false;
@@ -464,3 +474,16 @@ export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
   return prune(values, "mcp", id, entry);
 }
 
+
+/**
+ * Whether a collapsed lane may show its task counts in place of its Lead.
+ *
+ * Lanes start collapsed, so for any lane with a live task the Lead's line was never drawn — and that
+ * line is the only place the flow screen renders a seat waiting on a permission. A Lead blocked on
+ * the owner read as "3 tasks, 1 running" in the same green as a healthy one, and a Lead whose seat
+ * had gone read the same with only the colour dropped and the word never shown.
+ */
+export function countsInstead(lane: { taskCount: number; open: boolean; lead: { status: string; waiting: string[] } | null }): boolean {
+  if (lane.taskCount === 0 || lane.open) return false;
+  return Boolean(lane.lead) && lane.lead!.status !== "gone" && lane.lead!.waiting.length === 0;
+}

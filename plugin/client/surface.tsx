@@ -20,14 +20,17 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [dialog, setDialog] = useState(false);
   // Which screen these were run on. Held in the surface and never cleared, another project's results
   // were shown as this project's — same headings, same "all pass", another project's servers.
-  const [checks, setChecks] = useState<{ of: string; rows: Check[] } | null>(null);
-  const [openLanes, setOpenLanes] = useState<string[]>([]);
+  const [checks, setChecks] = useState<{ of: string; at: string; rows: Check[] } | null>(null);
+  // Lane ids are a project's own — every project's first lane is L1 — so a set kept across a move to
+  // another project opened a lane there that the owner had never touched.
+  const [openLanes, setOpenLanes] = useState<{ of: string; lanes: string[] }>({ of: "", lanes: [] });
   const project = open && open !== MACHINE ? open : undefined;
+  const lanesOpen = openLanes.of === (project ?? "") ? openLanes.lanes : [];
   const { data, save, reload, saving, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = useSeatworks(project);
   const settings = data.status === "ready" ? data : null;
   const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
   const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
-  const { flow, error: flowError } = useFlow(tab === "flow" && flowLive ? project : undefined, flowEvery * 1000, openLanes.slice().sort().join(","));
+  const { flow, error: flowError } = useFlow(tab === "flow" && flowLive ? project : undefined, flowEvery * 1000, lanesOpen.slice().sort().join(","));
   const toast = useToast();
   const wasSaving = useRef(false);
   const styles = useMemo(
@@ -106,6 +109,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         <ProjectList
           projects={data.projects}
           nameOf={nameOf}
+          catalog={data.catalog}
           team={data.team}
           waiting={data.candidates.length}
           theme={theme}
@@ -118,7 +122,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         />
         {data.projects.length === 0 ? (
           <SettingsCard>
-            <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Set up a project to add one." />
+            <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
           </SettingsCard>
         ) : null}
         {dialogNode}
@@ -148,11 +152,16 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             flow={flow}
             error={flowError}
             live={flowLive}
-            open={openLanes}
+            open={lanesOpen}
             theme={theme}
             disabled={locked}
             onLive={(next) => void save((values) => ({ ...values, flow: { ...values.flow, live: next } }))}
-            onOpen={(lane) => setOpenLanes((current) => (current.includes(lane) ? current.filter((id) => id !== lane) : [...current, lane]))}
+            onOpen={(lane) =>
+              setOpenLanes((current) => {
+                const lanes = current.of === (project ?? "") ? current.lanes : [];
+                return { of: project ?? "", lanes: lanes.includes(lane) ? lanes.filter((id) => id !== lane) : [...lanes, lane] };
+              })
+            }
           />
         ) : null}
         {tab === "mcp" ? (
@@ -168,7 +177,18 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             addServer={addServer}
           />
         ) : null}
-        {tab === "health" ? <HealthSection project={project} theme={theme} checks={checks?.of === (project ?? MACHINE) ? checks.rows : null} onChecks={(rows) => setChecks({ of: project ?? MACHINE, rows })} runDoctor={runDoctor} readStatus={readStatus} /> : null}
+        {tab === "health" ? (
+          <HealthSection
+            project={project}
+            theme={theme}
+            checks={checks?.of === (project ?? MACHINE) ? checks.rows : null}
+            // Which settings it was run against, so a report from before a save is not read as now.
+            stale={checks?.of === (project ?? MACHINE) && checks.at !== data.revision}
+            onChecks={(rows) => setChecks({ of: project ?? MACHINE, at: data.revision, rows })}
+            runDoctor={runDoctor}
+            readStatus={readStatus}
+          />
+        ) : null}
       </Detail>
       {dialogNode}
     </ScrollView>

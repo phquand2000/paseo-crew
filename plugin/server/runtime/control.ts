@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { type Kit, providerId, rolesThatCan, supportsRole } from "../catalog/kit.ts";
+import { type Kit, can, providerId, rolesThatCan, seatOf, supportsRole } from "../catalog/kit.ts";
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
@@ -159,6 +159,8 @@ export type ControlDeps = {
   seating: Seating;
   reconcile: (team: Team) => void;
   seats: Seats;
+  /** Mail the desk is still holding, so the owner's status page is the one the agents read. */
+  held: () => { to: string; text: string; at: number }[];
 };
 
 export class SettingsControl implements Control {
@@ -313,7 +315,13 @@ export class SettingsControl implements Control {
     const project = this.deps.source.named(slug);
     if (!project) return { text: "", error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
-    return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now()) };
+    // The same page the agents read. Built without these two arguments, the owner's copy was the one
+    // version of this report that could never show a seat waiting on them, or mail nobody has taken —
+    // which are the two things on it that are theirs to act on.
+    const waiting = [...seats.values()].filter(
+      (seat) => can(seatOf(this.deps.kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
+    );
+    return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now(), undefined, waiting, this.deps.held()) };
   }
 
   async flow(slug: string, since?: string, open?: string[]): Promise<unknown> {
