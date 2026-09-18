@@ -35,5 +35,7 @@ export async function taskGate(project: Project, taskId: string, cwd: string): P
 }
 
 export function gateNote(project: Project): string {
-  return loadConfig(project.state).gate ? "runs on the whole lane when you report it ready" : "none set";
+  const config = loadConfig(project.state);
+  if (!config.gate) return "none set";
+  return config.gateOn === "task" ? "ran on this task when it was handed back; its verdict was in the hand-back" : "runs on the whole lane when you report it ready";
 }

@@ -111,6 +111,10 @@ export class TurnRules {
       // a task that went quiet once, asked its question, and went quiet again was marked stalled on
       // its second-ever quiet turn, under a letter saying its turn had ended twice without an ask.
       if (spoke && task.silent > 0) await desk.setTask(project, task.id, (entry) => { entry.silent = 0; });
+      // And a stalled task whose Peer is working again is running. Nothing else ever set it back —
+      // not the Lead's message the SILENT letter tells it to send, not the Peer's own ask — so the
+      // idle-lane check and the gone-Peer check stopped seeing a Peer that was plainly there.
+      if (recorded && task.status === "stalled") await desk.setTask(project, task.id, (entry) => { if (entry.status === "stalled") entry.status = "running"; });
       if (lane && this.watchable(project, reading, recorded)) {
         this.deps.watch({ project, lane: lane.id, agent: agent.id, role: roleName, where: `the Peer on ${task.id} (${task.title})`, text, reading });
       }

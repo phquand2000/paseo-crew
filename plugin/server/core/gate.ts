@@ -59,6 +59,12 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
       if (answered) return;
       answered = true;
       clearTimeout(timer);
+      // The command has answered; whatever it left running in its group has not, and nothing else
+      // would ever stop it — a watcher, a dev server, a `&` job kept writing in the lane's working copy
+      // and into this log after the verdict was read from it. The group goes with the verdict.
+      try {
+        process.kill(-child.pid!, "SIGKILL");
+      } catch {}
       try {
         closeSync(fd);
       } catch {}

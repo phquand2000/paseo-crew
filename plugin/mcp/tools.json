@@ -120,7 +120,7 @@
     },
     {
       "name": "close_lane",
-      "description": "Close a lane and archive its agents. With land true the desk lands the lane branch on the base branch: a fast-forward, or a merge in the main working copy when the base moved; if that is not possible the reason comes back and the branch stays for the Human.",
+      "description": "Close a lane and archive its agents. With land true the desk runs the project's gate and lands the lane branch on the base branch: a fast-forward, or a merge in the main working copy when the base moved; if that is not possible the reason comes back and the branch stays for the Human. A red gate stops the landing unless you land over it with overGate true \u2014 the verdict is evidence, and landing over it is your call.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -132,6 +132,10 @@
           },
           "reason": {
             "type": "string"
+          },
+          "overGate": {
+            "type": "boolean",
+            "description": "Land even though the gate is red. The verdict still comes back in the reply."
           }
         },
         "required": [
@@ -161,7 +165,7 @@
               "lane",
               "task"
             ],
-            "description": "lane (default): run the gate when a lane is reported ready and before landing. task: also run it on every task merge."
+            "description": "lane (default): run the gate when a lane is reported ready and before landing. task: also run it on every task when its Peer hands it back, and give the verdict to the Lead with the hand-back."
           },
           "serialOnly": {
             "type": "array",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -480,6 +480,32 @@ test("a working Peer past the first page of agents is not read as gone", async (
   h.runtime.dispose();
 });
 
+test("a call that runs longer than a seat can wait is answered by mail, and calling it again does not run it twice", async () => {
+  const h = harness("outbox-later.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "sleep 1" });
+  await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  const request = { id: "r1", agent: lane.lead!, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() };
+
+  // The seat's bridge waits five minutes; the gate this runs is allowed thirty. Past the five the
+  // bridge told the seat to call again, and the desk served the second call beside the first: a
+  // second gate in the same working copy, and for close_lane a second landing.
+  const [first, again] = await Promise.all([h.runtime.desk.answer(request, 100), h.runtime.desk.answer({ ...request, id: "r2" }, 100)]);
+  assert.match(first.text, /still working on report/);
+  assert.match(again.text, /already running/);
+  await Promise.all([...(h.runtime.desk as unknown as { running: Map<string, { reply: Promise<unknown> }> }).running.values()].map((entry) => entry.reply));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(readdirSync(join(h.project.state, "gates")).filter((name) => name.startsWith("L1-")).length, 1, "one gate ran, not two");
+  await h.idle(lane.lead!);
+  const told = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.equal(told.split("ANSWER to your report call").length - 1, 1, "and the answer came once, as mail");
+  await h.idle(sup);
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /REPORT L1/);
+  h.runtime.dispose();
+});
+
 test("an escalation with nobody supervising seated waits for one instead of being marked sent", async () => {
   const h = harness("outbox-escalate.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -503,6 +529,38 @@ test("an escalation with nobody supervising seated waits for one instead of bein
   await h.idle(back);
   assert.equal(Object.values(h.ledger().asks)[0]!.escalated, true);
   assert.match(h.agents.get(back)!.sent.join("\n"), /Round half up or down\?/, "and the Supervisor who came back is the one told");
+  h.runtime.dispose();
+});
+
+test("a stalled task still holds its working copy, and runs again once its Peer is heard from", async () => {
+  const h = harness("outbox-stalled.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  h.agents.get(peer)!.status = "idle";
+  for (const text of ["reading", "still reading"]) {
+    h.runtime.outbox.turnEnded(peer);
+    await new Promise((resolve) => setTimeout(resolve, 3));
+    h.beginTurn(peer);
+    await h.endTurn(peer, text);
+  }
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
+
+  // Its Peer is still seated in the lane's copy, and the Lead is told to message it there. Read as not
+  // holding the copy, a stalled task let a second Peer be seated in the same checkout.
+  const second = await h.call(lane.lead!, "lead", "start_task", { title: "More", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
+  assert.equal(second.ok, false, second.text);
+
+  // And once it is working again it is running. Nothing set it back before, so the patrol's gone-Peer
+  // and idle-lane checks went on ignoring a Peer that was plainly there.
+  h.runtime.outbox.turnEnded(peer);
+  await new Promise((resolve) => setTimeout(resolve, 3));
+  h.beginTurn(peer);
+  assert.equal((await h.call(peer, "peer", "ask", { question: "Which file first?", tried: "read both" })).ok, true);
+  await h.endTurn(peer, "asked");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running");
   h.runtime.dispose();
 });
 
@@ -1046,12 +1104,10 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
 });
 
-test("a red gate the desk cannot undo safely leaves the merge in place and tells the Lead where it stands", async () => {
+test("a red task gate reaches the Lead with the hand-back, and landing it anyway is the Lead's call", async () => {
   const h = harness("outbox-gateundo.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  // The gate writes in the lane's copy before it fails, standing in for the lane's own writer
-  // getting on with something while a long gate runs.
-  await h.call(sup, "supervisor", "set_project", { gate: "echo dirt >> a.txt; exit 1", gateOn: "task" });
+  await h.call(sup, "supervisor", "set_project", { gate: "echo red; exit 1", gateOn: "task" });
   await h.call(sup, "supervisor", "open_lane", { title: "Bee", outcome: "b.txt changes", acceptance: ["b"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
   const lane = h.ledger().lanes.L1!;
   const started = await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true });
@@ -1059,16 +1115,20 @@ test("a red gate the desk cannot undo safely leaves the merge in place and tells
   const task = h.ledger().tasks["L1-T1"]!;
   h.commit(task.worktree!, "b.txt", "B\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+
+  // LEAD.md promises the per-task verdict with the hand-back, as evidence and not a veto. The desk
+  // ran it only after the Lead had accepted — too late to weigh — and on red undid the merge the Lead
+  // had chosen to make, finishing the task as failed. This test asserted exactly that.
+  await h.idle(lane.lead!);
+  const handback = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(handback, /Gate: echo red; exit 1: the gate failed with exit 1/);
+  assert.match(handback, /evidence for your decision, not a decision/);
+
   h.agents.get(task.peer!)!.status = "idle";
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
   await h.runtime.desk.settled(h.project);
-
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "failed");
-  assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/, "reset --hard would have taken the work in the copy with it, so the merge stays");
-  await h.idle(lane.lead!);
-  const told = h.agents.get(lane.lead!)!.sent.join("\n");
-  assert.match(told, /is merged into .* and stays there/);
-  assert.doesNotMatch(told, /The lane branch is unchanged/, "the Lead cannot be told the branch is unchanged when the merge is on it");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "accepted with the verdict in hand, it lands");
+  assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/);
   h.runtime.dispose();
 });
 

@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { currentBranch, headSha, pristineState } from "../../core/git.ts";
 import { type Args, hash, no, ok, str } from "../context.ts";
+import { taskGate } from "../gates.ts";
 import { type Ask, type Task, loadLedger, nextAskId, taskOfPeer } from "../ledger.ts";
 import { clip, letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
@@ -35,7 +36,15 @@ export const done: Tool = async ({ ctx }, caller, args) => {
   const commit = review ? undefined : str(args.commit) || (task.worktree ? await headSha(task.worktree) : undefined);
   // Only what git actually said: a copy it could not read is not a copy with work left in it.
   const uncommitted = !review && task.worktree ? (await pristineState(task.worktree)) === "dirty" : false;
-  const { outcome, body } = handbackBody(task, args, commit, uncommitted);
+  const handed = handbackBody(task, args, commit, uncommitted);
+  const { outcome } = handed;
+  // Where the owner gates each task, the verdict comes with the hand-back, as the Lead is told it
+  // does. It used to run only once the Lead had accepted — too late to act on — and for a parallel
+  // task a red one then undid the merge the Lead had already chosen to make.
+  const run = !review && task.worktree ? await taskGate(project, task.id, task.worktree) : undefined;
+  const body = run
+    ? `${handed.body}\n\nGate: ${run.ok ? run.note : `${run.note}. This is evidence for your decision, not a decision.\n\n${run.tail}\n\nFull log: ${run.logFile}`}`
+    : handed.body;
   const file = join(project.state, "handbacks", `${task.id}-${Date.now()}.md`);
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
   writeFileSync(file, `# ${task.id} ${task.title}\n\n${body}\n`);

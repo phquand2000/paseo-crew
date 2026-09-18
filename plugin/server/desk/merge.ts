@@ -1,7 +1,7 @@
-import { cleanState, commitsAhead, diffCounts, headSha, mergeBranch, outsideOwned, pristineState, resetHard } from "../core/git.ts";
+import { commitsAhead, diffCounts, mergeBranch, outsideOwned, pristineState } from "../core/git.ts";
 import type { Agents } from "./agents.ts";
 import { type DeskContext, errorText } from "./context.ts";
-import { gateNote, taskGate } from "./gates.ts";
+import { gateNote } from "./gates.ts";
 import type { TaskStatus } from "./ledger.ts";
 import { letters } from "./letters.ts";
 import type { Project } from "./project.ts";
@@ -72,23 +72,10 @@ export class MergeQueue {
         : finish("failed", letters.mergeFailed(task, "git merge failed", merged.message));
     }
     const counts = await diffCounts(cwd, merged.before, merged.after);
-    let gate = gateNote(project);
-    const run = await taskGate(project, taskId, cwd);
-    if (run) {
-      if (!run.ok) {
-        // The gate ran for as long as it took, in a copy the lane's own writer shares. If that
-        // writer has committed or touched a tracked file since, reset --hard takes its work as well,
-        // so what cannot be undone safely is left where it is and the Lead is told so rather than
-        // told the branch is unchanged.
-        const settled = (await headSha(cwd)) === merged.after && (await cleanState(cwd)) === "clean";
-        const undone = settled && (await resetHard(cwd, merged.before));
-        const state = `${task.id} is merged into ${lane.branch} and stays there: ${
-          settled ? "the desk could not undo the merge" : "the working copy is not where the merge left it, and undoing the merge would take whatever moved it"
-        }. Undo it yourself, or send rework.`;
-        return finish("failed", letters.mergeFailed(task, run.reason, run.tail, run.logFile, undone ? undefined : state));
-      }
-      gate = run.note;
-    }
+    // No gate here. Where the owner gates each task the Lead had the verdict with the hand-back and
+    // accepted with it in hand; running it again and undoing the merge on red took back a decision
+    // that was the Lead's — the "evidence, not a veto" the Lead's own prompt promises.
+    const gate = gateNote(project);
     await this.ctx.setTask(project, taskId, (entry) => {
       entry.mergeSha = merged.after;
     });

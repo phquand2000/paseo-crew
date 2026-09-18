@@ -129,6 +129,11 @@ export const letters = {
     return lines.join("\n");
   },
 
+  /** The answer to a call that ran longer than the seat that made it could wait for. */
+  later(tool: string, reply: { ok: boolean; text: string }): string {
+    return [`ANSWER to your ${tool} call, which ran longer than a tool call can wait.`, "", reply.ok ? reply.text : `It was refused: ${reply.text}`].join("\n");
+  },
+
   handback(task: Task, file: string, body: string, peer?: string): string {
     const head = peer ? `HANDBACK ${task.id} (${task.title}) from ${peer}` : `HANDBACK ${task.id} (${task.title})`;
     return [head, "", clip(body, 2500), "", `Full hand-back: ${file}`].join("\n");

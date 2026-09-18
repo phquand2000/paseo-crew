@@ -178,7 +178,13 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   let landing = `the branch ${lane.branch} is kept for the Human`;
   if (args.land === true) {
     const gate = await laneGate(ctx, project, lane);
-    if (!gate.ok) return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, or close it with land false.`);
+    // A red gate stops the landing by default, and landing over it is the Supervisor's to decide — the
+    // verdict is evidence. There was no way to say so: the only choices were not to land at all, or to
+    // wait for a green the Supervisor may have decided it did not need.
+    if (!gate.ok && args.overGate !== true) {
+      return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, close it with land false, or land it over the gate with overGate true — that is your call.`);
+    }
+    if (!gate.ok) ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: caller.id });
     // Where `base` has moved on, landing is a merge, and a merge needs a working copy standing on
     // base. For a lane working in place the desk itself put the project's own copy on the lane's
     // branch, so that read refused every such lane over an arrangement the desk made and undid a
@@ -202,7 +208,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     );
     const parked = !lane.slot && !writing.some(Boolean) ? lane.branch : undefined;
     const result = await landLane(project.root, lane.base, lane.branch, parked);
-    landing = result.landed ? `${result.how}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
+    landing = result.landed ? `${result.how}${gate.ok ? "" : ", over a red gate"}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
   }
   const retired = await ctx.ledger(project, (current) => {
     const entry = current.lanes[lane.id];

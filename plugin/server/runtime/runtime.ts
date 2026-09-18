@@ -252,7 +252,7 @@ export class Runtime {
     }
     for (const request of requests) {
       this.desk
-        .handle(request)
+        .answer(request)
         .catch((error) => ({ ok: false, text: `The desk failed: ${error instanceof Error ? error.message : String(error)}` }))
         .then((reply) => writeReply(this.spool, request.id, reply))
         .catch((error) => console.error("seatworks-v2: spool reply failed:", error));

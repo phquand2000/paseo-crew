@@ -107,10 +107,14 @@ test("the gate reports exit, output tail and timeouts", async () => {
   // helper. Its verdict is the command's own exit, and waiting for the output to end instead made a
   // green gate in a moment into a timeout at the end of the limit, half an hour by default.
   const started = Date.now();
-  const leftBehind = await runGate("echo 'ok 1 - everything passes'; sleep 30 & exit 0", dir, join(dir, "g4.log"), 3_000);
+  const leftBehind = await runGate("echo 'ok 1 - everything passes'; (sleep 2; echo late $((6*7)) >> g4.log) & exit 0", dir, join(dir, "g4.log"), 3_000);
   assert.deepEqual([leftBehind.ok, leftBehind.code, leftBehind.timedOut], [true, 0, false]);
   assert.equal(Date.now() - started < 2_000, true, "and it answers when the command does, not when the limit runs out");
   assert.match(leftBehind.tail, /everything passes/);
+  // And what it left running goes with the verdict. Nothing else ever stopped it: it went on writing
+  // in the lane's working copy and into the very log the verdict had been read from.
+  await new Promise((resolve) => setTimeout(resolve, 2_500));
+  assert.doesNotMatch(readFileSync(join(dir, "g4.log"), "utf-8"), /late 42/, "the log line the command itself echoes is not a leftover writing");
 
   // The tail is read from the end of the log, so a gate that writes for its whole limit still
   // explains itself; reading the file back whole allocates all of it and throws past half a gigabyte.

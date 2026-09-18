@@ -2,9 +2,10 @@ import type { Team } from "../catalog/team.ts";
 import { type Kit, type RoleSpec, can, roleThatCan, seatOf, toolsOf } from "../catalog/kit.ts";
 import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
-import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, errorText, no } from "./context.ts";
+import { sortKeys } from "../core/store.ts";
+import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, errorText, hash, no, ok } from "./context.ts";
 import type { Ledger, Task } from "./ledger.ts";
-import { clip } from "./letters.ts";
+import { clip, letters } from "./letters.ts";
 import { MergeQueue } from "./merge.ts";
 import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
@@ -57,10 +58,15 @@ export type DeskOptions = {
 /** Tools whose whole point is that somebody else reads the result. Reading the room is not speaking. */
 const SPEAKS = ["done", "ask", "answer", "message", "report", "raise"];
 
+/** Under the five minutes the seat's bridge waits (`mcp/team.mjs`), so the seat is always told something. */
+export const ANSWER_WITHIN_MS = 240_000;
+
 export class Desk {
   readonly projects: Map<string, Project>;
   readonly pendingArchive: Set<string>;
   private readonly services: DeskServices;
+  /** Calls still being worked on, by caller, tool and arguments. */
+  private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
   /** One Watcher create per project at a time, whichever caller got there first. */
   private readonly seating = new Map<string, Promise<string | undefined>>();
 
@@ -163,6 +169,55 @@ export class Desk {
     this.seating.set(project.slug, run);
     return run.finally(() => {
       if (this.seating.get(project.slug) === run) this.seating.delete(project.slug);
+    });
+  }
+
+  /**
+   * Answer a tool call — within the time the seat can wait, or by mail once it is done.
+   *
+   * The seat's bridge (`mcp/team.mjs`) waits five minutes, and three calls run the project's gate
+   * inside them, which is allowed thirty: `report` ready, `close_lane` land, and a hand-back on a
+   * project that gates per task. Past the five minutes the bridge told the seat to call again, and the
+   * desk, still working on the first, served the second beside it — a second gate in the same working
+   * copy and, for `close_lane`, a second landing in the owner's repository. So a call that runs long is
+   * answered with what is happening and its result goes by mail, and the same call again while it
+   * runs is the same call, not another one.
+   */
+  answer(request: ToolRequest, within = ANSWER_WITHIN_MS): Promise<ToolReply> {
+    const key = `${request.agent}\n${request.tool}\n${JSON.stringify(sortKeys(request.args ?? {}))}`;
+    const running = this.running.get(key);
+    if (running) return this.inTime(request, running.reply, running.started, within, true);
+    const started = Date.now();
+    const reply = this.handle(request).finally(() => {
+      if (this.running.get(key)?.started === started) this.running.delete(key);
+    });
+    this.running.set(key, { reply, started });
+    return this.inTime(request, reply, started, within, false);
+  }
+
+  private inTime(request: ToolRequest, reply: Promise<ToolReply>, started: number, within: number, again: boolean): Promise<ToolReply> {
+    return new Promise((resolve) => {
+      let answered = false;
+      const timer = setTimeout(() => {
+        if (answered) return;
+        answered = true;
+        resolve(
+          ok(
+            again
+              ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`
+              : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail; carry on with what does not depend on it, or end your turn.`,
+          ),
+        );
+        // One letter for one run, whichever of its callers gave up waiting first.
+        void reply.then((done) => this.services.ctx.post(request.agent, `later:${hash(request.agent, request.tool, String(started))}`, letters.later(request.tool, done)));
+      }, within);
+      timer.unref?.();
+      void reply.then((done) => {
+        if (answered) return;
+        answered = true;
+        clearTimeout(timer);
+        resolve(done);
+      });
     });
   }
 

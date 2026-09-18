@@ -39,7 +39,9 @@ async function call(name, args) {
     }
     await sleep(250);
   }
-  return { ok: false, text: "The team desk did not answer in time. Call the tool again once; if it fails again, end your turn saying so." };
+  // The desk answers within four minutes whenever it is running, and sends by mail what takes longer.
+  // Telling the seat to call again served a second gate and a second landing beside the first.
+  return { ok: false, text: "The team desk did not answer at all, so it is probably not running. Do not repeat the call; end your turn saying which call went unanswered." };
 }
 
 createInterface({ input: process.stdin }).on("line", async (line) => {

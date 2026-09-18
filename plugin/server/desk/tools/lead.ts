@@ -4,7 +4,7 @@ import { skillDirsFor } from "../../catalog/team.ts";
 import { branchExists, currentBranch, diffCounts, git, headSha, outsideOwned, pristineState, resetHard, trackedFiles } from "../../core/git.ts";
 import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
-import { gateNote, laneGate, taskGate } from "../gates.ts";
+import { gateNote, laneGate } from "../gates.ts";
 import {
   type Ask,
   type AskKind,
@@ -31,7 +31,9 @@ import { namedOrNot } from "./shared.ts";
  * wakes it in that same directory. Reading the hold as "running or reworking" let a Lead start a
  * second task over a hand-back it had not accepted, and then be told to rework the first one.
  */
-const HOLDS: TaskStatus[] = ["running", "rework", "done"];
+// A stalled task holds it too: its Peer is still seated in that copy, and a message to it wakes it
+// there. Left out, a SILENT letter was enough to let a second Peer be seated in the same checkout.
+const HOLDS: TaskStatus[] = ["running", "rework", "done", "stalled"];
 
 /** What is in the way, named: a stray message file reads as unfinished work otherwise. */
 async function uncommittedIn(cwd: string): Promise<string> {
@@ -294,8 +296,9 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     );
   }
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
-  const run = await taskGate(project, task.id, lane.worktree);
-  const gate = run ? run.note : gateNote(project);
+  // Not run again here: a project that gates each task gave the Lead its verdict with the hand-back,
+  // which is where a verdict can still be weighed.
+  const gate = gateNote(project);
   const updated = await ctx.setTask(project, task.id, (entry) => {
     entry.status = "merged";
   });
