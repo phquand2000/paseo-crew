@@ -18,7 +18,8 @@ type Props = {
   layer: "machine" | "project";
   theme: PluginTheme;
   disabled: boolean;
-  save(change: (values: Layer) => Layer): void;
+  /** Resolves to whether the write was kept, so a form can hold what the owner typed until it is. */
+  save(change: (values: Layer) => Layer): Promise<boolean> | void;
   addServer(text: string): Promise<string | null>;
 };
 
@@ -38,7 +39,8 @@ function Tuning({ entry, current, disabled, save, labelOf }: {
     return spec.type === "number" ? Number(text) : text;
   };
   const edited = Object.keys(draft).filter((key) => draft[key] !== String(current[key] ?? ""));
-  const wrong = edited.some((key) => entry.settings[key]?.type === "number" && !Number.isFinite(Number(draft[key])));
+  // An emptied field is not zero: `Number("")` is, and the port or limit the owner cleared was saved as 0.
+  const wrong = edited.some((key) => entry.settings[key]?.type === "number" && (!draft[key]!.trim() || !Number.isFinite(Number(draft[key]))));
   return (
     <>
       {Object.entries(entry.settings).map(([key, spec]) =>
@@ -70,8 +72,11 @@ function Tuning({ entry, current, disabled, save, labelOf }: {
           disabled={disabled || wrong}
           onPress={() => {
             const settings = Object.fromEntries(edited.map((key) => [key, value(key, entry.settings[key]!)]));
-            setDraft({});
-            save((values) => setMcp(values, entry.id, { settings }));
+            // Kept until the write is. Cleared first, a refused save took the "Unsaved change" row away
+            // and left the field showing a value that was never stored.
+            void Promise.resolve(save((values) => setMcp(values, entry.id, { settings }))).then((kept) => {
+              if (kept !== false) setDraft({});
+            });
           }}
         />
       ) : null}
@@ -88,6 +93,10 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
   const [active, setActive] = useState(ids[0] ?? ADD);
   const [paste, setPaste] = useState("");
   const state = team.mcp[active];
+  // Forgotten only where this layer is what added it. A server pasted on the machine appears on every
+  // project's tab too, and "forgetting" it there deleted nothing — or deleted the project's narrowing
+  // of it, which widened it — under a line saying it had been forgotten.
+  const addedHere = layer === "machine" || machine.mcp?.[active] === undefined;
   const entry = catalog.mcp.find((item) => item.id === active);
   const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), ...put.map((id) => ({ id, label: catalog.mcp.find((item) => item.id === id)?.label ?? id })), { id: ADD, label: "Add a server" }];
   const styles = useMemo(
@@ -195,12 +204,18 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
         ) : null}
         <SettingsAction
           label="Remove this server"
-          hint={state.template ? "It stays in the catalog; add it again whenever you want." : "It was added here, so removing it forgets it — its url and any token with it."}
+          hint={
+            state.template
+              ? "It stays in the catalog; add it again whenever you want."
+              : addedHere
+                ? "It was added here, so removing it forgets it — its url and any token with it."
+                : "It comes from the machine's defaults, so removing it here switches it off for this project only."
+          }
           actionLabel="Remove"
           disabled={disabled}
           onPress={() =>
             save((current) => {
-              const next = state.template ? setMcp(current, active, { removed: true, enabled: false }) : dropMcp(current, active);
+              const next = state.template || !addedHere ? setMcp(current, active, { removed: true, enabled: false }) : dropMcp(current, active);
               setActive(ids.find((id) => id !== active) ?? ADD);
               return next;
             })

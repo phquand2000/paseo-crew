@@ -110,7 +110,11 @@ export function useSeatworks(project?: string) {
   // Set by a save and cleared by the reload it asked for, so the controls stay locked until they are
   // drawn from what the save produced.
   const settling = useRef(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  // Held with the screen it came from. The hook serves every screen, and a refusal on one project was
+  // shown under "Needs your attention" on every other one and on the list, until the next save anywhere.
+  const [refusal, setRefusal] = useState<{ of: string; text: string } | null>(null);
+  const setSaveError = useCallback((text: string | null) => setRefusal(text === null ? null : { of: project ?? "", text }), [project]);
+  const saveError = refusal?.of === (project ?? "") ? refusal.text : null;
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
@@ -455,6 +459,27 @@ export function harnessInForce(role: { id: string; defaults: { harness: string }
     if (named) return named;
   }
   return role.defaults.harness;
+}
+
+/**
+ * The model in force for a role, by the resolver's own rule, walked from the lowest layer up: a layer
+ * that names another agent drops every model chosen below it, and returning to the role's own agent
+ * brings back the kit's choice there. A screen that took the nearest model it could find showed one
+ * chosen for an agent no longer in force.
+ */
+export function modelInForce(role: { id: string; defaults: { harness: string; model?: string } }, ...nearestFirst: (Layer | undefined)[]): string | undefined {
+  let harness = role.defaults.harness;
+  let model = role.defaults.model;
+  for (const layer of [...nearestFirst].reverse()) {
+    const choice = layer?.roles?.[role.id];
+    if (!choice) continue;
+    if (choice.harness && choice.harness !== harness) {
+      harness = choice.harness;
+      model = choice.harness === role.defaults.harness ? role.defaults.model : undefined;
+    }
+    if (choice.model) model = choice.model;
+  }
+  return model;
 }
 
 /**

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelRow, setRole } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setRole } from "../../client/data.ts";
 
 const held: Layer = {
   rules: "Keep diffs small.",
@@ -117,4 +117,15 @@ test("a collapsed lane gives up its counts for a Lead that is waiting or gone", 
   assert.equal(countsInstead(lane({ status: "running", waiting: ["Write outside the working copy"] })), false);
   assert.equal(countsInstead(lane({ status: "gone", waiting: [] })), false, "and a Lead that has gone is never news the counts may hide");
   assert.equal(countsInstead(lane(null)), false);
+});
+
+test("the model in force follows the resolver: a layer naming another agent drops the models below it", () => {
+  const lead = { id: "lead", defaults: { harness: "claude", model: "claude-opus-5" } };
+  const machine: Layer = { roles: { lead: { harness: "devin", model: "swe-2-max" } } };
+  // The nearest model the screen could find was the machine's, chosen for an agent the project had
+  // since moved off — and it was shown, and folded into a save, as the one in force.
+  assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "codex" } } }, machine), undefined);
+  assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "claude" } } }, machine), "claude-opus-5", "back on its own agent, the kit's choice there");
+  assert.equal(modelInForce(lead, { roles: { lead: { model: "claude-sonnet-5" } } }, undefined, machine), "claude-sonnet-5");
+  assert.equal(modelInForce(lead), "claude-opus-5");
 });

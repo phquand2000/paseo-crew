@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Button } from "./bits.tsx";
 import type { Catalog, Folders, Layer, PaseoProject, ProjectRow } from "./data.ts";
-import { harnessInForce, modelRow, setRole } from "./data.ts";
+import { harnessInForce, modelInForce, modelRow, setRole } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {
@@ -14,6 +14,8 @@ type Props = {
   available: PaseoProject[];
   projects: ProjectRow[];
   readSettings(slug: string): Promise<{ status: string; values?: Layer; machine?: Layer } | { error: string }>;
+  /** The machine's own layer, which a repository that is not set up yet runs on. */
+  machine: Layer;
   theme: PluginTheme;
   disabled: boolean;
   onOpenChange(open: boolean): void;
@@ -28,7 +30,7 @@ const STEPS = [
   { id: "check", label: "Check" },
 ];
 
-export function SetupDialog({ open, catalog, available, projects, readSettings, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
+export function SetupDialog({ open, catalog, available, projects, readSettings, machine, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
   const [step, setStep] = useState(0);
   const [root, setRootPath] = useState("");
   const [draft, setDraft] = useState<Layer>({});
@@ -53,14 +55,20 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
   const chosen = catalog.roles.find((entry) => entry.id === role) ?? catalog.roles[0];
   const path = root.trim();
   const inForce = held?.root === path ? held : undefined;
+  // A repository not set up yet still runs on the machine's defaults. Read only for an attached one,
+  // a new repository — what this dialog is mostly for — was shown the kit's agents as the ones in force.
+  const below = inForce?.machine ?? machine;
   const harnessOf = (id: string) => {
     const spec = catalog.roles.find((entry) => entry.id === id);
-    return spec ? harnessInForce({ id, defaults: spec.defaults }, draft, inForce?.values, inForce?.machine) : "";
+    return spec ? harnessInForce({ id, defaults: spec.defaults }, draft, inForce?.values, below) : "";
   };
   const harness = catalog.harnesses.find((entry) => entry.id === harnessOf(chosen?.id ?? ""));
   const models = harness?.models ?? [];
-  const settled = (id: string) => inForce?.values.roles?.[id]?.model ?? inForce?.machine.roles?.[id]?.model;
-  const model = draft.roles?.[chosen?.id ?? ""]?.model ?? settled(chosen?.id ?? "") ?? models[0]?.id ?? "";
+  const settled = (id: string) => {
+    const spec = catalog.roles.find((entry) => entry.id === id);
+    return spec ? modelInForce({ id, defaults: spec.defaults }, draft, inForce?.values, below) : undefined;
+  };
+  const model = settled(chosen?.id ?? "") ?? models[0]?.id ?? "";
   const row = modelRow(model, models);
 
   useEffect(() => {
@@ -148,7 +156,9 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
                     actionLabel="Use"
                     disabled={disabled}
                     onPress={() => {
-                      setRootPath(browsing.path);
+                      // What gets set up is the repository the folder is in, so that is what is kept:
+                      // storing the folder lost the attached project the hint above had just named.
+                      setRootPath(browsing.root ?? browsing.path);
                       setBrowsing(null);
                     }}
                   />

@@ -66,6 +66,9 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   }
 
   const nameOf = (slug: string, root: string) => data.known.find((entry) => entry.root === root)?.name ?? slug;
+  // What a report was run against: the project's layer and the machine's, which it resolves through.
+  // The project's revision alone missed a machine save, and the report went on reading as current.
+  const settledAs = `${data.revision}:${JSON.stringify(data.machine)}`;
   const here = data.projects.find((entry) => entry.slug === project);
   const layer = project ? "project" : "machine";
   const problems = [...(data.settingsError ? [data.settingsError] : []), ...(saveError ? [saveError] : []), ...data.team.errors];
@@ -90,6 +93,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
       available={data.candidates}
       projects={data.projects}
       readSettings={readSettings}
+      machine={project ? data.machine : data.values}
       theme={theme}
       disabled={saving}
       onOpenChange={setDialog}
@@ -173,7 +177,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             layer={layer}
             theme={theme}
             disabled={locked}
-            save={(change) => void save(change)}
+            save={(change) => save(change)}
             addServer={addServer}
           />
         ) : null}
@@ -183,8 +187,8 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             theme={theme}
             checks={checks?.of === (project ?? MACHINE) ? checks.rows : null}
             // Which settings it was run against, so a report from before a save is not read as now.
-            stale={checks?.of === (project ?? MACHINE) && checks.at !== data.revision}
-            onChecks={(rows) => setChecks({ of: project ?? MACHINE, at: data.revision, rows })}
+            stale={checks?.of === (project ?? MACHINE) && checks.at !== settledAs}
+            onChecks={(rows) => setChecks({ of: project ?? MACHINE, at: settledAs, rows })}
             runDoctor={runDoctor}
             readStatus={readStatus}
           />
