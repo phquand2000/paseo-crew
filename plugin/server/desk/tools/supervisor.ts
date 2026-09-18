@@ -109,12 +109,15 @@ export const openLane: Tool = async (desk, caller, args) => {
   const issue = await readIssue(args, project);
   if (typeof issue === "string") return no(issue);
   const lane = await recordLane(desk, caller, args, base, issue);
-  const fail = async (reason: string, slot?: string) => {
+  // Whatever the lane took has to go back, and a lane in the project's own copy took the owner's
+  // repository: cleaning up by slot id alone left that copy on the lane's branch for good.
+  const fail = async (reason: string, taken?: { id?: string }) => {
     await ctx.ledger(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
       if (entry) Object.assign(entry, { status: "closed", closedAt: Date.now() });
     });
-    if (slot) await slots.release(project, slot, lane.branch, base);
+    if (taken?.id) await slots.release(project, taken.id, lane.branch, base);
+    else if (taken) await slots.giveBack(project, base, lane.branch);
     return no(reason);
   };
   let slot: { id?: string; path: string; workspaceId?: string };
@@ -126,7 +129,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   try {
     const askedLead = str(args.role);
     const leadRole = roleThatCan(ctx.kit, "lead", askedLead || undefined);
-    if (!leadRole) return fail(namedOrNot(ctx.kit, "lead", askedLead, "lead a lane"), slot.id);
+    if (!leadRole) return fail(namedOrNot(ctx.kit, "lead", askedLead, "lead a lane"), slot);
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
@@ -141,7 +144,7 @@ export const openLane: Tool = async (desk, caller, args) => {
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id ?? "in place" });
     return ok(openedReply(project, lane, slot, lead, issue));
   } catch (error) {
-    return fail(`The Lead could not start: ${errorText(error)}`, slot.id);
+    return fail(`The Lead could not start: ${errorText(error)}`, slot);
   }
 };
 

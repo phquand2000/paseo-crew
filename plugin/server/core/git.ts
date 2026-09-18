@@ -26,14 +26,31 @@ export async function headSha(cwd: string, ref = "HEAD"): Promise<string | undef
   return run.code === 0 ? run.stdout.trim() : undefined;
 }
 
-export async function isClean(cwd: string): Promise<boolean> {
-  const run = await git(cwd, ["status", "--porcelain", "--untracked-files=no"]);
-  return run.code === 0 && run.stdout.trim() === "";
+/**
+ * Three answers, because a boolean gave the same one to two different states.
+ *
+ * `status` exits non-zero when the directory is gone, when it is not a repository, when the 60s
+ * timeout takes it, and when git is not there at all. Folded into `false`, every caller went on to
+ * state a cause: the lane's copy "has uncommitted changes from its current writer", which named a
+ * writer for a copy nobody could read, and sent its Lead to look for work that does not exist.
+ * `contains` and `diffCounts` in this file already answer `undefined` for exactly this reason.
+ */
+export type Cleanliness = "clean" | "dirty" | "unknown";
+
+async function cleanliness(cwd: string, args: string[]): Promise<Cleanliness> {
+  const run = await git(cwd, args);
+  if (run.code !== 0) return "unknown";
+  return run.stdout.trim() === "" ? "clean" : "dirty";
 }
 
-export async function isPristine(cwd: string): Promise<boolean> {
-  const run = await git(cwd, ["status", "--porcelain"]);
-  return run.code === 0 && run.stdout.trim() === "";
+/** Nothing uncommitted among the tracked files. An untracked file is not this question. */
+export function cleanState(cwd: string): Promise<Cleanliness> {
+  return cleanliness(cwd, ["status", "--porcelain", "--untracked-files=no"]);
+}
+
+/** Nothing uncommitted and nothing untracked: what a copy has to be before a lane may take it over. */
+export function pristineState(cwd: string): Promise<Cleanliness> {
+  return cleanliness(cwd, ["status", "--porcelain"]);
 }
 
 export async function trackedFiles(cwd: string): Promise<string[]> {
@@ -45,9 +62,12 @@ export async function branchExists(cwd: string, branch: string): Promise<boolean
   return (await git(cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;
 }
 
-export async function commitsAhead(cwd: string, base: string, branch: string): Promise<number> {
+/** Undefined when git could not answer: zero read as "no commits beyond the lane branch", which is a claim. */
+export async function commitsAhead(cwd: string, base: string, branch: string): Promise<number | undefined> {
   const run = await git(cwd, ["rev-list", "--count", `${base}..${branch}`]);
-  return run.code === 0 ? Number(run.stdout.trim()) || 0 : 0;
+  if (run.code !== 0) return undefined;
+  const count = Number(run.stdout.trim());
+  return Number.isInteger(count) ? count : undefined;
 }
 
 /** Whether everything on `branch` is already in `into` — undefined when git could not say, because a branch is about to be deleted on this answer. */
@@ -152,15 +172,23 @@ export type LandResult = { landed: boolean; how: string };
 export async function landLane(root: string, base: string, branch: string): Promise<LandResult> {
   const ancestor = await git(root, ["merge-base", "--is-ancestor", base, branch]);
   const checkedOut = await currentBranch(root);
+  const readable = async (): Promise<string | undefined> => {
+    const state = await cleanState(root);
+    if (state === "dirty") return `the main working copy on ${base} has uncommitted changes`;
+    if (state === "unknown") return `git could not read the main working copy at ${root}`;
+    return undefined;
+  };
   if (ancestor.code !== 0) {
     if (checkedOut !== base) return { landed: false, how: `${base} moved since ${branch} started and is not checked out in the main working copy, so it cannot be merged there` };
-    if (!(await isClean(root))) return { landed: false, how: `the main working copy on ${base} has uncommitted changes` };
+    const problem = await readable();
+    if (problem) return { landed: false, how: problem };
     const merged = await mergeBranch(root, branch, `Land ${branch}`);
     if (merged.ok) return { landed: true, how: `merged ${branch} into ${base} in the main working copy` };
     return { landed: false, how: merged.conflicts.length > 0 ? `${branch} conflicts with ${base} in ${merged.conflicts.join(", ")}` : merged.message };
   }
   if (checkedOut === base) {
-    if (!(await isClean(root))) return { landed: false, how: `the main working copy on ${base} has uncommitted changes` };
+    const problem = await readable();
+    if (problem) return { landed: false, how: problem };
     const run = await git(root, ["merge", "--ff-only", branch]);
     return run.code === 0 ? { landed: true, how: `fast-forwarded ${base} in the main working copy` } : { landed: false, how: run.stderr.trim() || "fast-forward failed" };
   }

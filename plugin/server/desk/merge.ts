@@ -1,4 +1,4 @@
-import { commitsAhead, diffCounts, headSha, isClean, isPristine, mergeBranch, outsideOwned, resetHard } from "../core/git.ts";
+import { cleanState, commitsAhead, diffCounts, headSha, mergeBranch, outsideOwned, pristineState, resetHard } from "../core/git.ts";
 import type { Agents } from "./agents.ts";
 import { type DeskContext, errorText } from "./context.ts";
 import { gateNote, taskGate } from "./gates.ts";
@@ -52,12 +52,19 @@ export class MergeQueue {
     };
     const cwd = lane.worktree;
     if (!cwd) return finish("failed", letters.mergeFailed(task, "the lane has no working copy", ""));
-    if (!(await isPristine(cwd))) {
+    const copy = await pristineState(cwd);
+    if (copy === "dirty") {
       return finish("done", letters.mergeFailed(task, "the lane's working copy has uncommitted changes from its current writer; accept again after that task hands back", ""));
     }
-    if (!task.branch || (await commitsAhead(cwd, "HEAD", task.branch)) === 0) {
-      return finish("failed", letters.mergeFailed(task, `${task.branch ?? "the task branch"} has no commits beyond the lane branch`, ""));
+    // A copy git could not read is not a copy with a writer in it. Told otherwise, the Lead went
+    // looking for uncommitted work in a directory that had already been taken away.
+    if (copy === "unknown") {
+      return finish("failed", letters.mergeFailed(task, `git could not read the lane's working copy at ${cwd}`, ""));
     }
+    if (!task.branch) return finish("failed", letters.mergeFailed(task, "the task branch is not on record", ""));
+    const ahead = await commitsAhead(cwd, "HEAD", task.branch);
+    if (ahead === undefined) return finish("failed", letters.mergeFailed(task, `git could not count what ${task.branch} carries beyond the lane branch`, ""));
+    if (ahead === 0) return finish("failed", letters.mergeFailed(task, `${task.branch} has no commits beyond the lane branch`, ""));
     const merged = await mergeBranch(cwd, task.branch, `Merge ${task.id}: ${task.title}`);
     if (!merged.ok) {
       return merged.conflicts.length > 0
@@ -73,7 +80,7 @@ export class MergeQueue {
         // writer has committed or touched a tracked file since, reset --hard takes its work as well,
         // so what cannot be undone safely is left where it is and the Lead is told so rather than
         // told the branch is unchanged.
-        const settled = (await headSha(cwd)) === merged.after && (await isClean(cwd));
+        const settled = (await headSha(cwd)) === merged.after && (await cleanState(cwd)) === "clean";
         const undone = settled && (await resetHard(cwd, merged.before));
         const state = `${task.id} is merged into ${lane.branch} and stays there: ${
           settled ? "the desk could not undo the merge" : "the working copy is not where the merge left it, and undoing the merge would take whatever moved it"

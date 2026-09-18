@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addWorktree, branchExists, contains, currentBranch, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
+import { addWorktree, branchExists, cleanState, contains, currentBranch, excludeFromGit, git, pristineState, removeWorktree } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -38,16 +38,44 @@ export class Slots {
   }
 
   async inPlace(project: Project, branch: string, base: string): Promise<{ path: string; workspaceId: string }> {
-    if (!(await isPristine(project.root))) {
-      throw new Error("the project's own working copy has uncommitted changes, so a lane cannot take it over; commit or stash them, or open the lane with isolate true");
+    const copy = await pristineState(project.root);
+    if (copy !== "clean") {
+      throw new Error(
+        copy === "dirty"
+          ? "the project's own working copy has uncommitted changes, so a lane cannot take it over; commit or stash them, or open the lane with isolate true"
+          : `git could not read the project's own working copy at ${project.root}, so a lane cannot take it over`,
+      );
     }
     if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
     const run = await git(project.root, ["switch", "-c", branch, base]);
     if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
-    const workspaceId = await this.projectWorkspace(project);
-    this.index(project, { id: "main", path: project.root, createdAt: Date.now() }, true);
-    this.ctx.event(project, { kind: "lane.inPlace", branch, base });
-    return { path: project.root, workspaceId };
+    try {
+      const workspaceId = await this.projectWorkspace(project);
+      this.index(project, { id: "main", path: project.root, createdAt: Date.now() }, true);
+      this.ctx.event(project, { kind: "lane.inPlace", branch, base });
+      return { path: project.root, workspaceId };
+    } catch (error) {
+      await this.giveBack(project, base, branch);
+      throw error;
+    }
+  }
+
+  /**
+   * Undoes what `inPlace` did to the owner's own repository.
+   *
+   * `inPlace` switches that copy onto the lane's branch, and it had no inverse any caller could
+   * reach: `openLane` cleans up through a slot id, which an in-place lane does not have, so a lane
+   * that failed after taking the copy — a role that cannot lead, a Lead that would not start — left
+   * the owner's repository checked out on a branch belonging to a lane that had just been closed.
+   * `restore` is reachable only from a teardown, and `close_lane` refuses a lane that is closed
+   * already, so there was no way back that did not involve git by hand.
+   */
+  async giveBack(project: Project, base: string, branch: string): Promise<void> {
+    if (!(await this.restore(project, base, branch))) return;
+    // Nothing was committed on it, or the lane never got far enough to commit: the branch is the
+    // desk's own litter then, not a Peer's work, and `release` keeps the other case for the Human.
+    if ((await contains(project.root, base, branch)) === true) await git(project.root, ["branch", "-D", branch]);
+    this.ctx.event(project, { kind: "lane.gaveBack", branch, base });
   }
 
   async projectWorkspace(project: Project): Promise<string> {
@@ -55,11 +83,32 @@ export class Slots {
     return kept ?? (await this.workspaces.make(project.slug, project.root));
   }
 
-  /** `left` is the branch this wait was for: a copy some later lane now owns is not this one's to move. */
-  async restore(project: Project, base: string, left?: string): Promise<void> {
-    if (left && (await currentBranch(project.root)) !== left) return;
-    if (!(await isPristine(project.root))) return;
-    await git(project.root, ["switch", base]);
+  /**
+   * Puts the project's own copy back on base, and says whether it is there.
+   *
+   * `left` is the branch this wait was for: a copy some later lane now owns is not this one's to move,
+   * and that counts as done. Everything else that stops the switch is written down. It used to return
+   * on a falsy read and a non-zero exit alike, with no event and no line in the log, after its caller
+   * had already deleted the record that remembered the copy was parked — so the project sat on a lane
+   * branch that no longer existed and nothing anywhere said so. An untracked file is not a reason:
+   * git switches over those, and a gate log or a coverage directory left by a seat was enough.
+   */
+  async restore(project: Project, base: string, left?: string): Promise<boolean> {
+    if (left && (await currentBranch(project.root)) !== left) return true;
+    const copy = await cleanState(project.root);
+    if (copy !== "clean") {
+      const why = copy === "dirty" ? "it has uncommitted changes" : "git could not read it";
+      this.ctx.log(project, `the project's own working copy is still on ${left ?? "a lane branch"} and not back on ${base}: ${why}`);
+      this.ctx.event(project, { kind: "restore.held", base, branch: left ?? null, why: copy });
+      return false;
+    }
+    const run = await git(project.root, ["switch", base]);
+    if (run.code !== 0) {
+      this.ctx.log(project, `the project's own working copy could not go back to ${base}: ${run.stderr.trim() || `git switch exited ${run.code}`}`);
+      this.ctx.event(project, { kind: "restore.held", base, branch: left ?? null, why: "switch-failed" });
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -112,13 +161,21 @@ export class Slots {
       const waiting = lane.restoring?.writers ?? [];
       const left = waiting.filter((id) => !stopped(id));
       if (waiting.length === 0 || left.length === waiting.length) continue;
+      if (left.length > 0) {
+        await this.ctx.ledger(project, (ledger) => {
+          const entry = ledger.lanes[lane.id];
+          if (entry?.restoring) entry.restoring.writers = left;
+        });
+        continue;
+      }
+      // The record is what remembers that the project's own copy is parked on a lane branch, so it
+      // goes only once the copy is really back. Deleted first, a switch that could not happen took
+      // the only token a later round could have retried from with it.
+      if (!(await this.restore(project, lane.restoring!.base, lane.restoring!.branch))) continue;
       await this.ctx.ledger(project, (ledger) => {
         const entry = ledger.lanes[lane.id];
-        if (!entry?.restoring) return;
-        if (left.length > 0) entry.restoring.writers = left;
-        else delete entry.restoring;
+        if (entry) delete entry.restoring;
       });
-      if (left.length === 0) await this.restore(project, lane.restoring!.base, lane.restoring!.branch);
     }
     for (const slot of Object.values(loadLedger(project.state).slots)) {
       const waiting = slot.releasing?.writers ?? [];
@@ -202,7 +259,8 @@ export class Slots {
     if (!(await branchExists(project.root, base))) throw new Error(`the base branch ${base} does not exist`);
     if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
     if (existsSync(join(slot.path, ".git"))) {
-      if (!(await isPristine(slot.path))) throw new Error(`working copy ${slot.id} has uncommitted changes`);
+      const held = await pristineState(slot.path);
+      if (held !== "clean") throw new Error(held === "dirty" ? `working copy ${slot.id} has uncommitted changes` : `git could not read working copy ${slot.id} at ${slot.path}`);
       const run = await git(slot.path, ["switch", "-c", branch, base]);
       if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
       return true;

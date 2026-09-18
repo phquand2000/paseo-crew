@@ -1,7 +1,7 @@
 import { roleThatCan } from "../../catalog/kit.ts";
 import { skillSources } from "../../catalog/content.ts";
 import { skillDirsFor } from "../../catalog/team.ts";
-import { branchExists, currentBranch, diffCounts, git, headSha, isPristine, outsideOwned, resetHard, trackedFiles } from "../../core/git.ts";
+import { branchExists, currentBranch, diffCounts, git, headSha, outsideOwned, pristineState, resetHard, trackedFiles } from "../../core/git.ts";
 import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
 import { gateNote, laneGate, taskGate } from "../gates.ts";
@@ -281,7 +281,9 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     );
   }
   if (!lane.worktree) return no(`Lane ${lane.id} has no working copy.`);
-  if (!(await isPristine(lane.worktree))) {
+  const copy = await pristineState(lane.worktree);
+  if (copy === "unknown") return no(`git could not read the lane's working copy at ${lane.worktree}, so the desk cannot tell whether anything is uncommitted there.`);
+  if (copy === "dirty") {
     // Whose uncommitted work it is decides what to do about it, so it has to be named correctly: the
     // old text said to rework this task, which would have woken its Peer into another one's writing.
     const other = holderOf(loadLedger(project.state), lane, task.id);

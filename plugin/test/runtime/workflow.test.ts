@@ -283,6 +283,29 @@ test("a lane works serially in the project's own copy and hands it back on its b
   h.runtime.dispose();
 });
 
+test("a lane that fails after taking the project's own copy gives it back", async () => {
+  const h = harness("outbox-inplace.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const before = h.git(h.project.root, "branch", "--show-current").trim();
+
+  // A role that cannot lead is refused after `inPlace` has already switched the owner's repository
+  // onto the lane branch. openLane cleans up by slot id, which a lane in the project's own copy does
+  // not have, so this used to close the lane and walk away from the checkout it had just moved.
+  const refused = await h.call(sup, "supervisor", "open_lane", {
+    title: "Numbers",
+    outcome: "a.txt gains words",
+    acceptance: ["four"],
+    outOfScope: ["anything else in the repository"],
+    role: "peer",
+  });
+  assert.equal(refused.ok, false, refused.text);
+  const lane = h.ledger().lanes.L1!;
+  assert.equal(lane.status, "closed");
+  assert.equal(h.git(h.project.root, "branch", "--show-current").trim(), before, "the owner's repository is back where it was");
+  assert.equal(h.git(h.project.root, "branch", "--list", lane.branch).trim(), "", "and the branch the lane made, which holds nothing, is gone");
+  h.runtime.dispose();
+});
+
 test("parallel work needs independent write sets and merges back from its own working copy", async () => {
   const h = harness("outbox-parallel.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

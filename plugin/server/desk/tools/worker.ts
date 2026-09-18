@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { currentBranch, headSha, isPristine } from "../../core/git.ts";
+import { currentBranch, headSha, pristineState } from "../../core/git.ts";
 import { type Args, hash, no, ok, str } from "../context.ts";
 import { type Ask, type Task, loadLedger, nextAskId, taskOfPeer } from "../ledger.ts";
 import { clip, letters } from "../letters.ts";
@@ -33,7 +33,8 @@ export const done: Tool = async ({ ctx }, caller, args) => {
   if (["merged", "cut"].includes(task.status)) return no(`This task is already ${task.status === "merged" ? "accepted" : "cut"}; there is nothing to hand back.`);
   const review = task.kind === "review";
   const commit = review ? undefined : str(args.commit) || (task.worktree ? await headSha(task.worktree) : undefined);
-  const uncommitted = !review && task.worktree ? !(await isPristine(task.worktree)) : false;
+  // Only what git actually said: a copy it could not read is not a copy with work left in it.
+  const uncommitted = !review && task.worktree ? (await pristineState(task.worktree)) === "dirty" : false;
   const { outcome, body } = handbackBody(task, args, commit, uncommitted);
   const file = join(project.state, "handbacks", `${task.id}-${Date.now()}.md`);
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
