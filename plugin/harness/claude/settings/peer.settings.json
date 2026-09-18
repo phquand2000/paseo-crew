@@ -1,1 +1,7 @@
-{}
+{
+  "sandbox": {
+    "network": {
+      "allowLocalBinding": true
+    }
+  }
+}

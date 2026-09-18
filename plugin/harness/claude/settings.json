@@ -56,7 +56,19 @@
       "Bash(git -C * branch -D *)",
       "Bash(git -C * cherry-pick *)",
       "Bash(git -C * stash *)",
-      "Bash(git -C * worktree *)"
+      "Bash(git -C * worktree *)",
+      "Edit(~/.local/share/seatworks-v2/settings.json)",
+      "Edit(~/.local/share/seatworks-v2/outbox.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/ledger.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/watching.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/project.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/meta.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/settings.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/status.md)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/events.log)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/attention.log)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/handbacks/**)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/gates/**)"
     ]
   },
   "sandbox": {

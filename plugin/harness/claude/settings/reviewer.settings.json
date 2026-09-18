@@ -25,5 +25,10 @@
       "Bash(git -C * apply *)",
       "Bash(git -C * config *)"
     ]
+  },
+  "sandbox": {
+    "network": {
+      "allowLocalBinding": true
+    }
   }
 }

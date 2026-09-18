@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { DESK_OWNED, skillSources } from "../../server/catalog/content.ts";
+import { loadKit, providerId } from "../../server/catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../../server/catalog/launch.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
 import { makeKit } from "../../server/catalog/testkit.ts";
@@ -42,22 +47,40 @@ test("a Lead opened on Devin follows that harness, whatever the settings choose"
   assert.equal(next.systemPrompt, undefined);
 });
 
-test("a seat may write the one place under state its own prompt names, and nothing else the desk keeps there", () => {
-  const sandboxed = (provider: string) =>
-    ({ provider, cwd: "/repo", providerOptions: { disallowedTools: ["X"], settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } } }) as unknown as AgentConfig;
-  const written = (config: AgentConfig) => (applyRole(kit, team, config, render, "/state/repo") as unknown as { providerOptions: any }).providerOptions;
+test("a seat's shell may write every place under state its own content names, and none of the desk's own files", () => {
+  // The shipped kit, because the grant is derived from the shipped prompts and skills.
+  const real = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
+  const realTeam = resolveTeam(real);
+  const sandboxed = (role: string) =>
+    ({ provider: providerId(real, role, "claude"), cwd: "/repo", providerOptions: { settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } } }) as unknown as AgentConfig;
+  const granted = (role: string): string[] => (applyRole(real, realTeam, sandboxed(role), render, "/state/repo") as unknown as { providerOptions: any }).providerOptions.settings.sandbox.filesystem.allowWrite;
+  const named = (role: string): string[] => {
+    const spec = real.roles.find((entry) => entry.role === role)!;
+    const texts = [readFileSync(join(real.dir, "content", spec.prompt), "utf-8")];
+    for (const dir of skillSources(real, spec).values()) for (const file of readdirSync(dir, { recursive: true }).map(String).filter((name) => name.endsWith(".md"))) texts.push(readFileSync(join(dir, file), "utf-8"));
+    return [...new Set(texts.flatMap((text) => [...text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_.-]+)/g)].map((match) => match[1]!)))];
+  };
 
-  const lead = written(sandboxed("sw2-lead-claude"));
-  assert.deepEqual(lead.disallowedTools, ["X"]);
-  assert.deepEqual(lead.settings.sandbox.filesystem.allowWrite, ["/tmp", "/state/repo/plans"], "LEAD.md writes its plans there and the prompt names no other place");
-  assert.deepEqual(written(sandboxed("sw2-supervisor-claude")).settings.sandbox.filesystem.allowWrite, ["/tmp", "/state/repo/notebook.md"]);
+  // The first narrowing named the two places the prompts mention and nothing else, while the skills
+  // in the same seats run scripts that write under ultra-review/, council/, repo-refresh/ and
+  // pre-mortem/ — every one of which the sandboxed shell then refused. This asserted that list.
+  for (const role of real.roles.map((entry) => entry.role)) {
+    const paths = granted(role);
+    for (const segment of named(role).filter((name) => !DESK_OWNED.has(name))) {
+      assert.ok(paths.includes(`/state/repo/${segment}`), `the ${role}'s own content tells it to write ${segment}, and its shell may not`);
+    }
+    for (const owned of DESK_OWNED) assert.ok(!paths.includes(`/state/repo/${owned}`), `the ${role} was given the desk's own ${owned}`);
+  }
+  assert.ok(granted("lead").includes("/state/repo/ultra-review"));
+  assert.ok(granted("lead").includes("/state/repo/docs"), "the directive tells the Lead to keep the project's pages current");
 
-  // The same harness and the same grant, for a role whose prompt asks for nothing under state. Handed
-  // the directory itself, a Peer's own shell could rewrite the ledger every tool call reads back as
-  // truth, the strike table the Watcher decides interruptions from, and project.json — whose gate the
-  // desk then runs through /bin/sh -c in the daemon, outside this seat's sandbox and its deny rules.
-  assert.deepEqual(written(sandboxed("sw2-peer-claude")).settings.sandbox.filesystem.allowWrite, ["/tmp"]);
-  assert.deepEqual(written(sandboxed("sw2-watcher-claude")).settings.sandbox.filesystem.allowWrite, ["/tmp"]);
+  // The sandbox binds the shell only. project.json's gate runs through /bin/sh in the daemon, so a
+  // file tool that could rewrite it was the way out of the sandbox the grant above exists to keep.
+  const deny: string[] = JSON.parse(readFileSync(join(real.dir, "harness", "claude", "settings.json"), "utf-8")).permissions.deny;
+  for (const owned of DESK_OWNED) {
+    const rule = owned.includes(".") ? `Edit(~/.local/share/seatworks-v2/projects/*/${owned})` : `Edit(~/.local/share/seatworks-v2/projects/*/${owned}/**)`;
+    assert.ok(deny.includes(rule), `nothing keeps a Claude seat's file tools off ${owned}`);
+  }
 
   const peer = applyRole(kit, team, { provider: "sw2-peer-devin", cwd: "/repo" } as AgentConfig, render, "/state/repo");
   assert.equal(peer.providerOptions, undefined, "a harness that declares no write list is untouched");

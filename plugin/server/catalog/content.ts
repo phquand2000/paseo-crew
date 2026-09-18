@@ -72,3 +72,27 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
   for (const [name, dir] of extra) found.set(name, dir);
   return found;
 }
+
+/**
+ * What the desk writes under a project's state itself. Content names some of these for a seat to
+ * read — the event log, the hand-back files — and none of them is a seat's to write.
+ */
+export const DESK_OWNED = new Set(["ledger.json", "watching.json", "project.json", "meta.json", "settings.json", "status.md", "events.log", "attention.log", "handbacks", "gates"]);
+
+/**
+ * Every place under the project's state this role's own content tells it to write: its prompt and
+ * every skill the seat is given, read for `{{state}}/…` and `$SEATWORKS_STATE/…`.
+ *
+ * Derived rather than listed, because the list drifted the moment it was written by hand: it named
+ * the two places the prompts mention, while the skills in the same seats run scripts that write under
+ * `ultra-review/`, `council/`, `repo-refresh/`, `pre-mortem/` — and a sandboxed shell refused every one.
+ */
+export function stateTargets(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map()): string[] {
+  const texts: string[] = [];
+  const prompt = contentPath(kit, role.prompt);
+  if (existsSync(prompt)) texts.push(readFileSync(prompt, "utf-8"));
+  for (const dir of skillSources(kit, role, extra).values()) for (const file of markdownIn(dir)) texts.push(readFileSync(file, "utf-8"));
+  const found = new Set<string>();
+  for (const text of texts) for (const match of text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_.-]+)/g)) found.add(match[1]!);
+  return [...found].filter((segment) => !DESK_OWNED.has(segment)).sort();
+}

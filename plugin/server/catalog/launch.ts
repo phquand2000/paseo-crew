@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
 import { type Kit, type McpServers, type RoleSpec, can, seatOf } from "./kit.ts";
-import type { Team } from "./team.ts";
+import { stateTargets } from "./content.ts";
+import { type Team, skillDirsFor } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
@@ -26,24 +27,21 @@ function appendAt(options: unknown, path: string, value: string): Json {
 }
 
 /**
- * What a seat may write inside the desk's own state directory, which is not the whole of it.
+ * What a seat's sandboxed shell may write inside the project's state, which is not the whole of it.
  *
- * The grant used to be `state` itself for every seat on a harness that declares a write list. That
- * directory is the desk's entire durable record: `ledger.json`, which every tool call reads back as
- * truth about who accepted what; `watching.json`, the strike table and page budget the Watcher
- * decides interruptions from; `events.log`, the provenance; and `project.json`, whose `gate` the
- * desk hands to `/bin/sh -c` in the daemon process — outside that seat's sandbox and outside every
- * deny rule its settings carry. A seat's own shell could rewrite any of it.
+ * The grant used to be `state` itself. That directory also holds the desk's own record — the ledger,
+ * the strike table, the event log, and `project.json`, whose `gate` the desk runs through `/bin/sh -c`
+ * in the daemon, outside the seat's sandbox. So the grant is what the seat's own content tells it to
+ * write there (`stateTargets`), and the Lead's project pages, which its directive tells it to keep.
  *
- * Two prompts ask a seat to write under state and they name exactly two places: the Lead's plans and
- * the Supervisor's notebook. Everything else under there is the desk's to write, including the
- * hand-back files, which the desk writes itself when a Peer calls `done`.
+ * This binds the shell only. The same files are kept from the file tools by deny rules in the
+ * harness's own settings; a harness with no sandbox and no path rules has neither, and this cannot
+ * give it one.
  */
-function stateWrites(role: RoleSpec, state: string): string[] {
-  const paths: string[] = [];
-  if (can(role, "lead")) paths.push(join(state, "plans"));
-  if (can(role, "supervise")) paths.push(join(state, "notebook.md"));
-  return paths;
+function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
+  const segments = new Set(stateTargets(kit, role, skillDirsFor(team, role.role)));
+  if (can(role, "lead")) segments.add("docs");
+  return [...segments].sort().map((segment) => join(state, segment));
 }
 
 export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {
@@ -77,7 +75,7 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   }
   if (harness.stateWrites && state) {
     let options: unknown = config.providerOptions;
-    for (const path of stateWrites(role, state)) options = appendAt(options, harness.stateWrites, path);
+    for (const path of stateWrites(kit, team, role, state)) options = appendAt(options, harness.stateWrites, path);
     next.providerOptions = options as AgentConfig["providerOptions"];
   }
   return next;
