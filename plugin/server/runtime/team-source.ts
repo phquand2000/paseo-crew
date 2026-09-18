@@ -28,8 +28,13 @@ export class TeamSource {
   }
 
   teamFor(project?: Project): Team {
-    const local = project ? layerValues(this.projectFile(project), ProjectLayerSchema) : {};
-    return resolveTeam(this.kit, this.machineLayer(), local);
+    const machine = readLayer(this.machineFile(), MachineLayerSchema);
+    const local = project ? readLayer(this.projectFile(project), ProjectLayerSchema) : { status: "ready" as const, values: {}, revision: "" };
+    const unread = [
+      ...(machine.status === "ready" ? [] : [`The machine settings are not being used: ${machine.error}`]),
+      ...(local.status === "ready" ? [] : [`The project settings are not being used: ${"error" in local ? local.error : "they could not be read"}`]),
+    ];
+    return resolveTeam(this.kit, machine.status === "ready" ? machine.values : {}, local.status === "ready" ? local.values : {}, unread);
   }
 
   revision(project?: Project): string {

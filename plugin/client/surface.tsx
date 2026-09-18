@@ -18,10 +18,12 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>("team");
   const [dialog, setDialog] = useState(false);
-  const [checks, setChecks] = useState<Check[] | null>(null);
+  // Which screen these were run on. Held in the surface and never cleared, another project's results
+  // were shown as this project's — same headings, same "all pass", another project's servers.
+  const [checks, setChecks] = useState<{ of: string; rows: Check[] } | null>(null);
   const [openLanes, setOpenLanes] = useState<string[]>([]);
   const project = open && open !== MACHINE ? open : undefined;
-  const { data, save, reload, saving, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus } = useSeatworks(project);
+  const { data, save, reload, saving, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = useSeatworks(project);
   const settings = data.status === "ready" ? data : null;
   const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
   const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
@@ -83,7 +85,8 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
       open={dialog}
       catalog={data.catalog}
       available={data.candidates}
-      attached={data.projects.map((entry) => entry.root)}
+      projects={data.projects}
+      readSettings={readSettings}
       theme={theme}
       disabled={saving}
       onOpenChange={setDialog}
@@ -165,7 +168,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             addServer={addServer}
           />
         ) : null}
-        {tab === "health" ? <HealthSection project={project} theme={theme} checks={checks} onChecks={setChecks} runDoctor={runDoctor} readStatus={readStatus} /> : null}
+        {tab === "health" ? <HealthSection project={project} theme={theme} checks={checks?.of === (project ?? MACHINE) ? checks.rows : null} onChecks={(rows) => setChecks({ of: project ?? MACHINE, rows })} runDoctor={runDoctor} readStatus={readStatus} /> : null}
       </Detail>
       {dialogNode}
     </ScrollView>

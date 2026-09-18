@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, foldRoles, keptRoles, setRole } from "../../client/data.ts";
+import { type Layer, dropMcp, foldRoles, harnessInForce, keptRoles, modelRow, setRole } from "../../client/data.ts";
 
 const held: Layer = {
   rules: "Keep diffs small.",
@@ -64,4 +64,44 @@ test("re-pasting a server the owner gave to nobody leaves it given to nobody", (
   assert.deepEqual(keptRoles(undefined, reachable), reachable, "never narrowed is what does mean every reachable role");
   assert.deepEqual(keptRoles(["lead", "peer"], reachable), ["lead", "peer"]);
   assert.deepEqual(keptRoles(["lead", "designer"], reachable), ["lead"], "and a role that cannot reach it is dropped from the narrowing");
+});
+
+test("a settings screen offers the agent in force, not the one the kit would have picked", () => {
+  const peer = { id: "peer", defaults: { harness: "devin" } };
+  const project: Layer = { roles: { peer: { harness: "claude" } } };
+  const machine: Layer = { roles: { peer: { harness: "codex" } } };
+
+  // Skipping the two middle layers is what showed Devin for a Peer the owner had put on Claude Code,
+  // and then offered Devin's models for it.
+  assert.equal(harnessInForce(peer, {}, project, machine), "claude", "the project's choice wins");
+  assert.equal(harnessInForce(peer, {}, {}, machine), "codex", "then the machine's");
+  assert.equal(harnessInForce(peer, {}, {}, {}), "devin", "and the kit's default only when nobody chose");
+  assert.equal(harnessInForce(peer, { roles: { peer: { harness: "codex" } } }, project, machine), "codex", "a draft being filled in wins over both");
+  assert.equal(harnessInForce(peer, undefined, undefined), "devin", "a layer not read yet is not a choice");
+});
+
+test("the model row shows what is in force even when this agent does not list it, and offers a way back", () => {
+  const opus = [{ id: "claude-opus-5", label: "Opus 5" }];
+  const settled = modelRow("claude-opus-5", opus);
+  assert.equal(settled.stray, false);
+  assert.deepEqual(settled.options, [{ label: "Opus 5", value: "claude-opus-5" }]);
+
+  // What a wrong agent's model list leaves behind. The screen used to print "Opus 5" here, which is
+  // not what the seat runs, and rendered no control because the agent lists only one.
+  const wrong = modelRow("swe-2-medium", opus);
+  assert.equal(wrong.value, "swe-2-medium", "the seat's own model is what is shown");
+  assert.equal(wrong.stray, true);
+  assert.deepEqual(wrong.options, [{ label: "Opus 5", value: "claude-opus-5" }, { label: "swe-2-medium", value: "swe-2-medium" }], "and it stays pickable so the owner can move off it");
+  assert.equal(modelRow("", opus).stray, false, "nothing chosen is not a stray choice");
+});
+
+test("removing a server this layer added forgets it, token and all", () => {
+  const held: Layer = {
+    rules: "Keep diffs small.",
+    mcp: { docs: { enabled: true, label: "Docs", roles: ["lead"], connect: { type: "http", url: "https://x", headers: { Authorization: "Bearer SECRET" } } } },
+  };
+  const dropped = dropMcp(held, "docs");
+  assert.equal(dropped.mcp, undefined, "the entry goes, rather than staying on disk marked removed");
+  assert.equal(dropped.rules, "Keep diffs small.", "and nothing else in the layer is touched");
+  assert.equal(JSON.stringify(dropped).includes("SECRET"), false, "so the token is really gone");
 });

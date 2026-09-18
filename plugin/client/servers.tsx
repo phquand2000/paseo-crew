@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Chips, sourceLabel } from "./bits.tsx";
 import type { Catalog, Layer, McpChoice, Scalar, SettingSpec, TeamView } from "./data.ts";
-import { setMcp, sourceOf } from "./data.ts";
+import { dropMcp, setMcp, sourceOf } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Entry = Catalog["mcp"][number];
@@ -195,12 +195,12 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
         ) : null}
         <SettingsAction
           label="Remove this server"
-          hint={state.template ? "It stays in the catalog; add it again whenever you want." : "It was added here, so removing it drops it."}
+          hint={state.template ? "It stays in the catalog; add it again whenever you want." : "It was added here, so removing it forgets it — its url and any token with it."}
           actionLabel="Remove"
           disabled={disabled}
           onPress={() =>
             save((current) => {
-              const next = setMcp(current, active, { removed: true, enabled: false });
+              const next = state.template ? setMcp(current, active, { removed: true, enabled: false }) : dropMcp(current, active);
               setActive(ids.find((id) => id !== active) ?? ADD);
               return next;
             })

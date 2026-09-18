@@ -169,8 +169,13 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   return { role, harness, model, thinking, rules: ownRules.join("\n\n"), mcp: enabled };
 }
 
-export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}): Team {
-  const errors: string[] = [];
+/**
+ * `unread` are layers that could not be read. They resolve to nothing, which is indistinguishable from
+ * an owner who chose nothing — so a hand-edited file with a trailing comma silently gave the kit's
+ * defaults, and the doctor then reported a complete team the owner had not written a line of.
+ */
+export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, unread: string[] = []): Team {
+  const errors: string[] = [...unread];
   const layers = [machine, project];
   layers.forEach((layer, index) => {
     const where = index === 0 ? "The machine settings" : "The project settings";

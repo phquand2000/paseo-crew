@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type Probes, doctor } from "../../server/runtime/doctor.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { TeamSource } from "../../server/runtime/team-source.ts";
+import { stateRoot } from "../../server/core/paths.ts";
+import { tempDir } from "../../server/core/testing.ts";
 import { makeKit } from "../../server/catalog/testkit.ts";
 
 const kit = makeKit();
@@ -55,4 +60,35 @@ test("a malformed answer from one server costs that server's check, not the whol
   assert.equal(byId["mcp:ide"]!.ok, false);
   assert.match(byId["mcp:ide"]!.detail, /doesn't expose/, "and the entries it could read are the ones counted");
   assert.equal(byId["mcp:docs"]!.ok, true);
+});
+
+test("settings that could not be read are not a team the owner wrote, and the doctor says so", () => {
+  const home = tempDir("sw2-coldsettings-");
+  const state = stateRoot(home);
+  mkdirSync(state, { recursive: true });
+  // The commonest hand edit there is. Before, every consumer turned this into `{}`, which cannot be
+  // told apart from an owner who chose nothing: the kit's defaults resolved, and the doctor reported a
+  // complete team none of whose settings were the owner's.
+  writeFileSync(join(state, "settings.json"), '{ "rules": "Keep diffs small.", }');
+  const previous = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    const team = new TeamSource(kit).teamFor();
+    assert.ok(
+      team.errors.some((line) => line.includes("machine settings are not being used")),
+      `the team has to carry it: ${JSON.stringify(team.errors)}`,
+    );
+    assert.equal(team.rules, "", "and nothing the file held is in force");
+  } finally {
+    if (previous === undefined) delete process.env.HOME;
+    else process.env.HOME = previous;
+  }
+});
+
+test("the doctor reports an unreadable layer rather than a complete team", async () => {
+  const broken = resolveTeam(kit, {}, {}, ["The machine settings are not being used: it is not valid JSON"]);
+  const checks = await doctor(kit, broken, probes(["git", "jq"], []));
+  const settings = checks.find((check) => check.id === "settings")!;
+  assert.equal(settings.ok, false, "a team resolved from a file nobody could read is not a complete team");
+  assert.match(settings.detail, /not being used/);
 });

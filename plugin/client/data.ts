@@ -53,6 +53,8 @@ export type Data =
   | { status: "error"; error: string }
   | {
       status: "ready";
+      /** Which screen this is for, so a refresh keeps it up and a move to another one does not. */
+      of: string;
       catalog: Catalog;
       team: TeamView;
       projects: ProjectRow[];
@@ -132,6 +134,7 @@ export function useSeatworks(project?: string) {
       if (!alive) return;
       setData({
         status: "ready",
+        of: project ?? "",
         catalog,
         projects,
         known,
@@ -143,7 +146,12 @@ export function useSeatworks(project?: string) {
         settingsError: settings.status === "ready" ? null : settings.error,
       });
     };
-    setData({ status: "loading" });
+    // Only a move to another screen blanks it. Every save ends in a reload, and blanking on that
+    // returned the surface to its loading view, which unmounts every section and remounts it with
+    // fresh local state: the tab the owner was on, the server they had just pasted and were told to
+    // narrow, the draft they were halfway through, and any error shown beside it. Keeping it up for a
+    // different project would show one project's settings as another's, so what it is for is checked.
+    setData((held) => (held.status === "ready" && held.of === (project ?? "") ? held : { status: "loading" }));
     load().catch((error: unknown) => {
       if (alive) setData({ status: "error", error: message(error) });
     });
@@ -301,7 +309,9 @@ export function useSeatworks(project?: string) {
   const listFolders = useCallback((path?: string) => latest.current.paths(path ? { path } : {}), []);
   const runDoctor = useCallback(() => latest.current.doctor({ project }), [project]);
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
-  return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, listFolders, runDoctor, readStatus };
+  // The setup screen needs the layers of the project it is pointed at, which is not the one open here.
+  const readSettings = useCallback((slug: string) => latest.current.settings({ project: slug }), []);
+  return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings };
 }
 
 export function useFlow(project: string | undefined, everyMs = 5000, openKey = ""): { flow: FlowView | null; error: string | null } {
@@ -402,6 +412,47 @@ export function setRole(values: Layer, role: string, choice: RoleChoice, newHarn
  */
 export function keptRoles(narrowed: string[] | undefined, reachable: string[]): string[] {
   return narrowed ? narrowed.filter((role) => reachable.includes(role)) : reachable;
+}
+
+/**
+ * Forget a server this layer added, rather than marking it removed.
+ *
+ * A template from the kit has to stay on record as removed or the kit would switch it back on. One the
+ * owner pasted has no template behind it: marking it left the whole entry on disk — its url and its
+ * `Authorization` header — with no tab, no switch and no way back, under a screen that had just said
+ * removing it drops it.
+ */
+/**
+ * The agent in force for a role, nearest layer first: a draft the owner is filling in, then the
+ * project's settings, then the machine's, then the kit's default.
+ *
+ * A screen that skipped the two middle layers showed the kit's default as if it were the choice in
+ * force, so it offered the wrong agent's model list and wrote the model onto the agent really there.
+ */
+export function harnessInForce(role: { id: string; defaults: { harness: string } }, ...layers: (Layer | undefined)[]): string {
+  for (const layer of layers) {
+    const named = layer?.roles?.[role.id]?.harness;
+    if (named) return named;
+  }
+  return role.defaults.harness;
+}
+
+/**
+ * The model row a settings screen should show: what is in force, and whether this agent lists it.
+ *
+ * The resolver does not fence the model against the catalogue — the catalogue is what a screen offers,
+ * not a law — so a screen that printed the catalogued model instead of the one in force claimed the
+ * seat was running something it was not, and where the agent listed only one it rendered no control to
+ * put it right.
+ */
+export function modelRow(model: string, models: { id: string; label: string }[]): { value: string; options: { label: string; value: string }[]; stray: boolean } {
+  const known = models.map((entry) => ({ label: entry.label, value: entry.id }));
+  const stray = Boolean(model) && !models.some((entry) => entry.id === model);
+  return { value: model, stray, options: stray ? [...known, { label: model, value: model }] : known };
+}
+
+export function dropMcp(values: Layer, id: string): Layer {
+  return prune(values, "mcp", id, {});
 }
 
 export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {

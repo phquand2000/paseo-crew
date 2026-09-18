@@ -1,18 +1,19 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/client/react-native";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Button } from "./bits.tsx";
-import type { Catalog, Folders, Layer, PaseoProject } from "./data.ts";
-import { setRole } from "./data.ts";
+import type { Catalog, Folders, Layer, PaseoProject, ProjectRow } from "./data.ts";
+import { harnessInForce, modelRow, setRole } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {
   open: boolean;
   catalog: Catalog;
   available: PaseoProject[];
-  attached: string[];
+  projects: ProjectRow[];
+  readSettings(slug: string): Promise<{ status: string; values?: Layer; machine?: Layer } | { error: string }>;
   theme: PluginTheme;
   disabled: boolean;
   onOpenChange(open: boolean): void;
@@ -27,7 +28,7 @@ const STEPS = [
   { id: "check", label: "Check" },
 ];
 
-export function SetupDialog({ open, catalog, available, attached, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
+export function SetupDialog({ open, catalog, available, projects, readSettings, theme, disabled, onOpenChange, attach, listFolders, onAttached }: Props) {
   const [step, setStep] = useState(0);
   const [root, setRootPath] = useState("");
   const [draft, setDraft] = useState<Layer>({});
@@ -35,6 +36,11 @@ export function SetupDialog({ open, catalog, available, attached, theme, disable
   const [browsing, setBrowsing] = useState<Folders | null>(null);
   const [picking, setPicking] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
+  // What the project being pointed at already holds. Without it every agent select showed the kit's
+  // default rather than the one in force, so the model list offered belonged to the wrong agent and
+  // picking one wrote it onto the agent the owner really had.
+  const [held, setHeld] = useState<{ root: string; values: Layer; machine: Layer } | null>(null);
+  const attached = projects.map((entry) => entry.root);
   const styles = useMemo(
     () => ({
       footer: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8, paddingTop: 8 },
@@ -45,11 +51,30 @@ export function SetupDialog({ open, catalog, available, attached, theme, disable
   );
 
   const chosen = catalog.roles.find((entry) => entry.id === role) ?? catalog.roles[0];
-  const harnessOf = (id: string) => draft.roles?.[id]?.harness ?? catalog.roles.find((entry) => entry.id === id)?.defaults.harness ?? "";
+  const path = root.trim();
+  const inForce = held?.root === path ? held : undefined;
+  const harnessOf = (id: string) => {
+    const spec = catalog.roles.find((entry) => entry.id === id);
+    return spec ? harnessInForce({ id, defaults: spec.defaults }, draft, inForce?.values, inForce?.machine) : "";
+  };
   const harness = catalog.harnesses.find((entry) => entry.id === harnessOf(chosen?.id ?? ""));
   const models = harness?.models ?? [];
-  const model = draft.roles?.[chosen?.id ?? ""]?.model ?? models[0]?.id ?? "";
-  const path = root.trim();
+  const settled = (id: string) => inForce?.values.roles?.[id]?.model ?? inForce?.machine.roles?.[id]?.model;
+  const model = draft.roles?.[chosen?.id ?? ""]?.model ?? settled(chosen?.id ?? "") ?? models[0]?.id ?? "";
+  const row = modelRow(model, models);
+
+  useEffect(() => {
+    const slug = projects.find((entry) => entry.root === path)?.slug;
+    if (!open || !slug || held?.root === path) return;
+    let stale = false;
+    void readSettings(slug).then((read) => {
+      if (stale || "error" in read || read.status !== "ready") return;
+      setHeld({ root: path, values: read.values ?? {}, machine: read.machine ?? {} });
+    });
+    return () => {
+      stale = true;
+    };
+  }, [open, path, projects, readSettings, held?.root]);
 
   const close = () => {
     setDraft({});
@@ -58,6 +83,7 @@ export function SetupDialog({ open, catalog, available, attached, theme, disable
     setBrowsing(null);
     setPicking(false);
     setTrouble(null);
+    setHeld(null);
     onOpenChange(false);
   };
 
@@ -173,12 +199,12 @@ export function SetupDialog({ open, catalog, available, attached, theme, disable
                 onValueChange={(next) => setDraft((current) => setRole(current, chosen.id, { harness: next }, true))}
                 disabled={disabled}
               />
-              {models.length > 1 ? (
+              {models.length > 1 || row.stray ? (
                 <SettingsSelect
                   label="Model"
-                  hint="Used for every lane here."
-                  value={model}
-                  options={models.map((entry) => ({ label: entry.label, value: entry.id }))}
+                  hint={row.stray ? `${row.value} is not one this agent offers. Pick one it does.` : "Used for every lane here."}
+                  value={row.value}
+                  options={row.options}
                   onValueChange={(next) => setDraft((current) => setRole(current, chosen.id, { model: next }))}
                   disabled={disabled}
                 />
