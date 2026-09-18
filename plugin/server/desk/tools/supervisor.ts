@@ -73,7 +73,7 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
 function gateRegime(project: Project): string {
   const config = loadConfig(project.state);
   if (!config.gate) return "none set, so nothing is checked for you";
-  return config.gateOn === "task" ? `${config.gate} runs on every task, so a task that goes red does not land` : `${config.gate} runs on the whole lane when you report it ready`;
+  return config.gateOn === "task" ? `${config.gate} runs on every task, and its verdict reaches the Lead with the hand-back — evidence, not a veto` : `${config.gate} runs on the whole lane when you report it ready`;
 }
 
 function openedReply(project: Project, lane: Lane, slot: { id?: string }, lead: string, issue: Issue | undefined): string {

@@ -81,10 +81,10 @@ loud is a good habit, not a fault.
 
 You are not deciding whether to interrupt anyone; the desk decides that from what you send. One
 fault seen once is written down. The same fault from the same seat three times reaches the owner.
-Anything destructive reaches the owner at once. Everything else is gathered into a report the Human
-reads when they come back.
+Anything destructive reaches the owner at once. Everything else is gathered into one report that
+reaches whoever is supervising, on their next turn rather than by interrupting this one.
 
-So a fault you are only half sure about is still worth sending — it costs nobody a turn unless it
+So a fault you are only half sure about is still worth sending — it interrupts nobody unless it
 happens again. And an empty list costs nothing and is never a failure.
 
 The rule that matters most: read the record as well as the words, give the turn its fair account

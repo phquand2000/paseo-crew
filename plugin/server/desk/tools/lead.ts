@@ -117,9 +117,14 @@ export const startTask: Tool = async (desk, caller, args) => {
   if (!lane?.worktree) return no("You have no open lane.");
   const problem = await placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
+  // Writing, not working. A role that reviews holds `work` too — that is how its ask and its turn-end
+  // are routed like any other seat on a task — and asking for `work` here offered the Lead the
+  // read-only Reviewer as a second kind of Peer. It would have started: denied edit, write and every
+  // git write by its own settings, holding a `done` with no outcome to give, under a brief telling it
+  // to commit. What a task needs is a role that writes.
   const asked = str(args.role);
-  const workRole = roleThatCan(ctx.kit, "work", asked || undefined);
-  if (!workRole) return no(namedOrNot(ctx.kit, "work", asked, "take a task"));
+  const workRole = roleThatCan(ctx.kit, "write", asked || undefined);
+  if (!workRole) return no(namedOrNot(ctx.kit, "write", asked, "take a task"));
   // A skill the Peer does not have is a line in its brief telling it to open something that is not
   // there. Nothing in the Lead's own context lists them, so the refusal is where it finds out.
   const held = [...skillSources(ctx.kit, workRole, skillDirsFor(ctx.team(project), workRole.role)).keys()];

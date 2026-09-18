@@ -8,7 +8,7 @@ import { type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledg
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
-import { loadWatching, pendingEntries, reported, saveWatching } from "../desk/watching.ts";
+import { digestDue, loadWatching, pendingEntries, reported } from "../desk/watching.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
@@ -158,7 +158,7 @@ export class Patrol {
     const waiting = pendingEntries(watching);
     if (waiting.length === 0) return;
     const oldest = Math.min(...waiting.map(([, strike]) => strike.first));
-    if (now - oldest < digestMinutes * 60_000) return;
+    if (!digestDue(watching, oldest, now, digestMinutes)) return;
     const to = await desk.supervisorFor(project);
     if (!to) return;
     // The key identifies what this digest carries. A strike keeps its `first` for as long as the fault
@@ -172,7 +172,7 @@ export class Patrol {
     // marking it told lost the occurrence for good; the state is read back because `raise` can have
     // run during the post, and this snapshot no longer knows about it.
     if (posted !== "sent" && posted !== "held") return;
-    saveWatching(project.state, reported(loadWatching(project.state), carried));
+    await desk.watching(project, (current) => ({ save: reported(current, carried, now), result: undefined }));
     desk.event(project, { kind: "watch.digest", items: waiting.length });
   }
 

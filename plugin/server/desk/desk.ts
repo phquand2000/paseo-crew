@@ -15,6 +15,7 @@ import * as shared from "./tools/shared.ts";
 import * as supervisor from "./tools/supervisor.ts";
 import * as watcher from "./tools/watcher.ts";
 import * as worker from "./tools/worker.ts";
+import type { Watching } from "./watching.ts";
 
 const TOOLS: Record<string, Tool> = {
   open_lane: supervisor.openLane,
@@ -87,6 +88,11 @@ export class Desk {
 
   event(project: Project, data: Record<string, unknown>): void {
     this.services.ctx.event(project, data);
+  }
+
+  /** The strike table under its own lock, so the patrol's settle cannot be overwritten by a `raise`. */
+  watching<T>(project: Project, change: (watching: Watching) => { save: Watching; result: T }): Promise<T> {
+    return this.services.ctx.watching(project, change);
   }
 
   post(to: string | undefined, key: string, text: string): Promise<Posted | "nobody"> {

@@ -11,6 +11,7 @@ process.env.HOME = HOME;
 
 const { loadKit } = await import("../../server/catalog/kit.ts");
 const { loadLedger } = await import("../../server/desk/ledger.ts");
+const { loadWatching, pagesLeft } = await import("../../server/desk/watching.ts");
 const { projectOf } = await import("../../server/desk/project.ts");
 type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
@@ -1361,7 +1362,11 @@ test("a second digest carrying a recurrence is not a repeat of the first, and a 
   // One of them happens again. It keeps its `first`, so the oldest thing pending is unchanged, and one
   // fault seen twice adds to the same total as two faults seen once — the key was both of those.
   await h.call(watcher, "watcher", "raise", { where, findings: [{ label: "unverified", quote: "no gate, again" }] });
+  // A report is a period, not a trickle: the recurrence waits for the next one rather than going out
+  // on the tick after the last one.
   await h.tick(started + 62 * 60_000);
+  assert.equal((h.agents.get(sup)!.sent.join("\n").match(/WHILE YOU WERE AWAY/g) ?? []).length, 1, "one minute after the last report is not a new report");
+  await h.tick(started + 122 * 60_000);
   await h.idle(sup);
   const told = h.agents.get(sup)!.sent.join("\n");
   assert.equal((told.match(/WHILE YOU WERE AWAY/g) ?? []).length, 2, `the second digest is a different letter: ${told.slice(-400)}`);
@@ -1369,32 +1374,31 @@ test("a second digest carrying a recurrence is not a repeat of the first, and a 
   h.runtime.dispose();
 });
 
-test("a capability several roles hold can seat any of them, so two lenses need not be one reader twice", async () => {
+test("a task goes to a role that writes, and a review to one that reads, and neither stands in for the other", async () => {
   const h = harness("outbox-lenses.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
 
-  // The shipped preset gives `reviewer` both `work` and `review`, and lists `peer` first. So the kit
-  // already holds a second work-capable role, and taking the first match made it unreachable.
-  const asked = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"], role: "reviewer" });
-  assert.equal(asked.ok, true, asked.text);
-  const seated = h.ledger().tasks[Object.keys(h.ledger().tasks)[0]!]!;
-  assert.match(h.agents.get(seated.peer!)!.provider, /reviewer/, "the role asked for is the role seated");
+  // The preset's Reviewer holds `work` — that is how its ask and its turn-end are routed like any
+  // other seat on a task — and it is denied edit, write and every git write by its own settings. So it
+  // is not a second kind of Peer, and offering it as one started a seat that could not do the job.
+  const readOnly = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"], role: "reviewer" });
+  assert.equal(readOnly.ok, false, "a role that only reads cannot be given a task to write");
+  assert.match(readOnly.text, /no reviewer that can take a task/i);
+  assert.match(readOnly.text, /peer/, "and the refusal names who can, rather than recommending the one that cannot");
+  assert.deepEqual(Object.keys(h.ledger().tasks), [], "and nothing was started or recorded");
 
-  // One writer at a time in the lane's copy, so the first is cut before the next is seated.
-  await h.call(lane.lead!, "lead", "cut", { task: seated.id, reason: "checking the default next" });
+  // The other direction, and the default.
+  const wrongLens = await h.call(lane.lead!, "lead", "start_review", { focus: "Is the rounding right?", role: "peer" });
+  assert.equal(wrongLens.ok, false);
+  assert.match(wrongLens.text, /no peer that can review/i);
+  assert.match(wrongLens.text, /reviewer/, "the refusal names what there is to choose from");
+
   const byDefault = await h.call(lane.lead!, "lead", "start_task", { title: "Add five", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"] });
   assert.equal(byDefault.ok, true, byDefault.text);
-  const second = Object.values(h.ledger().tasks).find((task) => task.title === "Add five")!;
-  assert.match(h.agents.get(second.peer!)!.provider, /peer/, "and left out, it is still the preset's own default");
-
-  // A name that cannot do the thing is refused, and told what can — the kit is data, and the desk is
-  // the only thing that has read it.
-  const wrong = await h.call(lane.lead!, "lead", "start_review", { focus: "Is the rounding right?", role: "peer" });
-  assert.equal(wrong.ok, false);
-  assert.match(wrong.text, /no peer that can review/i);
-  assert.match(wrong.text, /reviewer/, "the refusal names what there is to choose from");
+  const seated = Object.values(h.ledger().tasks).find((task) => task.title === "Add five")!;
+  assert.match(h.agents.get(seated.peer!)!.provider, /peer/, "left out, it is the preset's own default");
   h.runtime.dispose();
 });
 
@@ -1455,5 +1459,67 @@ test("two projects on one daemon both name their first task L1-T1, and both Lead
   assert.match(h.agents.get(here.lead!)!.sent.join("\n"), /the Peer on L1-T1/, "the first project's Lead is told");
   assert.match(h.agents.get(there.lead!)!.sent.join("\n"), /the Peer on L1-T1/, "and so is the second's — the letter key and the seen-it flag are per project");
   assert.equal(h.ledger(other).tasks["L1-T1"]!.status, "stalled", "and the second project's task is recorded stalled, not skipped");
+  h.runtime.dispose();
+});
+
+test("two Watchers interrupting at once are both charged, and neither loses the other's strike", async () => {
+  const h = harness("outbox-atonce.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const one = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch-1");
+  const two = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch-2");
+
+  // `destructive` interrupts on its first sighting, so both of these really do send. Between loading
+  // the table and saving it, each waits on the roster and on a letter going out — so both saved a
+  // snapshot taken before the other had written, and one of the two pages cost nothing.
+  const [first, second] = await Promise.all([
+    h.call(one, "watcher", "raise", { where: "the Peer on L1-T1", findings: [{ label: "destructive", quote: "rm -rf build" }] }),
+    h.call(two, "watcher", "raise", { where: "the Lead of L1", findings: [{ label: "destructive", quote: "git push --force" }] }),
+  ]);
+  assert.equal(first.ok, true, first.text);
+  assert.equal(second.ok, true, second.text);
+
+  await h.idle(sup);
+  const told = h.agents.get(sup)!.sent.join("\n");
+  assert.equal((told.match(/ATTENTION \(destructive\)/g) ?? []).length, 2, "two interruptions really went");
+
+  const watching = loadWatching(h.project.state);
+  assert.equal(watching.pages.length, 2, "so two pages of the window are spent, not one");
+  assert.equal(pagesLeft(watching, Date.now()), 0, "and the budget of two is now whole spent");
+  assert.deepEqual(
+    Object.values(watching.strikes).map((strike) => strike.count).sort(),
+    [1, 1],
+    "and both sightings are on record: neither call wrote back a table that did not know about the other",
+  );
+  h.runtime.dispose();
+});
+
+test("two projects that name the same thing the same way are told about it separately", async () => {
+  const h = harness("outbox-samename.json");
+  const second = repo();
+  const other = projectOf(second.root);
+  const where = "the Lead of L1 (Numbers)";
+
+  const supA = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup-a");
+  const supB = h.add("sw2-supervisor-claude/claude-opus-5", second.root, "sup-b");
+  for (const [sup, where_] of [[supA, h.root], [supB, second.root]] as const) {
+    await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "x", acceptance: ["a"], outOfScope: ["the rest"] }, where_);
+  }
+  const watchA = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch-a");
+  const watchB = h.add("sw2-watcher-devin/swe-2-medium", second.root, "watch-b");
+
+  // The desk builds this letter's key from the lane id and the label, and both projects have a lane
+  // L1 called Numbers. One outbox file holds every project's mail, so keyed on that alone the second
+  // project's Supervisor was never told — about the one class the desk promises always to escalate.
+  const raisedA = await h.call(watchA, "watcher", "raise", { where, findings: [{ label: "destructive", quote: "rm -rf build" }] }, h.root);
+  const raisedB = await h.call(watchB, "watcher", "raise", { where, findings: [{ label: "destructive", quote: "rm -rf build" }] }, second.root);
+  assert.equal(raisedA.ok, true, raisedA.text);
+  assert.equal(raisedB.ok, true, raisedB.text);
+
+  await h.idle(supA);
+  await h.idle(supB);
+  assert.match(h.agents.get(supA)!.sent.join("\n"), /ATTENTION \(destructive\)/, "the first project's owner is told");
+  assert.match(h.agents.get(supB)!.sent.join("\n"), /ATTENTION \(destructive\)/, "and so is the second's");
+  assert.equal(loadWatching(other.state).pages.length, 1, "each project spends its own budget, not the other's");
   h.runtime.dispose();
 });

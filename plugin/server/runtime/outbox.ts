@@ -19,6 +19,17 @@ export class Outbox {
   private readonly seats: Seats;
   private readonly awaiting = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
+
+  /**
+   * A duplicate is the same letter to the same reader. Keyed on the key alone, it was also the same
+   * key to a *different* reader: every id the desk builds a key from — a lane, a task, an ask — is
+   * only unique inside its own project, and this is one file for all of them. So on a daemon holding
+   * two projects the second project's Lead was told nothing about its own task, and a seat that came
+   * back in place of one that had gone was refused the letter the old seat never read.
+   */
+  private static held(letter: { to: string; key: string }): string {
+    return `${letter.to}\n${letter.key}`;
+  }
   private readonly lanes = new Map<string, Promise<unknown>>();
   private counter = 0;
 
@@ -44,8 +55,8 @@ export class Outbox {
   }
 
   async post(letter: Omit<Letter, "id" | "at">, now = Date.now()): Promise<Posted> {
-    const sentAt = this.sentKeys.get(letter.key);
-    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters(now).some((entry) => entry.key === letter.key)) {
+    const sentAt = this.sentKeys.get(Outbox.held(letter));
+    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters(now).some((entry) => entry.key === letter.key && entry.to === letter.to)) {
       return "duplicate";
     }
     const stored: Letter = { ...letter, id: `${now}-${process.pid}-${++this.counter}`, at: now };
@@ -87,7 +98,7 @@ export class Outbox {
       const now = Date.now();
       this.awaiting.set(to, now);
       const ids = new Set(mine.map((letter) => letter.id));
-      for (const letter of mine) this.sentKeys.set(letter.key, now);
+      for (const letter of mine) this.sentKeys.set(Outbox.held(letter), now);
       this.save(this.letters().filter((letter) => !ids.has(letter.id)));
       return ids;
     });

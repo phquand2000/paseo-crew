@@ -69,7 +69,8 @@
         "model": "swe-2-max"
       },
       "can": [
-        "work"
+        "work",
+        "write"
       ],
       "tools": "peer",
       "prompt": "prompts/PEER.md",

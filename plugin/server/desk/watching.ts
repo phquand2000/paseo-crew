@@ -24,7 +24,12 @@ export type Strike = {
   told?: number;
 };
 
-export type Watching = { strikes: Record<string, Strike>; pages: number[] };
+export type Watching = {
+  strikes: Record<string, Strike>;
+  pages: number[];
+  /** When the last report went out. `digestMinutes` is a period, and without this it bounded nothing. */
+  digestedAt?: number;
+};
 
 export type WatchRules = { strikesAt: number; pagesPerWindow: number; windowHours: number; always: string[]; watch?: boolean };
 
@@ -43,6 +48,7 @@ export function loadWatching(state: string): Watching {
   return {
     strikes: stored.strikes && typeof stored.strikes === "object" ? stored.strikes : {},
     pages: Array.isArray(stored.pages) ? stored.pages.filter((at) => Number.isFinite(at)) : [],
+    ...(Number.isFinite(stored.digestedAt) ? { digestedAt: stored.digestedAt } : {}),
   };
 }
 
@@ -79,7 +85,7 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
 
   // Deciding to interrupt is not interrupting. Counting it as told here dropped the finding from the
   // digest — the only other way it is ever read — when there turned out to be nobody to interrupt.
-  return { urgency, watching: { strikes: { ...watching.strikes, [key]: strike }, pages: spent }, strike };
+  return { urgency, watching: { ...watching, strikes: { ...watching.strikes, [key]: strike }, pages: spent }, strike };
 }
 
 /**
@@ -98,7 +104,7 @@ export function delivered(watching: Watching, keys: string[], now: number): Watc
     strikes[key] = { ...strike, told: strike.count };
     pages.push(now);
   }
-  return { strikes, pages };
+  return { ...watching, strikes, pages };
 }
 
 /** How many more interruptions this window can take. */
@@ -133,12 +139,24 @@ export function pending(watching: Watching): Strike[] {
  * overwrote it outright — so this is applied to state read back afterwards, and never lowers what an
  * earlier report already settled.
  */
-export function reported(watching: Watching, carried: Record<string, number>): Watching {
+export function reported(watching: Watching, carried: Record<string, number>, at: number): Watching {
   const strikes = { ...watching.strikes };
   for (const [key, count] of Object.entries(carried)) {
     const strike = strikes[key];
     if (!strike) continue;
     strikes[key] = { ...strike, told: Math.max(strike.told ?? 0, count) };
   }
-  return { strikes, pages: watching.pages };
+  return { ...watching, strikes, digestedAt: at };
+}
+
+/**
+ * When the report may next go out: a period after the last one, or after the oldest thing waiting if
+ * none has gone yet.
+ *
+ * A strike keeps its `first` for as long as the fault recurs, so measuring from the oldest sighting
+ * meant that once any fault was older than the period the gate was satisfied for ever — every later
+ * occurrence sent its own report on the next thirty-second tick, and `digestMinutes` bounded nothing.
+ */
+export function digestDue(watching: Watching, oldest: number, now: number, minutes: number): boolean {
+  return now - (watching.digestedAt ?? oldest) >= minutes * 60_000;
 }

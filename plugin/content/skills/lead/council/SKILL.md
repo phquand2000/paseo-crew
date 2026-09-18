@@ -28,7 +28,7 @@ Re-anchor on this list whenever you're unsure which step is active.
 - `debate-with-proof`: `debate`, plus Verifiers as needed and a draft audit by default.
 - `high-risk`: Independent + Premise Challenger, optionally one Specialist, Verifiers as needed, mandatory draft audit.
 
-Every reviewer runs the reviewer role's default model, so sealing removes contamination, not correlation: treat agreement between the Independent and the Challenger as weak evidence, look hardest where they agree without independent sources, and list "single model family" under the verdict's limitations.
+Reviewers run one role's model unless you name another with `start_review`'s `role`, and one kit may hold several roles that review. Where they are the same model, sealing removes contamination but not correlation: treat agreement between the Independent and the Challenger as weak evidence, look hardest where they agree without independent sources, and list "single model family" under the verdict's limitations when that is what it was.
 
 ## 1. Neutral brief
 

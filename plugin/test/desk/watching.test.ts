@@ -104,7 +104,7 @@ test("the digest holds what was never raised, and empties once it is sent", () =
     ["derailed", "unverified"],
     "what already interrupted the owner is not repeated in the digest",
   );
-  assert.deepEqual(pending(reported(watching, carriedBy(watching))), []);
+  assert.deepEqual(pending(reported(watching, carriedBy(watching), NOW + minutes(4))), []);
 });
 
 test("every interruption is charged, not only the first one for a fault", () => {
@@ -160,5 +160,5 @@ test("a fault the owner has already been told about is owed to them again the ne
   // Telling them settles the occurrences that had happened by then, and no more.
   const settled = delivered(again.watching, [key], NOW + minutes(3));
   assert.deepEqual(pending(settled), []);
-  assert.deepEqual(pending(reported(settled, carriedBy(settled))).map((strike) => strike.label), [], "and the digest settles what it carried");
+  assert.deepEqual(pending(reported(settled, carriedBy(settled), NOW + minutes(3))).map((strike) => strike.label), [], "and the digest settles what it carried");
 });

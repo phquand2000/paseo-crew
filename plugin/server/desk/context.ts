@@ -5,6 +5,7 @@ import type { Team } from "../catalog/team.ts";
 import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
+import { type Watching, loadWatching, saveWatching } from "./watching.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
 export type ToolReply = { ok: boolean; text: string };
@@ -75,6 +76,28 @@ export class DeskContext {
       return result;
     });
     this.locks.set(project.slug, run.catch(() => undefined));
+    return run;
+  }
+
+  /**
+   * The Watcher's strike table, read and written under a lock of its own.
+   *
+   * Unlike the ledger this had none, and every writer of it loads, awaits something real — a roster
+   * lookup, a letter going out, a patrol step — and then saves a snapshot taken before that await. Two
+   * Watchers handed two endings in one mailbox lost a strike between them, two interruptions cost one
+   * page of a budget of two, and a digest's settle was overwritten by whatever had loaded before it.
+   * Change what you must under here and do anything that awaits the outside world between two calls.
+   */
+  watching<T>(project: Project, change: (watching: Watching) => { save: Watching; result: T }): Promise<T> {
+    this.projects.set(project.slug, project);
+    const key = `${project.slug}:watching`;
+    const previous = this.locks.get(key) ?? Promise.resolve();
+    const run = previous.then(() => {
+      const { save, result } = change(loadWatching(project.state));
+      saveWatching(project.state, save);
+      return result;
+    });
+    this.locks.set(key, run.catch(() => undefined));
     return run;
   }
 

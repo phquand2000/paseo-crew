@@ -242,7 +242,7 @@
           },
           "role": {
             "type": "string",
-            "description": "Optional role to take it, when the kit has more than one that can work. Left out, the kit's first. This is how best-of-n gets two kinds of Peer on one question."
+            "description": "Optional role to take it, when the kit has more than one that writes. Left out, the kit's first. This is how best-of-n gets two kinds of Peer on one question; a role that only reads is refused, with the list of those that write."
           }
         },
         "required": [

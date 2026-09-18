@@ -29,7 +29,8 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
   contract and every caller together.
 - **Red is fine inside the lane** when the gate runs on the lane, which is the default and which the
   directive you were opened with names. A project whose owner set the gate to run per task is told to
-  you the same way, and then a task that goes red does not land. Nothing in this repository has shipped unless `AGENTS.md` says so, so
+  you the same way, and then every task's verdict comes to you with the hand-back. A red one is
+  evidence, not a veto: landing it is still yours, and so is saying why. Nothing in this repository has shipped unless `AGENTS.md` says so, so
   there is no compatibility, bridge or transition code to keep.
 - **Brief with fields, not prose.** For each task, `start_task` with the goal as an outcome,
   acceptance as behaviors, and every limit in `owned` and out of scope, where a limit survives the
