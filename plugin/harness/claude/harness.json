@@ -68,7 +68,8 @@
       "SEATWORKS_HARNESS": "claude",
       "SEATWORKS_AGENT_BIN": "claude",
       "ENABLE_TOOL_SEARCH": "false",
-      "ENABLE_PROMPT_CACHING_1H": "1"
+      "ENABLE_PROMPT_CACHING_1H": "1",
+      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1"
     },
     "profileModeId": "bypassPermissions",
     "command": [
@@ -83,5 +84,6 @@
   "stateWrites": {
     "path": "settings.sandbox.filesystem.allowWrite",
     "delivery": "launch"
-  }
+  },
+  "projectContextOption": "additionalDirectories"
 }

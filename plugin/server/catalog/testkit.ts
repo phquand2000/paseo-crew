@@ -67,6 +67,7 @@ export function makeKit(): Kit {
     skillsDir: "skills",
     systemPrompt: "config",
     stateWrites: { path: "settings.sandbox.filesystem.allowWrite", delivery: "launch" },
+    projectContextOption: "additionalDirectories",
     settings: { file: "settings.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     models: [

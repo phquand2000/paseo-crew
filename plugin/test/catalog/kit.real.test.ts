@@ -4,7 +4,8 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderPrompt } from "../../server/catalog/content.ts";
-import { PASEO_TOOLS, loadKit } from "../../server/catalog/kit.ts";
+import { PASEO_TOOLS, loadKit, providerId } from "../../server/catalog/kit.ts";
+import { type AgentConfig, applyRole } from "../../server/catalog/launch.ts";
 import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
 import { materialize, seatDir, seedRecords } from "../../server/catalog/seats.ts";
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
@@ -88,6 +89,21 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.deepEqual(settings.defaultTools, tools, where);
     }
     assert.ok(existsSync(join(dir, harness.skillsDir)), `${where}: skills`);
+  }
+});
+
+test("a Claude seat reads the project's own CLAUDE.md, though its settings come from its seat alone", () => {
+  const kit = loadKit(pluginRoot);
+  const team = resolveTeam(kit);
+  const pairs = seatPairs(kit).filter((pair) => pair.harness.id === "claude");
+  assert.equal(pairs.length, kit.roles.length);
+  for (const { role, harness } of pairs) {
+    assert.equal(harness.provider.forceFlags?.["--setting-sources"], "user", "the seat reads no project settings, which is why it needs the way in below");
+    const env = (desiredProvider(kit, team, role, harness) as { env: Record<string, string> }).env;
+    assert.equal(env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD, "1", `${role.role}: Claude reads CLAUDE.md from an added directory only with this set`);
+    const config = { provider: providerId(kit, role.role, "claude"), cwd: "/work/repo" } as AgentConfig;
+    const next = applyRole(kit, team, config, () => "PROMPT", "/state/demo") as unknown as { providerOptions: { additionalDirectories?: string[] } };
+    assert.deepEqual(next.providerOptions.additionalDirectories, ["/work/repo"], `${role.role}: the seat's own directory is the one added`);
   }
 });
 

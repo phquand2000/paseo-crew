@@ -78,11 +78,12 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
     next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
   }
+  let providerOptions: unknown = config.providerOptions;
   if (harness.stateWrites?.delivery === "launch" && state) {
-    let options: unknown = config.providerOptions;
-    for (const path of stateWrites(kit, team, role, state)) options = appendAt(options, harness.stateWrites.path, path);
-    next.providerOptions = options as AgentConfig["providerOptions"];
+    for (const path of stateWrites(kit, team, role, state)) providerOptions = appendAt(providerOptions, harness.stateWrites.path, path);
   }
+  if (harness.projectContextOption && config.cwd) providerOptions = appendAt(providerOptions, harness.projectContextOption, config.cwd);
+  if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions as AgentConfig["providerOptions"];
   return next;
 }
 

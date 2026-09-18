@@ -34,6 +34,9 @@ test("the way a harness takes its prompt and its servers is checked, not assumed
   assert.deepEqual(harnessProblems("acme", { ...good(), systemPrompt: "file" }), ["takes its prompt as a file but names no promptFile"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), mcp: { file: "mcp.json", delivery: "file", transports: ["stdio"] } }), ["delivers MCP servers in a file but names no mcp.key"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), settings: { file: "config.json", source: "settings.json" } }), ["has no settings.roleSource"]);
+  assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: ["additionalDirectories"] }), ["gives projectContextOption without an option path"]);
+  assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: "" }), ["gives projectContextOption without an option path"]);
+  assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: "additionalDirectories" }), []);
 });
 
 test("loading a kit refuses a harness that breaks the contract, naming the field", () => {

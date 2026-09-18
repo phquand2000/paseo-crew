@@ -41,6 +41,7 @@ export type HarnessSpec = {
   steers?: boolean;
   systemPrompt?: "config" | "file";
   stateWrites?: { path: string; delivery: "launch" | "file" };
+  projectContextOption?: string;
   refused?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
@@ -74,6 +75,7 @@ const HARNESS_FIELDS = new Set([
   "steers",
   "systemPrompt",
   "stateWrites",
+  "projectContextOption",
   "refused",
   "settings",
   "links",
@@ -104,6 +106,9 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   const writes = raw.stateWrites as Record<string, unknown> | undefined;
   if (writes !== undefined && (typeof writes?.path !== "string" || (writes.delivery !== "launch" && writes.delivery !== "file"))) {
     problems.push("gives stateWrites without a path and a delivery of launch or file");
+  }
+  if (raw.projectContextOption !== undefined && (typeof raw.projectContextOption !== "string" || raw.projectContextOption === "")) {
+    problems.push("gives projectContextOption without an option path");
   }
   const files = raw.files as Record<string, unknown> | undefined;
   if (files !== undefined) {

@@ -86,6 +86,16 @@ test("a seat's shell may write every place under state its own content names, an
   assert.equal(peer.providerOptions, undefined, "a harness that declares no write list is untouched");
 });
 
+test("a seat is handed its own working directory where its harness reads a project's instructions from that alone", () => {
+  const config = { provider: "sw2-lead-claude", cwd: "/repo", providerOptions: { additionalDirectories: ["/elsewhere"] } } as unknown as AgentConfig;
+  const next = applyRole(kit, team, config, render) as unknown as { providerOptions: { additionalDirectories: string[] } };
+  assert.deepEqual(next.providerOptions.additionalDirectories, ["/elsewhere", "/repo"]);
+  const again = applyRole(kit, team, { ...config, providerOptions: next.providerOptions } as unknown as AgentConfig, render) as unknown as { providerOptions: { additionalDirectories: string[] } };
+  assert.deepEqual(again.providerOptions.additionalDirectories, ["/elsewhere", "/repo"], "a seat opened again is not handed its directory twice");
+  const peer = applyRole(kit, team, { provider: "sw2-peer-devin", cwd: "/repo" } as AgentConfig, render);
+  assert.equal(peer.providerOptions, undefined, "a harness that reads the project on its own is left alone");
+});
+
 test("a harness that takes MCP servers at launch gets them in the launch config; one that reads a file does not", () => {
   const config = { provider: "sw2-lead-claude", cwd: "/repo", mcpServers: { other: { type: "stdio", command: "x" } } } as unknown as AgentConfig;
   const servers = { team: { type: "stdio", command: "node", args: ["team.mjs", "lead", "/spool"] } };
