@@ -58,9 +58,9 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
 
 ## Mail
 
-Hand-backs, asks, merge results and messages arrive when you are idle. A running Peer is never
-interrupted and reads a message only after its turn ends, so don't send it corrections: wait for the
-hand-back and put everything in one `rework`.
+Hand-backs, asks, merge results and messages reach you as soon as you can take them. A running Peer
+is never interrupted and may not read a message until its turn ends, so don't send it corrections:
+wait for the hand-back and put everything in one `rework`.
 
 - **HANDBACK:** read the whole summary, and the diff on its branch when needed, before you form a
   view. The header names the Peer that wrote it. When the summary and the diff disagree, or it claims

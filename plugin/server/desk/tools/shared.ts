@@ -39,13 +39,23 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
   const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;
   const settled = (task: { id: string; status: string }) =>
     ["merged", "cut"].includes(task.status) ? `${task.id} is ${task.status === "merged" ? "accepted" : "cut"}, and its Peer has been put away with it.` : undefined;
+  const deliver = async (target: string, from: string, who: string): Promise<string> => {
+    const reached = await roster.answerQuestion(target, `From ${from}: ${text}`);
+    if (reached === "answered") {
+      ctx.event(caller.project, { kind: "question.answered", agent: target, by: caller.id });
+      return `It was stopped on a question, so this went to ${who} as the answer, and it carries on.`;
+    }
+    const posted = await ctx.post(target, key, letters.message(from, text));
+    if (posted === "sent") return `Delivered to ${who}.`;
+    if (reached === "waiting") return `Queued for ${who}, which is stopped on a permission only the Human can give; it reads this once that is decided.`;
+    return `Queued for ${who}; it reads this as soon as it can take it.`;
+  };
   if (can(caller.role, "supervise")) {
     const lane = findLane(ledger, to);
     if (lane) {
       if (lane.status !== "open" || !lane.lead) return no(`Lane ${lane.id} has no running Lead.`);
       if (!(await alive(roster, lane.lead))) return no(unread(`The Lead of ${lane.id} (${lane.lead})`));
-      await ctx.post(lane.lead, key, letters.message("the owner", text));
-      return ok(`Queued for the Lead of ${lane.id}; it arrives when that Lead is idle.`);
+      return ok(await deliver(lane.lead, "the owner", `the Lead of ${lane.id}`));
     }
     const task = findTask(ledger, to);
     if (task?.peer) {
@@ -65,8 +75,7 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
       }
       // The Lead is told first, so it is never the last to know what reached its own Peer.
       await ctx.post(lead, `reconcile:${key}`, letters.reconciled(laneOf, task, task.peer, text));
-      await ctx.post(task.peer, key, letters.message("the project owner", text));
-      return ok(`Queued for the Peer on ${task.id}. Its Lead has been told what reached it and what is still its own.`);
+      return ok(`${await deliver(task.peer, "the project owner", `the Peer on ${task.id}`)} Its Lead has been told what reached it and what is still its own.`);
     }
     return no(`There is no lane or task ${to}.`);
   }
@@ -76,8 +85,7 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
   const done = settled(task);
   if (done) return no(done);
   if (!(await alive(roster, task.peer))) return no(unread(`The Peer on ${task.id}`));
-  await ctx.post(task.peer, key, letters.message("your lead", text));
-  return ok(`Queued for the Peer on ${task.id}; it arrives when that Peer's turn ends.`);
+  return ok(await deliver(task.peer, "your lead", `the Peer on ${task.id}`));
 };
 
 export const answer: Tool = async ({ ctx }, caller, args) => {
@@ -102,9 +110,9 @@ export const answer: Tool = async ({ ctx }, caller, args) => {
   const waiting = ask.to === caller.id ? undefined : ask.to;
   const by = waiting && can(roleNamed(ctx.kit, result.waitingRole ?? ""), "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
   if (waiting) await ctx.post(waiting, `answeredFor:${ask.id}`, letters.answeredFor(ask, by, can(roleNamed(ctx.kit, result.waitingRole ?? ""), "lead")));
-  await ctx.post(ask.from, `answer:${ask.id}`, letters.answered(ask));
+  const posted = await ctx.post(ask.from, `answer:${ask.id}`, letters.answered(ask));
   ctx.event(caller.project, { kind: "ask.answered", ask: ask.id, by: caller.id, told: waiting ?? null });
-  return ok(`Answered ${ask.id}; the asker gets it when idle.${waiting ? " Whoever it was waiting on has been told what it was answered with." : ""}`);
+  return ok(`Answered ${ask.id}; the asker ${posted === "sent" ? "has it" : "reads it as soon as it can take it"}.${waiting ? " Whoever it was waiting on has been told what it was answered with." : ""}`);
 };
 
 export const status: Tool = async ({ roster }, caller) => {

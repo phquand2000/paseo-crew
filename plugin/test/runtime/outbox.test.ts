@@ -5,7 +5,7 @@ import type { Seats } from "../../server/core/ports.ts";
 import { Outbox } from "../../server/runtime/outbox.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
-type FakeAgent = { status: string; pendingPermissions: { title?: string; name?: string }[]; archivedAt: string | null; sent: string[] };
+type FakeAgent = { status: string; pendingPermissions: { title?: string; name?: string }[]; archivedAt: string | null; sent: string[]; steered: string[] };
 
 function fakeSeats(agents: Record<string, FakeAgent>): Seats {
   return {
@@ -16,17 +16,19 @@ function fakeSeats(agents: Record<string, FakeAgent>): Seats {
       const agent = agents[id]!;
       return { id, status: agent.status, pendingPermissions: agent.pendingPermissions, archivedAt: agent.archivedAt };
     },
-    async send(id: string, text: string) {
+    async send(id: string, text: string, steer?: boolean) {
       agents[id]!.sent.push(text);
+      if (steer) agents[id]!.steered.push(text);
     },
+    async respond() {},
     async archive() {},
   };
 }
 
-const agent = (status: string): FakeAgent => ({ status, pendingPermissions: [], archivedAt: null, sent: [] });
+const agent = (status: string): FakeAgent => ({ status, pendingPermissions: [], archivedAt: null, sent: [], steered: [] });
 
-const outboxOn = (agents: Record<string, FakeAgent>, compose: (to: string, list: { text: string }[]) => string) =>
-  new Outbox(join(tempDir(), "outbox.json"), compose, fakeSeats(agents));
+const outboxOn = (agents: Record<string, FakeAgent>, compose: (to: string, list: { text: string }[]) => string, steers = false) =>
+  new Outbox(join(tempDir(), "outbox.json"), compose, fakeSeats(agents), undefined, () => steers);
 
 test("a letter to an idle seat is sent at once and the same key is not sent twice", async () => {
   const agents = { sup: agent("idle") };
@@ -75,4 +77,29 @@ test("mail for a seat Paseo cannot answer for is held, and the round goes on to 
   assert.equal(outbox.pending("gone").length, 1);
   assert.equal(await outbox.post({ to: "real", key: "y", text: "and this still goes out" }), "sent");
   assert.deepEqual(agents.real.sent, ["and this still goes out"]);
+});
+
+test("a seat whose harness takes mail mid-turn gets it in a settled turn, and a turn still starting is left alone", async () => {
+  const agents = { lead: agent("running"), fresh: agent("running"), unseen: agent("running") };
+  const outbox = outboxOn(agents, (_to, list) => list.map((letter) => letter.text).join("|"), true);
+  outbox.turnStarted("lead", Date.now() - 2 * 60_000);
+  assert.equal(await outbox.post({ to: "lead", key: "a", text: "the owner says stop" }), "sent");
+  assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into the running turn, not in place of it");
+  // A steer the provider cannot take yet is turned into replacing the turn by the daemon.
+  outbox.turnStarted("fresh");
+  assert.equal(await outbox.post({ to: "fresh", key: "a", text: "t" }), "held");
+  // Nor one the desk never saw start, which may have begun a moment ago.
+  assert.equal(await outbox.post({ to: "unseen", key: "a", text: "t" }), "held");
+  assert.deepEqual([...agents.fresh.sent, ...agents.unseen.sent], []);
+});
+
+test("a harness that cannot take mail mid-turn, or a seat stopped on a permission, still waits", async () => {
+  const agents = { peer: agent("running"), asking: { ...agent("running"), pendingPermissions: [{ title: "Which?" }] } };
+  const plain = outboxOn(agents, (_to, list) => list[0]!.text, false);
+  plain.turnStarted("peer", Date.now() - 2 * 60_000);
+  assert.equal(await plain.post({ to: "peer", key: "a", text: "t" }), "held");
+  const steering = outboxOn(agents, (_to, list) => list[0]!.text, true);
+  steering.turnStarted("asking", Date.now() - 2 * 60_000);
+  assert.equal(await steering.post({ to: "asking", key: "a", text: "t" }), "held", "it has stopped until the permission is decided");
+  assert.deepEqual([...agents.peer.sent, ...agents.asking.sent], []);
 });

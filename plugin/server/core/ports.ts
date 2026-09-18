@@ -1,6 +1,6 @@
-import type { SeatView } from "./paseo.ts";
+import type { PendingPermission, PermissionResponse, SeatView } from "./paseo.ts";
 
-export type { SeatView };
+export type { PendingPermission, PermissionResponse, SeatView };
 
 export type SeatLook = {
   id: string;
@@ -9,7 +9,7 @@ export type SeatLook = {
   cwd?: string | null;
   status?: string | null;
   archivedAt?: string | null;
-  pendingPermissions?: { title?: string; name?: string }[];
+  pendingPermissions?: PendingPermission[];
 };
 
 export type SeatSpec = {
@@ -23,7 +23,9 @@ export type SeatSpec = {
 export type Seats = {
   open(): Promise<SeatView[]>;
   look(id: string): Promise<SeatLook>;
-  send(id: string, text: string): Promise<void>;
+  /** `steer` takes the text into a turn that is running instead of replacing that turn with it. */
+  send(id: string, text: string, steer?: boolean): Promise<void>;
+  respond(id: string, requestId: string, response: PermissionResponse): Promise<void>;
   archive(id: string): Promise<void>;
 };
 

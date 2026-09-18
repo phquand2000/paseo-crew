@@ -38,6 +38,7 @@ export type HarnessSpec = {
   contextFile?: string;
   skillsDir: string;
   hasThinking?: boolean;
+  steers?: boolean;
   systemPrompt?: "config" | "file";
   stateWrites?: string;
   refused?: string;
@@ -67,6 +68,7 @@ const HARNESS_FIELDS = new Set([
   "contextFile",
   "skillsDir",
   "hasThinking",
+  "steers",
   "systemPrompt",
   "stateWrites",
   "refused",
@@ -92,6 +94,7 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
     if (mcp.delivery === "file" && !mcp.key) problems.push("delivers MCP servers in a file but names no mcp.key");
     if (Array.isArray(mcp.transports) && mcp.transports.length === 0) problems.push("lists no mcp.transports");
   }
+  if (raw.steers !== undefined && typeof raw.steers !== "boolean") problems.push(`says steers is ${String(raw.steers)}, which is neither true nor false`);
   if (raw.systemPrompt !== undefined && raw.systemPrompt !== "config" && raw.systemPrompt !== "file") problems.push(`takes its prompt as ${String(raw.systemPrompt)}, which is neither config nor file`);
   if (raw.systemPrompt === "file" && !raw.promptFile) problems.push("takes its prompt as a file but names no promptFile");
   return problems;

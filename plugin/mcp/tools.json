@@ -81,7 +81,7 @@
     },
     {
       "name": "message",
-      "description": "Send a Lead (by lane id) or, for a recovery, a Peer (by task id) one message. It is delivered when the recipient's turn ends; a message to a Peer is copied to its Lead.",
+      "description": "Send a Lead (by lane id) or, for a recovery, a Peer (by task id) one message. It reaches the recipient as soon as it can take it and never interrupts it; one stopped on a question gets it as the answer. A message to a Peer is copied to its Lead.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -288,7 +288,7 @@
     },
     {
       "name": "message",
-      "description": "Send one of your Peers (by task id) a message. It is delivered when the Peer's turn ends; a running Peer is never interrupted.",
+      "description": "Send one of your Peers (by task id) a message. It reaches the Peer as soon as it can take it and never interrupts it; a Peer stopped on a question gets it as the answer.",
       "inputSchema": {
         "type": "object",
         "properties": {

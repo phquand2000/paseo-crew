@@ -70,9 +70,10 @@ when the gate command is missing or wrong.
 
 ## Mail
 
-Mail arrives when you are idle: asks, reports, idle lanes and attention; a Peer's ask or hand-back
-when its Lead is no longer seated; and the answer to any call of yours that ran longer than a call can
-wait. Settle every open ask in the turn that shows it, since a Lead waiting on you is not working.
+Mail reaches you as soon as you can take it: asks, reports, idle lanes and attention; a Peer's ask
+or hand-back when its Lead is no longer seated; and the answer to any call of yours that ran longer
+than a call can wait. Settle every open ask in the turn that shows it, since a Lead waiting on you is
+not working.
 
 - **need, blocked:** decide and `answer`. A setup or kit error goes to the Human verbatim; don't
   debug the kit.

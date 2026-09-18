@@ -1,4 +1,4 @@
-import type { PaseoApi, SeatView } from "./paseo.ts";
+import type { PaseoApi, PendingPermission, PermissionResponse, SeatView } from "./paseo.ts";
 import type { SeatLook, SeatSpec, Seats, Workspaces } from "./ports.ts";
 
 export type Bound = () => PaseoApi | undefined;
@@ -8,10 +8,11 @@ type Handle = {
   status?: string | null;
   cwd?: string | null;
   archivedAt?: string | null;
-  pendingPermissions?: { title?: string; name?: string }[];
+  pendingPermissions?: PendingPermission[];
   refresh(): Promise<unknown>;
   current(): { id?: string; provider?: string; cwd?: string | null; title?: string | null } | null | undefined;
-  send(text: string): Promise<unknown>;
+  send(text: string, options?: { activeTurnBehavior?: "steer" }): Promise<unknown>;
+  respondToPermission(options: { requestId: string; response: PermissionResponse }): Promise<unknown>;
   archive(): Promise<unknown>;
 };
 
@@ -66,8 +67,12 @@ export function seatsOn(bound: Bound): Seats {
       await handle.refresh();
       return lookOf(handle);
     },
-    async send(id: string, text: string): Promise<void> {
-      await ref(id).send(text);
+    async send(id: string, text: string, steer = false): Promise<void> {
+      // The daemon takes `activeTurnBehavior` though the SDK's type leaves it out.
+      await ref(id).send(text, steer ? { activeTurnBehavior: "steer" } : undefined);
+    },
+    async respond(id: string, requestId: string, response: PermissionResponse): Promise<void> {
+      await ref(id).respondToPermission({ requestId, response });
     },
     async archive(id: string): Promise<void> {
       await ref(id).archive();

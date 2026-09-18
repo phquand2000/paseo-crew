@@ -6,6 +6,7 @@
   "configDirEnv": "CLAUDE_CONFIG_DIR",
   "promptFile": "CLAUDE.md",
   "skillsDir": "skills",
+  "steers": true,
   "models": [
     {
       "id": "claude-opus-5",

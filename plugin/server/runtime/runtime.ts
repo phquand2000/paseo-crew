@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "../catalog/content.ts";
-import { type Kit, can, seatOf } from "../catalog/kit.ts";
+import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
@@ -13,7 +13,7 @@ import type { PaseoApi } from "../core/paseo.ts";
 import type { Seats, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { loadLedger, openAsksTo } from "../desk/ledger.ts";
+import { laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
@@ -57,8 +57,13 @@ export class Runtime {
     this.workspaces = workspacesOn(() => this.api);
     this.source = new TeamSource(kit);
     this.seating = new Seating(kit, this.source, { node: nodeBin(), spool: this.spool });
-    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list), this.seats, (letter, at) =>
-      console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
+    this.outbox = new Outbox(
+      options.outboxFile ?? outboxPath(),
+      (to, list) => this.compose(to, list),
+      this.seats,
+      (letter, at) =>
+        console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
+      (seat) => seatOf(kit, seat.provider)?.harness.steers === true,
     );
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
@@ -121,7 +126,7 @@ export class Runtime {
       this.api = context.paseo;
       return this.openSession(request);
     });
-    this.on(server, "agent.turn_started", async ({ agent }) => this.turns.started(agent.id));
+    this.on(server, "agent.turn_started", async ({ agent }) => this.turnStarted(agent.id));
     this.on(server, "agent.turn_ended", (event) => this.turnEnded(event));
     this.on(server, "agent.permission_requested", (event) => this.permissionRequested(event));
     this.on(server, "agent.archived", async ({ agent }) => {
@@ -168,6 +173,11 @@ export class Runtime {
     return seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project);
   }
 
+  private turnStarted(agentId: string): void {
+    this.turns.started(agentId);
+    this.outbox.turnStarted(agentId);
+  }
+
   private async turnEnded(event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
     // The mail waiting for this seat goes whatever reading its turn ran into. A throw in there — an
@@ -194,7 +204,17 @@ export class Runtime {
       return;
     }
     const owner = await this.turns.ownerOf(project, agent.id, role);
-    await this.desk.post(owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, what));
+    await this.desk.post(owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, request, this.addressOf(project, agent.id, role)));
+  }
+
+  /** The id its owner's `message` reaches this seat by. */
+  private addressOf(project: Project, agentId: string, role: RoleSpec): string | undefined {
+    try {
+      const ledger = loadLedger(project.state);
+      return can(role, "lead") ? laneOfLead(ledger, agentId)?.id : taskOfPeer(ledger, agentId)?.id;
+    } catch {
+      return undefined;
+    }
   }
 
   private remember(project: Project): void {

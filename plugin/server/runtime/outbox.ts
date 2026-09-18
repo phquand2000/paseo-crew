@@ -1,4 +1,4 @@
-import type { Seats } from "../core/ports.ts";
+import type { SeatLook, Seats } from "../core/ports.ts";
 import { readJson, writeJson } from "../core/store.ts";
 
 export type Letter = { id: string; to: string; key: string; text: string; at: number };
@@ -6,10 +6,15 @@ export type Posted = "sent" | "held" | "duplicate";
 export type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
 /** Told when a letter is given up on, so that the one thing the desk must not lose is not lost quietly. */
 export type Dropped = (letter: Letter, now: number) => void;
+/** Whether the seat's harness takes a text into a running turn rather than replacing the turn with it. */
+export type Steers = (seat: SeatLook) => boolean;
 
 const KEEP_MS = 7 * 24 * 3_600_000;
 const DUPLICATE_MS = 30 * 60_000;
 const GRACE_MS = 10 * 60_000;
+// Paseo's own bound on a provider getting a run going. A steer the provider cannot take yet — Claude
+// before its query is up — the daemon turns into replacing the turn: the interruption holding is for.
+const SETTLE_MS = 60_000;
 
 export function busy(status: string | null | undefined): boolean {
   return status === "running" || status === "initializing";
@@ -20,7 +25,9 @@ export class Outbox {
   private readonly compose: Compose;
   private readonly seats: Seats;
   private readonly dropped: Dropped | undefined;
+  private readonly steers: Steers;
   private readonly awaiting = new Map<string, number>();
+  private readonly started = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
 
   /**
@@ -36,11 +43,12 @@ export class Outbox {
   private readonly lanes = new Map<string, Promise<unknown>>();
   private counter = 0;
 
-  constructor(file: string, compose: Compose, seats: Seats, dropped?: Dropped) {
+  constructor(file: string, compose: Compose, seats: Seats, dropped?: Dropped, steers: Steers = () => false) {
     this.file = file;
     this.compose = compose;
     this.seats = seats;
     this.dropped = dropped;
+    this.steers = steers;
   }
 
   /**
@@ -88,12 +96,18 @@ export class Outbox {
     return sent.has(stored.id) ? "sent" : "held";
   }
 
+  turnStarted(agentId: string, now = Date.now()): void {
+    this.started.set(agentId, now);
+  }
+
   turnEnded(agentId: string): void {
     this.awaiting.delete(agentId);
+    this.started.delete(agentId);
   }
 
   archived(agentId: string): void {
     this.awaiting.delete(agentId);
+    this.started.delete(agentId);
   }
 
   pending(agentId: string): Letter[] {
@@ -113,11 +127,15 @@ export class Outbox {
         this.archived(to);
         return new Set<string>();
       }
+      if ((seat.pendingPermissions?.length ?? 0) > 0) return new Set<string>();
       const since = this.awaiting.get(to);
       const waiting = since !== undefined && Date.now() - since < GRACE_MS;
-      if (busy(seat.status) || (seat.pendingPermissions?.length ?? 0) > 0 || waiting) return new Set<string>();
+      // A turn this desk never saw start — one running across a restart — is not known to be settled.
+      const began = this.started.get(to);
+      const steer = seat.status === "running" && began !== undefined && Date.now() - began >= SETTLE_MS && this.steers(seat);
+      if (!steer && (busy(seat.status) || waiting)) return new Set<string>();
       const text = await this.compose(to, mine);
-      await this.seats.send(to, text);
+      await this.seats.send(to, text, steer);
       const now = Date.now();
       this.awaiting.set(to, now);
       const ids = new Set(mine.map((letter) => letter.id));

@@ -1,4 +1,5 @@
 import type { Counts } from "../core/git.ts";
+import { type PendingPermission, questionsIn } from "../core/paseo.ts";
 import type { Ask, Lane, Task } from "./ledger.ts";
 
 const list = (items: string[] | undefined, empty = "none") => (items && items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : empty);
@@ -260,8 +261,23 @@ export const letters = {
     return `FAILED: ${who} ended its turn with an error: ${message}`;
   },
 
-  permission(who: string, what: string): string {
-    return `WAITING FOR PERMISSION: ${who} is waiting on: ${what}`;
+  /** `address` is what the owner's `message` takes to reach that seat, when a message can answer it. */
+  permission(who: string, request: PendingPermission, address?: string): string {
+    const questions = request.kind === "question" ? questionsIn(request) : [];
+    const lines = [`WAITING FOR PERMISSION: ${who} has stopped until this is answered.`, ""];
+    if (questions.length > 0) {
+      questions.forEach((entry, index) => lines.push(`${index + 1}. ${clip(entry.question.trim(), 600)}${entry.options.length > 0 ? `\n   Options: ${entry.options.map((option) => clip(option, 120)).join(" / ")}` : ""}`));
+    } else {
+      lines.push(clip([...new Set([request.name, request.title].filter(Boolean))].join(": ") || request.kind || "a request", 600));
+      if (request.description && request.description !== request.title) lines.push(clip(request.description, 600));
+    }
+    lines.push("");
+    lines.push(
+      questions.length > 0 && address
+        ? `Answer it with \`message\` to ${address}: what you write goes back as its answer, and it carries on.`
+        : "Only the Human can answer this, in Paseo. Until they do, it reads nothing you send.",
+    );
+    return lines.join("\n");
   },
 
   laneIdle(lane: Lane, minutes: number, ending: string): string {

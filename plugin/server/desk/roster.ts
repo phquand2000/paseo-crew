@@ -1,4 +1,5 @@
 import { type Kit, can, seatOf } from "../catalog/kit.ts";
+import { answerWith, questionsIn } from "../core/paseo.ts";
 import type { SeatLook, SeatView, Seats } from "../core/ports.ts";
 import { type Project, projectOf } from "./project.ts";
 
@@ -18,6 +19,27 @@ export class Roster {
 
   look(agentId: string): Promise<SeatLook> {
     return this.seats.look(agentId);
+  }
+
+  /**
+   * A seat stopped on a question reads nothing until it is answered, so a message to it answers it.
+   * `waiting` is a seat stopped on something only the Human can decide.
+   */
+  async answerQuestion(agentId: string, text: string): Promise<"answered" | "waiting" | undefined> {
+    let pending;
+    try {
+      pending = (await this.seats.look(agentId)).pendingPermissions ?? [];
+    } catch {
+      return undefined;
+    }
+    const question = pending.find((request) => request.kind === "question" && request.id && questionsIn(request).length > 0);
+    if (!question?.id) return pending.length > 0 ? "waiting" : undefined;
+    try {
+      await this.seats.respond(agentId, question.id, answerWith(question, text));
+      return "answered";
+    } catch {
+      return undefined;
+    }
   }
 
   async supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {

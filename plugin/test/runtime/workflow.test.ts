@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const HOME = mkdtempSync(join(tmpdir(), "sw2-flow-home-"));
@@ -17,7 +17,21 @@ type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { firstOverlap, serialHits, serialPaths, SERIAL_ONLY } = await import("../../server/core/scope.ts");
 
-type Fake = { id: string; provider: string; cwd: string; title: string; status: string; archivedAt: string | null; updatedAt: string; sent: string[]; prompt?: string };
+type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
+type Fake = {
+  id: string;
+  provider: string;
+  cwd: string;
+  title: string;
+  status: string;
+  archivedAt: string | null;
+  updatedAt: string;
+  sent: string[];
+  steered: string[];
+  pending: Pending[];
+  answered: { requestId: string; response: { behavior: string; updatedInput?: { answers?: Record<string, string> } } }[];
+  prompt?: string;
+};
 
 function fakePaseo() {
   const agents = new Map<string, Fake>();
@@ -32,16 +46,25 @@ function fakePaseo() {
       get status() { return agent?.status ?? null; },
       get cwd() { return agent?.cwd ?? null; },
       get archivedAt() { return agent?.archivedAt ?? null; },
-      get pendingPermissions() { return []; },
+      get pendingPermissions() { return agent?.pending ?? []; },
       async refresh() {},
       current() { return agent ? { id: agent.id, provider: agent.provider, cwd: agent.cwd, title: agent.title } : null; },
-      async send(text: string) { agent?.sent.push(text); },
+      async send(text: string, options?: { activeTurnBehavior?: string }) {
+        agent?.sent.push(text);
+        if (options?.activeTurnBehavior === "steer") agent?.steered.push(text);
+      },
+      async respondToPermission({ requestId, response }: Fake["answered"][number]) {
+        const at = agent?.pending.findIndex((request) => request.id === requestId) ?? -1;
+        if (!agent || at < 0) throw new Error(`No pending permission request with id '${requestId}'`);
+        agent.pending.splice(at, 1);
+        agent.answered.push({ requestId, response });
+      },
       async archive() { if (agent) Object.assign(agent, { archivedAt: new Date().toISOString(), status: "closed" }); },
     };
   };
   const add = (provider: string, cwd: string, title: string, status = "idle", prompt?: string) => {
     const id = `agent-${++count}`;
-    agents.set(id, { id, provider, cwd, title, status, archivedAt: null, updatedAt: new Date().toISOString(), sent: [], prompt });
+    agents.set(id, { id, provider, cwd, title, status, archivedAt: null, updatedAt: new Date().toISOString(), sent: [], steered: [], pending: [], answered: [], prompt });
     return id;
   };
   const workspace = (id: string) => ({
@@ -58,7 +81,7 @@ function fakePaseo() {
       // The daemon caps a page at 200 rows whether or not one was asked for, and reports the rest
       // through pageInfo. A fake that answers everything cannot show what reading one page costs.
       async list(options?: { page?: { limit?: number; cursor?: string } }) {
-        const all = [...agents.values()].map((agent) => ({ agent: { ...agent, pendingPermissions: [] } }));
+        const all = [...agents.values()].map((agent) => ({ agent: { ...agent, pendingPermissions: agent.pending } }));
         const from = Number(options?.page?.cursor ?? 0);
         const limit = options?.page?.limit ?? 200;
         const next = from + limit;
@@ -151,7 +174,7 @@ function harness(outbox: string) {
   const tick = (now?: number) => (runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick(now);
   // Paseo fires a turn start before a turn end, and what the desk heard from a seat "this turn" is
   // measured from it; without one, every turn is measured from half an hour ago.
-  const beginTurn = (id: string) => (runtime as unknown as { turns: { started(agentId: string): void } }).turns.started(id);
+  const beginTurn = (id: string) => (runtime as unknown as { turnStarted(agentId: string): void }).turnStarted(id);
   const endTurn = (id: string, text: string, ...calls: unknown[]) =>
     (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
@@ -159,7 +182,12 @@ function harness(outbox: string) {
       outcome: { kind: "completed" },
       timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
     });
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn };
+  const permission = (id: string, request: Pending) =>
+    (runtime as unknown as { permissionRequested: (event: unknown) => Promise<void> }).permissionRequested({
+      agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
+      request,
+    });
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn, permission };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
@@ -1871,4 +1899,84 @@ test("two projects that name the same thing the same way are told about it separ
   assert.match(h.agents.get(supB)!.sent.join("\n"), /ATTENTION \(destructive\)/, "and so is the second's");
   assert.equal(loadWatching(other.state).pages.length, 1, "each project spends its own budget, not the other's");
   h.runtime.dispose();
+});
+
+test("a Peer stopped on a question is answered by its Lead's message, and one stopped on anything else waits for the Human", async () => {
+  const h = harness("outbox-question.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Colours", outcome: "the button is coloured", acceptance: ["a"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Colour", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  const question: Pending = {
+    id: "permission-1",
+    kind: "question",
+    name: "AskUserQuestion",
+    title: "Which colour should the button be?",
+    input: { questions: [{ question: "Which colour should the button be?", header: "Colour", options: [{ label: "Blue" }, { label: "Green" }] }] },
+  };
+  h.agents.get(peer)!.pending.push(question);
+  await h.permission(peer, question);
+  await h.idle(lane.lead!);
+  const letter = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(letter, /WAITING FOR PERMISSION/);
+  assert.match(letter, /1\. Which colour should the button be\?\n {3}Options: Blue \/ Green/, "the question itself, not only that there is one");
+  assert.match(letter, /`message` to L1-T1/);
+
+  // The Peer reads nothing until the question is answered, so a message held for it would never land.
+  const answered = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Blue, to match the header." });
+  assert.equal(answered.ok, true, answered.text);
+  assert.match(answered.text, /as the answer/);
+  const words = "From your lead: Blue, to match the header.";
+  assert.deepEqual(h.agents.get(peer)!.answered, [
+    { requestId: "permission-1", response: { behavior: "allow", updatedInput: { answers: { "Which colour should the button be?": words, Colour: words } } } },
+  ]);
+  await h.idle(peer);
+  assert.doesNotMatch(h.agents.get(peer)!.sent.join("\n"), /Blue, to match/, "answered once, not also mailed");
+
+  // Leave to run something is the Human's to give; the desk answers nothing on anyone's behalf.
+  const command: Pending = { id: "permission-2", kind: "tool", name: "Bash", title: "rm -rf build" };
+  h.agents.get(peer)!.pending.push(command);
+  await h.permission(peer, command);
+  await h.idle(lane.lead!);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /Bash: rm -rf build\n\nOnly the Human can answer this/);
+  const held = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Go ahead." });
+  assert.equal(held.ok, true, held.text);
+  assert.match(held.text, /stopped on a permission only the Human can give/);
+  assert.equal(h.agents.get(peer)!.answered.length, 1);
+  assert.equal(h.runtime.outbox.pending(peer).length, 1, "and the message waits for it");
+});
+
+test("mail reaches a running seat inside its turn where its harness can take it there, and waits where it cannot", async () => {
+  const h = harness("outbox-steer.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Pricing", outcome: "discounts round correctly", acceptance: ["a"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  assert.equal(h.agents.get(lane.lead!)!.status, "running");
+  assert.equal(h.agents.get(peer)!.status, "running");
+
+  // Paseo turns a steer the provider cannot take yet into replacing the turn, so a turn in its first
+  // minute is left alone.
+  mock.timers.enable({ apis: ["Date"], now: Date.now() });
+  try {
+    h.beginTurn(lane.lead!);
+    h.beginTurn(peer);
+    const early = await h.call(sup, "supervisor", "message", { to: "L1", text: "Is the premise right?" });
+    assert.match(early.text, /Queued for the Lead of L1/);
+    mock.timers.tick(2 * 60_000);
+    await h.tick();
+    assert.match(h.agents.get(lane.lead!)!.steered.join("\n"), /Is the premise right\?/, "the round delivers it once the turn has settled");
+
+    const toLead = await h.call(sup, "supervisor", "message", { to: "L1", text: "Stop: the premise is wrong." });
+    assert.match(toLead.text, /Delivered to the Lead of L1/);
+    assert.match(h.agents.get(lane.lead!)!.steered.join("\n"), /the premise is wrong/, "the Lead's harness takes it mid-turn");
+
+    const toPeer = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Stop: the premise is wrong." });
+    assert.match(toPeer.text, /Queued for the Peer on L1-T1/);
+    assert.deepEqual(h.agents.get(peer)!.sent, [], "the Peer's harness cannot, and sending would replace its turn");
+  } finally {
+    mock.timers.reset();
+  }
 });
