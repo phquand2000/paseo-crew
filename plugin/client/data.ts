@@ -208,7 +208,10 @@ export function useSeatworks(project?: string) {
           // A write is the whole layer, so what the dialog collected is folded into what the project
           // already holds. Sending the draft on its own erased the rules, the pasted servers with
           // their tokens and the attention tuning of a project that turned out to be attached already.
-          const merged = Object.entries(values.roles ?? {}).reduce((into, [role, choice]) => setRole(into, role, choice), read.values);
+          const catalogue = data.status === "ready" ? data.catalog.roles : [];
+          const merged = foldRoles(read.values, values, (role) =>
+            read.values.roles?.[role]?.harness ?? read.machine.roles?.[role]?.harness ?? catalogue.find((entry) => entry.id === role)?.defaults.harness,
+          );
           const written = await latest.current.write({ project: added.slug, revision: read.revision, values: merged });
           if (written.status !== "saved") setSaveError(written.error);
         }
@@ -349,6 +352,21 @@ function prune<T extends object>(values: Layer, key: "roles" | "mcp", id: string
   if (Object.keys(group).length === 0) delete next[key];
   else (next[key] as Record<string, T>) = group;
   return next;
+}
+
+/**
+ * Folds a setup draft into the layer a project already holds.
+ *
+ * Each role goes through `setRole` with the answer to the question that function exists to ask: is
+ * this a *different* agent from the one this role runs now? A draft that moves the Peer to another
+ * agent while the layer still holds the old agent's model would otherwise keep that model and pin it
+ * onto the new one, and nothing downstream fences a model an agent does not have.
+ */
+export function foldRoles(into: Layer, draft: Layer, harnessNow: (role: string) => string | undefined): Layer {
+  return Object.entries(draft.roles ?? {}).reduce((values, [role, choice]) => {
+    const moved = Boolean(choice.harness) && choice.harness !== harnessNow(role);
+    return setRole(values, role, choice, moved);
+  }, into);
 }
 
 export function setRole(values: Layer, role: string, choice: RoleChoice, newHarness = false): Layer {

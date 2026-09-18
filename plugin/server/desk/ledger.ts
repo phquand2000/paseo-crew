@@ -28,6 +28,7 @@ export type Lane = {
   workspaceId?: string;
   opener: string;
   status: LaneStatus;
+  restoring?: Restoring;
   openedAt: number;
   closedAt?: number;
   tasks: number;
@@ -84,6 +85,16 @@ export type Ask = {
 
 /** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
 export type Releasing = { writers: string[]; dropBranch?: string; into?: string };
+
+/**
+ * A lane that worked in the project's own copy, waiting to put its branch back.
+ *
+ * `branch` is what the copy was left on: a later lane may take that copy before the wait ends, and
+ * switching it then would move somebody else's checkout — so the wait only acts on a copy still
+ * where it was left. Kept on the lane rather than in memory, because a restart used to lose it and
+ * leave the owner's own repository sitting on a dead lane's branch.
+ */
+export type Restoring = { writers: string[]; base: string; branch: string };
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 

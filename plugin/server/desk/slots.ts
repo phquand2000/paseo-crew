@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addWorktree, branchExists, contains, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
+import { addWorktree, branchExists, contains, currentBranch, excludeFromGit, git, isPristine, removeWorktree } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -11,13 +11,12 @@ import type { Project } from "./project.ts";
 export type Holder = { lane?: string; task?: string };
 
 /** What putting a lane's copy away means: the copy itself if it had one, the project's branch if not. */
-export type Teardown = { project: Project; slot?: string; dropBranch?: string; into?: string; restore?: string };
+export type Teardown = { project: Project; slot?: string; dropBranch?: string; into?: string; restore?: string; lane?: string; branch?: string };
 
 export class Slots {
   private readonly ctx: DeskContext;
   private readonly workspaces: Workspaces;
-  /** Only the in-place case: putting the project's own branch back leaks nothing if it never happens. */
-  private readonly restoring = new Map<string, { base: string; writers: Set<string> }>();
+
 
   constructor(ctx: DeskContext, workspaces: Workspaces) {
     this.ctx = ctx;
@@ -56,7 +55,9 @@ export class Slots {
     return kept ?? (await this.workspaces.make(project.slug, project.root));
   }
 
-  async restore(project: Project, base: string): Promise<void> {
+  /** `left` is the branch this wait was for: a copy some later lane now owns is not this one's to move. */
+  async restore(project: Project, base: string, left?: string): Promise<void> {
+    if (left && (await currentBranch(project.root)) !== left) return;
     if (!(await isPristine(project.root))) return;
     await git(project.root, ["switch", base]);
   }
@@ -77,7 +78,12 @@ export class Slots {
         const slot = ledger.slots[teardown.slot!];
         if (slot) slot.releasing = { writers: waiting, dropBranch: teardown.dropBranch, into: teardown.into };
       });
-    } else this.restoring.set(teardown.project.slug, { base: teardown.restore!, writers: new Set(waiting) });
+    } else if (teardown.lane) {
+      await this.ctx.ledger(teardown.project, (ledger) => {
+        const lane = ledger.lanes[teardown.lane!];
+        if (lane) lane.restoring = { writers: waiting, base: teardown.restore!, branch: teardown.branch ?? lane.branch };
+      });
+    }
     this.ctx.event(teardown.project, { kind: "slot.heldOpen", slot: teardown.slot ?? "in place", writers: waiting });
     return undefined;
   }
@@ -86,11 +92,6 @@ export class Slots {
   async stopped(agentId: string): Promise<void> {
     for (const project of this.ctx.projects.values()) {
       await this.finish(project, (id) => id === agentId);
-      const restoring = this.restoring.get(project.slug);
-      if (restoring?.writers.delete(agentId) && restoring.writers.size === 0) {
-        this.restoring.delete(project.slug);
-        await this.restore(project, restoring.base);
-      }
     }
   }
 
@@ -107,6 +108,18 @@ export class Slots {
   }
 
   private async finish(project: Project, stopped: (agentId: string) => boolean): Promise<void> {
+    for (const lane of Object.values(loadLedger(project.state).lanes)) {
+      const waiting = lane.restoring?.writers ?? [];
+      const left = waiting.filter((id) => !stopped(id));
+      if (waiting.length === 0 || left.length === waiting.length) continue;
+      await this.ctx.ledger(project, (ledger) => {
+        const entry = ledger.lanes[lane.id];
+        if (!entry?.restoring) return;
+        if (left.length > 0) entry.restoring.writers = left;
+        else delete entry.restoring;
+      });
+      if (left.length === 0) await this.restore(project, lane.restoring!.base, lane.restoring!.branch);
+    }
     for (const slot of Object.values(loadLedger(project.state).slots)) {
       const waiting = slot.releasing?.writers ?? [];
       const left = waiting.filter((id) => !stopped(id));
@@ -124,7 +137,7 @@ export class Slots {
 
   private run(teardown: Teardown): Promise<string | undefined> {
     if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch, teardown.into);
-    if (teardown.restore) return this.restore(teardown.project, teardown.restore).then(() => undefined);
+    if (teardown.restore) return this.restore(teardown.project, teardown.restore, teardown.branch).then(() => undefined);
     return Promise.resolve(undefined);
   }
 

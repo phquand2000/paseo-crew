@@ -175,7 +175,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
   const writers = [lane.lead, ...retired.filter((task) => task.mode !== "parallel").map((task) => task.peer)].filter(
     (id): id is string => typeof id === "string" && roster.pendingArchive.has(id),
   );
-  const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base }, writers);
+  const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch }, writers);
   if (branch) kept.push(branch);
   if (lane.detourOf) {
     const waiting = loadLedger(project.state).lanes[lane.detourOf];

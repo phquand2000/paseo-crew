@@ -212,7 +212,7 @@ test("a folder that is there and cannot be read is a refusal, not a rejected cal
   }
 });
 
-test("a project detached in this session can be attached again, and setting one up twice keeps what it holds", async () => {
+test("a project detached in this session can be attached again, and the desk's half of a second setup keeps the layer", async () => {
   const { call, runtime } = served();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "sw2-again-")));
   const added = await call("seatworks.projects.add", { root });
@@ -227,8 +227,9 @@ test("a project detached in this session can be attached again, and setting one 
   });
   assert.equal(saved.status, "saved", saved.error);
 
-  // Setting the same repository up again writes the whole layer, so the screen folds its draft into
-  // what is already there; this asserts the desk's half — the layer it reads back is still complete.
+  // Setting the same repository up again writes the whole layer. The folding is the screen's, and is
+  // covered where it lives (test/client/data.test.ts); this asserts only the desk's half — that a
+  // second add does not itself touch the layer.
   const again = await call("seatworks.projects.add", { root });
   assert.equal(again.slug, added.slug, "the same repository is the same project");
   const still = await call("seatworks.settings.read", { project: added.slug });

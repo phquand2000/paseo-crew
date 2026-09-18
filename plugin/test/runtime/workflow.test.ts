@@ -740,6 +740,41 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   h.runtime.dispose();
 });
 
+test("a lane closed in the project's own copy does not switch the branch out from under the next lane", async () => {
+  const h = harness("outbox-stalerestore.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["a"], ...scope });
+  const first = h.ledger().lanes.L1!;
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch);
+
+  // Closed while its Lead is mid-turn, so putting the branch back waits for that Lead.
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "wrong outcome" });
+  assert.equal(closed.ok, true, closed.text);
+  assert.deepEqual(h.ledger().lanes.L1!.restoring!.writers, [first.lead!], "and the wait is on the record, not in memory");
+
+  // The next lane takes the project's copy, because nothing is open in it any more.
+  const next = await h.call(sup, "supervisor", "open_lane", { title: "Second", outcome: "y", acceptance: ["a"], ...scope });
+  assert.equal(next.ok, true, next.text);
+  const second = h.ledger().lanes.L2!;
+  assert.equal(second.slot, undefined, "in the project's own copy");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), second.branch);
+
+  // Now the first Lead stops. Its restore is for a branch the copy has left, so it must not fire.
+  h.agents.get(first.lead!)!.status = "idle";
+  await h.endTurn(first.lead!, "stopping");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), second.branch, "a live lane's checkout is not somebody else's to move");
+  h.commit(h.root, "a.txt", "L2 work\n");
+  assert.equal(h.git(h.root, "log", "-1", "--format=%s", second.branch).trim(), "edit a.txt", "so L2's commits land on L2's branch, not on main");
+
+  // And a Lead that never comes back at all: the round finishes what its turn was holding up.
+  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L2", reason: "done" })).ok, true);
+  h.agents.get(second.lead!)!.archivedAt = new Date().toISOString();
+  await h.tick(Date.now());
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "the owner's own repository is not left on a dead lane's branch");
+  h.runtime.dispose();
+});
+
 test("a copy waiting on a seat that never ends its turn is put away in the round, not left for good", async () => {
   const h = harness("outbox-reap.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

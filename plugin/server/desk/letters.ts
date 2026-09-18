@@ -12,7 +12,18 @@ const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim
  * same place and get the same treatment, since they are read on the line above the fence.
  */
 export function outside(tag: string, text: string, limit: number): string {
-  return clip(text.replace(new RegExp(`</?${tag}>`, "gi"), ""), limit);
+  // To a fixpoint: one pass is not enough, because removing a match can join what was on either side
+  // of it into a new one. `</</issue>issue>` holds exactly one `</issue>`, and taking it out leaves
+  // `</issue>` behind — the fence closed by the very text the fence was put around. Each pass makes
+  // the string shorter, so this ends.
+  const fence = new RegExp(`</?${tag}>`, "gi");
+  let out = text;
+  for (let pass = 0; pass < 20; pass++) {
+    const next = out.replace(fence, "");
+    if (next === out) break;
+    out = next;
+  }
+  return clip(out, limit);
 }
 
 export function clip(text: string, limit: number): string {
@@ -258,7 +269,7 @@ export const letters = {
   },
 
   ending(where: string, text: string, actions: string[] = [], agent?: string): string {
-    const inside = clip(text.replace(/\s+/g, " ").replace(/<\/?ending>/gi, "").trim() || "(nothing)", 1500);
+    const inside = outside("ending", text.replace(/\s+/g, " ").trim(), 1500) || "(nothing)";
     const lines = [agent ? `ENDING from ${where}, agent ${agent}.` : `ENDING from ${where}.`, ""];
     if (actions.length > 0) {
       lines.push(
