@@ -92,7 +92,7 @@ export class Patrol {
     const busy =
       Object.values(ledger.lanes).some((lane) => lane.status === "open") ||
       [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === project.slug);
-    await this.deps.desk.sweep(project, ledger, busy);
+    await this.deps.desk.sweep(project, busy);
   }
 
   private async idleLanes(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {

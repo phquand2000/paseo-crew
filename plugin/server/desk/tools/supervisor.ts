@@ -5,7 +5,7 @@ import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
 import { type Args, type Caller, errorText, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
-import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify } from "../ledger.ts";
+import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";
 import { letters, outside } from "../letters.ts";
 import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
@@ -148,16 +148,31 @@ export const openLane: Tool = async (desk, caller, args) => {
   }
 };
 
-export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, args) => {
+export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, caller, args) => {
   const { project } = caller;
-  const lane = findLane(loadLedger(project.state), str(args.lane));
+  const ledger = loadLedger(project.state);
+  const lane = findLane(ledger, str(args.lane));
   if (!lane) return no(`There is no lane ${str(args.lane)}.`);
   if (lane.status !== "open") return no(`Lane ${lane.id} is already closed.`);
+  // An accept on a parallel task queues its merge and returns at once, and that merge runs `git
+  // merge` in the lane's own working copy. Closing the lane meanwhile ran the gate in that copy,
+  // landed its branch and then removed the directory the merge was standing in. `settled` was
+  // written for this and nothing outside the tests had ever called it.
+  await merges.settled(project);
   let landing = `the branch ${lane.branch} is kept for the Human`;
   if (args.land === true) {
     const gate = await laneGate(ctx, project, lane);
     if (!gate.ok) return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, or close it with land false.`);
-    const result = await landLane(project.root, lane.base, lane.branch);
+    // Where `base` has moved on, landing is a merge, and a merge needs a working copy standing on
+    // base. For a lane working in place the desk itself put the project's own copy on the lane's
+    // branch, so that read refused every such lane over an arrangement the desk made and undid a
+    // moment later. It may be moved back only while nobody is mid-turn in it: what a seat writes
+    // there is its own until its turn ends, which is what the teardown waits for.
+    const held = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)].some(
+      (id) => typeof id === "string" && roster.pendingArchive.has(id),
+    );
+    const parked = !lane.slot && !held ? lane.branch : undefined;
+    const result = await landLane(project.root, lane.base, lane.branch, parked);
     landing = result.landed ? `${result.how}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
   }
   const retired = await ctx.ledger(project, (current) => {
@@ -184,6 +199,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents }, caller, ar
   );
   const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch }, writers);
   if (branch) kept.push(branch);
+
   if (lane.detourOf) {
     const waiting = loadLedger(project.state).lanes[lane.detourOf];
     if (waiting?.status === "open" && waiting.lead) await ctx.post(waiting.lead, `detour:${lane.id}:${Date.now()}`, letters.detourLanded(lane, waiting, landing));

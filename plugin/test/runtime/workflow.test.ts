@@ -306,6 +306,34 @@ test("a lane that fails after taking the project's own copy gives it back", asyn
   h.runtime.dispose();
 });
 
+test("a lane in the project's own copy lands even when its base has moved on", async () => {
+  const h = harness("outbox-moved.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = h.ledger().lanes.L1!;
+  writeFileSync(join(h.project.root, "a.txt"), "one\ntwo\nthree\nfour\n");
+  h.git(h.project.root, "add", "-A");
+  h.git(h.project.root, "commit", "-qm", "four");
+
+  // main moves on while the lane runs, so landing is a merge — and a merge needs a working copy
+  // standing on main. The desk put the project's own copy on the lane branch to open the lane, and
+  // then refused to land over exactly that, twenty-five lines before putting it back.
+  const side = join(mkdtempSync(join(tmpdir(), "sw2-moved-")), "wt");
+  h.git(h.project.root, "worktree", "add", "-q", "-b", "side", side, "main");
+  h.git(side, "commit", "-qm", "moved", "--allow-empty");
+  h.git(h.project.root, "branch", "-f", "main", "side");
+  h.git(h.project.root, "worktree", "remove", "--force", side);
+
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
+  assert.equal(closed.ok, true, closed.text);
+  assert.match(closed.text, /merged .* into main/, closed.text);
+  assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "and the copy is left where the teardown was going to put it");
+  assert.equal(lane.slot, undefined);
+  h.runtime.dispose();
+});
+
 test("parallel work needs independent write sets and merges back from its own working copy", async () => {
   const h = harness("outbox-parallel.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

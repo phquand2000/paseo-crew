@@ -169,9 +169,14 @@ export function outsideOwned(files: string[], owned: string[]): string[] {
 
 export type LandResult = { landed: boolean; how: string };
 
-export async function landLane(root: string, base: string, branch: string): Promise<LandResult> {
+/**
+ * `parked` is the branch the desk itself put the main working copy on, and only when nothing is
+ * writing there. Without it, a lane working in the project's own copy could never be merged: this
+ * read requires the copy to be on `base`, and the desk had moved it off base to open the lane.
+ */
+export async function landLane(root: string, base: string, branch: string, parked?: string): Promise<LandResult> {
   const ancestor = await git(root, ["merge-base", "--is-ancestor", base, branch]);
-  const checkedOut = await currentBranch(root);
+  let checkedOut = await currentBranch(root);
   const readable = async (): Promise<string | undefined> => {
     const state = await cleanState(root);
     if (state === "dirty") return `the main working copy on ${base} has uncommitted changes`;
@@ -179,6 +184,13 @@ export async function landLane(root: string, base: string, branch: string): Prom
     return undefined;
   };
   if (ancestor.code !== 0) {
+    if (checkedOut !== base && parked && checkedOut === parked) {
+      const problem = await readable();
+      if (problem) return { landed: false, how: problem };
+      const back = await git(root, ["switch", base]);
+      if (back.code !== 0) return { landed: false, how: back.stderr.trim() || `the main working copy could not be put back on ${base}` };
+      checkedOut = base;
+    }
     if (checkedOut !== base) return { landed: false, how: `${base} moved since ${branch} started and is not checked out in the main working copy, so it cannot be merged there` };
     const problem = await readable();
     if (problem) return { landed: false, how: problem };

@@ -280,12 +280,25 @@ export class Slots {
     return workspaceId;
   }
 
-  async sweep(project: Project, ledger: Ledger, busy = false): Promise<void> {
-    const held = new Set<string>();
-    for (const slot of Object.values(ledger.slots)) if (slot.workspaceId) held.add(slot.workspaceId);
-    for (const lane of Object.values(ledger.lanes)) if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
+  /**
+   * What the desk opened and nothing holds any more.
+   *
+   * Liveness is read under the ledger lock at the moment it is used, not from a snapshot taken
+   * before. `reserve` writes a new slot row under that same lock and only then does `git worktree
+   * add`, and a sweep waits on a run of daemon round-trips in between — so a copy that was created
+   * while this method was waiting could not be in a list read before it started, and was removed with
+   * `--force` out from under the lane that was still opening.
+   */
+  async sweep(project: Project, busy = false): Promise<void> {
+    const heldIds = (ledger: Ledger): Set<string> => {
+      const held = new Set<string>();
+      for (const slot of Object.values(ledger.slots)) if (slot.workspaceId) held.add(slot.workspaceId);
+      for (const lane of Object.values(ledger.lanes)) if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
+      return held;
+    };
     for (const workspace of await this.workspaces.owned(project.slug)) {
-      if (held.has(workspace.id) || (busy && workspace.name === project.slug)) continue;
+      if (busy && workspace.name === project.slug) continue;
+      if (await this.ctx.ledger(project, (current) => heldIds(current).has(workspace.id))) continue;
       try {
         await this.workspaces.archive(workspace.id);
         this.ctx.event(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });
@@ -295,10 +308,14 @@ export class Slots {
     }
     const root = join(worktreeRoot(), project.slug);
     if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
-    const live = new Set(Object.values(ledger.slots).map((slot) => slot.path));
-    for (const name of readdirSync(root)) {
-      const path = join(root, name);
-      if (live.has(path)) continue;
+    // Read and listed together inside the lock, so nothing can reserve a slot between the two.
+    const strays = await this.ctx.ledger(project, (current) => {
+      const live = new Set(Object.values(current.slots).map((slot) => slot.path));
+      return readdirSync(root)
+        .map((name) => join(root, name))
+        .filter((path) => !live.has(path));
+    });
+    for (const path of strays) {
       await removeWorktree(project.root, path);
       try {
         rmSync(path, { recursive: true, force: true });

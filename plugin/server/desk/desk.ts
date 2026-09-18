@@ -125,8 +125,8 @@ export class Desk {
     return this.services.ctx.setTask(project, taskId, change);
   }
 
-  sweep(project: Project, ledger: Ledger, busy = false): Promise<void> {
-    return this.services.slots.sweep(project, ledger, busy);
+  sweep(project: Project, busy = false): Promise<void> {
+    return this.services.slots.sweep(project, busy);
   }
 
   retireWatcher(project: Project, seats?: Iterable<SeatView>, now = false): Promise<void> {
