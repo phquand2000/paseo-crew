@@ -488,7 +488,20 @@ test("an irreversible finding raised while no Supervisor is running waits for on
   const back = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup2");
   await h.tick(Date.now() + 61 * 60_000);
   await h.idle(back);
-  assert.match(h.agents.get(back)!.sent.join("\n"), /destructive[\s\S]*git push --force/, "stamped as reported before delivery, it would have been dropped from the report as well");
+  assert.match(h.agents.get(back)!.sent.join("\n"), /destructive[\s\S]*git push --force/, "counted as told before delivery, it would have been dropped from the report as well");
+
+  // And it happens again while nobody is seated above the Watcher. Asking whether this fault had ever
+  // been reported answered yes — it had, in the digest above — so the second one reached nobody, ever,
+  // while the Watcher was told it waits in the report.
+  h.agents.get(back)!.archivedAt = new Date().toISOString();
+  const twice = await h.call(watcher, "watcher", "raise", { where: "the Peer on L1-T1", findings: [{ label: "destructive", quote: "rm -rf src" }] });
+  assert.equal(twice.ok, true, twice.text);
+  assert.match(twice.text, /waits in the report/);
+
+  const third = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup3");
+  await h.tick(Date.now() + 122 * 60_000);
+  await h.idle(third);
+  assert.match(h.agents.get(third)!.sent.join("\n"), /destructive[\s\S]*rm -rf src/, "a second irreversible action is a second thing the owner has not been told");
   h.runtime.dispose();
 });
 
@@ -1287,5 +1300,38 @@ test("a task branch is dropped once its work is in the lane's, whichever branch 
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
   assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:a.txt`), "A\n", "the work is in the lane's branch");
   assert.equal(h.git(h.root, "branch", "--list", task.branch!).trim(), "", "and its own branch has nothing the lane does not, so it goes");
+  h.runtime.dispose();
+});
+
+test("two findings under one label cost one interruption and leave the budget's second slot for a different fault", async () => {
+  const h = harness("outbox-onelabel.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch");
+  const where = "the Lead of L1";
+
+  // Two sightings each, so both are one strike from earning an interruption.
+  for (const round of [0, 1]) {
+    const seen = await h.call(watcher, "watcher", "raise", { where, findings: [{ label: "repetition", quote: "same file again" }, { label: "unverified", quote: "no gate" }] });
+    assert.equal(seen.ok, true, `round ${round}: ${seen.text}`);
+  }
+
+  // The Watcher reads one ending that shows the same fault twice, and a second, different fault.
+  const raised = await h.call(watcher, "watcher", "raise", {
+    where,
+    findings: [
+      { label: "repetition", quote: "same file a third time" },
+      { label: "repetition", quote: "and a fourth" },
+      { label: "unverified", quote: "accepted without the gate" },
+    ],
+  });
+  assert.equal(raised.ok, true, raised.text);
+
+  await h.idle(sup);
+  const told = h.agents.get(sup)!.sent.join("\n");
+  assert.equal((told.match(/ATTENTION/g) ?? []).length, 2, `two distinct faults, a budget of two: ${raised.text}`);
+  assert.match(told, /repetition/);
+  assert.match(told, /unverified/);
+  assert.doesNotMatch(raised.text, /waits for the report/, `nothing was held back, so the Watcher must not be told the budget is spent: ${raised.text}`);
   h.runtime.dispose();
 });

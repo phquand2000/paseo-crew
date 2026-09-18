@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, heldBack, judge, keyOf, pagesLeft, pending, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, reported } from "../../server/desk/watching.ts";
 
 const NOW = Date.parse("2026-09-16T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -101,7 +101,7 @@ test("the digest holds what was never raised, and empties once it is sent", () =
     ["derailed", "unverified"],
     "what already interrupted the owner is not repeated in the digest",
   );
-  assert.deepEqual(pending(reported(watching, NOW + minutes(4))), []);
+  assert.deepEqual(pending(reported(watching)), []);
 });
 
 test("every interruption is charged, not only the first one for a fault", () => {
@@ -115,38 +115,47 @@ test("every interruption is charged, not only the first one for a fault", () => 
   assert.equal(watching.pages.length, 1, "three strikes, one interruption");
   assert.equal(pagesLeft(watching, NOW + minutes(2)), 1);
 
-  // The same fault again. judge carries reportedAt forward, so skipping a key that already had one
-  // meant this page cost nothing and the window stopped bounding anything at all.
+  // The same fault again. judge carries forward how much of it was told, so skipping a key that had
+  // been told about once meant this page cost nothing and the window stopped bounding anything.
   const again = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(3));
   assert.equal(again.urgency, "page");
   watching = delivered(again.watching, [key], NOW + minutes(3));
   assert.equal(watching.pages.length, 2, "the second interruption costs the second page");
   assert.equal(pagesLeft(watching, NOW + minutes(3)), 0);
 
-  // And with the window spent, the next one waits for the report instead.
+  // And with the window spent, the next one waits for the report instead — and really does wait in it.
   const third = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(4));
   assert.equal(third.urgency, "digest");
-  assert.deepEqual(pending(third.watching).map((strike) => strike.label), [], "already reported, so it is not repeated either");
+  assert.deepEqual(
+    pending(third.watching).map((strike) => strike.label),
+    ["repetition"],
+    "a fifth time is a time the owner has not been told about, whatever they were told about the fourth",
+  );
 });
 
-test("a finding held back for the budget has the stamp of its last report taken off, so the report can carry it", () => {
+test("a fault the owner has already been told about is owed to them again the next time it happens", () => {
   const key = keyOf("seat-lead", "repetition");
   let watching: Watching = emptyWatching();
   for (const at of [NOW, NOW + minutes(1), NOW + minutes(2)]) {
     const verdict = judge(watching, raised({ subject: "seat-lead" }), at);
     watching = verdict.urgency === "page" ? delivered(verdict.watching, [key], at) : verdict.watching;
   }
-  assert.ok(watching.strikes[key]!.reportedAt, "it has been reported once");
+  assert.equal(watching.strikes[key]!.told, 3, "three occurrences, all three of them told");
+  assert.deepEqual(pending(watching), [], "so nothing is owed");
 
-  // It happens again. judge carries the old stamp forward onto the new strike, so a finding the desk
-  // decides not to send is born already looking reported — and the report is the only other reader.
+  // It happens a fourth time. Asking only whether this key had ever been reported answered yes here,
+  // which hid every recurrence from the report — the only reader left once the budget is spent or
+  // nobody is seated above the Watcher to be interrupted.
   const again = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(3));
-  assert.ok(again.strike!.reportedAt, "born with the stamp of the earlier report");
-  assert.deepEqual(pending(again.watching), [], "so leaving it unstamped is not the same as making it pending");
-
+  assert.equal(again.strike!.told, 3, "what was told is carried forward, not what happened");
   assert.deepEqual(
-    pending(heldBack(again.watching, [key])).map((strike) => strike.label),
-    ["repetition"],
-    "taken off, it really does wait in the report",
+    pending(again.watching).map((strike) => strike.count),
+    [4],
+    "a fourth occurrence against three told is one the owner is owed",
   );
+
+  // Telling them settles the occurrences that had happened by then, and no more.
+  const settled = delivered(again.watching, [key], NOW + minutes(3));
+  assert.deepEqual(pending(settled), []);
+  assert.deepEqual(pending(reported(settled)).map((strike) => strike.label), [], "and the digest settles what it carried");
 });

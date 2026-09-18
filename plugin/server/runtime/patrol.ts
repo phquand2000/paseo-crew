@@ -156,8 +156,12 @@ export class Patrol {
     if (now - oldest < digestMinutes * 60_000) return;
     const to = await desk.supervisorFor(project);
     if (!to) return;
-    await desk.post(to, `digest:${project.slug}:${oldest}`, letters.digest(waiting, Math.round((now - oldest) / 60_000)));
-    saveWatching(project.state, reported(watching, now));
+    // The key says what this digest carries, not when the oldest of it was first seen: a strike keeps
+    // its `first` for as long as the fault recurs, so keying on that alone made the digest after it a
+    // repeat of the one before and the outbox dropped it inside the half hour it guards.
+    const carried = waiting.reduce((total, strike) => total + strike.count, 0);
+    await desk.post(to, `digest:${project.slug}:${oldest}:${carried}`, letters.digest(waiting, Math.round((now - oldest) / 60_000)));
+    saveWatching(project.state, reported(watching));
     desk.event(project, { kind: "watch.digest", items: waiting.length });
   }
 

@@ -12,15 +12,30 @@ const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim
  * same place and get the same treatment, since they are read on the line above the fence.
  */
 export function outside(tag: string, text: string, limit: number): string {
-  // To a fixpoint, with no pass limit. One pass is not enough, because removing a match joins what was
-  // on either side of it into a new one: `</</issue>issue>` holds exactly one `</issue>`, and taking it
-  // out leaves `</issue>` behind. Each pass removes at least one match and so shortens the string by at
-  // least `tag.length + 3`, which is the termination proof — a fixed cap is not: capped at twenty, a
-  // body nested twenty-one deep walked out of the loop with a live fence in it.
-  const fence = new RegExp(`</?${tag}>`, "gi");
-  let out = text;
-  for (let next = out.replace(fence, ""); next !== out; next = out.replace(fence, "")) out = next;
-  return clip(out, limit);
+  // One pass, taking a fence out the moment its last character arrives. Removing a match joins what
+  // was on either side of it into a new one — `</</issue>issue>` holds exactly one `</issue>`, and
+  // taking it out leaves `</issue>` behind — so a single sweep of the whole string is not enough and
+  // repeating the sweep costs one scan per nesting level. That is quadratic, and the text an ending
+  // carries has no length the desk controls: a megabyte of nested fences held the plugin server, and
+  // so every project's mail and patrol, for twenty-two seconds.
+  //
+  // Nothing is left behind because a fence can only ever appear at the end: an occurrence that does
+  // not use the character just appended was there before it, and the character before that, and so on
+  // back to the empty string, which holds none. Taking one off leaves a head that held none either.
+  const open = `<${tag}>`.toLowerCase();
+  const close = `</${tag}>`.toLowerCase();
+  const kept: string[] = [];
+  const ends = (token: string) => {
+    if (kept.length < token.length) return false;
+    for (let at = 0; at < token.length; at++) if (kept[kept.length - token.length + at]!.toLowerCase() !== token[at]) return false;
+    return true;
+  };
+  for (let at = 0; at < text.length; at++) {
+    kept.push(text[at]!);
+    const fence = ends(close) ? close : ends(open) ? open : undefined;
+    if (fence) kept.length -= fence.length;
+  }
+  return clip(kept.join(""), limit);
 }
 
 export function clip(text: string, limit: number): string {

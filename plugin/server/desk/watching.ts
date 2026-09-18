@@ -13,7 +13,15 @@ export type Strike = {
   first: number;
   last: number;
   count: number;
-  reportedAt?: number;
+  /**
+   * How many of these occurrences the owner has been told about.
+   *
+   * Not *whether* they were told: a fault they have heard about once and that has now happened again
+   * is something they have not heard. Asking only whether a stamp was present made every recurrence
+   * of an already-reported fault invisible to the report, and every branch that did not want that had
+   * to remember to take the stamp back off. Counting what was told needs nobody to remember anything.
+   */
+  told?: number;
 };
 
 export type Watching = { strikes: Record<string, Strike>; pages: number[] };
@@ -57,7 +65,7 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
     first: seen?.first ?? now,
     last: now,
     count: (seen?.count ?? 0) + 1,
-    reportedAt: seen?.reportedAt,
+    told: seen?.told,
   };
 
   // Off records what was seen and stops the desk deciding any of it is worth a turn. The strike is
@@ -69,17 +77,17 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
   const struckOut = strike.count >= rules.strikesAt;
   const urgency: Urgency = irreversible || (struckOut && spent.length < rules.pagesPerWindow) ? "page" : "digest";
 
-  // Deciding to interrupt is not interrupting. Stamping it here dropped the finding from the digest —
-  // the only other way it is ever read — when there turned out to be nobody to interrupt.
+  // Deciding to interrupt is not interrupting. Counting it as told here dropped the finding from the
+  // digest — the only other way it is ever read — when there turned out to be nobody to interrupt.
   return { urgency, watching: { strikes: { ...watching.strikes, [key]: strike }, pages: spent }, strike };
 }
 
 /**
  * What an interruption cost and what it settled, recorded once it has really gone somewhere.
  *
- * Every delivery is charged, not only the first for a given key: `judge` carries `reportedAt`
- * forward onto each later strike of the same key, so skipping a key that already had one meant the
- * second page of a repeat offender cost nothing and `pagesPerWindow` stopped bounding anything.
+ * Every delivery is charged, not only the first for a given key: the count carried forward from the
+ * previous strike means a repeat offender's second page would otherwise cost nothing, and
+ * `pagesPerWindow` would stop bounding anything.
  */
 export function delivered(watching: Watching, keys: string[], now: number): Watching {
   const strikes = { ...watching.strikes };
@@ -87,28 +95,10 @@ export function delivered(watching: Watching, keys: string[], now: number): Watc
   for (const key of keys) {
     const strike = strikes[key];
     if (!strike) continue;
-    strikes[key] = { ...strike, reportedAt: now };
+    strikes[key] = { ...strike, told: strike.count };
     pages.push(now);
   }
   return { strikes, pages };
-}
-
-/**
- * Strikes that did not go anywhere, put back in the report's hands.
- *
- * `judge` carries `reportedAt` forward onto every later strike of a key, so a recurrence of a fault the
- * owner has already been told about is born already stamped. Not stamping it again is not enough to make
- * it pending: the stamp it inherited has to come off, or "it waits in the report" is not true of it.
- */
-export function heldBack(watching: Watching, keys: string[]): Watching {
-  const strikes = { ...watching.strikes };
-  for (const key of keys) {
-    const strike = strikes[key];
-    if (!strike) continue;
-    const { reportedAt, ...rest } = strike;
-    strikes[key] = rest;
-  }
-  return { strikes, pages: watching.pages };
 }
 
 /** How many more interruptions this window can take. */
@@ -117,14 +107,15 @@ export function pagesLeft(watching: Watching, now: number, rules: WatchRules = W
   return Math.max(0, rules.pagesPerWindow - spent.length);
 }
 
+/** Everything the owner has an occurrence of that nobody has told them about. */
 export function pending(watching: Watching): Strike[] {
   return Object.values(watching.strikes)
-    .filter((strike) => !strike.reportedAt)
+    .filter((strike) => strike.count > (strike.told ?? 0))
     .sort((a, b) => b.last - a.last);
 }
 
-export function reported(watching: Watching, now: number): Watching {
+export function reported(watching: Watching): Watching {
   const strikes: Record<string, Strike> = {};
-  for (const [key, strike] of Object.entries(watching.strikes)) strikes[key] = strike.reportedAt ? strike : { ...strike, reportedAt: now };
+  for (const [key, strike] of Object.entries(watching.strikes)) strikes[key] = { ...strike, told: strike.count };
   return { strikes, pages: watching.pages };
 }

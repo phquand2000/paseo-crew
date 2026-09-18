@@ -1,7 +1,7 @@
 import { no, ok, str } from "../context.ts";
 import { letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
-import { type Urgency, type Watching, WATCH_RULES, delivered, heldBack, judge, keyOf, loadWatching, pagesLeft, saveWatching } from "../watching.ts";
+import { type Urgency, type Watching, WATCH_RULES, delivered, judge, keyOf, loadWatching, pagesLeft, saveWatching } from "../watching.ts";
 
 /** What the SLP preset asks a Watcher to distinguish. The kit names these; the desk only checks a finding carries one. */
 export const LABELS = ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"];
@@ -36,7 +36,6 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   let watching: Watching = loadWatching(project.state);
   let worst: Urgency = "log";
   const paged: Finding[] = [];
-  const pagedKeys: string[] = [];
   const counts = new Map<string, number>();
 
   for (const finding of findings) {
@@ -47,10 +46,7 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     const count = verdict.strike?.count ?? 0;
     counts.set(finding.label, count);
     if (RANK[verdict.urgency] > RANK[worst]) worst = verdict.urgency;
-    if (verdict.urgency === "page") {
-      paged.push(finding);
-      pagedKeys.push(keyOf(where, finding.label));
-    }
+    if (verdict.urgency === "page") paged.push(finding);
     ctx.event(project, { kind: "watch", agent: caller.id, label: finding.label, where, quote: finding.quote, urgency: verdict.urgency, count });
   }
 
@@ -66,21 +62,26 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   }
 
   // Every finding in one raise is judged against the same already-spent budget, so a raise carrying
-  // three struck-out faults would send three. What does not fit stays unstamped, which leaves it in
-  // the report. A label the owner marked as always-interrupt is never held back.
+  // three struck-out faults would send three. What does not fit is left with occurrences nobody has
+  // been told about, which is what puts it in the report. A label the owner marked as always-interrupt
+  // is never held back.
+  //
+  // One letter per key first, and only then the rationing: two findings under one label are a single
+  // interruption — they post the same key and the outbox drops the second — so letting them reserve
+  // two slots held a third, different fault back for a budget half of which was still free, and told
+  // the Watcher the budget was spent.
   const rules = { ...WATCH_RULES, ...ctx.team(caller.project).attention };
   const room = pagesLeft(watching, now, rules);
-  const urgent = paged.filter((finding) => rules.always.includes(finding.label));
-  const chosen = [...urgent, ...paged.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
-  // One entry per key: two findings under one label are one letter — the outbox drops the second as a
-  // repeat — so charging two pages for it spends a budget nothing was interrupted with.
-  const sending = chosen.filter((finding, index) => chosen.findIndex((other) => other.label === finding.label) === index);
-  const waiting = paged.filter((finding) => !sending.some((sent) => sent.label === finding.label));
+  const once = paged.filter((finding, index) => paged.findIndex((other) => other.label === finding.label) === index);
+  const urgent = once.filter((finding) => rules.always.includes(finding.label));
+  const sending = [...urgent, ...once.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
+  const waiting = once.filter((finding) => !sending.includes(finding));
 
   const to = await roster.supervisorFor(project);
   if (!to) {
-    // Nothing is stamped, so it stays in the report and reaches whoever opens a seat next. Refusing
-    // here would end this turn over something the Watcher did right.
+    // Nobody was told, so every occurrence is still owed to the report and reaches whoever opens a
+    // seat next — including a recurrence of a fault an earlier report already carried. Refusing here
+    // would end this turn over something the Watcher did right.
     saveWatching(project.state, watching);
     return ok(`Recorded ${named}. Nobody above you is running to be interrupted, so it waits in the report for whoever comes back. Keep reading endings.`);
   }
@@ -88,8 +89,7 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     const count = counts.get(finding.label) ?? 1;
     await ctx.post(to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
   }
-  const settled = delivered(watching, sending.map((finding) => keyOf(where, finding.label)), now);
-  saveWatching(project.state, heldBack(settled, waiting.map((finding) => keyOf(where, finding.label))));
+  saveWatching(project.state, delivered(watching, sending.map((finding) => keyOf(where, finding.label)), now));
   const waited = waiting.length > 0 ? ` ${waiting.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
   return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to the owner.${waited} Keep reading endings; nothing to wait for.`);
 };

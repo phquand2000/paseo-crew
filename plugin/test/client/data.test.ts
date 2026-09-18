@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, foldRoles, setRole } from "../../client/data.ts";
+import { type Layer, foldRoles, keptRoles, setRole } from "../../client/data.ts";
 
 const held: Layer = {
   rules: "Keep diffs small.",
@@ -53,4 +53,15 @@ test("a role whose agent is not recorded anywhere keeps the model the owner pick
   // And when it can be named and really is different, the old agent's model does go.
   const moved = foldRoles(project, { roles: { peer: { harness: "claude" } } }, () => "devin");
   assert.deepEqual(moved.roles!.peer, { harness: "claude" });
+});
+
+test("re-pasting a server the owner gave to nobody leaves it given to nobody", () => {
+  const reachable = ["supervisor", "lead", "peer", "reviewer", "watcher"];
+  // Unticking the last role on a server's own tab writes an empty list, and the resolver honours it:
+  // the server really is given to no role. Rotating its token is a re-paste of the same snippet, and
+  // reading that empty list as "nothing to preserve" handed the server, and the new token, to all five.
+  assert.deepEqual(keptRoles([], reachable), [], "a narrowing to nobody is a narrowing, not an absence");
+  assert.deepEqual(keptRoles(undefined, reachable), reachable, "never narrowed is what does mean every reachable role");
+  assert.deepEqual(keptRoles(["lead", "peer"], reachable), ["lead", "peer"]);
+  assert.deepEqual(keptRoles(["lead", "designer"], reachable), ["lead"], "and a role that cannot reach it is dropped from the narrowing");
 });

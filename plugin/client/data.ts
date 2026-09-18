@@ -281,12 +281,10 @@ export function useSeatworks(project?: string) {
         // Pasting the same name again is how a connection is updated — a rotated token, a new url —
         // so the roles the owner narrowed to are kept, intersected with what can reach the transport.
         // `roles` is derived from the kit, not carried by the snippet, so a paste must not assert it.
-        // An empty list is nothing to preserve, not a narrowing to nobody: a server switched on for no
-        // role could not be re-pasted at all, and the refusal named nobody.
         const narrowed = data.values.mcp?.[id]?.roles;
-        const roles = narrowed?.length ? narrowed.filter((role) => reachable.includes(role)) : reachable;
-        if (roles.length === 0) {
-          setSaveError(`This server is given to ${narrowed!.join(", ")}, and no agent of theirs can reach a ${parsed.connect.type} server. Widen the roles on its own tab first.`);
+        const roles = keptRoles(narrowed, reachable);
+        if (narrowed?.length && roles.length === 0) {
+          setSaveError(`This server is given to ${narrowed.join(", ")}, and no agent of theirs can reach a ${parsed.connect.type} server. Widen the roles on its own tab first.`);
           return null;
         }
         const saved = await save((values) => setMcp(values, id, { enabled: true, label: parsed.label || id, connect: parsed.connect, removed: false, roles }));
@@ -392,6 +390,18 @@ export function setRole(values: Layer, role: string, choice: RoleChoice, newHarn
   // invalidate what this seat was told: that is the owner's writing and holds whatever runs it.
   const base: RoleChoice = newHarness ? (current.rules ? { rules: current.rules } : {}) : current;
   return prune(values, "roles", role, { ...base, ...choice });
+}
+
+/**
+ * Who a re-pasted server stays given to.
+ *
+ * A list the owner emptied is a narrowing to nobody — the resolver reads it that way and really does
+ * give the server to no role — so a paste that rotates its token must leave it that way. Reading the
+ * empty list as "nothing to preserve" handed the server, and the new token with it, to every role
+ * whose agent could reach it, and said only "Saved".
+ */
+export function keptRoles(narrowed: string[] | undefined, reachable: string[]): string[] {
+  return narrowed ? narrowed.filter((role) => reachable.includes(role)) : reachable;
 }
 
 export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
