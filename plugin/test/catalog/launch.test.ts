@@ -42,13 +42,25 @@ test("a Lead opened on Devin follows that harness, whatever the settings choose"
   assert.equal(next.systemPrompt, undefined);
 });
 
-test("a Claude seat may write its project's state through the sandbox, keeping existing options", () => {
-  const config = { provider: "sw2-lead-claude", cwd: "/repo", providerOptions: { disallowedTools: ["X"], settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } } } as unknown as AgentConfig;
-  const next = applyRole(kit, team, config, render, "/state/repo") as unknown as { providerOptions: any };
-  assert.deepEqual(next.providerOptions.disallowedTools, ["X"]);
-  assert.deepEqual(next.providerOptions.settings.sandbox.filesystem.allowWrite, ["/tmp", "/state/repo"]);
+test("a seat may write the one place under state its own prompt names, and nothing else the desk keeps there", () => {
+  const sandboxed = (provider: string) =>
+    ({ provider, cwd: "/repo", providerOptions: { disallowedTools: ["X"], settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } } }) as unknown as AgentConfig;
+  const written = (config: AgentConfig) => (applyRole(kit, team, config, render, "/state/repo") as unknown as { providerOptions: any }).providerOptions;
+
+  const lead = written(sandboxed("sw2-lead-claude"));
+  assert.deepEqual(lead.disallowedTools, ["X"]);
+  assert.deepEqual(lead.settings.sandbox.filesystem.allowWrite, ["/tmp", "/state/repo/plans"], "LEAD.md writes its plans there and the prompt names no other place");
+  assert.deepEqual(written(sandboxed("sw2-supervisor-claude")).settings.sandbox.filesystem.allowWrite, ["/tmp", "/state/repo/notebook.md"]);
+
+  // The same harness and the same grant, for a role whose prompt asks for nothing under state. Handed
+  // the directory itself, a Peer's own shell could rewrite the ledger every tool call reads back as
+  // truth, the strike table the Watcher decides interruptions from, and project.json — whose gate the
+  // desk then runs through /bin/sh -c in the daemon, outside this seat's sandbox and its deny rules.
+  assert.deepEqual(written(sandboxed("sw2-peer-claude")).settings.sandbox.filesystem.allowWrite, ["/tmp"]);
+  assert.deepEqual(written(sandboxed("sw2-watcher-claude")).settings.sandbox.filesystem.allowWrite, ["/tmp"]);
+
   const peer = applyRole(kit, team, { provider: "sw2-peer-devin", cwd: "/repo" } as AgentConfig, render, "/state/repo");
-  assert.equal(peer.providerOptions, undefined);
+  assert.equal(peer.providerOptions, undefined, "a harness that declares no write list is untouched");
 });
 
 test("a harness that takes MCP servers at launch gets them in the launch config; one that reads a file does not", () => {

@@ -1,5 +1,6 @@
+import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
-import { type Kit, type McpServers, type RoleSpec, seatOf } from "./kit.ts";
+import { type Kit, type McpServers, type RoleSpec, can, seatOf } from "./kit.ts";
 import type { Team } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
@@ -22,6 +23,27 @@ function appendAt(options: unknown, path: string, value: string): Json {
   const list = Array.isArray(cursor[last]) ? (cursor[last] as unknown[]) : [];
   cursor[last] = [...new Set([...list, value])];
   return root;
+}
+
+/**
+ * What a seat may write inside the desk's own state directory, which is not the whole of it.
+ *
+ * The grant used to be `state` itself for every seat on a harness that declares a write list. That
+ * directory is the desk's entire durable record: `ledger.json`, which every tool call reads back as
+ * truth about who accepted what; `watching.json`, the strike table and page budget the Watcher
+ * decides interruptions from; `events.log`, the provenance; and `project.json`, whose `gate` the
+ * desk hands to `/bin/sh -c` in the daemon process — outside that seat's sandbox and outside every
+ * deny rule its settings carry. A seat's own shell could rewrite any of it.
+ *
+ * Two prompts ask a seat to write under state and they name exactly two places: the Lead's plans and
+ * the Supervisor's notebook. Everything else under there is the desk's to write, including the
+ * hand-back files, which the desk writes itself when a Peer calls `done`.
+ */
+function stateWrites(role: RoleSpec, state: string): string[] {
+  const paths: string[] = [];
+  if (can(role, "lead")) paths.push(join(state, "plans"));
+  if (can(role, "supervise")) paths.push(join(state, "notebook.md"));
+  return paths;
 }
 
 export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {
@@ -54,7 +76,9 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
     next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
   }
   if (harness.stateWrites && state) {
-    next.providerOptions = appendAt(config.providerOptions, harness.stateWrites, state) as AgentConfig["providerOptions"];
+    let options: unknown = config.providerOptions;
+    for (const path of stateWrites(role, state)) options = appendAt(options, harness.stateWrites, path);
+    next.providerOptions = options as AgentConfig["providerOptions"];
   }
   return next;
 }
