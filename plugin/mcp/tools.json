@@ -553,7 +553,7 @@
   "watcher": [
     {
       "name": "raise",
-      "description": "Record how one turn ended. The desk decides from what you send whether it waits for the report, or reaches the owner now.",
+      "description": "Record how one turn ended. The desk decides from what you send whether it waits for the report, or interrupts the seat that supervises this project now.",
       "inputSchema": {
         "type": "object",
         "properties": {

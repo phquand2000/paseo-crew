@@ -138,6 +138,7 @@ export class Patrol {
       this.goneFlag.add(gone);
       await desk.setTask(project, task.id, (entry) => {
         entry.status = "stalled";
+        entry.peerGone = true;
       });
       await desk.post(ledger.lanes[task.lane]?.lead, `gone:${project.slug}:${task.id}`, letters.failed(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"));
     }
@@ -147,20 +148,32 @@ export class Patrol {
     const { desk } = this.deps;
     const { askRemindMinutes, maxReminders } = this.deps.source.teamFor(project).attention;
     const waited = (ask: Ask) => now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000;
-    // An ask whose reader has gone is due too. Only an idle reader was ever looked at, so an ask to a
-    // seat that had been archived was never reminded, never escalated, and never seen again.
-    const gone = (ask: Ask) => !seats.has(ask.to);
-    const due = Object.values(ledger.asks).filter((ask) => ask.status === "open" && waited(ask) && (seats.get(ask.to)?.status === "idle" || gone(ask)));
-    for (const ask of due) {
+    for (const ask of Object.values(ledger.asks).filter((entry) => entry.status === "open")) {
+      const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
+      // An ask whose reader has gone goes to whoever supervises now, whoever asked it. Only an idle
+      // reader was ever looked at, so an ask to an archived seat was never reminded, escalated or
+      // seen again — a Lead's own ask included, which has nobody else above it to escalate to.
+      if (!seats.has(ask.to)) {
+        const to = await desk.supervisorFor(project, lane?.opener);
+        if (!to || to === ask.to) continue;
+        const moved = await desk.ledger(project, (current) => {
+          const entry = current.asks[ask.id];
+          if (!entry || entry.status !== "open" || entry.to !== ask.to) return undefined;
+          entry.to = to;
+          entry.remindedAt = now;
+          return { ...entry };
+        });
+        if (moved) await desk.post(to, `ask:${moved.id}:${to}`, letters.askTo(moved, ask.task ? `the Peer on ${ask.task}, whose reader is gone` : `the Lead of ${ask.lane ?? "a lane"}, whose reader is gone`));
+        continue;
+      }
+      if (seats.get(ask.to)?.status !== "idle" || !waited(ask)) continue;
       const age = Math.round((now - ask.openedAt) / 60_000);
-      const reminding = ask.reminders < maxReminders && !gone(ask);
+      const reminding = ask.reminders < maxReminders;
       if (reminding) {
         await desk.post(ask.to, `remind:${project.slug}:${ask.id}:${ask.reminders}`, letters.reminder(ask, age));
-        // Whether there is anyone above the asker, which is a capability and not a name: the Lead's own
-        // ask has nobody above it to escalate to. Comparing to the literal "lead" worked only because
-        // that handler wrote the same literal back, so a second lead-capable role was never escalated.
-      } else if (!can(roleNamed(this.deps.kit, ask.fromRole), "lead") && !ask.escalated) {
-        const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
+        // Escalated only from a Lead to the seat above it, which is the one case the letter describes:
+        // an ask already put to whoever supervises has nobody further up to go to.
+      } else if (ask.to === lane?.lead && !can(roleNamed(this.deps.kit, ask.fromRole), "lead") && !ask.escalated) {
         const to = await desk.supervisorFor(project, lane?.opener);
         // Marked escalated only once it has reached somebody: with nobody supervising seated it is
         // tried again next round, rather than recorded as done and never sent.

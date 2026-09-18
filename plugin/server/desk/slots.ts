@@ -158,9 +158,11 @@ export class Slots {
 
   private async finish(project: Project, stopped: (agentId: string) => boolean): Promise<void> {
     for (const lane of Object.values(loadLedger(project.state).lanes)) {
-      const waiting = lane.restoring?.writers ?? [];
+      if (!lane.restoring) continue;
+      const waiting = lane.restoring.writers;
       const left = waiting.filter((id) => !stopped(id));
-      if (waiting.length === 0 || left.length === waiting.length) continue;
+      // A record with nobody left to wait for is a restore that did not happen, retried each time.
+      if (waiting.length > 0 && left.length === waiting.length) continue;
       if (left.length > 0) {
         await this.ctx.ledger(project, (ledger) => {
           const entry = ledger.lanes[lane.id];
@@ -194,7 +196,18 @@ export class Slots {
 
   private run(teardown: Teardown): Promise<string | undefined> {
     if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch, teardown.into);
-    if (teardown.restore) return this.restore(teardown.project, teardown.restore, teardown.branch).then(() => undefined);
+    if (teardown.restore) {
+      // Recorded when it does not happen, as a wait for nobody, so the round retries it and Detach
+      // sees it: with no writers to wait for, a copy that would not switch left no trace in the ledger.
+      return this.restore(teardown.project, teardown.restore, teardown.branch).then(async (back) => {
+        if (back || !teardown.lane) return undefined;
+        await this.ctx.ledger(teardown.project, (ledger) => {
+          const lane = ledger.lanes[teardown.lane!];
+          if (lane) lane.restoring = { writers: [], base: teardown.restore!, branch: teardown.branch ?? lane.branch };
+        });
+        return undefined;
+      });
+    }
     return Promise.resolve(undefined);
   }
 

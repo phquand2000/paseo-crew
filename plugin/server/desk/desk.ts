@@ -65,6 +65,12 @@ export class Desk {
   readonly projects: Map<string, Project>;
   readonly pendingArchive: Set<string>;
   private readonly services: DeskServices;
+  /** Whether a call from this seat is still being worked on — which is not silence. */
+  inFlight(agentId: string): boolean {
+    for (const key of this.running.keys()) if (key.startsWith(`${agentId}\n`)) return true;
+    return false;
+  }
+
   /** Calls still being worked on, by caller, tool and arguments. */
   private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
   /** One Watcher create per project at a time, whichever caller got there first. */
@@ -188,9 +194,13 @@ export class Desk {
     const running = this.running.get(key);
     if (running) return this.inTime(request, running.reply, running.started, within, true);
     const started = Date.now();
-    const reply = this.handle(request).finally(() => {
-      if (this.running.get(key)?.started === started) this.running.delete(key);
-    });
+    // A call that throws is answered too. Left to reject, the seat waited four minutes, was promised
+    // mail, and the letter — which only a resolved reply posts — never came.
+    const reply = this.handle(request)
+      .catch((error: unknown) => no(`The desk failed: ${errorText(error)}`))
+      .finally(() => {
+        if (this.running.get(key)?.started === started) this.running.delete(key);
+      });
     this.running.set(key, { reply, started });
     return this.inTime(request, reply, started, within, false);
   }
@@ -205,7 +215,7 @@ export class Desk {
           ok(
             again
               ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`
-              : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail; carry on with what does not depend on it, or end your turn.`,
+              : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail. End your turn now; do not call ${request.tool} again.`,
           ),
         );
         // One letter for one run, whichever of its callers gave up waiting first.

@@ -169,6 +169,11 @@ export function outsideOwned(files: string[], owned: string[]): string[] {
 
 export type LandResult = { landed: boolean; how: string };
 
+/** Whether `base` is already contained in `branch`, so landing is a fast-forward rather than a merge. */
+export async function isAncestor(root: string, base: string, branch: string): Promise<boolean> {
+  return (await git(root, ["merge-base", "--is-ancestor", base, branch])).code === 0;
+}
+
 /**
  * `parked` is the branch the desk itself put the main working copy on, and only when nothing is
  * writing there. Without it, a lane working in the project's own copy could never be merged: this

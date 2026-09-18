@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
 import { type Kit, type McpServers, type RoleSpec, can, seatOf } from "./kit.ts";
 import { stateTargets } from "./content.ts";
-import { type Team, skillDirsFor } from "./team.ts";
+import { type Team, rulesFor, skillDirsFor } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
@@ -39,7 +39,7 @@ function appendAt(options: unknown, path: string, value: string): Json {
  * give it one.
  */
 function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
-  const segments = new Set(stateTargets(kit, role, skillDirsFor(team, role.role)));
+  const segments = new Set(stateTargets(kit, role, skillDirsFor(team, role.role), rulesFor(team, role.role)));
   if (can(role, "lead")) segments.add("docs");
   return [...segments].sort().map((segment) => join(state, segment));
 }

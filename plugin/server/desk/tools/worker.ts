@@ -57,7 +57,7 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
     if (["queued", "merging", "merged", "cut"].includes(entry.status)) return entry.status;
     entry.status = "done";
     entry.silent = 0;
-    entry.handback = { file, outcome, commit, summary: clip(str(args.summary) || str(args.findings), 400), at: Date.now() };
+    entry.handback = { file, outcome, commit, summary: clip(str(args.summary) || str(args.findings), 400), at: Date.now(), ...(run ? { gate: { ok: run.ok, note: run.note } } : {}) };
     return undefined;
   });
   if (already) {

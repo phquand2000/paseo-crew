@@ -157,7 +157,7 @@ export const letters = {
    * to exactly that — but it may never run a chain the Lead cannot see. Without this the Lead's next
    * try gets "already answered", with the answer itself nowhere it can read.
    */
-  answeredFor(ask: Ask, by: string): string {
+  answeredFor(ask: Ask, by: string, leads = true): string {
     return [
       `ANSWERED FOR YOU: ${ask.id} (${ask.kind}) from ${ask.from}, which was waiting on you, was answered by ${by}.`,
       "",
@@ -169,7 +169,8 @@ export const letters = {
       "",
       // Only an ask that came with a task has a Peer and an acceptance to speak of; a Lead's own ask
       // answered by a second seat above it was told about a task that did not exist.
-      ask.task ? `Nothing else moved: ${ask.task} is still owned by the same Peer, on the same branch, and accepting it is still yours to judge.` : "Nothing else moved.",
+      // Acceptance is the Lead's, so only a Lead is told it is still its to judge.
+      ask.task && leads ? `Nothing else moved: ${ask.task} is still owned by the same Peer, on the same branch, and accepting it is still yours to judge.` : "Nothing else moved.",
       "If this changes what you were going to do, say so in your next report.",
     ].join("\n");
   },
@@ -193,7 +194,9 @@ export const letters = {
       `Current intent: ${lane.outcome}`,
       `Ownership: ${task.id} (${task.title}) is still owned by ${peer}, on ${lane.branch}. The lane is still yours.`,
       "Topology: unchanged. No seat was started, moved or put away.",
-      `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
+      task.status === "queued" || task.status === "merging"
+        ? `Integration and acceptance: you have already accepted ${task.id} and it is waiting to merge; nothing here changed that.`
+        : `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
       "",
       "If this changes what you were going to do, say so in your next report.",
     ].join("\n");

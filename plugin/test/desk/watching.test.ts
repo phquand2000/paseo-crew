@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, pendingEntries, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, pendingEntries, refund, reported, reserve } from "../../server/desk/watching.ts";
 
 /** What a report built from this state would carry: the keys it holds, at the counts it holds them. */
 const carriedBy = (watching: Watching) => Object.fromEntries(pendingEntries(watching).map(([key, strike]) => [key, strike.count]));
@@ -167,4 +167,14 @@ test("a fault the owner has already been told about is owed to them again the ne
   const settled = delivered(again.watching, [key], NOW + minutes(3));
   assert.deepEqual(pending(settled), []);
   assert.deepEqual(pending(reported(settled, carriedBy(settled), NOW + minutes(3))).map((strike) => strike.label), [], "and the digest settles what it carried");
+});
+
+test("pages reserved for interruptions that found nobody are given back, and only those", () => {
+  const held: Watching = { strikes: {}, pages: [NOW - minutes(5)] };
+  const reserved = reserve(held, 2, NOW);
+  assert.equal(pagesLeft(reserved, NOW), 0, "reserved before the letters go, so a raise beside this one sees them spent");
+  // Given back by the moment they were taken, so the page an earlier interruption really cost stays.
+  const back = refund(reserved, 2, NOW);
+  assert.deepEqual(back.pages, [NOW - minutes(5)]);
+  assert.equal(pagesLeft(back, NOW), 1);
 });

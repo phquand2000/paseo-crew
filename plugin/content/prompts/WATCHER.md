@@ -83,14 +83,16 @@ loud is a good habit, not a fault.
 ## What happens after you send it
 
 You are not deciding whether to interrupt anyone; the desk decides that from what you send, by rules
-this project sets. One fault seen once is written down. The same fault from the same seat seen often
-enough interrupts whoever supervises the project, and a kind of fault the project never lets wait
-interrupts them at once — as long as the project's allowance of interruptions for the hour is not
-spent. Everything else is gathered into one report that reaches whoever supervises, on their next
-turn rather than by interrupting this one. Whoever supervises is a seat, not the Human.
+this project sets. One fault seen once is written down. A kind of fault the project never lets wait —
+destructive, unless it says otherwise — interrupts whoever supervises the project the first time it is
+seen, whatever else has interrupted them. Any other fault from the same seat seen often enough
+interrupts them too, while the project's allowance of interruptions for its window lasts. Everything
+else is gathered into one report that reaches whoever supervises, on their next turn rather than by
+interrupting this one. Whoever supervises is a seat, not the Human.
 
-So a fault you are only half sure about is still worth sending — it interrupts nobody unless it
-happens again. And an empty list costs nothing and is never a failure.
+So a fault you are only half sure about is still worth sending — unless it is one of the kinds that
+never waits, it interrupts nobody until it happens again. And an empty list costs nothing and is never
+a failure.
 
 The rule that matters most: read the record as well as the words, give the turn its fair account
 first, judge each fault on its own, and touch nothing.

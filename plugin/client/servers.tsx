@@ -209,13 +209,15 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
               ? "It stays in the catalog; add it again whenever you want."
               : addedHere
                 ? "It was added here, so removing it forgets it — its url and any token with it."
-                : "It comes from the machine's defaults, so removing it here switches it off for this project only."
+                : "It comes from the machine's defaults, so removing it here switches it off for this project only; the switch above turns it back on."
           }
           actionLabel="Remove"
           disabled={disabled}
           onPress={() =>
             save((current) => {
-              const next = state.template || !addedHere ? setMcp(current, active, { removed: true, enabled: false }) : dropMcp(current, active);
+              // Switched off, not removed, for a server another layer added: removed, the resolver drops it
+              // and with it the tab, so the project had no way to switch it back on.
+              const next = state.template ? setMcp(current, active, { removed: true, enabled: false }) : addedHere ? dropMcp(current, active) : setMcp(current, active, { enabled: false });
               setActive(ids.find((id) => id !== active) ?? ADD);
               return next;
             })

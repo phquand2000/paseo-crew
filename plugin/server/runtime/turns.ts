@@ -39,8 +39,16 @@ export class TurnRules {
   }
 
   async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<string | undefined> {
+    // A Lead's owner is whoever supervises, which the ledger only narrows. Read first and thrown on,
+    // an unreadable ledger stopped a Lead's failed turn and its permission requests reaching anyone.
+    if (can(role, "lead")) {
+      let opener: string | undefined;
+      try {
+        opener = laneOfLead(loadLedger(project.state), agentId)?.opener;
+      } catch {}
+      return this.deps.desk.supervisorFor(project, opener);
+    }
     const ledger = loadLedger(project.state);
-    if (can(role, "lead")) return this.deps.desk.supervisorFor(project, laneOfLead(ledger, agentId)?.opener);
     const task = taskOfPeer(ledger, agentId);
     return task ? ledger.lanes[task.lane]?.lead : undefined;
   }
@@ -114,12 +122,16 @@ export class TurnRules {
       // And a stalled task whose Peer is working again is running. Nothing else ever set it back —
       // not the Lead's message the SILENT letter tells it to send, not the Peer's own ask — so the
       // idle-lane check and the gone-Peer check stopped seeing a Peer that was plainly there.
-      if (recorded && task.status === "stalled") await desk.setTask(project, task.id, (entry) => { if (entry.status === "stalled") entry.status = "running"; });
+      if (recorded && task.status === "stalled") await desk.setTask(project, task.id, (entry) => { if (entry.status === "stalled") { entry.status = "running"; delete entry.peerGone; } });
       if (lane && this.watchable(project, reading, recorded)) {
         this.deps.watch({ project, lane: lane.id, agent: agent.id, role: roleName, where: `the Peer on ${task.id} (${task.title})`, text, reading });
       }
       return;
     }
+    // A call still being worked on is not silence: a hand-back whose gate runs past what a call can
+    // wait was answered "the answer comes by mail", the Peer ended its turn as told, and was then
+    // nudged to call done again — which started a second gate beside the first.
+    if (desk.inFlight(agent.id)) return;
     const denied = deniedCall(timeline, seatOf(this.deps.kit, agent.provider)?.harness.refused);
     desk.event(project, { kind: "turn.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
     const updated = await desk.setTask(project, task.id, (entry) => {

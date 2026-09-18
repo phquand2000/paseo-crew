@@ -34,7 +34,7 @@ export type Lane = {
   tasks: number;
 };
 
-export type Handback = { file: string; outcome: string; commit?: string; summary: string; at: number };
+export type Handback = { file: string; outcome: string; commit?: string; summary: string; at: number; gate?: { ok: boolean; note: string } };
 
 export type Task = {
   id: string;
@@ -63,6 +63,8 @@ export type Task = {
   /** How many times this task has been sent back, so each sending is its own event and not a repeat. */
   reworks?: number;
   silent: number;
+  /** Stalled because its Peer's seat is gone, rather than because it went quiet: it holds nothing then. */
+  peerGone?: boolean;
 };
 
 export type Ask = {
@@ -127,7 +129,7 @@ export function ledgerFile(state: string): string {
  */
 export function loadLedger(state: string): Ledger {
   const fault = ledgerFault(state);
-  if (fault) throw new Error(`${fault}. Nothing was read from it as if the project had no work on record; move it aside or repair it.`);
+  if (fault) throw new Error(`${fault}. Nothing was read from it as if the project had no work on record. Only the Human can repair it or move it aside; no seat may write the desk's own files.`);
   const stored = readJson<Ledger | null>(ledgerFile(state), null);
   if (!stored) return emptyLedger();
   return { ...emptyLedger(), ...stored };

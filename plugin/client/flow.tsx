@@ -31,6 +31,7 @@ const since = (minutes: number): string => (minutes < 1 ? "just now" : `${minute
 const seatText = (seat: FlowSeat | null): string => {
   if (!seat) return "no seat";
   if (seat.waiting.length > 0) return `waiting on you · ${seat.waiting[0]}`;
+  if (seat.status === "gone") return seat.minutes > 0 ? `gone · last heard ${seat.minutes} min ago` : "gone";
   return `${seat.status} · ${ago(seat.minutes)}`;
 };
 

@@ -15,10 +15,12 @@ export const LANE_CAP = 50;
 const minutes = (now: number, at: number | string | undefined): number =>
   at === undefined ? 0 : Math.max(0, Math.round((now - (typeof at === "string" ? Date.parse(at) : at)) / 60_000));
 
-function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: string, now: number): FlowSeat | null {
+function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: string, now: number, heard?: number): FlowSeat | null {
   if (!id) return null;
   const seat = seats.get(id);
-  if (!seat) return { id, role, status: "gone", minutes: 0, waiting: [] };
+  // How long since it was last heard from, when the desk knows; stamped zero, a seat gone for a week
+  // read as having gone just now.
+  if (!seat) return { id, role, status: "gone", minutes: heard ? minutes(now, heard) : 0, waiting: [] };
   return {
     id,
     role,
@@ -115,12 +117,13 @@ export function flowView(
   // and a view with room for one hid all but the busiest. A concern with nobody seated shows the last
   // seat it had, as gone, so the screen says the concern is uncovered rather than saying nothing.
   const shown = new Map<string, FlowSeat>();
-  for (const entry of [...seated, ...live]) if (!shown.has(entry.id)) shown.set(entry.id, seatOf(seats, entry.id, entry.role, now)!);
+  const heard = (id: string) => ledger.agents[id]?.recordedAt;
+  for (const entry of [...seated, ...live]) if (!shown.has(entry.id)) shown.set(entry.id, seatOf(seats, entry.id, entry.role, now, heard(entry.id))!);
   const covered = new Set([...shown.values()].map((seat) => seat.role));
   for (const agent of [...recorded].reverse()) {
     if (covered.has(agent.role)) continue;
     covered.add(agent.role);
-    shown.set(agent.id, seatOf(seats, agent.id, agent.role, now)!);
+    shown.set(agent.id, seatOf(seats, agent.id, agent.role, now, heard(agent.id))!);
   }
   const supervisors = [...shown.values()];
 

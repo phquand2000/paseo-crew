@@ -34,8 +34,14 @@ export async function taskGate(project: Project, taskId: string, cwd: string): P
   return { ok: result.ok, note: result.ok ? `${config.gate} passed in ${result.seconds}s` : `${config.gate}: ${reason}`, reason, tail: result.tail, logFile };
 }
 
-export function gateNote(project: Project): string {
+/**
+ * What the MERGED letter says about the gate, from what actually ran. It said "its verdict was in the
+ * hand-back" whether or not there had been a hand-back, a gate, or a green one.
+ */
+export function gateNote(project: Project, task?: { handback?: { gate?: { ok: boolean; note: string } } }): string {
   const config = loadConfig(project.state);
   if (!config.gate) return "none set";
-  return config.gateOn === "task" ? "ran on this task when it was handed back; its verdict was in the hand-back" : "runs on the whole lane when you report it ready";
+  if (config.gateOn !== "task") return "runs on the whole lane when you report it ready";
+  const ran = task?.handback?.gate;
+  return ran ? `ran on this task when it was handed back: ${ran.note}${ran.ok ? "" : " — accepted over it"}` : "did not run on this task: it was not handed back while the project gated each task";
 }

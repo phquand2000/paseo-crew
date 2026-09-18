@@ -217,9 +217,11 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   const models = harness.models ?? [];
   // The role's own harness brings back what the kit chose for it there.
   const preset = harness.id === seat.role.defaults.harness ? seat.role.defaults : undefined;
-  const model = models.find((entry) => entry.id === preset?.model) ?? models.find((entry) => entry.isDefault) ?? models[0];
+  // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
+  const model = preset?.model ? (models.find((entry) => entry.id === preset.model) ?? { id: preset.model, label: preset.model }) : (models.find((entry) => entry.isDefault) ?? models[0]);
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
-  const thinking = (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id;
+  const offCatalog = Boolean(preset?.model) && !models.some((entry) => entry.id === preset!.model);
+  const thinking = offCatalog && harness.hasThinking !== false ? preset!.thinking : (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id;
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 

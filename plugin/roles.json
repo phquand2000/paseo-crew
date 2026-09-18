@@ -119,7 +119,7 @@
     {
       "role": "watcher",
       "label": "Watcher",
-      "description": "Reads how turns end and raises attention for the owner; it cannot touch the work",
+      "description": "Reads how turns end and raises attention for whoever supervises the project; it cannot touch the work",
       "defaults": {
         "harness": "devin",
         "model": "swe-2-medium"

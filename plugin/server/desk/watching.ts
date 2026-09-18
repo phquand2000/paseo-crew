@@ -67,7 +67,8 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
     label: raised.label,
     where: raised.where,
     quote: raised.quote,
-    evidence: raised.evidence,
+    // Kept when a raise carries none: the strike's evidence is what the report and the letter show.
+    evidence: raised.evidence.length > 0 ? raised.evidence : (seen?.evidence ?? []),
     first: seen?.first ?? now,
     last: now,
     count: (seen?.count ?? 0) + 1,
@@ -96,15 +97,8 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
  * `pagesPerWindow` would stop bounding anything.
  */
 export function delivered(watching: Watching, keys: string[], now: number): Watching {
-  const strikes = { ...watching.strikes };
-  const pages = [...watching.pages];
-  for (const key of keys) {
-    const strike = strikes[key];
-    if (!strike) continue;
-    strikes[key] = { ...strike, told: strike.count };
-    pages.push(now);
-  }
-  return { ...watching, strikes, pages };
+  // The same two steps `raise` takes, in one: a page reserved per letter, then what they settled.
+  return told(reserve(watching, keys.filter((key) => watching.strikes[key]).length, now), keys);
 }
 
 /** How many more interruptions this window can take. */

@@ -90,8 +90,10 @@ export const DESK_OWNED = new Set(["ledger.json", "watching.json", "project.json
  * the two places the prompts mention, while the skills in the same seats run scripts that write under
  * `ultra-review/`, `council/`, `repo-refresh/`, `pre-mortem/` — and a sandboxed shell refused every one.
  */
-export function stateTargets(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map()): string[] {
-  const texts: string[] = [];
+export function stateTargets(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map(), rules = ""): string[] {
+  // And the rules the seat is handed beside them — the owner's, the role's, each server's — which are
+  // rendered with {{state}} into the same instructions and were left out of the grant.
+  const texts: string[] = [rules];
   const prompt = contentPath(kit, role.prompt);
   if (existsSync(prompt)) texts.push(readFileSync(prompt, "utf-8"));
   for (const dir of skillSources(kit, role, extra).values()) for (const file of markdownIn(dir)) texts.push(readFileSync(file, "utf-8"));

@@ -170,14 +170,14 @@ export class Runtime {
 
   private async turnEnded(event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
-    const archiving = this.desk.pendingArchive.has(event.agent.id);
-    if (archiving) await this.desk.archive(event.agent.id, true);
-    await this.desk.stopped(event.agent.id);
-    if (archiving) return;
     // The mail waiting for this seat goes whatever reading its turn ran into. A throw in there — an
     // unreadable ledger, a bad pattern — used to leave every letter for it sitting until some other
-    // event happened to pump it.
+    // event happened to pump it. (For a seat being put away, the pump finds it archived and stops.)
     try {
+      const archiving = this.desk.pendingArchive.has(event.agent.id);
+      if (archiving) await this.desk.archive(event.agent.id, true);
+      await this.desk.stopped(event.agent.id);
+      if (archiving) return;
       await this.turns.ended(event);
     } finally {
       await this.outbox.pump(event.agent.id);

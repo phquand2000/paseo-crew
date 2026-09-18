@@ -75,7 +75,7 @@ export class MergeQueue {
     // No gate here. Where the owner gates each task the Lead had the verdict with the hand-back and
     // accepted with it in hand; running it again and undoing the merge on red took back a decision
     // that was the Lead's — the "evidence, not a veto" the Lead's own prompt promises.
-    const gate = gateNote(project);
+    const gate = gateNote(project, task);
     await this.ctx.setTask(project, taskId, (entry) => {
       entry.mergeSha = merged.after;
     });

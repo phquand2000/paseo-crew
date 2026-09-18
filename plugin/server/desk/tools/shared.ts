@@ -101,7 +101,7 @@ export const answer: Tool = async ({ ctx }, caller, args) => {
   // above it as the owner, by design; a seat that supervises is told which seat it was.
   const waiting = ask.to === caller.id ? undefined : ask.to;
   const by = waiting && can(roleNamed(ctx.kit, result.waitingRole ?? ""), "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
-  if (waiting) await ctx.post(waiting, `answeredFor:${ask.id}`, letters.answeredFor(ask, by));
+  if (waiting) await ctx.post(waiting, `answeredFor:${ask.id}`, letters.answeredFor(ask, by, can(roleNamed(ctx.kit, result.waitingRole ?? ""), "lead")));
   await ctx.post(ask.from, `answer:${ask.id}`, letters.answered(ask));
   ctx.event(caller.project, { kind: "ask.answered", ask: ask.id, by: caller.id, told: waiting ?? null });
   return ok(`Answered ${ask.id}; the asker gets it when idle.${waiting ? " Whoever it was waiting on has been told what it was answered with." : ""}`);

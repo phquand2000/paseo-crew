@@ -26,7 +26,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [openLanes, setOpenLanes] = useState<{ of: string; lanes: string[] }>({ of: "", lanes: [] });
   const project = open && open !== MACHINE ? open : undefined;
   const lanesOpen = openLanes.of === (project ?? "") ? openLanes.lanes : [];
-  const { data, save, reload, saving, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = useSeatworks(project);
+  const { data, save, reload, saving, saved, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = useSeatworks(project);
   const settings = data.status === "ready" ? data : null;
   const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
   const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
@@ -45,9 +45,9 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   );
 
   useEffect(() => {
-    if (wasSaving.current && !saving && !saveError) toast.show("Saved", { variant: "success" });
+    if (wasSaving.current && !saving && saved === true) toast.show("Saved", { variant: "success" });
     wasSaving.current = saving;
-  }, [saving, saveError, toast]);
+  }, [saving, saved, toast]);
 
   if (data.status === "loading") {
     return (

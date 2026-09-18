@@ -113,8 +113,15 @@ export function useSeatworks(project?: string) {
   // Held with the screen it came from. The hook serves every screen, and a refusal on one project was
   // shown under "Needs your attention" on every other one and on the list, until the next save anywhere.
   const [refusal, setRefusal] = useState<{ of: string; text: string } | null>(null);
-  const setSaveError = useCallback((text: string | null) => setRefusal(text === null ? null : { of: project ?? "", text }), [project]);
+  // Read through a ref, so a callback built on an earlier render still tags the screen that is open
+  // now: closed over `project`, detach and add kept the list's "" from the first render for good.
+  const here = useRef(project ?? "");
+  here.current = project ?? "";
+  const setSaveError = useCallback((text: string | null) => setRefusal(text === null ? null : { of: here.current, text }), []);
   const saveError = refusal?.of === (project ?? "") ? refusal.text : null;
+  // Whether the last write really went. The "Saved" toast used to infer it from there being no error
+  // on the screen now open, so a refusal recorded for another screen read as a success.
+  const [saved, setSaved] = useState<boolean | null>(null);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
@@ -188,11 +195,14 @@ export function useSeatworks(project?: string) {
         const result = await latest.current.write({ project, revision: data.revision, values: change(data.values) });
         if (result.status !== "saved") {
           setSaveError(result.error);
+          setSaved(false);
           return false;
         }
+        setSaved(true);
         return true;
       } catch (error) {
         setSaveError(message(error));
+        setSaved(false);
         return false;
       } finally {
         // Locked until the reload this asks for has landed. Cleared here, the controls came back live
@@ -229,12 +239,15 @@ export function useSeatworks(project?: string) {
         const added = await latest.current.add({ root });
         if ("error" in added) {
           setSaveError(added.error);
+          setSaved(false);
           return null;
         }
         if (Object.keys(values).length > 0) {
           const read = await latest.current.settings({ project: added.slug });
           if (read.status !== "ready") {
-            setSaveError(read.error);
+            // Filed under the project the dialog is about to open, which is where it has to be read.
+            setRefusal({ of: added.slug, text: read.error });
+            setSaved(false);
             return added.slug;
           }
           // A write is the whole layer, so what the dialog collected is folded into what the project
@@ -245,11 +258,17 @@ export function useSeatworks(project?: string) {
             read.values.roles?.[role]?.harness ?? read.machine.roles?.[role]?.harness ?? catalogue.find((entry) => entry.id === role)?.defaults.harness,
           );
           const written = await latest.current.write({ project: added.slug, revision: read.revision, values: merged });
-          if (written.status !== "saved") setSaveError(written.error);
+          if (written.status !== "saved") {
+            setRefusal({ of: added.slug, text: written.error });
+            setSaved(false);
+            return added.slug;
+          }
         }
+        setSaved(true);
         return added.slug;
       } catch (error) {
         setSaveError(message(error));
+        setSaved(false);
         return null;
       } finally {
         settling.current = true;
@@ -269,11 +288,14 @@ export function useSeatworks(project?: string) {
         const result = await latest.current.remove({ project: slug });
         if ("error" in result) {
           setSaveError(result.error);
+          setSaved(false);
           return false;
         }
+        setSaved(true);
         return true;
       } catch (error) {
         setSaveError(message(error));
+        setSaved(false);
         return false;
       } finally {
         settling.current = true;
@@ -335,7 +357,7 @@ export function useSeatworks(project?: string) {
   const readStatus = useCallback((slug: string) => latest.current.status({ project: slug }), []);
   // The setup screen needs the layers of the project it is pointed at, which is not the one open here.
   const readSettings = useCallback((slug: string) => latest.current.settings({ project: slug }), []);
-  return { data, save, reload, saving, saveError, addProject, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings };
+  return { data, save, reload, saving, saved, saveError, addProject, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings };
 }
 
 export function useFlow(project: string | undefined, everyMs = 5000, openKey = ""): { flow: FlowView | null; error: string | null } {

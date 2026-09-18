@@ -294,10 +294,10 @@ export class SettingsControl implements Control {
     if (open > 0 || copies > 0 || restoring > 0) {
       const held = [
         open > 0 ? `${open} open lane(s)` : "",
-        restoring > 0 ? `${restoring} closed lane(s) still putting the project's own copy back on its base branch` : "",
+        restoring > 0 ? `${restoring} closed lane(s) whose working copy — the project's own — is not back on its base branch yet: a seat is still writing there, or the copy has changes that stop the switch (see restore.held in events.log)` : "",
         copies > 0 ? `${copies} working cop${copies === 1 ? "y" : "ies"} still checked out` : "",
       ].filter(Boolean);
-      return { error: `${slug} has ${held.join(" and ")}, so its settings stay. ${open > 0 ? "Close the lanes first." : "That finishes when the seat writing there stops."}` };
+      return { error: `${slug} has ${held.join(" and ")}, so its settings stay.${open > 0 ? " Close the lanes first." : ""}` };
     }
     for (const name of ["settings.json", "meta.json"]) rmSync(join(project.state, name), { force: true });
     try {

@@ -81,9 +81,10 @@ wait. Settle every open ask in the turn that shows it, since a Lead waiting on y
 - **REPORT ready:** when acceptance is met, `close_lane` with land true and tell the Human in two
   lines. A red gate stops the landing; landing over it with `overGate` is your call to make, and to
   say why. For a report that isn't ready, reply only when it changes a decision.
-- **HANDBACK or ASK from a Peer whose Lead is gone:** `answer` the ask yourself; for a hand-back,
-  close the lane — its branch is kept — and open a new one for what is left, which seats a new Lead.
-  Nothing else can accept that Peer's work while the lane has no Lead.
+- **HANDBACK or ASK from a Peer whose Lead is gone:** `answer` the ask yourself. For a hand-back,
+  `close_lane` with land false, then `open_lane` with `base` set to the branch its reply says was kept,
+  and put the hand-back file from the letter in the new lane's outcome, so the new Lead starts from that
+  work and can judge it. Nothing else can accept that Peer's work while the lane has no Lead.
 - **LANE IDLE, UNANSWERED, ATTENTION:** read the quoted words, and when they read worse than the work
   looks, `get_agent_activity` on the Lead id `status` gives you, to see what was actually done before
   you act on words alone; that record stays readable after the lane closes. Then take the smallest

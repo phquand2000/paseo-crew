@@ -1,5 +1,5 @@
 import { configFault } from "../../core/config-file.ts";
-import { branchExists, currentBranch, landLane, trackedFiles } from "../../core/git.ts";
+import { branchExists, currentBranch, isAncestor, landLane, trackedFiles } from "../../core/git.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
 import { docsDir, placeDoc } from "../../catalog/templates.ts";
 import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
@@ -108,7 +108,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   // "no gate", and detecting one over that answers for them about what may land.
   if (!config.base || config.gate === undefined) {
     const fault = configFault(configFile(project.state));
-    if (fault) return no(`${fault}\nRepair it by hand, or move it aside; the desk will not write its own defaults over a file it could not read.`);
+    if (fault) return no(`${fault}\nOnly the Human can repair it or move it aside — no seat may write the desk's own files — so tell them; the desk will not write its own defaults over a file it could not read.`);
     saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
   }
   const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
@@ -207,6 +207,14 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
       }),
     );
     const parked = !lane.slot && !writing.some(Boolean) ? lane.branch : undefined;
+    // A merge the copy cannot be moved for is refused before anything is closed. Closed first, the lane
+    // could not be closed again, so a landing that only had to wait for one turn to end was lost for
+    // good, under git's reason rather than the real one.
+    if (!lane.slot && !parked && !(await isAncestor(project.root, lane.base, lane.branch))) {
+      return no(
+        `Lane ${lane.id} was not closed: ${lane.base} has moved on, so landing it is a merge in the project's own copy, and a seat is mid-turn there. Close it again once that turn ends, or close it with land false.`,
+      );
+    }
     const result = await landLane(project.root, lane.base, lane.branch, parked);
     landing = result.landed ? `${result.how}${gate.ok ? "" : ", over a red gate"}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
   }
@@ -249,6 +257,9 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
 };
 
 export const setProject: Tool = async ({ ctx }, caller, args) => {
+  // Refused as open_lane refuses: read as all defaults, an unreadable file was saved over with them.
+  const unreadable = configFault(configFile(caller.project.state));
+  if (unreadable) return no(`${unreadable}\nOnly the Human can repair it or move it aside; nothing was saved over it.`);
   const config = loadConfig(caller.project.state);
   const shelf = ctx.kit.templates;
   const asked = strs(args.docs);

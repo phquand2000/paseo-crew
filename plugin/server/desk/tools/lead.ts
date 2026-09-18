@@ -35,6 +35,9 @@ import { namedOrNot } from "./shared.ts";
 // there. Left out, a SILENT letter was enough to let a second Peer be seated in the same checkout.
 const HOLDS: TaskStatus[] = ["running", "rework", "done", "stalled"];
 
+/** Holding the copy, unless it is stalled because its Peer's seat is gone: then nobody is writing there. */
+const holds = (task: Task): boolean => HOLDS.includes(task.status) && !(task.status === "stalled" && task.peerGone);
+
 /** What is in the way, named: a stray message file reads as unfinished work otherwise. */
 async function uncommittedIn(cwd: string): Promise<string> {
   const run = await git(cwd, ["status", "--porcelain"]);
@@ -46,7 +49,7 @@ async function uncommittedIn(cwd: string): Promise<string> {
 /** The lane-mode task that has the lane's working copy, if any. */
 function holderOf(ledger: Ledger, lane: Lane, except?: string): Task | undefined {
   return Object.values(ledger.tasks).find(
-    (task) => task.lane === lane.id && task.id !== except && task.kind === "code" && task.mode !== "parallel" && HOLDS.includes(task.status),
+    (task) => task.lane === lane.id && task.id !== except && task.kind === "code" && task.mode !== "parallel" && holds(task),
   );
 }
 
@@ -218,7 +221,9 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
       kind: "review",
       mode: "lane",
       of: target?.id,
-      title: target ? `Review ${target.id}` : str(args.title) || clip(focus.split(/\r?\n/)[0] ?? "Review", 50),
+      // The title the Lead gave wins either way: council and ultra-review start several reviewers on one
+      // task and tell them apart — scout-01 to scout-10 — by it.
+      title: str(args.title) || (target ? `Review ${target.id}` : clip(focus.split(/\r?\n/)[0] ?? "Review", 50)),
       goal: focus,
       acceptance: target?.acceptance ?? [],
       owned: [],
@@ -298,7 +303,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
   // Not run again here: a project that gates each task gave the Lead its verdict with the hand-back,
   // which is where a verdict can still be weighed.
-  const gate = gateNote(project);
+  const gate = gateNote(project, task);
   const updated = await ctx.setTask(project, task.id, (entry) => {
     entry.status = "merged";
   });

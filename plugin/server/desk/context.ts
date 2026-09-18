@@ -43,7 +43,8 @@ export type DeskDeps = {
 export class DeskContext {
   readonly kit: Kit;
   readonly projects = new Map<string, Project>();
-  private readonly readings = new Map<string, string[]>();
+  /** Per seat, the notes of each ending not yet raised on, oldest first. */
+  private readonly readings = new Map<string, string[][]>();
   private readonly deps: DeskDeps;
   private readonly locks = new Map<string, Promise<unknown>>();
 
@@ -69,7 +70,7 @@ export class DeskContext {
     const previous = this.locks.get(project.slug) ?? Promise.resolve();
     const run = previous.then(async () => {
       const fault = ledgerFault(project.state);
-      if (fault) throw new Error(`${fault}. Nothing was written over it; move it aside or repair it, and what the desk has on record is in that file.`);
+      if (fault) throw new Error(`${fault}. Nothing was written over it. Only the Human can repair it or move it aside — no seat may write the desk's own files — and what the desk has on record is in that file.`);
       const ledger = loadLedger(project.state);
       const result = await change(ledger);
       saveLedger(project.state, ledger);
@@ -148,21 +149,26 @@ export class DeskContext {
    */
   recordReading(project: Project, where: string, notes: string[]): void {
     const key = `${project.slug}:${where}`;
-    const held = this.readings.get(key) ?? [];
-    this.readings.set(key, [...held, ...notes.filter((note) => !held.includes(note))].slice(-20));
+    this.readings.set(key, [...(this.readings.get(key) ?? []), notes].slice(-20));
   }
 
-  /** What is filed for this seat, which a raise then consumes; the key stays, so it still counts as filed. */
+  /**
+   * The notes of the oldest ending of this seat not yet raised on. The Watcher is sent one ending per
+   * letter and asked to raise once for each, in the order they came, so each raise takes its own.
+   * Taking the whole list at once gave a busy Watcher's first raise the evidence of every later
+   * ending, and left the raise on the ending that had it with none.
+   */
   takeReading(project: Project, where: string): string[] {
     const key = `${project.slug}:${where}`;
     const held = this.readings.get(key);
-    if (held === undefined) return [];
-    this.readings.set(key, []);
-    return held;
+    if (!held || held.length === 0) return [];
+    const [first, ...rest] = held;
+    this.readings.set(key, rest);
+    return first ?? [];
   }
 
   reading(project: Project, where: string): string[] {
-    return this.readings.get(`${project.slug}:${where}`) ?? [];
+    return this.readings.get(`${project.slug}:${where}`)?.[0] ?? [];
   }
 
   /** What became of the letter: sent, held for a seat that is busy, or dropped as a repeat of one already sent. */
