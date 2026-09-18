@@ -13,20 +13,6 @@
     "gitExclude": [
       ".idea/"
     ],
-    "open": {
-      "tool": "ide_open_project",
-      "args": {
-        "path": "{root}",
-        "timeoutSeconds": 300
-      },
-      "timeoutSeconds": 330,
-      "when": "project_not_found|No open project matches",
-      "route": {
-        "when": "multiple_projects_open",
-        "from": "available_projects",
-        "field": "path"
-      }
-    },
     "wait": {
       "tool": "ide_index_status",
       "when": "dumb mode|index is not ready",
@@ -47,6 +33,10 @@
       {
         "when": "^Tool \\S+ not found",
         "reply": "The IDE has {tool} switched off. Use the other code tools or the shell instead."
+      },
+      {
+        "when": "project_not_found|No open project matches",
+        "reply": "The IDE does not have this working copy open, so {tool} cannot answer for it. Use the other tools and the shell instead; the Human can open it in the IDE."
       }
     ]
   },

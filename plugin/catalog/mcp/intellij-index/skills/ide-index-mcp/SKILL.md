@@ -7,8 +7,9 @@ description: How to navigate and refactor code with the intellij-index MCP tools
 
 The intellij-index tools give semantic answers from the IDE's index: they understand types, imports,
 overrides and references, where grep and find only see text. Each call already targets your own
-working copy: the IDE opens it, waits for indexing and picks up files changed outside the IDE, so
-never pass a project path and never wait or sync yourself.
+working copy, which has to be open in the IDE: nothing here opens it. Indexing is waited for and files
+changed outside the IDE are picked up for you, so never pass a project path and never wait or sync
+yourself.
 
 ## Which tool
 
@@ -64,8 +65,10 @@ languages preview them and read the result before applying.
 
 ## When a result looks wrong
 
-- An error saying the IDE is still indexing, can't open the working copy or isn't reachable: take its
-  advice. Retrying the same call later is fine; don't guess from grep that a symbol has no usages.
+- An error saying the IDE is still indexing or isn't reachable: take its advice. Retrying the same
+  call later is fine; don't guess from grep that a symbol has no usages.
+- An error saying the IDE does not have your working copy open: these tools cannot answer for it. Use
+  the other tools and the shell, and say in what you hand back that the index was not available.
 - Empty or partial results right after editing files: call the tool again once; the index catches up
   on the next call.
 - An error naming a switched-off tool: use another tool from the table.

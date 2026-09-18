@@ -88,6 +88,20 @@ function ideConfig(url: string, tools: string[]) {
   return { name: "intellij-index", label, instructions, tools, ...proxy, backend: { type: "http", url }, wait: { ...proxy.wait, seconds: 2, pollSeconds: 0.01 } };
 }
 
+/**
+ * A preset that opens the working copy itself. The shipped IntelliJ entry no longer does — the owner
+ * took that tool out — but the proxy still carries the hook for any preset that wants it, so the hook
+ * is tested with this and the shipped entry is tested without it.
+ */
+const OPENING = {
+  tool: "ide_open_project",
+  args: { path: "{root}", timeoutSeconds: 300 },
+  timeoutSeconds: 330,
+  when: "project_not_found|No open project matches",
+  route: { when: "multiple_projects_open", from: "available_projects", field: "path" },
+};
+const opening = (config: object) => ({ ...config, open: OPENING });
+
 function proxy(cwd: string, config: object) {
   const child = spawn(process.execPath, [PROXY, JSON.stringify(config)], { cwd, stdio: ["pipe", "pipe", "inherit"] });
   const waiting = new Map<number, (value: any) => void>();
@@ -126,10 +140,10 @@ test("the IDE server carries the navigation rule, lists only the role's tools an
   }
 });
 
-test("an IDE call is pinned to the working copy, opens it on first use, and reports a switched-off tool", async () => {
+test("an IDE call is pinned to the working copy, a preset that opens it does so on first use, and a switched-off tool is reported", async () => {
   const ide = await fakeIde({ openEnabled: true });
   const cwd = repo();
-  const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references", "ide_find_symbol", "ide_diagnostics"]));
+  const code = proxy(cwd, opening(ideConfig(ide.url, ["ide_find_references", "ide_find_symbol", "ide_diagnostics"])));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: { file: "a.ts", project_path: "/somewhere/else" } });
     assert.equal(reply.result.isError, false);
@@ -151,6 +165,7 @@ test("an IDE call is pinned to the working copy, opens it on first use, and repo
 test("a call made while the IDE indexes waits for the index and is retried", async () => {
   const ide = await fakeIde({ openEnabled: true, dumbCalls: 1 });
   const cwd = repo();
+  ide.open.add(cwd);
   const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
@@ -165,6 +180,7 @@ test("a call made while the IDE indexes waits for the index and is retried", asy
 test("files changed outside the IDE are synced before the next call, and nothing is synced when nothing changed", async () => {
   const ide = await fakeIde({ openEnabled: true });
   const cwd = repo();
+  ide.open.add(cwd);
   const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
   const syncs = () => ide.calls.filter((call) => call.name === "ide_sync_files");
   try {
@@ -181,9 +197,23 @@ test("files changed outside the IDE are synced before the next call, and nothing
   }
 });
 
+test("the shipped IntelliJ entry never opens a project, and says so when the working copy is not open", async () => {
+  const ide = await fakeIde({ openEnabled: true });
+  const code = proxy(repo(), ideConfig(ide.url, ["ide_find_references"]));
+  try {
+    const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
+    assert.equal(reply.result.isError, true);
+    assert.match(reply.result.content[0].text, /does not have this working copy open/);
+    assert.equal(ide.calls.some((call) => call.name === "ide_open_project"), false, "the open tool was taken out and is never called");
+  } finally {
+    code.stop();
+    ide.close();
+  }
+});
+
 test("when the IDE can't open the working copy the agent is told the open tool is switched off", async () => {
   const ide = await fakeIde({ openEnabled: false });
-  const code = proxy(repo(), ideConfig(ide.url, ["ide_find_references"]));
+  const code = proxy(repo(), opening(ideConfig(ide.url, ["ide_find_references"])));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
     assert.equal(reply.result.isError, true);
@@ -227,7 +257,7 @@ test("code search lists the backend's tool with the catalog's description, hides
 test("opening a working copy while other projects are open is routed through one of them", async () => {
   const ide = await fakeIde({ openEnabled: true, routeRequired: true });
   const cwd = repo();
-  const code = proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
+  const code = proxy(cwd, opening(ideConfig(ide.url, ["ide_find_references"])));
   try {
     const reply = await code.rpc("tools/call", { name: "ide_find_references", arguments: {} });
     assert.equal(reply.result.isError, false, reply.result.content[0].text);
@@ -240,11 +270,16 @@ test("opening a working copy while other projects are open is routed through one
   }
 });
 
-test("the desk opens a slot through an open project when the IDE asks for one", async () => {
+test("the desk opens nothing with the shipped entry, and a preset that opens is routed through an open project", async () => {
   const ide = await fakeIde({ openEnabled: true, routeRequired: true });
   try {
     const { label, proxy: spec } = entry("intellij-index");
-    const result = await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).open("/slots/S1");
+    // The shipped entry asks the IDE to open nothing when the desk takes a working copy.
+    const shipped = await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).open("/slots/S1");
+    assert.equal(shipped.ok, true, shipped.text);
+    assert.equal(ide.calls.length, 0, "nothing is called");
+    // A preset that does open is routed through an open project when the IDE asks for one.
+    const result = await codeIndex({ ...spec, open: OPENING, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).open("/slots/S1");
     assert.equal(result.ok, true, result.text);
     assert.deepEqual(ide.calls.map((call) => [call.args.path, call.args.project_path]), [["/slots/S1", undefined], ["/slots/S1", "/already/open"]]);
   } finally {
