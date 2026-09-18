@@ -93,6 +93,24 @@ export function delivered(watching: Watching, keys: string[], now: number): Watc
   return { strikes, pages };
 }
 
+/**
+ * Strikes that did not go anywhere, put back in the report's hands.
+ *
+ * `judge` carries `reportedAt` forward onto every later strike of a key, so a recurrence of a fault the
+ * owner has already been told about is born already stamped. Not stamping it again is not enough to make
+ * it pending: the stamp it inherited has to come off, or "it waits in the report" is not true of it.
+ */
+export function heldBack(watching: Watching, keys: string[]): Watching {
+  const strikes = { ...watching.strikes };
+  for (const key of keys) {
+    const strike = strikes[key];
+    if (!strike) continue;
+    const { reportedAt, ...rest } = strike;
+    strikes[key] = rest;
+  }
+  return { strikes, pages: watching.pages };
+}
+
 /** How many more interruptions this window can take. */
 export function pagesLeft(watching: Watching, now: number, rules: WatchRules = WATCH_RULES): number {
   const spent = watching.pages.filter((at) => now - at < rules.windowHours * 3_600_000);

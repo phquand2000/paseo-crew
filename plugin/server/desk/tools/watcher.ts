@@ -1,7 +1,7 @@
 import { no, ok, str } from "../context.ts";
 import { letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
-import { type Urgency, type Watching, WATCH_RULES, delivered, judge, keyOf, loadWatching, pagesLeft, saveWatching } from "../watching.ts";
+import { type Urgency, type Watching, WATCH_RULES, delivered, heldBack, judge, keyOf, loadWatching, pagesLeft, saveWatching } from "../watching.ts";
 
 /** What the SLP preset asks a Watcher to distinguish. The kit names these; the desk only checks a finding carries one. */
 export const LABELS = ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"];
@@ -71,8 +71,11 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const rules = { ...WATCH_RULES, ...ctx.team(caller.project).attention };
   const room = pagesLeft(watching, now, rules);
   const urgent = paged.filter((finding) => rules.always.includes(finding.label));
-  const sending = [...urgent, ...paged.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
-  const heldBack = paged.filter((finding) => !sending.includes(finding));
+  const chosen = [...urgent, ...paged.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
+  // One entry per key: two findings under one label are one letter — the outbox drops the second as a
+  // repeat — so charging two pages for it spends a budget nothing was interrupted with.
+  const sending = chosen.filter((finding, index) => chosen.findIndex((other) => other.label === finding.label) === index);
+  const waiting = paged.filter((finding) => !sending.some((sent) => sent.label === finding.label));
 
   const to = await roster.supervisorFor(project);
   if (!to) {
@@ -85,7 +88,8 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     const count = counts.get(finding.label) ?? 1;
     await ctx.post(to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
   }
-  saveWatching(project.state, delivered(watching, sending.map((finding) => keyOf(where, finding.label)), now));
-  const waited = heldBack.length > 0 ? ` ${heldBack.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
+  const settled = delivered(watching, sending.map((finding) => keyOf(where, finding.label)), now);
+  saveWatching(project.state, heldBack(settled, waiting.map((finding) => keyOf(where, finding.label))));
+  const waited = waiting.length > 0 ? ` ${waiting.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
   return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to the owner.${waited} Keep reading endings; nothing to wait for.`);
 };

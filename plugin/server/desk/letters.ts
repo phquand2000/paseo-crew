@@ -12,17 +12,14 @@ const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim
  * same place and get the same treatment, since they are read on the line above the fence.
  */
 export function outside(tag: string, text: string, limit: number): string {
-  // To a fixpoint: one pass is not enough, because removing a match can join what was on either side
-  // of it into a new one. `</</issue>issue>` holds exactly one `</issue>`, and taking it out leaves
-  // `</issue>` behind — the fence closed by the very text the fence was put around. Each pass makes
-  // the string shorter, so this ends.
+  // To a fixpoint, with no pass limit. One pass is not enough, because removing a match joins what was
+  // on either side of it into a new one: `</</issue>issue>` holds exactly one `</issue>`, and taking it
+  // out leaves `</issue>` behind. Each pass removes at least one match and so shortens the string by at
+  // least `tag.length + 3`, which is the termination proof — a fixed cap is not: capped at twenty, a
+  // body nested twenty-one deep walked out of the loop with a live fence in it.
   const fence = new RegExp(`</?${tag}>`, "gi");
   let out = text;
-  for (let pass = 0; pass < 20; pass++) {
-    const next = out.replace(fence, "");
-    if (next === out) break;
-    out = next;
-  }
+  for (let next = out.replace(fence, ""); next !== out; next = out.replace(fence, "")) out = next;
   return clip(out, limit);
 }
 

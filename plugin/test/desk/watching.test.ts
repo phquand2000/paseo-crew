@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, heldBack, judge, keyOf, pagesLeft, pending, reported } from "../../server/desk/watching.ts";
 
 const NOW = Date.parse("2026-09-16T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -127,4 +127,26 @@ test("every interruption is charged, not only the first one for a fault", () => 
   const third = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(4));
   assert.equal(third.urgency, "digest");
   assert.deepEqual(pending(third.watching).map((strike) => strike.label), [], "already reported, so it is not repeated either");
+});
+
+test("a finding held back for the budget has the stamp of its last report taken off, so the report can carry it", () => {
+  const key = keyOf("seat-lead", "repetition");
+  let watching: Watching = emptyWatching();
+  for (const at of [NOW, NOW + minutes(1), NOW + minutes(2)]) {
+    const verdict = judge(watching, raised({ subject: "seat-lead" }), at);
+    watching = verdict.urgency === "page" ? delivered(verdict.watching, [key], at) : verdict.watching;
+  }
+  assert.ok(watching.strikes[key]!.reportedAt, "it has been reported once");
+
+  // It happens again. judge carries the old stamp forward onto the new strike, so a finding the desk
+  // decides not to send is born already looking reported — and the report is the only other reader.
+  const again = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(3));
+  assert.ok(again.strike!.reportedAt, "born with the stamp of the earlier report");
+  assert.deepEqual(pending(again.watching), [], "so leaving it unstamped is not the same as making it pending");
+
+  assert.deepEqual(
+    pending(heldBack(again.watching, [key])).map((strike) => strike.label),
+    ["repetition"],
+    "taken off, it really does wait in the report",
+  );
 });

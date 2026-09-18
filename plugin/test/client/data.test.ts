@@ -40,3 +40,17 @@ test("running the setup screen over a project keeps what it holds, and does not 
   const same = foldRoles(project, { roles: { peer: { thinking: "low" } } }, (role) => project.roles?.[role]?.harness);
   assert.deepEqual(same.roles!.peer, { harness: "claude", model: "claude-opus-5", thinking: "low" });
 });
+
+test("a role whose agent is not recorded anywhere keeps the model the owner picked for it", () => {
+  // The ordinary state of a role nobody has moved: it runs the kit's default agent, so no layer says
+  // which agent that is, and the owner has still chosen a model for it on the Team tab.
+  const project: Layer = { roles: { peer: { model: "swe-2-medium" } } };
+  const draft: Layer = { roles: { peer: { harness: "devin" } } };
+
+  const unknown = foldRoles(project, draft, () => undefined);
+  assert.deepEqual(unknown.roles!.peer, { model: "swe-2-medium", harness: "devin" }, "an agent nobody can name is not an agent being replaced");
+
+  // And when it can be named and really is different, the old agent's model does go.
+  const moved = foldRoles(project, { roles: { peer: { harness: "claude" } } }, () => "devin");
+  assert.deepEqual(moved.roles!.peer, { harness: "claude" });
+});

@@ -224,7 +224,9 @@ export function useSeatworks(project?: string) {
         reload();
       }
     },
-    [reload],
+    // `data` is read for the catalog's default harness: without it here the callback keeps the one
+    // built on the first render, where the settings are still loading and the catalog is empty.
+    [data, reload],
   );
 
   const detach = useCallback(
@@ -279,8 +281,10 @@ export function useSeatworks(project?: string) {
         // Pasting the same name again is how a connection is updated — a rotated token, a new url —
         // so the roles the owner narrowed to are kept, intersected with what can reach the transport.
         // `roles` is derived from the kit, not carried by the snippet, so a paste must not assert it.
+        // An empty list is nothing to preserve, not a narrowing to nobody: a server switched on for no
+        // role could not be re-pasted at all, and the refusal named nobody.
         const narrowed = data.values.mcp?.[id]?.roles;
-        const roles = narrowed ? narrowed.filter((role) => reachable.includes(role)) : reachable;
+        const roles = narrowed?.length ? narrowed.filter((role) => reachable.includes(role)) : reachable;
         if (roles.length === 0) {
           setSaveError(`This server is given to ${narrowed!.join(", ")}, and no agent of theirs can reach a ${parsed.connect.type} server. Widen the roles on its own tab first.`);
           return null;
@@ -373,7 +377,11 @@ function prune<T extends object>(values: Layer, key: "roles" | "mcp", id: string
  */
 export function foldRoles(into: Layer, draft: Layer, harnessNow: (role: string) => string | undefined): Layer {
   return Object.entries(draft.roles ?? {}).reduce((values, [role, choice]) => {
-    const moved = Boolean(choice.harness) && choice.harness !== harnessNow(role);
+    // Only a harness we can *name* counts as the one being replaced. Reading "not recorded anywhere"
+    // as "different from this one" threw away a model the owner had picked for a role still running
+    // its kit default, which is the ordinary state of a role nobody has moved.
+    const now = harnessNow(role);
+    const moved = Boolean(choice.harness) && now !== undefined && choice.harness !== now;
     return setRole(values, role, choice, moved);
   }, into);
 }
