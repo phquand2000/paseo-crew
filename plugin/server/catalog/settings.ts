@@ -48,7 +48,7 @@ const Pattern = z.string().min(1).refine(
   { message: "that is not a pattern this machine can read" },
 );
 
-const AttentionChoice = z.strictObject({
+export const AttentionChoice = z.strictObject({
   tickSeconds: z.number().int().min(5).optional(),
   leadIdleMinutes: z.number().int().min(1).optional(),
   askRemindMinutes: z.number().int().min(1).optional(),

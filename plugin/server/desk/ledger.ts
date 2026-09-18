@@ -118,9 +118,18 @@ export function ledgerFile(state: string): string {
   return join(state, "ledger.json");
 }
 
+/**
+ * The ledger, or why it cannot be read — never an empty one standing in for a file that is there.
+ *
+ * Writes already refused an unreadable ledger, and every read still answered with an empty one, so the
+ * status tool, the owner's pages, a Peer's hand-back and the patrol all saw a project with no work on
+ * record — the very thing `ledgerFault` exists to stop anyone believing. Absent is still empty.
+ */
 export function loadLedger(state: string): Ledger {
+  const fault = ledgerFault(state);
+  if (fault) throw new Error(`${fault}. Nothing was read from it as if the project had no work on record; move it aside or repair it.`);
   const stored = readJson<Ledger | null>(ledgerFile(state), null);
-  if (!stored || stored.version !== 1) return emptyLedger();
+  if (!stored) return emptyLedger();
   return { ...emptyLedger(), ...stored };
 }
 

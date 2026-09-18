@@ -173,8 +173,14 @@ export class Runtime {
     if (archiving) await this.desk.archive(event.agent.id, true);
     await this.desk.stopped(event.agent.id);
     if (archiving) return;
-    await this.turns.ended(event);
-    await this.outbox.pump(event.agent.id);
+    // The mail waiting for this seat goes whatever reading its turn ran into. A throw in there — an
+    // unreadable ledger, a bad pattern — used to leave every letter for it sitting until some other
+    // event happened to pump it.
+    try {
+      await this.turns.ended(event);
+    } finally {
+      await this.outbox.pump(event.agent.id);
+    }
   }
 
   private async permissionRequested({ agent, request }: PluginLifecycleEvents["agent.permission_requested"]): Promise<void> {

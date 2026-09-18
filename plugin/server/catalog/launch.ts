@@ -60,7 +60,12 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   if (model) next.model = model.id;
   if (harness.provider.profileModeId) next.modeId = harness.provider.profileModeId;
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
-  if (options.length === 0) delete next.thinkingOptionId;
+  if (options.length === 0) {
+    // A model outside the catalog has no list to check against; the owner's thinking for it goes through.
+    const owned = harness.hasThinking === false ? undefined : sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
+    if (owned) next.thinkingOptionId = owned;
+    else delete next.thinkingOptionId;
+  }
   else {
     const preferred = sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
     const valid = (id: string | undefined) => Boolean(id) && options.some((option) => option.id === id);

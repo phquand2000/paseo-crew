@@ -984,6 +984,13 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   assert.equal(refused.ok, false);
   assert.match(refused.text, /could not be read/, "the seat is told, rather than getting a lane in a project that forgot the first one");
   assert.equal(readFileSync(file, "utf-8"), kept, "an empty ledger written over it forgets every lane, task and working copy on record");
+
+  // And reading is held to the same rule as writing. The status tool answered with an empty project —
+  // "No open lanes." — which is exactly what the refusal above exists to stop anyone believing.
+  const status = await h.call(sup, "supervisor", "status", {});
+  assert.equal(status.ok, false);
+  assert.match(status.text, /could not be read/);
+  assert.doesNotMatch(status.text, /No open lanes/);
   h.runtime.dispose();
 });
 

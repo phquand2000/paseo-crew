@@ -130,3 +130,32 @@ test("a seat pointed at a tool set the kit does not have is reported, not seated
   assert.match(wrong.errors.join("\n"), /Peer is given the tool set worker, which this kit does not have/);
   assert.deepEqual(resolveTeam(kit).errors, []);
 });
+
+test("putting a role back on its own harness brings back what the kit chose for it there", () => {
+  // Leaving a harness drops what was chosen for it. Coming back reset to the harness alone, so the
+  // preset's thinking was replaced by the catalog's first option.
+  const team = resolveTeam(kit, { roles: { supervisor: { harness: "devin" } } }, { roles: { supervisor: { harness: "claude" } } });
+  assert.deepEqual(team.errors, []);
+  assert.deepEqual([team.roles.supervisor!.model!.id, team.roles.supervisor!.thinking], ["opus", "high"]);
+  assert.equal(withHarness(resolveTeam(kit, { roles: { supervisor: { harness: "devin" } } }), "supervisor", kit.harnesses.claude!).roles.supervisor!.thinking, "high");
+});
+
+test("a model outside the catalog keeps the thinking the owner chose for it", () => {
+  const team = resolveTeam(kit, { roles: { supervisor: { model: "opus-next", thinking: "max" } } });
+  assert.deepEqual(team.errors, []);
+  assert.equal(team.roles.supervisor!.model!.id, "opus-next", "the catalog is not a fence");
+  assert.equal(team.roles.supervisor!.thinking, "max", "and a model it does not list is not one with no thinking");
+});
+
+test("a harness with no models and none chosen is refused where the owner can see it", () => {
+  const bare = {
+    ...kit,
+    harnesses: { ...kit.harnesses, devin: { ...kit.harnesses.devin!, models: undefined } },
+    roles: kit.roles.map((role) => (role.role === "peer" ? { ...role, defaults: { harness: "devin" } } : role)),
+  };
+  // Paseo starts an agent only as provider/model and refuses a bare provider in the client, so this
+  // resolved cleanly and then failed at every open_lane with a format error that named none of it.
+  const team = resolveTeam(bare as typeof kit);
+  assert.ok(team.errors.some((error) => /lists no models and none is chosen for the Peer/.test(error)), team.errors.join("\n"));
+  assert.deepEqual(resolveTeam(bare as typeof kit, { roles: { peer: { model: "swe-3" } } }).errors, [], "and choosing one is enough");
+});

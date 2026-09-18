@@ -119,7 +119,10 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   for (const layer of layers) {
     const next = layer.roles?.[role.role];
     if (!next) continue;
-    if (next.harness && next.harness !== choice.harness) choice = { harness: next.harness };
+    // Leaving a harness drops what was chosen for it; coming back to the role's own restores what the
+    // kit chose for it. Reset to the harness alone, a later layer putting the role back got the
+    // catalog's first model and thinking instead of the preset's.
+    if (next.harness && next.harness !== choice.harness) choice = next.harness === role.defaults.harness ? { ...role.defaults } : { harness: next.harness };
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
     if (next.rules?.trim()) ownRules.push(next.rules.trim());
@@ -148,6 +151,10 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   // choice, and the evidence for several lenses is about different models, not one model resampled.
   let model = choice.model ? (models.find((entry) => entry.id === choice.model) ?? { id: choice.model, label: choice.model }) : undefined;
   model ??= models.find((entry) => entry.isDefault) ?? models[0];
+  // Paseo starts an agent only as `provider/model`, and refuses a bare provider before the request
+  // reaches the daemon. A harness with no models and nothing chosen was accepted here and then failed
+  // at every open_lane with a format error that said none of this.
+  if (!model) errors.push(`${harness.label} lists no models and none is chosen for the ${role.label}; Paseo starts an agent only with one, so choose a model for it`);
   let thinking: string | undefined;
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
   if (options.length > 0) {
@@ -155,6 +162,10 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
       errors.push(`${model!.label} on ${harness.label} has no thinking option ${choice.thinking} for the ${role.label}`);
     }
     thinking = options.some((option) => option.id === choice.thinking) ? choice.thinking : (options.find((option) => option.isDefault) ?? options[0])!.id;
+  } else if (choice.thinking && harness.hasThinking !== false && model && !models.some((entry) => entry.id === model!.id)) {
+    // A model outside the catalog carries no list of thinking options, which is not a list of none:
+    // the owner's thinking for it was dropped without a word while the model itself was kept.
+    thinking = choice.thinking;
   }
   const enabled = Object.values(mcp)
     .filter((state) => state.enabled && state.roles.includes(role.role))
@@ -204,9 +215,11 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   const seat = team.roles[roleName];
   if (!seat || seat.harness.id === harness.id) return team;
   const models = harness.models ?? [];
-  const model = models.find((entry) => entry.isDefault) ?? models[0];
+  // The role's own harness brings back what the kit chose for it there.
+  const preset = harness.id === seat.role.defaults.harness ? seat.role.defaults : undefined;
+  const model = models.find((entry) => entry.id === preset?.model) ?? models.find((entry) => entry.isDefault) ?? models[0];
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
-  const thinking = (options.find((option) => option.isDefault) ?? options[0])?.id;
+  const thinking = (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id;
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 

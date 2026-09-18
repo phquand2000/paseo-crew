@@ -12,7 +12,10 @@ export function renderText(kit: Kit, role: RoleSpec, source: string, paths: Prom
   const text = source.replaceAll("{{guides}}", paths.guides).replaceAll("{{state}}", paths.state);
   const leftover = text.match(/\{\{[^}]*\}\}/);
   if (leftover) throw new Error(`the ${role.role} prompt still holds the placeholder ${leftover[0]}`);
-  const hidden = hiddenWordsIn(text, role.hidesWords ?? []);
+  // The words a role must not see are a rule about what was written for it, so they are looked for in
+  // what was written — not in the paths the desk puts in. Checked after substitution, a repository
+  // named after one of those words, or a home directory that was, made the seat impossible to build.
+  const hidden = hiddenWordsIn(source, role.hidesWords ?? []);
   if (hidden.length > 0) {
     throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);
   }

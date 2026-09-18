@@ -1,5 +1,5 @@
 import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
-import { type Attention, type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
+import { type Attention, type Kit, type RoleSpec, can, seatOf, worksTasks } from "../catalog/kit.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
@@ -77,7 +77,7 @@ export class TurnRules {
       testPath: attention.testPath,
       repeatsAt: attention.repeatsAt,
     });
-    if (can(role, "work")) await this.workerEnded(project, ledger, event, role.role, text, recorded, spoke, reading);
+    if (worksTasks(role)) await this.workerEnded(project, ledger, event, role.role, text, recorded, spoke, reading);
     else if (can(role, "lead")) this.leadEnded(project, ledger, agent.id, text, reading);
   }
 

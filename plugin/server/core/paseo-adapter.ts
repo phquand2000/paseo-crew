@@ -111,7 +111,11 @@ export function workspacesOn(bound: Bound): Workspaces {
       return workspace.id;
     },
     async archive(workspace: string): Promise<void> {
-      await reach(bound).workspaces.archive(workspace);
+      // The daemon answers a refusal with a payload carrying `error`, not with a throw. Awaited and
+      // dropped, every refusal read as done: the callers' "could not be put away" never fired, and the
+      // sweep logged a workspace as swept every round while it stayed open in Paseo.
+      const result = (await reach(bound).workspaces.archive(workspace)) as { error?: string | null } | undefined;
+      if (result?.error) throw new Error(result.error);
     },
     async seat(workspace: string, spec: SeatSpec): Promise<SeatLook> {
       const handle = (await reach(bound)

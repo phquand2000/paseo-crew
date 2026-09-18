@@ -1,5 +1,5 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type RoleSpec, can, roleThatCan, seatOf, toolsOf } from "../catalog/kit.ts";
+import { type Kit, type RoleSpec, can, roleThatCan, seatOf, toolsOf, worksTasks } from "../catalog/kit.ts";
 import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { sortKeys } from "../core/store.ts";
@@ -36,13 +36,13 @@ const TOOLS: Record<string, Tool> = {
 };
 
 // "ask" means one thing to every seat that holds it — reach the seat above me — and only what is above differs.
-const ASK: { capability: string; tool: Tool }[] = [
-  { capability: "lead", tool: lead.ask },
-  { capability: "work", tool: worker.ask },
+const ASK: { holds: (role: RoleSpec) => boolean; tool: Tool }[] = [
+  { holds: (role) => can(role, "lead"), tool: lead.ask },
+  { holds: worksTasks, tool: worker.ask },
 ];
 
 function toolFor(role: RoleSpec, name: string): Tool | undefined {
-  return name === "ask" ? ASK.find((entry) => can(role, entry.capability))?.tool : TOOLS[name];
+  return name === "ask" ? ASK.find((entry) => entry.holds(role))?.tool : TOOLS[name];
 }
 
 export type DeskOptions = {

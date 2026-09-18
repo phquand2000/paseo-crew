@@ -2,7 +2,7 @@
   "supervisor": [
     {
       "name": "open_lane",
-      "description": "Open a lane for one outcome: by default it takes over the project's own working copy, creates the lane branch there and starts a Lead with this directive, so nothing is created and nothing is left to clean up. Any number of lanes may be open at once; a second open lane needs writeSet and contracts that don't overlap the open lanes, and isolate so it does not fight over the project's copy.",
+      "description": "Open a lane for one outcome: by default it takes over the project's own working copy, creates the lane branch there and starts a Lead with this directive, so nothing is created and nothing is left to clean up. Any number of lanes may be open at once, and a second one gets a working copy of its own without being asked. A writeSet is yours to declare or leave out: when this lane declares one, it is checked against the open lanes' writeSets and contracts and against the paths the project keeps to one writer; a lane that declares none is not checked.",
       "inputSchema": {
         "type": "object",
         "properties": {

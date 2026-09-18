@@ -1,5 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { z } from "zod";
 import { DESTRUCTIVE, TEST_PATH } from "../runtime/risks.ts";
+import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { join } from "node:path";
 
@@ -281,8 +283,20 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     mcp: loadMcp(dir),
     toolSets: loadToolSets(dir),
     templates: loadTemplates(dir),
-    attention: { ...ATTENTION, ...(raw.attention ?? {}) },
+    attention: { ...ATTENTION, ...presetAttention(raw.attention) },
   };
+}
+
+/**
+ * The preset's attention, held to the same rules as a settings layer's. Merged unchecked, a pattern
+ * the settings screen would have refused — a typo in `destructive` — threw on every turn ending
+ * instead, inside the step that also sends that seat its waiting mail.
+ */
+function presetAttention(raw: unknown): Partial<Attention> {
+  if (raw === undefined) return {};
+  const parsed = AttentionChoice.safeParse(raw);
+  if (!parsed.success) throw new Error(`roles.json has an attention block the desk cannot use: ${z.prettifyError(parsed.error)}`);
+  return parsed.data as Partial<Attention>;
 }
 
 export function providerId(kit: Kit, role: string, harness: string): string {
@@ -307,6 +321,16 @@ export function hookTools(proxy: ProxySpec | undefined): string[] {
 
 export function can(role: RoleSpec | undefined, capability: string): boolean {
   return role?.can?.includes(capability) ?? false;
+}
+
+/**
+ * Whether the desk serves a role as one working a task: its `ask` goes to its Lead, its quiet turns are
+ * nudged, its hand-back is read. `start_task` seats a role that can `write` and `start_review` one that
+ * can `review`; asked only about `work`, a kit role seated by either and lacking `work` was answered
+ * "Unknown tool ask." and its silent turns were never noticed — a rule that lived in one code comment.
+ */
+export function worksTasks(role: RoleSpec | undefined): boolean {
+  return ["work", "write", "review"].some((capability) => can(role, capability));
 }
 
 /** The role a stored name refers to, so a name kept on disk can still be asked what it can do. */

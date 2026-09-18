@@ -25,9 +25,10 @@ export function seatPairs(kit: Kit): { role: RoleSpec; harness: HarnessSpec }[] 
 function choiceFor(team: Team, role: RoleSpec, harness: HarnessSpec): { model?: string; thinking?: string } {
   const seat = team.roles[role.role];
   if (seat && seat.harness.id === harness.id) return { model: seat.model?.id, thinking: seat.thinking };
-  const model = harness.models?.find((entry) => entry.isDefault) ?? harness.models?.[0];
+  const preset = harness.id === role.defaults.harness ? role.defaults : undefined;
+  const model = harness.models?.find((entry) => entry.id === preset?.model) ?? harness.models?.find((entry) => entry.isDefault) ?? harness.models?.[0];
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
-  return { model: model?.id, thinking: (options.find((option) => option.isDefault) ?? options[0])?.id };
+  return { model: model?.id, thinking: (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id };
 }
 
 function modelsFor(harness: HarnessSpec, choice: { model?: string; thinking?: string }): ModelSpec[] {
