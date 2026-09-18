@@ -100,7 +100,9 @@ export class Runtime {
   }
 
   register(server: PluginServerContext): void {
-    registerRpc(server, this.control);
+    registerRpc(server, this.control, (paseo) => {
+      this.api = paseo;
+    });
     server.before("agent.create", ({ request }, context) => {
       this.api = context.paseo;
       return { ...request, config: this.launchConfig(request.config) };

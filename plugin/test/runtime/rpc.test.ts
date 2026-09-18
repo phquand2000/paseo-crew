@@ -12,17 +12,38 @@ const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { registerRpc } = await import("../../server/runtime/rpc.ts");
 const { makeKit } = await import("../../server/catalog/testkit.ts");
 
-function served() {
+/** One open seat, which is all a panel call needs to be able to see the difference from none. */
+function onePaseo(id: string) {
+  return {
+    agents: {
+      async list() {
+        return { entries: [{ agent: { id, provider: "seatworks-v2:lead:claude", status: "running", pendingPermissions: [] } }], pageInfo: { hasMore: false, nextCursor: null, prevCursor: null } };
+      },
+    },
+  };
+}
+
+function served(paseo?: unknown) {
   const kit = makeKit();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, "outbox.json"), reloadDaemon: async () => true });
   const handlers = new Map<string, (input: any) => any>();
-  const names = registerRpc({ handle: (contract: { name: string; input: { parse(value: unknown): unknown } }, handler: (input: unknown) => unknown) => handlers.set(contract.name, (input) => handler(contract.input.parse(input))) }, runtime.control);
+  const bound: unknown[] = [];
+  // The host hands every handler the live daemon handle beside the input, and the desk is registered
+  // with the one callback that keeps it.
+  const names = registerRpc(
+    {
+      handle: (contract: { name: string; input: { parse(value: unknown): unknown } }, handler: (input: unknown, context: { paseo: unknown }) => unknown) =>
+        handlers.set(contract.name, (input) => handler(contract.input.parse(input), { paseo })),
+    },
+    runtime.control,
+    (api) => bound.push(api),
+  );
   const call = async (name: string, input: unknown = {}) => {
     const handler = handlers.get(name);
     assert.ok(handler, `no handler for ${name}`);
     return JSON.parse(JSON.stringify(await handler(input)));
   };
-  return { kit, runtime, names, call };
+  return { kit, runtime, names, call, bound };
 }
 
 test("the plugin serves the catalog, settings, projects, team and status over RPC", async () => {
@@ -47,6 +68,20 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
   assert.deepEqual(catalog.roles.find((role: any) => role.id === "lead").harnesses, ["claude", "devin"]);
   assert.deepEqual(catalog.roles.find((role: any) => role.id === "watcher").harnesses, ["devin"]);
   assert.deepEqual(catalog.mcp.map((entry: any) => [entry.id, entry.transport]), [["ide", "stdio"], ["docs", "http"]]);
+});
+
+test("the daemon handle a panel call arrives with is kept, not thrown away", async () => {
+  const paseo = onePaseo("a-lead");
+  const { call, bound } = served(paseo);
+  assert.deepEqual(bound, [], "nothing has called in yet");
+
+  // Bound only from the agent lifecycle hooks, the desk had none between a daemon reload and the next
+  // seat being created: the patrol skipped every tick, and the roster read back empty — which both
+  // screens render as every Lead and Peer gone, because an id absent from the roster is a seat that
+  // has left. A settings save reloads the daemon itself, so the owner's own click put the desk there,
+  // and opening a panel to look was the one thing that could not get it out.
+  await call("seatworks.catalog.read");
+  assert.deepEqual(bound, [paseo], "the one handle the runtime was missing came in with the call");
 });
 
 test("a web app turns a server on for the machine and switches a role's harness for one project", async () => {

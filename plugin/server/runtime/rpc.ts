@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { contracts } from "../../shared/rpc.ts";
 import type { Check } from "./doctor.ts";
+import type { PaseoApi } from "../core/paseo.ts";
 import type { SettingsView, WriteResult } from "../catalog/settings.ts";
 
 export { contracts };
@@ -22,10 +23,26 @@ export interface Control {
   listPaths(path?: string): unknown;
 }
 
-type Handle = (contract: { name: string; input: z.ZodType; output: z.ZodType }, handler: (input: any) => unknown) => void;
+type Contract = { name: string; input: z.ZodType; output: z.ZodType };
+type Answer = (input: any) => unknown;
+type Handle = (contract: Contract, handler: (input: any, context: { paseo: PaseoApi }) => unknown) => void;
 
-export function registerRpc(server: { handle: unknown }, control: Control): string[] {
-  const handle = (server.handle as Handle).bind(server);
+/**
+ * Every panel call arrives holding the live daemon handle, and the desk had no other way to get one.
+ *
+ * The handle was bound only from the agent lifecycle hooks, so between a daemon reload and the next
+ * seat being created the desk had none: the patrol skipped every tick, and the roster read back empty
+ * — which both screens render as every Lead and Peer gone. A settings save reloads the daemon itself,
+ * so the owner's own click put the desk in that state, and opening a panel to look was the one thing
+ * that could not get it out.
+ */
+export function registerRpc(server: { handle: unknown }, control: Control, bind: (paseo: PaseoApi) => void): string[] {
+  const register = (server.handle as Handle).bind(server);
+  const handle = (contract: Contract, answer: Answer) =>
+    register(contract, (input, context) => {
+      if (context?.paseo) bind(context.paseo);
+      return answer(input);
+    });
   handle(contracts.catalog, () => control.catalog());
   handle(contracts.settingsRead, (input) => control.readSettings(input.project));
   handle(contracts.settingsWrite, (input) => control.writeSettings(input.project, input.revision, input.values));
