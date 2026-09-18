@@ -30,12 +30,31 @@ export class Patrol {
   private readonly idleFlag = new Map<string, string>();
   private readonly goneFlag = new Set<string>();
   private reaped = false;
+  private round: Promise<void> | undefined;
 
   constructor(deps: PatrolDeps) {
     this.deps = deps;
   }
 
-  async tick(now = Date.now()): Promise<void> {
+  /**
+   * One round at a time.
+   *
+   * The runtime arms the next timer on the line after starting this one, without awaiting it, so a
+   * round that takes longer than the interval ran beside its successor. Both read the ledger, both
+   * decided from what they read, and both wrote: an ask due a reminder was reminded twice and its
+   * count went up by two, past the owner's maximum in one step.
+   */
+  tick(now = Date.now()): Promise<void> {
+    const running = this.round;
+    if (running) return running;
+    const run = this.runRound(now).finally(() => {
+      if (this.round === run) this.round = undefined;
+    });
+    this.round = run;
+    return run;
+  }
+
+  private async runRound(now: number): Promise<void> {
     const { kit, desk, outbox } = this.deps;
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
@@ -141,9 +160,11 @@ export class Patrol {
         const to = await desk.supervisorFor(project, lane?.opener);
         await desk.post(to, `escalate:${project.slug}:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"));
       } else continue;
+      // Pinned to the count this round read. Two rounds that overlapped each added one to the same
+      // number and the ask jumped past the owner's maximum without ever being reminded that often.
       await desk.ledger(project, (current) => {
         const entry = current.asks[ask.id];
-        if (!entry) return;
+        if (!entry || entry.reminders !== ask.reminders) return;
         if (entry.reminders < maxReminders) entry.reminders += 1;
         else entry.escalated = true;
         entry.remindedAt = now;

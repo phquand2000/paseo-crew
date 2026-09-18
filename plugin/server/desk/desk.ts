@@ -61,6 +61,8 @@ export class Desk {
   readonly projects: Map<string, Project>;
   readonly pendingArchive: Set<string>;
   private readonly services: DeskServices;
+  /** One Watcher create per project at a time, whichever caller got there first. */
+  private readonly seating = new Map<string, Promise<string | undefined>>();
 
   constructor(options: DeskOptions) {
     const ctx = new DeskContext({
@@ -133,15 +135,34 @@ export class Desk {
     return this.services.roster.retireWatcher(project, seats, now);
   }
 
-  async ensureWatcher(project: Project, seats: Iterable<SeatView>): Promise<string | undefined> {
-    const seated = this.services.roster.watcherSeat(project, seats);
-    if (seated) return seated;
+  /**
+   * The project's Watcher, seated if there is not one already — once, whoever asks.
+   *
+   * Two callers reach this with no order between them: a turn ending, and the patrol tick. Each took
+   * its own roster snapshot, decided from it that no Watcher existed, and started one, so a project
+   * could end up with two resident seats reading the same mail and each charging the interruption
+   * budget the other was spending. The roster is read here rather than taken on trust, and a create
+   * already in flight is what the second caller waits for.
+   */
+  ensureWatcher(project: Project, seats?: Iterable<SeatView>): Promise<string | undefined> {
+    const seated = this.services.roster.watcherSeat(project, seats ?? []);
+    if (seated) return Promise.resolve(seated);
+    const started = this.seating.get(project.slug);
+    if (started) return started;
     const role = roleThatCan(this.services.ctx.kit, "watch");
-    if (!role) return undefined;
-    return this.services.agents.startResident(project, role.role, {
-      title: `${role.label} ${project.slug}`,
-      prompt: `You are seated on this project as its ${role.label}. Mail arrives when there is something to read; there is nothing to do until it does.`,
-      labels: { "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) },
+    if (!role) return Promise.resolve(undefined);
+    const run = (async () => {
+      const already = this.services.roster.watcherSeat(project, await this.services.roster.open());
+      if (already) return already;
+      return this.services.agents.startResident(project, role.role, {
+        title: `${role.label} ${project.slug}`,
+        prompt: `You are seated on this project as its ${role.label}. Mail arrives when there is something to read; there is nothing to do until it does.`,
+        labels: { "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) },
+      });
+    })();
+    this.seating.set(project.slug, run);
+    return run.finally(() => {
+      if (this.seating.get(project.slug) === run) this.seating.delete(project.slug);
     });
   }
 
