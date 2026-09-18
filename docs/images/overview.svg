@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="610" viewBox="0 0 960 610" role="img" aria-label="Seatworks inside Paseo: the Human uses the Seatworks panel; the plugin server runs inside the Paseo daemon with hooks, desk, outbox, patrol, catalog and spool; Paseo runs the seats; state lives on disk.">
+<title>Seatworks inside Paseo: the Human uses the Seatworks panel; the plugin server runs inside the Paseo daemon with hooks, desk, outbox, patrol, catalog and spool; Paseo runs the seats; state lives on disk.</title>
+<defs><marker id="m57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker></defs>
+<rect x="0.5" y="0.5" width="959" height="609" rx="16" fill="#ffffff" stroke="#d0d7de"/>
+<text x="32.0" y="44.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328" text-anchor="start">Seatworks inside Paseo</text>
+<text x="32.0" y="68.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">The plugin configures the agents Paseo runs, carries their messages and keeps the team's record.</text>
+<rect x="32.0" y="100.0" width="190.0" height="70.0" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
+<text x="46.0" y="128.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">You, the Human</text>
+<text x="46.0" y="149.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">talk to the Supervisor in Paseo</text>
+<rect x="32.0" y="238.0" width="190.0" height="168.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="46.0" y="266.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Seatworks panel</text>
+<text x="46.0" y="287.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">the plugin's client, in Paseo</text>
+<rect x="46.0" y="318.0" width="45.9" height="20.5" rx="10.25" fill="#ffffff" stroke="#1b7c83" stroke-width="1"/>
+<text x="69.0" y="332.3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1b7c83" text-anchor="middle">Team</text>
+<rect x="128.0" y="318.0" width="42.8" height="20.5" rx="10.25" fill="#ffffff" stroke="#1b7c83" stroke-width="1"/>
+<text x="149.4" y="332.3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1b7c83" text-anchor="middle">Flow</text>
+<rect x="46.0" y="350.0" width="41.1" height="20.5" rx="10.25" fill="#ffffff" stroke="#1b7c83" stroke-width="1"/>
+<text x="66.5" y="364.3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1b7c83" text-anchor="middle">MCP</text>
+<rect x="128.0" y="350.0" width="49.8" height="20.5" rx="10.25" fill="#ffffff" stroke="#1b7c83" stroke-width="1"/>
+<text x="152.9" y="364.3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1b7c83" text-anchor="middle">Health</text>
+<path d="M127.0,170.0 L127.0,238.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="59.0" y="193.5" width="136.0" height="18.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="127.0" y="208.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">set up · follow · check</text>
+<rect x="262.0" y="92.0" width="400.0" height="382.0" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.2" stroke-dasharray="6 5"/>
+<text x="278.0" y="116.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#59636e" text-anchor="start">Paseo daemon</text>
+<rect x="278.0" y="128.0" width="368.0" height="330.0" rx="10" fill="#ffffff" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="294.0" y="152.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1b7c83" text-anchor="start">seatworks-v2 plugin · server</text>
+<rect x="294.0" y="166.0" width="168.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="306.0" y="192.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Hooks</text>
+<text x="306.0" y="213.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">agent.create, session_open</text>
+<text x="306.0" y="229.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">turn &amp; permission events</text>
+<rect x="470.0" y="166.0" width="160.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="482.0" y="192.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Patrol</text>
+<text x="482.0" y="213.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">every 30 s: asks, idle</text>
+<text x="482.0" y="229.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">lanes, digest, status.md</text>
+<rect x="294.0" y="260.0" width="168.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="306.0" y="286.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Desk</text>
+<text x="306.0" y="307.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">ledger: lanes, tasks, asks</text>
+<text x="306.0" y="323.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">the verbs seats call</text>
+<rect x="470.0" y="260.0" width="160.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="482.0" y="286.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Outbox</text>
+<text x="482.0" y="307.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">durable mail per seat</text>
+<text x="482.0" y="323.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">hold · steer · send</text>
+<rect x="294.0" y="354.0" width="168.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="306.0" y="380.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Catalog</text>
+<text x="306.0" y="401.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">roles × agents → providers,</text>
+<text x="306.0" y="417.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">seat directories, launch</text>
+<rect x="470.0" y="354.0" width="160.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<text x="482.0" y="380.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Spool</text>
+<text x="482.0" y="401.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">seat tool calls in,</text>
+<text x="482.0" y="417.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">replies out, every 500 ms</text>
+<path d="M222.0,322.0 L278.0,322.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)" marker-start="url(#m57606a)"/>
+<rect x="233.8" y="298.0" width="32.4" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="250.0" y="312.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">RPC</text>
+<rect x="742.0" y="92.0" width="186.0" height="382.0" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.2" stroke-dasharray="6 5"/>
+<text x="758.0" y="116.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#59636e" text-anchor="start">Seats</text>
+<text x="800.0" y="116.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">agents Paseo runs</text>
+<rect x="756.0" y="130.0" width="158.0" height="54.0" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text x="767.0" y="154.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Supervisor</text>
+<text x="767.0" y="175.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
+<rect x="756.0" y="196.0" width="158.0" height="54.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<text x="767.0" y="220.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Lead</text>
+<text x="767.0" y="241.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
+<rect x="756.0" y="262.0" width="158.0" height="54.0" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="767.0" y="286.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Peer</text>
+<text x="767.0" y="307.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
+<rect x="756.0" y="328.0" width="158.0" height="54.0" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.4"/>
+<text x="767.0" y="352.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Reviewer</text>
+<text x="767.0" y="373.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
+<rect x="756.0" y="394.0" width="158.0" height="54.0" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
+<text x="767.0" y="418.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Watcher</text>
+<text x="767.0" y="439.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
+<path d="M662.0,140.0 L742.0,140.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="686.1" y="118.0" width="31.8" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="702.0" y="132.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">runs</text>
+<path d="M630.0,300.0 L756.0,300.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="682.6" y="278.0" width="42.8" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="704.0" y="292.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">letters</text>
+<path d="M756.0,394.0 L630.0,394.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="675.6" y="372.0" width="56.9" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="704.0" y="386.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">tool calls</text>
+<rect x="262.0" y="506.0" width="190.0" height="76.0" rx="10" fill="#ffffff" stroke="#6e7781" stroke-width="1.4"/>
+<text x="273.0" y="529.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#1f2328" text-anchor="start">~/.paseo/config.json</text>
+<text x="273.0" y="550.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">providers sw2-&lt;role&gt;-&lt;agent&gt;</text>
+<text x="273.0" y="565.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">and agent profiles</text>
+<rect x="472.0" y="506.0" width="190.0" height="76.0" rx="10" fill="#ffffff" stroke="#6e7781" stroke-width="1.4"/>
+<text x="483.0" y="529.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#1f2328" text-anchor="start">~/.local/share/seatworks-v2</text>
+<text x="483.0" y="550.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">settings · ledger · outbox</text>
+<text x="483.0" y="565.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">spool · worktrees · events</text>
+<rect x="742.0" y="506.0" width="186.0" height="76.0" rx="10" fill="#ffffff" stroke="#6e7781" stroke-width="1.4"/>
+<text x="753.0" y="529.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#1f2328" text-anchor="start">Seat directories</text>
+<text x="753.0" y="550.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">one per role, agent, project</text>
+<text x="753.0" y="565.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">~/.claude/profiles, …</text>
+<path d="M378.0,434.0 L378.0,506.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="308.8" y="478.5" width="138.3" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="378.0" y="492.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">providers + daemon reload</text>
+<path d="M550.0,434.0 L550.0,506.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="532.7" y="478.5" width="34.6" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="550.0" y="492.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">state</text>
+<path d="M835.0,474.0 L835.0,506.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="804.4" y="480.5" width="61.2" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="835.0" y="494.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">config dirs</text>
+</svg>

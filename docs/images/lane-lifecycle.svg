@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-label="Lane lifecycle: open_lane, take a working copy, start_task, the Peer does the task and calls done, optional review, accept or rework through the merge queue, report ready, close_lane with gate and landing.">
+<title>Lane lifecycle: open_lane, take a working copy, start_task, the Peer does the task and calls done, optional review, accept or rework through the merge queue, report ready, close_lane with gate and landing.</title>
+<defs><marker id="m57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="m1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/></marker></defs>
+<rect x="0.5" y="0.5" width="959" height="519" rx="16" fill="#ffffff" stroke="#d0d7de"/>
+<text x="32.0" y="44.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328" text-anchor="start">A lane, end to end</text>
+<text x="32.0" y="68.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Each step is a desk verb, or part of one. A gate result is evidence, not a veto.</text>
+<rect x="32.0" y="92.0" width="196.0" height="132.0" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="44.0" y="102.0" width="86.1" height="19.0" rx="9.5" fill="#ffffff" stroke="#8250df" stroke-width="1"/>
+<text x="87.0" y="114.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#8250df" text-anchor="middle">SUPERVISOR</text>
+<text x="44.0" y="140.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Open a lane</text>
+<rect x="44.0" y="146.0" width="73.1" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="49.0" y="159.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">open_lane</text>
+<text x="44.0" y="187.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">outcome, acceptance, scope;</text>
+<text x="44.0" y="203.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">seats a Lead with a directive</text>
+<rect x="266.0" y="92.0" width="196.0" height="132.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
+<rect x="278.0" y="102.0" width="42.8" height="19.0" rx="9.5" fill="#ffffff" stroke="#1b7c83" stroke-width="1"/>
+<text x="299.4" y="114.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#1b7c83" text-anchor="middle">DESK</text>
+<text x="278.0" y="140.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Take a working copy</text>
+<text x="278.0" y="161.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">part of open_lane: the project</text>
+<text x="278.0" y="177.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">checkout on lane/&lt;id&gt;-&lt;title&gt;,</text>
+<text x="278.0" y="192.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">or an isolated worktree slot</text>
+<rect x="500.0" y="92.0" width="196.0" height="132.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<rect x="512.0" y="102.0" width="42.8" height="19.0" rx="9.5" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<text x="533.4" y="114.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#0969da" text-anchor="middle">LEAD</text>
+<text x="512.0" y="140.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Split into tasks</text>
+<rect x="512.0" y="146.0" width="80.1" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="517.0" y="159.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">start_task</text>
+<text x="512.0" y="187.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">lane mode shares the lane copy;</text>
+<text x="512.0" y="203.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">parallel gets its own slot</text>
+<rect x="732.0" y="92.0" width="196.0" height="132.0" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+<rect x="744.0" y="102.0" width="42.8" height="19.0" rx="9.5" fill="#ffffff" stroke="#1a7f37" stroke-width="1"/>
+<text x="765.4" y="114.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#1a7f37" text-anchor="middle">PEER</text>
+<text x="744.0" y="140.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Do the task</text>
+<rect x="744.0" y="146.0" width="38.1" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="749.0" y="159.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">done</text>
+<text x="744.0" y="187.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">commits in its working copy,</text>
+<text x="744.0" y="203.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">writes a hand-back, task gate</text>
+<text x="744.0" y="218.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">if the project gates each task</text>
+<rect x="32.0" y="274.0" width="196.0" height="132.0" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="44.0" y="284.0" width="86.1" height="19.0" rx="9.5" fill="#ffffff" stroke="#8250df" stroke-width="1"/>
+<text x="87.0" y="296.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#8250df" text-anchor="middle">SUPERVISOR</text>
+<text x="44.0" y="322.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Close the lane</text>
+<rect x="44.0" y="328.0" width="80.1" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="49.0" y="341.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">close_lane</text>
+<text x="44.0" y="369.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">lane gate, land the branch,</text>
+<text x="44.0" y="385.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">tear the copy down</text>
+<rect x="266.0" y="274.0" width="196.0" height="132.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<rect x="278.0" y="284.0" width="42.8" height="19.0" rx="9.5" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<text x="299.4" y="296.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#0969da" text-anchor="middle">LEAD</text>
+<text x="278.0" y="322.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Report</text>
+<rect x="278.0" y="328.0" width="129.3" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="283.0" y="341.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">report ready:true</text>
+<text x="278.0" y="369.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">runs the lane gate and</text>
+<text x="278.0" y="385.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">tells the Supervisor</text>
+<rect x="500.0" y="274.0" width="196.0" height="132.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<rect x="512.0" y="284.0" width="42.8" height="19.0" rx="9.5" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<text x="533.4" y="296.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#0969da" text-anchor="middle">LEAD</text>
+<text x="512.0" y="322.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Accept or send back</text>
+<rect x="512.0" y="328.0" width="115.2" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="517.0" y="341.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">accept · rework</text>
+<text x="512.0" y="369.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">parallel tasks merge through</text>
+<text x="512.0" y="385.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">the merge queue</text>
+<rect x="732.0" y="274.0" width="196.0" height="132.0" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.4"/>
+<rect x="744.0" y="284.0" width="144.6" height="19.0" rx="9.5" fill="#ffffff" stroke="#9a6700" stroke-width="1"/>
+<text x="816.3" y="296.8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#9a6700" text-anchor="middle">REVIEWER · OPTIONAL</text>
+<text x="744.0" y="322.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Review the change</text>
+<rect x="744.0" y="328.0" width="108.2" height="19.5" rx="5" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1"/>
+<text x="749.0" y="341.9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" font-weight="400" fill="#1f2328" text-anchor="start">done + verdict</text>
+<text x="744.0" y="369.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">the Lead starts it with</text>
+<text x="744.0" y="385.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">start_review; read-only</text>
+<path d="M228.0,158.0 L266.0,158.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M462.0,158.0 L500.0,158.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M696.0,158.0 L732.0,158.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M830.0,224.0 L830.0,274.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M732.0,340.0 L696.0,340.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M500.0,340.0 L462.0,340.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M266.0,340.0 L228.0,340.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<path d="M666.0,274.0 Q714.0,249.0 762.0,224.0" fill="none" stroke="#1a7f37" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#m1a7f37)"/>
+<rect x="688.9" y="232.0" width="50.3" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="714.0" y="246.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1a7f37" text-anchor="middle">rework</text>
+<text x="32.0" y="450.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1f2328" text-anchor="start">Task states</text>
+<rect x="128.0" y="436.0" width="61.0" height="20.0" rx="10.0" fill="#dafbe1" stroke="#1a7f37" stroke-width="1"/>
+<text x="158.5" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1a7f37" text-anchor="middle">running</text>
+<rect x="197.0" y="436.0" width="40.8" height="20.0" rx="10.0" fill="#dafbe1" stroke="#1a7f37" stroke-width="1"/>
+<text x="217.4" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1a7f37" text-anchor="middle">done</text>
+<rect x="245.8" y="436.0" width="54.3" height="20.0" rx="10.0" fill="#ddf4ff" stroke="#0969da" stroke-width="1"/>
+<text x="272.9" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#0969da" text-anchor="middle">queued</text>
+<rect x="308.1" y="436.0" width="61.0" height="20.0" rx="10.0" fill="#ddf4ff" stroke="#0969da" stroke-width="1"/>
+<text x="338.6" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#0969da" text-anchor="middle">merging</text>
+<rect x="377.0" y="436.0" width="54.3" height="20.0" rx="10.0" fill="#ddf4ff" stroke="#0969da" stroke-width="1"/>
+<text x="404.2" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#0969da" text-anchor="middle">merged</text>
+<rect x="439.3" y="436.0" width="54.3" height="20.0" rx="10.0" fill="#dafbe1" stroke="#1a7f37" stroke-width="1"/>
+<text x="466.4" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1a7f37" text-anchor="middle">rework</text>
+<rect x="501.6" y="436.0" width="61.0" height="20.0" rx="10.0" fill="#ffeff7" stroke="#bf3989" stroke-width="1"/>
+<text x="532.0" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">stalled</text>
+<rect x="570.5" y="436.0" width="54.3" height="20.0" rx="10.0" fill="#ffeff7" stroke="#bf3989" stroke-width="1"/>
+<text x="597.7" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">failed</text>
+<rect x="632.8" y="436.0" width="34.1" height="20.0" rx="10.0" fill="#f6f8fa" stroke="#57606a" stroke-width="1"/>
+<text x="649.9" y="449.8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#57606a" text-anchor="middle">cut</text>
+<text x="32.0" y="488.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">A red lane gate refuses landing unless the Supervisor overrides it; the override is logged. Nothing undoes a merge.</text>
+</svg>
