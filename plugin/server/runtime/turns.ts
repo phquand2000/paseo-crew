@@ -66,7 +66,17 @@ export class TurnRules {
     // Heard from at all, and heard from in a way that reaches somebody, are different questions: the
     // read-only status tool is the first but not the second, and only the second is not being silent.
     const spoke = (ledger.agents[agent.id]?.spokeAt ?? 0) >= started;
-    const reading = read(timeline, { gate: loadConfig(project.state).gate, recorded });
+    // The project's own words for what counts. `risks.ts` has taken these as options from the start
+    // and nothing supplied them, so a project whose destructive commands are not git's, or whose
+    // tests are not under any of four names, had no way to say so.
+    const attention = this.deps.attention?.(project) ?? this.deps.kit.attention;
+    const reading = read(timeline, {
+      gate: loadConfig(project.state).gate,
+      recorded,
+      destructive: attention.destructive,
+      testPath: attention.testPath,
+      repeatsAt: attention.repeatsAt,
+    });
     if (can(role, "work")) await this.workerEnded(project, ledger, event, role.role, text, recorded, spoke, reading);
     else if (can(role, "lead")) this.leadEnded(project, ledger, agent.id, text, reading);
   }

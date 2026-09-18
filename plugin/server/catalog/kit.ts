@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { DESTRUCTIVE, TEST_PATH } from "../runtime/risks.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { join } from "node:path";
 
@@ -153,6 +154,17 @@ export type Attention = {
   labels: string[];
   /** Labels that reach the owner however much of the interruption budget is spent. */
   always: string[];
+  /**
+   * What the mechanical reader counts as destructive, as a test file, and as repetition.
+   *
+   * `risks.ts` takes all three as options and says in its own first line that the set is open "so a
+   * kit can add one without the desk being rebuilt" — and the only caller passed none of them, so a
+   * project whose destructive commands are `terraform destroy` or `kubectl delete`, or whose tests do
+   * not live under any of the four names in the default pattern, could not say so anywhere.
+   */
+  destructive: string;
+  testPath: string;
+  repeatsAt: number;
 };
 
 export type Kit = {
@@ -171,6 +183,9 @@ const ATTENTION: Attention = {
   watch: true, strikesAt: 3, pagesPerWindow: 2, windowHours: 12,
   labels: ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"],
   always: ["destructive"],
+  destructive: DESTRUCTIVE,
+  testPath: TEST_PATH,
+  repeatsAt: 3,
 };
 
 function subdirs(root: string): string[] {
@@ -187,6 +202,18 @@ function loadToolSets(dir: string): Record<string, string[]> {
   return Object.fromEntries(Object.entries(raw).map(([set, tools]) => [set, tools.map((tool) => String(tool.name ?? ""))]));
 }
 
+/** Where a proxy entry keeps something this kit will hand to `new RegExp`. */
+function patternsOf(proxy: ProxySpec | undefined): [string, string][] {
+  if (!proxy) return [];
+  const found: [string, string][] = [];
+  if (proxy.open?.when) found.push(["open.when", proxy.open.when]);
+  if (proxy.open?.route?.when) found.push(["open.route.when", proxy.open.route.when]);
+  if (proxy.wait?.when) found.push(["wait.when", proxy.wait.when]);
+  if (proxy.wait?.busy) found.push(["wait.busy", proxy.wait.busy]);
+  for (const [index, entry] of (proxy.errors ?? []).entries()) if (entry?.when) found.push([`errors[${index}].when`, entry.when]);
+  return found;
+}
+
 function loadMcp(dir: string): Record<string, McpEntry> {
   const root = join(dir, "catalog", "mcp");
   const entries: Record<string, McpEntry> = {};
@@ -200,6 +227,16 @@ function loadMcp(dir: string): Record<string, McpEntry> {
       throw new Error(`MCP ${id} is a proxy with no http url or stdio command for its backend`);
     }
     if (raw.kind === "server" && !raw.server?.type) throw new Error(`MCP ${id} is a server with no transport type`);
+    // Every pattern a proxy entry carries is compiled per call, inside a try that answers the seat
+    // "the server is not reachable". A typo in one therefore looked like a server that was down, on
+    // every call, with nothing naming the entry — and a preset is written by whoever writes the kit.
+    for (const [where, pattern] of patternsOf(raw.proxy)) {
+      try {
+        new RegExp(pattern, "i");
+      } catch (error) {
+        throw new Error(`MCP ${id} has an unreadable pattern in ${where}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     if (raw.rule && !existsSync(join(root, id, raw.rule))) throw new Error(`MCP ${id} names rule ${raw.rule}, which is missing`);
     for (const skill of raw.skills ?? []) {
       if (!existsSync(join(root, id, "skills", skill, "SKILL.md"))) throw new Error(`MCP ${id} names skill ${skill}, but its SKILL.md is missing`);

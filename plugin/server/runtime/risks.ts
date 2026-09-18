@@ -96,7 +96,10 @@ export function read(timeline: Timeline, options: ReadOptions = {}): Reading {
     notes.push(`shell: ${wrecked.slice(0, 120)}`);
   }
 
-  for (const write of writes) {
+  // Only the edits. A whole-file write carries no before and after here, so the one thing this signal
+  // exists to catch — a test file replaced with one that asserts less — cannot be seen in it at all;
+  // what the turn wrote is still in the record below, which is where it has to be read from.
+  for (const write of writes.filter((detail) => detail.type === "edit")) {
     const path = String(write.filePath ?? "");
     if (!isTest.test(path)) continue;
     const before = String(write.oldString ?? "");

@@ -9,7 +9,7 @@ const allowed = new Set(config.tools ?? []);
 const backend = config.backend ?? {};
 const pin = config.pin;
 const CALL_MS = (config.timeoutSeconds ?? 180) * 1000;
-const LIST_MS = backend.type === "stdio" ? 20000 : 3000;
+const LIST_MS = (config.listSeconds ?? (backend.type === "stdio" ? 20 : 3)) * 1000;
 
 function gitOut(args, cwd = process.cwd()) {
   try {
@@ -114,10 +114,31 @@ function stdioBackend(command = []) {
     });
     return { request, ready };
   };
+  // Bounds a leg of the call that has its own promise, so the caller's budget covers the whole of it.
+  const within = (promise, timeoutMs) =>
+    new Promise((resolve) => {
+      const timer = setTimeout(() => resolve({ error: { message: "no answer in time", timeout: true } }), timeoutMs);
+      timer.unref?.();
+      promise.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (error) => {
+          clearTimeout(timer);
+          resolve({ error: { message: error?.message ?? String(error) } });
+        },
+      );
+    });
   return async (method, params, timeoutMs) => {
     if (!command[0]) throw new Error("no command is set");
     client ??= start();
-    const started = await client.ready;
+    // The whole call, not only its second leg. `initialize` was issued with the call budget — three
+    // minutes by default — while `tools/list` asks for twenty seconds, and starting the server is the
+    // slow part: a package fetched on first use held the list for as long as the call budget allowed,
+    // with nothing written to the harness, so the harness gave up on the server before the answer
+    // saying it was not reachable could ever be sent.
+    const started = await within(client.ready, timeoutMs);
     if (started.error) throw backendError(started.error);
     const reply = await client.request(method, params, timeoutMs);
     if (reply.error) throw backendError(reply.error);
@@ -143,17 +164,27 @@ async function listTools() {
   const wanted = [...allowed];
   if (wanted.length === 0) return [];
   const describe = (name, fallback) => config.descriptions?.[name] ?? fallback;
+  // The note about a server that is not there is appended, never replaced: a tool the preset gives a
+  // description of showed that description and nothing else, so a seat read a healthy tool with an
+  // empty schema and called it, over and over, against a server that had never answered.
+  const unreachable = (name, note) => `${describe(name, "")}\n\n${note}`.trim();
   try {
     const listed = await rpc("tools/list", {}, LIST_MS);
     const byName = new Map((listed?.tools ?? []).map((entry) => [entry.name, entry]));
     return wanted.map((name) => {
       const found = byName.get(name);
-      if (!found) return { name, description: `Switched off in ${label} right now; calls fail until it is switched on.`, inputSchema: { type: "object", properties: {} } };
+      if (!found) {
+        return {
+          name,
+          description: unreachable(name, `Switched off in ${label} right now; calls fail until it is switched on.`),
+          inputSchema: { type: "object", properties: {}, additionalProperties: true },
+        };
+      }
       return { name, description: describe(name, found.description), inputSchema: withoutKey(found.inputSchema, pin) };
     });
   } catch {
     const note = `${label} was not reachable when this session started; calls fail until it runs.`;
-    return wanted.map((name) => ({ name, description: describe(name, note), inputSchema: { type: "object", properties: {}, additionalProperties: true } }));
+    return wanted.map((name) => ({ name, description: unreachable(name, note), inputSchema: { type: "object", properties: {}, additionalProperties: true } }));
   }
 }
 

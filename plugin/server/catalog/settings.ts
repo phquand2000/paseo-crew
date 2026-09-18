@@ -36,6 +36,18 @@ const McpChoice = z.strictObject({
 export type Connect = z.infer<typeof Connect>;
 export type McpChoice = z.infer<typeof McpChoice>;
 
+const Pattern = z.string().min(1).refine(
+  (value) => {
+    try {
+      new RegExp(value, "i");
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "that is not a pattern this machine can read" },
+);
+
 const AttentionChoice = z.strictObject({
   tickSeconds: z.number().int().min(5).optional(),
   leadIdleMinutes: z.number().int().min(1).optional(),
@@ -49,6 +61,11 @@ const AttentionChoice = z.strictObject({
   windowHours: z.number().int().min(1).optional(),
   labels: z.array(z.string().min(1)).optional(),
   always: z.array(z.string().min(1)).optional(),
+  // Refused here, where the owner is looking at it. These are compiled on every turn ending, inside
+  // the step that swallows what it throws, so a typo in one silently stopped the desk reading turns.
+  destructive: Pattern.optional(),
+  testPath: Pattern.optional(),
+  repeatsAt: z.number().int().min(2).optional(),
 });
 
 const FlowChoice = z.strictObject({

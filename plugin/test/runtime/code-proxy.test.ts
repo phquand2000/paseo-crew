@@ -251,3 +251,30 @@ test("the desk opens a slot through an open project when the IDE asks for one", 
     ide.close();
   }
 });
+
+test("a server that is slow to start does not hold the tool list for the whole call budget", async () => {
+  // A stdio server that never answers anything, which is what a cold start looks like while the
+  // package it runs from is still being fetched. `initialize` was issued with the call budget while
+  // the list asks for its own, so the list waited for both in turn: the harness gave up on the
+  // server long before the answer saying it was not reachable could be written.
+  const code = proxy(repo(), {
+    name: "code-search",
+    label: "Code search",
+    tools: ["search"],
+    descriptions: { search: "Search the code." },
+    listSeconds: 1,
+    backend: { type: "stdio", command: [process.execPath, "-e", "setInterval(() => {}, 1000)"] },
+  });
+  try {
+    const started = Date.now();
+    const listed = await code.rpc("tools/list");
+    assert.ok(Date.now() - started < 10_000, "the list waited on the whole call budget");
+    assert.deepEqual(listed.result.tools.map((tool: { name: string }) => tool.name), ["search"]);
+    const only = listed.result.tools[0] as { description: string; inputSchema: { additionalProperties?: boolean } };
+    assert.match(only.description, /Search the code\./, "the preset's own description is kept");
+    assert.match(only.description, /not reachable/, "and the seat is told the server is not there, which a configured description used to hide");
+    assert.equal(only.inputSchema.additionalProperties, true, "with a schema that does not refuse the arguments it would be called with");
+  } finally {
+    code.stop();
+  }
+});

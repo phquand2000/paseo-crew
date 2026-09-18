@@ -22,5 +22,9 @@ export async function callTool(url: string, name: string, args: Record<string, u
   if (!answer.json) return { ok: false, text: answer.error ?? "no JSON-RPC answer" };
   const result = answer.json.result as { isError?: boolean; content?: { text?: string }[] } | undefined;
   const text = (result?.content ?? []).map((part) => part.text ?? "").join("\n") || answer.json.error?.message || "";
+  // The HTTP status counts. A 401, a 404 or a 502 carrying a body with a `{` in it was read as a
+  // successful call with whatever text came back, so an index that had never opened was recorded as
+  // open and every later question was asked of a server that was not answering.
+  if (!answer.ok) return { ok: false, text: text || `the server answered with an error status` };
   return { ok: !answer.json.error && !result?.isError, text };
 }

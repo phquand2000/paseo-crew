@@ -122,3 +122,23 @@ test("only this turn is read", () => {
   );
   assert.deepEqual(reading.signals.sort(), ["compaction", "unverified"], "the edit before the last prompt belongs to an earlier turn");
 });
+
+test("what counts as destructive, as a test file and as repetition is the project's to say", () => {
+  const wrecking = turn(call({ type: "shell", command: "terraform destroy -auto-approve" }));
+  assert.deepEqual(read(wrecking, { gate: GATE, recorded: true }).signals, [], "git's own list is the preset, and it has never heard of this");
+
+  // Every one of these has been an option of this reader from the start — its first line says the set
+  // is open "so a kit can add one without the desk being rebuilt" — and the one caller passed none of
+  // them, so a project whose destructive commands are not git's could not say so anywhere.
+  const named = read(wrecking, { gate: GATE, recorded: true, destructive: "terraform\\s+destroy|kubectl\\s+delete" });
+  assert.deepEqual(named.signals, ["destructive"]);
+  assert.match(named.notes[0]!, /terraform destroy/);
+
+  const weakened = call({ type: "edit", filePath: "checks/orders.feature", oldString: "expect a\nexpect b", newString: "expect a" });
+  assert.deepEqual(read(turn(weakened, gateRun()), { gate: GATE, recorded: true }).signals, [], "and a project whose tests live nowhere the preset names");
+  assert.deepEqual(read(turn(weakened, gateRun()), { gate: GATE, recorded: true, testPath: "(^|/)checks/" }).signals, ["test-weakened"]);
+
+  const twice = turn(call({ type: "shell", command: "ls" }), call({ type: "shell", command: "ls" }), gateRun());
+  assert.deepEqual(read(twice, { gate: GATE, recorded: true }).signals, [], "three is the preset's idea of thrashing");
+  assert.deepEqual(read(twice, { gate: GATE, recorded: true, repeatsAt: 2 }).signals, ["repetition"]);
+});
