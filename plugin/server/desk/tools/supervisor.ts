@@ -9,6 +9,7 @@ import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify } from 
 import { letters, outside } from "../letters.ts";
 import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
+import { namedOrNot } from "./shared.ts";
 
 function scopeProblem(serial: string[], open: Lane[], writeSet: string[], contracts: string[]): string | undefined {
   if (open.length === 0) return undefined;
@@ -123,8 +124,9 @@ export const openLane: Tool = async (desk, caller, args) => {
     return fail(`The lane could not get a working copy: ${errorText(error)}`);
   }
   try {
-    const leadRole = roleThatCan(ctx.kit, "lead");
-    if (!leadRole) return fail("No role in this kit can lead a lane.", slot.id);
+    const askedLead = str(args.role);
+    const leadRole = roleThatCan(ctx.kit, "lead", askedLead || undefined);
+    if (!leadRole) return fail(namedOrNot(ctx.kit, "lead", askedLead, "lead a lane"), slot.id);
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,

@@ -107,15 +107,38 @@ export function pagesLeft(watching: Watching, now: number, rules: WatchRules = W
   return Math.max(0, rules.pagesPerWindow - spent.length);
 }
 
-/** Everything the owner has an occurrence of that nobody has told them about. */
-export function pending(watching: Watching): Strike[] {
-  return Object.values(watching.strikes)
-    .filter((strike) => strike.count > (strike.told ?? 0))
-    .sort((a, b) => b.last - a.last);
+/**
+ * Everything the owner has an occurrence of that nobody has told them about, each with the key it is
+ * filed under. The key is the caller's, not something to rebuild from the strike: `judge` files a
+ * strike under its subject and stores its `where`, and those are only the same string because the one
+ * caller that raises findings passes the same value for both.
+ */
+export function pendingEntries(watching: Watching): [string, Strike][] {
+  return Object.entries(watching.strikes)
+    .filter(([, strike]) => strike.count > (strike.told ?? 0))
+    .sort(([, a], [, b]) => b.last - a.last);
 }
 
-export function reported(watching: Watching): Watching {
-  const strikes: Record<string, Strike> = {};
-  for (const [key, strike] of Object.entries(watching.strikes)) strikes[key] = { ...strike, told: strike.count };
+/** Everything the owner is owed, in the order a report should read it. */
+export function pending(watching: Watching): Strike[] {
+  return pendingEntries(watching).map(([, strike]) => strike);
+}
+
+/**
+ * Settle exactly what a report carried, and only that.
+ *
+ * Takes the counts the report was built from, not the counts on the strike now: a fault that happened
+ * again while the report was being posted is not something the report said. Settling everything at
+ * its current count swallowed that occurrence, and settling against a snapshot read before the post
+ * overwrote it outright — so this is applied to state read back afterwards, and never lowers what an
+ * earlier report already settled.
+ */
+export function reported(watching: Watching, carried: Record<string, number>): Watching {
+  const strikes = { ...watching.strikes };
+  for (const [key, count] of Object.entries(carried)) {
+    const strike = strikes[key];
+    if (!strike) continue;
+    strikes[key] = { ...strike, told: Math.max(strike.told ?? 0, count) };
+  }
   return { strikes, pages: watching.pages };
 }

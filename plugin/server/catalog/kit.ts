@@ -143,6 +143,16 @@ export type Attention = {
   strikesAt: number;
   pagesPerWindow: number;
   windowHours: number;
+  /**
+   * What a Watcher may name as a finding. The preset's list, which a project may replace: the concept
+   * names its own triggers — a Peer wrestling with something vague, a line of work turning sharply, a
+   * self-admitted error — and a list in code could not express any of them.
+   *
+   * Empty means the desk does not police the vocabulary at all and the Watcher names what it saw.
+   */
+  labels: string[];
+  /** Labels that reach the owner however much of the interruption budget is spent. */
+  always: string[];
 };
 
 export type Kit = {
@@ -156,7 +166,12 @@ export type Kit = {
   attention: Attention;
 };
 
-const ATTENTION: Attention = { tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60, watch: true, strikesAt: 3, pagesPerWindow: 2, windowHours: 12 };
+const ATTENTION: Attention = {
+  tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60,
+  watch: true, strikesAt: 3, pagesPerWindow: 2, windowHours: 12,
+  labels: ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"],
+  always: ["destructive"],
+};
 
 function subdirs(root: string): string[] {
   if (!existsSync(root)) return [];
@@ -257,12 +272,26 @@ export function can(role: RoleSpec | undefined, capability: string): boolean {
   return role?.can?.includes(capability) ?? false;
 }
 
+/** The role a stored name refers to, so a name kept on disk can still be asked what it can do. */
+export function roleNamed(kit: Kit, name: string | undefined): RoleSpec | undefined {
+  return name ? kit.roles.find((role) => role.role === name) : undefined;
+}
+
 export function rolesThatCan(kit: Kit, capability: string): RoleSpec[] {
   return kit.roles.filter((role) => can(role, capability));
 }
 
-export function roleThatCan(kit: Kit, capability: string): RoleSpec | undefined {
-  return rolesThatCan(kit, capability)[0];
+/**
+ * The role to seat for a capability: the one named, or the kit's first as the preset's default.
+ *
+ * Several roles may hold one capability on purpose. Two lenses on one review are only evidence if
+ * they are not the same reader, and a second work role is how best-of-n gets two kinds of Peer.
+ * Taking the first match and offering the caller no say made every extra role the owner declared
+ * unreachable — the role set was open data that only one member of could ever be seated.
+ */
+export function roleThatCan(kit: Kit, capability: string, named?: string): RoleSpec | undefined {
+  const holders = rolesThatCan(kit, capability);
+  return named ? holders.find((role) => role.role === named) : holders[0];
 }
 
 export function toolsOf(kit: Kit, role: RoleSpec | undefined): string[] {

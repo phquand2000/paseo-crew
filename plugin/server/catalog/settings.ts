@@ -47,6 +47,8 @@ const AttentionChoice = z.strictObject({
   strikesAt: z.number().int().min(1).optional(),
   pagesPerWindow: z.number().int().min(0).optional(),
   windowHours: z.number().int().min(1).optional(),
+  labels: z.array(z.string().min(1)).optional(),
+  always: z.array(z.string().min(1)).optional(),
 });
 
 const FlowChoice = z.strictObject({

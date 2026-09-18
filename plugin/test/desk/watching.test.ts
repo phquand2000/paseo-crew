@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, pendingEntries, reported } from "../../server/desk/watching.ts";
+
+/** What a report built from this state would carry: the keys it holds, at the counts it holds them. */
+const carriedBy = (watching: Watching) => Object.fromEntries(pendingEntries(watching).map(([key, strike]) => [key, strike.count]));
 
 const NOW = Date.parse("2026-09-16T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -101,7 +104,7 @@ test("the digest holds what was never raised, and empties once it is sent", () =
     ["derailed", "unverified"],
     "what already interrupted the owner is not repeated in the digest",
   );
-  assert.deepEqual(pending(reported(watching)), []);
+  assert.deepEqual(pending(reported(watching, carriedBy(watching))), []);
 });
 
 test("every interruption is charged, not only the first one for a fault", () => {
@@ -157,5 +160,5 @@ test("a fault the owner has already been told about is owed to them again the ne
   // Telling them settles the occurrences that had happened by then, and no more.
   const settled = delivered(again.watching, [key], NOW + minutes(3));
   assert.deepEqual(pending(settled), []);
-  assert.deepEqual(pending(reported(settled)).map((strike) => strike.label), [], "and the digest settles what it carried");
+  assert.deepEqual(pending(reported(settled, carriedBy(settled))).map((strike) => strike.label), [], "and the digest settles what it carried");
 });

@@ -270,13 +270,23 @@ export const letters = {
     return lines.join("\n");
   },
 
-  digest(strikes: { label: string; where: string; quote: string; evidence: string[]; count: number }[], minutes: number): string {
+  /** `always` is the labels this project says interrupt whatever the budget: what is in here of those did not. */
+  digest(strikes: { label: string; where: string; quote: string; evidence: string[]; count: number }[], minutes: number, always: string[] = []): string {
     const lines = [`WHILE YOU WERE AWAY: ${strikes.length} thing${strikes.length === 1 ? "" : "s"} worth knowing from the last ${minutes} minutes.`, ""];
     for (const strike of strikes) {
       lines.push(`- **${strike.label}** in ${strike.where}${strike.count > 1 ? ` (${strike.count} times)` : ""}: "${clip(strike.quote, 200)}"`);
       for (const item of strike.evidence.slice(0, 3)) lines.push(`  - ${clip(item, 200)}`);
     }
-    lines.push("", "None of this was urgent enough to interrupt you. Decide what, if anything, needs a word from you.");
+    // A finding of a class this project always interrupts for reached the report only because there was
+    // nobody to interrupt. Telling the owner it was not urgent enough is the desk answering for them a
+    // question that was theirs, about the one class it promised never to hold back.
+    const held = [...new Set(strikes.filter((strike) => always.includes(strike.label)).map((strike) => strike.label))];
+    lines.push(
+      "",
+      held.length > 0
+        ? `${held.join(", ")} would have interrupted you. Nobody was running to be interrupted, so it waited here instead. Decide what needs a word from you, starting there.`
+        : "None of this was urgent enough to interrupt you. Decide what, if anything, needs a word from you.",
+    );
     return lines.join("\n");
   },
 

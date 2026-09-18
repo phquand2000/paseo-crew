@@ -23,6 +23,7 @@ import {
 import { clip, letters } from "../letters.ts";
 import { type Project, loadConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
+import { namedOrNot } from "./shared.ts";
 
 /**
  * A lane-mode task holds the lane's one working copy from the moment it starts until it is accepted
@@ -116,8 +117,9 @@ export const startTask: Tool = async (desk, caller, args) => {
   if (!lane?.worktree) return no("You have no open lane.");
   const problem = await placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
-  const workRole = roleThatCan(ctx.kit, "work");
-  if (!workRole) return no("No role in this kit can take a task.");
+  const asked = str(args.role);
+  const workRole = roleThatCan(ctx.kit, "work", asked || undefined);
+  if (!workRole) return no(namedOrNot(ctx.kit, "work", asked, "take a task"));
   // A skill the Peer does not have is a line in its brief telling it to open something that is not
   // there. Nothing in the Lead's own context lists them, so the refusal is where it finds out.
   const held = [...skillSources(ctx.kit, workRole, skillDirsFor(ctx.team(project), workRole.role)).keys()];
@@ -197,8 +199,9 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   // A reviewer is a worker that reviews, so the kit is asked for that rather than for a role called
   // "reviewer". There is no falling back to a plain worker: what keeps a review read-only is that
   // role's own settings, not a capability, so a stand-in would review with the right to rewrite.
-  const reviewRole = roleThatCan(ctx.kit, "review");
-  if (!reviewRole) return no("No role in this kit can review, so there is nobody to ask a read-only question of.");
+  const lens = str(args.role);
+  const reviewRole = roleThatCan(ctx.kit, "review", lens || undefined);
+  if (!reviewRole) return no(namedOrNot(ctx.kit, "review", lens, "review, so there is nobody to ask a read-only question of"));
   const review = await ctx.ledger(project, (current) => {
     const id = nextTaskId(current, current.lanes[lane.id]!, "review");
     const now = Date.now();
@@ -370,7 +373,7 @@ export const ask: Tool = async ({ ctx, roster }, caller, args) => {
     const created: Ask = {
       id: nextAskId(ledger),
       from: caller.id,
-      fromRole: "lead",
+      fromRole: caller.role.role,
       to,
       lane: lane.id,
       kind,

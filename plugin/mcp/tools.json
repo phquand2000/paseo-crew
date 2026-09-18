@@ -65,6 +65,10 @@
           "detourOf": {
             "type": "string",
             "description": "The lane this one clears the way for, when a Lead found a missing prerequisite mid-lane. The detour gets its own Lead and hands back; the lane it unblocks waits rather than widening."
+          },
+          "role": {
+            "type": "string",
+            "description": "Optional role to lead it, when the kit has more than one that can lead. Left out, the kit's first. A detour's lane is where a different lead usually belongs."
           }
         },
         "required": [
@@ -235,6 +239,10 @@
           "parallel": {
             "type": "boolean",
             "description": "Run beside the lane's writer in a separate working copy. Only for an independent write set."
+          },
+          "role": {
+            "type": "string",
+            "description": "Optional role to take it, when the kit has more than one that can work. Left out, the kit's first. This is how best-of-n gets two kinds of Peer on one question."
           }
         },
         "required": [
@@ -263,6 +271,10 @@
           "title": {
             "type": "string",
             "description": "Optional short name, at most 60 characters."
+          },
+          "role": {
+            "type": "string",
+            "description": "Optional role to read it, when the kit has more than one that can review. Left out, the kit's first. This is how two lenses are two different readers rather than one read twice; a name that cannot review is refused with the list of those that can."
           }
         },
         "required": [
@@ -553,16 +565,7 @@
               "properties": {
                 "label": {
                   "type": "string",
-                  "enum": [
-                    "destructive",
-                    "repetition",
-                    "mismatch",
-                    "unverified",
-                    "off-spec",
-                    "unasked",
-                    "early-stop",
-                    "derailed"
-                  ]
+                  "description": "One word for what kind of thing it is. The project's own list, which the refusal names if this is not on it; a project that keeps no list lets you name what you saw."
                 },
                 "quote": {
                   "type": "string",

@@ -1,10 +1,23 @@
-import { can } from "../../catalog/kit.ts";
+import { type Kit, can, rolesThatCan } from "../../catalog/kit.ts";
 import { hash, no, ok, str } from "../context.ts";
 import { type Ask, findLane, findTask, laneOfLead, loadLedger } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { loadConfig } from "../project.ts";
 import type { Tool } from "../services.ts";
 import { statusText } from "../status.ts";
+
+/**
+ * Why nobody could be seated: the kit holds no such role, or the one asked for is not one of them.
+ *
+ * The second case names the roles that do hold the capability, because a caller that may choose has
+ * to be able to find out what there is to choose from — the kit is data and the desk is the only
+ * thing that has read it.
+ */
+export function namedOrNot(kit: Kit, capability: string, named: string, doing: string): string {
+  const holders = rolesThatCan(kit, capability).map((role) => role.role);
+  if (holders.length === 0) return `No role in this kit can ${doing}.`;
+  return `This kit has no ${named} that can ${doing}. These can: ${holders.sort().join(", ")}.`;
+}
 
 async function alive(roster: { look(id: string): Promise<{ archivedAt?: string | null }> }, agentId: string): Promise<boolean> {
   try {

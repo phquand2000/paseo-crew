@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { can, harnessProblems, loadKit, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
+import { can, harnessProblems, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
 import { renderPrompt } from "../../server/catalog/content.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
@@ -121,4 +121,37 @@ test("a roles file of one's own replaces the kit's preset, and may name its file
   const kit = loadKit(dir, mine);
   assert.deepEqual(kit.roles.map((role) => role.role), ["driver"], "and that arrangement is the one that runs");
   assert.match(renderPrompt(kit, kit.roles[0]!, { guides: "/g", state: "/s" }), /You drive\./, "its prompt is read from where it says, not from inside the package");
+});
+
+test("a capability several roles hold can name which of them, and a stored name is asked what it can do", () => {
+  const dir = tempDir("sw2-several-");
+  mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
+  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
+  writeFileSync(join(dir, "harness", "acme", "settings.json"), "{}");
+  mkdirSync(join(dir, "mcp"), { recursive: true });
+  writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ lead: [{ name: "report" }], reviewer: [{ name: "done" }] }));
+  const role = (name: string, can: string[], tools: string) => {
+    writeFileSync(join(dir, "harness", "acme", "settings", `${name}.settings.json`), "{}");
+    return { role: name, label: name, can, tools, defaults: { harness: "acme" }, prompt: `prompts/${name}.md`, skills: null };
+  };
+  writeFileSync(
+    join(dir, "roles.json"),
+    JSON.stringify({
+      providerPrefix: "sw2-",
+      roles: [role("careful", ["review"], "reviewer"), role("adversary", ["review"], "reviewer"), role("lead", ["lead"], "lead"), role("arch-lead", ["lead"], "lead")],
+    }),
+  );
+  const kit = loadKit(dir);
+
+  // Two lenses are only evidence if they are not one reader twice, so the caller may say which.
+  assert.equal(roleThatCan(kit, "review")?.role, "careful", "unnamed, the preset's first");
+  assert.equal(roleThatCan(kit, "review", "adversary")?.role, "adversary", "named, the one asked for");
+  assert.equal(roleThatCan(kit, "review", "lead"), undefined, "a role that cannot do it is not a stand-in for one that can");
+  assert.equal(roleThatCan(kit, "review", "nobody"), undefined);
+
+  // What the patrol asks of an ask's stored role. A name comparison called only the role literally
+  // called "lead" a lead, so a second lead-capable role had its asks escalated over its own head.
+  assert.equal(can(roleNamed(kit, "arch-lead"), "lead"), true);
+  assert.equal(can(roleNamed(kit, "careful"), "lead"), false, "and a reviewer still has someone above it");
+  assert.equal(can(roleNamed(kit, "a role this kit lost"), "lead"), false, "a name the kit no longer has can do nothing, so its ask still escalates");
 });

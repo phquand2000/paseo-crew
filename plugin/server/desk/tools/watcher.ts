@@ -3,21 +3,21 @@ import { letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
 import { type Urgency, type Watching, WATCH_RULES, delivered, judge, keyOf, loadWatching, pagesLeft, saveWatching } from "../watching.ts";
 
-/** What the SLP preset asks a Watcher to distinguish. The kit names these; the desk only checks a finding carries one. */
-export const LABELS = ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"];
-
 const RANK: Record<Urgency, number> = { log: 0, digest: 1, page: 2 };
 
 type Finding = { label: string; quote: string };
 
-function findingsOf(value: unknown): Finding[] | string {
+function findingsOf(value: unknown, labels: string[]): Finding[] | string {
   if (!Array.isArray(value)) return "raise needs findings, as a list. An ending with nothing wrong sends an empty list.";
   const taken: Finding[] = [];
   for (const item of value) {
     const entry = (item ?? {}) as Record<string, unknown>;
     const label = str(entry.label);
     const quote = str(entry.quote);
-    if (!LABELS.includes(label)) return `Every finding needs a label, one of: ${LABELS.join(", ")}.`;
+    // An empty list is the desk not policing the vocabulary: what a finding is called is the Watcher's
+    // to say, and the desk only needs it to carry something it can key and count by.
+    if (!label) return labels.length > 0 ? `Every finding needs a label, one of: ${labels.join(", ")}.` : "Every finding needs a label: one word for what kind of thing it is.";
+    if (labels.length > 0 && !labels.includes(label)) return `Every finding needs a label, one of: ${labels.join(", ")}.`;
     if (!quote) return `The ${label} finding needs the words from the ending that show it.`;
     taken.push({ label, quote });
   }
@@ -27,7 +27,8 @@ function findingsOf(value: unknown): Finding[] | string {
 export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const where = str(args.where);
   if (!where) return no("raise needs where the ending happened, copied from the mail as it reached you.");
-  const findings = findingsOf(args.findings);
+  const attention = ctx.team(caller.project).attention;
+  const findings = findingsOf(args.findings, attention.labels);
   if (typeof findings === "string") return no(findings);
 
   const { project } = caller;
@@ -38,9 +39,10 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const paged: Finding[] = [];
   const counts = new Map<string, number>();
 
+  // One set of rules for the whole call. Built field by field, this dropped `always`, so which label
+  // always interrupts was the constant in code even where the project had said otherwise.
+  const rules = { ...WATCH_RULES, ...attention };
   for (const finding of findings) {
-    const attention = ctx.team(caller.project).attention;
-    const rules = { ...WATCH_RULES, strikesAt: attention.strikesAt, pagesPerWindow: attention.pagesPerWindow, windowHours: attention.windowHours, watch: attention.watch };
     const verdict = judge(watching, { subject: where, label: finding.label, where, quote: finding.quote, evidence: recorded }, now, rules);
     watching = verdict.watching;
     const count = verdict.strike?.count ?? 0;
@@ -70,7 +72,6 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   // interruption — they post the same key and the outbox drops the second — so letting them reserve
   // two slots held a third, different fault back for a budget half of which was still free, and told
   // the Watcher the budget was spent.
-  const rules = { ...WATCH_RULES, ...ctx.team(caller.project).attention };
   const room = pagesLeft(watching, now, rules);
   const once = paged.filter((finding, index) => paged.findIndex((other) => other.label === finding.label) === index);
   const urgent = once.filter((finding) => rules.always.includes(finding.label));

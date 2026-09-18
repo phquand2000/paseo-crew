@@ -1,13 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Kit, can, seatOf } from "../catalog/kit.ts";
+import { type Kit, can, roleNamed, seatOf } from "../catalog/kit.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
+import { hash } from "../desk/context.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
-import { loadWatching, pending, reported, saveWatching } from "../desk/watching.ts";
+import { loadWatching, pendingEntries, reported, saveWatching } from "../desk/watching.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
@@ -105,19 +106,20 @@ export class Patrol {
       if (activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, lead.id).length > 0) continue;
       this.idleFlag.set(lead.id, lead.updatedAt);
       const to = await desk.supervisorFor(project, lane.opener);
-      await desk.post(to, `idle:${lane.id}:${lead.updatedAt}`, letters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? ""));
+      await desk.post(to, `idle:${project.slug}:${lane.id}:${lead.updatedAt}`, letters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? ""));
     }
   }
 
   private async goneTasks(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const { desk } = this.deps;
     for (const task of Object.values(ledger.tasks).filter((entry) => ["running", "rework"].includes(entry.status) && entry.peer)) {
-      if (seats.has(task.peer!) || this.goneFlag.has(task.id)) continue;
-      this.goneFlag.add(task.id);
+      const gone = `${project.slug}:${task.id}`;
+      if (seats.has(task.peer!) || this.goneFlag.has(gone)) continue;
+      this.goneFlag.add(gone);
       await desk.setTask(project, task.id, (entry) => {
         entry.status = "stalled";
       });
-      await desk.post(ledger.lanes[task.lane]?.lead, `gone:${task.id}`, letters.failed(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"));
+      await desk.post(ledger.lanes[task.lane]?.lead, `gone:${project.slug}:${task.id}`, letters.failed(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"));
     }
   }
 
@@ -130,11 +132,14 @@ export class Patrol {
     for (const ask of due) {
       const age = Math.round((now - ask.openedAt) / 60_000);
       if (ask.reminders < maxReminders) {
-        await desk.post(ask.to, `remind:${ask.id}:${ask.reminders}`, letters.reminder(ask, age));
-      } else if (ask.fromRole !== "lead" && !ask.escalated) {
+        await desk.post(ask.to, `remind:${project.slug}:${ask.id}:${ask.reminders}`, letters.reminder(ask, age));
+        // Whether there is anyone above the asker, which is a capability and not a name: the Lead's own
+        // ask has nobody above it to escalate to. Comparing to the literal "lead" worked only because
+        // that handler wrote the same literal back, so a second lead-capable role was never escalated.
+      } else if (!can(roleNamed(this.deps.kit, ask.fromRole), "lead") && !ask.escalated) {
         const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
         const to = await desk.supervisorFor(project, lane?.opener);
-        await desk.post(to, `escalate:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"));
+        await desk.post(to, `escalate:${project.slug}:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"));
       } else continue;
       await desk.ledger(project, (current) => {
         const entry = current.asks[ask.id];
@@ -148,20 +153,26 @@ export class Patrol {
 
   private async sendDigest(project: Project, now: number): Promise<void> {
     const { desk } = this.deps;
-    const { digestMinutes } = this.deps.source.teamFor(project).attention;
+    const { digestMinutes, always } = this.deps.source.teamFor(project).attention;
     const watching = loadWatching(project.state);
-    const waiting = pending(watching);
+    const waiting = pendingEntries(watching);
     if (waiting.length === 0) return;
-    const oldest = Math.min(...waiting.map((strike) => strike.first));
+    const oldest = Math.min(...waiting.map(([, strike]) => strike.first));
     if (now - oldest < digestMinutes * 60_000) return;
     const to = await desk.supervisorFor(project);
     if (!to) return;
-    // The key says what this digest carries, not when the oldest of it was first seen: a strike keeps
-    // its `first` for as long as the fault recurs, so keying on that alone made the digest after it a
-    // repeat of the one before and the outbox dropped it inside the half hour it guards.
-    const carried = waiting.reduce((total, strike) => total + strike.count, 0);
-    await desk.post(to, `digest:${project.slug}:${oldest}:${carried}`, letters.digest(waiting, Math.round((now - oldest) / 60_000)));
-    saveWatching(project.state, reported(watching));
+    // The key identifies what this digest carries. A strike keeps its `first` for as long as the fault
+    // recurs, so keying on the oldest of them made each digest a repeat of the one before; and a total
+    // is not a fingerprint either — one fault seen twice and two faults seen once both add to two.
+    const carried = Object.fromEntries(waiting.map(([key, strike]) => [key, strike.count]));
+    const fingerprint = hash(...Object.entries(carried).map(([key, count]) => `${key}=${count}`).sort());
+    const body = letters.digest(waiting.map(([, strike]) => strike), Math.round((now - oldest) / 60_000), always);
+    const posted = await desk.post(to, `digest:${project.slug}:${fingerprint}`, body);
+    // Only what really went is settled. A digest the outbox dropped as a repeat said nothing, and
+    // marking it told lost the occurrence for good; the state is read back because `raise` can have
+    // run during the post, and this snapshot no longer knows about it.
+    if (posted !== "sent" && posted !== "held") return;
+    saveWatching(project.state, reported(loadWatching(project.state), carried));
     desk.event(project, { kind: "watch.digest", items: waiting.length });
   }
 
