@@ -38,7 +38,7 @@ function appendAt(options: unknown, path: string, value: string): Json {
  * harness's own settings; a harness with no sandbox and no path rules has neither, and this cannot
  * give it one.
  */
-function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
+export function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
   const segments = new Set(stateTargets(kit, role, skillDirsFor(team, role.role), rulesFor(team, role.role)));
   if (can(role, "lead")) segments.add("docs");
   return [...segments].sort().map((segment) => join(state, segment));
@@ -78,9 +78,9 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
     next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
   }
-  if (harness.stateWrites && state) {
+  if (harness.stateWrites?.delivery === "launch" && state) {
     let options: unknown = config.providerOptions;
-    for (const path of stateWrites(kit, team, role, state)) options = appendAt(options, harness.stateWrites, path);
+    for (const path of stateWrites(kit, team, role, state)) options = appendAt(options, harness.stateWrites.path, path);
     next.providerOptions = options as AgentConfig["providerOptions"];
   }
   return next;

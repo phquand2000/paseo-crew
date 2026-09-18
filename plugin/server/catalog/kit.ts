@@ -40,10 +40,13 @@ export type HarnessSpec = {
   hasThinking?: boolean;
   steers?: boolean;
   systemPrompt?: "config" | "file";
-  stateWrites?: string;
+  stateWrites?: { path: string; delivery: "launch" | "file" };
   refused?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
+  files?: Record<string, string[]>;
+  modelCatalog?: { command: string[]; list: string; clear: string[]; file: string; setting: string };
+  checks?: { path: string; help: string }[];
   models?: ModelSpec[];
   mcp: {
     file: string;
@@ -74,6 +77,9 @@ const HARNESS_FIELDS = new Set([
   "refused",
   "settings",
   "links",
+  "files",
+  "modelCatalog",
+  "checks",
   "models",
   "mcp",
   "provider",
@@ -95,6 +101,27 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
     if (Array.isArray(mcp.transports) && mcp.transports.length === 0) problems.push("lists no mcp.transports");
   }
   if (raw.steers !== undefined && typeof raw.steers !== "boolean") problems.push(`says steers is ${String(raw.steers)}, which is neither true nor false`);
+  const writes = raw.stateWrites as Record<string, unknown> | undefined;
+  if (writes !== undefined && (typeof writes?.path !== "string" || (writes.delivery !== "launch" && writes.delivery !== "file"))) {
+    problems.push("gives stateWrites without a path and a delivery of launch or file");
+  }
+  const files = raw.files as Record<string, unknown> | undefined;
+  if (files !== undefined) {
+    for (const [path, sources] of Object.entries(files ?? {})) {
+      if (!Array.isArray(sources) || sources.length === 0 || sources.some((source) => typeof source !== "string")) problems.push(`lays down ${path} from no list of sources`);
+    }
+  }
+  const catalog = raw.modelCatalog as Record<string, unknown> | undefined;
+  if (catalog !== undefined) {
+    const command = catalog?.command;
+    if (!Array.isArray(command) || command.length === 0 || command.some((part) => typeof part !== "string")) problems.push("takes its model catalog from no command");
+    for (const key of ["list", "file", "setting"]) if (typeof catalog?.[key] !== "string") problems.push(`has no modelCatalog.${key}`);
+    if (!Array.isArray(catalog?.clear)) problems.push("has no modelCatalog.clear");
+  }
+  const checks = raw.checks as unknown;
+  if (checks !== undefined && (!Array.isArray(checks) || checks.some((check) => typeof check?.path !== "string" || typeof check?.help !== "string"))) {
+    problems.push("lists checks without a path and a help each");
+  }
   if (raw.systemPrompt !== undefined && raw.systemPrompt !== "config" && raw.systemPrompt !== "file") problems.push(`takes its prompt as ${String(raw.systemPrompt)}, which is neither config nor file`);
   if (raw.systemPrompt === "file" && !raw.promptFile) problems.push("takes its prompt as a file but names no promptFile");
   return problems;
@@ -366,8 +393,14 @@ export function roleSettingsFile(kit: Kit, harness: HarnessSpec, role: RoleSpec)
   return join(kit.dir, "harness", harness.id, harness.settings.roleSource.replace("ROLE", role.role));
 }
 
+export function harnessFileSources(kit: Kit, harness: HarnessSpec, role: RoleSpec): Record<string, string[]> {
+  return Object.fromEntries(
+    Object.entries(harness.files ?? {}).map(([path, sources]) => [path, sources.map((source) => join(kit.dir, "harness", harness.id, source.replaceAll("ROLE", role.role)))]),
+  );
+}
+
 export function supportsRole(kit: Kit, harness: HarnessSpec, role: RoleSpec): boolean {
-  return existsSync(roleSettingsFile(kit, harness, role));
+  return existsSync(roleSettingsFile(kit, harness, role)) && Object.values(harnessFileSources(kit, harness, role)).every((sources) => sources.every((source) => existsSync(source)));
 }
 
 /**

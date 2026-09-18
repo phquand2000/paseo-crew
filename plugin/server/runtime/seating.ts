@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { materialize, seatDir } from "../catalog/seats.ts";
 import { type Team, serversFor, withHarness } from "../catalog/team.ts";
-import { home } from "../core/paths.ts";
+import { expandHome, home } from "../core/paths.ts";
 import type { Project } from "../desk/project.ts";
 import type { TeamSource } from "./team-source.ts";
 
@@ -33,7 +33,10 @@ export class Seating {
     // harness, the seat was launched anyway — and the whole reason the failure below is not swallowed
     // is that a seat whose instructions were not written runs with none.
     const seat = team.roles[roleName];
-    const built = seat ? existsSync(join(seatDir(this.kit, seat.role, harness, home(), project), harness.settings.file)) : false;
+    const dir = seat ? seatDir(this.kit, seat.role, harness, home(), project) : undefined;
+    // And a login made after the seat was built is a link the seat does not have yet.
+    const linked = (link: { link: string; target: string }) => !existsSync(expandHome(link.target)) || existsSync(join(dir!, link.link));
+    const built = dir ? existsSync(join(dir, harness.settings.file)) && (harness.links ?? []).every(linked) : false;
     if (this.built.has(key) && built) return team;
     try {
       const changes = materialize(this.kit, team, roleName, home(), project, this.servers(team, roleName));

@@ -5,7 +5,9 @@ import { test } from "node:test";
 import { parse } from "smol-toml";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { composeSettings, materialize, seatDir } from "../../server/catalog/seats.ts";
-import { resolveTeam, serversFor } from "../../server/catalog/team.ts";
+import { stateWrites } from "../../server/catalog/launch.ts";
+import { seatPairs } from "../../server/catalog/providers.ts";
+import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
 import { makeKit } from "../../server/catalog/testkit.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
@@ -212,4 +214,77 @@ test("an MCP file the harness owns and the plugin cannot read is left alone, not
     false,
     "and not reported as a routine update",
   );
+});
+
+function withAgent(files: Record<string, string>): ReturnType<typeof loadKit> {
+  const kit = makeKit();
+  for (const [path, text] of Object.entries(files)) {
+    const file = join(kit.dir, "harness", "cx", path);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
+  }
+  return loadKit(kit.dir);
+}
+
+const agent = (catalog: string[]) =>
+  JSON.stringify({
+    id: "cx",
+    label: "Cx",
+    baseProvider: "codex",
+    configDirEnv: "CODEX_HOME",
+    profileRoot: "HOME/.cx",
+    contextFile: "AGENTS.md",
+    skillsDir: "skills",
+    systemPrompt: "config",
+    models: [{ id: "m", label: "M" }],
+    settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml" },
+    stateWrites: { path: "sandbox_workspace_write.writable_roots", delivery: "file" },
+    files: { "rules/seat.rules": ["rules/all.rules", "rules/ROLE.rules"] },
+    modelCatalog: { command: catalog, list: "models", clear: ["multi_agent_version"], file: "catalog.json", setting: "model_catalog_json" },
+    mcp: { file: "config.toml", delivery: "launch", transports: ["stdio", "http"] },
+    provider: {},
+  });
+
+const offering = ["node", "-e", "process.stdout.write(JSON.stringify({models:[{slug:'a',multi_agent_version:'v2'},{slug:'b',multi_agent_version:'v1'}]}))"];
+
+test("an agent configured in its own file format gets its catalog trimmed, its state grant and its role's files, all in the seat", () => {
+  const kit = withAgent({
+    "harness.json": agent(offering),
+    "settings.toml": 'approval_policy = "never"\n[sandbox_workspace_write]\nnetwork_access = true\n',
+    "settings/lead.settings.toml": 'sandbox_mode = "workspace-write"\n',
+    "settings/peer.settings.toml": "",
+    "rules/all.rules": 'prefix_rule(pattern = ["git", "push"], decision = "forbidden")\n',
+    "rules/lead.rules": 'prefix_rule(pattern = ["git", "commit"], decision = "forbidden")\n',
+  });
+  const base = resolveTeam(kit);
+  const team = withHarness(base, "lead", kit.harnesses.cx!);
+  const home = tempDir("sw2-cx-home-");
+  materialize(kit, team, "lead", home, project, serversFor(kit, team, "lead", context));
+  const dir = seatDir(kit, team.roles.lead!.role, kit.harnesses.cx!, home, project);
+  const config = parse(readFileSync(join(dir, "config.toml"), "utf-8")) as Record<string, any>;
+  assert.equal(config.approval_policy, "never");
+  assert.equal(config.sandbox_mode, "workspace-write");
+  assert.equal(config.sandbox_workspace_write.network_access, true, "the grant is added to the table, not put in its place");
+  assert.deepEqual(config.sandbox_workspace_write.writable_roots, stateWrites(kit, team, team.roles.lead!.role, project.state));
+  assert.equal(config.model_catalog_json, join(dir, "catalog.json"));
+  const catalog = JSON.parse(readFileSync(config.model_catalog_json, "utf-8"));
+  assert.deepEqual(catalog.models, [{ slug: "a", multi_agent_version: null }, { slug: "b", multi_agent_version: null }]);
+  assert.equal(readFileSync(join(dir, "rules", "seat.rules"), "utf-8"), 'prefix_rule(pattern = ["git", "push"], decision = "forbidden")\n\nprefix_rule(pattern = ["git", "commit"], decision = "forbidden")\n');
+  // The Peer has its settings but no rules file: it cannot sit on this agent, rather than sitting on it without its rules.
+  assert.equal(seatPairs(kit).some((pair) => pair.role.role === "lead" && pair.harness.id === "cx"), true);
+  assert.equal(seatPairs(kit).some((pair) => pair.role.role === "peer" && pair.harness.id === "cx"), false);
+});
+
+test("a catalog that cannot be read refuses the seat instead of seating it with native agents on offer", () => {
+  const kit = withAgent({
+    "harness.json": agent(["node", "-e", "process.exit(3)"]),
+    "settings.toml": "",
+    "settings/lead.settings.toml": "",
+    "rules/all.rules": "",
+    "rules/lead.rules": "",
+  });
+  const team = withHarness(resolveTeam(kit), "lead", kit.harnesses.cx!);
+  const home = tempDir("sw2-cx-home-");
+  assert.throws(() => materialize(kit, team, "lead", home, project, {}), /Cx's model list could not be read from `node -e process.exit\(3\)`/);
+  assert.equal(existsSync(join(seatDir(kit, team.roles.lead!.role, kit.harnesses.cx!, home, project), "config.toml")), false, "and nothing of the seat is written");
 });

@@ -80,5 +80,8 @@
   },
   "contextFile": "CLAUDE.md",
   "systemPrompt": "config",
-  "stateWrites": "settings.sandbox.filesystem.allowWrite"
+  "stateWrites": {
+    "path": "settings.sandbox.filesystem.allowWrite",
+    "delivery": "launch"
+  }
 }

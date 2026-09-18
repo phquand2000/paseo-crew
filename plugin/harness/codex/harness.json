@@ -1,0 +1,212 @@
+{
+  "id": "codex",
+  "label": "Codex",
+  "baseProvider": "codex",
+  "profileRoot": "HOME/.codex/seats",
+  "configDirEnv": "CODEX_HOME",
+  "contextFile": "AGENTS.md",
+  "skillsDir": "skills",
+  "steers": true,
+  "systemPrompt": "config",
+  "models": [
+    {
+      "id": "gpt-6-astra",
+      "label": "GPT-6-Astra",
+      "isDefault": true,
+      "thinkingOptions": [
+        {
+          "id": "low",
+          "label": "Low",
+          "isDefault": true
+        },
+        {
+          "id": "medium",
+          "label": "Medium"
+        },
+        {
+          "id": "high",
+          "label": "High"
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra high"
+        },
+        {
+          "id": "max",
+          "label": "Max"
+        },
+        {
+          "id": "ultra",
+          "label": "Ultra"
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "label": "GPT-5.6-Sol",
+      "thinkingOptions": [
+        {
+          "id": "low",
+          "label": "Low",
+          "isDefault": true
+        },
+        {
+          "id": "medium",
+          "label": "Medium"
+        },
+        {
+          "id": "high",
+          "label": "High"
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra high"
+        },
+        {
+          "id": "max",
+          "label": "Max"
+        },
+        {
+          "id": "ultra",
+          "label": "Ultra"
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "label": "GPT-5.6-Terra",
+      "thinkingOptions": [
+        {
+          "id": "low",
+          "label": "Low"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "isDefault": true
+        },
+        {
+          "id": "high",
+          "label": "High"
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra high"
+        },
+        {
+          "id": "max",
+          "label": "Max"
+        },
+        {
+          "id": "ultra",
+          "label": "Ultra"
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "label": "GPT-5.6-Luna",
+      "thinkingOptions": [
+        {
+          "id": "low",
+          "label": "Low"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "isDefault": true
+        },
+        {
+          "id": "high",
+          "label": "High"
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra high"
+        },
+        {
+          "id": "max",
+          "label": "Max"
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.5",
+      "label": "GPT-5.5",
+      "thinkingOptions": [
+        {
+          "id": "low",
+          "label": "Low"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "isDefault": true
+        },
+        {
+          "id": "high",
+          "label": "High"
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra high"
+        }
+      ]
+    }
+  ],
+  "mcp": {
+    "file": "config.toml",
+    "delivery": "launch",
+    "transports": [
+      "stdio",
+      "http"
+    ]
+  },
+  "settings": {
+    "file": "config.toml",
+    "source": "settings.toml",
+    "roleSource": "settings/ROLE.settings.toml"
+  },
+  "stateWrites": {
+    "path": "sandbox_workspace_write.writable_roots",
+    "delivery": "file"
+  },
+  "files": {
+    "rules/seatworks.rules": [
+      "rules/seat.rules",
+      "rules/ROLE.rules"
+    ]
+  },
+  "modelCatalog": {
+    "command": [
+      "codex",
+      "debug",
+      "models",
+      "--bundled"
+    ],
+    "list": "models",
+    "clear": [
+      "multi_agent_version"
+    ],
+    "file": "model-catalog.json",
+    "setting": "model_catalog_json"
+  },
+  "links": [
+    {
+      "link": "auth.json",
+      "target": "HOME/.codex/auth.json"
+    }
+  ],
+  "checks": [
+    {
+      "path": "HOME/.codex/auth.json",
+      "help": "Log in with `codex login` once, outside any seat; every Codex seat shares that login."
+    }
+  ],
+  "provider": {
+    "env": {
+      "SEATWORKS_HARNESS": "codex",
+      "SEATWORKS_AGENT_BIN": "codex"
+    }
+  }
+}

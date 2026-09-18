@@ -1,0 +1,1 @@
+prefix_rule(pattern = ["git", "commit"], decision = "forbidden", justification = "Commits are the Peer's; this seat reads and decides.")

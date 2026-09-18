@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { postJsonRpc } from "../core/jsonrpc.ts";
+import { expandHome } from "../core/paths.ts";
 import { type Kit, hookTools } from "../catalog/kit.ts";
 import { type Team, connectToServer, proxyOf } from "../catalog/team.ts";
 
@@ -7,6 +9,7 @@ export type Check = { id: string; ok: boolean; detail: string };
 
 export type Probes = {
   has(bin: string): boolean;
+  exists(path: string): boolean;
   post(url: string, body: unknown, timeoutMs: number): Promise<{ ok: boolean; json?: any; error?: string }>;
 };
 
@@ -19,6 +22,7 @@ export const realProbes: Probes = {
       return false;
     }
   },
+  exists: existsSync,
   post: postJsonRpc,
 };
 
@@ -36,9 +40,15 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
   for (const [id, roles] of harnesses) {
     const harness = kit.harnesses[id]!;
     const bin = harness.provider.env?.SEATWORKS_AGENT_BIN;
-    if (!bin) continue;
-    const ok = probes.has(bin);
-    checks.push({ id: `harness:${id}`, ok, detail: ok ? `${harness.label} (${bin}) is installed for ${roles.join(", ")}.` : `${harness.label} needs \`${bin}\` on PATH for ${roles.join(", ")}.` });
+    if (bin) {
+      const ok = probes.has(bin);
+      checks.push({ id: `harness:${id}`, ok, detail: ok ? `${harness.label} (${bin}) is installed for ${roles.join(", ")}.` : `${harness.label} needs \`${bin}\` on PATH for ${roles.join(", ")}.` });
+    }
+    for (const check of harness.checks ?? []) {
+      const path = expandHome(check.path);
+      const ok = probes.exists(path);
+      checks.push({ id: `harness:${id}:${check.path}`, ok, detail: ok ? `${harness.label} has ${path}.` : `${harness.label} needs ${path} for ${roles.join(", ")}. ${check.help}` });
+    }
   }
   for (const state of Object.values(team.mcp).filter((server) => server.enabled)) {
     // One server per pass, wrapped: what an outside server answers is nobody's guarantee, and the

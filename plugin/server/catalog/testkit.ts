@@ -66,7 +66,7 @@ export function makeKit(): Kit {
     contextFile: "CLAUDE.md",
     skillsDir: "skills",
     systemPrompt: "config",
-    stateWrites: "settings.sandbox.filesystem.allowWrite",
+    stateWrites: { path: "settings.sandbox.filesystem.allowWrite", delivery: "launch" },
     settings: { file: "settings.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     models: [
@@ -100,6 +100,7 @@ export function makeKit(): Kit {
     models: [{ id: "swe", label: "SWE" }],
     mcp: { file: "devin/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
     provider: { env: { SEATWORKS_HARNESS: "devin", SEATWORKS_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
+    checks: [{ path: "HOME/.devin/credentials.toml", help: "Log in to Devin once, outside any seat." }],
   });
   put(dir, "harness/devin/settings.json", { read_config_from: { claude: false }, notify: "never", permissions: { deny: ["Exec(git push)"] } });
   put(dir, "harness/devin/settings/lead.settings.json", {});

@@ -5,15 +5,16 @@ import { resolveTeam } from "../../server/catalog/team.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { TeamSource } from "../../server/runtime/team-source.ts";
-import { stateRoot } from "../../server/core/paths.ts";
+import { home, stateRoot } from "../../server/core/paths.ts";
 import { tempDir } from "../../server/core/testing.ts";
 import { makeKit } from "../../server/catalog/testkit.ts";
 
 const kit = makeKit();
 
-function probes(bins: string[], tools: string[] | null, docsUp = true): Probes {
+function probes(bins: string[], tools: string[] | null, docsUp = true, paths: string[] = [join(home(), ".devin", "credentials.toml")]): Probes {
   return {
     has: (bin) => bins.includes(bin),
+    exists: (path) => paths.includes(path),
     async post(url) {
       if (url.includes("127.0.0.1")) return tools ? { ok: true, json: { result: { tools: tools.map((name) => ({ name })) } } } : { ok: false, error: "refused" };
       return docsUp ? { ok: true, json: { result: {} } } : { ok: false, error: "timeout" };
@@ -43,12 +44,23 @@ test("doctor passes a machine that has everything, and skips servers nobody uses
   assert.match(down.find((check) => check.id === "mcp:ide")!.detail, /No IDE server answered/);
 });
 
+test("what a harness says its seats need on this machine is checked, and how to get it is said", async () => {
+  const team = resolveTeam(kit);
+  const missing = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"], true, []));
+  const check = missing.find((entry) => entry.id === "harness:devin:HOME/.devin/credentials.toml")!;
+  assert.equal(check.ok, false);
+  assert.match(check.detail, /credentials\.toml for Peer, Watcher\. Log in to Devin once/);
+  const present = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]));
+  assert.equal(present.find((entry) => entry.id === "harness:devin:HOME/.devin/credentials.toml")!.ok, true);
+});
+
 test("a malformed answer from one server costs that server's check, not the whole report", async () => {
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
   // What an outside server answers is data. A null in its tools list used to throw out of the report
   // and take the settings, git and harness checks — computed before it — with the exception.
   const hostile: Probes = {
     has: (bin) => ["git", "jq", "claude"].includes(bin),
+    exists: () => true,
     async post(url) {
       if (url.includes("127.0.0.1")) return { ok: true, json: { result: { tools: [null, { name: "ide_open_project" }, "ide_find_references", { name: 7 }] } } };
       return { ok: true, json: { result: {} } };

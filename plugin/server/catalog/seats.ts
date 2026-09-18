@@ -1,7 +1,9 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources } from "./content.ts";
-import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, roleSettingsFile } from "./kit.ts";
+import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, harnessFileSources, roleSettingsFile } from "./kit.ts";
+import { stateWrites } from "./launch.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
@@ -192,14 +194,62 @@ function recorder(): Recorder {
   };
 }
 
-function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder): void {
+function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder, extra: Json): void {
   const { file, source, ownedPaths } = harness.settings;
   const roleFile = roleSettingsFile(kit, harness, role);
   if (!existsSync(roleFile)) throw new Error(`${role.role}: ${roleFile} is missing`);
-  const wanted = layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {})) as Json;
+  const wanted = layerSettings(layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {})), extra) as Json;
   const settingsFile = join(dir, file);
   const next = ownedPaths ? composeSettings(isLink(settingsFile) ? {} : readConfig<Json>(settingsFile, {}), wanted, ownedPaths) : wanted;
   record.note(writeConfigIfChanged(settingsFile, next), file);
+}
+
+const catalogs = new Map<string, string>();
+
+function catalogText(command: string[]): string {
+  const key = command.join("\0");
+  const cached = catalogs.get(key);
+  if (cached !== undefined) return cached;
+  const [bin, ...args] = command;
+  const text = execFileSync(bin!, args, { encoding: "utf-8", timeout: 20_000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  catalogs.set(key, text);
+  return text;
+}
+
+/** The catalog is the harness's own, with what it must not offer taken out; failing to build it refuses the seat. */
+function writeModelCatalog(harness: HarnessSpec, dir: string, record: Recorder): Json {
+  const spec = harness.modelCatalog;
+  if (!spec) return {};
+  const from = `\`${spec.command.join(" ")}\``;
+  let catalog: unknown;
+  try {
+    catalog = JSON.parse(catalogText(spec.command));
+  } catch (error) {
+    throw new Error(`${harness.label}'s model list could not be read from ${from}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const list = getPath(catalog, spec.list.split("."));
+  if (!Array.isArray(list) || list.length === 0) throw new Error(`${from} lists no ${spec.list}, so ${harness.label}'s models could not be limited`);
+  for (const entry of list) if (isPlain(entry)) for (const key of spec.clear) entry[key] = null;
+  const path = join(dir, spec.file);
+  record.note(writeReal(path, `${JSON.stringify(catalog)}\n`), spec.file);
+  const setting: Json = {};
+  setPath(setting, spec.setting.split("."), path);
+  return setting;
+}
+
+function stateWritesSetting(kit: Kit, team: Team, roleName: string, project?: SeatProject): Json {
+  const { role, harness } = team.roles[roleName]!;
+  if (harness.stateWrites?.delivery !== "file" || !project) return {};
+  const setting: Json = {};
+  setPath(setting, harness.stateWrites.path.split("."), stateWrites(kit, team, role, project.state));
+  return setting;
+}
+
+function writeFiles(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder): void {
+  for (const [path, sources] of Object.entries(harnessFileSources(kit, harness, role))) {
+    const text = sources.map((source) => readFileSync(source, "utf-8").trimEnd()).join("\n\n");
+    record.note(writeReal(join(dir, path), `${text}\n`), path);
+  }
 }
 
 export class LeftAlone extends Error {}
@@ -312,6 +362,9 @@ export function seatProblems(kit: Kit, team: Team, roleName: string, paths: Prom
   for (const [name, source] of skillSources(kit, seat.role, skillDirsFor(team, roleName))) {
     problems.push(...skillProblems(seat.role, name, source));
   }
+  for (const [path, sources] of Object.entries(harnessFileSources(kit, seat.harness, seat.role))) {
+    for (const source of sources) if (!existsSync(source)) problems.push(`${seat.harness.label} lays down ${path} from ${source}, which is missing`);
+  }
   return problems;
 }
 
@@ -324,7 +377,9 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();
   mkdirSync(dir, { recursive: true });
-  writeRoleSettings(kit, seat.harness, seat.role, dir, record);
+  const extra = layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(kit, team, roleName, project)) as Json;
+  writeRoleSettings(kit, seat.harness, seat.role, dir, record, extra);
+  writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);
   writeMcpFile(seat.harness, dir, servers, record);
   writeInstructions(kit, team, roleName, dir, paths, record);
