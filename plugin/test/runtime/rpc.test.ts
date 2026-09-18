@@ -146,7 +146,7 @@ test("a project can be registered by its path before any agent has run in it", a
   assert.match(missing.error, /is not a directory/);
 });
 
-test("attaching a project is undone by detaching it, unless the project has work on record", async () => {
+test("attaching a project is undone by detaching it, unless work is still running in it", async () => {
   const { call } = served();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "sw2-rpc-attach-")));
   execFileSync("git", ["init", "-q", root]);
@@ -155,11 +155,17 @@ test("attaching a project is undone by detaching it, unless the project has work
   await call("seatworks.settings.write", { project: added.slug, revision: read.revision, values: { roles: { peer: { harness: "devin" } } } });
 
   const state = join(HOME, ".local/share/seatworks-v2/projects", added.slug);
-  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: 1, lanes: { L1: { id: "L1" } }, tasks: {} }));
+  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: 1, lanes: { L1: { id: "L1", status: "open" } }, tasks: {} }));
   const refused = await call("seatworks.projects.remove", { project: added.slug });
-  assert.match(refused.error, /lane\(s\)/);
+  assert.match(refused.error, /open lane\(s\)/);
 
-  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: 1, lanes: {}, tasks: {} }));
+  // A lane that is closed and the tasks it cut are the project's provenance, and nothing ever deletes
+  // them. Counted as work, they made Detach refuse for ever, and told the owner to close lanes that
+  // were already closed. The records stay on disk; the attachment is what Detach undoes.
+  writeFileSync(
+    join(state, "ledger.json"),
+    JSON.stringify({ version: 1, lanes: { L1: { id: "L1", status: "closed" } }, tasks: { "L1-T1": { id: "L1-T1", lane: "L1", status: "cut" } } }),
+  );
   assert.deepEqual(await call("seatworks.projects.remove", { project: added.slug }), { removed: added.slug });
   const listed = await call("seatworks.projects.list");
   assert.equal(listed.some((entry: { slug: string }) => entry.slug === added.slug), false);

@@ -10,7 +10,7 @@ import { seatProblems } from "../catalog/seats.ts";
 import { guidesDir, worktreeRoot } from "../core/paths.ts";
 import { flowView } from "../desk/flow.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
-import { type Project, loadConfig, projectOf } from "../desk/project.ts";
+import { type Project, gitRoot, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
 import { type Check, doctor } from "./doctor.ts";
 import type { Control } from "./rpc.ts";
@@ -277,10 +277,17 @@ export class SettingsControl implements Control {
   removeProject(slug: string): unknown {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
+    // Live work, not work on record. Nothing ever removes an entry from `lanes` or `tasks` — closing
+    // a lane marks it closed and re-labels its tasks, because that record is the provenance — so
+    // counting them made Detach impossible for ever after the first lane, under a refusal that told
+    // the owner to close lanes they had already closed.
     const ledger = loadLedger(project.state);
-    const lanes = Object.keys(ledger.lanes).length;
-    const tasks = Object.keys(ledger.tasks).length;
-    if (lanes > 0 || tasks > 0) return { error: `${slug} has ${lanes} lane(s) and ${tasks} task(s) on record, so its settings stay. Close the lanes first.` };
+    const open = Object.values(ledger.lanes).filter((lane) => lane.status === "open").length;
+    const copies = Object.keys(ledger.slots).length;
+    if (open > 0 || copies > 0) {
+      const held = [open > 0 ? `${open} open lane(s)` : "", copies > 0 ? `${copies} working cop${copies === 1 ? "y" : "ies"} still checked out` : ""].filter(Boolean);
+      return { error: `${slug} has ${held.join(" and ")}, so its settings stay. Close the lanes first.` };
+    }
     for (const name of ["settings.json", "meta.json"]) rmSync(join(project.state, name), { force: true });
     try {
       if (readdirSync(project.state).length === 0) rmSync(project.state, { recursive: true, force: true });
@@ -345,7 +352,12 @@ export class SettingsControl implements Control {
       .sort((left, right) => left.localeCompare(right))
       .slice(0, 300)
       .map((child) => ({ name: child.slice(here.length + 1), path: child, repository: looksLikeRepo(child) }));
-    return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), folders };
+    // `repository` answers git's own upward search, so it is true inside a repository as well as at
+    // its root — which is right, because attaching from a subdirectory registers the root above it.
+    // That root is what the screen has to name: without it the dialog compared the folder being
+    // browsed against the projects already set up, so `/repo/src` never said that `/repo` was one.
+    const root = gitRoot(here);
+    return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), root: root === here ? null : root, folders };
   }
 
   private target(slug?: string): Target | string {

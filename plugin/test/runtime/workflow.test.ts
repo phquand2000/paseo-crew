@@ -306,6 +306,24 @@ test("a lane that fails after taking the project's own copy gives it back", asyn
   h.runtime.dispose();
 });
 
+test("a gate the owner switched off is still off when the next lane opens", async () => {
+  const h = harness("outbox-gate.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  writeFileSync(join(h.project.root, "package.json"), JSON.stringify({ scripts: { test: "echo ran" } }));
+  h.git(h.project.root, "add", "-A");
+  h.git(h.project.root, "commit", "-qm", "a package");
+
+  assert.match((await h.call(sup, "supervisor", "set_project", { gate: "" })).text, /gate none/);
+  // "The owner switched it off" and "nobody has ever set one" were the same stored value, and
+  // open_lane seeds a gate whenever it reads the second — so the next lane detected `npm test` from
+  // the repository, wrote it back over the answer, and told the Lead it runs before anything lands.
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  assert.equal(opened.ok, true, opened.text);
+  assert.match(opened.text, /Gate: none set, by this project's own choice/, opened.text);
+  assert.match((await h.call(sup, "supervisor", "set_project", {})).text, /gate none/);
+  h.runtime.dispose();
+});
+
 test("a lane in the project's own copy lands even when its base has moved on", async () => {
   const h = harness("outbox-moved.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

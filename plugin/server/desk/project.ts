@@ -70,12 +70,20 @@ export function configFile(state: string): string {
   return join(state, "project.json");
 }
 
+/**
+ * An empty gate is a decision, and it has to survive being read back.
+ *
+ * Collapsed into `undefined`, "the owner switched the gate off" and "nobody has ever set one" were
+ * the same value, and `open_lane` seeds a gate whenever it reads the second — so the next lane
+ * detected a gate from the repository and wrote it back over the owner's answer, then told the Lead
+ * it runs before anything lands.
+ */
 export function loadConfig(state: string): ProjectConfig {
   const stored = readJson<Partial<ProjectConfig>>(configFile(state), {});
   const minutes = Number(stored.gateTimeoutMinutes);
   return {
     base: typeof stored.base === "string" && stored.base ? stored.base : undefined,
-    gate: typeof stored.gate === "string" && stored.gate ? stored.gate : undefined,
+    gate: typeof stored.gate === "string" ? stored.gate : undefined,
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
     gateOn: stored.gateOn === "task" ? "task" : "lane",
     serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : SERIAL_ONLY,

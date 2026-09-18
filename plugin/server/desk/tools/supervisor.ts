@@ -1,3 +1,4 @@
+import { configFault } from "../../core/config-file.ts";
 import { branchExists, currentBranch, landLane, trackedFiles } from "../../core/git.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
 import { docsDir, placeDoc } from "../../catalog/templates.ts";
@@ -7,7 +8,7 @@ import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
 import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";
 import { letters, outside } from "../letters.ts";
-import { type Project, type ProjectConfig, detectGate, loadConfig, saveConfig } from "../project.ts";
+import { type Project, type ProjectConfig, configFile, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 import { namedOrNot } from "./shared.ts";
 
@@ -77,7 +78,9 @@ function gateRegime(project: Project): string {
 }
 
 function openedReply(project: Project, lane: Lane, slot: { id?: string }, lead: string, issue: Issue | undefined): string {
-  const gate = loadConfig(project.state).gate ?? "none; call set_project with the project's test command";
+  // An empty gate is the owner's answer, not a missing one, so it is not an invitation to set one.
+  const stored = loadConfig(project.state).gate;
+  const gate = stored ? stored : stored === "" ? "none set, by this project's own choice" : "none; call set_project with the project's test command";
   const issueText = issue
     ? `\n\nIssue #${issue.number} as the Lead received it: ${outside("issue", issue.title, 200)} (${outside("issue", issue.url, 300)})\n<issue>\n${outside("issue", issue.body, 4000)}\n</issue>`
     : "";
@@ -93,7 +96,13 @@ export const openLane: Tool = async (desk, caller, args) => {
   const config = loadConfig(project.state);
   const base = str(args.base) || config.base || (await currentBranch(project.root)) || "main";
   if (!(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
-  if (!config.base || !config.gate) saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
+  // Seeded only where the owner has answered nothing at all. `config.gate` is "" when they answered
+  // "no gate", and detecting one over that answers for them about what may land.
+  if (!config.base || config.gate === undefined) {
+    const fault = configFault(configFile(project.state));
+    if (fault) return no(`${fault}\nRepair it by hand, or move it aside; the desk will not write its own defaults over a file it could not read.`);
+    saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
+  }
   const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
   // One checkout is one branch: a second lane switching the project's own copy would take the first
   // Lead with it, and its commits would land on this lane's branch. So the desk takes a copy for it
@@ -227,7 +236,7 @@ export const setProject: Tool = async ({ ctx }, caller, args) => {
   const next: ProjectConfig = {
     ...config,
     base: base || config.base,
-    gate: typeof args.gate === "string" ? args.gate.trim() || undefined : config.gate,
+    gate: typeof args.gate === "string" ? args.gate.trim() : config.gate,
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
     gateOn: args.gateOn === "task" ? "task" : args.gateOn === "lane" ? "lane" : config.gateOn,
     serialOnly: Array.isArray(args.serialOnly) ? strs(args.serialOnly) : config.serialOnly,
@@ -242,5 +251,5 @@ export const setProject: Tool = async ({ ctx }, caller, args) => {
     next.docs.length === 0
       ? `\nPages kept: none. On the shelf, unused: ${kept.sort().join(", ")}.`
       : `\nPages kept: ${next.docs.join(", ")}.${started.length > 0 ? ` Started: ${started.join("; ")}.` : ""}${kept.length > 0 ? ` On the shelf, unused: ${kept.sort().join(", ")}.` : ""}`;
-  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate ?? "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.${pages}`);
+  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.${pages}`);
 };

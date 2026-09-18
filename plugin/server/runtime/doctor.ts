@@ -26,7 +26,10 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
   const checks: Check[] = [];
   checks.push({ id: "settings", ok: team.errors.length === 0, detail: team.errors.length === 0 ? "The settings resolve to a complete team." : team.errors.join("\n") });
   for (const bin of ["git", "jq"]) {
-    checks.push({ id: `bin:${bin}`, ok: probes.has(bin), detail: probes.has(bin) ? `${bin} is on PATH.` : `${bin} is not on PATH; seats need it.` });
+    // Asked once. `has` spawns a shell and blocks the loop the seats' own tool calls are served on,
+    // and a second answer that disagreed with the first would have said both things at once.
+    const ok = probes.has(bin);
+    checks.push({ id: `bin:${bin}`, ok, detail: ok ? `${bin} is on PATH.` : `${bin} is not on PATH; seats need it.` });
   }
   const harnesses = new Map<string, string[]>();
   for (const seat of Object.values(team.roles)) harnesses.set(seat.harness.id, [...(harnesses.get(seat.harness.id) ?? []), seat.role.label]);
@@ -51,7 +54,12 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
         const bin = proxy.backend.command[0] ?? "";
         const ok = Boolean(bin) && probes.has(bin);
         checks.push({ id: `mcp:${state.id}`, ok, detail: ok ? `${state.label} starts through ${bin}.` : `${state.label} needs \`${bin}\` on PATH.${help}` });
-      } else if (proxy?.backend.type === "http") {
+        // As the http branch below already does. Falling through pushed a second check under the same
+        // id, probing a pasted connection that a proxy entry's seats never use: `serversFor` builds a
+        // proxy from its own backend and never looks at `connect`.
+        continue;
+      }
+      if (proxy?.backend.type === "http") {
         const { url } = proxy.backend;
         const listed = await probes.post(url, { jsonrpc: "2.0", id: 1, method: "tools/list" }, 3000);
         if (!listed.ok || !Array.isArray(listed.json?.result?.tools)) {
@@ -76,6 +84,11 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
       if (direct?.type === "stdio" && direct.command) {
         const ok = probes.has(direct.command);
         checks.push({ id: `mcp:${state.id}`, ok, detail: ok ? `${state.label} starts through ${direct.command}.` : `${state.label} needs \`${direct.command}\` on PATH.${help}` });
+      } else if (direct?.type === "sse" && direct.url) {
+        // A transport the settings accept, the harness advertises and the seats use — and one this
+        // probe does not speak. Run against the streamable-HTTP handshake it answers nothing, and a
+        // server the team is using every day was reported as never having answered.
+        checks.push({ id: `mcp:${state.id}`, ok: true, detail: `${state.label} is an SSE server at ${direct.url}; the desk does not probe that transport, so this is not a check.${help}` });
       } else if (direct?.url) {
         const answered = await probes.post(direct.url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-doctor", version: "2" } } }, 8000);
         const ok = answered.ok && Boolean(answered.json?.result);
