@@ -276,7 +276,16 @@ export function useSeatworks(project?: string) {
           setSaveError(`No role's agent can reach a ${parsed.connect.type} server, so there is nobody to give it to.`);
           return null;
         }
-        const saved = await save((values) => setMcp(values, id, { enabled: true, label: parsed.label || id, connect: parsed.connect, removed: false, roles: reachable }));
+        // Pasting the same name again is how a connection is updated — a rotated token, a new url —
+        // so the roles the owner narrowed to are kept, intersected with what can reach the transport.
+        // `roles` is derived from the kit, not carried by the snippet, so a paste must not assert it.
+        const narrowed = data.values.mcp?.[id]?.roles;
+        const roles = narrowed ? narrowed.filter((role) => reachable.includes(role)) : reachable;
+        if (roles.length === 0) {
+          setSaveError(`This server is given to ${narrowed!.join(", ")}, and no agent of theirs can reach a ${parsed.connect.type} server. Widen the roles on its own tab first.`);
+          return null;
+        }
+        const saved = await save((values) => setMcp(values, id, { enabled: true, label: parsed.label || id, connect: parsed.connect, removed: false, roles }));
         // The snippet is the owner's only copy of what they pasted; it is not thrown away on a refusal.
         return saved ? id : null;
       } catch (error) {

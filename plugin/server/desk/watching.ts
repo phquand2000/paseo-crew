@@ -74,17 +74,29 @@ export function judge(watching: Watching, raised: Raised, now: number, rules: Wa
   return { urgency, watching: { strikes: { ...watching.strikes, [key]: strike }, pages: spent }, strike };
 }
 
-/** What an interruption cost and what it settled, recorded once it has really gone somewhere. */
+/**
+ * What an interruption cost and what it settled, recorded once it has really gone somewhere.
+ *
+ * Every delivery is charged, not only the first for a given key: `judge` carries `reportedAt`
+ * forward onto each later strike of the same key, so skipping a key that already had one meant the
+ * second page of a repeat offender cost nothing and `pagesPerWindow` stopped bounding anything.
+ */
 export function delivered(watching: Watching, keys: string[], now: number): Watching {
   const strikes = { ...watching.strikes };
   const pages = [...watching.pages];
   for (const key of keys) {
     const strike = strikes[key];
-    if (!strike || strike.reportedAt) continue;
+    if (!strike) continue;
     strikes[key] = { ...strike, reportedAt: now };
     pages.push(now);
   }
   return { strikes, pages };
+}
+
+/** How many more interruptions this window can take. */
+export function pagesLeft(watching: Watching, now: number, rules: WatchRules = WATCH_RULES): number {
+  const spent = watching.pages.filter((at) => now - at < rules.windowHours * 3_600_000);
+  return Math.max(0, rules.pagesPerWindow - spent.length);
 }
 
 export function pending(watching: Watching): Strike[] {

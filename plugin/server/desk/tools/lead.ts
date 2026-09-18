@@ -183,7 +183,11 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   if (!lane?.worktree) return no("You have no open lane.");
   const target = str(args.task) ? findTask(ledger, str(args.task)) : undefined;
   if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code")) return no(`${str(args.task)} is not a code task in your lane.`);
-  const own = target?.mode === "parallel" && target.slot && ledger.slots[target.slot]?.task === target.id ? ledger.slots[target.slot] : undefined;
+  // A slot already marked for teardown stays in the ledger — that is what keeps it from being reused
+  // — so it still answers as the task's own copy. Seating a reviewer in it and telling it that copy
+  // holds the change means the directory goes the moment the task's Peer ends its turn.
+  const holds = target?.slot ? ledger.slots[target.slot] : undefined;
+  const own = target?.mode === "parallel" && holds?.task === target.id && !holds.releasing ? holds : undefined;
   const change = target ? await changeOf(project, target, lane, Boolean(own)) : undefined;
   if (target && !change)
     return no(`${target.id} worked in a copy that has been given back, and neither a merge nor a branch is left to read it from. Ask for a review of the lane instead.`);

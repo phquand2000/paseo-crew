@@ -226,13 +226,17 @@ function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: 
 function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, record: Recorder): void {
   const file = join(dir, harness.mcp.file);
   const fault = configFault(file);
-  if (fault) {
-    // The harness owns what else is in there. Substituting the seed would replace its account and
-    // its history with three keys and call it an MCP update.
+  // Whose document it is decides what to do with an unreadable one. A harness that takes its servers
+  // at launch keeps its own things in that file — an account, a machine id, a project history — and
+  // the plugin's three-key seed must not replace them. A harness that takes them from the file has
+  // nothing else in it, and this file carries the seat's only two tools: leaving it unreadable is a
+  // Peer that boots with no way to hand back or ask.
+  if (fault && harness.mcp.delivery !== "file") {
     console.error(`seatworks-v2: ${fault}, so its MCP servers were left alone`);
     return;
   }
-  const current = readConfig<Json>(file, structuredClone(harness.mcp.seed ?? {}));
+  if (fault) console.error(`seatworks-v2: ${fault}, and the plugin owns that file, so it was written again`);
+  const current = fault ? structuredClone(harness.mcp.seed ?? {}) : readConfig<Json>(file, structuredClone(harness.mcp.seed ?? {}));
   record.note(writeConfigIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
 }
 

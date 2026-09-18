@@ -18,8 +18,10 @@ function scopeProblem(serial: string[], open: Lane[], writeSet: string[], contra
     // does not help here: these are the files a merge cannot reconcile, so the second writer loses.
     const theirs = other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial);
     const both = mine.filter((path) => theirs.includes(path));
+    // Named, not listed: the rules are resolved against real files, and a Unity or Unreal tree has
+    // tens of thousands of them. A refusal that spends the seat's context cannot be acted on.
     if (both.length > 0)
-      return `Lane ${other.id} may already be writing ${both.join(", ")}, and only one lane at a time may write those; open this lane after ${other.id} lands, or keep those paths out of it.`;
+      return `Lane ${other.id} may already be writing ${both.slice(0, 4).join(", ")}${both.length > 4 ? ` and ${both.length - 4} more` : ""}, and only one lane at a time may write those; open this lane after ${other.id} lands, or keep those paths out of it.`;
   }
   // Two lanes that declared the same paths are one lane the Supervisor has not noticed yet. Nothing
   // is said when either declared nothing: that is the Supervisor's call, not a hole to refuse over.

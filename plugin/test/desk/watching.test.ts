@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pending, reported } from "../../server/desk/watching.ts";
+import { type Raised, type Watching, WATCH_RULES, delivered, emptyWatching, judge, keyOf, pagesLeft, pending, reported } from "../../server/desk/watching.ts";
 
 const NOW = Date.parse("2026-09-16T12:00:00Z");
 const minutes = (count: number) => count * 60_000;
@@ -102,4 +102,29 @@ test("the digest holds what was never raised, and empties once it is sent", () =
     "what already interrupted the owner is not repeated in the digest",
   );
   assert.deepEqual(pending(reported(watching, NOW + minutes(4))), []);
+});
+
+test("every interruption is charged, not only the first one for a fault", () => {
+  const key = keyOf("seat-lead", "repetition");
+  let watching = emptyWatching();
+  for (const at of [NOW, NOW + minutes(1), NOW + minutes(2)]) {
+    const verdict = judge(watching, raised({ subject: "seat-lead" }), at);
+    watching = verdict.watching;
+    if (verdict.urgency === "page") watching = delivered(watching, [key], at);
+  }
+  assert.equal(watching.pages.length, 1, "three strikes, one interruption");
+  assert.equal(pagesLeft(watching, NOW + minutes(2)), 1);
+
+  // The same fault again. judge carries reportedAt forward, so skipping a key that already had one
+  // meant this page cost nothing and the window stopped bounding anything at all.
+  const again = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(3));
+  assert.equal(again.urgency, "page");
+  watching = delivered(again.watching, [key], NOW + minutes(3));
+  assert.equal(watching.pages.length, 2, "the second interruption costs the second page");
+  assert.equal(pagesLeft(watching, NOW + minutes(3)), 0);
+
+  // And with the window spent, the next one waits for the report instead.
+  const third = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(4));
+  assert.equal(third.urgency, "digest");
+  assert.deepEqual(pending(third.watching).map((strike) => strike.label), [], "already reported, so it is not repeated either");
 });

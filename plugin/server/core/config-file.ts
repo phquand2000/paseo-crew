@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { extname } from "node:path";
 import { parse, stringify } from "smol-toml";
 
@@ -35,8 +35,14 @@ export function configFault(path: string): string | undefined {
 /** Written whole or not at all, because a harness may be reading it while this runs. */
 export function writeConfigAtomic(path: string, text: string, mode = 0o600): void {
   const staging = `${path}.${process.pid}.tmp`;
-  writeFileSync(staging, text, { mode });
-  renameSync(staging, path);
+  try {
+    writeFileSync(staging, text, { mode });
+    renameSync(staging, path);
+  } catch (error) {
+    // A full disk stops this between the two lines; the half-written file is not left beside the real one.
+    rmSync(staging, { force: true });
+    throw error;
+  }
 }
 
 export function formatConfig(path: string, value: unknown): string {

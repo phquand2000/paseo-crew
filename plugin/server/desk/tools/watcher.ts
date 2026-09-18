@@ -1,7 +1,7 @@
 import { no, ok, str } from "../context.ts";
 import { letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
-import { type Urgency, type Watching, WATCH_RULES, delivered, judge, keyOf, loadWatching, saveWatching } from "../watching.ts";
+import { type Urgency, type Watching, WATCH_RULES, delivered, judge, keyOf, loadWatching, pagesLeft, saveWatching } from "../watching.ts";
 
 /** What the SLP preset asks a Watcher to distinguish. The kit names these; the desk only checks a finding carries one. */
 export const LABELS = ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"];
@@ -65,6 +65,15 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone. Keep reading endings.`);
   }
 
+  // Every finding in one raise is judged against the same already-spent budget, so a raise carrying
+  // three struck-out faults would send three. What does not fit stays unstamped, which leaves it in
+  // the report. A label the owner marked as always-interrupt is never held back.
+  const rules = { ...WATCH_RULES, ...ctx.team(caller.project).attention };
+  const room = pagesLeft(watching, now, rules);
+  const urgent = paged.filter((finding) => rules.always.includes(finding.label));
+  const sending = [...urgent, ...paged.filter((finding) => !urgent.includes(finding)).slice(0, Math.max(0, room - urgent.length))];
+  const heldBack = paged.filter((finding) => !sending.includes(finding));
+
   const to = await roster.supervisorFor(project);
   if (!to) {
     // Nothing is stamped, so it stays in the report and reaches whoever opens a seat next. Refusing
@@ -72,10 +81,11 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     saveWatching(project.state, watching);
     return ok(`Recorded ${named}. Nobody above you is running to be interrupted, so it waits in the report for whoever comes back. Keep reading endings.`);
   }
-  for (const finding of paged) {
+  for (const finding of sending) {
     const count = counts.get(finding.label) ?? 1;
     await ctx.post(to, `attention:${where}:${finding.label}:${count}`, letters.attention(finding.label, where, finding.quote, count, recorded));
   }
-  saveWatching(project.state, delivered(watching, pagedKeys, now));
-  return ok(`Raised ${paged.map((finding) => finding.label).join(", ")} to the owner. Keep reading endings; nothing to wait for.`);
+  saveWatching(project.state, delivered(watching, sending.map((finding) => keyOf(where, finding.label)), now));
+  const waited = heldBack.length > 0 ? ` ${heldBack.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
+  return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to the owner.${waited} Keep reading endings; nothing to wait for.`);
 };

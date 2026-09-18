@@ -444,6 +444,34 @@ test("each project gets the agent and model its own settings choose, and the mac
 
 
 
+test("one raise carrying three struck-out faults spends the window's budget, not three of them", async () => {
+  const h = harness("outbox-budget.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const watcher = h.add("sw2-watcher-devin/swe-2-medium", h.root, "watch");
+  const where = "the Lead of L1";
+  const three = [
+    { label: "repetition", quote: "same file again" },
+    { label: "unverified", quote: "accepted without the gate" },
+    { label: "derailed", quote: "went somewhere else" },
+  ];
+
+  // Two sightings each, so all three are one strike from earning an interruption.
+  for (const round of [0, 1]) {
+    const first = await h.call(watcher, "watcher", "raise", { where, findings: three });
+    assert.equal(first.ok, true, `round ${round}: ${first.text}`);
+  }
+  // The third sighting: every one of them is struck out, in one raise, and the window allows two.
+  const raised = await h.call(watcher, "watcher", "raise", { where, findings: three });
+  assert.equal(raised.ok, true, raised.text);
+  assert.match(raised.text, /waits for the report/, "what does not fit is not sent and not stamped");
+
+  await h.idle(sup);
+  const told = h.agents.get(sup)!.sent.join("\n");
+  assert.equal((told.match(/ATTENTION/g) ?? []).length, 2, "pagesPerWindow is two, so two interruptions went and the third waits");
+  h.runtime.dispose();
+});
+
 test("an irreversible finding raised while no Supervisor is running waits for one instead of counting as told", async () => {
   const h = harness("outbox-nobodyhome.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -1185,6 +1213,21 @@ test("a copy a reviewer is reading is not taken away when the task it reviews is
   h.agents.get(review.peer!)!.status = "idle";
   await h.endTurn(review.peer!, "verdict sent");
   assert.equal(existsSync(review.worktree!), false, "once it stops, the copy goes as it always did");
+
+  // And a review started *after* the copy is already marked for teardown is not seated in it: that
+  // copy goes the moment the task's own Peer ends its turn, whatever the reviewer was told.
+  await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], ...scope, parallel: true });
+  const second = Object.values(h.ledger().tasks).find((entry) => entry.title === "B")!;
+  h.commit(second.worktree!, "b.txt", "B\n");
+  await h.call(second.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: second.id })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.ok(h.ledger().slots[second.slot!]?.releasing, "its Peer is mid-turn, so the copy is waiting to be put away");
+
+  assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: second.id, focus: "and this one?" })).ok, true);
+  const late = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review" && entry.of === second.id)!;
+  assert.notEqual(late.worktree, second.worktree, "it reads the merge from the lane's copy instead");
+  assert.match(h.agents.get(late.peer!)!.prompt!, /as the merge/);
   h.runtime.dispose();
 });
 

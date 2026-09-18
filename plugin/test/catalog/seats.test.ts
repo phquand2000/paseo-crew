@@ -156,6 +156,25 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   assert.deepEqual(materialize(kit, team, "peer", home, project, servers), []);
 });
 
+test("an unreadable MCP file the plugin owns is written again, because it carries the seat's only tools", () => {
+  const kit = makeKit();
+  const home = tempDir("sw2-home-");
+  const team = resolveTeam(kit);
+  // The Peer's harness takes its servers from the file (`delivery: "file"`), and nothing else lives
+  // in that document. Leaving it unreadable is a Peer that boots with no `done` and no `ask`.
+  const peer = team.roles.peer!;
+  assert.equal(peer.harness.mcp.delivery, "file", "the premise of this test");
+  const dir = seatDir(kit, peer.role, peer.harness, home, project);
+  const servers = { team: { type: "stdio", command: ["node", "team.mjs"] } };
+  materialize(kit, team, "peer", home, project, servers);
+  const file = join(dir, peer.harness.mcp.file);
+  assert.ok(JSON.parse(readFileSync(file, "utf-8")).mcpServers.team, "built once, with the server that carries done and ask");
+
+  writeFileSync(file, '{ "mcpServers": {');
+  materialize(kit, team, "peer", home, project, servers);
+  assert.ok(JSON.parse(readFileSync(file, "utf-8")).mcpServers.team, "and written again, because this document is the plugin's own");
+});
+
 test("an MCP file the harness owns and the plugin cannot read is left alone, not replaced by the seed", () => {
   const kit = makeKit();
   const home = tempDir("sw2-home-");
