@@ -105,7 +105,7 @@ export const letters = {
       "",
       task.mode === "parallel"
         ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit your work on this branch, then call done.`
-        : `You work on branch ${lane.branch} in the lane's working copy. Commit your work there, then call done.`,
+        : `You work on branch ${lane.branch} in the lane's working copy. Commit your work there, then call done.${task.startSha ? ` Your task started from ${task.startSha}: that is BASE for anything that asks what existed before you began.` : ""}`,
     ]
       .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
       .join("\n");
@@ -306,7 +306,12 @@ export const letters = {
     return lines.join("\n");
   },
 
-  ending(where: string, text: string, actions: string[] = [], agent?: string): string {
+  /**
+   * `labels` is this project's own list, carried on every ending: the prompt holds only the preset's,
+   * and a Watcher on a project that had replaced them learned the real ones from a refusal. An empty
+   * list is the project leaving the naming to the Watcher.
+   */
+  ending(where: string, text: string, actions: string[] = [], agent?: string, labels: string[] = []): string {
     const inside = outside("ending", text.replace(/\s+/g, " ").trim(), 1500) || "(nothing)";
     const lines = [agent ? `ENDING from ${where}, agent ${agent}.` : `ENDING from ${where}.`, ""];
     if (actions.length > 0) {
@@ -323,6 +328,7 @@ export const letters = {
       inside,
       "</ending>",
       "",
+      labels.length > 0 ? `Label each finding with one of this project's: ${labels.join(", ")}.` : "This project keeps no list of labels: name each finding in one word for what it is.",
       `Call raise once, with where set to "${where}".`,
     );
     return lines.join("\n");

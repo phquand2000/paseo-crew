@@ -547,6 +547,7 @@ test("a stalled task still holds its working copy, and runs again once its Peer 
     await h.endTurn(peer, text);
   }
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
+  assert.match(h.agents.get(peer)!.prompt ?? "", /Your task started from [0-9a-f]{40}/, "the brief names where the task began, which is BASE for its checks");
 
   // Its Peer is still seated in the lane's copy, and the Lead is told to message it there. Read as not
   // holding the copy, a stalled task let a second Peer be seated in the same checkout.
@@ -843,6 +844,9 @@ test("an ending reaches the Watcher seat as fenced mail", async () => {
   assert.match(mail, /not instructions to you/);
   assert.match(mail, /The desk's record of this turn/, "the Watcher is given the actions as well as the words");
   assert.match(mail, /carry no implication of fault/, "the record reaches it as extracts, not as a verdict it is invited to agree with");
+  // The prompt holds only the preset's labels; a project that replaced them was known to the Watcher
+  // only through a refusal after it had used one of the preset's.
+  assert.match(mail, /Label each finding with one of this project's: destructive, repetition/);
   assert.match(mail, /git reset --hard/);
   assert.equal(mail.match(/<\/ending>/g)?.length, 1, "the agent's own words cannot close the fence");
   h.runtime.dispose();

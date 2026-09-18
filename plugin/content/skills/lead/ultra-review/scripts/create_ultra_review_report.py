@@ -19,7 +19,9 @@ def slugify(value: str) -> str:
 
 
 def next_round(report_dir: Path, review_name: str) -> tuple[int, list[Path]]:
-    pattern = re.compile(rf".*-{re.escape(review_name)}-round-(\d+)\.md$")
+    # Anchored on the date the report name starts with: unanchored, a review named "api" took
+    # "auth-api"'s rounds as its own and numbered itself after them.
+    pattern = re.compile(rf"^\d{{2}}-\d{{2}}-\d{{2}}-{re.escape(review_name)}-round-(\d+)\.md$")
     prior: list[tuple[int, Path]] = []
     if report_dir.exists():
         for path in report_dir.glob(f"*-{review_name}-round-*.md"):
@@ -122,7 +124,7 @@ def markdown(meta: dict, found: list[dict], rows: list[dict], scouts: list[dict]
         "",
         "## Prior Round Guard",
         "",
-        "Previous reports read:",
+        "Previous reports found (read them before ruling):",
         "\n".join(f"- {path}" for path in meta["prior_reports"]) or "- none",
         "",
         "Warnings given to scouts: TODO, or none",
@@ -181,6 +183,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--review-brief", required=True, help="the brief file the scouts are given; the report stamps its sha256")
     parser.add_argument("--scout-count", type=int, default=10)
     parser.add_argument("--directive-count", type=int, default=0, help="numbered directives D01.. in the brief")
+    parser.add_argument("--concern-count", type=int, default=0, help="numbered concerns G01.. in the brief, when it has no directives")
     parser.add_argument("--overlap", type=int, default=2, help="scouts per unit")
     parser.add_argument("--directive-overlap", type=int, default=3, help="scouts per directive")
     parser.add_argument("--ocr-preview", help="JSON from ocr delegate preview or ocr scan --preview")
@@ -221,7 +224,9 @@ def main() -> int:
 
     rows = ledger(read_json(args.ocr_preview, "--ocr-preview"))
     found = units(rows, read_json(args.ocr_rules, "--ocr-rules"))
-    directives = [f"D{index:02d}" for index in range(1, args.directive_count + 1)]
+    # Concerns are handed out the way directives are. With no preview and no directives the pool was
+    # empty, and every scout came back with nothing to read, which is the fallback the skill describes.
+    directives = [f"D{index:02d}" for index in range(1, args.directive_count + 1)] + [f"G{index:02d}" for index in range(1, max(0, args.concern_count) + 1)]
     scouts = assign([unit["id"] for unit in found], directives, args.scout_count, args.overlap, args.directive_overlap)
     meta = {
         "review_name": review_name,

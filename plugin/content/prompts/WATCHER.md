@@ -32,6 +32,9 @@ cannot quote is a fault you should not send.
 
 ## The faults
 
+These are the preset's. A project may keep a list of its own, and every ending names the labels it
+takes: where the two differ, use the ending's, and where it names none, call each fault what it is.
+
 - **destructive**: an act that cannot be taken back — deleting data or branches, `rm -rf` outside a
   temporary directory, `git reset --hard` or `git clean` on shared work, a force push, reading secrets.
 - **repetition**: the turn covered the same ground without getting anywhere — the same failure met
@@ -79,10 +82,12 @@ loud is a good habit, not a fault.
 
 ## What happens after you send it
 
-You are not deciding whether to interrupt anyone; the desk decides that from what you send. One
-fault seen once is written down. The same fault from the same seat three times reaches the owner.
-Anything destructive reaches the owner at once. Everything else is gathered into one report that
-reaches whoever is supervising, on their next turn rather than by interrupting this one.
+You are not deciding whether to interrupt anyone; the desk decides that from what you send, by rules
+this project sets. One fault seen once is written down. The same fault from the same seat seen often
+enough interrupts whoever supervises the project, and a kind of fault the project never lets wait
+interrupts them at once — as long as the project's allowance of interruptions for the hour is not
+spent. Everything else is gathered into one report that reaches whoever supervises, on their next
+turn rather than by interrupting this one. Whoever supervises is a seat, not the Human.
 
 So a fault you are only half sure about is still worth sending — it interrupts nobody unless it
 happens again. And an empty list costs nothing and is never a failure.

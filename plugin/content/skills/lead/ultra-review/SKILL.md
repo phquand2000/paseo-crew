@@ -17,7 +17,7 @@ ocr delegate rule --format json $(jq -r '(.reviewable_files // [.files[] | selec
 
 Skip the rule call when nothing is reviewable. The tool filters by file type, so an excluded file is not a cleared one; the hunt script keeps excluded files in scope. Without `ocr`, say so and run the scripts without the two JSON files.
 
-Write the brief the scouts will be given — the scope, the change intent, the contracts that govern it and its directives `D01`, `D02`, ... — to `$SEATWORKS_STATE/ultra-review/NAME-brief.md`. The report stamps that file's sha256, so a later round can tell whether the brief it reviewed was this one. Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius.
+Write the brief the scouts will be given — the scope, the change intent, the contracts that govern it and its directives `D01`, `D02`, ... — to `$SEATWORKS_STATE/ultra-review/NAME-brief.md`. The report stamps that file's sha256, so a later round can tell whether the brief it reviewed was this one. Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius. Pass their number as `--concern-count` in place of `--directive-count`, so the scouts are given them.
 
 ## 2a. hunt
 
@@ -30,7 +30,7 @@ python3 "$SEATWORKS_KIT/content/skills/lead/ultra-review/scripts/create_ultra_re
 
 It writes this round's report, never over an earlier one, with a coverage ledger, and prints the units (each rule group with its files and rule text, plus the excluded files) and each scout's units and directives: two scouts per unit, three per directive. Give a risky unit a third scout yourself.
 
-Scouts read the lane branch, so merge the scope into it first. Start `scout-01` to `scout-10` in one turn, each with `start_review`, no task, and that title. Each focus carries:
+Scouts read the lane branch, or a task's branch when started with that `task`; you do not merge yourself. When the scope is a task not yet accepted, start `scout-01` to `scout-10` in one turn, each with `start_review`, that task and that title; otherwise with no task. Each focus carries:
 
 - the scope, change intent and relevant repository contracts;
 - its units' files and rule text, and its directives and concerns, each with a search angle no other scout on that unit has, because copies of one focus find the same bugs twice;

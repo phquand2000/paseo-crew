@@ -16,11 +16,11 @@
     },
     "pin": "repo",
     "descriptions": {
-      "search": "Find code in this working copy by what it does when you don't know its name. Describe the behavior in one focused query, not an error message. Returns file paths, line numbers and snippets. When you know a name, use ide_find_symbol or ide_search_text instead."
+      "search": "Find code in this working copy by what it does when you don't know its name. Describe the behavior in one focused query, not an error message. Returns file paths, line numbers and snippets. When you know a name, an IDE index tool is better if you have one; otherwise search the text with the shell."
     }
   },
   "help": "Install uv so `uvx` can start semble.",
-  "instructions": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use the intellij-index tools.",
+  "instructions": "Search your own working copy only for code you can describe but not name. For names, text, references, hierarchies and refactoring, use an IDE index tool where you have one, and the shell where you do not.",
   "settings": {},
   "defaults": {
     "enabled": false

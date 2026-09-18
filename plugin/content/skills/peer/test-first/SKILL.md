@@ -23,7 +23,7 @@ No behavior changes without evidence you produced before the change. You choose 
 ## 2. Settle the seam and the contract
 
 1. **Seam.** An interface the brief's Acceptance or Context names, or an existing public entry point, and what a caller observes there, in one line such as `parseHeader(bytes) -> Header | ParseError`. If neither exists, or `AGENTS.md` marks the seam decide-first and it is undecided, `ask` your lead with the candidates: a test at a guessed seam makes your guess the contract.
-2. **Contract.** Every type, field, function, route and table a test uses must exist in production code at `BASE` (`git merge-base HEAD` with the branch your task branched from) or be named in the brief. This search skips test files:
+2. **Contract.** Every type, field, function, route and table a test uses must exist in production code at `BASE` (the commit your brief says your task started from; in a working copy of your own, `git merge-base HEAD` with the branch your task branched from) or be named in the brief. This search skips test files:
 
    ```sh
    git grep -n -w 'NAME' "$BASE" -- . ':(exclude,glob)**/test*/**' ':(exclude,glob)**/spec/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/*[._]test.*' ':(exclude,glob)**/*[._]spec.*' ':(exclude,glob)**/test_*'

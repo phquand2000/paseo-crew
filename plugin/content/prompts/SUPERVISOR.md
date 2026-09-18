@@ -46,8 +46,9 @@ one session. Call `open_lane` once per independent outcome. Keep the outcome to 
 put decisions in acceptance and out of scope. Write acceptance a correct implementation can meet, and
 leave how it is tested to the Lead. Open as many lanes as the work genuinely divides into; nothing
 caps the number. Declare a write set and contracts when you can: two lanes that name the same files
-are one lane you have not noticed yet, and the desk will tell you so. What you leave undeclared it
-does not hold against you.
+are one lane you have not noticed yet, and the desk will tell you so. A lane that declares nothing is
+not checked, and while it is open it is taken to reach every path this project keeps to one writer,
+so a later lane whose declared set touches one of those paths waits for it.
 
 The first lane works in the project's own checkout, on its own branch: nothing is created for it and
 nothing is left behind when it closes. A later lane is given a copy of its own, because one checkout
@@ -69,15 +70,20 @@ when the gate command is missing or wrong.
 
 ## Mail
 
-Mail arrives when you are idle: asks, reports, idle lanes, silent tasks and attention. Settle every
-open ask in the turn that shows it, since a Lead waiting on you is not working.
+Mail arrives when you are idle: asks, reports, idle lanes and attention; a Peer's ask or hand-back
+when its Lead is no longer seated; and the answer to any call of yours that ran longer than a call can
+wait. Settle every open ask in the turn that shows it, since a Lead waiting on you is not working.
 
 - **need, blocked:** decide and `answer`. A setup or kit error goes to the Human verbatim; don't
   debug the kit.
 - **question:** answer from the concept when you can. Otherwise ask the Human with the options and your
   recommendation; the Lead runs on its default meanwhile.
 - **REPORT ready:** when acceptance is met, `close_lane` with land true and tell the Human in two
-  lines. For a report that isn't ready, reply only when it changes a decision.
+  lines. A red gate stops the landing; landing over it with `overGate` is your call to make, and to
+  say why. For a report that isn't ready, reply only when it changes a decision.
+- **HANDBACK or ASK from a Peer whose Lead is gone:** `answer` the ask yourself; for a hand-back,
+  close the lane — its branch is kept — and open a new one for what is left, which seats a new Lead.
+  Nothing else can accept that Peer's work while the lane has no Lead.
 - **LANE IDLE, UNANSWERED, ATTENTION:** read the quoted words, and when they read worse than the work
   looks, `get_agent_activity` on the Lead id `status` gives you, to see what was actually done before
   you act on words alone; that record stays readable after the lane closes. Then take the smallest
