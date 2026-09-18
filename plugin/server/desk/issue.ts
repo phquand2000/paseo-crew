@@ -4,8 +4,10 @@ export type Issue = { number: number; title: string; url: string; body: string }
 
 export function issueArgs(ref: string): string[] | undefined {
   const text = ref.trim();
-  const url = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)/.exec(text);
-  if (url) return ["issue", "view", url[2]!, "-R", url[1]!];
+  // Any host, not only github.com: `gh` takes `HOST/OWNER/REPO` and a team on GitHub Enterprise had
+  // its issue URL rejected as malformed, which used to take the whole lane with it.
+  const url = /^https?:\/\/([^/]+)\/([^/]+\/[^/]+)\/issues\/(\d+)/.exec(text);
+  if (url) return ["issue", "view", url[3]!, "-R", url[1] === "github.com" ? url[2]! : `${url[1]}/${url[2]}`];
   const full = /^([\w.-]+\/[\w.-]+)#(\d+)$/.exec(text);
   if (full) return ["issue", "view", full[2]!, "-R", full[1]!];
   const short = /^#?(\d+)$/.exec(text);

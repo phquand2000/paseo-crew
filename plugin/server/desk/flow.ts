@@ -89,12 +89,16 @@ export function flowView(project: Project, ledger: Ledger, seats: Map<string, Se
     });
   }
 
-  let supervisor: FlowSeat | null = null;
-  for (const agent of Object.values(ledger.agents)) {
-    if (!supervises.has(agent.role)) continue;
-    supervisor = seatOf(seats, agent.id, agent.role, now);
-    break;
-  }
+  // The Supervisor that is seated now, not the first one ever recorded here. `ledger.agents` is
+  // appended to and never pruned, and its keys come back in insertion order, so this named the
+  // oldest Supervisor that had ever called a tool on the project — permanently, and as "gone" from
+  // the moment that seat was archived, with the one actually working never shown at all.
+  const recorded = Object.values(ledger.agents).filter((agent) => supervises.has(agent.role));
+  const live = recorded
+    .filter((agent) => seats.has(agent.id))
+    .sort((a, b) => Date.parse(seats.get(b.id)!.updatedAt) - Date.parse(seats.get(a.id)!.updatedAt));
+  const chosen = live[0] ?? recorded[recorded.length - 1];
+  const supervisor: FlowSeat | null = chosen ? seatOf(seats, chosen.id, chosen.role, now) : null;
 
   const body = { project: project.slug, supervisor, lanes, moreLanes, asks };
   const revision = createHash("sha1").update(JSON.stringify(body)).digest("hex").slice(0, 16);

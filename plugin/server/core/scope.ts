@@ -36,9 +36,15 @@ export function globToRegex(pattern: string): RegExp {
     const char = clean[index]!;
     if (char === "*") {
       if (clean[index + 1] === "*") {
-        out += ".*";
         index++;
-        if (clean[index + 1] === "/") index++;
+        // `**/` stands for whole segments or none of them. Rendered as `.*` with the separator
+        // swallowed, it matched any segment merely ending in the next name: `**/migrations/**` put
+        // `server/db_migrations/` in the project's serial-only set, and two lanes that never touch a
+        // migration were told they overlap. `patternsOverlap` walks segments and never agreed.
+        if (clean[index + 1] === "/") {
+          out += "(?:.*/)?";
+          index++;
+        } else out += ".*";
       } else out += "[^/]*";
     } else if (char === "?") out += "[^/]";
     else out += char.replace(/[.+^${}()|[\]\\]/g, "\\$&");

@@ -189,6 +189,11 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.deepEqual(serialHits(["app/**"], serial), [], "a tree with none of them in it is not held back for them");
   assert.deepEqual(serialHits(["src/**", "package-lock.json"], serial), ["package-lock.json"]);
   assert.deepEqual(serialHits(["db/**"], serial), ["db/**"], "and a tree that does hold one is");
+  // `**/migrations/**` stands for whole segments. Rendered without the boundary it matched any
+  // segment merely ending in the name, so a directory nobody's rule named was made serial and two
+  // lanes that never touch a migration were refused for overlapping.
+  assert.deepEqual(serialPaths(["server/db_migrations/0001.sql"], SERIAL_ONLY), []);
+  assert.deepEqual(serialPaths(["db/migrations/0001.sql"], SERIAL_ONLY), ["db/migrations/"]);
   assert.deepEqual(serialHits(["db/migrations/0002.sql"], serial), ["db/migrations/0002.sql"], "including a migration nobody has written yet");
   assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], serial), ["Assets/Scenes/Main.unity"]);
 });

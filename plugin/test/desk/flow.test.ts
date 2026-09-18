@@ -62,6 +62,25 @@ test("whoever supervises is whoever the kit says supervises, not a seat with a p
   assert.equal(flowView(project, working(), seats, now, new Set(), undefined, new Set(["architecture"])).supervisor, null);
 });
 
+test("the supervisor shown is the one seated now, not the first one the project ever recorded", () => {
+  const ledger = working();
+  ledger.agents["seat-sup2"] = { id: "seat-sup2", role: "supervisor" };
+  const later = new Map(seats);
+  later.delete("seat-sup");
+  later.set("seat-sup2", { id: "seat-sup2", provider: "sw2-supervisor-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 30_000).toISOString() });
+
+  // `ledger.agents` is appended to and never pruned, and its keys come back in insertion order, so
+  // the first Supervisor ever to call a tool here was named for ever — and as "gone" from the moment
+  // its seat was archived, with the one actually working never shown.
+  const shown = flowView(project, ledger, later, now, new Set(), undefined, new Set(["supervisor"])).supervisor;
+  assert.equal(shown?.id, "seat-sup2");
+  assert.equal(shown?.status, "running");
+
+  // And with none of them seated, the newest recorded is the one reported gone.
+  const none = flowView(project, ledger, new Map(), now, new Set(), undefined, new Set(["supervisor"])).supervisor;
+  assert.deepEqual([none?.id, none?.status], ["seat-sup2", "gone"]);
+});
+
 test("a closed lane is counted by nobody and a shut lane carries counts instead of tasks", () => {
   const view = flowView(project, working(), seats, now);
   assert.deepEqual(view.lanes.map((entry) => entry.id), ["L1", "L2"], "a closed lane is not live");

@@ -7,7 +7,7 @@ import { type Args, type Caller, errorText, no, ok, str, strs } from "../context
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
 import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";
-import { letters, outside } from "../letters.ts";
+import { clip, letters, outside } from "../letters.ts";
 import { type Project, type ProjectConfig, configFile, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 import { namedOrNot } from "./shared.ts";
@@ -35,11 +35,19 @@ function scopeProblem(serial: string[], open: Lane[], writeSet: string[], contra
   return undefined;
 }
 
-async function readIssue(args: Args, project: Project): Promise<Issue | string | undefined> {
+/**
+ * The issue, or why it could not be read — which is a note on the lane, not a reason to refuse one.
+ *
+ * `issue` is optional in the tool's schema and the lane keeps only its url, so a ref the desk could
+ * not resolve — `gh` not installed, not logged in, a host the reader did not recognise, a number that
+ * is not there — used to abort `open_lane` entirely. The Supervisor got no lane, and nothing said the
+ * only thing that had actually failed was reading a link.
+ */
+async function readIssue(args: Args, project: Project): Promise<{ issue?: Issue; unread?: string }> {
   const ref = str(args.issue);
-  if (!ref) return undefined;
+  if (!ref) return {};
   const fetched = await fetchIssue(ref, project.root);
-  return "error" in fetched ? `Issue ${ref} could not be read: ${fetched.error}` : fetched;
+  return "error" in fetched ? { unread: `${ref} could not be read: ${fetched.error}` } : { issue: fetched };
 }
 
 function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string, issue: Issue | undefined): Promise<Lane> {
@@ -115,8 +123,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   const serial = open.length > 0 ? serialPaths(await trackedFiles(project.root), config.serialOnly) : [];
   const problem = scopeProblem(serial, open, strs(args.writeSet), strs(args.contracts));
   if (problem) return no(problem);
-  const issue = await readIssue(args, project);
-  if (typeof issue === "string") return no(issue);
+  const { issue, unread } = await readIssue(args, project);
   const lane = await recordLane(desk, caller, args, base, issue);
   // Whatever the lane took has to go back, and a lane in the project's own copy took the owner's
   // repository: cleaning up by slot id alone left that copy on the lane's branch for good.
@@ -151,7 +158,7 @@ export const openLane: Tool = async (desk, caller, args) => {
       ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
     });
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id ?? "in place" });
-    return ok(openedReply(project, lane, slot, lead, issue));
+    return ok(`${openedReply(project, lane, slot, lead, issue)}${unread ? `\n\nThe issue was not read into the lane: ${clip(unread, 300)}. The Lead has the outcome and the checks; give it the issue yourself if it needs one.` : ""}`);
   } catch (error) {
     return fail(`The Lead could not start: ${errorText(error)}`, slot);
   }
