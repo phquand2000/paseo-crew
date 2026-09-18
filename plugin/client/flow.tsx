@@ -126,7 +126,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
 
 export function FlowSection({ following, flow, error, live, theme, disabled, onLive, onOpen }: Props) {
   const styles = useStyles(theme);
-  const empty = flow !== null && flow.lanes.length === 0 && flow.supervisor === null;
+  const empty = flow !== null && flow.lanes.length === 0 && flow.supervisors.length === 0;
 
   return (
     <SettingsSection title="Flow" info="Only what the team is holding right now. Open a lane to see its Peers.">
@@ -156,11 +156,11 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
         <View style={styles.canvas}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ paddingBottom: PAD }}>
-              {flow.supervisor ? (
-                <View style={styles.lane}>
-                  <Node theme={theme} title="Supervisor" hint={flow.supervisor.id} state={seatText(flow.supervisor)} alive={flow.supervisor.status !== "gone"} />
+              {flow.supervisors.map((seat) => (
+                <View key={seat.id} style={styles.lane}>
+                  <Node theme={theme} title={seat.role === "supervisor" ? "Supervisor" : `Supervisor · ${seat.role}`} hint={seat.id} state={seatText(seat)} alive={seat.status !== "gone"} />
                 </View>
-              ) : null}
+              ))}
               {flow.lanes.map((lane) => (
                 <Lane key={lane.id} lane={lane} theme={theme} onOpen={onOpen} />
               ))}

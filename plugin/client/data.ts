@@ -39,7 +39,7 @@ export type FlowSeat = { id: string; role: string; status: string; minutes: numb
 export type FlowTask = { id: string; title: string; status: string; kind: string; peer: FlowSeat | null; minutes: number; handback: number | null };
 export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[]; taskCount: number; running: number; open: boolean };
 export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
-export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
+export type FlowView = { project: string; at: number; revision: string; supervisors: FlowSeat[]; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
 export type Folder = { name: string; path: string; repository: boolean };
 /** `root` is the repository this folder belongs to when it is not itself that repository's top. */
 export type Folders = { path: string; parent: string | null; repository: boolean; root?: string | null; folders: Folder[] };

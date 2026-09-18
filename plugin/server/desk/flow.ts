@@ -7,7 +7,7 @@ export type FlowSeat = { id: string; role: string; status: string; minutes: numb
 export type FlowTask = { id: string; title: string; status: string; kind: string; peer: FlowSeat | null; minutes: number; handback: number | null };
 export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[]; taskCount: number; running: number; open: boolean };
 export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
-export type FlowView = { project: string; at: number; revision: string; supervisor: FlowSeat | null; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
+export type FlowView = { project: string; at: number; revision: string; supervisors: FlowSeat[]; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
 
 /** A lane costs a row; its tasks cost a row each. Only the lanes the screen has opened carry tasks. */
 export const LANE_CAP = 50;
@@ -111,10 +111,20 @@ export function flowView(
   const live = recorded
     .filter((agent) => seats.has(agent.id))
     .sort((a, b) => Date.parse(seats.get(b.id)!.updatedAt) - Date.parse(seats.get(a.id)!.updatedAt));
-  const chosen = seated[0] ?? live[0] ?? recorded[recorded.length - 1];
-  const supervisor: FlowSeat | null = chosen ? seatOf(seats, chosen.id, chosen.role, now) : null;
+  // Every seat supervising the project, not one: the concept has several, each for its own concern,
+  // and a view with room for one hid all but the busiest. A concern with nobody seated shows the last
+  // seat it had, as gone, so the screen says the concern is uncovered rather than saying nothing.
+  const shown = new Map<string, FlowSeat>();
+  for (const entry of [...seated, ...live]) if (!shown.has(entry.id)) shown.set(entry.id, seatOf(seats, entry.id, entry.role, now)!);
+  const covered = new Set([...shown.values()].map((seat) => seat.role));
+  for (const agent of [...recorded].reverse()) {
+    if (covered.has(agent.role)) continue;
+    covered.add(agent.role);
+    shown.set(agent.id, seatOf(seats, agent.id, agent.role, now)!);
+  }
+  const supervisors = [...shown.values()];
 
-  const body = { project: project.slug, supervisor, lanes, moreLanes, asks };
+  const body = { project: project.slug, supervisors, lanes, moreLanes, asks };
   const revision = createHash("sha1").update(JSON.stringify(body)).digest("hex").slice(0, 16);
   return { ...body, at: now, revision };
 }

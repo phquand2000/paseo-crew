@@ -786,11 +786,25 @@ test("a Watcher seat has no tool that changes the work", async () => {
   const h = harness("outbox-watcher-readonly.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Watched", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
   const watcher = h.add("sw2-watcher-devin/swe-2-max", h.root, "watch");
-  for (const tool of ["start_task", "accept", "close_lane", "done"]) {
-    const reply = await h.call(watcher, "watcher", tool, {});
+  const before = JSON.stringify(h.ledger());
+  // Each call is one its owning role would have been given: called with nothing, every handler refused
+  // on its own terms, so a Watcher that held all four tools failed this test exactly as one that held
+  // none. What has to answer is the desk's check of whose tools these are.
+  const calls: [string, Record<string, unknown>][] = [
+    ["start_task", { title: "More", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] }],
+    ["accept", { task: "L1-T1" }],
+    ["close_lane", { lane: "L1", land: false }],
+    ["done", { outcome: "complete", summary: "all of it" }],
+  ];
+  for (const [tool, args] of calls) {
+    const reply = await h.call(watcher, "watcher", tool, args);
     assert.equal(reply.ok, false, `${tool} must not work for a Watcher`);
+    assert.match(reply.text, new RegExp(`Unknown tool ${tool}`), `${tool} is refused as not the Watcher's, not for its arguments`);
   }
+  assert.equal(JSON.stringify(h.ledger()), before, "and nothing on record moved");
   h.runtime.dispose();
 });
 

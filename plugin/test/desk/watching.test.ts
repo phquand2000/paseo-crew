@@ -82,14 +82,20 @@ test("something that cannot be undone interrupts on its first sighting, and keep
 });
 
 test("the interruption budget holds, and what it refuses still reaches the digest", () => {
-  let watching: Watching = { strikes: {}, pages: [NOW - minutes(30), NOW - minutes(10)] };
+  // A fault on its third sighting — the one that earns an interruption — with the window's two pages
+  // already spent. The version of this test before started from a first sighting, which answers
+  // "digest" on its count alone, so it passed whether or not the budget did anything.
+  const spent = [NOW - minutes(30), NOW - minutes(10)];
+  let watching: Watching = { strikes: {}, pages: spent };
+  for (const at of [NOW - minutes(3), NOW - minutes(2)]) watching = judge(watching, raised({ subject: "seat-lead" }), at).watching;
   const third = judge(watching, raised({ subject: "seat-lead" }), NOW);
-  assert.equal(third.urgency, "digest", "two interruptions already spent in this window is the limit");
-  watching = third.watching;
-  const later = judge(watching, raised({ subject: "seat-lead" }), NOW + minutes(60 * 13));
-  assert.equal(later.urgency, "digest");
-  const struck = judge(later.watching, raised({ subject: "seat-lead" }), NOW + minutes(60 * 13 + 1));
-  assert.equal(struck.urgency, "page", "once the window has rolled past, the budget is whole again");
+  assert.equal(third.strike!.count, 3, "this is the sighting that would interrupt");
+  assert.equal(third.urgency, "digest", "and it waits, because two interruptions already spent in this window is the limit");
+  assert.deepEqual(pending(third.watching).map((strike) => strike.count), [3], "what the budget refuses is owed to the report");
+
+  // Once the window has rolled past both pages, the same fault interrupts again.
+  const rolled = judge(third.watching, raised({ subject: "seat-lead" }), NOW + minutes(60 * 13));
+  assert.equal(rolled.urgency, "page", "the budget is whole again");
 });
 
 test("the digest holds what was never raised, and empties once it is sent", () => {
