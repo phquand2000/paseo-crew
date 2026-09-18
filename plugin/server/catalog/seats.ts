@@ -269,7 +269,16 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, record:
   for (const [name, source] of wanted) {
     const problems = skillProblems(role, name, source);
     if (problems.length > 0) throw new Error(problems.join("; "));
-    record.note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
+    try {
+      record.note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
+    } catch (error) {
+      // As the shared links beside this already do, and as `ensureLink` itself says it is for: a real
+      // directory where a link should go is left alone and said out loud. Thrown from here it left
+      // the seat unbuilt, which the launch hook turns into a refusal — for ever, because nothing ever
+      // removes that directory. One folder a harness made for itself could not be recovered from.
+      if (!(error instanceof LeftAlone)) throw error;
+      console.error(`seatworks-v2: skill ${name} for the ${role.role}: ${error.message}`);
+    }
   }
   for (const name of readdirSync(skillsDir)) {
     const path = join(skillsDir, name);

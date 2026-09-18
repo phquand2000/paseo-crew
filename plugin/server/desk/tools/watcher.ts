@@ -1,5 +1,5 @@
 import { no, ok, str } from "../context.ts";
-import { letters } from "../letters.ts";
+import { clip, letters } from "../letters.ts";
 import type { Tool } from "../services.ts";
 import { type Urgency, WATCH_RULES, delivered, judge, keyOf, pagesLeft } from "../watching.ts";
 
@@ -33,6 +33,10 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
 
   const { project } = caller;
   const now = Date.now();
+  // The mechanical record of the turn is filed under the `where` the ending letter names, and the
+  // desk asks the Watcher to copy that string back. A paraphrase is not refused — naming what it saw
+  // is the Watcher's — but it silently costs the finding its evidence and starts the strike count
+  // again under a key of its own, so the reply says when nothing was filed under this one.
   const recorded = ctx.reading(project, where);
 
   if (findings.length === 0) {
@@ -65,8 +69,12 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   });
   const { worst, paged, counts, room } = judged;
 
+  const unknown =
+    recorded.length === 0
+      ? ` The desk has no record of a turn under "${clip(where, 120)}" — if that is not the where the mail gave you, this finding carries no evidence and counts on its own.`
+      : "";
   const named = findings.map((finding) => finding.label).join(", ");
-  if (worst !== "page") return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone. Keep reading endings.`);
+  if (worst !== "page") return ok(`Recorded ${named}. It goes in the report rather than interrupting anyone.${unknown} Keep reading endings.`);
 
   // Every finding in one raise is judged against the same already-spent budget, so a raise carrying
   // three struck-out faults would send three. What does not fit is left with occurrences nobody has
@@ -87,7 +95,7 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
     // Nobody was told, so every occurrence is still owed to the report and reaches whoever opens a
     // seat next — including a recurrence of a fault an earlier report already carried. Refusing here
     // would end this turn over something the Watcher did right.
-    return ok(`Recorded ${named}. Nobody above you is running to be interrupted, so it waits in the report for whoever comes back. Keep reading endings.`);
+    return ok(`Recorded ${named}. Nobody above you is running to be interrupted, so it waits in the report for whoever comes back.${unknown} Keep reading endings.`);
   }
   for (const finding of sending) {
     const count = counts.get(finding.label) ?? 1;
@@ -100,5 +108,5 @@ export const raise: Tool = async ({ ctx, roster }, caller, args) => {
   const waited = waiting.length > 0 ? ` ${waiting.map((finding) => finding.label).join(", ")} waits for the report: the interruption budget for this window is spent.` : "";
   // Named, because it is not the owner: the letter goes to whichever seat supervises this project,
   // and what the Watcher is told about where its finding went is what it reasons from next.
-  return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to ${to}, who supervises this project.${waited} Keep reading endings; nothing to wait for.`);
+  return ok(`Raised ${sending.map((finding) => finding.label).join(", ") || named} to ${to}, who supervises this project.${waited}${unknown} Keep reading endings; nothing to wait for.`);
 };

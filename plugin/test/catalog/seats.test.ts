@@ -114,6 +114,23 @@ test("a skill carrying a word its role must not see, or a placeholder nothing fi
   assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /skill test-first holds \{\{guides\}\}/);
 });
 
+test("a real directory where a skill link should go is left alone, not turned into a seat that cannot start", () => {
+  const kit = makeKit();
+  const home = tempDir("sw2-home-");
+  const team = resolveTeam(kit);
+  const dir = seatDir(kit, kit.roles.find((role) => role.role === "peer")!, kit.harnesses.devin!, home, project);
+  mkdirSync(join(dir, "devin", "skills", "test-first"), { recursive: true });
+  writeFileSync(join(dir, "devin", "skills", "test-first", "NOTES.md"), "something the harness made for itself\n");
+
+  // `ensureLink` says in its own words that it leaves such a directory alone because throwing "left
+  // the rest of the seat unbuilt", and the shared links beside this catch it for that reason. Thrown
+  // from the skills loop, the launch hook turned it into a refusal — permanently, since nothing here
+  // removes that directory.
+  const changes = materialize(kit, team, "peer", home, project);
+  assert.ok(changes.length > 0, "the rest of the seat is still built");
+  assert.equal(readFileSync(join(dir, "devin", "skills", "test-first", "NOTES.md"), "utf-8").trim(), "something the harness made for itself");
+});
+
 test("composeSettings deletes an owned key the kit no longer sets", () => {
   assert.deepEqual(composeSettings({ a: 1, permissions: { deny: ["x"] } }, { b: 2 }, ["permissions"]), { a: 1, b: 2 });
 });
