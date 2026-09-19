@@ -82,10 +82,16 @@ const shared = {
   flow: FlowChoice.optional(),
 };
 
+const SensorChoice = z.strictObject({
+  use: z.string().min(1).optional(),
+  key: z.string().min(1).optional(),
+});
+
 export const ProjectLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional() });
-export const MachineLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional() });
+export const MachineLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional(), sensor: SensorChoice.optional() });
 
 export type Layer = z.infer<typeof MachineLayerSchema>;
+export type SensorChoice = z.infer<typeof SensorChoice>;
 export type LayerSchema = typeof MachineLayerSchema | typeof ProjectLayerSchema;
 
 export type ReadResult = { status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string };

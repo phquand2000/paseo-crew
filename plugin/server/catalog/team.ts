@@ -10,6 +10,7 @@ import {
   type ModelSpec,
   type ProxySpec,
   type RoleSpec,
+  type SensorSpec,
   PASEO_TOOLS,
   supportsRole,
   teamServer,
@@ -33,6 +34,7 @@ export type Team = {
   roles: Record<string, RoleSeat>;
   mcp: Record<string, McpState>;
   attention: Attention;
+  sensor?: { spec: SensorSpec; key: string };
   rules: string;
   errors: string[];
 };
@@ -198,9 +200,14 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, 
     const seat = resolveRole(kit, role, layers, mcp, errors);
     if (seat) roles[role.role] = seat;
   }
+  const ids = Object.keys(kit.sensors);
+  const use = machine.sensor?.use ?? (ids.length === 1 ? ids[0] : undefined);
+  if (machine.sensor?.use && !kit.sensors[machine.sensor.use]) errors.push(`The machine settings use sensor ${machine.sensor.use}, which the kit does not have`);
+  const spec = use ? kit.sensors[use] : undefined;
   return {
     roles,
     mcp,
+    ...(spec && machine.sensor?.key ? { sensor: { spec, key: machine.sensor.key } } : {}),
     attention: { ...kit.attention, ...stripUndefined(machine.attention), ...stripUndefined(project.attention) },
     rules: [machine.rules, project.rules].filter((text) => text && text.trim()).join("\n\n"),
     errors,

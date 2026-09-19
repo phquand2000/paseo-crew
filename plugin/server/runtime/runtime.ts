@@ -26,6 +26,7 @@ import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules, type Watch } from "./turns.ts";
 import type { Fact } from "./watch/facts.ts";
+import { type Assessment, Assessor, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 
 type EventName = keyof PluginLifecycleEvents;
@@ -45,6 +46,8 @@ export class Runtime {
   private readonly turns: TurnRules;
   private readonly patrol: Patrol;
   private readonly watches: Watches;
+  private readonly assessor: Assessor;
+  private readonly sensorNoted = new Map<string, number>();
   private readonly offline = new Set<string>();
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
@@ -81,7 +84,19 @@ export class Runtime {
       indexesFor: (project) => this.indexesFor(project),
     });
     this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: (project) => this.source.teamFor(project).attention });
-    this.watches = new Watches({ kit, seats: this.seats, context: (seat) => this.watchContext(seat), found: (watch, facts) => this.watchFound(watch, facts) });
+    this.assessor = new Assessor({
+      sensing: (watch) => this.sensing(watch),
+      done: (watch, assessment, state) => this.assessed(watch, assessment, state),
+      failed: (watch, error) => this.degraded(watch, error),
+    });
+    this.watches = new Watches({
+      kit,
+      seats: this.seats,
+      context: (seat) => this.watchContext(seat),
+      found: (watch, facts) => this.watchFound(watch, facts),
+      moment: (watch, urgent) => this.assessor.moment(watch, urgent),
+      dropped: (id) => this.assessor.drop(id),
+    });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, remember });
     this.control = new SettingsControl({
       kit,
@@ -107,15 +122,24 @@ export class Runtime {
   }
 
   private watchContext(seat: WatchedSeat): SeatContext | undefined {
-    const harness = seatOf(this.kit, seat.provider)?.harness;
-    if (!harness) return undefined;
+    const found = seatOf(this.kit, seat.provider);
+    if (!found) return undefined;
+    const { harness, role } = found;
     const project = projectOf(seat.cwd);
     const attention = this.source.teamFor(project).attention;
     let owned: string[] | undefined;
+    let goal = "";
     try {
-      owned = taskOfPeer(loadLedger(project.state), seat.id)?.owned;
+      const ledger = loadLedger(project.state);
+      const task = taskOfPeer(ledger, seat.id);
+      const lane = task ? ledger.lanes[task.lane] : laneOfLead(ledger, seat.id);
+      owned = task?.owned;
+      if (task) goal = [`Task ${task.id}: ${task.title}`, `Goal: ${task.goal}`, `Acceptance: ${task.acceptance.join("; ")}`, `Out of scope: ${task.outOfScope.join("; ")}`].join("\n");
+      else if (lane) goal = [`Lane ${lane.id}: ${lane.title}`, `Outcome: ${lane.outcome}`, `Acceptance: ${lane.acceptance.join("; ")}`, `Out of scope: ${lane.outOfScope.join("; ")}`].join("\n");
     } catch {}
     return {
+      goal,
+      role: [role.label, role.description].filter(Boolean).join(": "),
       rules: {
         destructive: new RegExp(attention.destructive, "i"),
         testPath: new RegExp(attention.testPath, "i"),
@@ -135,6 +159,35 @@ export class Runtime {
         }
       },
     };
+  }
+
+  private sensing(watch: SeatWatch): Sensing | undefined {
+    const project = projectOf(watch.seat.cwd);
+    const sensor = this.source.teamFor(project).sensor;
+    if (!sensor) {
+      if (!this.sensorNoted.has(`off:${project.slug}`)) {
+        this.sensorNoted.set(`off:${project.slug}`, Date.now());
+        this.desk.event(project, { kind: "sensor.off", why: "no sensor key in the machine settings" });
+      }
+      return undefined;
+    }
+    const brief = watch.brief();
+    if (!brief) return undefined;
+    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, exit: brief.rules.exit } };
+  }
+
+  private assessed(watch: SeatWatch, assessment: Assessment, state: Record<string, unknown>): void {
+    const project = projectOf(watch.seat.cwd);
+    this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(state).length });
+  }
+
+  private degraded(watch: SeatWatch, error: SensorError): void {
+    const project = projectOf(watch.seat.cwd);
+    const key = `degraded:${project.slug}`;
+    const now = Date.now();
+    if (now - (this.sensorNoted.get(key) ?? 0) < 60_000) return;
+    this.sensorNoted.set(key, now);
+    this.desk.event(project, { kind: "sensor.degraded", agent: watch.seat.id, status: error.status ?? null, error: error.message });
   }
 
   private watchFound(watch: SeatWatch, facts: Fact[]): void {
@@ -197,6 +250,7 @@ export class Runtime {
 
   dispose(): void {
     this.watches.dispose();
+    this.assessor.dispose();
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
     if (this.tick) clearTimeout(this.tick);
@@ -257,6 +311,7 @@ export class Runtime {
       this.log(project, `waiting on the Human: ${agent.id} ${what}`);
       return;
     }
+    this.watches.urgent(agent.id);
     const owner = await this.turns.ownerOf(project, agent.id, role);
     await this.desk.post(owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, request, this.addressOf(project, agent.id, role)));
   }

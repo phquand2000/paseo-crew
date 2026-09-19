@@ -226,6 +226,21 @@ export type Attention = {
   longTurnMinutes: number;
 };
 
+export type Question = { instructions: string; threshold: number; level: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[] };
+
+export type SensorSpec = {
+  id: string;
+  label: string;
+  url: string;
+  model: string;
+  timeoutSeconds: number;
+  retries: number;
+  stateChars: number;
+  debounceSeconds: number;
+  everySeconds: number;
+  questions: Record<string, Question>;
+};
+
 export type Kit = {
   dir: string;
   prefix: string;
@@ -234,6 +249,7 @@ export type Kit = {
   mcp: Record<string, McpEntry>;
   toolSets: Record<string, string[]>;
   templates: Record<string, TemplateSpec>;
+  sensors: Record<string, SensorSpec>;
   attention: Attention;
 };
 
@@ -307,6 +323,39 @@ function loadMcp(dir: string): Record<string, McpEntry> {
   return entries;
 }
 
+export function sensorProblems(id: string, raw: Record<string, unknown>): string[] {
+  const problems: string[] = [];
+  if (raw.id !== id) problems.push(`calls itself ${String(raw.id)} but sits in catalog/sensor/${id}`);
+  for (const key of ["label", "url", "model"]) if (typeof raw[key] !== "string" || !raw[key]) problems.push(`has no ${key}`);
+  if (typeof raw.url === "string" && !raw.url.startsWith("https://")) problems.push("sends its state somewhere that is not https");
+  for (const key of ["timeoutSeconds", "stateChars", "debounceSeconds", "everySeconds"]) if (typeof raw[key] !== "number" || !((raw[key] as number) > 0)) problems.push(`has no positive ${key}`);
+  if (!Number.isInteger(raw.retries) || (raw.retries as number) < 0) problems.push("has no whole number of retries");
+  const questions = raw.questions as Record<string, Record<string, unknown>> | undefined;
+  if (!questions || typeof questions !== "object" || Object.keys(questions).length === 0) problems.push("asks no questions");
+  for (const [name, question] of Object.entries(questions ?? {})) {
+    if (typeof question?.instructions !== "string" || !question.instructions) problems.push(`asks ${name} without instructions`);
+    if (typeof question?.threshold !== "number" || question.threshold < 0 || question.threshold > 1) problems.push(`asks ${name} with no threshold between 0 and 1`);
+    if (question?.level !== "page" && question?.level !== "attend") problems.push(`asks ${name} at a level that is neither page nor attend`);
+    if (question?.agrees !== undefined && (!Array.isArray(question.agrees) || question.agrees.some((kind) => typeof kind !== "string"))) problems.push(`asks ${name} with agrees that is not a list of fact kinds`);
+    if (question?.alone && question?.agrees) problems.push(`asks ${name} both alone and needing a fact to agree`);
+  }
+  return problems;
+}
+
+function loadSensors(dir: string): Record<string, SensorSpec> {
+  const root = join(dir, "catalog", "sensor");
+  const sensors: Record<string, SensorSpec> = {};
+  for (const id of subdirs(root)) {
+    const file = join(root, id, "sensor.json");
+    if (!existsSync(file)) continue;
+    const raw = JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown>;
+    const problems = sensorProblems(id, raw);
+    if (problems.length > 0) throw new Error(`sensor ${id} ${problems.join("; ")}`);
+    sensors[id] = raw as unknown as SensorSpec;
+  }
+  return sensors;
+}
+
 /**
  * Which roles this kit runs. The kit ships SLP as its preset; a file of the same name in the state
  * root replaces it, so somebody who wants a different arrangement writes one rather than forking
@@ -342,6 +391,7 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     mcp: loadMcp(dir),
     toolSets: loadToolSets(dir),
     templates: loadTemplates(dir),
+    sensors: loadSensors(dir),
     attention: { ...ATTENTION, ...presetAttention(raw.attention) },
   };
 }

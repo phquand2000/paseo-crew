@@ -5,7 +5,7 @@ import { Window } from "./window.ts";
 
 export type WatchedSeat = { id: string; provider: string; cwd: string; title?: string | null };
 
-export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean };
+export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean; goal: string; role: string };
 
 const median = (values: number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -15,6 +15,7 @@ const median = (values: number[]): number => {
 export class SeatWatch {
   readonly seat: WatchedSeat;
   readonly window = new Window();
+  readonly noted: Fact[] = [];
   running = false;
   turnId: string | null = null;
   startedAt = 0;
@@ -39,6 +40,7 @@ export class SeatWatch {
       this.window.clear();
       this.recovery.reset();
       this.told.clear();
+      this.noted.length = 0;
       return [];
     }
     if (seen.kind === "turn") return seen.phase === "started" ? this.started(seen.turnId, now) : this.ended(seen.phase, now);
@@ -48,6 +50,7 @@ export class SeatWatch {
     if (row.item.type === "user_message") {
       this.recovery.reset();
       this.told.clear();
+      this.noted.length = 0;
       return [];
     }
     const rules = this.rules();
@@ -94,13 +97,21 @@ export class SeatWatch {
     return this.fresh(facts);
   }
 
+  brief(): SeatContext | undefined {
+    this.current ??= this.context();
+    return this.current;
+  }
+
   private fresh(facts: Fact[], call?: string): Fact[] {
-    return facts.filter((fact) => {
+    const kept = facts.filter((fact) => {
       const key = fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "unverified" ? fact.kind : `${fact.kind}\n${call ?? fact.quote}`;
       if (this.told.has(key)) return false;
       this.told.add(key);
       return true;
     });
+    this.noted.push(...kept);
+    if (this.noted.length > 20) this.noted.splice(0, this.noted.length - 20);
+    return kept;
   }
 }
 
@@ -109,6 +120,8 @@ export type WatchDeps = {
   seats: Seats;
   context: (seat: WatchedSeat) => SeatContext | undefined;
   found: (watch: SeatWatch, facts: Fact[]) => void;
+  moment?: (watch: SeatWatch, urgent: boolean) => void;
+  dropped?: (id: string) => void;
   log?: (line: string, error?: unknown) => void;
 };
 
@@ -137,7 +150,7 @@ export class Watches {
     const watch = new SeatWatch(seat, () => this.deps.context(seat));
     let stream: Stream;
     try {
-      stream = this.deps.seats.watch(seat.id, (seen) => this.found(watch, watch.see(seen)));
+      stream = this.deps.seats.watch(seat.id, (seen) => this.seen(watch, seen));
     } catch (error) {
       this.log(`${seat.id} could not be watched:`, error);
       return;
@@ -155,6 +168,12 @@ export class Watches {
     if (!entry) return;
     this.followed.delete(id);
     entry.stream.stop();
+    this.deps.dropped?.(id);
+  }
+
+  urgent(id: string): void {
+    const watch = this.get(id);
+    if (watch?.running) this.deps.moment?.(watch, true);
   }
 
   sync(live: Iterable<SeatView>): void {
@@ -173,6 +192,14 @@ export class Watches {
 
   dispose(): void {
     for (const id of [...this.followed.keys()]) this.drop(id);
+  }
+
+  private seen(watch: SeatWatch, seen: Seen): void {
+    const facts = watch.see(seen);
+    this.found(watch, facts);
+    if (!this.deps.moment) return;
+    if (seen.kind === "turn" && seen.phase !== "started") this.deps.moment(watch, true);
+    else if (seen.kind === "row" && !seen.row.replay && watch.running) this.deps.moment(watch, facts.some((fact) => fact.kind === "call-failed" || fact.kind === "gate-failed" || fact.level === "page"));
   }
 
   private found(watch: SeatWatch, facts: Fact[]): void {

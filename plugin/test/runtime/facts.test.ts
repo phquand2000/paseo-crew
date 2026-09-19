@@ -38,7 +38,7 @@ function toSeen(message: StreamMessage, epochs: Map<string, number>): Seen | und
 }
 
 function play(messages: StreamMessage[], given: Rules, heard = false) {
-  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: given, heardSince: () => heard }));
+  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: given, heardSince: () => heard, goal: "", role: "Peer" }));
   const facts: (Fact & { seq?: number })[] = [];
   const epochs = new Map<string, number>();
   let now = 1_000;
