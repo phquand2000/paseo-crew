@@ -66,6 +66,8 @@ export const AttentionChoice = z.strictObject({
   destructive: Pattern.optional(),
   testPath: Pattern.optional(),
   repeatsAt: z.number().int().min(2).optional(),
+  suppressed: Pattern.optional(),
+  longTurnMinutes: z.number().int().min(1).optional(),
 });
 
 const FlowChoice = z.strictObject({

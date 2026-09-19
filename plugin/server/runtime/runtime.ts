@@ -15,7 +15,7 @@ import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
-import { type Project, projectOf } from "../desk/project.ts";
+import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
 import { codeIndex } from "./code-index.ts";
 import { type Letter, Outbox } from "./outbox.ts";
@@ -25,7 +25,8 @@ import { Seating } from "./seating.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules, type Watch } from "./turns.ts";
-import { Watches } from "./watch/watches.ts";
+import type { Fact } from "./watch/facts.ts";
+import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
@@ -80,7 +81,7 @@ export class Runtime {
       indexesFor: (project) => this.indexesFor(project),
     });
     this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: (project) => this.source.teamFor(project).attention });
-    this.watches = new Watches({ kit, seats: this.seats });
+    this.watches = new Watches({ kit, seats: this.seats, context: (seat) => this.watchContext(seat), found: (watch, facts) => this.watchFound(watch, facts) });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, remember });
     this.control = new SettingsControl({
       kit,
@@ -103,6 +104,42 @@ export class Runtime {
       const { labels } = this.source.teamFor(item.project).attention;
       await this.desk.post(watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record, item.agent, labels));
     })().catch((error) => console.error("seatworks-v2: an ending could not reach the Watcher:", error));
+  }
+
+  private watchContext(seat: WatchedSeat): SeatContext | undefined {
+    const harness = seatOf(this.kit, seat.provider)?.harness;
+    if (!harness) return undefined;
+    const project = projectOf(seat.cwd);
+    const attention = this.source.teamFor(project).attention;
+    let owned: string[] | undefined;
+    try {
+      owned = taskOfPeer(loadLedger(project.state), seat.id)?.owned;
+    } catch {}
+    return {
+      rules: {
+        destructive: new RegExp(attention.destructive, "i"),
+        testPath: new RegExp(attention.testPath, "i"),
+        suppressed: new RegExp(attention.suppressed, "i"),
+        exit: harness.exitPattern ? new RegExp(harness.exitPattern) : undefined,
+        gate: loadConfig(project.state).gate,
+        cwd: seat.cwd,
+        owned,
+        repeatsAt: attention.repeatsAt,
+        recoverWithin: 10,
+      },
+      heardSince: (at) => {
+        try {
+          return (loadLedger(project.state).agents[seat.id]?.recordedAt ?? 0) >= at;
+        } catch {
+          return false;
+        }
+      },
+    };
+  }
+
+  private watchFound(watch: SeatWatch, facts: Fact[]): void {
+    const project = projectOf(watch.seat.cwd);
+    for (const fact of facts) this.desk.event(project, { kind: "watch.fact", agent: watch.seat.id, fact: fact.kind, level: fact.level, quote: fact.quote });
   }
 
   prepare(): void {

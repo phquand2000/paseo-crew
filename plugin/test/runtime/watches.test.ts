@@ -24,7 +24,7 @@ const seat = (id: string, provider: string): SeatView => ({ id, provider, cwd: "
 
 test("a seat created while the round sweeps is followed once, and only the roles that are watched", () => {
   const timelines = new Map<string, FakeTimeline>();
-  const watches = new Watches({ kit, seats: seatsWith(timelines), log: () => {} });
+  const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, log: () => {} });
   const peer = seat("p1", "sw2-peer-devin/swe-2-max");
   watches.follow(peer);
   watches.sync([peer, seat("s1", "sw2-supervisor-claude/claude-opus-5"), seat("r1", "sw2-reviewer-claude/claude-opus-5"), seat("l1", "sw2-lead-claude/claude-opus-5")]);
@@ -39,7 +39,7 @@ test("a seat archived while it is being joined leaves no subscription behind, an
   const slow = new FakeTimeline();
   slow.ready = new Promise((resolve) => (open = resolve));
   timelines.set("p1", slow);
-  const watches = new Watches({ kit, seats: seatsWith(timelines), log: () => {} });
+  const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, log: () => {} });
   watches.follow(seat("p1", "sw2-peer-devin/swe-2-max"));
   watches.drop("p1");
   open();
@@ -55,7 +55,7 @@ test("a seat the round no longer sees is let go, and one that failed to join is 
   const broken = new FakeTimeline();
   broken.refetch = async () => ({ epoch: "e", entries: [], error: "no such agent" });
   timelines.set("p2", broken);
-  const watches = new Watches({ kit, seats: seatsWith(timelines), log: () => {} });
+  const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, log: () => {} });
   watches.sync([seat("p1", "sw2-peer-devin/swe-2-max"), seat("p2", "sw2-peer-devin/swe-2-max")]);
   await settle();
   assert.equal(watches.has("p2"), false, "a join that failed is not held as followed");

@@ -1,35 +1,116 @@
 import { type Kit, can, seatOf } from "../../catalog/kit.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
+import { type Fact, Recovery, type Rules, afterChange, stuck, unverified } from "./facts.ts";
 import { Window } from "./window.ts";
 
 export type WatchedSeat = { id: string; provider: string; cwd: string; title?: string | null };
+
+export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean };
+
+const median = (values: number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+};
 
 export class SeatWatch {
   readonly seat: WatchedSeat;
   readonly window = new Window();
   running = false;
   turnId: string | null = null;
+  startedAt = 0;
+  private readonly durations: number[] = [];
+  private readonly told = new Set<string>();
+  private readonly recovery = new Recovery();
+  private readonly context: () => SeatContext | undefined;
+  private current: SeatContext | undefined;
 
-  constructor(seat: WatchedSeat) {
+  constructor(seat: WatchedSeat, context: () => SeatContext | undefined) {
     this.seat = seat;
+    this.context = context;
   }
 
-  see(seen: Seen): void {
+  private rules(): Rules | undefined {
+    this.current ??= this.context();
+    return this.current?.rules;
+  }
+
+  see(seen: Seen, now = Date.now()): Fact[] {
     if (seen.kind === "reset") {
       this.window.clear();
-      return;
+      this.recovery.reset();
+      this.told.clear();
+      return [];
     }
-    if (seen.kind === "turn") {
-      this.running = seen.phase === "started";
-      this.turnId = seen.turnId;
-      if (!this.running) this.window.closeRunning();
-      return;
+    if (seen.kind === "turn") return seen.phase === "started" ? this.started(seen.turnId, now) : this.ended(seen.phase, now);
+    const { row } = seen;
+    const change = this.window.add(row);
+    if (row.replay) return [];
+    if (row.item.type === "user_message") {
+      this.recovery.reset();
+      this.told.clear();
+      return [];
     }
-    this.window.add(seen.row);
+    const rules = this.rules();
+    if (!rules) return [];
+    const facts = afterChange(change, rules);
+    if (change.settled && change.call) {
+      facts.push(...this.recovery.step(change.call, rules));
+      const pattern = stuck(this.window.sinceInstruction(), rules);
+      if (pattern) facts.push({ kind: "stuck", level: "attend", quote: pattern });
+    }
+    return this.fresh(facts, change.call?.id);
+  }
+
+  longTurn(now: number, minutes: number): Fact[] {
+    if (!this.running || !this.startedAt) return [];
+    const floor = minutes * 60_000;
+    const limit = this.durations.length >= 5 ? Math.max(floor, 3 * median(this.durations)) : floor;
+    const took = now - this.startedAt;
+    if (took < limit) return [];
+    return this.fresh([{ kind: "long-turn", level: "attend", quote: `running for ${Math.round(took / 60_000)} minutes, past the ${Math.round(limit / 60_000)} this seat's turns take` }]);
+  }
+
+  private started(turnId: string | null, now: number): Fact[] {
+    this.running = true;
+    this.turnId = turnId;
+    this.startedAt = now;
+    this.current = this.context();
+    this.told.clear();
+    return [];
+  }
+
+  private ended(phase: "completed" | "failed" | "canceled", now: number): Fact[] {
+    const since = this.startedAt;
+    this.running = false;
+    this.window.closeRunning();
+    if (since) this.durations.push(now - since);
+    if (this.durations.length > 20) this.durations.shift();
+    this.startedAt = 0;
+    const context = this.current ?? this.context();
+    if (phase !== "completed" || !context) return [];
+    const facts = unverified(this.window, context.rules, since ? context.heardSince(since) : false);
+    const pattern = stuck(this.window.sinceInstruction(), context.rules);
+    if (pattern) facts.push({ kind: "stuck", level: "attend", quote: pattern });
+    return this.fresh(facts);
+  }
+
+  private fresh(facts: Fact[], call?: string): Fact[] {
+    return facts.filter((fact) => {
+      const key = fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "unverified" ? fact.kind : `${fact.kind}\n${call ?? fact.quote}`;
+      if (this.told.has(key)) return false;
+      this.told.add(key);
+      return true;
+    });
   }
 }
 
-export type WatchDeps = { kit: Kit; seats: Seats; log?: (line: string, error?: unknown) => void };
+export type WatchDeps = {
+  kit: Kit;
+  seats: Seats;
+  context: (seat: WatchedSeat) => SeatContext | undefined;
+  found: (watch: SeatWatch, facts: Fact[]) => void;
+  log?: (line: string, error?: unknown) => void;
+};
 
 export class Watches {
   private readonly deps: WatchDeps;
@@ -53,10 +134,10 @@ export class Watches {
 
   follow(seat: WatchedSeat): void {
     if (this.followed.has(seat.id) || !this.watched(seat.provider)) return;
-    const watch = new SeatWatch(seat);
+    const watch = new SeatWatch(seat, () => this.deps.context(seat));
     let stream: Stream;
     try {
-      stream = this.deps.seats.watch(seat.id, (seen) => watch.see(seen));
+      stream = this.deps.seats.watch(seat.id, (seen) => this.found(watch, watch.see(seen)));
     } catch (error) {
       this.log(`${seat.id} could not be watched:`, error);
       return;
@@ -86,8 +167,21 @@ export class Watches {
     for (const id of [...this.followed.keys()]) if (!ids.has(id)) this.drop(id);
   }
 
+  round(now: number, minutes: (watch: SeatWatch) => number): void {
+    for (const { watch } of this.followed.values()) this.found(watch, watch.longTurn(now, minutes(watch)));
+  }
+
   dispose(): void {
     for (const id of [...this.followed.keys()]) this.drop(id);
+  }
+
+  private found(watch: SeatWatch, facts: Fact[]): void {
+    if (facts.length === 0) return;
+    try {
+      this.deps.found(watch, facts);
+    } catch (error) {
+      this.log(`what ${watch.seat.id} did could not be recorded:`, error);
+    }
   }
 
   private log(line: string, error?: unknown): void {

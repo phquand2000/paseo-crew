@@ -3,14 +3,11 @@
 // see a Lead changing its mind or a Peer admitting it was wrong — the judgement the concept calls
 // attention is the seat above's, and this only hands it something to look at.
 import { type Item, type Timeline, turnItems } from "./timeline.ts";
+import { DESTRUCTIVE, TEST_PATH } from "./watch/facts.ts";
 
 /** What this reader can find. Open, so a kit can add one without the desk being rebuilt. */
 export type Risk = string;
 
-export const DESTRUCTIVE =
-  "rm\\s+-[a-z]*[rf]|git\\s+reset\\s+--hard|git\\s+clean\\s+-[a-z]*f|git\\s+push\\s+[^|;&]*(--force|-f)\\b|--force-with-lease|git\\s+branch\\s+-D|drop\\s+(table|database)|truncate\\s+table";
-
-export const TEST_PATH = "(^|/)(tests?|specs?|__tests__)/|[._-](test|spec)\\.[a-z]+$|(^|/)test_[^/]*\\.[a-z]+$";
 
 export const ASSERTION = "\\b(assert|expect|should)\\b";
 

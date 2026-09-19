@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
-import { DESTRUCTIVE, TEST_PATH } from "../runtime/risks.ts";
+import { DESTRUCTIVE, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
 import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { join } from "node:path";
@@ -43,6 +43,7 @@ export type HarnessSpec = {
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
   refused?: string;
+  exitPattern?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
   files?: Record<string, string[]>;
@@ -78,6 +79,7 @@ const HARNESS_FIELDS = new Set([
   "stateWrites",
   "projectContextOption",
   "refused",
+  "exitPattern",
   "settings",
   "links",
   "files",
@@ -137,6 +139,13 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   else if (modes) {
     const modeId = (raw.provider as Record<string, unknown> | undefined)?.profileModeId;
     if (typeof modeId === "string" && !modes.some((mode) => mode.id === modeId)) problems.push(`opens seats in mode ${modeId}, which its modes do not list`);
+  }
+  if (raw.exitPattern !== undefined) {
+    let groups = -1;
+    try {
+      groups = new RegExp(`${String(raw.exitPattern)}|`).exec("")!.length - 1;
+    } catch {}
+    if (typeof raw.exitPattern !== "string" || groups < 1) problems.push("gives an exitPattern that is not a pattern capturing the exit code");
   }
   if (raw.systemPrompt !== undefined && raw.systemPrompt !== "config" && raw.systemPrompt !== "file") problems.push(`takes its prompt as ${String(raw.systemPrompt)}, which is neither config nor file`);
   if (raw.systemPrompt === "file" && !raw.promptFile) problems.push("takes its prompt as a file but names no promptFile");
@@ -213,6 +222,8 @@ export type Attention = {
   destructive: string;
   testPath: string;
   repeatsAt: number;
+  suppressed: string;
+  longTurnMinutes: number;
 };
 
 export type Kit = {
@@ -234,6 +245,8 @@ const ATTENTION: Attention = {
   destructive: DESTRUCTIVE,
   testPath: TEST_PATH,
   repeatsAt: 3,
+  suppressed: SUPPRESSED,
+  longTurnMinutes: 30,
 };
 
 function subdirs(root: string): string[] {

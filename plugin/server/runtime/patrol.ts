@@ -60,6 +60,7 @@ export class Patrol {
     const { kit, desk, outbox } = this.deps;
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     this.deps.watches.sync(seats.values());
+    this.deps.watches.round(now, (watch) => this.deps.source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
       await this.step(project, "the Watcher could not be settled", () => this.seatWatcher(project, loadLedger(project.state), seats));
