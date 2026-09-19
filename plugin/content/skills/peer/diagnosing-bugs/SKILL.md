@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: "Takes a reported failure to a confirmed cause and a fix: a red command first, ranked hypotheses with predictions, a trace back to where the value first went wrong, and a regression test at a real seam. Use when a brief reports a failure, crash, flake, or regression whose cause is unknown."
+description: "Takes a reported failure to a confirmed cause and a fix: a red command first, ranked hypotheses with predictions, a trace back to where the value first went wrong, and a regression test at a real seam. Use when a brief reports a failure, crash, flake, or regression whose cause is unknown. Not for a bug whose cause the brief already names, which is test-first."
 ---
 
 # Diagnosing bugs

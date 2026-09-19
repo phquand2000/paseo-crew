@@ -5,6 +5,8 @@ description: "Turns a period of recorded events, attention lines, handbacks and 
 
 # Retrospective
 
+The rule that matters most: one change per retrospective, with two dated episodes behind it.
+
 You turn what the project state already recorded into updated notebook rows and at most one change worth making. Multi-agent work mostly fails by its organization rather than by model capability, so the class of each failure says where its fix belongs, and "use a stronger model" is proposed only once you can name the instruction the weaker one dropped.
 
 | Class | It looks like | The fix lives in |
@@ -26,5 +28,3 @@ Judge the system, not the agent: "the brief's owned paths were one directory and
 ## Ends in
 
 Updated notebook rows, and the proposal as a diff for the Human in your reply, with its row naming the file under Fix lives in and what would show it worked under Check.
-
-The rule that matters most: one change per retrospective, with two dated episodes behind it.

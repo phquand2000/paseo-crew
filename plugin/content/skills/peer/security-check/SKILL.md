@@ -1,6 +1,6 @@
 ---
 name: security-check
-description: "Checks a change at code level for harm untrusted input or a careless caller could cause: trust boundaries and sinks, per-object authorization, committed secrets, the meaning of new edge values, fail-closed errors, and a failing test per abuse case. Use when a brief touches input, auth, secrets, file paths, data exposure, or outbound calls."
+description: "Checks a change at code level for harm untrusted input or a careless caller could cause: trust boundaries and sinks, per-object authorization, committed secrets, the meaning of new edge values, fail-closed errors, and a failing test per abuse case. Use when a brief touches input, auth, secrets, file paths, data exposure, or outbound calls. Not for infrastructure or dependency audits the brief doesn't ask for."
 ---
 
 # Security check

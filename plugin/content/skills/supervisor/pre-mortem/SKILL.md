@@ -5,6 +5,8 @@ description: "Finds how a lane will have failed before it is opened, from failur
 
 # Pre-mortem
 
+The rule that matters most: every story is written in the past tense, and no story sees another.
+
 You find how a lane fails while changing its directive is still free, so its outcome, acceptance and out-of-scope entries are earned rather than guessed. Say in one line why this lane warrants it: expensive, leaves this machine, touches money, credentials or unrecoverable data, or rests on one untested assumption.
 
 The mechanism is the tense. Each story starts from the directive having been carried out and the outcome having **failed**, and is written in the past tense. A question about what could go wrong returns a polite list of generic risks; one about what did go wrong returns the specific failure nobody wanted to raise. Keep every prompt in that tense.
@@ -37,5 +39,3 @@ The output can shrink the outcome, add an out-of-scope entry, or stop the lane; 
 ## Ends in
 
 The `open_lane` call with its fields filled, and the named failure with rows ordered by how early their first signal appears in `$SEATWORKS_STATE/pre-mortem/<lane-title>.md`.
-
-The rule that matters most: every story is written in the past tense, and no story sees another.

@@ -1,6 +1,6 @@
 ---
 name: repo-refresh
-description: "Refreshes one named repository around current production truth: audits documentation, plans, issues, tests, proof machinery, scripts and generated debris, classifies each suspect, and has the stale ones merged or deleted through tasks. Use when documentation, plans, tests or scripts have drifted from what production does, or when the owner asks for a refresh."
+description: "Refreshes one named repository around current production truth: audits documentation, plans, issues, tests, proof machinery, scripts and generated debris, classifies each suspect, and has the stale ones merged or deleted through tasks. Use when documentation, plans, tests or scripts have drifted from what production does, or when the owner asks for a refresh. Not for routine housekeeping on one change, or for redesigning working architecture."
 ---
 
 # Repository refresh

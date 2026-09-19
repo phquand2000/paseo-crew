@@ -1,9 +1,11 @@
 ---
 name: test-first
-description: "Puts evidence before behavior: chooses the proof that fits the change, settles the contract a test may use, then adds behavior one failing test at a time at a settled seam. Use when a brief changes behavior, fixes a bug, or refactors and its contract is settled."
+description: "Puts evidence before behavior: chooses the proof that fits the change, settles the contract a test may use, then adds behavior one failing test at a time at a settled seam. Use when a brief changes behavior, fixes a bug whose cause is known, or refactors and its contract is settled. Not for a failure whose cause is unknown, which is diagnosing-bugs."
 ---
 
 # Test-first
+
+The rule that matters most: settle the contract, see the test fail at the seam, then write the code. A test you never saw fail proves nothing, and a test that invents the contract becomes the spec.
 
 No behavior changes without evidence you produced before the change. You choose that proof, and when it is a test you settle the contract, watch the test fail at the seam, then write the code. Tests prove the brief's acceptance behaviors and the risky parts (money, state changes, permissions, migrations, concurrency); they pin nothing the acceptance doesn't name. With no owned paths, report the proof and seam you would use and commit nothing.
 
@@ -53,5 +55,3 @@ Open [references/test-antipatterns.md](references/test-antipatterns.md) and chec
 ## Ends in
 
 `done` with: in `checks`, the proof you chose and the commands the brief's acceptance needs, with their real results; in `leftUndone`, untested behaviors, mutations no test catches, and any seam that forced test-only access.
-
-The rule that matters most: settle the contract, see the test fail at the seam, then write the code. A test you never saw fail proves nothing, and a test that invents the contract becomes the spec.
