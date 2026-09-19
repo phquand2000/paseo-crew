@@ -61,24 +61,39 @@ test("a rewind voids what was seen and tells the rewound timeline again as repla
   assert.deepEqual(rows().slice(-1), [{ seq: 2, replay: false, epoch: "epoch-2" }]);
 });
 
-test("history a reload sends again is replay until the seat starts a turn", async () => {
+test("history a reload sends again is replay, and what the seat does in the meantime is not, in whatever order they arrive", async () => {
   const timeline = new FakeTimeline();
   const { seen, stream, rows } = watching(timeline);
   await stream.ready;
   timeline.add({ type: "user_message", text: "go" });
   timeline.add(call("c1", "completed", "rm -rf build"));
   await settle();
-  timeline.reload();
+  timeline.epoch = "epoch-2";
+  const history = timeline.rows;
+  timeline.rows = [];
+  timeline.beat("turn_started", "turn-2");
+  timeline.add({ type: "user_message", text: "again" }, "turn-2");
+  for (const row of history) timeline.add(row.item, null);
+  timeline.add(call("c2", "running", "ls"), "turn-2");
   await settle();
   assert.equal(seen.filter((entry) => entry.kind === "reset").length, 1);
   assert.deepEqual(rows().slice(2), [
-    { seq: 1, replay: true, epoch: "epoch-2" },
+    { seq: 1, replay: false, epoch: "epoch-2" },
     { seq: 2, replay: true, epoch: "epoch-2" },
+    { seq: 3, replay: true, epoch: "epoch-2" },
+    { seq: 4, replay: false, epoch: "epoch-2" },
   ]);
-  timeline.beat("turn_started", "turn-2");
-  timeline.add({ type: "user_message", text: "again" }, "turn-2");
-  await settle();
-  assert.deepEqual(rows().at(-1), { seq: 3, replay: false, epoch: "epoch-2" });
+});
+
+test("a seat already mid-turn when it is joined is told the turn it is in, from when it started", async () => {
+  const timeline = new FakeTimeline();
+  timeline.add({ type: "user_message", text: "go" });
+  const started = Date.parse("2026-09-19T10:00:00.000Z");
+  const refetch = timeline.refetch.bind(timeline);
+  timeline.refetch = async (options) => ({ ...(await refetch(options)), agent: { activeTurn: { turnId: "turn-1", startedAt: new Date(started).toISOString() } } });
+  const { seen, stream } = watching(timeline);
+  await stream.ready;
+  assert.deepEqual(seen.find((entry) => entry.kind === "turn"), { kind: "turn", phase: "started", turnId: "turn-1", at: started });
 });
 
 test("a seat reloaded while nobody listened is read again from its tail rather than told as a gap", async () => {

@@ -4,7 +4,8 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { type SensorSpec, loadKit, sensorProblems } from "../../server/catalog/kit.ts";
-import { Pacer, SensorError, assess, mask, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
+import { mask } from "../../server/runtime/watch/mask.ts";
+import { Assessor, Pacer, SensorError, assess, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -133,8 +134,63 @@ test("the shipped sensor asks only questions it can use, and the kit refuses one
   assert.deepEqual(sensorProblems(shipped.id, shipped as unknown as Record<string, unknown>), []);
   assert.ok(Object.values(shipped.questions).some((question) => question.alone), "some questions stand alone");
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", url: "http://plain" } as never), ["sends its state somewhere that is not https"]);
-  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", threshold: 2, level: "loud" } } } as never), [
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", threshold: 2, level: "loud", alone: true } } } as never), [
     "asks q with no threshold between 0 and 1",
     "asks q at a level that is neither page nor attend",
   ]);
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", threshold: 0.7, level: "attend" } } } as never), [
+    "asks q with a threshold or level, though nothing decides on its answer",
+  ]);
+});
+
+test("a secret is masked before anything is cut, so no part of it survives a clip", () => {
+  const window = new Window();
+  window.add({ item: { type: "user_message", text: "go" }, seq: 1, epoch: "e", turnId: "t", replay: false });
+  const key = `-----BEGIN OPENSSH PRIVATE KEY-----\n${"QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo".repeat(20)}\n-----END OPENSSH PRIVATE KEY-----`;
+  window.add({ item: { type: "tool_call", callId: "c", name: "Bash", status: "completed", detail: { type: "shell", command: "cat ~/.ssh/id_ed25519", output: key } }, seq: 2, epoch: "e", turnId: "t", replay: false });
+  const state = JSON.stringify(stateOf(window, [], { goal: "g", role: "Peer" }, 8000));
+  assert.doesNotMatch(state, /QUJDREVGR0hJSktM/);
+  assert.match(state, /\[private key\]/);
+});
+
+test("the usual shapes a secret is printed in are masked", () => {
+  for (const [text, secret] of [
+    ['curl -H "Authorization: Bearer 9f8e7d6c5b4a39281706"', "9f8e7d6c5b4a39281706"],
+    ["STRIPE=sk_live_51HxQ2eLkYbq7ZzAbCdEf", "sk_live_51HxQ2eLkYbq7ZzAbCdEf"],
+    ['{\\"password\\": \\"Tr0ub4dor&3xyz\\"}', "Tr0ub4dor&3xyz"],
+    ["AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG", "wJalrXUtnFEMI/K7MDENG"],
+    ["git clone https://bob:hunter2hunter2@github.com/x/y", "hunter2hunter2"],
+  ]) assert.ok(!mask(text).includes(secret), `${text} → ${mask(text)}`);
+});
+
+test("an answer whose body never finishes arriving is given up at the timeout", async () => {
+  const stalled = async () => ({ ok: true, status: 200, headers: { get: () => null }, json: () => new Promise<unknown>(() => {}), text: async () => "" });
+  const started = Date.now();
+  await assert.rejects(assess(spec({ a: noul() }, { timeoutSeconds: 0.05, retries: 0 }), "k", {}, "s", stalled as never), /no answer within 0.05 s/);
+  assert.ok(Date.now() - started < 1000);
+});
+
+test("a response without an id still counts, since the endpoint does not promise one", () => {
+  const documented = JSON.parse(readFileSync(join(here, "..", "fixtures", "decisions-response.json"), "utf-8"));
+  delete documented.id;
+  assert.equal(readAnswers(documented, spec({ is_bug: noul() })).id, null);
+});
+
+test("an assessment still in flight when its seat is let go is not recorded", async () => {
+  let answer: (value: unknown) => void = () => {};
+  const fetcher = async () => ({ ok: true, status: 200, headers: { get: () => null }, json: () => new Promise((resolve) => (answer = resolve)), text: async () => "" });
+  const done: string[] = [];
+  const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window: new Window(), noted: [] } as never;
+  const assessor = new Assessor({
+    sensing: () => ({ spec: spec({ a: noul() }), key: "k", brief: { goal: "g", role: "Peer" } }),
+    done: () => done.push("done"),
+    failed: () => done.push("failed"),
+    fetcher: fetcher as never,
+  });
+  assessor.moment(watch, true);
+  await wait(10);
+  assessor.drop("s1");
+  answer({ answers: { a: { type: "noul", noul: 0.9 } }, model: "m" });
+  await wait(10);
+  assert.deepEqual(done, []);
 });

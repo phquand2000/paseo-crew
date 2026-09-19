@@ -35,6 +35,12 @@ export type Unit =
 export type Change = { call?: Call; first: boolean; detailed: boolean; settled: boolean };
 
 const TERMINAL = new Set(["completed", "failed", "canceled"]);
+
+function pseudo(item: Record<string, unknown>): boolean {
+  const metadata = item.metadata as { synthetic?: unknown } | undefined;
+  const detail = item.detail as { type?: unknown } | undefined;
+  return metadata?.synthetic === true || (item.name === "terminal" && detail?.type === "plain_text");
+}
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
 export class Window {
@@ -49,7 +55,7 @@ export class Window {
   add(row: StreamRow): Change {
     const item = row.item;
     const type = text(item.type);
-    if (type === "tool_call") return this.called(row);
+    if (type === "tool_call") return pseudo(item) ? { first: false, detailed: false, settled: false } : this.called(row);
     if (type === "user_message") this.push({ kind: "user", text: text(item.text) });
     else if (type === "assistant_message") this.join("said", text(item.text), text(item.messageId) || undefined);
     else if (type === "reasoning") this.join("thought", text(item.text));

@@ -167,3 +167,89 @@ test("a turn that reports having written files the gate never saw afterwards is 
   assert.deepEqual(kinds(play([start, ...opening(), wrote, gate, end], rules({ gate: "npm test" }), true)).filter((kind) => kind === "unverified"), []);
   assert.deepEqual(kinds(play([start, ...opening(), wrote, end], rules({ gate: "npm test" }), false)).filter((kind) => kind === "unverified"), [], "a turn that reported nothing claimed nothing");
 });
+
+const claudeTurn2 = () =>
+  fixture("claude")
+    .filter((message) => message.epoch === fixture("claude")[1]!.epoch || !message.epoch)
+    .map((message) => JSON.parse(JSON.stringify(message).replace(/sleep 5; echo (alpha|beta|gamma)/g, "npm test")) as StreamMessage)
+    .map((message) => {
+      const item = message.event.item;
+      if (item?.type === "tool_call" && item.name === "Bash" && item.status === "completed") Object.assign(item, { status: "failed", error: { content: "1 failing" } });
+      return message;
+    });
+
+test("Claude's task notifications are not calls, so three failing runs of one command are the same action failing three times", () => {
+  const facts = play(claudeTurn2(), rules());
+  assert.equal(facts.filter((fact) => fact.kind === "call-failed" && fact.quote.includes("npm test")).length, 3);
+  assert.match(facts.find((fact) => fact.kind === "stuck")!.quote, /the same action failing 3 times: Bash: npm test/);
+});
+
+test("two actions alternating are stuck only when their results alternate too", () => {
+  const done = piRow(11);
+  const moving = (callId: string, seq: number, command: string, output: string) => again(done, callId, seq, (detail) => Object.assign(detail, { command, output }));
+  const progressing = [...opening(), moving("a", 2, "npm test", "3 failing"), moving("b", 3, "vim", "x"), moving("c", 4, "npm test", "2 failing"), moving("d", 5, "vim", "x"), moving("e", 6, "npm test", "1 failing"), moving("f", 7, "vim", "x")];
+  assert.deepEqual(kinds(play(progressing, rules())).filter((kind) => kind === "stuck"), []);
+});
+
+test("a failure is climbed out of when the same program passes, and the latest failure is the one tracked", () => {
+  const failedCat = piRow(15);
+  const done = piRow(11);
+  const run = (callId: string, seq: number, command: string, ok: boolean) =>
+    again(ok ? done : failedCat, callId, seq, (detail) => Object.assign(detail, { command, ...(ok ? { exitCode: 0 } : {}) }));
+  const steps = (count: number, from: number) => Array.from({ length: count }, (_, index) => again(done, `ok-${from + index}`, from + index, (detail) => (detail.command = `cat file${index}`)));
+  const cured = play([...opening(), run("f", 2, "npm test", false), run("p", 3, "npm test 2>&1 | tail -30", true), ...steps(12, 4)], rules());
+  assert.deepEqual(kinds(cured).filter((kind) => kind === "no-recovery"), []);
+  const moved = play([...opening(), run("probe", 2, "rg legacyFlag src", false), run("f", 3, "npm test", false), ...steps(10, 4)], rules());
+  assert.match(moved.find((fact) => fact.kind === "no-recovery")!.quote, /`npm test` failed/, "the fact names the failure the seat is in now, not an earlier probe");
+});
+
+test("a test's title saying should is not an assertion", () => {
+  const edit = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.name === "edit" && message.event.item?.status === "completed")!;
+  const renamed = again(edit, "e", 2, (detail) =>
+    Object.assign(detail, { filePath: "test/a.test.ts", oldString: 'it("should add", () => { assert.equal(add(1, 1), 2); });', newString: 'it("adds", () => { assert.equal(add(1, 1), 2); });' }),
+  );
+  assert.deepEqual(kinds(play([...opening(), renamed], rules())), []);
+});
+
+test("an edit that arrives as a unified diff is read for weakened tests too", () => {
+  const edit = fixture("codex").find((message) => message.event.item?.name === "apply_patch" && message.event.item?.status === "completed")!;
+  const patched = again(edit, "p", 2, (detail) => {
+    for (const key of Object.keys(detail)) if (key !== "type") delete detail[key];
+    Object.assign(detail, { type: "edit", filePath: "test/a.test.ts", unifiedDiff: "--- a/test/a.test.ts\n+++ b/test/a.test.ts\n@@ -1,3 +1,2 @@\n assert.equal(a, 1);\n-assert.equal(b, 2);\n+// later\n" });
+  });
+  assert.deepEqual(kinds(play([...opening(), patched], rules())), ["test-weakened"]);
+});
+
+test("Devin's constant exit line is not a result, so repeating a command there is not the same result four times", () => {
+  const exit = new RegExp(kit.harnesses.devin!.exitPattern!);
+  const ran = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.status === "completed" && JSON.stringify(message).includes("Exited with code 0"))!;
+  const four = [...opening(), ...["a", "b", "c", "d"].map((id, index) => again(ran, id, index + 2, (detail) => (detail.command = "git status")))];
+  assert.deepEqual(kinds(play(four, rules({ exit }))).filter((kind) => kind === "stuck"), []);
+});
+
+test("a second loop in the same turn is reported, once the first has been broken", () => {
+  const failedCat = piRow(15);
+  const done = piRow(11);
+  const fail = (callId: string, seq: number, command: string) => again(failedCat, callId, seq, (detail) => (detail.command = command));
+  const loop = [...opening(), fail("a", 2, "make"), fail("b", 3, "make"), fail("c", 4, "make"), again(done, "ok", 5), fail("d", 6, "cargo build"), fail("e", 7, "cargo build"), fail("f", 8, "cargo build")];
+  assert.equal(kinds(play(loop, rules())).filter((kind) => kind === "stuck").length, 2);
+});
+
+test("a message steered into a long turn does not make it long again", () => {
+  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: rules(), heardSince: () => false, goal: "", role: "Peer" }));
+  const t0 = Date.parse("2026-09-19T10:00:00Z");
+  watch.see({ kind: "turn", phase: "started", turnId: "t" }, t0);
+  assert.equal(watch.longTurn(t0 + 40 * 60_000, 30).length, 1);
+  watch.see({ kind: "row", row: { item: { type: "user_message", text: "Also check the README" }, seq: 1, epoch: "e", turnId: "t", replay: false } }, t0 + 40 * 60_000);
+  assert.deepEqual(watch.longTurn(t0 + 45 * 60_000, 30), []);
+});
+
+test("a commit message written to the temp directory is not a write the gate has to see", () => {
+  const edit = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.name === "edit" && message.event.item?.status === "completed")!;
+  const wrote = again(edit, "w", 2, (detail) => Object.assign(detail, { filePath: "/work/src/a.ts" }));
+  const gate = again(piRow(11), "g", 3, (detail) => Object.assign(detail, { command: "npm test" }));
+  const message = again(edit, "m", 4, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/msg" }));
+  const start: StreamMessage = { event: { type: "turn_started", turnId: "t" } };
+  const end: StreamMessage = { event: { type: "turn_completed", turnId: "t" } };
+  assert.deepEqual(kinds(play([start, ...opening(), wrote, gate, message, end], rules({ gate: "npm test", cwd: "/work" }), true)).filter((kind) => kind === "unverified"), []);
+});

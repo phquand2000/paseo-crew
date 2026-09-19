@@ -204,11 +204,10 @@ export type Attention = {
   incidentsPerDay: number;
 };
 
-export type Question = { instructions: string; threshold: number; level: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[] };
+export type Question = { instructions: string; threshold?: number; level?: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[] };
 
 export type SensorSpec = {
   id: string;
-  label: string;
   url: string;
   model: string;
   timeoutSeconds: number;
@@ -303,7 +302,7 @@ function loadMcp(dir: string): Record<string, McpEntry> {
 export function sensorProblems(id: string, raw: Record<string, unknown>): string[] {
   const problems: string[] = [];
   if (raw.id !== id) problems.push(`calls itself ${String(raw.id)} but sits in catalog/sensor/${id}`);
-  for (const key of ["label", "url", "model"]) if (typeof raw[key] !== "string" || !raw[key]) problems.push(`has no ${key}`);
+  for (const key of ["url", "model"]) if (typeof raw[key] !== "string" || !raw[key]) problems.push(`has no ${key}`);
   if (typeof raw.url === "string" && !raw.url.startsWith("https://")) problems.push("sends its state somewhere that is not https");
   for (const key of ["timeoutSeconds", "stateChars", "debounceSeconds", "everySeconds"]) if (typeof raw[key] !== "number" || !((raw[key] as number) > 0)) problems.push(`has no positive ${key}`);
   if (!Number.isInteger(raw.retries) || (raw.retries as number) < 0) problems.push("has no whole number of retries");
@@ -311,8 +310,10 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   if (!questions || typeof questions !== "object" || Object.keys(questions).length === 0) problems.push("asks no questions");
   for (const [name, question] of Object.entries(questions ?? {})) {
     if (typeof question?.instructions !== "string" || !question.instructions) problems.push(`asks ${name} without instructions`);
-    if (typeof question?.threshold !== "number" || question.threshold < 0 || question.threshold > 1) problems.push(`asks ${name} with no threshold between 0 and 1`);
-    if (question?.level !== "page" && question?.level !== "attend") problems.push(`asks ${name} at a level that is neither page nor attend`);
+    const decides = question?.alone === true || question?.agrees !== undefined;
+    if (decides && (typeof question?.threshold !== "number" || question.threshold < 0 || question.threshold > 1)) problems.push(`asks ${name} with no threshold between 0 and 1`);
+    if (decides && question?.level !== "page" && question?.level !== "attend") problems.push(`asks ${name} at a level that is neither page nor attend`);
+    if (!decides && (question?.threshold !== undefined || question?.level !== undefined)) problems.push(`asks ${name} with a threshold or level, though nothing decides on its answer`);
     if (question?.agrees !== undefined && (!Array.isArray(question.agrees) || question.agrees.some((kind) => typeof kind !== "string"))) problems.push(`asks ${name} with agrees that is not a list of fact kinds`);
     if (question?.alone && question?.agrees) problems.push(`asks ${name} both alone and needing a fact to agree`);
   }

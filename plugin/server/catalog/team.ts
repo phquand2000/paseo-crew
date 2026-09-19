@@ -200,10 +200,9 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, 
     const seat = resolveRole(kit, role, layers, mcp, errors);
     if (seat) roles[role.role] = seat;
   }
-  const ids = Object.keys(kit.sensors);
-  const use = machine.sensor?.use ?? (ids.length === 1 ? ids[0] : undefined);
-  if (machine.sensor?.use && !kit.sensors[machine.sensor.use]) errors.push(`The machine settings use sensor ${machine.sensor.use}, which the kit does not have`);
-  const spec = use ? kit.sensors[use] : undefined;
+  const sensors = Object.values(kit.sensors);
+  if (sensors.length > 1) errors.push(`The kit ships ${sensors.length} sensors, and the desk can use one`);
+  const spec = sensors.length === 1 ? sensors[0] : undefined;
   return {
     roles,
     mcp,

@@ -84,7 +84,6 @@ test("the Jev layer is on only with a key in the machine's settings, never the p
   const keyed = resolveTeam(kit, { sensor: { key: "sk-or-v1-test" } });
   assert.equal(keyed.sensor?.key, "sk-or-v1-test");
   assert.equal(keyed.sensor?.spec.id, Object.keys(kit.sensors)[0]);
-  assert.deepEqual(resolveTeam(kit, { sensor: { use: "nothing", key: "k" } }).errors, ["The machine settings use sensor nothing, which the kit does not have"]);
   assert.equal(ProjectLayerSchema.safeParse({ sensor: { key: "k" } }).success, false, "a key in a project's settings would travel with the project");
 });
 

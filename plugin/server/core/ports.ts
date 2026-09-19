@@ -24,7 +24,7 @@ export type StreamRow = { item: Record<string, unknown>; seq: number; epoch: str
 
 export type Seen =
   | { kind: "row"; row: StreamRow }
-  | { kind: "turn"; phase: "started" | "completed" | "failed" | "canceled"; turnId: string | null; error?: string }
+  | { kind: "turn"; phase: "started" | "completed" | "failed" | "canceled"; turnId: string | null; error?: string; at?: number }
   | { kind: "reset" };
 
 export type Stream = { readonly ready: Promise<void>; stop(): void };

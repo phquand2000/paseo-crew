@@ -153,7 +153,6 @@ export function makeKit(): Kit {
   put(dir, "content/prompts/SCRIBE.md", "# Scribe\n\nKeep the notes.\n");
   put(dir, "catalog/sensor/probe/sensor.json", {
     id: "probe",
-    label: "Probe",
     url: "https://sensor.invalid/decisions",
     model: "probe-1",
     timeoutSeconds: 1,

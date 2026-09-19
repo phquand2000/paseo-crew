@@ -141,7 +141,8 @@ export class Runtime {
       },
       heardSince: (at) => {
         try {
-          return (loadLedger(project.state).agents[seat.id]?.recordedAt ?? 0) >= at;
+          const handback = taskOfPeer(loadLedger(project.state), seat.id)?.handback;
+          return Boolean(handback && handback.at >= at && !handback.gate);
         } catch {
           return false;
         }

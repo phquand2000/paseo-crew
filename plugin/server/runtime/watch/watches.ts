@@ -43,13 +43,13 @@ export class SeatWatch {
       this.noted.length = 0;
       return [];
     }
-    if (seen.kind === "turn") return seen.phase === "started" ? this.started(seen.turnId, now) : this.ended(seen.phase, now);
+    if (seen.kind === "turn") return seen.phase === "started" ? this.started(seen.turnId, seen.at ?? now) : this.ended(seen.phase, now);
     const { row } = seen;
     const change = this.window.add(row);
     if (row.replay) return [];
     if (row.item.type === "user_message") {
       this.recovery.reset();
-      this.told.clear();
+      for (const key of [...this.told]) if (key !== "long-turn") this.told.delete(key);
       this.noted.length = 0;
       return [];
     }
@@ -60,6 +60,7 @@ export class SeatWatch {
       facts.push(...this.recovery.step(change.call, rules));
       const pattern = stuck(this.window.sinceInstruction(), rules);
       if (pattern) facts.push({ kind: "stuck", level: "attend", quote: pattern });
+      else this.told.delete("stuck");
     }
     return this.fresh(facts, change.call?.id);
   }
@@ -73,10 +74,11 @@ export class SeatWatch {
     return this.fresh([{ kind: "long-turn", level: "attend", quote: `running for ${Math.round(took / 60_000)} minutes, past the ${Math.round(limit / 60_000)} this seat's turns take` }]);
   }
 
-  private started(turnId: string | null, now: number): Fact[] {
+  private started(turnId: string | null, at: number): Fact[] {
+    if (this.running && this.turnId === turnId && turnId !== null) return [];
     this.running = true;
     this.turnId = turnId;
-    this.startedAt = now;
+    this.startedAt = at;
     this.current = this.context();
     this.told.clear();
     return [];

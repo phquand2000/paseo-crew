@@ -77,7 +77,6 @@ const shared = {
 };
 
 const SensorChoice = z.strictObject({
-  use: z.string().min(1).optional(),
   key: z.string().min(1).optional(),
 });
 

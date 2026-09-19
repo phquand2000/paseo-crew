@@ -22,9 +22,9 @@ export function fromAnswers(answers: Record<string, number>, questions: Record<s
   const found: Finding[] = [];
   for (const [name, question] of Object.entries(questions)) {
     const p = answers[name];
-    if (p === undefined) continue;
-    if (question.below ? p > question.threshold : p < question.threshold) continue;
+    if (p === undefined || question.threshold === undefined || !question.level) continue;
     if (!question.alone && !question.agrees) continue;
+    if (question.below ? p > question.threshold : p < question.threshold) continue;
     const agreeing = question.alone ? [] : noted.filter((fact) => question.agrees!.includes(fact.kind));
     if (!question.alone && agreeing.length === 0) continue;
     const because = agreeing.map((fact) => `${fact.kind}: ${fact.quote}`).join("; ");

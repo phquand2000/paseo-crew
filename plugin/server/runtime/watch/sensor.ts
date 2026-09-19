@@ -1,9 +1,10 @@
 import type { SensorSpec } from "../../catalog/kit.ts";
 import { describe, failed, type Fact } from "./facts.ts";
+import { mask } from "./mask.ts";
 import type { SeatWatch } from "./watches.ts";
 import type { Unit, Window } from "./window.ts";
 
-export type Assessment = { answers: Record<string, number>; model: string; id: string; cost: number | null };
+export type Assessment = { answers: Record<string, number>; model: string; id: string | null; cost: number | null };
 
 export class SensorError extends Error {
   readonly status: number | undefined;
@@ -34,67 +35,79 @@ export function readAnswers(body: unknown, spec: SensorSpec): Assessment {
     if (answer.noul < 0 || answer.noul > 1) throw new SensorError(`the answer to ${name} is ${answer.noul}, outside 0 to 1`);
     answers[name] = answer.noul;
   }
-  if (typeof held.model !== "string" || typeof held.id !== "string") throw new SensorError("the response names no model or id");
-  return { answers, model: held.model, id: held.id, cost: typeof held.usage?.cost === "number" ? held.usage.cost : null };
+  if (typeof held.model !== "string") throw new SensorError("the response names no model");
+  return { answers, model: held.model, id: typeof held.id === "string" ? held.id : null, cost: typeof held.usage?.cost === "number" ? held.usage.cost : null };
+}
+
+function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const stop = () => reject(signal.reason);
+    signal.addEventListener("abort", stop, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener("abort", stop);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", stop);
+        reject(error);
+      },
+    );
+  });
 }
 
 export async function assess(spec: SensorSpec, key: string, state: unknown, session: string, fetcher: Fetch = fetch as unknown as Fetch): Promise<Assessment> {
   const questions = Object.fromEntries(Object.entries(spec.questions).map(([name, question]) => [name, { type: "noul", instructions: question.instructions }]));
   const body = JSON.stringify({ model: spec.model, state, questions, session_id: session.slice(0, 256) });
   for (let attempt = 0; ; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), spec.timeoutSeconds * 1000);
-    let response: Awaited<ReturnType<Fetch>>;
+    const signal = AbortSignal.timeout(spec.timeoutSeconds * 1000);
+    let status: number;
+    let wait: number | undefined;
+    let said = "";
     try {
-      response = await fetcher(spec.url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal: controller.signal });
+      const response = await bounded(fetcher(spec.url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal }), signal);
+      if (response.ok) return readAnswers(await bounded(response.json(), signal), spec);
+      status = response.status;
+      const after = Number(response.headers.get("retry-after"));
+      if (Number.isFinite(after) && after > 0) wait = Math.min(after, 10) * 1000;
+      said = await bounded(response.text(), signal).catch(() => "");
     } catch (error) {
+      if (error instanceof SensorError) throw error;
       if (attempt < spec.retries) {
         await pause(500 * 2 ** attempt);
         continue;
       }
-      throw new SensorError(controller.signal.aborted ? `no answer within ${spec.timeoutSeconds} s` : `unreachable: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      clearTimeout(timer);
+      throw new SensorError(signal.aborted ? `no answer within ${spec.timeoutSeconds} s` : `unreachable: ${error instanceof Error ? error.message : String(error)}`);
     }
-    if (response.ok) return readAnswers(await response.json(), spec);
-    const retryable = response.status === 429 || response.status >= 500;
-    if (!retryable || attempt >= spec.retries) {
-      const said = await response.text().catch(() => "");
-      throw new SensorError(`${response.status}: ${said.replace(/\s+/g, " ").slice(0, 200)}`, response.status);
-    }
-    const after = Number(response.headers.get("retry-after"));
-    await pause(Number.isFinite(after) && after > 0 ? Math.min(after, 10) * 1000 : 500 * 2 ** attempt);
+    const retryable = status === 429 || status >= 500;
+    if (!retryable || attempt >= spec.retries) throw new SensorError(`${status}: ${said.replace(/\s+/g, " ").slice(0, 200)}`, status);
+    await pause(wait ?? 500 * 2 ** attempt);
   }
-}
-
-const SECRETS: [RegExp, string][] = [
-  [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[private key]"],
-  [/\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g, "[token]"],
-  [/\b(AKIA|ASIA)[0-9A-Z]{16}\b/g, "[key]"],
-  [/\b(sk|rk|pk)-[\w-]{16,}/g, "[key]"],
-  [/\b(ghp|gho|ghs|ghu|github_pat)_[\w]{16,}/g, "[token]"],
-  [/\bxox[abpr]-[\w-]{10,}/g, "[token]"],
-  [/((?:api[_-]?key|token|secret|passw(?:or)?d|authorization|bearer)["']?\s*[:=]\s*["']?)[^\s"',;]{8,}/gi, "$1[redacted]"],
-];
-
-export function mask(text: string): string {
-  return SECRETS.reduce((kept, [pattern, stand]) => kept.replace(pattern, stand), text);
 }
 
 const clip = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit)}…` : text);
 const flat = (text: string) => text.replace(/\s+/g, " ").trim();
 
+function errorText(error: unknown): string {
+  if (!error) return "";
+  if (typeof error === "string") return error;
+  const held = error as { content?: unknown; message?: unknown; text?: unknown };
+  for (const value of [held.content, held.message, held.text]) if (typeof value === "string") return value;
+  return JSON.stringify(error);
+}
+
 function line(unit: Unit, exit?: RegExp): string {
   if (unit.kind === "call") {
     const call = unit.call;
     const outcome = !call.ended ? "running" : failed(call, exit) ? "failed" : call.status;
-    const output = typeof call.detail.output === "string" ? call.detail.output : call.error ? JSON.stringify(call.error) : "";
-    return clip(flat(`${describe(call)} [${outcome}]${output ? ` → ${output}` : ""}`), 400);
+    const output = typeof call.detail.output === "string" ? call.detail.output : errorText(call.error);
+    return clip(flat(mask(`${describe(call)} [${outcome}]${output ? ` → ${output}` : ""}`)), 400);
   }
-  if (unit.kind === "said") return `said: ${clip(flat(unit.text), 400)}`;
-  if (unit.kind === "thought") return `thought: ${clip(flat(unit.text), 300)}`;
-  if (unit.kind === "user") return `told: ${clip(flat(unit.text), 300)}`;
-  if (unit.kind === "error") return `error: ${clip(flat(unit.text), 300)}`;
+  if (unit.kind === "said") return `said: ${clip(flat(mask(unit.text)), 400)}`;
+  if (unit.kind === "thought") return `thought: ${clip(flat(mask(unit.text)), 300)}`;
+  if (unit.kind === "user") return `told: ${clip(flat(mask(unit.text)), 300)}`;
+  if (unit.kind === "error") return `error: ${clip(flat(mask(unit.text)), 300)}`;
   return "context compacted";
 }
 
@@ -103,15 +116,15 @@ export type Brief = { goal: string; role: string; exit?: RegExp };
 export function stateOf(window: Window, noted: Fact[], brief: Brief, limit: number): Record<string, unknown> {
   const units = window.sinceInstruction().slice(-30);
   const last = [...units].reverse().find((unit) => unit.kind === "said");
-  const steps = units.map((unit) => mask(line(unit, brief.exit)));
+  const steps = units.map((unit) => line(unit, brief.exit));
   let recent = steps;
   const state = () => ({
-    goal: mask(clip(brief.goal, 2000)),
-    prompt: mask(clip(flat(window.lastInstruction()), 1000)),
+    goal: clip(mask(brief.goal), 2000),
+    prompt: clip(flat(mask(window.lastInstruction())), 1000),
     role: brief.role,
-    facts: noted.map((fact) => mask(`${fact.kind}: ${fact.quote}`)),
+    facts: noted.map((fact) => `${fact.kind}: ${fact.quote}`),
     recent,
-    final_message: last?.kind === "said" ? mask(clip(flat(last.text), 1500)) : "",
+    final_message: last?.kind === "said" ? clip(flat(mask(last.text)), 1500) : "",
   });
   for (let from = 1; JSON.stringify(state()).length > limit && from < steps.length; from++) {
     recent = [`[… ${from} earlier step${from === 1 ? "" : "s"} left out …]`, ...steps.slice(from)];
@@ -197,7 +210,8 @@ export class Assessor {
     if (!sensing) return;
     let pacer = this.pacers.get(watch.seat.id);
     if (!pacer) {
-      pacer = new Pacer(sensing.spec.debounceSeconds * 1000, sensing.spec.everySeconds * 1000, () => this.run(watch));
+      const made: Pacer = new Pacer(sensing.spec.debounceSeconds * 1000, sensing.spec.everySeconds * 1000, () => this.run(watch, made));
+      pacer = made;
       this.pacers.set(watch.seat.id, pacer);
     }
     if (urgent) pacer.now();
@@ -213,14 +227,17 @@ export class Assessor {
     for (const id of [...this.pacers.keys()]) this.drop(id);
   }
 
-  private async run(watch: SeatWatch): Promise<void> {
+  private async run(watch: SeatWatch, pacer: Pacer): Promise<void> {
     const sensing = this.deps.sensing(watch);
     if (!sensing) return;
     const state = stateOf(watch.window, watch.noted, sensing.brief, sensing.spec.stateChars);
+    let assessment: Assessment;
     try {
-      this.deps.done(watch, await assess(sensing.spec, sensing.key, state, watch.seat.id, this.deps.fetcher), state);
+      assessment = await assess(sensing.spec, sensing.key, state, watch.seat.id, this.deps.fetcher);
     } catch (error) {
-      this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(error instanceof Error ? error.message : String(error)));
+      if (this.pacers.get(watch.seat.id) === pacer) this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(error instanceof Error ? error.message : String(error)));
+      return;
     }
+    if (this.pacers.get(watch.seat.id) === pacer) this.deps.done(watch, assessment, state);
   }
 }

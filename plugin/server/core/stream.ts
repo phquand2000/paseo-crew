@@ -11,6 +11,7 @@ export type StreamMessage = {
 export type Page = {
   epoch: string;
   entries: { item: Record<string, unknown>; seqStart: number; seqEnd: number; turnId?: string | null }[];
+  agent?: { activeTurn?: { turnId?: string | null; startedAt?: string | null } | null } | null;
   reset?: boolean;
   staleCursor?: boolean;
   error?: string | null;
@@ -40,7 +41,6 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
   let joined = false;
   let epoch: string | undefined;
   let last = 0;
-  let replaying = false;
   let chain: Promise<void> = Promise.resolve();
   const early: StreamMessage[] = [];
 
@@ -67,6 +67,11 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
     epoch = page.epoch;
     last = 0;
     for (const entry of page.entries) take(entry.item, entry.seqEnd, entry.turnId, true);
+    const active = page.agent?.activeTurn;
+    if (active) {
+      const at = Date.parse(active.startedAt ?? "");
+      tell({ kind: "turn", phase: "started", turnId: active.turnId ?? null, ...(Number.isFinite(at) ? { at } : {}) });
+    }
   };
 
   const fill = async (from: number) => {
@@ -77,19 +82,17 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
       await seed();
       return;
     }
-    for (const entry of page.entries) take(entry.item, entry.seqEnd, entry.turnId, replaying);
+    for (const entry of page.entries) take(entry.item, entry.seqEnd, entry.turnId, !entry.turnId);
   };
 
   const handle = async (message: StreamMessage) => {
     const { event } = message;
     if (event.type === "replacement") {
       tell({ kind: "reset" });
-      replaying = false;
       await seed();
       return;
     }
     if (event.type === "turn_started") {
-      replaying = false;
       tell({ kind: "turn", phase: "started", turnId: event.turnId ?? null });
       return;
     }
@@ -104,15 +107,11 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
       if (message.seq === 1) {
         epoch = message.epoch;
         last = 0;
-        replaying = true;
-      } else {
-        replaying = false;
-        await seed();
-      }
+      } else await seed();
     }
     if (message.seq <= last) return;
     if (message.seq > last + 1) await fill(last);
-    take(event.item, message.seq, event.turnId, replaying);
+    take(event.item, message.seq, event.turnId, !event.turnId);
   };
 
   const queue = (message: StreamMessage) => {
