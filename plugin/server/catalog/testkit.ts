@@ -99,6 +99,7 @@ export function makeKit(): Kit {
     settings: { file: "devin/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "swe", label: "SWE" }],
+    modes: [{ id: "accept-edits", label: "Code" }, { id: "bypass", label: "Bypass Permissions" }],
     mcp: { file: "devin/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
     provider: { env: { SEATWORKS_HARNESS: "devin", SEATWORKS_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
     checks: [{ path: "HOME/.devin/credentials.toml", help: "Log in to Devin once, outside any seat." }],

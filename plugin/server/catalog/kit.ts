@@ -49,6 +49,7 @@ export type HarnessSpec = {
   modelCatalog?: { command: string[]; list: string; clear: string[]; file: string; setting: string };
   checks?: { path: string; help: string }[];
   models?: ModelSpec[];
+  modes?: { id: string; label: string }[];
   mcp: {
     file: string;
     delivery: "launch" | "file";
@@ -83,6 +84,7 @@ const HARNESS_FIELDS = new Set([
   "modelCatalog",
   "checks",
   "models",
+  "modes",
   "mcp",
   "provider",
 ]);
@@ -126,6 +128,15 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   const checks = raw.checks as unknown;
   if (checks !== undefined && (!Array.isArray(checks) || checks.some((check) => typeof check?.path !== "string" || typeof check?.help !== "string"))) {
     problems.push("lists checks without a path and a help each");
+  }
+  const modes = raw.modes as { id?: unknown; label?: unknown }[] | undefined;
+  if (modes !== undefined && (!Array.isArray(modes) || modes.some((mode) => typeof mode?.id !== "string" || typeof mode?.label !== "string"))) {
+    problems.push("lists modes without an id and a label each");
+  }
+  else if (raw.baseProvider === "acp" && !modes?.length) problems.push("extends acp but lists no modes for Paseo to read without launching it");
+  else if (modes) {
+    const modeId = (raw.provider as Record<string, unknown> | undefined)?.profileModeId;
+    if (typeof modeId === "string" && !modes.some((mode) => mode.id === modeId)) problems.push(`opens seats in mode ${modeId}, which its modes do not list`);
   }
   if (raw.systemPrompt !== undefined && raw.systemPrompt !== "config" && raw.systemPrompt !== "file") problems.push(`takes its prompt as ${String(raw.systemPrompt)}, which is neither config nor file`);
   if (raw.systemPrompt === "file" && !raw.promptFile) problems.push("takes its prompt as a file but names no promptFile");

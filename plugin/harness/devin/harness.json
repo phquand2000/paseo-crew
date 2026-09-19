@@ -16,6 +16,24 @@
       "label": "SWE-2 Medium"
     }
   ],
+  "modes": [
+    {
+      "id": "accept-edits",
+      "label": "Code"
+    },
+    {
+      "id": "ask",
+      "label": "Ask"
+    },
+    {
+      "id": "plan",
+      "label": "Plan"
+    },
+    {
+      "id": "bypass",
+      "label": "Bypass Permissions"
+    }
+  ],
   "mcp": {
     "file": "devin/mcp_config.json",
     "delivery": "file",

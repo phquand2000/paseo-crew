@@ -154,6 +154,7 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
     systemPrompt: "file",
     settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml", ownedPaths: ["sandbox", "approval"] },
     models: [{ id: "m", label: "M" }],
+    modes: [{ id: "default", label: "Default" }],
     mcp: { file: "config.toml", delivery: "file", key: "mcp_servers", shape: { stdio: { command: "{command}", args: ["{...args}"] }, http: { url: "{url}" } }, transports: ["stdio", "http"] },
     provider: {},
   });
