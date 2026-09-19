@@ -57,28 +57,36 @@ function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-export async function assess(spec: SensorSpec, key: string, state: unknown, session: string, fetcher: Fetch = fetch as unknown as Fetch): Promise<Assessment> {
+export async function assess(spec: SensorSpec, key: string, state: unknown, session: string, fetcher: Fetch = fetch as unknown as Fetch, halt?: AbortSignal): Promise<Assessment> {
   const questions = Object.fromEntries(Object.entries(spec.questions).map(([name, question]) => [name, { type: "noul", instructions: question.instructions }]));
   const body = JSON.stringify({ model: spec.model, state, questions, session_id: session.slice(0, 256) });
   for (let attempt = 0; ; attempt++) {
-    const signal = AbortSignal.timeout(spec.timeoutSeconds * 1000);
+    if (halt?.aborted) throw new SensorError("let go");
+    const late = AbortSignal.timeout(spec.timeoutSeconds * 1000);
+    const signal = halt ? AbortSignal.any([halt, late]) : late;
     let status: number;
     let wait: number | undefined;
     let said = "";
     try {
       const response = await bounded(fetcher(spec.url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal }), signal);
-      if (response.ok) return readAnswers(await bounded(response.json(), signal), spec);
+      if (response.ok) {
+        const answer = await bounded(response.json(), signal).catch((error: unknown) => {
+          throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : halt?.aborted ? "let go" : `the answer is not JSON: ${error instanceof Error ? error.message : String(error)}`);
+        });
+        return readAnswers(answer, spec);
+      }
       status = response.status;
       const after = Number(response.headers.get("retry-after"));
       if (Number.isFinite(after) && after > 0) wait = Math.min(after, 10) * 1000;
       said = await bounded(response.text(), signal).catch(() => "");
     } catch (error) {
       if (error instanceof SensorError) throw error;
+      if (halt?.aborted) throw new SensorError("let go");
       if (attempt < spec.retries) {
         await pause(500 * 2 ** attempt);
         continue;
       }
-      throw new SensorError(signal.aborted ? `no answer within ${spec.timeoutSeconds} s` : `unreachable: ${error instanceof Error ? error.message : String(error)}`);
+      throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : `unreachable: ${error instanceof Error ? error.message : String(error)}`);
     }
     const retryable = status === 429 || status >= 500;
     if (!retryable || attempt >= spec.retries) throw new SensorError(`${status}: ${said.replace(/\s+/g, " ").slice(0, 200)}`, status);
@@ -122,7 +130,7 @@ export function stateOf(window: Window, noted: Fact[], brief: Brief, limit: numb
     goal: clip(mask(brief.goal), 2000),
     prompt: clip(flat(mask(window.lastInstruction())), 1000),
     role: brief.role,
-    facts: noted.map((fact) => `${fact.kind}: ${fact.quote}`),
+    facts: noted.map((fact) => mask(`${fact.kind}: ${fact.quote}`)),
     recent,
     final_message: last?.kind === "said" ? clip(flat(mask(last.text)), 1500) : "",
   });
@@ -138,6 +146,7 @@ export class Pacer {
   private running = false;
   private again = false;
   private stopped = false;
+  readonly halt = new AbortController();
   private readonly quiet: number;
   private readonly most: number;
   private readonly run: () => Promise<void>;
@@ -164,6 +173,7 @@ export class Pacer {
 
   stop(): void {
     this.stopped = true;
+    this.halt.abort();
     if (this.timer) clearTimeout(this.timer);
     this.timer = undefined;
   }
@@ -233,7 +243,7 @@ export class Assessor {
     const state = stateOf(watch.window, watch.noted, sensing.brief, sensing.spec.stateChars);
     let assessment: Assessment;
     try {
-      assessment = await assess(sensing.spec, sensing.key, state, watch.seat.id, this.deps.fetcher);
+      assessment = await assess(sensing.spec, sensing.key, state, watch.seat.id, this.deps.fetcher, pacer.halt.signal);
     } catch (error) {
       if (this.pacers.get(watch.seat.id) === pacer) this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(error instanceof Error ? error.message : String(error)));
       return;

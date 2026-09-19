@@ -13,7 +13,7 @@ function watching(timeline: FakeTimeline) {
   return { seen, stream, rows };
 }
 
-test("a seat joined mid-turn is told what it already did as replay, then what it does, each row once", async () => {
+test("a seat joined mid-turn is told what it already did as replay, and what it does from the moment of joining as live, each row once", async () => {
   const timeline = new FakeTimeline();
   timeline.add({ type: "user_message", text: "go" });
   timeline.add(call("c1", "running", "sleep 4"));
@@ -25,9 +25,9 @@ test("a seat joined mid-turn is told what it already did as replay, then what it
   assert.deepEqual(rows(), [
     { seq: 1, replay: true, epoch: "epoch-1" },
     { seq: 2, replay: true, epoch: "epoch-1" },
-    { seq: 3, replay: true, epoch: "epoch-1" },
+    { seq: 3, replay: false, epoch: "epoch-1" },
     { seq: 4, replay: false, epoch: "epoch-1" },
-  ]);
+  ], "a row that happened while the stream was being joined is live, not history");
 });
 
 test("rows sent while the client was not listening are read back from where the sequence broke, in order", async () => {

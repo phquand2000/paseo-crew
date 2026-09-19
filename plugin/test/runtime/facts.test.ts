@@ -162,10 +162,10 @@ test("a turn that reports having written files the gate never saw afterwards is 
   const gate = again(piRow(11), "g", 3, (detail) => Object.assign(detail, { command: "npm test" }));
   const start: StreamMessage = { event: { type: "turn_started", turnId: "t" } };
   const end: StreamMessage = { event: { type: "turn_completed", turnId: "t" } };
-  const skipped = play([start, ...opening(), wrote, end], rules({ gate: "npm test" }), true);
+  const skipped = play([start, fixture("pi")[1]!, wrote, end], rules({ gate: "npm test" }), true);
   assert.deepEqual(kinds(skipped).filter((kind) => kind === "unverified"), ["unverified"]);
-  assert.deepEqual(kinds(play([start, ...opening(), wrote, gate, end], rules({ gate: "npm test" }), true)).filter((kind) => kind === "unverified"), []);
-  assert.deepEqual(kinds(play([start, ...opening(), wrote, end], rules({ gate: "npm test" }), false)).filter((kind) => kind === "unverified"), [], "a turn that reported nothing claimed nothing");
+  assert.deepEqual(kinds(play([start, fixture("pi")[1]!, wrote, gate, end], rules({ gate: "npm test" }), true)).filter((kind) => kind === "unverified"), []);
+  assert.deepEqual(kinds(play([start, fixture("pi")[1]!, wrote, end], rules({ gate: "npm test" }), false)).filter((kind) => kind === "unverified"), [], "a turn that reported nothing claimed nothing");
 });
 
 const claudeTurn2 = () =>
@@ -251,5 +251,90 @@ test("a commit message written to the temp directory is not a write the gate has
   const message = again(edit, "m", 4, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/msg" }));
   const start: StreamMessage = { event: { type: "turn_started", turnId: "t" } };
   const end: StreamMessage = { event: { type: "turn_completed", turnId: "t" } };
-  assert.deepEqual(kinds(play([start, ...opening(), wrote, gate, message, end], rules({ gate: "npm test", cwd: "/work" }), true)).filter((kind) => kind === "unverified"), []);
+  assert.deepEqual(kinds(play([start, fixture("pi")[1]!, wrote, gate, message, end], rules({ gate: "npm test", cwd: "/work" }), true)).filter((kind) => kind === "unverified"), []);
+});
+
+test("irreversible commands are caught where a command starts, in any flag order, and not in quoted text", () => {
+  const destructive = new RegExp(DESTRUCTIVE, "i");
+  for (const command of ["rm -r -f build", "sudo rm -rf /", "cd x && rm -fr dist", "find . -exec rm -f {} \;", "bash -c \"rm -rf tmp\"", "git -C repo push --force", "git branch -df feat", "git branch -d -f feat", "git branch --delete --force x"]) {
+    assert.equal(destructive.test(command), true, command);
+  }
+  for (const command of ["echo 'rm -rf /'", "grep -rn 'git reset --hard' docs", "terraform -chdir=x plan", "git branch -d feat", "git branch -f feat HEAD", "rm -i a"]) {
+    assert.equal(destructive.test(command), false, command);
+  }
+});
+
+test("a failure stretch ends when the same program passes, but a red gate is not climbed out of by another script passing", () => {
+  const failedCat = piRow(15);
+  const done = piRow(11);
+  const run = (callId: string, seq: number, command: string, ok: boolean) =>
+    again(ok ? done : failedCat, callId, seq, (detail) => Object.assign(detail, { command, ...(ok ? { exitCode: 0 } : {}) }));
+  const steps = (count: number, from: number) => Array.from({ length: count }, (_, index) => again(done, `ok-${from + index}`, from + index, (detail) => (detail.command = `cat file${index}`)));
+  assert.deepEqual(kinds(play([...opening(), run("a", 2, "rg legacyFlag src", false), run("b", 3, "rg otherThing src", true), ...steps(12, 4)], rules())).filter((kind) => kind === "no-recovery"), []);
+  assert.deepEqual(kinds(play([...opening(), run("a", 2, "npm run check", false), run("b", 3, "npm run lint", true), ...steps(10, 4)], rules())).filter((kind) => kind === "no-recovery"), ["no-recovery"]);
+});
+
+test("Devin's constant exit line is not a result, so alternating commands there are not stuck", () => {
+  const exit = new RegExp(kit.harnesses.devin!.exitPattern!);
+  const ran = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.status === "completed" && JSON.stringify(message).includes("Exited with code 0"))!;
+  const cycle = [...opening(), ...Array.from({ length: 6 }, (_, index) => again(ran, `c${index}`, index + 2, (detail) => (detail.command = index % 2 ? "gh run view 123 --json status" : "sleep 30")))];
+  assert.deepEqual(kinds(play(cycle, rules({ exit }))).filter((kind) => kind === "stuck"), []);
+});
+
+test("a whole-file rewrite of a test is read against what the seat last read of it, and one with nothing to compare says nothing", () => {
+  const read = { event: { type: "timeline", item: { type: "tool_call", callId: "r", name: "Read", status: "completed", detail: { type: "read", filePath: "/work/test/a.test.ts", content: "assert.equal(a, 1);\nassert.equal(b, 2);\n// eslint-disable-next-line\n" } }, turnId: "t" }, seq: 2, epoch: fixture("pi")[1]!.epoch } as StreamMessage;
+  const write = (seq: number, content: string) => ({ event: { type: "timeline", item: { type: "tool_call", callId: `w${seq}`, name: "Write", status: "completed", detail: { type: "write", filePath: "/work/test/a.test.ts", content } }, turnId: "t" }, seq, epoch: fixture("pi")[1]!.epoch }) as StreamMessage;
+  const weakened = play([...opening(), read, write(3, "assert.equal(a, 1);\n// eslint-disable-next-line\n")], rules());
+  assert.deepEqual(kinds(weakened), ["test-weakened"], "the existing eslint-disable is not a new one");
+  assert.deepEqual(kinds(play([...opening(), write(3, "assert.equal(a, 1);\n// eslint-disable-next-line\n")], rules())), [], "a write with no before cannot be said to weaken anything");
+});
+
+test("a Codex diff cut short is not read as assertions removed", () => {
+  const edit = fixture("codex").find((message) => message.event.item?.name === "apply_patch" && message.event.item?.status === "completed")!;
+  const cut = again(edit, "p", 2, (detail) => {
+    for (const key of Object.keys(detail)) if (key !== "type") delete detail[key];
+    Object.assign(detail, { type: "edit", filePath: "test/a.test.ts", unifiedDiff: "--- a/test/a.test.ts\n+++ b/test/a.test.ts\n@@ -1,2 +1,2 @@\n assert.equal(a, 1);\n-assert.equal(b, 2);\n...[truncated 900 chars]" });
+  });
+  assert.deepEqual(kinds(play([...opening(), cut], rules())), []);
+});
+
+test("a suppression in prose is not one, and the one quoted is the one added", () => {
+  const edit = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.name === "edit" && message.event.item?.status === "completed")!;
+  const prose = again(edit, "d", 2, (detail) => Object.assign(detail, { filePath: "README.md", oldString: "", newString: "Pass it as\nany other value." }));
+  const second = again(edit, "e", 3, (detail) => Object.assign(detail, { filePath: "src/b.ts", oldString: "// eslint-disable-next-line\nf();", newString: "// eslint-disable-next-line\nf();\n// @ts-ignore\ng();" }));
+  const facts = play([...opening(), prose, second], rules());
+  assert.deepEqual(facts.map((fact) => [fact.kind, fact.quote]), [["suppressed", "src/b.ts: adds @ts-ignore"]]);
+});
+
+test("a write to the temp directory is scratch space, while one elsewhere outside the copy is outside its scope", () => {
+  const edit = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.name === "edit" && message.event.item?.status === "completed")!;
+  const temp = again(edit, "m", 2, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/msg" }));
+  const ssh = again(edit, "k", 3, (detail) => Object.assign(detail, { filePath: "/Users/me/.ssh/config" }));
+  assert.deepEqual(play([...opening(), temp, ssh], rules({ cwd: "/work", temp: "/var/folders/xy/T" })).map((fact) => [fact.kind, fact.quote]), [["outside-scope", "/Users/me/.ssh/config"]]);
+});
+
+test("the gate named in an unverified fact is masked like any other quote", () => {
+  const edit = fixture("devin").find((message) => message.event.item?.type === "tool_call" && message.event.item?.name === "edit" && message.event.item?.status === "completed")!;
+  const wrote = again(edit, "w", 2, (detail) => Object.assign(detail, { filePath: "src/a.ts" }));
+  const gate = "GITHUB_TOKEN=ghp_0123456789abcdefghijklmn npm test";
+  const facts = play([{ event: { type: "turn_started", turnId: "t" } }, fixture("pi")[1]!, wrote, { event: { type: "turn_completed", turnId: "t" } }], rules({ gate }), true);
+  assert.doesNotMatch(facts.find((fact) => fact.kind === "unverified")!.quote, /ghp_0123/);
+});
+
+test("the end of a turn that is not the one the seat is in does not close it", () => {
+  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: rules(), heardSince: () => false, goal: "", role: "Peer" }));
+  watch.see({ kind: "turn", phase: "started", turnId: "turn-2" }, 1_000);
+  watch.see({ kind: "turn", phase: "completed", turnId: "turn-1" }, 2_000);
+  assert.equal(watch.running, true);
+  watch.see({ kind: "turn", phase: "completed", turnId: "turn-2" }, 3_000);
+  assert.equal(watch.running, false);
+});
+
+test("Claude's task notifications stay in what the sensor reads, though nothing counts them", () => {
+  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: rules(), heardSince: () => false, goal: "", role: "Peer" }));
+  for (const message of claudeTurn2()) {
+    if (message.event.type !== "timeline") continue;
+    watch.see({ kind: "row", row: { item: message.event.item!, seq: message.seq!, epoch: message.epoch!, turnId: message.event.turnId ?? null, replay: false } });
+  }
+  assert.ok(watch.window.units.some((unit) => unit.kind === "call" && unit.call.name === "task_notification" && unit.call.pseudo));
 });

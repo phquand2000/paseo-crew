@@ -7,12 +7,14 @@ export type Held = "shadow" | "budget" | "nobody";
 export type Incident = {
   id: string;
   seat: string;
+  provider?: string;
   where: string;
   lane?: string;
   task?: string;
   kind: string;
   level: "page" | "attend";
   quote: string;
+  later?: string;
   facts: string[];
   p?: number;
   model?: string;
@@ -30,7 +32,7 @@ export type Incident = {
 
 export type Incidents = { next: number; items: Record<string, Incident> };
 
-export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "ackedBy" | "closed">;
+export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "ackedBy" | "closed" | "later">;
 
 export const DAY_MS = 24 * 3_600_000;
 
@@ -76,7 +78,7 @@ export function sight(incidents: Incidents, sighting: Sighting, now: number): { 
       seen.quote = sighting.quote;
       if (sighting.p !== undefined) seen.p = sighting.p;
       if (sighting.level === "page") seen.level = "page";
-    }
+    } else seen.later = sighting.quote;
     return { incident: seen, opened: false };
   }
   const incident: Incident = { ...sighting, id: `I${incidents.next}`, opened: now, last: now, count: 1, open: true };

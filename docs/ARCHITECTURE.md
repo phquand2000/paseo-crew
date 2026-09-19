@@ -325,7 +325,7 @@ Rows fold into a window per seat, keyed by call. Facts are read from them in cod
 | destructive | page | a shell command matches the destructive pattern, at the first row that carries it, while it still runs |
 | stuck | attend | one of OpenHands' four patterns since the seat was last told something: the same action and result 4 times, the same action failing 3 times, the same words 3 times, two actions alternating 3 times |
 | test-weakened / suppressed | attend | an edit takes assertions out of a test or adds a skip marker, or adds a suppression such as `@ts-ignore` |
-| no-recovery | attend | ten steps after a failed shell command, neither it nor the gate has passed |
+| no-recovery | attend | ten steps after a failed shell command, neither the same program nor the gate has passed |
 | unverified | attend | a turn that reported to the desk wrote files and did not run the gate after the last of them |
 | long-turn | attend | a turn runs past `longTurnMinutes`, or three times the seat's median turn |
 | call-failed / gate-failed / outside-scope | note | evidence for the sensor, never an incident alone |
@@ -343,7 +343,7 @@ Each finding joins the open incident for its seat and kind in `incidents.json`, 
 incident is sent once, as an INCIDENT letter to whoever supervises the project, and is quiet after
 that. Until it is sent it is decided again on every sighting: `attention.watch` off (the default) holds
 it in shadow, the day's `incidentsPerDay` holds an attention-level one, and nobody seated holds it for
-nobody. The Supervisor lists them with `incidents` and marks each `useful` or `noise` with `ack`,
+nobody until a patrol round finds somebody to tell. The Supervisor lists them with `incidents` and marks each `useful` or `noise` with `ack`,
 which closes it and is what the thresholds are tuned from. Nothing the watch concludes goes to the
 seat it watches.
 

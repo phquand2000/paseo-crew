@@ -194,3 +194,29 @@ test("an assessment still in flight when its seat is let go is not recorded", as
   await wait(10);
   assert.deepEqual(done, []);
 });
+
+test("ordinary words and identifiers that look like secret names are left alone", () => {
+  for (const text of ["maxTokens: 12345678", "const pk_order_line_items_id = 3", "Basic auth is enabled on staging", "tokenizer=cl100k_base"]) assert.equal(mask(text), text, text);
+});
+
+test("an answer that is not JSON is not paid for again", async () => {
+  const replies = server([{ status: 200 }, { status: 200, body: good }]);
+  const broken = async (url: string, init: never) => ({ ...(await replies.fetcher(url, init)), json: async () => { throw new SyntaxError("Unexpected token <"); } });
+  await assert.rejects(assess(spec({ a: noul() }), "k", {}, "s", broken as never), /the answer is not JSON/);
+  assert.equal(replies.calls.length, 1);
+});
+
+test("letting a seat go stops the request it has in flight", async () => {
+  let seen: AbortSignal | undefined;
+  const fetcher = async (_url: string, init: { signal: AbortSignal }) => {
+    seen = init.signal;
+    return new Promise<never>((_resolve, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason)));
+  };
+  const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window: new Window(), noted: [] } as never;
+  const assessor = new Assessor({ sensing: () => ({ spec: spec({ a: noul() }, { timeoutSeconds: 5 }), key: "k", brief: { goal: "g", role: "Peer" } }), done: () => {}, failed: () => {}, fetcher: fetcher as never });
+  assessor.moment(watch, true);
+  await wait(10);
+  assessor.drop("s1");
+  await wait(10);
+  assert.equal(seen?.aborted, true);
+});

@@ -32,7 +32,7 @@
 <rect x="470.0" y="166.0" width="160.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
 <text x="482.0" y="192.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Patrol</text>
 <text x="482.0" y="213.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">every 30 s: asks, idle</text>
-<text x="482.0" y="229.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">lanes, digest, status.md</text>
+<text x="482.0" y="229.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">lanes, watch, status.md</text>
 <rect x="294.0" y="260.0" width="168.0" height="80.0" rx="10" fill="#e0f5f5" stroke="#1b7c83" stroke-width="1.4"/>
 <text x="306.0" y="286.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Desk</text>
 <text x="306.0" y="307.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">ledger: lanes, tasks, asks</text>
@@ -52,7 +52,7 @@
 <path d="M222.0,322.0 L278.0,322.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)" marker-start="url(#m57606a)"/>
 <rect x="233.8" y="298.0" width="32.4" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
 <text x="250.0" y="312.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">RPC</text>
-<rect x="742.0" y="92.0" width="186.0" height="382.0" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.2" stroke-dasharray="6 5"/>
+<rect x="742.0" y="92.0" width="186.0" height="316.0" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.2" stroke-dasharray="6 5"/>
 <text x="758.0" y="116.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#59636e" text-anchor="start">Seats</text>
 <text x="800.0" y="116.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">agents Paseo runs</text>
 <rect x="756.0" y="130.0" width="158.0" height="54.0" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
@@ -67,18 +67,15 @@
 <rect x="756.0" y="328.0" width="158.0" height="54.0" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.4"/>
 <text x="767.0" y="352.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Reviewer</text>
 <text x="767.0" y="373.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
-<rect x="756.0" y="394.0" width="158.0" height="54.0" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
-<text x="767.0" y="418.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Watch</text>
-<text x="767.0" y="439.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">claude · codex · pi · devin</text>
 <path d="M662.0,140.0 L742.0,140.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
 <rect x="686.1" y="118.0" width="31.8" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
 <text x="702.0" y="132.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">runs</text>
 <path d="M630.0,300.0 L756.0,300.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
 <rect x="682.6" y="278.0" width="42.8" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
 <text x="704.0" y="292.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">letters</text>
-<path d="M756.0,394.0 L630.0,394.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
-<rect x="675.6" y="372.0" width="56.9" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="704.0" y="386.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">tool calls</text>
+<path d="M756.0,370.0 L630.0,370.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)"/>
+<rect x="675.6" y="348.0" width="56.9" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
+<text x="704.0" y="362.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">tool calls</text>
 <rect x="262.0" y="506.0" width="190.0" height="76.0" rx="10" fill="#ffffff" stroke="#6e7781" stroke-width="1.4"/>
 <text x="273.0" y="529.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#1f2328" text-anchor="start">~/.paseo/config.json</text>
 <text x="273.0" y="550.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="start">providers sw2-&lt;role&gt;-&lt;agent&gt;</text>

@@ -10,7 +10,8 @@ function line(item: Incident): string {
   const state = item.open ? sent || "open" : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
   const seen = item.count > 1 ? ` (seen ${item.count} times, last ${at(item.last)})` : "";
   const p = item.p !== undefined ? ` p=${item.p.toFixed(2)}` : "";
-  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${p}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}`;
+  const later = item.later !== undefined ? `; seen after you were told: ${clip(item.later.replace(/\s+/g, " "), 200)}` : "";
+  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${p}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}${later}`;
 }
 
 export const incidents: Tool = async ({ ctx }, caller, args) => {
@@ -53,6 +54,6 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
   });
   if (!done) return no(`There is no incident ${id} in this project. incidents lists the ones there are.`);
   ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null });
-  const later = done.told !== undefined && done.last > done.told ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.quote.replace(/\s+/g, " "), 200)}` : "";
+  const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
   return ok(`${id} marked ${verdict} and closed.${later}`);
 };

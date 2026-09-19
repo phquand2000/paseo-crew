@@ -36,7 +36,7 @@ export async function notice(services: DeskServices, project: Project, seat: Not
     for (const finding of findings) {
       const { incident, opened: isNew } = sight(
         incidents,
-        { seat: seat.id, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model },
+        { seat: seat.id, provider: seat.provider, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model },
         now,
       );
       if (incident.told !== undefined) continue;
@@ -56,6 +56,12 @@ export async function notice(services: DeskServices, project: Project, seat: Not
     return { opened, sending };
   });
   if (sending.length === 0) return { opened, sent: [], place };
+  const sent = await deliver(services, project, seat, place, sending, now);
+  return { opened, sent, place };
+}
+
+async function deliver(services: DeskServices, project: Project, seat: Noticed, place: Placed, sending: Incident[], now: number): Promise<string[]> {
+  const { ctx, roster } = services;
   let to: string | undefined;
   try {
     to = await roster.supervisorFor(project, place.lane?.opener);
@@ -72,7 +78,7 @@ export async function notice(services: DeskServices, project: Project, seat: Not
       }
     });
     for (const sent of sending) ctx.event(project, { kind: "incident.held", id: sent.id, held: "nobody" });
-    return { opened, sent: [], place };
+    return [];
   }
   const harness = seatOf(ctx.kit, seat.provider)?.harness;
   const shape = { steers: harness?.steers === true, outputless: Boolean(harness?.exitPattern) };
@@ -83,8 +89,38 @@ export async function notice(services: DeskServices, project: Project, seat: Not
       ctx.event(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
     }
   }
-  if (sending.some((incident) => incident.told !== undefined)) ctx.event(project, { kind: "incident.told", ids: sending.map((incident) => incident.id), to });
-  return { opened, sent: sending.map((incident) => incident.id), place };
+  ctx.event(project, { kind: "incident.told", ids: sending.map((incident) => incident.id), to });
+  return sending.map((incident) => incident.id);
+}
+
+export async function retell(services: DeskServices, project: Project, now = Date.now()): Promise<string[]> {
+  const { ctx } = services;
+  if (!ctx.team(project).attention.watch) return [];
+  const waiting = await ctx.incidents(project, (incidents) => Object.values(incidents.items).filter((item) => item.open && item.held === "nobody" && item.told === undefined).map((item) => ({ ...item })));
+  const told: string[] = [];
+  for (const seat of [...new Set(waiting.map((item) => item.seat))]) {
+    const mine = waiting.filter((item) => item.seat === seat);
+    const noticed = { id: seat, provider: mine[0]!.provider ?? "" };
+    const place = placeOf(project, noticed);
+    let to: string | undefined;
+    try {
+      to = await services.roster.supervisorFor(project, place.lane?.opener);
+    } catch {}
+    if (!to || to === seat) continue;
+    const sending = await ctx.incidents(project, (incidents) => {
+      const taken: Incident[] = [];
+      for (const item of mine) {
+        const incident = incidents.items[item.id];
+        if (!incident?.open || incident.held !== "nobody" || incident.told !== undefined) continue;
+        delete incident.held;
+        incident.told = now;
+        taken.push({ ...incident });
+      }
+      return taken;
+    });
+    if (sending.length > 0) told.push(...(await deliver(services, project, noticed, place, sending, now)));
+  }
+  return told;
 }
 
 export function closeIncidentsOf(services: DeskServices, project: Project, seat: string, now = Date.now()): Promise<string[]> {

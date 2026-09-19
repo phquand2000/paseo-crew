@@ -3,8 +3,11 @@ import { globToRegex, normalize } from "../../core/scope.ts";
 import { mask } from "./mask.ts";
 import type { Call, Change, Unit, Window } from "./window.ts";
 
+const COMMAND_START = "(?:^|[;&|(`{\\n]|\\$\\(|\\b(?:sudo|xargs|exec|env|nohup|time|command|then|do|else)\\s+|-exec(?:dir)?\\s+|\\b(?:ba|z)?sh\\s+-l?c\\s+)\\s*['\"]?";
+
 export const DESTRUCTIVE =
-  "\\brm\\s+-[a-z]*[rf]|git\\s+reset\\s+--hard|git\\s+clean\\s+-[a-z]*f|git\\s+push\\s+[^|;&]*(--force|-f)\\b|--force-with-lease|git\\s+branch\\s+(?-i:-D)|drop\\s+(table|database)|truncate\\s+table";
+  `${COMMAND_START}(?:rm\\s+(?:-\\S+\\s+)*(?:-[a-z]*[rf][a-z]*|--(?:recursive|force)\\b)|git\\s+(?:-C\\s+\\S+\\s+)?(?:reset\\s+--hard|clean\\s+-[a-z]*f|push\\s+[^|;&]*(?:--force|-f)\\b|branch\\s+(?:-\\S+\\s+)*(?-i:-D)\\b|branch\\b(?=[^|;&]*\\s(?:-[a-z]*d|--delete))[^|;&]*\\s(?:-[a-z]*f|--force)\\b))` +
+  "|--force-with-lease|\\bdrop\\s+(?:table|database)\\b|\\btruncate\\s+table\\b";
 
 export const TEST_PATH = "(^|/)(tests?|specs?|__tests__)/|[._-](test|spec)\\.[a-z]+$|(^|/)test_[^/]*\\.[a-z]+$";
 
@@ -24,6 +27,7 @@ export type Rules = {
   exit?: RegExp;
   gate?: string;
   cwd?: string;
+  temp?: string;
   owned?: string[];
   repeatsAt: number;
   recoverWithin: number;
@@ -55,7 +59,7 @@ function resultOf(call: Call, exit?: RegExp): string {
 
 export function stuck(units: Unit[], rules: Pick<Rules, "exit" | "repeatsAt">): string | undefined {
   const recent = units.slice(-20);
-  const calls = recent.flatMap((unit) => (unit.kind === "call" && unit.call.ended ? [unit.call] : []));
+  const calls = recent.flatMap((unit) => (unit.kind === "call" && unit.call.ended && !unit.call.pseudo ? [unit.call] : []));
   const same = (list: string[]) => list.every((value) => value === list[0]);
   const n = rules.repeatsAt;
   const tail = calls.slice(-(n + 1));
@@ -73,7 +77,7 @@ export function stuck(units: Unit[], rules: Pick<Rules, "exit" | "repeatsAt">): 
     }
   }
   const cycle = calls.slice(-2 * n);
-  if (cycle.length === 2 * n) {
+  if (!rules.exit && cycle.length === 2 * n) {
     const actions = cycle.map(actionOf);
     const results = cycle.map((call) => resultOf(call, rules.exit));
     const alternates = actions[0] !== actions[1] && actions.every((action, index) => action === actions[index % 2]) && results.every((result, index) => result === results[index % 2]);
@@ -95,6 +99,7 @@ function escapes(path: string, rules: Rules): boolean {
 
 function outside(path: string, rules: Rules): boolean {
   if (!path || /\s/.test(path) || !rules.cwd) return false;
+  if (rules.temp && isAbsolute(path) && !relative(rules.temp, path).startsWith("..")) return false;
   const rel = isAbsolute(path) ? relative(rules.cwd, path) : normalize(path);
   if (rel.startsWith("..")) return true;
   if (!rules.owned || rules.owned.length === 0) return false;
@@ -107,10 +112,16 @@ export function onDetail(call: Call, rules: Rules): Fact[] {
   return command && rules.destructive.test(command) ? [{ kind: "destructive", level: "page", quote: flat(command) }] : [];
 }
 
-function sides(detail: Call["detail"]): [string, string] {
+const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
+
+function sides(detail: Call["detail"], known?: (path: string) => string | undefined): [string, string] | undefined {
   const diff = str(detail.unifiedDiff);
   if (diff) {
-    const lines = diff.split("\n");
+    let lines = diff.split("\n");
+    if (/^\.\.\.\[truncated \d+ chars\]$/.test(lines.at(-1) ?? "")) {
+      lines = lines.slice(0, -1);
+      while (lines.length > 0 && !/^( |@@)/.test(lines.at(-1)!)) lines.pop();
+    }
     const taken = (sign: string, header: string) =>
       lines
         .filter((line) => line.startsWith(sign) && !line.startsWith(header))
@@ -118,17 +129,27 @@ function sides(detail: Call["detail"]): [string, string] {
         .join("\n");
     return [taken("-", "---"), taken("+", "+++")];
   }
-  return [str(detail.oldString), str(detail.newString) || str(detail.content)];
+  if (detail.type === "write") {
+    const before = known?.(str(detail.filePath));
+    return before === undefined ? undefined : [before, str(detail.content)];
+  }
+  return [str(detail.oldString), str(detail.newString)];
 }
 
-export function onSettle(call: Call, rules: Rules): Fact[] {
+function hits(text: string, pattern: RegExp): string[] {
+  return text.match(new RegExp(pattern.source, "gi")) ?? [];
+}
+
+export function onSettle(call: Call, rules: Rules, known?: (path: string) => string | undefined): Fact[] {
   const facts: Fact[] = [];
   const detail = call.detail;
   const bad = failed(call, rules.exit);
   if (bad) facts.push({ kind: isGate(call, rules.gate) ? "gate-failed" : "call-failed", level: "note", quote: flat(describe(call)) });
-  if ((detail.type === "edit" || detail.type === "write") && !bad) {
+  const writes = detail.type === "edit" || detail.type === "write";
+  const both = writes && !bad ? sides(detail, known) : undefined;
+  if (both) {
     const path = str(detail.filePath);
-    const [before, after] = sides(detail);
+    const [before, after] = both;
     if (rules.testPath.test(path) && (before || after)) {
       const lost = count(before, ASSERTION) - count(after, ASSERTION);
       const muted = count(after, SKIPPED) > count(before, SKIPPED);
@@ -136,19 +157,26 @@ export function onSettle(call: Call, rules: Rules): Fact[] {
         facts.push({ kind: "test-weakened", level: "attend", quote: muted ? `${flat(path)}: adds a skip marker` : `${flat(path)}: ${count(before, ASSERTION)} assertions become ${count(after, ASSERTION)}` });
       }
     }
-    const added = after.match(rules.suppressed)?.[0];
-    if (added && count(after, rules.suppressed.source) > count(before, rules.suppressed.source)) facts.push({ kind: "suppressed", level: "attend", quote: `${flat(path)}: adds ${added}` });
+    if (!PROSE.test(path)) {
+      const was = hits(before, rules.suppressed);
+      const now = hits(after, rules.suppressed);
+      const added = now.find((hit) => now.filter((other) => other === hit).length > was.filter((other) => other === hit).length);
+      if (added) facts.push({ kind: "suppressed", level: "attend", quote: `${flat(path)}: adds ${flat(added, 60)}` });
+    }
   }
-  if ((detail.type === "edit" || detail.type === "write") && outside(str(detail.filePath), rules)) {
+  if (writes && outside(str(detail.filePath), rules)) {
     facts.push({ kind: "outside-scope", level: "note", quote: flat(str(detail.filePath)) });
   }
   return facts;
 }
 
+const RUNNERS = new Set(["npm", "pnpm", "yarn", "bun", "npx", "bunx", "uv", "uvx", "poetry", "pipenv", "python", "python3", "cargo", "go", "make", "just", "deno", "node", "dotnet", "mvn", "gradle", "./gradlew", "git", "gh", "docker", "kubectl"]);
+
 export function head(command: string): string {
   const main = command.split(/&&|;/).map((part) => part.trim()).filter((part) => part && !/^cd\s/.test(part)).at(-1) ?? command;
   const words = main.split("|")[0]!.trim().split(/\s+/).filter((word) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word));
-  return words.slice(0, 2).join(" ");
+  if (!RUNNERS.has(words[0] ?? "")) return words[0] ?? "";
+  return words.slice(0, /^(run|exec|-m|x|dlx)$/.test(words[1] ?? "") ? 3 : 2).join(" ");
 }
 
 export class Recovery {
@@ -190,11 +218,11 @@ export function unverified(window: Window, rules: Rules, heard: boolean): Fact[]
   });
   if (lastWrite < 0 || lastGate > lastWrite) return [];
   const written = new Set(calls.filter(inside).map((call) => str(call.detail.filePath)));
-  return [{ kind: "unverified", level: "attend", quote: `${written.size} file${written.size === 1 ? "" : "s"} written and \`${rules.gate}\` not run after the last of them` }];
+  return [{ kind: "unverified", level: "attend", quote: `${written.size} file${written.size === 1 ? "" : "s"} written and \`${flat(rules.gate, 100)}\` not run after the last of them` }];
 }
 
-export function afterChange(change: Change, rules: Rules): Fact[] {
+export function afterChange(change: Change, rules: Rules, known?: (path: string) => string | undefined): Fact[] {
   const call = change.call;
-  if (!call) return [];
-  return [...(change.detailed ? onDetail(call, rules) : []), ...(change.settled ? onSettle(call, rules) : [])];
+  if (!call || call.pseudo) return [];
+  return [...(change.detailed ? onDetail(call, rules) : []), ...(change.settled ? onSettle(call, rules, known) : [])];
 }

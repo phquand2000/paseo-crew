@@ -1558,8 +1558,10 @@ test("an irreversible command a Peer starts reaches the Supervisor before the ca
   assert.match(told, /What was seen: rm -rf build/);
   assert.match(told, /not a verdict/);
   assert.ok(!timeline.rows.some((row) => row.item.status === "completed"), "the call it warns about is still running");
+  assert.deepEqual(h.runtime.outbox.letters().filter((letter) => letter.to === peer), [], "nothing the watch concluded is even queued for the seat it watches");
+  await h.idle(peer);
   const watched = h.agents.get(peer)!;
-  assert.deepEqual([...watched.sent, ...watched.steered].filter((text) => /INCIDENT|destructive|rm -rf/.test(text)), [], "nothing the watch concluded reaches the seat it watches");
+  assert.deepEqual([...watched.sent, ...watched.steered].filter((text) => /INCIDENT|destructive|rm -rf|incident/i.test(text)), [], "nor reaches it when its turn ends");
   h.runtime.dispose();
 });
 

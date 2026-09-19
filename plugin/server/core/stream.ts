@@ -66,7 +66,8 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
     if (page.error) throw new Error(page.error);
     epoch = page.epoch;
     last = 0;
-    for (const entry of page.entries) take(entry.item, entry.seqEnd, entry.turnId, true);
+    const live = new Set(early.flatMap((message) => (message.event.type === "timeline" && message.epoch === page.epoch && typeof message.seq === "number" ? [message.seq] : [])));
+    for (const entry of page.entries) take(entry.item, entry.seqEnd, entry.turnId, !entry.turnId || !live.has(entry.seqEnd));
     const active = page.agent?.activeTurn;
     if (active) {
       const at = Date.parse(active.startedAt ?? "");

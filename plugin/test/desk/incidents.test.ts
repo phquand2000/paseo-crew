@@ -8,7 +8,7 @@ import { tempDir } from "../../server/core/testing.ts";
 import { DeskContext } from "../../server/desk/context.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";
-import { closeIncidentsOf, notice } from "../../server/desk/notice.ts";
+import { closeIncidentsOf, notice, retell } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
 import { decide } from "../../server/runtime/watch/rules.ts";
@@ -116,4 +116,28 @@ test("an incident closed because its seat went away still waits to be marked", a
   assert.match(listed.text, /I1 \[attend, closed, not sent: shadow, not marked\]/);
   assert.equal((await ack(services, supervisor, { id: "I1", verdict: "useful" })).ok, true);
   assert.match((await incidents(services, supervisor, {})).text, /Nothing waiting to be marked/);
+});
+
+test("what was held for nobody is told by the round once somebody sits down, and a sighting after the letter is kept beside what was told", async () => {
+  const { project, services, supervisor, posted, seated } = desk(true);
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  await notice(services, project, peer, [{ kind: "destructive", level: "page", quote: "rm -rf src", facts: ["destructive"] }]);
+  assert.deepEqual(await retell(services, project), [], "nobody yet");
+  seated.supervisor = "sup";
+  assert.deepEqual(await retell(services, project), ["I1"]);
+  assert.match(posted[0]!.text, /rm -rf src/);
+  assert.deepEqual(await retell(services, project), [], "told once");
+  await notice(services, project, peer, [{ kind: "destructive", level: "page", quote: "git push --force origin main", facts: ["destructive"] }]);
+  const acked = await ack(services, supervisor, { id: "I1", verdict: "useful" });
+  assert.match(acked.text, /after you were told: git push --force origin main/);
+  assert.equal(loadIncidents(project.state).items.I1!.quote, "rm -rf src");
+});
+
+test("an incident is never addressed to the seat it is about", async () => {
+  const { project, services, posted, seated } = desk(true);
+  seated.supervisor = "peer-1";
+  const result = await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [{ kind: "destructive", level: "page", quote: "rm -rf build", facts: ["destructive"] }]);
+  assert.deepEqual(result.sent, []);
+  assert.deepEqual(posted, []);
+  assert.equal(loadIncidents(project.state).items.I1!.held, "nobody");
 });

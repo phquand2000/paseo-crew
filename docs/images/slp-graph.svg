@@ -33,7 +33,7 @@
 <text x="630.0" y="231.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">intent · lanes · attention</text>
 <rect x="770.0" y="186.0" width="150.0" height="60.0" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
 <text x="845.0" y="210.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Watch</text>
-<text x="845.0" y="231.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">reads turn endings</text>
+<text x="845.0" y="231.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">the desk, not a seat</text>
 <rect x="536.0" y="324.0" width="200.0" height="60.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1"/>
 <rect x="530.0" y="318.0" width="200.0" height="60.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
 <text x="630.0" y="342.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Lead</text>
@@ -69,7 +69,7 @@
 <text x="750.0" y="180.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">incident</text>
 <path d="M736.0,348.0 L845.0,348.0 L845.0,246.0" fill="none" stroke="#bf3989" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#mbf3989)"/>
 <rect x="853.0" y="276.0" width="72.5" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="889.2" y="290.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">turn endings</text>
+<text x="889.2" y="290.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">live timelines</text>
 <rect x="853.0" y="294.0" width="94.5" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
 <text x="900.2" y="308.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">of Leads, Peers,</text>
 <rect x="853.0" y="312.0" width="63.7" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>

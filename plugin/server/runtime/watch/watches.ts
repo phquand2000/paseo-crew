@@ -43,7 +43,11 @@ export class SeatWatch {
       this.noted.length = 0;
       return [];
     }
-    if (seen.kind === "turn") return seen.phase === "started" ? this.started(seen.turnId, seen.at ?? now) : this.ended(seen.phase, now);
+    if (seen.kind === "turn") {
+      if (seen.phase === "started") return this.started(seen.turnId, seen.at ?? now);
+      if (this.running && this.turnId !== null && seen.turnId !== null && seen.turnId !== this.turnId) return [];
+      return this.ended(seen.phase, now);
+    }
     const { row } = seen;
     const change = this.window.add(row);
     if (row.replay) return [];
@@ -55,8 +59,8 @@ export class SeatWatch {
     }
     const rules = this.rules();
     if (!rules) return [];
-    const facts = afterChange(change, rules);
-    if (change.settled && change.call) {
+    const facts = afterChange(change, rules, (path) => this.lastRead(path, change.call?.id));
+    if (change.settled && change.call && !change.call.pseudo) {
       facts.push(...this.recovery.step(change.call, rules));
       const pattern = stuck(this.window.sinceInstruction(), rules);
       if (pattern) facts.push({ kind: "stuck", level: "attend", quote: pattern });
@@ -97,6 +101,16 @@ export class SeatWatch {
     const pattern = stuck(this.window.sinceInstruction(), context.rules);
     if (pattern) facts.push({ kind: "stuck", level: "attend", quote: pattern });
     return this.fresh(facts);
+  }
+
+  private lastRead(path: string, skip?: string): string | undefined {
+    for (let index = this.window.units.length - 1; index >= 0; index--) {
+      const unit = this.window.units[index]!;
+      if (unit.kind !== "call" || unit.call.id === skip || unit.call.detail.filePath !== path) continue;
+      if (unit.call.detail.type === "read" && typeof unit.call.detail.content === "string") return unit.call.detail.content;
+      if (unit.call.detail.type === "write" && unit.call.ended && typeof unit.call.detail.content === "string") return unit.call.detail.content;
+    }
+    return undefined;
   }
 
   brief(): SeatContext | undefined {
@@ -200,7 +214,7 @@ export class Watches {
     const facts = watch.see(seen);
     this.found(watch, facts);
     if (!this.deps.moment) return;
-    if (seen.kind === "turn" && seen.phase !== "started") this.deps.moment(watch, true);
+    if (seen.kind === "turn" && seen.phase !== "started" && !watch.running) this.deps.moment(watch, true);
     else if (seen.kind === "row" && !seen.row.replay && watch.running) this.deps.moment(watch, facts.some((fact) => fact.kind === "call-failed" || fact.kind === "gate-failed" || fact.level === "page"));
   }
 

@@ -22,6 +22,7 @@ export type Call = {
   seq: number;
   replay: boolean;
   ended: boolean;
+  pseudo: boolean;
 };
 
 export type Unit =
@@ -55,7 +56,7 @@ export class Window {
   add(row: StreamRow): Change {
     const item = row.item;
     const type = text(item.type);
-    if (type === "tool_call") return pseudo(item) ? { first: false, detailed: false, settled: false } : this.called(row);
+    if (type === "tool_call") return this.called(row);
     if (type === "user_message") this.push({ kind: "user", text: text(item.text) });
     else if (type === "assistant_message") this.join("said", text(item.text), text(item.messageId) || undefined);
     else if (type === "reasoning") this.join("thought", text(item.text));
@@ -110,6 +111,7 @@ export class Window {
         seq: row.seq,
         replay: row.replay,
         ended: TERMINAL.has(status),
+        pseudo: pseudo(item),
       };
       this.calls.set(id, call);
       this.push({ kind: "call", call });
