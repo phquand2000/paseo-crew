@@ -1,6 +1,6 @@
 ---
 name: test-proof-debt-audit
-description: "Audits one named behavioral claim and the test, validator, benchmark, or gate cited as its proof, and says whether that proof would notice the behavior disappearing. Use when a brief or review focus asks whether a specific proof really proves its claim. Not for ordinary implementation, a failing test, weak coverage, or the mere presence of mocks."
+description: "Audits one named behavioral claim and the test, validator, benchmark, or gate cited as its proof, and says whether that proof would notice the behavior disappearing. Use when a brief or review focus asks whether a specific proof really proves its claim. Not for reviewing a change for correctness, ordinary implementation, a failing test, weak coverage, or tests that merely use mocks."
 ---
 
 # Test proof debt audit
@@ -18,4 +18,15 @@ Expected values that exist only because of history are debt: a test pinning a re
 
 ## Ends in
 
-One entry per proof in `done`: location, claimed behavior, actual observation, a scenario where it passes with the behavior broken, your disposition, and the smallest replacement; for assessment only, report and stop. For a broad audit or concrete replacement routes, read [references/proof-debt-catalog.md](references/proof-debt-catalog.md).
+One entry per proof in `done`: location, claimed behavior, actual observation, a scenario where it passes with the behavior broken, your disposition, and the smallest replacement; for assessment only, report and stop. One entry, as an illustration of the depth rather than a template for its content:
+
+```text
+Location      test/export.test.ts:41 "exports every row"
+Claim         the CSV export writes one line per order
+Observes      that the file writer was called, never the lines it wrote
+Passes broken yes: an export that writes the header and no rows still calls the writer
+Disposition   replace
+Replacement   export three fixture orders to a temporary file and assert its three data lines
+```
+
+For a broad audit or concrete replacement routes, read [references/proof-debt-catalog.md](references/proof-debt-catalog.md).

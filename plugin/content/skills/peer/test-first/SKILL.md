@@ -1,6 +1,6 @@
 ---
 name: test-first
-description: "Puts evidence before behavior: chooses the proof that fits the change, settles the contract a test may use, then adds behavior one failing test at a time at a settled seam. Use when a brief changes behavior, fixes a bug whose cause is known, or refactors and its contract is settled. Not for a failure whose cause is unknown, which is diagnosing-bugs."
+description: "Puts evidence before behavior: chooses the proof that fits the change, settles the contract a test may use, then adds behavior one failing test at a time at a settled seam. Use when a brief changes behavior, fixes a bug whose cause is known, or refactors or splits code that must keep behaving the same, and its contract is settled. Not for a failure whose cause is unknown, which is diagnosing-bugs."
 ---
 
 # Test-first

@@ -1,6 +1,6 @@
 ---
 name: ultra-review
-description: "Hunts bugs across one named scope with ten independent read-only scouts, or packs the scope for an outside reviewer, with Open Code Review selecting the files and grouping them by review rule. Use when risky work is about to land, a missed bug would cost more than ten scouts, or someone outside the project is to review it. Not for reviewing one change, which is one reviewer."
+description: "Hunts bugs across one named scope with ten independent read-only scouts, or packs the scope for an outside reviewer, with Open Code Review selecting the files and grouping them by review rule. Use when risky work is about to land, a missed bug would cost more than ten scouts, or someone outside the project is to review code they won't clone, who gets it as one packed file. Not for reviewing one change, which is one reviewer."
 ---
 
 # Ultra review

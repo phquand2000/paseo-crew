@@ -28,6 +28,8 @@ Re-anchor on this list whenever you're unsure which step is active.
 - `debate-with-proof`: `debate`, plus Verifiers as needed and a draft audit by default.
 - `high-risk`: Independent + Premise Challenger, optionally one Specialist, Verifiers as needed, mandatory draft audit.
 
+The sentence reads like: "`debate-with-proof`, because the choice between the two queue designs turns on one disputed throughput fact a Verifier can settle."
+
 Reviewers run one role's model unless you name another with `start_review`'s `role`, and one kit may hold several roles that review. Where they are the same model, sealing removes contamination but not correlation: treat agreement between the Independent and the Challenger as weak evidence, look hardest where they agree without independent sources, and list "single model family" under the verdict's limitations when that is what it was.
 
 ## 1. Neutral brief
@@ -49,7 +51,7 @@ Requested output: <the work product the requester expects>
 Case output contract: <the sections or fields each reviewer returns in done's findings>
 ```
 
-Build the output contract from the request's natural units, the same ones the decision model keeps, asking only for what comparing evidence needs: direct evidence, inference labels, material unknowns, falsifiers, and an actionable conclusion. Force no heading that doesn't fit the case; [references/report-format.md](references/report-format.md) holds adaptable patterns. Reviewers read the lane branch, or a task's branch when you start them with that `task`; you do not commit or merge yourself. Work still on a task's branch is read by starting each reviewer with that task, and anything not yet committed reaches a branch through a task first. Name the commit they read as the snapshot.
+Build the output contract from the request's natural units, the same ones the decision model keeps, asking only for what comparing evidence needs: direct evidence, inference labels, material unknowns, falsifiers, and an actionable conclusion. Force no heading that doesn't fit the case; [references/report-format.md](references/report-format.md) holds adaptable patterns, the focus texts, and the claim types and statuses. Reviewers read the lane branch, or a task's branch when you start them with that `task`; you do not commit or merge yourself. Work still on a task's branch is read by starting each reviewer with that task, and anything not yet committed reaches a branch through a task first. Name the commit they read as the snapshot.
 
 **Framing lint.** Repair the brief until each answer is yes: it preserves the original request; no wording implies a preferred verdict; every fact has provenance and unverified premises are claims; constraints are apart from preferences; no option is excluded without authority; reviewers can investigate independently; the output contract keeps every unit the requester expects and creates no filler. `ask` the owner only when missing authority or scope would change the decision. Then start Round 1 at once, with no further analysis.
 
@@ -61,39 +63,55 @@ Start every reviewer in the same turn with the same brief and output contract an
 - **Premise Challenger:** test the framing and shared premises and build at least one viable counterfactual, stating what it would make unnecessary. Don't manufacture disagreement; the incumbent framing may survive.
 - **Specialist:** apply only the requested domain semantics; expertise doesn't outrank stronger evidence or product authority.
 
-Every focus opens with:
+Every focus opens and closes with the two texts under "Focus opening and closing" in [references/report-format.md](references/report-format.md), copied verbatim.
 
-```text
-Work as an autonomous reviewer with independent judgment inside the authorized scope. Challenge false premises, choose what evidence to inspect, and make ordinary analytical decisions without waiting. Do not look for or read other reviewers' work or council files. Begin the work directly, without a preamble.
-```
-
-and closes with:
-
-```text
-This is analysis only. Do not optimize for agreement. Distinguish direct observations from inference, and state what evidence would prove your position wrong. Put the report in done's findings; use verdict reopen only if the decision question rests on a false premise, otherwise accept.
-```
-
-Reveal no opinion of yours, other report or agent ID. End your turn after starting them; each handback arrives as mail with its file path, and you open none until every Round 1 handback is in. A reviewer that goes silent or fails gets one `message` asking it to finish, or one fresh replacement with the same focus; a report missing decision content gets one `message` asking for that content, never for cosmetics. `lens` issues no verdict without its reviewer, `debate` tiers may continue with one core reviewer missing only as `DEGRADED`, and `high-risk` needs both core reviewers. If decision-relevant source moved past the snapshot, stop and report the mismatch.
+- Reveal no opinion of yours, other report or agent ID.
+- End your turn after starting them. Each handback arrives as mail with its file path; open none until every Round 1 handback is in.
+- A reviewer that goes silent or fails gets one `message` asking it to finish, or one fresh replacement with the same focus. A report missing decision content gets one `message` asking for that content, never for cosmetics.
+- `lens` issues no verdict without its reviewer; `debate` tiers may continue with one core reviewer missing only as `DEGRADED`; `high-risk` needs both core reviewers.
+- If decision-relevant source moved past the snapshot, stop and report the mismatch.
 
 ## 3. Decision model
 
 Reduce the reports to the smallest model that keeps every unit the verdict needs: three to five material propositions for a focused decision; one row per supplied finding for an audit; one row per gate or obligation for a plan review; a bounded timeline and causal model for an incident; alternatives with discriminating tests for research. Never merge, cap or drop requested findings to fit; decompose by sub-question instead.
 
-Type a claim when its type changes the evidence bar: `FACT`, `INFERENCE`, `CAUSAL CLAIM`, `FORECAST`, `VALUE / PREFERENCE`, `AUTHORITATIVE CONSTRAINT`. Only facts get factual verification. Statuses: `verified`, `falsified`, `authoritative`, `supported inference`, `contested inference`, `unresolved`, `insufficient coverage`, `snapshot mismatch`. Insufficient coverage never shows a proposition false.
+Type a claim only when its type changes the evidence bar, and give each proposition a status; both lists are under "Claim types and statuses" in the report patterns. Only facts get factual verification, and insufficient coverage never shows a proposition false.
 
 ## 4. Verification and cross-examination
 
-For a material factual dispute, start one to three Verifiers with `start_review`, each focus holding one proposition verbatim, the sources, the opening instruction, and a distinct mandate: find supporting evidence, find disconfirming evidence, or audit coverage. Never send identical focuses as a vote. Each returns the proposition, mandate, sources searched, direct observations with locations, a result (`verified`, `falsified`, `partial`, `insufficient coverage`, `snapshot mismatch`) and limitations.
+For a material factual dispute, start one to three Verifiers with `start_review`, each focus holding one proposition verbatim, the sources, the opening text, a distinct mandate (find supporting evidence, find disconfirming evidence, or audit coverage), and the Verifier result from the report patterns. Never send identical focuses as a vote.
 
 When evidence leaves a material disagreement, `message` the original reviewer only the disputed unit and its evidence, and require the cross-examination response from the report patterns in a second `done`. Skip both steps when every report agrees and no factual or framing dispute remains.
 
 ## 5. Draft, audit, verdict
 
-Draft alone, weighing: the authoritative outcome and hard constraints, options they exclude, verified and unresolved premises, fit under realistic failure, robustness if an assumption is wrong, reversibility, and whether serious dissent has stronger evidence. Don't vote or average: the number of reviewers never creates authority. Read the positions in an order you did not choose for a reason — reverse the order you received them in, and check whether that changes which one you were about to favour. A position read first is favoured for being first, which is not evidence.
+**Draft alone**, weighing:
 
-The draft audit is optional in `debate` (use it for material dissent, high-impact unresolved claims or a fragile chain), the default in `debate-with-proof`, and mandatory in `high-risk`. The Auditor is a reviewer started with `start_review` whose focus holds the opening instruction without its ban on reading other work, the closing one, the brief, every valid report attributed by role, the decision model, verified evidence, the draft and material dissent, with no agent IDs, and asks for the audit response from the report patterns. It can't replace the verdict: resolve each material finding by revising, removing the claim, or returning it to its step.
+- the authoritative outcome and hard constraints, and the options they exclude;
+- verified and unresolved premises;
+- fit under realistic failure, and robustness if an assumption is wrong;
+- reversibility;
+- whether serious dissent has stronger evidence.
 
-The verdict, in the requester's vocabulary, conveys the decision and why, accepted versus rejected or unproven claims, required action and owner boundaries, do-not-touch constraints, validation, material dissent and your answer, limitations, and reopen conditions; a supplied finding set keeps a disposition per finding. Say whether the run was degraded, coverage incomplete, or an optional audit skipped. Write it to `$SEATWORKS_STATE/council/<case-id>.md`, not into the repository.
+Don't vote or average: the number of reviewers never creates authority. Read the positions in reverse order of arrival and check whether that changes which one you favour; being read first is not evidence.
+
+**Audit** the draft: optional in `debate` (use it for material dissent, high-impact unresolved claims or a fragile chain), the default in `debate-with-proof`, mandatory in `high-risk`. The Auditor is a reviewer started with `start_review` whose focus holds, with no agent IDs:
+
+- the opening text without its ban on reading other work, and the closing text;
+- the brief, every valid report attributed by role, the decision model and verified evidence;
+- the draft and material dissent;
+- the ask for the draft-verdict audit from the report patterns.
+
+The audit doesn't replace the verdict: resolve each material finding by revising, removing the claim, or returning it to its step.
+
+**The verdict**, in the requester's vocabulary, conveys:
+
+- the decision and why, and accepted versus rejected or unproven claims, with a disposition per finding when a finding set was supplied;
+- required action and owner boundaries, do-not-touch constraints, and validation;
+- material dissent and your answer to it;
+- limitations and reopen conditions, and whether the run was degraded, coverage incomplete, or an optional audit skipped.
+
+Write it to `$SEATWORKS_STATE/council/<case-id>.md`, not into the repository.
 
 ## Stopping rules
 

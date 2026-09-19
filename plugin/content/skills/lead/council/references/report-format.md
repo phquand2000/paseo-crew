@@ -1,6 +1,26 @@
 # Council report patterns
 
-Open this when you write the case output contract, and again for a cross-examination or a draft audit. The chosen pattern goes into each reviewer's `focus` and comes back in its `done` findings. Adapt what the case needs; never copy every heading into every focus. Every contract separates direct observation, authority, inference and uncertainty, and shows which action each conclusion changes.
+Open this when you write the case output contract and the focuses, and again for the decision model, a verification, a cross-examination or a draft audit. The chosen pattern goes into each reviewer's `focus` and comes back in its `done` findings. Adapt what the case needs; never copy every heading into every focus. Every contract separates direct observation, authority, inference and uncertainty, and shows which action each conclusion changes.
+
+## Focus opening and closing
+
+Every focus opens with:
+
+```text
+Work as an autonomous reviewer with independent judgment inside the authorized scope. Challenge false premises, choose what evidence to inspect, and make ordinary analytical decisions without waiting. Do not look for or read other reviewers' work or council files. Begin the work directly, without a preamble.
+```
+
+and closes with:
+
+```text
+This is analysis only. Do not optimize for agreement. Distinguish direct observations from inference, and state what evidence would prove your position wrong. Put the report in done's findings; use verdict reopen only if the decision question rests on a false premise, otherwise accept.
+```
+
+## Claim types and statuses
+
+Types, used when the type changes the evidence bar: `FACT`, `INFERENCE`, `CAUSAL CLAIM`, `FORECAST`, `VALUE / PREFERENCE`, `AUTHORITATIVE CONSTRAINT`.
+
+Statuses: `verified`, `falsified`, `authoritative`, `supported inference`, `contested inference`, `unresolved`, `insufficient coverage`, `snapshot mismatch`.
 
 ## Focused decision
 
@@ -46,6 +66,17 @@ For the decision model's cross-cutting claims.
 | ID | Type | Proposition | Source/excerpt | Evidence bar | Status | Verdict impact |
 |---|---|---|---|---|---|---|
 | <P1> | <FACT, INFERENCE, ...> | <one claim> | <excerpt or location> | <what settles it> | <a council status> | <High / Medium / Low> |
+```
+
+## Verifier result
+
+```text
+Proposition: <verbatim, as the focus gave it>
+Mandate: <supporting evidence | disconfirming evidence | coverage audit>
+Sources searched: <what was read>
+Direct observations: <each with its location>
+Result: <verified | falsified | partial | insufficient coverage | snapshot mismatch>
+Limitations: <what could not be checked>
 ```
 
 ## Cross-examination response
