@@ -1,0 +1,75 @@
+import assert from "node:assert/strict";
+import { dirname, join } from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { loadKit } from "../../server/catalog/kit.ts";
+import { resolveTeam } from "../../server/catalog/team.ts";
+import { tempDir } from "../../server/core/testing.ts";
+import { DeskContext } from "../../server/desk/context.ts";
+import { loadIncidents } from "../../server/desk/incidents.ts";
+import { notice } from "../../server/desk/notice.ts";
+import type { DeskServices } from "../../server/desk/services.ts";
+import { ack, incidents } from "../../server/desk/tools/incidents.ts";
+import { decide } from "../../server/runtime/watch/rules.ts";
+
+const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
+const questions = Object.values(kit.sensors)[0]!.questions;
+
+function desk() {
+  const root = tempDir("sw2-incidents-");
+  const project = { root, slug: "p", state: join(root, "state") };
+  const ctx = new DeskContext({ kit, outbox: { post: async () => "sent" }, log: () => {}, teamFor: () => resolveTeam(kit), indexesFor: () => [] });
+  const services = { ctx } as unknown as DeskServices;
+  const supervisor = { id: "sup", role: kit.roles.find((role) => role.role === "supervisor")!, title: "sup", project };
+  return { project, services, supervisor };
+}
+
+const stuck = { kind: "stuck", level: "attend" as const, quote: "the same action failing 3 times", facts: ["stuck"] };
+
+test("the same thing seen of one seat, however often and however concurrently, is one incident", async () => {
+  const { project, services } = desk();
+  const seat = { id: "peer-1", title: "Peer" };
+  const results = await Promise.all([notice(services, project, seat, [stuck]), notice(services, project, seat, [stuck]), notice(services, project, seat, [{ ...stuck, quote: "again" }])]);
+  assert.equal(results.flatMap((result) => result.opened).length, 1, "only the first sighting opens anything");
+  const held = loadIncidents(project.state);
+  const items = Object.values(held.items);
+  assert.equal(items.length, 1);
+  assert.equal(items[0]!.count, 3);
+  assert.equal(items[0]!.quote, "again", "the latest words are kept");
+  await notice(services, project, { id: "peer-2" }, [stuck]);
+  await notice(services, project, seat, [{ kind: "destructive", level: "page", quote: "rm -rf /", facts: ["destructive"] }]);
+  assert.equal(Object.keys(loadIncidents(project.state).items).length, 3, "another seat, or another kind, is another incident");
+});
+
+test("a mark goes on the incident named and closes it, and a later sighting opens a new one", async () => {
+  const { project, services, supervisor } = desk();
+  await notice(services, project, { id: "peer-1" }, [stuck]);
+  await notice(services, project, { id: "peer-2" }, [stuck]);
+  assert.equal((await ack(services, supervisor, { id: "I9", verdict: "useful" })).ok, false);
+  assert.equal((await ack(services, supervisor, { id: "I1", verdict: "maybe" })).ok, false);
+  const reply = await ack(services, supervisor, { id: "I2", verdict: "noise", note: "a normal retry" });
+  assert.equal(reply.ok, true, reply.text);
+  const held = loadIncidents(project.state).items;
+  assert.equal(held.I2!.label, "noise");
+  assert.equal(held.I2!.open, false);
+  assert.equal(held.I1!.label, undefined, "the other incident is untouched");
+  assert.equal(held.I1!.open, true);
+  const reopened = await notice(services, project, { id: "peer-2" }, [stuck]);
+  assert.deepEqual(reopened.opened.map((incident) => incident.id), ["I3"]);
+  const listed = await incidents(services, supervisor, {});
+  assert.match(listed.text, /2 open:/);
+  assert.match(listed.text, /I3 \[attend/);
+});
+
+test("Jev alone raises only what its questions may raise alone; the rest need a fact that agrees", () => {
+  const noted = [{ kind: "outside-scope", level: "note" as const, quote: "/etc/hosts" }];
+  const answers = Object.fromEntries(Object.keys(questions).map((name) => [name, 0.99]));
+  answers.meaningful_progress = 0.95;
+  const found = decide([], { answers, model: "typesafe/jev-1.13-20260917" }, questions, noted);
+  assert.deepEqual(found.map((finding) => finding.kind), ["unsafe_action", "needs_human", "work_off_track", "goal_drift", "injected_intent"]);
+  assert.equal(found[0]!.level, "page", "what is irreversible goes first");
+  assert.deepEqual(found.find((finding) => finding.kind === "goal_drift")!.facts, ["outside-scope"]);
+  const stalled = decide([], { answers: { ...answers, meaningful_progress: 0.1 }, model: "m" }, questions, [{ kind: "no-recovery", level: "attend", quote: "q" }]);
+  assert.ok(stalled.some((finding) => finding.kind === "meaningful_progress"), "progress is a question answered low, not high");
+  assert.deepEqual(decide([{ kind: "call-failed", level: "note", quote: "x" }]), [], "a note is evidence for Jev, not an incident on its own");
+});

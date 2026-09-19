@@ -11,6 +11,9 @@ import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
 import type { DeskServices, Tool } from "./services.ts";
 import { Slots } from "./slots.ts";
+import type { Finding } from "../runtime/watch/rules.ts";
+import { type Noticed, closeIncidentsOf, notice } from "./notice.ts";
+import * as incidents from "./tools/incidents.ts";
 import * as lead from "./tools/lead.ts";
 import * as shared from "./tools/shared.ts";
 import * as supervisor from "./tools/supervisor.ts";
@@ -33,6 +36,8 @@ const TOOLS: Record<string, Tool> = {
   message: shared.message,
   answer: shared.answer,
   status: shared.status,
+  incidents: incidents.incidents,
+  ack: incidents.ack,
 };
 
 // "ask" means one thing to every seat that holds it — reach the seat above me — and only what is above differs.
@@ -107,6 +112,14 @@ export class Desk {
   /** The strike table under its own lock, so the patrol's settle cannot be overwritten by a `raise`. */
   watching<T>(project: Project, change: (watching: Watching) => { save: Watching; result: T }): Promise<T> {
     return this.services.ctx.watching(project, change);
+  }
+
+  notice(project: Project, seat: Noticed, findings: Finding[]): ReturnType<typeof notice> {
+    return notice(this.services, project, seat, findings);
+  }
+
+  closeIncidents(project: Project, seat: string): Promise<string[]> {
+    return closeIncidentsOf(this.services, project, seat);
   }
 
   post(to: string | undefined, key: string, text: string): Promise<Posted | "nobody"> {

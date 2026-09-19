@@ -26,6 +26,7 @@ import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules, type Watch } from "./turns.ts";
 import type { Fact } from "./watch/facts.ts";
+import { decide, type Finding } from "./watch/rules.ts";
 import { type Assessment, Assessor, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 
@@ -179,6 +180,14 @@ export class Runtime {
   private assessed(watch: SeatWatch, assessment: Assessment, state: Record<string, unknown>): void {
     const project = projectOf(watch.seat.cwd);
     this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(state).length });
+    const questions = this.source.teamFor(project).sensor?.spec.questions ?? {};
+    this.noticed(watch, decide([], assessment, questions, watch.noted));
+  }
+
+  private noticed(watch: SeatWatch, findings: Finding[]): void {
+    if (findings.length === 0) return;
+    const project = projectOf(watch.seat.cwd);
+    this.desk.notice(project, watch.seat, findings).catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
   }
 
   private degraded(watch: SeatWatch, error: SensorError): void {
@@ -193,6 +202,7 @@ export class Runtime {
   private watchFound(watch: SeatWatch, facts: Fact[]): void {
     const project = projectOf(watch.seat.cwd);
     for (const fact of facts) this.desk.event(project, { kind: "watch.fact", agent: watch.seat.id, fact: fact.kind, level: fact.level, quote: fact.quote });
+    this.noticed(watch, decide(facts));
   }
 
   prepare(): void {
@@ -228,6 +238,7 @@ export class Runtime {
       this.outbox.archived(agent.id);
       this.turns.forget(agent.id);
       this.watches.drop(agent.id);
+      if (this.watches.watched(agent.provider)) await this.desk.closeIncidents(projectOf(agent.cwd), agent.id);
     });
     this.timers.push(setInterval(() => this.serveSpool(), 500));
     // The cadence is read every time round, so changing it in settings takes hold without a reload.

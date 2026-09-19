@@ -224,6 +224,7 @@ export type Attention = {
   repeatsAt: number;
   suppressed: string;
   longTurnMinutes: number;
+  incidentsPerDay: number;
 };
 
 export type Question = { instructions: string; threshold: number; level: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[] };
@@ -263,6 +264,7 @@ const ATTENTION: Attention = {
   repeatsAt: 3,
   suppressed: SUPPRESSED,
   longTurnMinutes: 30,
+  incidentsPerDay: 5,
 };
 
 function subdirs(root: string): string[] {

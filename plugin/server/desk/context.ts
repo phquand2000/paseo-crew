@@ -5,6 +5,7 @@ import type { Team } from "../catalog/team.ts";
 import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
+import { type Incidents, loadIncidents, saveIncidents } from "./incidents.ts";
 import { type Watching, loadWatching, saveWatching } from "./watching.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
@@ -126,6 +127,20 @@ export class DeskContext {
     const run = previous.then(() => {
       const { save, result } = change(loadWatching(project.state));
       saveWatching(project.state, save);
+      return result;
+    });
+    this.locks.set(key, run.catch(() => undefined));
+    return run;
+  }
+
+  incidents<T>(project: Project, change: (incidents: Incidents) => T): Promise<T> {
+    this.projects.set(project.slug, project);
+    const key = `${project.slug}:incidents`;
+    const previous = this.locks.get(key) ?? Promise.resolve();
+    const run = previous.then(() => {
+      const incidents = loadIncidents(project.state);
+      const result = change(incidents);
+      saveIncidents(project.state, incidents);
       return result;
     });
     this.locks.set(key, run.catch(() => undefined));

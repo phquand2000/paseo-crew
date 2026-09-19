@@ -120,7 +120,7 @@
     },
     {
       "name": "close_lane",
-      "description": "Close a lane and archive its agents. With land true the desk runs the project's gate and lands the lane branch on the base branch: a fast-forward, or a merge in the main working copy when the base moved; if that is not possible the reason comes back and the branch stays for the Human. A red gate stops the landing unless you land over it with overGate true \u2014 the verdict is evidence, and landing over it is your call.",
+      "description": "Close a lane and archive its agents. With land true the desk runs the project's gate and lands the lane branch on the base branch: a fast-forward, or a merge in the main working copy when the base moved; if that is not possible the reason comes back and the branch stays for the Human. A red gate stops the landing unless you land over it with overGate true — the verdict is evidence, and landing over it is your call.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -190,6 +190,48 @@
       "inputSchema": {
         "type": "object",
         "properties": {}
+      }
+    },
+    {
+      "name": "incidents",
+      "description": "What the desk has noticed about the Leads and Peers working in this project, newest first: each incident with the seat, what was seen, and whether you were told. These are signals to look at, never verdicts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "closed": {
+            "type": "boolean",
+            "description": "Also list the last twenty closed incidents, with how each was marked."
+          }
+        }
+      }
+    },
+    {
+      "name": "ack",
+      "description": "Mark an incident after you have looked at it: useful if it deserved your attention, noise if it did not. It closes the incident, and the marks are what the thresholds are tuned from.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The incident's id, as incidents lists it."
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "useful",
+              "noise"
+            ],
+            "description": "useful or noise."
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional: what made it one or the other."
+          }
+        },
+        "required": [
+          "id",
+          "verdict"
+        ]
       }
     }
   ],
