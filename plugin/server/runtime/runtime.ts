@@ -24,7 +24,7 @@ import { registerRpc } from "./rpc.ts";
 import { Seating } from "./seating.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
-import { TurnRules, type Watch } from "./turns.ts";
+import { TurnRules } from "./turns.ts";
 import type { Fact } from "./watch/facts.ts";
 import { decide, type Finding } from "./watch/rules.ts";
 import { type Assessment, Assessor, type SensorError, type Sensing } from "./watch/sensor.ts";
@@ -84,7 +84,7 @@ export class Runtime {
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
     });
-    this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: (project) => this.source.teamFor(project).attention });
+    this.turns = new TurnRules({ kit, desk: this.desk, remember });
     this.assessor = new Assessor({
       sensing: (watch) => this.sensing(watch),
       done: (watch, assessment, state) => this.assessed(watch, assessment, state),
@@ -107,19 +107,6 @@ export class Runtime {
       seats: this.seats,
       held: () => this.outbox.letters(),
     });
-  }
-
-  private tellWatcher(item: Watch): void {
-    if (!this.api || !(item.text.trim() || item.reading.record.length > 0)) return;
-    if (!this.source.teamFor(item.project).attention.watch) return;
-    void (async () => {
-      const seats = await this.seats.open();
-      const watcher = await this.desk.ensureWatcher(item.project, seats);
-      if (!watcher) return;
-      this.desk.recordReading(item.project, item.where, item.reading.notes);
-      const { labels } = this.source.teamFor(item.project).attention;
-      await this.desk.post(watcher, `ending:${item.agent}:${Date.now()}`, letters.ending(item.where, item.text, item.reading.record, item.agent, labels));
-    })().catch((error) => console.error("seatworks-v2: an ending could not reach the Watcher:", error));
   }
 
   private watchContext(seat: WatchedSeat): SeatContext | undefined {

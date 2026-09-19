@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { ProjectLayerSchema } from "../../server/catalog/settings.ts";
 import { resolveTeam, rulesFor, serversFor, skillDirsFor, withHarness } from "../../server/catalog/team.ts";
 import { makeKit } from "../../server/catalog/testkit.ts";
 
@@ -16,7 +17,7 @@ test("with no settings every role gets its catalog defaults and the MCP servers 
   assert.equal(team.roles.peer!.thinking, undefined);
   assert.deepEqual(team.roles.lead!.mcp, ["ide"]);
   assert.deepEqual(team.roles.supervisor!.mcp, []);
-  assert.deepEqual(team.roles.watcher!.mcp, []);
+  assert.deepEqual(team.roles.scribe!.mcp, []);
   assert.equal(team.mcp.docs!.enabled, false);
   assert.equal(team.attention.leadIdleMinutes, 15);
 });
@@ -48,7 +49,7 @@ test("settings that can't describe a working team are reported, not guessed arou
   const team = resolveTeam(
     kit,
     { roles: { scout: {}, lead: { model: "gpt" } }, mcp: { nope: {}, ide: { settings: { port: "x", host: "h" } } } },
-    { roles: { supervisor: { harness: "devin" }, peer: { thinking: "high" } }, mcp: { docs: { roles: ["watcher"] } } },
+    { roles: { supervisor: { harness: "devin" }, peer: { thinking: "high" } }, mcp: { docs: { roles: ["scribe"] } } },
   );
   const text = team.errors.join("\n");
   assert.match(text, /unknown role scout/);
@@ -56,7 +57,7 @@ test("settings that can't describe a working team are reported, not guessed arou
   assert.match(text, /IDE setting port must be a number/);
   assert.match(text, /IDE has no setting named host/);
   assert.match(text, /Devin CLI has no supervisor settings/);
-  assert.match(text, /Docs can't be given to the watcher role/);
+  assert.match(text, /Docs can't be given to the scribe role/);
 });
 
 test("one seat can be told something the others are not", () => {
@@ -70,12 +71,21 @@ test("one seat can be told something the others are not", () => {
 });
 
 test("a project tunes what is worth its owner's attention, over the machine's default", () => {
-  const team = resolveTeam(kit, { attention: { digestMinutes: 30, strikesAt: 5 } }, { attention: { strikesAt: 2, watch: false } });
+  const team = resolveTeam(kit, { attention: { longTurnMinutes: 45, incidentsPerDay: 8 } }, { attention: { incidentsPerDay: 2, watch: true } });
   assert.deepEqual(team.errors, []);
-  assert.equal(team.attention.digestMinutes, 30, "what the project says nothing about it takes from the machine");
-  assert.equal(team.attention.strikesAt, 2, "and what it does say wins");
-  assert.equal(team.attention.watch, false, "a project can decide nothing is worth interrupting for");
-  assert.equal(resolveTeam(kit).attention.watch, true, "left alone, the kit watches");
+  assert.equal(team.attention.longTurnMinutes, 45, "what the project says nothing about it takes from the machine");
+  assert.equal(team.attention.incidentsPerDay, 2, "and what it does say wins");
+  assert.equal(team.attention.watch, true, "a project can decide incidents are worth sending");
+  assert.equal(resolveTeam(kit).attention.watch, false, "left alone, the kit records incidents and sends none until its thresholds are tuned");
+});
+
+test("the Jev layer is on only with a key in the machine's settings, never the project's", () => {
+  assert.equal(resolveTeam(kit).sensor, undefined, "no key, no Jev layer");
+  const keyed = resolveTeam(kit, { sensor: { key: "sk-or-v1-test" } });
+  assert.equal(keyed.sensor?.key, "sk-or-v1-test");
+  assert.equal(keyed.sensor?.spec.id, Object.keys(kit.sensors)[0]);
+  assert.deepEqual(resolveTeam(kit, { sensor: { use: "nothing", key: "k" } }).errors, ["The machine settings use sensor nothing, which the kit does not have"]);
+  assert.equal(ProjectLayerSchema.safeParse({ sensor: { key: "k" } }).success, false, "a key in a project's settings would travel with the project");
 });
 
 test("a seat may run a model the harness catalog does not list", () => {
@@ -94,9 +104,9 @@ test("rules gather each enabled server's rule, the role's tools and notes, harne
   assert.match(peer, /List a server's tools once/);
   assert.match(peer, /## Rules from the Human\n\nKeep diffs small\./);
   assert.doesNotMatch(rulesFor(team, "lead"), /List a server's tools/);
-  const watcher = rulesFor(team, "watcher");
-  assert.match(watcher, /## Rules from the Human\n\nKeep diffs small\./);
-  assert.doesNotMatch(watcher, /IDE|ide_find_references|List a server's tools/);
+  const scribe = rulesFor(team, "scribe");
+  assert.match(scribe, /## Rules from the Human\n\nKeep diffs small\./);
+  assert.doesNotMatch(scribe, /IDE|ide_find_references|List a server's tools/);
   assert.equal(rulesFor(resolveTeam(kit), "supervisor"), "");
 });
 

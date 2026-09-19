@@ -53,14 +53,7 @@ export const AttentionChoice = z.strictObject({
   leadIdleMinutes: z.number().int().min(1).optional(),
   askRemindMinutes: z.number().int().min(1).optional(),
   maxReminders: z.number().int().min(0).optional(),
-  watchEveryClean: z.number().int().min(1).optional(),
-  digestMinutes: z.number().int().min(1).optional(),
   watch: z.boolean().optional(),
-  strikesAt: z.number().int().min(1).optional(),
-  pagesPerWindow: z.number().int().min(0).optional(),
-  windowHours: z.number().int().min(1).optional(),
-  labels: z.array(z.string().min(1)).optional(),
-  always: z.array(z.string().min(1)).optional(),
   // Refused here, where the owner is looking at it. These are compiled on every turn ending, inside
   // the step that swallows what it throws, so a typo in one silently stopped the desk reading turns.
   destructive: Pattern.optional(),

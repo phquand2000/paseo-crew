@@ -4,9 +4,7 @@
     "tickSeconds": 30,
     "leadIdleMinutes": 12,
     "askRemindMinutes": 15,
-    "maxReminders": 2,
-    "watchEveryClean": 4,
-    "digestMinutes": 60
+    "maxReminders": 2
   },
   "roles": [
     {
@@ -57,8 +55,7 @@
         ]
       },
       "hidesWords": [
-        "supervisor",
-        "watcher"
+        "supervisor"
       ]
     },
     {
@@ -83,7 +80,6 @@
       "hidesWords": [
         "paseo",
         "supervisor",
-        "watcher",
         "seat",
         "seats"
       ]
@@ -113,32 +109,9 @@
       "hidesWords": [
         "paseo",
         "supervisor",
-        "watcher",
         "seat",
         "seats"
       ]
-    },
-    {
-      "role": "watcher",
-      "label": "Watcher",
-      "description": "Reads how turns end and raises attention for whoever supervises the project; it cannot touch the work",
-      "defaults": {
-        "harness": "devin",
-        "model": "swe-2-medium"
-      },
-      "prompt": "prompts/WATCHER.md",
-      "skills": null,
-      "paseoTools": {
-        "allow": [
-          "get_agent_activity",
-          "list_agents"
-        ]
-      },
-      "hidesWords": [],
-      "can": [
-        "watch"
-      ],
-      "tools": "watcher"
     }
   ]
 }

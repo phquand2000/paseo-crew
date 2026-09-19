@@ -43,7 +43,7 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
     // The gate writes to the log file itself. Piping it through this process put a copy of that pipe
     // in every process the gate leaves running, and "close" — which is what the verdict used to wait
     // for — comes after the pipes end, not after the command does: a suite that passed in seconds and
-    // left a watcher behind was reported as a timeout half an hour later, and one whose leftover
+    // left a file-watching process behind was reported as a timeout half an hour later, and one whose leftover
     // process escaped the group kill was never answered at all. A write that fails is also the
     // child's problem now, rather than an unhandled stream error in the process holding the desk.
     const child = spawn("/bin/sh", ["-c", command], { cwd, env: { ...process.env, CI: "1" }, detached: true, stdio: ["ignore", fd, fd] });
@@ -60,7 +60,7 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
       answered = true;
       clearTimeout(timer);
       // The command has answered; whatever it left running in its group has not, and nothing else
-      // would ever stop it — a watcher, a dev server, a `&` job kept writing in the lane's working copy
+      // would ever stop it — a file-watching process, a dev server, a `&` job kept writing in the lane's working copy
       // and into this log after the verdict was read from it. The group goes with the verdict.
       try {
         process.kill(-child.pid!, "SIGKILL");

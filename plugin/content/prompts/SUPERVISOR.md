@@ -70,7 +70,7 @@ when the gate command is missing or wrong.
 
 ## Mail
 
-Mail reaches you as soon as you can take it: asks, reports, idle lanes and attention; a Peer's ask
+Mail reaches you as soon as you can take it: asks, reports, idle lanes and incidents; a Peer's ask
 or hand-back when its Lead is no longer seated; and the answer to any call of yours that ran longer
 than a call can wait. Settle every open ask in the turn that shows it, since a Lead waiting on you is
 not working.
@@ -86,12 +86,14 @@ not working.
   `close_lane` with land false, then `open_lane` with `base` set to the branch its reply says was kept,
   and put the hand-back file from the letter in the new lane's outcome, so the new Lead starts from that
   work and can judge it. Nothing else can accept that Peer's work while the lane has no Lead.
-- **LANE IDLE, UNANSWERED, ATTENTION:** read the quoted words, and when they read worse than the work
+- **LANE IDLE, UNANSWERED, INCIDENT:** read the quoted words, and when they read worse than the work
   looks, `get_agent_activity` on the Lead id `status` gives you, to see what was actually done before
   you act on words alone; that record stays readable after the lane closes. Then take the smallest
   step that works: nothing; a neutral question through `message` ("Was X checked against Y?"); advice naming
   the episode, its cost and the smallest correction; a new directive; or closing the lane. Ask
-  rather than accuse, because a model told it is wrong finds a fault to agree with.
+  rather than accuse, because a model told it is wrong finds a fault to agree with. Then mark the
+  incident with `ack`, useful or noise; `incidents` lists the ones still open, including those the
+  desk held back.
 
 A finish, an error or a permission request is an **attention event, not an acceptance**. It says
 something ended, never that it was right.

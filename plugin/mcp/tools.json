@@ -591,45 +591,5 @@
         ]
       }
     }
-  ],
-  "watcher": [
-    {
-      "name": "raise",
-      "description": "Record how one turn ended. The desk decides from what you send whether it waits for the report, or interrupts the seat that supervises this project now.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "where": {
-            "type": "string",
-            "description": "Whose ending it was, as it was given to you."
-          },
-          "findings": {
-            "type": "array",
-            "description": "Every fault this ending shows, judged one at a time and each on its own merits. An ending with nothing wrong sends an empty list, which is the common and correct answer.",
-            "items": {
-              "type": "object",
-              "properties": {
-                "label": {
-                  "type": "string",
-                  "description": "One word for what kind of thing it is. The project's own list, which the refusal names if this is not on it; a project that keeps no list lets you name what you saw."
-                },
-                "quote": {
-                  "type": "string",
-                  "description": "Words copied exactly from the ending or from the actions listed with it, at most 15, that show this fault. A fault you cannot quote is one you should not send."
-                }
-              },
-              "required": [
-                "label",
-                "quote"
-              ]
-            }
-          }
-        },
-        "required": [
-          "where",
-          "findings"
-        ]
-      }
-    }
   ]
 }

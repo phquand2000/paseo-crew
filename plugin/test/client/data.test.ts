@@ -5,14 +5,14 @@ import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRole
 const held: Layer = {
   rules: "Keep diffs small.",
   roles: { lead: { harness: "claude", model: "opus", thinking: "high", rules: "Never touch the generated client." } },
-  attention: { digestMinutes: 30, watch: false },
+  attention: { longTurnMinutes: 30, watch: false },
 };
 
 test("changing a seat's agent forgets what was chosen for the old one and keeps what the owner wrote", () => {
   const moved = setRole(held, "lead", { harness: "devin" }, true);
   assert.deepEqual(moved.roles!.lead, { rules: "Never touch the generated client.", harness: "devin" });
   assert.equal(moved.rules, "Keep diffs small.", "what every seat is told is untouched");
-  assert.deepEqual(moved.attention, { digestMinutes: 30, watch: false }, "and so is everything else in the layer");
+  assert.deepEqual(moved.attention, { longTurnMinutes: 30, watch: false }, "and so is everything else in the layer");
 });
 
 test("changing a seat's model or thinking keeps the rest of its choice", () => {
@@ -24,7 +24,7 @@ test("running the setup screen over a project keeps what it holds, and does not 
   const project: Layer = {
     rules: "Never touch the release branch.",
     mcp: { docs: { enabled: true, connect: { type: "http", url: "https://x", headers: { Authorization: "Bearer SECRET" } } } },
-    attention: { digestMinutes: 45 },
+    attention: { longTurnMinutes: 45 },
     roles: { peer: { harness: "claude", model: "claude-opus-5", thinking: "high" } },
   };
   // What the dialog collected: one role moved to another agent. A write is the whole layer.
@@ -33,7 +33,7 @@ test("running the setup screen over a project keeps what it holds, and does not 
 
   assert.equal(folded.rules, "Never touch the release branch.", "the rule every seat is told survives");
   assert.equal(folded.mcp!.docs!.connect!.headers!.Authorization, "Bearer SECRET", "and so does the token the owner pasted");
-  assert.deepEqual(folded.attention, { digestMinutes: 45 });
+  assert.deepEqual(folded.attention, { longTurnMinutes: 45 });
   assert.deepEqual(folded.roles!.peer, { harness: "devin" }, "the model and thinking level picked for the old agent are not kept on the new one");
 
   // A draft that changes nothing about the agent keeps what was chosen for it.
@@ -56,10 +56,10 @@ test("a role whose agent is not recorded anywhere keeps the model the owner pick
 });
 
 test("re-pasting a server the owner gave to nobody leaves it given to nobody", () => {
-  const reachable = ["supervisor", "lead", "peer", "reviewer", "watcher"];
+  const reachable = ["supervisor", "lead", "peer", "reviewer"];
   // Unticking the last role on a server's own tab writes an empty list, and the resolver honours it:
   // the server really is given to no role. Rotating its token is a re-paste of the same snippet, and
-  // reading that empty list as "nothing to preserve" handed the server, and the new token, to all five.
+  // reading that empty list as "nothing to preserve" handed the server, and the new token, to all four.
   assert.deepEqual(keptRoles([], reachable), [], "a narrowing to nobody is a narrowing, not an absence");
   assert.deepEqual(keptRoles(undefined, reachable), reachable, "never narrowed is what does mean every reachable role");
   assert.deepEqual(keptRoles(["lead", "peer"], reachable), ["lead", "peer"]);

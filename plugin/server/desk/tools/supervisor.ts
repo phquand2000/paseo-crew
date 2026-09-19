@@ -234,7 +234,6 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     if (branch) kept.push(branch);
   }
   await roster.archive(lane.lead);
-  await roster.retireWatcher(project);
   // Whoever is mid-turn is still writing in the lane's copy, and what they write is theirs until
   // their turn ends; the copy goes away then, not under them.
   const writers = [lane.lead, ...retired.filter((task) => task.mode !== "parallel").map((task) => task.peer)].filter(

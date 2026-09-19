@@ -28,7 +28,7 @@ const stuck = { kind: "stuck", level: "attend" as const, quote: "the same action
 
 test("the same thing seen of one seat, however often and however concurrently, is one incident", async () => {
   const { project, services } = desk();
-  const seat = { id: "peer-1", title: "Peer" };
+  const seat = { id: "peer-1", title: "Peer", provider: "sw2-peer-devin/swe-2-max" };
   const results = await Promise.all([notice(services, project, seat, [stuck]), notice(services, project, seat, [stuck]), notice(services, project, seat, [{ ...stuck, quote: "again" }])]);
   assert.equal(results.flatMap((result) => result.opened).length, 1, "only the first sighting opens anything");
   const held = loadIncidents(project.state);
@@ -36,15 +36,15 @@ test("the same thing seen of one seat, however often and however concurrently, i
   assert.equal(items.length, 1);
   assert.equal(items[0]!.count, 3);
   assert.equal(items[0]!.quote, "again", "the latest words are kept");
-  await notice(services, project, { id: "peer-2" }, [stuck]);
+  await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   await notice(services, project, seat, [{ kind: "destructive", level: "page", quote: "rm -rf /", facts: ["destructive"] }]);
   assert.equal(Object.keys(loadIncidents(project.state).items).length, 3, "another seat, or another kind, is another incident");
 });
 
 test("a mark goes on the incident named and closes it, and a later sighting opens a new one", async () => {
   const { project, services, supervisor } = desk();
-  await notice(services, project, { id: "peer-1" }, [stuck]);
-  await notice(services, project, { id: "peer-2" }, [stuck]);
+  await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   assert.equal((await ack(services, supervisor, { id: "I9", verdict: "useful" })).ok, false);
   assert.equal((await ack(services, supervisor, { id: "I1", verdict: "maybe" })).ok, false);
   const reply = await ack(services, supervisor, { id: "I2", verdict: "noise", note: "a normal retry" });
@@ -54,7 +54,7 @@ test("a mark goes on the incident named and closes it, and a later sighting open
   assert.equal(held.I2!.open, false);
   assert.equal(held.I1!.label, undefined, "the other incident is untouched");
   assert.equal(held.I1!.open, true);
-  const reopened = await notice(services, project, { id: "peer-2" }, [stuck]);
+  const reopened = await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   assert.deepEqual(reopened.opened.map((incident) => incident.id), ["I3"]);
   const listed = await incidents(services, supervisor, {});
   assert.match(listed.text, /2 open:/);

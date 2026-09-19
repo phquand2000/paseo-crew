@@ -60,34 +60,8 @@ export class Roster {
     return found[0]?.id ?? (gone ? undefined : preferred);
   }
 
-  watcherSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
-    return this.seatThatCan(project, seats, "watch");
-  }
-
-  supervisorSeat(project: Project, seats: Iterable<SeatView>): string | undefined {
-    return this.seatThatCan(project, seats, "supervise");
-  }
-
-  /** Every seat on this project that can do the thing. Several may supervise it, each for its own concern. */
-  seatsThatCan(project: Project, seats: Iterable<SeatView>, capability: string): SeatView[] {
-    return [...seats].filter((seat) => this.holds(seat, capability, project));
-  }
-
-  private seatThatCan(project: Project, seats: Iterable<SeatView>, capability: string): string | undefined {
-    return this.seatsThatCan(project, seats, capability)[0]?.id;
-  }
-
   private holds(seat: SeatView, capability: string, project: Project): boolean {
     return can(seatOf(this.kit, seat.provider)?.role, capability) && projectOf(seat.cwd).slug === project.slug;
-  }
-
-  /** `now` is for an owner switching watching off: an instruction, rather than the work running out. */
-  async retireWatcher(project: Project, known?: Iterable<SeatView>, now = false): Promise<void> {
-    // Materialised because callers hand over a Map iterator, and this reads the seats twice.
-    const seats = [...(known ?? (await this.seats.open()))];
-    if (!now && this.supervisorSeat(project, seats)) return;
-    const seated = this.watcherSeat(project, seats);
-    if (seated) await this.archive(seated);
   }
 
   async archive(agentId: string | undefined, force = false): Promise<void> {

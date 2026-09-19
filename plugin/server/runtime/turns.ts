@@ -1,29 +1,23 @@
 import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
-import { type Attention, type Kit, type RoleSpec, can, seatOf, worksTasks } from "../catalog/kit.ts";
+import { type Kit, type RoleSpec, can, seatOf, worksTasks } from "../catalog/kit.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
-import { type Project, loadConfig, projectOf } from "../desk/project.ts";
-import { type Reading, read } from "./risks.ts";
+import { type Project, projectOf } from "../desk/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 
 type TurnEnded = PluginLifecycleEvents["agent.turn_ended"];
-
-export type Watch = { project: Project; lane: string; agent: string; role: string; where: string; text: string; reading: Reading };
 
 export type TurnDeps = {
   kit: Kit;
   desk: Desk;
   remember: (project: Project) => void;
-  watch: (item: Watch) => void;
-  attention?: (project: Project) => Attention;
 };
 
 export class TurnRules {
   readonly lastEnding = new Map<string, string>();
   private readonly deps: TurnDeps;
   private readonly startedAt = new Map<string, number>();
-  private readonly clean = new Map<string, number>();
 
   constructor(deps: TurnDeps) {
     this.deps = deps;
@@ -48,7 +42,6 @@ export class TurnRules {
       } catch {}
       return this.deps.desk.supervisorFor(project, opener);
     }
-    if (can(role, "watch")) return this.deps.desk.supervisorFor(project);
     const ledger = loadLedger(project.state);
     const task = taskOfPeer(ledger, agentId);
     return task ? ledger.lanes[task.lane]?.lead : undefined;
@@ -75,39 +68,10 @@ export class TurnRules {
     // Heard from at all, and heard from in a way that reaches somebody, are different questions: the
     // read-only status tool is the first but not the second, and only the second is not being silent.
     const spoke = (ledger.agents[agent.id]?.spokeAt ?? 0) >= started;
-    // The project's own words for what counts. `risks.ts` has taken these as options from the start
-    // and nothing supplied them, so a project whose destructive commands are not git's, or whose
-    // tests are not under any of four names, had no way to say so.
-    const attention = this.deps.attention?.(project) ?? this.deps.kit.attention;
-    const reading = read(timeline, {
-      gate: loadConfig(project.state).gate,
-      recorded,
-      destructive: attention.destructive,
-      testPath: attention.testPath,
-      repeatsAt: attention.repeatsAt,
-    });
-    if (worksTasks(role)) await this.workerEnded(project, ledger, event, role.role, text, recorded, spoke, reading);
-    else if (can(role, "lead")) this.leadEnded(project, ledger, agent.id, text, reading);
+    if (worksTasks(role)) await this.workerEnded(project, ledger, event, text, recorded, spoke);
   }
 
-  private watchable(project: Project, reading: Reading, claimed = false): boolean {
-    if (claimed || reading.score > 0) return true;
-    const every = Math.max(1, this.deps.attention?.(project).watchEveryClean ?? this.deps.kit.attention.watchEveryClean);
-    const next = (this.clean.get(project.slug) ?? 0) + 1;
-    this.clean.set(project.slug, next % every);
-    return next % every === 0;
-  }
-
-  private async workerEnded(
-    project: Project,
-    ledger: Ledger,
-    event: TurnEnded,
-    roleName: string,
-    text: string,
-    recorded: boolean,
-    spoke: boolean,
-    reading: Reading,
-  ): Promise<void> {
+  private async workerEnded(project: Project, ledger: Ledger, event: TurnEnded, text: string, recorded: boolean, spoke: boolean): Promise<void> {
     const { desk } = this.deps;
     const { agent, timeline } = event;
     const task = taskOfPeer(ledger, agent.id);
@@ -124,9 +88,6 @@ export class TurnRules {
       // not the Lead's message the SILENT letter tells it to send, not the Peer's own ask — so the
       // idle-lane check and the gone-Peer check stopped seeing a Peer that was plainly there.
       if (recorded && task.status === "stalled") await desk.setTask(project, task.id, (entry) => { if (entry.status === "stalled") { entry.status = "running"; delete entry.peerGone; } });
-      if (lane && this.watchable(project, reading, recorded)) {
-        this.deps.watch({ project, lane: lane.id, agent: agent.id, role: roleName, where: `the Peer on ${task.id} (${task.title})`, text, reading });
-      }
       return;
     }
     // A call still being worked on is not silence: a hand-back whose gate runs past what a call can
@@ -146,12 +107,5 @@ export class TurnRules {
     }
     await desk.post(lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, updated.silent, denied));
     desk.event(project, { kind: "task.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false });
-  }
-
-  private leadEnded(project: Project, ledger: Ledger, agentId: string, text: string, reading: Reading): void {
-    const lane = laneOfLead(ledger, agentId);
-    if (!lane) return;
-    if (!this.watchable(project, reading)) return;
-    this.deps.watch({ project, lane: lane.id, agent: agentId, role: "lead", where: `the Lead of ${lane.id} (${lane.title})`, text, reading });
   }
 }

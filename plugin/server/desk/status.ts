@@ -29,7 +29,7 @@ export function statusText(
   // this project used to print, and quote, letters addressed to seats of another one. A seated
   // recipient belongs to the project its working copy is in; one that has gone is this project's if it
   // is on this project's record. The record alone missed every seat that had not yet completed a tool
-  // call — a Watcher stuck on its first permission prompt, with every ending piling up for it.
+  // call — a seat stuck on its first permission prompt, with every letter piling up for it.
   const mine = held.filter((letter) => {
     const seat = seats.get(letter.to);
     return seat ? Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug : Boolean(ledger.agents[letter.to]);

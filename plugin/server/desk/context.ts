@@ -6,7 +6,6 @@ import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import { type Incidents, loadIncidents, saveIncidents } from "./incidents.ts";
-import { type Watching, loadWatching, saveWatching } from "./watching.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
 export type ToolReply = { ok: boolean; text: string };
@@ -44,8 +43,6 @@ export type DeskDeps = {
 export class DeskContext {
   readonly kit: Kit;
   readonly projects = new Map<string, Project>();
-  /** Per seat, the notes of each ending not yet raised on, oldest first. */
-  private readonly readings = new Map<string, string[][]>();
   private readonly deps: DeskDeps;
   private readonly locks = new Map<string, Promise<unknown>>();
 
@@ -100,39 +97,6 @@ export class DeskContext {
     return run;
   }
 
-  /** Whether an ending under this `where` was filed at all — which is not the same as having notes. */
-  hasReading(project: Project, where: string): boolean {
-    return this.readings.has(`${project.slug}:${where}`);
-  }
-
-  /** Whether anything has been filed for this project since the desk started. */
-  readsAny(project: Project): boolean {
-    for (const key of this.readings.keys()) if (key.startsWith(`${project.slug}:`)) return true;
-    return false;
-  }
-
-  /**
-   * The Watcher's strike table, read and written under a lock of its own.
-   *
-   * Unlike the ledger this had none, and every writer of it loads, awaits something real — a roster
-   * lookup, a letter going out, a patrol step — and then saves a snapshot taken before that await. Two
-   * Watchers handed two endings in one mailbox lost a strike between them, two interruptions cost one
-   * page of a budget of two, and a digest's settle was overwritten by whatever had loaded before it.
-   * Change what you must under here and do anything that awaits the outside world between two calls.
-   */
-  watching<T>(project: Project, change: (watching: Watching) => { save: Watching; result: T }): Promise<T> {
-    this.projects.set(project.slug, project);
-    const key = `${project.slug}:watching`;
-    const previous = this.locks.get(key) ?? Promise.resolve();
-    const run = previous.then(() => {
-      const { save, result } = change(loadWatching(project.state));
-      saveWatching(project.state, save);
-      return result;
-    });
-    this.locks.set(key, run.catch(() => undefined));
-    return run;
-  }
-
   incidents<T>(project: Project, change: (incidents: Incidents) => T): Promise<T> {
     this.projects.set(project.slug, project);
     const key = `${project.slug}:incidents`;
@@ -154,36 +118,6 @@ export class DeskContext {
     } catch (error) {
       console.error("seatworks-v2: events.log write failed:", error);
     }
-  }
-
-  /**
-   * Added to what is already filed for this seat, not written over it. One slot per `where` handed a
-   * finding about an earlier turn the notes of whichever turn had ended last; what is kept here is
-   * everything since the Watcher last raised on that seat, bounded so a seat nobody raises on cannot
-   * grow it for ever.
-   */
-  recordReading(project: Project, where: string, notes: string[]): void {
-    const key = `${project.slug}:${where}`;
-    this.readings.set(key, [...(this.readings.get(key) ?? []), notes].slice(-20));
-  }
-
-  /**
-   * The notes of the oldest ending of this seat not yet raised on. The Watcher is sent one ending per
-   * letter and asked to raise once for each, in the order they came, so each raise takes its own.
-   * Taking the whole list at once gave a busy Watcher's first raise the evidence of every later
-   * ending, and left the raise on the ending that had it with none.
-   */
-  takeReading(project: Project, where: string): string[] {
-    const key = `${project.slug}:${where}`;
-    const held = this.readings.get(key);
-    if (!held || held.length === 0) return [];
-    const [first, ...rest] = held;
-    this.readings.set(key, rest);
-    return first ?? [];
-  }
-
-  reading(project: Project, where: string): string[] {
-    return this.readings.get(`${project.slug}:${where}`)?.[0] ?? [];
   }
 
   /** What became of the letter: sent, held for a seat that is busy, or dropped as a repeat of one already sent. */

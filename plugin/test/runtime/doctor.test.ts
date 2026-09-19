@@ -49,7 +49,7 @@ test("what a harness says its seats need on this machine is checked, and how to 
   const missing = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"], true, []));
   const check = missing.find((entry) => entry.id === "harness:devin:HOME/.devin/credentials.toml")!;
   assert.equal(check.ok, false);
-  assert.match(check.detail, /credentials\.toml for Peer, Watcher\. Log in to Devin once/);
+  assert.match(check.detail, /credentials\.toml for Peer, Scribe\. Log in to Devin once/);
   const present = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]));
   assert.equal(present.find((entry) => entry.id === "harness:devin:HOME/.devin/credentials.toml")!.ok, true);
 });

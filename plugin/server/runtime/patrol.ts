@@ -2,13 +2,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Kit, can, roleNamed, seatOf } from "../catalog/kit.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
-import { hash } from "../desk/context.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ask, type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
-import { digestDue, loadWatching, pendingEntries, reported } from "../desk/watching.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
@@ -63,11 +61,9 @@ export class Patrol {
     this.deps.watches.round(now, (watch) => this.deps.source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
-      await this.step(project, "the Watcher could not be settled", () => this.seatWatcher(project, loadLedger(project.state), seats));
       await this.step(project, "idle lanes could not be read", () => this.idleLanes(project, loadLedger(project.state), seats, now));
       await this.step(project, "a task whose Peer is gone could not be recorded", () => this.goneTasks(project, loadLedger(project.state), seats));
       await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
-      await this.step(project, "the report could not be sent", () => this.sendDigest(project, now));
       await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
       await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
       await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
@@ -100,15 +96,6 @@ export class Patrol {
     } catch (error) {
       console.error(`seatworks-v2: ${project.slug}: ${what}:`, error);
     }
-  }
-
-  private async seatWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
-    const watching = this.deps.source.teamFor(project).attention.watch;
-    if (watching && Object.values(ledger.lanes).some((lane) => lane.status === "open")) {
-      await this.deps.desk.ensureWatcher(project, seats.values());
-      return;
-    }
-    await this.deps.desk.retireWatcher(project, seats.values(), !watching);
   }
 
   private async sweep(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
@@ -193,31 +180,6 @@ export class Patrol {
         entry.remindedAt = now;
       });
     }
-  }
-
-  private async sendDigest(project: Project, now: number): Promise<void> {
-    const { desk } = this.deps;
-    const { digestMinutes, always } = this.deps.source.teamFor(project).attention;
-    const watching = loadWatching(project.state);
-    const waiting = pendingEntries(watching);
-    if (waiting.length === 0) return;
-    const oldest = Math.min(...waiting.map(([, strike]) => strike.first));
-    if (!digestDue(watching, oldest, now, digestMinutes)) return;
-    const to = await desk.supervisorFor(project);
-    if (!to) return;
-    // The key identifies what this digest carries. A strike keeps its `first` for as long as the fault
-    // recurs, so keying on the oldest of them made each digest a repeat of the one before; and a total
-    // is not a fingerprint either — one fault seen twice and two faults seen once both add to two.
-    const carried = Object.fromEntries(waiting.map(([key, strike]) => [key, strike.count]));
-    const fingerprint = hash(...Object.entries(carried).map(([key, count]) => `${key}=${count}`).sort());
-    const body = letters.digest(waiting.map(([, strike]) => strike), Math.round((now - oldest) / 60_000), always);
-    const posted = await desk.post(to, `digest:${project.slug}:${fingerprint}`, body);
-    // Only what really went is settled. A digest the outbox dropped as a repeat said nothing, and
-    // marking it told lost the occurrence for good; the state is read back because `raise` can have
-    // run during the post, and this snapshot no longer knows about it.
-    if (posted !== "sent" && posted !== "held") return;
-    await desk.watching(project, (current) => ({ save: reported(current, carried, now), result: undefined }));
-    desk.event(project, { kind: "watch.digest", items: waiting.length });
   }
 
   private writeStatus(project: Project, seats: SeatMap, now: number): void {

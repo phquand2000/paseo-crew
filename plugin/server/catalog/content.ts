@@ -80,7 +80,7 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
  * What the desk writes under a project's state itself. Content names some of these for a seat to
  * read — the event log, the hand-back files — and none of them is a seat's to write.
  */
-export const DESK_OWNED = new Set(["ledger.json", "watching.json", "project.json", "meta.json", "settings.json", "status.md", "events.log", "attention.log", "handbacks", "gates"]);
+export const DESK_OWNED = new Set(["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json", "status.md", "events.log", "attention.log", "handbacks", "gates"]);
 
 /**
  * Every place under the project's state this role's own content tells it to write: its prompt and

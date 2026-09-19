@@ -66,7 +66,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
   ]);
   const catalog = await call("seatworks.catalog.read");
   assert.deepEqual(catalog.roles.find((role: any) => role.id === "lead").harnesses, ["claude", "devin"]);
-  assert.deepEqual(catalog.roles.find((role: any) => role.id === "watcher").harnesses, ["devin"]);
+  assert.deepEqual(catalog.roles.find((role: any) => role.id === "scribe").harnesses, ["devin"]);
   assert.deepEqual(catalog.mcp.map((entry: any) => [entry.id, entry.transport]), [["ide", "stdio"], ["docs", "http"]]);
 });
 

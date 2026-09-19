@@ -194,31 +194,8 @@ export type Attention = {
   leadIdleMinutes: number;
   askRemindMinutes: number;
   maxReminders: number;
-  watchEveryClean: number;
-  digestMinutes: number;
-  /** Whether a fault may reach the seat above at all. Off still records what was seen; it stops the desk deciding it is worth a turn. */
+  /** Whether an incident may reach the seat above at all. Off still records every incident; it stops the desk sending them. */
   watch: boolean;
-  strikesAt: number;
-  pagesPerWindow: number;
-  windowHours: number;
-  /**
-   * What a Watcher may name as a finding. The preset's list, which a project may replace: the concept
-   * names its own triggers — a Peer wrestling with something vague, a line of work turning sharply, a
-   * self-admitted error — and a list in code could not express any of them.
-   *
-   * Empty means the desk does not police the vocabulary at all and the Watcher names what it saw.
-   */
-  labels: string[];
-  /** Labels that reach the owner however much of the interruption budget is spent. */
-  always: string[];
-  /**
-   * What the mechanical reader counts as destructive, as a test file, and as repetition.
-   *
-   * `risks.ts` takes all three as options and says in its own first line that the set is open "so a
-   * kit can add one without the desk being rebuilt" — and the only caller passed none of them, so a
-   * project whose destructive commands are `terraform destroy` or `kubectl delete`, or whose tests do
-   * not live under any of the four names in the default pattern, could not say so anywhere.
-   */
   destructive: string;
   testPath: string;
   repeatsAt: number;
@@ -255,10 +232,8 @@ export type Kit = {
 };
 
 const ATTENTION: Attention = {
-  tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2, watchEveryClean: 4, digestMinutes: 60,
-  watch: true, strikesAt: 3, pagesPerWindow: 2, windowHours: 12,
-  labels: ["destructive", "repetition", "mismatch", "unverified", "off-spec", "unasked", "early-stop", "derailed"],
-  always: ["destructive"],
+  tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2,
+  watch: false,
   destructive: DESTRUCTIVE,
   testPath: TEST_PATH,
   repeatsAt: 3,

@@ -1,6 +1,6 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type RoleSpec, can, roleThatCan, seatOf, toolsOf, worksTasks } from "../catalog/kit.ts";
-import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
+import { type Kit, type RoleSpec, can, seatOf, toolsOf, worksTasks } from "../catalog/kit.ts";
+import type { Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { sortKeys } from "../core/store.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, errorText, hash, no, ok } from "./context.ts";
@@ -17,9 +17,7 @@ import * as incidents from "./tools/incidents.ts";
 import * as lead from "./tools/lead.ts";
 import * as shared from "./tools/shared.ts";
 import * as supervisor from "./tools/supervisor.ts";
-import * as watcher from "./tools/watcher.ts";
 import * as worker from "./tools/worker.ts";
-import type { Watching } from "./watching.ts";
 
 const TOOLS: Record<string, Tool> = {
   open_lane: supervisor.openLane,
@@ -32,7 +30,6 @@ const TOOLS: Record<string, Tool> = {
   cut: lead.cut,
   report: lead.report,
   done: worker.done,
-  raise: watcher.raise,
   message: shared.message,
   answer: shared.answer,
   status: shared.status,
@@ -61,7 +58,7 @@ export type DeskOptions = {
 };
 
 /** Tools whose whole point is that somebody else reads the result. Reading the room is not speaking. */
-const SPEAKS = ["done", "ask", "answer", "message", "report", "raise"];
+const SPEAKS = ["done", "ask", "answer", "message", "report"];
 
 /** Under the five minutes the seat's bridge waits (`mcp/team.mjs`), so the seat is always told something. */
 export const ANSWER_WITHIN_MS = 240_000;
@@ -78,8 +75,6 @@ export class Desk {
 
   /** Calls still being worked on, by caller, tool and arguments. */
   private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
-  /** One Watcher create per project at a time, whichever caller got there first. */
-  private readonly seating = new Map<string, Promise<string | undefined>>();
 
   constructor(options: DeskOptions) {
     const ctx = new DeskContext({
@@ -107,11 +102,6 @@ export class Desk {
 
   event(project: Project, data: Record<string, unknown>): void {
     this.services.ctx.event(project, data);
-  }
-
-  /** The strike table under its own lock, so the patrol's settle cannot be overwritten by a `raise`. */
-  watching<T>(project: Project, change: (watching: Watching) => { save: Watching; result: T }): Promise<T> {
-    return this.services.ctx.watching(project, change);
   }
 
   notice(project: Project, seat: Noticed, findings: Finding[]): ReturnType<typeof notice> {
@@ -144,51 +134,12 @@ export class Desk {
     return this.services.slots.reap(project, live);
   }
 
-  recordReading(project: Project, where: string, notes: string[]): void {
-    this.services.ctx.recordReading(project, where, notes);
-  }
-
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.services.ctx.setTask(project, taskId, change);
   }
 
   sweep(project: Project, busy = false): Promise<void> {
     return this.services.slots.sweep(project, busy);
-  }
-
-  retireWatcher(project: Project, seats?: Iterable<SeatView>, now = false): Promise<void> {
-    return this.services.roster.retireWatcher(project, seats, now);
-  }
-
-  /**
-   * The project's Watcher, seated if there is not one already — once, whoever asks.
-   *
-   * Two callers reach this with no order between them: a turn ending, and the patrol tick. Each took
-   * its own roster snapshot, decided from it that no Watcher existed, and started one, so a project
-   * could end up with two resident seats reading the same mail and each charging the interruption
-   * budget the other was spending. The roster is read here rather than taken on trust, and a create
-   * already in flight is what the second caller waits for.
-   */
-  ensureWatcher(project: Project, seats?: Iterable<SeatView>): Promise<string | undefined> {
-    const seated = this.services.roster.watcherSeat(project, seats ?? []);
-    if (seated) return Promise.resolve(seated);
-    const started = this.seating.get(project.slug);
-    if (started) return started;
-    const role = roleThatCan(this.services.ctx.kit, "watch");
-    if (!role) return Promise.resolve(undefined);
-    const run = (async () => {
-      const already = this.services.roster.watcherSeat(project, await this.services.roster.open());
-      if (already) return already;
-      return this.services.agents.startResident(project, role.role, {
-        title: `${role.label} ${project.slug}`,
-        prompt: `You are seated on this project as its ${role.label}. Mail arrives when there is something to read; there is nothing to do until it does.`,
-        labels: { "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) },
-      });
-    })();
-    this.seating.set(project.slug, run);
-    return run.finally(() => {
-      if (this.seating.get(project.slug) === run) this.seating.delete(project.slug);
-    });
   }
 
   /**
