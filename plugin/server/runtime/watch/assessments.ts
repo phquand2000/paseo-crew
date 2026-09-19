@@ -15,10 +15,11 @@ export type Kept = {
   model: string;
   id: string | null;
   cost: number | null;
-  questions: Record<string, string>;
+  questions: Record<string, { instructions: string; criteria?: { true: string; false: string } }>;
   answers: Record<string, number>;
   facts: { kind: string; level: string; quote: string }[];
   found: string[];
+  verdicts: { kind: string; question: string; says: string; p: number }[];
   state: Record<string, unknown>;
 };
 

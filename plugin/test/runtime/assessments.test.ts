@@ -17,10 +17,11 @@ const record = (at: number): Kept => ({
   model: "typesafe/jev-1.13-20260917",
   id: `gen-${at}`,
   cost: 0.00002,
-  questions: { needs_human: "Does it?" },
+  questions: { needs_human: { instructions: "Does it?" } },
   answers: { needs_human: 0.1 },
   facts: [],
   found: [],
+  verdicts: [],
   state: { recent: ["x".repeat(400)] },
 });
 

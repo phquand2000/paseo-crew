@@ -20,6 +20,19 @@ export type Level = "page" | "attend" | "note";
 
 export type Fact = { kind: string; level: Level; quote: string };
 
+export const FACT_LEVELS: Record<string, Level> = {
+  destructive: "page",
+  stuck: "attend",
+  "no-recovery": "attend",
+  "test-weakened": "attend",
+  suppressed: "attend",
+  unverified: "attend",
+  "long-turn": "attend",
+  "call-failed": "note",
+  "gate-failed": "note",
+  "outside-scope": "note",
+};
+
 export type Rules = {
   destructive: RegExp;
   testPath: RegExp;

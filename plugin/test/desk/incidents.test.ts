@@ -8,16 +8,17 @@ import { tempDir } from "../../server/core/testing.ts";
 import { DeskContext } from "../../server/desk/context.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";
-import { closeIncidentsOf, notice, retell } from "../../server/desk/notice.ts";
+import { closeIncidentsOf, judge, notice, retell } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
-import { decide } from "../../server/runtime/watch/rules.ts";
+import { decide, weigh } from "../../server/runtime/watch/rules.ts";
 import { labelsIn } from "../../bin/calibrate.ts";
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const questions = Object.values(kit.sensors)[0]!.questions;
 
-function desk(watching = false) {
+function desk(watching = false, sensing = false) {
+  const machine: Record<string, unknown> = { ...(watching ? { attention: { watch: true } } : {}), ...(sensing ? { sensor: { key: "k" } } : {}) };
   const root = tempDir("sw2-incidents-");
   const project = { root, slug: "p", state: join(root, "state") };
   const posted: { to: string; key: string; text: string }[] = [];
@@ -26,13 +27,13 @@ function desk(watching = false) {
     kit,
     outbox: { post: async (letter) => (posted.push(letter), "sent") },
     log: () => {},
-    teamFor: () => resolveTeam(kit, watching ? { attention: { watch: true } } : {}),
+    teamFor: () => resolveTeam(kit, machine),
     indexesFor: () => [],
   });
   const roster = { supervisorFor: async () => seated.supervisor };
   const services = { ctx, roster } as unknown as DeskServices;
   const supervisor = { id: "sup", role: kit.roles.find((role) => role.role === "supervisor")!, title: "sup", project };
-  return { project, services, supervisor, posted, seated };
+  return { project, services, supervisor, posted, seated, machine };
 }
 
 const stuck = { kind: "stuck", level: "attend" as const, quote: "the same action failing 3 times", facts: ["stuck"] };
@@ -72,17 +73,80 @@ test("a mark goes on the incident named and closes it, and a later sighting open
   assert.match(listed.text, /I3 \[attend/);
 });
 
-test("Jev alone raises only what its questions may raise alone; the rest need a fact that agrees", () => {
-  const noted = [{ kind: "outside-scope", level: "note" as const, quote: "/etc/hosts" }];
+test("a question alone raises on two readings in a running turn or one at its end, or at once when irreversible; one tied to a fact confirms it rather than raising its own", () => {
+  const unclear = Object.values(kit.sensors)[0]!.unclear;
+  const noted = [{ kind: "outside-scope", level: "note" as const, quote: "/etc/hosts" }, { kind: "stuck", level: "attend" as const, quote: "q" }];
   const answers = Object.fromEntries(Object.keys(questions).map((name) => [name, 0.99]));
-  answers.meaningful_progress = 0.95;
-  const found = decide([], { answers, model: "typesafe/jev-1.13-20260917" }, questions, noted);
-  assert.deepEqual(found.map((finding) => finding.kind), ["unsafe_action", "needs_human", "work_off_track", "goal_drift", "injected_intent"]);
-  assert.equal(found[0]!.level, "page", "what is irreversible goes first");
-  assert.deepEqual(found.find((finding) => finding.kind === "goal_drift")!.facts, ["outside-scope"]);
-  const stalled = decide([], { answers: { ...answers, meaningful_progress: 0.1 }, model: "m" }, questions, [{ kind: "no-recovery", level: "attend", quote: "q" }]);
-  assert.ok(stalled.some((finding) => finding.kind === "meaningful_progress"), "progress is a question answered low, not high");
-  assert.deepEqual(decide([{ kind: "call-failed", level: "note", quote: "x" }]), [], "a note is evidence for Jev, not an incident on its own");
+  const once = weigh({ answers, model: "typesafe/jev-1.13-20260917" }, questions, noted, { unclear, ended: false });
+  assert.deepEqual(once.findings.map((finding) => finding.kind), ["unsafe_action", "goal_drift"], "needs_human waits for a second reading; worker_stuck opens nothing of its own; injected_intent only records");
+  assert.equal(once.findings[0]!.level, "page", "what is irreversible goes first, and at once");
+  assert.deepEqual(once.verdicts.map((verdict) => [verdict.kind, verdict.question, verdict.says]), [["stuck", "worker_stuck", "confirms"]]);
+  assert.ok(weigh({ answers, model: "m" }, questions, noted, { unclear, ended: false, before: answers }).findings.some((finding) => finding.kind === "needs_human"));
+  assert.ok(weigh({ answers, model: "m" }, questions, noted, { unclear, ended: true }).findings.some((finding) => finding.kind === "needs_human"), "a turn that has ended gets no second reading, so one is enough");
+  const close = weigh({ answers: { unsafe_action: 0.6, worker_stuck: 0.6 }, model: "m" }, questions, noted, { unclear, ended: false });
+  assert.deepEqual(close.findings.map((finding) => [finding.kind, finding.level]), [["unsafe_action", "attend"]], "an unclear answer on an irreversible act is never let pass");
+  assert.equal(close.verdicts[0]!.says, "unclear");
+  assert.equal(weigh({ answers: { worker_stuck: 0.5 }, model: "m" }, questions, noted, { unclear, ended: false }).verdicts[0]!.says, "unclear", "the band's lower edge is in the band");
+  assert.equal(weigh({ answers: { worker_stuck: 0.2 }, model: "m" }, questions, noted, { unclear, ended: false }).verdicts[0]!.says, "vetoes");
+  assert.deepEqual(decide([{ kind: "call-failed", level: "note", quote: "x" }]), [], "a note is evidence for the sensor, not an incident on its own");
+});
+
+test("a fact the sensor can judge waits for it, is held back when it disagrees, sent when it agrees, and sent anyway if it never answers", async () => {
+  const { project, services, posted, seated } = desk(true, true);
+  seated.supervisor = "sup";
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  const other = { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" };
+  const late = { id: "peer-3", provider: "sw2-peer-devin/swe-2-max" };
+  const at = Date.now();
+  for (const seat of [peer, other, late]) await notice(services, project, seat, [stuck], at);
+  assert.deepEqual(Object.values(loadIncidents(project.state).items).map((item) => item.held), ["awaiting", "awaiting", "awaiting"]);
+  assert.equal(posted.length, 0);
+  const verdict = (says: "confirms" | "vetoes", p: number) => [{ kind: "stuck", question: "worker_stuck", p, model: "m", says }];
+  assert.deepEqual(await judge(services, project, peer, verdict("vetoes", 0.1), at + 1000), []);
+  assert.deepEqual(await judge(services, project, other, verdict("confirms", 0.9), at + 1000), ["I2"]);
+  assert.match(posted[0]!.text, /The sensor agrees: worker_stuck p=0\.90/);
+  assert.deepEqual(await judge(services, project, other, verdict("vetoes", 0.1), at + 2000), [], "once told, a later reading changes nothing");
+  assert.equal(loadIncidents(project.state).items.I2!.sensor!.says, "confirms", "and the judgement it was sent on is the one kept");
+  assert.equal(posted.length, 1);
+  assert.deepEqual(await retell(services, project, at + 60_000), [], "not yet overdue");
+  assert.deepEqual(await retell(services, project, at + 121_000), ["I3"], "a sensor that never answers holds nothing back for long");
+  const items = loadIncidents(project.state).items;
+  assert.equal(items.I1!.held, "vetoed");
+  assert.equal(items.I1!.sensor!.p, 0.1);
+  assert.deepEqual(await judge(services, project, peer, verdict("confirms", 0.85), at + 150_000), ["I1"], "held back, it is still sent once the sensor comes to agree");
+  const page = await notice(services, project, late, [{ kind: "destructive", level: "page", quote: "rm -rf /", facts: ["destructive"] }], at);
+  assert.deepEqual(page.sent, ["I4"], "an irreversible act never waits");
+});
+
+test("a veto holds back only what it judged: the next sighting waits for the sensor again, and nothing stays held once the sensor is gone", async () => {
+  const { project, services, seated, machine } = desk(true, true);
+  seated.supervisor = "sup";
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  const other = { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" };
+  const at = Date.now();
+  for (const seat of [peer, other]) {
+    await notice(services, project, seat, [stuck], at);
+    await judge(services, project, seat, [{ kind: "stuck", question: "worker_stuck", p: 0.1, model: "m", says: "vetoes" }], at + 1000);
+  }
+  await notice(services, project, peer, [{ ...stuck, quote: "stuck again, in a later instruction" }], at + 600_000);
+  assert.equal(loadIncidents(project.state).items.I1!.held, "awaiting", "new evidence is judged afresh");
+  assert.deepEqual(await retell(services, project, at + 600_000 + 121_000), ["I1"], "and sent if the sensor does not answer");
+  delete machine.sensor;
+  assert.deepEqual(await retell(services, project, at + 700_000), ["I2"], "with no sensor configured, nothing it held back stays held");
+});
+
+test("a doubtful reading raised at attention does not swallow the certain one that follows: that one pages", async () => {
+  const { project, services, posted, seated } = desk(true);
+  seated.supervisor = "sup";
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  const unsafe = (level: "page" | "attend", p: number) => [{ kind: "unsafe_action", level, quote: `p=${p}`, facts: [], p }];
+  assert.deepEqual((await notice(services, project, peer, unsafe("attend", 0.55))).sent, ["I1"]);
+  assert.deepEqual((await notice(services, project, peer, unsafe("page", 0.97))).sent, ["I1"]);
+  assert.equal(posted.length, 2);
+  assert.match(posted[1]!.text, /INCIDENT I1 \(unsafe_action, page\)[\s\S]*p=0\.97/);
+  assert.notEqual(posted[0]!.key, posted[1]!.key, "the page is a letter of its own, not a repeat of the attention one");
+  await notice(services, project, peer, unsafe("page", 0.99));
+  assert.equal(posted.length, 2, "told once as a page, then quiet");
 });
 
 test("what was held because nobody could be told is told on its next sighting once somebody can, and only then goes quiet", async () => {
@@ -144,12 +208,19 @@ test("an incident is never addressed to the seat it is about", async () => {
 });
 
 test("a mark outlives the incident it was put on, so the thresholds are still tuned from it once the book has let the incident go", async () => {
-  const { project, services, supervisor } = desk();
-  await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  const { project, services, supervisor } = desk(false, true);
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  await notice(services, project, peer, [stuck]);
+  await judge(services, project, peer, [{ kind: "stuck", question: "worker_stuck", p: 0.3, model: "m", says: "vetoes" }]);
+  assert.equal(loadIncidents(project.state).items.I1!.held, "shadow", "in shadow the sensor's word is kept, and nothing is sent either way");
   assert.equal((await ack(services, supervisor, { id: "I1", verdict: "useful" })).ok, true);
   const held = loadIncidents(project.state);
   const opened = held.items.I1!.opened;
   delete held.items.I1;
   writeFileSync(join(project.state, "incidents.json"), JSON.stringify(held));
-  assert.deepEqual(labelsIn(project.state), [{ id: "I1", seat: "peer-1", kind: "stuck", opened, last: opened, label: "useful" }]);
+  const [label, ...rest] = labelsIn(project.state);
+  assert.deepEqual(rest, []);
+  const { closed, ...kept } = label!;
+  assert.ok(closed! >= opened);
+  assert.deepEqual(kept, { id: "I1", seat: "peer-1", kind: "stuck", opened, last: opened, sensor: { question: "worker_stuck", p: 0.3, model: "m", says: "vetoes" }, label: "useful" });
 });

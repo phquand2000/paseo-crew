@@ -58,7 +58,7 @@ function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 }
 
 export async function assess(spec: SensorSpec, key: string, state: unknown, session: string, fetcher: Fetch = fetch as unknown as Fetch, halt?: AbortSignal): Promise<Assessment> {
-  const questions = Object.fromEntries(Object.entries(spec.questions).map(([name, question]) => [name, { type: "noul", instructions: question.instructions }]));
+  const questions = Object.fromEntries(Object.entries(spec.questions).map(([name, question]) => [name, { type: "noul", instructions: question.instructions, ...(question.criteria ? { criteria: question.criteria } : {}) }]));
   const body = JSON.stringify({ model: spec.model, state, questions, session_id: session.slice(0, 256) });
   for (let attempt = 0; ; attempt++) {
     if (halt?.aborted) throw new SensorError("let go");
@@ -148,7 +148,10 @@ function line(unit: Unit, exit?: RegExp): string {
     const call = unit.call;
     const bad = call.ended && failed(call, exit);
     const code = typeof call.detail.exitCode === "number" && call.detail.exitCode !== 0 ? `, exit ${call.detail.exitCode}` : "";
-    const head = `${clip(flat(mask(describe(call))), 150)} [${!call.ended ? "running" : bad ? "failed" : call.status}${code}]`;
+    const input = call.detail.input;
+    const bare = !["command", "filePath", "url", "query"].some((key) => str(call.detail[key]));
+    const given = bare && input && typeof input === "object" ? ` ${clip(flat(mask(JSON.stringify(input))), 200)}` : "";
+    const head = `${clip(flat(mask(describe(call))), 150)}${given} [${!call.ended ? "running" : bad ? "failed" : call.status}${code}]`;
     if ((call.detail.type === "edit" || call.detail.type === "write") && !bad) return `${head}${changed(call)}`;
     const output = flat(mask(str(call.detail.output) || errorText(call.error)));
     return output ? `${head} → ${tail(output, 250)}` : head;
@@ -160,56 +163,43 @@ function line(unit: Unit, exit?: RegExp): string {
   return "context compacted";
 }
 
-export type Brief = { goal: string; role: string; exit?: RegExp };
+export type Brief = { goal: string; role: string; gate?: string; turn: "running" | "ended"; exit?: RegExp };
 
 export const NO_GOAL = "none recorded: this seat has no task or lane in the ledger";
 
-export const STATE_FIELDS = ["goal", "prompt", "role", "facts", "recent", "final_message"] as const;
+export const NO_GATE = "none set for this project";
+
+export const STATE_FIELDS = ["goal", "prompt", "role", "gate", "turn", "recent", "final_message"] as const;
 
 export const LEAST_STATE_CHARS = 1000;
 
 const size = (value: unknown) => JSON.stringify(value).length;
 const leftOut = (count: number) => `[… ${count} earlier step${count === 1 ? "" : "s"} left out …]`;
-const RANK: Record<Fact["level"], number> = { page: 0, attend: 1, note: 2 };
 
-export function stateOf(window: Window, noted: Fact[], brief: Brief, limit: number): { state: Record<string, unknown>; sent: Fact[] } {
+export function stateOf(window: Window, brief: Brief, limit: number): Record<string, unknown> {
   const units = window.sinceInstruction();
   let end = units.length;
   while (end > 0 && units[end - 1]!.kind === "thought") end -= 1;
-  const closing = units[end - 1]?.kind === "said" ? units[end - 1] : undefined;
+  const closing = brief.turn === "ended" && units[end - 1]?.kind === "said" ? units[end - 1] : undefined;
   const steps = units.filter((unit) => unit !== closing).map((unit) => line(unit, brief.exit));
   const lost = window.lostSinceInstruction();
   const share = (part: number) => Math.floor(limit * part);
-  const picked: { fact: Fact; index: number; text: string }[] = [];
-  let room = share(0.1);
-  const ranked = noted.map((fact, index) => ({ fact, index })).sort((a, b) => RANK[a.fact.level] - RANK[b.fact.level] || b.index - a.index);
-  for (const { fact, index } of ranked) {
-    const text = clip(mask(`${fact.kind}: ${fact.quote}`), 240);
-    if (size(text) + 1 > room) continue;
-    room -= size(text) + 1;
-    picked.push({ fact, index, text });
-  }
-  const inOrder = () => [...picked].sort((a, b) => a.index - b.index);
   const fields = {
     goal: brief.goal.trim() ? clip(mask(brief.goal), share(0.15)) : NO_GOAL,
     prompt: clip(flat(mask(window.lastInstruction())), share(0.1)),
     role: clip(brief.role, share(0.05)),
-    facts: inOrder().map((item) => item.text),
+    gate: brief.gate?.trim() ? clip(flat(mask(brief.gate)), share(0.05)) : NO_GATE,
     final_message: closing?.kind === "said" ? clip(flat(mask(closing.text)), share(0.1)) : "",
   };
-  const floor = () => size({ ...fields, recent: steps.length + lost > 0 ? [leftOut(steps.length + lost)] : [] });
+  const whole = (recent: string[]) => ({ goal: fields.goal, prompt: fields.prompt, role: fields.role, gate: fields.gate, turn: brief.turn, recent, final_message: fields.final_message });
+  const floor = () => size(whole(steps.length + lost > 0 ? [leftOut(steps.length + lost)] : []));
   while (floor() > limit) {
-    if (picked.length > 0) {
-      picked.pop();
-      fields.facts = inOrder().map((item) => item.text);
-      continue;
-    }
-    const shrinkable = (["final_message", "goal", "prompt", "role"] as const).filter((key) => fields[key] !== "" && fields[key] !== NO_GOAL);
+    const shrinkable = (["final_message", "goal", "prompt", "role", "gate"] as const).filter((key) => fields[key] !== "" && fields[key] !== NO_GOAL && fields[key] !== NO_GATE);
     if (shrinkable.length === 0) break;
     const largest = shrinkable.reduce((a, b) => (size(fields[b]) > size(fields[a]) ? b : a));
     fields[largest] = fields[largest].length <= 2 ? "" : clip(fields[largest], Math.floor(fields[largest].length / 2));
   }
-  room = limit - size({ ...fields, recent: [] });
+  let room = limit - size(whole([]));
   const kept: string[] = [];
   for (let index = steps.length - 1; index >= 0; index--) {
     const cost = size(steps[index]) + 1;
@@ -219,13 +209,10 @@ export function stateOf(window: Window, noted: Fact[], brief: Brief, limit: numb
     room -= cost;
   }
   const dropped = lost + steps.length - kept.length;
-  return {
-    state: { goal: fields.goal, prompt: fields.prompt, role: fields.role, facts: fields.facts, recent: dropped > 0 ? [leftOut(dropped), ...kept] : kept, final_message: fields.final_message },
-    sent: inOrder().map((item) => item.fact),
-  };
+  return whole(dropped > 0 ? [leftOut(dropped), ...kept] : kept);
 }
 
-const blank = (value: unknown) => value === undefined || value === "" || value === NO_GOAL || (Array.isArray(value) && value.length === 0);
+const blank = (value: unknown) => value === undefined || value === "" || value === NO_GOAL || value === NO_GATE || (Array.isArray(value) && value.length === 0);
 
 export function asked(questions: Record<string, Question>, state: Record<string, unknown>): Record<string, Question> {
   return Object.fromEntries(Object.entries(questions).filter(([, question]) => !question.needs || question.needs.some((field) => !blank(state[field]))));
@@ -291,7 +278,7 @@ export class Pacer {
 
 export type Sensing = { spec: SensorSpec; key: string; brief: Brief };
 
-export type Reading = { sensor: string; askedAt: number; turnId: string | null; running: boolean; assessment: Assessment; state: Record<string, unknown>; questions: Record<string, Question>; facts: Fact[] };
+export type Reading = { spec: SensorSpec; askedAt: number; turnId: string | null; running: boolean; assessment: Assessment; state: Record<string, unknown>; questions: Record<string, Question>; facts: Fact[] };
 
 export type AssessorDeps = {
   sensing: (watch: SeatWatch) => Sensing | undefined;
@@ -335,7 +322,8 @@ export class Assessor {
     if (!sensing) return;
     const askedAt = Date.now();
     const { turnId, running } = watch;
-    const { state, sent: facts } = stateOf(watch.window, [...watch.noted], sensing.brief, sensing.spec.stateChars);
+    const facts = [...watch.noted];
+    const state = stateOf(watch.window, sensing.brief, sensing.spec.stateChars);
     const questions = asked(sensing.spec.questions, state);
     if (Object.keys(questions).length === 0) return;
     let assessment: Assessment;
@@ -345,6 +333,6 @@ export class Assessor {
       if (this.pacers.get(watch.seat.id) === pacer) this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(error instanceof Error ? error.message : String(error)));
       return;
     }
-    if (this.pacers.get(watch.seat.id) === pacer) this.deps.done(watch, { sensor: sensing.spec.id, askedAt, turnId, running, assessment, state, questions, facts });
+    if (this.pacers.get(watch.seat.id) === pacer) this.deps.done(watch, { spec: sensing.spec, askedAt, turnId, running, assessment, state, questions, facts });
   }
 }

@@ -160,7 +160,8 @@ export function makeKit(): Kit {
     stateChars: 2000,
     debounceSeconds: 1,
     everySeconds: 5,
-    questions: { stuck: { instructions: "Is it stuck?", threshold: 0.8, level: "attend", agrees: ["stuck"] } },
+    unclear: 0.2,
+    questions: { stuck: { instructions: "Is it stuck?", threshold: 0.8, confirms: ["stuck"] } },
   });
   put(dir, "content/guides/BRIEF.md", "# Brief\n");
   put(dir, "content/skills/supervisor/plan-check/SKILL.md", "---\nname: plan-check\ndescription: checks a plan\n---\n");

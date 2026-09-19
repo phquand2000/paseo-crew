@@ -26,7 +26,7 @@ import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
 import type { Fact } from "./watch/facts.ts";
-import { decide, type Finding } from "./watch/rules.ts";
+import { type Finding, type Verdict, decide, weigh } from "./watch/rules.ts";
 import { keepAssessment } from "./watch/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
@@ -166,19 +166,27 @@ export class Runtime {
     }
     const brief = watch.brief();
     if (!brief || brief.goal === null) return undefined;
-    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, exit: brief.rules.exit } };
+    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gate, turn: watch.running ? "running" : "ended", exit: brief.rules.exit } };
   }
 
   private assessed(watch: SeatWatch, reading: Reading): void {
     const project = projectOf(watch.seat.cwd);
     const { assessment, state, questions, facts } = reading;
     this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(state).length });
-    const findings = decide([], assessment, questions, facts);
-    this.keep(project, watch, reading, findings);
+    const before = watch.reading && watch.reading.turnId === reading.turnId ? watch.reading.answers : undefined;
+    watch.reading = { turnId: reading.turnId, answers: assessment.answers };
+    const { findings, verdicts } = weigh(assessment, questions, facts, { unclear: reading.spec.unclear, ended: !reading.running, before });
+    this.keep(project, watch, reading, findings, verdicts);
     this.noticed(watch, findings);
+    this.judged(watch, verdicts);
   }
 
-  private keep(project: Project, watch: SeatWatch, reading: Reading, findings: Finding[]): void {
+  private judged(watch: SeatWatch, verdicts: Verdict[]): void {
+    if (verdicts.length === 0 || this.watches.get(watch.seat.id) !== watch) return;
+    this.desk.judge(projectOf(watch.seat.cwd), watch.seat, verdicts).catch((error) => console.error("seatworks-v2: what the sensor said of an incident could not be recorded:", error));
+  }
+
+  private keep(project: Project, watch: SeatWatch, reading: Reading, findings: Finding[], verdicts: Verdict[]): void {
     const { assessment } = reading;
     const unkept = (error: unknown) => {
       const key = `unkept:${project.slug}`;
@@ -195,14 +203,15 @@ export class Runtime {
         provider: watch.seat.provider,
         turnId: reading.turnId,
         running: reading.running,
-        sensor: reading.sensor,
+        sensor: reading.spec.id,
         model: assessment.model,
         id: assessment.id,
         cost: assessment.cost,
-        questions: Object.fromEntries(Object.entries(reading.questions).map(([name, question]) => [name, question.instructions])),
+        questions: Object.fromEntries(Object.entries(reading.questions).map(([name, question]) => [name, { instructions: question.instructions, ...(question.criteria ? { criteria: question.criteria } : {}) }])),
         answers: assessment.answers,
         facts: reading.facts.map(({ kind, level, quote }) => ({ kind, level, quote })),
         found: findings.map((finding) => finding.kind),
+        verdicts: verdicts.map(({ kind, question, says, p }) => ({ kind, question, says, p })),
         state: reading.state,
       }).catch(unkept);
     } catch (error) {

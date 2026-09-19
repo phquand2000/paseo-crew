@@ -295,7 +295,8 @@ export const letters = {
     const lines = [`INCIDENT ${incident.id} (${line(incident.kind, 40)}, ${incident.level}) on ${line(incident.where, 160)}, agent ${incident.seat}.`, ""];
     lines.push(`What was seen: ${line(incident.quote, 400)}`);
     if (incident.facts.length > 0) lines.push(`Facts behind it: ${incident.facts.join(", ")}`);
-    if (incident.p !== undefined) lines.push(`Jev: p=${incident.p.toFixed(2)}${incident.model ? ` (${incident.model})` : ""}`);
+    if (incident.p !== undefined) lines.push(`The sensor: p=${incident.p.toFixed(2)}${incident.model ? ` (${incident.model})` : ""}`);
+    if (incident.sensor) lines.push(`The sensor ${incident.sensor.says === "confirms" ? "agrees" : "is unsure"}: ${incident.sensor.question} p=${incident.sensor.p.toFixed(2)} (${incident.sensor.model})`);
     if (place.task) {
       lines.push("", `Its task ${place.task.id}: ${line(place.task.title, 160)}`, `- Goal: ${line(place.task.goal, 400)}`, `- Acceptance: ${line(place.task.acceptance.join("; "), 400)}`);
     }

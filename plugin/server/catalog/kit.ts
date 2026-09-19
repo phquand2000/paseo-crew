@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
-import { DESTRUCTIVE, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
+import { DESTRUCTIVE, FACT_LEVELS, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
 import { LEAST_STATE_CHARS, STATE_FIELDS } from "../runtime/watch/sensor.ts";
 import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
@@ -205,7 +205,16 @@ export type Attention = {
   incidentsPerDay: number;
 };
 
-export type Question = { instructions: string; threshold?: number; level?: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[]; needs?: string[] };
+export type Question = {
+  instructions: string;
+  criteria?: { true: string; false: string };
+  threshold?: number;
+  level?: "page" | "attend";
+  alone?: boolean;
+  agrees?: string[];
+  confirms?: string[];
+  needs?: string[];
+};
 
 export type SensorSpec = {
   id: string;
@@ -216,6 +225,7 @@ export type SensorSpec = {
   stateChars: number;
   debounceSeconds: number;
   everySeconds: number;
+  unclear: number;
   questions: Record<string, Question>;
 };
 
@@ -300,6 +310,9 @@ function loadMcp(dir: string): Record<string, McpEntry> {
   return entries;
 }
 
+const SENSOR_KEYS = ["id", "url", "model", "timeoutSeconds", "retries", "stateChars", "debounceSeconds", "everySeconds", "unclear", "questions"];
+const QUESTION_KEYS = ["instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs"];
+
 export function sensorProblems(id: string, raw: Record<string, unknown>): string[] {
   const problems: string[] = [];
   if (raw.id !== id) problems.push(`calls itself ${String(raw.id)} but sits in catalog/sensor/${id}`);
@@ -310,14 +323,25 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   if (!Number.isInteger(raw.retries) || (raw.retries as number) < 0) problems.push("has no whole number of retries");
   const questions = raw.questions as Record<string, Record<string, unknown>> | undefined;
   if (!questions || typeof questions !== "object" || Object.keys(questions).length === 0) problems.push("asks no questions");
+  if (typeof raw.unclear !== "number" || !(raw.unclear > 0 && raw.unclear < 0.5)) problems.push("has no unclear band between 0 and 0.5");
+  for (const key of Object.keys(raw)) if (!SENSOR_KEYS.includes(key)) problems.push(`has ${key}, which a sensor does not take`);
+  const kinds = (value: unknown, levels: string[]) => Array.isArray(value) && value.length > 0 && value.every((kind) => typeof kind === "string" && levels.includes(FACT_LEVELS[kind] ?? ""));
   for (const [name, question] of Object.entries(questions ?? {})) {
     if (typeof question?.instructions !== "string" || !question.instructions) problems.push(`asks ${name} without instructions`);
-    const decides = question?.alone === true || question?.agrees !== undefined;
+    for (const key of Object.keys(question ?? {})) if (!QUESTION_KEYS.includes(key)) problems.push(`asks ${name} with ${key}, which a question does not take`);
+    const criteria = question?.criteria as Record<string, unknown> | null | undefined;
+    if (criteria !== undefined && (!criteria || typeof criteria !== "object" || Array.isArray(criteria) || Object.keys(criteria).sort().join() !== "false,true" || !criteria.true || !criteria.false || typeof criteria.true !== "string" || typeof criteria.false !== "string")) {
+      problems.push(`asks ${name} with criteria that are not a true and a false text`);
+    }
+    const opens = question?.alone === true || question?.agrees !== undefined;
+    const decides = opens || question?.confirms !== undefined;
     if (decides && (typeof question?.threshold !== "number" || question.threshold < 0 || question.threshold > 1)) problems.push(`asks ${name} with no threshold between 0 and 1`);
-    if (decides && question?.level !== "page" && question?.level !== "attend") problems.push(`asks ${name} at a level that is neither page nor attend`);
-    if (!decides && (question?.threshold !== undefined || question?.level !== undefined)) problems.push(`asks ${name} with a threshold or level, though nothing decides on its answer`);
-    if (question?.agrees !== undefined && (!Array.isArray(question.agrees) || question.agrees.some((kind) => typeof kind !== "string"))) problems.push(`asks ${name} with agrees that is not a list of fact kinds`);
-    if (question?.alone && question?.agrees) problems.push(`asks ${name} both alone and needing a fact to agree`);
+    if (opens && question?.level !== "page" && question?.level !== "attend") problems.push(`asks ${name} at a level that is neither page nor attend`);
+    if (!opens && question?.level !== undefined) problems.push(`asks ${name} with a level, though it opens no incident of its own`);
+    if (!decides && question?.threshold !== undefined) problems.push(`asks ${name} with a threshold, though nothing decides on its answer`);
+    if (question?.agrees !== undefined && !kinds(question.agrees, ["page", "attend", "note"])) problems.push(`asks ${name} with agrees that is not a list of fact kinds`);
+    if (question?.confirms !== undefined && !kinds(question.confirms, ["attend"])) problems.push(`asks ${name} with confirms that is not a list of attention-level fact kinds`);
+    if (question?.alone && (question?.agrees || question?.confirms)) problems.push(`asks ${name} both alone and tied to facts`);
     if (question?.needs !== undefined && (!Array.isArray(question.needs) || question.needs.length === 0 || question.needs.some((field) => !(STATE_FIELDS as readonly unknown[]).includes(field)))) {
       problems.push(`asks ${name} with needs that is not a list of the state's fields (${STATE_FIELDS.join(", ")})`);
     }

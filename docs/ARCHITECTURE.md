@@ -335,29 +335,51 @@ matching the harness's `exitPattern` (Devin reports only `Exited with code N`).
 
 With a key in the machine settings, the sensor in `catalog/sensor/` (Jev through OpenRouter Decisions)
 is asked about the seat five seconds after it goes quiet, at least every thirty while it works, and at
-once when a call fails, a turn ends or a permission is asked. The state leads with the task or lane
-brief and the instruction the turn serves, however long ago it arrived, masks secrets and stays within
-the sensor's size, most of which goes to the steps: each shows the end of what it printed, or its error,
-and an edit shows what it changed. Facts go in by level, then newest first. No earlier verdict is ever
-in it. A seat whose brief cannot be read from the ledger is not asked about. A question whose `needs`
-fields are all empty is not asked. A question above its threshold becomes a finding only with a fact
-that agrees, except the ones marked `alone`, and only a fact the state carried can agree.
+once when a call fails, a turn ends or a permission is asked. The state holds the task or lane brief,
+the instruction the turn serves however long ago it arrived, the gate, whether the turn is running,
+the steps, and, once the turn has ended, the words it ended on. Each step shows the end of what it
+printed, or its error; an edit shows what it changed; a tool with no command or path shows what it
+was given. Secrets are masked and the state stays within the sensor's size, most of
+it given to the steps. Nothing the code or the sensor concluded is in it, so the sensor agreeing with a
+fact is a second opinion, not an echo. A seat whose brief cannot be read from the ledger is not asked
+about, and a question whose `needs` fields are all empty is not asked.
 
-Every assessment is kept in `assessments/` with its state, questions, facts, answers and findings,
-packed when a file passes 32 MiB and dropped, oldest first, past 64 files. `node bin/calibrate.ts
-<project>` reads them against the marks on incidents, which the `incident.ack` event keeps after the
-book lets an incident go. For each question it reports AUROC, how often it fires in its busiest 24
-hours, and the most sensitive threshold within the day's budget were it the only thing firing, then
-all of them together with the incidents code facts opened. `--ask` asks the questions in
-`catalog/sensor/` again against the kept states first.
+Each question names state fields, asks what the state shows, has yes as the finding, and may carry
+`criteria`. What its answer does depends on how it is tied:
+
+- `alone`: it opens its own incident. At `attend` it needs two readings in a row in the same turn at or
+  over its threshold, or one taken after the turn ended, since no other follows. At `page` one reading
+  is enough, and a reading in the `unclear` band just under the threshold is raised at `attend` rather
+  than let pass; a page that follows is sent as a page, not folded into the attention already sent.
+- `agrees`: it opens its own incident when one of the named facts was noted when the state was taken.
+- `confirms`: it opens nothing of its own. It judges the open incident of a named attention-level fact:
+  at or over the threshold it confirms, in the band it is unsure, under the band it disagrees. While
+  the watch is on, such an incident waits up to two minutes for that judgement. One the sensor
+  disagrees with is held back and kept, and still sent if it later agrees; a new sighting of it waits
+  for a fresh judgement, and nothing stays held back once no sensor is configured. One it never judges
+  is sent when the two minutes are up. Once sent, the judgement it was sent on is the one kept. A page
+  never waits, and no question judges `long-turn`, since the state holds no time.
+
+A key `catalog/sensor/` does not know is refused rather than ignored. Every assessment is kept in
+`assessments/` with its state, questions and their criteria, the facts noted, answers, findings and
+judgements, packed when a file passes 32 MiB and dropped, oldest first, past 64 files.
+`node bin/calibrate.ts <project>` reads them against the marks on incidents, which the `incident.ack`
+event keeps after the book lets an incident go, using only answers to the wording in use. For each
+question it reports AUROC on its own incidents or on the incidents it judged, how often it fires in its busiest 24 hours, and the most sensitive
+threshold within the day's budget were it the only thing firing. It then reports all of them together
+with the incidents code facts opened, and how precise the incidents were in the end, split by who
+raised them and what the sensor said. `--ask` asks the questions in `catalog/sensor/` again against
+the kept states first. `--sample N` picks turns nobody flagged for the owner to read, and `--missed`
+or `--fine` marks them, which is how the report estimates what the watch misses.
 
 Each finding joins the open incident for its seat and kind in `incidents.json`, or opens one. An
 incident is sent once, as an INCIDENT letter to whoever supervises the project, and is quiet after
-that. Until it is sent it is decided again on every sighting: `attention.watch` off (the default) holds
-it in shadow, the day's `incidentsPerDay` holds an attention-level one, and nobody seated holds it for
-nobody until a patrol round finds somebody to tell. The Supervisor lists them with `incidents` and marks each `useful` or `noise` with `ack`,
-which closes it and is what the thresholds are tuned from. Nothing the watch concludes goes to the
-seat it watches.
+that. Until it is sent it is decided again on every sighting and every judgement: `attention.watch` off
+(the default) holds it in shadow, the sensor holds one it can judge, or holds back one it disagrees
+with, the day's `incidentsPerDay` holds an attention-level one, and nobody seated holds it for nobody
+until a patrol round finds somebody to tell. The Supervisor lists them with `incidents` and marks each
+`useful` or `noise` with `ack`, which closes it and is what the thresholds are tuned from. Nothing the
+watch concludes goes to the seat it watches.
 
 The **patrol** runs every `tickSeconds`, 30 s by default, and rounds never overlap. For each project a
 round:

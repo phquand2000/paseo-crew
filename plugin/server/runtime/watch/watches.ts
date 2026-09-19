@@ -19,6 +19,7 @@ export class SeatWatch {
   running = false;
   turnId: string | null = null;
   startedAt = 0;
+  reading: { turnId: string | null; answers: Record<string, number> } | undefined;
   private readonly durations: number[] = [];
   private readonly told = new Set<string>();
   private readonly recovery = new Recovery();
@@ -37,6 +38,7 @@ export class SeatWatch {
 
   see(seen: Seen, now = Date.now()): Fact[] {
     if (seen.kind === "reset") {
+      this.reading = undefined;
       this.window.clear();
       this.recovery.reset();
       this.told.clear();

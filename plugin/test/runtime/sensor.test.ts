@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { type SensorSpec, loadKit, sensorProblems } from "../../server/catalog/kit.ts";
 import { mask } from "../../server/runtime/watch/mask.ts";
-import { Assessor, NO_GOAL, Pacer, SensorError, assess, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
+import { Assessor, NO_GATE, NO_GOAL, Pacer, SensorError, assess, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -86,8 +86,9 @@ test("the state leads with the goal, keeps what fits, and carries no secret the 
     window.add({ item: { type: "tool_call", callId: `c${index}`, name: "bash", status: "completed", detail: { type: "shell", command: `cat part${index}.txt`, output: "x".repeat(300) } }, seq: index + 2, epoch: "e", turnId: "t", replay: false });
   }
   window.add({ item: { type: "assistant_message", text: "Set API_KEY=abcd1234efgh5678 and ghp_0123456789abcdefghij done" }, seq: 99, epoch: "e", turnId: "t", replay: false });
-  const { state } = stateOf(window, [{ kind: "stuck", level: "attend", quote: "q" }], { goal: "Task L1-T1: login", role: "Peer" }, 4000);
-  assert.deepEqual(Object.keys(state), ["goal", "prompt", "role", "facts", "recent", "final_message"]);
+  const state = stateOf(window, { goal: "Task L1-T1: login", role: "Peer", gate: "npm test", turn: "ended" }, 4000);
+  assert.deepEqual(Object.keys(state), ["goal", "prompt", "role", "gate", "turn", "recent", "final_message"]);
+  assert.equal(state.gate, "npm test");
   assert.ok(JSON.stringify(state).length <= 4000);
   const recent = state.recent as string[];
   assert.match(recent[0]!, /^\[… \d+ earlier steps left out …\]$/);
@@ -140,8 +141,18 @@ test("the shipped sensor asks only questions it can use, and the kit refuses one
     "asks q at a level that is neither page nor attend",
   ]);
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", threshold: 0.7, level: "attend" } } } as never), [
-    "asks q with a threshold or level, though nothing decides on its answer",
+    "asks q with a level, though it opens no incident of its own",
+    "asks q with a threshold, though nothing decides on its answer",
   ]);
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", threshold: 0.7, confirms: ["destructive"], criteria: { true: "yes" } } } } as never), [
+    "asks q with criteria that are not a true and a false text",
+    "asks q with confirms that is not a list of attention-level fact kinds",
+  ]);
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", unclaer: 0.2, questions: { q: { instructions: "?", criterion: { true: "a", false: "b" }, criteria: null } } } as never), [
+    "has unclaer, which a sensor does not take",
+    "asks q with criterion, which a question does not take",
+    "asks q with criteria that are not a true and a false text",
+  ], "a misspelt key is refused, not silently dropped");
 });
 
 test("a secret is masked before anything is cut, so no part of it survives a clip", () => {
@@ -149,7 +160,7 @@ test("a secret is masked before anything is cut, so no part of it survives a cli
   window.add({ item: { type: "user_message", text: "go" }, seq: 1, epoch: "e", turnId: "t", replay: false });
   const key = `-----BEGIN OPENSSH PRIVATE KEY-----\n${"QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo".repeat(20)}\n-----END OPENSSH PRIVATE KEY-----`;
   window.add({ item: { type: "tool_call", callId: "c", name: "Bash", status: "completed", detail: { type: "shell", command: "cat ~/.ssh/id_ed25519", output: key } }, seq: 2, epoch: "e", turnId: "t", replay: false });
-  const state = JSON.stringify(stateOf(window, [], { goal: "g", role: "Peer" }, 8000).state);
+  const state = JSON.stringify(stateOf(window, { goal: "g", role: "Peer", turn: "running" }, 8000));
   assert.doesNotMatch(state, /QUJDREVGR0hJSktM/);
   assert.match(state, /\[private key\]/);
 });
@@ -183,7 +194,7 @@ test("an assessment still in flight when its seat is let go is not recorded", as
   const done: string[] = [];
   const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window: new Window(), noted: [] } as never;
   const assessor = new Assessor({
-    sensing: () => ({ spec: spec({ a: noul() }), key: "k", brief: { goal: "g", role: "Peer" } }),
+    sensing: () => ({ spec: spec({ a: noul() }), key: "k", brief: { goal: "g", role: "Peer", turn: "running" as const } }),
     done: () => done.push("done"),
     failed: () => done.push("failed"),
     fetcher: fetcher as never,
@@ -214,7 +225,7 @@ test("letting a seat go stops the request it has in flight", async () => {
     return new Promise<never>((_resolve, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason)));
   };
   const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window: new Window(), noted: [] } as never;
-  const assessor = new Assessor({ sensing: () => ({ spec: spec({ a: noul() }, { timeoutSeconds: 5 }), key: "k", brief: { goal: "g", role: "Peer" } }), done: () => {}, failed: () => {}, fetcher: fetcher as never });
+  const assessor = new Assessor({ sensing: () => ({ spec: spec({ a: noul() }, { timeoutSeconds: 5 }), key: "k", brief: { goal: "g", role: "Peer", turn: "running" as const } }), done: () => {}, failed: () => {}, fetcher: fetcher as never });
   assessor.moment(watch, true);
   await wait(10);
   assessor.drop("s1");
@@ -229,33 +240,28 @@ test("a turn longer than the window still carries the instruction it serves, and
   const window = new Window();
   window.add(row({ type: "user_message", text: "Rename the config loader" }, 1));
   for (let index = 0; index < 85; index++) window.add(row(shell(`c${index}`, `ls dir${index}`), index + 2));
-  const { state } = stateOf(window, [], { goal: "", role: "Peer" }, 8000);
+  const state = stateOf(window, { goal: "", role: "Peer", turn: "running" }, 8000);
   assert.equal(state.prompt, "Rename the config loader");
   assert.equal(state.goal, NO_GOAL, "an empty goal is said to be empty, not left for the reader to take as anything goes");
   assert.equal((state.recent as string[])[0], "[… 5 earlier steps left out …]", "the steps the window let go of are counted");
   window.add(row({ type: "user_message", text: "Now update the docs" }, 200));
   window.add(row(shell("d1", "ls docs"), 201));
-  assert.deepEqual(stateOf(window, [], { goal: "g", role: "Peer" }, 8000).state.recent, ["Bash: ls docs [completed] → ok"]);
+  assert.deepEqual(stateOf(window, { goal: "g", role: "Peer", turn: "running" }, 8000).recent, ["Bash: ls docs [completed] → ok"]);
 });
 
-test("the cap holds, most of it goes to what the seat did, and the facts sent are the ones a decision may lean on", () => {
+test("the cap holds, most of it goes to what the seat did, and none of it is what the code concluded", () => {
   const window = new Window();
   window.add(row({ type: "user_message", text: "Fix the parser" }, 1));
   for (let index = 0; index < 26; index++) window.add(row(shell(`c${index}`, `grep -rn "token${index}" src/parser`, { output: "src/parser/lex.ts:12: const token = next();".repeat(3) }), index + 2));
-  const noted = [
-    { kind: "destructive", level: "page" as const, quote: "rm -rf build" },
-    ...Array.from({ length: 19 }, (_, index) => ({ kind: "call-failed", level: "note" as const, quote: `${index} ${"npm run build ".repeat(15)}` })),
-  ];
   const goal = `Task L1-T1: parser\nGoal: ${'"quoted" and\n'.repeat(200)}`;
   for (const limit of [8000, 3000, 1000]) {
-    const { state, sent } = stateOf(window, noted, { goal, role: "Peer: carries out one task" }, limit);
+    const state = stateOf(window, { goal, role: "Peer: carries out one task", gate: "npm run check ".repeat(40), turn: "running" }, limit);
     assert.ok(JSON.stringify(state).length <= limit, `${JSON.stringify(state).length} > ${limit}`);
     assert.ok(JSON.stringify(state.recent).length > limit / 2, "what the seat did has the larger share");
     assert.match((state.recent as string[]).at(-1)!, /token25/, "the newest step is always kept");
-    assert.deepEqual(sent.map((fact) => `${fact.kind}: ${fact.quote}`.slice(0, 40)), (state.facts as string[]).map((fact) => fact.slice(0, 40)), "a decision leans only on facts the sensor was shown");
-    if (sent.length > 0) assert.equal(sent[0]!.kind, "destructive", "an irreversible act outranks a pile of failed calls");
   }
-  assert.equal((stateOf(window, noted, { goal, role: "Peer" }, 8000).state.recent as string[]).length, 26, "at the shipped size nothing the seat did in this turn is left out");
+  assert.equal((stateOf(window, { goal, role: "Peer", turn: "running" }, 8000).recent as string[]).length, 26, "at the shipped size nothing the seat did in this turn is left out");
+  assert.equal(stateOf(window, { goal, role: "Peer", turn: "running" }, 8000).gate, NO_GATE);
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", stateChars: 100 } as never), ["sends a state of fewer than 1000 characters, too few to say anything"]);
 });
 
@@ -273,7 +279,8 @@ test("what a step did reaches the state: the end of what it printed, its error w
   window.add(row(edit("c7", { unifiedDiff: `diff --git a/src/gen.ts b/src/gen.ts\n--- /dev/null\n+++ b/src/gen.ts\n${"+export const x = 1;\n".repeat(500)}...[truncated 900 chars]` }), 8));
   window.add(row(edit("c8", { unifiedDiff: "  1 const a = 1;\n- 2 const b = 2;\n+ 2 const b = 2 * y;" }), 9));
   window.add(row({ type: "tool_call", callId: "c9", name: "Write", status: "completed", detail: { type: "write", filePath: "src/b.ts", content: "export const a = 1;\nexport const b = 2;\n" } }, 10));
-  const { state } = stateOf(window, [], { goal: "g", role: "Peer" }, 8000);
+  window.add(row({ type: "tool_call", callId: "c10", name: "mcp__team__done", status: "completed", detail: { type: "unknown", input: { summary: "Parser fixed; all tests pass", token: "hunter2hunter2" }, output: null } }, 11));
+  const state = stateOf(window, { goal: "g", role: "Peer", turn: "ended" }, 8000);
   const recent = state.recent as string[];
   assert.match(recent[0]!, /^Bash: npm test \[failed, exit 1\] → …(😀)+ FAIL: expected 3 got 4$/);
   assert.doesNotMatch(JSON.stringify(state), /\\ud[89a-f]/i, "no character is cut in half");
@@ -284,6 +291,7 @@ test("what a step did reaches the state: the end of what it printed, its error w
   assert.match(recent[6]!, /^Edit: src\/a\.ts \[completed\] \+\d+ -0 \(diff cut short\): export const x = 1;$/);
   assert.equal(recent[7], "Edit: src/a.ts [completed] +1 -1: const b = 2 * y;");
   assert.equal(recent[8], "Write: src/b.ts [completed] wrote 2 lines: export const a = 1;");
+  assert.equal(recent[9], 'mcp__team__done {"summary":"Parser fixed; all tests pass","token":"[redacted]"} [completed]', "what a seat handed to a tool with no command or path is what it said");
 });
 
 test("a question that reads only what is empty is not asked, and not paid for", async () => {
@@ -295,10 +303,11 @@ test("a question that reads only what is empty is not asked, and not paid for", 
     return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ answers, model: "m" }), text: async () => "" };
   };
   const readings: string[][] = [];
+  let turn: "running" | "ended" = "running";
   const window = new Window();
   const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window, noted: [] } as never;
   const assessor = new Assessor({
-    sensing: () => ({ spec: shipped, key: "k", brief: { goal: "", role: "Peer" } }),
+    sensing: () => ({ spec: shipped, key: "k", brief: { goal: "", role: "Peer", turn } }),
     done: (_watch, reading) => readings.push(Object.keys(reading.questions)),
     failed: () => {},
     fetcher: fetcher as never,
@@ -310,23 +319,28 @@ test("a question that reads only what is empty is not asked, and not paid for", 
   assert.ok(needing.includes("goal_drift") && needing.includes("unverified_success"));
   assert.deepEqual(Object.keys(bodies[0]!.questions), Object.keys(shipped.questions).filter((name) => !needing.includes(name)));
   assert.deepEqual(readings[0], Object.keys(bodies[0]!.questions), "the decision is made on what was asked");
+  assert.deepEqual((bodies[0]!.questions.needs_human as { criteria: unknown }).criteria, shipped.questions.needs_human!.criteria, "a question's criteria go with it");
   window.add(row({ type: "user_message", text: "Fix it" }, 2));
   window.add(row({ type: "assistant_message", text: "Fixed, all tests pass", messageId: "m1" }, 3));
   assessor.moment(watch, true);
   await wait(20);
-  assert.deepEqual(Object.keys(bodies[1]!.questions), Object.keys(shipped.questions));
+  assert.ok(!("unverified_success" in bodies[1]!.questions), "words said while the turn still runs are not its final message");
+  turn = "ended";
+  assessor.moment(watch, true);
+  await wait(20);
+  assert.deepEqual(Object.keys(bodies[2]!.questions), Object.keys(shipped.questions));
   assessor.dispose();
 });
 
-test("a decision is made on the facts that were sent, whatever the seat noted while the answer was on its way", async () => {
+test("a decision is made on the facts noted when the state was taken, whatever the seat noted while the answer was on its way", async () => {
   let answer: (value: unknown) => void = () => {};
   const fetcher = async () => ({ ok: true, status: 200, headers: { get: () => null }, json: () => new Promise((resolve) => (answer = resolve)), text: async () => "" });
   const noted = [{ kind: "destructive", level: "page" as const, quote: "rm -rf build" }];
   const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window: new Window(), noted } as never;
-  const readings: { facts: string[]; sent: string[] }[] = [];
+  const readings: { facts: string[] }[] = [];
   const assessor = new Assessor({
-    sensing: () => ({ spec: spec({ a: noul() }), key: "k", brief: { goal: "g", role: "Peer" } }),
-    done: (_watch, reading) => readings.push({ facts: reading.facts.map((fact) => fact.kind), sent: reading.state.facts as string[] }),
+    sensing: () => ({ spec: spec({ a: noul() }), key: "k", brief: { goal: "g", role: "Peer", turn: "running" as const } }),
+    done: (_watch, reading) => readings.push({ facts: reading.facts.map((fact) => fact.kind) }),
     failed: () => {},
     fetcher: fetcher as never,
   });
@@ -336,6 +350,6 @@ test("a decision is made on the facts that were sent, whatever the seat noted wh
   noted.push({ kind: "outside-scope", level: "note" as never, quote: "/etc/hosts" });
   answer({ answers: { a: { type: "noul", noul: 0.9 } }, model: "m" });
   await wait(10);
-  assert.deepEqual(readings, [{ facts: ["destructive"], sent: ["destructive: rm -rf build"] }]);
+  assert.deepEqual(readings, [{ facts: ["destructive"] }]);
   assessor.dispose();
 });

@@ -1588,11 +1588,12 @@ test("each assessment is kept with the state, questions, facts and answers it wa
     const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
     bodies.push(body);
     await held;
-    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "injected_intent" ? 0.9 : 0.1 }]));
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "goal_drift" ? 0.9 : 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917", id: "gen-kept", usage: { cost: 0.00002 } }), { status: 200 });
   });
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "tool_call", callId: "c0", name: "Edit", status: "completed", detail: { type: "edit", filePath: "b.txt", oldString: "x", newString: "y" } }, "t1");
   timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "rm -rf build", output: "" } }, "t1");
   timeline.beat("turn_completed", "t1");
   await settle();
@@ -1607,11 +1608,83 @@ test("each assessment is kept with the state, questions, facts and answers it wa
   assert.equal(first.seat, peer);
   assert.equal(first.model, "typesafe/jev-1.13-20260917");
   assert.equal(first.turnId, "t1", "filed under the turn it was asked about, though the next had begun when the answer came");
-  assert.deepEqual(first.facts.map((fact) => fact.kind), ["destructive"], "the facts the state carried");
-  assert.deepEqual(first.found, ["injected_intent"], "decided on the facts that were sent, though the seat was told something new while the answer was on its way");
+  assert.deepEqual(first.facts.map((fact) => fact.kind), ["outside-scope", "destructive"], "the facts noted when the state was taken");
+  assert.deepEqual(first.found, ["goal_drift"], "decided on those facts, though the seat was told something new while the answer was on its way");
+  assert.equal((first.state as { turn: string }).turn, "running");
+  assert.ok((first.state as { gate?: string }).gate, "the gate the project checks with, or that it has none");
   assert.deepEqual(Object.keys(first.questions), Object.keys(bodies[0]!.questions));
   assert.ok(!("unverified_success" in first.questions), "a turn that ends without a word claims nothing, so nothing is asked about a claim");
   assert.doesNotMatch(JSON.stringify(kept), /sk-or-kept-test/);
+  h.runtime.dispose();
+});
+
+test("a stuck seat the sensor does not think stuck is held back from the Supervisor, and the sensor's word is kept on the incident", async (t) => {
+  const { h, sup, timeline } = await laneWithPeer("outbox-vetoed.json", { attention: { watch: true } });
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-vetoed-test" } }));
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
+  });
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Make the build pass" }, "t1");
+  for (let index = 0; index < 3; index++) timeline.add({ type: "tool_call", callId: `c${index}`, name: "Bash", status: "failed", detail: { type: "shell", command: "npm run build", output: "error TS2345", exitCode: 2 } }, "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  await h.idle(sup);
+  const stuck = Object.values(JSON.parse(readFileSync(join(h.project.state, "incidents.json"), "utf-8")).items as Record<string, { kind: string; held?: string; told?: number; sensor?: { question: string; says: string } }>).find((item) => item.kind === "stuck");
+  assert.ok(stuck, "the code still opens the incident");
+  assert.equal(stuck.held, "vetoed");
+  assert.deepEqual([stuck.sensor?.question, stuck.sensor?.says], ["worker_stuck", "vetoes"]);
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+  assert.ok(readAssessments(h.project.state).kept.some((record) => record.verdicts.some((verdict) => verdict.kind === "stuck" && verdict.says === "vetoes")), "the judgement is kept with the assessment it came from");
+  h.runtime.dispose();
+});
+
+test("a turn that runs long is told without waiting on the sensor, which cannot see time", async (t) => {
+  const { h, sup, timeline } = await laneWithPeer("outbox-long-turn.json", { attention: { watch: true } });
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-long-test" } }));
+  t.mock.method(globalThis, "fetch", async () => new Response("{}", { status: 503 }));
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Make the build pass" }, "t1");
+  await settle();
+  await h.tick(Date.now() + 31 * 60_000);
+  await h.idle(sup);
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(long-turn, attend\)/);
+  h.runtime.dispose();
+});
+
+test("a turn that ends asking for a decision is raised on that one reading, while one still running needs a second reading in the same turn", async (t) => {
+  const { h, sup, timeline } = await laneWithPeer("outbox-needs-human.json", { attention: { watch: true } });
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-human-test" } }));
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { questions: Record<string, unknown>; state: { turn: string; final_message: string } };
+    const asks = body.state.turn === "running" || body.state.final_message.startsWith("Should I");
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "needs_human" && asks ? 0.95 : 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
+  });
+  const kinds = () => Object.values(incidentsOf(h.project.state)).map((item) => item.kind);
+  const failing = (id: string, command: string) => ({ type: "tool_call", callId: id, name: "Bash", status: "failed", detail: { type: "shell", command, output: "no", exitCode: 1 } });
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Tidy the build" }, "t1");
+  timeline.add(failing("a1", "make one"), "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  timeline.beat("turn_started", "t2");
+  timeline.add(failing("b1", "make two"), "t2");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(kinds(), [], "a reading in the turn before does not count as the second");
+  timeline.beat("turn_completed", "t2");
+  timeline.beat("turn_started", "t3");
+  timeline.add({ type: "user_message", text: "Go on" }, "t3");
+  timeline.add({ type: "assistant_message", text: "Should I delete the legacy folder or keep it?", messageId: "m1" }, "t3");
+  timeline.beat("turn_completed", "t3");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  await h.idle(sup);
+  assert.deepEqual(kinds(), ["needs_human"]);
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(needs_human, attend\)/);
   h.runtime.dispose();
 });
 

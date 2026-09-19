@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
 
-export type Held = "shadow" | "budget" | "nobody";
+export type Held = "shadow" | "budget" | "nobody" | "awaiting" | "vetoed";
+
+export type Judged = { question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear" };
 
 export type Incident = {
   id: string;
@@ -18,6 +20,7 @@ export type Incident = {
   facts: string[];
   p?: number;
   model?: string;
+  sensor?: Judged;
   opened: number;
   last: number;
   count: number;
@@ -32,7 +35,7 @@ export type Incident = {
 
 export type Incidents = { next: number; items: Record<string, Incident> };
 
-export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "ackedBy" | "closed" | "later">;
+export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "ackedBy" | "closed" | "later" | "sensor">;
 
 export const DAY_MS = 24 * 3_600_000;
 
@@ -74,7 +77,14 @@ export function sight(incidents: Incidents, sighting: Sighting, now: number): { 
   const seen = openFor(incidents, sighting.seat, sighting.kind);
   if (seen) {
     Object.assign(seen, { facts: [...new Set([...seen.facts, ...sighting.facts])], last: now, count: seen.count + 1 });
+    if (sighting.level === "page" && seen.level === "attend") {
+      Object.assign(seen, { level: "page", quote: sighting.quote });
+      if (sighting.p !== undefined) seen.p = sighting.p;
+      for (const key of ["told", "later", "held", "sensor"] as const) delete seen[key];
+      return { incident: seen, opened: false };
+    }
     if (seen.told === undefined) {
+      delete seen.sensor;
       seen.quote = sighting.quote;
       if (sighting.p !== undefined) seen.p = sighting.p;
       if (sighting.level === "page") seen.level = "page";

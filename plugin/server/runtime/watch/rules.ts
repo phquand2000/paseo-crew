@@ -10,37 +10,53 @@ export type Finding = {
   model?: string;
 };
 
-const FIRST = ["destructive", "unsafe_action", "needs_human", "stuck", "no-recovery", "worker_stuck", "meaningful_progress", "work_off_track", "goal_drift", "long-turn"];
+export type Verdict = { kind: string; question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear" };
+
+const FIRST = ["destructive", "unsafe_action", "needs_human", "stuck", "no-recovery", "long-turn", "goal_drift"];
 
 const rank = (finding: Finding) => (finding.level === "page" ? 0 : 1) * 100 + (FIRST.includes(finding.kind) ? FIRST.indexOf(finding.kind) : FIRST.length);
 
-export function fromFacts(facts: Fact[]): Finding[] {
-  return facts.flatMap((fact) => (fact.level === "note" ? [] : [{ kind: fact.kind, level: fact.level, quote: fact.quote, facts: [fact.kind] }]));
+export function confirmable(questions: Record<string, Question>): Set<string> {
+  return new Set(Object.values(questions).flatMap((question) => (question.threshold === undefined ? [] : (question.confirms ?? []))));
 }
 
-export function fromAnswers(answers: Record<string, number>, questions: Record<string, Question>, noted: Fact[], model?: string): Finding[] {
-  const found: Finding[] = [];
+export function decide(facts: Fact[]): Finding[] {
+  return facts.flatMap((fact) => (fact.level === "note" ? [] : [{ kind: fact.kind, level: fact.level, quote: fact.quote, facts: [fact.kind] }])).sort((a, b) => rank(a) - rank(b));
+}
+
+export type Reading = { unclear: number; ended: boolean; before?: Record<string, number> };
+
+export function weigh(assessment: { answers: Record<string, number>; model: string }, questions: Record<string, Question>, noted: Fact[], reading: Reading): { findings: Finding[]; verdicts: Verdict[] } {
+  const { unclear, ended, before } = reading;
+  const findings: Finding[] = [];
+  const verdicts: Verdict[] = [];
   for (const [name, question] of Object.entries(questions)) {
-    const p = answers[name];
-    if (p === undefined || question.threshold === undefined || !question.level) continue;
-    if (!question.alone && !question.agrees) continue;
-    if (question.below ? p > question.threshold : p < question.threshold) continue;
-    const agreeing = question.alone ? [] : noted.filter((fact) => question.agrees!.includes(fact.kind));
+    const p = assessment.answers[name];
+    const threshold = question.threshold;
+    if (p === undefined || threshold === undefined) continue;
+    const passes = p >= threshold;
+    const doubtful = !passes && p >= Math.round((threshold - unclear) * 1e9) / 1e9;
+    for (const kind of new Set(noted.filter((fact) => question.confirms?.includes(fact.kind)).map((fact) => fact.kind))) {
+      verdicts.push({ kind, question: name, p, model: assessment.model, says: passes ? "confirms" : doubtful ? "unclear" : "vetoes" });
+    }
+    if (!question.level) continue;
+    let level = question.level;
+    let why = `p=${p.toFixed(2)}`;
+    if (question.alone && level === "page") {
+      if (!passes && !doubtful) continue;
+      if (doubtful) {
+        level = "attend";
+        why = `p=${p.toFixed(2)}, under ${threshold.toFixed(2)} but too close to let pass`;
+      }
+    } else if (question.alone) {
+      const again = before?.[name];
+      if (!passes || (!ended && (again === undefined || again < threshold))) continue;
+      if (!ended) why = `p=${p.toFixed(2)}, and ${again!.toFixed(2)} the reading before`;
+    } else if (!passes) continue;
+    const agreeing = question.alone ? [] : noted.filter((fact) => question.agrees?.includes(fact.kind));
     if (!question.alone && agreeing.length === 0) continue;
     const because = agreeing.map((fact) => `${fact.kind}: ${fact.quote}`).join("; ");
-    found.push({
-      kind: name,
-      level: question.level,
-      quote: because ? `${question.instructions} — p=${p.toFixed(2)}, and ${because}` : `${question.instructions} — p=${p.toFixed(2)}`,
-      facts: [...new Set(agreeing.map((fact) => fact.kind))],
-      p,
-      ...(model ? { model } : {}),
-    });
+    findings.push({ kind: name, level, quote: `${question.instructions} — ${why}${because ? `, and ${because}` : ""}`, facts: [...new Set(agreeing.map((fact) => fact.kind))], p, model: assessment.model });
   }
-  return found;
-}
-
-export function decide(facts: Fact[], assessment?: { answers: Record<string, number>; model: string }, questions: Record<string, Question> = {}, noted: Fact[] = []): Finding[] {
-  const found = [...fromFacts(facts), ...(assessment ? fromAnswers(assessment.answers, questions, noted, assessment.model) : [])];
-  return found.sort((a, b) => rank(a) - rank(b));
+  return { findings: findings.sort((a, b) => rank(a) - rank(b)), verdicts };
 }

@@ -5,13 +5,22 @@ import type { Tool } from "../services.ts";
 
 const at = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
 
+const HELD: Record<string, string> = {
+  shadow: "shadow",
+  budget: "the day's budget is spent",
+  nobody: "nobody was seated to tell",
+  awaiting: "waiting for the sensor",
+  vetoed: "the sensor did not agree",
+};
+
 function line(item: Incident): string {
-  const sent = item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${item.held}` : "";
+  const sent = item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${HELD[item.held] ?? item.held}` : "";
   const state = item.open ? sent || "open" : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
   const seen = item.count > 1 ? ` (seen ${item.count} times, last ${at(item.last)})` : "";
   const p = item.p !== undefined ? ` p=${item.p.toFixed(2)}` : "";
+  const sensor = item.sensor ? `; the sensor ${item.sensor.says === "confirms" ? "agrees" : item.sensor.says === "vetoes" ? "does not agree" : "is unsure"} (${item.sensor.question} p=${item.sensor.p.toFixed(2)})` : "";
   const later = item.later !== undefined ? `; seen after you were told: ${clip(item.later.replace(/\s+/g, " "), 200)}` : "";
-  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${p}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}${later}`;
+  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${p}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}${sensor}${later}`;
 }
 
 export const incidents: Tool = async ({ ctx }, caller, args) => {
@@ -53,7 +62,7 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
     return { ...item };
   });
   if (!done) return no(`There is no incident ${id} in this project. incidents lists the ones there are.`);
-  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last });
+  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last, sensor: done.sensor ?? null });
   const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
   return ok(`${id} marked ${verdict} and closed.${later}`);
 };

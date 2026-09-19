@@ -11,8 +11,8 @@ import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
 import type { DeskServices, Tool } from "./services.ts";
 import { Slots } from "./slots.ts";
-import type { Finding } from "../runtime/watch/rules.ts";
-import { type Noticed, closeIncidentsOf, notice, retell } from "./notice.ts";
+import type { Finding, Verdict } from "../runtime/watch/rules.ts";
+import { type Noticed, closeIncidentsOf, judge, notice, retell } from "./notice.ts";
 import * as incidents from "./tools/incidents.ts";
 import * as lead from "./tools/lead.ts";
 import * as shared from "./tools/shared.ts";
@@ -106,6 +106,10 @@ export class Desk {
 
   notice(project: Project, seat: Noticed, findings: Finding[]): ReturnType<typeof notice> {
     return notice(this.services, project, seat, findings);
+  }
+
+  judge(project: Project, seat: Noticed, verdicts: Verdict[]): Promise<string[]> {
+    return judge(this.services, project, seat, verdicts);
   }
 
   retell(project: Project): Promise<string[]> {
