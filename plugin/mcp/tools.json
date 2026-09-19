@@ -207,7 +207,7 @@
     },
     {
       "name": "ack",
-      "description": "Mark an incident after you have looked at it: useful if it deserved your attention, noise if it did not. It closes the incident, and the marks are what the thresholds are tuned from.",
+      "description": "Mark an incident once you have looked at the agent's record: useful if what it names happened and its brief neither asked for it nor needs it, noise if not, unknown only if the record can neither show it nor rule it out. It closes the incident; the desk's readings are measured against useful and noise.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -219,13 +219,14 @@
             "type": "string",
             "enum": [
               "useful",
-              "noise"
+              "noise",
+              "unknown"
             ],
-            "description": "useful or noise."
+            "description": "useful, noise, or unknown."
           },
           "note": {
             "type": "string",
-            "description": "Optional: what made it one or the other."
+            "description": "Why: for noise, start with wrong (it did not happen) or expected (it was asked for or needed), then the command or path that settles it; for unknown, what the record lacks. Never a secret."
           }
         },
         "required": [

@@ -377,9 +377,12 @@ incident is sent once, as an INCIDENT letter to whoever supervises the project, 
 that. Until it is sent it is decided again on every sighting and every judgement: `attention.watch` off
 (the default) holds it in shadow, the sensor holds one it can judge, or holds back one it disagrees
 with, the day's `incidentsPerDay` holds an attention-level one, and nobody seated holds it for nobody
-until a patrol round finds somebody to tell. The Supervisor lists them with `incidents` and marks each
-`useful` or `noise` with `ack`, which closes it and is what the thresholds are tuned from. Nothing the
-watch concludes goes to the seat it watches.
+until a patrol round finds somebody to tell. The Supervisor lists them with `incidents`, also on its
+heartbeat since held ones never arrive as mail, and marks each `useful` or `noise` with `ack` from the
+agent's own record, which closes it and is what the thresholds are tuned from. Neither the letter nor
+the list shows the sensor's scores or judgements, so the marks measure them rather than echo them;
+a note is masked before it is kept. Nothing the watch concludes goes to the seat it watches, and the
+Supervisor's prompt keeps it from passing any of it on.
 
 The **patrol** runs every `tickSeconds`, 30 s by default, and rounds never overlap. For each project a
 round:

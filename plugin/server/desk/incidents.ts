@@ -27,7 +27,7 @@ export type Incident = {
   open: boolean;
   told?: number;
   held?: Held;
-  label?: "useful" | "noise";
+  label?: "useful" | "noise" | "unknown";
   note?: string;
   ackedBy?: string;
   closed?: number;

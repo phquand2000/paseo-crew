@@ -41,22 +41,17 @@ export function weigh(assessment: { answers: Record<string, number>; model: stri
     }
     if (!question.level) continue;
     let level = question.level;
-    let why = `p=${p.toFixed(2)}`;
     if (question.alone && level === "page") {
       if (!passes && !doubtful) continue;
-      if (doubtful) {
-        level = "attend";
-        why = `p=${p.toFixed(2)}, under ${threshold.toFixed(2)} but too close to let pass`;
-      }
+      if (doubtful) level = "attend";
     } else if (question.alone) {
       const again = before?.[name];
       if (!passes || (!ended && (again === undefined || again < threshold))) continue;
-      if (!ended) why = `p=${p.toFixed(2)}, and ${again!.toFixed(2)} the reading before`;
     } else if (!passes) continue;
     const agreeing = question.alone ? [] : noted.filter((fact) => question.agrees?.includes(fact.kind));
     if (!question.alone && agreeing.length === 0) continue;
     const because = agreeing.map((fact) => `${fact.kind}: ${fact.quote}`).join("; ");
-    findings.push({ kind: name, level, quote: `${question.instructions} — ${why}${because ? `, and ${because}` : ""}`, facts: [...new Set(agreeing.map((fact) => fact.kind))], p, model: assessment.model });
+    findings.push({ kind: name, level, quote: because ? `${question.instructions} — ${because}` : question.instructions, facts: [...new Set(agreeing.map((fact) => fact.kind))], p, model: assessment.model });
   }
   return { findings: findings.sort((a, b) => rank(a) - rank(b)), verdicts };
 }

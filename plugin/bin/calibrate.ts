@@ -67,7 +67,7 @@ export function labelsIn(state: string): Label[] {
     }
   }
   for (const item of Object.values(loadIncidents(state).items)) {
-    if (!item.label) continue;
+    if (item.label !== "useful" && item.label !== "noise") continue;
     const sensor = judged(item.sensor);
     found.set(`${item.id}:${item.opened}`, {
       id: item.id,

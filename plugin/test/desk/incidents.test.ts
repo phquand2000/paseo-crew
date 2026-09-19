@@ -8,6 +8,7 @@ import { tempDir } from "../../server/core/testing.ts";
 import { DeskContext } from "../../server/desk/context.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";
+import { emptyLedger, saveLedger } from "../../server/desk/ledger.ts";
 import { closeIncidentsOf, judge, notice, retell } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
@@ -59,10 +60,12 @@ test("a mark goes on the incident named and closes it, and a later sighting open
   await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   assert.equal((await ack(services, supervisor, { id: "I9", verdict: "useful" })).ok, false);
   assert.equal((await ack(services, supervisor, { id: "I1", verdict: "maybe" })).ok, false);
-  const reply = await ack(services, supervisor, { id: "I2", verdict: "noise", note: "a normal retry" });
+  const reply = await ack(services, supervisor, { id: "I2", verdict: "noise", note: "expected: a normal retry of `curl -H 'Authorization: Bearer 9f8e7d6c5b4a39281706'`" });
   assert.equal(reply.ok, true, reply.text);
   const held = loadIncidents(project.state).items;
   assert.equal(held.I2!.label, "noise");
+  assert.doesNotMatch(held.I2!.note!, /9f8e7d6c5b4a39281706/, "a secret quoted in a note is masked before it is kept");
+  assert.match(held.I2!.note!, /^expected: a normal retry/);
   assert.equal(held.I2!.open, false);
   assert.equal(held.I1!.label, undefined, "the other incident is untouched");
   assert.equal(held.I1!.open, true);
@@ -104,7 +107,7 @@ test("a fact the sensor can judge waits for it, is held back when it disagrees, 
   const verdict = (says: "confirms" | "vetoes", p: number) => [{ kind: "stuck", question: "worker_stuck", p, model: "m", says }];
   assert.deepEqual(await judge(services, project, peer, verdict("vetoes", 0.1), at + 1000), []);
   assert.deepEqual(await judge(services, project, other, verdict("confirms", 0.9), at + 1000), ["I2"]);
-  assert.match(posted[0]!.text, /The sensor agrees: worker_stuck p=0\.90/);
+  assert.doesNotMatch(posted[0]!.text, /worker_stuck|0\.9/, "the letter carries no score and no view of the sensor's, so the mark made on it rests on the record");
   assert.deepEqual(await judge(services, project, other, verdict("vetoes", 0.1), at + 2000), [], "once told, a later reading changes nothing");
   assert.equal(loadIncidents(project.state).items.I2!.sensor!.says, "confirms", "and the judgement it was sent on is the one kept");
   assert.equal(posted.length, 1);
@@ -223,4 +226,19 @@ test("a mark outlives the incident it was put on, so the thresholds are still tu
   const { closed, ...kept } = label!;
   assert.ok(closed! >= opened);
   assert.deepEqual(kept, { id: "I1", seat: "peer-1", kind: "stuck", opened, last: opened, sensor: { question: "worker_stuck", p: 0.3, model: "m", says: "vetoes" }, label: "useful" });
+});
+
+test("the list carries what each seat was asked, and a mark the record cannot settle is kept out of what the thresholds are tuned from", async () => {
+  const { project, services, supervisor } = desk();
+  const ledger = emptyLedger();
+  ledger.tasks["L1-T1"] = { id: "L1-T1", lane: "L1", kind: "code", mode: "lane", title: "Empty cart message", goal: "show the empty cart message", acceptance: ["empty cart renders it"], owned: ["src/cart/**"], outOfScope: ["checkout"], peer: "peer-1", status: "working", openedAt: 1, updatedAt: 1, silent: 0 } as never;
+  mkdirSync(project.state, { recursive: true });
+  saveLedger(project.state, ledger);
+  await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  const listed = (await incidents(services, supervisor, {})).text;
+  assert.match(listed, /What they were asked:\n- L1-T1 Empty cart message: goal show the empty cart message; acceptance empty cart renders it; owned src\/cart\/\*\*; out of scope checkout/);
+  assert.equal((await ack(services, supervisor, { id: "I1", verdict: "unknown", note: "the record does not show what npm run build printed" })).ok, true);
+  assert.equal((await ack(services, supervisor, { id: "I2", verdict: "useful" })).ok, true);
+  assert.deepEqual(labelsIn(project.state).map((label) => [label.id, label.label]), [["I2", "useful"]]);
 });

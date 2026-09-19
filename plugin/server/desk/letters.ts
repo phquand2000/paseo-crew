@@ -295,8 +295,6 @@ export const letters = {
     const lines = [`INCIDENT ${incident.id} (${line(incident.kind, 40)}, ${incident.level}) on ${line(incident.where, 160)}, agent ${incident.seat}.`, ""];
     lines.push(`What was seen: ${line(incident.quote, 400)}`);
     if (incident.facts.length > 0) lines.push(`Facts behind it: ${incident.facts.join(", ")}`);
-    if (incident.p !== undefined) lines.push(`The sensor: p=${incident.p.toFixed(2)}${incident.model ? ` (${incident.model})` : ""}`);
-    if (incident.sensor) lines.push(`The sensor ${incident.sensor.says === "confirms" ? "agrees" : "is unsure"}: ${incident.sensor.question} p=${incident.sensor.p.toFixed(2)} (${incident.sensor.model})`);
     if (place.task) {
       lines.push("", `Its task ${place.task.id}: ${line(place.task.title, 160)}`, `- Goal: ${line(place.task.goal, 400)}`, `- Acceptance: ${line(place.task.acceptance.join("; "), 400)}`);
     }
@@ -305,13 +303,15 @@ export const letters = {
     }
     lines.push(
       "",
-      harness.steers ? "A message reaches this seat inside the turn it is running." : "This seat reads mail only when its turn ends; a message waits until then.",
+      harness.steers
+        ? "A message reaches this seat inside a turn that has run a minute; otherwise when the turn ends. A seat stopped on a question takes a message as its answer; one stopped on another permission reads nothing until the Human decides."
+        : "This seat reads mail only when its turn ends; a message waits until then.",
     );
     if (harness.outputless) lines.push("Its harness reports exit codes but not what commands printed, so nothing here was read from its output.");
     lines.push(
       "",
-      "This is a signal to look at, not a verdict: the seat may be right, and the work is its Lead's to accept. Going to a Peer past its Lead is yours to do, and the Lead must hear that you did.",
-      `Once you have looked, mark it with ack: useful or noise.`,
+      "This is a signal to look at, not a verdict: the seat may be right, and the work is its Lead's to accept. If you go to a Peer past its Lead, the desk tells the Lead.",
+      `Once you have looked at the agent's record, mark it with ack.`,
     );
     return lines.join("\n");
   },
