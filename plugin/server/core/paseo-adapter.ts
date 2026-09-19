@@ -1,5 +1,6 @@
 import type { PaseoApi, PendingPermission, PermissionResponse, SeatView } from "./paseo.ts";
 import type { SeatLook, SeatSpec, Seats, Workspaces } from "./ports.ts";
+import { type TimelineHandle, follow } from "./stream.ts";
 
 export type Bound = () => PaseoApi | undefined;
 
@@ -14,6 +15,7 @@ type Handle = {
   send(text: string, options?: { activeTurnBehavior?: "steer" }): Promise<unknown>;
   respondToPermission(options: { requestId: string; response: PermissionResponse }): Promise<unknown>;
   archive(): Promise<unknown>;
+  timeline: TimelineHandle;
 };
 
 const reach = (bound: Bound): PaseoApi => {
@@ -76,6 +78,9 @@ export function seatsOn(bound: Bound): Seats {
     },
     async archive(id: string): Promise<void> {
       await ref(id).archive();
+    },
+    watch(id, see) {
+      return follow(ref(id).timeline, see);
     },
   };
 }

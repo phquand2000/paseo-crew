@@ -45,7 +45,8 @@
         "thinking": "medium"
       },
       "can": [
-        "lead"
+        "lead",
+        "watched"
       ],
       "tools": "lead",
       "prompt": "prompts/LEAD.md",
@@ -70,7 +71,8 @@
       },
       "can": [
         "work",
-        "write"
+        "write",
+        "watched"
       ],
       "tools": "peer",
       "prompt": "prompts/PEER.md",

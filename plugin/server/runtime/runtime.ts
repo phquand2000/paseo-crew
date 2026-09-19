@@ -25,6 +25,7 @@ import { Seating } from "./seating.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules, type Watch } from "./turns.ts";
+import { Watches } from "./watch/watches.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
@@ -42,6 +43,8 @@ export class Runtime {
   private readonly seating: Seating;
   private readonly turns: TurnRules;
   private readonly patrol: Patrol;
+  private readonly watches: Watches;
+  private readonly offline = new Set<string>();
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
   private api: PaseoApi | undefined;
@@ -77,7 +80,8 @@ export class Runtime {
       indexesFor: (project) => this.indexesFor(project),
     });
     this.turns = new TurnRules({ kit, desk: this.desk, remember, watch: (item) => this.tellWatcher(item), attention: (project) => this.source.teamFor(project).attention });
-    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, remember });
+    this.watches = new Watches({ kit, seats: this.seats });
+    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, remember });
     this.control = new SettingsControl({
       kit,
       source: this.source,
@@ -129,20 +133,33 @@ export class Runtime {
     this.on(server, "agent.turn_started", async ({ agent }) => this.turnStarted(agent.id));
     this.on(server, "agent.turn_ended", (event) => this.turnEnded(event));
     this.on(server, "agent.permission_requested", (event) => this.permissionRequested(event));
+    this.on(server, "agent.created", async ({ agent }) => this.watches.follow(agent));
     this.on(server, "agent.archived", async ({ agent }) => {
       this.outbox.archived(agent.id);
       this.turns.forget(agent.id);
+      this.watches.drop(agent.id);
     });
     this.timers.push(setInterval(() => this.serveSpool(), 500));
     // The cadence is read every time round, so changing it in settings takes hold without a reload.
     const patrol = () => {
-      if (this.api) this.patrol.tick().catch((error) => console.error("seatworks-v2: tick failed:", error));
+      if (this.api) this.patrol.tick().then(() => this.offline.clear(), (error) => this.tickFailed(error));
       this.tick = setTimeout(patrol, Math.max(5, this.source.teamFor().attention.tickSeconds) * 1000);
     };
     this.tick = setTimeout(patrol, this.source.teamFor().attention.tickSeconds * 1000);
   }
 
+  private tickFailed(error: unknown): void {
+    console.error("seatworks-v2: tick failed:", error);
+    if (!/not connected|client closed|transport/i.test(error instanceof Error ? error.message : String(error))) return;
+    for (const project of this.desk.projects.values()) {
+      if (this.offline.has(project.slug)) continue;
+      this.offline.add(project.slug);
+      this.desk.event(project, { kind: "watch.offline", error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   dispose(): void {
+    this.watches.dispose();
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
     if (this.tick) clearTimeout(this.tick);

@@ -16,6 +16,7 @@ const { projectOf } = await import("../../server/desk/project.ts");
 type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { firstOverlap, serialHits, serialPaths, SERIAL_ONLY } = await import("../../server/core/scope.ts");
+const { FakeTimeline } = await import("./fake-timeline.ts");
 
 type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
 type Fake = {
@@ -38,11 +39,18 @@ function fakePaseo() {
   const workspaces = new Map<string, string>();
   const workspaceNames = new Map<string, string>();
   const archivedWorkspaces = new Set<string>();
+  const timelines = new Map<string, InstanceType<typeof FakeTimeline>>();
+  const timelineOf = (id: string) => {
+    const found = timelines.get(id) ?? new FakeTimeline();
+    timelines.set(id, found);
+    return found;
+  };
   let count = 0;
   const ref = (id: string) => {
     const agent = agents.get(id);
     return {
       id,
+      timeline: timelineOf(id),
       get status() { return agent?.status ?? null; },
       get cwd() { return agent?.cwd ?? null; },
       get archivedAt() { return agent?.archivedAt ?? null; },
@@ -117,7 +125,7 @@ function fakePaseo() {
       ref: workspace,
     },
   };
-  return { paseo: paseo as never, agents, add, workspaces, workspaceNames, archivedWorkspaces };
+  return { paseo: paseo as never, agents, add, workspaces, workspaceNames, archivedWorkspaces, timelineOf };
 }
 
 function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
@@ -152,7 +160,7 @@ function harness(outbox: string) {
   const state = join(HOME, ".local", "share", "seatworks-v2");
   mkdirSync(state, { recursive: true });
   writeFileSync(join(state, "settings.json"), JSON.stringify({ mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
-  const { paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces } = fakePaseo();
+  const { paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, timelineOf } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
@@ -187,7 +195,7 @@ function harness(outbox: string) {
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
       request,
     });
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn, permission };
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn, permission, timelineOf };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {

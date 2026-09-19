@@ -20,6 +20,15 @@ export type SeatSpec = {
   labels: Record<string, string>;
 };
 
+export type StreamRow = { item: Record<string, unknown>; seq: number; epoch: string; turnId: string | null; replay: boolean };
+
+export type Seen =
+  | { kind: "row"; row: StreamRow }
+  | { kind: "turn"; phase: "started" | "completed" | "failed" | "canceled"; turnId: string | null; error?: string }
+  | { kind: "reset" };
+
+export type Stream = { readonly ready: Promise<void>; stop(): void };
+
 export type Seats = {
   open(): Promise<SeatView[]>;
   look(id: string): Promise<SeatLook>;
@@ -27,6 +36,7 @@ export type Seats = {
   send(id: string, text: string, steer?: boolean): Promise<void>;
   respond(id: string, requestId: string, response: PermissionResponse): Promise<void>;
   archive(id: string): Promise<void>;
+  watch(id: string, see: (seen: Seen) => void): Stream;
 };
 
 export type Workspaces = {

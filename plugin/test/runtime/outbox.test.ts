@@ -22,6 +22,9 @@ function fakeSeats(agents: Record<string, FakeAgent>): Seats {
     },
     async respond() {},
     async archive() {},
+    watch() {
+      throw new Error("the outbox watches nobody");
+    },
   };
 }
 
