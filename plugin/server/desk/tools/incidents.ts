@@ -53,7 +53,7 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
     return { ...item };
   });
   if (!done) return no(`There is no incident ${id} in this project. incidents lists the ones there are.`);
-  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null });
+  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last });
   const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
   return ok(`${id} marked ${verdict} and closed.${later}`);
 };

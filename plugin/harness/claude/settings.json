@@ -61,6 +61,7 @@
       "Edit(~/.local/share/seatworks-v2/outbox.json)",
       "Edit(~/.local/share/seatworks-v2/projects/*/ledger.json)",
       "Edit(~/.local/share/seatworks-v2/projects/*/incidents.json)",
+      "Edit(~/.local/share/seatworks-v2/projects/*/assessments/**)",
       "Edit(~/.local/share/seatworks-v2/projects/*/project.json)",
       "Edit(~/.local/share/seatworks-v2/projects/*/meta.json)",
       "Edit(~/.local/share/seatworks-v2/projects/*/settings.json)",

@@ -16,6 +16,7 @@ type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { firstOverlap, serialHits, serialPaths, SERIAL_ONLY } = await import("../../server/core/scope.ts");
 const { FakeTimeline, settle } = await import("./fake-timeline.ts");
+const { readAssessments } = await import("../../server/runtime/watch/assessments.ts");
 
 type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
 type Fake = {
@@ -1574,6 +1575,59 @@ test("left as the kit ships it, the desk records what it sees and sends nothing 
   await h.idle(sup);
   assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => [item.kind, item.held]), [["destructive", "shadow"]]);
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+  h.runtime.dispose();
+});
+
+test("each assessment is kept with the state, questions, facts and answers it was made on, and is decided on the facts that were sent", async (t) => {
+  const { h, peer, timeline } = await laneWithPeer("outbox-kept.json");
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-kept-test" } }));
+  const bodies: { questions: Record<string, unknown> }[] = [];
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+    bodies.push(body);
+    await held;
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "injected_intent" ? 0.9 : 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917", id: "gen-kept", usage: { cost: 0.00002 } }), { status: 200 });
+  });
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "rm -rf build", output: "" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  timeline.beat("turn_started", "t2");
+  timeline.add({ type: "user_message", text: "Now the docs" }, "t2");
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const kept = readAssessments(h.project.state).kept;
+  const first = kept.find((record) => (record.state as { prompt: string }).prompt === "Clean the build");
+  assert.ok(first, "the assessment is kept");
+  assert.equal(first.seat, peer);
+  assert.equal(first.model, "typesafe/jev-1.13-20260917");
+  assert.equal(first.turnId, "t1", "filed under the turn it was asked about, though the next had begun when the answer came");
+  assert.deepEqual(first.facts.map((fact) => fact.kind), ["destructive"], "the facts the state carried");
+  assert.deepEqual(first.found, ["injected_intent"], "decided on the facts that were sent, though the seat was told something new while the answer was on its way");
+  assert.deepEqual(Object.keys(first.questions), Object.keys(bodies[0]!.questions));
+  assert.ok(!("unverified_success" in first.questions), "a turn that ends without a word claims nothing, so nothing is asked about a claim");
+  assert.doesNotMatch(JSON.stringify(kept), /sk-or-kept-test/);
+  h.runtime.dispose();
+});
+
+test("a seat whose brief cannot be read is not described to the sensor as having none", async (t) => {
+  const { h, timeline } = await laneWithPeer("outbox-unbriefed.json");
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-unbriefed-test" } }));
+  writeFileSync(join(h.project.state, "ledger.json"), "{ not json");
+  const asked = t.mock.method(globalThis, "fetch", async () => new Response("{}", { status: 500 }));
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "ls", output: "a" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(asked.mock.callCount(), 0);
+  assert.match(readFileSync(join(h.project.state, "events.log"), "utf-8"), /"kind":"watch.unbriefed"/);
   h.runtime.dispose();
 });
 

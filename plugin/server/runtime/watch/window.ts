@@ -48,6 +48,9 @@ export class Window {
   readonly units: Unit[] = [];
   private readonly calls = new Map<string, Call>();
   private readonly limit: number;
+  private instruction = "";
+  private instructionAt = -1;
+  private pushed = 0;
 
   constructor(limit = 80) {
     this.limit = limit;
@@ -57,7 +60,11 @@ export class Window {
     const item = row.item;
     const type = text(item.type);
     if (type === "tool_call") return this.called(row);
-    if (type === "user_message") this.push({ kind: "user", text: text(item.text) });
+    if (type === "user_message") {
+      this.instruction = text(item.text);
+      this.push({ kind: "user", text: this.instruction });
+      this.instructionAt = this.pushed - 1;
+    }
     else if (type === "assistant_message") this.join("said", text(item.text), text(item.messageId) || undefined);
     else if (type === "reasoning") this.join("thought", text(item.text));
     else if (type === "compaction") this.push({ kind: "compaction" });
@@ -79,19 +86,21 @@ export class Window {
   clear(): void {
     this.units.length = 0;
     this.calls.clear();
+    this.instruction = "";
+    this.instructionAt = -1;
+    this.pushed = 0;
   }
 
   sinceInstruction(): Unit[] {
-    for (let index = this.units.length - 1; index >= 0; index--) if (this.units[index]!.kind === "user") return this.units.slice(index + 1);
-    return [...this.units];
+    return this.units.slice(Math.max(0, this.instructionAt + 1 - (this.pushed - this.units.length)));
   }
 
   lastInstruction(): string {
-    for (let index = this.units.length - 1; index >= 0; index--) {
-      const unit = this.units[index]!;
-      if (unit.kind === "user") return unit.text;
-    }
-    return "";
+    return this.instruction;
+  }
+
+  lostSinceInstruction(): number {
+    return Math.max(0, this.pushed - this.units.length - (this.instructionAt + 1));
   }
 
   private called(row: StreamRow): Change {
@@ -141,6 +150,7 @@ export class Window {
 
   private push(unit: Unit): void {
     this.units.push(unit);
+    this.pushed += 1;
     if (this.units.length <= this.limit) return;
     const dropped = this.units.shift();
     if (dropped?.kind === "call") this.calls.delete(dropped.call.id);

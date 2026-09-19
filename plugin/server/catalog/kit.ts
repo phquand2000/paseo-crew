@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { DESTRUCTIVE, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
+import { LEAST_STATE_CHARS, STATE_FIELDS } from "../runtime/watch/sensor.ts";
 import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { join } from "node:path";
@@ -204,7 +205,7 @@ export type Attention = {
   incidentsPerDay: number;
 };
 
-export type Question = { instructions: string; threshold?: number; level?: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[] };
+export type Question = { instructions: string; threshold?: number; level?: "page" | "attend"; below?: boolean; alone?: boolean; agrees?: string[]; needs?: string[] };
 
 export type SensorSpec = {
   id: string;
@@ -305,6 +306,7 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   for (const key of ["url", "model"]) if (typeof raw[key] !== "string" || !raw[key]) problems.push(`has no ${key}`);
   if (typeof raw.url === "string" && !raw.url.startsWith("https://")) problems.push("sends its state somewhere that is not https");
   for (const key of ["timeoutSeconds", "stateChars", "debounceSeconds", "everySeconds"]) if (typeof raw[key] !== "number" || !((raw[key] as number) > 0)) problems.push(`has no positive ${key}`);
+  if (typeof raw.stateChars === "number" && raw.stateChars > 0 && raw.stateChars < LEAST_STATE_CHARS) problems.push(`sends a state of fewer than ${LEAST_STATE_CHARS} characters, too few to say anything`);
   if (!Number.isInteger(raw.retries) || (raw.retries as number) < 0) problems.push("has no whole number of retries");
   const questions = raw.questions as Record<string, Record<string, unknown>> | undefined;
   if (!questions || typeof questions !== "object" || Object.keys(questions).length === 0) problems.push("asks no questions");
@@ -316,6 +318,9 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
     if (!decides && (question?.threshold !== undefined || question?.level !== undefined)) problems.push(`asks ${name} with a threshold or level, though nothing decides on its answer`);
     if (question?.agrees !== undefined && (!Array.isArray(question.agrees) || question.agrees.some((kind) => typeof kind !== "string"))) problems.push(`asks ${name} with agrees that is not a list of fact kinds`);
     if (question?.alone && question?.agrees) problems.push(`asks ${name} both alone and needing a fact to agree`);
+    if (question?.needs !== undefined && (!Array.isArray(question.needs) || question.needs.length === 0 || question.needs.some((field) => !(STATE_FIELDS as readonly unknown[]).includes(field)))) {
+      problems.push(`asks ${name} with needs that is not a list of the state's fields (${STATE_FIELDS.join(", ")})`);
+    }
   }
   return problems;
 }

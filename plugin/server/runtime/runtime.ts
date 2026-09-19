@@ -27,7 +27,8 @@ import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
 import type { Fact } from "./watch/facts.ts";
 import { decide, type Finding } from "./watch/rules.ts";
-import { type Assessment, Assessor, type SensorError, type Sensing } from "./watch/sensor.ts";
+import { keepAssessment } from "./watch/assessments.ts";
+import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 
 type EventName = keyof PluginLifecycleEvents;
@@ -87,7 +88,7 @@ export class Runtime {
     this.turns = new TurnRules({ kit, desk: this.desk, remember });
     this.assessor = new Assessor({
       sensing: (watch) => this.sensing(watch),
-      done: (watch, assessment, state) => this.assessed(watch, assessment, state),
+      done: (watch, reading) => this.assessed(watch, reading),
       failed: (watch, error) => this.degraded(watch, error),
     });
     this.watches = new Watches({
@@ -116,7 +117,7 @@ export class Runtime {
     const project = projectOf(seat.cwd);
     const attention = this.source.teamFor(project).attention;
     let owned: string[] | undefined;
-    let goal = "";
+    let goal: string | null = "";
     try {
       const ledger = loadLedger(project.state);
       const task = taskOfPeer(ledger, seat.id);
@@ -124,7 +125,10 @@ export class Runtime {
       owned = task?.owned;
       if (task) goal = [`Task ${task.id}: ${task.title}`, `Goal: ${task.goal}`, `Acceptance: ${task.acceptance.join("; ")}`, `Out of scope: ${task.outOfScope.join("; ")}`].join("\n");
       else if (lane) goal = [`Lane ${lane.id}: ${lane.title}`, `Outcome: ${lane.outcome}`, `Acceptance: ${lane.acceptance.join("; ")}`, `Out of scope: ${lane.outOfScope.join("; ")}`].join("\n");
-    } catch {}
+    } catch (error) {
+      goal = null;
+      this.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: error instanceof Error ? error.message : String(error) });
+    }
     return {
       goal,
       role: [role.label, role.description].filter(Boolean).join(": "),
@@ -161,15 +165,49 @@ export class Runtime {
       return undefined;
     }
     const brief = watch.brief();
-    if (!brief) return undefined;
+    if (!brief || brief.goal === null) return undefined;
     return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, exit: brief.rules.exit } };
   }
 
-  private assessed(watch: SeatWatch, assessment: Assessment, state: Record<string, unknown>): void {
+  private assessed(watch: SeatWatch, reading: Reading): void {
     const project = projectOf(watch.seat.cwd);
+    const { assessment, state, questions, facts } = reading;
     this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(state).length });
-    const questions = this.source.teamFor(project).sensor?.spec.questions ?? {};
-    this.noticed(watch, decide([], assessment, questions, watch.noted));
+    const findings = decide([], assessment, questions, facts);
+    this.keep(project, watch, reading, findings);
+    this.noticed(watch, findings);
+  }
+
+  private keep(project: Project, watch: SeatWatch, reading: Reading, findings: Finding[]): void {
+    const { assessment } = reading;
+    const unkept = (error: unknown) => {
+      const key = `unkept:${project.slug}`;
+      const now = Date.now();
+      if (now - (this.sensorNoted.get(key) ?? 0) < 60_000) return;
+      this.sensorNoted.set(key, now);
+      this.desk.event(project, { kind: "sensor.unkept", error: error instanceof Error ? error.message : String(error) });
+    };
+    try {
+      keepAssessment(project.state, {
+        at: Date.now(),
+        askedAt: reading.askedAt,
+        seat: watch.seat.id,
+        provider: watch.seat.provider,
+        turnId: reading.turnId,
+        running: reading.running,
+        sensor: reading.sensor,
+        model: assessment.model,
+        id: assessment.id,
+        cost: assessment.cost,
+        questions: Object.fromEntries(Object.entries(reading.questions).map(([name, question]) => [name, question.instructions])),
+        answers: assessment.answers,
+        facts: reading.facts.map(({ kind, level, quote }) => ({ kind, level, quote })),
+        found: findings.map((finding) => finding.kind),
+        state: reading.state,
+      }).catch(unkept);
+    } catch (error) {
+      unkept(error);
+    }
   }
 
   private noticed(watch: SeatWatch, findings: Finding[]): void {

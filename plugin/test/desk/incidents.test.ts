@@ -12,6 +12,7 @@ import { closeIncidentsOf, notice, retell } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
 import { decide } from "../../server/runtime/watch/rules.ts";
+import { labelsIn } from "../../bin/calibrate.ts";
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const questions = Object.values(kit.sensors)[0]!.questions;
@@ -140,4 +141,15 @@ test("an incident is never addressed to the seat it is about", async () => {
   assert.deepEqual(result.sent, []);
   assert.deepEqual(posted, []);
   assert.equal(loadIncidents(project.state).items.I1!.held, "nobody");
+});
+
+test("a mark outlives the incident it was put on, so the thresholds are still tuned from it once the book has let the incident go", async () => {
+  const { project, services, supervisor } = desk();
+  await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  assert.equal((await ack(services, supervisor, { id: "I1", verdict: "useful" })).ok, true);
+  const held = loadIncidents(project.state);
+  const opened = held.items.I1!.opened;
+  delete held.items.I1;
+  writeFileSync(join(project.state, "incidents.json"), JSON.stringify(held));
+  assert.deepEqual(labelsIn(project.state), [{ id: "I1", seat: "peer-1", kind: "stuck", opened, last: opened, label: "useful" }]);
 });

@@ -5,7 +5,7 @@ import { Window } from "./window.ts";
 
 export type WatchedSeat = { id: string; provider: string; cwd: string; title?: string | null };
 
-export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean; goal: string; role: string };
+export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean; goal: string | null; role: string };
 
 const median = (values: number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);

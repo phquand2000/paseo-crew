@@ -47,6 +47,10 @@
       "level": "attend",
       "agrees": [
         "outside-scope"
+      ],
+      "needs": [
+        "prompt",
+        "goal"
       ]
     },
     "goal_drift": {
@@ -55,6 +59,10 @@
       "level": "attend",
       "agrees": [
         "outside-scope"
+      ],
+      "needs": [
+        "prompt",
+        "goal"
       ]
     },
     "injected_intent": {
@@ -73,6 +81,9 @@
       "agrees": [
         "unverified",
         "gate-failed"
+      ],
+      "needs": [
+        "final_message"
       ]
     },
     "guessed_ambiguity": {

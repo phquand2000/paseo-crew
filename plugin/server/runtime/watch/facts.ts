@@ -34,7 +34,7 @@ export type Rules = {
 };
 
 const count = (text: string, pattern: string): number => (text.match(new RegExp(pattern, "gi")) ?? []).length;
-const flat = (text: string, limit = 200): string => mask(text).replace(/\s+/g, " ").trim().slice(0, limit);
+const flat = (text: string, limit = 200): string => within(mask(text).replace(/\s+/g, " ").trim(), limit);
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
 export function failed(call: Call, exit?: RegExp): boolean {
@@ -114,20 +114,36 @@ export function onDetail(call: Call, rules: Rules): Fact[] {
 
 const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
 
-function sides(detail: Call["detail"], known?: (path: string) => string | undefined): [string, string] | undefined {
+export function within(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  const cut = text.slice(0, limit);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+}
+
+export const TRUNCATED = /^\.\.\.\[truncated \d+ chars\]$/;
+
+export function sides(detail: Call["detail"], known?: (path: string) => string | undefined): [string, string] | undefined {
   const diff = str(detail.unifiedDiff);
   if (diff) {
     let lines = diff.split("\n");
-    if (/^\.\.\.\[truncated \d+ chars\]$/.test(lines.at(-1) ?? "")) {
+    if (TRUNCATED.test(lines.at(-1) ?? "")) {
       lines = lines.slice(0, -1);
       while (lines.length > 0 && !/^( |@@)/.test(lines.at(-1)!)) lines.pop();
     }
-    const taken = (sign: string, header: string) =>
+    const numbered = !lines.some((line) => line.startsWith("@@") || line.startsWith("diff --git")) && lines.some((line) => /^[+-]\s*\d+ /.test(line));
+    const header = new Set<number>();
+    let hunk = false;
+    lines.forEach((line, index) => {
+      if (line.startsWith("diff --git")) hunk = false;
+      else if (line.startsWith("@@")) hunk = true;
+      else if (!hunk && line.startsWith("--- ") && lines[index + 1]?.startsWith("+++ ")) header.add(index).add(index + 1);
+    });
+    const taken = (sign: string) =>
       lines
-        .filter((line) => line.startsWith(sign) && !line.startsWith(header))
-        .map((line) => line.slice(1).replace(/^\s*\d+\s/, ""))
+        .filter((line, index) => line.startsWith(sign) && !header.has(index))
+        .map((line) => (numbered ? line.slice(1).replace(/^\s*\d+ /, "") : line.slice(1)))
         .join("\n");
-    return [taken("-", "---"), taken("+", "+++")];
+    return [taken("-"), taken("+")];
   }
   if (detail.type === "write") {
     const before = known?.(str(detail.filePath));

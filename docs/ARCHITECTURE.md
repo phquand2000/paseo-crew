@@ -336,8 +336,20 @@ matching the harness's `exitPattern` (Devin reports only `Exited with code N`).
 With a key in the machine settings, the sensor in `catalog/sensor/` (Jev through OpenRouter Decisions)
 is asked about the seat five seconds after it goes quiet, at least every thirty while it works, and at
 once when a call fails, a turn ends or a permission is asked. The state leads with the task or lane
-brief, masks secrets and stays within the sensor's size; no earlier verdict is ever in it. A question
-above its threshold becomes a finding only with a fact that agrees, except the ones marked `alone`.
+brief and the instruction the turn serves, however long ago it arrived, masks secrets and stays within
+the sensor's size, most of which goes to the steps: each shows the end of what it printed, or its error,
+and an edit shows what it changed. Facts go in by level, then newest first. No earlier verdict is ever
+in it. A seat whose brief cannot be read from the ledger is not asked about. A question whose `needs`
+fields are all empty is not asked. A question above its threshold becomes a finding only with a fact
+that agrees, except the ones marked `alone`, and only a fact the state carried can agree.
+
+Every assessment is kept in `assessments/` with its state, questions, facts, answers and findings,
+packed when a file passes 32 MiB and dropped, oldest first, past 64 files. `node bin/calibrate.ts
+<project>` reads them against the marks on incidents, which the `incident.ack` event keeps after the
+book lets an incident go. For each question it reports AUROC, how often it fires in its busiest 24
+hours, and the most sensitive threshold within the day's budget were it the only thing firing, then
+all of them together with the incidents code facts opened. `--ask` asks the questions in
+`catalog/sensor/` again against the kept states first.
 
 Each finding joins the open incident for its seat and kind in `incidents.json`, or opens one. An
 incident is sent once, as an INCIDENT letter to whoever supervises the project, and is quiet after
@@ -450,7 +462,7 @@ to the client: it reloads after every save, and the Flow tab polls.
   worktrees/<slug>/S<n>/                  isolated working copies
   projects/<slug>/                        slug = repo folder name + 6 hex chars of sha1(root)
     meta.json  settings.json  project.json
-    ledger.json  incidents.json
+    ledger.json  incidents.json  assessments/
     events.log  attention.log  status.md
     handbacks/  gates/  docs/  notebook.md
 <profileRoot>/sw2-<role>-<agent>-<slug>/  one seat directory per role, agent and project
