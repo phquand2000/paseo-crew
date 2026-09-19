@@ -132,14 +132,14 @@ and keeping that true is a standing requirement rather than an aspiration.
 The pieces underneath it:
 
 - **Roles are data.** `roles.json` declares each seat's `can` (an open list of capabilities the desk
-  asks about — supervise, lead, work, review, watch), its `tools` (a set in `mcp/tools.json` that
+  asks about — supervise, lead, work, write, review, watched), its `tools` (a set in `mcp/tools.json` that
   several roles may share), and its `concern`. Nothing in `server/` compares a role to a name.
 - **A roles file in the state root replaces the shipped one**, and a role in it may give an absolute
   path for its prompt and skills — so a different arrangement is written beside its own prompts
   rather than by forking this package.
 - **Capabilities, not names, decide everything downstream**: who a report reaches, who may accept,
-  who watches, which seat a tool call is allowed to make.
-- **The desk's verbs are the interface**: `open_lane`, `start_task`, `accept`, `report`, `raise`,
+  who is watched, which seat a tool call is allowed to make.
+- **The desk's verbs are the interface**: `open_lane`, `start_task`, `accept`, `report`, `incidents`, `ack`,
   `message`, `answer`, `ask`, `done`. A seat reaches the ones its own tool set holds.
 
 **The honest cost of going your own way**, because it should not be discovered later: the further

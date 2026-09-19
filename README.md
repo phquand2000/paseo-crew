@@ -2,7 +2,7 @@
 
 A [Paseo](https://paseo.sh) plugin that runs a team of coding agents the **SLP** way: a
 **Supervisor** who works with you, **Leads** who each own a line of work, and **Peers** who each do
-one task. A **Reviewer** and a **Watcher** complete the team.
+one task. A **Reviewer** completes the team, and the desk itself watches the Leads and Peers as they work.
 
 Seatworks makes no judgement calls about the work. It configures and starts the agents Paseo runs,
 gives them a shared desk of lanes, tasks and questions, carries their messages, and keeps a durable
@@ -33,11 +33,10 @@ When a Supervisor messages a Peer directly, the desk tells that Peer's Lead firs
 
 | Role | What it does | Desk tools | Default agent |
 |---|---|---|---|
-| Supervisor | Works with you, opens and closes lanes, answers Leads | `open_lane` `close_lane` `message` `answer` `set_project` `status` | Claude Code · `claude-opus-5` · high |
+| Supervisor | Works with you, opens and closes lanes, answers Leads | `open_lane` `close_lane` `message` `answer` `set_project` `status` `incidents` `ack` | Claude Code · `claude-opus-5` · high |
 | Lead | Owns one lane: splits it into tasks, starts Peers and Reviewers, accepts and integrates | `start_task` `start_review` `accept` `rework` `cut` `message` `answer` `ask` `report` `status` | Claude Code · `claude-opus-5` · medium |
 | Peer | Does one task and hands it back | `done` `ask` | Devin CLI · `swe-2-max` |
 | Reviewer | A read-only Peer that reviews a change with clean context | `done` `ask` | Devin CLI · `swe-2-max` |
-| Watcher | Reads how turns end and raises what needs attention; it cannot touch the work | `raise` | Devin CLI · `swe-2-medium` |
 
 The roles are data, not code. How the preset can be replaced is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#settings).
@@ -89,7 +88,7 @@ them changed.
    Supervisor on whichever agent you chose. Tell it what you want.
 
 The desk seats everyone else as the work needs them. The Supervisor opens lanes, and each lane gets a
-Lead. Leads start Peers and Reviewers, and the Watcher is seated for the project.
+Lead. Leads start Peers and Reviewers.
 
 The panel's other tabs are **Team** (the agent, model and thinking level for each role), **Flow**
 (lanes, tasks and open questions, live) and **MCP** (optional servers such as a JetBrains IDE index,

@@ -1,29 +1,34 @@
 import { no, ok, str } from "../context.ts";
-import { type Incident, loadIncidents } from "../incidents.ts";
+import { type Incident, incidentsFault, loadIncidents } from "../incidents.ts";
 import { clip } from "../letters.ts";
 import type { Tool } from "../services.ts";
 
 const at = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
 
 function line(item: Incident): string {
-  const state = item.open ? (item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${item.held}` : "open") : `closed${item.label ? `, marked ${item.label}` : ""}`;
+  const sent = item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${item.held}` : "";
+  const state = item.open ? sent || "open" : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
   const seen = item.count > 1 ? ` (seen ${item.count} times, last ${at(item.last)})` : "";
   const p = item.p !== undefined ? ` p=${item.p.toFixed(2)}` : "";
-  return `- ${item.id} [${item.level}, ${state}] ${item.where}: ${item.kind}${p}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}`;
+  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${p}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}`;
 }
 
 export const incidents: Tool = async ({ ctx }, caller, args) => {
+  const fault = incidentsFault(caller.project.state);
+  if (fault) return no(`${fault}. Only the Human can repair it or move it aside.`);
   const held = loadIncidents(caller.project.state);
-  const all = Object.values(held.items).sort((a, b) => b.opened - a.opened);
-  const open = all.filter((item) => item.open);
-  const lines = [open.length > 0 ? `${open.length} open:` : "Nothing open."];
-  lines.push(...open.map(line));
+  const all = Object.values(held.items);
+  const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
+  const shown = waiting.slice(0, 50);
+  const lines = [waiting.length > 0 ? `${waiting.length} not yet marked:` : "Nothing waiting to be marked."];
+  lines.push(...shown.map(line));
+  if (waiting.length > shown.length) lines.push(`… and ${waiting.length - shown.length} older ones not shown.`);
   if (args.closed === true) {
-    const closed = all.filter((item) => !item.open).slice(0, 20);
-    lines.push("", closed.length > 0 ? "Recently closed:" : "Nothing closed yet.", ...closed.map(line));
+    const marked = all.filter((item) => item.label).sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last)).slice(0, 20);
+    lines.push("", marked.length > 0 ? "Recently marked:" : "Nothing marked yet.", ...marked.map(line));
   }
-  if (open.length > 0) lines.push("", "Each is a signal to look at, not a verdict. Mark each one useful or noise with ack once you have looked, so the thresholds can be tuned.");
-  ctx.event(caller.project, { kind: "incident.read", agent: caller.id, open: open.length });
+  if (waiting.length > 0) lines.push("", "Each is a signal to look at, not a verdict. Mark each one useful or noise with ack once you have looked, so the thresholds can be tuned.");
+  ctx.event(caller.project, { kind: "incident.read", agent: caller.id, waiting: waiting.length });
   return ok(lines.join("\n"));
 };
 
@@ -48,5 +53,6 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
   });
   if (!done) return no(`There is no incident ${id} in this project. incidents lists the ones there are.`);
   ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null });
-  return ok(`${id} marked ${verdict} and closed.`);
+  const later = done.told !== undefined && done.last > done.told ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.quote.replace(/\s+/g, " "), 200)}` : "";
+  return ok(`${id} marked ${verdict} and closed.${later}`);
 };

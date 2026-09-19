@@ -38,18 +38,6 @@ export class Agents {
     return { "seatworks.project": project.slug, "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) };
   }
 
-  async startResident(project: Project, roleName: string, options: StartOptions): Promise<string> {
-    const { role, config } = this.seatConfig(project, roleName);
-    const workspace = await this.slots.projectWorkspace(project);
-    const started = await this.workspaces.seat(workspace, {
-      config,
-      title: options.title,
-      prompt: options.prompt,
-      labels: { ...this.marks(role, project), ...options.labels },
-    });
-    return started.id;
-  }
-
   async start(project: Project, slot: Pick<Slot, "path" | "workspaceId">, roleName: string, options: StartOptions): Promise<string> {
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
     const { role, config } = this.seatConfig(project, roleName);

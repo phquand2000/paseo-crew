@@ -6,8 +6,9 @@ import { loadKit } from "../../server/catalog/kit.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
 import { tempDir } from "../../server/core/testing.ts";
 import { DeskContext } from "../../server/desk/context.ts";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";
-import { notice } from "../../server/desk/notice.ts";
+import { closeIncidentsOf, notice } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
 import { decide } from "../../server/runtime/watch/rules.ts";
@@ -15,13 +16,22 @@ import { decide } from "../../server/runtime/watch/rules.ts";
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const questions = Object.values(kit.sensors)[0]!.questions;
 
-function desk() {
+function desk(watching = false) {
   const root = tempDir("sw2-incidents-");
   const project = { root, slug: "p", state: join(root, "state") };
-  const ctx = new DeskContext({ kit, outbox: { post: async () => "sent" }, log: () => {}, teamFor: () => resolveTeam(kit), indexesFor: () => [] });
-  const services = { ctx } as unknown as DeskServices;
+  const posted: { to: string; key: string; text: string }[] = [];
+  const seated = { supervisor: undefined as string | undefined };
+  const ctx = new DeskContext({
+    kit,
+    outbox: { post: async (letter) => (posted.push(letter), "sent") },
+    log: () => {},
+    teamFor: () => resolveTeam(kit, watching ? { attention: { watch: true } } : {}),
+    indexesFor: () => [],
+  });
+  const roster = { supervisorFor: async () => seated.supervisor };
+  const services = { ctx, roster } as unknown as DeskServices;
   const supervisor = { id: "sup", role: kit.roles.find((role) => role.role === "supervisor")!, title: "sup", project };
-  return { project, services, supervisor };
+  return { project, services, supervisor, posted, seated };
 }
 
 const stuck = { kind: "stuck", level: "attend" as const, quote: "the same action failing 3 times", facts: ["stuck"] };
@@ -57,7 +67,7 @@ test("a mark goes on the incident named and closes it, and a later sighting open
   const reopened = await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   assert.deepEqual(reopened.opened.map((incident) => incident.id), ["I3"]);
   const listed = await incidents(services, supervisor, {});
-  assert.match(listed.text, /2 open:/);
+  assert.match(listed.text, /2 not yet marked:/);
   assert.match(listed.text, /I3 \[attend/);
 });
 
@@ -72,4 +82,38 @@ test("Jev alone raises only what its questions may raise alone; the rest need a 
   const stalled = decide([], { answers: { ...answers, meaningful_progress: 0.1 }, model: "m" }, questions, [{ kind: "no-recovery", level: "attend", quote: "q" }]);
   assert.ok(stalled.some((finding) => finding.kind === "meaningful_progress"), "progress is a question answered low, not high");
   assert.deepEqual(decide([{ kind: "call-failed", level: "note", quote: "x" }]), [], "a note is evidence for Jev, not an incident on its own");
+});
+
+test("what was held because nobody could be told is told on its next sighting once somebody can, and only then goes quiet", async () => {
+  const { project, services, posted, seated } = desk(true);
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  const page = (quote: string) => [{ kind: "destructive", level: "page" as const, quote, facts: ["destructive"] }];
+  await notice(services, project, peer, page("rm -rf build"));
+  assert.equal(loadIncidents(project.state).items.I1!.held, "nobody");
+  seated.supervisor = "sup";
+  const second = await notice(services, project, peer, page("git push --force origin main"));
+  assert.deepEqual(second.sent, ["I1"]);
+  assert.equal(posted.length, 1);
+  assert.match(posted[0]!.text, /INCIDENT I1 \(destructive, page\)[\s\S]*git push --force origin main/);
+  await notice(services, project, peer, page("rm -rf dist"));
+  assert.equal(posted.length, 1, "told once, then quiet");
+  assert.equal(loadIncidents(project.state).items.I1!.quote, "git push --force origin main", "what the Supervisor was told is what stays on record");
+});
+
+test("an incident book that cannot be read is refused rather than started again from nothing", async () => {
+  const { project, services, supervisor } = desk(true);
+  mkdirSync(project.state, { recursive: true });
+  writeFileSync(join(project.state, "incidents.json"), "{ not json");
+  await assert.rejects(notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]), /could not be read: [\s\S]*Nothing was written over it/);
+  assert.equal((await incidents(services, supervisor, {})).ok, false);
+});
+
+test("an incident closed because its seat went away still waits to be marked", async () => {
+  const { project, services, supervisor } = desk();
+  await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  await closeIncidentsOf(services, project, "peer-1");
+  const listed = await incidents(services, supervisor, {});
+  assert.match(listed.text, /I1 \[attend, closed, not sent: shadow, not marked\]/);
+  assert.equal((await ack(services, supervisor, { id: "I1", verdict: "useful" })).ok, true);
+  assert.match((await incidents(services, supervisor, {})).text, /Nothing waiting to be marked/);
 });

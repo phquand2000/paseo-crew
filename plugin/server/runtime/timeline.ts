@@ -13,11 +13,6 @@ function lastUserIndex(list: Item[]): number {
   return -1;
 }
 
-export function turnItems(timeline: Timeline): Item[] {
-  const list = items(timeline);
-  return list.slice(lastUserIndex(list) + 1);
-}
-
 export function lastToolCall(timeline: Timeline): Record<string, unknown> | undefined {
   const list = items(timeline);
   for (let index = list.length - 1; index >= 0; index--) {

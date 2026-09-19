@@ -172,7 +172,7 @@ export class Runtime {
   }
 
   private noticed(watch: SeatWatch, findings: Finding[]): void {
-    if (findings.length === 0) return;
+    if (findings.length === 0 || this.watches.get(watch.seat.id) !== watch) return;
     const project = projectOf(watch.seat.cwd);
     this.desk.notice(project, watch.seat, findings).catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
   }

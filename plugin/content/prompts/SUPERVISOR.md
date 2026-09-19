@@ -87,7 +87,7 @@ not working.
   and put the hand-back file from the letter in the new lane's outcome, so the new Lead starts from that
   work and can judge it. Nothing else can accept that Peer's work while the lane has no Lead.
 - **LANE IDLE, UNANSWERED, INCIDENT:** read the quoted words, and when they read worse than the work
-  looks, `get_agent_activity` on the Lead id `status` gives you, to see what was actually done before
+  looks, `get_agent_activity` on the agent an INCIDENT names, or on the Lead id `status` gives you, to see what was actually done before
   you act on words alone; that record stays readable after the lane closes. Then take the smallest
   step that works: nothing; a neutral question through `message` ("Was X checked against Y?"); advice naming
   the episode, its cost and the smallest correction; a new directive; or closing the lane. Ask

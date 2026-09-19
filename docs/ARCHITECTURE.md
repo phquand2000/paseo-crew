@@ -200,12 +200,12 @@ cannot be read, or has the wrong version, is refused rather than treated as empt
 
 A seat's call runs only if its Paseo provider maps to a role whose tool set in `mcp/tools.json`
 holds the verb. Inside the verbs, behaviour depends on what the role **can** do, never on its name.
-The capabilities are `supervise`, `lead`, `work`, `write`, `review` and `watch`, in `roles.json`.
+The capabilities are `supervise`, `lead`, `work`, `write`, `review` and `watched`, in `roles.json`.
 
 | Verb | Held by | Effect |
 |---|---|---|
 | `open_lane` | Supervisor | Records the lane, takes a working copy and seats a Lead with an owner directive. It can read a GitHub issue. It refuses a lane that overlaps another open lane's write set or serial-only paths |
-| `close_lane` | Supervisor | Waits for pending merges. With `land`, it runs the lane gate and lands the branch. It then cuts leftover tasks, archives their seats and the Lead, and puts the copy away. The Watcher stays while any Supervisor is seated on the project |
+| `close_lane` | Supervisor | Waits for pending merges. With `land`, it runs the lane gate and lands the branch. It then cuts leftover tasks, archives their seats and the Lead, and puts the copy away |
 | `set_project` | Supervisor | Sets the base branch and the gate command, its timeout and whether it runs per lane or per task. Also sets the serial-only paths and the template pages to place |
 | `start_task` | Lead | Seats a writing role on a task. In lane mode, the default, it shares the lane's copy and branch. In parallel mode it gets its own slot and `task/…` branch |
 | `start_review` | Lead | Seats a reviewing role, read-only, in the change's copy |
@@ -215,7 +215,7 @@ The capabilities are `supervise`, `lead`, `work`, `write`, `review` and `watch`,
 | `ask` | Lead, Peer, Reviewer | A Lead asks its Supervisor; a Peer or Reviewer asks its Lead |
 | `done` | Peer, Reviewer | Writes a hand-back file and mails the Lead, or the Supervisor if the Lead is gone. For a code task on a project that gates each task, it runs the gate first |
 | `message` / `answer` | Supervisor, Lead | Mail to a lane or a task; answer an open ask |
-| `raise` | Watcher | Findings on a turn ending, judged against the paging rules |
+| `incidents` / `ack` | Supervisor | Lists the incidents not yet marked; marks one useful or noise and closes it |
 | `status` | Supervisor, Lead | The project's status text; a Lead sees its own lane |
 
 A call still running after 240 s is answered with "the answer arrives as mail", and the result follows
@@ -289,7 +289,6 @@ waiting after 7 days is dropped the next time any letter is posted, and the drop
 | Lead | A letter to its Supervisor |
 | Peer or Reviewer on a task | A letter to the lane's Lead |
 | Supervisor | Logged in `attention.log` and listed in `status.md`. The Human answers it in Paseo |
-| Watcher | A letter to whoever supervises the project |
 | Peer or Reviewer with no task | Nowhere; it shows only in Paseo |
 
 A question's letter lists the questions and their options. The owner answers with `message`, and the
@@ -308,35 +307,53 @@ Canceled turns, and seats without a tool set, are skipped.
   that only calls `status` neither counts nor resets it. The task is marked `stalled`, and the Lead is
   mailed, on the second silent turn. It also happens on the first, if the turn ended on a call that was
   refused or never finished, with at most 200 characters said after it.
-- **Risk signals** are scored from the turn's tool calls, and from whether its context was
-  compacted:
 
-  | Signal | Weight | Fires when |
-  |---|---|---|
-  | destructive | 100 | a command matches the destructive pattern |
-  | test-weakened | 40 | an edit to a test file drops assertions or adds a skip marker |
-  | repetition | 25 | the same file or command repeats 3 times |
-  | unverified | 20 | a turn that recorded a desk call wrote files without running the project's gate |
-  | compaction | 10 | the context was compacted |
+## Watching Leads and Peers
 
-- **The Watcher** gets these endings:
-  - every Peer or Reviewer turn that recorded a desk call
-  - a Lead's turn, or a Peer's turn on a task already `done`, when it scored a risk
-  - otherwise, every fourth clean one of those (`watchEveryClean`)
+Every live seat whose role can be `watched` (the preset gives it to Lead and Peer) is followed through
+one timeline subscription, opened when the seat is created or first seen by the patrol, and closed when
+it is archived. The stream is read the way Paseo 0.8 delivers it:
 
-  A silent Peer turn goes to the nudge path instead. The Watcher answers with `raise`. The desk
-  counts strikes per label, for each place an ending came from. An always-page label (`destructive`
-  by default) pages the Supervisor every time. Another label pages once it has struck three times at
-  the same place, while the window has room: two pages per 12 hours. The rest goes into a digest.
+- a new subscription hears nothing of the past, so the tail is read first and told as replay;
+- rows a dropped client missed are read back from where the sequence broke;
+- a rewind resets it, and a reload's re-sent history is replay until the seat starts a turn.
+
+Rows fold into a window per seat, keyed by call. Facts are read from them in code, never by a model:
+
+| Fact | Level | Fires when |
+|---|---|---|
+| destructive | page | a shell command matches the destructive pattern, at the first row that carries it, while it still runs |
+| stuck | attend | one of OpenHands' four patterns since the seat was last told something: the same action and result 4 times, the same action failing 3 times, the same words 3 times, two actions alternating 3 times |
+| test-weakened / suppressed | attend | an edit takes assertions out of a test or adds a skip marker, or adds a suppression such as `@ts-ignore` |
+| no-recovery | attend | ten steps after a failed shell command, neither it nor the gate has passed |
+| unverified | attend | a turn that reported to the desk wrote files and did not run the gate after the last of them |
+| long-turn | attend | a turn runs past `longTurnMinutes`, or three times the seat's median turn |
+| call-failed / gate-failed / outside-scope | note | evidence for the sensor, never an incident alone |
+
+A failure counts however the harness reports it: a failed status, a non-zero exit code, or an output
+matching the harness's `exitPattern` (Devin reports only `Exited with code N`).
+
+With a key in the machine settings, the sensor in `catalog/sensor/` (Jev through OpenRouter Decisions)
+is asked about the seat five seconds after it goes quiet, at least every thirty while it works, and at
+once when a call fails, a turn ends or a permission is asked. The state leads with the task or lane
+brief, masks secrets and stays within the sensor's size; no earlier verdict is ever in it. A question
+above its threshold becomes a finding only with a fact that agrees, except the ones marked `alone`.
+
+Each finding joins the open incident for its seat and kind in `incidents.json`, or opens one. An
+incident is sent once, as an INCIDENT letter to whoever supervises the project, and is quiet after
+that. Until it is sent it is decided again on every sighting: `attention.watch` off (the default) holds
+it in shadow, the day's `incidentsPerDay` holds an attention-level one, and nobody seated holds it for
+nobody. The Supervisor lists them with `incidents` and marks each `useful` or `noise` with `ack`,
+which closes it and is what the thresholds are tuned from. Nothing the watch concludes goes to the
+seat it watches.
 
 The **patrol** runs every `tickSeconds`, 30 s by default, and rounds never overlap. For each project a
 round:
 
-- seats or retires the Watcher
+- follows every watched seat, lets go of the gone ones, and checks for long turns
 - mails the Supervisor about idle lanes
 - marks tasks whose Peer is gone
 - reminds, re-addresses or escalates open asks
-- sends the digest
 - sweeps stray workspaces and worktrees
 - finishes held teardowns
 - writes `status.md`
@@ -369,9 +386,10 @@ machine-layer save also reconciles the Paseo providers.
 | `tickSeconds` (read from the machine layer only) | 30 |
 | `leadIdleMinutes` | 12 |
 | `askRemindMinutes` / `maxReminders` | 15 / 2 |
-| `watchEveryClean` | 4 |
-| `digestMinutes` | 60 |
-| `strikesAt` / `pagesPerWindow` / `windowHours` | 3 / 2 / 12 |
+| `watch` | false |
+| `incidentsPerDay` | 5 |
+| `longTurnMinutes` | 30 |
+| `destructive` / `testPath` / `suppressed` / `repeatsAt` | patterns and 3 |
 
 **Replacing the preset.** A `roles.json` in `~/.local/share/seatworks-v2/` replaces the shipped one,
 and a role there may point at its prompt and skills by absolute path. Each role name still needs:
@@ -432,14 +450,14 @@ to the client: it reloads after every save, and the Flow tab polls.
   worktrees/<slug>/S<n>/                  isolated working copies
   projects/<slug>/                        slug = repo folder name + 6 hex chars of sha1(root)
     meta.json  settings.json  project.json
-    ledger.json  watching.json
+    ledger.json  incidents.json
     events.log  attention.log  status.md
     handbacks/  gates/  docs/  notebook.md
 <profileRoot>/sw2-<role>-<agent>-<slug>/  one seat directory per role, agent and project
 ```
 
 `events.log` is the provenance record. It has one JSON line per tool call and per lane, task, merge,
-gate, slot and watch event.
+gate, slot, watch fact, sensor answer and incident.
 
 ## Testing
 

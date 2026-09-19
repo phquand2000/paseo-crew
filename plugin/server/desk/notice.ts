@@ -2,6 +2,7 @@ import { seatOf } from "../catalog/kit.ts";
 import type { Finding } from "../runtime/watch/rules.ts";
 import { type Incident, closeSeat, forget, sight, spentToday } from "./incidents.ts";
 import { type Lane, type Task, laneOfLead, loadLedger, taskOfPeer } from "./ledger.ts";
+import { errorText } from "./context.ts";
 import { letters } from "./letters.ts";
 import type { Project } from "./project.ts";
 import type { DeskServices } from "./services.ts";
@@ -38,21 +39,29 @@ export async function notice(services: DeskServices, project: Project, seat: Not
         { seat: seat.id, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model },
         now,
       );
-      if (!isNew) continue;
-      if (!attention.watch) incident.held = "shadow";
-      else if (incident.level === "attend" && spentToday(incidents, now) >= attention.incidentsPerDay) incident.held = "budget";
+      if (incident.told !== undefined) continue;
+      const held = !attention.watch ? "shadow" : incident.level === "attend" && spentToday(incidents, now) >= attention.incidentsPerDay ? "budget" : undefined;
+      if (held) incident.held = held;
       else {
+        delete incident.held;
         incident.told = now;
         sending.push({ ...incident });
       }
-      ctx.event(project, { kind: "incident.open", id: incident.id, agent: seat.id, finding: incident.kind, level: incident.level, held: incident.held ?? null });
-      opened.push({ ...incident });
+      if (isNew) {
+        ctx.event(project, { kind: "incident.open", id: incident.id, agent: seat.id, finding: incident.kind, level: incident.level, held: incident.held ?? null });
+        opened.push({ ...incident });
+      }
     }
     forget(incidents);
     return { opened, sending };
   });
   if (sending.length === 0) return { opened, sent: [], place };
-  const to = await roster.supervisorFor(project, place.lane?.opener);
+  let to: string | undefined;
+  try {
+    to = await roster.supervisorFor(project, place.lane?.opener);
+  } catch (error) {
+    ctx.event(project, { kind: "incident.lookup-failed", error: errorText(error) });
+  }
   if (!to || to === seat.id) {
     await ctx.incidents(project, (incidents) => {
       for (const sent of sending) {
@@ -67,7 +76,14 @@ export async function notice(services: DeskServices, project: Project, seat: Not
   }
   const harness = seatOf(ctx.kit, seat.provider)?.harness;
   const shape = { steers: harness?.steers === true, outputless: Boolean(harness?.exitPattern) };
-  for (const incident of sending) await ctx.post(to, `incident:${project.slug}:${incident.id}`, letters.incident(incident, place, shape));
+  for (const incident of sending) {
+    try {
+      await ctx.post(to, `incident:${project.slug}:${incident.id}:${incident.opened}`, letters.incident(incident, place, shape));
+    } catch (error) {
+      ctx.event(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
+    }
+  }
+  if (sending.some((incident) => incident.told !== undefined)) ctx.event(project, { kind: "incident.told", ids: sending.map((incident) => incident.id), to });
   return { opened, sent: sending.map((incident) => incident.id), place };
 }
 

@@ -194,13 +194,13 @@
     },
     {
       "name": "incidents",
-      "description": "What the desk has noticed about the Leads and Peers working in this project, newest first: each incident with the seat, what was seen, and whether you were told. These are signals to look at, never verdicts.",
+      "description": "What the desk has noticed about the Leads and Peers working in this project, latest first: every incident not yet marked, with the seat, what was seen, and whether you were told or it was held back. These are signals to look at, never verdicts.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "closed": {
             "type": "boolean",
-            "description": "Also list the last twenty closed incidents, with how each was marked."
+            "description": "Also list the last twenty incidents already marked, with how each was marked."
           }
         }
       }

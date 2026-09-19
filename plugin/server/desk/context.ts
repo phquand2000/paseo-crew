@@ -5,7 +5,7 @@ import type { Team } from "../catalog/team.ts";
 import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
-import { type Incidents, loadIncidents, saveIncidents } from "./incidents.ts";
+import { type Incidents, incidentsFault, loadIncidents, saveIncidents } from "./incidents.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
 export type ToolReply = { ok: boolean; text: string };
@@ -102,6 +102,8 @@ export class DeskContext {
     const key = `${project.slug}:incidents`;
     const previous = this.locks.get(key) ?? Promise.resolve();
     const run = previous.then(() => {
+      const fault = incidentsFault(project.state);
+      if (fault) throw new Error(`${fault}. Nothing was written over it. Only the Human can repair it or move it aside.`);
       const incidents = loadIncidents(project.state);
       const result = change(incidents);
       saveIncidents(project.state, incidents);
