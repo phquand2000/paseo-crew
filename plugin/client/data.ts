@@ -30,7 +30,8 @@ export type AttentionChoice = {
 };
 export type RoleChoice = { harness?: string; model?: string; thinking?: string; rules?: string };
 export type McpChoice = { enabled?: boolean; removed?: boolean; label?: string; connect?: Connect; roles?: string[]; tools?: Record<string, string[]>; rule?: string; settings?: Record<string, Scalar> };
-export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; attention?: AttentionChoice; flow?: { live?: boolean; everySeconds?: number } };
+export type SensorChoice = { key?: string };
+export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, McpChoice>; rules?: string; attention?: AttentionChoice; flow?: { live?: boolean; everySeconds?: number }; sensor?: SensorChoice };
 
 export type ProjectRow = { slug: string; root: string };
 export type PaseoProject = { name: string; root: string };
@@ -516,6 +517,25 @@ export function modelRow(model: string, models: { id: string; label: string }[])
   const known = models.map((entry) => ({ label: entry.label, value: entry.id }));
   const stray = Boolean(model) && !models.some((entry) => entry.id === model);
   return { value: model, stray, options: stray ? [...known, { label: model, value: model }] : known };
+}
+
+export function setAttention(values: Layer, choice: AttentionChoice): Layer {
+  return { ...values, attention: { ...values.attention, ...choice } };
+}
+
+/**
+ * Write, keep or forget the sensor's key.
+ *
+ * `KEPT` is what a read hands the screen in place of a key that is set, so every save the screen makes
+ * carries it back and the key on disk is left alone — including saves about something else entirely,
+ * since a write is the whole layer. `null` is the owner forgetting it: the block goes, and with it the
+ * paid calls.
+ */
+export function setSensorKey(values: Layer, key: string | null): Layer {
+  const next = { ...values };
+  if (key === null) delete next.sensor;
+  else next.sensor = { ...next.sensor, key };
+  return next;
 }
 
 export function dropMcp(values: Layer, id: string): Layer {

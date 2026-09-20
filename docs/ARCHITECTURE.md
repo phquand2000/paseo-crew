@@ -425,10 +425,11 @@ Facts are deduplicated per turn, and the last twenty are kept for the sensor.
 
 ### The sensor
 
-With `sensor.key` in the machine settings, the sensor in `catalog/sensor/` (Jev through OpenRouter
-Decisions) is asked about a seat five seconds after it goes quiet, at least every thirty while it
-works, and at once when a call or the gate fails, when something irreversible is seen, when a turn
-ends, or when a permission is asked. One seat is never assessed twice at once.
+With the sensor's key set — under Watch on Machine defaults, or as `sensor.key` in the machine
+settings — the sensor in `catalog/sensor/` (Jev through OpenRouter Decisions) is asked about a seat
+five seconds after it goes quiet, at least every thirty while it works, and at once when a call or
+the gate fails, when something irreversible is seen, when a turn ends, or when a permission is
+asked. One seat is never assessed twice at once.
 
 The state it is sent has seven fields: the task or lane brief, the instruction the turn serves
 however long ago it arrived, the seat's role, the project's gate command, whether the turn is
@@ -552,8 +553,19 @@ A layer can set the following. Unknown keys are refused.
 - the attention values
 - the sensor's key, in the machine layer only
 
-Only the agent, model, thinking level, MCP servers and the Flow switch have a control in the panel.
-The rules, the attention values and the sensor key are written into the file by hand.
+Only the agent, model, thinking level, MCP servers, the Flow switch, `attention.watch` and the
+sensor's key have a control in the panel. The rules and the other attention values are written into
+the file by hand.
+
+The key is the one setting a read does not hand back. `readSettings` replaces it with the word
+`KEPT` from `shared/rpc.ts`, in the layer it returns and in the machine layer a project screen is
+given, and `writeSettings` puts the stored key back under any save that carries that word. A write
+is the whole layer, so this is what keeps the key through a save about something else; a layer with
+no `sensor` block at all is the owner forgetting it, and `settings.reset` is not that — it puts the
+layer back to the kit's and leaves the key. A file that will not parse is reported by the place the
+parser stopped at and never by what it read, because that text is as likely to be the key or a
+server's token as anything else, and it is shown on the settings screen, in the team's errors and in
+the health report.
 
 A save carries the revision it was read at, a hash of the parsed content with its keys sorted. If the
 file has changed since, the save answers `conflict`. A file that does not parse is never overwritten.
@@ -621,7 +633,8 @@ tabs, though on Machine defaults Flow only sets the live switch and its interval
 machine's checks without a project's status report:
 
 - **Team:** the agent per role, its model where the agent offers more than one, and its thinking
-  level where the agent has one
+  level where the agent has one — then **Watch**: whether what it marks is mailed to the Supervisor,
+  and, on Machine defaults, the sensor's key
 - **Flow:** Supervisors, lanes, tasks and open asks, polled with a revision so an unchanged view is
   not sent again, and drawing at most 50 open lanes
 - **MCP:** switch servers on or off, choose their roles and options, add one from a pasted snippet

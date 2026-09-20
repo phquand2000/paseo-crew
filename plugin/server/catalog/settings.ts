@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
+import { KEPT } from "../../shared/rpc.ts";
 import { readJson, sortKeys, writeJson } from "../core/store.ts";
 
 const Scalar = z.union([z.string(), z.number(), z.boolean()]);
@@ -87,12 +88,38 @@ export type Layer = z.infer<typeof MachineLayerSchema>;
 export type SensorChoice = z.infer<typeof SensorChoice>;
 export type LayerSchema = typeof MachineLayerSchema | typeof ProjectLayerSchema;
 
+export function withoutKey(layer: Layer): Layer {
+  return layer.sensor?.key ? { ...layer, sensor: { ...layer.sensor, key: KEPT } } : layer;
+}
+
+export function withKey(values: unknown, stored: Layer): unknown {
+  if (!values || typeof values !== "object") return values;
+  const asked = values as { sensor?: { key?: unknown } };
+  if (asked.sensor?.key !== KEPT) return values;
+  const { sensor, ...rest } = asked;
+  const key = stored.sensor?.key;
+  return key ? { ...rest, sensor: { ...sensor, key } } : rest;
+}
+
 export type ReadResult = { status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string };
 export type SettingsView = ReadResult & { machine: Layer };
 export type WriteResult = { status: "saved"; revision: string; values: Layer } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
 
 export function revisionOf(values: unknown): string {
   return createHash("sha1").update(JSON.stringify(sortKeys(values ?? {}))).digest("hex").slice(0, 16);
+}
+
+/**
+ * Where a parse failed, and nothing of what it read.
+ *
+ * V8 quotes a window of the file's own text in its message, and this file holds the sensor's key and
+ * every pasted server's token. That message is shown on the settings screen, in the team's errors and
+ * in the health report, so only the place it gives is carried over — and it does not always give one.
+ */
+function placeOf(error: unknown): string {
+  const said = error instanceof Error ? error.message : String(error);
+  const where = /at position \d+(?: \(line \d+ column \d+\))?/.exec(said);
+  return where ? `, ${where[0]}` : "";
 }
 
 /**
@@ -110,7 +137,7 @@ function faultOf(file: string): string | undefined {
   try {
     held = JSON.parse(readFileSync(file, "utf-8"));
   } catch (error) {
-    return `${file} is there but is not JSON: ${error instanceof Error ? error.message : String(error)}`;
+    return `${file} is there but is not JSON${placeOf(error)}`;
   }
   return !held || typeof held !== "object" || Array.isArray(held) ? `${file} does not hold a settings object` : undefined;
 }

@@ -2,7 +2,8 @@ import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { type Kit, can, providerId, rolesThatCan, seatOf, supportsRole } from "../catalog/kit.ts";
-import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, writeLayer } from "../catalog/settings.ts";
+import { KEPT } from "../../shared/rpc.ts";
+import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, withKey, withoutKey, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
 import type { Seats } from "../core/ports.ts";
@@ -175,10 +176,11 @@ export class SettingsControl implements Control {
   }
 
   readSettings(slug?: string): SettingsView {
-    const machine = slug ? this.deps.source.machineLayer() : {};
+    const machine = withoutKey(slug ? this.deps.source.machineLayer() : {});
     const target = this.target(slug);
     if (typeof target === "string") return { status: "invalid", revision: "", error: target, machine };
-    return { ...readLayer(target.file, target.schema), machine };
+    const read = readLayer(target.file, target.schema);
+    return { ...(read.status === "ready" ? { ...read, values: withoutKey(read.values) } : read), machine };
   }
 
   writeSettings(slug: string | undefined, revision: string, values: unknown): WriteResult {
@@ -198,16 +200,22 @@ export class SettingsControl implements Control {
       const already = new Set(unbuildable(resolve(layerValues(target.file, target.schema))));
       return unbuildable(team).filter((problem) => !already.has(problem));
     };
-    const result = writeLayer(target.file, target.schema, revision, values, check);
+    const result = writeLayer(target.file, target.schema, revision, withKey(values, layerValues(target.file, target.schema)), check);
     if (result.status === "saved") {
       seating.forget();
       if (!target.project) reconcile(source.teamFor());
+      return { ...result, values: withoutKey(result.values) };
     }
     return result;
   }
 
   resetSettings(slug: string | undefined, revision: string): WriteResult {
-    return this.writeSettings(slug, revision, {});
+    // Back to what the kit settles on — except the sensor's key, which is not a setting but a
+    // credential the owner typed once and that no screen can ever show them again. Forgetting it is
+    // its own action, and this is not it.
+    const target = this.target(slug);
+    const kept = typeof target !== "string" && !target.project && layerValues(target.file, target.schema).sensor?.key;
+    return this.writeSettings(slug, revision, kept ? { sensor: { key: KEPT } } : {});
   }
 
   projects(): unknown {

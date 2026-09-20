@@ -13,6 +13,7 @@ import { MACHINE, ProjectList } from "./projects.tsx";
 import { ServersSection } from "./servers.tsx";
 import { SetupDialog } from "./setup-dialog.tsx";
 import { TeamSection } from "./team.tsx";
+import { WatchSection } from "./watch.tsx";
 
 export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [open, setOpen] = useState<string | null>(null);
@@ -148,7 +149,10 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
       >
         {trouble}
         {tab === "team" ? (
-          <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} save={(change) => void save(change)} />
+          <>
+            <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} save={(change) => void save(change)} />
+            <WatchSection team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} save={save} />
+          </>
         ) : null}
         {tab === "flow" ? (
           <FlowSection

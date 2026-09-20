@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setRole } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setMcp, setRole, setSensorKey } from "../../client/data.ts";
+import { KEPT } from "../../shared/rpc.ts";
 
 const held: Layer = {
   rules: "Keep diffs small.",
@@ -128,4 +129,27 @@ test("the model in force follows the resolver: a layer naming another agent drop
   assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "claude" } } }, machine), "claude-opus-5", "back on its own agent, the kit's choice there");
   assert.equal(modelInForce(lead, { roles: { lead: { model: "claude-sonnet-5" } } }, undefined, machine), "claude-sonnet-5");
   assert.equal(modelInForce(lead), "claude-opus-5");
+});
+
+test("switching the watch on keeps the rest of the tuning, and the sensor's key is kept by the word the screen holds", () => {
+  const on = setAttention(held, { watch: true });
+  assert.deepEqual(on.attention, { longTurnMinutes: 30, watch: true }, "the other attention settings are not a casualty of the switch");
+  assert.equal(on.rules, "Keep diffs small.");
+
+  // The panel is only ever handed `KEPT`, and a write is the whole layer, so carrying that word back
+  // is the whole of what keeps the key on disk through a save about something else. Every helper a
+  // section saves through has to do it, not just this card's own.
+  const screen: Layer = { ...held, sensor: { key: KEPT } };
+  const elsewhere: Record<string, Layer> = {
+    "a role moved to another agent": setRole(screen, "peer", { harness: "devin" }, true),
+    "a server switched on": setMcp(screen, "docs", { enabled: true }),
+    "a pasted server forgotten": dropMcp(setMcp(screen, "docs", { enabled: true }), "docs"),
+    "the flow switch": { ...screen, flow: { live: true } },
+    "this card's own switch": setAttention(screen, { watch: true }),
+  };
+  for (const [what, saved] of Object.entries(elsewhere)) assert.deepEqual(saved.sensor, { key: KEPT }, `${what} carries the key back untouched`);
+  assert.deepEqual(setSensorKey(screen, "sk-or-new").sensor, { key: "sk-or-new" }, "a typed key replaces the word");
+  const forgotten = setSensorKey(screen, null);
+  assert.equal("sensor" in forgotten, false, "forgetting it leaves no block at all, which is what clears the key on disk");
+  assert.deepEqual(forgotten.attention, { longTurnMinutes: 30, watch: false }, "and nothing else goes with it");
 });

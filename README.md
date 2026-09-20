@@ -91,17 +91,20 @@ Supervisor lists them with `incidents`, looks at the agent's own record, and mar
 `unknown` only closes the incident. Nothing the watch concludes ever reaches the seat it watched.
 
 Out of the box the watch is quiet: incidents are recorded and listed, and none is mailed. Both
-switches live in `~/.local/share/seatworks-v2/settings.json`, hand-written — the panel has no field
-for either. The file may not exist yet; these two keys alone are a valid one, and the next patrol
-round picks them up, with no reload:
+controls are on the panel's **Team** tab, under **Watch**. *Tell the Supervisor* is the switch, on
+Machine defaults or one project. The key is kept on the machine and used for every project, so it is
+on Machine defaults only; the panel never reads a saved key back, it only says one is set, and
+saving anything else leaves it alone. Either can be hand-written instead — the next patrol round
+picks up the file with no reload:
 
 ```json
 { "attention": { "watch": true }, "sensor": { "key": "sk-or-…" } }
 ```
 
-A key alone starts paid calls, one per watched seat five seconds after it goes quiet and at least one
-every thirty seconds while it works — which is how you collect a record to calibrate against before
-letting the watch speak. Whether the sensor is answering shows up only in that project's
+A key alone starts paid calls: one per watched seat five seconds after it goes quiet, at least one
+every thirty seconds while it works, and one at once when a turn ends, a call or the gate fails,
+something irreversible is seen, or a permission is asked — which is how you collect a record to
+calibrate against before letting the watch speak. Whether the sensor is answering shows up only in that project's
 `events.log`, as `sensor.off` or `sensor.degraded`. Once there is a record,
 `cd plugin && node bin/calibrate.ts <project>` reports how well each of the sensor's questions
 separated what you marked useful from what you marked noise.
@@ -150,10 +153,10 @@ gets a Lead. Leads start Peers and Reviewers.
 Everything the desk keeps lives outside your repository, under `~/.local/share/seatworks-v2/`: the
 settings, the ledger, the letters still waiting, and one folder per project.
 
-The panel's other tabs are **Team** (the agent for each role, and its model and thinking level where
-the agent offers them), **Flow** (lanes, tasks and open questions, live) and **MCP** (optional servers
-such as a JetBrains IDE index, code search and Context7, switched on per role). Machine defaults open
-the same four tabs.
+The panel's other tabs are **Team** (the agent for each role, its model and thinking level where the
+agent offers them, and the watch), **Flow** (lanes, tasks and open questions, live) and **MCP**
+(optional servers such as a JetBrains IDE index, code search and Context7, switched on per role).
+Machine defaults open the same four tabs.
 
 ## Development
 

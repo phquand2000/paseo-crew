@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -11,6 +11,7 @@ process.env.HOME = HOME;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { registerRpc } = await import("../../server/runtime/rpc.ts");
 const { makeKit } = await import("../../server/catalog/testkit.ts");
+const { KEPT } = await import("../../shared/rpc.ts");
 
 /** One open seat, which is all a panel call needs to be able to see the difference from none. */
 function onePaseo(id: string) {
@@ -308,4 +309,94 @@ test("the setup screen can walk this machine's folders to find a repository", as
   const inside = await call("seatworks.paths.list", { path: join(root, "repo") });
   assert.equal(inside.repository, true);
   assert.match((await call("seatworks.paths.list", { path: join(root, "nowhere") })).error, /is not a directory/);
+});
+
+test("the sensor's key is written from the panel, never read back into it, and forgotten only when asked", async () => {
+  const { call } = served();
+  const file = join(HOME, ".local/share/seatworks-v2/settings.json");
+  const onDisk = () => JSON.parse(readFileSync(file, "utf8")) as { sensor?: { key?: string }; rules?: string };
+
+  const read = await call("seatworks.settings.read");
+  const saved = await call("seatworks.settings.write", { revision: read.revision, values: { ...read.values, sensor: { key: "sk-or-secret" } } });
+  assert.equal(saved.status, "saved");
+  assert.equal(onDisk().sensor?.key, "sk-or-secret", "the key itself is what is kept");
+  assert.deepEqual(saved.values.sensor, { key: KEPT }, "not even the save that carried it hands it back");
+
+  const back = await call("seatworks.settings.read");
+  assert.deepEqual(back.values.sensor, { key: KEPT }, "the panel is told a key is set, and nothing more");
+  assert.doesNotMatch(JSON.stringify(back), /sk-or-secret/);
+
+  // A write is the whole layer, so every save the panel makes carries that word back — and a save
+  // about something else must not be the one that revokes the key.
+  const else_ = await call("seatworks.settings.write", { revision: back.revision, values: { ...back.values, rules: "watch the watch" } });
+  assert.equal(else_.status, "saved");
+  assert.equal(onDisk().sensor?.key, "sk-or-secret");
+  assert.equal(onDisk().rules, "watch the watch");
+
+  const state = join(HOME, ".local/share/seatworks-v2/projects/sensor-abc123");
+  mkdirSync(state, { recursive: true });
+  writeFileSync(join(state, "meta.json"), JSON.stringify({ root: "/work/sensor", slug: "sensor-abc123" }));
+  const project = await call("seatworks.settings.read", { project: "sensor-abc123" });
+  assert.deepEqual(project.machine.sensor, { key: KEPT }, "a project screen sees that a key is set, not what it is");
+  assert.doesNotMatch(JSON.stringify(project), /sk-or-secret/);
+  // The team the desk resolves holds the key itself, because the watch calls with it. What is drawn
+  // from it for a screen must not.
+  assert.doesNotMatch(JSON.stringify(await call("seatworks.team.read")), /sk-or-secret/);
+  assert.doesNotMatch(JSON.stringify(await call("seatworks.team.read", { project: "sensor-abc123" })), /sk-or-secret/);
+
+  const { sensor: _gone, ...without } = (await call("seatworks.settings.read")).values as { sensor?: unknown };
+  const forgotten = await call("seatworks.settings.write", { revision: (await call("seatworks.settings.read")).revision, values: without });
+  assert.equal(forgotten.status, "saved");
+  assert.equal(onDisk().sensor, undefined, "a layer that carries no key at all is the owner forgetting it");
+});
+
+test("a settings file that will not parse is reported without quoting what it holds", async () => {
+  const { call } = served();
+  const file = join(HOME, ".local/share/seatworks-v2/settings.json");
+  const read = await call("seatworks.settings.read");
+  assert.equal((await call("seatworks.settings.write", { revision: read.revision, values: { ...read.values, sensor: { key: "sk-or-secret" } } })).status, "saved");
+  // The commonest way to break this file by hand, and the one whose parse error quotes the line the
+  // key is on. It is a valid state: the file is documented as hand-writable.
+  // Short enough that the whole of it falls inside the window V8 quotes, which is the point: the
+  // window is a run of the file's own text, and where it lands is the owner's typo, not our choice.
+  writeFileSync(file, '{ "rules": "keep it small", "sensor": { "key": \'SEKRIT\' } }');
+
+  const shown = [
+    await call("seatworks.settings.read"),
+    await call("seatworks.settings.write", { revision: read.revision, values: { rules: "x" } }),
+    await call("seatworks.team.read"),
+    await call("seatworks.doctor.run"),
+  ];
+  for (const answer of shown) {
+    assert.match(JSON.stringify(answer), /is not JSON|could not be read|not being used/, "each screen says the file cannot be read");
+    assert.doesNotMatch(JSON.stringify(answer), /SEKRIT/, "and none of them quotes the file back");
+  }
+  writeFileSync(file, "{}");
+});
+
+test("the word that stands for the key is never itself written, and a reset keeps a key it can never show again", async () => {
+  const { call } = served();
+  const file = join(HOME, ".local/share/seatworks-v2/settings.json");
+  const onDisk = () => JSON.parse(readFileSync(file, "utf8")) as { sensor?: { key?: string }; rules?: string };
+
+  const empty = await call("seatworks.settings.read");
+  assert.equal((await call("seatworks.settings.write", { revision: empty.revision, values: { rules: "one", sensor: { key: KEPT } } })).status, "saved");
+  assert.equal(onDisk().sensor, undefined, "carried over a layer with no key, the word leaves no block behind");
+
+  const before = await call("seatworks.settings.read");
+  assert.equal((await call("seatworks.settings.write", { revision: before.revision, values: { ...before.values, sensor: { key: "sk-or-secret" } } })).status, "saved");
+  const set = await call("seatworks.settings.read");
+  assert.equal((await call("seatworks.settings.write", { revision: set.revision, values: { ...set.values, roles: { supervisor: { harness: "devin" } } } })).status, "invalid", "a refused save");
+  assert.equal((await call("seatworks.settings.write", { revision: empty.revision, values: { ...set.values, rules: "stale" } })).status, "conflict", "and a stale one");
+  assert.equal(onDisk().sensor?.key, "sk-or-secret", "leave the key where it was");
+
+  const reset = await call("seatworks.settings.reset", { revision: (await call("seatworks.settings.read")).revision });
+  assert.equal(reset.status, "saved");
+  assert.equal(onDisk().rules, undefined, "a reset puts the settings back");
+  assert.equal(onDisk().sensor?.key, "sk-or-secret", "and leaves the credential the owner typed once");
+  assert.deepEqual(reset.values.sensor, { key: KEPT }, "still without handing it back");
+
+  const last = await call("seatworks.settings.read");
+  const { sensor: _gone, ...without } = last.values as { sensor?: unknown };
+  assert.equal((await call("seatworks.settings.write", { revision: last.revision, values: without })).status, "saved");
 });
