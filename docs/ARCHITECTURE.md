@@ -486,9 +486,12 @@ the fourteen the shipped sensor asks — is recorded and does nothing else:
 The shipped sensor asks fourteen questions. Seven stand alone: `needs_human`, `unsafe_action`,
 `missing_mechanism`, `wrapped_instead_of_changed`, `proof_changes_product`, `proves_the_old_is_gone`
 and `agreed_without_checking`, of which `wrapped_instead_of_changed` and `agreed_without_checking`
-are marked `whole`. `goal_drift` and
-`unverified_success` need a fact to agree, `worker_stuck` only confirms `stuck` and `no-recovery`,
-and `injected_intent`, `guessed_ambiguity`, `admits_error` and `changed_direction` are recorded only.
+are marked `whole`. `goal_drift` needs a fact to agree. Two open nothing of their own and judge a
+fact instead: `worker_stuck` confirms `stuck` and `no-recovery`, and `unverified_success` confirms
+`unverified` — it asks only whether the seat claimed the work was done, which is the half of that
+fact code cannot see, so a turn that wrote files without running the gate and said so plainly is
+vetoed rather than sent. `injected_intent`, `guessed_ambiguity`, `admits_error` and
+`changed_direction` are recorded only.
 A `sensor.json` the loader cannot make sense of — an unknown field, a url that is not https, a
 threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact
 that is not attention-level — fails the plugin's load with the problem named.

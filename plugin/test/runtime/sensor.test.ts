@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { type SensorSpec, loadKit, sensorProblems } from "../../server/catalog/kit.ts";
 import { mask } from "../../server/runtime/watch/mask.ts";
+import { confirmable } from "../../server/runtime/watch/rules.ts";
 import { Assessor, NO_GATE, NO_GOAL, Pacer, SensorError, asked, assess, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
@@ -135,6 +136,15 @@ test("pieces arriving close together make one assessment, a steady stream makes 
 test("the shipped sensor asks only questions it can use, and the kit refuses one that could not be read", () => {
   assert.deepEqual(sensorProblems(shipped.id, shipped as unknown as Record<string, unknown>), []);
   assert.ok(Object.values(shipped.questions).some((question) => question.alone), "some questions stand alone");
+  // A fact the code already reads is judged, never asked about a second time: `unverified` is an
+  // attention-level fact and opens its own incident, so a question that also opened one would put
+  // two incidents on the Supervisor for one turn. The question adds only what code cannot see —
+  // whether the seat claimed the work was done — so it confirms that incident rather than opening one.
+  const claims = shipped.questions.unverified_success!;
+  assert.deepEqual(claims.confirms, ["unverified"]);
+  assert.equal(claims.level, undefined, "it opens no incident of its own");
+  assert.equal(claims.agrees, undefined);
+  assert.ok(confirmable(shipped.questions).has("unverified"), "so the unverified incident waits for the sensor and is vetoed when nothing was claimed");
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", url: "http://plain" } as never), ["sends its state somewhere that is not https"]);
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", threshold: 2, level: "loud", alone: true } } } as never), [
     "asks q with no threshold between 0 and 1",
