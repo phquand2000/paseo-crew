@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey, watchState } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey, watchCard, watchState } from "../../client/data.ts";
+import type { WatchView } from "../../shared/views.ts";
 import { KEPT } from "../../shared/rpc.ts";
 
 const held: Layer = {
@@ -174,4 +175,54 @@ test("with a key the panel says the watch is on, and the mail line says which of
   const quiet = watchState(true, false, 5, "project", "From this machine");
   assert.match(quiet.mailHint, /none is mailed/);
   assert.match(quiet.hint, /Flow tab/, "a project screen points at where the watch can be watched");
+});
+
+const watching = (over: Partial<WatchView> = {}): WatchView => ({
+  on: true,
+  telling: false,
+  seats: [],
+  lastRead: null,
+  marks: { total: 0, open: 0, held: 0, useful: 0, noise: 0, recent: [] },
+  trouble: [],
+  ...over,
+});
+
+test("the watch card says what it has done in this project, not only what is running this second", () => {
+  // The card an owner actually opened: a project worked in all day, every seat since archived. Fed
+  // by the live watches alone it read "The watch is on / nothing to follow / 0 open incidents".
+  const after = watchCard(watching({
+    lastRead: 185,
+    marks: { total: 2, open: 0, held: 0, useful: 0, noise: 2, recent: [{ id: "I1", kind: "test-weakened", where: "the Peer on L1-T1", state: "marked noise" }] },
+  }));
+  assert.equal(after.title, "The watch is on");
+  assert.match(after.hint, /last read a turn here 3 hours ago/, "an idle watch says when it last worked, so a dead one is visible");
+  assert.equal(after.marksTitle, "2 incidents here");
+  assert.match(after.marksHint, /None still open\. Marked so far: 0 useful, 2 noise\./);
+  assert.equal(after.right, null, "nothing is running, so there is no live tally to show");
+});
+
+test("a watch that has marked nothing teaches what it would mark, rather than printing a zero", () => {
+  const fresh = watchCard(watching());
+  assert.equal(fresh.marksTitle, "Nothing marked here yet");
+  assert.doesNotMatch(fresh.marksTitle, /\b0\b/, "a count of nothing is not a heading");
+  for (const what of [/destructive command/, /round in circles/, /lost its assertions/, /without a hand-back/, /sensor reads/]) {
+    assert.match(fresh.marksHint, what, "the empty state is where someone finds out what the thing is for");
+  }
+  assert.match(fresh.hint, /read nothing here yet/);
+});
+
+test("while seats are running the card counts them, their readings and what they cost", () => {
+  const live = watchCard(watching({
+    telling: true,
+    seats: [
+      { id: "a", role: "lead", running: true, readings: 13, cost: 0.0018, minutes: 0, highest: null },
+      { id: "b", role: "peer", running: false, readings: 43, cost: 0.0057, minutes: 2, highest: { question: "goal_drift", p: 0.81 } },
+    ],
+    marks: { total: 1, open: 1, held: 1, useful: 0, noise: 0, recent: [] },
+  }));
+  assert.equal(live.title, "Watching 2 seats");
+  assert.equal(live.right, "56 read · 0.75¢");
+  assert.match(live.hint, /goes to the Supervisor/);
+  assert.match(live.marksHint, /1 still open, 1 of them held back\./);
+  assert.match(live.marksHint, /None marked yet/);
 });

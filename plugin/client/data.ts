@@ -537,6 +537,65 @@ export function watchState(set: boolean, mailing: boolean, perDay: number, layer
   return { on: set, title: set ? "The watch is on" : "The watch is off", hint, mailHint, keyHint };
 }
 
+/** Money, to the tenth of a cent, because watching a whole lane costs about one cent in total. */
+export const spent = (cost: number): string => (cost === 0 ? "nothing yet" : cost < 0.01 ? `${(cost * 100).toFixed(2)}\u00a2` : `$${cost.toFixed(4)}`);
+
+const since = (minutes: number): string => {
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 24 ? `${hours} hour${hours === 1 ? "" : "s"} ago` : `${Math.round(hours / 24)} day${Math.round(hours / 24) === 1 ? "" : "s"} ago`;
+};
+
+export type WatchCard = { title: string; hint: string; right: string | null; marksTitle: string; marksHint: string };
+
+/**
+ * What the watch card says, decided here so a test can hold it to it.
+ *
+ * The card used to be fed only by the seats being watched at that instant, and a lane is closed far
+ * more of the time than it is open — so the one an owner actually opened read "The watch is on / no
+ * Lead or Peer is running / 0 open incidents" about a project where it had read fifty-six turns and
+ * marked two things. Three zeroes and nothing learned. What it has done here comes from the record
+ * now; the live seats are an extra, shown while there are any.
+ */
+export function watchCard(watch: WatchView): WatchCard {
+  const live = watch.seats.length > 0;
+  const readings = watch.seats.reduce((sum, seat) => sum + seat.readings, 0);
+  const cost = watch.seats.reduce((sum, seat) => sum + seat.cost, 0);
+  const title = live ? `Watching ${watch.seats.length} seat${watch.seats.length === 1 ? "" : "s"}` : "The watch is on";
+  const hint = live
+    ? watch.telling
+      ? "What it marks goes to the Supervisor."
+      : "What it marks is recorded and listed, and none of it is mailed."
+    : watch.lastRead === null
+      ? "It has read nothing here yet. It starts when a Lead or Peer does, and reads their turns while they work."
+      : `Nothing is running. It last read a turn here ${since(watch.lastRead)}.`;
+
+  const { total, open, held, useful, noise } = watch.marks;
+  if (total === 0) {
+    return {
+      title,
+      hint,
+      right: live ? `${readings} read \u00b7 ${spent(cost)}` : null,
+      marksTitle: "Nothing marked here yet",
+      marksHint:
+        "It marks a destructive command, a seat going round in circles, a test that lost its assertions, work taken in without a hand-back \u2014 and whatever the sensor reads in a turn.",
+    };
+  }
+  const opened = open === 0 ? "None still open." : `${open} still open${held > 0 ? `, ${held} of them held back` : ""}.`;
+  const marked =
+    useful + noise === 0
+      ? "None marked yet \u2014 the Supervisor marks each one useful or noise with `ack`, and those marks are what the thresholds are tuned from."
+      : `Marked so far: ${useful} useful, ${noise} noise.`;
+  return {
+    title,
+    hint,
+    right: live ? `${readings} read \u00b7 ${spent(cost)}` : null,
+    marksTitle: `${total} incident${total === 1 ? "" : "s"} here`,
+    marksHint: `${opened} ${marked}`,
+  };
+}
+
 export function setFlow(values: Layer, choice: { live?: boolean; everySeconds?: number }): Layer {
   return { ...values, flow: { ...values.flow, ...choice } };
 }

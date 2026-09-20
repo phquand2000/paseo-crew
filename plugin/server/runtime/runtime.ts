@@ -27,7 +27,7 @@ import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
 import type { Fact } from "./watch/facts.ts";
 import { type Finding, type Verdict, decide, weigh } from "./watch/rules.ts";
-import { keepAssessment } from "./watch/assessments.ts";
+import { keepAssessment, lastKept } from "./watch/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 import { malformed } from "./timeline.ts";
@@ -39,6 +39,9 @@ type EventName = keyof PluginLifecycleEvents;
 
 /** How much recent trouble a screen is shown. It is a live view, not a second log. */
 const TROUBLES = 10;
+
+/** How many of the things it has marked a screen lists. The Supervisor's `incidents` has them all. */
+const MARKS_SHOWN = 4;
 
 export type RuntimeOptions = { outboxFile?: string; paseo?: PaseoApi; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
 
@@ -295,12 +298,29 @@ export class Runtime {
       }));
     const items = Object.values(loadIncidents(project.state).items);
     const now = Date.now();
+    const ago = (at: number) => Math.max(0, Math.round((now - at) / 60_000));
+    // What a seat holds dies when that seat is archived, and a lane is closed far more of the time
+    // than it is open — so a screen fed only by the live watches said nothing about a project that
+    // had been worked in all day. The record on disk is what it has actually done here.
+    const state = (item: (typeof items)[number]): string =>
+      item.label ? `marked ${item.label}` : item.told !== undefined ? "told, not yet marked" : `held: ${item.held ?? "waiting"}`;
     return {
       on,
       telling: this.source.teamFor(project).attention.watch,
       seats,
-      incidents: { open: items.filter((item) => item.open).length, held: items.filter((item) => item.open && item.told === undefined).length },
-      trouble: (this.troubles.get(project.slug) ?? []).map((entry) => ({ kind: entry.kind, minutes: Math.max(0, Math.round((now - entry.at) / 60_000)), detail: entry.detail })).reverse(),
+      lastRead: lastKept(project.state) ?? null,
+      marks: {
+        total: items.length,
+        open: items.filter((item) => item.open).length,
+        held: items.filter((item) => item.open && item.told === undefined).length,
+        useful: items.filter((item) => item.label === "useful").length,
+        noise: items.filter((item) => item.label === "noise").length,
+        recent: [...items]
+          .sort((a, b) => b.last - a.last)
+          .slice(0, MARKS_SHOWN)
+          .map((item) => ({ id: item.id, kind: item.kind, where: item.where, state: state(item) })),
+      },
+      trouble: (this.troubles.get(project.slug) ?? []).map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(),
     };
   }
 

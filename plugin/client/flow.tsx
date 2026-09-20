@@ -3,7 +3,7 @@ import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@get
 import { memo, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import { type FlowLane, type FlowSeat, type FlowView, type WatchSeat, type WatchView, countsInstead } from "./data.ts";
+import { type FlowLane, type FlowSeat, type FlowView, type WatchSeat, type WatchView, countsInstead, spent, watchCard } from "./data.ts";
 
 type Props = {
   /** False on the machine screen, where there is no project to follow and nothing is read. */
@@ -124,9 +124,6 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
   );
 });
 
-/** Money, to the tenth of a cent, because a watch of a whole lane costs about one cent in total. */
-const spent = (cost: number): string => (cost === 0 ? "nothing yet" : cost < 0.01 ? `${(cost * 100).toFixed(2)}¢` : `$${cost.toFixed(4)}`);
-
 const readingText = (seat: WatchSeat): string => {
   if (seat.readings === 0) return seat.running ? "working; nothing read yet" : "nothing read yet";
   const last = seat.minutes < 1 ? "just now" : `${seat.minutes} min ago`;
@@ -159,8 +156,6 @@ const Trouble = memo(function Trouble({ watch, theme }: { watch: WatchView; them
 
 const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: PluginTheme }) {
   const styles = useStyles(theme);
-  const readings = watch.seats.reduce((sum, seat) => sum + seat.readings, 0);
-  const cost = watch.seats.reduce((sum, seat) => sum + seat.cost, 0);
   if (!watch.on) {
     return (
       <SettingsCard>
@@ -169,24 +164,15 @@ const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: P
       </SettingsCard>
     );
   }
+  const card = watchCard(watch);
   return (
     <SettingsCard>
       <View style={styles.row}>
         <View style={styles.labels}>
-          {/* Zero gets its own words. "Watching 0 seats" is the normal state right after the key goes
-              in, and it reads as broken rather than as idle. */}
-          <Text style={styles.title}>{watch.seats.length === 0 ? "The watch is on" : `Watching ${watch.seats.length} seat${watch.seats.length === 1 ? "" : "s"}`}</Text>
-          <Text style={styles.hint}>
-            {watch.seats.length === 0
-              ? "No Lead or Peer is running, so there is nothing to follow yet."
-              : watch.telling
-                ? "Incidents are mailed to the Supervisor."
-                : "Nothing it marks is mailed."}
-          </Text>
+          <Text style={styles.title}>{card.title}</Text>
+          <Text style={styles.hint}>{card.hint}</Text>
         </View>
-        {watch.seats.length === 0 ? null : (
-          <Text style={watch.seats.some((seat) => seat.running) ? styles.alive : styles.quiet}>{`${readings} read · ${spent(cost)}`}</Text>
-        )}
+        {card.right ? <Text style={watch.seats.some((seat) => seat.running) ? styles.alive : styles.quiet}>{card.right}</Text> : null}
       </View>
       {watch.seats.map((seat) => (
         <View key={seat.id}>
@@ -203,14 +189,21 @@ const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: P
         </View>
       ))}
       <View style={styles.line} />
-      <SettingsRow
-        label={`${watch.incidents.open} open incident${watch.incidents.open === 1 ? "" : "s"}`}
-        hint={
-          watch.incidents.held > 0
-            ? `${watch.incidents.held} of them held back, waiting on the sensor, a day's budget, or Mail incidents to the Supervisor being off. The Supervisor lists them with \`incidents\`.`
-            : "The Supervisor lists them with `incidents` and marks each one useful, noise or unknown."
-        }
-      />
+      <SettingsRow label={card.marksTitle} hint={card.marksHint} />
+      {watch.marks.recent.map((mark) => (
+        <View key={mark.id}>
+          <View style={styles.line} />
+          <View style={styles.row}>
+            <View style={styles.labels}>
+              <Text style={styles.title} numberOfLines={1}>{`${mark.id} · ${mark.kind}`}</Text>
+              <Text style={styles.hint} numberOfLines={1}>{mark.where}</Text>
+            </View>
+            <Text style={styles.quiet} numberOfLines={1}>
+              {mark.state}
+            </Text>
+          </View>
+        </View>
+      ))}
       <Trouble watch={watch} theme={theme} />
     </SettingsCard>
   );

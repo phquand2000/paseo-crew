@@ -36,6 +36,21 @@ export function assessmentsDir(state: string): string {
 
 const gone = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 
+/**
+ * Minutes since the watch last kept a reading here, or undefined if it never has.
+ *
+ * One `stat`, because the alternative is parsing a file that runs to megabytes on every poll of a
+ * screen. The question it answers is the one a screen is really asking — has this thing ever run
+ * here, and how long ago — not how many times.
+ */
+export function lastKept(state: string, now = Date.now()): number | undefined {
+  try {
+    return Math.max(0, Math.round((now - statSync(join(assessmentsDir(state), CURRENT)).mtimeMs) / 60_000));
+  } catch {
+    return undefined;
+  }
+}
+
 async function pack(plain: string): Promise<void> {
   let data: Buffer;
   try {

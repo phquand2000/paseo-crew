@@ -13,17 +13,6 @@ const { registerRpc } = await import("../../server/runtime/rpc.ts");
 const { makeKit } = await import("../kit.ts");
 const { KEPT } = await import("../../shared/rpc.ts");
 
-/** One open seat, which is all a panel call needs to be able to see the difference from none. */
-function onePaseo(id: string) {
-  return {
-    agents: {
-      async list() {
-        return { entries: [{ agent: { id, provider: "seatworks-v2:lead:claude", status: "running", pendingPermissions: [] } }], pageInfo: { hasMore: false, nextCursor: null, prevCursor: null } };
-      },
-    },
-  };
-}
-
 function served(paseo?: unknown) {
   const kit = makeKit();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, "outbox.json"), reloadDaemon: async () => true });
@@ -71,7 +60,10 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
 });
 
 test("the daemon handle a panel call arrives with is kept, not thrown away", async () => {
-  const paseo = onePaseo("a-lead");
+  // Only its identity is read, so it is a marker. It used to be a shaped daemon with one open seat,
+  // under a comment saying the shape was what let the call tell one seat from none — and nothing ever
+  // called a method on it. A fixture that says more than the test reads is a claim nothing checks.
+  const paseo = { handle: "the daemon" };
   const { call, bound } = served(paseo);
   assert.deepEqual(bound, [], "nothing has called in yet");
 

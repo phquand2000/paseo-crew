@@ -686,11 +686,14 @@ machine's checks without a project's status report:
   words are chosen by `watchState` in `client/data.ts` rather than inside the markup, so a test can
   hold the screen to them
 - **Flow:** Supervisors, lanes, tasks and open asks, polled with a revision so an unchanged view is
-  not sent again, and drawing at most 50 open lanes — then **the watch**: whether it is on, whether
-  it is telling, every seat it follows with that seat's readings, what they have cost and the highest
-  any question has read on it, the open incidents and how many are held, and the last ten pieces of
-  trouble nobody is mailed about. `Runtime.watchView` builds it from the live `SeatWatch` objects and
-  the incident book, so it is what the watch is doing now rather than a second reading of the log
+  not sent again, and drawing at most 50 open lanes — then **the watch**. What it has done in this
+  project comes from the record: the incident book for what it marked and how each one was judged,
+  and one `stat` of the kept assessments for when it last read a turn. Fed by the live `SeatWatch`
+  objects alone this card said "the watch is on, nothing to follow, 0 open incidents" about a project
+  it had read fifty-six turns in — a seat's tally dies with the seat, and a lane is closed far more of
+  the time than it is open. The live seats are an extra on top, shown while there are any, with each
+  one's readings, cost and the highest any question has reached on it. `watchCard` in `client/data.ts`
+  chooses the wording, so `test/client/data.test.ts` can hold the screen to it
 - **MCP:** switch servers on or off, choose their roles and options, add one from a pasted snippet
 - **Health:** the checks for this machine and, on a project, the status report built from the ledger
   as it is now — which is not the `status.md` the patrol writes, and carries the held mail and the

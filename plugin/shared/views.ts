@@ -11,6 +11,17 @@ export type FlowTask = { id: string; title: string; status: string; kind: string
 export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[]; taskCount: number; running: number; open: boolean };
 export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
 export type WatchSeat = { id: string; role: string; running: boolean; readings: number; cost: number; minutes: number; highest: { question: string; p: number } | null };
-export type WatchView = { on: boolean; telling: boolean; seats: WatchSeat[]; incidents: { open: number; held: number }; trouble: { kind: string; minutes: number; detail: string }[] };
+/** One thing the watch marked here, as a screen lists it: what it was, who it was about, where it got to. */
+export type WatchMark = { id: string; kind: string; where: string; state: string };
+export type WatchView = {
+  on: boolean;
+  telling: boolean;
+  /** Live, and empty whenever no Lead or Peer is running — which is most of the time. */
+  seats: WatchSeat[];
+  /** Minutes since the watch last put a turn to the sensor in this project; null if it never has. */
+  lastRead: number | null;
+  marks: { total: number; open: number; held: number; useful: number; noise: number; recent: WatchMark[] };
+  trouble: { kind: string; minutes: number; detail: string }[];
+};
 export type FlowView = { project: string; at: number; revision: string; supervisors: FlowSeat[]; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[]; watch: WatchView };
 export type Check = { id: string; ok: boolean; detail: string };
