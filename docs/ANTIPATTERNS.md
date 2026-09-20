@@ -20,15 +20,19 @@ is written as a question that is not yet trusted to act on. Twelve are desk-shap
 with nothing reading them for this. Ten are outside what this plugin can observe at all, and for
 those the entry says why, because that is the part worth knowing.
 
+The thirty-five come from one list. Section 8 holds one that does not, kept here because the watch
+now catches it and everything the watch catches belongs in this file.
+
 The watch reads three things. In code, from a seat's timeline: a destructive command, a seat
 repeating itself, a weakened test, an unverified success claim. In code, from the lane's own record
 — the ledger the patrol already holds — the shapes no window can hold, because a letter restarts the
 window: a task sent back again and again, a lane patching several tasks at once, reviews piling up
 with nothing accepted, a review told to report only what it is certain of, a brief that writes the
-work out instead of setting an outcome. And, only with a key, by putting the turn to the sensor: a
-missing mechanism being stood in for, a wrapper where the thing itself should have changed,
-production code edited to make a check pass, a test that only proves the old behaviour is gone, and
-agreement that arrived with no check behind it.
+work out instead of setting an outcome, and a task taken in although its Peer never said it was
+finished. And, only with a key, by putting the turn to the sensor: a missing mechanism being stood
+in for, a wrapper where the thing itself should have changed, production code edited to make a check
+pass, a test that only proves the old behaviour is gone, and agreement that arrived with no check
+behind it.
 
 All three go through one incident book, so the Supervisor reads, marks and calibrates them the one
 way, and none of them ever reaches the seat it is about.
@@ -47,7 +51,7 @@ window (`server/runtime/watch/watches.ts`). No pattern survives a rework round �
 fourth group below is read from the ledger instead, in `server/runtime/watch/history.ts`.
 - The window is eighty steps from the last instruction. A lane's history is not in it and never will
 be.
-- Four of the nine sensor questions carry no threshold on purpose: they collect answers into
+- Four of the fourteen sensor questions carry no threshold on purpose: they collect answers into
 `assessments/` so a question can be measured before it is allowed to open an incident.
 
 ---
@@ -365,6 +369,36 @@ appetite, is printed once and read by nothing.
 row count.
 **Here.** *outside* — the plugin never runs or profiles the product; its whole view of execution is
 a call's exit code and the tail of a gate.
+
+---
+
+## 8. One the list does not have
+
+This one is not from the thirty-five. It is what `paseo-supervision` — a separate Paseo plugin that
+watches Lead–Peer communication and nothing else — is built entirely to detect, and reading it made
+plain that this plugin had the same hole, and better evidence for it: a named field, not prose.
+
+### Unfinished work accepted, then unwritten
+**Rule.** When a worker says it did not finish, taking the work in is a decision, and a decision
+needs to be written where the next person will look. Accepting can be the right call — the rest may
+be someone else's, or not worth it. What is not right is that the acceptance and what it cost are
+recorded in two different places, only one of which anyone reads again.
+**Signs.** a hand-back whose first line is `Outcome: partial` or `Outcome: blocked` followed by an
+`accept` with no task opened and no note; "we'll come back to it"; "good enough for now"; a lane
+reported ready whose tasks each left something; an acceptance of a task that never handed back.
+**Example.** A Peer ends with `Outcome: partial`, and in `leftUndone`: "the retry path has no test —
+the only seam that reaches it is private". The Lead accepts, the task merges, the MERGED letter says
+the line counts and the gate. The untested retry path now exists only in
+`handbacks/L1-T3-1758·.md`, which nothing reads until someone runs the `retrospective` skill — if
+anyone ever does.
+**Here.** *caught* — `accepted-unfinished`, when a merged task's hand-back says `partial` or
+`blocked`, or when it was merged having never handed back at all (`accept` refuses only a task
+already merged, queued, merging or cut). An outcome word the schema does not offer reads as
+finished, so a stray one is silence, not noise. `leftUndone` and `discovered` are deliberately
+**not** read: what a follow-up would have to establish — that nothing afterwards carried the raised
+thing forward — cannot be told from the ledger without a model reading prose, and `Task.of` is the
+only record-about-record handle the ledger has. The outcome word is the part that is structured, so
+the outcome word is the part that is read.
 
 ---
 

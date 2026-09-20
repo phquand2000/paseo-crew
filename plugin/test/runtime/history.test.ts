@@ -48,6 +48,9 @@ function ledgerOf(tasks: Task[], over: Partial<Lane> = {}): Ledger {
 
 const kinds = (ledger: Ledger) => deskFacts(ledger, READING).map((seen) => seen.fact.kind).sort();
 
+/** What a Peer leaves behind when it did finish, which is what these fixtures mean by accepted. */
+const finished = { file: "f", outcome: "complete", summary: "s", at: 0 };
+
 test("a task sent back again and again is a loop, and the lane patching several at once is a missing foundation", () => {
   const settling = ledgerOf([task({ id: "L1-T1", reworks: 2 })]);
   assert.deepEqual(kinds(settling), [], "two sendings-back is a correction, not yet a loop");
@@ -71,7 +74,7 @@ test("reviews piling up on one task are only a finding while that task is unsett
   assert.deepEqual(kinds(open), ["reviews-unconverged"]);
   assert.match(deskFacts(open, READING)[0]!.fact.quote, /3 reviews of L1-T1 .*which is running: changes, changes, changes/);
 
-  const accepted = ledgerOf([task({ id: "L1-T1", status: "merged" }), ...rounds]);
+  const accepted = ledgerOf([task({ id: "L1-T1", status: "merged", handback: finished }), ...rounds]);
   assert.deepEqual(kinds(accepted), [], "three rounds that ended in acceptance converged");
 
   const fewer = ledgerOf([task({ id: "L1-T1" }), ...rounds.slice(0, 2)]);
@@ -118,9 +121,40 @@ test("the quote is the whole of what was counted, so the book can tell new evide
 });
 
 test("a task that was accepted or cut has stopped going round, whatever it took to get there", () => {
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "merged" })])), []);
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "merged", handback: finished })])), []);
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "cut" })])), []);
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 2, status: "merged" }), task({ id: "L1-T2", reworks: 2 })])), [], "and does not count toward the lane's total");
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 2, status: "merged", handback: finished }), task({ id: "L1-T2", reworks: 2 })])), [], "and does not count toward the lane's total");
+});
+
+test("a task taken in although its Peer never said it was finished is on the record, and a finished one is not", () => {
+  const partial = ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "partial", summary: "s", at: 0 } })]);
+  assert.deepEqual(kinds(partial), ["accepted-unfinished"]);
+  assert.match(deskFacts(partial, READING)[0]!.fact.quote, /L1-T1 \(Apply discount\) was accepted after its Peer handed it back partial/);
+  assert.equal(deskFacts(partial, READING)[0]!.seat, "lead-1", "accepting is the Lead's act, so the Lead is who this is about");
+
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), ["accepted-unfinished"]);
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "complete", summary: "s", at: 0 } })])), [], "a Peer that said it finished raises nothing");
+
+  // `accept` refuses a task that is merged, queued, merging or cut, and nothing else — so a task can
+  // be taken in having never handed back, and then no outcome was ever declared at all.
+  const never = ledgerOf([task({ id: "L1-T1", status: "merged" })]);
+  assert.deepEqual(kinds(never), ["accepted-unfinished"]);
+  assert.match(deskFacts(never, READING)[0]!.fact.quote, /though it was never handed back/);
+
+  // Still running, still being sent back, or cut: none of those is the Lead taking the work in.
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), []);
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "cut", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), [], "cutting a task its Peer could not finish is the answer, not the fault");
+});
+
+test("an outcome word the schema does not offer reads as finished, and a lane names only its first few", () => {
+  // `done` stores whatever string arrives and nothing validates it against the schema's three words,
+  // so a stray one must fall the safe way: silence, not a report about a task nobody said was unfinished.
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "completed", summary: "s", at: 0 } })])), []);
+
+  const many = ledgerOf(Array.from({ length: 7 }, (_, index) => task({ id: `L1-T${index + 1}`, status: "merged", handback: { file: "f", outcome: "partial", summary: "s", at: 0 } })));
+  const quote = deskFacts(many, READING).find((seen) => seen.fact.kind === "accepted-unfinished")!.fact.quote;
+  assert.match(quote, /; and 2 more in this lane$/);
+  assert.ok(!quote.includes("L1-T6"), "a lane's accepted tasks only accumulate, so the quote does not grow with them");
 });
 
 test("a brief is not read as prewritten for stating acceptance, narrowing scope or quoting a failure", () => {

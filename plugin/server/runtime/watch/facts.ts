@@ -30,6 +30,7 @@ export const FACT_LEVELS: Record<string, Level> = {
   "long-turn": "attend",
   "rework-loop": "attend",
   "patched-not-fixed": "attend",
+  "accepted-unfinished": "attend",
   "reviews-unconverged": "attend",
   "certainty-only": "attend",
   "brief-prewritten": "attend",

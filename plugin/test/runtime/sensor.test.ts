@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { type SensorSpec, loadKit, sensorProblems } from "../../server/catalog/kit.ts";
 import { mask } from "../../server/runtime/watch/mask.ts";
-import { Assessor, NO_GATE, NO_GOAL, Pacer, SensorError, assess, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
+import { Assessor, NO_GATE, NO_GOAL, Pacer, SensorError, asked, assess, readAnswers, stateOf } from "../../server/runtime/watch/sensor.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -153,6 +153,12 @@ test("the shipped sensor asks only questions it can use, and the kit refuses one
     "asks q with criterion, which a question does not take",
     "asks q with criteria that are not a true and a false text",
   ], "a misspelt key is refused, not silently dropped");
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", whole: "yes" } } } as never), [
+    "asks q with whole that is not true or false",
+  ]);
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", whole: true } } } as never), [
+    "asks q whole, though nothing decides on its answer",
+  ], "holding back a question nothing acts on would save nothing and hide the answer from calibration");
 });
 
 test("a secret is masked before anything is cut, so no part of it survives a clip", () => {
@@ -247,6 +253,30 @@ test("a turn longer than the window still carries the instruction it serves, and
   window.add(row({ type: "user_message", text: "Now update the docs" }, 200));
   window.add(row(shell("d1", "ls docs"), 201));
   assert.deepEqual(stateOf(window, { goal: "g", role: "Peer", turn: "running" }, 8000).recent, ["Bash: ls docs [completed] → ok"]);
+});
+
+test("a question about a step that is not there is not asked of a view that lost steps", () => {
+  const whole = Object.entries(shipped.questions).filter(([, question]) => question.whole).map(([name]) => name).sort();
+  assert.deepEqual(whole, ["agreed_without_checking", "wrapped_instead_of_changed"], "both ask about something the steps do not show, which a hole can equally hide");
+  const brief = { goal: "Totals reflect the discount code", role: "Peer", turn: "ended" as const };
+
+  const seen = new Window();
+  seen.add(row({ type: "user_message", text: "No, the rate table is not in pricing.ts" }, 1));
+  seen.add(row(shell("c1", "grep RATES"), 2));
+  const held = stateOf(seen, brief, 8000);
+  assert.deepEqual((held.recent as string[])[0], "Bash: grep RATES [completed] → ok", "this view begins where the instruction did");
+  for (const name of whole) assert.ok(name in asked(shipped.questions, held), `${name} is asked of a whole run`);
+
+  const long = new Window();
+  long.add(row({ type: "user_message", text: "No, the rate table is not in pricing.ts" }, 1));
+  for (let index = 0; index < 85; index++) long.add(row(shell(`c${index}`, `ls dir${index}`), index + 2));
+  long.add(row({ type: "assistant_message", text: "Moved it; the suite is green", messageId: "m1" }, 90));
+  const holed = stateOf(long, brief, 8000);
+  assert.match((holed.recent as string[])[0]!, /earlier steps left out/, "and this one does not");
+  const left = asked(shipped.questions, holed);
+  for (const name of whole) assert.ok(!(name in left), `${name} is not asked of a view with a hole in it`);
+  assert.ok(Object.keys(left).length > 0 && whole.every((name) => name in shipped.questions), "the rest are still asked; only these two rest on what is missing");
+  assert.ok("unverified_success" in left, "a question whose subject is the last step of all is not held back: the last step is never the one dropped");
 });
 
 test("the cap holds, most of it goes to what the seat did, and none of it is what the code concluded", () => {

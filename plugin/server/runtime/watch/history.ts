@@ -53,6 +53,11 @@ const short = (text: string, limit = 120): string => {
   return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
 };
 
+/** What `done` offers a Peer that could not finish. A missing outcome is stored as "complete". */
+const UNFINISHED = new Set(["partial", "blocked"]);
+/** A lane's accepted tasks only ever accumulate, so the quote names a few and counts the rest. */
+const MOST_NAMED = 5;
+
 const reworksOf = (task: Task): number => task.reworks ?? 0;
 /** A task that was accepted or cut has stopped going round, whatever it took to get there. */
 const settled = (task: Task): boolean => task.status === "merged" || task.status === "cut";
@@ -87,6 +92,23 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
     const sendings = patched.reduce((total, task) => total + reworksOf(task), 0);
     if (patched.length >= 2 && sendings >= reading.reworksAt) {
       at("patched-not-fixed", `${sendings} sendings-back across ${patched.length} tasks still open in this lane: ${patched.map((task) => `${task.id} ×${reworksOf(task)}`).join(", ")}`);
+    }
+
+    // Taken in although its Peer never said it was finished. `done` stores a missing outcome as
+    // "complete", so "partial" or "blocked" is always something the Peer chose to say, and `accept`
+    // refuses only a task that is already merged, queued, merging or cut — never one that has not
+    // handed back at all. Accepting either can be the right call; what makes it a finding is that
+    // nothing else writes it down. The merge letter carries the counts and the gate, the status page
+    // carries the hand-back's age, and what was left undone stays in a file under `handbacks/` that
+    // nothing reads again unless someone runs a retrospective.
+    const unfinished = here.filter((task) => task.status === "merged" && (!task.handback || UNFINISHED.has(task.handback.outcome)));
+    if (unfinished.length > 0) {
+      const named = unfinished.slice(0, MOST_NAMED);
+      const rest = unfinished.length - named.length;
+      at(
+        "accepted-unfinished",
+        `${named.map((task) => `${task.id} (${task.title}) was accepted ${task.handback ? `after its Peer handed it back ${task.handback.outcome}` : "though it was never handed back"}`).join("; ")}${rest > 0 ? `; and ${rest} more in this lane` : ""}`,
+      );
     }
 
     // Reviews piling up on one task with nothing accepted: ten symptoms and no convergence.

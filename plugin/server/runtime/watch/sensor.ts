@@ -177,6 +177,8 @@ export const LEAST_STATE_CHARS = 1000;
 
 const size = (value: unknown) => JSON.stringify(value).length;
 const leftOut = (count: number) => `[… ${count} earlier step${count === 1 ? "" : "s"} left out …]`;
+/** How the state says its own view has a hole: the line `leftOut` writes, and only ever leading. */
+const LEFT_OUT = /^\[… \d+ earlier steps? left out …\]$/;
 
 export function stateOf(window: Window, brief: Brief, limit: number): Record<string, unknown> {
   const units = window.sinceInstruction();
@@ -216,8 +218,21 @@ export function stateOf(window: Window, brief: Brief, limit: number): Record<str
 
 const blank = (value: unknown) => value === undefined || value === "" || value === NO_GOAL || value === NO_GATE || (Array.isArray(value) && value.length === 0);
 
+/**
+ * Which questions this state can answer.
+ *
+ * A question is held back when everything it reads is blank, and when what it asks about is the
+ * absence of a step and steps were left out — the step it would have found may be in the hole.
+ * Saying so in the state is not enough: measured against the shipped sensor, adding the left-out
+ * line to an otherwise identical state moved those answers by -0.05, 0.00 and +0.01, so a seat that
+ * did check, on a turn long enough to lose the checking, was still reported at p≈0.86.
+ */
 export function asked(questions: Record<string, Question>, state: Record<string, unknown>): Record<string, Question> {
-  return Object.fromEntries(Object.entries(questions).filter(([, question]) => !question.needs || question.needs.some((field) => !blank(state[field]))));
+  const recent = state.recent;
+  const holed = Array.isArray(recent) && typeof recent[0] === "string" && LEFT_OUT.test(recent[0]);
+  return Object.fromEntries(
+    Object.entries(questions).filter(([, question]) => !(holed && question.whole) && (!question.needs || question.needs.some((field) => !blank(state[field])))),
+  );
 }
 
 export class Pacer {

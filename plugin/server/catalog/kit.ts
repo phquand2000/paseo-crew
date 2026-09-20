@@ -216,6 +216,8 @@ export type Question = {
   agrees?: string[];
   confirms?: string[];
   needs?: string[];
+  /** Answerable only from a whole run of steps: what it asks about is a step that is not there. */
+  whole?: boolean;
 };
 
 export type SensorSpec = {
@@ -315,7 +317,7 @@ function loadMcp(dir: string): Record<string, McpEntry> {
 }
 
 const SENSOR_KEYS = ["id", "url", "model", "timeoutSeconds", "retries", "stateChars", "debounceSeconds", "everySeconds", "unclear", "questions"];
-const QUESTION_KEYS = ["instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs"];
+const QUESTION_KEYS = ["instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs", "whole"];
 
 export function sensorProblems(id: string, raw: Record<string, unknown>): string[] {
   const problems: string[] = [];
@@ -349,6 +351,8 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
     if (question?.needs !== undefined && (!Array.isArray(question.needs) || question.needs.length === 0 || question.needs.some((field) => !(STATE_FIELDS as readonly unknown[]).includes(field)))) {
       problems.push(`asks ${name} with needs that is not a list of the state's fields (${STATE_FIELDS.join(", ")})`);
     }
+    if (question?.whole !== undefined && typeof question.whole !== "boolean") problems.push(`asks ${name} with whole that is not true or false`);
+    if (question?.whole === true && !decides) problems.push(`asks ${name} whole, though nothing decides on its answer`);
   }
   return problems;
 }

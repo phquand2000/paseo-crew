@@ -430,8 +430,10 @@ more than one turn can be seen there. The patrol reads the ledger it already hol
 in `runtime/watch/history.ts`: `rework-loop` (one task past `attention.reworksAt` sendings-back),
 `patched-not-fixed` (that many spread over two or more tasks in a lane), `reviews-unconverged`
 (`attention.reviewsAt` reviews of a target still neither accepted nor cut), `certainty-only` (a
-review's focus asking for only what it is sure of) and `brief-prewritten` (a code task's brief
-carrying a code fence, or steps with a file and a member name).
+review's focus asking for only what it is sure of), `brief-prewritten` (a code task's brief
+carrying a code fence, or steps with a file and a member name) and `accepted-unfinished` (a task
+merged whose Peer handed it back `partial` or `blocked`, or that was merged having never handed back
+at all — `accept` refuses only a task already merged, queued, merging or cut).
 
 The seat named is the lane's Lead, because each is something a Lead decides, and a lane whose Lead
 has gone raises nothing: an incident about a seat that is not there is one nothing would ever close.
@@ -460,14 +462,20 @@ what it was given. Secrets are masked before anything is cut, and the state stay
 sensor's size, most of it given to the steps. No fact, finding, score or earlier answer is in it, so
 the sensor agreeing with a fact is a second opinion and not an echo. A seat whose brief cannot be
 read is not asked about, and a question whose `needs` fields are all empty is not asked; if that
-leaves no questions, nothing is sent.
+leaves no questions, nothing is sent. Nor is a question marked `whole`, whose finding rests on a step
+not being there, asked of a state that says steps were left out: the step it looks for may be in the
+hole. Saying so in the state does not cover it — measured against the shipped sensor, adding that
+line to an otherwise identical state moved those answers by -0.05, 0.00 and +0.01, leaving a seat
+that did check reported at p≈0.86 on a turn long enough to lose the checking.
 
 Each question names state fields, asks what the state shows, has yes as the finding, and may carry
 `criteria`. What its answer does depends on how it is tied, and a question tied to nothing — four of
-the nine the shipped sensor asks — is recorded and does nothing else:
+the fourteen the shipped sensor asks — is recorded and does nothing else:
 
-- `alone`: it opens its own incident. At `attend` it needs two readings in a row in the same turn at
-  or over its threshold, or one taken after the turn ended, since no other follows; a reading in the
+- `alone`: it opens its own incident. At `attend` it needs two readings in a row at or over its
+  threshold, in the same turn and under the same instruction — a letter landing mid-turn starts the
+  count again, since the subject it asked about has changed — or one taken after the turn ended,
+  since no other follows; a reading in the
   `unclear` band raises nothing. At `page` one reading is enough, and a reading in the band just under
   the threshold is raised at `attend` rather than let pass — and a page that follows is sent as a
   page, not folded into the attention already sent.
@@ -475,12 +483,15 @@ the nine the shipped sensor asks — is recorded and does nothing else:
 - `confirms`: it opens nothing of its own. It judges the open incident of a named attention-level
   fact: at or over the threshold it confirms, in the band it is unsure, under the band it disagrees.
 
-The shipped sensor asks nine questions: `needs_human` and `unsafe_action` stand alone, `goal_drift`
-and `unverified_success` need a fact to agree, `worker_stuck` only confirms `stuck` and `no-recovery`,
+The shipped sensor asks fourteen questions. Seven stand alone: `needs_human`, `unsafe_action`,
+`missing_mechanism`, `wrapped_instead_of_changed`, `proof_changes_product`, `proves_the_old_is_gone`
+and `agreed_without_checking`, of which `wrapped_instead_of_changed` and `agreed_without_checking`
+are marked `whole`. `goal_drift` and
+`unverified_success` need a fact to agree, `worker_stuck` only confirms `stuck` and `no-recovery`,
 and `injected_intent`, `guessed_ambiguity`, `admits_error` and `changed_direction` are recorded only.
 A `sensor.json` the loader cannot make sense of — an unknown field, a url that is not https, a
-threshold on a question nothing decides, a `confirms` naming a fact that is not attention-level —
-fails the plugin's load with the problem named.
+threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact
+that is not attention-level — fails the plugin's load with the problem named.
 
 A sensor that will not answer is not an incident: 429 and 5xx are retried, and a failure is written
 as `sensor.degraded` at most once a minute. With no key at all, one `sensor.off` line is written per

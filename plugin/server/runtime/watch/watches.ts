@@ -57,6 +57,10 @@ export class SeatWatch {
       this.recovery.reset();
       for (const key of [...this.told]) if (key !== "long-turn") this.told.delete(key);
       this.noted.length = 0;
+      // The subject has changed, so the last reading is no longer the one before this one. A question
+      // that only opens on two high answers running would otherwise be satisfied by one answer about
+      // the old instruction and one about the new: two readings of two different things.
+      this.reading = undefined;
       return [];
     }
     const rules = this.rules();
