@@ -175,6 +175,8 @@ the briefs it should, and `node bin/calibrate.ts <project>` reports on the watch
 real project's kept assessments — reading them costs nothing, and only `--ask` calls the sensor.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the plugin works inside
+- [docs/ANTIPATTERNS.md](docs/ANTIPATTERNS.md): thirty-five ways a team of agents goes wrong, what
+  gives each one away, and which of them this plugin can see
 - [AGENTS.md](AGENTS.md): the rules this code follows
 
 ## License
