@@ -10,6 +10,8 @@ import { statusText } from "../desk/status.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
+import { deskFacts } from "./watch/history.ts";
+import { decide } from "./watch/rules.ts";
 import type { Watches } from "./watch/watches.ts";
 
 type SeatMap = Map<string, SeatView>;
@@ -29,6 +31,9 @@ export class Patrol {
   private readonly deps: PatrolDeps;
   private readonly idleFlag = new Map<string, string>();
   private readonly goneFlag = new Set<string>();
+  // What a lane's history last showed, so a standing condition is reported when it changes and not
+  // on every round for as long as it holds.
+  private readonly historyFlag = new Map<string, string>();
   private reaped = false;
   private round: Promise<void> | undefined;
 
@@ -65,6 +70,7 @@ export class Patrol {
       await this.step(project, "incidents held for nobody or for the sensor could not be told", async () => void (await desk.retell(project)));
       await this.step(project, "a task whose Peer is gone could not be recorded", () => this.goneTasks(project, loadLedger(project.state), seats));
       await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
+      await this.step(project, "what a lane's history shows could not be read", () => this.history(project, loadLedger(project.state), seats));
       await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
       await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
       await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
@@ -104,6 +110,25 @@ export class Patrol {
       Object.values(ledger.lanes).some((lane) => lane.status === "open") ||
       [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === project.slug);
     await this.deps.desk.sweep(project, busy);
+  }
+
+  /**
+   * What the desk's own record shows about a lane, which no window can hold.
+   *
+   * The seat named is the lane's Lead, because every one of these is something a Lead decides: to
+   * send a task back again, to start another review, or to write the answer into a brief. It goes
+   * through the same incident book as what the watch reads from a timeline, so the Supervisor holds
+   * it, marks it and calibrates against it the one way.
+   */
+  private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
+    const attention = this.deps.source.teamFor(project).attention;
+    for (const seen of deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt })) {
+      const key = `${project.slug}:${seen.seat}:${seen.fact.kind}`;
+      if (this.historyFlag.get(key) === seen.sign) continue;
+      this.historyFlag.set(key, seen.sign);
+      const seat = seats.get(seen.seat);
+      await this.deps.desk.notice(project, { id: seen.seat, provider: seat?.provider ?? "", title: seat?.title }, decide([seen.fact]));
+    }
   }
 
   private async idleLanes(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {

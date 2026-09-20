@@ -61,6 +61,8 @@ export const AttentionChoice = z.strictObject({
   destructive: Pattern.optional(),
   testPath: Pattern.optional(),
   repeatsAt: z.number().int().min(2).optional(),
+  reworksAt: z.number().int().min(2).optional(),
+  reviewsAt: z.number().int().min(2).optional(),
   suppressed: Pattern.optional(),
   longTurnMinutes: z.number().int().min(1).optional(),
   incidentsPerDay: z.number().int().min(0).optional(),

@@ -79,10 +79,13 @@ What each agent's seat is allowed to do, and where each falls short, is covered 
 
 ## The watch
 
-The desk also follows the Leads and Peers while they work, through their timelines. It reads their
-turns in code — a destructive command, the same failure attacked over and over, a test that lost its
-assertions, a hand-back that never ran the gate. With an OpenRouter key it can also put the same
-steps to a sensor for a second opinion.
+The desk also follows the Leads and Peers while they work. It reads their turns in code — a
+destructive command, the same failure attacked over and over, a test that lost its assertions, a
+hand-back that never ran the gate — and it reads each lane's own record for the shapes no single
+turn can show: a task sent back again and again, a lane patching several tasks at once, reviews
+piling up with nothing accepted, a review told to report only what it is certain of, a brief that
+writes the work out instead of setting an outcome. With an OpenRouter key it can also put the steps
+of a turn to a sensor for a second opinion.
 
 Each of those becomes an **incident**. A fact the code read raises one on its own; the sensor can
 raise one of its own, back one the code raised, or hold that one back when it disagrees. The

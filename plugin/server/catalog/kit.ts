@@ -200,6 +200,8 @@ export type Attention = {
   destructive: string;
   testPath: string;
   repeatsAt: number;
+  reworksAt: number;
+  reviewsAt: number;
   suppressed: string;
   longTurnMinutes: number;
   incidentsPerDay: number;
@@ -247,6 +249,8 @@ const ATTENTION: Attention = {
   destructive: DESTRUCTIVE,
   testPath: TEST_PATH,
   repeatsAt: 3,
+  reworksAt: 3,
+  reviewsAt: 3,
   suppressed: SUPPRESSED,
   longTurnMinutes: 30,
   incidentsPerDay: 5,

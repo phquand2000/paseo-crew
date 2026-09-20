@@ -28,7 +28,7 @@ export type TeamView = {
 
 export type AttentionChoice = {
   tickSeconds?: number; leadIdleMinutes?: number; askRemindMinutes?: number; maxReminders?: number;
-  watch?: boolean; destructive?: string; testPath?: string; repeatsAt?: number; suppressed?: string;
+  watch?: boolean; destructive?: string; testPath?: string; repeatsAt?: number; reworksAt?: number; reviewsAt?: number; suppressed?: string;
   longTurnMinutes?: number; incidentsPerDay?: number;
 };
 export type RoleChoice = { harness?: string; model?: string; thinking?: string; rules?: string };

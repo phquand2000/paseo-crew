@@ -12,19 +12,26 @@ examples are only on the rules that cannot be stated in one sentence.
 |---|---|
 | **caught** | A code fact or a sensor question fires on it today. |
 | **askable** | It is in a seat's own timeline and nothing asks. A sensor question would see it. |
-| **desk** | No single timeline holds it. It is in the ledger, across tasks, rounds or lanes. |
+| **desk** | In the ledger, across tasks, rounds or lanes, and nothing reads it for this yet. |
 | **outside** | This plugin cannot see it, and saying why is the useful part. |
 
-Of the thirty-five rules below, **one is caught and only in half its cases**, six are askable,
-sixteen are desk-shaped, and twelve are outside. That is the honest state of the watch as built: it
-is good at a destructive command, a seat repeating itself, a weakened test and an unverified success
-claim, and blind to everything that only exists across a lane's history.
+Of the thirty-five rules below, **six are caught**, one more in half its cases, six are askable,
+ten are desk-shaped and twelve are outside.
+
+The watch reads two things. From a seat's timeline it catches a destructive command, a seat
+repeating
+itself, a weakened test and an unverified success claim. From the lane's own record — the ledger the
+patrol already holds — it catches the shapes no window can hold: a task sent back again and again, a
+lane patching several tasks at once, reviews piling up with nothing accepted, a review told to
+report
+only what it is certain of, and a brief that writes the work out instead of setting an outcome. Both
+go through one incident book, so the Supervisor reads, marks and calibrates them the one way.
 
 Three facts explain most of the blindness, and each is a design choice rather than a defect:
 
 - A letter arrives as a `user_message`, which clears what the watch had noted and restarts its
-window (`server/runtime/watch/watches.ts`). No pattern survives a rework round, and the fourth group
-below lives entirely on that span.
+window (`server/runtime/watch/watches.ts`). No pattern survives a rework round — which is why the
+fourth group below is read from the ledger instead, in `server/runtime/watch/history.ts`.
 - The window is eighty steps from the last instruction. A lane's history is not in it and never will
 be.
 - Four of the nine sensor questions carry no threshold on purpose: they collect answers into
@@ -52,8 +59,9 @@ the remedy — a detour lane with its own Lead — and nothing detects the need 
 one is fitting a parachute, a weight and a reverse thruster to a car that has no brakes.
 **Signs.** three or more sendings-back in one lane, each fix in a different file; "also fixes",
 "same root cause" appearing after the third round.
-**Here.** *desk* — `Task.reworks` counts every sending-back and `Task.handback` keeps the outcome
-and summary of each round. The shape is a lane's history, not a turn.
+**Here.** *caught* — `patched-not-fixed`, when a lane has sendings-back over two or more tasks
+adding up to `attention.reworksAt` (3). The quote names each task and its count, so the Supervisor
+can see whether they share a cause.
 
 ### Balloon Pattern
 **Rule.** Change the thing and the callers it breaks. A wrapper around a weak foundation is a second
@@ -94,9 +102,9 @@ ioredis, put it in `src/session/redis.ts`, key `sess:<id>`, TTL 3600 — confirm
 answer wearing a goal's clothes, and what comes back is agreement, not engineering.
 **Signs.** in a brief: "just", "simply", "confirm", "verify that", "the approach is", a file path
 and a function name the worker was not asked to choose.
-**Here.** *desk* — a task's `context` and `goal` are stored verbatim and reach the Peer as its
-brief. `LEAD.md` says to keep the answer out of the brief; nothing reads the brief back to see
-whether it did.
+**Here.** *caught in part* — `brief-prewritten` catches the form that writes the work out, steps and
+file names and all. The subtler form, a brief that simply states the chosen answer in prose, is
+still only in the ledger with nothing reading it.
 
 ### Authority gradient
 **Rule.** A worker may refuse the framing. A bounded task is not a gag.
@@ -179,16 +187,17 @@ clears what the watch noted and restarts its window.
 **Rule.** After the second round, stop fixing findings and ask what one mechanism produced them.
 **Signs.** round three; each fix local and in a new file; the diff growing every round while the
 finding count stays flat.
-**Here.** *desk* — `Task.reworks` counts the rounds exactly, and each round's review is its own task
-pointing at the target.
+**Here.** *caught* — `rework-loop`, when one task passes `attention.reworksAt` (3) sendings-back.
+Reported once, and again only when the count moves: the condition stands where an episode would end.
 
 ### Non-converging findings
 **Rule.** Ten reports of ten symptoms are one question: what is the shared cause? Converge before
 fixing.
 **Signs.** several reviews on one task, each with its own vocabulary; findings fixed in the order
 received.
-**Here.** *desk* — every review is a task with a handback file. Nothing counts or clusters them;
-convergence is the Lead's job, and the `council` skill is where the plugin says how.
+**Here.** *caught* — `reviews-unconverged`, when `attention.reviewsAt` (3) reviews name one target
+that is still neither accepted nor cut. Converging is still the Lead's job, and the `council` skill
+is where the plugin says how.
 
 ### Overengineering edge case
 **Rule.** Weigh a finding by impact times probability before building for it. A low-probability P3
@@ -204,8 +213,8 @@ printed once and read by no code.
 the bugs it drops are real.
 **Signs.** in a review's focus line: "only if you are certain", "no speculation", "high confidence
 only".
-**Here.** *desk* — a review's focus is stored verbatim as its goal and is on the record forever;
-nothing looks. The plugin's own `ultra-review` content pushes the other way.
+**Here.** *caught* — `certainty-only`, on the review task's own focus line. The plugin's own
+`ultra-review` content pushes the other way, so this fires on a Lead overriding it.
 
 ---
 
@@ -267,8 +276,9 @@ reaching past a Lead must emit the letter that tells that Lead.
 writes the code in Markdown has removed the worker's judgement and still not tested the design.
 **Signs.** a brief with numbered implementation steps, function signatures, or file trees; "then
 create", "then add a method".
-**Here.** *desk* — the brief is stored verbatim; the tool description states the intent and enforces
-nothing.
+**Here.** *caught* — `brief-prewritten`, on a code task whose goal and context carry a code fence,
+or numbered steps together with a file and a member name. The tool description states the intent;
+this is what notices when a brief ignored it.
 
 ### Vague long goal
 **Rule.** A goal names something observable. If nobody can say what would show it was met, no agent

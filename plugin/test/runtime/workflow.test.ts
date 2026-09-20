@@ -1748,3 +1748,42 @@ test("two projects each hear about their own seats, though their incidents carry
   assert.match(h.agents.get(supB)!.sent.join("\n"), /INCIDENT I1 \(destructive, page\)/, "the second project's owner is told too, not dropped as a repeat of the first");
   h.runtime.dispose();
 });
+
+test("a task the Lead keeps sending back is an incident about the Lead, raised once and never shown to it", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer("outbox-history.json", { attention: { watch: true } });
+  for (const round of [1, 2, 3]) {
+    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
+    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  }
+  assert.equal(h.ledger().tasks["L1-T1"]!.reworks, 3, "three sendings-back are on the record");
+
+  await h.tick();
+  await h.idle(sup);
+  const told = h.agents.get(sup)!.sent.join("\n");
+  assert.match(told, /INCIDENT I1 \(rework-loop, attend\) on the Lead of L1 \(Build\)/, "the seat it is about is the one that decides to send it back");
+  assert.match(told, /What was seen: L1-T1 \(Clean build\) has been sent back 3 times/);
+
+  // A window would never hold this: every rework letter is a message, which restarts it. And what a
+  // window sees is an episode that ends, while three sendings-back stay three forever — so once the
+  // Supervisor has marked this one, the same unchanged record must not raise it again on the next
+  // round, and the round after that.
+  const marked = await h.call(sup, "supervisor", "ack", { id: "I1", verdict: "noise", note: "expected: the brief changed under it" });
+  assert.equal(marked.ok, true, marked.text);
+  await h.tick();
+  await h.tick();
+  assert.deepEqual(Object.keys(incidentsOf(h.project.state)), ["I1"], "the same three sendings-back are not raised again once they have been marked");
+
+  // A fourth is new evidence, and is raised.
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "round 4" });
+  await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "still not" });
+  await h.tick();
+  assert.deepEqual(Object.keys(incidentsOf(h.project.state)), ["I1", "I2"], "a fourth sending-back is something new to say");
+
+  await h.idle(lane.lead!);
+  assert.deepEqual(
+    h.agents.get(lane.lead!)!.sent.filter((text) => /INCIDENT|rework-loop|sent back 3 times/.test(text)),
+    [],
+    "nothing the watch concluded reaches the seat it is about",
+  );
+  h.runtime.dispose();
+});

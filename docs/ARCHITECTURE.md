@@ -423,6 +423,23 @@ and plain terminal output rows, are not evidence of anything and are skipped.
 
 Facts are deduplicated per turn, and the last twenty are kept for the sensor.
 
+### What a lane's history shows
+
+A window is eighty steps from the last instruction, and a letter restarts it, so nothing that takes
+more than one turn can be seen there. The patrol reads the ledger it already holds for those shapes,
+in `runtime/watch/history.ts`: `rework-loop` (one task past `attention.reworksAt` sendings-back),
+`patched-not-fixed` (that many spread over two or more tasks in a lane), `reviews-unconverged`
+(`attention.reviewsAt` reviews of a target still neither accepted nor cut), `certainty-only` (a
+review's focus asking for only what it is sure of) and `brief-prewritten` (a code task's brief
+carrying a code fence, or steps with a file and a member name).
+
+The seat named is the lane's Lead, because each is something a Lead decides. These are standing
+conditions rather than episodes — three sendings-back stay three — so each carries a signature and
+the patrol reports one only when that signature changes; otherwise a marked incident would be raised
+again on the next round. They go through the same incident book as what the watch reads from a
+timeline, so `incidents`, `ack` and `calibrate` treat them alike. `docs/ANTIPATTERNS.md` says which
+of the shapes a team goes wrong in each of these answers.
+
 ### The sensor
 
 With the sensor's key set — under Watch on Machine defaults, or as `sensor.key` in the machine
@@ -582,6 +599,7 @@ Paseo providers; a project-layer save does not.
 | `incidentsPerDay` | 5 |
 | `longTurnMinutes` | 30 |
 | `destructive` / `testPath` / `suppressed` / `repeatsAt` | patterns and 3 |
+| `reworksAt` / `reviewsAt` | 3 / 3 |
 
 A pattern that does not compile is refused at save time.
 
