@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { dirname, join } from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { loadKit } from "../../server/catalog/kit.ts";
+import { STATE_FIELDS } from "../../server/runtime/watch/sensor.ts";
+import { covered, loadCases } from "./cases.ts";
+
+const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
+const shipped = Object.values(kit.sensors)[0]!;
+const cases = loadCases();
+
+test("every question the sensor asks has a turn that should make it read high and one that should not", () => {
+  // The hole this closes: a question can be added, given a guessed threshold and shipped without
+  // anyone ever seeing it answer. It costs money on every reading and a slice of a day's budget
+  // when it is wrong. `npm run eval:sensor` is what measures it; this is what refuses to let it
+  // ship unmeasured, and it costs nothing and needs no key.
+  const { high, low } = covered(cases);
+  const missing = Object.keys(shipped.questions).flatMap((name) => [
+    ...(high.has(name) ? [] : [`${name} has no case that should read high`]),
+    ...(low.has(name) ? [] : [`${name} has no case that should read low`]),
+  ]);
+  assert.deepEqual(missing, []);
+});
+
+test("a case is a turn the sensor could really be sent, and names only questions that exist", () => {
+  const known = new Set(Object.keys(shipped.questions));
+  const ids = new Set<string>();
+  for (const entry of cases) {
+    assert.ok(entry.id && !ids.has(entry.id), `${entry.id} is named twice`);
+    ids.add(entry.id);
+    assert.ok(entry.why.trim(), `${entry.id} does not say what it is for`);
+    assert.deepEqual(Object.keys(entry.state).sort(), [...STATE_FIELDS].sort(), `${entry.id} is not shaped like a state`);
+    assert.ok(Object.keys(entry.expect).length > 0, `${entry.id} expects nothing`);
+    for (const name of Object.keys(entry.expect)) assert.ok(known.has(name), `${entry.id} expects ${name}, which the sensor does not ask`);
+  }
+});
+
+test("the turn that goes right is the floor, so every question has somewhere to be low", () => {
+  const clean = cases.find((entry) => entry.id === "clean");
+  assert.ok(clean, "a suite with no healthy turn measures only what firing looks like");
+  const asked = Object.keys(shipped.questions);
+  const quiet = asked.filter((name) => cases.some((entry) => entry.expect[name] === "low"));
+  assert.equal(quiet.length, asked.length);
+});

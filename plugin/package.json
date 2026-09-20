@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json",
     "test": "node --test 'test/**/*.test.ts'",
     "check": "npm run typecheck && npm test",
-    "eval:triggers": "node test/skills/run-triggers.ts"
+    "eval:triggers": "node test/skills/run-triggers.ts",
+    "eval:sensor": "node test/sensor/run-cases.ts"
   },
   "dependencies": {
     "smol-toml": "^1.8.0",

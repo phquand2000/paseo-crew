@@ -721,9 +721,14 @@ in Health.
 real-kit test builds every role on every shipped agent. It builds the Codex seats only where `codex`
 is installed, because building one asks Codex for its model catalog. No test launches a seat.
 
-Two commands sit outside it. `npm run eval:triggers -- --agent "…"` calls a real agent.
-`node bin/calibrate.ts <project>` reads a real project's kept assessments, and calls the sensor only
-with `--ask`.
+Three commands sit outside it. `npm run eval:triggers -- --agent "…"` calls a real agent.
+`npm run eval:sensor` puts `test/sensor/cases.json` — turns shaped as `stateOf` renders one, each
+saying what every question should read on it — to the real sensor, and fails when one reads the
+other way. What runs inside `npm test` is the part that needs no key: every question the sensor asks
+must have a turn that should make it read high and one that should not, so a question cannot ship
+unmeasured. `node bin/calibrate.ts <project>` reads a real project's kept assessments, and calls the
+sensor only with `--ask`; the cases measure a question's wording, the assessments measure its
+threshold against what the Supervisor marked.
 
 ## Known limits
 

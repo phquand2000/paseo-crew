@@ -172,10 +172,12 @@ That type-checks the server and the client, then runs the tests with Node's own 
 no build step. Don't launch seats to test a change: they are real agents with broad permissions, and
 they cost money.
 
-Two more, neither part of `npm run check` because both call real models:
+Three more, none part of `npm run check` because all call real models:
 `npm run eval:triggers -- --agent "claude -p"` asks a real agent whether each shipped skill opens on
-the briefs it should, and `node bin/calibrate.ts <project>` reports on the watch's questions from a
-real project's kept assessments — reading them costs nothing, and only `--ask` calls the sensor.
+the briefs it should; `npm run eval:sensor` puts thirty-one turns to the watch's own sensor and
+fails when a question reads one the wrong way; and `node bin/calibrate.ts <project>` reports on the
+watch's questions from a real project's kept assessments — reading them costs nothing, and only
+`--ask` calls the sensor.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the plugin works inside
 - [docs/ANTIPATTERNS.md](docs/ANTIPATTERNS.md): thirty-five ways a team of agents goes wrong, what
