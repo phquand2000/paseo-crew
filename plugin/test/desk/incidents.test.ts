@@ -18,8 +18,10 @@ import { labelsIn } from "../../bin/calibrate.ts";
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const questions = Object.values(kit.sensors)[0]!.questions;
 
-function desk(watching = false, sensing = false) {
-  const machine: Record<string, unknown> = { ...(watching ? { attention: { watch: true } } : {}), ...(sensing ? { sensor: { key: "k" } } : {}) };
+// A key is what the watch is made of, so a project with none never reaches any of this. The only
+// flag left is whether what it marks is mailed.
+function desk(mailing = false) {
+  const machine: Record<string, unknown> = { sensor: { key: "k" }, ...(mailing ? { attention: { watch: true } } : {}) };
   const root = tempDir("sw2-incidents-");
   const project = { root, slug: "p", state: join(root, "state") };
   const posted: { to: string; key: string; text: string }[] = [];
@@ -95,7 +97,7 @@ test("a question alone raises on two readings in a running turn or one at its en
 });
 
 test("a fact the sensor can judge waits for it, is held back when it disagrees, sent when it agrees, and sent anyway if it never answers", async () => {
-  const { project, services, posted, seated } = desk(true, true);
+  const { project, services, posted, seated } = desk(true);
   seated.supervisor = "sup";
   const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
   const other = { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" };
@@ -121,8 +123,8 @@ test("a fact the sensor can judge waits for it, is held back when it disagrees, 
   assert.deepEqual(page.sent, ["I4"], "an irreversible act never waits");
 });
 
-test("a veto holds back only what it judged: the next sighting waits for the sensor again, and nothing stays held once the sensor is gone", async () => {
-  const { project, services, seated, machine } = desk(true, true);
+test("a veto holds back only what it judged, and the next sighting waits for the sensor again", async () => {
+  const { project, services, seated } = desk(true);
   seated.supervisor = "sup";
   const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
   const other = { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" };
@@ -134,8 +136,6 @@ test("a veto holds back only what it judged: the next sighting waits for the sen
   await notice(services, project, peer, [{ ...stuck, quote: "stuck again, in a later instruction" }], at + 600_000);
   assert.equal(loadIncidents(project.state).items.I1!.held, "awaiting", "new evidence is judged afresh");
   assert.deepEqual(await retell(services, project, at + 600_000 + 121_000), ["I1"], "and sent if the sensor does not answer");
-  delete machine.sensor;
-  assert.deepEqual(await retell(services, project, at + 700_000), ["I2"], "with no sensor configured, nothing it held back stays held");
 });
 
 test("a doubtful reading raised at attention does not swallow the certain one that follows: that one pages", async () => {
@@ -211,7 +211,7 @@ test("an incident is never addressed to the seat it is about", async () => {
 });
 
 test("a mark outlives the incident it was put on, so the thresholds are still tuned from it once the book has let the incident go", async () => {
-  const { project, services, supervisor } = desk(false, true);
+  const { project, services, supervisor } = desk();
   const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
   await notice(services, project, peer, [stuck]);
   await judge(services, project, peer, [{ kind: "stuck", question: "worker_stuck", p: 0.3, model: "m", says: "vetoes" }]);

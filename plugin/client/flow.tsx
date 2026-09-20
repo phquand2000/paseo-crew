@@ -159,6 +159,8 @@ const Trouble = memo(function Trouble({ watch, theme }: { watch: WatchView; them
 
 const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: PluginTheme }) {
   const styles = useStyles(theme);
+  const readings = watch.seats.reduce((sum, seat) => sum + seat.readings, 0);
+  const cost = watch.seats.reduce((sum, seat) => sum + seat.cost, 0);
   if (!watch.on) {
     return (
       <SettingsCard>
@@ -171,10 +173,20 @@ const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: P
     <SettingsCard>
       <View style={styles.row}>
         <View style={styles.labels}>
-          <Text style={styles.title}>{`Watching ${watch.seats.length} seat${watch.seats.length === 1 ? "" : "s"}`}</Text>
-          <Text style={styles.hint}>{watch.telling ? "What it marks is mailed to the Supervisor." : "Recording only. Nothing it marks is mailed."}</Text>
+          {/* Zero gets its own words. "Watching 0 seats" is the normal state right after the key goes
+              in, and it reads as broken rather than as idle. */}
+          <Text style={styles.title}>{watch.seats.length === 0 ? "The watch is on" : `Watching ${watch.seats.length} seat${watch.seats.length === 1 ? "" : "s"}`}</Text>
+          <Text style={styles.hint}>
+            {watch.seats.length === 0
+              ? "No Lead or Peer is running, so there is nothing to follow yet."
+              : watch.telling
+                ? "Incidents are mailed to the Supervisor."
+                : "Nothing it marks is mailed."}
+          </Text>
         </View>
-        <Text style={watch.seats.some((seat) => seat.running) ? styles.alive : styles.quiet}>{`${watch.readings} read · ${spent(watch.cost)}`}</Text>
+        {watch.seats.length === 0 ? null : (
+          <Text style={watch.seats.some((seat) => seat.running) ? styles.alive : styles.quiet}>{`${readings} read · ${spent(cost)}`}</Text>
+        )}
       </View>
       {watch.seats.map((seat) => (
         <View key={seat.id}>
@@ -195,7 +207,7 @@ const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: P
         label={`${watch.incidents.open} open incident${watch.incidents.open === 1 ? "" : "s"}`}
         hint={
           watch.incidents.held > 0
-            ? `${watch.incidents.held} of them held back, waiting on the sensor, a day's budget, or Tell the Supervisor being off. The Supervisor lists them with \`incidents\`.`
+            ? `${watch.incidents.held} of them held back, waiting on the sensor, a day's budget, or Mail incidents to the Supervisor being off. The Supervisor lists them with \`incidents\`.`
             : "The Supervisor lists them with `incidents` and marks each one useful, noise or unknown."
         }
       />

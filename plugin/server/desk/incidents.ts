@@ -35,7 +35,7 @@ export type Incident = {
 
 export type Incidents = { next: number; items: Record<string, Incident> };
 
-export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "closed" | "later" | "sensor">;
+type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "closed" | "later" | "sensor">;
 
 export const DAY_MS = 24 * 3_600_000;
 

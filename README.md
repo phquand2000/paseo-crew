@@ -99,7 +99,7 @@ that reads turns in code alone. The key is on the panel's **Team** tab, under **
 defaults; taking it away lets the seats go on the next patrol round, with no reload.
 
 Whether it speaks is a second, separate control. Out of the box a running watch is quiet: incidents
-are recorded and listed, and none is mailed. *Tell the Supervisor* is that control, on Machine
+are recorded and listed, and none is mailed. *Mail incidents to the Supervisor* is that control, on Machine
 defaults or one project. The key is kept on the machine and used for every project, so it is on
 Machine defaults only; the panel never reads a saved key back, it only says one is set, and saving
 anything else leaves it alone. Either can be hand-written instead — the next patrol round picks up

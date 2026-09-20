@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey, watchState } from "../../client/data.ts";
 import { KEPT } from "../../shared/rpc.ts";
 
 const held: Layer = {
@@ -152,4 +152,26 @@ test("switching the watch on keeps the rest of the tuning, and the sensor's key 
   const forgotten = setSensorKey(screen, null);
   assert.equal("sensor" in forgotten, false, "forgetting it leaves no block at all, which is what clears the key on disk");
   assert.deepEqual(forgotten.attention, { longTurnMinutes: 30, watch: false }, "and nothing else goes with it");
+});
+
+test("with no key the Watch panel says the watch is off, and claims nothing is being marked", () => {
+  const off = watchState(false, true, 5, "machine", "Set here");
+  assert.equal(off.on, false);
+  assert.equal(off.title, "The watch is off");
+  // The sentence the owner quoted — "What the watch marks is recorded and listed" — was rendered next
+  // to a row saying no seat is followed. With no key nothing is marked, so nothing may say it is.
+  for (const line of [off.hint, off.mailHint, off.keyHint]) {
+    assert.doesNotMatch(line, /\b(recorded|marked|listed|raised)\b/, line);
+  }
+  assert.match(off.mailHint, /Nothing is mailed while the watch is off/);
+});
+
+test("with a key the panel says the watch is on, and the mail line says which of the two it is", () => {
+  const telling = watchState(true, true, 5, "machine", "Set here");
+  assert.equal(telling.title, "The watch is on");
+  assert.match(telling.hint, /runs in every project/);
+  assert.match(telling.mailHint, /up to 5 a day/, "the count says what it counts");
+  const quiet = watchState(true, false, 5, "project", "From this machine");
+  assert.match(quiet.mailHint, /none is mailed/);
+  assert.match(quiet.hint, /Flow tab/, "a project screen points at where the watch can be watched");
 });

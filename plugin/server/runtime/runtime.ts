@@ -290,7 +290,7 @@ export class Runtime {
         running: watch.running,
         readings: watch.readings,
         cost: watch.spent,
-        minutes: watch.readAt ? Math.max(0, Math.round((Date.now() - watch.readAt) / 60_000)) : -1,
+        minutes: Math.max(0, Math.round((Date.now() - (watch.readAt || Date.now())) / 60_000)),
         highest: watch.highest ?? null,
       }));
     const items = Object.values(loadIncidents(project.state).items);
@@ -298,8 +298,6 @@ export class Runtime {
     return {
       on,
       telling: this.source.teamFor(project).attention.watch,
-      readings: seats.reduce((sum, seat) => sum + seat.readings, 0),
-      cost: seats.reduce((sum, seat) => sum + seat.cost, 0),
       seats,
       incidents: { open: items.filter((item) => item.open).length, held: items.filter((item) => item.open && item.told === undefined).length },
       trouble: (this.troubles.get(project.slug) ?? []).map((entry) => ({ kind: entry.kind, minutes: Math.max(0, Math.round((now - entry.at) / 60_000)), detail: entry.detail })).reverse(),

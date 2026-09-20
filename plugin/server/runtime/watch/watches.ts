@@ -148,7 +148,7 @@ export type WatchDeps = {
   context: (seat: WatchedSeat) => SeatContext | undefined;
   found: (watch: SeatWatch, facts: Fact[]) => void;
   /** Whether the watch runs at all where this seat sits. Off is off: not a quieter watch, none. */
-  on?: (seat: WatchedSeat) => boolean;
+  on: (seat: WatchedSeat) => boolean;
   moment?: (watch: SeatWatch, urgent: boolean) => void;
   dropped?: (id: string) => void;
   log?: (line: string, error?: unknown) => void;
@@ -176,7 +176,7 @@ export class Watches {
 
   /** Watched by role, and switched on where it sits. Both, or the seat is not followed at all. */
   private on(seat: WatchedSeat): boolean {
-    return this.watched(seat.provider) && (this.deps.on?.(seat) ?? true);
+    return this.watched(seat.provider) && this.deps.on(seat);
   }
 
   follow(seat: WatchedSeat): void {

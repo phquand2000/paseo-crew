@@ -389,8 +389,11 @@ all, and that is the whole of the difference: no seat is followed, no turn is re
 is not asked what a lane's record shows either. There is no second mode that reads turns in code
 alone — that was two behaviours wearing one name, and a project sat in the quieter one for as long as
 nobody noticed the key was missing. `Runtime.watching` answers the question, `Watches.on` gates
-following on it, and `Patrol.history` gates the ledger half on it; the settings are read every round,
-so taking the key away lets the seats go within one round and needs no reload.
+following on it, `Patrol.history` gates the ledger half on it, and `retell` in `desk/notice.ts` gates
+the mail it sends late on it; the settings are read every round, so taking the key away lets the seats
+go within one round and needs no reload. `retell` is the one that had to be said out loud: what holds
+an incident back is read from the sensor's own questions, so with the key gone that set is empty, the
+hold dissolves, and taking the key away was the very thing that sent the mail.
 
 Every live seat whose role can be `watched` — the preset gives it to Lead and Peer, never to a
 Reviewer — is followed through one timeline subscription, opened when the seat is created or first
@@ -678,8 +681,10 @@ tabs, though on Machine defaults Flow only sets the live switch and its interval
 machine's checks without a project's status report:
 
 - **Team:** the agent per role, its model where the agent offers more than one, and its thinking
-  level where the agent has one — then **Watch**: whether what it marks is mailed to the Supervisor,
-  and, on Machine defaults, the sensor's key
+  level where the agent has one — then **Watch**, in two cards: whether the watch runs, which is the
+  state in words and the sensor's key that decides it, and then what becomes of what it marks. The
+  words are chosen by `watchState` in `client/data.ts` rather than inside the markup, so a test can
+  hold the screen to them
 - **Flow:** Supervisors, lanes, tasks and open asks, polled with a revision so an unchanged view is
   not sent again, and drawing at most 50 open lanes — then **the watch**: whether it is on, whether
   it is telling, every seat it follows with that seat's readings, what they have cost and the highest

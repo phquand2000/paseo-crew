@@ -40,8 +40,7 @@ export function flowView(
   open: ReadonlySet<string> = new Set(),
   supervises: ReadonlySet<string> = new Set(),
   seated: { id: string; role: string }[] = [],
-  watch: WatchView | null = null,
-): FlowView {
+): Omit<FlowView, "watch"> {
   const counts = new Map<string, { total: number; running: number }>();
   const held = new Map<string, FlowTask[]>();
 
@@ -124,7 +123,7 @@ export function flowView(
   }
   const supervisors = [...shown.values()];
 
-  const body = { project: project.slug, supervisors, lanes, moreLanes, asks, watch };
+  const body = { project: project.slug, supervisors, lanes, moreLanes, asks };
   const revision = createHash("sha1").update(JSON.stringify(body)).digest("hex").slice(0, 16);
   return { ...body, at: now, revision };
 }

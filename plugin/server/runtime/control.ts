@@ -8,6 +8,7 @@ import { gitCommonDir } from "../core/git.ts";
 import type { Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
 import { guidesDir, worktreeRoot } from "../core/paths.ts";
+import { createHash } from "node:crypto";
 import { flowView } from "../desk/flow.ts";
 import type { WatchView } from "../../shared/views.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
@@ -345,8 +346,13 @@ export class SettingsControl implements Control {
       .filter(({ seat, role }) => can(role, "supervise") && Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug)
       .sort((a, b) => Date.parse(b.seat.updatedAt) - Date.parse(a.seat.updatedAt))
       .map(({ seat, role }) => ({ id: seat.id, role: role!.role }));
-    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), supervises, seated, this.deps.watch(project));
-    return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
+    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), supervises, seated);
+    // What the watch is doing is live state, not the ledger, so it is folded in here rather than read
+    // by the view — but it is still part of the revision, or the card would freeze whenever the desk's
+    // own record happened not to change.
+    const watch = this.deps.watch(project);
+    const revision = createHash("sha1").update(`${view.revision}${JSON.stringify(watch)}`).digest("hex").slice(0, 16);
+    return since && since === revision ? { unchanged: true, revision } : { ...view, watch, revision };
   }
 
   listPaths(path?: string): unknown {

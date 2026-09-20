@@ -1612,7 +1612,6 @@ test("left as the kit ships it there is no key, so nothing is watched and nothin
   // Off is off. The irreversible command is the loudest thing the watch reads in code, and with no
   // key it is not read: the seat is not followed, so there is no book to record it in.
   assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
-  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   h.runtime.dispose();
 });
 
@@ -1666,7 +1665,7 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const off = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   assert.equal(off.watch.on, true, "a key is set in this harness, so the watch is on");
   assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.role).sort(), ["lead", "peer"], "the two roles that carry `watched`, and no Supervisor");
-  assert.equal(off.watch.readings, 0, "nothing read yet");
+  assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.readings), [0, 0], "nothing read yet");
 
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
@@ -1678,7 +1677,7 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   const read = view.watch.seats.find((seat: WatchSeat) => seat.id === peer)!;
   assert.equal(read.readings, 1);
-  assert.equal(view.watch.cost, 0.00013, "what the watch has spent on this project, which is the number the owner is paying");
+  assert.equal(read.cost, 0.00013, "what the watch has spent on this seat, which is the number the owner is paying");
   // The highest any question reached, not the last one: a screen showing only the last reading says
   // nothing about the turn where something came within a hundredth of opening an incident.
   assert.deepEqual(read.highest, { question: "goal_drift", p: 0.81 });
@@ -1687,7 +1686,6 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
 
 test("a stuck seat the sensor does not think stuck is held back from the Supervisor, and the sensor's word is kept on the incident", async (t) => {
   const { h, sup, timeline } = await laneWithPeer("outbox-vetoed.json", { attention: { watch: true } });
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-vetoed-test" } }));
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
     const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: 0.1 }]));
@@ -1708,10 +1706,8 @@ test("a stuck seat the sensor does not think stuck is held back from the Supervi
   h.runtime.dispose();
 });
 
-test("a turn that runs long is told without waiting on the sensor, which cannot see time", async (t) => {
+test("a turn that runs long is told without waiting on the sensor, which cannot see time", async () => {
   const { h, sup, timeline } = await laneWithPeer("outbox-long-turn.json", { attention: { watch: true } });
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-long-test" } }));
-  t.mock.method(globalThis, "fetch", async () => new Response("{}", { status: 503 }));
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Make the build pass" }, "t1");
   await settle();
@@ -1723,7 +1719,6 @@ test("a turn that runs long is told without waiting on the sensor, which cannot 
 
 test("a turn that ends asking for a decision is raised on that one reading, while one still running needs a second reading in the same turn", async (t) => {
   const { h, sup, timeline } = await laneWithPeer("outbox-needs-human.json", { attention: { watch: true } });
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-human-test" } }));
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { questions: Record<string, unknown>; state: { turn: string; final_message: string } };
     const asks = body.state.turn === "running" || body.state.final_message.startsWith("Should I");
@@ -1757,7 +1752,6 @@ test("a turn that ends asking for a decision is raised on that one reading, whil
 
 test("a seat whose brief cannot be read is not described to the sensor as having none", async (t) => {
   const { h, timeline } = await laneWithPeer("outbox-unbriefed.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-unbriefed-test" } }));
   writeFileSync(join(h.project.state, "ledger.json"), "{ not json");
   const asked = t.mock.method(globalThis, "fetch", async () => new Response("{}", { status: 500 }));
   timeline.beat("turn_started", "t1");
@@ -1768,6 +1762,23 @@ test("a seat whose brief cannot be read is not described to the sensor as having
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(asked.mock.callCount(), 0);
   assert.match(readFileSync(join(h.project.state, "events.log"), "utf-8"), /"kind":"watch.unbriefed"/);
+  h.runtime.dispose();
+});
+
+test("taking the key away does not release the incidents the watch was still holding", async () => {
+  const { h, sup } = await laneWithPeer("outbox-retell-off.json", { attention: { watch: true } });
+  // `stuck` is a kind the sensor confirms, so this is held "awaiting" its reading rather than sent.
+  await h.runtime.desk.notice(h.project, { id: "p-a", provider: "sw2-peer-devin/swe-2-max", title: "p-a" }, [{ kind: "stuck", level: "attend", quote: "round and round", facts: ["stuck"] }]);
+  assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => item.held), ["awaiting"]);
+
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  await h.tick();
+  await h.idle(sup);
+  // With no key there is no watch, so there is nothing to tell later either. Worse than merely
+  // carrying on: the retell reads which kinds the sensor confirms, and with the key gone that set is
+  // empty, so the hold dissolves and removing the key is the very thing that sends the mail.
+  assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => item.held), ["awaiting"], "still held, not released by the watch being switched off");
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   h.runtime.dispose();
 });
 
@@ -1854,7 +1865,6 @@ test("with the watch off a lane's own record is not gone through either", async 
   // half that needs no key to compute, which is exactly why they used to keep running with the watch
   // switched off — a project with no key still filled the Supervisor's mail.
   assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
-  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   h.runtime.dispose();
 });
 

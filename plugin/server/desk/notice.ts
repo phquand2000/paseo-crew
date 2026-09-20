@@ -12,7 +12,7 @@ export type Noticed = { id: string; provider: string; title?: string | null };
 
 export type Placed = { where: string; lane?: Lane; task?: Task };
 
-export const AWAIT_MS = 120_000;
+const AWAIT_MS = 120_000;
 
 function waits(services: DeskServices, project: Project): Set<string> {
   return confirmable(services.ctx.team(project).sensor?.spec.questions ?? {});
@@ -139,7 +139,13 @@ export async function judge(services: DeskServices, project: Project, seat: Noti
 
 export async function retell(services: DeskServices, project: Project, now = Date.now()): Promise<string[]> {
   const { ctx } = services;
-  const attention = ctx.team(project).attention;
+  const team = ctx.team(project);
+  // No key is no watch, so there is nothing to tell later either. Left ungated this was the one path
+  // that still spoke with the watch off — and it did not merely carry on: what holds an incident back
+  // is read from the sensor's own questions, so with the key gone that set is empty, the hold
+  // dissolves, and taking the key away is the very thing that sends the mail.
+  if (!team.sensor) return [];
+  const attention = team.attention;
   if (!attention.watch) return [];
   const waiting = waits(services, project);
   const told: string[] = [];

@@ -508,6 +508,35 @@ export function setAttention(values: Layer, choice: AttentionChoice): Layer {
   return { ...values, attention: { ...values.attention, ...choice } };
 }
 
+export type WatchState = { on: boolean; title: string; hint: string; mailHint: string; keyHint: string };
+
+/**
+ * What the Watch panel says, decided here rather than inside the markup so a test can hold it to it.
+ *
+ * The screen used to answer two questions in a voice that mixed them: a switch labelled as if it were
+ * the watch's power when it only governs the mail, and a key row that said the watch runs while the
+ * line above it said nothing is marked. The key is the power; the switch is what happens to what it
+ * finds; and with no key there is nothing to happen to.
+ */
+export function watchState(set: boolean, mailing: boolean, perDay: number, layer: "machine" | "project", from: string): WatchState {
+  const hint = set
+    ? layer === "machine"
+      ? "A key is set on this machine, so the watch runs in every project."
+      : "A key is set on this machine, so it runs here too. What it is doing right now is on the Flow tab."
+    : layer === "machine"
+      ? "No key is set, so no seat is followed, no turn is read, and no lane's record is gone through."
+      : "It runs on a key set on this machine, and there is none. Nothing here is followed, read or recorded.";
+  const mailHint = !set
+    ? `Nothing is mailed while the watch is off. ${from}`
+    : mailing
+      ? `Incidents go to the Supervisor as they are raised, up to ${perDay} a day. Past that they are held, and the Supervisor still lists them with \`incidents\`. ${from}`
+      : `Incidents are raised and listed, and none is mailed. The Supervisor reads them with \`incidents\`. ${from}`;
+  const keyHint = set
+    ? "The key is kept here and never shown again. Type another to replace it."
+    : "An OpenRouter key. It is kept on this machine and used by every project.";
+  return { on: set, title: set ? "The watch is on" : "The watch is off", hint, mailHint, keyHint };
+}
+
 export function setFlow(values: Layer, choice: { live?: boolean; everySeconds?: number }): Layer {
   return { ...values, flow: { ...values.flow, ...choice } };
 }
