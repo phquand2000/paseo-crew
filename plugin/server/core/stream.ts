@@ -22,7 +22,7 @@ export type TimelineHandle = {
   refetch(options: { direction: "tail" | "after"; cursor?: Cursor; limit?: number; projection: "canonical" }): Promise<Page>;
 };
 
-export type FollowOptions = { readyMs?: number; seedRows?: number; log?: (line: string, error?: unknown) => void };
+export type FollowOptions = { readyMs?: number; log?: (line: string, error?: unknown) => void };
 
 const ENDED: Record<string, "completed" | "failed" | "canceled"> = { turn_completed: "completed", turn_failed: "failed", turn_canceled: "canceled" };
 
@@ -36,7 +36,9 @@ function within<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
 }
 
 export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, options: FollowOptions = {}): Stream {
-  const { readyMs = 10_000, seedRows = 200, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? "") } = options;
+  const { readyMs = 10_000, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? "") } = options;
+  /** How much history a join seeds from. Paseo pages the rest in, so this is a first mouthful. */
+  const seedRows = 200;
   let stopped = false;
   let joined = false;
   let epoch: string | undefined;

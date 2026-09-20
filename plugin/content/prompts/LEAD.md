@@ -80,8 +80,9 @@ wait for the hand-back and put everything in one `rework`.
 - **MERGED:** read the notes (no source lines, test-heavy, files outside the owned paths) and act on
   what matters.
 - **MERGE CONFLICT:** `rework` with the conflict, or `cut` the task.
-- **SILENT:** a Peer stopped without handing back. Read its last words, then `message` it, or `cut`
-  the task and start again.
+- **SILENT:** a Peer stopped without handing back. Read its last words. If they are a hand-back it
+  wrote out but never called, check the work yourself and `accept` on what you verified; `cut` would
+  throw that work away. Otherwise `message` it, or `cut` the task and start again.
 
 ## Code focus
 

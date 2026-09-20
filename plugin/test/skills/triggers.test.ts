@@ -14,10 +14,6 @@ test("every skill a role is given has briefs that should open it and near misses
   for (const role of kit.roles) {
     const cards = skillCards(kit, role.role);
     const own = cases[role.role] ?? [];
-    if (cards.size === 0) {
-      assert.deepEqual(own, [], `${role.role} is given no skill, so it has no briefs`);
-      continue;
-    }
     for (const one of own) {
       for (const name of [...one.expect, ...(one.near ? [one.near] : [])]) {
         assert.ok(cards.has(name), `${role.role} brief names ${name}, which that role is not given: ${one.brief}`);

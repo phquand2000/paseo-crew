@@ -4,7 +4,6 @@
   "baseProvider": "claude",
   "profileRoot": "HOME/.claude/profiles",
   "configDirEnv": "CLAUDE_CONFIG_DIR",
-  "promptFile": "CLAUDE.md",
   "skillsDir": "skills",
   "steers": true,
   "models": [

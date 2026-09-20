@@ -40,6 +40,37 @@
           "label": "Extra high"
         }
       ]
+    },
+    {
+      "id": "zai/glm-5.3-flash",
+      "label": "GLM-5.3-Flash",
+      "thinkingOptions": [
+        {
+          "id": "off",
+          "label": "Off"
+        },
+        {
+          "id": "minimal",
+          "label": "Minimal"
+        },
+        {
+          "id": "low",
+          "label": "Low"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "isDefault": true
+        },
+        {
+          "id": "high",
+          "label": "High"
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra high"
+        }
+      ]
     }
   ],
   "mcp": {

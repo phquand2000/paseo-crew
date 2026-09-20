@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import type { SeatView } from "../core/paseo.ts";
 import type { Ledger } from "./ledger.ts";
-import type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchTrouble, WatchView } from "../../shared/views.ts";
+import type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView } from "../../shared/views.ts";
 import type { Project } from "./project.ts";
 
-export type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchTrouble, WatchView };
+export type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView };
 
 /** A lane costs a row; its tasks cost a row each. Only the lanes the screen has opened carry tasks. */
 export const LANE_CAP = 50;

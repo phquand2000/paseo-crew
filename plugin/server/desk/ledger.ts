@@ -100,7 +100,7 @@ export type Restoring = { writers: string[]; base: string; branch: string };
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 
-export type AgentRef = { id: string; role: string; lane?: string; task?: string; turnStartedAt?: number; recordedAt?: number; spokeAt?: number };
+export type AgentRef = { id: string; role: string; lane?: string; task?: string; recordedAt?: number; spokeAt?: number };
 
 export type Ledger = {
   version: 1;
@@ -190,13 +190,6 @@ export function nextTaskId(lane: Lane, kind: Task["kind"]): string {
   return `${lane.id}-${kind === "review" ? "R" : "T"}${lane.tasks}`;
 }
 
-/**
- * A name no working copy in the ledger is holding.
- *
- * Counting them would do: release deletes the entry, so with S0 and S1 open and S0 given back the
- * count is 1 and the next copy is named S1 again — over the live record, on the live path, with a
- * second agent sent to a checkout someone else is writing in. One past the highest cannot collide.
- */
 /**
  * Never handed out twice. Reusing the highest free number meant a copy the sweep was still removing
  * had the same path as the next one being created, so the sweep could delete a lane's new copy.

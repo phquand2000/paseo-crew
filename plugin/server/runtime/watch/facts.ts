@@ -82,7 +82,7 @@ export function stuck(units: Unit[], rules: Pick<Rules, "exit" | "repeatsAt">): 
   const same = (list: string[]) => list.every((value) => value === list[0]);
   const n = rules.repeatsAt;
   const tail = calls.slice(-(n + 1));
-  if (!rules.exit && tail.length === n + 1 && same(tail.map(actionOf)) && same(tail.map((call) => resultOf(call, rules.exit)))) {
+  if (!rules.exit && tail.length === n + 1 && same(tail.map(actionOf)) && same(tail.map((call) => resultOf(call)))) {
     return `the same action with the same result ${n + 1} times: ${flat(describe(tail[0]!), 120)}`;
   }
   const errors = calls.slice(-n);
@@ -98,7 +98,7 @@ export function stuck(units: Unit[], rules: Pick<Rules, "exit" | "repeatsAt">): 
   const cycle = calls.slice(-2 * n);
   if (!rules.exit && cycle.length === 2 * n) {
     const actions = cycle.map(actionOf);
-    const results = cycle.map((call) => resultOf(call, rules.exit));
+    const results = cycle.map((call) => resultOf(call));
     const alternates = actions[0] !== actions[1] && actions.every((action, index) => action === actions[index % 2]) && results.every((result, index) => result === results[index % 2]);
     if (alternates) return `alternating between two actions ${n} times: ${flat(describe(cycle[0]!), 60)} / ${flat(describe(cycle[1]!), 60)}`;
   }

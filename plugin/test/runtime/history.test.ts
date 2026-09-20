@@ -141,6 +141,13 @@ test("a task taken in although its Peer never said it was finished is on the rec
   assert.deepEqual(kinds(never), ["accepted-unfinished"]);
   assert.match(deskFacts(never, READING)[0]!.fact.quote, /though it was never handed back/);
 
+  // The desk knew why: it counted the quiet turns itself and wrote the Lead a SILENT letter about
+  // them. Saying so turns the Supervisor's reconstruction — read the Peer's record, find out whether
+  // the work was really done — into a judgement it can make from the line.
+  const quiet = ledgerOf([task({ id: "L1-T1", status: "merged", silent: 3 })]);
+  assert.match(deskFacts(quiet, READING)[0]!.fact.quote, /was accepted after its Peer went quiet 3 times without handing back/);
+  assert.match(deskFacts(ledgerOf([task({ id: "L1-T1", status: "merged", silent: 1 })]), READING)[0]!.fact.quote, /went quiet once without handing back/);
+
   // Still running, still being sent back, or cut: none of those is the Lead taking the work in.
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), []);
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "cut", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), [], "cutting a task its Peer could not finish is the answer, not the fault");

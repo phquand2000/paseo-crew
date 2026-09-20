@@ -83,7 +83,8 @@ export class Outbox {
     return next;
   }
 
-  async post(letter: Omit<Letter, "id" | "at">, now = Date.now()): Promise<Posted> {
+  async post(letter: Omit<Letter, "id" | "at">): Promise<Posted> {
+    const now = Date.now();
     const sentAt = this.sentKeys.get(Outbox.held(letter));
     // A letter past its time is not one still waiting: counted as a repeat, it blocked the same letter
     // from being posted afresh for as long as nothing else was posted to prune it.

@@ -118,12 +118,6 @@ function fakePaseo() {
         archivedWorkspaces.add(typeof id === "string" ? id : (id as { id: string }).id);
         return { archivedAt: new Date().toISOString() };
       },
-      async owned(prefix: string) {
-        return [...workspaces.keys()]
-          .filter((id) => !archivedWorkspaces.has(id))
-          .map((id) => ({ id, name: workspaceNames.get(id) ?? "" }))
-          .filter((entry) => entry.name === prefix || entry.name.startsWith(`${prefix} `));
-      },
       ref: workspace,
     },
   };

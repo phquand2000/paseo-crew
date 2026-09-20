@@ -55,6 +55,21 @@ const short = (text: string, limit = 120): string => {
 
 /** What `done` offers a Peer that could not finish. A missing outcome is stored as "complete". */
 const UNFINISHED = new Set(["partial", "blocked"]);
+
+/**
+ * How the work came in, when it came in unfinished.
+ *
+ * A task taken in with no hand-back at all reads as the Lead helping itself, and it was read that way
+ * — a Supervisor spent a long turn reading the Peer's own record to find out whether the work had in
+ * fact been done. The desk already knew: it counted the quiet turns, nudged the Peer, and wrote the
+ * Lead a SILENT letter about them. Saying so here is the difference between a reconstruction and a
+ * reading.
+ */
+function took(task: Task): string {
+  if (task.handback) return `after its Peer handed it back ${task.handback.outcome}`;
+  if (task.silent > 0) return `after its Peer went quiet ${task.silent === 1 ? "once" : `${task.silent} times`} without handing back`;
+  return "though it was never handed back";
+}
 /** A lane's accepted tasks only ever accumulate, so the quote names a few and counts the rest. */
 const MOST_NAMED = 5;
 
@@ -107,7 +122,7 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
       const rest = unfinished.length - named.length;
       at(
         "accepted-unfinished",
-        `${named.map((task) => `${task.id} (${task.title}) was accepted ${task.handback ? `after its Peer handed it back ${task.handback.outcome}` : "though it was never handed back"}`).join("; ")}${rest > 0 ? `; and ${rest} more in this lane` : ""}`,
+        `${named.map((task) => `${task.id} (${task.title}) was accepted ${took(task)}`).join("; ")}${rest > 0 ? `; and ${rest} more in this lane` : ""}`,
       );
     }
 

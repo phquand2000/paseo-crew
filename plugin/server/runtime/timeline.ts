@@ -80,10 +80,12 @@ export function deniedCall(timeline: Timeline, refused = REFUSED): LastCall | un
  */
 const UNPARSED = "__unparsedToolInput";
 const NOT_JSON = /InputValidationError[^"]*could not be parsed as JSON/;
+/** Enough of the refusal to recognise it; the raw input it quotes can be thousands of characters. */
+const QUOTE_CHARS = 300;
 
-export type Malformed = { tool: string; quote: string };
+type Malformed = { tool: string; quote: string };
 
-export function malformed(timeline: Timeline, limit = 300): Malformed[] {
+export function malformed(timeline: Timeline): Malformed[] {
   const list = items(timeline);
   // The turn that ended, not the session. Paseo hands this hook everything it has stored for the
   // seat, so without the cut one bad call is found again at the end of every turn after it, and
@@ -96,6 +98,6 @@ export function malformed(timeline: Timeline, limit = 300): Malformed[] {
     const sent = JSON.stringify((item.detail as { input?: unknown } | undefined)?.input ?? null);
     const said = JSON.stringify(item.error ?? null).replace(/\\[nrt]/g, " ");
     if (!sent.includes(UNPARSED) && !NOT_JSON.test(said)) return [];
-    return [{ tool: String(item.name ?? "tool"), quote: (NOT_JSON.test(said) ? said : sent).slice(0, limit) }];
+    return [{ tool: String(item.name ?? "tool"), quote: (NOT_JSON.test(said) ? said : sent).slice(0, QUOTE_CHARS) }];
   });
 }

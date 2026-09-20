@@ -94,7 +94,7 @@ export class TurnRules {
     // wait was answered "the answer comes by mail", the Peer ended its turn as told, and was then
     // nudged to call done again — which started a second gate beside the first.
     if (desk.inFlight(agent.id)) return;
-    const denied = deniedCall(timeline, seatOf(this.deps.kit, agent.provider)?.harness.refused);
+    const denied = deniedCall(timeline);
     desk.event(project, { kind: "turn.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
     const updated = await desk.setTask(project, task.id, (entry) => {
       entry.silent += 1;

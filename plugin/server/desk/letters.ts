@@ -221,10 +221,9 @@ export const letters = {
     return lines.join("\n");
   },
 
-  mergeFailed(task: Task, reason: string, tail: string, logFile?: string, state = "The lane branch is unchanged."): string {
+  mergeFailed(task: Task, reason: string, tail: string, state = "The lane branch is unchanged."): string {
     const lines = [`MERGE FAILED ${task.id} (${task.title}): ${reason}`, state];
     if (tail) lines.push("", "```", tail, "```");
-    if (logFile) lines.push("", `Full log: ${logFile}`);
     return lines.join("\n");
   },
 

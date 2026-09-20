@@ -44,7 +44,6 @@ export type HarnessSpec = {
   systemPrompt?: "config" | "file";
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
-  refused?: string;
   exitPattern?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
   links?: { link: string; target: string; optional?: boolean }[];
@@ -79,7 +78,6 @@ const HARNESS_FIELDS = new Set([
   "systemPrompt",
   "stateWrites",
   "projectContextOption",
-  "refused",
   "exitPattern",
   "settings",
   "links",

@@ -127,7 +127,8 @@ export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; c
   return { config: next, changed };
 }
 
-export function applyReconcile(kit: Kit, team: Team, configPath = paseoConfigPath()): string[] {
+export function applyReconcile(kit: Kit, team: Team): string[] {
+  const configPath = paseoConfigPath();
   const config = JSON.parse(readFileSync(configPath, "utf-8")) as Json;
   const { config: next, changed } = reconcile(config, kit, team);
   // This is the owner's own Paseo config — every provider they have, their agent profiles, and the
