@@ -71,7 +71,7 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
   // To whoever can take it. A hand-back to a Lead that is no longer seated waits in the outbox for
   // nobody; the level above is told instead, and can seat a Lead for it.
   const lead = ledger.lanes[task.lane]?.lead;
-  const reader = lead && (await seated(roster, lead)) ? lead : await roster.supervisorFor(project, ledger.lanes[task.lane]?.opener);
+  const reader = lead && (await roster.seated(lead)) ? lead : await roster.supervisorFor(project, ledger.lanes[task.lane]?.opener);
   await ctx.post(reader, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body, caller.id));
   ctx.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
   // A commit made while the copy is off its branch — mid-bisect, most likely — belongs to no branch,
@@ -87,15 +87,6 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 };
 
-/** Whether a seat is still there to read what is sent to it. */
-async function seated(roster: { look(id: string): Promise<{ archivedAt?: string | null }> }, id: string): Promise<boolean> {
-  try {
-    return !(await roster.look(id)).archivedAt;
-  } catch {
-    return false;
-  }
-}
-
 export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const question = str(args.question);
   if (!question) return no("ask needs a question.");
@@ -106,7 +97,7 @@ export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   if (!task || !lane?.lead) return no("Nobody is assigned to answer you; end your turn with the question.");
   // A Lead that has gone would never read it, never be reminded and never escalate it, while the
   // Peer was told its answer was coming. It goes up a level instead, and the Peer is told so.
-  const to = (await seated(roster, lane.lead)) ? lane.lead : await roster.supervisorFor(project, lane.opener);
+  const to = (await roster.seated(lane.lead)) ? lane.lead : await roster.supervisorFor(project, lane.opener);
   if (!to) return no("Your lead is not there and nobody above it is either, so nobody can answer now. Carry on with your default where you can, and end your turn with the question.");
   const tried = str(args.tried);
   const entry = await ctx.ledger(project, (current) => {

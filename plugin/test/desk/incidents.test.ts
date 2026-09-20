@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 import { DeskContext } from "../../server/desk/context.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";

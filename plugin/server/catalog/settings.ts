@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { z } from "zod";
 import { KEPT } from "../../shared/rpc.ts";
 import { readJson, sortKeys, writeJson } from "../core/store.ts";
+import { errorText } from "../core/errors.ts";
 
 const Scalar = z.union([z.string(), z.number(), z.boolean()]);
 
@@ -117,7 +118,7 @@ export function revisionOf(values: unknown): string {
  * in the health report, so only the place it gives is carried over — and it does not always give one.
  */
 function placeOf(error: unknown): string {
-  const said = error instanceof Error ? error.message : String(error);
+  const said = errorText(error);
   const where = /at position \d+(?: \(line \d+ column \d+\))?/.exec(said);
   return where ? `, ${where[0]}` : "";
 }

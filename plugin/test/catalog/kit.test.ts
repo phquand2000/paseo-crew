@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { can, harnessProblems, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
 import { renderPrompt } from "../../server/catalog/content.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 
 const good = () => ({
   id: "acme",

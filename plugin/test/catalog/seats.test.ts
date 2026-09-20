@@ -5,11 +5,10 @@ import { test } from "node:test";
 import { parse } from "smol-toml";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { composeSettings, materialize, seatDir } from "../../server/catalog/seats.ts";
-import { stateWrites } from "../../server/catalog/launch.ts";
 import { seatPairs } from "../../server/catalog/providers.ts";
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { makeKit } from "../kit.ts";
+import { tempDir } from "../tempdir.ts";
 
 const project = { slug: "shop-abc123", state: "/state/shop" };
 const context = { node: "/bin/node", spool: "/spool" };

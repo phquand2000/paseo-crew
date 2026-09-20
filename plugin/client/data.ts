@@ -1,6 +1,9 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView } from "../shared/views.ts";
 import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, pathsRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
+
+export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView };
 
 export type Scalar = string | number | boolean;
 export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
@@ -35,12 +38,6 @@ export type Layer = { roles?: Record<string, RoleChoice>; mcp?: Record<string, M
 
 export type ProjectRow = { slug: string; root: string };
 export type PaseoProject = { name: string; root: string };
-export type Check = { id: string; ok: boolean; detail: string };
-export type FlowSeat = { id: string; role: string; status: string; minutes: number; waiting: string[] };
-export type FlowTask = { id: string; title: string; status: string; kind: string; peer: FlowSeat | null; minutes: number; handback: number | null };
-export type FlowLane = { id: string; title: string; status: string; branch: string; base: string; lead: FlowSeat | null; tasks: FlowTask[]; taskCount: number; running: number; open: boolean };
-export type FlowAsk = { id: string; kind: string; fromRole: string; to: string; minutes: number; text: string };
-export type FlowView = { project: string; at: number; revision: string; supervisors: FlowSeat[]; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[] };
 export type Folder = { name: string; path: string; repository: boolean };
 /** `root` is the repository this folder belongs to when it is not itself that repository's top. */
 export type Folders = { path: string; parent: string | null; repository: boolean; root?: string | null; folders: Folder[] };
@@ -187,12 +184,37 @@ export function useSeatworks(project?: string) {
 
   const reload = useCallback(() => setNonce((value) => value + 1), []);
 
-  const save = useCallback(
-    async (change: (values: Layer) => Layer): Promise<boolean> => {
-      if (data.status !== "ready") return false;
+  /**
+   * The shell every write to the desk runs inside: locked, cleared of the last refusal, and ending in
+   * a reload the controls stay locked until.
+   *
+   * Cleared anywhere but here, the controls came back live while they were still drawn from the team
+   * read before the save: first a second click was refused as a conflict over the owner's own change,
+   * and then — once the new revision alone was adopted — it went through, built on a view one save
+   * behind, and silently undid the first.
+   */
+  const writing = useCallback(
+    async <T,>(run: () => Promise<T>, failed: T): Promise<T> => {
       setSaving(true);
       setSaveError(null);
       try {
+        return await run();
+      } catch (error) {
+        setSaveError(message(error));
+        setSaved(false);
+        return failed;
+      } finally {
+        settling.current = true;
+        reload();
+      }
+    },
+    [reload],
+  );
+
+  const save = useCallback(
+    async (change: (values: Layer) => Layer): Promise<boolean> => {
+      if (data.status !== "ready") return false;
+      return writing(async () => {
         const result = await latest.current.write({ project, revision: data.revision, values: change(data.values) });
         if (result.status !== "saved") {
           setSaveError(result.error);
@@ -201,20 +223,9 @@ export function useSeatworks(project?: string) {
         }
         setSaved(true);
         return true;
-      } catch (error) {
-        setSaveError(message(error));
-        setSaved(false);
-        return false;
-      } finally {
-        // Locked until the reload this asks for has landed. Cleared here, the controls came back live
-        // while they were still drawn from the team read before the save: first a second click was
-        // refused as a conflict over the owner's own change, and then — once the new revision alone
-        // was adopted — it went through, built on a view one save behind, and silently undid the first.
-        settling.current = true;
-        reload();
-      }
+      }, false);
     },
-    [data, project, reload],
+    [data, project, writing],
   );
 
   const addProject = useCallback(async (root: string): Promise<string | null> => {
@@ -234,9 +245,7 @@ export function useSeatworks(project?: string) {
 
   const attach = useCallback(
     async (root: string, values: Layer): Promise<string | null> => {
-      setSaving(true);
-      setSaveError(null);
-      try {
+      return writing(async () => {
         const added = await latest.current.add({ root });
         if ("error" in added) {
           setSaveError(added.error);
@@ -267,25 +276,16 @@ export function useSeatworks(project?: string) {
         }
         setSaved(true);
         return added.slug;
-      } catch (error) {
-        setSaveError(message(error));
-        setSaved(false);
-        return null;
-      } finally {
-        settling.current = true;
-        reload();
-      }
+      }, null);
     },
     // `data` is read for the catalog's default harness: without it here the callback keeps the one
     // built on the first render, where the settings are still loading and the catalog is empty.
-    [data, reload],
+    [data, writing],
   );
 
   const detach = useCallback(
     async (slug: string): Promise<boolean> => {
-      setSaving(true);
-      setSaveError(null);
-      try {
+      return writing(async () => {
         const result = await latest.current.remove({ project: slug });
         if ("error" in result) {
           setSaveError(result.error);
@@ -294,16 +294,9 @@ export function useSeatworks(project?: string) {
         }
         setSaved(true);
         return true;
-      } catch (error) {
-        setSaveError(message(error));
-        setSaved(false);
-        return false;
-      } finally {
-        settling.current = true;
-        reload();
-      }
+      }, false);
     },
-    [reload],
+    [writing],
   );
 
   const addServer = useCallback(

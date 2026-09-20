@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { renderPrompt, renderText } from "../../server/catalog/content.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
+import { makeKit } from "../kit.ts";
 
 test("guides and state placeholders render into the prompt", () => {
   const kit = makeKit();

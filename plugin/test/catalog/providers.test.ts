@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { desiredProfile, desiredProvider, reconcile, seatPairs } from "../../server/catalog/providers.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
+import { makeKit } from "../kit.ts";
 
 const kit = makeKit();
 const team = resolveTeam(kit);

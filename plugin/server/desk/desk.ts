@@ -3,7 +3,8 @@ import { type Kit, type RoleSpec, can, seatOf, toolsOf, worksTasks } from "../ca
 import type { Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { sortKeys } from "../core/store.ts";
-import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, errorText, hash, no, ok } from "./context.ts";
+import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, hash, no, ok } from "./context.ts";
+import { errorText } from "../core/errors.ts";
 import type { Ledger, Task } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
 import { MergeQueue } from "./merge.ts";

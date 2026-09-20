@@ -3,8 +3,8 @@ import { lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { seatDir } from "../../server/catalog/seats.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { makeKit } from "../kit.ts";
+import { tempDir } from "../tempdir.ts";
 import { Seating } from "../../server/runtime/seating.ts";
 import { TeamSource } from "../../server/runtime/team-source.ts";
 

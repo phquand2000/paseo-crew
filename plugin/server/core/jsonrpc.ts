@@ -1,3 +1,4 @@
+import { errorText } from "./errors.ts";
 export type RpcAnswer = { ok: boolean; json?: any; error?: string };
 
 export async function postJsonRpc(url: string, body: unknown, timeoutMs: number): Promise<RpcAnswer> {
@@ -13,7 +14,7 @@ export async function postJsonRpc(url: string, body: unknown, timeoutMs: number)
     const json = start >= 0 ? JSON.parse(text.slice(start, text.lastIndexOf("}") + 1)) : undefined;
     return { ok: response.ok, json };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, error: errorText(error) };
   }
 }
 

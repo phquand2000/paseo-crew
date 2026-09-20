@@ -10,7 +10,7 @@ process.env.HOME = HOME;
 
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { registerRpc } = await import("../../server/runtime/rpc.ts");
-const { makeKit } = await import("../../server/catalog/testkit.ts");
+const { makeKit } = await import("../kit.ts");
 const { KEPT } = await import("../../shared/rpc.ts");
 
 /** One open seat, which is all a panel call needs to be able to see the difference from none. */

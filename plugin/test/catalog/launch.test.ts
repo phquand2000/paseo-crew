@@ -7,7 +7,7 @@ import { DESK_OWNED, skillSources } from "../../server/catalog/content.ts";
 import { loadKit, providerId } from "../../server/catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../../server/catalog/launch.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
+import { makeKit } from "../kit.ts";
 
 const kit = makeKit();
 const team = resolveTeam(kit);

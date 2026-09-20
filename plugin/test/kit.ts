@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { tempDir } from "../core/testing.ts";
-import { type Kit, loadKit } from "./kit.ts";
+import { tempDir } from "./tempdir.ts";
+import { type Kit, loadKit } from "../server/catalog/kit.ts";
 
 function put(root: string, path: string, value: unknown): void {
   const file = join(root, path);

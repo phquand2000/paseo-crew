@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 
 const SEAT_ROOM = new URL("../../bin/seat-room", import.meta.url).pathname;
 

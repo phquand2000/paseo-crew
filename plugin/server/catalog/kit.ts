@@ -5,6 +5,7 @@ import { LEAST_STATE_CHARS, STATE_FIELDS } from "../runtime/watch/sensor.ts";
 import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { join } from "node:path";
+import { errorText } from "../core/errors.ts";
 
 export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
 export type ModelSpec = { id: string; label: string; isDefault?: boolean; thinkingOptions?: ThinkingSpec[] };
@@ -297,7 +298,7 @@ function loadMcp(dir: string): Record<string, McpEntry> {
       try {
         new RegExp(pattern, "i");
       } catch (error) {
-        throw new Error(`MCP ${id} has an unreadable pattern in ${where}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`MCP ${id} has an unreadable pattern in ${where}: ${errorText(error)}`);
       }
     }
     if (raw.rule && !existsSync(join(root, id, raw.rule))) throw new Error(`MCP ${id} names rule ${raw.rule}, which is missing`);

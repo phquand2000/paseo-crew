@@ -19,14 +19,6 @@ export function namedOrNot(kit: Kit, capability: string, named: string, doing: s
   return `This kit has no ${named} that can ${doing}. These can: ${holders.sort().join(", ")}.`;
 }
 
-async function alive(roster: { look(id: string): Promise<{ archivedAt?: string | null }> }, agentId: string): Promise<boolean> {
-  try {
-    return !(await roster.look(agentId)).archivedAt;
-  } catch {
-    return false;
-  }
-}
-
 export const message: Tool = async ({ ctx, roster }, caller, args) => {
   const to = str(args.to);
   const text = str(args.text);
@@ -54,7 +46,7 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
     const lane = findLane(ledger, to);
     if (lane) {
       if (lane.status !== "open" || !lane.lead) return no(`Lane ${lane.id} has no running Lead.`);
-      if (!(await alive(roster, lane.lead))) return no(unread(`The Lead of ${lane.id} (${lane.lead})`));
+      if (!(await roster.seated(lane.lead))) return no(unread(`The Lead of ${lane.id} (${lane.lead})`));
       return ok(await deliver(lane.lead, "the owner", `the Lead of ${lane.id}`));
     }
     const task = findTask(ledger, to);
@@ -63,11 +55,11 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
       // and "still yours to judge" was going out for tasks already accepted and Peers already gone.
       const done = settled(task);
       if (done) return no(done);
-      if (!(await alive(roster, task.peer))) return no(unread(`The Peer on ${task.id}`));
+      if (!(await roster.seated(task.peer))) return no(unread(`The Peer on ${task.id}`));
       const laneOf = ledger.lanes[task.lane];
       const onLane = laneOf?.status === "open" ? laneOf.lead : undefined;
       // The ledger says who the Lead is; only Paseo says whether it is still there to be told.
-      const lead = onLane && (await alive(roster, onLane)) ? onLane : undefined;
+      const lead = onLane && (await roster.seated(onLane)) ? onLane : undefined;
       if (!laneOf || !lead) {
         return no(
           `${task.id} has no running Lead to tell. Reaching its Peer without one would leave nobody holding the room's state, which is the one thing this must not do. Reopen the lane's Lead, or say it to the lane.`,
@@ -84,7 +76,7 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
   if (!lane || !task || task.lane !== lane.id || !task.peer) return no(`${to} is not a task in your lane.`);
   const done = settled(task);
   if (done) return no(done);
-  if (!(await alive(roster, task.peer))) return no(unread(`The Peer on ${task.id}`));
+  if (!(await roster.seated(task.peer))) return no(unread(`The Peer on ${task.id}`));
   return ok(await deliver(task.peer, "your lead", `the Peer on ${task.id}`));
 };
 

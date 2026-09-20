@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 import { type Kept, keepAssessment } from "../../server/runtime/watch/assessments.ts";
 
 const HOME = tempDir("sw2-calibrate-home-");

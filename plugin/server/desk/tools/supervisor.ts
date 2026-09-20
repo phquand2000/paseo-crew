@@ -3,7 +3,8 @@ import { branchExists, currentBranch, isAncestor, landLane, trackedFiles } from 
 import { roleThatCan } from "../../catalog/kit.ts";
 import { docsDir, placeDoc } from "../../catalog/templates.ts";
 import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
-import { type Args, type Caller, errorText, no, ok, str, strs } from "../context.ts";
+import { type Args, type Caller, no, ok, str, strs } from "../context.ts";
+import { errorText } from "../../core/errors.ts";
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
 import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";

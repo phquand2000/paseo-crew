@@ -3,7 +3,7 @@ import type { Attention } from "../catalog/kit.ts";
 import { type Finding, type Verdict, confirmable } from "../runtime/watch/rules.ts";
 import { type Held, type Incident, type Incidents, closeSeat, forget, openFor, sight, spentToday } from "./incidents.ts";
 import { type Lane, type Task, laneOfLead, loadLedger, taskOfPeer } from "./ledger.ts";
-import { errorText } from "./context.ts";
+import { errorText } from "../core/errors.ts";
 import { letters } from "./letters.ts";
 import type { Project } from "./project.ts";
 import type { DeskServices } from "./services.ts";

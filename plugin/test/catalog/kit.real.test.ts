@@ -11,7 +11,7 @@ import { materialize, seatDir, seedRecords } from "../../server/catalog/seats.ts
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";
 import { realProbes } from "../../server/runtime/doctor.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 

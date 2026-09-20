@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
+import { errorText } from "../core/errors.ts";
 
 export type LaneStatus = "open" | "closed";
 export type TaskStatus = "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
@@ -149,7 +150,7 @@ export function ledgerFault(state: string): string | undefined {
   try {
     stored = JSON.parse(readFileSync(file, "utf-8"));
   } catch (error) {
-    return `${file} is there but could not be read: ${error instanceof Error ? error.message : String(error)}`;
+    return `${file} is there but could not be read: ${errorText(error)}`;
   }
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return `${file} does not hold a record`;
   const version = (stored as { version?: unknown }).version;

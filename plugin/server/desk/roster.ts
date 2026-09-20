@@ -17,6 +17,15 @@ export class Roster {
     return this.seats.open();
   }
 
+  /** Whether a seat is still there to read what is sent to it. */
+  async seated(agentId: string): Promise<boolean> {
+    try {
+      return !(await this.look(agentId)).archivedAt;
+    } catch {
+      return false;
+    }
+  }
+
   look(agentId: string): Promise<SeatLook> {
     return this.seats.look(agentId);
   }

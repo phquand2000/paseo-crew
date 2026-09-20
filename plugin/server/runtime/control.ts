@@ -2,7 +2,6 @@ import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { type Kit, can, providerId, rolesThatCan, seatOf, supportsRole } from "../catalog/kit.ts";
-import { KEPT } from "../../shared/rpc.ts";
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, withKey, withoutKey, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
@@ -17,6 +16,7 @@ import { type Check, doctor } from "./doctor.ts";
 import type { Control } from "./rpc.ts";
 import type { Seating } from "./seating.ts";
 import type { TeamSource } from "./team-source.ts";
+import { errorText } from "../core/errors.ts";
 
 type Target = { file: string; schema: typeof MachineLayerSchema | typeof ProjectLayerSchema; project?: Project };
 
@@ -251,7 +251,7 @@ export class SettingsControl implements Control {
     try {
       parsed = JSON.parse(text);
     } catch (error) {
-      return { error: `That is not JSON: ${error instanceof Error ? error.message : String(error)}` };
+      return { error: `That is not JSON: ${errorText(error)}` };
     }
     if (!isRecord(parsed)) return { error: "Paste a JSON object, not a list or a bare value." };
     const map = isRecord(parsed.mcp) ? parsed.mcp : isRecord(parsed.mcpServers) ? parsed.mcpServers : undefined;

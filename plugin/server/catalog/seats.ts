@@ -8,6 +8,7 @@ import { expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
+import { errorText } from "../core/errors.ts";
 
 type Json = Record<string, unknown>;
 
@@ -192,7 +193,7 @@ function writeModelCatalog(harness: HarnessSpec, dir: string, record: Recorder):
   try {
     catalog = JSON.parse(catalogText(spec.command));
   } catch (error) {
-    throw new Error(`${harness.label}'s model list could not be read from ${from}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`${harness.label}'s model list could not be read from ${from}: ${errorText(error)}`);
   }
   const list = getPath(catalog, spec.list.split("."));
   if (!Array.isArray(list) || list.length === 0) throw new Error(`${from} lists no ${spec.list}, so ${harness.label}'s models could not be limited`);
@@ -319,7 +320,7 @@ export function seatProblems(kit: Kit, team: Team, roleName: string, paths: Prom
   const seat = team.roles[roleName];
   if (!seat) return [`the team has no ${roleName} seat`];
   const problems: string[] = [];
-  const say = (error: unknown) => problems.push(error instanceof Error ? error.message : String(error));
+  const say = (error: unknown) => problems.push(errorText(error));
   try {
     renderText(seat.role, rulesFor(team, roleName), paths);
     if (seat.harness.systemPrompt === "file" && seat.harness.promptFile) renderPrompt(kit, seat.role, paths);

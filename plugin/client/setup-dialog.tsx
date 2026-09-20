@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Button } from "./bits.tsx";
 import type { Catalog, Folders, Layer, PaseoProject, ProjectRow } from "./data.ts";
-import { harnessInForce, modelInForce, modelRow, setRole } from "./data.ts";
+import { harnessInForce, message, modelInForce, modelRow, setRole } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {
@@ -108,7 +108,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
       })
       // A call can fail for reasons the desk cannot answer with; without this the row went dead and
       // the footer kept whatever it said before.
-      .catch((error: unknown) => setTrouble(error instanceof Error ? error.message : String(error)));
+      .catch((error: unknown) => setTrouble(message(error)));
 
   const summary = () => {
     if (trouble) return trouble;

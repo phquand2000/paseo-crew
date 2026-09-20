@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { SeatView } from "../../server/core/paseo.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 import { flowView } from "../../server/desk/flow.ts";
 import { emptyLedger, nextSlotId, readLedger, saveLedger } from "../../server/desk/ledger.ts";
 import type { Project } from "../../server/desk/project.ts";

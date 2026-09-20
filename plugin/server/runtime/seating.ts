@@ -6,6 +6,7 @@ import { type Team, serversFor, withHarness } from "../catalog/team.ts";
 import { expandHome, home } from "../core/paths.ts";
 import type { Project } from "../desk/project.ts";
 import type { TeamSource } from "./team-source.ts";
+import { errorText } from "../core/errors.ts";
 
 export type SeatContext = { node: string; spool: string };
 
@@ -47,7 +48,7 @@ export class Seating {
       // none, and the three before-hooks are the only places a plugin can refuse anything. Refusing
       // the launch names the reason; letting it through hands a full-access agent no brief at all.
       console.error(`seatworks-v2: seat ${roleName} on ${harness.id} could not be built:`, error);
-      throw new Error(`the ${roleName} seat could not be built, so it was not started: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`the ${roleName} seat could not be built, so it was not started: ${errorText(error)}`);
     }
     return team;
   }

@@ -4,8 +4,10 @@ import { postJsonRpc } from "../core/jsonrpc.ts";
 import { expandHome } from "../core/paths.ts";
 import { type Kit, hookTools } from "../catalog/kit.ts";
 import { type Team, connectToServer, proxyOf } from "../catalog/team.ts";
+import { errorText } from "../core/errors.ts";
+import type { Check } from "../../shared/views.ts";
 
-export type Check = { id: string; ok: boolean; detail: string };
+export type { Check };
 
 export type Probes = {
   has(bin: string): boolean;
@@ -105,7 +107,7 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
         checks.push({ id: `mcp:${state.id}`, ok, detail: ok ? `${state.label} answered.` : `${state.label} did not answer: ${answered.error ?? "no MCP result"}.` });
       }
     } catch (error) {
-      checks.push({ id: `mcp:${state.id}`, ok: false, detail: `${state.label} could not be checked: ${error instanceof Error ? error.message : String(error)}` });
+      checks.push({ id: `mcp:${state.id}`, ok: false, detail: `${state.label} could not be checked: ${errorText(error)}` });
     }
   }
   return checks;

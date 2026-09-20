@@ -5,8 +5,8 @@ import { test } from "node:test";
 import { type Layer, MachineLayerSchema, ProjectLayerSchema, readLayer, revisionOf, writeLayer } from "../../server/catalog/settings.ts";
 import { seatProblems } from "../../server/catalog/seats.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { makeKit } from "../kit.ts";
+import { tempDir } from "../tempdir.ts";
 
 const ok = () => [];
 

@@ -3,6 +3,7 @@ import { describe, failed, type Fact, sides, TRUNCATED, within } from "./facts.t
 import { mask } from "./mask.ts";
 import type { SeatWatch } from "./watches.ts";
 import type { Call, Unit, Window } from "./window.ts";
+import { errorText } from "../../core/errors.ts";
 
 export type Assessment = { answers: Record<string, number>; model: string; id: string | null; cost: number | null };
 
@@ -71,7 +72,7 @@ export async function assess(spec: SensorSpec, key: string, state: unknown, sess
       const response = await bounded(fetcher(spec.url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal }), signal);
       if (response.ok) {
         const answer = await bounded(response.json(), signal).catch((error: unknown) => {
-          throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : halt?.aborted ? "let go" : `the answer is not JSON: ${error instanceof Error ? error.message : String(error)}`);
+          throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : halt?.aborted ? "let go" : `the answer is not JSON: ${errorText(error)}`);
         });
         return readAnswers(answer, spec);
       }
@@ -86,7 +87,7 @@ export async function assess(spec: SensorSpec, key: string, state: unknown, sess
         await pause(500 * 2 ** attempt);
         continue;
       }
-      throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : `unreachable: ${error instanceof Error ? error.message : String(error)}`);
+      throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : `unreachable: ${errorText(error)}`);
     }
     const retryable = status === 429 || status >= 500;
     if (!retryable || attempt >= spec.retries) throw new SensorError(`${status}: ${said.replace(/\s+/g, " ").slice(0, 200)}`, status);
@@ -99,7 +100,8 @@ const tail = (text: string, limit: number) => (text.length > limit ? `…${text.
 const flat = (text: string) => text.replace(/\s+/g, " ").trim();
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
-function errorText(error: unknown): string {
+/** What a tool call's own error field says, which is prose the seat saw, not a thrown value. */
+function saidError(error: unknown): string {
   if (!error) return "";
   if (typeof error === "string") return error;
   const held = error as { content?: unknown; message?: unknown; text?: unknown };
@@ -153,7 +155,7 @@ function line(unit: Unit, exit?: RegExp): string {
     const given = bare && input && typeof input === "object" ? ` ${clip(flat(mask(JSON.stringify(input))), 200)}` : "";
     const head = `${clip(flat(mask(describe(call))), 150)}${given} [${!call.ended ? "running" : bad ? "failed" : call.status}${code}]`;
     if ((call.detail.type === "edit" || call.detail.type === "write") && !bad) return `${head}${changed(call)}`;
-    const output = flat(mask(str(call.detail.output) || errorText(call.error)));
+    const output = flat(mask(str(call.detail.output) || saidError(call.error)));
     return output ? `${head} → ${tail(output, 250)}` : head;
   }
   if (unit.kind === "said") return `said: ${clip(flat(mask(unit.text)), 400)}`;
@@ -330,7 +332,7 @@ export class Assessor {
     try {
       assessment = await assess({ ...sensing.spec, questions }, sensing.key, state, watch.seat.id, this.deps.fetcher, pacer.halt.signal);
     } catch (error) {
-      if (this.pacers.get(watch.seat.id) === pacer) this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(error instanceof Error ? error.message : String(error)));
+      if (this.pacers.get(watch.seat.id) === pacer) this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(errorText(error)));
       return;
     }
     if (this.pacers.get(watch.seat.id) === pacer) this.deps.done(watch, { spec: sensing.spec, askedAt, turnId, running, assessment, state, questions, facts });

@@ -3,7 +3,7 @@ import { appendFileSync, copyFileSync, readdirSync, readFileSync, writeFileSync 
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 import { type Kept, assessmentsDir, keepAssessment, readAssessments } from "../../server/runtime/watch/assessments.ts";
 
 const record = (at: number): Kept => ({

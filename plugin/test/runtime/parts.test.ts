@@ -9,7 +9,7 @@ import { letters } from "../../server/desk/letters.ts";
 import { takeRequests, writeReply } from "../../server/runtime/spool.ts";
 import { hiddenWordsIn } from "../../server/catalog/content.ts";
 import { loadKit } from "../../server/catalog/kit.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 
 const lane: Lane = {
   id: "L1",

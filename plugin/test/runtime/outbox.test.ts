@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import type { Seats } from "../../server/core/ports.ts";
 import { Outbox } from "../../server/runtime/outbox.ts";
-import { tempDir } from "../../server/core/testing.ts";
+import { tempDir } from "../tempdir.ts";
 
 type FakeAgent = { status: string; pendingPermissions: { title?: string; name?: string }[]; archivedAt: string | null; sent: string[]; steered: string[] };
 

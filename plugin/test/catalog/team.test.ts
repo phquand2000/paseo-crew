@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ProjectLayerSchema } from "../../server/catalog/settings.ts";
 import { resolveTeam, rulesFor, serversFor, skillDirsFor, withHarness } from "../../server/catalog/team.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
+import { makeKit } from "../kit.ts";
 
 const kit = makeKit();
 const context = { node: "/bin/node", spool: "/spool" };

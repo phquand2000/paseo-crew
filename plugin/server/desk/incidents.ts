@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
+import { errorText } from "../core/errors.ts";
 
 export type Held = "shadow" | "budget" | "nobody" | "awaiting" | "vetoed";
 
@@ -49,7 +50,7 @@ export function incidentsFault(state: string): string | undefined {
   try {
     stored = JSON.parse(readFileSync(file, "utf-8"));
   } catch (error) {
-    return `${file} is there but could not be read: ${error instanceof Error ? error.message : String(error)}`;
+    return `${file} is there but could not be read: ${errorText(error)}`;
   }
   const items = (stored as { items?: unknown } | null)?.items;
   if (!stored || typeof stored !== "object" || Array.isArray(stored) || !items || typeof items !== "object" || Array.isArray(items)) return `${file} does not hold a record of incidents`;

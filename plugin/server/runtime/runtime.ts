@@ -30,6 +30,7 @@ import { type Finding, type Verdict, decide, weigh } from "./watch/rules.ts";
 import { keepAssessment } from "./watch/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
+import { errorText } from "../core/errors.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
@@ -127,7 +128,7 @@ export class Runtime {
       else if (lane) goal = [`Lane ${lane.id}: ${lane.title}`, `Outcome: ${lane.outcome}`, `Acceptance: ${lane.acceptance.join("; ")}`, `Out of scope: ${lane.outOfScope.join("; ")}`].join("\n");
     } catch (error) {
       goal = null;
-      this.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: error instanceof Error ? error.message : String(error) });
+      this.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: errorText(error) });
     }
     return {
       goal,
@@ -193,7 +194,7 @@ export class Runtime {
       const now = Date.now();
       if (now - (this.sensorNoted.get(key) ?? 0) < 60_000) return;
       this.sensorNoted.set(key, now);
-      this.desk.event(project, { kind: "sensor.unkept", error: error instanceof Error ? error.message : String(error) });
+      this.desk.event(project, { kind: "sensor.unkept", error: errorText(error) });
     };
     try {
       keepAssessment(project.state, {
@@ -286,11 +287,11 @@ export class Runtime {
 
   private tickFailed(error: unknown): void {
     console.error("seatworks-v2: tick failed:", error);
-    if (!/not connected|client closed|transport/i.test(error instanceof Error ? error.message : String(error))) return;
+    if (!/not connected|client closed|transport/i.test(errorText(error))) return;
     for (const project of this.desk.projects.values()) {
       if (this.offline.has(project.slug)) continue;
       this.offline.add(project.slug);
-      this.desk.event(project, { kind: "watch.offline", error: error instanceof Error ? error.message : String(error) });
+      this.desk.event(project, { kind: "watch.offline", error: errorText(error) });
     }
   }
 
@@ -435,7 +436,7 @@ export class Runtime {
     for (const request of requests) {
       this.desk
         .answer(request)
-        .catch((error) => ({ ok: false, text: `The desk failed: ${error instanceof Error ? error.message : String(error)}` }))
+        .catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` }))
         .then((reply) => writeReply(this.spool, request.id, reply))
         .catch((error) => console.error("seatworks-v2: spool reply failed:", error));
     }

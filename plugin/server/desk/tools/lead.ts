@@ -3,7 +3,8 @@ import { skillSources } from "../../catalog/content.ts";
 import { skillDirsFor } from "../../catalog/team.ts";
 import { branchExists, currentBranch, diffCounts, git, headSha, outsideOwned, pristineState, resetHard, trackedFiles } from "../../core/git.ts";
 import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
-import { type Args, type Caller, errorText, hash, no, ok, str, strs } from "../context.ts";
+import { type Args, type Caller, hash, no, ok, str, strs } from "../context.ts";
+import { errorText } from "../../core/errors.ts";
 import { gateNote, laneGate } from "../gates.ts";
 import {
   type Ask,

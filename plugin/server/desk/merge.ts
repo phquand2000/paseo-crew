@@ -1,6 +1,7 @@
 import { commitsAhead, diffCounts, mergeBranch, outsideOwned, pristineState } from "../core/git.ts";
 import type { Agents } from "./agents.ts";
-import { type DeskContext, errorText } from "./context.ts";
+import { type DeskContext } from "./context.ts";
+import { errorText } from "../core/errors.ts";
 import { gateNote } from "./gates.ts";
 import type { TaskStatus } from "./ledger.ts";
 import { letters } from "./letters.ts";

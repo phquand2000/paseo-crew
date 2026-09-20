@@ -7,6 +7,7 @@ import type { DeskContext } from "./context.ts";
 import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
 import { clip } from "./letters.ts";
 import type { Project } from "./project.ts";
+import { errorText } from "../core/errors.ts";
 
 export type Holder = { lane?: string; task?: string };
 
@@ -243,7 +244,7 @@ export class Slots {
         try {
           await this.workspaces.archive(slot.workspaceId);
         } catch (error) {
-          this.ctx.log(project, `workspace ${slot.workspaceId} could not be put away: ${error instanceof Error ? error.message : String(error)}`);
+          this.ctx.log(project, `workspace ${slot.workspaceId} could not be put away: ${errorText(error)}`);
         }
       }
     }
@@ -316,7 +317,7 @@ export class Slots {
         await this.workspaces.archive(workspace.id);
         this.ctx.event(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });
       } catch (error) {
-        this.ctx.log(project, `workspace ${workspace.name} could not be swept: ${error instanceof Error ? error.message : String(error)}`);
+        this.ctx.log(project, `workspace ${workspace.name} could not be swept: ${errorText(error)}`);
       }
     }
     const root = join(worktreeRoot(), project.slug);

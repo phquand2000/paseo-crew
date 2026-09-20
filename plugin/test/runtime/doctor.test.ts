@@ -6,8 +6,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { TeamSource } from "../../server/runtime/team-source.ts";
 import { home, stateRoot } from "../../server/core/paths.ts";
-import { tempDir } from "../../server/core/testing.ts";
-import { makeKit } from "../../server/catalog/testkit.ts";
+import { tempDir } from "../tempdir.ts";
+import { makeKit } from "../kit.ts";
 
 const kit = makeKit();
 

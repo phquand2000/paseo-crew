@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { extname } from "node:path";
 import { parse, stringify } from "smol-toml";
+import { errorText } from "./errors.ts";
 
 const isToml = (path: string): boolean => extname(path).toLowerCase() === ".toml";
 
@@ -28,7 +29,7 @@ export function configFault(path: string): string | undefined {
     const held = isToml(path) ? parse(text) : JSON.parse(text);
     return !held || typeof held !== "object" ? `${path} does not hold a config object` : undefined;
   } catch (error) {
-    return `${path} is there but could not be read: ${error instanceof Error ? error.message : String(error)}`;
+    return `${path} is there but could not be read: ${errorText(error)}`;
   }
 }
 
