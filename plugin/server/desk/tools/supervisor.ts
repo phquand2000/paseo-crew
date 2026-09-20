@@ -130,7 +130,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   const fail = async (reason: string, taken?: { id?: string }) => {
     await ctx.ledger(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
-      if (entry) Object.assign(entry, { status: "closed", closedAt: Date.now() });
+      if (entry) entry.status = "closed";
     });
     if (taken?.id) await slots.release(project, taken.id, lane.branch, base);
     else if (taken) await slots.giveBack(project, base, lane.branch);
@@ -220,7 +220,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   }
   const retired = await ctx.ledger(project, (current) => {
     const entry = current.lanes[lane.id];
-    if (entry) Object.assign(entry, { status: "closed", closedAt: Date.now() });
+    if (entry) entry.status = "closed";
     const tasks: Task[] = [];
     for (const task of Object.values(current.tasks).filter((item) => item.lane === lane.id)) {
       if (["running", "rework", "queued", "done", "failed", "stalled"].includes(task.status)) task.status = "cut";

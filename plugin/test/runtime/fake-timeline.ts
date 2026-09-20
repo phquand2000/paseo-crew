@@ -53,13 +53,6 @@ export class FakeTimeline implements TimelineHandle {
     this.send({ event: { type: "replacement", epoch: this.epoch } });
   }
 
-  reload(): void {
-    const history = this.rows;
-    this.epoch = `epoch-${++this.epochs}`;
-    this.rows = [];
-    for (const row of history) this.add(row.item, null);
-  }
-
   send(message: StreamMessage): void {
     for (const listener of [...this.listeners]) listener(message);
   }

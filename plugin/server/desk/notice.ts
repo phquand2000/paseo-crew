@@ -39,7 +39,7 @@ export function placeOf(project: Project, seat: Noticed): Placed {
 }
 
 export async function notice(services: DeskServices, project: Project, seat: Noticed, findings: Finding[], now = Date.now()): Promise<{ opened: Incident[]; sent: string[]; place: Placed }> {
-  const { ctx, roster } = services;
+  const { ctx } = services;
   const place = placeOf(project, seat);
   if (findings.length === 0) return { opened: [], sent: [], place };
   const attention = ctx.team(project).attention;

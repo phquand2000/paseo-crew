@@ -13,7 +13,6 @@ export const KEPT = "kept, not shown";
 export const catalogRpc = defineRpc({ name: "seatworks.catalog.read", input: z.object({}), output: z.json() });
 export const settingsReadRpc = defineRpc({ name: "seatworks.settings.read", input: z.object({ project }), output: z.json() });
 export const settingsWriteRpc = defineRpc({ name: "seatworks.settings.write", input: z.object({ project, revision: z.string(), values: z.json() }), output: z.json() });
-export const settingsResetRpc = defineRpc({ name: "seatworks.settings.reset", input: z.object({ project, revision: z.string() }), output: z.json() });
 export const projectsRpc = defineRpc({ name: "seatworks.projects.list", input: z.object({}), output: z.json() });
 export const projectsAddRpc = defineRpc({ name: "seatworks.projects.add", input: z.object({ root: z.string().min(1) }), output: z.json() });
 export const projectsRemoveRpc = defineRpc({ name: "seatworks.projects.remove", input: z.object({ project: z.string().min(1) }), output: z.json() });
@@ -29,7 +28,6 @@ export const contracts = {
   catalog: catalogRpc,
   settingsRead: settingsReadRpc,
   settingsWrite: settingsWriteRpc,
-  settingsReset: settingsResetRpc,
   projects: projectsRpc,
   projectsAdd: projectsAddRpc,
   projectsRemove: projectsRemoveRpc,

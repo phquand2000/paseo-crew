@@ -56,9 +56,9 @@ test("a project with nothing running draws nothing", () => {
 
 test("whoever supervises is whoever the kit says supervises, not a seat with a particular name", () => {
   assert.deepEqual(flowView(project, working(), seats, now).supervisors, [], "told of no supervising role, the view names no supervisor");
-  const shown = flowView(project, working(), seats, now, new Set(), undefined, new Set(["supervisor"])).supervisors;
+  const shown = flowView(project, working(), seats, now, new Set(), new Set(["supervisor"])).supervisors;
   assert.deepEqual(shown.map((seat) => [seat.id, seat.role]), [["seat-sup", "supervisor"]], "the view reports the role the ledger recorded, not one it assumed");
-  assert.deepEqual(flowView(project, working(), seats, now, new Set(), undefined, new Set(["architecture"])).supervisors, []);
+  assert.deepEqual(flowView(project, working(), seats, now, new Set(), new Set(["architecture"])).supervisors, []);
 });
 
 test("the supervisor shown is the one seated now, not the first one the project ever recorded", () => {
@@ -71,11 +71,11 @@ test("the supervisor shown is the one seated now, not the first one the project 
   // `ledger.agents` is appended to and never pruned, and its keys come back in insertion order, so
   // the first Supervisor ever to call a tool here was named for ever — and as "gone" from the moment
   // its seat was archived, with the one actually working never shown.
-  const shown = flowView(project, ledger, later, now, new Set(), undefined, new Set(["supervisor"])).supervisors;
+  const shown = flowView(project, ledger, later, now, new Set(), new Set(["supervisor"])).supervisors;
   assert.deepEqual(shown.map((seat) => [seat.id, seat.status]), [["seat-sup2", "running"]], "the gone one is not shown beside a seated one of the same concern");
 
   // And with none of them seated, the newest recorded is the one reported gone.
-  const none = flowView(project, ledger, new Map(), now, new Set(), undefined, new Set(["supervisor"])).supervisors;
+  const none = flowView(project, ledger, new Map(), now, new Set(), new Set(["supervisor"])).supervisors;
   assert.deepEqual(none.map((seat) => [seat.id, seat.status]), [["seat-sup2", "gone"]]);
 });
 
@@ -87,7 +87,7 @@ test("several seats supervising a project are all shown, each for its own concer
   both.set("seat-arch", { id: "seat-arch", provider: "sw2-architecture-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
   // A view with room for one supervisor showed the busiest and hid the rest — and the concept has
   // several by concern. A concern whose seat has gone still shows, as gone, rather than disappearing.
-  const view = flowView(project, ledger, both, now, new Set(), undefined, new Set(["supervisor", "architecture", "safety"]));
+  const view = flowView(project, ledger, both, now, new Set(), new Set(["supervisor", "architecture", "safety"]));
   assert.deepEqual(view.supervisors.map((seat) => [seat.role, seat.status]).sort(), [["architecture", "idle"], ["safety", "gone"], ["supervisor", "idle"]]);
 });
 
@@ -116,7 +116,7 @@ test("opening one lane sends that lane's tasks and leaves the others counted", (
 test("a machine with more lanes than the screen can draw reports the rest as a number", () => {
   const ledger = emptyLedger();
   for (let index = 0; index < 60; index += 1) ledger.lanes[`L${index}`] = lane(`L${index}`, "open");
-  const view = flowView(project, ledger, new Map(), now, new Set(), 50);
+  const view = flowView(project, ledger, new Map(), now);
   assert.equal(view.lanes.length, 50);
   assert.equal(view.moreLanes, 10);
 });

@@ -10,7 +10,6 @@ export interface Control {
   catalog(): unknown;
   readSettings(project?: string): SettingsView;
   writeSettings(project: string | undefined, revision: string, values: unknown): WriteResult;
-  resetSettings(project: string | undefined, revision: string): WriteResult;
   projects(): unknown;
   addProject(root: string): unknown;
   removeProject(project: string): unknown;
@@ -46,7 +45,6 @@ export function registerRpc(server: { handle: unknown }, control: Control, bind:
   handle(contracts.catalog, () => control.catalog());
   handle(contracts.settingsRead, (input) => control.readSettings(input.project));
   handle(contracts.settingsWrite, (input) => control.writeSettings(input.project, input.revision, input.values));
-  handle(contracts.settingsReset, (input) => control.resetSettings(input.project, input.revision));
   handle(contracts.projects, () => control.projects());
   handle(contracts.projectsAdd, (input) => control.addProject(input.root));
   handle(contracts.projectsRemove, (input) => control.removeProject(input.project));

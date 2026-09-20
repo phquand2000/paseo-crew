@@ -23,7 +23,7 @@ test("the words a role must not see are looked for in what was written, not in t
   const lead = kit.roles.find((role) => role.role === "lead")!;
   // Checked after substitution, a repository — or a home directory — named after one of those words
   // made the seat impossible to build.
-  const text = renderText(kit, lead, "Write your plans in {{state}}/plans.", { guides: "/g", state: "/Users/supervisor/projects/x" });
+  const text = renderText(lead, "Write your plans in {{state}}/plans.", { guides: "/g", state: "/Users/supervisor/projects/x" });
   assert.match(text, /\/Users\/supervisor\/projects\/x\/plans/);
-  assert.throws(() => renderText(kit, lead, "Ask the supervisor.", { guides: "/g", state: "/s" }), /must not see: supervisor/);
+  assert.throws(() => renderText(lead, "Ask the supervisor.", { guides: "/g", state: "/s" }), /must not see: supervisor/);
 });

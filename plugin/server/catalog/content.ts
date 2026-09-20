@@ -8,7 +8,7 @@ export function hiddenWordsIn(text: string, words: string[]): string[] {
   return words.filter((word) => new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text));
 }
 
-export function renderText(kit: Kit, role: RoleSpec, source: string, paths: PromptPaths): string {
+export function renderText(role: RoleSpec, source: string, paths: PromptPaths): string {
   const text = source.replaceAll("{{guides}}", paths.guides).replaceAll("{{state}}", paths.state);
   const leftover = text.match(/\{\{[^}]*\}\}/);
   if (leftover) throw new Error(`the ${role.role} prompt still holds the placeholder ${leftover[0]}`);
@@ -23,7 +23,7 @@ export function renderText(kit: Kit, role: RoleSpec, source: string, paths: Prom
 }
 
 export function renderPrompt(kit: Kit, role: RoleSpec, paths: PromptPaths): string {
-  return renderText(kit, role, readFileSync(contentPath(kit, role.prompt), "utf-8"), paths);
+  return renderText(role, readFileSync(contentPath(kit, role.prompt), "utf-8"), paths);
 }
 
 function markdownIn(dir: string): string[] {

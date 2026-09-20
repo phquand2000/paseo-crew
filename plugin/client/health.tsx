@@ -2,7 +2,7 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
-import type { Check } from "./data.ts";
+import { type Check, message } from "./data.ts";
 
 type Props = {
   project?: string;
@@ -14,8 +14,6 @@ type Props = {
   runDoctor(): Promise<Check[]>;
   readStatus(slug: string): Promise<{ text: string; error?: string }>;
 };
-
-const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 const GROUPS = ["This machine", "Agents", "Servers"] as const;
 

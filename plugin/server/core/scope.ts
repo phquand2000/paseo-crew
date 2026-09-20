@@ -23,12 +23,6 @@ export function normalize(pattern: string): string {
   return pattern.trim().replace(/^\.\//, "").replace(/\/+$/, "/");
 }
 
-export function literalPrefix(pattern: string): string {
-  const clean = normalize(pattern);
-  const index = clean.search(/[*?[{]/);
-  return index < 0 ? clean : clean.slice(0, index);
-}
-
 export function globToRegex(pattern: string): RegExp {
   let out = "";
   const clean = normalize(pattern);
@@ -51,10 +45,6 @@ export function globToRegex(pattern: string): RegExp {
   }
   if (clean.endsWith("/")) out += ".*";
   return new RegExp(`^${out}$`);
-}
-
-function samplePath(pattern: string): string {
-  return normalize(pattern).replace(/\*\*\/?/g, "x/").replace(/\*/g, "x").replace(/\?/g, "x").replace(/\/$/, "/x");
 }
 
 /**

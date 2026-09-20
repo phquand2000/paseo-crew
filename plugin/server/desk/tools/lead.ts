@@ -82,7 +82,7 @@ async function placementProblem(project: Project, ledger: Ledger, lane: Lane, ow
 function recordTask(desk: DeskServices, project: Project, lane: Lane, args: Args, parallel: boolean, startSha: string | undefined): Promise<Task> {
   const title = str(args.title);
   return desk.ctx.ledger(project, (current) => {
-    const id = nextTaskId(current, current.lanes[lane.id]!, "code");
+    const id = nextTaskId(current.lanes[lane.id]!, "code");
     const now = Date.now();
     const task: Task = {
       id,
@@ -213,7 +213,7 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   const reviewRole = roleThatCan(ctx.kit, "review", lens || undefined);
   if (!reviewRole) return no(namedOrNot(ctx.kit, "review", lens, "review, so there is nobody to ask a read-only question of"));
   const review = await ctx.ledger(project, (current) => {
-    const id = nextTaskId(current, current.lanes[lane.id]!, "review");
+    const id = nextTaskId(current.lanes[lane.id]!, "review");
     const now = Date.now();
     const created: Task = {
       id,

@@ -76,7 +76,6 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
     const item = held.items[id];
     if (!item) return undefined;
     item.label = verdict;
-    item.ackedBy = caller.id;
     if (note) item.note = note;
     if (item.open) {
       item.open = false;

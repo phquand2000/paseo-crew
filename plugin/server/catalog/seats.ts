@@ -140,44 +140,11 @@ function clearMcp(harness: HarnessSpec, current: Json): Json {
   return next;
 }
 
-export function shapeServer(template: unknown, server: Json): unknown {
-  if (typeof template === "string") {
-    const whole = /^\{(\w+)\}$/.exec(template);
-    if (whole) return server[whole[1]!];
-    return template.replace(/\{(\w+)\}/g, (text, key: string) => (typeof server[key] === "string" ? String(server[key]) : text));
-  }
-  if (Array.isArray(template)) {
-    return template.flatMap((item) => {
-      const spread = typeof item === "string" ? /^\{\.\.\.(\w+)\}$/.exec(item) : null;
-      if (spread) {
-        const value = server[spread[1]!];
-        return Array.isArray(value) ? value : [];
-      }
-      const value = shapeServer(item, server);
-      return value === undefined ? [] : [value];
-    });
-  }
-  if (!isPlain(template)) return template;
-  const out: Json = {};
-  for (const [key, item] of Object.entries(template)) {
-    const value = shapeServer(item, server);
-    if (value !== undefined) out[key] = value;
-  }
-  return out;
-}
-
 function mcpState(harness: HarnessSpec, current: Json, servers: McpServers): Json {
   const next = clearMcp(harness, current);
-  const { delivery, key, shape } = harness.mcp;
+  const { delivery, key } = harness.mcp;
   if (delivery !== "file" || !key) return next;
-  const shaped = Object.fromEntries(
-    Object.entries(servers).map(([name, server]) => {
-      const config = server as Json;
-      const template = shape?.[config.type as keyof typeof shape];
-      return [name, template ? shapeServer(template, config) : config];
-    }),
-  );
-  setPath(next, key.split("."), shaped);
+  setPath(next, key.split("."), servers as Json);
   return next;
 }
 
@@ -298,7 +265,7 @@ function removeIfPresent(path: string, what: string, record: Recorder): void {
 
 function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, paths: PromptPaths, record: Recorder): void {
   const { role, harness } = team.roles[roleName]!;
-  const rules = renderText(kit, role, rulesFor(team, roleName), paths);
+  const rules = renderText(role, rulesFor(team, roleName), paths);
   if (harness.systemPrompt === "file" && harness.promptFile) {
     const promptPath = join(dir, harness.promptFile);
     const prompt = renderPrompt(kit, role, paths);
@@ -354,7 +321,7 @@ export function seatProblems(kit: Kit, team: Team, roleName: string, paths: Prom
   const problems: string[] = [];
   const say = (error: unknown) => problems.push(error instanceof Error ? error.message : String(error));
   try {
-    renderText(kit, seat.role, rulesFor(team, roleName), paths);
+    renderText(seat.role, rulesFor(team, roleName), paths);
     if (seat.harness.systemPrompt === "file" && seat.harness.promptFile) renderPrompt(kit, seat.role, paths);
   } catch (error) {
     say(error);

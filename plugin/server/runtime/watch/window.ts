@@ -12,15 +12,15 @@ export type Detail = {
   [key: string]: unknown;
 };
 
+/** How many steps of a turn the sensor is shown. Older ones fall out; the instruction is kept apart. */
+const UNITS = 80;
+
 export type Call = {
   id: string;
   name: string;
   status: string;
   detail: Detail;
   error: unknown;
-  turnId: string | null;
-  seq: number;
-  replay: boolean;
   ended: boolean;
   pseudo: boolean;
 };
@@ -33,7 +33,7 @@ export type Unit =
   | { kind: "compaction" }
   | { kind: "error"; text: string };
 
-export type Change = { call?: Call; first: boolean; detailed: boolean; settled: boolean };
+export type Change = { call?: Call; detailed: boolean; settled: boolean };
 
 const TERMINAL = new Set(["completed", "failed", "canceled"]);
 
@@ -52,8 +52,8 @@ export class Window {
   private instructionAt = -1;
   private pushed = 0;
 
-  constructor(limit = 80) {
-    this.limit = limit;
+  constructor() {
+    this.limit = UNITS;
   }
 
   add(row: StreamRow): Change {
@@ -69,18 +69,15 @@ export class Window {
     else if (type === "reasoning") this.join("thought", text(item.text));
     else if (type === "compaction") this.push({ kind: "compaction" });
     else if (type === "error") this.push({ kind: "error", text: text(item.message) || text(item.text) });
-    return { first: false, detailed: false, settled: false };
+    return { detailed: false, settled: false };
   }
 
-  closeRunning(): Call[] {
-    const closed: Call[] = [];
+  closeRunning(): void {
     for (const call of this.calls.values()) {
       if (call.ended) continue;
       call.ended = true;
       call.status = "canceled";
-      closed.push(call);
     }
-    return closed;
   }
 
   clear(): void {
@@ -116,26 +113,23 @@ export class Window {
         status,
         detail,
         error: item.error ?? null,
-        turnId: row.turnId,
-        seq: row.seq,
-        replay: row.replay,
         ended: TERMINAL.has(status),
         pseudo: pseudo(item),
       };
       this.calls.set(id, call);
       this.push({ kind: "call", call });
-      return { call, first: true, detailed: detail.type !== undefined && detail.type !== "unknown", settled: call.ended };
+      return { call, detailed: detail.type !== undefined && detail.type !== "unknown", settled: call.ended };
     }
     const known = seen.detail.type !== undefined && seen.detail.type !== "unknown";
     const better = detail.type !== undefined && detail.type !== "unknown";
     const detailed = !known && better;
     if (better) seen.detail = { ...seen.detail, ...detail };
-    if (seen.ended) return { call: seen, first: false, detailed, settled: false };
+    if (seen.ended) return { call: seen, detailed, settled: false };
     seen.status = status;
     if (status === "failed") seen.error = item.error ?? seen.error;
     const settled = TERMINAL.has(status);
     seen.ended = settled;
-    return { call: seen, first: false, detailed, settled };
+    return { call: seen, detailed, settled };
   }
 
   private join(kind: "said" | "thought", piece: string, messageId?: string): void {

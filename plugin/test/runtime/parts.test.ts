@@ -7,6 +7,8 @@ import { issueArgs } from "../../server/desk/issue.ts";
 import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../../server/desk/ledger.ts";
 import { letters } from "../../server/desk/letters.ts";
 import { takeRequests, writeReply } from "../../server/runtime/spool.ts";
+import { hiddenWordsIn } from "../../server/catalog/content.ts";
+import { loadKit } from "../../server/catalog/kit.ts";
 import { tempDir } from "../../server/core/testing.ts";
 
 const lane: Lane = {
@@ -46,17 +48,22 @@ test("ids count per ledger and per lane, and titles become branch slugs", () => 
   const id = nextLaneId(ledger);
   const entry = { ...lane, id, tasks: 0 };
   assert.equal(id, "L1");
-  assert.equal(nextTaskId(ledger, entry, "code"), "L1-T1");
-  assert.equal(nextTaskId(ledger, entry, "review"), "L1-R2");
+  assert.equal(nextTaskId(entry, "code"), "L1-T1");
+  assert.equal(nextTaskId(entry, "review"), "L1-R2");
   assert.equal(nextAskId(ledger), "A1");
   assert.equal(slugify("Add Discount Codes: 10% off!", 24), "add-discount-codes-10-of");
 });
 
 test("what a Peer and a Lead read carries none of the words hidden from them", () => {
   const peerText = [letters.brief(task, lane), letters.rework("fix it"), letters.cut("wrong"), letters.nudge("done"), letters.message("your lead", "hi"), letters.reviewBrief({ ...task, id: "L1-R2", kind: "review" }, task, "Is rounding right?", lane.branch)].join("\n");
-  for (const word of ["paseo", "supervisor", "seat"]) assert.equal(new RegExp(`\\b${word}\\b`, "i").test(peerText), false, word);
+  // Driven from the kit, not from a copy of it: the copy had lost "seats", and `\bseat\b` does not
+  // cover it, which is why the role lists both.
+  const kit = loadKit(join(import.meta.dirname, "..", ".."));
+  const hides = (role: string) => kit.roles.find((entry) => entry.role === role)?.hidesWords ?? [];
+  assert.ok(hides("peer").length > 0 && hides("lead").length > 0, "both roles hide words to check for");
+  assert.deepEqual(hiddenWordsIn(peerText, hides("peer")), []);
   const leadText = [letters.directive(lane), letters.conflict(task, ["a.js"], lane.branch), letters.stalled(task, "bye", 2), letters.reconciled(lane, task, "agent-9", "stop using the old client")].join("\n");
-  for (const word of ["supervisor"]) assert.equal(new RegExp(`\\b${word}\\b`, "i").test(leadText), false, word);
+  assert.deepEqual(hiddenWordsIn(leadText, hides("lead")), []);
 });
 
 

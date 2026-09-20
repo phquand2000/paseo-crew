@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
 import type { Check } from "./data.ts";
-import { useFlow, useSeatworks } from "./data.ts";
+import { setFlow, useFlow, useSeatworks } from "./data.ts";
 import { type DetailTab, Detail } from "./detail.tsx";
 import { FlowSection } from "./flow.tsx";
 import { HealthSection } from "./health.tsx";
@@ -160,10 +160,9 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             flow={flow}
             error={flowError}
             live={flowLive}
-            open={lanesOpen}
             theme={theme}
             disabled={locked}
-            onLive={(next) => void save((values) => ({ ...values, flow: { ...values.flow, live: next } }))}
+            onLive={(next) => void save((values) => setFlow(values, { live: next }))}
             onOpen={(lane) =>
               setOpenLanes((current) => {
                 const lanes = current.of === (project ?? "") ? current.lanes : [];

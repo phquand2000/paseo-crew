@@ -155,10 +155,6 @@ export class Watches {
     return can(seatOf(this.deps.kit, provider)?.role, "watched");
   }
 
-  has(id: string): boolean {
-    return this.followed.has(id);
-  }
-
   get(id: string): SeatWatch | undefined {
     return this.followed.get(id)?.watch;
   }

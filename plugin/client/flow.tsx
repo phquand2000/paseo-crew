@@ -11,7 +11,6 @@ type Props = {
   flow: FlowView | null;
   error: string | null;
   live: boolean;
-  open: string[];
   theme: PluginTheme;
   disabled: boolean;
   onLive(live: boolean): void;

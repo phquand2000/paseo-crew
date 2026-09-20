@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setMcp, setRole, setSensorKey } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey } from "../../client/data.ts";
 import { KEPT } from "../../shared/rpc.ts";
 
 const held: Layer = {
@@ -144,7 +144,7 @@ test("switching the watch on keeps the rest of the tuning, and the sensor's key 
     "a role moved to another agent": setRole(screen, "peer", { harness: "devin" }, true),
     "a server switched on": setMcp(screen, "docs", { enabled: true }),
     "a pasted server forgotten": dropMcp(setMcp(screen, "docs", { enabled: true }), "docs"),
-    "the flow switch": { ...screen, flow: { live: true } },
+    "the flow switch": setFlow(screen, { live: true }),
     "this card's own switch": setAttention(screen, { watch: true }),
   };
   for (const [what, saved] of Object.entries(elsewhere)) assert.deepEqual(saved.sensor, { key: KEPT }, `${what} carries the key back untouched`);

@@ -4,9 +4,13 @@ import { dirname } from "node:path";
 
 export type GateResult = { ok: boolean; code: number | null; timedOut: boolean; seconds: number; tail: string };
 
-export function tailOf(text: string, lines = 40, chars = 3000): string {
-  const kept = text.trimEnd().split(/\r?\n/).slice(-lines).join("\n");
-  return kept.length > chars ? kept.slice(-chars) : kept;
+/** What a red gate is worth reading: the end of it, which is where the failure is said. */
+const TAIL_LINES = 40;
+const TAIL_CHARS = 3000;
+
+export function tailOf(text: string): string {
+  const kept = text.trimEnd().split(/\r?\n/).slice(-TAIL_LINES).join("\n");
+  return kept.length > TAIL_CHARS ? kept.slice(-TAIL_CHARS) : kept;
 }
 
 /**

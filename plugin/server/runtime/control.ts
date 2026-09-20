@@ -209,15 +209,6 @@ export class SettingsControl implements Control {
     return result;
   }
 
-  resetSettings(slug: string | undefined, revision: string): WriteResult {
-    // Back to what the kit settles on — except the sensor's key, which is not a setting but a
-    // credential the owner typed once and that no screen can ever show them again. Forgetting it is
-    // its own action, and this is not it.
-    const target = this.target(slug);
-    const kept = typeof target !== "string" && !target.project && layerValues(target.file, target.schema).sensor?.key;
-    return this.writeSettings(slug, revision, kept ? { sensor: { key: KEPT } } : {});
-  }
-
   projects(): unknown {
     return this.deps.source.known().map((project) => ({ slug: project.slug, root: project.root }));
   }
@@ -351,7 +342,7 @@ export class SettingsControl implements Control {
       .filter(({ seat, role }) => can(role, "supervise") && Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug)
       .sort((a, b) => Date.parse(b.seat.updatedAt) - Date.parse(a.seat.updatedAt))
       .map(({ seat, role }) => ({ id: seat.id, role: role!.role }));
-    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), undefined, supervises, seated);
+    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), supervises, seated);
     return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
   }
 

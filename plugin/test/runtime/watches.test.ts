@@ -45,9 +45,9 @@ test("a seat archived while it is being joined leaves no subscription behind, an
   open();
   await settle();
   assert.equal(slow.listeners.size, 0);
-  assert.equal(watches.has("p1"), false);
+  assert.equal((watches.get("p1") !== undefined), false);
   watches.sync([seat("p1", "sw2-peer-devin/swe-2-max")]);
-  assert.equal(watches.has("p1"), true);
+  assert.equal((watches.get("p1") !== undefined), true);
 });
 
 test("a seat the round no longer sees is let go, and one that failed to join is tried again next round", async () => {
@@ -58,9 +58,9 @@ test("a seat the round no longer sees is let go, and one that failed to join is 
   const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, log: () => {} });
   watches.sync([seat("p1", "sw2-peer-devin/swe-2-max"), seat("p2", "sw2-peer-devin/swe-2-max")]);
   await settle();
-  assert.equal(watches.has("p2"), false, "a join that failed is not held as followed");
+  assert.equal((watches.get("p2") !== undefined), false, "a join that failed is not held as followed");
   watches.sync([seat("p2", "sw2-peer-devin/swe-2-max")]);
-  assert.equal(watches.has("p1"), false);
+  assert.equal((watches.get("p1") !== undefined), false);
   assert.equal(timelines.get("p1")!.listeners.size, 0);
   assert.equal(broken.subscriptions, 2);
 });

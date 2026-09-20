@@ -41,7 +41,6 @@ export function flowView(
   seats: Map<string, SeatView>,
   now: number,
   open: ReadonlySet<string> = new Set(),
-  cap: number = LANE_CAP,
   supervises: ReadonlySet<string> = new Set(),
   seated: { id: string; role: string }[] = [],
 ): FlowView {
@@ -73,7 +72,7 @@ export function flowView(
   let moreLanes = 0;
   for (const lane of Object.values(ledger.lanes)) {
     if (lane.status !== "open") continue;
-    if (lanes.length >= cap) {
+    if (lanes.length >= LANE_CAP) {
       moreLanes += 1;
       continue;
     }

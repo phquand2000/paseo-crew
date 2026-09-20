@@ -58,7 +58,6 @@ export type HarnessSpec = {
     transports: McpTransport[];
     seed?: Record<string, unknown>;
     key?: string;
-    shape?: Partial<Record<McpTransport, unknown>>;
     clear?: { set?: Record<string, unknown>; remove?: string[]; setInEach?: Record<string, Record<string, unknown>> };
     rule?: string;
   };

@@ -137,7 +137,7 @@ test("composeSettings deletes an owned key the kit no longer sets", () => {
   assert.deepEqual(composeSettings({ a: 1, permissions: { deny: ["x"] } }, { b: 2 }, ["permissions"]), { a: 1, b: 2 });
 });
 
-test("a harness with TOML config files gets its layered settings and its MCP servers in its own shape", () => {
+test("a harness with TOML config files gets its layered settings and its MCP servers", () => {
   const base = makeKit();
   const put = (path: string, value: unknown) => {
     mkdirSync(dirname(join(base.dir, path)), { recursive: true });
@@ -155,7 +155,7 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
     settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml", ownedPaths: ["sandbox", "approval"] },
     models: [{ id: "m", label: "M" }],
     modes: [{ id: "default", label: "Default" }],
-    mcp: { file: "config.toml", delivery: "file", key: "mcp_servers", shape: { stdio: { command: "{command}", args: ["{...args}"] }, http: { url: "{url}" } }, transports: ["stdio", "http"] },
+    mcp: { file: "config.toml", delivery: "file", key: "mcp_servers", transports: ["stdio", "http"] },
     provider: {},
   });
   put("harness/toml/settings.toml", 'sandbox = "workspace-write"\n');
@@ -171,8 +171,9 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   assert.equal(config.sandbox, "workspace-write");
   assert.equal(config.approval, "never");
   // The seat is told which role it is and which tool set it holds, so two roles can share one set.
-  assert.deepEqual(config.mcp_servers.team, { command: "/bin/node", args: [join(kit.dir, "mcp", "team.mjs"), "peer", "peer", "/spool"] });
-  assert.deepEqual(config.mcp_servers.docs, { url: "https://docs.example/mcp" });
+  assert.equal(config.mcp_servers.team.command, "/bin/node");
+  assert.deepEqual(config.mcp_servers.team.args, [join(kit.dir, "mcp", "team.mjs"), "peer", "peer", "/spool"]);
+  assert.equal(config.mcp_servers.docs.url, "https://docs.example/mcp");
   assert.deepEqual(materialize(kit, team, "peer", home, project, servers), []);
 });
 
@@ -266,7 +267,9 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   assert.equal(config.approval_policy, "never");
   assert.equal(config.sandbox_mode, "workspace-write");
   assert.equal(config.sandbox_workspace_write.network_access, true, "the grant is added to the table, not put in its place");
-  assert.deepEqual(config.sandbox_workspace_write.writable_roots, stateWrites(kit, team, team.roles.lead!.role, project.state));
+  // Named, not computed: comparing against `stateWrites` itself made the assertion true for any
+  // answer that function gave, including none at all.
+  assert.deepEqual(config.sandbox_workspace_write.writable_roots, [join(project.state, "docs")]);
   assert.equal(config.model_catalog_json, join(dir, "catalog.json"));
   const catalog = JSON.parse(readFileSync(config.model_catalog_json, "utf-8"));
   assert.deepEqual(catalog.models, [{ slug: "a", multi_agent_version: null }, { slug: "b", multi_agent_version: null }]);

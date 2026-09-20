@@ -85,7 +85,7 @@ type Calls = {
   paths: Call<{ path?: string }, Folders | { error: string }>;
 };
 
-const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+export const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 export function useSeatworks(project?: string) {
   const bound = {
@@ -462,14 +462,6 @@ export function keptRoles(narrowed: string[] | undefined, reachable: string[]): 
 }
 
 /**
- * Forget a server this layer added, rather than marking it removed.
- *
- * A template from the kit has to stay on record as removed or the kit would switch it back on. One the
- * owner pasted has no template behind it: marking it left the whole entry on disk — its url and its
- * `Authorization` header — with no tab, no switch and no way back, under a screen that had just said
- * removing it drops it.
- */
-/**
  * The agent in force for a role, nearest layer first: a draft the owner is filling in, then the
  * project's settings, then the machine's, then the kit's default.
  *
@@ -523,6 +515,10 @@ export function setAttention(values: Layer, choice: AttentionChoice): Layer {
   return { ...values, attention: { ...values.attention, ...choice } };
 }
 
+export function setFlow(values: Layer, choice: { live?: boolean; everySeconds?: number }): Layer {
+  return { ...values, flow: { ...values.flow, ...choice } };
+}
+
 /**
  * Write, keep or forget the sensor's key.
  *
@@ -538,6 +534,14 @@ export function setSensorKey(values: Layer, key: string | null): Layer {
   return next;
 }
 
+/**
+ * Forget a server this layer added, rather than marking it removed.
+ *
+ * A template from the kit has to stay on record as removed or the kit would switch it back on. One the
+ * owner pasted has no template behind it: marking it left the whole entry on disk — its url and its
+ * `Authorization` header — with no tab, no switch and no way back, under a screen that had just said
+ * removing it drops it.
+ */
 export function dropMcp(values: Layer, id: string): Layer {
   return prune(values, "mcp", id, {});
 }
@@ -550,7 +554,6 @@ export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
   else delete entry.settings;
   return prune(values, "mcp", id, entry);
 }
-
 
 /**
  * Whether a collapsed lane may show its task counts in place of its Lead.

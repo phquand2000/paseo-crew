@@ -29,13 +29,12 @@ export type Incident = {
   held?: Held;
   label?: "useful" | "noise" | "unknown";
   note?: string;
-  ackedBy?: string;
   closed?: number;
 };
 
 export type Incidents = { next: number; items: Record<string, Incident> };
 
-export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "ackedBy" | "closed" | "later" | "sensor">;
+export type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "closed" | "later" | "sensor">;
 
 export const DAY_MS = 24 * 3_600_000;
 
@@ -112,9 +111,12 @@ export function closeSeat(incidents: Incidents, seat: string, now: number): stri
   return closed;
 }
 
-export function forget(incidents: Incidents, keep = 500): void {
+/** How many settled incidents stay on the book, so the record a mark is read against outlives the turn. */
+const KEEP = 500;
+
+export function forget(incidents: Incidents): void {
   const done = Object.values(incidents.items)
     .filter((item) => !item.open)
     .sort((a, b) => (a.closed ?? a.last) - (b.closed ?? b.last));
-  for (const item of done.slice(0, Math.max(0, done.length - keep))) delete incidents.items[item.id];
+  for (const item of done.slice(0, Math.max(0, done.length - KEEP))) delete incidents.items[item.id];
 }

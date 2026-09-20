@@ -30,7 +30,6 @@ export type Lane = {
   status: LaneStatus;
   restoring?: Restoring;
   openedAt: number;
-  closedAt?: number;
   tasks: number;
 };
 
@@ -185,7 +184,7 @@ export function nextLaneId(ledger: Ledger): string {
   return `L${ledger.seq.lane}`;
 }
 
-export function nextTaskId(ledger: Ledger, lane: Lane, kind: Task["kind"]): string {
+export function nextTaskId(lane: Lane, kind: Task["kind"]): string {
   lane.tasks += 1;
   return `${lane.id}-${kind === "review" ? "R" : "T"}${lane.tasks}`;
 }

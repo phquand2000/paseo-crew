@@ -60,7 +60,6 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.projects.list",
     "seatworks.projects.remove",
     "seatworks.settings.read",
-    "seatworks.settings.reset",
     "seatworks.settings.write",
     "seatworks.status.read",
     "seatworks.team.read",
@@ -374,7 +373,7 @@ test("a settings file that will not parse is reported without quoting what it ho
   writeFileSync(file, "{}");
 });
 
-test("the word that stands for the key is never itself written, and a reset keeps a key it can never show again", async () => {
+test("the word that stands for the key is never itself written, and a refused or stale save leaves it where it was", async () => {
   const { call } = served();
   const file = join(HOME, ".local/share/seatworks-v2/settings.json");
   const onDisk = () => JSON.parse(readFileSync(file, "utf8")) as { sensor?: { key?: string }; rules?: string };
@@ -389,12 +388,6 @@ test("the word that stands for the key is never itself written, and a reset keep
   assert.equal((await call("seatworks.settings.write", { revision: set.revision, values: { ...set.values, roles: { supervisor: { harness: "devin" } } } })).status, "invalid", "a refused save");
   assert.equal((await call("seatworks.settings.write", { revision: empty.revision, values: { ...set.values, rules: "stale" } })).status, "conflict", "and a stale one");
   assert.equal(onDisk().sensor?.key, "sk-or-secret", "leave the key where it was");
-
-  const reset = await call("seatworks.settings.reset", { revision: (await call("seatworks.settings.read")).revision });
-  assert.equal(reset.status, "saved");
-  assert.equal(onDisk().rules, undefined, "a reset puts the settings back");
-  assert.equal(onDisk().sensor?.key, "sk-or-secret", "and leaves the credential the owner typed once");
-  assert.deepEqual(reset.values.sensor, { key: KEPT }, "still without handing it back");
 
   const last = await call("seatworks.settings.read");
   const { sensor: _gone, ...without } = last.values as { sensor?: unknown };
