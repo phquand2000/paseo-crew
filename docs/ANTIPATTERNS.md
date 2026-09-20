@@ -11,12 +11,12 @@ examples are only on the rules that cannot be stated in one sentence.
 | | Meaning |
 |---|---|
 | **caught** | A code fact or a sensor question fires on it today. |
-| **askable** | A question is written for it but carries no threshold, so it collects and acts on nothing. |
+| **askable** | A question exists with no threshold, so it collects answers and acts on none. |
 | **desk** | In the ledger, across tasks, rounds or lanes, and nothing reads it for this yet. |
 | **outside** | This plugin cannot see it, and saying why is the useful part. |
 
-Of the thirty-five rules below, **twelve are caught**, one more in part and one in half its cases.
-One is written as a question that is not yet trusted to act. Ten are desk-shaped: in the ledger,
+Of the thirty-five rules below, **ten are caught**, one more in part and one in half its cases. One
+is written as a question that is not yet trusted to act on. Twelve are desk-shaped: in the ledger,
 with nothing reading them for this. Ten are outside what this plugin can observe at all, and for
 those the entry says why, because that is the part worth knowing.
 
@@ -27,17 +27,18 @@ window: a task sent back again and again, a lane patching several tasks at once,
 with nothing accepted, a review told to report only what it is certain of, a brief that writes the
 work out instead of setting an outcome. And, only with a key, by putting the turn to the sensor: a
 missing mechanism being stood in for, a wrapper where the thing itself should have changed,
-production code edited to make a check pass, a test that only proves the old behaviour is gone, a
-change far larger than what was asked, agreement with no check behind it, and a goal nobody could
-say was met.
+production code edited to make a check pass, a test that only proves the old behaviour is gone, and
+agreement that arrived with no check behind it.
 
 All three go through one incident book, so the Supervisor reads, marks and calibrates them the one
 way, and none of them ever reaches the seat it is about.
 
-A sensor question costs money on every reading and its threshold is a guess until it has been
-measured against what the Supervisor marked. That is what `calibrate` is for, and it is why the
-watch ships quiet: with `attention.watch` off, everything here is recorded and listed and none of it
-is mailed.
+Two things are worth knowing before trusting any of it. A sensor question costs money on every
+reading and its threshold is a guess until it has been measured against what the Supervisor marked,
+which is what `calibrate` is for. And a condition read from the ledger stands still — a task sent
+back three times stays sent back three times — so it is raised once and then only when the record
+says something new; the book itself is that memory, so a restart does not raise it again, and a
+day's budget or a watch that is off does not lose it.
 
 Three facts explain most of the blindness, and each is a design choice rather than a defect:
 
@@ -132,9 +133,10 @@ The Peer did not check; it deferred. This is why the Supervisor's prompt forbids
 carries its own answer, and why "Are you sure?" is banned outright.
 **Signs.** "you're right", "good catch", "I'll change it" with no command or read between the
 challenge and the change.
-**Here.** *caught* — `agreed_without_checking` asks whether a doubt in the instruction was followed
-by a change with no read, command or check between the two. That order is exactly what a window
-shows.
+**Here.** *caught* — `agreed_without_checking` asks whether `prompt` doubts or corrects the work and
+the steps that follow change course with no read, command or check between. The doubt is in `prompt`
+rather than in `recent` because a delivered letter restarts the window and is what the next
+instruction is.
 
 ### Reflexive contrarianism
 **Rule.** The opposite failure. A reviewer that never approves is as useless as one that always
@@ -217,9 +219,11 @@ is where the plugin says how.
 does not earn an abstraction.
 **Signs.** "to be safe", "in case", "future-proof", a new interface with one implementation, an
 option nobody asked for.
-**Here.** *caught* — `out_of_proportion`, read against `goal` and `prompt` in the same state.
-`Lane.appetite` — "what the outcome is worth, as a budget" — is still recorded, printed once and
-read by no code.
+**Here.** *desk* — every edit row carries `+N -M` and the goal is in the same state, so proportion
+is judgable; but a question for it asks what `goal_drift` already asks, and would open a second
+incident for the same edits. `Lane.appetite` — "what the outcome is worth, as a budget" — is
+recorded, printed once and read by no code, and that is the number that would make this a judgement
+rather than a guess.
 
 ### False-positive intolerance
 **Rule.** Telling a reviewer to report only what it is certain of buys precision with recall, and
@@ -298,9 +302,10 @@ this is what notices when a brief ignored it.
 can either, and it will burn a budget producing plausible work.
 **Signs.** "improve", "clean up", "make it better", "handle edge cases", a goal with no noun a test
 could name.
-**Here.** *caught* — `goal_unfalsifiable`, which asks whether `goal` names anything observable at
-all. `goal_drift` asks whether the work strays from the goal; this asks whether the goal can be
-strayed from.
+**Here.** *desk* — a goal is fixed for the task's whole life, so a sensor question about it is a
+standing condition on a path that has no way to say a standing thing once: marked, the next reading
+would open it again. It belongs where the other standing conditions are read, in the ledger, and
+judging "observable" is not something a regular expression can do — so it waits.
 
 ### Ceremony attention dilution
 **Rule.** Every step in a checklist spends attention that the problem needed. Count what the process

@@ -9,12 +9,18 @@ import type { Fact } from "./facts.ts";
  * invisible there by construction. They are in the ledger, which the patrol already holds, and they
  * are the shapes `docs/ANTIPATTERNS.md` calls desk-shaped.
  *
- * Every fact here is a standing condition rather than an episode: a task sent back three times stays
- * sent back three times. So each carries a `sign` that changes only when the evidence does, and the
- * patrol reports one only when its sign is new. Without that, a condition nobody can undo would open
- * an incident again on every round after it was marked.
+ * One fact of a kind per lane, never one per task. The incident book keys an incident by the seat and
+ * the kind, and the seat here is the lane's Lead, so a second task of the same kind would not open a
+ * second incident: it would land as an afterword on the first, which is only read by someone who
+ * calls `incidents`. So each fact names every task it counted, and its `quote` is the whole of what
+ * it saw.
+ *
+ * That quote is also the memory. Every fact here is a standing condition rather than an episode — a
+ * task sent back three times stays sent back three times — so the patrol asks the incident book
+ * whether this exact sentence was ever recorded for this seat and kind before raising it. Anything
+ * else re-opens a marked incident on the next round, and poisons what the marks are measured against.
  */
-export type Seen = { seat: string; fact: Fact; sign: string };
+export type Seen = { seat: string; fact: Fact };
 
 export type Reading = {
   /** How many sendings-back are a loop rather than a correction. */
@@ -23,15 +29,24 @@ export type Reading = {
   reviewsAt: number;
 };
 
-/** A reviewer told to withhold what it is not sure of reports less than it found. */
-const CERTAIN = /\b(only|just)\b[^.]{0,40}\b(certain|sure|confident|definite|confirmed|proven)\b|\bno\s+(speculation|guess\w*|maybe\w*|hypothes\w+)\b|\bhigh[- ]confidence\s+only\b|\bdo\s*n[o']?t\s+report\b[^.]{0,30}\bunless\b/i;
+/**
+ * A reviewer told to withhold what it is not sure of reports less than it found.
+ *
+ * Only a bar on *reporting*. "Review only the merge path" and "make sure the lock is released" narrow
+ * the scope and ask for more rigour, not less, and an earlier version of this read both as timidity.
+ */
+const CERTAIN =
+  /\b(?:report|raise|flag|list|mention|include)\b[^.]{0,20}\bonly\b[^.]{0,40}\b(?:certain|sure|confident|proven|prove|confirmed|verified)\b|\bonly\b[^.]{0,20}\b(?:report|raise|flag|list|mention)\b[^.]{0,40}\b(?:certain|sure|confident|proven|prove|confirmed|verified)\b|\bno\s+(?:speculation|speculative|guesswork|guesses|hypotheses|maybes)\b|\bhigh[- ]confidence\b[^.]{0,20}\bonly\b|\bonly\b[^.]{0,20}\bhigh[- ]confidence\b|\b(?:do\s*n[o']?t|never)\s+(?:report|raise|flag)\b[^.]{0,30}\bunless\b/i;
 
 /** A brief that writes the code in prose leaves the worker a typist and still has not tested the design. */
-const FENCED = /```/;
-const STEPS = /^\s*(?:step\s*)?[1-5][.)]\s+\S/im;
-const THEN_DO = /\b(?:then|next|after that)\b[^.]{0,30}\b(?:create|add|write|rename|move|delete)\b/i;
+const CODE_FENCE = /```[\s\S]*?(?:^|\n)\s*(?:import|from|export|const|let|var|def|class|function|fn|public|private|#include|package)\b/;
+/** A numbered step that tells the seat what to write, as against a numbered acceptance behaviour. */
+const BUILD_STEP = /^\s*(?:step\s*)?[1-9][.)]\s*(?:then\s+)?(?:create|add|write|edit|update|rename|move|delete|remove|implement|refactor|extract|install|register|wire|import|export)\b/im;
+const THEN_BUILD = /\b(?:then|next|after that)\b[^.]{0,30}\b(?:create|add|write|edit|rename|move|delete|implement)\b/i;
+const FILE_AND_MEMBER = /\b[\w-]+(?:\/[\w-]+)*\.[a-z]{1,4}\b[^.]{0,40}\b(?:function|method|class|const|export|field|column|endpoint)\b/i;
 
-const FILE_AND_MEMBER = /\b[\w./-]+\.[a-z]{1,4}\b[^.]{0,40}\b(?:function|method|class|const|export|field|column|endpoint)\b/i;
+/** Nothing caps a brief, and these run for every task on every round. */
+const READ_AT_MOST = 4000;
 
 const short = (text: string, limit = 120): string => {
   const flat = text.replace(/\s+/g, " ").trim();
@@ -39,14 +54,16 @@ const short = (text: string, limit = 120): string => {
 };
 
 const reworksOf = (task: Task): number => task.reworks ?? 0;
+/** A task that was accepted or cut has stopped going round, whatever it took to get there. */
+const settled = (task: Task): boolean => task.status === "merged" || task.status === "cut";
 
 /** Whether a brief hands over an answer to be typed in rather than an outcome to be reached. */
 export function prewritten(text: string): boolean {
-  if (!text.trim()) return false;
-  // A brief carrying code has handed the answer over whatever else it says.
-  if (FENCED.test(text)) return true;
-  const marks = [STEPS, THEN_DO].filter((pattern) => pattern.test(text)).length;
-  return marks >= 2 || (marks >= 1 && FILE_AND_MEMBER.test(text));
+  const read = text.slice(0, READ_AT_MOST);
+  if (!read.trim()) return false;
+  if (CODE_FENCE.test(read)) return true;
+  if (!BUILD_STEP.test(read)) return false;
+  return THEN_BUILD.test(read) || FILE_AND_MEMBER.test(read);
 }
 
 export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
@@ -56,39 +73,40 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
     if (lane.status !== "open" || !lane.lead) continue;
     const lead = lane.lead;
     const here = tasks.filter((task) => task.lane === lane.id);
-    const at = (kind: string, sign: string, quote: string) => seen.push({ seat: lead, fact: { kind, level: "attend", quote }, sign });
+    const at = (kind: string, quote: string) => seen.push({ seat: lead, fact: { kind, level: "attend", quote } });
 
     // One task going round: each sending-back is a local fix to what the last one did not settle.
-    for (const task of here.filter((task) => reworksOf(task) >= reading.reworksAt)) {
-      at("rework-loop", `${task.id}:${reworksOf(task)}`, `${task.id} (${task.title}) has been sent back ${reworksOf(task)} times; the last outcome was ${task.handback?.outcome ?? "none recorded"}`);
+    const looping = here.filter((task) => !settled(task) && reworksOf(task) >= reading.reworksAt);
+    if (looping.length > 0) {
+      at("rework-loop", looping.map((task) => `${task.id} (${task.title}) has been sent back ${reworksOf(task)} times, last outcome ${task.handback?.outcome ?? "none recorded"}`).join("; "));
     }
 
     // The lane going round: several tasks each sent back, which is one missing foundation being
     // patched a task at a time rather than one task being got right.
-    const patched = here.filter((task) => reworksOf(task) > 0);
+    const patched = here.filter((task) => !settled(task) && reworksOf(task) > 0);
     const sendings = patched.reduce((total, task) => total + reworksOf(task), 0);
     if (patched.length >= 2 && sendings >= reading.reworksAt) {
-      at("patched-not-fixed", `${patched.length}:${sendings}`, `${sendings} sendings-back across ${patched.length} tasks in this lane: ${patched.map((task) => `${task.id} ×${reworksOf(task)}`).join(", ")}`);
+      at("patched-not-fixed", `${sendings} sendings-back across ${patched.length} tasks still open in this lane: ${patched.map((task) => `${task.id} ×${reworksOf(task)}`).join(", ")}`);
     }
 
     // Reviews piling up on one task with nothing accepted: ten symptoms and no convergence.
     const reviews = new Map<string, Task[]>();
     for (const task of here) if (task.kind === "review" && task.of) reviews.set(task.of, [...(reviews.get(task.of) ?? []), task]);
-    for (const [target, rounds] of reviews) {
-      const settled = ledger.tasks[target]?.status;
-      if (rounds.length < reading.reviewsAt || settled === "merged" || settled === "cut") continue;
-      at("reviews-unconverged", `${target}:${rounds.length}`, `${rounds.length} reviews of ${target} (${ledger.tasks[target]?.title ?? "gone"}), which is ${settled ?? "gone"}: ${rounds.map((task) => task.handback?.outcome ?? task.status).join(", ")}`);
+    const unconverged = [...reviews].filter(([target, rounds]) => rounds.length >= reading.reviewsAt && !(ledger.tasks[target] && settled(ledger.tasks[target]!)));
+    if (unconverged.length > 0) {
+      at("reviews-unconverged", unconverged.map(([target, rounds]) => `${rounds.length} reviews of ${target} (${ledger.tasks[target]?.title ?? "gone"}), which is ${ledger.tasks[target]?.status ?? "gone"}: ${rounds.map((task) => task.handback?.outcome ?? task.status).join(", ")}`).join("; "));
     }
 
-    for (const task of here) {
-      // A review asked for certainty reports less than it found, and what it drops is real.
-      if (task.kind === "review" && CERTAIN.test(task.goal)) {
-        at("certainty-only", `${task.id}`, `${task.id} asks its reviewer for only what it is sure of: ${short(task.goal)}`);
-      }
-      // A brief that carries the answer gets agreement back, not engineering.
-      if (task.kind === "code" && prewritten(`${task.goal}\n${task.context ?? ""}`)) {
-        at("brief-prewritten", `${task.id}`, `${task.id}'s brief writes the work out rather than setting an outcome: ${short(task.context?.trim() || task.goal)}`);
-      }
+    // A review asked for certainty reports less than it found, and what it drops is real.
+    const timid = here.filter((task) => task.kind === "review" && CERTAIN.test(task.goal.slice(0, READ_AT_MOST)));
+    if (timid.length > 0) {
+      at("certainty-only", timid.map((task) => `${task.id} asks its reviewer for only what it is sure of: ${short(task.goal)}`).join("; "));
+    }
+
+    // A brief that carries the answer gets agreement back, not engineering.
+    const typed = here.filter((task) => task.kind === "code" && !settled(task) && prewritten(`${task.goal}\n${task.context ?? ""}`));
+    if (typed.length > 0) {
+      at("brief-prewritten", typed.map((task) => `${task.id}'s brief writes the work out rather than setting an outcome: ${short(task.context?.trim() || task.goal)}`).join("; "));
     }
   }
   return seen;

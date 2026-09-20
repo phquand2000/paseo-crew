@@ -56,7 +56,7 @@ test("a task sent back again and again is a loop, and the lane patching several 
   const [seen] = deskFacts(looping, READING);
   assert.equal(seen!.fact.kind, "rework-loop");
   assert.equal(seen!.seat, "lead-1", "the Lead decides to send it back, so the Lead is who this is about");
-  assert.match(seen!.fact.quote, /L1-T1 \(Apply discount\) has been sent back 3 times; the last outcome was partial/);
+  assert.match(seen!.fact.quote, /L1-T1 \(Apply discount\) has been sent back 3 times, last outcome partial/);
 
   // The same three sendings spread over different tasks is the other shape: one hole, patched a task
   // at a time. It is not the same finding and must not be reported as one.
@@ -101,9 +101,46 @@ test("nothing is read from a lane with no Lead to be about, or from a lane that 
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 5 })], { status: "closed" })), []);
 });
 
-test("what changes is the sign, so a condition that only holds is reported once", () => {
+test("the quote is the whole of what was counted, so the book can tell new evidence from the same evidence", () => {
   const held = ledgerOf([task({ id: "L1-T1", reworks: 3 })]);
-  assert.equal(deskFacts(held, READING)[0]!.sign, deskFacts(held, READING)[0]!.sign, "reading the same ledger twice says the same thing");
+  const first = deskFacts(held, READING)[0]!.fact.quote;
+  assert.equal(deskFacts(held, READING)[0]!.fact.quote, first, "reading the same ledger twice says the same words");
   held.tasks["L1-T1"]!.reworks = 4;
-  assert.notEqual(deskFacts(held, READING)[0]!.sign, "L1-T1:3", "and a fourth sending-back is new evidence");
+  assert.notEqual(deskFacts(held, READING)[0]!.fact.quote, first, "a fourth sending-back is new evidence");
+
+  // One fact of a kind per lane, not one per task: the book keys an incident by seat and kind, and
+  // the seat is the Lead, so a second fact of the same kind would land as an afterword on the first
+  // and reach nobody who was not already reading `incidents`.
+  const two = ledgerOf([task({ id: "L1-T1", reworks: 3 }), task({ id: "L1-T2", reworks: 3 })]);
+  const loops = deskFacts(two, READING).filter((seen) => seen.fact.kind === "rework-loop");
+  assert.equal(loops.length, 1);
+  assert.match(loops[0]!.fact.quote, /L1-T1 .*sent back 3 times.*; L1-T2 .*sent back 3 times/);
+});
+
+test("a task that was accepted or cut has stopped going round, whatever it took to get there", () => {
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "merged" })])), []);
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "cut" })])), []);
+  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 2, status: "merged" }), task({ id: "L1-T2", reworks: 2 })])), [], "and does not count toward the lane's total");
+});
+
+test("a brief is not read as prewritten for stating acceptance, narrowing scope or quoting a failure", () => {
+  // Written exactly as LEAD.md asks: acceptance as behaviours, context carrying settled facts.
+  const asked = ledgerOf([
+    task({
+      id: "L1-T1",
+      context: "Acceptance behaviours:\n1. A 10% code lowers the total.\n2. The receipt shows the rate.\nThe rate table is in src/pricing.ts; the export map there is settled, so do not widen it.",
+    }),
+  ]);
+  assert.deepEqual(kinds(asked), []);
+  assert.equal(prewritten("It currently fails with:\n```\nAssertionError: 1 !== 2 at test/pricing.test.ts:14\n```\nFind out why."), false, "a quoted failure is evidence, not an answer");
+  assert.equal(prewritten("Here is the shape:\n```ts\nexport function applyCode() {}\n```"), true, "code in a brief is the answer, typed out");
+});
+
+test("a review focus is not read as timid for narrowing scope or asking for rigour", () => {
+  const focus = (goal: string) => kinds(ledgerOf([task({ id: "L1-R1", kind: "review", of: "L1-T1", goal })]));
+  assert.deepEqual(focus("Review only the merge path, and make sure the lock is released on every branch."), [], "narrowing the scope asks for more rigour, not less");
+  assert.deepEqual(focus("Read just the new module; I am not sure the rounding is right."), [], "the Lead's own doubt is not an instruction to withhold");
+  assert.deepEqual(focus("Report only what you can prove."), ["certainty-only"]);
+  assert.deepEqual(focus("Nothing speculative; list only high-confidence findings."), ["certainty-only"]);
+  assert.deepEqual(focus("Do not report anything unless you are certain of it."), ["certainty-only"]);
 });

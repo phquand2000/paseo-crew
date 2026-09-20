@@ -433,12 +433,16 @@ in `runtime/watch/history.ts`: `rework-loop` (one task past `attention.reworksAt
 review's focus asking for only what it is sure of) and `brief-prewritten` (a code task's brief
 carrying a code fence, or steps with a file and a member name).
 
-The seat named is the lane's Lead, because each is something a Lead decides. These are standing
-conditions rather than episodes — three sendings-back stay three — so each carries a signature and
-the patrol reports one only when that signature changes; otherwise a marked incident would be raised
-again on the next round. They go through the same incident book as what the watch reads from a
-timeline, so `incidents`, `ack` and `calibrate` treat them alike. `docs/ANTIPATTERNS.md` says which
-of the shapes a team goes wrong in each of these answers.
+The seat named is the lane's Lead, because each is something a Lead decides, and a lane whose Lead
+has gone raises nothing: an incident about a seat that is not there is one nothing would ever close.
+One fact of a kind per lane, never one per task, because the book keys an incident by seat and kind
+and a second one would land as an afterword on the first. These are standing conditions rather than
+episodes — three sendings-back stay three — so the quote is the whole of what was counted and the
+patrol asks the book whether it has said those words before; a condition already on the book is
+sighted again, so a day's budget or a watch that is off does not lose it, and one already marked is
+left alone until the record says something new. They go through the same incident book as what the
+watch reads from a timeline, so `incidents`, `ack` and `calibrate` treat them alike.
+`docs/ANTIPATTERNS.md` says which of the shapes a team goes wrong in each of these answers.
 
 ### The sensor
 

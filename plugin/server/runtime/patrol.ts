@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { type Kit, can, roleNamed, seatOf } from "../catalog/kit.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import type { Desk } from "../desk/desk.ts";
+import { loadIncidents, openFor, saidBefore } from "../desk/incidents.ts";
 import { type Ask, type Ledger, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
@@ -31,9 +32,6 @@ export class Patrol {
   private readonly deps: PatrolDeps;
   private readonly idleFlag = new Map<string, string>();
   private readonly goneFlag = new Set<string>();
-  // What a lane's history last showed, so a standing condition is reported when it changes and not
-  // on every round for as long as it holds.
-  private readonly historyFlag = new Map<string, string>();
   private reaped = false;
   private round: Promise<void> | undefined;
 
@@ -122,12 +120,21 @@ export class Patrol {
    */
   private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const attention = this.deps.source.teamFor(project).attention;
-    for (const seen of deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt })) {
-      const key = `${project.slug}:${seen.seat}:${seen.fact.kind}`;
-      if (this.historyFlag.get(key) === seen.sign) continue;
-      this.historyFlag.set(key, seen.sign);
+    const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
+    if (found.length === 0) return;
+    const book = loadIncidents(project.state);
+    for (const seen of found) {
+      // A seat that has gone cannot be told anything and its incidents were closed when it went, so
+      // raising one about it leaves a sighting nothing will ever close.
       const seat = seats.get(seen.seat);
-      await this.deps.desk.notice(project, { id: seen.seat, provider: seat?.provider ?? "", title: seat?.title }, decide([seen.fact]));
+      if (!seat || seat.archivedAt) continue;
+      // Said before, and still on the book: sight it again, so what holds it back — the watch being
+      // off, or a day's budget spent — is weighed again with today's settings. Said before and
+      // settled: leave it. It cannot say anything new until the record does.
+      const open = openFor(book, seen.seat, seen.fact.kind);
+      if (!open && saidBefore(book, seen.seat, seen.fact.kind, seen.fact.quote)) continue;
+      if (open && open.quote === seen.fact.quote && open.told !== undefined) continue;
+      await this.deps.desk.notice(project, { id: seen.seat, provider: seat.provider, title: seat.title }, decide([seen.fact]));
     }
   }
 

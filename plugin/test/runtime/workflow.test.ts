@@ -1779,11 +1779,39 @@ test("a task the Lead keeps sending back is an incident about the Lead, raised o
   await h.tick();
   assert.deepEqual(Object.keys(incidentsOf(h.project.state)), ["I1", "I2"], "a fourth sending-back is something new to say");
 
-  await h.idle(lane.lead!);
-  assert.deepEqual(
-    h.agents.get(lane.lead!)!.sent.filter((text) => /INCIDENT|rework-loop|sent back 3 times/.test(text)),
-    [],
-    "nothing the watch concluded reaches the seat it is about",
-  );
+  h.runtime.dispose();
+});
+
+test("a standing condition held back while the watch is off is still there to tell when it is turned on", async () => {
+  // The shipped default: everything is recorded and nothing is mailed. A timeline fact survives that
+  // because the seat keeps acting and the watch sees it again; a lane's history never changes on its
+  // own, so if the patrol only ever looked once, turning the watch on would tell nobody anything.
+  const { h, sup, lane, peer } = await laneWithPeer("outbox-history-shadow.json");
+  for (const round of [1, 2, 3]) {
+    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
+    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  }
+  await h.tick();
+  await h.idle(sup);
+  assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => [item.kind, item.held]), [["rework-loop", "shadow"]]);
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+
+  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: { watch: true } }));
+  await h.tick();
+  await h.idle(sup);
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(rework-loop, attend\)/, "the same unchanged record is told once the owner turns it on");
+  assert.deepEqual(Object.keys(incidentsOf(h.project.state)), ["I1"], "and it is the incident already on the book, not a second one");
+  h.runtime.dispose();
+});
+
+test("a lane whose Lead has gone raises nothing about it, since nothing would ever close it", async () => {
+  const { h, lane, peer } = await laneWithPeer("outbox-history-gone.json", { attention: { watch: true } });
+  for (const round of [1, 2, 3]) {
+    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
+    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  }
+  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
+  await h.tick();
+  assert.deepEqual(Object.keys(incidentsOf(h.project.state)), [], "an incident about a seat that has gone is one nobody can close");
   h.runtime.dispose();
 });

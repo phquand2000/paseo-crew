@@ -330,20 +330,14 @@ test("a question that reads only what is empty is not asked, and not paid for", 
   assessor.moment(watch, true);
   await wait(20);
   // A question is held back only when everything it reads is blank, so one that also reads the
-  // instruction comes back as soon as there is one.
-  const goalOnly = Object.entries(shipped.questions)
-    .filter(([, question]) => (question.needs ?? []).length > 0 && question.needs!.every((field) => field === "goal"))
-    .map(([name]) => name);
-  assert.ok(goalOnly.length > 0, "some questions read nothing but the goal, and are worth nothing without one");
-  assert.deepEqual(
-    Object.keys(bodies[2]!.questions),
-    Object.keys(shipped.questions).filter((name) => !goalOnly.includes(name)),
-    "a turn that has ended brings back every question but the ones reading nothing except a goal this seat was never given",
-  );
+  // instruction comes back as soon as there is one, with or without a goal.
+  const thin = Object.keys(bodies[0]!.questions);
+  assert.ok(Object.keys(shipped.questions).length > thin.length, "a seat with neither an instruction nor a goal is asked less than everything");
+  assert.deepEqual(Object.keys(bodies[2]!.questions), Object.keys(shipped.questions), "a turn that has ended, with an instruction, brings every question back");
   goal = "Totals reflect the discount code";
   assessor.moment(watch, true);
   await wait(20);
-  assert.deepEqual(Object.keys(bodies[3]!.questions), Object.keys(shipped.questions), "and a seat with a goal is asked all of them");
+  assert.deepEqual(Object.keys(bodies[3]!.questions), Object.keys(shipped.questions), "and so does a seat that has a goal as well");
   assessor.dispose();
 });
 

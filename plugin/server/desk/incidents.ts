@@ -73,6 +73,18 @@ export function openFor(incidents: Incidents, seat: string, kind: string): Incid
   return Object.values(incidents.items).find((item) => item.open && item.seat === seat && item.kind === kind);
 }
 
+/**
+ * Whether this exact sentence was already recorded for this seat and kind, open or closed.
+ *
+ * The book is the memory for a standing condition — a task sent back three times stays sent back
+ * three times, so nothing about it will change to make the watch notice it again. Kept in the
+ * process instead, it would be lost on a restart and would re-open an incident the Supervisor had
+ * already marked; asked of the book, a condition is raised once and its next word is new evidence.
+ */
+export function saidBefore(incidents: Incidents, seat: string, kind: string, quote: string): boolean {
+  return Object.values(incidents.items).some((item) => item.seat === seat && item.kind === kind && (item.quote === quote || item.later === quote));
+}
+
 export function sight(incidents: Incidents, sighting: Sighting, now: number): { incident: Incident; opened: boolean } {
   const seen = openFor(incidents, sighting.seat, sighting.kind);
   if (seen) {
