@@ -9,6 +9,7 @@ import type { Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
 import { guidesDir, worktreeRoot } from "../core/paths.ts";
 import { flowView } from "../desk/flow.ts";
+import type { WatchView } from "../../shared/views.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
 import { type Project, gitRoot, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -162,6 +163,8 @@ export type ControlDeps = {
   seats: Seats;
   /** Mail the desk is still holding, so the owner's status page is the one the agents read. */
   held: () => { to: string; text: string; at: number }[];
+  /** What the watch is doing right now, which only the runtime following the seats can say. */
+  watch: (project: Project) => WatchView;
 };
 
 export class SettingsControl implements Control {
@@ -342,7 +345,7 @@ export class SettingsControl implements Control {
       .filter(({ seat, role }) => can(role, "supervise") && Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug)
       .sort((a, b) => Date.parse(b.seat.updatedAt) - Date.parse(a.seat.updatedAt))
       .map(({ seat, role }) => ({ id: seat.id, role: role!.role }));
-    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), supervises, seated);
+    const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), supervises, seated, this.deps.watch(project));
     return since && since === view.revision ? { unchanged: true, revision: view.revision } : view;
   }
 

@@ -1,9 +1,9 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView } from "../shared/views.ts";
+import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchTrouble, WatchView } from "../shared/views.ts";
 import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, pathsRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
-export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView };
+export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchTrouble, WatchView };
 
 export type Scalar = string | number | boolean;
 export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };

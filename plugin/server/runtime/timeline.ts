@@ -66,3 +66,36 @@ export function deniedCall(timeline: Timeline, refused = REFUSED): LastCall | un
   const what = typeof detail.command === "string" ? detail.command : typeof detail.filePath === "string" ? detail.filePath : "";
   return { what: [String(call.name ?? "tool"), what].filter(Boolean).join(": "), refused: denied };
 }
+
+/**
+ * What the harness refused to send: the model wrote a tool call whose input is not JSON, so nothing
+ * ran and the desk never heard of the call at all. Every other kind of trouble reaches somebody —
+ * a failed call is in the seat's own record, a refused one goes to its owner — but this one was only
+ * ever between the model and its CLI, and the plugin used to swallow it without a word.
+ *
+ * Claude Code names it twice in the one item: the input it could not read is kept under
+ * `__unparsedToolInput`, and the error handed back says so in words. Which of the two survives into
+ * a timeline row is the harness's business, so both are looked for — but only ever in what the
+ * harness was handed, never in `output`, which is the tool's own words and free to say anything.
+ */
+const UNPARSED = "__unparsedToolInput";
+const NOT_JSON = /InputValidationError[^"]*could not be parsed as JSON/;
+
+export type Malformed = { tool: string; quote: string };
+
+export function malformed(timeline: Timeline, limit = 300): Malformed[] {
+  const list = items(timeline);
+  // The turn that ended, not the session. Paseo hands this hook everything it has stored for the
+  // seat, so without the cut one bad call is found again at the end of every turn after it, and
+  // writes a line to `events.log` each time.
+  return list.slice(lastUserIndex(list) + 1).flatMap((item) => {
+    if (item.type !== "tool_call" || item.status !== "failed") return [];
+    // What the harness was handed, never what the tool wrote back: `output` is the tool's own words,
+    // and both of these are ordinary strings to print — the gate over a parser says the one, and a
+    // seat grepping this file says the other. Reading the whole detail called both of them malformed.
+    const sent = JSON.stringify((item.detail as { input?: unknown } | undefined)?.input ?? null);
+    const said = JSON.stringify(item.error ?? null).replace(/\\[nrt]/g, " ");
+    if (!sent.includes(UNPARSED) && !NOT_JSON.test(said)) return [];
+    return [{ tool: String(item.name ?? "tool"), quote: (NOT_JSON.test(said) ? said : sent).slice(0, limit) }];
+  });
+}

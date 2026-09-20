@@ -20,6 +20,11 @@ export class SeatWatch {
   turnId: string | null = null;
   startedAt = 0;
   reading: { turnId: string | null; answers: Record<string, number> } | undefined;
+  /** What a screen can say about this seat without asking the sensor anything: the tally so far. */
+  readings = 0;
+  spent = 0;
+  readAt = 0;
+  highest: { question: string; p: number } | undefined;
   private readonly durations: number[] = [];
   private readonly told = new Set<string>();
   private readonly recovery = new Recovery();
@@ -142,6 +147,8 @@ export type WatchDeps = {
   seats: Seats;
   context: (seat: WatchedSeat) => SeatContext | undefined;
   found: (watch: SeatWatch, facts: Fact[]) => void;
+  /** Whether the watch runs at all where this seat sits. Off is off: not a quieter watch, none. */
+  on?: (seat: WatchedSeat) => boolean;
   moment?: (watch: SeatWatch, urgent: boolean) => void;
   dropped?: (id: string) => void;
   log?: (line: string, error?: unknown) => void;
@@ -163,8 +170,17 @@ export class Watches {
     return this.followed.get(id)?.watch;
   }
 
+  all(): SeatWatch[] {
+    return [...this.followed.values()].map((entry) => entry.watch);
+  }
+
+  /** Watched by role, and switched on where it sits. Both, or the seat is not followed at all. */
+  private on(seat: WatchedSeat): boolean {
+    return this.watched(seat.provider) && (this.deps.on?.(seat) ?? true);
+  }
+
   follow(seat: WatchedSeat): void {
-    if (this.followed.has(seat.id) || !this.watched(seat.provider)) return;
+    if (this.followed.has(seat.id) || !this.on(seat)) return;
     const watch = new SeatWatch(seat, () => this.deps.context(seat));
     let stream: Stream;
     try {
@@ -198,7 +214,9 @@ export class Watches {
     const ids = new Set<string>();
     for (const seat of live) {
       if (seat.archivedAt) continue;
-      ids.add(seat.id);
+      // Switched off since the last round, this seat is let go below rather than kept. The settings
+      // are read every round, so the switch takes hold within one of them and needs no reload.
+      if (this.on(seat)) ids.add(seat.id);
       this.follow(seat);
     }
     for (const id of [...this.followed.keys()]) if (!ids.has(id)) this.drop(id);

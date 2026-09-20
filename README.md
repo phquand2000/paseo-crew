@@ -84,8 +84,8 @@ destructive command, the same failure attacked over and over, a test that lost i
 hand-back that never ran the gate — and it reads each lane's own record for the shapes no single
 turn can show: a task sent back again and again, a lane patching several tasks at once, reviews
 piling up with nothing accepted, a review told to report only what it is certain of, a brief that
-writes the work out instead of setting an outcome. With an OpenRouter key it can also put the steps
-of a turn to a sensor for a second opinion.
+writes the work out instead of setting an outcome. It also puts the steps of a turn to a sensor,
+which is a model outside the seat, for a second opinion.
 
 Each of those becomes an **incident**. A fact the code read raises one on its own; the sensor can
 raise one of its own, back one the code raised, or hold that one back when it disagrees. The
@@ -93,12 +93,17 @@ Supervisor lists them with `incidents`, looks at the agent's own record, and mar
 `noise` or `unknown` with `ack`. `useful` and `noise` are what the thresholds are tuned from;
 `unknown` only closes the incident. Nothing the watch concludes ever reaches the seat it watched.
 
-Out of the box the watch is quiet: incidents are recorded and listed, and none is mailed. Both
-controls are on the panel's **Team** tab, under **Watch**. *Tell the Supervisor* is the switch, on
-Machine defaults or one project. The key is kept on the machine and used for every project, so it is
-on Machine defaults only; the panel never reads a saved key back, it only says one is set, and
-saving anything else leaves it alone. Either can be hand-written instead — the next patrol round
-picks up the file with no reload:
+**An OpenRouter key is the switch.** With one the watch runs; without one it does not run at all —
+no seat is followed, no turn is read, and no lane's record is gone through. It is not a quieter watch
+that reads turns in code alone. The key is on the panel's **Team** tab, under **Watch**, on Machine
+defaults; taking it away lets the seats go on the next patrol round, with no reload.
+
+Whether it speaks is a second, separate control. Out of the box a running watch is quiet: incidents
+are recorded and listed, and none is mailed. *Tell the Supervisor* is that control, on Machine
+defaults or one project. The key is kept on the machine and used for every project, so it is on
+Machine defaults only; the panel never reads a saved key back, it only says one is set, and saving
+anything else leaves it alone. Either can be hand-written instead — the next patrol round picks up
+the file with no reload:
 
 ```json
 { "attention": { "watch": true }, "sensor": { "key": "sk-or-…" } }
@@ -107,8 +112,10 @@ picks up the file with no reload:
 A key alone starts paid calls: one per watched seat five seconds after it goes quiet, at least one
 every thirty seconds while it works, and one at once when a turn ends, a call or the gate fails,
 something irreversible is seen, or a permission is asked — which is how you collect a record to
-calibrate against before letting the watch speak. Whether the sensor is answering shows up only in that project's
-`events.log`, as `sensor.off` or `sensor.degraded`. Once there is a record,
+calibrate against before letting the watch speak. What it is doing while it does it — which seats it
+follows, how many readings each has cost, how high any question has read, and any call that never
+reached the desk — is on the project's **Flow** tab. A sensor that stops answering is on that tab
+too, and in the project's `events.log` as `sensor.degraded`. Once there is a record,
 `cd plugin && node bin/calibrate.ts <project>` reports how well each of the sensor's questions
 separated what you marked useful from what you marked noise.
 
@@ -157,7 +164,7 @@ Everything the desk keeps lives outside your repository, under `~/.local/share/s
 settings, the ledger, the letters still waiting, and one folder per project.
 
 The panel's other tabs are **Team** (the agent for each role, its model and thinking level where the
-agent offers them, and the watch), **Flow** (lanes, tasks and open questions, live) and **MCP**
+agent offers them, and the watch), **Flow** (lanes, tasks, open questions and what the watch is doing, live) and **MCP**
 (optional servers such as a JetBrains IDE index, code search and Context7, switched on per role).
 Machine defaults open the same four tabs.
 

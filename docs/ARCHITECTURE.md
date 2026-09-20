@@ -384,9 +384,17 @@ is read as having started 30 minutes ago.
 
 ![What the watch sees](images/watch.svg)
 
+The watch has one switch, and it is the sensor key. With a key it runs; with none it does not run at
+all, and that is the whole of the difference: no seat is followed, no turn is read, and `deskFacts`
+is not asked what a lane's record shows either. There is no second mode that reads turns in code
+alone — that was two behaviours wearing one name, and a project sat in the quieter one for as long as
+nobody noticed the key was missing. `Runtime.watching` answers the question, `Watches.on` gates
+following on it, and `Patrol.history` gates the ledger half on it; the settings are read every round,
+so taking the key away lets the seats go within one round and needs no reload.
+
 Every live seat whose role can be `watched` — the preset gives it to Lead and Peer, never to a
 Reviewer — is followed through one timeline subscription, opened when the seat is created or first
-seen by the patrol, and closed when it is archived.
+seen by the patrol, and closed when it is archived or the watch is switched off.
 
 ### The stream
 
@@ -496,9 +504,10 @@ A `sensor.json` the loader cannot make sense of — an unknown field, a url that
 threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact
 that is not attention-level — fails the plugin's load with the problem named.
 
-A sensor that will not answer is not an incident: 429 and 5xx are retried, and a failure is written
-as `sensor.degraded` at most once a minute. With no key at all, one `sensor.off` line is written per
-project and nothing is ever asked.
+A sensor that will not answer is not an incident and not the switch either: 429 and 5xx are retried,
+and a failure is written as `sensor.degraded` at most once a minute while the watch keeps reading
+turns in code. A key that stops working is a fault to fix, not a mode to sit in, so it is shown on
+the Flow tab rather than only logged.
 
 ### Incidents
 
@@ -672,7 +681,11 @@ machine's checks without a project's status report:
   level where the agent has one — then **Watch**: whether what it marks is mailed to the Supervisor,
   and, on Machine defaults, the sensor's key
 - **Flow:** Supervisors, lanes, tasks and open asks, polled with a revision so an unchanged view is
-  not sent again, and drawing at most 50 open lanes
+  not sent again, and drawing at most 50 open lanes — then **the watch**: whether it is on, whether
+  it is telling, every seat it follows with that seat's readings, what they have cost and the highest
+  any question has read on it, the open incidents and how many are held, and the last ten pieces of
+  trouble nobody is mailed about. `Runtime.watchView` builds it from the live `SeatWatch` objects and
+  the incident book, so it is what the watch is doing now rather than a second reading of the log
 - **MCP:** switch servers on or off, choose their roles and options, add one from a pasted snippet
 - **Health:** the checks for this machine and, on a project, the status report built from the ledger
   as it is now — which is not the `status.md` the patrol writes, and carries the held mail and the
@@ -708,11 +721,21 @@ to the client: it reloads after every save, and the Flow tab polls.
 
 `events.log` is the provenance record. It has one JSON line per tool call and per lane, task, merge,
 gate and slot. The watch writes its own kinds there and nowhere else: `watch.fact`, `watch.finding`,
-`watch.sensor`, `watch.unbriefed`, `watch.offline`, `sensor.off`, `sensor.degraded`, `sensor.unkept`,
-and for incidents `incident.open`, `incident.judged`, `incident.held`, `incident.told`,
-`incident.read`, `incident.ack`, and the two ways delivering one can fail, `incident.lookup-failed`
-and `incident.post-failed`. A sensor that is misconfigured or unreachable shows up there, and nowhere
-in Health.
+`watch.sensor`, `watch.unbriefed`, `watch.offline`, `sensor.degraded`, `sensor.unkept`, and for
+incidents `incident.open`, `incident.judged`, `incident.held`, `incident.told`, `incident.read`,
+`incident.ack`, and the two ways delivering one can fail, `incident.lookup-failed` and
+`incident.post-failed`. A sensor that is misconfigured or unreachable shows up there, and nowhere in
+Health.
+
+`call.malformed` is the one line written from outside the watch. `Runtime.turnEnded` reads the turn's
+timeline through `malformed` in `timeline.ts` for a tool call the seat's own harness refused because
+the model wrote an input that is not JSON. Such a call never reaches the desk, so there is no `tool`
+line for it and no window saw it — and the Supervisor, which is the seat this happens to most, is the
+one role no watch follows. The seat gets the error and usually writes the call again; until this line
+existed that was the end of it for everyone else. The hook is handed the seat's whole timeline rather
+than the turn that ended — Paseo's store is append-only and `getItems` returns all of it — so
+`malformed`, like `outputText` and `deniedCall` beside it, cuts to the last instruction first;
+without that one bad call is found again at the end of every turn after it.
 
 ## Testing
 

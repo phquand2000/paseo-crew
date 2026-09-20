@@ -64,3 +64,22 @@ test("a seat the round no longer sees is let go, and one that failed to join is 
   assert.equal(timelines.get("p1")!.listeners.size, 0);
   assert.equal(broken.subscriptions, 2);
 });
+
+test("with the watch switched off nothing is followed, and switching it off lets go of what already was", async () => {
+  const timelines = new Map<string, FakeTimeline>();
+  let on = false;
+  const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, on: () => on, log: () => {} });
+  const peer = seat("p1", "sw2-peer-devin/swe-2-max");
+  watches.follow(peer);
+  watches.sync([peer]);
+  assert.equal(watches.get("p1"), undefined, "off means off: not followed at all, rather than read in code alone");
+  assert.equal(timelines.has("p1"), false, "and no subscription is opened for it");
+  on = true;
+  watches.sync([peer]);
+  await settle();
+  assert.notEqual(watches.get("p1"), undefined);
+  on = false;
+  watches.sync([peer]);
+  assert.equal(watches.get("p1"), undefined, "turning it off lets go on the next round, with no reload");
+  assert.equal(timelines.get("p1")!.listeners.size, 0);
+});

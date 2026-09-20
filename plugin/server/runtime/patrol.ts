@@ -119,7 +119,11 @@ export class Patrol {
    * it, marks it and calibrates against it the one way.
    */
   private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
-    const attention = this.deps.source.teamFor(project).attention;
+    const team = this.deps.source.teamFor(project);
+    // The same switch the followed seats answer to. A lane's history is the watch reading the desk's
+    // own record instead of a timeline; with the watch off it is not read either.
+    if (!team.sensor) return;
+    const attention = team.attention;
     const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
     if (found.length === 0) return;
     const book = loadIncidents(project.state);

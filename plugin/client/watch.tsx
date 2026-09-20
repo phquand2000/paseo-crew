@@ -37,7 +37,7 @@ export function WatchSection({ team, values, machine, layer, theme, disabled, sa
   };
 
   return (
-    <SettingsSection title="Watch" info="The desk follows what Leads and Peers do, and marks what looks wrong. A key buys it a second opinion from a model outside the seat.">
+    <SettingsSection title="Watch" info="The desk follows what Leads and Peers do, and marks what looks wrong. The key is its switch: with one it runs, without one it does not run at all.">
       <SettingsCard>
         <SettingsSwitch
           label="Tell the Supervisor"
@@ -55,7 +55,7 @@ export function WatchSection({ team, values, machine, layer, theme, disabled, sa
             <SettingsInput
               ref={field}
               label="Sensor key"
-              hint={set ? "A key is set. It is never shown again; type another to replace it." : "An OpenRouter key. Without one the watch reads turns in code alone."}
+              hint={set ? "A key is set, so the watch runs. It is never shown again; type another to replace it." : "An OpenRouter key. Without one there is no watch: no seat is followed and nothing is recorded."}
               placeholder="sk-or-…"
               secureTextEntry
               onChangeText={setDraft}
@@ -68,10 +68,10 @@ export function WatchSection({ team, values, machine, layer, theme, disabled, sa
               onPress={() => write(typed)}
               disabled={disabled || typed.length === 0}
             />
-            {set ? <SettingsAction label="Forget the key" hint="The calls stop, and the watch goes back to reading turns in code alone." actionLabel="Forget" onPress={() => write(null)} disabled={disabled} /> : null}
+            {set ? <SettingsAction label="Forget the key" hint="The watch stops: the seats are let go on the next round, and nothing more is read or recorded." actionLabel="Forget" onPress={() => write(null)} disabled={disabled} /> : null}
           </>
         ) : (
-          <SettingsRow label="Sensor key" hint={set ? "Set on this machine, and used for every project." : "Not set. Add one under Machine defaults to give the watch a second opinion."}>
+          <SettingsRow label="Sensor key" hint={set ? "Set on this machine, so the watch runs on every project." : "Not set, so the watch does not run. Add one under Machine defaults to switch it on."}>
             <Text style={{ color: theme.colors.foregroundMuted, fontSize: 14 }}>{set ? "set" : "none"}</Text>
           </SettingsRow>
         )}

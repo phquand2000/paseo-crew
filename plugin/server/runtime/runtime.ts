@@ -30,9 +30,15 @@ import { type Finding, type Verdict, decide, weigh } from "./watch/rules.ts";
 import { keepAssessment } from "./watch/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
+import { malformed } from "./timeline.ts";
+import { loadIncidents } from "../desk/incidents.ts";
+import type { WatchView } from "../../shared/views.ts";
 import { errorText } from "../core/errors.ts";
 
 type EventName = keyof PluginLifecycleEvents;
+
+/** How much recent trouble a screen is shown. It is a live view, not a second log. */
+const TROUBLES = 10;
 
 export type RuntimeOptions = { outboxFile?: string; paseo?: PaseoApi; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
 
@@ -51,6 +57,7 @@ export class Runtime {
   private readonly watches: Watches;
   private readonly assessor: Assessor;
   private readonly sensorNoted = new Map<string, number>();
+  private readonly troubles = new Map<string, { kind: string; at: number; detail: string }[]>();
   private readonly offline = new Set<string>();
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
@@ -97,6 +104,7 @@ export class Runtime {
       seats: this.seats,
       context: (seat) => this.watchContext(seat),
       found: (watch, facts) => this.watchFound(watch, facts),
+      on: (seat) => this.watching(projectOf(seat.cwd)),
       moment: (watch, urgent) => this.assessor.moment(watch, urgent),
       dropped: (id) => this.assessor.drop(id),
     });
@@ -108,6 +116,7 @@ export class Runtime {
       reconcile: (team) => this.reconcileProviders(team),
       seats: this.seats,
       held: () => this.outbox.letters(),
+      watch: (project) => this.watchView(project),
     });
   }
 
@@ -155,16 +164,21 @@ export class Runtime {
     };
   }
 
+  /**
+   * The one switch. A key is what the watch is made of, so without one there is no watch: no seat is
+   * followed, no turn is read, and a lane's history is not gone through either. It is not a quieter
+   * watch that reads turns in code alone — that second mode was two behaviours wearing one name, and
+   * a project could sit in it for a week without anyone meaning to.
+   */
+  private watching(project: Project): boolean {
+    return Boolean(this.source.teamFor(project).sensor);
+  }
+
   private sensing(watch: SeatWatch): Sensing | undefined {
     const project = projectOf(watch.seat.cwd);
     const sensor = this.source.teamFor(project).sensor;
-    if (!sensor) {
-      if (!this.sensorNoted.has(`off:${project.slug}`)) {
-        this.sensorNoted.set(`off:${project.slug}`, Date.now());
-        this.desk.event(project, { kind: "sensor.off", why: "no sensor key in the machine settings" });
-      }
-      return undefined;
-    }
+    // Between the key being taken away and the round that lets this seat go.
+    if (!sensor) return undefined;
     const brief = watch.brief();
     if (!brief || brief.goal === null) return undefined;
     return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gate, turn: watch.running ? "running" : "ended", exit: brief.rules.exit } };
@@ -174,6 +188,12 @@ export class Runtime {
     const project = projectOf(watch.seat.cwd);
     const { assessment, state, questions, facts } = reading;
     this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(state).length });
+    watch.readings += 1;
+    watch.spent += assessment.cost ?? 0;
+    watch.readAt = Date.now();
+    // The highest any question has reached on this seat, kept rather than replaced: a screen showing
+    // only the last reading says nothing about the turn where something nearly opened an incident.
+    for (const [question, p] of Object.entries(assessment.answers)) if (!watch.highest || p > watch.highest.p) watch.highest = { question, p };
     const before = watch.reading && watch.reading.turnId === reading.turnId ? watch.reading.answers : undefined;
     watch.reading = { turnId: reading.turnId, answers: assessment.answers };
     const { findings, verdicts } = weigh(assessment, questions, facts, { unclear: reading.spec.unclear, ended: !reading.running, before });
@@ -233,6 +253,57 @@ export class Runtime {
     if (now - (this.sensorNoted.get(key) ?? 0) < 60_000) return;
     this.sensorNoted.set(key, now);
     this.desk.event(project, { kind: "sensor.degraded", agent: watch.seat.id, status: error.status ?? null, error: error.message });
+    this.troubled(project, "sensor.degraded", `${watch.seat.id}: ${error.status ?? "no status"} ${error.message}`);
+  }
+
+  /** Trouble nobody is mailed about, kept where a screen can show it rather than only in the log. */
+  private troubled(project: Project, kind: string, detail: string): void {
+    const list = this.troubles.get(project.slug) ?? [];
+    list.push({ kind, at: Date.now(), detail });
+    if (list.length > TROUBLES) list.splice(0, list.length - TROUBLES);
+    this.troubles.set(project.slug, list);
+  }
+
+  /**
+   * A call the seat's own harness refused before it was made, because the model wrote an input that
+   * is not JSON. It never reached the desk, so nothing else here has heard of it: the seat sees the
+   * error and usually writes the call again, and until now that was the end of it for everybody else.
+   */
+  private malformedCalls(event: PluginLifecycleEvents["agent.turn_ended"]): void {
+    const role = seatOf(this.kit, event.agent.provider)?.role;
+    if (!role?.tools) return;
+    const project = projectOf(event.agent.cwd);
+    for (const call of malformed(event.timeline)) {
+      this.desk.event(project, { kind: "call.malformed", agent: event.agent.id, role: role.role, tool: call.tool, error: call.quote });
+      this.troubled(project, "call.malformed", `the ${role.label}'s ${call.tool} was written with an input that is not JSON, and never reached the desk`);
+    }
+  }
+
+  private watchView(project: Project): WatchView {
+    const on = this.watching(project);
+    const seats = this.watches
+      .all()
+      .filter((watch) => projectOf(watch.seat.cwd).slug === project.slug)
+      .map((watch) => ({
+        id: watch.seat.id,
+        role: seatOf(this.kit, watch.seat.provider)?.role.role ?? "",
+        running: watch.running,
+        readings: watch.readings,
+        cost: watch.spent,
+        minutes: watch.readAt ? Math.max(0, Math.round((Date.now() - watch.readAt) / 60_000)) : -1,
+        highest: watch.highest ?? null,
+      }));
+    const items = Object.values(loadIncidents(project.state).items);
+    const now = Date.now();
+    return {
+      on,
+      telling: this.source.teamFor(project).attention.watch,
+      readings: seats.reduce((sum, seat) => sum + seat.readings, 0),
+      cost: seats.reduce((sum, seat) => sum + seat.cost, 0),
+      seats,
+      incidents: { open: items.filter((item) => item.open).length, held: items.filter((item) => item.open && item.told === undefined).length },
+      trouble: (this.troubles.get(project.slug) ?? []).map((entry) => ({ kind: entry.kind, minutes: Math.max(0, Math.round((now - entry.at) / 60_000)), detail: entry.detail })).reverse(),
+    };
   }
 
   private watchFound(watch: SeatWatch, facts: Fact[]): void {
@@ -335,6 +406,7 @@ export class Runtime {
 
   private async turnEnded(event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
+    this.malformedCalls(event);
     // The mail waiting for this seat goes whatever reading its turn ran into. A throw in there — an
     // unreadable ledger, a bad pattern — used to leave every letter for it sitting until some other
     // event happened to pump it. (For a seat being put away, the pump finds it archived and stops.)

@@ -5,9 +5,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { mock, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import type { WatchView, WatchSeat } from "../../shared/views.ts";
 
 const HOME = mkdtempSync(join(tmpdir(), "sw2-flow-home-"));
 process.env.HOME = HOME;
+globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof fetch;
 
 const { loadKit } = await import("../../server/catalog/kit.ts");
 const { loadLedger } = await import("../../server/desk/ledger.ts");
@@ -159,7 +161,10 @@ function harness(outbox: string) {
   const { root, git } = repo();
   const state = join(HOME, ".local", "share", "seatworks-v2");
   mkdirSync(state, { recursive: true });
-  writeFileSync(join(state, "settings.json"), JSON.stringify({ mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
+  // The key is the watch's switch, so a test about the watch has to set one: without it nothing here
+  // is followed at all. The endpoint is unreachable above unless a test asks for an answer, which is
+  // the state these tests are really in — the watch on, reading turns in code, the sensor silent.
+  writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, timelineOf } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
@@ -183,13 +188,21 @@ function harness(outbox: string) {
   // Paseo fires a turn start before a turn end, and what the desk heard from a seat "this turn" is
   // measured from it; without one, every turn is measured from half an hour ago.
   const beginTurn = (id: string) => (runtime as unknown as { turnStarted(agentId: string): void }).turnStarted(id);
-  const endTurn = (id: string, text: string, ...calls: unknown[]) =>
-    (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
+  // Paseo hands this hook everything it has ever stored for the seat, not the turn that ended: its
+  // timeline store is append-only and `getItems` returns all of it. A fresh one-turn array per call
+  // was the wrong shape, and it hid a reader that found the same failed call at every later turn.
+  const told = new Map<string, unknown[]>();
+  const endTurn = (id: string, text: string, ...calls: unknown[]) => {
+    const timeline = told.get(id) ?? [];
+    timeline.push({ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text });
+    told.set(id, timeline);
+    return (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
       turnId: `t-${id}-${Date.now()}`,
       outcome: { kind: "completed" },
-      timeline: [{ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text }],
+      timeline: [...timeline],
     });
+  };
   const permission = (id: string, request: Pending) =>
     (runtime as unknown as { permissionRequested: (event: unknown) => Promise<void> }).permissionRequested({
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
@@ -1575,7 +1588,7 @@ test("an irreversible command a Peer starts reaches the Supervisor before the ca
   h.runtime.dispose();
 });
 
-test("left as the kit ships it, the desk records what it sees and sends nothing until the owner turns it on", async () => {
+test("with the watch on but not telling, the desk records what it sees and sends nothing until the owner turns it on", async () => {
   const { h, sup, timeline } = await laneWithPeer("outbox-shadow.json");
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "running", detail: { type: "shell", command: "git push --force origin main" } }, "t1");
@@ -1583,6 +1596,22 @@ test("left as the kit ships it, the desk records what it sees and sends nothing 
   await new Promise((resolve) => setTimeout(resolve, 20));
   await h.idle(sup);
   assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => [item.kind, item.held]), [["destructive", "shadow"]]);
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+  h.runtime.dispose();
+});
+
+test("left as the kit ships it there is no key, so nothing is watched and nothing is recorded", async () => {
+  const { h, sup, timeline } = await laneWithPeer("outbox-off.json");
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  await h.tick();
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "running", detail: { type: "shell", command: "git push --force origin main" } }, "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await h.idle(sup);
+  // Off is off. The irreversible command is the loudest thing the watch reads in code, and with no
+  // key it is not read: the seat is not followed, so there is no book to record it in.
+  assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   h.runtime.dispose();
 });
@@ -1624,6 +1653,35 @@ test("each assessment is kept with the state, questions, facts and answers it wa
   assert.deepEqual(Object.keys(first.questions), Object.keys(bodies[0]!.questions));
   assert.ok(!("unverified_success" in first.questions), "a turn that ends without a word claims nothing, so nothing is asked about a claim");
   assert.doesNotMatch(JSON.stringify(kept), /sk-or-kept-test/);
+  h.runtime.dispose();
+});
+
+test("the flow screen can say what the watch is doing: which seats, how many readings, what they cost", async (t) => {
+  const { h, peer, timeline } = await laneWithPeer("outbox-watchview.json");
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "goal_drift" ? 0.81 : 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917", id: "gen-view", usage: { cost: 0.00013 } }), { status: 200 });
+  });
+  const off = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
+  assert.equal(off.watch.on, true, "a key is set in this harness, so the watch is on");
+  assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.role).sort(), ["lead", "peer"], "the two roles that carry `watched`, and no Supervisor");
+  assert.equal(off.watch.readings, 0, "nothing read yet");
+
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Edit", status: "completed", detail: { type: "edit", filePath: "b.txt", oldString: "x", newString: "y" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
+  const read = view.watch.seats.find((seat: WatchSeat) => seat.id === peer)!;
+  assert.equal(read.readings, 1);
+  assert.equal(view.watch.cost, 0.00013, "what the watch has spent on this project, which is the number the owner is paying");
+  // The highest any question reached, not the last one: a screen showing only the last reading says
+  // nothing about the turn where something came within a hundredth of opening an incident.
+  assert.deepEqual(read.highest, { question: "goal_drift", p: 0.81 });
   h.runtime.dispose();
 });
 
@@ -1716,7 +1774,9 @@ test("a seat whose brief cannot be read is not described to the sensor as having
 test("a day's budget holds back what is only worth attention, however many arrive at once, and never what is irreversible", async () => {
   const { h, sup } = await laneWithPeer("outbox-budget.json", { attention: { watch: true, incidentsPerDay: 1 } });
   const seat = (id: string) => ({ id, provider: "sw2-peer-devin/swe-2-max", title: id });
-  const attend = (quote: string) => [{ kind: "stuck", level: "attend" as const, quote, facts: ["stuck"] }];
+  // Not `stuck`: the sensor confirms that one, so it is held awaiting a reading first and the budget
+  // never gets a say. This test is about the budget, so it uses a kind nothing else holds back.
+  const attend = (quote: string) => [{ kind: "test-weakened", level: "attend" as const, quote, facts: ["test-weakened"] }];
   await Promise.all([
     h.runtime.desk.notice(h.project, seat("p-a"), attend("one")),
     h.runtime.desk.notice(h.project, seat("p-b"), attend("two")),
@@ -1746,6 +1806,55 @@ test("two projects each hear about their own seats, though their incidents carry
   await h.idle(supB);
   assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(destructive, page\)/);
   assert.match(h.agents.get(supB)!.sent.join("\n"), /INCIDENT I1 \(destructive, page\)/, "the second project's owner is told too, not dropped as a repeat of the first");
+  h.runtime.dispose();
+});
+
+test("a desk call the harness refused for bad JSON is recorded, though it never reached the desk", async () => {
+  const { h, sup } = await laneWithPeer("outbox-malformed.json");
+  h.beginTurn(sup);
+  await h.endTurn(sup, "Opening the lane.", {
+    type: "tool_call",
+    callId: "c1",
+    name: "mcp__team__open_lane",
+    status: "failed",
+    error: { content: "InputValidationError: mcp__team__open_lane was called with input that could not be parsed as JSON." },
+    detail: { type: "unknown", input: { __unparsedToolInput: { raw: '{"title": "Build"' } }, output: null },
+  });
+  // Nothing else here has heard of this call: it never reached the desk, so there is no `tool` event
+  // for it, and the Supervisor is the one role no watch follows. Its own retry was the whole record.
+  const log = readFileSync(join(h.project.state, "events.log"), "utf-8");
+  assert.match(log, /"kind":"call\.malformed"/);
+  assert.match(log, /"tool":"mcp__team__open_lane"/);
+  assert.match(log, /"role":"supervisor"/, "the Supervisor is the one role no watch follows, so this is the only way it is ever said");
+  assert.equal(log.match(/"ok":false/g), null, "and no failed desk call was recorded, because the desk was never reached");
+
+  // Paseo hands the hook the whole session, so the turn after this one carries the same failed call
+  // again. It is one thing that happened once, and the log must say so once.
+  await h.endTurn(sup, "Now the task.", { type: "tool_call", callId: "c2", name: "status", status: "completed", detail: {} });
+  assert.equal(readFileSync(join(h.project.state, "events.log"), "utf-8").match(/"kind":"call\.malformed"/g)!.length, 1);
+
+  // And it is trouble whatever the watch is doing: the harness refused the call, not the sensor.
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
+  assert.equal(view.watch.on, false);
+  assert.deepEqual(view.watch.trouble.map((entry) => entry.kind), ["call.malformed"], "shown with the watch off, or nobody is told after all");
+  h.runtime.dispose();
+});
+
+test("with the watch off a lane's own record is not gone through either", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer("outbox-history-off.json");
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  for (const round of [1, 2, 3]) {
+    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
+    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  }
+  await h.tick();
+  await h.idle(sup);
+  // The history facts are the watch reading the desk's record rather than a timeline. They are the
+  // half that needs no key to compute, which is exactly why they used to keep running with the watch
+  // switched off — a project with no key still filled the Supervisor's mail.
+  assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   h.runtime.dispose();
 });
 

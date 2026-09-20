@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Timeline, deniedCall, outputText } from "../../server/runtime/timeline.ts";
+import { type Timeline, deniedCall, malformed, outputText } from "../../server/runtime/timeline.ts";
 
 const t = (...items: object[]) => items as unknown as Timeline;
 
@@ -55,4 +55,60 @@ test("a harness names how its refusals read, and only those count as refused", (
   );
   assert.equal(deniedCall(timeline), undefined, "it failed and the seat spoke after it, so the turn did not end on that call");
   assert.deepEqual(deniedCall(timeline, "policy says no"), { what: "shell: rm -rf build", refused: true });
+});
+
+test("a call the harness refused because its input was not JSON is reported, and an ordinary failure is not", () => {
+  // The shape is the one a Supervisor's first open_lane took on 2026-09-20: Claude Code keeps the
+  // text it could not read under `__unparsedToolInput` and says so again in the error it hands back.
+  const timeline = t(
+    { type: "user_message", text: "go" },
+    {
+      type: "tool_call",
+      callId: "c1",
+      name: "mcp__team__open_lane",
+      status: "failed",
+      error: { content: "InputValidationError: mcp__team__open_lane was called with input that could not be parsed as JSON.\nYou sent (first 200 of 2472 bytes): {\"title\": \"pick(versions, range) to spec\"" },
+      detail: { type: "unknown", input: { __unparsedToolInput: { raw: '{"title": "pick(versions, range) to spec"' } }, output: null },
+    },
+    { type: "tool_call", callId: "c2", name: "mcp__team__open_lane", status: "completed", detail: { type: "unknown", input: { title: "t" }, output: "Lane L1 is open" } },
+    { type: "tool_call", callId: "c3", name: "Bash", status: "failed", error: "exit 1", detail: { type: "shell", command: "npm test" } },
+  );
+  assert.deepEqual(
+    malformed(timeline).map((call) => call.tool),
+    ["mcp__team__open_lane"],
+    "the retry and the ordinary failure are not malformed input",
+  );
+  assert.match(malformed(timeline)[0]!.quote, /could not be parsed as JSON/);
+});
+
+test("a malformed call is still reported when only the input it could not read survives", () => {
+  const timeline = t({ type: "tool_call", callId: "c1", name: "done", status: "failed", error: null, detail: { type: "unknown", input: { __unparsedToolInput: { raw: "{" } }, output: null } });
+  assert.deepEqual(malformed(timeline).map((call) => call.tool), ["done"]);
+});
+
+test("a failed call whose own output happens to mention unparsed JSON is not a malformed call", () => {
+  // The phrase is an ordinary error string: a seat running the gate over a repository that parses
+  // JSON prints it, and a seat grepping this very file prints the marker too. Only what the harness
+  // was handed decides, never what the tool wrote back.
+  const timeline = t(
+    { type: "user_message", text: "go" },
+    { type: "tool_call", callId: "c1", name: "Bash", status: "failed", error: { content: "exit 1" }, detail: { type: "shell", command: "npm test", exitCode: 1, output: "FAIL config.test.ts: could not be parsed as JSON" } },
+    { type: "tool_call", callId: "c2", name: "Grep", status: "failed", error: null, detail: { type: "unknown", input: { pattern: "boom" }, output: "timeline.ts: const UNPARSED = /__unparsedToolInput|could not be parsed as JSON/" } },
+  );
+  assert.deepEqual(malformed(timeline), []);
+});
+
+test("a malformed call belongs to the turn it was made in, and is not reported again at the end of the next", () => {
+  // Paseo hands `agent.turn_ended` the agent's whole timeline, not the turn that ended: the daemon's
+  // `getItems` returns every row it has ever stored for that seat, append-only. So the turn has to be
+  // cut out of it here, the way `outputText` and `deniedCall` already do.
+  const turn = [
+    { type: "user_message", text: "open the lane" },
+    { type: "tool_call", callId: "c1", name: "mcp__team__open_lane", status: "failed", error: { content: "InputValidationError: mcp__team__open_lane was called with input that could not be parsed as JSON." }, detail: { type: "unknown", input: { __unparsedToolInput: { raw: "{" } }, output: null } },
+    { type: "tool_call", callId: "c2", name: "mcp__team__open_lane", status: "completed", detail: { type: "unknown", input: { title: "t" }, output: "Lane L1 is open" } },
+    { type: "assistant_message", text: "Opened." },
+  ];
+  assert.deepEqual(malformed(t(...turn)).map((call) => call.tool), ["mcp__team__open_lane"]);
+  const later = t(...turn, { type: "user_message", text: "now start a task" }, { type: "tool_call", callId: "c3", name: "status", status: "completed", detail: {} }, { type: "assistant_message", text: "Done." });
+  assert.deepEqual(malformed(later), [], "the same call is not written to the log again every turn for the rest of the session");
 });

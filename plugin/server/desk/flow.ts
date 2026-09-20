@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import type { SeatView } from "../core/paseo.ts";
 import type { Ledger } from "./ledger.ts";
-import type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView } from "../../shared/views.ts";
+import type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchTrouble, WatchView } from "../../shared/views.ts";
 import type { Project } from "./project.ts";
 
-export type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView };
+export type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchTrouble, WatchView };
 
 /** A lane costs a row; its tasks cost a row each. Only the lanes the screen has opened carry tasks. */
 export const LANE_CAP = 50;
@@ -40,6 +40,7 @@ export function flowView(
   open: ReadonlySet<string> = new Set(),
   supervises: ReadonlySet<string> = new Set(),
   seated: { id: string; role: string }[] = [],
+  watch: WatchView | null = null,
 ): FlowView {
   const counts = new Map<string, { total: number; running: number }>();
   const held = new Map<string, FlowTask[]>();
@@ -123,7 +124,7 @@ export function flowView(
   }
   const supervisors = [...shown.values()];
 
-  const body = { project: project.slug, supervisors, lanes, moreLanes, asks };
+  const body = { project: project.slug, supervisors, lanes, moreLanes, asks, watch };
   const revision = createHash("sha1").update(JSON.stringify(body)).digest("hex").slice(0, 16);
   return { ...body, at: now, revision };
 }
