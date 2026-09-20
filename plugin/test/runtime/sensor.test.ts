@@ -304,10 +304,11 @@ test("a question that reads only what is empty is not asked, and not paid for", 
   };
   const readings: string[][] = [];
   let turn: "running" | "ended" = "running";
+  let goal = "";
   const window = new Window();
   const watch = { seat: { id: "s1", provider: "p", cwd: "/w" }, window, noted: [] } as never;
   const assessor = new Assessor({
-    sensing: () => ({ spec: shipped, key: "k", brief: { goal: "", role: "Peer", turn } }),
+    sensing: () => ({ spec: shipped, key: "k", brief: { goal, role: "Peer", turn } }),
     done: (_watch, reading) => readings.push(Object.keys(reading.questions)),
     failed: () => {},
     fetcher: fetcher as never,
@@ -328,7 +329,21 @@ test("a question that reads only what is empty is not asked, and not paid for", 
   turn = "ended";
   assessor.moment(watch, true);
   await wait(20);
-  assert.deepEqual(Object.keys(bodies[2]!.questions), Object.keys(shipped.questions));
+  // A question is held back only when everything it reads is blank, so one that also reads the
+  // instruction comes back as soon as there is one.
+  const goalOnly = Object.entries(shipped.questions)
+    .filter(([, question]) => (question.needs ?? []).length > 0 && question.needs!.every((field) => field === "goal"))
+    .map(([name]) => name);
+  assert.ok(goalOnly.length > 0, "some questions read nothing but the goal, and are worth nothing without one");
+  assert.deepEqual(
+    Object.keys(bodies[2]!.questions),
+    Object.keys(shipped.questions).filter((name) => !goalOnly.includes(name)),
+    "a turn that has ended brings back every question but the ones reading nothing except a goal this seat was never given",
+  );
+  goal = "Totals reflect the discount code";
+  assessor.moment(watch, true);
+  await wait(20);
+  assert.deepEqual(Object.keys(bodies[3]!.questions), Object.keys(shipped.questions), "and a seat with a goal is asked all of them");
   assessor.dispose();
 });
 

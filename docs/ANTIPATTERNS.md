@@ -11,21 +11,33 @@ examples are only on the rules that cannot be stated in one sentence.
 | | Meaning |
 |---|---|
 | **caught** | A code fact or a sensor question fires on it today. |
-| **askable** | It is in a seat's own timeline and nothing asks. A sensor question would see it. |
+| **askable** | A question is written for it but carries no threshold, so it collects and acts on nothing. |
 | **desk** | In the ledger, across tasks, rounds or lanes, and nothing reads it for this yet. |
 | **outside** | This plugin cannot see it, and saying why is the useful part. |
 
-Of the thirty-five rules below, **six are caught**, one more in half its cases, six are askable,
-ten are desk-shaped and twelve are outside.
+Of the thirty-five rules below, **twelve are caught**, one more in part and one in half its cases.
+One is written as a question that is not yet trusted to act. Ten are desk-shaped: in the ledger,
+with nothing reading them for this. Ten are outside what this plugin can observe at all, and for
+those the entry says why, because that is the part worth knowing.
 
-The watch reads two things. From a seat's timeline it catches a destructive command, a seat
-repeating
-itself, a weakened test and an unverified success claim. From the lane's own record — the ledger the
-patrol already holds — it catches the shapes no window can hold: a task sent back again and again, a
-lane patching several tasks at once, reviews piling up with nothing accepted, a review told to
-report
-only what it is certain of, and a brief that writes the work out instead of setting an outcome. Both
-go through one incident book, so the Supervisor reads, marks and calibrates them the one way.
+The watch reads three things. In code, from a seat's timeline: a destructive command, a seat
+repeating itself, a weakened test, an unverified success claim. In code, from the lane's own record
+— the ledger the patrol already holds — the shapes no window can hold, because a letter restarts the
+window: a task sent back again and again, a lane patching several tasks at once, reviews piling up
+with nothing accepted, a review told to report only what it is certain of, a brief that writes the
+work out instead of setting an outcome. And, only with a key, by putting the turn to the sensor: a
+missing mechanism being stood in for, a wrapper where the thing itself should have changed,
+production code edited to make a check pass, a test that only proves the old behaviour is gone, a
+change far larger than what was asked, agreement with no check behind it, and a goal nobody could
+say was met.
+
+All three go through one incident book, so the Supervisor reads, marks and calibrates them the one
+way, and none of them ever reaches the seat it is about.
+
+A sensor question costs money on every reading and its threshold is a guess until it has been
+measured against what the Supervisor marked. That is what `calibrate` is for, and it is why the
+watch ships quiet: with `attention.watch` off, everything here is recorded and listed and none of it
+is mailed.
 
 Three facts explain most of the blindness, and each is a design choice rather than a defect:
 
@@ -49,10 +61,10 @@ the system can actually do.
 hole stops and names it, and does not invent a private stand-in.
 **Signs.** "there is no X here", "I'll add a minimal", "for now I'll", "simple version of",
 "placeholder until", a new file whose name ends in `-stub`, `-mock`, `-simple`.
-**Here.** *askable* — the seat says it in a `said:` or `thought:` step and then writes the stand-in,
-all inside one window. `goal_drift` cannot stand in for it: a stand-in built inside the task's own
-paths raises no `outside-scope` fact, and `goal_drift` is dropped without one. The desk already owns
-the remedy — a detour lane with its own Lead — and nothing detects the need for it.
+**Here.** *caught* — `missing_mechanism` asks whether a step named a prerequisite that is missing
+and later steps built a stand-in for it. Only a model can tell a missing mechanism from ordinary new
+code, so it is a question rather than a fact. The desk already owns the remedy: a detour lane with
+its own Lead.
 
 ### Brake Pattern
 **Rule.** When several defects share one missing mechanism, build the mechanism. Fixing them one by
@@ -68,9 +80,8 @@ can see whether they share a cause.
 foundation.
 **Signs.** "compat", "adapter", "shim", "legacy path", "fallback", "for backward compatibility", a
 second copy of state, a mutex added to make two copies agree.
-**Here.** *askable* — every edit row carries its path and first added line. `PEER.md` already
-forbids it in words; nothing checks whether the seat obeyed, because `outside-scope` fires on where
-a file is, not on what it is for.
+**Here.** *caught* — `wrapped_instead_of_changed`. `PEER.md` forbids it in words, and
+`outside-scope` cannot check it because that fact fires on where a file is, not on what it is for.
 
 ### Architecture lock-in
 **Rule.** The first design is a proposal. A worker that cannot say what would make it wrong has not
@@ -110,8 +121,8 @@ still only in the ledger with nothing reading it.
 **Rule.** A worker may refuse the framing. A bounded task is not a gag.
 **Signs.** "the task says to, so I will", "not in scope to question", shipping something the worker
 said was wrong in the same turn.
-**Here.** *askable* — `guessed_ambiguity` is already written and already asked on every reading; it
-carries no threshold yet, so it collects and never opens an incident.
+**Here.** *askable* — `guessed_ambiguity` is asked on every reading and carries no threshold yet, so
+it collects into `assessments/` and opens nothing until it has been measured.
 
 ### Sycophancy
 **Rule.** Agreement that cost nothing is not a check. An answer must name what was read or run.
@@ -121,8 +132,9 @@ The Peer did not check; it deferred. This is why the Supervisor's prompt forbids
 carries its own answer, and why "Are you sure?" is banned outright.
 **Signs.** "you're right", "good catch", "I'll change it" with no command or read between the
 challenge and the change.
-**Here.** *askable* — the row order in a window shows it exactly: challenge, then edit, with nothing
-in between. Nothing asks. `admits_error` is the nearest question and is threshold-free by design.
+**Here.** *caught* — `agreed_without_checking` asks whether a doubt in the instruction was followed
+by a change with no read, command or check between the two. That order is exactly what a window
+shows.
 
 ### Reflexive contrarianism
 **Rule.** The opposite failure. A reviewer that never approves is as useless as one that always
@@ -148,7 +160,7 @@ the regex fact is the scout, the model is the adjudicator, and the Supervisor st
 **Rule.** Test the contract that holds now. A test whose purpose is to prove an old behaviour is
 gone pins history and outlives its reason.
 **Signs.** "should no longer", "must not still", "removed in", a test named after a bug number.
-**Here.** *askable* — the diff of a test file is in the window with its added lines.
+**Here.** *caught* — `proves_the_old_is_gone`, read off the diff of a test file in the window.
 
 ### Proof distorts product
 **Rule.** A proof observes the system. It does not reshape it. Logging added to make a demo work, an
@@ -156,8 +168,9 @@ interface widened so a test can reach it, a check relaxed so a run goes green �
 product to serve the evidence.
 **Signs.** "so the test can see it", "exporting for testability", "temporarily disable", a non-test
 file edited in the same breath as a failing check.
-**Here.** *askable* — the edits are in the window. `goal_drift` is dropped unless an `outside-scope`
-fact agrees, and a Peer loosening a check inside its own paths raises no such fact.
+**Here.** *caught* — `proof_changes_product`. `goal_drift` cannot cover it: that one is dropped
+unless an `outside-scope` fact agrees, and loosening a check inside the task's own paths raises no
+such fact.
 
 ### Flaky false-red
 **Rule.** A red that two runs disagree about is not a defect in the code. Find the contention before
@@ -204,9 +217,9 @@ is where the plugin says how.
 does not earn an abstraction.
 **Signs.** "to be safe", "in case", "future-proof", a new interface with one implementation, an
 option nobody asked for.
-**Here.** *askable* — every edit row carries `+N -M` and the goal is in the same state, so
-proportion is judgable. `Lane.appetite` — "what the outcome is worth, as a budget" — is recorded,
-printed once and read by no code.
+**Here.** *caught* — `out_of_proportion`, read against `goal` and `prompt` in the same state.
+`Lane.appetite` — "what the outcome is worth, as a budget" — is still recorded, printed once and
+read by no code.
 
 ### False-positive intolerance
 **Rule.** Telling a reviewer to report only what it is certain of buys precision with recall, and
@@ -285,8 +298,9 @@ this is what notices when a brief ignored it.
 can either, and it will burn a budget producing plausible work.
 **Signs.** "improve", "clean up", "make it better", "handle edge cases", a goal with no noun a test
 could name.
-**Here.** *askable* — the goal is in every reading already. `goal_drift` asks whether the work
-strays from the goal, never whether the goal can be strayed from.
+**Here.** *caught* — `goal_unfalsifiable`, which asks whether `goal` names anything observable at
+all. `goal_drift` asks whether the work strays from the goal; this asks whether the goal can be
+strayed from.
 
 ### Ceremony attention dilution
 **Rule.** Every step in a checklist spends attention that the problem needed. Count what the process
