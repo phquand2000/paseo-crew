@@ -24,7 +24,7 @@ export function statusText(
 ): string {
   const gate = config.gate || (config.gate === "" ? "none, by this project's own choice" : "none");
   const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${gate}.`, ""];
-  if (config.docs.length > 0) lines.push(`Pages this project keeps: ${config.docs.join(", ")}, under ${project.state}/docs.`, "");
+  if (config.docs.length > 0) lines.push(`Documents this project keeps: ${config.docs.join(", ")}, under ${project.state}/docs.`, "");
   // One outbox file holds every project's mail and a letter carries no project, so a page titled for
   // this project used to print, and quote, letters addressed to seats of another one. A seated
   // recipient belongs to the project its working copy is in; one that has gone is this project's if it

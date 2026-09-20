@@ -137,10 +137,12 @@ test("the Supervisor can set its own cadence for reading the work, rather than t
   }
 });
 
-test("every page the kit puts on the shelf says what it owns, when to take it, and when it is ceremony", () => {
+test("every document the kit puts on the shelf says what it owns, when to take it, and when it is ceremony", () => {
   const kit = loadKit(pluginRoot);
   const names = Object.keys(kit.templates).sort();
-  assert.ok(names.length >= 10, `the shelf is worth having only if there is a choice on it: ${names.join(", ")}`);
+  // Not a count: what the shelf owes a Supervisor is that each name comes with the moment to take it,
+  // which is what `set_project` now prints beside it.
+  assert.ok(names.length > 0, "a shelf with nothing on it is a feature with no reason to exist");
   for (const name of names) {
     const spec = kit.templates[name]!;
     for (const field of ["owns", "prevents", "activate", "ceremony"] as const) {

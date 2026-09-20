@@ -1218,7 +1218,7 @@ test("an ask answered by the owner over a Lead's head is told to that Lead, not 
   h.runtime.dispose();
 });
 
-test("a project keeps the pages its owner asked for, and nothing it did not", async () => {
+test("a project keeps the documents its owner asked for, and every seat that must know is told", async () => {
   const h = harness("outbox-docs.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const docsIn = join(h.project.state, "docs");
@@ -1226,33 +1226,42 @@ test("a project keeps the pages its owner asked for, and nothing it did not", as
   // Nothing is kept until somebody says so, and a project that keeps none is a project that works.
   assert.equal(existsSync(docsIn), false);
   const none = await h.call(sup, "supervisor", "set_project", {});
-  assert.match(none.text, /Pages kept: none/);
-  assert.match(none.text, /decision/, "the shelf says what is there to take");
+  assert.match(none.text, /Documents kept: none/);
+  assert.match(none.text, /- decision: /, "the shelf offers each one's moment, which is the only basis for taking it");
 
   const unknown = await h.call(sup, "supervisor", "set_project", { docs: ["retrospective-log"] });
   assert.equal(unknown.ok, false);
-  assert.match(unknown.text, /no page called retrospective-log/);
+  assert.match(unknown.text, /no document called retrospective-log/);
 
   const kept = await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour"] });
   assert.equal(kept.ok, true, kept.text);
   assert.ok(existsSync(join(docsIn, "decision.md")));
   assert.ok(existsSync(join(docsIn, "detour.md")));
-  assert.equal(existsSync(join(docsIn, "postmortem.md")), false, "a page nobody asked for is never written");
+  assert.equal(existsSync(join(docsIn, "postmortem.md")), false, "a document nobody asked for is never written");
 
   // What the owner has written is never written over.
   writeFileSync(join(docsIn, "decision.md"), "# D1: ours\n");
   await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour"] });
   assert.equal(readFileSync(join(docsIn, "decision.md"), "utf-8"), "# D1: ours\n");
 
-  // And a Lead is told which pages exist, since a page nobody updates is worse than no page.
+  // And a Lead is told which documents exist, since one nobody updates is worse than none.
   await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
   const lane = h.ledger().lanes.L1!;
-  assert.match(h.agents.get(lane.lead!)!.prompt ?? "", /keeps these pages .*decision, detour/);
+  assert.match(h.agents.get(lane.lead!)!.prompt ?? "", /keeps these documents .*decision, detour/);
 
-  // Dropping a page stops it being carried; what was written stays where it is.
+  // A directive is read once, when the Lead is seated. A lane already open hears the change by mail
+  // or never hears it at all.
+  const added = await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour", "handoff"] });
+  assert.equal(added.ok, true, added.text);
+  await h.idle(lane.lead!);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /DOCUMENTS: this project now keeps these under .*decision, detour, handoff/);
+
+  // Dropping one stops it being carried; what was written stays where it is.
   const dropped = await h.call(sup, "supervisor", "set_project", { docs: [] });
-  assert.match(dropped.text, /Pages kept: none/);
-  assert.ok(existsSync(join(docsIn, "decision.md")), "dropping a page does not throw away what was written in it");
+  assert.match(dropped.text, /Documents kept: none/);
+  await h.idle(lane.lead!);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /DOCUMENTS: this project no longer keeps any/, "and told when the last one goes");
+  assert.ok(existsSync(join(docsIn, "decision.md")), "dropping one does not throw away what was written in it");
 });
 
 test("a review hands back a verdict and its findings, and the Lead is told both", async () => {

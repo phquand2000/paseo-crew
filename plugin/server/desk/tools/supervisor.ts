@@ -256,6 +256,15 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. ${copy}${branches}`);
 };
 
+/** The shelf as a choice rather than a list: each one's own trigger is the only basis for taking it. */
+function shelfText(shelf: Record<string, { activate: string }>, kept: string[]): string {
+  const free = Object.keys(shelf)
+    .filter((name) => !kept.includes(name))
+    .sort();
+  if (free.length === 0) return "The shelf holds nothing else.";
+  return ["On the shelf, unused — take one only when its moment is already here:", ...free.map((name) => `- ${name}: ${shelf[name]!.activate}`)].join("\n");
+}
+
 export const setProject: Tool = async ({ ctx }, caller, args) => {
   // Refused as open_lane refuses: read as all defaults, an unreadable file was saved over with them.
   const unreadable = configFault(configFile(caller.project.state));
@@ -265,7 +274,7 @@ export const setProject: Tool = async ({ ctx }, caller, args) => {
   const asked = strs(args.docs);
   const unknown = asked.filter((name) => !shelf[name]);
   if (unknown.length > 0) {
-    return no(`This kit has no page called ${unknown.join(", ")}. It has: ${Object.keys(shelf).sort().join(", ")}.`);
+    return no(`This kit has no document called ${unknown.join(", ")}.\n${shelfText(shelf, [])}`);
   }
   const base = str(args.base);
   if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
@@ -283,10 +292,13 @@ export const setProject: Tool = async ({ ctx }, caller, args) => {
   // A page nobody asked for is never written, and a page already written is never written over.
   const placed = next.docs.flatMap((name) => (shelf[name] ? [{ name, ...placeDoc(caller.project.state, shelf[name]) }] : []));
   const started = placed.filter((entry) => entry.written).map((entry) => `${entry.name} (${entry.file})`);
-  const kept = Object.keys(shelf).filter((name) => !next.docs.includes(name));
-  const pages =
-    next.docs.length === 0
-      ? `\nPages kept: none. On the shelf, unused: ${kept.sort().join(", ")}.`
-      : `\nPages kept: ${next.docs.join(", ")}.${started.length > 0 ? ` Started: ${started.join("; ")}.` : ""}${kept.length > 0 ? ` On the shelf, unused: ${kept.sort().join(", ")}.` : ""}`;
-  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.${pages}`);
+  const documents = `\n${next.docs.length === 0 ? "Documents kept: none." : `Documents kept: ${next.docs.join(", ")}.${started.length > 0 ? ` Started: ${started.join("; ")}.` : ""}`}\n${shelfText(shelf, next.docs)}`;
+  // A Lead reads its directive once, when it is seated, so a lane already open would never hear that
+  // the project started keeping a document — for the life of the lane.
+  if (args.docs !== undefined) {
+    const changed = next.docs.join(",") !== config.docs.join(",");
+    const leads = changed ? await ctx.read(caller.project, (ledger) => Object.values(ledger.lanes).filter((lane) => lane.status === "open" && lane.lead).map((lane) => lane.lead as string)) : [];
+    for (const lead of leads) await ctx.post(lead, `docs:${Date.now()}`, letters.docsKept(next.docs, docsDir(caller.project.state)));
+  }
+  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.${documents}`);
 };
