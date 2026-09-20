@@ -1,84 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="580" viewBox="0 0 960 580" role="img" aria-label="SLP roles: the Human gives intent to the Supervisor; the Supervisor opens lanes for Leads; Leads start Peer tasks and reviews and accept work; the desk watches Leads and Peers and sends incidents to the Supervisor; a Supervisor may message a Peer directly and the Lead is told.">
-<title>SLP roles: the Human gives intent to the Supervisor; the Supervisor opens lanes for Leads; Leads start Peer tasks and reviews and accept work; the desk watches Leads and Peers and sends incidents to the Supervisor; a Supervisor may message a Peer directly and the Lead is told.</title>
-<defs><marker id="m57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="mbf3989" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#bf3989"/></marker><marker id="m8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8250df"/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="580" viewBox="0 0 960 580" role="img" aria-label="SLP roles: the Human gives intent to the Supervisor; the Supervisor opens lanes for Leads; Leads start Peer tasks and reviews and accept the work; the desk watches Leads and Peers and raises incidents to the Supervisor; a Supervisor may message a Peer directly and the desk tells the Lead.">
+<title>SLP roles: the Human gives intent to the Supervisor; the Supervisor opens lanes for Leads; Leads start Peer tasks and reviews and accept the work; the desk watches Leads and Peers and raises incidents to the Supervisor; a Supervisor may message a Peer directly and the desk tells the Lead.</title>
+<defs><marker id="m0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0969da"/></marker><marker id="m1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/></marker><marker id="m57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="m8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8250df"/></marker><marker id="mbf3989" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#bf3989"/></marker></defs>
 <rect x="0.5" y="0.5" width="959" height="579" rx="16" fill="#ffffff" stroke="#d0d7de"/>
-<text x="32.0" y="44.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328" text-anchor="start">SLP: who decides what</text>
-<text x="32.0" y="68.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">A graph of seats with different kinds of authority, not a chain of command.</text>
-<rect x="32.0" y="92.0" width="272.0" height="456.0" rx="10" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1.2"/>
-<text x="50.0" y="120.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Authority</text>
+<text x="32" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328">SLP: who decides what</text>
+<text x="32" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#59636e">A graph of seats with different kinds of authority, not a chain of command.</text>
+<rect x="32" y="92" width="272" height="456" rx="12" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1.2"/>
+<text x="50" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Authority</text>
 <circle cx="58" cy="148" r="6" fill="#f6f8fa" stroke="#57606a" stroke-width="1.6"/>
-<text x="72.0" y="153.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#57606a" text-anchor="start">Human</text>
-<text x="72.0" y="172.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">intent, priorities,</text>
-<text x="72.0" y="189.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">external commitments</text>
+<text x="72" y="153" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#57606a" text-anchor="start">Human</text>
+<text x="72" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">intent, priorities,</text>
+<text x="72" y="189" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">external commitments</text>
 <circle cx="58" cy="226" r="6" fill="#fbefff" stroke="#8250df" stroke-width="1.6"/>
-<text x="72.0" y="231.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#8250df" text-anchor="start">Supervisor</text>
-<text x="72.0" y="250.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">reading the intent, observing</text>
-<text x="72.0" y="267.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">and intervening across lanes</text>
+<text x="72" y="231" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#8250df" text-anchor="start">Supervisor</text>
+<text x="72" y="250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">reading the intent, observing</text>
+<text x="72" y="267" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">and intervening across lanes</text>
 <circle cx="58" cy="304" r="6" fill="#ddf4ff" stroke="#0969da" stroke-width="1.6"/>
-<text x="72.0" y="309.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0969da" text-anchor="start">Lead</text>
-<text x="72.0" y="328.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">sequencing, ownership,</text>
-<text x="72.0" y="345.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">integration and acceptance</text>
+<text x="72" y="309" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0969da" text-anchor="start">Lead</text>
+<text x="72" y="328" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">sequencing, ownership,</text>
+<text x="72" y="345" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">integration and acceptance</text>
 <circle cx="58" cy="382" r="6" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.6"/>
-<text x="72.0" y="387.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="start">Peer</text>
-<text x="72.0" y="406.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">engineering judgement</text>
-<text x="72.0" y="423.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">inside its own task</text>
+<text x="72" y="387" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="start">Peer</text>
+<text x="72" y="406" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">engineering judgement</text>
+<text x="72" y="423" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">inside its own task</text>
 <line x1="50" y1="454" x2="286" y2="454" stroke="#d8dee4"/>
-<text x="50.0" y="478.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#1f2328" text-anchor="start">The plugin decides none of these.</text>
-<text x="50.0" y="495.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">It runs sessions, carries messages,</text>
-<text x="50.0" y="512.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">and keeps the durable record.</text>
-<rect x="560.0" y="92.0" width="140.0" height="50.0" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
-<text x="630.0" y="116.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Human</text>
-<rect x="530.0" y="186.0" width="200.0" height="60.0" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
-<text x="630.0" y="210.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Supervisor</text>
-<text x="630.0" y="231.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">intent · lanes · attention</text>
-<rect x="770.0" y="186.0" width="150.0" height="60.0" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
-<text x="845.0" y="210.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Watch</text>
-<text x="845.0" y="231.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">the desk, not a seat</text>
-<rect x="536.0" y="324.0" width="200.0" height="60.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1"/>
-<rect x="530.0" y="318.0" width="200.0" height="60.0" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
-<text x="630.0" y="342.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Lead</text>
-<text x="630.0" y="363.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">one lane · accepts work</text>
-<rect x="412.0" y="484.0" width="190.0" height="60.0" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1"/>
-<rect x="406.0" y="478.0" width="190.0" height="60.0" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1"/>
-<rect x="400.0" y="472.0" width="190.0" height="60.0" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
-<text x="495.0" y="496.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Peer</text>
-<text x="495.0" y="517.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">one task, hands it back</text>
-<rect x="680.0" y="472.0" width="190.0" height="60.0" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.4"/>
-<text x="775.0" y="496.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Reviewer</text>
-<text x="775.0" y="517.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">reads a change, verdict</text>
-<path d="M630.0,142.0 L630.0,186.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)" marker-start="url(#m57606a)"/>
-<rect x="520.7" y="154.0" width="101.3" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="571.4" y="168.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">intent ⇄ questions</text>
-<path d="M630.0,246.0 L630.0,318.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)" marker-start="url(#m57606a)"/>
-<rect x="538.2" y="258.0" width="83.8" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="580.1" y="272.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">open_lane ↓</text>
-<rect x="638.0" y="282.0" width="103.9" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="690.0" y="296.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#59636e" text-anchor="middle">report · ask ↑</text>
-<path d="M560.0,384.0 L560.0,472.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)" marker-start="url(#m57606a)"/>
-<rect x="349.9" y="404.5" width="202.2" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="450.9" y="418.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">start_task · accept · rework ↓</text>
-<rect x="465.1" y="424.5" width="86.9" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="508.6" y="438.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">done · ask ↑</text>
-<path d="M700.0,384.0 L700.0,472.0" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#m57606a)" marker-start="url(#m57606a)"/>
-<rect x="708.0" y="404.5" width="99.7" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="757.8" y="418.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">start_review ↓</text>
-<rect x="708.0" y="424.5" width="48.4" height="17.5" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="732.2" y="438.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="400" fill="#59636e" text-anchor="middle">done ↑</text>
-<path d="M770.0,216.0 L730.0,216.0" fill="none" stroke="#bf3989" stroke-width="1.5" marker-end="url(#mbf3989)"/>
-<rect x="728.2" y="166.0" width="43.5" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="750.0" y="180.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">incident</text>
-<path d="M736.0,348.0 L845.0,348.0 L845.0,246.0" fill="none" stroke="#bf3989" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#mbf3989)"/>
-<rect x="853.0" y="276.0" width="72.5" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="889.2" y="290.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">live timelines</text>
-<rect x="853.0" y="294.0" width="94.5" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="900.2" y="308.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">of Leads, Peers,</text>
-<rect x="853.0" y="312.0" width="63.7" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="884.8" y="326.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#bf3989" text-anchor="middle">Reviewers</text>
-<path d="M530.0,226.0 L340.0,226.0 L340.0,502.0 L400.0,502.0" fill="none" stroke="#8250df" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#m8250df)"/>
-<rect x="350.0" y="286.0" width="91.0" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="395.5" y="300.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#8250df" text-anchor="middle">direct message;</text>
-<rect x="350.0" y="304.0" width="91.0" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="395.5" y="318.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#8250df" text-anchor="middle">the Lead is told</text>
-<rect x="350.0" y="322.0" width="70.4" height="18.0" rx="4" fill="#ffffff" stroke="none" stroke-width="0"/>
-<text x="385.2" y="336.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#8250df" text-anchor="middle">RECONCILE</text>
+<text x="50" y="478" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#1f2328" text-anchor="start">The plugin decides none of these.</text>
+<text x="50" y="495" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">It runs sessions, carries messages,</text>
+<text x="50" y="512" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">and keeps the durable record.</text>
+<rect x="560" y="92" width="140" height="50" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
+<text x="630.0" y="122.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Human</text>
+<rect x="530" y="186" width="200" height="60" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text x="630.0" y="212.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Supervisor</text>
+<text x="630.0" y="231.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">intent · lanes · incidents</text>
+<rect x="770" y="180" width="150" height="56" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
+<text x="845.0" y="204.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Watch</text>
+<text x="845.0" y="223.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">the desk, not a seat</text>
+<rect x="536" y="324" width="200" height="60" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.0"/>
+<rect x="530" y="318" width="200" height="60" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<text x="630.0" y="344.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Lead</text>
+<text x="630.0" y="363.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">one lane · accepts work</text>
+<rect x="506" y="462" width="170" height="58" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.0"/>
+<rect x="500" y="456" width="170" height="58" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="585.0" y="481.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Peer</text>
+<text x="585.0" y="500.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">one task</text>
+<rect x="700" y="456" width="170" height="58" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="785.0" y="481.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Reviewer</text>
+<text x="785.0" y="500.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">reads, never writes</text>
+<line x1="630" y1="142" x2="630" y2="180" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
+<text x="640" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#57606a" text-anchor="start">what it wants</text>
+<line x1="630" y1="246" x2="630" y2="312" stroke="#8250df" stroke-width="1.6" marker-end="url(#m8250df)"/>
+<text x="640" y="284" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#8250df" text-anchor="start">open_lane</text>
+<line x1="585" y1="378" x2="585" y2="450" stroke="#0969da" stroke-width="1.6" marker-end="url(#m0969da)"/>
+<text x="598" y="420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#0969da" text-anchor="start">start_task</text>
+<line x1="700" y1="378" x2="770" y2="450" stroke="#0969da" stroke-width="1.6" marker-end="url(#m0969da)"/>
+<text x="760" y="414" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#0969da" text-anchor="start">start_review</text>
+<path d="M500,484 L452,484 L452,356 L526,352" fill="none" stroke="#1a7f37" stroke-width="1.6" marker-end="url(#m1a7f37)"/>
+<text x="444" y="380" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1a7f37" text-anchor="end">done · ask</text>
+<line x1="766" y1="208" x2="734" y2="208" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<text x="760" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#bf3989" text-anchor="end">incident</text>
+<path d="M730,360 L790,360 L790,244" fill="none" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<text x="800" y="330" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#bf3989" text-anchor="start">reads</text>
+<path d="M585,514 L585,532 L900,532 L900,244" fill="none" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<text x="920" y="560" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="end">It reads; nothing it sees goes back to a seat.</text>
+<path d="M530,216 L470,216 L470,484 L496,484" fill="none" stroke="#8250df" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#m8250df)"/>
+<text x="478" y="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#8250df" text-anchor="start">message, and</text>
+<text x="478" y="418" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#8250df" text-anchor="start">the Lead is told</text>
 </svg>

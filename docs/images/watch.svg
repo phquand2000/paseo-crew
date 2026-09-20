@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-label="What the watch sees: a seat's timeline is read into a window, facts are read from it in code, and with a key the same state goes to the sensor; findings become incidents that are held or sent to the Supervisor, who marks each one, and every assessment is kept for the calibrate report.">
+<title>What the watch sees: a seat's timeline is read into a window, facts are read from it in code, and with a key the same state goes to the sensor; findings become incidents that are held or sent to the Supervisor, who marks each one, and every assessment is kept for the calibrate report.</title>
+<defs><marker id="m0f6e6e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f6e6e"/></marker><marker id="m57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="m8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8250df"/></marker><marker id="mbf3989" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#bf3989"/></marker></defs>
+<rect x="0.5" y="0.5" width="959" height="619" rx="16" fill="#ffffff" stroke="#d0d7de"/>
+<text x="32" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328">What the watch sees</text>
+<text x="32" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#59636e">Code reads the facts. The sensor only ever adds a second opinion, and the Supervisor decides.</text>
+<rect x="32" y="108" width="180" height="64" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
+<text x="122.0" y="126.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">a watched seat</text>
+<text x="122.0" y="145.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">Lead or Peer,</text>
+<text x="122.0" y="163.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">never a Reviewer</text>
+<rect x="32" y="208" width="180" height="64" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
+<text x="122.0" y="226.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the timeline</text>
+<text x="122.0" y="245.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">live rows, plus the</text>
+<text x="122.0" y="263.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">tail read at the start</text>
+<rect x="32" y="308" width="180" height="64" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
+<text x="122.0" y="326.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the window</text>
+<text x="122.0" y="345.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">80 units per seat,</text>
+<text x="122.0" y="363.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">keyed by call</text>
+<rect x="268" y="208" width="200" height="88" rx="10" fill="#e0f5f5" stroke="#0f6e6e" stroke-width="1.4"/>
+<text x="368.0" y="238.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">facts, in code</text>
+<text x="368.0" y="257.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">destructive · stuck · no-recovery</text>
+<text x="368.0" y="275.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">test-weakened · unverified · …</text>
+<rect x="268" y="330" width="200" height="76" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
+<text x="368.0" y="354.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the state</text>
+<text x="368.0" y="373.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">brief, instruction, gate,</text>
+<text x="368.0" y="391.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">the steps, the last word</text>
+<rect x="268" y="440" width="200" height="64" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
+<text x="368.0" y="458.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the sensor</text>
+<text x="368.0" y="477.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">only with a key.</text>
+<text x="368.0" y="495.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">Yes is the finding</text>
+<rect x="524" y="208" width="190" height="76" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
+<text x="619.0" y="232.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the rules</text>
+<text x="619.0" y="251.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">alone · agrees · confirms,</text>
+<text x="619.0" y="269.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">and an unclear band</text>
+<rect x="524" y="330" width="190" height="88" rx="10" fill="#e0f5f5" stroke="#0f6e6e" stroke-width="1.4"/>
+<text x="619.0" y="360.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">incidents.json</text>
+<text x="619.0" y="379.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">one open per seat and kind,</text>
+<text x="619.0" y="397.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">held or sent, then marked</text>
+<rect x="768" y="208" width="160" height="76" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text x="848.0" y="232.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Supervisor</text>
+<text x="848.0" y="251.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">reads the record,</text>
+<text x="848.0" y="269.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">then acts or not</text>
+<rect x="768" y="330" width="160" height="88" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text x="848.0" y="360.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">ack</text>
+<text x="848.0" y="379.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">useful · noise · unknown,</text>
+<text x="848.0" y="397.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">from the record alone</text>
+<rect x="524" y="468" width="404" height="64" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
+<text x="726.0" y="496.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">assessments/ → node bin/calibrate.ts</text>
+<text x="726.0" y="515.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">every state, question and answer kept, and measured against the marks</text>
+<line x1="122" y1="172" x2="122" y2="204" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<line x1="122" y1="272" x2="122" y2="304" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
+<line x1="212" y1="330" x2="264" y2="260" stroke="#0f6e6e" stroke-width="1.6" marker-end="url(#m0f6e6e)"/>
+<line x1="212" y1="348" x2="264" y2="360" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<line x1="368" y1="406" x2="368" y2="436" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<path d="M468,250 L500,250 L500,240 L520,240" fill="none" stroke="#0f6e6e" stroke-width="1.6" marker-end="url(#m0f6e6e)"/>
+<path d="M468,466 L496,466 L496,262 L520,258" fill="none" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
+<text x="492" y="436" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#bf3989" text-anchor="end">answers</text>
+<line x1="619" y1="284" x2="619" y2="326" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
+<text x="628" y="310" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#57606a" text-anchor="start">findings</text>
+<path d="M714,360 L742,360 L742,246 L764,246" fill="none" stroke="#0f6e6e" stroke-width="1.6" marker-end="url(#m0f6e6e)"/>
+<text x="748" y="330" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#0f6e6e" text-anchor="start">letter</text>
+<line x1="848" y1="284" x2="848" y2="326" stroke="#8250df" stroke-width="1.6" marker-end="url(#m8250df)"/>
+<line x1="848" y1="418" x2="848" y2="464" stroke="#8250df" stroke-width="1.6" marker-end="url(#m8250df)"/>
+<text x="858" y="446" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#8250df" text-anchor="start">marks</text>
+<path d="M444,504 L444,540 L520,540 L520,512" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
+<rect x="32" y="404" width="200" height="200" rx="12" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1.2"/>
+<text x="50" y="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Off by default</text>
+<text x="50" y="456" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">With attention.watch off,</text>
+<text x="50" y="473" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">incidents are recorded and</text>
+<text x="50" y="490" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">listed, and none is sent.</text>
+<text x="50" y="507" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start"></text>
+<text x="50" y="524" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">With no sensor key, the</text>
+<text x="50" y="541" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">facts still stand on their own.</text>
+<text x="50" y="558" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start"></text>
+<text x="50" y="575" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">Nothing here ever reaches</text>
+<text x="50" y="592" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">the seat it watched.</text>
+</svg>
