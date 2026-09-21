@@ -11,7 +11,7 @@ import { type IndexedProxy, type Team, indexedProxies, jevOn, watchOn } from "..
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
 import { seatsOn, workspacesOn } from "../core/paseo-adapter.ts";
 import type { PaseoApi } from "../core/paseo.ts";
-import type { Seats, Workspaces } from "../core/ports.ts";
+import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { type Ledger, type Sibling, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
@@ -36,7 +36,7 @@ import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./w
 import { Reader } from "./watch/seat/reader.ts";
 import { malformed } from "./timeline.ts";
 import { loadIncidents } from "../desk/incidents.ts";
-import type { WatchSignal, WatchView } from "../../shared/views.ts";
+import type { WatchLean, WatchView } from "../../shared/views.ts";
 import { errorText } from "../core/errors.ts";
 
 type EventName = keyof PluginLifecycleEvents;
@@ -147,7 +147,7 @@ export class Runtime {
       reconcile: (team) => this.reconcileProviders(team),
       seats: this.seats,
       held: () => this.outbox.letters(),
-      watch: (project) => this.watchView(project),
+      watch: (project, seats) => this.watchView(project, seats),
     });
   }
 
@@ -351,10 +351,10 @@ export class Runtime {
     }
   }
 
-  private watchView(project: Project): WatchView {
-    const on = this.watching(project);
+  private watchView(project: Project, open: Iterable<SeatView> = []): WatchView {
     const team = this.source.teamFor(project);
-    const questions = team.sensor?.spec.questions ?? {};
+    const spec = team.sensor?.spec;
+    const questions = spec?.questions ?? {};
     const items = Object.values(loadIncidents(project.state).items);
     const now = Date.now();
     const ago = (at: number) => Math.max(0, Math.round((now - at) / 60_000));
@@ -363,77 +363,86 @@ export class Runtime {
     try {
       ledger = loadLedger(project.state);
     } catch {}
+    const nameOf = (id: string, fallback: string) => {
+      const task = ledger ? taskOfPeer(ledger, id) : undefined;
+      if (task) return `${task.kind === "review" ? "Reviewer" : "Peer"} · ${task.id} ${task.title}`;
+      const lane = ledger ? laneOfLead(ledger, id) : undefined;
+      return lane ? `Lead · ${lane.id} ${lane.title}` : fallback;
+    };
 
-    // What makes a seat worth a look now. An incident still open on it first, the worst of them; else
-    // a question past its bar that can open something — one that only judges a fact, like "did it say
-    // it is done", reads high on every good turn and would flag them all.
-    const signalOf = (watch: SeatWatch): WatchSignal | null => {
-      const open = items.filter((item) => item.open && item.seat === watch.seat.id).sort((a, b) => (a.level === b.level ? b.last - a.last : a.level === "page" ? -1 : 1))[0];
-      if (open) return { label: titleOf(open.kind), p: open.p ?? null, level: open.level };
-      let best: WatchSignal | null = null;
-      for (const [name, p] of watch.peaks) {
+    // What a seat's latest reading leans towards without raising it: a question that can open an
+    // incident, read within its unclear band below the bar. One that only judges a fact, like "did it
+    // say it is done", reads high on every good turn and would lean on them all.
+    const leanOf = (watch: SeatWatch): WatchLean | null => {
+      if (!spec || !watch.reading) return null;
+      let best: WatchLean | null = null;
+      for (const [name, p] of Object.entries(watch.reading.answers)) {
         const question = questions[name];
-        if (!question || question.threshold === undefined || p < question.threshold) continue;
-        if (!question.level && !question.agrees?.length) continue;
-        if (!best || p > (best.p ?? 0)) best = { label: titleOf(name), p, level: question.level === "page" ? "page" : "attend" };
+        const bar = question?.threshold;
+        if (!question || bar === undefined || (!question.level && !question.agrees?.length)) continue;
+        if (p >= bar || p < bar - spec.unclear) continue;
+        if (!best || p - bar > best.p - best.bar) best = { title: titleOf(name), p, bar };
       }
       return best;
     };
-    const placeOf = (id: string) => {
-      const task = ledger ? taskOfPeer(ledger, id) : undefined;
-      const lane = ledger ? (task ? ledger.lanes[task.lane] : laneOfLead(ledger, id)) : undefined;
-      return { lane: lane ? { id: lane.id, title: lane.title } : null, task: task ? { id: task.id, title: task.title } : null };
-    };
-    const seats = this.watches
-      .all()
-      .filter((watch) => projectOf(watch.seat.cwd).slug === project.slug)
-      .map((watch) => ({
-        id: watch.seat.id,
-        role: seatOf(this.kit, watch.seat.provider)?.role.role ?? "",
-        running: watch.running,
-        readings: watch.readings,
-        cost: watch.spent,
-        minutes: ago(watch.readAt || now),
-        ...placeOf(watch.seat.id),
-        signal: signalOf(watch),
-      }));
+    const watched = this.watches.all().filter((watch) => projectOf(watch.seat.cwd).slug === project.slug);
+    const seats = watched.map((watch) => ({ id: watch.seat.id, name: nameOf(watch.seat.id, watch.seat.title ?? watch.seat.id), running: watch.running, lean: leanOf(watch) }));
+    const lanes = new Set(watched.map((watch) => (ledger ? (taskOfPeer(ledger, watch.seat.id)?.lane ?? laneOfLead(ledger, watch.seat.id)?.id) : undefined)).filter(Boolean)).size;
 
-    // Most in need of a look first: open and irreversible, open, then what the Supervisor found useful,
-    // what it could not judge, and last what it marked noise — newest first within each.
-    const rank = (item: (typeof items)[number]) => (item.open ? (item.level === "page" ? 0 : 1) : item.label === "useful" ? 2 : item.label === "unknown" || !item.label ? 3 : 4);
-    const incidents = [...items]
-      .sort((a, b) => rank(a) - rank(b) || b.last - a.last)
+    const incidents = items
+      .filter((item) => item.open)
+      .sort((a, b) => (a.level === b.level ? b.last - a.last : a.level === "page" ? -1 : 1))
       .slice(0, INCIDENTS_SHOWN)
-      .map((item) => ({
-        id: item.id,
-        kind: item.kind,
-        title: titleOf(item.kind),
-        level: item.level,
-        where: item.task ? `Peer on ${item.task}` : item.lane ? `Lead of ${item.lane}` : item.where,
-        open: item.open,
-        told: item.told !== undefined,
-        held: item.open && item.told === undefined ? (item.held ?? null) : null,
-        label: item.label ?? null,
-        note: (item.note ?? "").slice(0, 240),
-        count: item.count,
-        minutes: ago(item.last),
-      }));
+      .map((item) => {
+        const source = item.by === "watcher" ? ("watcher" as const) : item.p !== undefined ? ("jev" as const) : ("code" as const);
+        const bar = questions[item.kind]?.threshold;
+        return {
+          id: item.id,
+          title: titleOf(item.kind),
+          level: item.level,
+          name: nameOf(item.seat, item.where),
+          minutes: ago(item.last),
+          quote: item.quote.replace(/\s+/g, " ").slice(0, 300),
+          source,
+          sure: source === "jev" && item.p !== undefined && bar !== undefined ? { p: item.p, bar } : null,
+          told: item.told !== undefined ? (item.toldTo ?? null) : null,
+          lane: item.lane ?? null,
+          held: item.told === undefined ? (item.held ?? null) : null,
+        };
+      });
+
+    const troubles = this.troubles.get(project.slug) ?? [];
+    const lastRead = lastKept(project.state) ?? null;
+    // Against the last answer itself, not the kept file's age in whole minutes: a failure ten seconds
+    // after an answer and one ten seconds before it round to the same minute.
+    const degraded = troubles.filter((entry) => entry.kind === "sensor.degraded").at(-1);
+    const answered = Math.max(0, ...watched.map((watch) => watch.readAt));
+    const failing = jevOn(team) && degraded && degraded.at > answered ? { minutes: ago(degraded.at), detail: degraded.detail } : null;
+    const seat = [...open]
+      .filter((entry) => !entry.archivedAt && entry.cwd && projectOf(entry.cwd).slug === project.slug && can(seatOf(this.kit, entry.provider)?.role, "watch"))
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0];
+
     return {
-      on,
+      by: team.attention.by,
+      on: this.watching(project),
+      keyed: Boolean(team.sensor),
       telling: team.attention.watch,
+      judgeMinutes: team.attention.by === "seat" ? team.attention.watcherJudgeMinutes : 2,
+      failing,
+      watcher: seat ? { id: seat.id, status: seat.status, minutes: ago(Date.parse(seat.updatedAt)), queued: this.outbox.pending(seat.id).length } : null,
+      lanes,
       seats,
-      lastRead: lastKept(project.state) ?? null,
+      lastRead,
       read: readTally(project.state),
       marks: {
         total: items.length,
         open: items.filter((item) => item.open).length,
-        held: items.filter((item) => item.open && item.told === undefined).length,
         useful: items.filter((item) => item.label === "useful").length,
         noise: items.filter((item) => item.label === "noise").length,
         unknown: items.filter((item) => item.label === "unknown").length,
       },
       incidents,
-      trouble: (this.troubles.get(project.slug) ?? []).map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(),
+      trouble: troubles.map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(),
     };
   }
 

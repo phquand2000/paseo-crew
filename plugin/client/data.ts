@@ -1,9 +1,9 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchIncident, WatchSeat, WatchView } from "../shared/views.ts";
+import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchIncident, WatchLean, WatchSeat, WatchView } from "../shared/views.ts";
 import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, pathsRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
-export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchIncident, WatchSeat, WatchView };
+export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchIncident, WatchLean, WatchSeat, WatchView };
 
 export type Scalar = string | number | boolean;
 export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
@@ -15,6 +15,8 @@ export type Catalog = {
   roles: { id: string; label: string; description: string; can: string[]; concern: string | null; defaults: { harness: string; model?: string; thinking?: string }; follows: string | null; harnesses: string[] }[];
   harnesses: { id: string; label: string; models: ModelView[]; thinking: boolean; transports: string[] }[];
   mcp: { id: string; label: string; description: string; kind: string; transport: string; settings: Record<string, SettingSpec>; defaults: { enabled: boolean }; roles: string[] }[];
+  /** The model Jev runs as, when the kit ships a sensor. */
+  sensor: { model: string } | null;
 };
 
 export type TeamView = {
@@ -30,6 +32,7 @@ export type AttentionChoice = {
   tickSeconds?: number; leadIdleMinutes?: number; askRemindMinutes?: number; maxReminders?: number;
   watch?: boolean; destructive?: string; testPath?: string; repeatsAt?: number; reworksAt?: number; reviewsAt?: number; suppressed?: string;
   longTurnMinutes?: number; incidentsPerDay?: number;
+  by?: "seat" | "jev"; watcherQuietSeconds?: number; watcherEveryMinutes?: number; watcherChars?: number; watcherRotateAfter?: number; watcherJudgeMinutes?: number;
 };
 export type RoleChoice = { harness?: string; model?: string; thinking?: string; rules?: string };
 export type McpChoice = { enabled?: boolean; removed?: boolean; label?: string; connect?: Connect; roles?: string[]; tools?: Record<string, string[]>; rule?: string; settings?: Record<string, Scalar> };
@@ -515,35 +518,6 @@ export function setAttention(values: Layer, choice: AttentionChoice): Layer {
   return { ...values, attention: { ...values.attention, ...choice } };
 }
 
-export type WatchState = { on: boolean; title: string; hint: string; mailHint: string; keyHint: string };
-
-/**
- * What the Watch panel says, decided here rather than inside the markup so a test can hold it to it.
- *
- * The screen used to answer two questions in a voice that mixed them: a switch labelled as if it were
- * the watch's power when it only governs the mail, and a key row that said the watch runs while the
- * line above it said nothing is marked. The key is the power; the switch is what happens to what it
- * finds; and with no key there is nothing to happen to.
- */
-export function watchState(set: boolean, mailing: boolean, perDay: number, layer: "machine" | "project", from: string): WatchState {
-  const hint = set
-    ? layer === "machine"
-      ? "A key is set on this machine, so the watch runs in every project."
-      : "A key is set on this machine, so it runs here too. What it is doing right now is on the Flow tab."
-    : layer === "machine"
-      ? "No key is set, so no seat is followed, no turn is read, and no lane's record is gone through."
-      : "It runs on a key set on this machine, and there is none. Nothing here is followed, read or recorded.";
-  const mailHint = !set
-    ? `Nothing is mailed while the watch is off. ${from}`
-    : mailing
-      ? `Incidents go to the Supervisor as they are raised, up to ${perDay} a day. Past that they are held, and the Supervisor still lists them with \`incidents\`. ${from}`
-      : `Incidents are raised and listed, and none is mailed. The Supervisor reads them with \`incidents\`. ${from}`;
-  const keyHint = set
-    ? "The key is kept here and never shown again. Type another to replace it."
-    : "An OpenRouter key. It is kept on this machine and used by every project.";
-  return { on: set, title: set ? "The watch is on" : "The watch is off", hint, mailHint, keyHint };
-}
-
 /**
  * Money in dollars, always. Three places below a dollar, because watching a whole lane costs a few
  * cents and two places would print most seats as $0.00; two above it.
@@ -552,147 +526,79 @@ export const spent = (cost: number): string => (cost === 0 ? "nothing yet" : `$$
 
 const since = (minutes: number): string => {
   if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} minutes ago`;
+  if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.round(minutes / 60);
   return hours < 24 ? `${hours} hour${hours === 1 ? "" : "s"} ago` : `${Math.round(hours / 24)} day${Math.round(hours / 24) === 1 ? "" : "s"} ago`;
 };
 
-export type WatchCard = {
-  title: string;
-  hint: string;
-  /** Only while seats are running. */
-  live: boolean;
-  stats: { value: string; label: string }[];
-  settledTitle: string;
-  settledHint: string;
-};
-
-const kindName = (kind: string): string => kind.replace(/[-_]/g, " ");
+const pct = (p: number): string => `${Math.round(p * 100)}%`;
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
 
-/**
- * What the watch card says, decided here so a test can hold it to it.
- *
- * The numbers are the project's, read from what the watch kept, so an idle card still says what it
- * has done — the version fed by the live seats alone read "0 open incidents" about a project it had
- * read three hundred turns in. The live seats are listed beneath it while there are any.
- */
-export function watchCard(watch: WatchView): WatchCard {
-  const live = watch.seats.length > 0;
-  const { useful, noise, unknown } = watch.marks;
-  const settled = watch.incidents.filter((item) => !item.open && item.label !== "useful");
-  const byKind = new Map<string, number>();
-  for (const item of settled) byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + 1);
-  const kinds = [...byKind].sort((a, b) => b[1] - a[1]);
-  const shown = kinds.slice(0, 3).map(([kind, n]) => `${kindName(kind)} ${n}`);
-  const rest = kinds.length - shown.length;
+/** What the card's header says of Jev: the one line to read first, and the word at its right. */
+export type JevHeader = { title: string; sub: string; word: string; tone: "success" | "warning" | "muted" };
+
+export function jevHeader(watch: WatchView): JevHeader {
+  const word = watch.telling ? "mailing" : "recording only";
+  if (!watch.keyed) return { title: "Jev is not reading", sub: "Watch by Jev needs an OpenRouter key on this machine. Until there is one, nothing is followed, read or recorded.", word: "", tone: "warning" };
+  if (watch.failing) {
+    return {
+      title: "Jev is not answering",
+      sub: `Its last reading failed ${since(watch.failing.minutes)}: ${watch.failing.detail}. The code still reads every turn; what waits for Jev's second look goes after ${watch.judgeMinutes} minutes.`,
+      word: "not answering",
+      tone: "warning",
+    };
+  }
+  const tally = `${watch.read.turns.toLocaleString("en-US")} turns read · ${spent(watch.read.cost)} spent so far`;
+  const running = watch.seats.filter((seat) => seat.running).length;
+  if (running > 0) {
+    return { title: `Jev is reading ${plural(running, "seat")}${watch.lanes > 1 ? ` in ${watch.lanes} lanes` : ""}`, sub: `Last read ${watch.lastRead === null ? "not yet" : since(watch.lastRead)} · ${tally}`, word, tone: "success" };
+  }
+  return { title: "Nothing is running", sub: watch.lastRead === null ? "Jev has not read a turn here yet." : `Jev last read a turn here ${since(watch.lastRead)} · ${tally}`, word, tone: "muted" };
+}
+
+/** An incident's lines as the card shows them: who and when, how it was raised, and where it has got to. */
+export type IncidentLines = { sub: string; source: string; state: string; danger: boolean };
+
+export function incidentLines(item: WatchIncident, watch: Pick<WatchView, "by" | "judgeMinutes" | "failing">): IncidentLines {
+  const reader = watch.by === "seat" ? "the Watcher" : "Jev";
+  const source = item.source === "watcher" ? "raised by the Watcher" : item.source === "jev" ? (item.sure ? `Jev ${pct(item.sure.p)} sure · bar ${pct(item.sure.bar)}` : "raised by Jev") : "measured in code";
+  let state: string;
+  if (item.told === "lead") state = item.lane ? `told Lead ${item.lane}` : "told its Lead";
+  else if (item.told === "supervisor") state = "told the Supervisor";
+  else if (item.held === "awaiting") state = watch.failing ? `held · Jev is not answering, told after ${watch.judgeMinutes} min` : watch.by === "seat" ? `held · waiting for the Watcher, up to ${watch.judgeMinutes} min` : `held · Jev takes a second look, up to ${watch.judgeMinutes} min`;
+  else if (item.held === "vetoed") state = `held back by ${reader}`;
+  else if (item.held === "budget") state = "held · today's limit is reached";
+  else if (item.held === "nobody") state = "held · nobody is seated to tell";
+  else if (item.held === "shadow") state = "recorded · mail is off";
+  else state = "recorded";
+  return { sub: `${item.name} · ${since(item.minutes)}`, source, state, danger: item.told === "supervisor" && item.level === "page" };
+}
+
+/** The seats leaning towards something, closest to their bar first, and the names of the rest. */
+export function leaning(seats: WatchSeat[]): { leaning: (WatchSeat & { lean: WatchLean })[]; quiet: string[] } {
+  const on = seats.filter((seat): seat is WatchSeat & { lean: WatchLean } => seat.lean !== null).sort((a, b) => b.lean.p - b.lean.bar - (a.lean.p - a.lean.bar));
+  return { leaning: on, quiet: seats.filter((seat) => seat.lean === null).map((seat) => seat.name) };
+}
+
+/** How right the watch has been here, from the marks: noise and useful are what is counted. */
+export function trackRecord(marks: WatchView["marks"]): { title: string; percent: string | null; parts: [number, number, number]; hint: string } {
+  const judged = marks.useful + marks.noise;
+  const parts: [number, number, number] = [marks.useful, marks.noise, marks.unknown];
+  if (judged + marks.unknown === 0) return { title: "Nothing marked yet", percent: null, parts, hint: "The Leads and the Supervisor mark each incident with ack: useful, noise or unknown." };
+  const tune = judged >= 20 ? "there are enough marks now to run node bin/calibrate.ts." : "with 20 or more marks, run node bin/calibrate.ts.";
   return {
-    title: live ? `Watching ${plural(watch.seats.length, "seat")}` : "The watch is on",
-    hint: live
-      ? watch.telling
-        ? "What it marks goes to the Supervisor."
-        : "What it marks is recorded and listed, and none of it is mailed."
-      : watch.lastRead === null
-        ? "It has read nothing here yet. It starts when a Lead or Peer does, and reads their turns while they work."
-        : `Nothing is running. It last read a turn here ${since(watch.lastRead)}.`,
-    live,
-    stats: [
-      { value: watch.read.turns.toLocaleString("en-US"), label: "turns read" },
-      { value: spent(watch.read.cost), label: "spent on the sensor" },
-      { value: String(useful), label: "worth a look" },
-      { value: String(noise + unknown), label: "settled" },
-    ],
-    settledTitle: [noise > 0 ? `${noise} marked noise` : "", unknown > 0 ? `${unknown} unknown` : ""].filter(Boolean).join(", ") || "Nothing settled yet",
-    settledHint: shown.length > 0 ? `${shown.join(" · ")}${rest > 0 ? ` · ${plural(rest, "other kind")}` : ""}` : "What the Supervisor marks noise or cannot judge is folded here.",
+    title: `${marks.useful} of ${judged} marked incidents were worth it`,
+    percent: judged > 0 ? pct(marks.useful / judged) : null,
+    parts,
+    hint: `${marks.useful} useful · ${marks.noise} noise · ${marks.unknown} unknown, as the Leads and the Supervisor marked them. Noise is what the bars are tuned against: ${tune}`,
   };
 }
 
-export type SeatFilter = "all" | "flagged" | "running" | "idle";
-
-export type LaneGroup = { id: string; title: string; seats: WatchSeat[]; leads: number; peers: number; running: number; flagged: number; cost: number };
-
-const seatPasses = (seat: WatchSeat, filter: SeatFilter): boolean =>
-  filter === "all" || (filter === "flagged" ? seat.signal !== null : filter === "running" ? seat.running : !seat.running);
-
-export function seatCounts(seats: WatchSeat[]): Record<SeatFilter, number> {
-  return { all: seats.length, flagged: seats.filter((seat) => seat.signal).length, running: seats.filter((seat) => seat.running).length, idle: seats.filter((seat) => !seat.running).length };
-}
-
-/**
- * The watched seats in their lanes, the way forty of them can be read.
- *
- * A list of seats stops being readable somewhere past a dozen. In lanes, each with its counts, the
- * owner reads four lines and opens the one that is flagged. Within a lane the flagged come first, the
- * irreversible before the rest, then what is running; lanes with something flagged come first.
- */
-export function laneGroups(seats: WatchSeat[], filter: SeatFilter): LaneGroup[] {
-  const groups = new Map<string, LaneGroup>();
-  for (const seat of seats) {
-    if (!seatPasses(seat, filter)) continue;
-    const id = seat.lane?.id ?? "";
-    const group = groups.get(id) ?? { id, title: seat.lane?.title ?? "Not in a lane", seats: [], leads: 0, peers: 0, running: 0, flagged: 0, cost: 0 };
-    group.seats.push(seat);
-    if (seat.task) group.peers += 1;
-    else group.leads += 1;
-    if (seat.running) group.running += 1;
-    if (seat.signal) group.flagged += 1;
-    group.cost += seat.cost;
-    groups.set(id, group);
-  }
-  const weight = (seat: WatchSeat) => (seat.signal?.level === "page" ? 0 : seat.signal ? 1 : seat.running ? 2 : 3);
-  for (const group of groups.values()) group.seats.sort((a, b) => weight(a) - weight(b) || b.readings - a.readings);
-  return [...groups.values()].sort((a, b) => b.flagged - a.flagged || b.running - a.running || a.id.localeCompare(b.id));
-}
-
-export type IncidentFilter = "all" | "useful" | "noise" | "unknown" | "open";
-
-export type KindGroup = { kind: string; title: string; level: "page" | "attend"; incidents: WatchIncident[]; seen: number; wheres: string[]; open: number; useful: number; noise: number; unknown: number };
-
-const incidentPasses = (item: WatchIncident, filter: IncidentFilter): boolean =>
-  filter === "all" || (filter === "open" ? item.open : !item.open && (filter === "unknown" ? item.label === "unknown" || item.label === null : item.label === filter));
-
-export function incidentCounts(incidents: WatchIncident[]): Record<IncidentFilter, number> {
-  const count = (filter: IncidentFilter) => incidents.filter((item) => incidentPasses(item, filter)).length;
-  return { all: incidents.length, open: count("open"), useful: count("useful"), noise: count("noise"), unknown: count("unknown") };
-}
-
-/**
- * Every incident, grouped by what was seen. The server sends them most in need of a look first, so
- * a group's place is where its most pressing incident falls, and one that pages sorts above the rest.
- */
-export function kindGroups(incidents: WatchIncident[], filter: IncidentFilter): KindGroup[] {
-  const groups = new Map<string, KindGroup>();
-  for (const item of incidents) {
-    if (!incidentPasses(item, filter)) continue;
-    const group = groups.get(item.kind) ?? { kind: item.kind, title: item.title, level: "attend", incidents: [], seen: 0, wheres: [], open: 0, useful: 0, noise: 0, unknown: 0 };
-    group.incidents.push(item);
-    group.seen += item.count;
-    if (item.level === "page") group.level = "page";
-    if (!group.wheres.includes(item.where)) group.wheres.push(item.where);
-    if (item.open) group.open += 1;
-    else if (item.label === "useful") group.useful += 1;
-    else if (item.label === "noise") group.noise += 1;
-    else group.unknown += 1;
-    groups.set(item.kind, group);
-  }
-  return [...groups.values()];
-}
-
-/** A group's marks as one short phrase: "1 useful · 1 noise", "open", "noise". */
-export function marksOf(group: KindGroup): string {
-  const parts = [group.open > 0 ? `${group.open} open` : "", group.useful > 0 ? `${group.useful} useful` : "", group.unknown > 0 ? `${group.unknown} unknown` : "", group.noise > 0 ? `${group.noise} noise` : ""].filter(Boolean);
-  if (parts.length === 1) return parts[0]!.replace(/^\d+ /, "");
-  return parts.join(" · ");
-}
-
-/** Why an open incident has not been mailed yet, in words. */
-export function heldText(held: string | null): string {
-  if (held === "awaiting") return "waiting on the sensor";
-  if (held === "budget") return "past today's budget";
-  if (held === "nobody") return "nobody seated to tell";
-  if (held === "shadow") return "mailing is off";
-  if (held === "vetoed") return "the sensor disagreed";
-  return "not mailed yet";
+/** The Watcher seat as the Flow canvas draws it, beside the Supervisor. */
+export function watcherState(watcher: WatchView["watcher"]): { state: string; alive: boolean } {
+  if (!watcher) return { state: "not seated · it sits once a lane is open", alive: false };
+  const waiting = watcher.queued > 0 ? ` · ${plural(watcher.queued, "reading")} waiting` : "";
+  return { state: `${watcher.status}${waiting}`, alive: watcher.status !== "closed" };
 }
 
 export function setFlow(values: Layer, choice: { live?: boolean; everySeconds?: number }): Layer {

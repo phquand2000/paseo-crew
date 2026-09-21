@@ -1032,19 +1032,21 @@ then Check. Check is a summary of what will be saved, and runs nothing.
 Machine defaults and every project open the same four tabs:
 
 - **Team:** the agent per role, its model where the agent offers more than one, and its thinking
-  level where the agent has one. Then **Watch**, in two cards:
-  - whether the watch runs, which the key decides
-  - what becomes of what it marks
-
-  `watchState` in `client/data.ts` chooses the wording, so a test can hold the screen to it.
+  level where the agent has one. The role that can `watch` has the watch on its own chip and nowhere
+  else, in one card: *Watch by*; then its own agent, model and thinking by a seat, or Jev's key and
+  sensor by Jev; then *Mail incidents*.
 - **Flow:** Supervisors, lanes, tasks and open asks. It is polled with a revision, so an unchanged
-  view is not sent again, and it draws at most 50 open lanes. Then **the watch** card:
-  - What the watch has done in this project, from the record: the incident book for what it marked
-    and how each was judged, and a `stat` of the kept assessments for when it last read a turn.
-  - The live seats, while there are any, each with its readings, cost, and the highest any question
-    has reached on it.
+  view is not sent again, and it draws at most 50 open lanes. Then the watch, by what reads the seats:
+  - By a seat, the Watcher on the canvas beside the Supervisor, with the readings the outbox holds for
+    it, and a short card of the open incidents.
+  - By Jev, the Jev card: a header that says whether Jev is reading, idle, not answering (its last
+    `sensor.degraded` is newer than its last answer) or keyless; what needs a look, each with its
+    quote, who raised it (code, Jev with its p and bar, or the Watcher), and who was told (an
+    incident keeps `toldTo`); what each seat's latest reading leans towards within the unclear band
+    below a bar; and the marks as a track record.
 
-  `watchCard` in `client/data.ts` chooses the wording. On Machine defaults, Flow only sets the live
+  `jevHeader`, `incidentLines`, `leaning`, `trackRecord` and `watcherState` in `client/data.ts`
+  choose the wording, so a test can hold the screen to it. On Machine defaults, Flow only sets the live
   switch.
 - **MCP:** switch servers on or off, choose their roles and options, and add one from a pasted
   snippet.

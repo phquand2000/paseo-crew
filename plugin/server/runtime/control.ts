@@ -5,7 +5,7 @@ import { type Kit, can, providerId, rolesThatCan, seatOf, supportsRole } from ".
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, withKey, withoutKey, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
-import type { Seats } from "../core/ports.ts";
+import type { SeatView, Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
 import { guidesDir, worktreeRoot } from "../core/paths.ts";
 import { createHash } from "node:crypto";
@@ -115,6 +115,7 @@ export function describeCatalog(kit: Kit): unknown {
         roles: templateRoles(entry),
         template: true,
       })),
+    sensor: Object.values(kit.sensors)[0] ? { model: Object.values(kit.sensors)[0]!.model } : null,
   };
 }
 
@@ -166,7 +167,7 @@ export type ControlDeps = {
   /** Mail the desk is still holding, so the owner's status page is the one the agents read. */
   held: () => { to: string; text: string; at: number }[];
   /** What the watch is doing right now, which only the runtime following the seats can say. */
-  watch: (project: Project) => WatchView;
+  watch: (project: Project, seats: Iterable<SeatView>) => WatchView;
 };
 
 export class SettingsControl implements Control {
@@ -351,7 +352,7 @@ export class SettingsControl implements Control {
     // What the watch is doing is live state, not the ledger, so it is folded in here rather than read
     // by the view — but it is still part of the revision, or the card would freeze whenever the desk's
     // own record happened not to change.
-    const watch = this.deps.watch(project);
+    const watch = this.deps.watch(project, seats.values());
     const revision = createHash("sha1").update(`${view.revision}${JSON.stringify(watch)}`).digest("hex").slice(0, 16);
     return since && since === revision ? { unchanged: true, revision } : { ...view, watch, revision };
   }

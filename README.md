@@ -138,13 +138,14 @@ Nothing the watch concludes ever reaches the seat it watched.
   and lanes are read in code. Jev is never asked, even when a key is set.
 - **`jev`.** Jev reads beside the code, and the OpenRouter key is the switch. With a key the watch
   runs. Without one it does not run at all: no seat is followed, and no turn or lane record is read.
-- The key is on the panel's **Team** tab, under **Watch**, on **Machine defaults**. It is kept on the
-  machine and used for every project. The panel only says a key is set and never reads it back, and
+- Both are on the panel's **Team** tab, on the **Watcher**'s own chip: *Watch by*, then the Watcher
+  seat's agent, or Jev's key, which is set on **Machine defaults**. The key is kept on the machine and
+  used for every project. The panel only says a key is set and never reads it back, and
   saving anything else leaves the key alone.
 - Change `by`, or take the key away, and the next patrol round follows suit, with no reload.
 
 **Mailing is a second, separate switch.** Out of the box a running watch is quiet: incidents are
-recorded and listed, but none is mailed. Turn on *Mail incidents to the Supervisor* on Machine
+recorded and listed, but none is mailed. Turn on *Mail incidents*, on the Watcher's chip, on Machine
 defaults or on one project.
 
 You can also write both switches by hand. The next patrol round picks up the file with no reload:
@@ -166,11 +167,13 @@ record to calibrate against before letting the watch speak.
 
 The project's **Flow** tab shows what the watch is doing:
 
-- the seats it follows, grouped by lane, with what each has cost and the highest signal read on it
-- the incidents that need the Supervisor or were marked useful, with the rest one tap away
-- any tool call that never reached the desk
-- a sensor that stopped answering, which is also written to the project's `events.log` as
-  `sensor.degraded`
+- **By a Watcher seat,** the Watcher is a seat on the canvas beside the Supervisor, with the readings
+  waiting for it, and the incidents not yet marked are one short card below, like the open asks.
+- **By Jev,** a card of its own: whether Jev is reading, not answering, or has no key; what needs a
+  look, each with the step that shows it, who raised it and how sure, and who was told; what Jev leans
+  towards without raising, against its bar; and how many of the marked incidents were worth it. A Jev
+  that stopped answering is also written to the project's `events.log` as `sensor.degraded`.
+- Either way, any tool call that never reached the desk.
 
 Once there is a record, `cd plugin && node bin/calibrate.ts <project>` reports how well each of
 Jev's questions separated what you marked useful from what you marked noise. The whole design is in

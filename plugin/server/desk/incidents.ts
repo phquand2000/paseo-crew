@@ -29,6 +29,8 @@ export type Incident = {
   count: number;
   open: boolean;
   told?: number;
+  /** Who it was told to: a Lead about its Peer, or whoever supervises. */
+  toldTo?: "lead" | "supervisor";
   held?: Held;
   label?: "useful" | "noise" | "unknown";
   note?: string;
@@ -131,7 +133,7 @@ export function sight(incidents: Incidents, sighting: Sighting, now: number): { 
     if (sighting.level === "page" && seen.level === "attend") {
       Object.assign(seen, { level: "page", quote: sighting.quote });
       if (sighting.p !== undefined) seen.p = sighting.p;
-      for (const key of ["told", "later", "held", "sensor"] as const) delete seen[key];
+      for (const key of ["told", "toldTo", "later", "held", "sensor"] as const) delete seen[key];
       return { incident: seen, opened: false };
     }
     if (seen.told === undefined) {

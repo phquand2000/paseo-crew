@@ -3,8 +3,8 @@ import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@get
 import { memo, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import { type FlowLane, type FlowSeat, type FlowView, countsInstead } from "./data.ts";
-import { WatchCard } from "./watching.tsx";
+import { type FlowLane, type FlowSeat, type FlowView, countsInstead, watcherState } from "./data.ts";
+import { IncidentsCard, WatchCard } from "./watching.tsx";
 
 type Props = {
   /** False on the machine screen, where there is no project to follow and nothing is read. */
@@ -16,8 +16,9 @@ type Props = {
   disabled: boolean;
   onLive(live: boolean): void;
   onOpen(lane: string): void;
-  /** Where the watch's key is set: Machine defaults, on the Team tab. */
+  /** Where the watch's key is set: Machine defaults, on the Team tab, the Watcher's own chip. */
   onAddKey(): void;
+  onWatchBySeat(): void;
 };
 
 const NODE_W = 232;
@@ -41,6 +42,7 @@ function useStyles(theme: PluginTheme) {
   return useMemo(
     () => ({
       canvas: { borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface0, overflow: "hidden" as const },
+      reads: { borderStyle: "dashed" as const },
       node: { width: NODE_W, height: NODE_H, gap: 4, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
       head: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8 },
       title: { flex: 1, color: theme.colors.foreground, fontSize: 14, fontWeight: "500" as const },
@@ -61,18 +63,20 @@ function useStyles(theme: PluginTheme) {
   );
 }
 
-const Node = memo(function Node({ title, hint, state, alive, caret, theme, onPress }: {
+const Node = memo(function Node({ title, hint, state, alive, caret, reads, theme, onPress }: {
   title: string;
   hint: string;
   state: string;
   alive: boolean;
   caret?: string;
+  /** A seat that reads the others rather than working in a lane: drawn with a dashed edge. */
+  reads?: boolean;
   theme: PluginTheme;
   onPress?: () => void;
 }) {
   const styles = useStyles(theme);
   return (
-    <Pressable accessibilityRole={onPress ? "button" : "text"} accessibilityLabel={title} disabled={!onPress} onPress={onPress} style={styles.node}>
+    <Pressable accessibilityRole={onPress ? "button" : "text"} accessibilityLabel={title} disabled={!onPress} onPress={onPress} style={[styles.node, reads ? styles.reads : null]}>
       <View style={styles.head}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
@@ -126,9 +130,11 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
   );
 });
 
-export function FlowSection({ following, flow, error, live, theme, disabled, onLive, onOpen, onAddKey }: Props) {
+export function FlowSection({ following, flow, error, live, theme, disabled, onLive, onOpen, onAddKey, onWatchBySeat }: Props) {
   const styles = useStyles(theme);
   const empty = flow !== null && flow.lanes.length === 0 && flow.supervisors.length === 0;
+  // By a seat the Watcher is a seat like the others, beside the Supervisor, once a lane has put it there.
+  const watcher = flow && flow.watch.by === "seat" && (flow.watch.watcher || flow.lanes.length > 0) ? watcherState(flow.watch.watcher) : null;
 
   return (
     <SettingsSection title="Flow" info="Only what the team is holding right now. Open a lane to see its Peers.">
@@ -158,9 +164,15 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
         <View style={styles.canvas}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ paddingBottom: PAD }}>
-              {flow.supervisors.map((seat) => (
+              {flow.supervisors.map((seat, index) => (
                 <View key={seat.id} style={styles.lane}>
                   <Node theme={theme} title={seat.role === "supervisor" ? "Supervisor" : `Supervisor · ${seat.role}`} hint={seat.id} state={seatText(seat)} alive={seat.status !== "gone"} />
+                  {index === 0 && watcher ? (
+                    <>
+                      <View style={{ width: COL_GAP }} />
+                      <Node theme={theme} title="Watcher" hint="reads every Lead and Peer" state={watcher.state} alive={watcher.alive} reads />
+                    </>
+                  ) : null}
                 </View>
               ))}
               {flow.lanes.map((lane) => (
@@ -180,7 +192,7 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
         </SettingsCard>
       ) : null}
 
-      {live && flow ? <WatchCard watch={flow.watch} theme={theme} onAddKey={onAddKey} /> : null}
+      {live && flow ? (flow.watch.by === "jev" ? <WatchCard watch={flow.watch} theme={theme} onAddKey={onAddKey} onWatchBySeat={onWatchBySeat} /> : <IncidentsCard watch={flow.watch} theme={theme} />) : null}
 
       {live && flow && flow.asks.length > 0 ? (
         <SettingsCard>

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
 import type { Check } from "./data.ts";
-import { setFlow, useFlow, useSeatworks } from "./data.ts";
+import { setAttention, setFlow, useFlow, useSeatworks } from "./data.ts";
 import { type DetailTab, Detail } from "./detail.tsx";
 import { FlowSection } from "./flow.tsx";
 import { HealthSection } from "./health.tsx";
@@ -13,11 +13,11 @@ import { MACHINE, ProjectList } from "./projects.tsx";
 import { ServersSection } from "./servers.tsx";
 import { SetupDialog } from "./setup-dialog.tsx";
 import { TeamSection } from "./team.tsx";
-import { WatchSection } from "./watch.tsx";
 
 export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>("team");
+  const [chip, setChip] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
   // Which screen these were run on. Held in the surface and never cleared, another project's results
   // were shown as this project's — same headings, same "all pass", another project's servers.
@@ -150,8 +150,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         {trouble}
         {tab === "team" ? (
           <>
-            <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} save={(change) => void save(change)} />
-            <WatchSection team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} save={save} />
+            <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} active={chip} onActive={setChip} save={save} />
           </>
         ) : null}
         {tab === "flow" ? (
@@ -166,7 +165,9 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             onAddKey={() => {
               setOpen(MACHINE);
               setTab("team");
+              setChip(data.catalog.roles.find((role) => role.can.includes("watch"))?.id ?? null);
             }}
+            onWatchBySeat={() => void save((values) => setAttention(values, { by: "seat" }))}
             onOpen={(lane) =>
               setOpenLanes((current) => {
                 const lanes = current.of === (project ?? "") ? current.lanes : [];

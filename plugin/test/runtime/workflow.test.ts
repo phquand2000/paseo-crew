@@ -2056,6 +2056,60 @@ test("an incident about a Peer whose Lead is gone goes to whoever supervises, an
   h.runtime.dispose();
 });
 
+test("the Flow view by a seat carries the Watcher seat, what waits for it, and who raised and was told of each incident", async () => {
+  const { h, lane, timeline } = await laneWithPeer("outbox-view-seat.json", bySeat({ watch: true }));
+  const [watcher] = watchersOf(h);
+  await h.idle(watcher!.id);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "reasoning", text: "A shim keeps the old import working." }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await read(h, watcher!.id);
+  await h.call(watcher!.id, "watcher", "raise", { kind: "missing_mechanism", step: "R1.S1", why: "a shim" });
+  // Another reading comes while the Watcher is busy, and waits for it.
+  watcher!.status = "running";
+  timeline.beat("turn_started", "t2");
+  timeline.add({ type: "tool_call", callId: "c2", name: "Bash", status: "completed", detail: { type: "shell", command: "ls", output: "a.txt" } }, "t2");
+  timeline.beat("turn_completed", "t2");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  const view = ((await h.runtime.control.flow(h.project.slug)) as { watch: WatchView }).watch;
+  assert.equal(view.by, "seat");
+  assert.deepEqual({ ...view.watcher!, minutes: 0 }, { id: watcher!.id, status: "running", minutes: 0, queued: 1 });
+  assert.deepEqual(view.incidents.map((item) => [item.id, item.source, item.told, item.lane, item.quote]), [["I1", "watcher", "lead", lane.id, "S1 thought: A shim keeps the old import working."]]);
+  h.runtime.dispose();
+});
+
+test("by Jev, a Jev that fails after it last answered is said to be failing, and one that answers again is not", async (t) => {
+  const { h, timeline } = await laneWithPeer("outbox-view-failing.json");
+  let status = 401;
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    if (status !== 200) return new Response("slow down", { status });
+    const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
+  });
+  const turn = async (id: string) => {
+    timeline.beat("turn_started", id);
+    timeline.add({ type: "user_message", text: `Go ${id}` }, id);
+    timeline.add({ type: "tool_call", callId: `c-${id}`, name: "Bash", status: "completed", detail: { type: "shell", command: "ls", output: "a.txt" } }, id);
+    timeline.beat("turn_completed", id);
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  };
+  await turn("t1");
+  const failing = ((await h.runtime.control.flow(h.project.slug)) as { watch: WatchView }).watch;
+  assert.equal(failing.keyed, true);
+  assert.match(failing.failing?.detail ?? "", /401/);
+  status = 200;
+  (h.runtime as unknown as { sensorNoted: Map<string, number> }).sensorNoted.clear();
+  await turn("t2");
+  const back = ((await h.runtime.control.flow(h.project.slug)) as { watch: WatchView }).watch;
+  assert.equal(back.failing, null, "an answer since the failure clears it");
+  h.runtime.dispose();
+});
+
 const incidentsOf = (state: string) => JSON.parse(readFileSync(join(state, "incidents.json"), "utf-8")).items as Record<string, { kind: string; held?: string; told?: number; level: string }>;
 
 test("an irreversible command a Peer starts reaches the Supervisor before the call finishes, and nothing of it reaches the Peer", async () => {
@@ -2089,7 +2143,7 @@ test("with the watch on but not telling, the desk records what it sees and sends
   assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => [item.kind, item.held]), [["destructive", "shadow"]]);
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
-  assert.deepEqual(view.watch.incidents.map((item) => item.where), ["Peer on L1-T1"], "the card names the seat by its task, not by the letter's whole sentence");
+  assert.deepEqual(view.watch.incidents.map((item) => [item.name, item.source, item.quote, item.held]), [["Peer · L1-T1 Clean build", "code", "git push --force origin main", "shadow"]], "the card names the seat by its task, and shows the step, how it was raised and why it waits");
   h.runtime.dispose();
 });
 
@@ -2172,19 +2226,19 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
     const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
     // `unverified_success` reads high on every turn that says it is done — that is what it is for — and
     // it opens nothing of its own. A screen that flagged the highest answer would flag every seat.
-    const high: Record<string, number> = { goal_drift: 0.81, unverified_success: 0.99 };
+    const high: Record<string, number> = { goal_drift: 0.62, unverified_success: 0.99 };
     const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: high[name] ?? 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917", id: "gen-view", usage: { cost: 0.00013 } }), { status: 200 });
   });
   const off = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   assert.equal(off.watch.on, true, "a key is set in this harness, so the watch is on");
-  assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.role).sort(), ["lead", "peer"], "the two roles that carry `watched`, and no Supervisor");
-  assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.readings), [0, 0], "nothing read yet");
+  assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.name).sort(), ["Lead · L1 Build", "Peer · L1-T1 Clean build"], "the two roles that carry `watched`, and no Supervisor, each by its lane or task");
+  assert.deepEqual(off.watch.seats.map((seat: WatchSeat) => seat.lean), [null, null], "nothing read yet");
 
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
-  // Inside what the task owns, so goal_drift passes its bar without opening anything: what flags the
-  // seat is then the question itself, which is the case the per-question peaks exist for.
+  // Inside what the task owns, and goal_drift below its bar: what the card shows is what Jev leans
+  // towards without raising it.
   timeline.add({ type: "tool_call", callId: "c1", name: "Edit", status: "completed", detail: { type: "edit", filePath: "a.txt", oldString: "x", newString: "y" } }, "t1");
   // It says it is done, so "did it say it is done" is asked — and reads 0.99, as it should.
   timeline.add({ type: "assistant_message", text: "Done — the build is clean." }, "t1");
@@ -2194,15 +2248,12 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
 
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   const read = view.watch.seats.find((seat: WatchSeat) => seat.id === peer)!;
-  assert.equal(read.readings, 1);
-  assert.ok(Math.abs(read.cost - 4 * 0.00013) < 1e-12, "what the watch has spent on this seat — one reading, a request for each of its four views — which is the number the owner is paying");
-  assert.deepEqual(read.lane, { id: "L1", title: "Build" }, "a seat is placed in its lane, which is how forty of them are read");
-  assert.deepEqual(read.task, { id: "L1-T1", title: "Clean build" });
-  assert.equal(view.watch.marks.open, 0, "nothing was opened, so the flag below comes from a question and not an incident");
-  // The question past its bar that could open something — not the highest answer overall.
-  assert.deepEqual(read.signal, { label: "Worked on something it was not asked for", p: 0.81, level: "attend" });
+  assert.equal(view.watch.marks.open, 0, "nothing was opened");
+  // A question that can open something, within its unclear band below the bar — not the highest answer
+  // overall, which is the one that reads high on every turn that says it is done.
+  assert.deepEqual(read.lean, { title: "Worked on something it was not asked for", p: 0.62, bar: 0.7 });
   assert.equal(view.watch.read.turns >= 1, true, "the project's own tally, not just the seats running now");
-  assert.equal(view.watch.read.cost >= 0.00013, true);
+  assert.ok(view.watch.read.cost >= 4 * 0.00013 - 1e-12, "what Jev charged for the reading, a request for each of its four views");
   h.runtime.dispose();
 });
 

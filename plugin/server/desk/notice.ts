@@ -134,6 +134,12 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
       for (const sent of batch) ctx.event(project, { kind: "incident.held", id: sent.id, held: "nobody" });
       continue;
     }
+    await ctx.incidents(project, (incidents) => {
+      for (const sent of batch) {
+        const incident = incidents.items[sent.id];
+        if (incident?.told === now) incident.toldTo = as;
+      }
+    });
     for (const incident of batch) {
       try {
         await ctx.post(to, `incident:${project.slug}:${incident.id}:${incident.opened}:${incident.level}`, letters.incident(incident, place, shape, kept, as));
