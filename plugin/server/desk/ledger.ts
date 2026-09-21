@@ -251,10 +251,13 @@ export const ACTIVE: TaskStatus[] = ["running", "rework", "queued", "merging"];
  * Only what is still unfinished: a task already taken in has its files in the copy, so a Peer that
  * cannot find them is telling the truth about something else.
  */
-export function alongside(ledger: Ledger, task: Task): string {
-  const others = tasksOf(ledger, task.lane).filter((other) => other.id !== task.id && ACTIVE.includes(other.status));
-  if (others.length === 0) return "";
-  return others.map((other) => `${other.id} (${other.title})${other.owned.length > 0 ? `, which owns ${other.owned.join(", ")}` : ""}`).join("; ");
+export type Sibling = { task: string; title: string; owned: string[] };
+
+/** The tasks of `task`'s lane still being written, each in a copy of its own, and what each owns. */
+export function alongside(ledger: Ledger, task: Task): Sibling[] {
+  return tasksOf(ledger, task.lane)
+    .filter((other) => other.id !== task.id && ACTIVE.includes(other.status))
+    .map((other) => ({ task: other.id, title: other.title, owned: other.owned }));
 }
 
 export function activeTasks(ledger: Ledger, laneId: string): Task[] {

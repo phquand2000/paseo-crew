@@ -9,11 +9,13 @@ import { TeamSource } from "../server/runtime/team-source.ts";
 import { type Kept, assessmentsDir, readAssessments } from "../server/runtime/watch/assessments.ts";
 import { type Fact, FACT_LEVELS } from "../server/runtime/watch/facts.ts";
 import { weigh } from "../server/runtime/watch/rules.ts";
-import { asked, assess } from "../server/runtime/watch/sensor.ts";
+import { assessViews } from "../server/runtime/watch/sensor.ts";
+import type { Step } from "../server/runtime/watch/trail.ts";
+import { stepText } from "../server/runtime/watch/views.ts";
 
 export type Label = { id: string; seat: string; kind: string; opened: number; last: number; closed?: number; sensor?: Judged; label: "useful" | "noise" };
 
-type Fetcher = Parameters<typeof assess>[4];
+type Fetcher = Parameters<typeof assessViews>[4];
 type Answers = (record: Kept) => Record<string, number> | undefined;
 
 const ENOUGH = 5;
@@ -109,10 +111,10 @@ async function reask(kept: Kept[], spec: SensorSpec, key: string, fetcher?: Fetc
   const work = async () => {
     while (next < kept.length) {
       const record = kept[next++]!;
-      const questions = asked(spec.questions, record.state);
-      if (Object.keys(questions).length === 0) continue;
       try {
-        const assessment = await assess({ ...spec, questions }, key, record.state, `replay:${record.seat}`, fetcher);
+        const asking = await assessViews(spec, key, record.views, `replay:${record.seat}`, fetcher);
+        if (!asking) continue;
+        const { assessment } = asking;
         answers.set(record, assessment.answers);
         models.set(assessment.model, (models.get(assessment.model) ?? 0) + 1);
         cost += assessment.cost ?? 0;
@@ -416,12 +418,13 @@ export function sample(state: string, count: number, pick: (length: number) => n
   for (let taken = 0; taken < count && open.length > 0; taken++) {
     const records = open.splice(pick(open.length), 1)[0]!;
     const last = records.at(-1)!;
-    const shown = last.state as { prompt?: string; goal?: string; recent?: string[]; final_message?: string };
+    const work = (last.views.work ?? {}) as { instruction?: string; goal?: string; steps?: Step[] };
+    const claim = last.views.claim?.claim;
     out.push(`${idOf(last)}  ${last.provider}, turn ${last.turnId ?? "–"}, ${new Date(last.askedAt).toISOString().slice(0, 16).replace("T", " ")}`);
-    out.push(`  prompt: ${shown.prompt ?? ""}`);
-    out.push(`  goal: ${(shown.goal ?? "").replace(/\s+/g, " ").slice(0, 300)}`);
-    for (const step of (shown.recent ?? []).slice(-10)) out.push(`  | ${step}`);
-    if (shown.final_message) out.push(`  final: ${shown.final_message}`);
+    out.push(`  instruction: ${work.instruction ?? ""}`);
+    out.push(`  goal: ${(work.goal ?? "").replace(/\s+/g, " ").slice(0, 300)}`);
+    for (const step of (work.steps ?? []).slice(-10)) out.push(`  | ${stepText(step)}`);
+    if (typeof claim === "string") out.push(`  final: ${claim}`);
     out.push("");
   }
   out.push("Mark each with --missed ID if something there should have been raised, or --fine ID if not.");

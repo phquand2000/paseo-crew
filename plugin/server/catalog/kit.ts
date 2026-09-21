@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { DESTRUCTIVE, FACT_LEVELS, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
-import { LEAST_STATE_CHARS, STATE_FIELDS } from "../runtime/watch/sensor.ts";
+import { LEAST_STATE_CHARS, VIEW_FIELDS, type ViewName, isView } from "../runtime/watch/views.ts";
 import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { isAbsolute, join } from "node:path";
@@ -211,6 +211,8 @@ export type Attention = {
 };
 
 export type Question = {
+  /** The state it is asked over: each question is shown only what it reads. */
+  view: ViewName;
   instructions: string;
   criteria?: { true: string; false: string };
   threshold?: number;
@@ -219,8 +221,8 @@ export type Question = {
   agrees?: string[];
   confirms?: string[];
   needs?: string[];
-  /** Answerable only from a whole run of steps: what it asks about is a step that is not there. */
-  whole?: boolean;
+  /** A finding on a step that speaks of a file a sibling task is writing is expected, and not raised. */
+  excusedBeside?: boolean;
   /** What a person reads for it on a screen. Never sent to the sensor. */
   label?: string;
 };
@@ -329,7 +331,7 @@ function loadMcp(dir: string): Record<string, McpEntry> {
 }
 
 const SENSOR_KEYS = ["id", "url", "model", "timeoutSeconds", "retries", "stateChars", "debounceSeconds", "everySeconds", "unclear", "questions"];
-const QUESTION_KEYS = ["instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs", "whole", "label"];
+const QUESTION_KEYS = ["view", "instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs", "excusedBeside", "label"];
 
 export function sensorProblems(id: string, raw: Record<string, unknown>): string[] {
   const problems: string[] = [];
@@ -346,6 +348,7 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   const kinds = (value: unknown, levels: string[]) => Array.isArray(value) && value.length > 0 && value.every((kind) => typeof kind === "string" && levels.includes(FACT_LEVELS[kind] ?? ""));
   for (const [name, question] of Object.entries(questions ?? {})) {
     if (typeof question?.instructions !== "string" || !question.instructions) problems.push(`asks ${name} without instructions`);
+    if (!isView(question?.view)) problems.push(`asks ${name} over ${String(question?.view)}, which is not a view (${Object.keys(VIEW_FIELDS).join(", ")})`);
     for (const key of Object.keys(question ?? {})) if (!QUESTION_KEYS.includes(key)) problems.push(`asks ${name} with ${key}, which a question does not take`);
     const criteria = question?.criteria as Record<string, unknown> | null | undefined;
     if (criteria !== undefined && (!criteria || typeof criteria !== "object" || Array.isArray(criteria) || Object.keys(criteria).sort().join() !== "false,true" || !criteria.true || !criteria.false || typeof criteria.true !== "string" || typeof criteria.false !== "string")) {
@@ -360,12 +363,12 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
     if (question?.agrees !== undefined && !kinds(question.agrees, ["page", "attend", "note"])) problems.push(`asks ${name} with agrees that is not a list of fact kinds`);
     if (question?.confirms !== undefined && !kinds(question.confirms, ["attend"])) problems.push(`asks ${name} with confirms that is not a list of attention-level fact kinds`);
     if (question?.alone && (question?.agrees || question?.confirms)) problems.push(`asks ${name} both alone and tied to facts`);
-    if (question?.needs !== undefined && (!Array.isArray(question.needs) || question.needs.length === 0 || question.needs.some((field) => !(STATE_FIELDS as readonly unknown[]).includes(field)))) {
-      problems.push(`asks ${name} with needs that is not a list of the state's fields (${STATE_FIELDS.join(", ")})`);
+    const fields: readonly string[] = isView(question?.view) ? VIEW_FIELDS[question.view] : [];
+    if (question?.needs !== undefined && (!Array.isArray(question.needs) || question.needs.length === 0 || question.needs.some((field) => !fields.includes(field)))) {
+      problems.push(`asks ${name} with needs that is not a list of its view's fields (${fields.join(", ")})`);
     }
-    if (question?.whole !== undefined && typeof question.whole !== "boolean") problems.push(`asks ${name} with whole that is not true or false`);
     if (question?.label !== undefined && (typeof question.label !== "string" || !question.label.trim())) problems.push(`asks ${name} with a label that is not text`);
-    if (question?.whole === true && !decides) problems.push(`asks ${name} whole, though nothing decides on its answer`);
+    if (question?.excusedBeside !== undefined && (question.excusedBeside !== true || !opens)) problems.push(`asks ${name} excused beside, though it opens no incident to excuse`);
   }
   return problems;
 }

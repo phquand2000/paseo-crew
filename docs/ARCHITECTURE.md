@@ -469,23 +469,49 @@ five seconds after it goes quiet, at least every thirty while it works, and at o
 the gate fails, when something irreversible is seen, when a turn ends, or when a permission is
 asked. One seat is never assessed twice at once.
 
-The state it is sent has seven fields: the task or lane brief, the instruction the turn serves
-however long ago it arrived, the seat's role, the project's gate command, whether the turn is
-running, the steps, and — once the turn has ended — the words it ended on. Each step shows the end of
-what it printed, or its error; an edit shows what it changed; a tool with no command or path shows
-what it was given. Secrets are masked before anything is cut, and the state stays within the
-sensor's size, most of it given to the steps. No fact, finding, score or earlier answer is in it, so
-the sensor agreeing with a fact is a second opinion and not an echo. A seat whose brief cannot be
-read is not asked about, and a question whose `needs` fields are all empty is not asked; if that
-leaves no questions, nothing is sent. Nor is a question marked `whole`, whose finding rests on a step
-not being there, asked of a state that says steps were left out: the step it looks for may be in the
-hole. Saying so in the state does not cover it — measured against the shipped sensor, adding that
-line to an otherwise identical state moved those answers by -0.05, 0.00 and +0.01, leaving a seat
-that did check reported at p≈0.86 on a turn long enough to lose the checking.
+It is not sent one state. A turn is first read into a trail (`watch/trail.ts`): its instruction
+however long ago it arrived, its steps in order, each with an id counted from the instruction (`S14`)
+and a kind that says whether it is an act — `ran`, `changed`, `read`, `called` — or the seat's own
+account of one — `said`, `thought` — and, once the turn has ended on something said, that as its
+claim. A step shows the end of what it printed or its error; an edit, what it changed; a command
+keeps the part that makes it irreversible however long it is. Secrets are masked before anything is
+cut. From the trail `watch/views.ts` builds four views, each an object with named fields holding
+only what its questions read, because unrelated material costs the sensor accuracy:
 
-Each question names state fields, asks what the state shows, has yes as the finding, and may carry
-`criteria`. What its answer does depends on how it is tied, and a question tied to nothing — six of
-the thirteen the shipped sensor asks — is recorded and does nothing else:
+| View | Fields | Read by |
+|---|---|---|
+| `actions` | `goal`, `context`, `instruction`, `working_copy`, `steps` — acts only, without their output | `unsafe_action` |
+| `work` | `role`, `goal`, `context`, `beside`, `instruction`, `steps` — everything | the questions about the work itself |
+| `claim` | `goal`, `claim`, `last_check`, `changed_after_check` | `unverified_success`, `claim_contradicted` |
+| `instruction` | `instruction`, `steps` — the first ones | `agreed_without_checking` |
+
+`context` is what the Lead told a Peer beyond its goal, and `beside` the tasks being written in
+other copies; without them the sensor read a stand-in the Lead asked for, and a neighbour's file
+still being written, as the Peer's own invention. A step that speaks of a file a sibling task owns
+carries a `note` saying so where it stands, since tying the step to `beside` was a second hop the
+sensor did not reliably make. What the turn ended on is both the `claim` and, in the work view, the
+last thing the seat said. `claim` is read beside the check it rests on, as a
+citation is checked against its source: the last run of the gate or of the runner its script
+starts, and what changed after it. Each question names its view in `sensor.json`, and each view is
+one request, sent together; a reading's answers are theirs combined. No fact, finding, score or
+earlier answer is in any view, so the sensor agreeing with a fact is a second opinion and not an
+echo. A seat whose brief cannot be read is not asked about, a question whose `needs` fields are all
+empty in its view is not asked, and a view with nothing to show is not built — the `instruction`
+view is not built for a turn that has lost its first steps, since its question rests on a step not
+being there and the step it looks for may be what was lost. Saying so in the state does not cover
+it: measured against the shipped sensor, adding that line to an otherwise identical state moved
+those answers by -0.05, 0.00 and +0.01.
+
+When a question opens an incident, the sensor is asked once more, which step of that view it was
+about — one choice over the step ids, as a line is found in a long document — and the incident
+quotes that step, `S14 ran: rm -rf …`, rather than the question. A question marked `excusedBeside`
+is asked literally and excused in code: when the step it points at carries a sibling's `note`, the
+finding is dropped. `missing_mechanism` is one — asked whether a Peer named something missing and
+built its own, the sensor is right that it did; what makes that expected is the ledger, not the words.
+
+Each question names its view and the fields it reads, asks what they show, has yes as the finding,
+and may carry `criteria`. What its answer does depends on how it is tied, and a question tied to
+nothing — seven of the fourteen the shipped sensor asks — is recorded and does nothing else:
 
 - `alone`: it opens its own incident. At `attend` it needs two readings in a row at or over its
   threshold, in the same turn and under the same instruction — a letter landing mid-turn starts the
@@ -498,14 +524,16 @@ the thirteen the shipped sensor asks — is recorded and does nothing else:
 - `confirms`: it opens nothing of its own. It judges the open incident of a named attention-level
   fact: at or over the threshold it confirms, in the band it is unsure, under the band it disagrees.
 
-The shipped sensor asks thirteen questions. Four stand alone: `unsafe_action`, `missing_mechanism`,
-`proves_the_old_is_gone` and `agreed_without_checking`, of which `agreed_without_checking` is marked
-`whole`. `goal_drift` needs a fact to agree. Two open nothing of their own and judge a
+The shipped sensor asks fourteen questions. Four stand alone: `unsafe_action`, `missing_mechanism`,
+`proves_the_old_is_gone` and `agreed_without_checking`. `goal_drift` needs a fact to agree. Two open nothing of their own and judge a
 fact instead: `worker_stuck` confirms `stuck` and `no-recovery`, and `unverified_success` confirms
 `unverified` — it asks only whether the seat claimed the work was done, which is the half of that
 fact code cannot see, so a turn that wrote files without running the gate and said so plainly is
 vetoed rather than sent. `injected_intent`, `guessed_ambiguity`, `admits_error`,
-`changed_direction`, `wrapped_instead_of_changed` and `proof_changes_product` are recorded only.
+`changed_direction`, `wrapped_instead_of_changed`, `proof_changes_product` and `claim_contradicted`
+are recorded only. The questions that judge acts say in their instructions that a `said` or
+`thought` step calling the work fine is the agent's own account, not evidence: text that argues for
+its own reading moves a System One model's answer.
 
 The thresholds are measured, not assumed. Over three runs, every `missing_mechanism` incident marked
 noise was opened between 0.70 and 0.73 and the real one at 0.94 and above, so it opens at 0.85.
@@ -514,8 +542,8 @@ are kept for `calibrate` to judge. Asking a person is not a question: a seat ask
 one whose turn ends on a question in prose is nudged, or its idle lane is quoted to the Supervisor,
 both by the desk.
 A `sensor.json` the loader cannot make sense of — an unknown field, a url that is not https, a
-threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact
-that is not attention-level — fails the plugin's load with the problem named.
+threshold on a question nothing decides, a view that is not one, `needs` its view does not hold, a
+`confirms` naming a fact that is not attention-level — fails the plugin's load with the problem named.
 
 A Peer's brief names the tasks being written beside it and the paths they own, from `alongside` in
 `desk/ledger.ts`. A lane that splits into parts gives each Peer a copy branched before its neighbours
@@ -785,8 +813,9 @@ real-kit test builds every role on every shipped agent. It builds the Codex seat
 is installed, because building one asks Codex for its model catalog. No test launches a seat.
 
 Three commands sit outside it. `npm run eval:triggers -- --agent "…"` calls a real agent.
-`npm run eval:sensor` puts `test/sensor/cases.json` — turns shaped as `stateOf` renders one, each
-saying what every question should read on it — to the real sensor, and fails when one reads the
+`npm run eval:sensor` puts `test/sensor/cases.json` — a brief and a trail each, built into views
+by the same `viewsOf` a seat's turn goes through, each saying what every question should read on it
+— to the real sensor, and fails when one reads the
 other way. What runs inside `npm test` is the part that needs no key: every question the sensor asks
 must have a turn that should make it read high and one that should not, so a question cannot ship
 unmeasured. `node bin/calibrate.ts <project>` reads a real project's kept assessments, and calls the

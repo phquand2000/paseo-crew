@@ -1,11 +1,13 @@
 import { type Kit, can, seatOf } from "../../catalog/kit.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
+import type { Sibling } from "../../desk/ledger.ts";
 import { type Fact, Recovery, type Rules, afterChange, stuck, unverified } from "./facts.ts";
 import { Window } from "./window.ts";
 
 export type WatchedSeat = { id: string; provider: string; cwd: string; title?: string | null };
 
-export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean; goal: string | null; role: string };
+/** `goal` is null when the ledger could not be read, and empty until it has placed the seat. */
+export type SeatContext = { rules: Rules; heardSince: (at: number) => boolean; goal: string | null; context: string; beside: Sibling[]; role: string };
 
 const median = (values: number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);

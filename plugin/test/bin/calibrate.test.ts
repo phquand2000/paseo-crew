@@ -11,7 +11,9 @@ const HOME = tempDir("sw2-calibrate-home-");
 process.env.HOME = HOME;
 const { calibrate, mark, sample } = await import("../../bin/calibrate.ts");
 const shipped = Object.values(loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", "..")).sensors)[0]!.questions;
-const wording = (names: string[]) => Object.fromEntries(names.map((name) => [name, { instructions: shipped[name]!.instructions, ...(shipped[name]!.criteria ? { criteria: shipped[name]!.criteria } : {}) }]));
+const wording = (names: string[]) => Object.fromEntries(names.map((name) => [name, { view: shipped[name]!.view, instructions: shipped[name]!.instructions, ...(shipped[name]!.criteria ? { criteria: shipped[name]!.criteria } : {}) }]));
+/** Views whose one step says which way a replay should answer. */
+const saying = (word: string) => ({ work: { goal: "g", instruction: "i", steps: [{ id: "S1", kind: "said" as const, text: word }] }, actions: { steps: [{ id: "S1", kind: "ran" as const, command: word, result: "ok" as const }] } });
 
 const record = (at: number, seat: string, turnId: string, answers: Record<string, number>, extra: Partial<Kept> = {}): Kept => ({
   at,
@@ -29,7 +31,7 @@ const record = (at: number, seat: string, turnId: string, answers: Record<string
   facts: [],
   found: [],
   verdicts: [],
-  state: { recent: [] },
+  views: saying("noise"),
   ...extra,
 });
 
@@ -44,9 +46,9 @@ test("the report reads each question on its own incidents, each judging question
     const useful = index % 2 === 0;
     const kind = index < 12 ? "missing_mechanism" : "unsafe_action";
     const answers = { missing_mechanism: useful ? 0.95 : 0.85, unsafe_action: 0.9 };
-    const state_ = { recent: [useful ? "useful" : "noise"] };
-    await keepAssessment(state, record(at - 5000, seat, `t${index}`, answers, { state: state_ }));
-    await keepAssessment(state, record(at, seat, `t${index}`, answers, { found: [kind], state: state_ }));
+    const views = saying(useful ? "useful" : "noise");
+    await keepAssessment(state, record(at - 5000, seat, `t${index}`, answers, { views }));
+    await keepAssessment(state, record(at, seat, `t${index}`, answers, { found: [kind], views }));
     const incident = { id: `I${index + 1}`, seat, where: seat, kind, level: "attend", quote: "q", facts: [], opened: at, last: at, count: 1, open: false, label: useful ? "useful" : "noise" };
     if (kind === "missing_mechanism") items[incident.id] = incident;
     else acks.push(JSON.stringify({ at: new Date(at + 60_000).toISOString(), kind: "incident.ack", id: incident.id, verdict: incident.label, seat, finding: kind, opened: incident.opened, last: incident.last }));
@@ -57,8 +59,8 @@ test("the report reads each question on its own incidents, each judging question
     items[`S${index}`] = { id: `S${index}`, seat: `stuck-${index}`, where: "x", kind: "stuck", level: "attend", quote: "q", facts: ["stuck"], opened: base, last: base, count: 1, open: false, label: useful ? "useful" : "noise", sensor: { question: "worker_stuck", p, model: "m", says: useful ? "confirms" : "vetoes" } };
   }
   items.I99 = { id: "I99", seat: "peer-0", where: "x", kind: "long-turn", level: "attend", quote: "q", facts: ["long-turn"], opened: base, last: base, count: 1, open: false, label: "noise" };
-  for (let index = 0; index < 3; index++) await keepAssessment(state, record(base + 50_000_000 + index, "peer-quiet", `q${index}`, { missing_mechanism: 0.1 }, { state: { prompt: "Tidy the docs", recent: ["Bash: ls [completed] → a"] } }));
-  await keepAssessment(state, record(base + 50_000_100, "peer-old", "o1", { missing_mechanism: 0.99 }, { questions: { missing_mechanism: { instructions: "Does this situation require human judgment?" } }, found: ["missing_mechanism"] }));
+  for (let index = 0; index < 3; index++) await keepAssessment(state, record(base + 50_000_000 + index, "peer-quiet", `q${index}`, { missing_mechanism: 0.1 }, { views: { work: { instruction: "Tidy the docs", steps: [{ id: "S1", kind: "ran", command: "ls", result: "ok", output: "a" }] } } }));
+  await keepAssessment(state, record(base + 50_000_100, "peer-old", "o1", { missing_mechanism: 0.99 }, { questions: { missing_mechanism: { view: "work", instructions: "Does this situation require human judgment?" } }, found: ["missing_mechanism"] }));
   writeFileSync(join(state, "incidents.json"), JSON.stringify({ next: 100, items }));
   writeFileSync(join(state, "events.log"), `${acks.join("\n")}\nnot json\n`);
 
@@ -73,7 +75,7 @@ test("the report reads each question on its own incidents, each judging question
 
   const picked = sample(state, 1, () => 0);
   const id = /^(peer-quiet@\d+)/.exec(picked)![1]!;
-  assert.match(picked, /prompt: Tidy the docs\n {2}goal: \n {2}\| Bash: ls \[completed\] → a/);
+  assert.match(picked, /instruction: Tidy the docs\n {2}goal: \n {2}\| S1 ran: ls/);
   assert.match(mark(state, ["nobody@1"], []), /nobody@1 is not a turn --sample offers/);
   assert.match(mark(state, [`peer-0@${base - 5000}`], []), /is not a turn --sample offers/, "a flagged turn is not a spot check");
   assert.match(mark(state, [id], [id]), /is marked both missed and fine; nothing was marked/);
@@ -84,13 +86,14 @@ test("the report reads each question on its own incidents, each judging question
   mkdirSync(join(HOME, ".local", "share", "seatworks-v2"), { recursive: true });
   writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "k" } }));
   const fetcher = async (_url: string, init: { body: string }) => {
-    const body = JSON.parse(init.body) as { state: { recent: string[] }; questions: Record<string, unknown> };
-    const p = body.state.recent[0] === "useful" ? 0.9 : 0.1;
+    const body = JSON.parse(init.body) as { state: { steps?: { text?: string; command?: string }[] }; questions: Record<string, unknown> };
+    const first = body.state.steps?.[0];
+    const p = (first?.text ?? first?.command) === "useful" ? 0.9 : 0.1;
     const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: p }]));
     return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ answers, model: "typesafe/jev-1.13-20261001", usage: { cost: 0.00002 } }), text: async () => "" };
   };
   const again = await calibrate({ state, ask: true, fetcher: fetcher as never });
-  assert.match(again, /asked again: 52 answered, 0 failed, cost 0\.001040; answered by typesafe\/jev-1\.13-20261001 \(52\)/);
+  assert.match(again, /asked again: 52 answered, 0 failed, cost 0\.002020; answered by typesafe\/jev-1\.13-20261001 \(52\)/);
   assert.match(again, /unsafe_action[\s\S]*?AUROC as kept: 0\.50; asked again: 1\.00 \(6 useful, 6 noise answered\)[\s\S]*?→ keep/);
 
   const refused = async () => ({ ok: false, status: 401, headers: { get: () => null }, json: async () => ({}), text: async () => "no" });

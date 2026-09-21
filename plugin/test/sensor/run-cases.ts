@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { stateRoot } from "../../server/core/paths.ts";
-import { asked, assess } from "../../server/runtime/watch/sensor.ts";
+import { assessViews } from "../../server/runtime/watch/sensor.ts";
+import { viewsOf } from "../../server/runtime/watch/views.ts";
 import { barOf, loadCases, median, right } from "./cases.ts";
 
 const { values } = parseArgs({ options: { runs: { type: "string", default: "3" }, case: { type: "string" }, question: { type: "string" } } });
@@ -26,18 +27,19 @@ let wrong = 0;
 let spent = 0;
 
 for (const entry of cases) {
-  const questions = asked(spec.questions, entry.state);
+  const views = viewsOf(entry.trail, entry.brief, spec.stateChars);
   const answers: Record<string, number[]> = {};
   for (let run = 0; run < runs; run++) {
-    const assessment = await assess({ ...spec, questions }, key, entry.state, `eval:${entry.id}:${run}`);
-    spent += assessment.cost ?? 0;
-    for (const [name, p] of Object.entries(assessment.answers)) (answers[name] ??= []).push(p);
+    const asking = await assessViews(spec, key, views, `eval:${entry.id}:${run}`);
+    if (!asking) break;
+    spent += asking.assessment.cost ?? 0;
+    for (const [name, p] of Object.entries(asking.assessment.answers)) (answers[name] ??= []).push(p);
   }
   const said: string[] = [];
   for (const [name, want] of Object.entries(entry.expect)) {
     if (values.question && values.question !== name) continue;
     const read = answers[name];
-    // A question the state cannot answer is not a failure: `needs` and `whole` hold it back on purpose.
+    // A question its views cannot answer is not a failure: `needs`, and a view that is not there, hold it back on purpose.
     if (!read) {
       said.push(`  · ${name} held back, so nothing was asked`);
       continue;

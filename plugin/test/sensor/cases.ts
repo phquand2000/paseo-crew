@@ -2,20 +2,23 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Question } from "../../server/catalog/kit.ts";
+import type { Trail } from "../../server/runtime/watch/trail.ts";
+import type { Brief } from "../../server/runtime/watch/views.ts";
 
 /**
  * A turn the sensor should read one way, and what each question should say about it.
  *
- * `state` is shaped exactly as `stateOf` renders one, so a case sees what a seat's turn really
- * sends. `expect` pins every question the case says something about, not only the one it was
- * written for: a scenario that makes a second question fire is how a day's incident budget is
- * spent on one event, and that is worth pinning too.
+ * `brief` and `trail` are what `viewsOf` is given for a real seat, so a case is sent the views a
+ * seat's turn really sends. `expect` pins every question the case says something about, not only
+ * the one it was written for: a scenario that makes a second question fire is how a day's incident
+ * budget is spent on one event, and that is worth pinning too.
  */
 export type SensorCase = {
   id: string;
   why: string;
   expect: Record<string, "high" | "low">;
-  state: Record<string, unknown>;
+  brief: Brief;
+  trail: Trail;
 };
 
 export const casesFile = join(dirname(fileURLToPath(import.meta.url)), "cases.json");

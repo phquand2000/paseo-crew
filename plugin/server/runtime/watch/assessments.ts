@@ -3,6 +3,7 @@ import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { gunzipSync, gzip } from "node:zlib";
+import type { View, ViewName } from "./views.ts";
 
 export type Kept = {
   at: number;
@@ -15,12 +16,13 @@ export type Kept = {
   model: string;
   id: string | null;
   cost: number | null;
-  questions: Record<string, { instructions: string; criteria?: { true: string; false: string } }>;
+  questions: Record<string, { view: ViewName; instructions: string; criteria?: { true: string; false: string } }>;
   answers: Record<string, number>;
   facts: { kind: string; level: string; quote: string }[];
   found: string[];
   verdicts: { kind: string; question: string; says: string; p: number }[];
-  state: Record<string, unknown>;
+  /** Each state the reading sent, by view, as the questions that read it saw it. */
+  views: Partial<Record<ViewName, View>>;
 };
 
 export const ROTATE_BYTES = 32 * 1024 * 1024;

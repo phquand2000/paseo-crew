@@ -14,7 +14,7 @@ import type { PaseoApi } from "../core/paseo.ts";
 import type { Seats, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { type Ledger, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
+import { type Ledger, type Sibling, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
@@ -30,6 +30,7 @@ import { FACT_TITLES, type Fact } from "./watch/facts.ts";
 import { type Finding, type Verdict, decide, weigh } from "./watch/rules.ts";
 import { keepAssessment, lastKept, readTally } from "./watch/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
+import { stepText } from "./watch/views.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 import { malformed } from "./timeline.ts";
 import { loadIncidents } from "../desk/incidents.ts";
@@ -132,24 +133,19 @@ export class Runtime {
     const attention = this.source.teamFor(project).attention;
     let owned: string[] | undefined;
     let goal: string | null = "";
+    // What the Lead told a Peer beyond its goal — a stand-in to write, say — and what is being written
+    // beside it in other copies. Without them the sensor read both as the Peer's own invention.
+    let context = "";
+    let beside: Sibling[] = [];
     try {
       const ledger = loadLedger(project.state);
       const task = taskOfPeer(ledger, seat.id);
       const lane = task ? ledger.lanes[task.lane] : laneOfLead(ledger, seat.id);
       owned = task?.owned;
       if (task) {
-        const beside = alongside(ledger, task);
-        goal = [
-          `Task ${task.id}: ${task.title}`,
-          `Goal: ${task.goal}`,
-          // What the Lead told it beyond the goal, a stand-in to write for one: without it the
-          // sensor reads what the Lead asked for as the Peer's own invention.
-          ...(task.context ? [`Context: ${task.context}`] : []),
-          `Acceptance: ${task.acceptance.join("; ")}`,
-          `Out of scope: ${task.outOfScope.join("; ")}`,
-          // What this seat will find unwritten, and why that is expected rather than missing.
-          ...(beside ? [`Being written beside it, in other copies, and so not finished here: ${beside}`] : []),
-        ].join("\n");
+        goal = [`Task ${task.id}: ${task.title}`, `Goal: ${task.goal}`, `Acceptance: ${task.acceptance.join("; ")}`, `Out of scope: ${task.outOfScope.join("; ")}`].join("\n");
+        context = task.context ?? "";
+        beside = alongside(ledger, task);
       }
       else if (lane) goal = [`Lane ${lane.id}: ${lane.title}`, `Outcome: ${lane.outcome}`, `Acceptance: ${lane.acceptance.join("; ")}`, `Out of scope: ${lane.outOfScope.join("; ")}`].join("\n");
     } catch (error) {
@@ -158,6 +154,8 @@ export class Runtime {
     }
     return {
       goal,
+      context,
+      beside,
       role: [role.label, role.description].filter(Boolean).join(": "),
       rules: {
         destructive: new RegExp(attention.destructive, "i"),
@@ -199,13 +197,14 @@ export class Runtime {
     if (!sensor) return undefined;
     const brief = watch.brief();
     if (!brief || brief.goal === null) return undefined;
-    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gates[0], turn: watch.running ? "running" : "ended", exit: brief.rules.exit, destructive: brief.rules.destructive } };
+    const { goal, context, beside, role, rules } = brief;
+    return { spec: sensor.spec, key: sensor.key, brief: { goal, context, beside, role, gates: rules.gates, workingCopy: watch.seat.cwd }, rules: { exit: rules.exit, destructive: rules.destructive } };
   }
 
   private assessed(watch: SeatWatch, reading: Reading): void {
     const project = projectOf(watch.seat.cwd);
-    const { assessment, state, questions, facts } = reading;
-    this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(state).length });
+    const { assessment, views, questions, facts } = reading;
+    this.desk.event(project, { kind: "watch.sensor", agent: watch.seat.id, model: assessment.model, id: assessment.id, cost: assessment.cost, answers: assessment.answers, stateChars: JSON.stringify(views).length });
     watch.readings += 1;
     watch.spent += assessment.cost ?? 0;
     watch.readAt = Date.now();
@@ -217,8 +216,27 @@ export class Runtime {
     watch.reading = { turnId: reading.turnId, answers: assessment.answers };
     const { findings, verdicts } = weigh(assessment, questions, facts, { unclear: reading.spec.unclear, ended: !reading.running, before });
     this.keep(project, watch, reading, findings, verdicts);
-    this.noticed(watch, findings);
     this.judged(watch, verdicts);
+    void this.located(watch, reading, findings).then((located) => this.noticed(watch, located));
+  }
+
+  /**
+   * Each finding a question opened, quoting the step it was about rather than the question itself:
+   * the incident then names where to look, and whoever reads it need not search the record for it.
+   * A question the sensor answers literally is excused here, in code, when that step speaks of a file
+   * a sibling task is writing: what makes such a stand-in expected is the ledger, not the words.
+   */
+  private async located(watch: SeatWatch, reading: Reading, findings: Finding[]): Promise<Finding[]> {
+    const located = await Promise.all(
+      findings.map(async (finding) => {
+        const question = reading.questions[finding.kind];
+        if (!question) return finding;
+        const step = await this.assessor.locate(watch, reading, finding.kind);
+        if (step?.note && question.excusedBeside) return undefined;
+        return step ? { ...finding, quote: `${step.p < 0.5 ? "probably " : ""}${stepText(step)}` } : finding;
+      }),
+    );
+    return located.filter((finding): finding is Finding => finding !== undefined);
   }
 
   private judged(watch: SeatWatch, verdicts: Verdict[]): void {
@@ -247,12 +265,12 @@ export class Runtime {
         model: assessment.model,
         id: assessment.id,
         cost: assessment.cost,
-        questions: Object.fromEntries(Object.entries(reading.questions).map(([name, question]) => [name, { instructions: question.instructions, ...(question.criteria ? { criteria: question.criteria } : {}) }])),
+        questions: Object.fromEntries(Object.entries(reading.questions).map(([name, question]) => [name, { view: question.view, instructions: question.instructions, ...(question.criteria ? { criteria: question.criteria } : {}) }])),
         answers: assessment.answers,
         facts: reading.facts.map(({ kind, level, quote }) => ({ kind, level, quote })),
         found: findings.map((finding) => finding.kind),
         verdicts: verdicts.map(({ kind, question, says, p }) => ({ kind, question, says, p })),
-        state: reading.state,
+        views: reading.views,
       }).catch(unkept);
     } catch (error) {
       unkept(error);

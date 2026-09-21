@@ -1,8 +1,8 @@
 import type { Question, SensorSpec } from "../../catalog/kit.ts";
-import { around, describe, failed, type Fact, sides, TRUNCATED, within } from "./facts.ts";
-import { mask } from "./mask.ts";
+import type { Fact } from "./facts.ts";
+import { type Step, trailOf } from "./trail.ts";
+import { type Brief, type View, type ViewName, asked, viewsOf } from "./views.ts";
 import type { SeatWatch } from "./watches.ts";
-import type { Call, Unit, Window } from "./window.ts";
 import { errorText } from "../../core/errors.ts";
 
 export type Assessment = { answers: Record<string, number>; model: string; id: string | null; cost: number | null };
@@ -24,7 +24,8 @@ type Fetch = (url: string, init: { method: string; headers: Record<string, strin
   text(): Promise<string>;
 }>;
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms).unref?.());
+/** Between retries. It holds the process open: a script left with nothing else to wait on exited mid-retry. */
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function readAnswers(body: unknown, spec: Pick<SensorSpec, "questions">): Assessment {
   const held = (body ?? {}) as { answers?: Record<string, { type?: unknown; noul?: unknown }>; model?: unknown; id?: unknown; usage?: { cost?: unknown } };
@@ -58,8 +59,8 @@ function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-export async function assess(spec: SensorSpec, key: string, state: unknown, session: string, fetcher: Fetch = fetch as unknown as Fetch, halt?: AbortSignal): Promise<Assessment> {
-  const questions = Object.fromEntries(Object.entries(spec.questions).map(([name, question]) => [name, { type: "noul", instructions: question.instructions, ...(question.criteria ? { criteria: question.criteria } : {}) }]));
+/** One request to the sensor, retried as its settings say; what it answered, unread. */
+async function decide(spec: SensorSpec, key: string, state: unknown, questions: Record<string, unknown>, session: string, fetcher: Fetch, halt?: AbortSignal): Promise<unknown> {
   const body = JSON.stringify({ model: spec.model, state, questions, session_id: session.slice(0, 256) });
   for (let attempt = 0; ; attempt++) {
     if (halt?.aborted) throw new SensorError("let go");
@@ -71,10 +72,9 @@ export async function assess(spec: SensorSpec, key: string, state: unknown, sess
     try {
       const response = await bounded(fetcher(spec.url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal }), signal);
       if (response.ok) {
-        const answer = await bounded(response.json(), signal).catch((error: unknown) => {
+        return await bounded(response.json(), signal).catch((error: unknown) => {
           throw new SensorError(late.aborted ? `no answer within ${spec.timeoutSeconds} s` : halt?.aborted ? "let go" : `the answer is not JSON: ${errorText(error)}`);
         });
-        return readAnswers(answer, spec);
       }
       status = response.status;
       const after = Number(response.headers.get("retry-after"));
@@ -95,144 +95,24 @@ export async function assess(spec: SensorSpec, key: string, state: unknown, sess
   }
 }
 
-const clip = (text: string, limit: number) => (text.length > limit ? `${within(text, limit)}…` : text);
-const tail = (text: string, limit: number) => (text.length > limit ? `…${text.slice(-limit).replace(/^[\uDC00-\uDFFF]/, "")}` : text);
-const flat = (text: string) => text.replace(/\s+/g, " ").trim();
-const str = (value: unknown): string => (typeof value === "string" ? value : "");
-
-/** What a tool call's own error field says, which is prose the seat saw, not a thrown value. */
-function saidError(error: unknown): string {
-  if (!error) return "";
-  if (typeof error === "string") return error;
-  const held = error as { content?: unknown; message?: unknown; text?: unknown };
-  for (const value of [held.content, held.message, held.text]) if (typeof value === "string") return value;
-  return JSON.stringify(error);
+export async function assess(spec: SensorSpec, key: string, state: unknown, session: string, fetcher: Fetch = fetch as unknown as Fetch, halt?: AbortSignal): Promise<Assessment> {
+  const questions = Object.fromEntries(Object.entries(spec.questions).map(([name, question]) => [name, { type: "noul", instructions: question.instructions, ...(question.criteria ? { criteria: question.criteria } : {}) }]));
+  return readAnswers(await decide(spec, key, state, questions, session, fetcher, halt), spec);
 }
-
-const BASE64_RUN = /^[A-Za-z0-9+/=]{40,}$/;
-
-function linesOf(text: string): string[] {
-  const body = text.replace(/\n$/, "");
-  return body ? body.split("\n") : [];
-}
-
-const shown = (rows: string[]) => rows.map((row) => flat(row)).find((row) => row && !BASE64_RUN.test(row));
-
-function changed(call: Call): string {
-  const detail = call.detail;
-  const diff = str(detail.unifiedDiff);
-  const rows = diff.split("\n");
-  const cut = diff !== "" && TRUNCATED.test(rows.at(-1)!);
-  const both = sides(diff ? { ...detail, unifiedDiff: mask(cut ? rows.slice(0, -2).join("\n") : diff) } : detail);
-  const note = cut ? " (diff cut short)" : "";
-  if (!both) {
-    const written = linesOf(mask(str(detail.content)));
-    const first = shown(written);
-    return written.length > 0 ? ` wrote ${written.length} lines${first ? `: ${clip(first, 120)}` : ""}` : "";
-  }
-  const [before, after] = both.map((text) => linesOf(mask(text)));
-  const left = new Map<string, number>();
-  for (const row of before!) left.set(row, (left.get(row) ?? 0) + 1);
-  const added: string[] = [];
-  for (const row of after!) {
-    const held = left.get(row) ?? 0;
-    if (held > 0) left.set(row, held - 1);
-    else added.push(row);
-  }
-  const removed = [...left.values()].reduce((sum, held) => sum + held, 0);
-  if (added.length === 0 && removed === 0) return note;
-  const first = shown(added);
-  return ` +${added.length} -${removed}${note}${first ? `: ${clip(first, 120)}` : ""}`;
-}
-
-function line(unit: Unit, exit?: RegExp, destructive?: RegExp): string {
-  if (unit.kind === "call") {
-    const call = unit.call;
-    const bad = call.ended && failed(call, exit);
-    const code = typeof call.detail.exitCode === "number" && call.detail.exitCode !== 0 ? `, exit ${call.detail.exitCode}` : "";
-    const input = call.detail.input;
-    const bare = !["command", "filePath", "url", "query"].some((key) => str(call.detail[key]));
-    const given = bare && input && typeof input === "object" ? ` ${clip(flat(mask(JSON.stringify(input))), 200)}` : "";
-    const head = `${around(flat(mask(describe(call))), destructive, 150)}${given} [${!call.ended ? "running" : bad ? "failed" : call.status}${code}]`;
-    if ((call.detail.type === "edit" || call.detail.type === "write") && !bad) return `${head}${changed(call)}`;
-    const output = flat(mask(str(call.detail.output) || saidError(call.error)));
-    return output ? `${head} → ${tail(output, 250)}` : head;
-  }
-  if (unit.kind === "said") return `said: ${clip(flat(mask(unit.text)), 400)}`;
-  if (unit.kind === "thought") return `thought: ${clip(flat(mask(unit.text)), 300)}`;
-  if (unit.kind === "user") return `told: ${clip(flat(mask(unit.text)), 300)}`;
-  if (unit.kind === "error") return `error: ${clip(flat(mask(unit.text)), 300)}`;
-  return "context compacted";
-}
-
-export type Brief = { goal: string; role: string; gate?: string; turn: "running" | "ended"; exit?: RegExp; destructive?: RegExp };
-
-export const NO_GOAL = "none recorded: this seat has no task or lane in the ledger";
-
-export const NO_GATE = "none set for this project";
-
-export const STATE_FIELDS = ["goal", "prompt", "role", "gate", "turn", "recent", "final_message"] as const;
-
-export const LEAST_STATE_CHARS = 1000;
-
-const size = (value: unknown) => JSON.stringify(value).length;
-const leftOut = (count: number) => `[… ${count} earlier step${count === 1 ? "" : "s"} left out …]`;
-/** How the state says its own view has a hole: the line `leftOut` writes, and only ever leading. */
-const LEFT_OUT = /^\[… \d+ earlier steps? left out …\]$/;
-
-export function stateOf(window: Window, brief: Brief, limit: number): Record<string, unknown> {
-  const units = window.sinceInstruction();
-  let end = units.length;
-  while (end > 0 && units[end - 1]!.kind === "thought") end -= 1;
-  const closing = brief.turn === "ended" && units[end - 1]?.kind === "said" ? units[end - 1] : undefined;
-  const steps = units.filter((unit) => unit !== closing).map((unit) => line(unit, brief.exit, brief.destructive));
-  const lost = window.lostSinceInstruction();
-  const share = (part: number) => Math.floor(limit * part);
-  const fields = {
-    goal: brief.goal.trim() ? clip(mask(brief.goal), share(0.15)) : NO_GOAL,
-    prompt: clip(flat(mask(window.lastInstruction())), share(0.1)),
-    role: clip(brief.role, share(0.05)),
-    gate: brief.gate?.trim() ? clip(flat(mask(brief.gate)), share(0.05)) : NO_GATE,
-    final_message: closing?.kind === "said" ? clip(flat(mask(closing.text)), share(0.1)) : "",
-  };
-  const whole = (recent: string[]) => ({ goal: fields.goal, prompt: fields.prompt, role: fields.role, gate: fields.gate, turn: brief.turn, recent, final_message: fields.final_message });
-  const floor = () => size(whole(steps.length + lost > 0 ? [leftOut(steps.length + lost)] : []));
-  while (floor() > limit) {
-    const shrinkable = (["final_message", "goal", "prompt", "role", "gate"] as const).filter((key) => fields[key] !== "" && fields[key] !== NO_GOAL && fields[key] !== NO_GATE);
-    if (shrinkable.length === 0) break;
-    const largest = shrinkable.reduce((a, b) => (size(fields[b]) > size(fields[a]) ? b : a));
-    fields[largest] = fields[largest].length <= 2 ? "" : clip(fields[largest], Math.floor(fields[largest].length / 2));
-  }
-  let room = limit - size(whole([]));
-  const kept: string[] = [];
-  for (let index = steps.length - 1; index >= 0; index--) {
-    const cost = size(steps[index]) + 1;
-    const reserve = index + lost > 0 ? size(leftOut(index + lost)) + 1 : 0;
-    if (cost + reserve > room) break;
-    kept.unshift(steps[index]!);
-    room -= cost;
-  }
-  const dropped = lost + steps.length - kept.length;
-  return whole(dropped > 0 ? [leftOut(dropped), ...kept] : kept);
-}
-
-const blank = (value: unknown) => value === undefined || value === "" || value === NO_GOAL || value === NO_GATE || (Array.isArray(value) && value.length === 0);
 
 /**
- * Which questions this state can answer.
- *
- * A question is held back when everything it reads is blank, and when what it asks about is the
- * absence of a step and steps were left out — the step it would have found may be in the hole.
- * Saying so in the state is not enough: measured against the shipped sensor, adding the left-out
- * line to an otherwise identical state moved those answers by -0.05, 0.00 and +0.01, so a seat that
- * did check, on a turn long enough to lose the checking, was still reported at p≈0.86.
+ * Which of `view`'s steps is the one `question` is about, and how sure the sensor is: one choice over
+ * the step ids, as a line is found in a long document. An incident used to quote the question itself,
+ * and whoever read it had to search the whole record for what the sensor had seen.
  */
-export function asked(questions: Record<string, Question>, state: Record<string, unknown>): Record<string, Question> {
-  const recent = state.recent;
-  const holed = Array.isArray(recent) && typeof recent[0] === "string" && LEFT_OUT.test(recent[0]);
-  return Object.fromEntries(
-    Object.entries(questions).filter(([, question]) => !(holed && question.whole) && (!question.needs || question.needs.some((field) => !blank(state[field])))),
-  );
+export async function pinpoint(spec: SensorSpec, key: string, view: View, question: Question, session: string, fetcher: Fetch = fetch as unknown as Fetch): Promise<{ id: string; p: number } | undefined> {
+  const ids = (Array.isArray(view.steps) ? (view.steps as { id?: unknown }[]) : []).map((step) => step.id).filter((id): id is string => typeof id === "string");
+  if (ids.length === 0 || ids.length > 255) return undefined;
+  const where = { type: "choice", instructions: `Which step in \`steps\` is the one this is about: ${question.instructions}`, criteria: Object.fromEntries(ids.map((id) => [id, null])) };
+  const body = (await decide(spec, key, view, { where }, session, fetcher)) as { answers?: { where?: { choice?: unknown; probabilities?: Record<string, unknown> } } } | null;
+  const choice = body?.answers?.where?.choice;
+  const p = typeof choice === "string" ? body?.answers?.where?.probabilities?.[choice] : undefined;
+  return typeof choice === "string" && ids.includes(choice) && typeof p === "number" ? { id: choice, p } : undefined;
 }
 
 export class Pacer {
@@ -293,9 +173,36 @@ export class Pacer {
   }
 }
 
-export type Sensing = { spec: SensorSpec; key: string; brief: Brief };
+export type Sensing = { spec: SensorSpec; key: string; brief: Brief; rules: { exit?: RegExp; destructive?: RegExp } };
 
-export type Reading = { spec: SensorSpec; askedAt: number; turnId: string | null; running: boolean; assessment: Assessment; state: Record<string, unknown>; questions: Record<string, Question>; facts: Fact[] };
+export type Reading = { spec: SensorSpec; askedAt: number; turnId: string | null; running: boolean; assessment: Assessment; views: Partial<Record<ViewName, View>>; questions: Record<string, Question>; facts: Fact[] };
+
+export type Asked = { assessment: Assessment; questions: Record<string, Question> };
+
+/**
+ * Every question these views can answer, one request per view, sent together; undefined when none
+ * can be asked. A reading, a replay and a case are all asked this way, so all three see the same.
+ */
+export async function assessViews(spec: SensorSpec, key: string, views: Partial<Record<ViewName, View>>, session: string, fetcher?: Fetch, halt?: AbortSignal): Promise<Asked | undefined> {
+  const questions = asked(spec.questions, views);
+  const groups = new Map<ViewName, Record<string, Question>>();
+  for (const [name, question] of Object.entries(questions)) groups.set(question.view, { ...groups.get(question.view), [name]: question });
+  if (groups.size === 0) return undefined;
+  const parts = await Promise.all([...groups].map(([view, group]) => assess({ ...spec, questions: group }, key, views[view], session, fetcher, halt)));
+  return { assessment: merged(parts), questions };
+}
+
+/** One reading's answers, from as many requests as it had views. */
+function merged(parts: Assessment[]): Assessment {
+  const ids = parts.map((part) => part.id).filter((id): id is string => id !== null);
+  const costs = parts.map((part) => part.cost).filter((cost): cost is number => cost !== null);
+  return {
+    answers: Object.assign({}, ...parts.map((part) => part.answers)),
+    model: parts[0]!.model,
+    id: ids.length > 0 ? ids.join(",") : null,
+    cost: costs.length > 0 ? costs.reduce((sum, cost) => sum + cost, 0) : null,
+  };
+}
 
 export type AssessorDeps = {
   sensing: (watch: SeatWatch) => Sensing | undefined;
@@ -340,16 +247,29 @@ export class Assessor {
     const askedAt = Date.now();
     const { turnId, running } = watch;
     const facts = [...watch.noted];
-    const state = stateOf(watch.window, sensing.brief, sensing.spec.stateChars);
-    const questions = asked(sensing.spec.questions, state);
-    if (Object.keys(questions).length === 0) return;
-    let assessment: Assessment;
+    const views = viewsOf(trailOf(watch.window, !running, sensing.rules), sensing.brief, sensing.spec.stateChars);
+    let asking: Asked | undefined;
     try {
-      assessment = await assess({ ...sensing.spec, questions }, sensing.key, state, watch.seat.id, this.deps.fetcher, pacer.halt.signal);
+      asking = await assessViews(sensing.spec, sensing.key, views, watch.seat.id, this.deps.fetcher, pacer.halt.signal);
     } catch (error) {
       if (this.pacers.get(watch.seat.id) === pacer) this.deps.failed(watch, error instanceof SensorError ? error : new SensorError(errorText(error)));
       return;
     }
-    if (this.pacers.get(watch.seat.id) === pacer) this.deps.done(watch, { spec: sensing.spec, askedAt, turnId, running, assessment, state, questions, facts });
+    if (asking && this.pacers.get(watch.seat.id) === pacer) this.deps.done(watch, { spec: sensing.spec, askedAt, turnId, running, assessment: asking.assessment, views, questions: asking.questions, facts });
+  }
+
+  /** The step a question that opened an incident was about, and how sure the sensor is; undefined when it cannot say. */
+  async locate(watch: SeatWatch, reading: Reading, name: string): Promise<(Step & { p: number }) | undefined> {
+    const sensing = this.deps.sensing(watch);
+    const question = reading.questions[name];
+    const view = question ? reading.views[question.view] : undefined;
+    if (!sensing || !question || !view) return undefined;
+    try {
+      const found = await pinpoint(sensing.spec, sensing.key, view, question, watch.seat.id, this.deps.fetcher);
+      const step = found && (view.steps as Step[]).find((entry) => entry.id === found.id);
+      return step ? { ...step, p: found.p } : undefined;
+    } catch {
+      return undefined;
+    }
   }
 }

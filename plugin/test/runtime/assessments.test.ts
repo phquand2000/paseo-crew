@@ -17,12 +17,12 @@ const record = (at: number): Kept => ({
   model: "typesafe/jev-1.13-20260917",
   id: `gen-${at}`,
   cost: 0.00002,
-  questions: { unsafe_action: { instructions: "Does it?" } },
+  questions: { unsafe_action: { view: "actions", instructions: "Does it?" } },
   answers: { unsafe_action: 0.1 },
   facts: [],
   found: [],
   verdicts: [],
-  state: { recent: ["x".repeat(400)] },
+  views: { work: { steps: [{ id: "S1", kind: "said", text: "x".repeat(400) }] } },
 });
 
 test("kept assessments roll over into packed files, the oldest go first, and every one left reads back once and in order", async () => {

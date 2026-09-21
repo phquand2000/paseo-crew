@@ -1709,16 +1709,15 @@ test("each assessment is kept with the state, questions, facts and answers it wa
   release();
   await new Promise((resolve) => setTimeout(resolve, 50));
   const kept = readAssessments(h.project.state).kept;
-  const first = kept.find((record) => (record.state as { prompt: string }).prompt === "Clean the build");
+  const first = kept.find((record) => record.views.work?.instruction === "Clean the build");
   assert.ok(first, "the assessment is kept");
   assert.equal(first.seat, peer);
   assert.equal(first.model, "typesafe/jev-1.13-20260917");
   assert.equal(first.turnId, "t1", "filed under the turn it was asked about, though the next had begun when the answer came");
   assert.deepEqual(first.facts.map((fact) => fact.kind), ["outside-scope", "destructive"], "the facts noted when the state was taken");
   assert.deepEqual(first.found, ["goal_drift"], "decided on those facts, though the seat was told something new while the answer was on its way");
-  assert.equal((first.state as { turn: string }).turn, "running");
-  assert.ok((first.state as { gate?: string }).gate, "the gate the project checks with, or that it has none");
-  assert.deepEqual(Object.keys(first.questions), Object.keys(bodies[0]!.questions));
+  assert.deepEqual(Object.keys(first.views).sort(), ["actions", "instruction", "work"], "every view it sent, and no claim from a turn that ended without a word");
+  assert.deepEqual(Object.keys(first.questions).sort(), bodies.slice(0, 3).flatMap((body) => Object.keys(body.questions)).sort(), "one request per view, each kept with the questions it asked");
   assert.ok(!("unverified_success" in first.questions), "a turn that ends without a word claims nothing, so nothing is asked about a claim");
   assert.doesNotMatch(JSON.stringify(kept), /sk-or-kept-test/);
   h.runtime.dispose();
@@ -1753,7 +1752,7 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   const read = view.watch.seats.find((seat: WatchSeat) => seat.id === peer)!;
   assert.equal(read.readings, 1);
-  assert.equal(read.cost, 0.00013, "what the watch has spent on this seat, which is the number the owner is paying");
+  assert.ok(Math.abs(read.cost - 4 * 0.00013) < 1e-12, "what the watch has spent on this seat — one reading, a request for each of its four views — which is the number the owner is paying");
   assert.deepEqual(read.lane, { id: "L1", title: "Build" }, "a seat is placed in its lane, which is how forty of them are read");
   assert.deepEqual(read.task, { id: "L1-T1", title: "Clean build" });
   assert.equal(view.watch.marks.open, 0, "nothing was opened, so the flag below comes from a question and not an incident");
@@ -1770,9 +1769,9 @@ test("the brief a Peer is read against names the tasks being written beside it",
   // its neighbour's files unwritten in the first place.
   const second = await h.call(lane.lead!, "lead", "start_task", { title: "Second part", goal: "g2", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], parallel: true });
   assert.equal(second.ok, true, second.text);
-  const states: { goal: string }[] = [];
+  const states: Record<string, unknown>[] = [];
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
-    const body = JSON.parse(init.body) as { state: { goal: string }; questions: Record<string, unknown> };
+    const body = JSON.parse(init.body) as { state: Record<string, unknown>; questions: Record<string, unknown> };
     states.push(body.state);
     return new Response(JSON.stringify({ answers: Object.fromEntries(Object.keys(body.questions).map((n) => [n, { type: "noul", noul: 0.1 }])), model: "m", id: "g", usage: { cost: 0 } }), { status: 200 });
   });
@@ -1782,12 +1781,12 @@ test("the brief a Peer is read against names the tasks being written beside it",
   timeline.beat("turn_completed", "t1");
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 60));
-  const goal = states.at(-1)?.goal ?? "";
+  const beside = String(states.find((state) => "role" in state)?.beside ?? "");
   // Five Peers in five copies each find the other four files unwritten and say so; the sensor read
-  // that as a prerequisite nobody built. Its question already excuses what `goal` asks for.
-  assert.match(goal, /Being written beside it/);
-  assert.match(goal, /L1-T2 \(Second part\)/);
-  assert.match(goal, /b\.txt/, "the paths this seat will find missing are the point of saying it");
+  // that as a prerequisite nobody built. Its question already excuses what `beside` names.
+  assert.match(beside, /Being written in other copies/);
+  assert.match(beside, /L1-T2 \(Second part\)/);
+  assert.match(beside, /b\.txt/, "the paths this seat will find missing are the point of saying it");
   h.runtime.dispose();
 });
 
@@ -1799,9 +1798,9 @@ test("the brief a Peer is read against carries what its Lead said in the task's 
   const second = await h.call(lane.lead!, "lead", "start_task", { title: "Second part", goal: "g2", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], context: told, parallel: true });
   assert.equal(second.ok, true, second.text);
   await h.tick();
-  const states: { goal: string }[] = [];
+  const states: Record<string, unknown>[] = [];
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
-    const body = JSON.parse(init.body) as { state: { goal: string }; questions: Record<string, unknown> };
+    const body = JSON.parse(init.body) as { state: Record<string, unknown>; questions: Record<string, unknown> };
     states.push(body.state);
     return new Response(JSON.stringify({ answers: Object.fromEntries(Object.keys(body.questions).map((n) => [n, { type: "noul", noul: 0.1 }])), model: "m", id: "g", usage: { cost: 0 } }), { status: 200 });
   });
@@ -1811,7 +1810,7 @@ test("the brief a Peer is read against carries what its Lead said in the task's 
   timeline.beat("turn_completed", "t1");
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 60));
-  assert.match(states.at(-1)?.goal ?? "", new RegExp(`Context: ${told.replaceAll(".", "\\.")}`));
+  assert.equal(states.find((state) => "role" in state)?.context, told);
   h.runtime.dispose();
 });
 
@@ -1851,9 +1850,10 @@ test("a turn that runs long is told without waiting on the sensor, which cannot 
 test("a question that raises alone does so on one reading of a turn that ended, while one still running needs a second reading in the same turn", async (t) => {
   const { h, sup, timeline } = await laneWithPeer("outbox-needs-human.json", { attention: { watch: true } });
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
-    const body = JSON.parse(init.body) as { questions: Record<string, unknown>; state: { turn: string; final_message: string } };
-    const asks = body.state.turn === "running" || body.state.final_message.startsWith("patch.js is missing");
-    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "missing_mechanism" && asks ? 0.95 : 0.1 }]));
+    // It reads high on every reading; what decides whether that opens anything is how many readings a
+    // turn had, and whether the turn had ended.
+    const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "missing_mechanism" ? 0.95 : 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
   });
   const kinds = () => Object.values(incidentsOf(h.project.state)).map((item) => item.kind);
@@ -1878,6 +1878,57 @@ test("a question that raises alone does so on one reading of a turn that ended, 
   await h.idle(sup);
   assert.deepEqual(kinds(), ["missing_mechanism"]);
   assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(missing_mechanism, attend\)/);
+  h.runtime.dispose();
+});
+
+test("an incident a question opens quotes the step the sensor points at, not the question", async (t) => {
+  const { h, timeline } = await laneWithPeer("outbox-pinpoint.json", { attention: { watch: true } });
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { state: { steps?: { id: string }[] }; questions: Record<string, { type: string }> };
+    if (body.questions.where) {
+      const last = body.state.steps!.at(-1)!.id;
+      return new Response(JSON.stringify({ answers: { where: { type: "choice", choice: last, probabilities: { [last]: 0.93 }, confidence: 0.9 } }, model: "m" }), { status: 200 });
+    }
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "unsafe_action" ? 0.95 : 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
+  });
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Check the deploy settings" }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "ls config", output: "deploy.yml" } }, "t1");
+  timeline.add({ type: "tool_call", callId: "c2", name: "Bash", status: "completed", detail: { type: "shell", command: "cat ~/.aws/credentials", output: "[default]" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const opened = Object.values(incidentsOf(h.project.state)).find((item) => item.kind === "unsafe_action") as { quote: string } | undefined;
+  assert.equal(opened?.quote, "S2 ran: cat ~/.aws/credentials", "the Supervisor is told where to look, by the step's id");
+  h.runtime.dispose();
+});
+
+test("a stand-in for a file a sibling task is still writing is expected work, not an incident", async (t) => {
+  // Five Peers in five copies each find the other four files unwritten, say so and work around them
+  // inside their own files. Asked literally, the sensor is right that each names a missing thing and
+  // builds its own; what makes that expected is a fact about the ledger, so code decides it, on the
+  // step the sensor points at.
+  const { h, lane, timeline } = await laneWithPeer("outbox-besidestub.json", { attention: { watch: true } });
+  assert.equal((await h.call(lane.lead!, "lead", "start_task", { title: "Pointer", goal: "g2", acceptance: ["a"], owned: ["src/pointer.js"], outOfScope: ["the rest"], parallel: true })).ok, true);
+  await h.tick();
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { state: { steps?: { id: string; note?: string }[] }; questions: Record<string, unknown> };
+    if (body.questions.where) {
+      const noted = body.state.steps!.find((step) => step.note)?.id ?? body.state.steps!.at(-1)!.id;
+      return new Response(JSON.stringify({ answers: { where: { type: "choice", choice: noted, probabilities: { [noted]: 0.9 }, confidence: 0.9 } }, model: "m" }), { status: 200 });
+    }
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "missing_mechanism" ? 0.95 : 0.1 }]));
+    return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
+  });
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Build it" }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Edit", status: "completed", detail: { type: "edit", filePath: "a.txt", oldString: "one", newString: "uno" } }, "t1");
+  timeline.add({ type: "assistant_message", text: "src/pointer.js is still a stub, so I parse paths in a.txt myself.", messageId: "m1" }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => item.kind), []);
   h.runtime.dispose();
 });
 

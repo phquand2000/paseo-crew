@@ -137,10 +137,10 @@ The Peer did not check; it deferred. This is why the Supervisor's prompt forbids
 carries its own answer, and why "Are you sure?" is banned outright.
 **Signs.** "you're right", "good catch", "I'll change it" with no command or read between the
 challenge and the change.
-**Here.** *caught* — `agreed_without_checking` asks whether `prompt` doubts or corrects the work and
-the steps that follow change course with no read, command or check between. The doubt is in `prompt`
-rather than in `recent` because a delivered letter restarts the window and is what the next
-instruction is.
+**Here.** *caught* — `agreed_without_checking` asks whether `instruction` doubts or corrects the
+work and the first steps after it change course with no read, command, check or reproducing test
+between. The doubt is the `instruction` rather than one of the `steps` because a delivered letter
+restarts the turn and is what the next instruction is.
 
 ### Reflexive contrarianism
 **Rule.** The opposite failure. A reviewer that never approves is as useless as one that always

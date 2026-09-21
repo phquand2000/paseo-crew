@@ -168,12 +168,10 @@ test("a Peer's brief names the tasks running beside it, so what they have not wr
   ledger.tasks["L1-T2"] = task("L1-T2", "running", ["src/patch.js"], "p2");
   ledger.tasks["L1-T3"] = task("L1-T3", "merged", ["src/merge.js"], "p3");
 
-  const beside = alongside(ledger, ledger.tasks["L1-T2"] as never);
-  assert.match(beside, /L1-T1/, "the task still being written beside it is named");
-  assert.match(beside, /src\/pointer\.js/, "and so are the paths it owns, which is what this Peer will find missing");
-  assert.doesNotMatch(beside, /L1-T2/, "not the Peer's own task");
-  assert.doesNotMatch(beside, /L1-T3/, "and not one already taken in, whose files are there");
-  assert.equal(alongside(ledger, ledger.tasks["L1-T1"] as never).includes("L1-T2"), true);
+  // Named with the paths it owns, which is what this Peer will find missing; not the Peer's own
+  // task, and not one already taken in, whose files are there.
+  assert.deepEqual(alongside(ledger, ledger.tasks["L1-T2"] as never), [{ task: "L1-T1", title: "L1-T1", owned: ["src/pointer.js", "test/pointer.test.js"] }]);
+  assert.deepEqual(alongside(ledger, ledger.tasks["L1-T1"] as never).map((sibling) => sibling.task), ["L1-T2"]);
 });
 
 test("an incident says where the desk kept the steps that were read, because the copy they happened in is taken back", () => {
