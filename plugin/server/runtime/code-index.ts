@@ -38,6 +38,11 @@ export function codeIndex(proxy: IndexedProxy): CodeIndex {
       const route = routeOf(first.text, hook.route);
       return route ? callTool(url, hook.tool, pinned(route, args), timeoutMs) : first;
     },
+    close(path) {
+      const hook = proxy.close;
+      if (!hook) return Promise.resolve({ ok: true, text: "nothing to close" });
+      return callTool(url, hook.tool, withRoot(hook.args ?? pinned(path), path) as Record<string, unknown>, (hook.timeoutSeconds ?? 60) * 1000);
+    },
     sync: (path) => (proxy.sync ? callTool(url, proxy.sync.tool, pinned(path), 60_000) : Promise.resolve({ ok: true, text: "nothing to sync" })),
   };
 }

@@ -24,6 +24,7 @@ export type CodeIndex = {
   gitExclude: string[];
   open(path: string): Promise<{ ok: boolean; text: string }>;
   sync(path: string): Promise<{ ok: boolean; text: string }>;
+  close(path: string): Promise<{ ok: boolean; text: string }>;
 };
 
 /** What the outbox did with a letter. "duplicate" means it was dropped as a repeat of one already sent. */

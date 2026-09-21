@@ -162,6 +162,8 @@ export type ProxySpec = {
   pin?: string;
   gitExclude?: string[];
   open?: ProxyHook & { route?: { when: string; from: string; field: string } };
+  /** Undoes `open` for a copy the desk is removing; never called for the project's own. */
+  close?: ProxyHook;
   wait?: ProxyHook & { busy?: string; seconds?: number; pollSeconds?: number };
   sync?: { tool: string; paths?: string; maxPaths?: number };
   errors?: { when: string; reply: string }[];
@@ -456,7 +458,7 @@ export function seatOf(kit: Kit, provider: string | null | undefined): { role: R
 }
 
 export function hookTools(proxy: ProxySpec | undefined): string[] {
-  return [proxy?.open?.tool, proxy?.wait?.tool, proxy?.sync?.tool].filter((name): name is string => Boolean(name));
+  return [proxy?.open?.tool, proxy?.close?.tool, proxy?.wait?.tool, proxy?.sync?.tool].filter((name): name is string => Boolean(name));
 }
 
 export function can(role: RoleSpec | undefined, capability: string): boolean {

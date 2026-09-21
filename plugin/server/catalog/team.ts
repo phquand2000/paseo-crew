@@ -260,7 +260,7 @@ export function indexedProxies(team: Team): IndexedProxy[] {
     // Anything the desk does for a working copy it takes — open it in the index, sync it, keep the
     // index's own files out of git — makes a proxy one it serves. Keyed on opening alone, a preset
     // without an open tool also lost the sync and the git exclude, and a Peer could commit `.idea/`.
-    const serves = Boolean(proxy?.open || proxy?.sync || proxy?.gitExclude?.length);
+    const serves = Boolean(proxy?.open || proxy?.close || proxy?.sync || proxy?.gitExclude?.length);
     if (proxy && serves && proxy.backend.type === "http") found.push({ ...proxy, backend: proxy.backend, id: state.id, label: state.label });
   }
   return found;

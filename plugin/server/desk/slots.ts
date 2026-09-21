@@ -224,6 +224,7 @@ export class Slots {
     const slot = loadLedger(project.state).slots[slotId];
     let kept: string | undefined;
     if (slot) {
+      this.unindex(project, slot);
       if (existsSync(slot.path)) {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
@@ -377,6 +378,16 @@ export class Slots {
     return this.ctx.ledger(project, (ledger) => {
       delete ledger.slots[slotId];
     });
+  }
+
+  /** Each copy `index` opened got a window of its own in the IDE, and nothing closed one. */
+  private unindex(project: Project, slot: Slot): void {
+    for (const index of this.ctx.indexes(project)) {
+      void index.close(slot.path).then(
+        (result) => this.ctx.event(project, { kind: "index.closed", server: index.id, slot: slot.id, ok: result.ok, detail: clip(result.text, 200) }),
+        (error) => this.ctx.event(project, { kind: "index.closed", server: index.id, slot: slot.id, ok: false, detail: clip(errorText(error), 200) }),
+      );
+    }
   }
 
   private index(project: Project, slot: Slot, reused: boolean): void {

@@ -937,20 +937,23 @@ With the prefix empty, the plugin stops cleaning up its own stale entries in `~/
   into the seat.
 
 **What the proxy can do.** Each proxied entry runs through `plugin/mcp/code.mjs`. The entry's `proxy`
-block switches on any of six things:
+block switches on any of seven things:
 
 - pin every call to the seat's git root, and hide that argument from the schema the seat sees
 - send changed files to the backend before a call
 - open the working copy in the backend when a call says it is not open
+- close it there when the desk removes that working copy
 - wait out indexing
 - rewrite known errors
 - replace a tool's description with the entry's own wording
 
 **What each shipped server uses.**
 
-- `intellij-index` pins, syncs, waits out indexing and rewrites errors. Both the desk and the proxy
-  add `.idea/` to the repository's `.git/info/exclude`, and the desk syncs a reused working copy when
-  it hands one out.
+- `intellij-index` pins, syncs, opens, closes, waits out indexing and rewrites errors. Both the desk
+  and the proxy add `.idea/` to the repository's `.git/info/exclude`. The desk opens each working copy
+  it hands out in the IDE, syncs a reused one, and closes a slot's window when the slot is removed. It
+  never closes the project's own. Opening and closing need `ide_open_project` and `ide_close_project`
+  switched on in the IDE plugin.
 - `code-search` pins, and rewrites what `search` says it is for.
 
 When the backend does not answer while tools are being listed, the proxy still lists them, each with

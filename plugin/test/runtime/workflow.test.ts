@@ -147,7 +147,7 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 
-const ideCalls: { kind: "open" | "sync"; path: string }[] = [];
+const ideCalls: { kind: "open" | "sync" | "close"; path: string }[] = [];
 const ide = {
   async open(path: string) {
     ideCalls.push({ kind: "open" as const, path });
@@ -156,6 +156,10 @@ const ide = {
   async sync(path: string) {
     ideCalls.push({ kind: "sync" as const, path });
     return { ok: true, text: "synced" };
+  },
+  async close(path: string) {
+    ideCalls.push({ kind: "close" as const, path });
+    return { ok: true, text: "closed" };
   },
 };
 
@@ -336,6 +340,24 @@ test("a lane works serially in the project's own copy and hands it back on its b
   assert.equal(h.workspaces.size, 1);
   assert.deepEqual(ideCalls.filter((call) => call.path === slot.path).map((call) => call.kind), ["open", "sync", "open", "sync"]);
   assert.equal(h.git(slot.path, "branch", "--show-current").trim(), h.ledger().lanes.L2!.branch);
+  h.runtime.dispose();
+});
+
+test("a copy the desk opened in the index is closed there when the copy goes, and the project's own never is", async () => {
+  const h = harness("outbox-ideclose.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Away", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
+  const lane = h.ledger().lanes.L1!;
+  const copy = h.ledger().slots[lane.slot!]!.path;
+  assert.deepEqual(ideCalls.filter((call) => call.path === copy).map((call) => call.kind), ["open"]);
+
+  h.agents.get(lane.lead!)!.status = "idle";
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "done" });
+  assert.equal(closed.ok, true, closed.text);
+  // Every copy the IDE was handed stayed open in a window of its own, one per lane that ever ran.
+  assert.deepEqual(ideCalls.filter((call) => call.path === copy).map((call) => call.kind), ["open", "close"], "the window goes with the copy");
+  assert.equal(ideCalls.some((call) => call.kind === "close" && call.path === h.root), false, "the Human's own project stays open");
   h.runtime.dispose();
 });
 
