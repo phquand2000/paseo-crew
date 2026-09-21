@@ -1,46 +1,25 @@
 # CLAUDE.md
 
-**Read [AGENTS.md](AGENTS.md).** It holds the governing rule, the authority boundary, the commands,
-the conventions and the Paseo facts — all of it applies here and is deliberately not repeated.
+@AGENTS.md
 
-Then read `../REBUILD-TRACKER.md`, which is the context anchor for the work in progress.
-
-Only the Claude Code specifics are below.
-
-## Before you start changing code
-
-Everything `../REBUILD-TRACKER.md` lists as a defect has been fixed — Stage 0's five, and three
-rounds of hunting after it. Read the round tables anyway before you debug something odd: each row
-says what the defect was, what the fix chose, and why, and several of them were fixed **twice**
-because the first fix was wrong in a way the suite agreed with. If what you are looking at is in a
-row, the reasoning you need is already there.
-
-Two of those rows are about how a green suite lies: it once compared tool *names* where the schemas
-were what mattered, and it once agreed about a lane working in place when that was the only
-arrangement in which the code was accidentally right. So when you fix something, put the old
-behaviour back and watch your new test fail before you keep it.
+Only the Claude Code specifics are below; everything in `AGENTS.md` applies.
 
 ## Working here
 
-- **Run `cd plugin && npm run check` before every commit.** There is no CI in this repository, so
-  that command is the whole safety net.
-- **Do not start the Paseo daemon or launch seats to test a change.** Seats are real agents with
-  `danger-full-access`-equivalent settings and they cost money. Read `~/.paseo/daemon.log` for what
-  the plugin really did — but know what is in it: seat-directory writes and errors, and as of
-  2026-09-18 no errors at all, because **no lane has ever run outside the test suite** (there is no
-  project state under `~/.local/share/seatworks-v2/projects/` and no `events.log` anywhere). The
-  suite and your own reading are the evidence. What the field can still show is residue: four empty
-  working-copy directories under `~/.local/share/seatworks-v2/worktrees/` are how one defect was
-  found.
-- **`plugin/content/**` is runtime content, not docs.** A one-word edit to a prompt there changes
-  how every Lead or Peer behaves. Treat it with the care you would give code, and check the
-  19-item KEEP list in the tracker before touching a role prompt — several lines there are
-  load-bearing and were verified as such.
-- **`hidesWords` in `roles.json` is a build-time lint that throws.** If `npm run check` fails with
-  "the *role* prompt contains words that role must not see", you used a word that role's prompt may
-  not contain — for example the Peer's prompt may not say "seat". Rephrase; do not remove the lint.
+- **Run `cd plugin && npm run check` before every commit.** There is no CI; that is the whole net.
+- **Fail first:** put the old behaviour back and watch your new test fail before keeping a fix. The
+  suite has agreed with bugs before (it compared tool names where schemas mattered).
+- **Never start the daemon or launch seats to test.** Seats are real agents with broad permissions
+  and they cost money. The suite, your reading and `~/.paseo/daemon.log` are the evidence.
+- **Never print or cat a file that can hold a key:** `~/.local/share/seatworks-v2/settings.json`,
+  any project `settings.json`, `~/.paseo/config.json`. Test fixtures use fake `sk-or-v1-…` keys.
+- **`plugin/content/**` is runtime content.** Check the KEEP list in `../REBUILD-TRACKER.md` (resolve
+  it by text; its line numbers are stale) before touching a role prompt.
+- **`hidesWords` fails the build** when a role's text uses a word it must not see: rephrase, don't
+  remove the lint.
+- **Don't click settings in the user's live Paseo** to test the panel: it writes their config.
 
 ## Writing
 
-This repository has almost no prose, on purpose. Match it: no new markdown files, no decision
-records, no code comments unless asked. If a change needs explaining, the commit subject explains it.
+Almost no prose, on purpose: no new markdown files, decision records or comments unless asked. Plans
+go outside the repository. If a change needs explaining, the commit message explains it.
