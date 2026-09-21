@@ -24,7 +24,8 @@ export class SeatWatch {
   readings = 0;
   spent = 0;
   readAt = 0;
-  highest: { question: string; p: number } | undefined;
+  /** The highest each question has read on this seat, kept rather than replaced by the last answer. */
+  readonly peaks = new Map<string, number>();
   private readonly durations: number[] = [];
   private readonly told = new Set<string>();
   private readonly recovery = new Recovery();

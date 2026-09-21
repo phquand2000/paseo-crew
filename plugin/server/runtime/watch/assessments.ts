@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, unlinkSync } from "node:fs";
 import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -104,6 +104,87 @@ export function keepAssessment(state: string, kept: Kept, rotateAt = ROTATE_BYTE
   if (!rotated) return Promise.resolve();
   prune(dir, keep);
   return pack(rotated);
+}
+
+export type Tally = { turns: number; cost: number };
+
+const tallyOf = (text: string): Tally => {
+  let turns = 0;
+  let cost = 0;
+  for (const row of text.split("\n")) {
+    if (!row.trim()) continue;
+    try {
+      const kept = JSON.parse(row) as { cost?: unknown };
+      turns += 1;
+      if (typeof kept.cost === "number") cost += kept.cost;
+    } catch {}
+  }
+  return { turns, cost };
+};
+
+/** Per assessments directory: how far into the current file has been counted, and each rotated file once. */
+const counted = new Map<string, { ino: number; offset: number; current: Tally; rotated: Map<string, Tally> }>();
+
+/**
+ * Every reading the watch has kept for a project, and what they cost — the whole project, not the
+ * seats that happen to be running.
+ *
+ * The screen asks every few seconds and the file runs to megabytes, so it is never read twice: a
+ * rotated file does not change, and is counted once; the current one is read from where the last
+ * count stopped, up to its last whole line. A rotation is seen as a new file under the old name,
+ * and the one it replaced turns up as a rotated file, so nothing is counted twice or lost.
+ */
+export function readTally(state: string): Tally {
+  const dir = assessmentsDir(state);
+  if (!existsSync(dir)) {
+    counted.delete(dir);
+    return { turns: 0, cost: 0 };
+  }
+  let seen = counted.get(dir);
+  if (!seen) {
+    seen = { ino: -1, offset: 0, current: { turns: 0, cost: 0 }, rotated: new Map() };
+    counted.set(dir, seen);
+  }
+  const names = readdirSync(dir);
+  const live = new Set(stamps(names, true));
+  for (const stamp of [...seen.rotated.keys()]) if (!live.has(stamp)) seen.rotated.delete(stamp);
+  for (const stamp of live) {
+    if (seen.rotated.has(stamp)) continue;
+    try {
+      const text = names.includes(`${stamp}.jsonl.gz`) ? gunzipSync(readFileSync(join(dir, `${stamp}.jsonl.gz`))).toString("utf-8") : readFileSync(join(dir, `${stamp}.jsonl`), "utf-8");
+      seen.rotated.set(stamp, tallyOf(text));
+    } catch {
+      // Being packed at this moment; it is counted on the next look.
+    }
+  }
+  try {
+    const file = join(dir, KEPT_FILE);
+    const { ino, size } = statSync(file);
+    if (ino !== seen.ino || size < seen.offset) Object.assign(seen, { ino, offset: 0, current: { turns: 0, cost: 0 } });
+    if (size > seen.offset) {
+      const chunk = Buffer.alloc(size - seen.offset);
+      const fd = openSync(file, "r");
+      try {
+        readSync(fd, chunk, 0, chunk.length, seen.offset);
+      } finally {
+        closeSync(fd);
+      }
+      // Up to the last whole line: a reading being appended right now is counted next time.
+      const end = chunk.lastIndexOf(0x0a) + 1;
+      const more = tallyOf(chunk.subarray(0, end).toString("utf-8"));
+      seen.offset += end;
+      seen.current = { turns: seen.current.turns + more.turns, cost: seen.current.cost + more.cost };
+    }
+  } catch {
+    Object.assign(seen, { ino: -1, offset: 0, current: { turns: 0, cost: 0 } });
+  }
+  let turns = seen.current.turns;
+  let cost = seen.current.cost;
+  for (const tally of seen.rotated.values()) {
+    turns += tally.turns;
+    cost += tally.cost;
+  }
+  return { turns, cost };
 }
 
 export function readAssessments(state: string): { kept: Kept[]; broken: number } {

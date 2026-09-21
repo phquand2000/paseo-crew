@@ -163,6 +163,10 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             theme={theme}
             disabled={locked}
             onLive={(next) => void save((values) => setFlow(values, { live: next }))}
+            onAddKey={() => {
+              setOpen(MACHINE);
+              setTab("team");
+            }}
             onOpen={(lane) =>
               setOpenLanes((current) => {
                 const lanes = current.of === (project ?? "") ? current.lanes : [];

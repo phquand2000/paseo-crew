@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey, spent, watchCard, watchState } from "../../client/data.ts";
-import type { WatchView } from "../../shared/views.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, incidentCounts, kindGroups, laneGroups, marksOf, seatCounts, setRole, setSensorKey, spent, watchCard, watchState } from "../../client/data.ts";
+import type { WatchIncident, WatchSeat, WatchView } from "../../shared/views.ts";
 import { KEPT } from "../../shared/rpc.ts";
 
 const held: Layer = {
@@ -182,49 +182,114 @@ const watching = (over: Partial<WatchView> = {}): WatchView => ({
   telling: false,
   seats: [],
   lastRead: null,
-  marks: { total: 0, open: 0, held: 0, useful: 0, noise: 0, recent: [] },
+  read: { turns: 0, cost: 0 },
+  marks: { total: 0, open: 0, held: 0, useful: 0, noise: 0, unknown: 0 },
+  incidents: [],
   trouble: [],
+  ...over,
+});
+const seatOf = (id: string, lane: string, over: Partial<WatchSeat> = {}): WatchSeat => ({
+  id,
+  role: "peer",
+  running: true,
+  readings: 10,
+  cost: 0.001,
+  minutes: 0,
+  lane: { id: lane, title: `lane ${lane}` },
+  task: { id: `${lane}-${id}`, title: id },
+  signal: null,
+  ...over,
+});
+const incident = (id: string, kind: string, over: Partial<WatchIncident> = {}): WatchIncident => ({
+  id,
+  kind,
+  title: kind,
+  level: "attend",
+  where: "the Peer on L1-T1",
+  open: false,
+  told: true,
+  held: null,
+  label: "noise",
+  note: "",
+  count: 1,
+  minutes: 5,
   ...over,
 });
 
 test("the watch card says what it has done in this project, not only what is running this second", () => {
-  // The card an owner actually opened: a project worked in all day, every seat since archived. Fed
-  // by the live watches alone it read "The watch is on / nothing to follow / 0 open incidents".
-  const after = watchCard(watching({
+  // The card an owner opened: a project worked in all day, every seat since archived. Fed by the live
+  // watches alone it read "The watch is on / nothing to follow / 0 open incidents".
+  const card = watchCard(watching({
     lastRead: 185,
-    marks: { total: 2, open: 0, held: 0, useful: 0, noise: 2, recent: [{ id: "I1", kind: "test-weakened", where: "the Peer on L1-T1", state: "marked noise" }] },
-  }));
-  assert.equal(after.title, "The watch is on");
-  assert.match(after.hint, /last read a turn here 3 hours ago/, "an idle watch says when it last worked, so a dead one is visible");
-  assert.equal(after.marksTitle, "2 incidents here");
-  assert.match(after.marksHint, /None still open\. Marked so far: 0 useful, 2 noise\./);
-  assert.equal(after.right, null, "nothing is running, so there is no live tally to show");
-});
-
-test("a watch that has marked nothing teaches what it would mark, rather than printing a zero", () => {
-  const fresh = watchCard(watching());
-  assert.equal(fresh.marksTitle, "Nothing marked here yet");
-  assert.doesNotMatch(fresh.marksTitle, /\b0\b/, "a count of nothing is not a heading");
-  for (const what of [/destructive command/, /round in circles/, /lost its assertions/, /without a hand-back/, /sensor reads/]) {
-    assert.match(fresh.marksHint, what, "the empty state is where someone finds out what the thing is for");
-  }
-  assert.match(fresh.hint, /read nothing here yet/);
-});
-
-test("while seats are running the card counts them, their readings and what they cost", () => {
-  const live = watchCard(watching({
-    telling: true,
-    seats: [
-      { id: "a", role: "lead", running: true, readings: 13, cost: 0.0062, minutes: 0, highest: null },
-      { id: "b", role: "peer", running: false, readings: 43, cost: 0.0406, minutes: 2, highest: { question: "goal_drift", p: 0.81 } },
+    read: { turns: 1284, cost: 0.412 },
+    marks: { total: 19, open: 0, held: 0, useful: 2, noise: 15, unknown: 2 },
+    incidents: [
+      incident("I1", "missing_mechanism"), incident("I2", "missing_mechanism"), incident("I3", "unverified", { label: "unknown" }),
+      incident("I4", "destructive", { level: "page" }), incident("I5", "stuck"), incident("I6", "no-recovery", { label: "useful" }),
     ],
-    marks: { total: 1, open: 1, held: 1, useful: 0, noise: 0, recent: [] },
   }));
-  assert.equal(live.title, "Watching 2 seats");
-  assert.equal(live.right, "56 read · $0.047", "dollars, never cents");
-  assert.match(live.hint, /goes to the Supervisor/);
-  assert.match(live.marksHint, /1 still open, 1 of them held back\./);
-  assert.match(live.marksHint, /None marked yet/);
+  assert.equal(card.title, "The watch is on");
+  assert.match(card.hint, /last read a turn here 3 hours ago/, "an idle watch says when it last worked, so a dead one is visible");
+  assert.deepEqual(card.stats.map((stat) => stat.value), ["1,284", "$0.412", "2", "17"], "the project's own numbers, and money in dollars");
+  assert.equal(card.settledTitle, "15 marked noise, 2 unknown");
+  assert.match(card.settledHint, /^missing mechanism 2 · /, "the settled are folded into one line, by kind, most common first");
+  assert.match(card.settledHint, /· 1 other kind$/);
+  assert.doesNotMatch(card.settledHint, /no recovery/, "what the Supervisor found useful is not folded away with the noise");
+  assert.equal(card.live, false);
+});
+
+test("a watch that has read nothing says so, rather than printing zeroes as a heading", () => {
+  const card = watchCard(watching());
+  assert.match(card.hint, /read nothing here yet/);
+  assert.equal(card.settledTitle, "Nothing settled yet");
+});
+
+test("while seats are running the card counts them, and says whether what it marks is mailed", () => {
+  const card = watchCard(watching({ telling: true, seats: [seatOf("a", "L1"), seatOf("b", "L1")] }));
+  assert.equal(card.title, "Watching 2 seats");
+  assert.match(card.hint, /goes to the Supervisor/);
+  assert.equal(card.live, true);
+});
+
+test("forty seats are read as lanes: flagged lanes first, and within one the irreversible, then the rest of the flagged", () => {
+  const seats = [
+    seatOf("quiet", "L3"),
+    seatOf("idle", "L1", { running: false }),
+    seatOf("drift", "L1", { signal: { label: "Worked on something it was not asked for", p: 0.81, level: "attend" } }),
+    seatOf("push", "L1", { signal: { label: "Ran a command that cannot be undone", p: null, level: "page" } }),
+    seatOf("busy", "L1", { readings: 50 }),
+    seatOf("lead", "L1", { task: null, role: "lead" }),
+    seatOf("x", "L2", { signal: { label: "Going round in circles", p: 0.9, level: "attend" } }),
+  ];
+  const lanes = laneGroups(seats, "all");
+  assert.deepEqual(lanes.map((lane) => lane.id), ["L1", "L2", "L3"], "the lane with the most flagged first");
+  const l1 = lanes[0]!;
+  assert.deepEqual(l1.seats.map((seat) => seat.id), ["push", "drift", "busy", "lead", "idle"]);
+  assert.deepEqual([l1.leads, l1.peers, l1.running, l1.flagged], [1, 4, 4, 2]);
+  assert.equal(Math.round(l1.cost * 1000), 5, "each lane carries what it cost");
+
+  assert.deepEqual(laneGroups(seats, "flagged").flatMap((lane) => lane.seats.map((seat) => seat.id)), ["push", "drift", "x"], "Flagged is the three worth a look, of seven");
+  assert.deepEqual(seatCounts(seats), { all: 7, flagged: 3, running: 6, idle: 1 });
+});
+
+test("every incident is grouped by what was seen, with its marks in one phrase", () => {
+  const all = [
+    incident("I9", "destructive", { level: "page", open: true, told: true, label: null }),
+    incident("I1", "wrapped_instead_of_changed", { label: "useful" }),
+    incident("I2", "wrapped_instead_of_changed", { where: "the Lead of L1" }),
+    incident("I3", "missing_mechanism", { count: 5 }),
+    incident("I4", "missing_mechanism", { count: 3, where: "the Peer on L1-T4" }),
+    incident("I5", "unverified", { label: "unknown" }),
+  ];
+  const groups = kindGroups(all, "all");
+  assert.deepEqual(groups.map((group) => group.kind), ["destructive", "wrapped_instead_of_changed", "missing_mechanism", "unverified"], "in the order the server ranked them");
+  assert.equal(groups[0]!.level, "page");
+  assert.equal(marksOf(groups[1]!), "1 useful · 1 noise");
+  assert.equal(marksOf(groups[2]!), "noise", "one kind of mark reads as the mark alone");
+  assert.equal(groups[2]!.seen, 8, "seen counts every sighting, not only the incidents opened");
+  assert.deepEqual(groups[2]!.wheres, ["the Peer on L1-T1", "the Peer on L1-T4"]);
+  assert.deepEqual(kindGroups(all, "useful").map((group) => group.kind), ["wrapped_instead_of_changed"]);
+  assert.deepEqual(incidentCounts(all), { all: 6, open: 1, useful: 1, noise: 3, unknown: 1 });
 });
 
 test("money is shown in dollars, with enough places that a few cents do not read as nothing", () => {

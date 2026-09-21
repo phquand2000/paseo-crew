@@ -1653,7 +1653,10 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const { h, peer, timeline } = await laneWithPeer("outbox-watchview.json");
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
-    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "goal_drift" ? 0.81 : 0.1 }]));
+    // `unverified_success` reads high on every turn that says it is done — that is what it is for — and
+    // it opens nothing of its own. A screen that flagged the highest answer would flag every seat.
+    const high: Record<string, number> = { goal_drift: 0.81, unverified_success: 0.99 };
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: high[name] ?? 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917", id: "gen-view", usage: { cost: 0.00013 } }), { status: 200 });
   });
   const off = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
@@ -1663,7 +1666,11 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
 
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
-  timeline.add({ type: "tool_call", callId: "c1", name: "Edit", status: "completed", detail: { type: "edit", filePath: "b.txt", oldString: "x", newString: "y" } }, "t1");
+  // Inside what the task owns, so goal_drift passes its bar without opening anything: what flags the
+  // seat is then the question itself, which is the case the per-question peaks exist for.
+  timeline.add({ type: "tool_call", callId: "c1", name: "Edit", status: "completed", detail: { type: "edit", filePath: "a.txt", oldString: "x", newString: "y" } }, "t1");
+  // It says it is done, so "did it say it is done" is asked — and reads 0.99, as it should.
+  timeline.add({ type: "assistant_message", text: "Done — the build is clean." }, "t1");
   timeline.beat("turn_completed", "t1");
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 60));
@@ -1672,9 +1679,13 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const read = view.watch.seats.find((seat: WatchSeat) => seat.id === peer)!;
   assert.equal(read.readings, 1);
   assert.equal(read.cost, 0.00013, "what the watch has spent on this seat, which is the number the owner is paying");
-  // The highest any question reached, not the last one: a screen showing only the last reading says
-  // nothing about the turn where something came within a hundredth of opening an incident.
-  assert.deepEqual(read.highest, { question: "goal_drift", p: 0.81 });
+  assert.deepEqual(read.lane, { id: "L1", title: "Build" }, "a seat is placed in its lane, which is how forty of them are read");
+  assert.deepEqual(read.task, { id: "L1-T1", title: "Clean build" });
+  assert.equal(view.watch.marks.open, 0, "nothing was opened, so the flag below comes from a question and not an incident");
+  // The question past its bar that could open something — not the highest answer overall.
+  assert.deepEqual(read.signal, { label: "Worked on something it was not asked for", p: 0.81, level: "attend" });
+  assert.equal(view.watch.read.turns >= 1, true, "the project's own tally, not just the seats running now");
+  assert.equal(view.watch.read.cost >= 0.00013, true);
   h.runtime.dispose();
 });
 

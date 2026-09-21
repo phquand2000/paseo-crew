@@ -112,9 +112,11 @@ the file with no reload:
 A key alone starts paid calls: one per watched seat five seconds after it goes quiet, at least one
 every thirty seconds while it works, and one at once when a turn ends, a call or the gate fails,
 something irreversible is seen, or a permission is asked — which is how you collect a record to
-calibrate against before letting the watch speak. What it is doing while it does it — which seats it
-follows, how many readings each has cost, how high any question has read, and any call that never
-reached the desk — is on the project's **Flow** tab. A sensor that stops answering is on that tab
+calibrate against before letting the watch speak. What it is doing while it does it is on the
+project's **Flow** tab: the seats it follows grouped by lane, with what each has cost and the highest
+signal read on it; the incidents that need the Supervisor or were marked useful, with the settled
+rest one tap away and grouped by kind; any call that never reached the desk; and, behind its `?`,
+what each word on the card means. A sensor that stops answering is on that tab
 too, and in the project's `events.log` as `sensor.degraded`. Once there is a record,
 `cd plugin && node bin/calibrate.ts <project>` reports how well each of the sensor's questions
 separated what you marked useful from what you marked noise.

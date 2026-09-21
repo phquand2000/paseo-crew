@@ -13,7 +13,7 @@ import type { PaseoApi } from "../core/paseo.ts";
 import type { Seats, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
+import { type Ledger, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
@@ -25,14 +25,14 @@ import { Seating } from "./seating.ts";
 import { spoolDirs, takeRequests, writeReply } from "./spool.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
-import type { Fact } from "./watch/facts.ts";
+import { FACT_TITLES, type Fact } from "./watch/facts.ts";
 import { type Finding, type Verdict, decide, weigh } from "./watch/rules.ts";
-import { keepAssessment, lastKept } from "./watch/assessments.ts";
+import { keepAssessment, lastKept, readTally } from "./watch/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/sensor.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
 import { malformed } from "./timeline.ts";
 import { loadIncidents } from "../desk/incidents.ts";
-import type { WatchView } from "../../shared/views.ts";
+import type { WatchSignal, WatchView } from "../../shared/views.ts";
 import { errorText } from "../core/errors.ts";
 
 type EventName = keyof PluginLifecycleEvents;
@@ -40,8 +40,8 @@ type EventName = keyof PluginLifecycleEvents;
 /** How much recent trouble a screen is shown. It is a live view, not a second log. */
 const TROUBLES = 10;
 
-/** How many of the things it has marked a screen lists. The Supervisor's `incidents` has them all. */
-const MARKS_SHOWN = 4;
+/** How many incidents a screen is sent. Its counts stay exact past this; the Supervisor's `incidents` lists them all. */
+const INCIDENTS_SHOWN = 200;
 
 export type RuntimeOptions = { outboxFile?: string; paseo?: PaseoApi; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
 
@@ -204,9 +204,10 @@ export class Runtime {
     watch.readings += 1;
     watch.spent += assessment.cost ?? 0;
     watch.readAt = Date.now();
-    // The highest any question has reached on this seat, kept rather than replaced: a screen showing
-    // only the last reading says nothing about the turn where something nearly opened an incident.
-    for (const [question, p] of Object.entries(assessment.answers)) if (!watch.highest || p > watch.highest.p) watch.highest = { question, p };
+    // Per question, and kept rather than replaced: a screen showing only the last reading says nothing
+    // about the turn where something nearly opened an incident. Per question because one overall peak
+    // is whatever reads high on every turn — "did it say it is done" — and it hid the one that mattered.
+    for (const [question, p] of Object.entries(assessment.answers)) if (p > (watch.peaks.get(question) ?? -1)) watch.peaks.set(question, p);
     const before = watch.reading && watch.reading.turnId === reading.turnId ? watch.reading.answers : undefined;
     watch.reading = { turnId: reading.turnId, answers: assessment.answers };
     const { findings, verdicts } = weigh(assessment, questions, facts, { unclear: reading.spec.unclear, ended: !reading.running, before });
@@ -294,6 +295,37 @@ export class Runtime {
 
   private watchView(project: Project): WatchView {
     const on = this.watching(project);
+    const team = this.source.teamFor(project);
+    const questions = team.sensor?.spec.questions ?? {};
+    const items = Object.values(loadIncidents(project.state).items);
+    const now = Date.now();
+    const ago = (at: number) => Math.max(0, Math.round((now - at) / 60_000));
+    const titleOf = (kind: string) => questions[kind]?.label ?? FACT_TITLES[kind] ?? kind.replace(/[-_]/g, " ");
+    let ledger: Ledger | undefined;
+    try {
+      ledger = loadLedger(project.state);
+    } catch {}
+
+    // What makes a seat worth a look now. An incident still open on it first, the worst of them; else
+    // a question past its bar that can open something — one that only judges a fact, like "did it say
+    // it is done", reads high on every good turn and would flag them all.
+    const signalOf = (watch: SeatWatch): WatchSignal | null => {
+      const open = items.filter((item) => item.open && item.seat === watch.seat.id).sort((a, b) => (a.level === b.level ? b.last - a.last : a.level === "page" ? -1 : 1))[0];
+      if (open) return { label: titleOf(open.kind), p: open.p ?? null, level: open.level };
+      let best: WatchSignal | null = null;
+      for (const [name, p] of watch.peaks) {
+        const question = questions[name];
+        if (!question || question.threshold === undefined || p < question.threshold) continue;
+        if (!question.level && !question.agrees?.length) continue;
+        if (!best || p > (best.p ?? 0)) best = { label: titleOf(name), p, level: question.level === "page" ? "page" : "attend" };
+      }
+      return best;
+    };
+    const placeOf = (id: string) => {
+      const task = ledger ? taskOfPeer(ledger, id) : undefined;
+      const lane = ledger ? (task ? ledger.lanes[task.lane] : laneOfLead(ledger, id)) : undefined;
+      return { lane: lane ? { id: lane.id, title: lane.title } : null, task: task ? { id: task.id, title: task.title } : null };
+    };
     const seats = this.watches
       .all()
       .filter((watch) => projectOf(watch.seat.cwd).slug === project.slug)
@@ -303,33 +335,46 @@ export class Runtime {
         running: watch.running,
         readings: watch.readings,
         cost: watch.spent,
-        minutes: Math.max(0, Math.round((Date.now() - (watch.readAt || Date.now())) / 60_000)),
-        highest: watch.highest ?? null,
+        minutes: ago(watch.readAt || now),
+        ...placeOf(watch.seat.id),
+        signal: signalOf(watch),
       }));
-    const items = Object.values(loadIncidents(project.state).items);
-    const now = Date.now();
-    const ago = (at: number) => Math.max(0, Math.round((now - at) / 60_000));
-    // What a seat holds dies when that seat is archived, and a lane is closed far more of the time
-    // than it is open — so a screen fed only by the live watches said nothing about a project that
-    // had been worked in all day. The record on disk is what it has actually done here.
-    const state = (item: (typeof items)[number]): string =>
-      item.label ? `marked ${item.label}` : item.told !== undefined ? "told, not yet marked" : `held: ${item.held ?? "waiting"}`;
+
+    // Most in need of a look first: open and irreversible, open, then what the Supervisor found useful,
+    // what it could not judge, and last what it marked noise — newest first within each.
+    const rank = (item: (typeof items)[number]) => (item.open ? (item.level === "page" ? 0 : 1) : item.label === "useful" ? 2 : item.label === "unknown" || !item.label ? 3 : 4);
+    const incidents = [...items]
+      .sort((a, b) => rank(a) - rank(b) || b.last - a.last)
+      .slice(0, INCIDENTS_SHOWN)
+      .map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        title: titleOf(item.kind),
+        level: item.level,
+        where: item.where,
+        open: item.open,
+        told: item.told !== undefined,
+        held: item.open && item.told === undefined ? (item.held ?? null) : null,
+        label: item.label ?? null,
+        note: (item.note ?? "").slice(0, 240),
+        count: item.count,
+        minutes: ago(item.last),
+      }));
     return {
       on,
-      telling: this.source.teamFor(project).attention.watch,
+      telling: team.attention.watch,
       seats,
       lastRead: lastKept(project.state) ?? null,
+      read: readTally(project.state),
       marks: {
         total: items.length,
         open: items.filter((item) => item.open).length,
         held: items.filter((item) => item.open && item.told === undefined).length,
         useful: items.filter((item) => item.label === "useful").length,
         noise: items.filter((item) => item.label === "noise").length,
-        recent: [...items]
-          .sort((a, b) => b.last - a.last)
-          .slice(0, MARKS_SHOWN)
-          .map((item) => ({ id: item.id, kind: item.kind, where: item.where, state: state(item) })),
+        unknown: items.filter((item) => item.label === "unknown").length,
       },
+      incidents,
       trouble: (this.troubles.get(project.slug) ?? []).map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(),
     };
   }

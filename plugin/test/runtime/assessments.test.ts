@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
 import { tempDir } from "../tempdir.ts";
-import { type Kept, assessmentsDir, keepAssessment, readAssessments } from "../../server/runtime/watch/assessments.ts";
+import { type Kept, assessmentsDir, keepAssessment, readAssessments, readTally } from "../../server/runtime/watch/assessments.ts";
 
 const record = (at: number): Kept => ({
   at,
@@ -57,4 +57,25 @@ test("what was written last is kept even when the clock steps back, and a pack l
   for (let index = 6; index < 10; index++) await keepAssessment(state, record(5000 - index * 100), two, 2);
   assert.deepEqual(readAssessments(state).kept.map((kept) => kept.at), [4100, 4200, 4300, 4400, 4500, 4600], "the six written last, though each carries an earlier time than the one before")
   assert.ok(!readdirSync(dir).some((name) => name.endsWith(".part")), "the half-packed file went when its file did");
+});
+
+test("the tally of every reading kept counts what was added since, and keeps counting across a rotation", async () => {
+  // The watch card shows how many turns the watch has read in a project and what that cost, whether
+  // or not anything is running. The file behind it runs to megabytes, and the card is polled every
+  // few seconds, so it is read once and then only from where it was left.
+  const state = tempDir("sw2-tally-");
+  assert.deepEqual(readTally(state), { turns: 0, cost: 0 }, "a project the watch never read in");
+  const one = (cost: number | null) => ({ at: Date.now(), seat: "s", cost }) as unknown as Kept;
+  await keepAssessment(state, one(0.001));
+  await keepAssessment(state, one(0.002));
+  assert.deepEqual(readTally(state), { turns: 2, cost: 0.003 });
+  await keepAssessment(state, one(null));
+  assert.deepEqual(readTally(state), { turns: 3, cost: 0.003 }, "a reading whose price was not reported still counts as read");
+
+  // A tiny rotation threshold forces the current file away into a dated, packed one.
+  await keepAssessment(state, one(0.004), 10);
+  assert.ok(readdirSync(assessmentsDir(state)).some((name) => name.endsWith(".jsonl.gz")), "the old readings were rotated and packed");
+  const after = readTally(state);
+  assert.equal(after.turns, 4, "nothing counted twice and nothing lost when the file it was reading moved");
+  assert.equal(Math.round(after.cost * 1000), 7);
 });

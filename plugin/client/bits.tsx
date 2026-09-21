@@ -142,3 +142,81 @@ export function Empty({ title, body, theme }: { title: string; body: string; the
     </View>
   );
 }
+
+/**
+ * A group's heading inside a card, in capitals: THIS MACHINE, WORTH A LOOK. The Health tab drew its
+ * own and the watch card needed the same, so there is one.
+ */
+export function Heading({ text, theme, tone = "muted" }: { text: string; theme: PluginTheme; tone?: "muted" | "danger" }) {
+  return (
+    <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 }}>
+      <Text style={{ color: tone === "danger" ? theme.colors.statusDanger : theme.colors.foregroundMuted, fontSize: 12, fontWeight: "500", letterSpacing: 0.6, textTransform: "uppercase" }}>{text}</Text>
+    </View>
+  );
+}
+
+/** A row's divider, the card's own border colour. */
+export function Rule({ theme }: { theme: PluginTheme }) {
+  return <View style={{ height: 1, backgroundColor: theme.colors.border }} />;
+}
+
+/** A state marker: running, idle, worth a look, irreversible. */
+export function Dot({ color, size = 8 }: { color: string; size?: number }) {
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
+}
+
+/** A small pill for a level or a mark: page, attend, useful, told. */
+export function Tag({ text, color, theme }: { text: string; color: string; theme: PluginTheme }) {
+  return (
+    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: theme.colors.surface2 }}>
+      <Text style={{ color, fontSize: 12, fontWeight: "500" }}>{text}</Text>
+    </View>
+  );
+}
+
+/** A number and what it counts, side by side in one inset strip. */
+export function Stats({ items, theme }: { items: { value: string; label: string }[]; theme: PluginTheme }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 1, borderRadius: 8, backgroundColor: theme.colors.surface1, overflow: "hidden" }}>
+      {items.map((item) => (
+        <View key={item.label} style={{ flexGrow: 1, flexBasis: 120, paddingHorizontal: 14, paddingVertical: 12, gap: 2, backgroundColor: theme.colors.surface2 }}>
+          <Text style={{ color: theme.colors.foreground, fontSize: 18, fontWeight: "500" }}>{item.value}</Text>
+          <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>{item.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** A ? beside a title, for what the words on the card mean. Drawn, so it needs no icon set. */
+export function Help({ label, theme, onPress }: { label: string; theme: PluginTheme; onPress(): void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.foregroundMuted,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? CONTROL.pressed : 1,
+      })}
+    >
+      <Text style={{ color: theme.colors.foregroundMuted, fontSize: 10, fontWeight: "500", lineHeight: 12 }}>?</Text>
+    </Pressable>
+  );
+}
+
+/** A number in a table column: right-aligned, one line, a fixed width so the columns line up. */
+export function Cell({ text, width, color, strong }: { text: string; width: number; color: string; strong?: boolean }) {
+  return (
+    <Text numberOfLines={1} style={{ width, textAlign: "right", color, fontSize: 13, fontWeight: strong ? "500" : "normal" }}>
+      {text}
+    </Text>
+  );
+}

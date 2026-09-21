@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Avatar, Button } from "./bits.tsx";
+import { Avatar, Button, Rule } from "./bits.tsx";
 import type { Catalog, ProjectRow, TeamView } from "./data.ts";
 
 export const MACHINE = "machine";
@@ -32,7 +32,6 @@ export function ProjectList({ projects, nameOf, catalog, team, waiting, theme, d
       detail: { color: theme.colors.foregroundMuted, fontSize: 12 },
       trailing: { color: theme.colors.foregroundMuted, fontSize: 12 },
       chevron: { color: theme.colors.foregroundMuted, fontSize: 16 },
-      line: { height: 1, backgroundColor: theme.colors.border },
     }),
     [theme],
   );
@@ -53,7 +52,7 @@ export function ProjectList({ projects, nameOf, catalog, team, waiting, theme, d
         {trailing ? <Text style={styles.trailing}>{trailing}</Text> : null}
         <Text style={styles.chevron}>›</Text>
       </Pressable>
-      {last ? null : <View style={styles.line} />}
+      {last ? null : <Rule theme={theme} />}
     </View>
   );
 

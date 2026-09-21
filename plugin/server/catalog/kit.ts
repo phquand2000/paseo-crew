@@ -216,6 +216,8 @@ export type Question = {
   needs?: string[];
   /** Answerable only from a whole run of steps: what it asks about is a step that is not there. */
   whole?: boolean;
+  /** What a person reads for it on a screen. Never sent to the sensor. */
+  label?: string;
 };
 
 export type SensorSpec = {
@@ -315,7 +317,7 @@ function loadMcp(dir: string): Record<string, McpEntry> {
 }
 
 const SENSOR_KEYS = ["id", "url", "model", "timeoutSeconds", "retries", "stateChars", "debounceSeconds", "everySeconds", "unclear", "questions"];
-const QUESTION_KEYS = ["instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs", "whole"];
+const QUESTION_KEYS = ["instructions", "criteria", "threshold", "level", "alone", "agrees", "confirms", "needs", "whole", "label"];
 
 export function sensorProblems(id: string, raw: Record<string, unknown>): string[] {
   const problems: string[] = [];
@@ -350,6 +352,7 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
       problems.push(`asks ${name} with needs that is not a list of the state's fields (${STATE_FIELDS.join(", ")})`);
     }
     if (question?.whole !== undefined && typeof question.whole !== "boolean") problems.push(`asks ${name} with whole that is not true or false`);
+    if (question?.label !== undefined && (typeof question.label !== "string" || !question.label.trim())) problems.push(`asks ${name} with a label that is not text`);
     if (question?.whole === true && !decides) problems.push(`asks ${name} whole, though nothing decides on its answer`);
   }
   return problems;

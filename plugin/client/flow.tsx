@@ -2,8 +2,9 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { memo, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { Empty } from "./bits.tsx";
-import { type FlowLane, type FlowSeat, type FlowView, type WatchSeat, type WatchView, countsInstead, spent, watchCard } from "./data.ts";
+import { Empty, Rule } from "./bits.tsx";
+import { type FlowLane, type FlowSeat, type FlowView, countsInstead } from "./data.ts";
+import { WatchCard } from "./watching.tsx";
 
 type Props = {
   /** False on the machine screen, where there is no project to follow and nothing is read. */
@@ -15,6 +16,8 @@ type Props = {
   disabled: boolean;
   onLive(live: boolean): void;
   onOpen(lane: string): void;
+  /** Where the watch's key is set: Machine defaults, on the Team tab. */
+  onAddKey(): void;
 };
 
 const NODE_W = 232;
@@ -53,7 +56,6 @@ function useStyles(theme: PluginTheme) {
       spine: { width: COL_GAP / 2, height: 1, backgroundColor: theme.colors.border, alignSelf: "center" as const },
       row: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
       labels: { flex: 1, gap: 4 },
-      line: { height: 1, backgroundColor: theme.colors.border },
     }),
     [theme],
   );
@@ -124,92 +126,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
   );
 });
 
-const readingText = (seat: WatchSeat): string => {
-  if (seat.readings === 0) return seat.running ? "working; nothing read yet" : "nothing read yet";
-  const last = seat.minutes < 1 ? "just now" : `${seat.minutes} min ago`;
-  return `${seat.readings} reading${seat.readings === 1 ? "" : "s"} · ${spent(seat.cost)} · last ${last}`;
-};
-
-/**
- * Trouble nobody is mailed about. A call the harness refused is not something the watch found — it is
- * read at every turn's end whatever the switch says — so it is shown with the watch off as well.
- */
-const Trouble = memo(function Trouble({ watch, theme }: { watch: WatchView; theme: PluginTheme }) {
-  const styles = useStyles(theme);
-  return (
-    <>
-      {watch.trouble.map((entry, index) => (
-        <View key={`${entry.kind}-${index}`}>
-          <View style={styles.line} />
-          <View style={styles.row}>
-            <View style={styles.labels}>
-              <Text style={styles.title}>{entry.kind === "call.malformed" ? "A call never reached the desk" : "The sensor did not answer"}</Text>
-              <Text style={styles.hint}>{entry.detail}</Text>
-            </View>
-            <Text style={styles.quiet}>{entry.minutes < 1 ? "just now" : `${entry.minutes} min`}</Text>
-          </View>
-        </View>
-      ))}
-    </>
-  );
-});
-
-const Watch = memo(function Watch({ watch, theme }: { watch: WatchView; theme: PluginTheme }) {
-  const styles = useStyles(theme);
-  if (!watch.on) {
-    return (
-      <SettingsCard>
-        <Empty theme={theme} title="The watch is off" body="It runs on a sensor key, and there is none set. Add one under Machine defaults · Team · Watch, and the seats here are followed from the next round." />
-        <Trouble watch={watch} theme={theme} />
-      </SettingsCard>
-    );
-  }
-  const card = watchCard(watch);
-  return (
-    <SettingsCard>
-      <View style={styles.row}>
-        <View style={styles.labels}>
-          <Text style={styles.title}>{card.title}</Text>
-          <Text style={styles.hint}>{card.hint}</Text>
-        </View>
-        {card.right ? <Text style={watch.seats.some((seat) => seat.running) ? styles.alive : styles.quiet}>{card.right}</Text> : null}
-      </View>
-      {watch.seats.map((seat) => (
-        <View key={seat.id}>
-          <View style={styles.line} />
-          <View style={styles.row}>
-            <View style={styles.labels}>
-              <Text style={styles.title} numberOfLines={1}>{`${seat.role} · ${seat.id.slice(0, 8)}`}</Text>
-              <Text style={styles.hint} numberOfLines={1}>{readingText(seat)}</Text>
-            </View>
-            <Text style={seat.running ? styles.alive : styles.quiet} numberOfLines={1}>
-              {seat.highest ? `${seat.highest.question} ${seat.highest.p.toFixed(2)}` : seat.running ? "running" : "idle"}
-            </Text>
-          </View>
-        </View>
-      ))}
-      <View style={styles.line} />
-      <SettingsRow label={card.marksTitle} hint={card.marksHint} />
-      {watch.marks.recent.map((mark) => (
-        <View key={mark.id}>
-          <View style={styles.line} />
-          <View style={styles.row}>
-            <View style={styles.labels}>
-              <Text style={styles.title} numberOfLines={1}>{`${mark.id} · ${mark.kind}`}</Text>
-              <Text style={styles.hint} numberOfLines={1}>{mark.where}</Text>
-            </View>
-            <Text style={styles.quiet} numberOfLines={1}>
-              {mark.state}
-            </Text>
-          </View>
-        </View>
-      ))}
-      <Trouble watch={watch} theme={theme} />
-    </SettingsCard>
-  );
-});
-
-export function FlowSection({ following, flow, error, live, theme, disabled, onLive, onOpen }: Props) {
+export function FlowSection({ following, flow, error, live, theme, disabled, onLive, onOpen, onAddKey }: Props) {
   const styles = useStyles(theme);
   const empty = flow !== null && flow.lanes.length === 0 && flow.supervisors.length === 0;
 
@@ -263,13 +180,13 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
         </SettingsCard>
       ) : null}
 
-      {live && flow && flow.watch ? <Watch watch={flow.watch} theme={theme} /> : null}
+      {live && flow ? <WatchCard watch={flow.watch} theme={theme} onAddKey={onAddKey} /> : null}
 
       {live && flow && flow.asks.length > 0 ? (
         <SettingsCard>
           {flow.asks.map((ask, index) => (
             <View key={ask.id}>
-              {index > 0 ? <View style={styles.line} /> : null}
+              {index > 0 ? <Rule theme={theme} /> : null}
               <View style={styles.row}>
                 <View style={styles.labels}>
                   <Text style={styles.title}>{`${ask.id} · ${ask.text}`}</Text>

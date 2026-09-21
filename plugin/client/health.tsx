@@ -2,6 +2,7 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
+import { Heading } from "./bits.tsx";
 import { type Check, message } from "./data.ts";
 
 type Props = {
@@ -30,8 +31,6 @@ export function HealthSection({ project, theme, checks, stale, onChecks, runDoct
     () => ({
       report: { padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface2 },
       text: { color: theme.colors.foregroundMuted, fontSize: 12, lineHeight: 18 },
-      heading: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
-      headingText: { color: theme.colors.foregroundMuted, fontSize: 12, fontWeight: "500" as const, letterSpacing: 0.6 },
       good: { color: theme.colors.statusSuccess, fontSize: 12, fontWeight: "500" as const },
       bad: { color: theme.colors.statusDanger, fontSize: 12, fontWeight: "500" as const },
     }),
@@ -80,9 +79,7 @@ export function HealthSection({ project, theme, checks, stale, onChecks, runDoct
           if (mine.length === 0) return null;
           return (
             <View key={group}>
-              <View style={styles.heading}>
-                <Text style={styles.headingText}>{group.toUpperCase()}</Text>
-              </View>
+              <Heading text={group} theme={theme} />
               {mine.map((check) => (
                 <SettingsRow key={check.id} label={check.id} hint={check.detail}>
                   <Text style={check.ok ? styles.good : styles.bad}>{check.ok ? "OK" : "Needs work"}</Text>

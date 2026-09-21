@@ -1,9 +1,9 @@
 import { useRpc, usePaseo } from "@getpaseo/plugin/client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchView } from "../shared/views.ts";
+import type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchIncident, WatchSeat, WatchView } from "../shared/views.ts";
 import { catalogRpc, doctorRpc, flowRpc, mcpParseRpc, pathsRpc, projectsAddRpc, projectsCandidatesRpc, projectsRemoveRpc, projectsRpc, settingsReadRpc, settingsWriteRpc, statusRpc, teamRpc } from "../shared/rpc.ts";
 
-export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchSeat, WatchView };
+export type { Check, FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView, WatchIncident, WatchSeat, WatchView };
 
 export type Scalar = string | number | boolean;
 export type Connect = { type: "stdio" | "http" | "sse"; command?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
@@ -550,53 +550,142 @@ const since = (minutes: number): string => {
   return hours < 24 ? `${hours} hour${hours === 1 ? "" : "s"} ago` : `${Math.round(hours / 24)} day${Math.round(hours / 24) === 1 ? "" : "s"} ago`;
 };
 
-export type WatchCard = { title: string; hint: string; right: string | null; marksTitle: string; marksHint: string };
+export type WatchCard = {
+  title: string;
+  hint: string;
+  /** Only while seats are running. */
+  live: boolean;
+  stats: { value: string; label: string }[];
+  settledTitle: string;
+  settledHint: string;
+};
+
+const kindName = (kind: string): string => kind.replace(/[-_]/g, " ");
+const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
 
 /**
  * What the watch card says, decided here so a test can hold it to it.
  *
- * The card used to be fed only by the seats being watched at that instant, and a lane is closed far
- * more of the time than it is open — so the one an owner actually opened read "The watch is on / no
- * Lead or Peer is running / 0 open incidents" about a project where it had read fifty-six turns and
- * marked two things. Three zeroes and nothing learned. What it has done here comes from the record
- * now; the live seats are an extra, shown while there are any.
+ * The numbers are the project's, read from what the watch kept, so an idle card still says what it
+ * has done — the version fed by the live seats alone read "0 open incidents" about a project it had
+ * read three hundred turns in. The live seats are listed beneath it while there are any.
  */
 export function watchCard(watch: WatchView): WatchCard {
   const live = watch.seats.length > 0;
-  const readings = watch.seats.reduce((sum, seat) => sum + seat.readings, 0);
-  const cost = watch.seats.reduce((sum, seat) => sum + seat.cost, 0);
-  const title = live ? `Watching ${watch.seats.length} seat${watch.seats.length === 1 ? "" : "s"}` : "The watch is on";
-  const hint = live
-    ? watch.telling
-      ? "What it marks goes to the Supervisor."
-      : "What it marks is recorded and listed, and none of it is mailed."
-    : watch.lastRead === null
-      ? "It has read nothing here yet. It starts when a Lead or Peer does, and reads their turns while they work."
-      : `Nothing is running. It last read a turn here ${since(watch.lastRead)}.`;
-
-  const { total, open, held, useful, noise } = watch.marks;
-  if (total === 0) {
-    return {
-      title,
-      hint,
-      right: live ? `${readings} read \u00b7 ${spent(cost)}` : null,
-      marksTitle: "Nothing marked here yet",
-      marksHint:
-        "It marks a destructive command, a seat going round in circles, a test that lost its assertions, work taken in without a hand-back \u2014 and whatever the sensor reads in a turn.",
-    };
-  }
-  const opened = open === 0 ? "None still open." : `${open} still open${held > 0 ? `, ${held} of them held back` : ""}.`;
-  const marked =
-    useful + noise === 0
-      ? "None marked yet \u2014 the Supervisor marks each one useful or noise with `ack`, and those marks are what the thresholds are tuned from."
-      : `Marked so far: ${useful} useful, ${noise} noise.`;
+  const { useful, noise, unknown } = watch.marks;
+  const settled = watch.incidents.filter((item) => !item.open && item.label !== "useful");
+  const byKind = new Map<string, number>();
+  for (const item of settled) byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + 1);
+  const kinds = [...byKind].sort((a, b) => b[1] - a[1]);
+  const shown = kinds.slice(0, 3).map(([kind, n]) => `${kindName(kind)} ${n}`);
+  const rest = kinds.length - shown.length;
   return {
-    title,
-    hint,
-    right: live ? `${readings} read \u00b7 ${spent(cost)}` : null,
-    marksTitle: `${total} incident${total === 1 ? "" : "s"} here`,
-    marksHint: `${opened} ${marked}`,
+    title: live ? `Watching ${plural(watch.seats.length, "seat")}` : "The watch is on",
+    hint: live
+      ? watch.telling
+        ? "What it marks goes to the Supervisor."
+        : "What it marks is recorded and listed, and none of it is mailed."
+      : watch.lastRead === null
+        ? "It has read nothing here yet. It starts when a Lead or Peer does, and reads their turns while they work."
+        : `Nothing is running. It last read a turn here ${since(watch.lastRead)}.`,
+    live,
+    stats: [
+      { value: watch.read.turns.toLocaleString("en-US"), label: "turns read" },
+      { value: spent(watch.read.cost), label: "spent on the sensor" },
+      { value: String(useful), label: "worth a look" },
+      { value: String(noise + unknown), label: "settled" },
+    ],
+    settledTitle: [noise > 0 ? `${noise} marked noise` : "", unknown > 0 ? `${unknown} unknown` : ""].filter(Boolean).join(", ") || "Nothing settled yet",
+    settledHint: shown.length > 0 ? `${shown.join(" · ")}${rest > 0 ? ` · ${plural(rest, "other kind")}` : ""}` : "What the Supervisor marks noise or cannot judge is folded here.",
   };
+}
+
+export type SeatFilter = "all" | "flagged" | "running" | "idle";
+
+export type LaneGroup = { id: string; title: string; seats: WatchSeat[]; leads: number; peers: number; running: number; flagged: number; cost: number };
+
+const seatPasses = (seat: WatchSeat, filter: SeatFilter): boolean =>
+  filter === "all" || (filter === "flagged" ? seat.signal !== null : filter === "running" ? seat.running : !seat.running);
+
+export function seatCounts(seats: WatchSeat[]): Record<SeatFilter, number> {
+  return { all: seats.length, flagged: seats.filter((seat) => seat.signal).length, running: seats.filter((seat) => seat.running).length, idle: seats.filter((seat) => !seat.running).length };
+}
+
+/**
+ * The watched seats in their lanes, the way forty of them can be read.
+ *
+ * A list of seats stops being readable somewhere past a dozen. In lanes, each with its counts, the
+ * owner reads four lines and opens the one that is flagged. Within a lane the flagged come first, the
+ * irreversible before the rest, then what is running; lanes with something flagged come first.
+ */
+export function laneGroups(seats: WatchSeat[], filter: SeatFilter): LaneGroup[] {
+  const groups = new Map<string, LaneGroup>();
+  for (const seat of seats) {
+    if (!seatPasses(seat, filter)) continue;
+    const id = seat.lane?.id ?? "";
+    const group = groups.get(id) ?? { id, title: seat.lane?.title ?? "Not in a lane", seats: [], leads: 0, peers: 0, running: 0, flagged: 0, cost: 0 };
+    group.seats.push(seat);
+    if (seat.task) group.peers += 1;
+    else group.leads += 1;
+    if (seat.running) group.running += 1;
+    if (seat.signal) group.flagged += 1;
+    group.cost += seat.cost;
+    groups.set(id, group);
+  }
+  const weight = (seat: WatchSeat) => (seat.signal?.level === "page" ? 0 : seat.signal ? 1 : seat.running ? 2 : 3);
+  for (const group of groups.values()) group.seats.sort((a, b) => weight(a) - weight(b) || b.readings - a.readings);
+  return [...groups.values()].sort((a, b) => b.flagged - a.flagged || b.running - a.running || a.id.localeCompare(b.id));
+}
+
+export type IncidentFilter = "all" | "useful" | "noise" | "unknown" | "open";
+
+export type KindGroup = { kind: string; title: string; level: "page" | "attend"; incidents: WatchIncident[]; seen: number; wheres: string[]; open: number; useful: number; noise: number; unknown: number };
+
+const incidentPasses = (item: WatchIncident, filter: IncidentFilter): boolean =>
+  filter === "all" || (filter === "open" ? item.open : !item.open && (filter === "unknown" ? item.label === "unknown" || item.label === null : item.label === filter));
+
+export function incidentCounts(incidents: WatchIncident[]): Record<IncidentFilter, number> {
+  const count = (filter: IncidentFilter) => incidents.filter((item) => incidentPasses(item, filter)).length;
+  return { all: incidents.length, open: count("open"), useful: count("useful"), noise: count("noise"), unknown: count("unknown") };
+}
+
+/**
+ * Every incident, grouped by what was seen. The server sends them most in need of a look first, so
+ * a group's place is where its most pressing incident falls, and one that pages sorts above the rest.
+ */
+export function kindGroups(incidents: WatchIncident[], filter: IncidentFilter): KindGroup[] {
+  const groups = new Map<string, KindGroup>();
+  for (const item of incidents) {
+    if (!incidentPasses(item, filter)) continue;
+    const group = groups.get(item.kind) ?? { kind: item.kind, title: item.title, level: "attend", incidents: [], seen: 0, wheres: [], open: 0, useful: 0, noise: 0, unknown: 0 };
+    group.incidents.push(item);
+    group.seen += item.count;
+    if (item.level === "page") group.level = "page";
+    if (!group.wheres.includes(item.where)) group.wheres.push(item.where);
+    if (item.open) group.open += 1;
+    else if (item.label === "useful") group.useful += 1;
+    else if (item.label === "noise") group.noise += 1;
+    else group.unknown += 1;
+    groups.set(item.kind, group);
+  }
+  return [...groups.values()];
+}
+
+/** A group's marks as one short phrase: "1 useful · 1 noise", "open", "noise". */
+export function marksOf(group: KindGroup): string {
+  const parts = [group.open > 0 ? `${group.open} open` : "", group.useful > 0 ? `${group.useful} useful` : "", group.unknown > 0 ? `${group.unknown} unknown` : "", group.noise > 0 ? `${group.noise} noise` : ""].filter(Boolean);
+  if (parts.length === 1) return parts[0]!.replace(/^\d+ /, "");
+  return parts.join(" · ");
+}
+
+/** Why an open incident has not been mailed yet, in words. */
+export function heldText(held: string | null): string {
+  if (held === "awaiting") return "waiting on the sensor";
+  if (held === "budget") return "past today's budget";
+  if (held === "nobody") return "nobody seated to tell";
+  if (held === "shadow") return "mailing is off";
+  if (held === "vetoed") return "the sensor disagreed";
+  return "not mailed yet";
 }
 
 export function setFlow(values: Layer, choice: { live?: boolean; everySeconds?: number }): Layer {

@@ -39,6 +39,23 @@ export const FACT_LEVELS: Record<string, Level> = {
   "outside-scope": "note",
 };
 
+/** What a person reads for a fact that can open an incident. A note never does, so it has none. */
+export const FACT_TITLES: Record<string, string> = {
+  destructive: "Ran a command that cannot be undone",
+  stuck: "Going round in circles",
+  "no-recovery": "Did not recover from a failure",
+  "test-weakened": "A test lost its assertions",
+  suppressed: "Silenced a check instead of fixing it",
+  unverified: "Handed back without running the gate",
+  "long-turn": "A turn running far longer than usual",
+  "rework-loop": "Sent back again and again",
+  "patched-not-fixed": "Several tasks patched, none fixed",
+  "accepted-unfinished": "Work taken in unfinished",
+  "reviews-unconverged": "Reviews piling up with nothing accepted",
+  "certainty-only": "A review told to report only certainties",
+  "brief-prewritten": "A brief that writes the answer out",
+};
+
 export type Rules = {
   destructive: RegExp;
   testPath: RegExp;

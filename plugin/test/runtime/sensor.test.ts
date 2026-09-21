@@ -402,3 +402,14 @@ test("a decision is made on the facts noted when the state was taken, whatever t
   assert.deepEqual(readings, [{ facts: ["destructive"] }]);
   assessor.dispose();
 });
+
+test("every question the shipped sensor asks carries a label a person can read, and a label is never sent", () => {
+  // The watch card names what it saw, and a question's name is an identifier — `missing_mechanism`,
+  // `wrapped_instead_of_changed` — which is what the card used to print. The label is data beside
+  // the question, like its threshold, and it goes nowhere near the sensor.
+  for (const [name, question] of Object.entries(shipped.questions)) {
+    assert.equal(typeof question.label, "string", `${name} has no label`);
+    assert.ok(question.label!.length > 0 && !question.label!.includes("_"), `${name}'s label reads as a name, not a sentence`);
+  }
+  assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", label: 3 } } } as never), ["asks q with a label that is not text"]);
+});

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import type { Seen } from "../../server/core/ports.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
-import { DESTRUCTIVE, type Fact, type Rules, SUPPRESSED, TEST_PATH } from "../../server/runtime/watch/facts.ts";
+import { DESTRUCTIVE, FACT_LEVELS, FACT_TITLES, type Fact, type Rules, SUPPRESSED, TEST_PATH } from "../../server/runtime/watch/facts.ts";
 import { weigh } from "../../server/runtime/watch/rules.ts";
 import { SeatWatch } from "../../server/runtime/watch/watches.ts";
 
@@ -353,4 +353,13 @@ test("Claude's task notifications stay in what the sensor reads, though nothing 
     watch.see({ kind: "row", row: { item: message.event.item!, seq: message.seq!, epoch: message.epoch!, turnId: message.event.turnId ?? null, replay: false } });
   }
   assert.ok(watch.window.units.some((unit) => unit.kind === "call" && unit.call.name === "task_notification" && unit.call.pseudo));
+});
+
+test("every fact that can open an incident has a title a person can read", () => {
+  // A note is evidence for the sensor and never an incident on its own, so only the others reach the
+  // watch card — and the card names them, rather than printing `accepted-unfinished`.
+  for (const [kind, level] of Object.entries(FACT_LEVELS)) {
+    if (level === "note") assert.equal(FACT_TITLES[kind], undefined, `${kind} never reaches a screen`);
+    else assert.ok(FACT_TITLES[kind] && !/[-_]/.test(FACT_TITLES[kind]!.split(" ")[0]!), `${kind} has no readable title`);
+  }
 });
