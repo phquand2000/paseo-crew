@@ -87,7 +87,16 @@ test("a busy or failing endpoint is asked again, and a refusal that retrying can
   assert.equal(down.calls.length, 3, "two retries, then it gives up");
 });
 
-test("pieces arriving close together make one assessment, a steady stream makes one per interval, and never two at once", async () => {
+test("pieces arriving close together make one assessment, a steady stream makes one per interval, and never two at once", async (t) => {
+  // On the mock clock, not the real one: with real timers the margins were tens of milliseconds, and
+  // a busy machine running the whole suite stretched a wait past the quiet window.
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const advance = async (ms: number) => {
+    for (let i = 0; i < ms; i++) {
+      t.mock.timers.tick(1);
+      for (let k = 0; k < 5; k++) await Promise.resolve();
+    }
+  };
   let runs = 0;
   let inside = 0;
   let most = 0;
@@ -99,24 +108,27 @@ test("pieces arriving close together make one assessment, a steady stream makes 
     inside -= 1;
   });
   pacer.nudge();
-  await wait(10);
+  await advance(10);
   pacer.nudge();
-  await wait(10);
+  await advance(10);
   pacer.nudge();
-  await wait(60);
+  await advance(29);
+  assert.equal(runs, 0, "still inside the quiet window of the last nudge");
+  await advance(1);
   assert.equal(runs, 1, "three nudges inside the quiet window are one assessment");
-  await wait(60);
+  await advance(60);
   const steady = runs;
-  const started = Date.now();
-  while (Date.now() - started < 150) {
+  for (let i = 0; i < 15; i++) {
     pacer.nudge();
-    await wait(10);
+    await advance(10);
   }
-  assert.ok(runs - steady >= 1, "a seat that never goes quiet is still assessed");
+  assert.equal(runs - steady, 1, "a seat that never goes quiet is assessed once in its interval, not held back");
+  await advance(30);
+  assert.equal(runs - steady, 2, "and once more when it does go quiet");
   pacer.now();
   pacer.now();
   pacer.now();
-  await wait(200);
+  await advance(200);
   assert.equal(most, 1, "one assessment at a time");
   pacer.stop();
 });
