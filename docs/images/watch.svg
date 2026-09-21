@@ -1,77 +1,142 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-label="What the watch sees: a seat's timeline is read into a window, facts are read from it in code, and with a key the same state goes to the sensor; findings become incidents that are held or sent to the Supervisor, who marks each one, and every assessment is kept for the calibrate report.">
-<title>What the watch sees: a seat's timeline is read into a window, facts are read from it in code, and with a key the same state goes to the sensor; findings become incidents that are held or sent to the Supervisor, who marks each one, and every assessment is kept for the calibrate report.</title>
-<defs><marker id="m0f6e6e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f6e6e"/></marker><marker id="m57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="m8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8250df"/></marker><marker id="mbf3989" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#bf3989"/></marker></defs>
-<rect x="0.5" y="0.5" width="959" height="619" rx="16" fill="#ffffff" stroke="#d0d7de"/>
-<text x="32" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328">What the watch sees</text>
-<text x="32" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#59636e">Code reads the facts. The sensor only ever adds a second opinion, and the Supervisor decides.</text>
-<rect x="32" y="108" width="180" height="64" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
-<text x="122.0" y="126.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">a watched seat</text>
-<text x="122.0" y="145.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">Lead or Peer,</text>
-<text x="122.0" y="163.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">never a Reviewer</text>
-<rect x="32" y="208" width="180" height="64" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
-<text x="122.0" y="226.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the timeline</text>
-<text x="122.0" y="245.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">live rows, plus the</text>
-<text x="122.0" y="263.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">tail read at the start</text>
-<rect x="32" y="308" width="180" height="64" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
-<text x="122.0" y="326.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the window</text>
-<text x="122.0" y="345.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">80 units per seat,</text>
-<text x="122.0" y="363.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">keyed by call</text>
-<rect x="268" y="208" width="200" height="88" rx="10" fill="#e0f5f5" stroke="#0f6e6e" stroke-width="1.4"/>
-<text x="368.0" y="238.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">facts, in code</text>
-<text x="368.0" y="257.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">destructive · stuck · no-recovery</text>
-<text x="368.0" y="275.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">test-weakened · unverified · …</text>
-<rect x="268" y="330" width="200" height="76" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
-<text x="368.0" y="354.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the state</text>
-<text x="368.0" y="373.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">brief, instruction, gate,</text>
-<text x="368.0" y="391.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">the steps, the last word</text>
-<rect x="268" y="440" width="200" height="64" rx="10" fill="#ffeff7" stroke="#bf3989" stroke-width="1.4"/>
-<text x="368.0" y="458.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the sensor</text>
-<text x="368.0" y="477.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">only with a key.</text>
-<text x="368.0" y="495.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">Yes is the finding</text>
-<rect x="524" y="208" width="190" height="76" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
-<text x="619.0" y="232.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">the rules</text>
-<text x="619.0" y="251.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">alone · agrees · confirms,</text>
-<text x="619.0" y="269.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">and an unclear band</text>
-<rect x="524" y="330" width="190" height="88" rx="10" fill="#e0f5f5" stroke="#0f6e6e" stroke-width="1.4"/>
-<text x="619.0" y="360.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">incidents.json</text>
-<text x="619.0" y="379.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">one open per seat and kind,</text>
-<text x="619.0" y="397.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">held or sent, then marked</text>
-<rect x="768" y="208" width="160" height="76" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
-<text x="848.0" y="232.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">Supervisor</text>
-<text x="848.0" y="251.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">reads the record,</text>
-<text x="848.0" y="269.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">then acts or not</text>
-<rect x="768" y="330" width="160" height="88" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
-<text x="848.0" y="360.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">ack</text>
-<text x="848.0" y="379.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">useful · noise · unknown,</text>
-<text x="848.0" y="397.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">from the record alone</text>
-<rect x="524" y="468" width="404" height="64" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.4"/>
-<text x="726.0" y="496.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle">assessments/ → node bin/calibrate.ts</text>
-<text x="726.0" y="515.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle">every state, question and answer kept, and measured against the marks</text>
-<line x1="122" y1="172" x2="122" y2="204" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
-<line x1="122" y1="272" x2="122" y2="304" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
-<line x1="212" y1="330" x2="264" y2="260" stroke="#0f6e6e" stroke-width="1.6" marker-end="url(#m0f6e6e)"/>
-<line x1="212" y1="348" x2="264" y2="360" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
-<line x1="368" y1="406" x2="368" y2="436" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
-<path d="M468,250 L500,250 L500,240 L520,240" fill="none" stroke="#0f6e6e" stroke-width="1.6" marker-end="url(#m0f6e6e)"/>
-<path d="M468,466 L496,466 L496,262 L520,258" fill="none" stroke="#bf3989" stroke-width="1.6" marker-end="url(#mbf3989)"/>
-<text x="492" y="436" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#bf3989" text-anchor="end">answers</text>
-<line x1="619" y1="284" x2="619" y2="326" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
-<text x="628" y="310" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#57606a" text-anchor="start">findings</text>
-<path d="M714,360 L742,360 L742,246 L764,246" fill="none" stroke="#0f6e6e" stroke-width="1.6" marker-end="url(#m0f6e6e)"/>
-<text x="748" y="330" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#0f6e6e" text-anchor="start">letter</text>
-<line x1="848" y1="284" x2="848" y2="326" stroke="#8250df" stroke-width="1.6" marker-end="url(#m8250df)"/>
-<line x1="848" y1="418" x2="848" y2="464" stroke="#8250df" stroke-width="1.6" marker-end="url(#m8250df)"/>
-<text x="858" y="446" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#8250df" text-anchor="start">marks</text>
-<path d="M444,504 L444,540 L520,540 L520,512" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#m57606a)"/>
-<rect x="32" y="404" width="200" height="200" rx="12" fill="#f6f8fa" stroke="#d8dee4" stroke-width="1.2"/>
-<text x="50" y="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="start">Off by default</text>
-<text x="50" y="456" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">With attention.watch off,</text>
-<text x="50" y="473" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">incidents are recorded and</text>
-<text x="50" y="490" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">listed, and none is sent.</text>
-<text x="50" y="507" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start"></text>
-<text x="50" y="524" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">With no sensor key, the</text>
-<text x="50" y="541" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">facts still stand on their own.</text>
-<text x="50" y="558" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start"></text>
-<text x="50" y="575" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">Nothing here ever reaches</text>
-<text x="50" y="592" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="start">the seat it watched.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720" role="img" aria-label="What the watch sees: a Lead's or Peer's timeline folds into a window. Code reads facts from it and from each lane's record. With a key, the turn is read into a trail and four views, each asked of Jev. Rules decide findings, Jev pinpoints the step, a sibling's note excuses it, and an incident goes to the lane's Supervisor, who marks it; calibrate reads the marks against what was kept.">
+<title>What the watch sees: a Lead's or Peer's timeline folds into a window. Code reads facts from it and from each lane's record. With a key, the turn is read into a trail and four views, each asked of Jev. Rules decide findings, Jev pinpoints the step, a sibling's note excuses it, and an incident goes to the lane's Supervisor, who marks it; calibrate reads the marks against what was kept.</title>
+<style>svg{--bg:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--soft:#e6eaef;--ink:#1f2328;--muted:#59636e;--faint:#818b98;--shadow:rgba(31,35,40,0.10);--slate-fill:#f6f8fa;--slate:#8c959f;--slate-ink:#1f2328;--violet-fill:#f7f1ff;--violet:#8250df;--violet-ink:#6639ba;--blue-fill:#eef6ff;--blue:#0969da;--blue-ink:#0550ae;--green-fill:#eefbf1;--green:#1a7f37;--green-ink:#116329;--teal-fill:#ebf9f7;--teal:#0f766e;--teal-ink:#0b5e57;--rose-fill:#fff0f7;--rose:#bf3989;--rose-ink:#99286e;--amber-fill:#fff8e1;--amber:#9a6700;--amber-ink:#7d4e00;--red-fill:#fff1f0;--red:#cf222e;--red-ink:#a40e26;}@media (prefers-color-scheme: dark){svg{--bg:#0d1117;--panel:#151b23;--line:#30363d;--soft:#262c36;--ink:#e6edf3;--muted:#9198a1;--faint:#6e7681;--shadow:rgba(0,0,0,0);--slate-fill:#1c2128;--slate:#6e7681;--slate-ink:#e6edf3;--violet-fill:#231b35;--violet:#a371f7;--violet-ink:#d2a8ff;--blue-fill:#0f2238;--blue:#4493f8;--blue-ink:#79c0ff;--green-fill:#10261a;--green:#3fb950;--green-ink:#7ee787;--teal-fill:#0c2826;--teal:#2bb5a5;--teal-ink:#5eead4;--rose-fill:#2e1424;--rose:#db61a2;--rose-ink:#ff9bce;--amber-fill:#2b2108;--amber:#d29922;--amber-ink:#e3b341;--red-fill:#2d1417;--red:#f85149;--red-ink:#ff7b72;}}text{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;fill:var(--ink)}.mono{font-family:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;white-space:pre}.canvas{fill:var(--bg);stroke:var(--line)}.h1{font-size:21px;font-weight:650;letter-spacing:-0.01em}.lede{font-size:13.5px;fill:var(--muted)}.group{fill:var(--panel);stroke:var(--line)}.group-label{font-size:11px;font-weight:650;letter-spacing:0.08em;fill:var(--muted)}.node{stroke-width:1.4;filter:drop-shadow(0 1px 2px var(--shadow))}.title{font-size:14px;font-weight:620}.sub{font-size:12px;fill:var(--muted)}.note{font-size:12px;fill:var(--muted)}.strong{fill:var(--ink);font-weight:620}.edge{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:5 4}.pill-text{font-size:11.5px;font-weight:620}.chip{stroke-width:1}.chip-text{font-size:11px;font-weight:560}.badge-text{font-size:11px;font-weight:700;fill:var(--bg)}.rule{stroke:var(--line);stroke-width:1}</style>
+<defs><marker id="a-rose" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--rose)"/></marker><marker id="a-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--slate)"/></marker><marker id="a-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--teal)"/></marker><marker id="a-violet" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--violet)"/></marker></defs>
+<rect class="canvas" x="0.5" y="0.5" width="959" height="719" rx="18"/>
+<text class="h1" x="32" y="46">What the watch sees</text>
+<text class="lede" x="32" y="70">Code reads the facts, Jev reads the work, and the Supervisor decides. The seat it watches never hears of it.</text>
+<rect class="node" x="24" y="110" width="172" height="58" rx="10" style="fill:var(--rose-fill);stroke:var(--rose)"/>
+<text class="title" x="110" y="135.5" text-anchor="middle" style="fill:var(--rose-ink)">Lead or Peer</text>
+<text class="sub" x="110" y="154.5" text-anchor="middle">never a Reviewer</text>
+<rect class="node" x="24" y="200" width="172" height="58" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
+<text class="title" x="110" y="217" text-anchor="middle" style="fill:var(--slate-ink)">timeline</text>
+<text class="sub" x="110" y="236" text-anchor="middle">live rows and paged</text>
+<text class="sub" x="110" y="253" text-anchor="middle">history, joined</text>
+<rect class="node" x="24" y="290" width="172" height="58" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
+<text class="title" x="110" y="307" text-anchor="middle" style="fill:var(--slate-ink)">window</text>
+<text class="sub" x="110" y="326" text-anchor="middle">80 units per seat,</text>
+<text class="sub" x="110" y="343" text-anchor="middle">keyed by call</text>
+<path class="edge" d="M110,168 L110,200" style="stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<path class="edge" d="M110,258 L110,290" style="stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<text class="note" x="26" y="392" text-anchor="start"><tspan class="strong">When Jev is asked</tspan></text>
+<text class="note" x="26" y="409" text-anchor="start">5 s after the seat goes quiet,</text>
+<text class="note" x="26" y="426" text-anchor="start">at least every 30 s while it</text>
+<text class="note" x="26" y="443" text-anchor="start">works, and at once on a turn</text>
+<text class="note" x="26" y="460" text-anchor="start">end, a failure, a page or a</text>
+<text class="note" x="26" y="477" text-anchor="start">permission request.</text>
+<rect class="group" x="214" y="100" width="480" height="204" rx="14" style="fill:var(--teal-fill);stroke:var(--teal);stroke-opacity:0.35"/>
+<text class="group-label" x="230" y="124" style="fill:var(--teal-ink)">IN CODE, EVERY TURN</text>
+<text class="sub" x="232" y="150" text-anchor="start">page</text>
+<rect class="chip" x="282" y="136" width="78.48" height="20" rx="10" style="fill:var(--bg);stroke:var(--red);stroke-opacity:0.55"/>
+<text class="chip-text" x="321.24" y="150" text-anchor="middle" style="fill:var(--red-ink)">destructive</text>
+<text class="sub" x="232" y="178" text-anchor="start">attend</text>
+<rect class="chip" x="282" y="164" width="45.7" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="304.85" y="178" text-anchor="middle" style="fill:var(--amber-ink)">stuck</text>
+<rect class="chip" x="333.7" y="164" width="81.34" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="374.37" y="178" text-anchor="middle" style="fill:var(--amber-ink)">no-recovery</text>
+<rect class="chip" x="421.03999999999996" y="164" width="96.74" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="469.40999999999997" y="178" text-anchor="middle" style="fill:var(--amber-ink)">test-weakened</text>
+<rect class="chip" x="523.78" y="164" width="75.4" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="561.48" y="178" text-anchor="middle" style="fill:var(--amber-ink)">suppressed</text>
+<rect class="chip" x="605.18" y="164" width="69.68" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="640.02" y="178" text-anchor="middle" style="fill:var(--amber-ink)">unverified</text>
+<rect class="chip" x="282" y="190" width="66.60000000000001" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="315.3" y="204" text-anchor="middle" style="fill:var(--amber-ink)">long-turn</text>
+<text class="sub" x="232" y="232" text-anchor="start">note</text>
+<rect class="chip" x="282" y="218" width="69.9" height="20" rx="10" style="fill:var(--bg);stroke:var(--slate);stroke-opacity:0.55"/>
+<text class="chip-text" x="316.95" y="232" text-anchor="middle" style="fill:var(--slate-ink)">call-failed</text>
+<rect class="chip" x="357.9" y="218" width="75.62" height="20" rx="10" style="fill:var(--bg);stroke:var(--slate);stroke-opacity:0.55"/>
+<text class="chip-text" x="395.71" y="232" text-anchor="middle" style="fill:var(--slate-ink)">gate-failed</text>
+<rect class="chip" x="439.52" y="218" width="90.36000000000001" height="20" rx="10" style="fill:var(--bg);stroke:var(--slate);stroke-opacity:0.55"/>
+<text class="chip-text" x="484.7" y="232" text-anchor="middle" style="fill:var(--slate-ink)">outside-scope</text>
+<text class="sub" x="232" y="260" text-anchor="start">lanes</text>
+<rect class="chip" x="282" y="246" width="82" height="20" rx="10" style="fill:var(--bg);stroke:var(--teal);stroke-opacity:0.55"/>
+<text class="chip-text" x="323" y="260" text-anchor="middle" style="fill:var(--teal-ink)">rework-loop</text>
+<rect class="chip" x="370" y="246" width="114.12000000000002" height="20" rx="10" style="fill:var(--bg);stroke:var(--teal);stroke-opacity:0.55"/>
+<text class="chip-text" x="427.06" y="260" text-anchor="middle" style="fill:var(--teal-ink)">patched-not-fixed</text>
+<rect class="chip" x="490.12" y="246" width="129.51999999999998" height="20" rx="10" style="fill:var(--bg);stroke:var(--teal);stroke-opacity:0.55"/>
+<text class="chip-text" x="554.88" y="260" text-anchor="middle" style="fill:var(--teal-ink)">reviews-unconverged</text>
+<rect class="chip" x="282" y="272" width="93.44000000000001" height="20" rx="10" style="fill:var(--bg);stroke:var(--teal);stroke-opacity:0.55"/>
+<text class="chip-text" x="328.72" y="286" text-anchor="middle" style="fill:var(--teal-ink)">certainty-only</text>
+<rect class="chip" x="381.44" y="272" width="108.84000000000002" height="20" rx="10" style="fill:var(--bg);stroke:var(--teal);stroke-opacity:0.55"/>
+<text class="chip-text" x="435.86" y="286" text-anchor="middle" style="fill:var(--teal-ink)">brief-prewritten</text>
+<rect class="chip" x="496.28000000000003" y="272" width="123.13999999999999" height="20" rx="10" style="fill:var(--bg);stroke:var(--teal);stroke-opacity:0.55"/>
+<text class="chip-text" x="557.85" y="286" text-anchor="middle" style="fill:var(--teal-ink)">accepted-unfinished</text>
+<path class="edge" d="M196,309 L200.5,309.0 Q205,309 205.0,304.5 L205.0,204.5 Q205,200 209.5,200.0 L214,200" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
+<rect class="group" x="214" y="322" width="480" height="150" rx="14" style="fill:var(--rose-fill);stroke:var(--rose);stroke-opacity:0.35"/>
+<text class="group-label" x="230" y="346" style="fill:var(--rose-ink)">JEV, ONLY WITH A KEY</text>
+<rect class="node" x="230" y="358" width="142" height="96" rx="10" style="fill:var(--rose-fill);stroke:var(--rose)"/>
+<text class="title" x="301" y="385.5" text-anchor="middle" style="fill:var(--rose-ink)">trail</text>
+<text class="sub" x="301" y="404.5" text-anchor="middle">S1…Sn in order:</text>
+<text class="sub" x="301" y="421.5" text-anchor="middle">ran · changed · read</text>
+<text class="sub" x="301" y="438.5" text-anchor="middle">called · said · thought</text>
+<rect class="node" x="390" y="358" width="150" height="96" rx="10" style="fill:var(--rose-fill);stroke:var(--rose)"/>
+<text class="title" x="465" y="385.5" text-anchor="middle" style="fill:var(--rose-ink)">four views</text>
+<text class="sub" x="465" y="404.5" text-anchor="middle">actions · work</text>
+<text class="sub" x="465" y="421.5" text-anchor="middle">claim · instruction</text>
+<text class="sub" x="465" y="438.5" text-anchor="middle">each only its fields</text>
+<rect class="node" x="558" y="358" width="120" height="96" rx="10" style="fill:var(--rose-fill);stroke:var(--rose)"/>
+<text class="title" x="618" y="385.5" text-anchor="middle" style="fill:var(--rose-ink)">Jev</text>
+<text class="sub" x="618" y="404.5" text-anchor="middle">one request per</text>
+<text class="sub" x="618" y="421.5" text-anchor="middle">view, sent</text>
+<text class="sub" x="618" y="438.5" text-anchor="middle">together</text>
+<path class="edge" d="M196,329 L200.5,329.0 Q205,329 205.0,333.5 L205.0,398.0 Q205,406 213.0,406.0 L230,406" style="stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<path class="edge" d="M372,406 L390,406" style="stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<path class="edge" d="M540,406 L558,406" style="stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<rect class="node" x="734" y="110" width="202" height="74" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
+<text class="title" x="835" y="135" text-anchor="middle" style="fill:var(--slate-ink)">rules</text>
+<text class="sub" x="835" y="154" text-anchor="middle">alone · agrees · confirms,</text>
+<text class="sub" x="835" y="171" text-anchor="middle">and an unclear band</text>
+<rect class="node" x="734" y="210" width="202" height="64" rx="10" style="fill:var(--rose-fill);stroke:var(--rose)"/>
+<text class="title" x="835" y="230" text-anchor="middle" style="fill:var(--rose-ink)">pinpoint</text>
+<text class="sub" x="835" y="249" text-anchor="middle">Jev picks the step:</text>
+<text class="sub" x="835" y="266" text-anchor="middle">that is the quote</text>
+<rect class="node" x="734" y="300" width="202" height="64" rx="10" style="fill:var(--rose-fill);stroke:var(--rose)"/>
+<text class="title mono" x="835" y="320" text-anchor="middle" style="fill:var(--rose-ink)">excusedBeside</text>
+<text class="sub" x="835" y="339" text-anchor="middle">a sibling's note on that</text>
+<text class="sub" x="835" y="356" text-anchor="middle">step drops the finding</text>
+<rect class="node" x="734" y="390" width="202" height="112" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
+<text class="title mono" x="748" y="414" text-anchor="start">incidents.json</text>
+<text class="sub" x="748" y="433" text-anchor="start">one open per seat and kind</text>
+<rect class="chip" x="748" y="446" width="55.160000000000004" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="775.58" y="460" text-anchor="middle" style="fill:var(--amber-ink)">shadow</text>
+<rect class="chip" x="809.16" y="446" width="61.32" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="839.8199999999999" y="460" text-anchor="middle" style="fill:var(--amber-ink)">awaiting</text>
+<rect class="chip" x="748" y="472" width="51.64" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="773.82" y="486" text-anchor="middle" style="fill:var(--amber-ink)">vetoed</text>
+<rect class="chip" x="805.64" y="472" width="51.64" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="831.46" y="486" text-anchor="middle" style="fill:var(--amber-ink)">budget</text>
+<rect class="chip" x="863.28" y="472" width="51.64" height="20" rx="10" style="fill:var(--bg);stroke:var(--amber);stroke-opacity:0.55"/>
+<text class="chip-text" x="889.1" y="486" text-anchor="middle" style="fill:var(--amber-ink)">nobody</text>
+<path class="edge" d="M694,150 L734,150" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
+<path class="edge" d="M678,406 L706.0,406.0 Q714,406 714.0,398.0 L714.0,178.0 Q714,170 722.0,170.0 L734,170" style="stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<path class="edge" d="M835,184 L835,210" style="stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M835,274 L835,300" style="stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M835,364 L835,390" style="stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<rect class="node" x="734" y="560" width="202" height="64" rx="10" style="fill:var(--violet-fill);stroke:var(--violet)"/>
+<text class="title" x="835" y="580" text-anchor="middle" style="fill:var(--violet-ink)">INCIDENT</text>
+<text class="sub" x="835" y="599" text-anchor="middle">sent once, only to the</text>
+<text class="sub" x="835" y="616" text-anchor="middle">lane's Supervisor</text>
+<rect class="node" x="472" y="560" width="222" height="64" rx="10" style="fill:var(--violet-fill);stroke:var(--violet)"/>
+<text class="title" x="583" y="588.5" text-anchor="middle" style="fill:var(--violet-ink)">incidents · ack</text>
+<text class="sub" x="583" y="607.5" text-anchor="middle">useful · noise · unknown</text>
+<rect class="node" x="234" y="560" width="198" height="64" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
+<text class="title mono" x="333" y="580" text-anchor="middle" style="fill:var(--slate-ink)">bin/calibrate.ts</text>
+<text class="sub" x="333" y="599" text-anchor="middle">AUROC and a threshold</text>
+<text class="sub" x="333" y="616" text-anchor="middle">for every question</text>
+<rect class="node" x="24" y="560" width="184" height="64" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
+<text class="title mono" x="116" y="580" text-anchor="middle" style="fill:var(--slate-ink)">assessments/</text>
+<text class="sub" x="116" y="599" text-anchor="middle">every view, answer</text>
+<text class="sub" x="116" y="616" text-anchor="middle">and finding, kept</text>
+<path class="edge" d="M835,502 L835,560" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M734,592 L694,592" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M472,592 L432,592" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M208,592 L234,592" style="stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M618,454 L618.0,512.0 Q618,520 610.0,520.0 L124.0,520.0 Q116,520 116.0,528.0 L116,560" style="stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<text class="note" x="24" y="668" text-anchor="start"><tspan class="strong">The key is the switch: </tspan>no key, no watch at all. Mailing incidents is a second switch, off by default.</text>
+<text class="note" x="24" y="685" text-anchor="start">A page is sent at once; an attend incident waits up to two minutes for Jev, and five a day at most.</text>
+<rect x="428.635" y="582" width="46.73" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="452" y="596" text-anchor="middle" style="fill:var(--violet-ink)">marks</text>
+<rect x="341.58" y="510" width="36.84" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="360" y="524" text-anchor="middle" style="fill:var(--rose-ink)">kept</text>
 </svg>
