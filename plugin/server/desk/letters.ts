@@ -1,3 +1,4 @@
+import type { WatcherSpec } from "../catalog/kit.ts";
 import type { Counts } from "../core/git.ts";
 import { type PendingPermission, questionsIn } from "../core/paseo.ts";
 import type { Incident } from "./incidents.ts";
@@ -356,7 +357,7 @@ export const letters = {
    * behind a ref that names this reading, because a seat's own step ids start again at every
    * instruction and a ref has to mean one step for good.
    */
-  reading(read: { n: number; where: string; agent: string; role: string; running: boolean; brief?: { goal: string; context: string; beside: string[]; instruction: string }; steps: string[]; skipped: number; final?: string; facts: string[] }): string {
+  reading(read: { n: number; where: string; agent: string; role: string; running: boolean; brief?: { goal: string; context: string; beside: string[]; instruction: string }; steps: string[]; skipped: number; final?: string; facts: string[]; waiting: string[] }): string {
     const lines = [`READING R${read.n} of ${line(read.where, 160)}, agent ${read.agent}. ${read.running ? "It is still working." : "Its turn has ended."}`];
     if (read.brief) {
       lines.push("", `Its role: ${line(read.role, 200)}`, "", "What it was asked:", clip(read.brief.goal, 1500));
@@ -374,6 +375,16 @@ export const letters = {
     );
     if (read.final) lines.push("", `It ended on: ${outside("steps", read.final, 800)}`);
     if (read.facts.length > 0) lines.push("", "What the code noticed:", list(read.facts.map((fact) => clip(fact, 300))));
+    if (read.waiting.length > 0) lines.push("", "Raised by the code and waiting for your judge before anyone is told:", list(read.waiting.map((item) => clip(item, 300))));
+    return lines.join("\n");
+  },
+
+  /** A Watcher's first message: what it may raise and judge, from the kit, so a kit's own list needs no prompt edit. */
+  watcherSeated(label: string, spec: WatcherSpec | undefined): string {
+    const lines = [`You are seated on this project as its ${label}. Readings arrive as mail; there is nothing to do until one does.`];
+    const kinds = Object.entries(spec?.kinds ?? {});
+    if (kinds.length > 0) lines.push("", "What you may raise, each against the step that shows it:", list(kinds.map(([name, kind]) => `${name} (${kind.level}): ${kind.label}. ${kind.means}`)));
+    if (spec?.judges.length) lines.push("", `What the code raises and you judge before anyone is told: ${spec.judges.join(", ")}.`);
     return lines.join("\n");
   },
 

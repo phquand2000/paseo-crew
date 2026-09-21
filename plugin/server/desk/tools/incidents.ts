@@ -7,7 +7,7 @@ import type { Tool } from "../services.ts";
 
 const at = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
 
-const HELD: Record<string, string> = {
+export const HELD: Record<string, string> = {
   shadow: "shadow",
   budget: "the day's budget is spent",
   nobody: "nobody was seated to tell",
@@ -81,7 +81,7 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
     return { ...item };
   });
   if (!done) return no(`There is no incident ${id} in this project. incidents lists the ones there are.`);
-  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last, sensor: done.sensor ?? null });
+  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last, sensor: done.sensor ?? null, ...(done.by ? { by: done.by } : {}) });
   const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
   return ok(`${id} marked ${verdict} and closed.${later}`);
 };

@@ -61,6 +61,7 @@ export const AttentionChoice = z.strictObject({
   watcherEveryMinutes: z.number().int().min(1).optional(),
   watcherChars: z.number().int().min(2000).optional(),
   watcherRotateAfter: z.number().int().min(1).optional(),
+  watcherJudgeMinutes: z.number().int().min(1).optional(),
   // Refused here, where the owner is looking at it. These are compiled on every turn ending, inside
   // the step that swallows what it throws, so a typo in one silently stopped the desk reading turns.
   destructive: Pattern.optional(),

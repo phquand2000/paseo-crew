@@ -6,6 +6,7 @@ import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import { type Incidents, incidentsFault, loadIncidents, saveIncidents } from "./incidents.ts";
+import type { Sent } from "../runtime/watch/seat/reader.ts";
 
 export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
 export type ToolReply = { ok: boolean; text: string };
@@ -38,6 +39,8 @@ export type DeskDeps = {
   log: (project: Project, line: string) => void;
   teamFor: (project?: Project) => Team;
   indexesFor: (project: Project) => CodeIndex[];
+  /** The step a Watcher was sent under a ref; undefined when it was not, or the desk has restarted since. */
+  sent?: (watcher: string, ref: string) => Sent | undefined;
 };
 
 export class DeskContext {
@@ -53,6 +56,10 @@ export class DeskContext {
 
   team(project?: Project): Team {
     return this.deps.teamFor(project);
+  }
+
+  sent(watcher: string, ref: string): Sent | undefined {
+    return this.deps.sent?.(watcher, ref);
   }
 
   indexes(project: Project): CodeIndex[] {

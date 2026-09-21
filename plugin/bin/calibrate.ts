@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { type Question, type SensorSpec, loadKit } from "../server/catalog/kit.ts";
 import { DAY_MS, type Judged, loadIncidents } from "../server/desk/incidents.ts";
+import { WATCHER_JUDGED } from "../server/desk/notice.ts";
 import { type Project, projectOf } from "../server/desk/project.ts";
 import { TeamSource } from "../server/runtime/team-source.ts";
 import { type Kept, assessmentsDir, readAssessments } from "../server/runtime/watch/jev/assessments.ts";
@@ -13,7 +14,7 @@ import { assessViews } from "../server/runtime/watch/jev/sensor.ts";
 import type { Step } from "../server/runtime/watch/trail.ts";
 import { stepText } from "../server/runtime/watch/trail.ts";
 
-export type Label = { id: string; seat: string; kind: string; opened: number; last: number; closed?: number; sensor?: Judged; label: "useful" | "noise" };
+export type Label = { id: string; seat: string; kind: string; opened: number; last: number; closed?: number; sensor?: Judged; by?: "watcher"; label: "useful" | "noise" };
 
 type Fetcher = Parameters<typeof assessViews>[4];
 type Answers = (record: Kept) => Record<string, number> | undefined;
@@ -64,6 +65,7 @@ export function labelsIn(state: string): Label[] {
         last: event.last,
         ...(Number.isFinite(closed) ? { closed } : {}),
         ...(sensor ? { sensor } : {}),
+        ...(event.by === "watcher" ? { by: "watcher" as const } : {}),
         label: event.verdict,
       });
     }
@@ -79,6 +81,7 @@ export function labelsIn(state: string): Label[] {
       last: item.last,
       ...(item.closed !== undefined ? { closed: item.closed } : {}),
       ...(sensor ? { sensor } : {}),
+      ...(item.by ? { by: item.by } : {}),
       label: item.label,
     });
   }
@@ -247,7 +250,8 @@ export async function calibrate(options: CalibrateOptions): Promise<string> {
     if (question.level && answered + answeredAgain > 0) {
       const scored: Scored[] = [];
       let unmatched = 0;
-      for (const label of labels.filter((item) => item.kind === name)) {
+      // A Watcher raises under the same names, and what it raised says nothing of how this question reads.
+      for (const label of labels.filter((item) => item.kind === name && item.by !== "watcher")) {
         const during = kept.filter((record) => record.seat === label.seat && record.found.includes(name) && record.at >= label.opened - 1000 && record.at <= label.last);
         const p = effective(kept, during, name, question, stored);
         if (p === undefined) {
@@ -345,12 +349,17 @@ function factOpens(state: string): number[] {
 
 function finalIncidents(labels: Label[]): string[] {
   const fact = (label: Label) => FACT_LEVELS[label.kind] !== undefined;
+  const byWatcher = (label: Label) => label.sensor?.question === WATCHER_JUDGED;
+  const sensor = (label: Label) => fact(label) && label.sensor !== undefined && !byWatcher(label);
   const useful = (list: Label[]) => list.filter((label) => label.label === "useful").length;
   const groups: [string, (label: Label) => boolean][] = [
-    ["raised by a sensor question", (label) => !fact(label)],
-    ["raised by code facts, confirmed by the sensor", (label) => fact(label) && label.sensor?.says === "confirms"],
-    ["raised by code facts, the sensor unsure", (label) => fact(label) && label.sensor?.says === "unclear"],
-    ["raised by code facts, held back by the sensor", (label) => fact(label) && label.sensor?.says === "vetoes"],
+    ["raised by a sensor question", (label) => !fact(label) && label.by !== "watcher"],
+    ["raised by the Watcher", (label) => label.by === "watcher"],
+    ["raised by code facts, confirmed by the sensor", (label) => sensor(label) && label.sensor?.says === "confirms"],
+    ["raised by code facts, the sensor unsure", (label) => sensor(label) && label.sensor?.says === "unclear"],
+    ["raised by code facts, held back by the sensor", (label) => sensor(label) && label.sensor?.says === "vetoes"],
+    ["raised by code facts, confirmed by the Watcher", (label) => fact(label) && byWatcher(label) && label.sensor?.says === "confirms"],
+    ["raised by code facts, held back by the Watcher", (label) => fact(label) && byWatcher(label) && label.sensor?.says === "vetoes"],
     ["raised by code facts, not judged", (label) => fact(label) && !label.sensor],
   ];
   const lines = [`incidents in the end, as marked: ${useful(labels)} useful of ${labels.length} (precision ${share(useful(labels), labels.length)})`];

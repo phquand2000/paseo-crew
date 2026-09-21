@@ -222,3 +222,10 @@ test("a prompt never tells a seat to use something that seat cannot reach", () =
     }
   }
 });
+
+test("a pasted server that names no roles is given to every role that works with tools, and not to the Watcher", () => {
+  const kit = loadKit(pluginRoot);
+  const team = resolveTeam(kit, { mcp: { pasted: { enabled: true, label: "Pasted", connect: { type: "http", url: "https://mcp.example.com" } } } });
+  assert.deepEqual(team.errors, []);
+  assert.deepEqual(Object.entries(team.roles).filter(([, seat]) => seat.mcp.includes("pasted")).map(([name]) => name).sort(), ["lead", "peer", "reviewer", "supervisor"]);
+});

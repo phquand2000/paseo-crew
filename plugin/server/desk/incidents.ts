@@ -5,7 +5,8 @@ import { errorText } from "../core/errors.ts";
 
 export type Held = "shadow" | "budget" | "nobody" | "awaiting" | "vetoed";
 
-export type Judged = { question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear" };
+/** `why` is a Watcher's reason, kept on record and never sent; Jev gives none. */
+export type Judged = { question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear"; why?: string };
 
 export type Incident = {
   id: string;
@@ -21,6 +22,7 @@ export type Incident = {
   facts: string[];
   p?: number;
   model?: string;
+  by?: "watcher";
   sensor?: Judged;
   opened: number;
   last: number;
@@ -69,8 +71,21 @@ export function saveIncidents(state: string, incidents: Incidents): void {
   writeJson(incidentsFile(state), incidents);
 }
 
-export function openFor(incidents: Incidents, seat: string, kind: string): Incident | undefined {
-  return Object.values(incidents.items).find((item) => item.open && item.seat === seat && item.kind === kind);
+/**
+ * An open incident the code raised on a fact a Watcher judges, with no judgement yet. Whether it is
+ * being held for one is not asked: in shadow nothing is held for a judgement, and a Watcher's
+ * judgements are what shadow is for.
+ */
+export function awaitsWatcher(item: Incident, judges: string[]): boolean {
+  return item.open && item.told === undefined && item.level === "attend" && !item.sensor && judges.includes(item.kind);
+}
+
+/**
+ * The open incident for this seat and kind, from the same reader: a Watcher and Jev share kind names,
+ * and what one raised is not the other's sighting to add to, judge by, or calibrate as its own.
+ */
+export function openFor(incidents: Incidents, seat: string, kind: string, by?: Incident["by"]): Incident | undefined {
+  return Object.values(incidents.items).find((item) => item.open && item.seat === seat && item.kind === kind && item.by === by);
 }
 
 /**
@@ -101,7 +116,7 @@ export function saidBefore(incidents: Incidents, seat: string, kind: string, quo
 export function settledAsNoise(incidents: Incidents, sighting: Sighting, now: number): boolean {
   if (sighting.level === "page") return false;
   const marked = Object.values(incidents.items).find(
-    (item) => !item.open && item.label === "noise" && item.seat === sighting.seat && item.kind === sighting.kind && item.quote === sighting.quote,
+    (item) => !item.open && item.label === "noise" && item.seat === sighting.seat && item.kind === sighting.kind && item.by === sighting.by && item.quote === sighting.quote,
   );
   if (!marked) return false;
   marked.count += 1;
@@ -110,7 +125,7 @@ export function settledAsNoise(incidents: Incidents, sighting: Sighting, now: nu
 }
 
 export function sight(incidents: Incidents, sighting: Sighting, now: number): { incident: Incident; opened: boolean } {
-  const seen = openFor(incidents, sighting.seat, sighting.kind);
+  const seen = openFor(incidents, sighting.seat, sighting.kind, sighting.by);
   if (seen) {
     Object.assign(seen, { facts: [...new Set([...seen.facts, ...sighting.facts])], last: now, count: seen.count + 1 });
     if (sighting.level === "page" && seen.level === "attend") {

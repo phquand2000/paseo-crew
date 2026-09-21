@@ -219,6 +219,8 @@ export type Attention = {
   watcherChars: number;
   /** Readings one Watcher takes before a fresh one replaces it, so its context never runs long enough to be compacted. */
   watcherRotateAfter: number;
+  /** How long a fact the Watcher judges waits for it before it is told anyway. */
+  watcherJudgeMinutes: number;
   destructive: string;
   testPath: string;
   repeatsAt: number;
@@ -269,6 +271,8 @@ export type Kit = {
   toolSets: Record<string, Record<string, ArgSchema>>;
   templates: Record<string, TemplateSpec>;
   sensors: Record<string, SensorSpec>;
+  /** What a Watcher seat may raise and which of the code's facts wait for its judgement; absent, it can do neither. */
+  watcher?: WatcherSpec;
   attention: Attention;
 };
 
@@ -280,6 +284,7 @@ const ATTENTION: Attention = {
   watcherEveryMinutes: 5,
   watcherChars: 12_000,
   watcherRotateAfter: 40,
+  watcherJudgeMinutes: 10,
   destructive: DESTRUCTIVE,
   testPath: TEST_PATH,
   repeatsAt: 3,
@@ -397,6 +402,36 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   return problems;
 }
 
+export type WatcherKind = { level: "page" | "attend"; label: string; means: string };
+export type WatcherSpec = { kinds: Record<string, WatcherKind>; judges: string[] };
+
+export function watcherProblems(raw: Record<string, unknown>): string[] {
+  const problems: string[] = [];
+  for (const key of Object.keys(raw)) if (key !== "kinds" && key !== "judges") problems.push(`has ${key}, which the Watcher does not take`);
+  const judges = raw.judges;
+  if (!Array.isArray(judges) || !judges.every((kind) => typeof kind === "string" && FACT_LEVELS[kind] === "attend")) problems.push("judges something that is not an attention-level fact the code raises");
+  const kinds = raw.kinds as Record<string, Record<string, unknown>> | undefined;
+  if (!kinds || typeof kinds !== "object" || Object.keys(kinds).length === 0) problems.push("may raise no kind");
+  for (const [name, kind] of Object.entries(kinds ?? {})) {
+    if (!/^[a-z][a-z_]*$/.test(name)) problems.push(`names a kind ${name}, which is not lowercase words joined by _`);
+    // One incident stands per seat and kind, so a kind named after a fact would be that fact's incident, waiting on its own judgement.
+    if (FACT_LEVELS[name] !== undefined) problems.push(`names a kind ${name}, which is a fact the code raises`);
+    if (kind?.level !== "page" && kind?.level !== "attend") problems.push(`raises ${name} at a level that is neither page nor attend`);
+    for (const field of ["label", "means"]) if (typeof kind?.[field] !== "string" || !kind[field]) problems.push(`raises ${name} with no ${field}`);
+    for (const key of Object.keys(kind ?? {})) if (!["level", "label", "means"].includes(key)) problems.push(`raises ${name} with ${key}, which a kind does not take`);
+  }
+  return problems;
+}
+
+function loadWatcher(dir: string): WatcherSpec | undefined {
+  const file = join(dir, "catalog", "watcher", "watcher.json");
+  if (!existsSync(file)) return undefined;
+  const raw = JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown>;
+  const problems = watcherProblems(raw);
+  if (problems.length > 0) throw new Error(`catalog/watcher/watcher.json ${problems.join("; ")}`);
+  return raw as unknown as WatcherSpec;
+}
+
 function loadSensors(dir: string): Record<string, SensorSpec> {
   const root = join(dir, "catalog", "sensor");
   const sensors: Record<string, SensorSpec> = {};
@@ -455,6 +490,7 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     toolSets: loadToolSets(dir),
     templates: loadTemplates(dir),
     sensors: loadSensors(dir),
+    watcher: loadWatcher(dir),
     attention: { ...ATTENTION, ...presetAttention(raw.attention) },
   };
 }

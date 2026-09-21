@@ -65,6 +65,7 @@ export class Patrol {
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     this.deps.watches.sync(seats.values());
     this.deps.watches.round(now, (watch) => this.deps.source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
+    this.deps.reader.keep(new Set([...seats.values()].filter((seat) => !seat.archivedAt).map((seat) => seat.id)));
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
       await this.step(project, "idle lanes could not be read", () => this.idleLanes(project, loadLedger(project.state), seats, now));

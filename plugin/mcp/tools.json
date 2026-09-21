@@ -592,5 +592,62 @@
         ]
       }
     }
+  ],
+  "watcher": [
+    {
+      "name": "raise",
+      "description": "Report what a reading shows: one kind from the list you were seated with, against the ref of the step that shows it. What is reported is that step as the reading sent it, not your words, and it goes to the seat's Lead or whoever supervises the project, never to the seat.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "One of the kinds you were seated with."
+          },
+          "step": {
+            "type": "string",
+            "description": "The ref of the step that shows it, as the reading wrote it, like R3.S5."
+          },
+          "why": {
+            "type": "string",
+            "description": "What in that step makes it this kind, in a sentence or two. Kept on record, never sent."
+          }
+        },
+        "required": [
+          "kind",
+          "step",
+          "why"
+        ]
+      }
+    },
+    {
+      "name": "judge",
+      "description": "Judge something the code raised that a reading says waits for your judgement: confirms if the steps bear it out, vetoes if they show ordinary work. A confirmed one is told; a vetoed one is held back.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "incident": {
+            "type": "string",
+            "description": "The incident as the reading wrote it, like I4.2: its id and how many times it had been seen."
+          },
+          "says": {
+            "type": "string",
+            "enum": [
+              "confirms",
+              "vetoes"
+            ]
+          },
+          "why": {
+            "type": "string",
+            "description": "The step or steps that decide it, in a sentence or two. Kept on record, never sent."
+          }
+        },
+        "required": [
+          "incident",
+          "says",
+          "why"
+        ]
+      }
+    }
   ]
 }

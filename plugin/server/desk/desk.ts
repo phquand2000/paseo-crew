@@ -4,7 +4,7 @@ import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { argsProblems, shapeOf } from "./args.ts";
 import { sortKeys } from "../core/store.ts";
-import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, hash, no, ok } from "./context.ts";
+import { type Args, type Caller, type CodeIndex, DeskContext, type DeskDeps, type Mailer, type Posted, type ToolReply, type ToolRequest, hash, no, ok } from "./context.ts";
 import { errorText } from "../core/errors.ts";
 import type { Ledger, Task } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
@@ -19,6 +19,7 @@ import * as incidents from "./tools/incidents.ts";
 import * as lead from "./tools/lead.ts";
 import * as shared from "./tools/shared.ts";
 import * as supervisor from "./tools/supervisor.ts";
+import * as watcher from "./tools/watcher.ts";
 import * as worker from "./tools/worker.ts";
 
 const TOOLS: Record<string, Tool> = {
@@ -37,6 +38,8 @@ const TOOLS: Record<string, Tool> = {
   status: shared.status,
   incidents: incidents.incidents,
   ack: incidents.ack,
+  raise: watcher.raise,
+  judge: watcher.judge,
 };
 
 // "ask" means one thing to every seat that holds it — reach the seat above me — and only what is above differs.
@@ -57,6 +60,7 @@ export type DeskOptions = {
   log: (project: Project, line: string) => void;
   teamFor: (project?: Project) => Team;
   indexesFor?: (project: Project) => CodeIndex[];
+  sent?: DeskDeps["sent"];
 };
 
 /** Tools whose whole point is that somebody else reads the result. Reading the room is not speaking. */
@@ -85,6 +89,7 @@ export class Desk {
       log: options.log,
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
+      sent: options.sent,
     });
     const roster = new Roster(options.kit, options.seats);
     const slots = new Slots(ctx, options.workspaces);
@@ -140,7 +145,7 @@ export class Desk {
     if (!role) return undefined;
     const id = await this.services.agents.startResident(project, role.role, {
       title: `${role.label} ${project.slug}`,
-      prompt: `You are seated on this project as its ${role.label}. Readings arrive as mail; there is nothing to do until one does.`,
+      prompt: letters.watcherSeated(role.label, this.services.ctx.kit.watcher),
       labels: {},
     });
     this.services.ctx.event(project, { kind: "watcher.seated", agent: id });

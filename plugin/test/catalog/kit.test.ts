@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { can, harnessProblems, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
+import { can, harnessProblems, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf, watcherProblems } from "../../server/catalog/kit.ts";
 import { renderPrompt } from "../../server/catalog/content.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -67,6 +67,19 @@ test("a role follows one other role that chooses for itself, and takes its defau
   assert.throws(() => loadKit(dir), /role watcher follows watcher, which is no other role/);
   roles(follower(), { ...follower(), role: "echo", follows: "watcher" });
   assert.throws(() => loadKit(dir), /role echo follows watcher, which follows peer in turn/);
+});
+
+test("what a Watcher may raise and judge is refused when it is not something the desk can act on", () => {
+  const kind = { level: "attend", label: "Worked on something it was not asked for", means: "Its steps left the goal." };
+  assert.deepEqual(watcherProblems({ judges: ["stuck"], kinds: { goal_drift: kind } }), []);
+  assert.deepEqual(watcherProblems({ judges: ["destructive"], kinds: { goal_drift: kind } }), ["judges something that is not an attention-level fact the code raises"], "an irreversible act never waits for anyone");
+  assert.deepEqual(watcherProblems({ judges: ["vibes"], kinds: { goal_drift: kind } }), ["judges something that is not an attention-level fact the code raises"]);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: {} }), ["may raise no kind"]);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { "Goal-Drift": kind } }), ["names a kind Goal-Drift, which is not lowercase words joined by _"]);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { stuck: kind } }), ["names a kind stuck, which is a fact the code raises"], "it would be the code's own incident, waiting on its own judgement");
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { ...kind, level: "loud" } } }), ["raises goal_drift at a level that is neither page nor attend"]);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { level: "attend", label: "x" } } }), ["raises goal_drift with no means"]);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { ...kind, threshold: 0.5 } }, extra: 1 }), ["has extra, which the Watcher does not take", "raises goal_drift with threshold, which a kind does not take"]);
 });
 
 test("loading a kit refuses a harness that breaks the contract, naming the field", () => {

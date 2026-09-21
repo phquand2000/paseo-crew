@@ -336,6 +336,7 @@ same capability.
 | `ask` | Lead, Peer, Reviewer | A Lead asks whoever supervises. A Peer or Reviewer asks its Lead, or whoever supervises when the Lead is gone |
 | `done` | Peer, Reviewer | Writes a hand-back file and mails the Lead, or whoever supervises if the Lead is gone. On a project that gates each task, it runs the gate first and puts the verdict in the hand-back. A task already accepted, queued or cut is refused |
 | `message` / `answer` | Supervisor, Lead | A Supervisor's `message` goes to a lane or a task; a Lead's only to a task in its own lane. A seat stopped on a question takes it as that question's answer. `answer` closes an open ask: a seat that supervises may answer any, anyone else only its own |
+| `raise` / `judge` | Watcher | `raise` opens an incident of one of the kinds in `catalog/watcher/watcher.json` on the step a reading sent it under that ref; the incident quotes the step without the reading's number, and the reason goes only to `events.log`. `judge` confirms or vetoes an open fact it judges that has no judgement yet, filed under the question `watcher` with p 1 or 0 and the reason kept on the incident. Both are refused once the watch is by Jev |
 | `incidents` / `ack` | Supervisor | `incidents` lists the fifty most recent incidents still open or unmarked, each with the brief its seat was working to, and counts any older ones. With `closed`, it adds the twenty most recently marked. `ack` marks one `useful`, `noise` or `unknown`, with an optional note, and closes it |
 | `status` | Supervisor, Lead | The lanes, tasks, working copies and open asks. A Lead sees its own lane. Held mail and seats waiting on the Human are in `status.md` and the panel, not here |
 
@@ -621,7 +622,24 @@ Code in `watch/seat/`, beside `watch/jev/`, reading the same stream and trail:
   `watcherChars`.
 - **Delivery.** Readings go through the outbox, which never steers into a Watcher's running turn,
   whatever its agent. What arrives meanwhile is handed over together.
-- **Reporting.** The Watcher has no desk tools yet, so nothing it concludes is recorded.
+- **What it may raise and judge** is data, in `catalog/watcher/watcher.json`: each kind with a
+  level, a label and what it means, and the attention-level facts it judges. The kit refuses a kind
+  that is not lowercase words or that is named after a fact the code raises (one incident stands per
+  seat and kind), a level other than page or attend, and a judged fact that is not an
+  attention-level one the code raises. Its first message lists both, so a kit's own list needs no
+  prompt edit.
+- **Reporting.** `raise` takes a ref only from the readings sent to that Watcher, kept per Watcher in
+  memory and dropped when it is gone. After a restart it waits for the next reading. It refuses a seat
+  that has gone. What it opens carries `by: "watcher"`, which `ack` writes into its event. One
+  incident stands per seat, kind and reader: a Watcher and Jev share kind names, and neither's
+  sighting joins, or is judged or calibrated as, the other's.
+- **Judging.** A fact it judges waits `watcherJudgeMinutes` for it before it is told anyway, where
+  Jev's wait is two minutes. A reading carries each such incident once, in shadow too, so its
+  judgements are there to calibrate against; seen again, the incident drops its judgement, as it does
+  for Jev, and is read again. One the code opens or sees again wakes the reader at once. A reading
+  names each as its id and how many times it had been seen (`I4.2`), and `judge` takes that name back:
+  one seen again or judged since is refused, not overwritten. A veto is lifted only by the reader that made it: changing `by` would otherwise send
+  what the other one held back.
 
 ### When Jev is asked
 
@@ -837,6 +855,9 @@ it reports:
 - **Verdict**: keep it, make it label-only, stop it holding incidents back, or not enough marks to
   judge
 
+A Watcher's marks are left out of each question's, though its kinds share their names, and the
+final count keeps what the Watcher raised, confirmed and held back apart from the sensor's.
+
 It then reports all questions together with the incidents code facts opened, and how precise the
 incidents were in the end, split by who raised them and what Jev said.
 
@@ -926,6 +947,7 @@ content with its keys sorted.
 | `by` | `seat` |
 | `watcherQuietSeconds` / `watcherEveryMinutes` | 60 / 5 |
 | `watcherChars` / `watcherRotateAfter` | 12000 / 40 |
+| `watcherJudgeMinutes` | 10 |
 | `incidentsPerDay` | 5 |
 | `longTurnMinutes` | 30 |
 | `destructive` / `testPath` / `suppressed` / `repeatsAt` | patterns and 3 |
@@ -961,6 +983,8 @@ With the prefix empty, the plugin stops cleaning up its own stale entries in `~/
 **When a server serves a project.**
 
 - Catalog servers stay off until a settings layer switches them on for some roles.
+- A server that names no roles goes to every role with desk tools except one that can `watch`: the
+  Watcher reads what it is mailed, and a pasted server's tools can write.
 - An entry's `requires` lists paths a project must have for the entry to serve it. `intellij-index`
   requires `.idea`, so a project the IDE has never opened gets neither the server nor its rule, notes
   and skills.

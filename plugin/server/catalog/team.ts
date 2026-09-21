@@ -12,6 +12,7 @@ import {
   type RoleSpec,
   type SensorSpec,
   PASEO_TOOLS,
+  can,
   supportsRole,
   teamServer,
 } from "./kit.ts";
@@ -43,11 +44,16 @@ export function templateRoles(entry: McpEntry): string[] {
   return entry.kind === "proxy" ? Object.keys(entry.tools ?? {}) : (entry.roles ?? []);
 }
 
+/**
+ * A server that names no roles goes to every role that works with tools. Not to one that watches: it
+ * reads what it is mailed and must not touch the work, and a pasted server's tools can write.
+ */
 export function eligibleRoles(state: McpState, kit: Kit): string[] {
   const entry = state.entry;
   if (entry?.kind === "proxy") return Object.keys(state.tools ?? entry.tools ?? {});
-  if (entry) return entry.roles ?? kit.roles.filter((role) => role.tools).map((role) => role.role);
-  return kit.roles.filter((role) => role.tools).map((role) => role.role);
+  const working = () => kit.roles.filter((role) => role.tools && !can(role, "watch")).map((role) => role.role);
+  if (entry) return entry.roles ?? working();
+  return working();
 }
 
 export function transportOf(state: McpState): McpTransport {

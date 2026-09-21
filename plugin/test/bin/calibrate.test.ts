@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -100,4 +100,25 @@ test("the report reads each question on its own incidents, each judging question
   const failing = await calibrate({ state, ask: true, fetcher: refused as never });
   assert.match(failing, /asked again: 0 answered, 52 failed/);
   assert.match(failing, /missing_mechanism[\s\S]*?asked again: not computed, since 52 assessments could not be asked again\n {2}→ not enough marks answered again to judge/, "a re-ask that failed judges nothing");
+});
+
+test("what a Watcher raised or judged is counted as the Watcher's, never as the sensor's", async () => {
+  const state = tempDir("sw2-calibrate-watcher-");
+  const base = Date.now() - 3_600_000;
+  await keepAssessment(state, record(base, "p1", "t1", { goal_drift: 0.9 }, { found: ["goal_drift"] }));
+  const ack = (id: string, finding: string, verdict: string, extra: Record<string, unknown>) =>
+    appendFileSync(join(state, "events.log"), `${JSON.stringify({ at: new Date(base + 1000).toISOString(), kind: "incident.ack", id, seat: "p1", finding, verdict, opened: base, last: base + 10, ...extra })}\n`);
+  ack("I1", "goal_drift", "useful", {});
+  ack("I2", "goal_drift", "noise", { by: "watcher" });
+  ack("I3", "stuck", "noise", { sensor: { question: "watcher", p: 0, model: "devin/swe", says: "vetoes" } });
+  let report = await calibrate({ state });
+  assert.match(report, /raised by a sensor question: 1 useful of 1 /);
+  assert.match(report, /raised by the Watcher: 0 useful of 1 /);
+  assert.match(report, /raised by code facts, held back by the Watcher: 0 useful of 1 /);
+  assert.doesNotMatch(report, /held back by the sensor/);
+  // The book still holds the newest incidents, and a mark read from it keeps whose it was.
+  writeFileSync(join(state, "incidents.json"), JSON.stringify({ next: 3, items: { I2: { id: "I2", seat: "p1", where: "w", kind: "goal_drift", level: "attend", quote: "q", facts: [], opened: base, last: base + 10, count: 1, open: false, label: "noise", by: "watcher" } } }));
+  report = await calibrate({ state });
+  assert.match(report, /raised by a sensor question: 1 useful of 1 /);
+  assert.match(report, /raised by the Watcher: 0 useful of 1 /);
 });

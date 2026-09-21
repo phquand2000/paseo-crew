@@ -7,9 +7,11 @@ export type Finding = {
   facts: string[];
   p?: number;
   model?: string;
+  /** Set when a Watcher raised it rather than the code or Jev. */
+  by?: "watcher";
 };
 
-export type Verdict = { kind: string; question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear" };
+export type Verdict = { kind: string; question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear"; why?: string };
 
 const FIRST = ["destructive", "unsafe_action", "stuck", "no-recovery", "long-turn", "goal_drift"];
 

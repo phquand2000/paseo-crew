@@ -105,6 +105,7 @@ export class Runtime {
       log,
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
+      sent: (watcher, ref) => this.reader.sent(watcher, ref),
     });
     this.turns = new TurnRules({ kit, desk: this.desk, remember });
     this.assessor = new Assessor({
@@ -120,6 +121,7 @@ export class Runtime {
       },
       watcher: async (project) => this.desk.watchers(project, await this.seats.open())[0]?.id,
       post: (to, key, text) => this.desk.post(to, key, text),
+      judges: kit.watcher?.judges ?? [],
     });
     this.watches = new Watches({
       kit,
@@ -304,7 +306,16 @@ export class Runtime {
   private noticed(watch: SeatWatch, findings: Finding[]): void {
     if (findings.length === 0 || this.watches.get(watch.seat.id) !== watch) return;
     const project = projectOf(watch.seat.cwd);
-    this.desk.notice(project, watch.seat, findings).catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
+    this.desk
+      .notice(project, watch.seat, findings)
+      // What waits for a Watcher's judgement is read to it now, not at the seat's next quiet moment,
+      // whether it opened or was seen again: seen again, it waits for a fresh judgement. Asked again
+      // after the wait, since a seat let go meanwhile must not be read about.
+      .then(() => {
+        const judges = this.kit.watcher?.judges ?? [];
+        if (this.watches.get(watch.seat.id) === watch && findings.some((finding) => judges.includes(finding.kind))) this.reader.moment(watch, true);
+      })
+      .catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
   }
 
   private degraded(watch: SeatWatch, error: SensorError): void {
@@ -347,7 +358,7 @@ export class Runtime {
     const items = Object.values(loadIncidents(project.state).items);
     const now = Date.now();
     const ago = (at: number) => Math.max(0, Math.round((now - at) / 60_000));
-    const titleOf = (kind: string) => questions[kind]?.label ?? FACT_TITLES[kind] ?? kind.replace(/[-_]/g, " ");
+    const titleOf = (kind: string) => questions[kind]?.label ?? this.kit.watcher?.kinds[kind]?.label ?? FACT_TITLES[kind] ?? kind.replace(/[-_]/g, " ");
     let ledger: Ledger | undefined;
     try {
       ledger = loadLedger(project.state);

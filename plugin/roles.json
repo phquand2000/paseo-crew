@@ -121,6 +121,7 @@
       "can": [
         "watch"
       ],
+      "tools": "watcher",
       "prompt": "prompts/WATCHER.md",
       "skills": null,
       "paseoTools": {

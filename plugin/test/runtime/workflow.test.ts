@@ -1742,7 +1742,7 @@ test("a Watcher reads what a Peer did, said and thought as it works, never a key
   assert.match(first, /What it was asked:\nTask L1-T1: Clean build\nGoal: g/, "the brief, the first time");
   assert.match(first, /R1\.S1 thought: The suite is red; deleting the failing test would make it pass\./, "what it thought, as a step it can be held to");
   assert.match(first, /R1\.S2 ran: .*npm test \(failed, exit 1\) → 1 failing/, "what it ran and what that printed");
-  assert.match(first, /READING R2 [^\n]*Its turn has ended\.[\s\S]*It ended on: R2\.S3 Done, all green\./, "and what it claimed, apart from the evidence");
+  assert.match(first, /READING R2 [^\n]*Its turn has ended\.[\s\S]*It ended on: R2\.S3 said: Done, all green\./, "and what it claimed, apart from the evidence");
   assert.doesNotMatch(first, /sk-or-v1-0123/, "a key it typed is never mailed on");
   assert.equal(first.match(/What it was asked/g)!.length, 1);
 
@@ -1806,6 +1806,218 @@ test("a Watcher that has taken its share of readings is replaced once it is idle
   const live = watchersOf(h).filter((agent) => !agent.archivedAt);
   assert.equal(live.length, 1);
   assert.notEqual(live[0]!.id, first!.id, "and a fresh one sits in its place");
+  const reader = (h.runtime as unknown as { reader: { readings(id: string): number; sent(id: string, ref: string): unknown } }).reader;
+  assert.deepEqual([reader.readings(first!.id), reader.sent(first!.id, "R1.S1")], [0, undefined], "and nothing of the one it replaced is kept");
+  h.runtime.dispose();
+});
+
+async function read(h: ReturnType<typeof harness>, watcher: string) {
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  await h.idle(watcher);
+}
+
+test("a Watcher raises against a step it was read: the step, not its words, reaches whoever answers for the seat", async () => {
+  const { h, sup, peer, timeline } = await laneWithPeer("outbox-raise.json", bySeat({ watch: true }));
+  const [watcher] = watchersOf(h);
+  assert.match(watcher!.prompt!, /missing_mechanism \(attend\): Built a stand-in/, "seated knowing what it may raise, from the kit");
+  await h.idle(watcher!.id);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "reasoning", text: "The caller still wants the old shape, so a small adapter will keep it compiling." }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Write", status: "completed", detail: { type: "write", filePath: "src/legacy-adapter.ts", content: "export const old = () => fresh();\n" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await read(h, watcher!.id);
+  assert.match(watcher!.sent.join("\n"), /R1\.S1 thought: The caller still wants the old shape/);
+
+  const raise = (args: Record<string, unknown>, by = watcher!.id) => h.call(by, "watcher", "raise", { why: "an adapter for a shape nothing shipped needs", ...args });
+  const unknown = await raise({ kind: "bad_vibes", step: "R1.S1" });
+  assert.equal(unknown.ok, false);
+  assert.match(unknown.text, /bad_vibes is not a kind you raise\. You raise unsafe_action, .*reasoning_astray\./);
+  const invented = await raise({ kind: "missing_mechanism", step: "R4.S9" });
+  assert.equal(invented.ok, false);
+  assert.match(invented.text, /R4\.S9 is not a step a reading sent you/, "a step it was never read cannot be reported");
+  const other = h.add("sw2-watcher-devin/swe-2-max", h.project.root, "another watcher");
+  assert.equal((await raise({ kind: "missing_mechanism", step: "R1.S1" }, other)).ok, false, "nor one read to another Watcher");
+
+  const raised = await raise({ kind: "missing_mechanism", step: "R1.S1" });
+  assert.equal(raised.ok, true, raised.text);
+  assert.match(raised.text, /^Raised I1, missing_mechanism on the Peer on L1-T1 \(Clean build\): whoever answers for that seat has been told\.$/);
+  await h.idle(sup);
+  const told = h.agents.get(sup)!.sent.join("\n");
+  assert.match(told, /INCIDENT I1 \(missing_mechanism, attend\) on the Peer on L1-T1/);
+  assert.match(told, /What was seen: S1 thought: The caller still wants the old shape/, "the step as it was read, without the reading's number");
+  assert.doesNotMatch(told, /nothing shipped needs/, "and not the Watcher's reason, which stays on record");
+  assert.match(readFileSync(join(h.project.state, "events.log"), "utf-8"), /"kind":"watch\.raised".*"step":"R1\.S1".*"why":"an adapter for a shape nothing shipped needs"/);
+  assert.deepEqual([...h.agents.get(peer)!.sent, ...h.agents.get(peer)!.steered].filter((text) => /INCIDENT|adapter/i.test(text)), [], "nothing of it reaches the Peer");
+
+  const again = await raise({ kind: "missing_mechanism", step: "R1.S1" });
+  assert.match(again.text, /^I1 already stands for missing_mechanism/, "raised twice, it is one incident seen twice");
+
+  // A Watcher still on its last turn after the watch went to Jev reports into nothing.
+  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: { by: "jev", watch: true } }));
+  const late = await raise({ kind: "goal_drift", step: "R1.S1" });
+  assert.equal(late.ok, false);
+  assert.match(late.text, /by Jev now/);
+  assert.match((await h.call(watcher!.id, "watcher", "judge", { incident: "I1", says: "vetoes", why: "x" })).text, /by Jev now/);
+  h.runtime.dispose();
+});
+
+test("what the code raises on a fact a Watcher judges waits for it: vetoed it is held back, confirmed it is told", async () => {
+  for (const says of ["vetoes", "confirms"] as const) {
+    const { h, sup, timeline } = await laneWithPeer(`outbox-judge-${says}.json`, bySeat({ watch: true }));
+    const [watcher] = watchersOf(h);
+    await h.idle(watcher!.id);
+    timeline.beat("turn_started", "t1");
+    timeline.add({ type: "user_message", text: "Make the build pass" }, "t1");
+    for (let index = 0; index < 3; index++) timeline.add({ type: "tool_call", callId: `c${index}`, name: "Bash", status: "failed", detail: { type: "shell", command: "npm run build", output: "error TS2345", exitCode: 2 } }, "t1");
+    await read(h, watcher!.id);
+    const held = incidentsOf(h.project.state);
+    const id = Object.entries(held).find(([, item]) => item.kind === "stuck")![0];
+    assert.equal(held[id]!.held, "awaiting", "not told before the Watcher has looked");
+    assert.match(watcher!.sent.join("\n"), new RegExp(`waiting for your judge before anyone is told:\\n- ${id}\\.1 stuck \\(attend\\)`), "and the Watcher is read it");
+
+    const wrong = await h.call(watcher!.id, "watcher", "judge", { incident: "I99.1", says, why: "x" });
+    assert.match(wrong.text, /There is no incident I99/);
+    const judged = await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says, why: "the third build ran after a fix to the same line" });
+    assert.equal(judged.ok, true, judged.text);
+    await h.idle(sup);
+    const after = incidentsOf(h.project.state)[id]! as { held?: string; told?: number; sensor?: { question: string; says: string; why?: string } };
+    assert.deepEqual([after.sensor?.question, after.sensor?.says, after.sensor?.why], ["watcher", says, "the third build ran after a fix to the same line"]);
+    const told = h.agents.get(sup)!.sent.join("\n");
+    if (says === "vetoes") {
+      assert.equal(after.held, "vetoed");
+      assert.doesNotMatch(told, /INCIDENT/, "held back from the Supervisor");
+    } else {
+      assert.ok(after.told);
+      assert.match(told, new RegExp(`INCIDENT ${id} \\(stuck, attend\\)`));
+      assert.doesNotMatch(told, /fix to the same line/, "its reason is not sent");
+    }
+    assert.match((await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says, why: "again" })).text, /no longer waits for a judgement: it has been judged|it has been told/);
+    h.runtime.dispose();
+  }
+});
+
+test("a fact the patrol finds, with nothing else happening, is read to the Watcher at once", async () => {
+  const { h, timeline } = await laneWithPeer("outbox-judge-wake.json", bySeat({ watch: true }));
+  const [watcher] = watchersOf(h);
+  await h.idle(watcher!.id);
+  timeline.beat("turn_started", "t1");
+  await settle();
+  // A turn that runs on is found by the round, not by anything the seat does: no step comes to read.
+  await h.tick(Date.now() + 31 * 60_000);
+  await read(h, watcher!.id);
+  const [id] = Object.entries(incidentsOf(h.project.state)).find(([, item]) => item.kind === "long-turn")!;
+  const shows = () => (watcher!.sent.join("\n").match(new RegExp(`- ${id}\\.\\d+ long-turn \\(attend\\)`, "g")) ?? []).length;
+  assert.equal(shows(), 1);
+  assert.equal((await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says: "vetoes", why: "a long build" })).ok, true);
+
+  // The next turn runs on too: seen again, it waits for a fresh judgement, and the Watcher is read it
+  // though the seat still does nothing that would bring a reading.
+  timeline.beat("turn_completed", "t1");
+  timeline.beat("turn_started", "t2");
+  await settle();
+  await read(h, watcher!.id);
+  await h.tick(Date.now() + 62 * 60_000);
+  await read(h, watcher!.id);
+  assert.equal(incidentsOf(h.project.state)[id]!.held, "awaiting");
+  assert.equal(shows(), 2);
+  h.runtime.dispose();
+});
+
+const failBuild = (timeline: ReturnType<ReturnType<typeof harness>["timelineOf"]>, turn: string, instruction: string) => {
+  timeline.beat("turn_started", turn);
+  timeline.add({ type: "user_message", text: instruction }, turn);
+  for (let index = 0; index < 3; index++) timeline.add({ type: "tool_call", callId: `${turn}-c${index}`, name: "Bash", status: "failed", detail: { type: "shell", command: "npm run build", output: "error TS2345", exitCode: 2 } }, turn);
+};
+
+test("a fact a Watcher vetoed and that is seen again is read to it again, once, and is not told behind its back", async () => {
+  const { h, sup, timeline } = await laneWithPeer("outbox-judge-again.json", bySeat({ watch: true }));
+  const [watcher] = watchersOf(h);
+  await h.idle(watcher!.id);
+  failBuild(timeline, "t1", "Make the build pass");
+  await read(h, watcher!.id);
+  const [id] = Object.entries(incidentsOf(h.project.state)).find(([, item]) => item.kind === "stuck")!;
+  const shows = () => (watcher!.sent.join("\n").match(new RegExp(`- ${id}\\.\\d+ stuck`, "g")) ?? []).length;
+  assert.equal(shows(), 1);
+  timeline.add({ type: "tool_call", callId: "t1-after", name: "Bash", status: "failed", detail: { type: "shell", command: "git diff --check", output: "trailing whitespace", exitCode: 2 } }, "t1");
+  await read(h, watcher!.id);
+  assert.match(watcher!.sent.at(-1)!, /git diff --check/);
+  assert.equal(shows(), 1, "a reading about something else does not carry it again while it waits");
+  assert.equal((await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says: "vetoes", why: "a fix between each" })).ok, true);
+
+  failBuild(timeline, "t2", "Try once more");
+  await read(h, watcher!.id);
+  assert.equal(incidentsOf(h.project.state)[id]!.held, "awaiting", "seen again, it waits for a fresh judgement");
+  assert.equal(shows(), 2, "and the Watcher is read it again rather than left to time out");
+  const stale = await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says: "confirms", why: "from the first reading" });
+  assert.equal(stale.ok, false);
+  assert.match(stale.text, new RegExp(`has been seen again since the reading you judged it from[\\s\\S]*as ${id}\\.2`), "a judgement on the words it read first is not laid on the new ones");
+  assert.match((await h.call(watcher!.id, "watcher", "judge", { incident: id, says: "confirms", why: "no count" })).text, new RegExp(`like ${id}\\.2`));
+  const [a, b] = await Promise.all([
+    h.call(watcher!.id, "watcher", "judge", { incident: `${id}.2`, says: "vetoes", why: "still fixing" }),
+    h.call(watcher!.id, "watcher", "judge", { incident: `${id}.2`, says: "confirms", why: "going round" }),
+  ]);
+  assert.deepEqual([a.ok, b.ok], [true, false], "two judgements at once: the second does not overwrite the first");
+  assert.match(b.text, /changed while you judged it/);
+  assert.equal((incidentsOf(h.project.state)[id] as { sensor?: { says: string } }).sensor?.says, "vetoes");
+  await h.idle(sup);
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+  h.runtime.dispose();
+});
+
+test("a Watcher is told when what it raises was marked noise, and cannot raise about a seat that has gone", async () => {
+  const { h, sup, peer, timeline } = await laneWithPeer("outbox-raise-noise.json", bySeat({ watch: true }));
+  const [watcher] = watchersOf(h);
+  await h.idle(watcher!.id);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "reasoning", text: "A shim keeps the old import working." }, "t1");
+  timeline.add({ type: "assistant_message", text: "Writing the adapter now." }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "ls", output: "a.txt" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await read(h, watcher!.id);
+  const raise = (step: string) => h.call(watcher!.id, "watcher", "raise", { kind: "missing_mechanism", step, why: "a shim" });
+  assert.match((await raise("R1.S1")).text, /^Raised I1/);
+  assert.equal((await h.call(sup, "supervisor", "ack", { id: "I1", verdict: "noise", note: "expected: the brief asks for it" })).ok, true);
+  assert.match((await raise("R1.S2")).text, /^Raised I2/, "another step opens another");
+  const again = await raise("R1.S1");
+  assert.match(again.text, /^Not raised: missing_mechanism on the Peer on L1-T1 \(Clean build\) in these words was marked noise before\.$/, "not told it was counted into I2, which it was not");
+
+  h.agents.get(peer)!.archivedAt = new Date().toISOString();
+  const gone = await raise("R1.S2");
+  assert.equal(gone.ok, false);
+  assert.match(gone.text, /has gone/);
+  h.runtime.dispose();
+});
+
+test("a seat let go while what it did was being recorded is not read to the Watcher afterwards", async () => {
+  const { h, peer } = await laneWithPeer("outbox-dropped.json", bySeat({ watch: true }));
+  const runtime = h.runtime as unknown as { watches: { get(id: string): unknown; drop(id: string): void }; noticed(watch: unknown, findings: unknown[]): void; reader: { pacers: Map<string, unknown> } };
+  const watch = runtime.watches.get(peer);
+  assert.ok(watch);
+  runtime.noticed(watch, [{ kind: "stuck", level: "attend", quote: "round and round", facts: ["stuck"] }]);
+  runtime.watches.drop(peer);
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(runtime.reader.pacers.has(peer), false, "no reader is left behind for a seat nobody follows");
+  h.runtime.dispose();
+});
+
+test("in shadow a Watcher is still read what it judges, and its judgement is kept for calibration", async () => {
+  const { h, timeline } = await laneWithPeer("outbox-judge-shadow.json", bySeat());
+  const [watcher] = watchersOf(h);
+  await h.idle(watcher!.id);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Make the build pass" }, "t1");
+  for (let index = 0; index < 3; index++) timeline.add({ type: "tool_call", callId: `c${index}`, name: "Bash", status: "failed", detail: { type: "shell", command: "npm run build", output: "error TS2345", exitCode: 2 } }, "t1");
+  await read(h, watcher!.id);
+  const [id, item] = Object.entries(incidentsOf(h.project.state)).find(([, entry]) => entry.kind === "stuck")!;
+  assert.equal(item.held, "shadow");
+  assert.match(watcher!.sent.join("\n"), new RegExp(`- ${id}\\.1 stuck`));
+  assert.equal((await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says: "vetoes", why: "ordinary" })).ok, true);
+  const after = incidentsOf(h.project.state)[id]! as { held?: string; sensor?: { says: string } };
+  assert.deepEqual([after.held, after.sensor?.says], ["shadow", "vetoes"]);
   h.runtime.dispose();
 });
 

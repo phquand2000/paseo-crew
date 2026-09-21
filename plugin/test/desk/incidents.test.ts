@@ -9,7 +9,7 @@ import { DeskContext } from "../../server/desk/context.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";
 import { emptyLedger, saveLedger } from "../../server/desk/ledger.ts";
-import { closeIncidentsOf, judge, notice, retell } from "../../server/desk/notice.ts";
+import { WATCHER_JUDGED, closeIncidentsOf, judge, notice, retell } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
 import { decide } from "../../server/runtime/watch/findings.ts";
@@ -42,13 +42,44 @@ function desk(mailing = false, by: "jev" | "seat" = "jev") {
 
 const stuck = { kind: "stuck", level: "attend" as const, quote: "the same action failing 3 times", facts: ["stuck"] };
 
-test("by a Watcher seat a fact Jev could judge is not held waiting for Jev, key or no key", async () => {
+test("by a Watcher seat a fact waits for the Watcher as long as the project says, not for Jev, key or no key", async () => {
   const { project, services, posted, seated } = desk(true, "seat");
   seated.supervisor = "sup";
-  const sent = await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
-  assert.deepEqual(sent.sent, ["I1"]);
-  assert.equal(loadIncidents(project.state).items.I1!.held, undefined);
+  const at = Date.now();
+  const sent = await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck], at);
+  assert.deepEqual(sent.sent, []);
+  assert.equal(loadIncidents(project.state).items.I1!.held, "awaiting");
+  assert.deepEqual(await retell(services, project, at + 3 * 60_000), [], "Jev's two minutes are not the Watcher's");
+  assert.deepEqual(await retell(services, project, at + 11 * 60_000), ["I1"], "and past its ten, it is told anyway");
   assert.equal(posted.length, 1);
+});
+
+test("a veto is lifted only by the reader that made it, so changing reader sends nothing either held back", async () => {
+  const { project, services, posted, seated, machine } = desk(true, "seat");
+  seated.supervisor = "sup";
+  const seat = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  const at = Date.now();
+  await notice(services, project, seat, [{ kind: "test-weakened", level: "attend", quote: "an assertion gone", facts: ["test-weakened"] }], at);
+  assert.equal(loadIncidents(project.state).items.I1!.held, "awaiting", "a fact the Watcher judges waits for it");
+  await judge(services, project, seat, [{ kind: "test-weakened", question: WATCHER_JUDGED, p: 0, model: "devin/swe", says: "vetoes" }], at);
+  assert.equal(loadIncidents(project.state).items.I1!.held, "vetoed");
+  // Jev does not judge this fact, so by Jev nothing would hold it any more.
+  (machine.attention as { by: string }).by = "jev";
+  assert.deepEqual(await retell(services, project, at + 3_600_000), [], "the Watcher held it back, and only a Watcher lets it go");
+  assert.equal(posted.length, 0);
+  (machine.attention as { by: string }).by = "seat";
+  await judge(services, project, seat, [{ kind: "test-weakened", question: WATCHER_JUDGED, p: 1, model: "devin/swe", says: "confirms" }], at + 3_600_000);
+  assert.equal(posted.length, 1, "and one that comes round to it is told");
+});
+
+test("what a Watcher raised and what Jev raised under the same name are two incidents, each its own reader's", async () => {
+  const { project, services } = desk();
+  const seat = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  await notice(services, project, seat, [{ kind: "goal_drift", level: "attend", quote: "S4 changed docs/", facts: [], by: "watcher" }]);
+  await notice(services, project, seat, [{ kind: "goal_drift", level: "attend", quote: "wandered off", facts: ["outside-scope"], p: 0.9, model: "jev" }]);
+  await notice(services, project, seat, [{ kind: "goal_drift", level: "attend", quote: "S7 changed docs/", facts: [], by: "watcher" }]);
+  const items = Object.values(loadIncidents(project.state).items).map((item) => [item.id, item.by ?? "jev", item.count]);
+  assert.deepEqual(items, [["I1", "watcher", 2], ["I2", "jev", 1]], "a sighting joins only its own reader's incident");
 });
 
 test("the same thing seen of one seat, however often and however concurrently, is one incident", async () => {

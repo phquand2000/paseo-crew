@@ -54,7 +54,7 @@ When a Supervisor messages a Peer directly, the desk tells that Peer's Lead firs
 | Lead | Owns one lane: splits it into tasks, starts Peers and Reviewers, accepts and integrates | `start_task` `start_review` `accept` `rework` `cut` `message` `answer` `ask` `report` `status` | Claude Code · `claude-opus-5` · medium |
 | Peer | Does one task and hands it back with `done` | `done` `ask` | Devin CLI · `swe-2-max` |
 | Reviewer | A read-only Peer that reviews a change with clean context | `done` `ask` | Devin CLI · `swe-2-max` |
-| Watcher | Reads Leads and Peers as they work, when the watch is by a Watcher seat. It cannot touch the work | none yet | the Peer's agent and model, until it is given its own |
+| Watcher | Reads Leads and Peers as they work, when the watch is by a Watcher seat, and reports what it sees. It cannot touch the work | `raise` `judge` | the Peer's agent and model, until it is given its own |
 
 The roles are data, not code. Five roles on four agents give the twenty providers this plugin
 writes. A role can `follow` another: until a layer gives it its own, it takes that role's agent, model
@@ -109,7 +109,10 @@ Beside the code, one of two readers takes a second look, chosen by `attention.by
 - **A Watcher seat**, the default. One Watcher sits in the project while a lane is open. The desk
   mails it what each Lead and Peer did, said and thought, as they work: only the steps it has not
   been shown, in batches, and never into the middle of its own turn. A fresh Watcher replaces it
-  after a set number of readings. It cannot report anything yet; that comes next.
+  after a set number of readings. It reports with `raise`, naming a kind from
+  `catalog/watcher/watcher.json` and the ref of the step that shows it, and the incident quotes that
+  step, never the Watcher's words. It judges the facts the code raises there with `judge`, and a
+  vetoed one is held back.
 - **Jev**, a model outside the seat. The turn is split into four views, and each view shows Jev only
   what its questions need. When Jev finds something, it is asked which step it meant, and the
   incident quotes that step.
@@ -117,7 +120,8 @@ Beside the code, one of two readers takes a second look, chosen by `attention.by
 Each finding becomes an **incident**:
 
 - A fact the code read raises one on its own.
-- Jev can raise one of its own, back one the code raised, or hold that one back when it disagrees.
+- The Watcher or Jev can raise one of its own, back one the code raised, or hold that one back when
+  it disagrees.
 
 The Supervisor lists incidents with `incidents`, checks the agent's own record, and marks each one
 with `ack`:

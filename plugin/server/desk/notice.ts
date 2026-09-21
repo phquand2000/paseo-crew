@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { seatOf } from "../catalog/kit.ts";
-import { jevOn } from "../catalog/team.ts";
+import { jevOn, watchOn } from "../catalog/team.ts";
 import { KEPT_FILE, assessmentsDir } from "../runtime/watch/jev/assessments.ts";
 import type { Attention } from "../catalog/kit.ts";
 import type { Finding, Verdict } from "../runtime/watch/findings.ts";
@@ -19,16 +19,24 @@ export type Placed = { where: string; lane?: Lane; task?: Task };
 
 const AWAIT_MS = 120_000;
 
-function waits(services: DeskServices, project: Project): Set<string> {
+/** The question a Watcher's judgement is filed under, which says a Watcher made it rather than Jev. */
+export const WATCHER_JUDGED = "watcher";
+
+/** The facts that wait to be judged before they are told, and how long: Jev's by jev, the Watcher's by a seat. */
+type Judging = { kinds: Set<string>; ms: number };
+
+function judging(services: DeskServices, project: Project): Judging {
   const team = services.ctx.team(project);
-  return jevOn(team) ? confirmable(team.sensor?.spec.questions ?? {}) : new Set();
+  if (jevOn(team)) return { kinds: confirmable(team.sensor?.spec.questions ?? {}), ms: AWAIT_MS };
+  if (team.attention.by === "seat") return { kinds: new Set(services.ctx.kit.watcher?.judges ?? []), ms: team.attention.watcherJudgeMinutes * 60_000 };
+  return { kinds: new Set(), ms: AWAIT_MS };
 }
 
-function holdFor(incident: Incident, incidents: Incidents, attention: Attention, waiting: Set<string>, now: number): Held | undefined {
+function holdFor(incident: Incident, incidents: Incidents, attention: Attention, waiting: Judging, now: number): Held | undefined {
   if (!attention.watch) return "shadow";
-  const judged = incident.level === "attend" && waiting.has(incident.kind);
+  const judged = incident.level === "attend" && waiting.kinds.has(incident.kind);
   if (judged && incident.sensor?.says === "vetoes") return "vetoed";
-  if (judged && !incident.sensor && now - incident.last < AWAIT_MS) return "awaiting";
+  if (judged && !incident.sensor && now - incident.last < waiting.ms) return "awaiting";
   if (incident.level === "attend" && spentToday(incidents, now) >= attention.incidentsPerDay) return "budget";
   return undefined;
 }
@@ -49,7 +57,7 @@ export async function notice(services: DeskServices, project: Project, seat: Not
   const place = placeOf(project, seat);
   if (findings.length === 0) return { opened: [], sent: [], place };
   const attention = ctx.team(project).attention;
-  const waiting = waits(services, project);
+  const waiting = judging(services, project);
   for (const finding of findings) {
     ctx.event(project, { kind: "watch.finding", agent: seat.id, finding: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p ?? null, model: finding.model ?? null });
   }
@@ -57,7 +65,7 @@ export async function notice(services: DeskServices, project: Project, seat: Not
     const opened: Incident[] = [];
     const sending: Incident[] = [];
     for (const finding of findings) {
-      const sighting = { seat: seat.id, provider: seat.provider, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model };
+      const sighting = { seat: seat.id, provider: seat.provider, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model, ...(finding.by ? { by: finding.by } : {}) };
       if (settledAsNoise(incidents, sighting, now)) continue;
       const { incident, opened: isNew } = sight(incidents, sighting, now);
       if (incident.told !== undefined) continue;
@@ -118,19 +126,24 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
   return sending.map((incident) => incident.id);
 }
 
-export async function judge(services: DeskServices, project: Project, seat: Noticed, verdicts: Verdict[], now = Date.now()): Promise<string[]> {
+/**
+ * `expect` pins the one incident a judgement was made on, as it was when read: a Watcher judges by
+ * id, from a letter, and a sighting or a second judgement since means it judged something else.
+ */
+export async function judge(services: DeskServices, project: Project, seat: Noticed, verdicts: Verdict[], now = Date.now(), expect?: { id: string; count: number }): Promise<string[]> {
   const { ctx } = services;
   if (verdicts.length === 0) return [];
   const attention = ctx.team(project).attention;
-  const waiting = waits(services, project);
+  const waiting = judging(services, project);
   const sending = await ctx.incidents(project, (incidents) => {
     const taken: Incident[] = [];
     for (const verdict of verdicts) {
       const incident = openFor(incidents, seat.id, verdict.kind);
       if (!incident) continue;
+      if (expect && (incident.id !== expect.id || incident.count !== expect.count || incident.sensor)) continue;
       ctx.event(project, { kind: "incident.judged", id: incident.id, agent: seat.id, question: verdict.question, p: verdict.p, says: verdict.says, told: incident.told !== undefined });
       if (incident.told !== undefined) continue;
-      incident.sensor = { question: verdict.question, p: verdict.p, model: verdict.model, says: verdict.says };
+      incident.sensor = { question: verdict.question, p: verdict.p, model: verdict.model, says: verdict.says, ...(verdict.why ? { why: verdict.why } : {}) };
       const held = holdFor(incident, incidents, attention, waiting, now);
       if (held) incident.held = held;
       else {
@@ -148,20 +161,22 @@ export async function judge(services: DeskServices, project: Project, seat: Noti
 export async function retell(services: DeskServices, project: Project, now = Date.now()): Promise<string[]> {
   const { ctx } = services;
   const team = ctx.team(project);
-  // No key is no watch, so there is nothing to tell later either. Left ungated this was the one path
-  // that still spoke with the watch off — and it did not merely carry on: what holds an incident back
-  // is read from the sensor's own questions, so with the key gone that set is empty, the hold
-  // dissolves, and taking the key away is the very thing that sends the mail. Going to a Watcher seat
-  // empties it the same way, so a hold Jev decided is not retold from there either.
-  if (!jevOn(team)) return [];
+  // No watch, nothing to tell later either. Left ungated this was the one path that still spoke with
+  // the watch off — and it did not merely carry on: what holds an incident back is read from the
+  // sensor's own questions, so with the key gone that set is empty, the hold dissolves, and taking
+  // the key away is the very thing that sends the mail.
+  if (!watchOn(team)) return [];
   const attention = team.attention;
   if (!attention.watch) return [];
-  const waiting = waits(services, project);
+  const waiting = judging(services, project);
   const told: string[] = [];
   const overdue = await ctx.incidents(project, (incidents) => {
     const taken: Incident[] = [];
     for (const incident of Object.values(incidents.items)) {
       if (!incident.open || incident.told !== undefined || (incident.held !== "awaiting" && incident.held !== "vetoed")) continue;
+      // A veto is lifted only by the reader that made it. Going from Jev to a seat, or back, changes
+      // which facts wait to be judged, and would otherwise send what the other one held back.
+      if (incident.held === "vetoed" && (incident.sensor?.question === WATCHER_JUDGED ? "seat" : "jev") !== team.attention.by) continue;
       const held = holdFor(incident, incidents, attention, waiting, now);
       if (held) incident.held = held;
       else {
