@@ -351,7 +351,7 @@ export class Runtime {
         kind: item.kind,
         title: titleOf(item.kind),
         level: item.level,
-        where: item.where,
+        where: item.task ? `Peer on ${item.task}` : item.lane ? `Lead of ${item.lane}` : item.where,
         open: item.open,
         told: item.told !== undefined,
         held: item.open && item.told === undefined ? (item.held ?? null) : null,

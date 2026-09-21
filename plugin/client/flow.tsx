@@ -2,7 +2,7 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { memo, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { Empty, Rule } from "./bits.tsx";
+import { Empty } from "./bits.tsx";
 import { type FlowLane, type FlowSeat, type FlowView, countsInstead } from "./data.ts";
 import { WatchCard } from "./watching.tsx";
 
@@ -184,16 +184,13 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
 
       {live && flow && flow.asks.length > 0 ? (
         <SettingsCard>
-          {flow.asks.map((ask, index) => (
-            <View key={ask.id}>
-              {index > 0 ? <Rule theme={theme} /> : null}
-              <View style={styles.row}>
-                <View style={styles.labels}>
-                  <Text style={styles.title}>{`${ask.id} · ${ask.text}`}</Text>
-                  <Text style={styles.hint}>{`${ask.kind} from the ${ask.fromRole}`}</Text>
-                </View>
-                <Text style={styles.quiet}>{ago(ask.minutes)}</Text>
+          {flow.asks.map((ask) => (
+            <View key={ask.id} style={styles.row}>
+              <View style={styles.labels}>
+                <Text style={styles.title}>{`${ask.id} · ${ask.text}`}</Text>
+                <Text style={styles.hint}>{`${ask.kind} from the ${ask.fromRole}`}</Text>
               </View>
+              <Text style={styles.quiet}>{ago(ask.minutes)}</Text>
             </View>
           ))}
         </SettingsCard>

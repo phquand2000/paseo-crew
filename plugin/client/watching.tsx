@@ -69,7 +69,7 @@ const IncidentRow = memo(function IncidentRow({ item, theme }: { item: WatchInci
       <Dot color={levelColor(c, item.level)} />
       <View style={styles.labels}>
         <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.hint} numberOfLines={1}>{[item.where, item.note, ago(item.minutes)].filter(Boolean).join(" · ")}</Text>
+        <Text style={styles.hint} numberOfLines={1}>{[item.where, item.note || ago(item.minutes)].join(" · ")}</Text>
       </View>
       {item.open ? <Tag text={item.level} color={levelColor(c, item.level)} theme={theme} /> : null}
       <Tag text={state} color={item.label === "useful" ? c.statusSuccess : c.foreground} theme={theme} />
@@ -391,15 +391,17 @@ export function WatchCard({ watch, theme, onAddKey }: { watch: WatchView; theme:
   if (!watch.on) {
     return (
       <SettingsCard>
-        <View style={styles.row}>
-          <Dot color={c.foregroundMuted} />
-          <View style={styles.labels}>
-            <Text style={styles.title}>The watch is off</Text>
-            <Text style={styles.hint}>It runs on a sensor key, and none is set. Nothing here is followed, read or recorded.</Text>
+        <View>
+          <View style={styles.row}>
+            <Dot color={c.foregroundMuted} />
+            <View style={styles.labels}>
+              <Text style={styles.title}>The watch is off</Text>
+              <Text style={styles.hint}>It runs on a sensor key, and none is set. Nothing here is followed, read or recorded.</Text>
+            </View>
+            <Button label="Add a key" theme={theme} onPress={onAddKey} />
           </View>
-          <Button label="Add a key" theme={theme} onPress={onAddKey} />
+          <Trouble watch={watch} theme={theme} />
         </View>
-        <Trouble watch={watch} theme={theme} />
       </SettingsCard>
     );
   }
@@ -411,58 +413,60 @@ export function WatchCard({ watch, theme, onAddKey }: { watch: WatchView; theme:
   const settled = watch.marks.noise + watch.marks.unknown;
   return (
     <SettingsCard>
-      <View style={[styles.row, { paddingBottom: 12 }]}>
-        <Dot color={c.statusSuccess} />
-        <View style={styles.labels}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Text style={styles.title}>{card.title}</Text>
-            {help}
+      <View>
+        <View style={[styles.row, { paddingBottom: 12 }]}>
+          <Dot color={c.statusSuccess} />
+          <View style={styles.labels}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={styles.title}>{card.title}</Text>
+              {help}
+            </View>
+            <Text style={styles.hint}>{card.hint}</Text>
           </View>
-          <Text style={styles.hint}>{card.hint}</Text>
+          {card.live ? <Text style={styles.live}>live</Text> : null}
         </View>
-        {card.live ? <Text style={styles.live}>live</Text> : null}
-      </View>
-      <View style={styles.pad}>
-        <Stats items={card.stats} theme={theme} />
-      </View>
-
-      {open.length > 0 ? (
-        <>
-          <Rule theme={theme} />
-          <Heading text="Needs the Supervisor" tone="danger" theme={theme} />
-          {open.map((item) => <IncidentRow key={item.id} item={item} theme={theme} />)}
-          <Text style={[styles.hint, styles.pad]}>The Supervisor lists these with incidents and marks each useful, noise or unknown. The seat it is about never sees it.</Text>
-        </>
-      ) : null}
-
-      {useful.length > 0 ? (
-        <>
-          <Rule theme={theme} />
-          <Heading text="Worth a look" theme={theme} />
-          {useful.map((item) => <IncidentRow key={item.id} item={item} theme={theme} />)}
-        </>
-      ) : null}
-
-      {watch.seats.length > 0 ? (
-        <>
-          <Rule theme={theme} />
-          <Heading text="Seats" theme={theme} />
-          <Seats seats={watch.seats} theme={theme} />
-        </>
-      ) : null}
-
-      <Rule theme={theme} />
-      <Heading text="Settled" theme={theme} />
-      <View style={[styles.row, { paddingTop: 8 }]}>
-        <View style={styles.labels}>
-          <Text style={styles.title}>{card.settledTitle}</Text>
-          <Text style={styles.hint}>{card.settledHint}</Text>
+        <View style={styles.pad}>
+          <Stats items={card.stats} theme={theme} />
         </View>
-        {watch.marks.total > 0 ? <Button label={settled > 0 ? "Show" : "Show all"} theme={theme} onPress={() => setAll(true)} /> : null}
-      </View>
 
-      <Trouble watch={watch} theme={theme} />
-      <Legend open={legend} theme={theme} onOpenChange={setLegend} />
+        {open.length > 0 ? (
+          <>
+            <Rule theme={theme} />
+            <Heading text="Needs the Supervisor" tone="danger" theme={theme} />
+            {open.map((item) => <IncidentRow key={item.id} item={item} theme={theme} />)}
+            <Text style={[styles.hint, styles.pad]}>The Supervisor lists these with incidents and marks each useful, noise or unknown. The seat it is about never sees it.</Text>
+          </>
+        ) : null}
+
+        {useful.length > 0 ? (
+          <>
+            <Rule theme={theme} />
+            <Heading text="Worth a look" theme={theme} />
+            {useful.map((item) => <IncidentRow key={item.id} item={item} theme={theme} />)}
+          </>
+        ) : null}
+
+        {watch.seats.length > 0 ? (
+          <>
+            <Rule theme={theme} />
+            <Heading text="Seats" theme={theme} />
+            <Seats seats={watch.seats} theme={theme} />
+          </>
+        ) : null}
+
+        <Rule theme={theme} />
+        <Heading text="Settled" theme={theme} />
+        <View style={[styles.row, { paddingTop: 8 }]}>
+          <View style={styles.labels}>
+            <Text style={styles.title}>{card.settledTitle}</Text>
+            <Text style={styles.hint}>{card.settledHint}</Text>
+          </View>
+          {watch.marks.total > 0 ? <Button label={settled > 0 ? "Show" : "Show all"} theme={theme} onPress={() => setAll(true)} /> : null}
+        </View>
+
+        <Trouble watch={watch} theme={theme} />
+        <Legend open={legend} theme={theme} onOpenChange={setLegend} />
+      </View>
     </SettingsCard>
   );
 }

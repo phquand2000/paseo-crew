@@ -1591,6 +1591,8 @@ test("with the watch on but not telling, the desk records what it sees and sends
   await h.idle(sup);
   assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => [item.kind, item.held]), [["destructive", "shadow"]]);
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+  const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
+  assert.deepEqual(view.watch.incidents.map((item) => item.where), ["Peer on L1-T1"], "the card names the seat by its task, not by the letter's whole sentence");
   h.runtime.dispose();
 });
 
