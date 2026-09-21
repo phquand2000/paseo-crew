@@ -266,6 +266,13 @@ The Peer's prompt, for example, may not say "seat". This is also why an ordinary
 A skill is linked as it is written, so a skill holding any placeholder is refused. Skills refer to
 `$SEATWORKS_STATE` instead.
 
+**The team block** is `content/project/AGENTS.md`. When a seat's session opens, the desk writes it
+into the project's own `AGENTS.md` between `seatworks:begin` and `seatworks:end` markers, replacing
+the block whole and leaving the Human's text alone, and adds a marked `@AGENTS.md` pointer to
+`CLAUDE.md` unless one is already there (`catalog/project-files.ts`). Every role reads it, so the kit
+refuses one that shows any role's `hidesWords`. A checkout whose only uncommitted change is that
+block still counts as clean when a lane takes it over. The role prompts hold only what is theirs.
+
 **The project's concept** is `CONTEXT.md` in the project's state: what the project does, its logic
 and how it behaves, as the Human settled it, and the words it is spoken of in. Nothing else goes in
 it, and an answer the Human changes replaces its line. The Supervisor settles new work with the Human

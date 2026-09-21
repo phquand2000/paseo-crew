@@ -91,6 +91,13 @@ Every seat reads your project's own instructions:
 - Codex, Pi and Devin seats read `AGENTS.md` from the working directory.
 - If the repository has only `AGENTS.md`, add a `CLAUDE.md` with the line `@AGENTS.md`.
 
+The plugin adds the team's shared rules to your project's `AGENTS.md` the first time a seat opens
+there: who does what, the concept being yours, the git limits, how mail works. They sit in a marked
+`seatworks` block that the plugin replaces whole and that never touches your own text. `CLAUDE.md`
+gets a pointer to `AGENTS.md` unless it already has one. Commit both once: a lane in a copy of its
+own only sees what is committed, and until then a lane may still take your checkout over, because
+that block is not your work in progress.
+
 The shipped Claude settings answer in Vietnamese (`"language": "vietnamese"` in
 `plugin/harness/claude/settings.json`). Change that file for another language.
 
