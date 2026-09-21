@@ -16,7 +16,13 @@
     { "brief": "The payments lane just cost a full rework round after review. Work out what kind of failure that was and whether we have seen it before.", "expect": ["retrospective"] },
     { "brief": "Look back over the events and handbacks since Monday and propose the one change most worth making to how we work.", "expect": ["retrospective"] },
     { "brief": "A test flaked once this morning and passed on rerun. Note it.", "expect": [], "near": "retrospective" },
-    { "brief": "Summarize what each open lane is doing right now.", "expect": [], "near": "retrospective" }
+    { "brief": "Summarize what each open lane is doing right now.", "expect": [], "near": "retrospective" },
+
+    { "brief": "The Human writes: I want users to be able to share their playlists. Nothing in CONTEXT.md says anything about sharing yet.", "expect": ["grilling"] },
+    { "brief": "New request from the owner: add a loyalty programme where customers earn points on orders. Work out what they actually want before any lane opens.", "expect": ["grilling"] },
+    { "brief": "The Human says refunds should work differently from now on, but has not said how partial refunds or expired cards are handled.", "expect": ["grilling"] },
+    { "brief": "Open a lane to bump the logging library to its latest patch version.", "expect": [], "near": "grilling" },
+    { "brief": "A Lead asks whether guests can check out without an account; CONTEXT.md already says guest checkout is allowed.", "expect": [], "near": "grilling" }
   ],
   "lead": [
     { "brief": "Decide between advisory locks in the database and a separate lock service for job deduplication. Both are defensible and whichever we pick will be hard to back out of.", "expect": ["council"] },

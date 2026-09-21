@@ -259,6 +259,8 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
     "rules/all.rules": 'prefix_rule(pattern = ["git", "push"], decision = "forbidden")\n',
     "rules/lead.rules": 'prefix_rule(pattern = ["git", "commit"], decision = "forbidden")\n',
   });
+  // The grant is what the role's own content names under the project's state.
+  writeFileSync(join(kit.dir, "content", "prompts", "LEAD.md"), "# Lead\n\nWrite a plan in {{state}}/plans/ first.\n");
   const base = resolveTeam(kit);
   const team = withHarness(base, "lead", kit.harnesses.cx!);
   const home = tempDir("sw2-cx-home-");
@@ -270,7 +272,7 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   assert.equal(config.sandbox_workspace_write.network_access, true, "the grant is added to the table, not put in its place");
   // Named, not computed: comparing against `stateWrites` itself made the assertion true for any
   // answer that function gave, including none at all.
-  assert.deepEqual(config.sandbox_workspace_write.writable_roots, [join(project.state, "docs")]);
+  assert.deepEqual(config.sandbox_workspace_write.writable_roots, [join(project.state, "plans")]);
   assert.equal(config.model_catalog_json, join(dir, "catalog.json"));
   const catalog = JSON.parse(readFileSync(config.model_catalog_json, "utf-8"));
   assert.deepEqual(catalog.models, [{ slug: "a", multi_agent_version: null }, { slug: "b", multi_agent_version: null }]);

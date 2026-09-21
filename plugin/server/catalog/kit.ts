@@ -3,7 +3,6 @@ import { z } from "zod";
 import { DESTRUCTIVE, FACT_LEVELS, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
 import { LEAST_STATE_CHARS, VIEW_FIELDS, type ViewName, isView } from "../runtime/watch/jev/views.ts";
 import { AttentionChoice } from "./settings.ts";
-import { type TemplateSpec, loadTemplates } from "./templates.ts";
 import { isAbsolute, join } from "node:path";
 import { errorText } from "../core/errors.ts";
 
@@ -269,7 +268,6 @@ export type Kit = {
   mcp: Record<string, McpEntry>;
   /** Each tool set in mcp/tools.json: its tools by name, with the schema each is shown with. */
   toolSets: Record<string, Record<string, ArgSchema>>;
-  templates: Record<string, TemplateSpec>;
   sensors: Record<string, SensorSpec>;
   /** What a Watcher seat may raise and which of the code's facts wait for its judgement; absent, it can do neither. */
   watcher?: WatcherSpec;
@@ -490,7 +488,6 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     harnesses,
     mcp: loadMcp(dir),
     toolSets: loadToolSets(dir),
-    templates: loadTemplates(dir),
     sensors: loadSensors(dir),
     watcher: loadWatcher(dir),
     attention: { ...ATTENTION, ...presetAttention(raw.attention) },

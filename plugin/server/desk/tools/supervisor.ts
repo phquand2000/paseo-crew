@@ -1,7 +1,6 @@
 import { configFault } from "../../core/config-file.ts";
 import { branchExists, currentBranch, isAncestor, landLane, mergeBranch, trackedFiles } from "../../core/git.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
-import { docsDir, placeDoc } from "../../catalog/templates.ts";
 import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
 import { type Args, type Caller, no, ok, str, strs } from "../context.ts";
 import { errorText } from "../../core/errors.ts";
@@ -9,7 +8,7 @@ import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
 import { type Lane, type Ledger, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";
 import { clip, letters, outside } from "../letters.ts";
-import { type Project, type ProjectConfig, configFile, detectGate, loadConfig, saveConfig } from "../project.ts";
+import { type Project, type ProjectConfig, conceptFile, configFile, detectGate, loadConfig, saveConfig } from "../project.ts";
 import type { Roster } from "../roster.ts";
 import type { DeskServices, Tool } from "../services.ts";
 import { namedOrNot } from "./shared.ts";
@@ -149,7 +148,7 @@ export const openLane: Tool = async (desk, caller, args) => {
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
-      prompt: letters.directive(lane, issue, { names: config.docs, dir: docsDir(project.state) }, gateRegime(project)),
+      prompt: letters.directive(lane, issue, conceptFile(project.state), gateRegime(project)),
       labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
     await ctx.ledger(project, (ledger) => {
@@ -262,26 +261,11 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   return ok(`Lane ${lane.id} closed and its agents archived; ${landing}. ${copy}${branches}`);
 };
 
-/** The shelf as a choice rather than a list: each one's own trigger is the only basis for taking it. */
-function shelfText(shelf: Record<string, { activate: string }>, kept: string[]): string {
-  const free = Object.keys(shelf)
-    .filter((name) => !kept.includes(name))
-    .sort();
-  if (free.length === 0) return "The shelf holds nothing else.";
-  return ["On the shelf, unused — take one only when its moment is already here:", ...free.map((name) => `- ${name}: ${shelf[name]!.activate}`)].join("\n");
-}
-
-export const setProject: Tool = async ({ ctx }, caller, args) => {
+export const setProject: Tool = async (_desk, caller, args) => {
   // Refused as open_lane refuses: read as all defaults, an unreadable file was saved over with them.
   const unreadable = configFault(configFile(caller.project.state));
   if (unreadable) return no(`${unreadable}\nOnly the Human can repair it or move it aside; nothing was saved over it.`);
   const config = loadConfig(caller.project.state);
-  const shelf = ctx.kit.templates;
-  const asked = strs(args.docs);
-  const unknown = asked.filter((name) => !shelf[name]);
-  if (unknown.length > 0) {
-    return no(`This kit has no document called ${unknown.join(", ")}.\n${shelfText(shelf, [])}`);
-  }
   const base = str(args.base);
   if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
   const minutes = Number(args.gateTimeoutMinutes);
@@ -292,19 +276,7 @@ export const setProject: Tool = async ({ ctx }, caller, args) => {
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : config.gateTimeoutMinutes,
     gateOn: args.gateOn === "task" ? "task" : args.gateOn === "lane" ? "lane" : config.gateOn,
     serialOnly: Array.isArray(args.serialOnly) ? strs(args.serialOnly) : config.serialOnly,
-    docs: args.docs === undefined ? config.docs.filter((name) => shelf[name]) : asked,
   };
   saveConfig(caller.project.state, next);
-  // A page nobody asked for is never written, and a page already written is never written over.
-  const placed = next.docs.flatMap((name) => (shelf[name] ? [{ name, ...placeDoc(caller.project.state, shelf[name]) }] : []));
-  const started = placed.filter((entry) => entry.written).map((entry) => `${entry.name} (${entry.file})`);
-  const documents = `\n${next.docs.length === 0 ? "Documents kept: none." : `Documents kept: ${next.docs.join(", ")}.${started.length > 0 ? ` Started: ${started.join("; ")}.` : ""}`}\n${shelfText(shelf, next.docs)}`;
-  // A Lead reads its directive once, when it is seated, so a lane already open would never hear that
-  // the project started keeping a document — for the life of the lane.
-  if (args.docs !== undefined) {
-    const changed = next.docs.join(",") !== config.docs.join(",");
-    const leads = changed ? await ctx.read(caller.project, (ledger) => Object.values(ledger.lanes).filter((lane) => lane.status === "open" && lane.lead).map((lane) => lane.lead as string)) : [];
-    for (const lead of leads) await ctx.post(lead, `docs:${Date.now()}`, letters.docsKept(next.docs, docsDir(caller.project.state)));
-  }
-  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.${documents}`);
+  return ok(`Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes.`);
 };

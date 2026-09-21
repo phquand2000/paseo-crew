@@ -173,13 +173,6 @@
               "type": "string"
             },
             "description": "Globs no parallel lane or task may write: lockfiles, migrations, registries, project settings, scenes and assets."
-          },
-          "docs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "The pages this project keeps, by name, replacing whatever it kept before. Each costs context on every turn that reads it, so keep only what this project would otherwise forget: none is a reasonable answer, and so is one. Call set_project with no docs to see the shelf."
           }
         }
       }

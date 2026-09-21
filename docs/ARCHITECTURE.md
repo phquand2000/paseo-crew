@@ -66,7 +66,7 @@ The daemon side and the seats share no memory:
 | `plugin/harness/<agent>/` | How each agent is set up: `harness.json`, plus base and per-role settings |
 | `plugin/catalog/mcp/<id>/` | Optional MCP servers |
 | `plugin/catalog/sensor/<id>/` | The sensor: where it is asked, which model, and the questions it asks |
-| `plugin/content/` | Runtime content seats read: role prompts, skills, guides, the notebook and page templates. This is not documentation |
+| `plugin/content/` | Runtime content seats read: role prompts, skills, guides and the notebook. This is not documentation |
 
 Only `server/core/paseo-adapter.ts` calls the daemon's agent and workspace API (`context.paseo`).
 The runtime only registers hooks, events and RPC handlers with the SDK. The desk, the outbox, the
@@ -86,7 +86,7 @@ reload, whatever comes first brings both back: opening the panel, or starting a 
 3. `loadKit` reads the kit:
    - `roles.json`, preferring a copy in `~/.local/share/seatworks-v2/`, with its attention values
    - every `harness/<agent>/harness.json`
-   - the MCP catalog, `mcp/tools.json` and the page templates
+   - the MCP catalog and `mcp/tools.json`
    - the sensor in `catalog/sensor/`
 
    A kit that fails to load leaves the whole plugin inert, with the problem named. These fail it:
@@ -266,13 +266,20 @@ The Peer's prompt, for example, may not say "seat". This is also why an ordinary
 A skill is linked as it is written, so a skill holding any placeholder is refused. Skills refer to
 `$SEATWORKS_STATE` instead.
 
+**The project's concept** is `CONTEXT.md` in the project's state: what the project does, its logic
+and how it behaves, as the Human settled it, and the words it is spoken of in. Nothing else goes in
+it, and an answer the Human changes replaces its line. The Supervisor settles new work with the Human
+through the `grilling` skill, in numbered rounds with a recommended answer each, and writes each
+answer there as it is settled, shaped by `guides/CONTEXT_FORMAT.md`. The desk writes nothing in it:
+it only names the file in a Lead's directive once it exists, and the Lead carries the parts a task
+touches into that task.
+
 On Claude Code and Codex, the sandbox lets a seat's shell write under the project's state only where
 its prompt, skills and rules say `{{state}}/…` or `$SEATWORKS_STATE/…`:
 
-- A role that can `lead` also gets `docs/`, for the project pages.
 - The desk's own files are never granted.
-- In the shipped kit that comes to three folders and `notebook.md` for the Supervisor, and five
-  folders for the Lead.
+- In the shipped kit that comes to three folders, `notebook.md` and `CONTEXT.md` for the Supervisor,
+  and four folders for the Lead. Only the Supervisor may write `CONTEXT.md`.
 - A Peer or Reviewer names none, so its shell writes nothing under the state at all.
 
 This binds only the shell. Claude's file tools are kept off the desk's files by deny rules. Pi and
@@ -326,9 +333,9 @@ same capability.
 
 | Verb | Held by | Effect |
 |---|---|---|
-| `open_lane` | Supervisor | Records the lane, takes a working copy, and seats a Lead with an owner directive. Taking the project's own copy needs it clean of uncommitted and untracked files. It can read a GitHub issue; one it cannot read is a note in the reply, not a refusal. It refuses a lane whose declared write set or `contracts` overlap an open lane's write set, or that reaches a path the project keeps to one writer that an open lane could also write. A lane that declares nothing is not checked, and counts as writing every such path. The first `open_lane` of a project that has no gate recorded detects one (see below) |
+| `open_lane` | Supervisor | Records the lane, takes a working copy, and seats a Lead with an owner directive, which names the project's `CONTEXT.md` once there is one. Taking the project's own copy needs it clean of uncommitted and untracked files. It can read a GitHub issue; one it cannot read is a note in the reply, not a refusal. It refuses a lane whose declared write set or `contracts` overlap an open lane's write set, or that reaches a path the project keeps to one writer that an open lane could also write. A lane that declares nothing is not checked, and counts as writing every such path. The first `open_lane` of a project that has no gate recorded detects one (see below) |
 | `close_lane` | Supervisor | Waits for every merge the project has queued, then with `land` lands the lane (see [Landing a lane](#landing-a-lane)). Then it cuts leftover tasks, archives their seats and the Lead, and puts the copy away |
-| `set_project` | Supervisor | Sets, in the project's `project.json`: the base branch, the gate command, its timeout (30 minutes by default), whether it runs per lane or per task, the serial-only paths, and the template pages to keep. An empty gate is an answer, and the desk never detects a gate over it. When the kept pages change, every open Lead gets a DOCUMENTS letter |
+| `set_project` | Supervisor | Sets, in the project's `project.json`: the base branch, the gate command, its timeout (30 minutes by default), whether it runs per lane or per task, and the serial-only paths. An empty gate is an answer, and the desk never detects a gate over it |
 | `start_task` | Lead | Seats a writing role on a task. In lane mode, the default, it shares the lane's copy and branch. In parallel mode it gets its own slot and `task/…` branch. `skills` must name skills the Peer role has; any other is refused with the list |
 | `start_review` | Lead | Seats a reviewing role, read-only. It runs in the task's own copy while that copy is still its own, otherwise in the lane's. The brief says where the change is: this copy, the merge that carried it, or the task branch. A change with none of those left is refused |
 | `accept` | Lead | Lane mode: marks the task merged in place, tells the Lead in a MERGED letter, and retires the Peer. It is refused when the lane's copy is off the lane branch or has uncommitted changes, and the refusal says whose changes they are. Parallel mode: queues the task for the merge queue |
@@ -415,7 +422,7 @@ goes out as a single message, with its open asks listed underneath.
 |---|---|
 | Opening a seat | OWNER DIRECTIVE, TASK, REVIEW |
 | Between seats | MESSAGE, RECONCILE, ASK, ANSWER to your ask, ANSWERED FOR YOU, STILL OPEN, UNANSWERED |
-| Work moving | HANDBACK, REWORK, STOP, MERGED, MERGE FAILED, MERGE CONFLICT, REPORT, CLEARED, DOCUMENTS |
+| Work moving | HANDBACK, REWORK, STOP, MERGED, MERGE FAILED, MERGE CONFLICT, REPORT, CLEARED |
 | The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, INCIDENT, the bare nudge |
 | Answering late | ANSWER to your `<tool>` call |
 
@@ -1083,7 +1090,7 @@ after every save, and the Flow tab polls.
     ledger.json  incidents.json
     assessments/current.jsonl  assessments/<n>.jsonl.gz  assessments/spot-checks.jsonl
     events.log  attention.log  status.md
-    handbacks/  gates/  docs/  notebook.md
+    handbacks/  gates/  notebook.md  CONTEXT.md
 <profileRoot>/sw2-<role>-<agent>-<slug>/  one seat directory per role, agent and project
 ```
 

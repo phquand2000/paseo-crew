@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderPrompt } from "../../server/catalog/content.ts";
 import { PASEO_TOOLS, loadKit, providerId } from "../../server/catalog/kit.ts";
-import { type AgentConfig, applyRole } from "../../server/catalog/launch.ts";
+import { type AgentConfig, applyRole, stateWrites } from "../../server/catalog/launch.ts";
 import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
 import { materialize, seatDir, seedRecords } from "../../server/catalog/seats.ts";
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
@@ -147,23 +147,13 @@ test("the Supervisor can set its own cadence for reading the work, rather than t
   }
 });
 
-test("every document the kit puts on the shelf says what it owns, when to take it, and when it is ceremony", () => {
+test("only the Supervisor may write the project's concept; every other role reads it or is told it", () => {
   const kit = loadKit(pluginRoot);
-  const names = Object.keys(kit.templates).sort();
-  // Not a count: what the shelf owes a Supervisor is that each name comes with the moment to take it,
-  // which is what `set_project` now prints beside it.
-  assert.ok(names.length > 0, "a shelf with nothing on it is a feature with no reason to exist");
-  for (const name of names) {
-    const spec = kit.templates[name]!;
-    for (const field of ["owns", "prevents", "activate", "ceremony"] as const) {
-      assert.ok(spec[field].length > 0, `${name} does not say its ${field}, so nobody can judge whether to keep it`);
-    }
-    assert.match(spec.body, /^# /m, `${name} has no heading to start from`);
-    assert.doesNotMatch(spec.body, /\{\{/, `${name} holds a placeholder nothing fills in`);
-  }
-  // The measured finding this shelf is built on: a page that restates the repository costs context and buys nothing.
-  for (const name of names) {
-    assert.doesNotMatch(kit.templates[name]!.body, /directory tree|architecture overview|dependency list/i, `${name} asks for something measured not to help`);
+  const team = resolveTeam(kit);
+  const writes = (role: string) => stateWrites(kit, team, kit.roles.find((entry) => entry.role === role)!, "/state");
+  assert.ok(writes("supervisor").includes(join("/state", "CONTEXT.md")), "grilling writes what the Human settled there as it is settled");
+  for (const role of kit.roles.filter((entry) => entry.role !== "supervisor")) {
+    assert.ok(!writes(role.role).includes(join("/state", "CONTEXT.md")), `${role.role} could rewrite the Human's word`);
   }
 });
 

@@ -1341,50 +1341,25 @@ test("an ask answered by the owner over a Lead's head is told to that Lead, not 
   h.runtime.dispose();
 });
 
-test("a project keeps the documents its owner asked for, and every seat that must know is told", async () => {
-  const h = harness("outbox-docs.json");
+test("a Lead is pointed at the project's concept once the Human has settled one, and set_project keeps no pages", async () => {
+  const h = harness("outbox-concept.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const docsIn = join(h.project.state, "docs");
 
-  // Nothing is kept until somebody says so, and a project that keeps none is a project that works.
-  assert.equal(existsSync(docsIn), false);
-  const none = await h.call(sup, "supervisor", "set_project", {});
-  assert.match(none.text, /Documents kept: none/);
-  assert.match(none.text, /- decision: /, "the shelf offers each one's moment, which is the only basis for taking it");
+  // Nothing is written for the Supervisor, and a Lead is not sent to read a file that is not there.
+  await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["y"], outOfScope: ["z"], writeSet: ["a.txt"] });
+  const first = h.ledger().lanes.L1!;
+  assert.equal(existsSync(join(h.project.state, "CONTEXT.md")), false);
+  assert.doesNotMatch(h.agents.get(first.lead!)!.prompt ?? "", /CONTEXT\.md/);
 
-  const unknown = await h.call(sup, "supervisor", "set_project", { docs: ["retrospective-log"] });
-  assert.equal(unknown.ok, false);
-  assert.match(unknown.text, /no document called retrospective-log/);
+  writeFileSync(join(h.project.state, "CONTEXT.md"), "# Shop\n\n## Behavior\n\n- A guest may check out.\n");
+  await h.call(sup, "supervisor", "open_lane", { title: "Second", outcome: "x", acceptance: ["y"], outOfScope: ["z"], writeSet: ["b.txt"] });
+  const second = h.ledger().lanes.L2!;
+  const directive = h.agents.get(second.lead!)!.prompt ?? "";
+  assert.match(directive, new RegExp(`is in ${join(h.project.state, "CONTEXT.md").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. Read it before you start`));
+  assert.match(directive, /ask with kind question, and leave the file as it is/, "it is the Human's word, not the Lead's to edit");
 
-  const kept = await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour"] });
-  assert.equal(kept.ok, true, kept.text);
-  assert.ok(existsSync(join(docsIn, "decision.md")));
-  assert.ok(existsSync(join(docsIn, "detour.md")));
-  assert.equal(existsSync(join(docsIn, "postmortem.md")), false, "a document nobody asked for is never written");
-
-  // What the owner has written is never written over.
-  writeFileSync(join(docsIn, "decision.md"), "# D1: ours\n");
-  await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour"] });
-  assert.equal(readFileSync(join(docsIn, "decision.md"), "utf-8"), "# D1: ours\n");
-
-  // And a Lead is told which documents exist, since one nobody updates is worse than none.
-  await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
-  const lane = h.ledger().lanes.L1!;
-  assert.match(h.agents.get(lane.lead!)!.prompt ?? "", /keeps these documents .*decision, detour/);
-
-  // A directive is read once, when the Lead is seated. A lane already open hears the change by mail
-  // or never hears it at all.
-  const added = await h.call(sup, "supervisor", "set_project", { docs: ["decision", "detour", "handoff"] });
-  assert.equal(added.ok, true, added.text);
-  await h.idle(lane.lead!);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /DOCUMENTS: this project now keeps these under .*decision, detour, handoff/);
-
-  // Dropping one stops it being carried; what was written stays where it is.
-  const dropped = await h.call(sup, "supervisor", "set_project", { docs: [] });
-  assert.match(dropped.text, /Documents kept: none/);
-  await h.idle(lane.lead!);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /DOCUMENTS: this project no longer keeps any/, "and told when the last one goes");
-  assert.ok(existsSync(join(docsIn, "decision.md")), "dropping one does not throw away what was written in it");
+  const pages = await h.call(sup, "supervisor", "set_project", { docs: ["decision"] });
+  assert.equal(pages.ok, false, "the shelf of pages is gone, and so is the argument that kept them");
 });
 
 test("a review hands back a verdict and its findings, and the Lead is told both", async () => {

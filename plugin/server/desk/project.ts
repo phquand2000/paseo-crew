@@ -10,7 +10,7 @@ export type Project = { root: string; slug: string; state: string };
 
 export type GateOn = "lane" | "task";
 
-export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly: string[]; docs: string[] };
+export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly: string[] };
 
 const cache = new Map<string, Project>();
 
@@ -92,6 +92,15 @@ export function configFile(state: string): string {
 }
 
 /**
+ * The project's concept as the Human settled it: what it does and how it behaves. The Supervisor
+ * writes it, with nothing from the desk; a Lead is pointed at it once there is one.
+ */
+export function conceptFile(state: string): string | undefined {
+  const file = join(state, "CONTEXT.md");
+  return existsSync(file) ? file : undefined;
+}
+
+/**
  * An empty gate is a decision, and it has to survive being read back.
  *
  * Collapsed into `undefined`, "the owner switched the gate off" and "nobody has ever set one" were
@@ -108,7 +117,6 @@ export function loadConfig(state: string): ProjectConfig {
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
     gateOn: stored.gateOn === "task" ? "task" : "lane",
     serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : SERIAL_ONLY,
-    docs: Array.isArray(stored.docs) ? stored.docs.map(String) : [],
   };
 }
 

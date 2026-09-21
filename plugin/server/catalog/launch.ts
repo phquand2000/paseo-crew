@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
-import { type Kit, type McpServers, type RoleSpec, can, seatOf } from "./kit.ts";
+import { type Kit, type McpServers, type RoleSpec, seatOf } from "./kit.ts";
 import { stateTargets } from "./content.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
 
@@ -32,16 +32,14 @@ function appendAt(options: unknown, path: string, value: string): Json {
  * The grant used to be `state` itself. That directory also holds the desk's own record — the ledger,
  * the strike table, the event log, and `project.json`, whose `gate` the desk runs through `/bin/sh -c`
  * in the daemon, outside the seat's sandbox. So the grant is what the seat's own content tells it to
- * write there (`stateTargets`), and the Lead's project pages, which its directive tells it to keep.
+ * write there (`stateTargets`).
  *
  * This binds the shell only. The same files are kept from the file tools by deny rules in the
  * harness's own settings; a harness with no sandbox and no path rules has neither, and this cannot
  * give it one.
  */
 export function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
-  const segments = new Set(stateTargets(kit, role, skillDirsFor(team, role.role), rulesFor(team, role.role)));
-  if (can(role, "lead")) segments.add("docs");
-  return [...segments].sort().map((segment) => join(state, segment));
+  return stateTargets(kit, role, skillDirsFor(team, role.role), rulesFor(team, role.role)).map((segment) => join(state, segment));
 }
 
 export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {

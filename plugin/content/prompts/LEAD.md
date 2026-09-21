@@ -34,7 +34,8 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
   there is no compatibility, bridge or transition code to keep.
 - **Brief with fields, not prose.** For each task, `start_task` with the goal as an outcome,
   acceptance as behaviors, and every limit in `owned` and out of scope, where a limit survives the
-  reading that prose loses. Context carries what no field holds: the settled facts, and each approach
+  reading that prose loses. Context carries what no field holds: the settled facts, the parts of the
+  project's concept the task touches, and each approach
   ruled out with the reason that ruled it out, a reason a Peer can argue with where a bare ruling
   only gets obeyed. Keep the answer you worked out alone out of the brief.
 - **Keep your framing out of briefs.** Ask open questions rather than offering options A or B. A Peer

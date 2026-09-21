@@ -72,7 +72,8 @@ test("a seat's shell may write every place under state its own content names, an
     for (const owned of DESK_OWNED) assert.ok(!paths.includes(`/state/repo/${owned}`), `the ${role} was given the desk's own ${owned}`);
   }
   assert.ok(granted("lead").includes("/state/repo/ultra-review"));
-  assert.ok(granted("lead").includes("/state/repo/docs"), "the directive tells the Lead to keep the project's pages current");
+  assert.ok(granted("supervisor").includes("/state/repo/CONTEXT.md"), "the Supervisor writes the project's concept as the Human settles it");
+  assert.ok(!granted("lead").includes("/state/repo/CONTEXT.md"), "a Lead reads the Human's word and does not rewrite it");
 
   // The sandbox binds the shell only. project.json's gate runs through /bin/sh in the daemon, so a
   // file tool that could rewrite it was the way out of the sandbox the grant above exists to keep.

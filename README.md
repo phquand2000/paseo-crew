@@ -49,6 +49,11 @@ SLP is a graph, not a chain of command. Each party has its own kind of authority
 
 When a Supervisor messages a Peer directly, the desk tells that Peer's Lead first.
 
+Before new work opens, the Supervisor settles with you what it should do, in numbered rounds of
+questions with its recommended answer to each. What you settle about what the project does and how
+it behaves is kept in the project's `CONTEXT.md`, outside your repository, and each Lead is pointed at
+it. The Supervisor decides everything else itself.
+
 | Role | What it does | Desk tools | Default agent |
 |---|---|---|---|
 | Supervisor | Works with you, opens and closes lanes, and answers Leads, or their Peers when a Lead is gone. Marks what the watch raises | `open_lane` `close_lane` `message` `answer` `set_project` `status` `incidents` `ack` | Claude Code · `claude-opus-5` · high |

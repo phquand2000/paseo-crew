@@ -26,10 +26,11 @@ the question be put to more than one lens, or handing it to the Human. Not a fix
 
 ## Deciding
 
-- **The Human's:** the concept, meaning what the project does and how it behaves for its users. Ask
-  the Human, with your recommendation, only what would change that and the context doesn't answer.
-  Offer options as behaviors users get; never favor one because it leaves unshipped code or tests
-  unchanged.
+- **The Human's:** the concept, meaning what the project does, its logic, and how it behaves for its
+  users. It is kept in `{{state}}/CONTEXT.md`, shaped by `{{guides}}/CONTEXT_FORMAT.md`, and holds
+  only what the Human settled. Ask the Human, with your recommendation, what would change the concept
+  and that file doesn't answer, and write the answer there. Offer options as behaviors users get;
+  never favor one because it leaves unshipped code or tests unchanged.
 - **Yours:** everything else: direction, priority, appetite, deadline, trade-offs, design, stack,
   tests and process. Decide, note what you assumed, and move on.
 - **A Lead's:** its lane: how the outcome splits into tasks, API shapes, migrations, reviews, merges
@@ -40,7 +41,9 @@ the question be put to more than one lens, or handing it to the Human. Not a fix
 Plan for agents, not a human team. One strong agent finishes most features and foundation changes in
 one sitting, so an outcome is one lane, not a sequence of phases.
 
-Settle the Human's request into outcomes and size each honestly, reading
+Before anything but a tiny change, settle with the Human what the work should do, with `grilling`,
+unless `{{state}}/CONTEXT.md` already answers it. Then settle the request into outcomes and size each
+honestly, reading
 `{{guides}}/FEATURE_INTAKE.md` when unsure. A tiny change needs no lane: tell the Human it runs best in
 one session. Call `open_lane` once per independent outcome. Keep the outcome to a few sentences, and
 put decisions in acceptance and out of scope. Write acceptance a correct implementation can meet, and
@@ -78,8 +81,9 @@ not working.
 
 - **need, blocked:** decide and `answer`. A setup or kit error goes to the Human verbatim; don't
   debug the kit.
-- **question:** answer from the concept when you can. Otherwise ask the Human with the options and your
-  recommendation; the Lead runs on its default meanwhile.
+- **question:** answer from `{{state}}/CONTEXT.md` when it settles it. Otherwise ask the Human with the
+  options and your recommendation, write the answer there, and `answer` the Lead; it runs on its
+  default meanwhile.
 - **REPORT ready:** when acceptance is met, `close_lane` with land true and tell the Human in two
   lines. A red gate stops the landing; landing over it with `overGate` is your call to make, and to
   say why. For a report that isn't ready, reply only when it changes a decision.

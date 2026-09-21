@@ -37,6 +37,7 @@ agentskills.io, SkillsBench and SkillReducer.
 | `prompts/REVIEWER.md` review procedure | mattpocock `code-review`; SLP `ultra-review` schema and lenses; alibaba/open-code-review's `delegate` contract; OpenAI Codex's review rubric; Anthropic's code-review command; Atlassian's review-agent ablation and BitsAI-CR; the PR-description bias study |
 | `supervisor/pre-mortem` | Gary Klein's project premortem; SLP `council` sealed seats |
 | `supervisor/retrospective` | Cemri et al.'s multi-agent failure taxonomy; the SLP author's talk |
+| `supervisor/grilling`, `guides/CONTEXT_FORMAT.md` | mattpocock `grilling` and `domain-modeling` (its `CONTEXT.md` format) |
 | `guides/PLANS.md`, `ADR.md`, `REVIEW.md` | Nygard's ADR, MADR, Zdun et al.'s Y-statement, AWS and Azure ADR guidance; HumanLayer plans, GitHub Spec Kit, Rust stabilization reports, Kubernetes KEPs, OpenAI ExecPlans; Anthropic prompting guidance and BMAD templates; OpenAI harness-engineering lints and Factory's lint-driven agents |
 | `examples/WORKSPACE_PROTOCOL.md`, `records/NOTEBOOK.md` | the SLP author's workspace protocol and notebook; ITIL problem management and Google's SRE workbook; ACE, Mem0 and Xiong et al.; Gloaguen et al. and OpenAI harness engineering |
 
