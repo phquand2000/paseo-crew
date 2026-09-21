@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey, watchCard, watchState } from "../../client/data.ts";
+import { type Layer, countsInstead, dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setFlow, setMcp, setRole, setSensorKey, spent, watchCard, watchState } from "../../client/data.ts";
 import type { WatchView } from "../../shared/views.ts";
 import { KEPT } from "../../shared/rpc.ts";
 
@@ -215,14 +215,22 @@ test("while seats are running the card counts them, their readings and what they
   const live = watchCard(watching({
     telling: true,
     seats: [
-      { id: "a", role: "lead", running: true, readings: 13, cost: 0.0018, minutes: 0, highest: null },
-      { id: "b", role: "peer", running: false, readings: 43, cost: 0.0057, minutes: 2, highest: { question: "goal_drift", p: 0.81 } },
+      { id: "a", role: "lead", running: true, readings: 13, cost: 0.0062, minutes: 0, highest: null },
+      { id: "b", role: "peer", running: false, readings: 43, cost: 0.0406, minutes: 2, highest: { question: "goal_drift", p: 0.81 } },
     ],
     marks: { total: 1, open: 1, held: 1, useful: 0, noise: 0, recent: [] },
   }));
   assert.equal(live.title, "Watching 2 seats");
-  assert.equal(live.right, "56 read · 0.75¢");
+  assert.equal(live.right, "56 read · $0.047", "dollars, never cents");
   assert.match(live.hint, /goes to the Supervisor/);
   assert.match(live.marksHint, /1 still open, 1 of them held back\./);
   assert.match(live.marksHint, /None marked yet/);
+});
+
+test("money is shown in dollars, with enough places that a few cents do not read as nothing", () => {
+  assert.equal(spent(0), "nothing yet");
+  assert.equal(spent(0.0047), "$0.005");
+  assert.equal(spent(0.412), "$0.412");
+  assert.equal(spent(12.5), "$12.50");
+  assert.doesNotMatch(spent(0.004), /\u00a2/);
 });

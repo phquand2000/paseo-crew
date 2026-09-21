@@ -537,8 +537,11 @@ export function watchState(set: boolean, mailing: boolean, perDay: number, layer
   return { on: set, title: set ? "The watch is on" : "The watch is off", hint, mailHint, keyHint };
 }
 
-/** Money, to the tenth of a cent, because watching a whole lane costs about one cent in total. */
-export const spent = (cost: number): string => (cost === 0 ? "nothing yet" : cost < 0.01 ? `${(cost * 100).toFixed(2)}\u00a2` : `$${cost.toFixed(4)}`);
+/**
+ * Money in dollars, always. Three places below a dollar, because watching a whole lane costs a few
+ * cents and two places would print most seats as $0.00; two above it.
+ */
+export const spent = (cost: number): string => (cost === 0 ? "nothing yet" : `$${cost.toFixed(cost < 1 ? 3 : 2)}`);
 
 const since = (minutes: number): string => {
   if (minutes < 1) return "just now";
