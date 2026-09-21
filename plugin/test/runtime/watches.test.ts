@@ -89,7 +89,7 @@ test("a seat's brief is read again until the ledger has placed it", () => {
   // finds nothing. Kept, that nothing was every reading's goal for the whole task: 68 readings of one
   // run's Peers went to the sensor as "no task or lane", with no owned paths to hold its writes to.
   let placed = false;
-  const rules = { destructive: /x^/, testPath: /x^/, suppressed: /x^/, cwd: "/work", repeatsAt: 3, recoverWithin: 10 };
+  const rules = { destructive: /x^/, testPath: /x^/, suppressed: /x^/, gates: [], cwd: "/work", repeatsAt: 3, recoverWithin: 10 };
   const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, owned: placed ? ["src/a.ts"] : undefined }, heardSince: () => false, goal: placed ? "Task L1-T1: a" : "", role: "Peer" }));
   assert.equal(watch.brief()?.goal, "");
   placed = true;

@@ -61,7 +61,8 @@ export type Rules = {
   testPath: RegExp;
   suppressed: RegExp;
   exit?: RegExp;
-  gate?: string;
+  /** The commands that run the project's gate, the one it names first; empty when it has none. */
+  gates: string[];
   cwd?: string;
   temp?: string;
   owned?: string[];
@@ -80,13 +81,19 @@ export function failed(call: Call, exit?: RegExp): boolean {
   return code !== undefined && Number(code) !== 0;
 }
 
-export function isGate(call: Call, gate?: string): boolean {
-  return Boolean(gate) && call.detail.type === "shell" && str(call.detail.command).includes(gate!);
+export function isGate(call: Call, gates: string[]): boolean {
+  return call.detail.type === "shell" && gates.some((gate) => str(call.detail.command).includes(gate));
 }
 
-function actionOf(call: Call): string {
+const said = (value: unknown): boolean => value !== undefined && value !== null && value !== "" && !(typeof value === "object" && Object.keys(value).length === 0);
+
+/**
+ * What tells one call from another, or undefined when the record holds nothing that could: Paseo
+ * records a Claude seat's MCP calls with an empty input, and four different ones compared equal.
+ */
+function actionOf(call: Call): string | undefined {
   const { output: _output, exitCode: _exit, ...rest } = call.detail;
-  return `${call.name}\n${JSON.stringify(rest)}`;
+  return Object.entries(rest).some(([key, value]) => key !== "type" && said(value)) ? `${call.name}\n${JSON.stringify(rest)}` : undefined;
 }
 
 function resultOf(call: Call, exit?: RegExp): string {
@@ -96,7 +103,7 @@ function resultOf(call: Call, exit?: RegExp): string {
 export function stuck(units: Unit[], rules: Pick<Rules, "exit" | "repeatsAt">): string | undefined {
   const recent = units.slice(-20);
   const calls = recent.flatMap((unit) => (unit.kind === "call" && unit.call.ended && !unit.call.pseudo ? [unit.call] : []));
-  const same = (list: string[]) => list.every((value) => value === list[0]);
+  const same = (list: (string | undefined)[]) => list[0] !== undefined && list.every((value) => value === list[0]);
   const n = rules.repeatsAt;
   const tail = calls.slice(-(n + 1));
   if (!rules.exit && tail.length === n + 1 && same(tail.map(actionOf)) && same(tail.map((call) => resultOf(call)))) {
@@ -142,10 +149,24 @@ function outside(path: string, rules: Rules): boolean {
   return !rules.owned.some((glob) => globToRegex(glob).test(rel));
 }
 
+const SCRATCH = /^(?:\$\{?TMPDIR\}?|\/tmp|\/private\/tmp)(?:\/|$)/;
+
+/** An `rm` whose every target is scratch space: $TMPDIR, /tmp, or the machine's temporary directory. */
+function scratchOnly(part: string, temp?: string): boolean {
+  const words = part.trim().split(/\s+/);
+  if (words[0] !== "rm") return false;
+  const targets = words.slice(1).filter((word) => !word.startsWith("-")).map((word) => word.replace(/^["']|["']$/g, ""));
+  return targets.length > 0 && targets.every((target) => SCRATCH.test(target) || Boolean(temp && isAbsolute(target) && !relative(temp, target).startsWith("..")));
+}
+
 export function onDetail(call: Call, rules: Rules): Fact[] {
   if (call.detail.type !== "shell") return [];
-  const command = str(call.detail.command);
-  return command && rules.destructive.test(command) ? [{ kind: "destructive", level: "page", quote: around(flat(command, Infinity), rules.destructive, 200) }] : [];
+  // Read a command at a time: removing the file a commit message was written to is not what this is
+  // for, and one run paged a Lead for exactly that.
+  const risky = str(call.detail.command)
+    .split(/&&|\|\||;|\n/)
+    .find((part) => rules.destructive.test(part) && !scratchOnly(part, rules.temp));
+  return risky ? [{ kind: "destructive", level: "page", quote: around(flat(risky, Infinity), rules.destructive, 200) }] : [];
 }
 
 const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
@@ -208,7 +229,7 @@ export function onSettle(call: Call, rules: Rules, known?: (path: string) => str
   const facts: Fact[] = [];
   const detail = call.detail;
   const bad = failed(call, rules.exit);
-  if (bad) facts.push({ kind: isGate(call, rules.gate) ? "gate-failed" : "call-failed", level: "note", quote: flat(describe(call)) });
+  if (bad) facts.push({ kind: isGate(call, rules.gates) ? "gate-failed" : "call-failed", level: "note", quote: flat(describe(call)) });
   const writes = detail.type === "edit" || detail.type === "write";
   const both = writes && !bad ? sides(detail, known) : undefined;
   if (both) {
@@ -255,7 +276,7 @@ export class Recovery {
       return [];
     }
     if (!this.open) return [];
-    if (shell && !bad && (head(command) === this.open.head || isGate(call, rules.gate))) {
+    if (shell && !bad && (head(command) === this.open.head || isGate(call, rules.gates))) {
       this.open = undefined;
       return [];
     }
@@ -271,18 +292,19 @@ export class Recovery {
 }
 
 export function unverified(window: Window, rules: Rules, heard: boolean): Fact[] {
-  if (!heard || !rules.gate) return [];
+  const named = rules.gates[0];
+  if (!heard || !named) return [];
   const calls = window.sinceInstruction().flatMap((unit) => (unit.kind === "call" ? [unit.call] : []));
   let lastWrite = -1;
   let lastGate = -1;
   const inside = (call: Call) => (call.detail.type === "edit" || call.detail.type === "write") && !escapes(str(call.detail.filePath), rules);
   calls.forEach((call, index) => {
     if (inside(call) && !failed(call, rules.exit)) lastWrite = index;
-    if (isGate(call, rules.gate)) lastGate = index;
+    if (isGate(call, rules.gates)) lastGate = index;
   });
   if (lastWrite < 0 || lastGate > lastWrite) return [];
   const written = new Set(calls.filter(inside).map((call) => str(call.detail.filePath)));
-  return [{ kind: "unverified", level: "attend", quote: `${written.size} file${written.size === 1 ? "" : "s"} written and \`${flat(rules.gate, 100)}\` not run after the last of them` }];
+  return [{ kind: "unverified", level: "attend", quote: `${written.size} file${written.size === 1 ? "" : "s"} written and \`${flat(named, 100)}\` not run after the last of them` }];
 }
 
 export function afterChange(change: Change, rules: Rules, known?: (path: string) => string | undefined): Fact[] {

@@ -1,4 +1,5 @@
 import { appendFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "../catalog/content.ts";
@@ -15,7 +16,7 @@ import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { type Ledger, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
-import { type Project, loadConfig, projectOf } from "../desk/project.ts";
+import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
 import { codeIndex } from "./code-index.ts";
 import { type Letter, Outbox } from "./outbox.ts";
@@ -163,8 +164,9 @@ export class Runtime {
         testPath: new RegExp(attention.testPath, "i"),
         suppressed: new RegExp(attention.suppressed, "i"),
         exit: harness.exitPattern ? new RegExp(harness.exitPattern) : undefined,
-        gate: loadConfig(project.state).gate,
+        gates: gateCommands(seat.cwd, loadConfig(project.state).gate),
         cwd: seat.cwd,
+        temp: tmpdir(),
         owned,
         repeatsAt: attention.repeatsAt,
         recoverWithin: 10,
@@ -197,7 +199,7 @@ export class Runtime {
     if (!sensor) return undefined;
     const brief = watch.brief();
     if (!brief || brief.goal === null) return undefined;
-    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gate, turn: watch.running ? "running" : "ended", exit: brief.rules.exit, destructive: brief.rules.destructive } };
+    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gates[0], turn: watch.running ? "running" : "ended", exit: brief.rules.exit, destructive: brief.rules.destructive } };
   }
 
   private assessed(watch: SeatWatch, reading: Reading): void {

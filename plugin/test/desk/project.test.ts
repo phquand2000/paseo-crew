@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { clearProjects, gitRoot, projectOf, slugFor } from "../../server/desk/project.ts";
+import { clearProjects, gateCommands, gitRoot, projectOf, slugFor } from "../../server/desk/project.ts";
 import { tempDir } from "../tempdir.ts";
 
 test("a slug is stable and readable", () => {
@@ -33,4 +33,16 @@ test("a directory outside git is its own project", () => {
   const project = projectOf(dir, "/state");
   assert.equal(project.root, dir);
   assert.equal(project.state, join("/state", "projects", project.slug));
+});
+
+test("a gate that names a package script is also run by the runner that script starts", () => {
+  // Briefs tell a Peer to run `node --test "test/json/pointer.test.js"`; the watch knew only the words
+  // `npm test`, and read every such hand-back as one nobody had verified.
+  const root = tempDir("sw2-gates-");
+  writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: 'node --test "test/**/*.test.js"', check: "tsc --noEmit && vitest run --reporter dot" } }));
+  assert.deepEqual(gateCommands(root, "npm test"), ["npm test", "node --test"]);
+  assert.deepEqual(gateCommands(root, "npm run check"), ["npm run check", "vitest run"]);
+  assert.deepEqual(gateCommands(root, "cargo test"), ["cargo test"]);
+  assert.deepEqual(gateCommands(root, "npm run missing"), ["npm run missing"]);
+  assert.deepEqual(gateCommands(root, undefined), []);
 });

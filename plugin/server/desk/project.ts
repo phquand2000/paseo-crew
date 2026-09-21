@@ -66,6 +66,27 @@ export function detectGate(root: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The commands that run `gate`, the gate itself first. A gate naming a package script is also run
+ * by the runner that script starts — `node --test`, `vitest run` — which is how a seat runs its own
+ * module's tests; known only by the words `npm test`, every such run read as no run at all.
+ */
+export function gateCommands(root: string, gate: string | undefined): string[] {
+  if (!gate?.trim()) return [];
+  const script = /^(?:npm|pnpm|yarn|bun)(?: run)? ([\w:.-]+)$/.exec(gate.trim())?.[1];
+  let body: unknown;
+  try {
+    body = script ? JSON.parse(readFileSync(join(root, "package.json"), "utf-8"))?.scripts?.[script] : undefined;
+  } catch {}
+  if (typeof body !== "string") return [gate];
+  // The last command of the script is the one that runs the tests; before it come builds and checks.
+  // Its runner is the program and at most one word after it, and never a path: what every narrower
+  // run of the same tests still starts with.
+  const words = body.split(/&&|\|\||;/).at(-1)!.trim().split(/\s+/).slice(0, 2);
+  const runner = words.slice(0, words.findIndex((word) => !/^[\w@.:-]+$/.test(word)) >>> 0).join(" ");
+  return runner && runner !== gate ? [gate, runner] : [gate];
+}
+
 export function configFile(state: string): string {
   return join(state, "project.json");
 }
