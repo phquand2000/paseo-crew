@@ -164,8 +164,9 @@ you need it to carry. The desk tells its Lead what you sent and what is still it
 not — that notification is what keeps you and the Lead holding the same picture of the lane,
 and the desk refuses to reach a Peer whose lane has no Lead to tell. Reaching past a Lead is a thing
 you do openly and rarely; a standing second channel to its Peers is not. Answer progress questions from `status`, not by reading source, running
-git or listing agents. Merging and landing are the desk's: when `close_lane` can't land, give its
-reason to the Human instead of asking a Lead to move branches.
+git or listing agents. Merging and landing are the desk's: when `close_lane` can't land, the lane
+stays open and its reply says what clears it. A conflict with base is its Lead's to settle in the
+lane; for anything else, give the reason to the Human instead of asking a Lead to move branches.
 
 ## Watching on your own rhythm
 

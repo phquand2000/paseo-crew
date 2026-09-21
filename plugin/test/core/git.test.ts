@@ -34,15 +34,17 @@ test("a task branch merges into the lane and main fast-forwards to it", async ()
   assert.equal(await headSha(root, "main"), await headSha(root, "lane/l1"));
 });
 
-test("a lane lands by merge when main moved without touching the same files", async () => {
+test("a lane that does not contain main is not landed: that merge would be one no gate saw", async () => {
   const { root, run, commit } = repo();
   run("checkout", "-qb", "lane/l2");
   commit("c.txt", "lane\n", "lane work");
   run("checkout", "-q", "main");
   commit("d.txt", "main\n", "main moved");
+  const before = await headSha(root, "main");
   const landed = await landLane(root, "main", "lane/l2");
-  assert.equal(landed.landed, true);
-  assert.equal(run("merge-base", "--is-ancestor", "lane/l2", "main").trim(), "");
+  assert.equal(landed.landed, false);
+  assert.match(landed.how, /does not contain main/);
+  assert.equal(await headSha(root, "main"), before);
 });
 
 test("a conflicting task leaves the lane unchanged and names the files", async () => {

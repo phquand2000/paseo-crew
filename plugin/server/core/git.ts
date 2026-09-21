@@ -175,37 +175,17 @@ export async function isAncestor(root: string, base: string, branch: string): Pr
 }
 
 /**
- * `parked` is the branch the desk itself put the main working copy on, and only when nothing is
- * writing there. Without it, a lane working in the project's own copy could never be merged: this
- * read requires the copy to be on `base`, and the desk had moved it off base to open the lane.
+ * Moves `base` up to `branch`, which must already contain it: every merge a landing needs has been
+ * made in the lane's own copy and gated there, so what lands is exactly what the gate saw. Merging
+ * here instead needed a working copy standing on `base`, and with the project's own copy carrying
+ * another lane there was none, so a finished lane closed on a branch left for the Human.
  */
-export async function landLane(root: string, base: string, branch: string, parked?: string): Promise<LandResult> {
-  const ancestor = await git(root, ["merge-base", "--is-ancestor", base, branch]);
-  let checkedOut = await currentBranch(root);
-  const readable = async (): Promise<string | undefined> => {
+export async function landLane(root: string, base: string, branch: string): Promise<LandResult> {
+  if (!(await isAncestor(root, base, branch))) return { landed: false, how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated` };
+  if ((await currentBranch(root)) === base) {
     const state = await cleanState(root);
-    if (state === "dirty") return `the main working copy on ${base} has uncommitted changes`;
-    if (state === "unknown") return `git could not read the main working copy at ${root}`;
-    return undefined;
-  };
-  if (ancestor.code !== 0) {
-    if (checkedOut !== base && parked && checkedOut === parked) {
-      const problem = await readable();
-      if (problem) return { landed: false, how: problem };
-      const back = await git(root, ["switch", base]);
-      if (back.code !== 0) return { landed: false, how: back.stderr.trim() || `the main working copy could not be put back on ${base}` };
-      checkedOut = base;
-    }
-    if (checkedOut !== base) return { landed: false, how: `${base} moved since ${branch} started and is not checked out in the main working copy, so it cannot be merged there` };
-    const problem = await readable();
-    if (problem) return { landed: false, how: problem };
-    const merged = await mergeBranch(root, branch, `Land ${branch}`);
-    if (merged.ok) return { landed: true, how: `merged ${branch} into ${base} in the main working copy` };
-    return { landed: false, how: merged.conflicts.length > 0 ? `${branch} conflicts with ${base} in ${merged.conflicts.join(", ")}` : merged.message };
-  }
-  if (checkedOut === base) {
-    const problem = await readable();
-    if (problem) return { landed: false, how: problem };
+    if (state === "dirty") return { landed: false, how: `the main working copy on ${base} has uncommitted changes` };
+    if (state === "unknown") return { landed: false, how: `git could not read the main working copy at ${root}` };
     const run = await git(root, ["merge", "--ff-only", branch]);
     return run.code === 0 ? { landed: true, how: `fast-forwarded ${base} in the main working copy` } : { landed: false, how: run.stderr.trim() || "fast-forward failed" };
   }

@@ -382,30 +382,31 @@ test("a lane in the project's own copy whose base moved waits for a seat mid-tur
   h.git(h.project.root, "add", "-A");
   h.git(h.project.root, "commit", "-qm", "four");
 
-  // main moves on while the lane runs, so landing is a merge — and a merge needs a working copy
-  // standing on main. The desk put the project's own copy on the lane branch to open the lane, and
-  // then refused to land over exactly that, twenty-five lines before putting it back.
+  // main moves on while the lane runs, so landing starts with merging main into the lane, in the
+  // copy the lane works in — which here is the project's own.
   const side = join(mkdtempSync(join(tmpdir(), "sw2-moved-")), "wt");
   h.git(h.project.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.project.root, "branch", "-f", "main", "side");
   h.git(h.project.root, "worktree", "remove", "--force", side);
 
-  // While the Lead is mid-turn in that copy, it is not switched under it: its next commit would land
-  // on main itself. The first version of this guard asked a set that fills only once an archive has
-  // found a seat running, before anything had been archived — so it never held, and this test, whose
-  // Lead was running the whole time, passed because of that.
+  // While the Lead is mid-turn in that copy, nothing is merged under it. The first version of this
+  // guard asked a set that fills only once an archive has found a seat running, before anything had
+  // been archived — so it never held, and this test, whose Lead was running the whole time, passed
+  // because of that.
+  const head = h.git(h.root, "rev-parse", "HEAD");
   const reports = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(reports.ok, false, reports.text);
   assert.match(reports.text, /a seat is mid-turn there/);
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lane.branch, "the copy under a running seat stays where the seat is");
+  assert.equal(h.git(h.root, "rev-parse", "HEAD"), head, "the copy under a running seat is left as the seat has it");
   assert.doesNotMatch(h.git(h.root, "show", "main:a.txt"), /four/);
   // And the lane is still open, so the landing waits for the turn instead of being lost: closed first,
   // a lane cannot be closed again, and the Supervisor's decision could never be carried out.
   assert.equal(h.ledger().lanes.L1!.status, "open");
   h.agents.get(lane.lead!)!.status = "idle";
   const landed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
-  assert.match(landed.text, /merged .* into main/, landed.text);
+  assert.equal(landed.ok, true, landed.text);
+  assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
   h.runtime.dispose();
 });
 
@@ -425,12 +426,13 @@ test("a lane in the project's own copy lands after its base moved, once nobody i
   h.git(h.project.root, "worktree", "remove", "--force", side);
 
   // The desk put the project's own copy on the lane branch to open the lane, and then refused to land
-  // over exactly that. With the Lead stopped, the copy may go back to main first.
+  // over exactly that. With the Lead stopped, main is merged into the lane where it stands, and main
+  // moves up to the result.
   h.agents.get(lane.lead!)!.status = "idle";
   const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
-  assert.match(closed.text, /merged .* into main/, closed.text);
   assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
+  assert.equal(h.git(h.root, "log", "-1", "--format=%s", "main").trim(), `Bring main into ${lane.branch}`);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
   h.runtime.dispose();
 });
@@ -871,6 +873,74 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   assert.equal(existsSync(dirname(lane.worktree!)), false, "and the folder the desk made for this project's copies goes with the last of them");
   assert.deepEqual(Object.keys(h.ledger().slots), []);
   assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim().length > 0, true, "the lane branch is kept for the Human either way");
+  h.runtime.dispose();
+});
+
+/** Three lanes as a run opens them: the first in the project's own copy, the other two in copies of their own. */
+async function threeLanes(outbox: string, gate: string) {
+  const h = harness(outbox);
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate });
+  const scope = { outOfScope: ["anything else in the repository"] };
+  for (const [title, path] of [["Part A", "a/**"], ["Part B", "b/**"], ["Part C", "c/**"]] as const) {
+    const opened = await h.call(sup, "supervisor", "open_lane", { title, outcome: title, acceptance: ["done"], writeSet: [path], ...scope });
+    assert.equal(opened.ok, true, opened.text);
+  }
+  const lanes = h.ledger().lanes;
+  for (const lane of Object.values(lanes)) h.agents.get(lane.lead!)!.status = "idle";
+  const work = (lane: { worktree?: string }, file: string, text = `${file}\n`) => {
+    mkdirSync(join(lane.worktree!, dirname(file)), { recursive: true });
+    writeFileSync(join(lane.worktree!, file), text);
+    h.git(lane.worktree!, "add", "-A");
+    h.git(lane.worktree!, "commit", "-qm", file);
+  };
+  return { h, sup, lanes, work };
+}
+
+test("a lane lands after another lane moved main, even while a third holds the project's own copy", async () => {
+  const { h, sup, lanes, work } = await threeLanes("outbox-threelanes.json", "true");
+  assert.equal(lanes.L1!.slot, undefined, "the first lane works in the project's own copy");
+  work(lanes.L2!, "b/b.txt");
+  work(lanes.L3!, "c/c.txt");
+
+  const third = await h.call(sup, "supervisor", "close_lane", { lane: "L3", land: true });
+  assert.equal(third.ok, true, third.text);
+  // main has moved on, and the only copy that could stand on it is carrying L1. The desk closed L2
+  // anyway, said "not landed" under an ok, and had no verb left to land it with: a finished part of
+  // the run was left on a branch for the Human.
+  const second = await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: true });
+  assert.equal(second.ok, true, second.text);
+  assert.doesNotMatch(second.text, /not landed/);
+  assert.equal(h.git(h.root, "show", "main:b/b.txt"), "b/b.txt\n");
+  assert.equal(h.git(h.root, "show", "main:c/c.txt"), "c/c.txt\n");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lanes.L1!.branch, "the lane in the project's own copy is not moved for it");
+  assert.equal(h.ledger().lanes.L1!.status, "open");
+  h.runtime.dispose();
+});
+
+test("the gate that lets a lane land runs on the lane with main's newer work in it", async () => {
+  const { h, sup, lanes, work } = await threeLanes("outbox-mergedgate.json", "test ! -f b/b.txt || test -f c/c.txt");
+  work(lanes.L2!, "b/b.txt");
+  work(lanes.L3!, "c/c.txt");
+  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L3", land: true })).ok, true);
+  const second = await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: true });
+  assert.equal(second.ok, true, second.text);
+  assert.equal(h.git(h.root, "show", "main:b/b.txt"), "b/b.txt\n");
+  h.runtime.dispose();
+});
+
+test("a lane main cannot be merged into is refused and stays open, its copy as it was", async () => {
+  const { h, sup, lanes, work } = await threeLanes("outbox-lanefight.json", "true");
+  work(lanes.L2!, "shared.txt", "b side\n");
+  work(lanes.L3!, "shared.txt", "c side\n");
+  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L3", land: true })).ok, true);
+  const before = h.git(lanes.L2!.worktree!, "rev-parse", "HEAD");
+  const second = await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: true });
+  assert.equal(second.ok, false, second.text);
+  assert.match(second.text, /shared\.txt/);
+  assert.equal(h.ledger().lanes.L2!.status, "open", "refused before anything was closed, so it can still land");
+  assert.equal(h.git(lanes.L2!.worktree!, "rev-parse", "HEAD"), before);
+  assert.equal(h.git(lanes.L2!.worktree!, "status", "--porcelain"), "");
   h.runtime.dispose();
 });
 

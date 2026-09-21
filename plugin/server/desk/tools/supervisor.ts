@@ -1,5 +1,5 @@
 import { configFault } from "../../core/config-file.ts";
-import { branchExists, currentBranch, isAncestor, landLane, trackedFiles } from "../../core/git.ts";
+import { branchExists, currentBranch, isAncestor, landLane, mergeBranch, trackedFiles } from "../../core/git.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
 import { docsDir, placeDoc } from "../../catalog/templates.ts";
 import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
@@ -7,9 +7,10 @@ import { type Args, type Caller, no, ok, str, strs } from "../context.ts";
 import { errorText } from "../../core/errors.ts";
 import { laneGate } from "../gates.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
-import { type Lane, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";
+import { type Lane, type Ledger, type Task, findLane, loadLedger, nextLaneId, slugify, tasksOf } from "../ledger.ts";
 import { clip, letters, outside } from "../letters.ts";
 import { type Project, type ProjectConfig, configFile, detectGate, loadConfig, saveConfig } from "../project.ts";
+import type { Roster } from "../roster.ts";
 import type { DeskServices, Tool } from "../services.ts";
 import { namedOrNot } from "./shared.ts";
 
@@ -165,6 +166,35 @@ export const openLane: Tool = async (desk, caller, args) => {
   }
 };
 
+/**
+ * Merges the lane's base into the lane, in the lane's own copy, when base has moved on since the lane
+ * started. Returns why it could not, or undefined when the lane now contains base.
+ *
+ * Not under a seat mid-turn there: what it writes is its own until its turn ends, and a merge would
+ * land under it. A seat the desk cannot see counts as writing.
+ */
+async function bringBaseIn(roster: Roster, ledger: Ledger, lane: Lane): Promise<string | undefined> {
+  if (!lane.worktree) return `it has no working copy on record to merge ${lane.base} into.`;
+  if (await isAncestor(lane.worktree, lane.base, lane.branch)) return undefined;
+  const writers = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)];
+  const writing = await Promise.all(
+    writers.map(async (id) => {
+      if (typeof id !== "string") return false;
+      try {
+        const seat = await roster.look(id);
+        return !seat.archivedAt && (seat.status === "running" || seat.status === "initializing");
+      } catch {
+        return true;
+      }
+    }),
+  );
+  if (writing.some(Boolean)) return `${lane.base} has moved on, so landing it starts with merging ${lane.base} into ${lane.branch} in its copy, and a seat is mid-turn there. Close it again once that turn ends, or close it with land false.`;
+  const merged = await mergeBranch(lane.worktree, lane.base, `Bring ${lane.base} into ${lane.branch}`);
+  if (merged.ok) return undefined;
+  const why = merged.conflicts.length > 0 ? `conflicts in ${merged.conflicts.join(", ")}` : merged.message;
+  return `${lane.base} has moved on and does not merge into ${lane.branch}: ${why}. Nothing was changed. Message its Lead to merge ${lane.base} into the lane and settle it, or close it with land false.`;
+}
+
 export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, caller, args) => {
   const { project } = caller;
   const ledger = loadLedger(project.state);
@@ -178,6 +208,13 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   await merges.settled(project);
   let landing = `the branch ${lane.branch} is kept for the Human`;
   if (args.land === true) {
+    // One order, whatever else is open: bring base into the lane in the lane's own copy, gate that,
+    // then move base up to it. A landing that cannot happen is refused while the lane is still open.
+    // Closed first, a lane cannot be closed again, and one run lost a finished part that way: base
+    // had moved, the only copy that could stand on it was carrying another lane, and the reply was
+    // "not landed" under an ok.
+    const synced = await bringBaseIn(roster, ledger, lane);
+    if (synced) return no(`Lane ${lane.id} was not closed: ${synced}`);
     const gate = await laneGate(ctx, project, lane);
     // A red gate stops the landing by default, and landing over it is the Supervisor's to decide — the
     // verdict is evidence. There was no way to say so: the only choices were not to land at all, or to
@@ -185,39 +222,10 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     if (!gate.ok && args.overGate !== true) {
       return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, close it with land false, or land it over the gate with overGate true — that is your call.`);
     }
+    const result = await landLane(project.root, lane.base, lane.branch);
+    if (!result.landed) return no(`Lane ${lane.id} was not closed: it could not land, because ${result.how}. Close it again once that is cleared, or close it with land false.`);
     if (!gate.ok) ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: caller.id });
-    // Where `base` has moved on, landing is a merge, and a merge needs a working copy standing on
-    // base. For a lane working in place the desk itself put the project's own copy on the lane's
-    // branch, so that read refused every such lane over an arrangement the desk made and undid a
-    // moment later. It may be moved back only while nobody is mid-turn in it: what a seat writes
-    // there is its own until its turn ends, which is what the teardown waits for.
-    // Asked of the seats themselves. The first version of this read `pendingArchive`, which fills only
-    // when an archive finds a seat running — and nothing in this lane had been archived yet — so it was
-    // empty every time, and the owner's copy was switched to base under a seat mid-turn whose next
-    // commit then landed on base itself. A seat the desk cannot see counts as writing.
-    const writers = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)];
-    const writing = await Promise.all(
-      writers.map(async (id) => {
-        if (typeof id !== "string") return false;
-        try {
-          const seat = await roster.look(id);
-          return !seat.archivedAt && (seat.status === "running" || seat.status === "initializing");
-        } catch {
-          return true;
-        }
-      }),
-    );
-    const parked = !lane.slot && !writing.some(Boolean) ? lane.branch : undefined;
-    // A merge the copy cannot be moved for is refused before anything is closed. Closed first, the lane
-    // could not be closed again, so a landing that only had to wait for one turn to end was lost for
-    // good, under git's reason rather than the real one.
-    if (!lane.slot && !parked && !(await isAncestor(project.root, lane.base, lane.branch))) {
-      return no(
-        `Lane ${lane.id} was not closed: ${lane.base} has moved on, so landing it is a merge in the project's own copy, and a seat is mid-turn there. Close it again once that turn ends, or close it with land false.`,
-      );
-    }
-    const result = await landLane(project.root, lane.base, lane.branch, parked);
-    landing = result.landed ? `${result.how}${gate.ok ? "" : ", over a red gate"}; ${lane.branch} is kept` : `not landed: ${result.how}; ${lane.branch} is kept for the Human`;
+    landing = `${result.how}${gate.ok ? "" : ", over a red gate"}; ${lane.branch} is kept`;
   }
   const retired = await ctx.ledger(project, (current) => {
     const entry = current.lanes[lane.id];
