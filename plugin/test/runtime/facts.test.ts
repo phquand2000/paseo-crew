@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import type { Seen } from "../../server/core/ports.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
-import { DESTRUCTIVE, FACT_LEVELS, FACT_TITLES, type Fact, type Rules, SUPPRESSED, TEST_PATH } from "../../server/runtime/watch/facts.ts";
+import { DESTRUCTIVE, FACT_LEVELS, FACT_TITLES, type Fact, type Rules, SUPPRESSED, TEST_PATH, onDetail } from "../../server/runtime/watch/facts.ts";
 import { weigh } from "../../server/runtime/watch/rules.ts";
 import { SeatWatch } from "../../server/runtime/watch/watches.ts";
 
@@ -362,4 +362,14 @@ test("every fact that can open an incident has a title a person can read", () =>
     if (level === "note") assert.equal(FACT_TITLES[kind], undefined, `${kind} never reaches a screen`);
     else assert.ok(FACT_TITLES[kind] && !/[-_]/.test(FACT_TITLES[kind]!.split(" ")[0]!), `${kind} has no readable title`);
   }
+});
+
+test("an irreversible command is quoted where it is irreversible, however long what comes before it", () => {
+  // One run's page quoted `cat … > …/S10/src/text/wrap.js && rm -rf /Users/lon`: the first 200
+  // characters of the command, cut right where the Supervisor needed to read what was removed.
+  const command = `cat ${"/long/path/segment".repeat(12)}/wrap.js > ${"/long/path/segment".repeat(6)}/wrap.js && rm -rf /Users/me/stray-copy`;
+  const [fact] = onDetail({ id: "c", name: "Bash", status: "completed", ended: true, detail: { type: "shell", command } } as never, rules());
+  assert.equal(fact?.kind, "destructive");
+  assert.match(fact!.quote, /rm -rf \/Users\/me\/stray-copy$/);
+  assert.equal(fact!.quote.length <= 201, true, fact!.quote);
 });

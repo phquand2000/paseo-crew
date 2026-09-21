@@ -1788,6 +1788,30 @@ test("the brief a Peer is read against names the tasks being written beside it",
   h.runtime.dispose();
 });
 
+test("the brief a Peer is read against carries what its Lead said in the task's context", async (t) => {
+  const { h, lane } = await laneWithPeer("outbox-briefcontext.json");
+  // The Lead told this Peer to write its own stand-in in the test file; the sensor, not shown that,
+  // read the stand-in as a missing mechanism the Peer had invented.
+  const told = "write a small local applier inside test/b.test.js";
+  const second = await h.call(lane.lead!, "lead", "start_task", { title: "Second part", goal: "g2", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], context: told, parallel: true });
+  assert.equal(second.ok, true, second.text);
+  await h.tick();
+  const states: { goal: string }[] = [];
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { state: { goal: string }; questions: Record<string, unknown> };
+    states.push(body.state);
+    return new Response(JSON.stringify({ answers: Object.fromEntries(Object.keys(body.questions).map((n) => [n, { type: "noul", noul: 0.1 }])), model: "m", id: "g", usage: { cost: 0 } }), { status: 200 });
+  });
+  const timeline = h.timelineOf(h.ledger().tasks["L1-T2"]!.peer!);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "build it" }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.match(states.at(-1)?.goal ?? "", new RegExp(`Context: ${told.replaceAll(".", "\\.")}`));
+  h.runtime.dispose();
+});
+
 test("a stuck seat the sensor does not think stuck is held back from the Supervisor, and the sensor's word is kept on the incident", async (t) => {
   const { h, sup, timeline } = await laneWithPeer("outbox-vetoed.json", { attention: { watch: true } });
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {

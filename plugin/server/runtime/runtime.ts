@@ -141,6 +141,9 @@ export class Runtime {
         goal = [
           `Task ${task.id}: ${task.title}`,
           `Goal: ${task.goal}`,
+          // What the Lead told it beyond the goal, a stand-in to write for one: without it the
+          // sensor reads what the Lead asked for as the Peer's own invention.
+          ...(task.context ? [`Context: ${task.context}`] : []),
           `Acceptance: ${task.acceptance.join("; ")}`,
           `Out of scope: ${task.outOfScope.join("; ")}`,
           // What this seat will find unwritten, and why that is expected rather than missing.
@@ -194,7 +197,7 @@ export class Runtime {
     if (!sensor) return undefined;
     const brief = watch.brief();
     if (!brief || brief.goal === null) return undefined;
-    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gate, turn: watch.running ? "running" : "ended", exit: brief.rules.exit } };
+    return { spec: sensor.spec, key: sensor.key, brief: { goal: brief.goal, role: brief.role, gate: brief.rules.gate, turn: watch.running ? "running" : "ended", exit: brief.rules.exit, destructive: brief.rules.destructive } };
   }
 
   private assessed(watch: SeatWatch, reading: Reading): void {

@@ -413,3 +413,14 @@ test("every question the shipped sensor asks carries a label a person can read, 
   }
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { instructions: "?", label: 3 } } } as never), ["asks q with a label that is not text"]);
 });
+
+test("the sensor is shown the part of a long command that makes it irreversible", () => {
+  // Every step is cut to fit, from the front: a run's `rm -rf` sat past the cut in every state the
+  // sensor read, and its question about irreversible actions never rose above a third.
+  const window = new Window();
+  window.add({ item: { type: "user_message", text: "go" }, seq: 1, epoch: "e", turnId: "t", replay: false });
+  const command = `cat ${"/long/path/segment".repeat(12)}/wrap.js > out.js && rm -rf /Users/me/stray-copy`;
+  window.add({ item: { type: "tool_call", callId: "c", name: "Bash", status: "completed", detail: { type: "shell", command } }, seq: 2, epoch: "e", turnId: "t", replay: false });
+  const state = stateOf(window, { goal: "g", role: "Peer", turn: "running", destructive: /\brm\s+-[a-z]*r/i }, 8000);
+  assert.match(JSON.stringify(state.recent), /rm -rf \/Users\/me\/stray-copy/);
+});

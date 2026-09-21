@@ -1,5 +1,5 @@
 import type { Question, SensorSpec } from "../../catalog/kit.ts";
-import { describe, failed, type Fact, sides, TRUNCATED, within } from "./facts.ts";
+import { around, describe, failed, type Fact, sides, TRUNCATED, within } from "./facts.ts";
 import { mask } from "./mask.ts";
 import type { SeatWatch } from "./watches.ts";
 import type { Call, Unit, Window } from "./window.ts";
@@ -145,7 +145,7 @@ function changed(call: Call): string {
   return ` +${added.length} -${removed}${note}${first ? `: ${clip(first, 120)}` : ""}`;
 }
 
-function line(unit: Unit, exit?: RegExp): string {
+function line(unit: Unit, exit?: RegExp, destructive?: RegExp): string {
   if (unit.kind === "call") {
     const call = unit.call;
     const bad = call.ended && failed(call, exit);
@@ -153,7 +153,7 @@ function line(unit: Unit, exit?: RegExp): string {
     const input = call.detail.input;
     const bare = !["command", "filePath", "url", "query"].some((key) => str(call.detail[key]));
     const given = bare && input && typeof input === "object" ? ` ${clip(flat(mask(JSON.stringify(input))), 200)}` : "";
-    const head = `${clip(flat(mask(describe(call))), 150)}${given} [${!call.ended ? "running" : bad ? "failed" : call.status}${code}]`;
+    const head = `${around(flat(mask(describe(call))), destructive, 150)}${given} [${!call.ended ? "running" : bad ? "failed" : call.status}${code}]`;
     if ((call.detail.type === "edit" || call.detail.type === "write") && !bad) return `${head}${changed(call)}`;
     const output = flat(mask(str(call.detail.output) || saidError(call.error)));
     return output ? `${head} → ${tail(output, 250)}` : head;
@@ -165,7 +165,7 @@ function line(unit: Unit, exit?: RegExp): string {
   return "context compacted";
 }
 
-export type Brief = { goal: string; role: string; gate?: string; turn: "running" | "ended"; exit?: RegExp };
+export type Brief = { goal: string; role: string; gate?: string; turn: "running" | "ended"; exit?: RegExp; destructive?: RegExp };
 
 export const NO_GOAL = "none recorded: this seat has no task or lane in the ledger";
 
@@ -185,7 +185,7 @@ export function stateOf(window: Window, brief: Brief, limit: number): Record<str
   let end = units.length;
   while (end > 0 && units[end - 1]!.kind === "thought") end -= 1;
   const closing = brief.turn === "ended" && units[end - 1]?.kind === "said" ? units[end - 1] : undefined;
-  const steps = units.filter((unit) => unit !== closing).map((unit) => line(unit, brief.exit));
+  const steps = units.filter((unit) => unit !== closing).map((unit) => line(unit, brief.exit, brief.destructive));
   const lost = window.lostSinceInstruction();
   const share = (part: number) => Math.floor(limit * part);
   const fields = {

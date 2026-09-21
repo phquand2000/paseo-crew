@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import type { Seats, SeatView } from "../../server/core/ports.ts";
 import { follow } from "../../server/core/stream.ts";
-import { Watches } from "../../server/runtime/watch/watches.ts";
+import { SeatWatch, Watches } from "../../server/runtime/watch/watches.ts";
 import { FakeTimeline, settle } from "./fake-timeline.ts";
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
@@ -82,4 +82,17 @@ test("with the watch switched off nothing is followed, and switching it off lets
   watches.sync([peer]);
   assert.equal(watches.get("p1"), undefined, "turning it off lets go on the next round, with no reload");
   assert.equal(timelines.get("p1")!.listeners.size, 0);
+});
+
+test("a seat's brief is read again until the ledger has placed it", () => {
+  // A Peer's first turn starts before start_task has written it into its task, so the first read
+  // finds nothing. Kept, that nothing was every reading's goal for the whole task: 68 readings of one
+  // run's Peers went to the sensor as "no task or lane", with no owned paths to hold its writes to.
+  let placed = false;
+  const rules = { destructive: /x^/, testPath: /x^/, suppressed: /x^/, cwd: "/work", repeatsAt: 3, recoverWithin: 10 };
+  const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, owned: placed ? ["src/a.ts"] : undefined }, heardSince: () => false, goal: placed ? "Task L1-T1: a" : "", role: "Peer" }));
+  assert.equal(watch.brief()?.goal, "");
+  placed = true;
+  assert.equal(watch.brief()?.goal, "Task L1-T1: a");
+  assert.deepEqual(watch.brief()?.rules.owned, ["src/a.ts"]);
 });

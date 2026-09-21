@@ -38,8 +38,7 @@ export class SeatWatch {
   }
 
   private rules(): Rules | undefined {
-    this.current ??= this.context();
-    return this.current?.rules;
+    return this.brief()?.rules;
   }
 
   see(seen: Seen, now = Date.now()): Fact[] {
@@ -107,7 +106,7 @@ export class SeatWatch {
     if (since) this.durations.push(now - since);
     if (this.durations.length > 20) this.durations.shift();
     this.startedAt = 0;
-    const context = this.current ?? this.context();
+    const context = this.brief();
     if (phase !== "completed" || !context) return [];
     const facts = unverified(this.window, context.rules, since ? context.heardSince(since) : false);
     const pattern = stuck(this.window.sinceInstruction(), context.rules);
@@ -125,8 +124,13 @@ export class SeatWatch {
     return undefined;
   }
 
+  /**
+   * Read again until the ledger has placed the seat. A Peer's first turn starts before `start_task`
+   * has written it into its task, and a brief kept from then had no goal and no owned paths for the
+   * whole task.
+   */
   brief(): SeatContext | undefined {
-    this.current ??= this.context();
+    if (!this.current?.goal) this.current = this.context();
     return this.current;
   }
 

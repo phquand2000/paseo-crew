@@ -145,7 +145,7 @@ function outside(path: string, rules: Rules): boolean {
 export function onDetail(call: Call, rules: Rules): Fact[] {
   if (call.detail.type !== "shell") return [];
   const command = str(call.detail.command);
-  return command && rules.destructive.test(command) ? [{ kind: "destructive", level: "page", quote: flat(command) }] : [];
+  return command && rules.destructive.test(command) ? [{ kind: "destructive", level: "page", quote: around(flat(command, Infinity), rules.destructive, 200) }] : [];
 }
 
 const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
@@ -154,6 +154,18 @@ export function within(text: string, limit: number): string {
   if (text.length <= limit) return text;
   const cut = text.slice(0, limit);
   return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+}
+
+/**
+ * `text` cut to about `limit`, keeping where `pattern` matched, with "…" wherever it was cut. What
+ * makes a long command irreversible is often at its end, and a cut from the front kept all but that.
+ */
+export function around(text: string, pattern: RegExp | undefined, limit: number): string {
+  if (text.length <= limit) return text;
+  const found = pattern ? new RegExp(pattern.source, pattern.flags.replace("g", "")).exec(text) : null;
+  const start = found && found.index + found[0].length > limit ? Math.max(0, Math.min(found.index - Math.floor(limit / 4), text.length - limit)) : 0;
+  const body = within(text.slice(start).replace(/^[\uDC00-\uDFFF]/, ""), limit);
+  return `${start > 0 ? "…" : ""}${body}${start + body.length < text.length ? "…" : ""}`;
 }
 
 export const TRUNCATED = /^\.\.\.\[truncated \d+ chars\]$/;
