@@ -56,7 +56,7 @@ test("the same thing seen of one seat, however often and however concurrently, i
   assert.equal(Object.keys(loadIncidents(project.state).items).length, 3, "another seat, or another kind, is another incident");
 });
 
-test("a mark goes on the incident named and closes it, and a later sighting opens a new one", async () => {
+test("a mark goes on the incident named and closes it, and a sighting of something else opens a new one", async () => {
   const { project, services, supervisor } = desk();
   await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);

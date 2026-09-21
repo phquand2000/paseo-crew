@@ -28,7 +28,6 @@ export const KEEP_FILES = 64;
 
 /** The file every reading is appended to, until it is rotated away. */
 export const KEPT_FILE = "current.jsonl";
-const CURRENT = KEPT_FILE;
 const ROTATED = /^(\d{8})\.jsonl(\.gz(\.part)?)?$/;
 const packed = promisify(gzip);
 
@@ -47,7 +46,7 @@ const gone = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOE
  */
 export function lastKept(state: string, now = Date.now()): number | undefined {
   try {
-    return Math.max(0, Math.round((now - statSync(join(assessmentsDir(state), CURRENT)).mtimeMs) / 60_000));
+    return Math.max(0, Math.round((now - statSync(join(assessmentsDir(state), KEPT_FILE)).mtimeMs) / 60_000));
   } catch {
     return undefined;
   }
@@ -93,7 +92,7 @@ function prune(dir: string, keep: number): void {
 export function keepAssessment(state: string, kept: Kept, rotateAt = ROTATE_BYTES, keep = KEEP_FILES): Promise<void> {
   const dir = assessmentsDir(state);
   mkdirSync(dir, { recursive: true });
-  const file = join(dir, CURRENT);
+  const file = join(dir, KEPT_FILE);
   const line = `${JSON.stringify(kept)}\n`;
   let rotated: string | undefined;
   if (existsSync(file) && statSync(file).size + Buffer.byteLength(line) > rotateAt) {
@@ -126,7 +125,7 @@ export function readAssessments(state: string): { kept: Kept[]; broken: number }
       }
     }
   }
-  if (names.includes(CURRENT)) texts.push(readFileSync(join(dir, CURRENT), "utf-8"));
+  if (names.includes(KEPT_FILE)) texts.push(readFileSync(join(dir, KEPT_FILE), "utf-8"));
   for (const text of texts) {
     for (const row of text.split("\n")) {
       if (!row.trim()) continue;
