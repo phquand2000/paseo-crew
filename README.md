@@ -123,8 +123,9 @@ Each finding becomes an **incident**:
 - The Watcher or Jev can raise one of its own, back one the code raised, or hold that one back when
   it disagrees.
 
-The Supervisor lists incidents with `incidents`, checks the agent's own record, and marks each one
-with `ack`:
+An incident about a Peer goes to its Lead. One about a Lead, one that pages, and one whose Lead is
+gone go to the Supervisor. Each lists its own with `incidents`, checks the agent's own record, and
+marks each one with `ack`:
 
 - `useful` and `noise` are what the thresholds are tuned from.
 - `unknown` only closes the incident.

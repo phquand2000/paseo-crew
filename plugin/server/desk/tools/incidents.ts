@@ -1,6 +1,7 @@
-import { no, ok, str } from "../context.ts";
+import { can } from "../../catalog/kit.ts";
+import { type Caller, no, ok, str } from "../context.ts";
 import { type Incident, incidentsFault, loadIncidents } from "../incidents.ts";
-import { loadLedger } from "../ledger.ts";
+import { laneOfLead, loadLedger } from "../ledger.ts";
 import { clip } from "../letters.ts";
 import { mask } from "../../runtime/watch/mask.ts";
 import type { Tool } from "../services.ts";
@@ -43,11 +44,27 @@ function briefs(state: string, shown: Incident[]): string[] {
   return out.length > 0 ? ["", "What they were asked:", ...out] : [];
 }
 
+/**
+ * What this seat may read and mark. Whoever supervises, every incident; a Lead, those about the other
+ * seats of its own open lane, which are the ones sent to it, and never one about itself.
+ */
+function mine(caller: Caller): ((item: Incident) => boolean) | string {
+  if (can(caller.role, "supervise")) return () => true;
+  let lane: string | undefined;
+  try {
+    lane = laneOfLead(loadLedger(caller.project.state), caller.id)?.id;
+  } catch {}
+  if (!lane) return "You have no open lane, so there are no incidents here for you.";
+  return (item) => item.lane === lane && item.seat !== caller.id;
+}
+
 export const incidents: Tool = async ({ ctx }, caller, args) => {
   const fault = incidentsFault(caller.project.state);
   if (fault) return no(`${fault}. Only the Human can repair it or move it aside.`);
+  const allowed = mine(caller);
+  if (typeof allowed === "string") return no(allowed);
   const held = loadIncidents(caller.project.state);
-  const all = Object.values(held.items);
+  const all = Object.values(held.items).filter(allowed);
   const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
   const shown = waiting.slice(0, 50);
   const lines = [waiting.length > 0 ? `${waiting.length} not yet marked:` : "Nothing waiting to be marked."];
@@ -69,9 +86,11 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
   const verdict = str(args.verdict) as NonNullable<Incident["label"]>;
   const note = mask(str(args.note));
   const now = Date.now();
+  const allowed = mine(caller);
+  if (typeof allowed === "string") return no(allowed);
   const done = await ctx.incidents(caller.project, (held) => {
     const item = held.items[id];
-    if (!item) return undefined;
+    if (!item || !allowed(item)) return undefined;
     item.label = verdict;
     if (note) item.note = note;
     if (item.open) {
@@ -80,7 +99,7 @@ export const ack: Tool = async ({ ctx }, caller, args) => {
     }
     return { ...item };
   });
-  if (!done) return no(`There is no incident ${id} in this project. incidents lists the ones there are.`);
+  if (!done) return no(`There is no incident ${id} here for you to mark. incidents lists the ones there are.`);
   ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last, sensor: done.sensor ?? null, ...(done.by ? { by: done.by } : {}) });
   const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
   return ok(`${id} marked ${verdict} and closed.${later}`);

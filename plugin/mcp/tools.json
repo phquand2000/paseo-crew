@@ -481,6 +481,49 @@
         "type": "object",
         "properties": {}
       }
+    },
+    {
+      "name": "incidents",
+      "description": "What the desk has noticed about the Peers in your lane, latest first: every incident sent to you not yet marked, with what was seen and whether it was told or held back. These are signals to look at, never verdicts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "closed": {
+            "type": "boolean",
+            "description": "Also list the last twenty incidents already marked, with how each was marked."
+          }
+        }
+      }
+    },
+    {
+      "name": "ack",
+      "description": "Mark an incident once you have looked at the agent's record: useful if what it names happened and its brief neither asked for it nor needs it, noise if not, unknown only if the record can neither show it nor rule it out. It closes the incident; the desk's readings are measured against useful and noise. A measured fact happened unless the record contradicts it, and a sensor's question needs the record to show it. Decide from the record alone: whether you acted, knew already, what the agent said when asked, or how it turned out never decides one.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The incident's id, as incidents lists it."
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "useful",
+              "noise",
+              "unknown"
+            ],
+            "description": "useful, if what the incident names happened and its brief neither asked for it nor needs it; noise, if not; unknown, only if the record can neither show it nor rule it out."
+          },
+          "note": {
+            "type": "string",
+            "description": "Why: for noise, start with wrong (it did not happen) or expected (it was asked for or needed), then the command or path that settles it; for unknown, what the record lacks. Never a secret."
+          }
+        },
+        "required": [
+          "id",
+          "verdict"
+        ]
+      }
     }
   ],
   "peer": [

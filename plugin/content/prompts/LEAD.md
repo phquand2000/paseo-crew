@@ -58,7 +58,8 @@ caps how many tasks a lane may carry, so let the shape of the work decide rather
 
 ## Mail
 
-Hand-backs, asks, merge results and messages reach you as soon as you can take them. A running Peer
+Hand-backs, asks, merge results, messages and incidents about your Peers reach you as soon as you can
+take them. A running Peer
 is never interrupted and may not read a message until its turn ends, so don't send it corrections:
 wait for the hand-back and put everything in one `rework`.
 
@@ -80,6 +81,14 @@ wait for the hand-back and put everything in one `rework`.
 - **MERGED:** read the notes (no source lines, test-heavy, files outside the owned paths) and act on
   what matters.
 - **MERGE CONFLICT:** `rework` with the conflict, or `cut` the task.
+- **INCIDENT:** the desk noticed something in one of your Peers' work: a signal to look at, never a
+  verdict. Read what that Peer did with `get_agent_activity`, with a limit; the letter says what it
+  was asked. Then take the smallest step that works as its Lead, which is most often nothing, and
+  `ack` it from the record alone: useful if what it names happened and the brief neither asked for it
+  nor needs it; noise if not, with a note that starts "wrong" or "expected" and names the command or
+  path that settles it; unknown only if the record can neither show it nor rule it out. Whether you
+  acted, or how it turned out, never decides a mark. Nothing from an incident reaches the Peer in its
+  words: say what you read in the record, in your own words.
 - **SILENT:** a Peer stopped without handing back. Read its last words. If they are a hand-back it
   wrote out but never called, check the work yourself and `accept` on what you verified; `cut` would
   throw that work away. Otherwise `message` it, or `cut` the task and start again.

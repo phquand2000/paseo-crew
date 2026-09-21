@@ -337,7 +337,7 @@ same capability.
 | `done` | Peer, Reviewer | Writes a hand-back file and mails the Lead, or whoever supervises if the Lead is gone. On a project that gates each task, it runs the gate first and puts the verdict in the hand-back. A task already accepted, queued or cut is refused |
 | `message` / `answer` | Supervisor, Lead | A Supervisor's `message` goes to a lane or a task; a Lead's only to a task in its own lane. A seat stopped on a question takes it as that question's answer. `answer` closes an open ask: a seat that supervises may answer any, anyone else only its own |
 | `raise` / `judge` | Watcher | `raise` opens an incident of one of the kinds in `catalog/watcher/watcher.json` on the step a reading sent it under that ref; the incident quotes the step without the reading's number, and the reason goes only to `events.log`. `judge` confirms or vetoes an open fact it judges that has no judgement yet, filed under the question `watcher` with p 1 or 0 and the reason kept on the incident. Both are refused once the watch is by Jev |
-| `incidents` / `ack` | Supervisor | `incidents` lists the fifty most recent incidents still open or unmarked, each with the brief its seat was working to, and counts any older ones. With `closed`, it adds the twenty most recently marked. `ack` marks one `useful`, `noise` or `unknown`, with an optional note, and closes it |
+| `incidents` / `ack` | Supervisor, Lead | A Lead's are only those about the other seats of its own open lane. `incidents` lists the fifty most recent incidents still open or unmarked, each with the brief its seat was working to, and counts any older ones. With `closed`, it adds the twenty most recently marked. `ack` marks one `useful`, `noise` or `unknown`, with an optional note, and closes it |
 | `status` | Supervisor, Lead | The lanes, tasks, working copies and open asks. A Lead sees its own lane. Held mail and seats waiting on the Human are in `status.md` and the panel, not here |
 
 A call still running after 240 s is answered with "the answer arrives as mail", and the result
@@ -792,17 +792,19 @@ Each finding joins the open incident for its seat and kind in `incidents.json`, 
 
 - **Sent once.** An incident is sent once, as an INCIDENT letter, and is quiet after that. A sighting
   after it was sent is kept beside it and shown when it is marked.
-- **Addressed to the lane's Supervisor.** The letter goes to the Supervisor that opened the lane, or
-  to the most recent Supervisor of the project if that one is gone. It never goes to a Lead or to the
-  watched seat.
+- **Addressed to whoever answers for the seat.** One at attention level about a Peer goes to the
+  Lead of its lane, which owns acceptance there; its letter says so. One about a Lead, one that
+  pages, and one whose Lead is gone go to the Supervisor that opened the lane, or to the most recent
+  Supervisor of the project if that one is gone. It never goes to the watched seat. This holds by a
+  seat and by Jev alike.
 - **Decided again until sent.** Until it is sent, an incident is decided again on every sighting and
   every judgement:
 
 | Held | Meaning |
 |---|---|
 | shadow | `attention.watch` is off, which is the default. Nothing is ever sent |
-| awaiting | a question can judge this fact and has not yet. It waits up to two minutes from the last sighting, then goes anyway |
-| vetoed | Jev disagreed. It is kept, and sent if Jev later agrees or a new sighting goes unjudged |
+| awaiting | the reader can judge this fact and has not yet. It waits up to two minutes from the last sighting for Jev, `watcherJudgeMinutes` for a Watcher, then goes anyway |
+| vetoed | the reader disagreed. It is kept, and sent if it later agrees or a new sighting goes unjudged |
 | budget | `incidentsPerDay` attention-level incidents have been sent in the last 24 hours. The patrol does not retry it: the next sighting decides again |
 | nobody | nobody is seated to tell, or the only candidate is the watched seat itself. A patrol round retells it |
 
@@ -820,7 +822,9 @@ are forgotten, oldest first.
 task gives its working copy back, and the agent's own record goes with it. What Jev was shown
 outlives the copy, and the letter names the file when there is one.
 
-**Marking.** The Supervisor lists incidents with `incidents`, on a schedule it sets itself with
+**Marking.** A Lead lists and marks those about the other seats of its own open lane, never one
+about itself; the rest are the Supervisor's, which may list and mark them all. The Supervisor lists
+incidents with `incidents`, on a schedule it sets itself with
 Paseo's own heartbeat tools, since held incidents never arrive as mail. The list gives, for each
 incident:
 

@@ -89,41 +89,62 @@ export async function notice(services: DeskServices, project: Project, seat: Not
   return { opened, sent, place };
 }
 
+export type Reader = "lead" | "supervisor";
+
+/**
+ * Who hears of an incident. One at attention level about a Peer goes to the Lead of its lane, whose
+ * acceptance it bears on; one about a Lead, one that pages, and one whose Lead is gone go to whoever
+ * supervises. Never to the seat it is about.
+ */
+async function recipientFor(services: DeskServices, project: Project, seat: Noticed, place: Placed, level: Incident["level"]): Promise<{ to: string | undefined; as: Reader }> {
+  const lead = place.lane?.lead;
+  if (level === "attend" && place.task && lead && lead !== seat.id && (await services.roster.seated(lead))) return { to: lead, as: "lead" };
+  const to = await services.roster.supervisorFor(project, place.lane?.opener);
+  return { to: to === seat.id ? undefined : to, as: "supervisor" };
+}
+
 async function deliver(services: DeskServices, project: Project, seat: Noticed, place: Placed, sending: Incident[], now: number): Promise<string[]> {
-  const { ctx, roster } = services;
-  let to: string | undefined;
-  try {
-    to = await roster.supervisorFor(project, place.lane?.opener);
-  } catch (error) {
-    ctx.event(project, { kind: "incident.lookup-failed", error: errorText(error) });
-  }
-  if (!to || to === seat.id) {
-    await ctx.incidents(project, (incidents) => {
-      for (const sent of sending) {
-        const incident = incidents.items[sent.id];
-        if (!incident || incident.told !== now) continue;
-        delete incident.told;
-        incident.held = "nobody";
-      }
-    });
-    for (const sent of sending) ctx.event(project, { kind: "incident.held", id: sent.id, held: "nobody" });
-    return [];
-  }
+  const { ctx } = services;
   const harness = seatOf(ctx.kit, seat.provider)?.harness;
   const shape = { steers: harness?.steers === true, outputless: Boolean(harness?.exitPattern) };
   // Named only when it is really there: with no key the watch never ran, and with the sensor
   // unreachable it kept nothing, and an incident must not send anyone to a file that does not exist.
   const file = join(assessmentsDir(project.state), KEPT_FILE);
   const kept = existsSync(file) ? file : undefined;
-  for (const incident of sending) {
+  const told: string[] = [];
+  for (const level of ["page", "attend"] as const) {
+    const batch = sending.filter((incident) => incident.level === level);
+    if (batch.length === 0) continue;
+    let reader: { to: string | undefined; as: Reader } = { to: undefined, as: "supervisor" };
     try {
-      await ctx.post(to, `incident:${project.slug}:${incident.id}:${incident.opened}:${incident.level}`, letters.incident(incident, place, shape, kept));
+      reader = await recipientFor(services, project, seat, place, level);
     } catch (error) {
-      ctx.event(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
+      ctx.event(project, { kind: "incident.lookup-failed", error: errorText(error) });
     }
+    const { to, as } = reader;
+    if (!to) {
+      await ctx.incidents(project, (incidents) => {
+        for (const sent of batch) {
+          const incident = incidents.items[sent.id];
+          if (!incident || incident.told !== now) continue;
+          delete incident.told;
+          incident.held = "nobody";
+        }
+      });
+      for (const sent of batch) ctx.event(project, { kind: "incident.held", id: sent.id, held: "nobody" });
+      continue;
+    }
+    for (const incident of batch) {
+      try {
+        await ctx.post(to, `incident:${project.slug}:${incident.id}:${incident.opened}:${incident.level}`, letters.incident(incident, place, shape, kept, as));
+      } catch (error) {
+        ctx.event(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
+      }
+    }
+    ctx.event(project, { kind: "incident.told", ids: batch.map((incident) => incident.id), to });
+    told.push(...batch.map((incident) => incident.id));
   }
-  ctx.event(project, { kind: "incident.told", ids: sending.map((incident) => incident.id), to });
-  return sending.map((incident) => incident.id);
+  return told;
 }
 
 /**
@@ -194,14 +215,18 @@ export async function retell(services: DeskServices, project: Project, now = Dat
   }
   const nobody = await ctx.incidents(project, (incidents) => Object.values(incidents.items).filter((item) => item.open && item.held === "nobody" && item.told === undefined).map((item) => ({ ...item })));
   for (const seat of [...new Set(nobody.map((item) => item.seat))]) {
-    const mine = nobody.filter((item) => item.seat === seat);
-    const noticed = { id: seat, provider: mine[0]!.provider ?? "" };
+    const noticed = { id: seat, provider: nobody.find((item) => item.seat === seat)!.provider ?? "" };
     const place = placeOf(project, noticed);
-    let to: string | undefined;
-    try {
-      to = await services.roster.supervisorFor(project, place.lane?.opener);
-    } catch {}
-    if (!to || to === seat) continue;
+    // Only what somebody is now seated to read; `deliver` then finds that somebody again, per level.
+    const mine: Incident[] = [];
+    for (const level of ["page", "attend"] as const) {
+      const some = nobody.filter((item) => item.seat === seat && item.level === level);
+      if (some.length === 0) continue;
+      try {
+        if ((await recipientFor(services, project, noticed, place, level)).to) mine.push(...some);
+      } catch {}
+    }
+    if (mine.length === 0) continue;
     const sending = await ctx.incidents(project, (incidents) => {
       const taken: Incident[] = [];
       for (const item of mine) {
