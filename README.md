@@ -17,7 +17,8 @@ Seatworks never decides whether the work is right. It:
 - **keeps a shared desk** of lanes, tasks and questions that every seat works through
 - **carries the messages** between seats, and holds them until a seat can take them
 - **keeps a durable record** of what happened, outside your repository
-- **watches Leads and Peers** as they work, and tells the Supervisor what it saw
+- **watches Leads and Peers** as they work, and tells whoever answers for them what it saw: a Peer's
+  Lead, or the Supervisor
 
 What it does enforce is mechanical:
 
@@ -51,7 +52,7 @@ When a Supervisor messages a Peer directly, the desk tells that Peer's Lead firs
 | Role | What it does | Desk tools | Default agent |
 |---|---|---|---|
 | Supervisor | Works with you, opens and closes lanes, and answers Leads, or their Peers when a Lead is gone. Marks what the watch raises | `open_lane` `close_lane` `message` `answer` `set_project` `status` `incidents` `ack` | Claude Code · `claude-opus-5` · high |
-| Lead | Owns one lane: splits it into tasks, starts Peers and Reviewers, accepts and integrates | `start_task` `start_review` `accept` `rework` `cut` `message` `answer` `ask` `report` `status` | Claude Code · `claude-opus-5` · medium |
+| Lead | Owns one lane: splits it into tasks, starts Peers and Reviewers, accepts and integrates. Marks what the watch raises about the other seats of its lane | `start_task` `start_review` `accept` `rework` `cut` `message` `answer` `ask` `report` `status` `incidents` `ack` | Claude Code · `claude-opus-5` · medium |
 | Peer | Does one task and hands it back with `done` | `done` `ask` | Devin CLI · `swe-2-max` |
 | Reviewer | A read-only Peer that reviews a change with clean context | `done` `ask` | Devin CLI · `swe-2-max` |
 | Watcher | Reads Leads and Peers as they work, when the watch is by a Watcher seat, and reports what it sees. It cannot touch the work | `raise` `judge` | the Peer's agent and model, until it is given its own |

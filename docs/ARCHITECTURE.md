@@ -55,7 +55,8 @@ The daemon side and the seats share no memory:
 | `plugin/server/catalog/` | Data to seats: the kit loader and harness contract, team resolution, providers, seat directories, launch config, content rendering |
 | `plugin/server/desk/` | The ledger and the verbs seats call: lanes, tasks, asks, working copies, the merge queue, gates, incidents and letters. `args.ts` checks every call's arguments before a verb sees them |
 | `plugin/server/runtime/` | The composition root and the loops: hooks, spool, outbox, patrol, turn reading, RPC, health checks |
-| `plugin/server/runtime/watch/` | The window over a seat's timeline, the trail, the facts read from it and the findings they make |
+| `plugin/server/runtime/watch/` | The window over a seat's timeline, the trail, the facts read from it, the findings they make, and the pacer both readers share |
+| `plugin/server/runtime/watch/seat/` | The reader that mails a Watcher seat what each watched seat did |
 | `plugin/server/runtime/watch/jev/` | The views Jev reads, the sensor, its kept assessments, and how its answers are weighed |
 | `plugin/client/` | The Seatworks panel |
 | `plugin/shared/` | What the panel and the server share: the RPC contracts in `rpc.ts`, the Flow and watch views in `views.ts` |
@@ -837,13 +838,13 @@ incident:
 - why it was not sent
 - the brief the seat was working to
 
-The Supervisor marks each one `useful`, `noise` or `unknown` with `ack`, from the agent's own record.
+Whoever it went to marks it `useful`, `noise` or `unknown` with `ack`, from the agent's own record.
 Any of the three closes the incident; only `useful` and `noise` tune anything.
 
-Neither the letter nor the list carries a score, a model or a verdict, so the marks measure Jev
-rather than echo it. The list does say when an incident was held for Jev. A note is masked before it
-is kept. Nothing the watch concludes goes to the seat it watches, and the Supervisor's prompt keeps
-it from passing any of it on.
+Neither the letter nor the list carries a score, a model or a verdict, so the marks measure the
+reader rather than echo it. The list does say when an incident was held for its reader. A note is
+masked before it is kept. Nothing the watch concludes goes to the seat it watches, and the
+Supervisor's and the Lead's prompts keep them from passing any of it on.
 
 ### Keeping and calibrating
 
@@ -887,17 +888,18 @@ The patrol runs every `tickSeconds`, 30 s by default, and rounds never overlap. 
 2. For each project, runs these steps in order. Each step is guarded on its own, so one broken
    project or step does not stop the round.
    1. Mails the Supervisor about idle lanes.
-   2. Retells held incidents: ones waiting on Jev, ones it disagreed with, and ones there was nobody
-      to tell.
+   2. Retells held incidents: ones waiting on their reader, ones the reader disagreed with, and ones
+      there was nobody to tell.
    3. Marks tasks whose Peer is gone.
    4. Handles open asks:
       - reminds with a STILL OPEN letter every `askRemindMinutes`, up to `maxReminders`
       - re-addresses an ask whose reader has gone to whoever supervises now
       - once the reminders run out, escalates a Peer's ask past its Lead as UNANSWERED
    5. Reads each lane's record into incidents, when the watch runs.
-   6. Sweeps stray workspaces and worktrees.
-   7. Finishes held teardowns.
-   8. Writes `status.md`.
+   6. Seats, lets go of or rotates the Watcher, when the watch is by a seat.
+   7. Sweeps stray workspaces and worktrees.
+   8. Finishes held teardowns.
+   9. Writes `status.md`.
 3. On its first round only, looks once at every project on record with no live seat, to finish a
    teardown a restart lost.
 4. Pumps every seat that has mail.
@@ -1090,7 +1092,8 @@ gate and slot event. The watch writes its own kinds there and nowhere else:
 
 | Group | Kinds |
 |---|---|
-| Watch | `watch.fact`, `watch.finding`, `watch.sensor`, `watch.unbriefed`, `watch.offline` |
+| Watch | `watch.fact`, `watch.finding`, `watch.raised`, `watch.sensor`, `watch.unbriefed`, `watch.offline` |
+| Watcher | `watcher.seated`, `watcher.rotated` |
 | Sensor | `sensor.degraded`, `sensor.unkept` |
 | Incidents | `incident.open`, `incident.judged`, `incident.held`, `incident.told`, `incident.read`, `incident.ack`, `incident.lookup-failed`, `incident.post-failed` |
 
@@ -1117,7 +1120,7 @@ Three commands sit outside `npm run check`, because they call real models:
 |---|---|
 | `npm run eval:triggers -- --agent "…"` | Whether a real agent opens each shipped skill on the briefs it should |
 | `npm run eval:sensor` | A question's wording. It puts each case in `test/sensor/cases.json` (a brief and a trail, built into views by the same `viewsOf` a seat's turn goes through) to the real sensor, and fails when one reads the other way |
-| `node bin/calibrate.ts <project>` | A question's threshold, against what the Supervisor marked in a real project. It calls Jev only with `--ask` |
+| `node bin/calibrate.ts <project>` | A question's threshold, against what was marked in a real project. It calls Jev only with `--ask` |
 
 ## Known limits
 
