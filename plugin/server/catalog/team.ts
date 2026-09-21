@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   type Attention,
@@ -231,6 +231,22 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 
+/**
+ * The team as it serves one project. A server that needs something the project does not have — an
+ * IDE's own folder for the project — is switched off there, and so left off every seat with its
+ * rule, notes and skills. Handed to every seat anyway, the IntelliJ index told each Peer to check its
+ * files with a tool that answered "the IDE does not have this working copy open", every time.
+ */
+export function servingProject(team: Team, root: string): Team {
+  const lacking = new Set(Object.values(team.mcp).filter((state) => state.enabled && (state.entry?.requires ?? []).some((path) => !existsSync(join(root, path)))).map((state) => state.id));
+  if (lacking.size === 0) return team;
+  return {
+    ...team,
+    mcp: Object.fromEntries(Object.entries(team.mcp).map(([id, state]) => [id, lacking.has(id) ? { ...state, enabled: false } : state])),
+    roles: Object.fromEntries(Object.entries(team.roles).map(([name, seat]) => [name, { ...seat, mcp: seat.mcp.filter((id) => !lacking.has(id)) }])),
+  };
+}
+
 export type IndexedProxy = ProxySpec & { id: string; label: string; backend: { type: "http"; url: string } };
 
 export function proxyOf(state: McpState): ProxySpec | undefined {
@@ -253,7 +269,8 @@ export function indexedProxies(team: Team): IndexedProxy[] {
 export function serversFor(kit: Kit, team: Team, roleName: string, context: { node: string; spool: string }): McpServers {
   const seat = team.roles[roleName];
   if (!seat) return {};
-  const servers: McpServers = { ...teamServer(kit, seat.role, context.spool, context.node) };
+  const desk = teamServer(kit, seat.role, context.spool, context.node);
+  const servers: McpServers = desk.team && seat.harness.mcp.desk ? { team: { ...(desk.team as object), ...seat.harness.mcp.desk } } : { ...desk };
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;
     const { entry } = state;

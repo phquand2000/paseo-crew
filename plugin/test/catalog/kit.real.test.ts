@@ -87,6 +87,13 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.equal(settings.defaultProjectTrust, "never", `${where}: the repository's own .pi does not load in a seat`);
       const tools = { reviewer: ["read", "bash", "grep", "find", "ls"] }[role.role as "reviewer"];
       assert.deepEqual(settings.defaultTools, tools, where);
+      // The adapter connects a server when a tool of it is first called, and lists a fresh seat's
+      // servers as disconnected with no tools until then: a Peer searched for `done`, was told no
+      // tool matched, and wrote its hand-back as prose. Connected at start, the desk's verbs are
+      // the seat's own tools from its first turn.
+      const desk = readConfig<Record<string, any>>(join(dir, harness.mcp.file), {}).mcpServers?.team;
+      assert.equal(desk?.lifecycle, "keep-alive", `${where}: the desk is connected from the start`);
+      assert.equal(desk?.directTools, true, `${where}: and its verbs are tools of their own`);
     }
     assert.ok(existsSync(join(dir, harness.skillsDir)), `${where}: skills`);
   }

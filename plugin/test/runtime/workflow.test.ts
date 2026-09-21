@@ -131,6 +131,9 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
   writeFileSync(join(root, "b.txt"), "bee\n");
   // A real one, because the desk now reads the serial-only rules against the files that exist.
   writeFileSync(join(root, "package-lock.json"), "{}\n");
+  // An IntelliJ project, which is what the index these tests fake serves.
+  mkdirSync(join(root, ".idea"));
+  writeFileSync(join(root, ".idea", "misc.xml"), "<project/>\n");
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
   git(root, "commit", "-qm", "seed");

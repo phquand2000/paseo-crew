@@ -75,11 +75,16 @@
   ],
   "mcp": {
     "file": "mcp.json",
-    "delivery": "launch",
+    "delivery": "file",
+    "key": "mcpServers",
     "transports": [
       "stdio",
       "http"
-    ]
+    ],
+    "desk": {
+      "lifecycle": "keep-alive",
+      "directTools": true
+    }
   },
   "settings": {
     "file": "settings.json",

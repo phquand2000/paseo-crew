@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Kit } from "../catalog/kit.ts";
 import { type Layer, MachineLayerSchema, ProjectLayerSchema, layerValues, readLayer } from "../catalog/settings.ts";
-import { type Team, resolveTeam } from "../catalog/team.ts";
+import { type Team, resolveTeam, servingProject } from "../catalog/team.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
 import type { Project } from "../desk/project.ts";
@@ -34,7 +34,8 @@ export class TeamSource {
       ...(machine.status === "ready" ? [] : [`The machine settings are not being used: ${machine.error}`]),
       ...(local.status === "ready" ? [] : [`The project settings are not being used: ${"error" in local ? local.error : "they could not be read"}`]),
     ];
-    return resolveTeam(this.kit, machine.status === "ready" ? machine.values : {}, local.status === "ready" ? local.values : {}, unread);
+    const team = resolveTeam(this.kit, machine.status === "ready" ? machine.values : {}, local.status === "ready" ? local.values : {}, unread);
+    return project ? servingProject(team, project.root) : team;
   }
 
   revision(project?: Project): string {

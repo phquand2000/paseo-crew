@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { ProjectLayerSchema } from "../../server/catalog/settings.ts";
-import { resolveTeam, rulesFor, serversFor, skillDirsFor, withHarness } from "../../server/catalog/team.ts";
+import { resolveTeam, rulesFor, servingProject, serversFor, skillDirsFor, withHarness } from "../../server/catalog/team.ts";
 import { makeKit } from "../kit.ts";
+import { tempDir } from "../tempdir.ts";
 
 const kit = makeKit();
 const context = { node: "/bin/node", spool: "/spool" };
@@ -167,4 +170,23 @@ test("a harness with no models and none chosen is refused where the owner can se
   const team = resolveTeam(bare as typeof kit);
   assert.ok(team.errors.some((error) => /lists no models and none is chosen for the Peer/.test(error)), team.errors.join("\n"));
   assert.deepEqual(resolveTeam(bare as typeof kit, { roles: { peer: { model: "swe-3" } } }).errors, [], "and choosing one is enough");
+});
+
+test("a server that needs something the project lacks is left off its seats, with everything that tells them to use it", () => {
+  // The IDE index was switched on for the machine and handed to every seat of a project the IDE had
+  // never opened. Each Peer was told to run its diagnostics before handing back, and each call
+  // answered that the IDE does not have this working copy open.
+  const kit = makeKit();
+  const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
+  const bare = tempDir("sw2-bare-");
+  const served = servingProject(team, bare);
+  assert.deepEqual(served.roles.peer!.mcp, ["docs"]);
+  assert.equal(served.mcp.ide!.enabled, false, "and the desk does not open the project in it either");
+  assert.doesNotMatch(rulesFor(served, "peer"), /IDE|diagnostics/);
+  assert.equal(skillDirsFor(served, "peer").has("ide-guide"), false);
+  assert.equal(serversFor(kit, served, "peer", { node: "node", spool: "/s" }).ide, undefined);
+
+  const opened = tempDir("sw2-idea-");
+  mkdirSync(join(opened, ".idea"));
+  assert.deepEqual(servingProject(team, opened).roles.peer!.mcp, ["ide", "docs"]);
 });

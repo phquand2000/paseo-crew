@@ -120,6 +120,7 @@ export function makeKit(): Kit {
       open: { tool: "ide_open_project", args: { path: "{root}" } },
     },
     instructions: "Prefer the IDE tools.",
+    requires: [".idea"],
     settings: { port: { type: "number", label: "Port", default: 29170 } },
     defaults: { enabled: true },
     tools: { lead: ["ide_find_references"], peer: ["ide_find_references", "ide_refactor_rename"] },

@@ -174,7 +174,7 @@ At `agent.session_open`, `seatEnv` sets the config-directory variable to the sea
 |---|---|---|---|
 | Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, and `CLAUDE.md` when there are working rules | Through `bin/seat-room`, which forces `--setting-sources user`, so the project's settings, hooks and skills stay out |
 | Codex | `~/.codex/seats/…` | `config.toml` (`workspace-write` with network access, or `read-only` for the Reviewer, `approval_policy = "never"`, Codex's own subagents and bundled skills off, `model_catalog_json`), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json` link, and `AGENTS.md` when there are working rules | Paseo's Codex provider, which starts a `codex app-server` for each seat |
-| Pi | `~/.pi/seats/…` | `settings.json` (the `pi-mcp-adapter` package, project trust off, and a tool list for the Reviewer), `mcp.json`, `skills/`, links to the login, model store and npm folder, and `AGENTS.md` when there are working rules | Paseo's Pi provider. MCP reaches Pi only through `pi-mcp-adapter` |
+| Pi | `~/.pi/seats/…` | `settings.json` (the `pi-mcp-adapter` package, project trust off, and a tool list for the Reviewer), `mcp.json`, `skills/`, links to the login, model store and npm folder, and `AGENTS.md` when there are working rules | Paseo's Pi provider. MCP reaches Pi only through `pi-mcp-adapter`, which reads the servers from the seat's `mcp.json`; the desk's own entry carries `lifecycle: "keep-alive"` and `directTools`, from the harness's `mcp.desk`, so its verbs are the seat's tools from the first turn |
 | Devin CLI | `~/.devin/seats/…` | `devin/config.json` (permissions, command denials, Devin's own subagents off, and reading Claude, Cursor and Windsurf config switched off), `devin/AGENTS.md` (prompt and rules), `devin/mcp_config.json`, `devin/skills/`, and a link to your own git config | Through `bin/seat-room acp`, over Paseo's ACP provider |
 
 Building a Codex seat asks `codex debug models --bundled` for its model list, so a machine without
@@ -672,7 +672,10 @@ With the prefix empty, the plugin stops cleaning up its own stale entries in `~/
 | `code-search` | Proxy over stdio (`uvx … semble`) | One `search` tool |
 | `context7` | Plain HTTP server, no key | Library documentation. Queries leave the machine |
 
-Catalog servers stay off until a settings layer switches them on for some roles. Each proxied entry
+Catalog servers stay off until a settings layer switches them on for some roles. An entry's
+`requires` lists paths a project must have for it to serve that project; `intellij-index` requires
+`.idea`, so a project the IDE has never opened gets neither the server nor its rule, notes and skills.
+Each proxied entry
 runs through `plugin/mcp/code.mjs`, which can do six things. Each is switched on by the entry's
 `proxy` block:
 

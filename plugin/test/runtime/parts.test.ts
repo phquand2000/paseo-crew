@@ -190,3 +190,8 @@ test("an incident says where the desk kept the steps that were read, because the
   assert.match(told, /peer-1/, "and which agent's lines to look for");
   assert.match(told, /outlives|after .*(copy|worktree)|taken back/i, "said as the reason it is worth reading");
 });
+
+test("the nudge after a silent turn says where the hand-back tool is", () => {
+  // Ten of nineteen Devin Peers in one run were nudged, and most went looking: "there's no such tool".
+  assert.match(letters.nudge("done"), /`done` and `ask` are tools of the `team` MCP server/);
+});

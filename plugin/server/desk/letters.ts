@@ -244,7 +244,7 @@ export const letters = {
   },
 
   nudge(tool: string): string {
-    return `Your turn ended without calling ${tool} or ask. If the work is finished or stuck, call ${tool} or ask now; if you are still working, continue.`;
+    return `Your turn ended without calling ${tool} or ask. If the work is finished or stuck, call ${tool} or ask now; if you are still working, continue. \`${tool}\` and \`ask\` are tools of the \`team\` MCP server.`;
   },
 
   /** Told the count and what happened to the last call, rather than asserting both. */

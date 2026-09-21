@@ -4,7 +4,7 @@ import { DESTRUCTIVE, FACT_LEVELS, SUPPRESSED, TEST_PATH } from "../runtime/watc
 import { LEAST_STATE_CHARS, STATE_FIELDS } from "../runtime/watch/sensor.ts";
 import { AttentionChoice } from "./settings.ts";
 import { type TemplateSpec, loadTemplates } from "./templates.ts";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { errorText } from "../core/errors.ts";
 
 export type ThinkingSpec = { id: string; label: string; isDefault?: boolean };
@@ -60,6 +60,8 @@ export type HarnessSpec = {
     key?: string;
     clear?: { set?: Record<string, unknown>; remove?: string[]; setInEach?: Record<string, Record<string, unknown>> };
     rule?: string;
+    /** Fields this agent reads on the desk's own server entry beyond its command, merged into it. */
+    desk?: Record<string, unknown>;
   };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[]; forceFlags?: Record<string, string> };
 };
@@ -104,6 +106,7 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
     if (mcp.delivery !== undefined && mcp.delivery !== "launch" && mcp.delivery !== "file") problems.push(`delivers MCP servers as ${String(mcp.delivery)}, which is neither launch nor file`);
     if (mcp.delivery === "file" && !mcp.key) problems.push("delivers MCP servers in a file but names no mcp.key");
     if (Array.isArray(mcp.transports) && mcp.transports.length === 0) problems.push("lists no mcp.transports");
+    if (mcp.desk !== undefined && (typeof mcp.desk !== "object" || mcp.desk === null || Array.isArray(mcp.desk))) problems.push("gives mcp.desk fields that are not an object");
   }
   if (raw.steers !== undefined && typeof raw.steers !== "boolean") problems.push(`says steers is ${String(raw.steers)}, which is neither true nor false`);
   const writes = raw.stateWrites as Record<string, unknown> | undefined;
@@ -186,6 +189,8 @@ export type McpEntry = {
   roleNotes?: Record<string, string>;
   skills?: string[];
   help?: string;
+  /** Paths the project must have for this server to serve it, relative to its root. */
+  requires?: string[];
 };
 
 export type Attention = {
@@ -308,6 +313,9 @@ function loadMcp(dir: string): Record<string, McpEntry> {
       }
     }
     if (raw.rule && !existsSync(join(root, id, raw.rule))) throw new Error(`MCP ${id} names rule ${raw.rule}, which is missing`);
+    if (raw.requires !== undefined && !(Array.isArray(raw.requires) && raw.requires.every((path) => typeof path === "string" && path !== "" && !isAbsolute(path)))) {
+      throw new Error(`MCP ${id} requires something that is not a list of paths inside the project`);
+    }
     for (const skill of raw.skills ?? []) {
       if (!existsSync(join(root, id, "skills", skill, "SKILL.md"))) throw new Error(`MCP ${id} names skill ${skill}, but its SKILL.md is missing`);
     }

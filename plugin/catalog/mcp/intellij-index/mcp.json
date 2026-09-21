@@ -40,6 +40,9 @@
       }
     ]
   },
+  "requires": [
+    ".idea"
+  ],
   "help": "Open a JetBrains IDE with the IDE Index MCP Server plugin, switch on the tools named here in its settings, or change the port.",
   "instructions": "IMPORTANT: When applicable, prefer using intellij-index MCP tools for code navigation and refactoring. Every call answers for your own working copy, and paths are relative to it.",
   "settings": {
