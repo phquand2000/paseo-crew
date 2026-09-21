@@ -49,6 +49,26 @@ test("an acp harness declares the modes Paseo would otherwise launch it unconfig
   assert.deepEqual(harnessProblems("acme", { ...modeless, baseProvider: "claude" }), []);
 });
 
+test("a role follows one other role that chooses for itself, and takes its defaults", () => {
+  const dir = tempDir("sw2-kit-");
+  mkdirSync(join(dir, "harness", "acme"), { recursive: true });
+  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
+  const peer = { role: "peer", label: "Peer", defaults: { harness: "acme", model: "m" }, prompt: "prompts/PEER.md", skills: null };
+  const roles = (...more: object[]) => writeFileSync(join(dir, "roles.json"), JSON.stringify({ roles: [peer, ...more] }));
+  const follower = (extra: object = {}) => ({ role: "watcher", label: "Watcher", follows: "peer", prompt: "prompts/WATCHER.md", skills: null, ...extra });
+
+  roles(follower());
+  assert.deepEqual(roleNamed(loadKit(dir), "watcher")!.defaults, { harness: "acme", model: "m" });
+  roles(follower({ defaults: { harness: "acme" } }));
+  assert.throws(() => loadKit(dir), /role watcher follows peer and names defaults of its own/);
+  roles(follower({ follows: "nobody" }));
+  assert.throws(() => loadKit(dir), /role watcher follows nobody, which is no other role/);
+  roles(follower({ follows: "watcher" }));
+  assert.throws(() => loadKit(dir), /role watcher follows watcher, which is no other role/);
+  roles(follower(), { ...follower(), role: "echo", follows: "watcher" });
+  assert.throws(() => loadKit(dir), /role echo follows watcher, which follows peer in turn/);
+});
+
 test("loading a kit refuses a harness that breaks the contract, naming the field", () => {
   const dir = tempDir("sw2-kit-");
   mkdirSync(join(dir, "harness", "acme"), { recursive: true });

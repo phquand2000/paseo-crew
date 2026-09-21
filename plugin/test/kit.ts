@@ -50,7 +50,7 @@ export function makeKit(): Kit {
       {
         role: "scribe",
         label: "Scribe",
-        defaults: { harness: "devin", model: "swe" },
+        follows: "peer",
         prompt: "prompts/SCRIBE.md",
         skills: null,
       },
@@ -86,6 +86,7 @@ export function makeKit(): Kit {
   put(dir, "harness/claude/settings.json", { autoMemoryEnabled: false, permissions: { deny: ["WebSearch"] } });
   put(dir, "harness/claude/settings/supervisor.settings.json", { askUserQuestionTimeout: "never" });
   put(dir, "harness/claude/settings/lead.settings.json", { permissions: { deny: ["Agent"] } });
+  put(dir, "harness/claude/settings/scribe.settings.json", {});
   put(dir, "harness/devin/harness.json", {
     id: "devin",
     label: "Devin CLI",

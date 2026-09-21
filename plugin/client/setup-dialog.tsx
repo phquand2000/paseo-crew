@@ -60,13 +60,13 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
   const below = inForce?.machine ?? machine;
   const harnessOf = (id: string) => {
     const spec = catalog.roles.find((entry) => entry.id === id);
-    return spec ? harnessInForce({ id, defaults: spec.defaults }, draft, inForce?.values, below) : "";
+    return spec ? harnessInForce(spec, draft, inForce?.values, below) : "";
   };
   const harness = catalog.harnesses.find((entry) => entry.id === harnessOf(chosen?.id ?? ""));
   const models = harness?.models ?? [];
   const settled = (id: string) => {
     const spec = catalog.roles.find((entry) => entry.id === id);
-    return spec ? modelInForce({ id, defaults: spec.defaults }, draft, inForce?.values, below) : undefined;
+    return spec ? modelInForce(spec, draft, inForce?.values, below) : undefined;
   };
   const model = settled(chosen?.id ?? "") ?? models[0]?.id ?? "";
   const row = modelRow(model, models);

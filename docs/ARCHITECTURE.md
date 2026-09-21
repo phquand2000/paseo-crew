@@ -142,8 +142,8 @@ or profiles differ from `~/.paseo/config.json`, it:
 - keeps env keys the user added
 - runs `paseo daemon reload`
 
-When nothing differs, it leaves the file and the daemon alone. The shipped kit makes 16 providers:
-four roles on four agents.
+When nothing differs, it leaves the file and the daemon alone. The shipped kit makes 20 providers:
+five roles on four agents.
 
 ### The harness contract
 
@@ -209,8 +209,8 @@ sets `SEATWORKS_ROLE`, `SEATWORKS_PROJECT` and `SEATWORKS_STATE`.
 | Agent | Seat directory | Written there | How it launches |
 |---|---|---|---|
 | Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, and `CLAUDE.md` when there are working rules | Through `bin/seat-room`, which forces `--setting-sources user`, so the project's settings, hooks and skills stay out |
-| Codex | `~/.codex/seats/…` | `config.toml` (`workspace-write` with network access, or `read-only` for the Reviewer; `approval_policy = "never"`; Codex's own subagents and bundled skills off; `model_catalog_json`), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json` link, and `AGENTS.md` when there are working rules | Paseo's Codex provider, which starts a `codex app-server` for each seat |
-| Pi | `~/.pi/seats/…` | `settings.json` (the `pi-mcp-adapter` package, project trust off, and a tool list for the Reviewer), `mcp.json`, `skills/`, links to the login, model store and npm folder, and `AGENTS.md` when there are working rules | Paseo's Pi provider. MCP reaches Pi only through `pi-mcp-adapter`, which reads the servers from the seat's `mcp.json`. The desk's entry carries `lifecycle: "keep-alive"` and `directTools` from the harness's `mcp.desk`, so the desk verbs are the seat's own tools from the first turn |
+| Codex | `~/.codex/seats/…` | `config.toml` (`workspace-write` with network access, or `read-only` for the Reviewer and the Watcher; `approval_policy = "never"`; Codex's own subagents and bundled skills off; `model_catalog_json`), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json` link, and `AGENTS.md` when there are working rules | Paseo's Codex provider, which starts a `codex app-server` for each seat |
+| Pi | `~/.pi/seats/…` | `settings.json` (the `pi-mcp-adapter` package, project trust off, and a tool list for the Reviewer and an empty one for the Watcher), `mcp.json`, `skills/`, links to the login, model store and npm folder, and `AGENTS.md` when there are working rules | Paseo's Pi provider. MCP reaches Pi only through `pi-mcp-adapter`, which reads the servers from the seat's `mcp.json`. The desk's entry carries `lifecycle: "keep-alive"` and `directTools` from the harness's `mcp.desk`, so the desk verbs are the seat's own tools from the first turn |
 | Devin CLI | `~/.devin/seats/…` | `devin/config.json` (permissions, command denials, Devin's own subagents off, and reading Claude, Cursor and Windsurf config switched off), `devin/AGENTS.md` (prompt and rules), `devin/mcp_config.json`, `devin/skills/`, and a link to your own git config | Through `bin/seat-room acp`, over Paseo's ACP provider |
 
 Notes per agent:
@@ -317,7 +317,7 @@ A call that does not fit is refused with what is wrong and what the verb takes. 
 own arguments.
 
 Inside the verbs, behaviour depends on what the role **can** do, never on its name. The capabilities
-are `supervise`, `lead`, `work`, `write`, `review` and `watched`, set in `roles.json`. `open_lane`,
+are `supervise`, `lead`, `work`, `write`, `review`, `watched` and `watch`, set in `roles.json`. `open_lane`,
 `start_task` and `start_review` each take an optional `role`, which picks between roles holding the
 same capability.
 
@@ -902,6 +902,7 @@ content with its keys sorted.
 | `leadIdleMinutes` | 12 |
 | `askRemindMinutes` / `maxReminders` | 15 / 2 |
 | `watch` | false |
+| `by` | `seat` |
 | `incidentsPerDay` | 5 |
 | `longTurnMinutes` | 30 |
 | `destructive` / `testPath` / `suppressed` / `repeatsAt` | patterns and 3 |
@@ -914,7 +915,11 @@ whole, including its provider prefix and its attention block.
 
 - A role there may point at its prompt and skills by absolute path. `extraSkills` are always read
   from this package.
-- A role needs no tool set; one without it simply gets no desk tools.
+- A role needs no tool set; one without it simply gets no desk tools, and no desk server.
+- A role names `defaults` or `follows`, never both. `follows` names another role that chooses for
+  itself. Until a layer gives the follower its own agent, model or thinking, it takes what that role
+  has in force, the owner's choices included. The kit copies that role's defaults onto it, so every
+  reader of the kit sees a harness, and the panel says "Not set · follows the Peer".
 - Each role name still needs its settings files under `plugin/harness/<agent>/settings/`.
 - On Codex it also needs the Codex rules file.
 - If it has a tool set, `plugin/mcp/tools.json` must define that set.

@@ -159,6 +159,8 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   });
   put("harness/toml/settings.toml", 'sandbox = "workspace-write"\n');
   put("harness/toml/settings/peer.settings.toml", 'approval = "never"\n');
+  // The Scribe follows the Peer, so it goes wherever the Peer goes.
+  put("harness/toml/settings/scribe.settings.toml", "");
   const kit = loadKit(base.dir);
   const team = resolveTeam(kit, { roles: { peer: { harness: "toml" } }, mcp: { docs: { enabled: true } } });
   assert.deepEqual(team.errors, []);

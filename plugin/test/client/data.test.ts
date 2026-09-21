@@ -132,6 +132,19 @@ test("the model in force follows the resolver: a layer naming another agent drop
   assert.equal(modelInForce(lead), "claude-opus-5");
 });
 
+test("a role that follows another shows that role's agent and model in force until it has its own", () => {
+  const watcher = { id: "watcher", follows: "peer", defaults: { harness: "devin", model: "swe-2-max" } };
+  const machine: Layer = { roles: { peer: { harness: "claude", model: "claude-opus-5" } } };
+  assert.equal(harnessInForce(watcher, {}, {}, machine), "claude", "the Peer's own choice, not the kit's default");
+  assert.equal(modelInForce(watcher, {}, {}, machine), "claude-opus-5");
+  assert.equal(modelInForce(watcher, { roles: { peer: { model: "claude-sonnet-5" } } }, {}, machine), "claude-sonnet-5", "a Peer being edited in the same draft moves it too");
+  const own: Layer = { roles: { watcher: { harness: "codex" } } };
+  assert.equal(harnessInForce(watcher, {}, own, machine), "codex", "an agent of its own wins");
+  assert.equal(modelInForce(watcher, {}, own, machine), undefined, "and drops what it followed");
+  const back: Layer = { roles: { watcher: { harness: "claude" } } };
+  assert.equal(modelInForce(watcher, back, own, machine), "claude-opus-5", "coming back to the Peer's agent brings back the Peer's model");
+});
+
 test("switching the watch on keeps the rest of the tuning, and the sensor's key is kept by the word the screen holds", () => {
   const on = setAttention(held, { watch: true });
   assert.deepEqual(on.attention, { longTurnMinutes: 30, watch: true }, "the other attention settings are not a casualty of the switch");

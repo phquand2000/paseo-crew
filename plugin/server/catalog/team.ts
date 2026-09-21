@@ -115,8 +115,11 @@ function resolveMcp(kit: Kit, layers: Layer[], errors: string[]): Record<string,
   return states;
 }
 
-function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<string, McpState>, errors: string[]): RoleSeat | undefined {
-  let choice: { harness: string; model?: string; thinking?: string } = { ...role.defaults };
+type Choice = { harness: string; model?: string; thinking?: string };
+
+/** `origin` is where the role starts before any layer: its own defaults, or what the role it follows has in force. */
+function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<string, McpState>, errors: string[], origin: Choice = role.defaults): RoleSeat | undefined {
+  let choice: Choice = { ...origin };
   const ownRules: string[] = [];
   for (const layer of layers) {
     const next = layer.roles?.[role.role];
@@ -124,7 +127,7 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     // Leaving a harness drops what was chosen for it; coming back to the role's own restores what the
     // kit chose for it. Reset to the harness alone, a later layer putting the role back got the
     // catalog's first model and thinking instead of the preset's.
-    if (next.harness && next.harness !== choice.harness) choice = next.harness === role.defaults.harness ? { ...role.defaults } : { harness: next.harness };
+    if (next.harness && next.harness !== choice.harness) choice = next.harness === origin.harness ? { ...origin } : { harness: next.harness };
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
     if (next.rules?.trim()) ownRules.push(next.rules.trim());
@@ -182,11 +185,6 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   return { role, harness, model, thinking, rules: ownRules.join("\n\n"), mcp: enabled };
 }
 
-/**
- * `unread` are layers that could not be read. They resolve to nothing, which is indistinguishable from
- * an owner who chose nothing — so a hand-edited file with a trailing comma silently gave the kit's
- * defaults, and the doctor then reported a complete team the owner had not written a line of.
- */
 /** Jev reads only when the watch is by Jev and a key is set. */
 export function jevOn(team: Pick<Team, "attention" | "sensor">): boolean {
   return team.attention.by === "jev" && Boolean(team.sensor);
@@ -197,6 +195,11 @@ export function watchOn(team: Pick<Team, "attention" | "sensor">): boolean {
   return team.attention.by === "seat" || jevOn(team);
 }
 
+/**
+ * `unread` are layers that could not be read. They resolve to nothing, which is indistinguishable from
+ * an owner who chose nothing — so a hand-edited file with a trailing comma silently gave the kit's
+ * defaults, and the doctor then reported a complete team the owner had not written a line of.
+ */
 export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, unread: string[] = []): Team {
   const errors: string[] = [...unread];
   const layers = [machine, project];
@@ -205,9 +208,17 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, 
     for (const name of Object.keys(layer.roles ?? {})) if (!kit.roles.some((role) => role.role === name)) errors.push(`${where} name an unknown role ${name}`);
   });
   const mcp = resolveMcp(kit, layers, errors);
+  const own: Record<string, RoleSeat> = {};
+  for (const role of kit.roles) {
+    if (role.follows !== undefined) continue;
+    const seat = resolveRole(kit, role, layers, mcp, errors);
+    if (seat) own[role.role] = seat;
+  }
   const roles: Record<string, RoleSeat> = {};
   for (const role of kit.roles) {
-    const seat = resolveRole(kit, role, layers, mcp, errors);
+    const followed = role.follows === undefined ? undefined : own[role.follows];
+    const origin = followed ? { harness: followed.harness.id, model: followed.model?.id, thinking: followed.thinking } : undefined;
+    const seat = role.follows === undefined ? own[role.role] : resolveRole(kit, role, layers, mcp, errors, origin);
     if (seat) roles[role.role] = seat;
   }
   const sensors = Object.values(kit.sensors);

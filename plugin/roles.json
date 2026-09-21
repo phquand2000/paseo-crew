@@ -112,6 +112,23 @@
         "seat",
         "seats"
       ]
+    },
+    {
+      "role": "watcher",
+      "label": "Watcher",
+      "description": "Reads Leads and Peers as they work and tells whoever answers for them what it saw; it cannot touch the work",
+      "follows": "peer",
+      "can": [
+        "watch"
+      ],
+      "prompt": "prompts/WATCHER.md",
+      "skills": null,
+      "paseoTools": {
+        "allow": [
+          "get_agent_activity"
+        ]
+      },
+      "hidesWords": []
     }
   ]
 }

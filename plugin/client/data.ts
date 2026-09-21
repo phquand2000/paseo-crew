@@ -12,7 +12,7 @@ export type SettingSpec = { type: "number" | "string" | "boolean"; label: string
 export type ModelView = { id: string; label: string; isDefault?: boolean; thinkingOptions?: { id: string; label: string; isDefault?: boolean }[] };
 
 export type Catalog = {
-  roles: { id: string; label: string; description: string; can: string[]; concern: string | null; defaults: { harness: string; model?: string; thinking?: string }; harnesses: string[] }[];
+  roles: { id: string; label: string; description: string; can: string[]; concern: string | null; defaults: { harness: string; model?: string; thinking?: string }; follows: string | null; harnesses: string[] }[];
   harnesses: { id: string; label: string; models: ModelView[]; thinking: boolean; transports: string[] }[];
   mcp: { id: string; label: string; description: string; kind: string; transport: string; settings: Record<string, SettingSpec>; defaults: { enabled: boolean }; roles: string[] }[];
 };
@@ -264,9 +264,10 @@ export function useSeatworks(project?: string) {
           // already holds. Sending the draft on its own erased the rules, the pasted servers with
           // their tokens and the attention tuning of a project that turned out to be attached already.
           const catalogue = data.status === "ready" ? data.catalog.roles : [];
-          const merged = foldRoles(read.values, values, (role) =>
-            read.values.roles?.[role]?.harness ?? read.machine.roles?.[role]?.harness ?? catalogue.find((entry) => entry.id === role)?.defaults.harness,
-          );
+          const merged = foldRoles(read.values, values, (role) => {
+            const spec = catalogue.find((entry) => entry.id === role);
+            return spec ? harnessInForce(spec, read.values, read.machine) : undefined;
+          });
           const written = await latest.current.write({ project: added.slug, revision: read.revision, values: merged });
           if (written.status !== "saved") {
             setRefusal({ of: added.slug, text: written.error });
@@ -317,8 +318,7 @@ export function useSeatworks(project?: string) {
         // server was refused for whichever role runs an agent with no transport for it — and the
         // control that narrows it only appears once the server is saved, so it could never be added.
         if (data.status !== "ready") return null;
-        const harnessOf = (role: { id: string; defaults: { harness: string } }) =>
-          data.values.roles?.[role.id]?.harness ?? data.machine.roles?.[role.id]?.harness ?? role.defaults.harness;
+        const harnessOf = (role: InForce) => harnessInForce(role, data.values, data.machine);
         const reachable = data.catalog.roles
           .filter((role) => (data.catalog.harnesses.find((entry) => entry.id === harnessOf(role))?.transports ?? []).includes(parsed.connect.type))
           .map((role) => role.id);
@@ -461,12 +461,15 @@ export function keptRoles(narrowed: string[] | undefined, reachable: string[]): 
  * A screen that skipped the two middle layers showed the kit's default as if it were the choice in
  * force, so it offered the wrong agent's model list and wrote the model onto the agent really there.
  */
-export function harnessInForce(role: { id: string; defaults: { harness: string } }, ...layers: (Layer | undefined)[]): string {
+type InForce = { id: string; follows?: string | null; defaults: { harness: string; model?: string } };
+
+export function harnessInForce(role: InForce, ...layers: (Layer | undefined)[]): string {
   for (const layer of layers) {
     const named = layer?.roles?.[role.id]?.harness;
     if (named) return named;
   }
-  return role.defaults.harness;
+  // The kit gave a follower the followed role's defaults, so that role's own walk ends in the same place.
+  return role.follows ? harnessInForce({ id: role.follows, defaults: role.defaults }, ...layers) : role.defaults.harness;
 }
 
 /**
@@ -475,15 +478,19 @@ export function harnessInForce(role: { id: string; defaults: { harness: string }
  * brings back the kit's choice there. A screen that took the nearest model it could find showed one
  * chosen for an agent no longer in force.
  */
-export function modelInForce(role: { id: string; defaults: { harness: string; model?: string } }, ...nearestFirst: (Layer | undefined)[]): string | undefined {
-  let harness = role.defaults.harness;
-  let model = role.defaults.model;
+export function modelInForce(role: InForce, ...nearestFirst: (Layer | undefined)[]): string | undefined {
+  // Where the role starts before any layer, as the resolver has it: its defaults, or what the role it
+  // follows has in force.
+  const followed = role.follows ? { id: role.follows, defaults: role.defaults } : undefined;
+  const origin = followed ? { harness: harnessInForce(followed, ...nearestFirst), model: modelInForce(followed, ...nearestFirst) } : role.defaults;
+  let harness = origin.harness;
+  let model = origin.model;
   for (const layer of [...nearestFirst].reverse()) {
     const choice = layer?.roles?.[role.id];
     if (!choice) continue;
     if (choice.harness && choice.harness !== harness) {
       harness = choice.harness;
-      model = choice.harness === role.defaults.harness ? role.defaults.model : undefined;
+      model = choice.harness === origin.harness ? origin.model : undefined;
     }
     if (choice.model) model = choice.model;
   }

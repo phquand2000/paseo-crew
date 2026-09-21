@@ -22,6 +22,11 @@ export type RoleSpec = {
   can?: string[];
   /** Which set of tools in mcp/tools.json this seat is given. Several roles may share one set. */
   tools?: string;
+  /**
+   * Another role whose agent, model and thinking in force this one takes until a layer gives it its
+   * own. In place of `defaults`, which the kit fills from that role's so every reader sees a harness.
+   */
+  follows?: string;
   defaults: { harness: string; model?: string; thinking?: string };
   prompt: string;
   skills: string | null;
@@ -415,6 +420,14 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     harnesses[id] = raw as unknown as HarnessSpec;
   }
   const roles = (raw.roles ?? []) as RoleSpec[];
+  for (const role of roles) {
+    if (role.follows === undefined) continue;
+    const followed = roles.find((other) => other.role === role.follows);
+    if (role.defaults) throw new Error(`role ${role.role} follows ${role.follows} and names defaults of its own; it takes one or the other`);
+    if (!followed || followed === role) throw new Error(`role ${role.role} follows ${role.follows}, which is no other role in roles.json`);
+    if (followed.follows !== undefined) throw new Error(`role ${role.role} follows ${role.follows}, which follows ${followed.follows} in turn; a role follows one that chooses for itself`);
+    role.defaults = { ...followed.defaults };
+  }
   for (const role of roles) {
     if (!role.defaults?.harness) throw new Error(`role ${role.role} has no default harness`);
     if (!harnesses[role.defaults.harness]) throw new Error(`role ${role.role} defaults to harness ${role.defaults.harness}, which has no harness/${role.defaults.harness}/harness.json`);

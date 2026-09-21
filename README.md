@@ -54,9 +54,11 @@ When a Supervisor messages a Peer directly, the desk tells that Peer's Lead firs
 | Lead | Owns one lane: splits it into tasks, starts Peers and Reviewers, accepts and integrates | `start_task` `start_review` `accept` `rework` `cut` `message` `answer` `ask` `report` `status` | Claude Code · `claude-opus-5` · medium |
 | Peer | Does one task and hands it back with `done` | `done` `ask` | Devin CLI · `swe-2-max` |
 | Reviewer | A read-only Peer that reviews a change with clean context | `done` `ask` | Devin CLI · `swe-2-max` |
+| Watcher | Reads Leads and Peers as they work, when the watch is by a Watcher seat. It cannot touch the work | none yet | the Peer's agent and model, until it is given its own |
 
-The roles are data, not code. Four roles on four agents give the sixteen providers this plugin
-writes. `open_lane`, `start_task` and `start_review` take a `role`, so a kit with two review lenses or
+The roles are data, not code. Five roles on four agents give the twenty providers this plugin
+writes. A role can `follow` another: until a layer gives it its own, it takes that role's agent, model
+and thinking in force. `open_lane`, `start_task` and `start_review` take a `role`, so a kit with two review lenses or
 two kinds of Peer needs no code change. How to replace the preset is under
 [Settings](docs/ARCHITECTURE.md#settings).
 
@@ -186,7 +188,7 @@ That installs the plugin by directory. Paseo records where the clone is, so if y
 it again from the new path.
 
 On start, and after each save of the machine defaults, the plugin writes one Paseo provider and one
-agent profile per role and agent. The shipped kit makes sixteen of each, for example `sw2-lead-claude`.
+agent profile per role and agent. The shipped kit makes twenty of each, for example `sw2-lead-claude`.
 It removes its own entries the kit no longer produces, keeps env keys you added, and reloads the
 daemon only when something changed.
 

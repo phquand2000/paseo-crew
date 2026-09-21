@@ -124,6 +124,19 @@ test("a seat opened on another harness than the settings choose gets that harnes
   assert.equal(team.roles.lead!.thinking, undefined);
 });
 
+test("a role that follows another takes that role's agent, model and thinking in force until it is given its own", () => {
+  assert.deepEqual(kit.roles.find((role) => role.role === "scribe")!.defaults, { harness: "devin", model: "swe" }, "and reads as that role's kit defaults to anything asking the kit");
+  const seatOf = (team: ReturnType<typeof resolveTeam>) => [team.roles.scribe!.harness.id, team.roles.scribe!.model?.id, team.roles.scribe!.thinking];
+  assert.deepEqual(seatOf(resolveTeam(kit)), ["devin", "swe", undefined]);
+  const machine = { roles: { peer: { harness: "claude", model: "opus", thinking: "medium" } } };
+  assert.deepEqual(seatOf(resolveTeam(kit, machine)), ["claude", "opus", "medium"], "the Peer's own settings, not only the kit's");
+  assert.deepEqual(seatOf(resolveTeam(kit, machine, { roles: { scribe: { model: "haiku" } } })), ["claude", "haiku", undefined], "a model of its own on the agent it followed to");
+  assert.deepEqual(seatOf(resolveTeam(kit, machine, { roles: { scribe: { harness: "devin" } } })), ["devin", "swe", undefined], "an agent of its own drops what it followed");
+  const away = { roles: { ...machine.roles, scribe: { harness: "devin" } } };
+  assert.deepEqual(seatOf(resolveTeam(kit, away, { roles: { scribe: { harness: "claude" } } })), ["claude", "opus", "medium"], "and coming back to the followed role's agent brings back what it chose there");
+  assert.deepEqual(resolveTeam(kit, machine).errors.filter((error) => /scribe/i.test(error)), [], "and it can run wherever it follows to");
+});
+
 test("a Paseo tool the kit does not know is reported, because allowing one denies all the others", () => {
   // An allow list is applied by denying everything else, so a name that is not on the known list
   // silently strips the role of every Paseo tool. That is worth an error rather than a surprise.

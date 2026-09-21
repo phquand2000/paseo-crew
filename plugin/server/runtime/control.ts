@@ -90,6 +90,7 @@ export function describeCatalog(kit: Kit): unknown {
       can: role.can ?? [],
       concern: role.concern ?? null,
       defaults: role.defaults,
+      follows: role.follows ?? null,
       harnesses: Object.values(kit.harnesses)
         .filter((harness) => supportsRole(kit, harness, role))
         .map((harness) => harness.id),

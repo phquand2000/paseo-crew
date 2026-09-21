@@ -11,10 +11,11 @@ import type { Source } from "./data.ts";
  */
 export const CONTROL = { radius: 6, height: 32, padding: 12, gap: 8, font: 14, pressed: 0.85, faded: 0.5 };
 
-export function sourceLabel(source: Source, layer: "machine" | "project"): string {
+/** `follows` is the label of the role a role follows while nothing is set for it. */
+export function sourceLabel(source: Source, layer: "machine" | "project", follows?: string): string {
   if (source === "here") return layer === "machine" ? "Set here" : "Set for this project";
   if (source === "machine") return "From this machine";
-  return "Catalog default";
+  return follows ? `Not set · follows the ${follows}` : "Catalog default";
 }
 
 export function Button({ label, theme, tone = "plain", disabled, onPress }: {

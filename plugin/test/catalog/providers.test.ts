@@ -11,7 +11,7 @@ const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
 test("every role gets a provider on each harness that has settings for it", () => {
   assert.deepEqual(
     seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(),
-    ["lead-claude", "lead-devin", "peer-devin", "scribe-devin", "supervisor-claude"],
+    ["lead-claude", "lead-devin", "peer-devin", "scribe-claude", "scribe-devin", "supervisor-claude"],
   );
 });
 
@@ -37,11 +37,13 @@ test("reconcile adds the role providers and profiles and is idempotent", () => {
     "profile sw2-lead-claude",
     "profile sw2-lead-devin",
     "profile sw2-peer-devin",
+    "profile sw2-scribe-claude",
     "profile sw2-scribe-devin",
     "profile sw2-supervisor-claude",
     "provider sw2-lead-claude",
     "provider sw2-lead-devin",
     "provider sw2-peer-devin",
+    "provider sw2-scribe-claude",
     "provider sw2-scribe-devin",
     "provider sw2-supervisor-claude",
   ]);

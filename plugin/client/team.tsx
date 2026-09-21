@@ -23,6 +23,7 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
   const role = catalog.roles.find((entry) => entry.id === active) ?? catalog.roles[0];
   if (!role) return null;
   const seat = team.roles[role.id];
+  const follows = role.follows ? catalog.roles.find((entry) => entry.id === role.follows)?.label : undefined;
   const harness = catalog.harnesses.find((entry) => entry.id === seat?.harness);
   const models = harness?.models ?? [];
   const model = seat?.model ?? models[0]?.id ?? "";
@@ -37,7 +38,7 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
       <SettingsCard>
         <SettingsSelect
           label="Agent"
-          hint={sourceLabel(source("harness"), layer)}
+          hint={sourceLabel(source("harness"), layer, follows)}
           value={seat?.harness ?? role.defaults.harness}
           options={role.harnesses.map((id) => ({ label: catalog.harnesses.find((entry) => entry.id === id)?.label ?? id, value: id }))}
           onValueChange={(next) => save((current) => setRole(current, role.id, { harness: next }, true))}
@@ -46,7 +47,7 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
         {models.length > 1 || stray ? (
           <SettingsSelect
             label="Model"
-            hint={stray ? `${model} is not one this agent offers. Pick one it does.` : sourceLabel(source("model"), layer)}
+            hint={stray ? `${model} is not one this agent offers. Pick one it does.` : sourceLabel(source("model"), layer, follows)}
             value={row.value}
             options={row.options}
             onValueChange={(next) => save((current) => setRole(current, role.id, { model: next }))}
@@ -60,7 +61,7 @@ export function TeamSection({ catalog, team, values, machine, layer, theme, disa
         {thinking.length > 0 ? (
           <SettingsSelect
             label="Thinking"
-            hint={sourceLabel(source("thinking"), layer)}
+            hint={sourceLabel(source("thinking"), layer, follows)}
             value={seat?.thinking ?? thinking[0]!.id}
             options={thinking.map((entry) => ({ label: entry.label, value: entry.id }))}
             onValueChange={(next) => save((current) => setRole(current, role.id, { thinking: next }))}
