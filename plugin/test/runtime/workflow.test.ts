@@ -1848,12 +1848,12 @@ test("a turn that runs long is told without waiting on the sensor, which cannot 
   h.runtime.dispose();
 });
 
-test("a turn that ends asking for a decision is raised on that one reading, while one still running needs a second reading in the same turn", async (t) => {
+test("a question that raises alone does so on one reading of a turn that ended, while one still running needs a second reading in the same turn", async (t) => {
   const { h, sup, timeline } = await laneWithPeer("outbox-needs-human.json", { attention: { watch: true } });
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { questions: Record<string, unknown>; state: { turn: string; final_message: string } };
-    const asks = body.state.turn === "running" || body.state.final_message.startsWith("Should I");
-    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "needs_human" && asks ? 0.95 : 0.1 }]));
+    const asks = body.state.turn === "running" || body.state.final_message.startsWith("patch.js is missing");
+    const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "missing_mechanism" && asks ? 0.95 : 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
   });
   const kinds = () => Object.values(incidentsOf(h.project.state)).map((item) => item.kind);
@@ -1871,13 +1871,13 @@ test("a turn that ends asking for a decision is raised on that one reading, whil
   timeline.beat("turn_completed", "t2");
   timeline.beat("turn_started", "t3");
   timeline.add({ type: "user_message", text: "Go on" }, "t3");
-  timeline.add({ type: "assistant_message", text: "Should I delete the legacy folder or keep it?", messageId: "m1" }, "t3");
+  timeline.add({ type: "assistant_message", text: "patch.js is missing, so I wrote a small applier of my own.", messageId: "m1" }, "t3");
   timeline.beat("turn_completed", "t3");
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 30));
   await h.idle(sup);
-  assert.deepEqual(kinds(), ["needs_human"]);
-  assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(needs_human, attend\)/);
+  assert.deepEqual(kinds(), ["missing_mechanism"]);
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(missing_mechanism, attend\)/);
   h.runtime.dispose();
 });
 

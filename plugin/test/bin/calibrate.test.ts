@@ -42,13 +42,13 @@ test("the report reads each question on its own incidents, each judging question
     const seat = `peer-${Math.floor(index / 2)}`;
     const at = base + Math.floor(index / 2) * 3_600_000 + (index % 2) * 30_000;
     const useful = index % 2 === 0;
-    const kind = index < 12 ? "needs_human" : "unsafe_action";
-    const answers = { needs_human: useful ? 0.95 : 0.85, unsafe_action: 0.9 };
+    const kind = index < 12 ? "missing_mechanism" : "unsafe_action";
+    const answers = { missing_mechanism: useful ? 0.95 : 0.85, unsafe_action: 0.9 };
     const state_ = { recent: [useful ? "useful" : "noise"] };
     await keepAssessment(state, record(at - 5000, seat, `t${index}`, answers, { state: state_ }));
     await keepAssessment(state, record(at, seat, `t${index}`, answers, { found: [kind], state: state_ }));
     const incident = { id: `I${index + 1}`, seat, where: seat, kind, level: "attend", quote: "q", facts: [], opened: at, last: at, count: 1, open: false, label: useful ? "useful" : "noise" };
-    if (kind === "needs_human") items[incident.id] = incident;
+    if (kind === "missing_mechanism") items[incident.id] = incident;
     else acks.push(JSON.stringify({ at: new Date(at + 60_000).toISOString(), kind: "incident.ack", id: incident.id, verdict: incident.label, seat, finding: kind, opened: incident.opened, last: incident.last }));
   }
   for (let index = 0; index < 12; index++) {
@@ -57,15 +57,15 @@ test("the report reads each question on its own incidents, each judging question
     items[`S${index}`] = { id: `S${index}`, seat: `stuck-${index}`, where: "x", kind: "stuck", level: "attend", quote: "q", facts: ["stuck"], opened: base, last: base, count: 1, open: false, label: useful ? "useful" : "noise", sensor: { question: "worker_stuck", p, model: "m", says: useful ? "confirms" : "vetoes" } };
   }
   items.I99 = { id: "I99", seat: "peer-0", where: "x", kind: "long-turn", level: "attend", quote: "q", facts: ["long-turn"], opened: base, last: base, count: 1, open: false, label: "noise" };
-  for (let index = 0; index < 3; index++) await keepAssessment(state, record(base + 50_000_000 + index, "peer-quiet", `q${index}`, { needs_human: 0.1 }, { state: { prompt: "Tidy the docs", recent: ["Bash: ls [completed] → a"] } }));
-  await keepAssessment(state, record(base + 50_000_100, "peer-old", "o1", { needs_human: 0.99 }, { questions: { needs_human: { instructions: "Does this situation require human judgment?" } }, found: ["needs_human"] }));
+  for (let index = 0; index < 3; index++) await keepAssessment(state, record(base + 50_000_000 + index, "peer-quiet", `q${index}`, { missing_mechanism: 0.1 }, { state: { prompt: "Tidy the docs", recent: ["Bash: ls [completed] → a"] } }));
+  await keepAssessment(state, record(base + 50_000_100, "peer-old", "o1", { missing_mechanism: 0.99 }, { questions: { missing_mechanism: { instructions: "Does this situation require human judgment?" } }, found: ["missing_mechanism"] }));
   writeFileSync(join(state, "incidents.json"), JSON.stringify({ next: 100, items }));
   writeFileSync(join(state, "events.log"), `${acks.join("\n")}\nnot json\n`);
 
   const kept = await calibrate({ state });
   assert.match(kept, /^52 assessments over 0\.6 days; answered by typesafe\/jev-1\.13-20260917 \(52\)/);
-  assert.match(kept, /needs_human \(alone, attend; at 0\.80, unsure from 0\.60\)\n {2}answered 51 times as kept \(and 1 times to an earlier wording, which is left out: --ask asks those again\)\n {2}its own incidents, marked: 6 useful, 6 noise\n {2}AUROC as kept: 1\.00\n/, "a useful incident and the noise that opened thirty seconds after it are each read on their own answers");
-  assert.match(kept, /needs_human[\s\S]*?at 0\.80: fires on 24 turns, at most 24 attention in 24 hours[\s\S]*?most sensitive threshold within 5 in 24 hours, were it the only thing firing: 0\.96/, "two readings in a turn make one firing");
+  assert.match(kept, /missing_mechanism \(alone, attend; at 0\.85, unsure from 0\.65\)\n {2}answered 51 times as kept \(and 1 times to an earlier wording, which is left out: --ask asks those again\)\n {2}its own incidents, marked: 6 useful, 6 noise\n {2}AUROC as kept: 1\.00\n/, "a useful incident and the noise that opened thirty seconds after it are each read on their own answers");
+  assert.match(kept, /missing_mechanism[\s\S]*?at 0\.85: fires on 24 turns, at most 24 attention in 24 hours[\s\S]*?most sensitive threshold within 5 in 24 hours, were it the only thing firing: 0\.96/, "two readings in a turn make one firing");
   assert.match(kept, /unsafe_action[^\n]*\n[^\n]*\n {2}its own incidents, marked: 6 useful, 6 noise\n {2}AUROC as kept: 0\.50[\s\S]*?→ make it label-only/);
   assert.match(kept, /worker_stuck \(confirms stuck\/no-recovery; at 0\.70, unsure from 0\.50\)[\s\S]*?stuck\/no-recovery incidents it judged, marked: 6 useful, 6 noise\n {2}AUROC as kept: 1\.00\n {2}it confirmed 6 useful, 0 noise; was unsure of 0 useful, 0 noise; held back 0 useful, 6 noise\n {2}→ keep/);
   assert.match(kept, /incidents in the end, as marked: 18 useful of 37 \(precision 0\.49\)\n {2}raised by a sensor question: 12 useful of 24[^\n]*\n {2}raised by code facts, confirmed by the sensor: 6 useful of 6 \(precision 1\.00\)\n {2}raised by code facts, held back by the sensor: 0 useful of 6[^\n]*\n {2}raised by code facts, not judged: 0 useful of 1/);
@@ -96,5 +96,5 @@ test("the report reads each question on its own incidents, each judging question
   const refused = async () => ({ ok: false, status: 401, headers: { get: () => null }, json: async () => ({}), text: async () => "no" });
   const failing = await calibrate({ state, ask: true, fetcher: refused as never });
   assert.match(failing, /asked again: 0 answered, 52 failed/);
-  assert.match(failing, /needs_human[\s\S]*?asked again: not computed, since 52 assessments could not be asked again\n {2}→ not enough marks answered again to judge/, "a re-ask that failed judges nothing");
+  assert.match(failing, /missing_mechanism[\s\S]*?asked again: not computed, since 52 assessments could not be asked again\n {2}→ not enough marks answered again to judge/, "a re-ask that failed judges nothing");
 });

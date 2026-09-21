@@ -86,11 +86,11 @@ test("a question alone raises on two readings in a running turn or one at its en
   const noted = [{ kind: "outside-scope", level: "note" as const, quote: "/etc/hosts" }, { kind: "stuck", level: "attend" as const, quote: "q" }];
   const answers = Object.fromEntries(Object.keys(questions).map((name) => [name, 0.99]));
   const once = weigh({ answers, model: "typesafe/jev-1.13-20260917" }, questions, noted, { unclear, ended: false });
-  assert.deepEqual(once.findings.map((finding) => finding.kind), ["unsafe_action", "goal_drift"], "needs_human waits for a second reading; worker_stuck opens nothing of its own; injected_intent only records");
+  assert.deepEqual(once.findings.map((finding) => finding.kind), ["unsafe_action", "goal_drift"], "missing_mechanism waits for a second reading; worker_stuck opens nothing of its own; injected_intent only records");
   assert.equal(once.findings[0]!.level, "page", "what is irreversible goes first, and at once");
   assert.deepEqual(once.verdicts.map((verdict) => [verdict.kind, verdict.question, verdict.says]), [["stuck", "worker_stuck", "confirms"]]);
-  assert.ok(weigh({ answers, model: "m" }, questions, noted, { unclear, ended: false, before: answers }).findings.some((finding) => finding.kind === "needs_human"));
-  assert.ok(weigh({ answers, model: "m" }, questions, noted, { unclear, ended: true }).findings.some((finding) => finding.kind === "needs_human"), "a turn that has ended gets no second reading, so one is enough");
+  assert.ok(weigh({ answers, model: "m" }, questions, noted, { unclear, ended: false, before: answers }).findings.some((finding) => finding.kind === "missing_mechanism"));
+  assert.ok(weigh({ answers, model: "m" }, questions, noted, { unclear, ended: true }).findings.some((finding) => finding.kind === "missing_mechanism"), "a turn that has ended gets no second reading, so one is enough");
   const close = weigh({ answers: { unsafe_action: 0.6, worker_stuck: 0.6 }, model: "m" }, questions, noted, { unclear, ended: false });
   assert.deepEqual(close.findings.map((finding) => [finding.kind, finding.level]), [["unsafe_action", "attend"]], "an unclear answer on an irreversible act is never let pass");
   assert.equal(close.verdicts[0]!.says, "unclear");

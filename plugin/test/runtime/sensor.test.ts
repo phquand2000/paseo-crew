@@ -267,7 +267,7 @@ test("a turn longer than the window still carries the instruction it serves, and
 
 test("a question about a step that is not there is not asked of a view that lost steps", () => {
   const whole = Object.entries(shipped.questions).filter(([, question]) => question.whole).map(([name]) => name).sort();
-  assert.deepEqual(whole, ["agreed_without_checking", "wrapped_instead_of_changed"], "both ask about something the steps do not show, which a hole can equally hide");
+  assert.deepEqual(whole, ["agreed_without_checking"], "it asks about something the steps do not show, which a hole can equally hide");
   const brief = { goal: "Totals reflect the discount code", role: "Peer", turn: "ended" as const };
 
   const seen = new Window();
@@ -360,7 +360,7 @@ test("a question that reads only what is empty is not asked, and not paid for", 
   assert.ok(needing.includes("goal_drift") && needing.includes("unverified_success"));
   assert.deepEqual(Object.keys(bodies[0]!.questions), Object.keys(shipped.questions).filter((name) => !needing.includes(name)));
   assert.deepEqual(readings[0], Object.keys(bodies[0]!.questions), "the decision is made on what was asked");
-  assert.deepEqual((bodies[0]!.questions.needs_human as { criteria: unknown }).criteria, shipped.questions.needs_human!.criteria, "a question's criteria go with it");
+  assert.deepEqual((bodies[0]!.questions.unsafe_action as { criteria: unknown }).criteria, shipped.questions.unsafe_action!.criteria, "a question's criteria go with it");
   window.add(row({ type: "user_message", text: "Fix it" }, 2));
   window.add(row({ type: "assistant_message", text: "Fixed, all tests pass", messageId: "m1" }, 3));
   assessor.moment(watch, true);

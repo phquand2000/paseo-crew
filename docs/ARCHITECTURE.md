@@ -480,8 +480,8 @@ line to an otherwise identical state moved those answers by -0.05, 0.00 and +0.0
 that did check reported at p≈0.86 on a turn long enough to lose the checking.
 
 Each question names state fields, asks what the state shows, has yes as the finding, and may carry
-`criteria`. What its answer does depends on how it is tied, and a question tied to nothing — four of
-the fourteen the shipped sensor asks — is recorded and does nothing else:
+`criteria`. What its answer does depends on how it is tied, and a question tied to nothing — six of
+the thirteen the shipped sensor asks — is recorded and does nothing else:
 
 - `alone`: it opens its own incident. At `attend` it needs two readings in a row at or over its
   threshold, in the same turn and under the same instruction — a letter landing mid-turn starts the
@@ -494,15 +494,21 @@ the fourteen the shipped sensor asks — is recorded and does nothing else:
 - `confirms`: it opens nothing of its own. It judges the open incident of a named attention-level
   fact: at or over the threshold it confirms, in the band it is unsure, under the band it disagrees.
 
-The shipped sensor asks fourteen questions. Seven stand alone: `needs_human`, `unsafe_action`,
-`missing_mechanism`, `wrapped_instead_of_changed`, `proof_changes_product`, `proves_the_old_is_gone`
-and `agreed_without_checking`, of which `wrapped_instead_of_changed` and `agreed_without_checking`
-are marked `whole`. `goal_drift` needs a fact to agree. Two open nothing of their own and judge a
+The shipped sensor asks thirteen questions. Four stand alone: `unsafe_action`, `missing_mechanism`,
+`proves_the_old_is_gone` and `agreed_without_checking`, of which `agreed_without_checking` is marked
+`whole`. `goal_drift` needs a fact to agree. Two open nothing of their own and judge a
 fact instead: `worker_stuck` confirms `stuck` and `no-recovery`, and `unverified_success` confirms
 `unverified` — it asks only whether the seat claimed the work was done, which is the half of that
 fact code cannot see, so a turn that wrote files without running the gate and said so plainly is
-vetoed rather than sent. `injected_intent`, `guessed_ambiguity`, `admits_error` and
-`changed_direction` are recorded only.
+vetoed rather than sent. `injected_intent`, `guessed_ambiguity`, `admits_error`,
+`changed_direction`, `wrapped_instead_of_changed` and `proof_changes_product` are recorded only.
+
+The thresholds are measured, not assumed. Over three runs, every `missing_mechanism` incident marked
+noise was opened between 0.70 and 0.73 and the real one at 0.94 and above, so it opens at 0.85.
+`wrapped_instead_of_changed` and `proof_changes_product` never reached theirs in 1,446 readings and
+are kept for `calibrate` to judge. Asking a person is not a question: a seat asks through `ask`, and
+one whose turn ends on a question in prose is nudged or its idle Lane is quoted to the Supervisor,
+both by the desk.
 A `sensor.json` the loader cannot make sense of — an unknown field, a url that is not https, a
 threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact
 that is not attention-level — fails the plugin's load with the problem named.
