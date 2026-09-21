@@ -79,6 +79,8 @@ test("what a Watcher may raise and judge is refused when it is not something the
   assert.deepEqual(watcherProblems({ judges: [], kinds: { stuck: kind } }), ["names a kind stuck, which is a fact the code raises"], "it would be the code's own incident, waiting on its own judgement");
   assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { ...kind, level: "loud" } } }), ["raises goal_drift at a level that is neither page nor attend"]);
   assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { level: "attend", label: "x" } } }), ["raises goal_drift with no means"]);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { ...kind, looks: "rewriting the settings page" } } }), []);
+  assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { ...kind, looks: ["a", "b"] } } }), ["raises goal_drift with a looks that is not text"]);
   assert.deepEqual(watcherProblems({ judges: [], kinds: { goal_drift: { ...kind, threshold: 0.5 } }, extra: 1 }), ["has extra, which the Watcher does not take", "raises goal_drift with threshold, which a kind does not take"]);
 });
 

@@ -402,7 +402,8 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   return problems;
 }
 
-export type WatcherKind = { level: "page" | "attend"; label: string; means: string };
+/** `looks` is a short example of how the kind shows in a seat's steps, so no one reads a catalogue to learn it. */
+export type WatcherKind = { level: "page" | "attend"; label: string; means: string; looks?: string };
 export type WatcherSpec = { kinds: Record<string, WatcherKind>; judges: string[] };
 
 export function watcherProblems(raw: Record<string, unknown>): string[] {
@@ -418,7 +419,8 @@ export function watcherProblems(raw: Record<string, unknown>): string[] {
     if (FACT_LEVELS[name] !== undefined) problems.push(`names a kind ${name}, which is a fact the code raises`);
     if (kind?.level !== "page" && kind?.level !== "attend") problems.push(`raises ${name} at a level that is neither page nor attend`);
     for (const field of ["label", "means"]) if (typeof kind?.[field] !== "string" || !kind[field]) problems.push(`raises ${name} with no ${field}`);
-    for (const key of Object.keys(kind ?? {})) if (!["level", "label", "means"].includes(key)) problems.push(`raises ${name} with ${key}, which a kind does not take`);
+    if (kind?.looks !== undefined && (typeof kind.looks !== "string" || !kind.looks)) problems.push(`raises ${name} with a looks that is not text`);
+    for (const key of Object.keys(kind ?? {})) if (!["level", "label", "means", "looks"].includes(key)) problems.push(`raises ${name} with ${key}, which a kind does not take`);
   }
   return problems;
 }

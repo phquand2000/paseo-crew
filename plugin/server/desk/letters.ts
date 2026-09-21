@@ -386,7 +386,7 @@ export const letters = {
   watcherSeated(label: string, spec: WatcherSpec | undefined): string {
     const lines = [`You are seated on this project as its ${label}. Readings arrive as mail; there is nothing to do until one does.`];
     const kinds = Object.entries(spec?.kinds ?? {});
-    if (kinds.length > 0) lines.push("", "What you may raise, each against the step that shows it:", list(kinds.map(([name, kind]) => `${name} (${kind.level}): ${kind.label}. ${kind.means}`)));
+    if (kinds.length > 0) lines.push("", "What you may raise, each against the step that shows it:", list(kinds.map(([name, kind]) => `${name} (${kind.level}): ${kind.label}. ${kind.means}${kind.looks ? ` For example: ${kind.looks}` : ""}`)));
     if (spec?.judges.length) lines.push("", `What the code raises and you judge before anyone is told: ${spec.judges.join(", ")}.`);
     return lines.join("\n");
   },

@@ -623,11 +623,15 @@ Code in `watch/seat/`, beside `watch/jev/`, reading the same stream and trail:
 - **Delivery.** Readings go through the outbox, which never steers into a Watcher's running turn,
   whatever its agent. What arrives meanwhile is handed over together.
 - **What it may raise and judge** is data, in `catalog/watcher/watcher.json`: each kind with a
-  level, a label and what it means, and the attention-level facts it judges. The kit refuses a kind
+  level, a label, what it means and a one-line example of how it shows in a seat's steps, and the
+  attention-level facts it judges. The kinds are the ones `docs/ANTIPATTERNS.md` lists that a trail
+  can show; the Watcher never reads that file, only this short form. The kit refuses a kind
   that is not lowercase words or that is named after a fact the code raises (one incident stands per
   seat and kind), a level other than page or attend, and a judged fact that is not an
   attention-level one the code raises. Its first message lists both, so a kit's own list needs no
-  prompt edit.
+  prompt edit. Its prompt, `content/prompts/WATCHER.md`, says how to read: what the seat is doing,
+  why it might be fine, then each kind on its own; an empty reading as the common answer; a thought
+  weighed by the step that acts on it; and the readings that look like faults and are not.
 - **Reporting.** `raise` takes a ref only from the readings sent to that Watcher, kept per Watcher in
   memory and dropped when it is gone. After a restart it waits for the next reading. It refuses a seat
   that has gone. What it opens carries `by: "watcher"`, which `ack` writes into its event. One

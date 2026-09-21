@@ -1820,7 +1820,8 @@ async function read(h: ReturnType<typeof harness>, watcher: string) {
 test("a Watcher raises against a step it was read: the step, not its words, reaches whoever answers for the seat", async () => {
   const { h, sup, lane, peer, timeline } = await laneWithPeer("outbox-raise.json", bySeat({ watch: true }));
   const [watcher] = watchersOf(h);
-  assert.match(watcher!.prompt!, /missing_mechanism \(attend\): Built a stand-in/, "seated knowing what it may raise, from the kit");
+  assert.match(watcher!.prompt!, /missing_mechanism \(attend\): Built a stand-in[^\n]*For example: "patch\.js is missing/, "seated knowing what it may raise, with an example of each, from the kit");
+  assert.match(watcher!.prompt!, /What the code raises and you judge before anyone is told: stuck, no-recovery/);
   await h.idle(watcher!.id);
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
