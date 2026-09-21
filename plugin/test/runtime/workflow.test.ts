@@ -18,7 +18,7 @@ type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { firstOverlap, serialHits, serialPaths, SERIAL_ONLY } = await import("../../server/core/scope.ts");
 const { FakeTimeline, settle } = await import("./fake-timeline.ts");
-const { readAssessments } = await import("../../server/runtime/watch/assessments.ts");
+const { readAssessments } = await import("../../server/runtime/watch/jev/assessments.ts");
 
 type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
 type Fake = {

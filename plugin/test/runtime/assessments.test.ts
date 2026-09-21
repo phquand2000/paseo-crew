@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
 import { tempDir } from "../tempdir.ts";
-import { type Kept, assessmentsDir, keepAssessment, readAssessments, readTally } from "../../server/runtime/watch/assessments.ts";
+import { type Kept, assessmentsDir, keepAssessment, readAssessments, readTally } from "../../server/runtime/watch/jev/assessments.ts";
 
 const record = (at: number): Kept => ({
   at,

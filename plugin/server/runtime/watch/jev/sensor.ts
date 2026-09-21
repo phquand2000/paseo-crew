@@ -1,9 +1,9 @@
-import type { Question, SensorSpec } from "../../catalog/kit.ts";
-import type { Fact } from "./facts.ts";
-import { type Step, trailOf } from "./trail.ts";
+import type { Question, SensorSpec } from "../../../catalog/kit.ts";
+import type { Fact } from "../facts.ts";
+import { type Step, trailOf } from "../trail.ts";
 import { type Brief, type View, type ViewName, asked, viewsOf } from "./views.ts";
-import type { SeatWatch } from "./watches.ts";
-import { errorText } from "../../core/errors.ts";
+import type { SeatWatch } from "../watches.ts";
+import { errorText } from "../../../core/errors.ts";
 
 export type Assessment = { answers: Record<string, number>; model: string; id: string | null; cost: number | null };
 

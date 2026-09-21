@@ -13,7 +13,7 @@ import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
 import type { DeskServices, Tool } from "./services.ts";
 import { Slots } from "./slots.ts";
-import type { Finding, Verdict } from "../runtime/watch/rules.ts";
+import type { Finding, Verdict } from "../runtime/watch/findings.ts";
 import { type Noticed, closeIncidentsOf, judge, notice, retell } from "./notice.ts";
 import * as incidents from "./tools/incidents.ts";
 import * as lead from "./tools/lead.ts";

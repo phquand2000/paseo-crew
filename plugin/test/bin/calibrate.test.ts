@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { tempDir } from "../tempdir.ts";
-import { type Kept, keepAssessment } from "../../server/runtime/watch/assessments.ts";
+import { type Kept, keepAssessment } from "../../server/runtime/watch/jev/assessments.ts";
 
 const HOME = tempDir("sw2-calibrate-home-");
 process.env.HOME = HOME;

@@ -1,7 +1,7 @@
-import type { Question } from "../../catalog/kit.ts";
-import type { Sibling } from "../../desk/ledger.ts";
-import { within } from "./facts.ts";
-import type { Step, Trail } from "./trail.ts";
+import type { Question } from "../../../catalog/kit.ts";
+import type { Sibling } from "../../../desk/ledger.ts";
+import { within } from "../facts.ts";
+import type { Step, Trail } from "../trail.ts";
 
 /** What the sensor is told about the seat itself, apart from what its turn did. */
 export type Brief = { role: string; goal: string; context: string; beside: Sibling[]; gates: string[]; workingCopy: string };

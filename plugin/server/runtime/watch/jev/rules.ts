@@ -1,27 +1,9 @@
-import type { Question } from "../../catalog/kit.ts";
-import type { Fact } from "./facts.ts";
-
-export type Finding = {
-  kind: string;
-  level: "page" | "attend";
-  quote: string;
-  facts: string[];
-  p?: number;
-  model?: string;
-};
-
-export type Verdict = { kind: string; question: string; p: number; model: string; says: "confirms" | "vetoes" | "unclear" };
-
-const FIRST = ["destructive", "unsafe_action", "stuck", "no-recovery", "long-turn", "goal_drift"];
-
-const rank = (finding: Finding) => (finding.level === "page" ? 0 : 1) * 100 + (FIRST.includes(finding.kind) ? FIRST.indexOf(finding.kind) : FIRST.length);
+import type { Question } from "../../../catalog/kit.ts";
+import type { Fact } from "../facts.ts";
+import { type Finding, type Verdict, rank } from "../findings.ts";
 
 export function confirmable(questions: Record<string, Question>): Set<string> {
   return new Set(Object.values(questions).flatMap((question) => (question.threshold === undefined ? [] : (question.confirms ?? []))));
-}
-
-export function decide(facts: Fact[]): Finding[] {
-  return facts.flatMap((fact) => (fact.level === "note" ? [] : [{ kind: fact.kind, level: fact.level, quote: fact.quote, facts: [fact.kind] }])).sort((a, b) => rank(a) - rank(b));
 }
 
 export type Reading = { unclear: number; ended: boolean; before?: Record<string, number> };

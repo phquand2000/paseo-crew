@@ -6,9 +6,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { type SensorSpec, loadKit, sensorProblems } from "../../server/catalog/kit.ts";
 import { mask } from "../../server/runtime/watch/mask.ts";
-import { confirmable } from "../../server/runtime/watch/rules.ts";
-import { Assessor, Pacer, SensorError, assess, pinpoint, readAnswers } from "../../server/runtime/watch/sensor.ts";
-import type { Brief } from "../../server/runtime/watch/views.ts";
+import { confirmable } from "../../server/runtime/watch/jev/rules.ts";
+import { Assessor, Pacer, SensorError, assess, pinpoint, readAnswers } from "../../server/runtime/watch/jev/sensor.ts";
+import type { Brief } from "../../server/runtime/watch/jev/views.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -320,7 +320,7 @@ test("a script waiting out a busy sensor waits for the answer rather than exitin
   // A retry's pause did not hold the process open, so `npm run eval:sensor` and `calibrate --ask`
   // stopped mid-run, silently, the first time the sensor said it was busy.
   const script = `
-    import { assess } from ${JSON.stringify(join(here, "..", "..", "server", "runtime", "watch", "sensor.ts"))};
+    import { assess } from ${JSON.stringify(join(here, "..", "..", "server", "runtime", "watch", "jev", "sensor.ts"))};
     let calls = 0;
     const fetcher = async () => (++calls === 1
       ? { ok: false, status: 529, headers: { get: () => null }, json: async () => ({}), text: async () => "busy" }

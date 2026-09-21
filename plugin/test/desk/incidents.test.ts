@@ -12,7 +12,8 @@ import { emptyLedger, saveLedger } from "../../server/desk/ledger.ts";
 import { closeIncidentsOf, judge, notice, retell } from "../../server/desk/notice.ts";
 import type { DeskServices } from "../../server/desk/services.ts";
 import { ack, incidents } from "../../server/desk/tools/incidents.ts";
-import { decide, weigh } from "../../server/runtime/watch/rules.ts";
+import { decide } from "../../server/runtime/watch/findings.ts";
+import { weigh } from "../../server/runtime/watch/jev/rules.ts";
 import { labelsIn } from "../../bin/calibrate.ts";
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));

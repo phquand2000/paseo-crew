@@ -55,7 +55,8 @@ The daemon side and the seats share no memory:
 | `plugin/server/catalog/` | Data to seats: the kit loader and harness contract, team resolution, providers, seat directories, launch config, content rendering |
 | `plugin/server/desk/` | The ledger and the verbs seats call: lanes, tasks, asks, working copies, the merge queue, gates, incidents and letters. `args.ts` checks every call's arguments before a verb sees them |
 | `plugin/server/runtime/` | The composition root and the loops: hooks, spool, outbox, patrol, turn reading, RPC, health checks |
-| `plugin/server/runtime/watch/` | The window over a seat's timeline, the facts read from it, the trail and views Jev reads, the sensor, and how its answers are weighed |
+| `plugin/server/runtime/watch/` | The window over a seat's timeline, the trail, the facts read from it and the findings they make |
+| `plugin/server/runtime/watch/jev/` | The views Jev reads, the sensor, its kept assessments, and how its answers are weighed |
 | `plugin/client/` | The Seatworks panel |
 | `plugin/shared/` | What the panel and the server share: the RPC contracts in `rpc.ts`, the Flow and watch views in `views.ts` |
 | `plugin/mcp/` | `team.mjs` (desk tools over stdio), `code.mjs` (the proxy for catalog servers), `tools.json` (the tool sets and their schemas) |

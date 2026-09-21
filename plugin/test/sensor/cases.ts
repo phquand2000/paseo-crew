@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Question } from "../../server/catalog/kit.ts";
 import type { Trail } from "../../server/runtime/watch/trail.ts";
-import type { Brief } from "../../server/runtime/watch/views.ts";
+import type { Brief } from "../../server/runtime/watch/jev/views.ts";
 
 /**
  * A turn the sensor should read one way, and what each question should say about it.

@@ -6,12 +6,12 @@ import { type Question, type SensorSpec, loadKit } from "../server/catalog/kit.t
 import { DAY_MS, type Judged, loadIncidents } from "../server/desk/incidents.ts";
 import { type Project, projectOf } from "../server/desk/project.ts";
 import { TeamSource } from "../server/runtime/team-source.ts";
-import { type Kept, assessmentsDir, readAssessments } from "../server/runtime/watch/assessments.ts";
+import { type Kept, assessmentsDir, readAssessments } from "../server/runtime/watch/jev/assessments.ts";
 import { type Fact, FACT_LEVELS } from "../server/runtime/watch/facts.ts";
-import { weigh } from "../server/runtime/watch/rules.ts";
-import { assessViews } from "../server/runtime/watch/sensor.ts";
+import { weigh } from "../server/runtime/watch/jev/rules.ts";
+import { assessViews } from "../server/runtime/watch/jev/sensor.ts";
 import type { Step } from "../server/runtime/watch/trail.ts";
-import { stepText } from "../server/runtime/watch/views.ts";
+import { stepText } from "../server/runtime/watch/jev/views.ts";
 
 export type Label = { id: string; seat: string; kind: string; opened: number; last: number; closed?: number; sensor?: Judged; label: "useful" | "noise" };
 

@@ -12,7 +12,7 @@ import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
 import { deskFacts } from "./watch/history.ts";
-import { decide } from "./watch/rules.ts";
+import { decide } from "./watch/findings.ts";
 import type { Watches } from "./watch/watches.ts";
 
 type SeatMap = Map<string, SeatView>;

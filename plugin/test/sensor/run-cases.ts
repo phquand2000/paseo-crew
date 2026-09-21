@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { stateRoot } from "../../server/core/paths.ts";
-import { assessViews } from "../../server/runtime/watch/sensor.ts";
-import { viewsOf } from "../../server/runtime/watch/views.ts";
+import { assessViews } from "../../server/runtime/watch/jev/sensor.ts";
+import { viewsOf } from "../../server/runtime/watch/jev/views.ts";
 import { barOf, loadCases, median, right } from "./cases.ts";
 
 const { values } = parseArgs({ options: { runs: { type: "string", default: "3" }, case: { type: "string" }, question: { type: "string" } } });

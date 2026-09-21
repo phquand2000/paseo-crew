@@ -7,7 +7,7 @@ import { loadKit } from "../../server/catalog/kit.ts";
 import type { Seen } from "../../server/core/ports.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
 import { DESTRUCTIVE, FACT_LEVELS, FACT_TITLES, type Fact, type Rules, SUPPRESSED, TEST_PATH, onDetail, stuck } from "../../server/runtime/watch/facts.ts";
-import { weigh } from "../../server/runtime/watch/rules.ts";
+import { weigh } from "../../server/runtime/watch/jev/rules.ts";
 import { SeatWatch } from "../../server/runtime/watch/watches.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
