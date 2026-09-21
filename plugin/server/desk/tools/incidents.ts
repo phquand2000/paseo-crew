@@ -65,11 +65,8 @@ export const incidents: Tool = async ({ ctx }, caller, args) => {
 
 export const ack: Tool = async ({ ctx }, caller, args) => {
   const id = str(args.id);
-  const verdict = str(args.verdict);
-  if (!id) return no("ack needs the id of an incident, as incidents lists it.");
-  if (verdict !== "useful" && verdict !== "noise" && verdict !== "unknown") {
-    return no("ack needs a verdict: useful, if what the incident names happened and its brief neither asked for it nor needs it; noise, if not; unknown, only if the record can neither show it nor rule it out.");
-  }
+  // One of the three: the desk holds every call to the schema before it gets here.
+  const verdict = str(args.verdict) as NonNullable<Incident["label"]>;
   const note = mask(str(args.note));
   const now = Date.now();
   const done = await ctx.incidents(caller.project, (held) => {

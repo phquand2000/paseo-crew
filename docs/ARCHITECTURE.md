@@ -238,7 +238,11 @@ empty. Incidents live beside it in `incidents.json`, under the same discipline a
 ### Verbs
 
 A seat's call runs only if its Paseo provider maps to a role whose tool set in `mcp/tools.json` holds
-the verb, and the role its bridge names is that same role. Inside the verbs, behaviour depends on
+the verb, and the role its bridge names is that same role, and only if its arguments fit the schema
+that tool set shows the seat: every required field present and saying something, every value of its
+type and, where the schema lists them, one of its values, and no field the schema does not have. A call
+that does not fit is refused with what is wrong and what the verb takes, in `desk/args.ts`, before
+the verb runs; no verb checks its own arguments. Inside the verbs, behaviour depends on
 what the role **can** do, never on its name. The capabilities are `supervise`, `lead`, `work`,
 `write`, `review` and `watched`, in `roles.json`. `open_lane`, `start_task` and `start_review` each
 take an optional `role`, which picks between roles holding the same capability.
@@ -507,7 +511,7 @@ The thresholds are measured, not assumed. Over three runs, every `missing_mechan
 noise was opened between 0.70 and 0.73 and the real one at 0.94 and above, so it opens at 0.85.
 `wrapped_instead_of_changed` and `proof_changes_product` never reached theirs in 1,446 readings and
 are kept for `calibrate` to judge. Asking a person is not a question: a seat asks through `ask`, and
-one whose turn ends on a question in prose is nudged or its idle Lane is quoted to the Supervisor,
+one whose turn ends on a question in prose is nudged, or its idle lane is quoted to the Supervisor,
 both by the desk.
 A `sensor.json` the loader cannot make sense of — an unknown field, a url that is not https, a
 threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact

@@ -250,7 +250,7 @@ test("a lane works serially in the project's own copy and hands it back on its b
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
   const noLimits = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"] });
   assert.equal(noLimits.ok, false);
-  assert.match(noLimits.text, /out of scope/);
+  assert.match(noLimits.text, /needs outOfScope/);
 
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
   assert.equal(opened.ok, true, opened.text);
@@ -268,7 +268,7 @@ test("a lane works serially in the project's own copy and hands it back on its b
 
   const unbounded = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"] });
   assert.equal(unbounded.ok, false);
-  assert.match(unbounded.text, /out of scope/);
+  assert.match(unbounded.text, /needs outOfScope/);
 
   const t1 = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
   assert.equal(t1.ok, true, t1.text);
@@ -851,7 +851,7 @@ test("a detour hands back to the lane that was waiting on it, and cannot be open
   assert.equal(lane.detourOf, "L1");
   assert.match(h.agents.get(lane.lead!)!.prompt!, /clears the way for L1/, "the detour's Lead is told to do that and no more");
 
-  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L2", reason: "done" })).ok, true);
+  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: false, reason: "done" })).ok, true);
   await h.idle(waiting.lead!);
   assert.match(h.agents.get(waiting.lead!)!.sent.join("\n"), /CLEARED L2[\s\S]*ask if your work needs it there/, "the lane that waited cannot see the other one, so it has to be told");
   h.runtime.dispose();
@@ -864,7 +864,7 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   const lane = h.ledger().lanes.L1!;
   writeFileSync(join(lane.worktree!, "half-written.txt"), "not committed yet\n");
 
-  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "the outcome was wrong" });
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "the outcome was wrong" });
   assert.equal(closed.ok, true, closed.text);
   assert.equal(existsSync(join(lane.worktree!, "half-written.txt")), true, "the Lead is mid-turn, and removing its copy --force would take what it has not committed");
   assert.ok(h.ledger().slots[lane.slot!], "and the copy still belongs to the lane, so nothing else is sent into it");
@@ -956,7 +956,7 @@ test("a lane closed in the project's own copy does not switch the branch out fro
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch);
 
   // Closed while its Lead is mid-turn, so putting the branch back waits for that Lead.
-  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "wrong outcome" });
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "wrong outcome" });
   assert.equal(closed.ok, true, closed.text);
   assert.deepEqual(h.ledger().lanes.L1!.restoring!.writers, [first.lead!], "and the wait is on the record, not in memory");
 
@@ -975,7 +975,7 @@ test("a lane closed in the project's own copy does not switch the branch out fro
   assert.equal(h.git(h.root, "log", "-1", "--format=%s", second.branch).trim(), "edit a.txt", "so L2's commits land on L2's branch, not on main");
 
   // And a Lead that never comes back at all: the round finishes what its turn was holding up.
-  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L2", reason: "done" })).ok, true);
+  assert.equal((await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: false, reason: "done" })).ok, true);
   h.agents.get(second.lead!)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "the owner's own repository is not left on a dead lane's branch");
@@ -987,7 +987,7 @@ test("a copy waiting on a seat that never ends its turn is put away in the round
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Abandoned", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
   const lane = h.ledger().lanes.L1!;
-  await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "the outcome was wrong" });
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "the outcome was wrong" });
   assert.equal(existsSync(lane.worktree!), true, "the Lead is mid-turn, so the copy waits for it");
   assert.deepEqual(h.ledger().slots[lane.slot!]!.releasing!.writers, [lane.lead!], "and what it is waiting on is on the record, not only in memory");
 
@@ -1011,7 +1011,7 @@ test("a copy two seats are writing in is put away by the last of them to stop, n
   assert.equal(h.agents.get(task.peer!)!.cwd, lane.worktree, "a lane-mode Peer writes in the lane's own copy, beside its Lead");
   writeFileSync(join(lane.worktree!, "half-written.txt"), "the Peer is mid-sentence\n");
 
-  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", reason: "the outcome was wrong" });
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "the outcome was wrong" });
   assert.equal(closed.ok, true, closed.text);
   assert.match(closed.text, new RegExp(`${lane.lead} and ${task.peer}`), "both are named, because both are still writing there");
 
@@ -1214,8 +1214,8 @@ test("two supervising seats hold one project, and each lane's mail goes to the s
   assert.equal(lanes.L2!.detourOf, "L1");
   assert.match(h.agents.get(lanes.L2!.lead!)!.prompt ?? "", /clears the way for L1/, "the detour's Lead is told what it is unblocking");
 
-  await h.call(lanes.L1!.lead!, "lead", "report", { summary: "schema done" });
-  await h.call(lanes.L2!.lead!, "lead", "report", { summary: "permissions done" });
+  await h.call(lanes.L1!.lead!, "lead", "report", { summary: "schema done", ready: false });
+  await h.call(lanes.L2!.lead!, "lead", "report", { summary: "permissions done", ready: false });
   await h.idle(architecture);
   await h.idle(safety);
   assert.match(h.agents.get(architecture)!.sent.join("\n"), /schema done/);
@@ -1264,7 +1264,7 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
 
   // And a task already cut has no Peer left to steer: the Lead was being told it "is still owned by"
   // a Peer that had been put away, and still its to judge.
-  await h.call(sup, "supervisor", "close_lane", { lane: "L1" });
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false });
   const cut = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "One more thing." });
   assert.equal(cut.ok, false);
   assert.match(cut.text, /L1-T1 is cut/);
@@ -2063,5 +2063,28 @@ test("a lane whose Lead has gone raises nothing about it, since nothing would ev
   h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
   await h.tick();
   assert.deepEqual(Object.keys(incidentsOf(h.project.state)), [], "an incident about a seat that has gone is one nobody can close");
+  h.runtime.dispose();
+});
+
+test("every call is held to the schema the seat was shown, and told what it takes", async () => {
+  // A harness that does not check its tool calls sent prose where one of three words belonged, a
+  // misnamed field and a list where text belonged; the desk took the hand-back and wrote "No summary
+  // given." and "Checks: not given" into it. A report without `ready` went through as not ready,
+  // its carried notes dropped.
+  const { h, lane, peer } = await laneWithPeer("outbox-schema.json");
+  const prose = await h.call(peer, "peer", "done", { outcome: "I finished the module and tests pass", summary: "built it" });
+  assert.equal(prose.ok, false, prose.text);
+  assert.match(prose.text, /outcome must be one of complete, partial, blocked/);
+  const misnamed = await h.call(peer, "peer", "done", { outcome: "complete", summary: "built it", commits: "abc", checks: ["npm test"] });
+  assert.equal(misnamed.ok, false);
+  assert.match(misnamed.text, /no field commits/);
+  assert.match(misnamed.text, /checks must be text/);
+  assert.match(misnamed.text, /It takes outcome, summary, and optionally commit, checks, leftUndone, discovered/);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "nothing was handed back");
+  const report = await h.call(lane.lead!, "lead", "report", { summary: "done", carries: "a note" });
+  assert.equal(report.ok, false);
+  assert.match(report.text, /needs ready/);
+  const blank = await h.call(peer, "peer", "done", { outcome: "complete", summary: "  " });
+  assert.match(blank.text, /needs summary/, "a required text has to say something");
   h.runtime.dispose();
 });

@@ -116,8 +116,6 @@ export const startTask: Tool = async (desk, caller, args) => {
   const { project } = caller;
   const owned = strs(args.owned);
   const parallel = args.parallel === true;
-  if (!str(args.title) || !str(args.goal) || strs(args.acceptance).length === 0 || owned.length === 0 || strs(args.outOfScope).length === 0)
-    return no("start_task needs a title, a goal, acceptance, owned paths and what is out of scope.");
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
   if (!lane?.worktree) return no("You have no open lane.");
@@ -190,7 +188,6 @@ async function changeOf(project: Project, target: Task, lane: Lane, inOwnCopy: b
 export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   const { project } = caller;
   const focus = str(args.focus);
-  if (!focus) return no("start_review needs a focus: the open question for the reviewer.");
   const ledger = loadLedger(project.state);
   const lane = laneOfLead(ledger, caller.id);
   if (!lane?.worktree) return no("You have no open lane.");
@@ -320,7 +317,6 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
 
 export const rework: Tool = async ({ ctx, roster }, caller, args) => {
   const text = str(args.text);
-  if (!text) return no("rework needs text saying what must change.");
   const result = await ctx.ledger(caller.project, (ledger): Task | string => {
     const found = laneTask(ledger, caller, str(args.task));
     if (typeof found === "string") return found;
@@ -380,7 +376,6 @@ export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
 export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const kind = str(args.kind) as AskKind;
   const text = str(args.text);
-  if (!kind || !text) return no("ask needs kind (need, blocked or question) and text.");
   const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
   if (!lane) return no("You have no open lane.");
   const to = await roster.supervisorFor(caller.project, lane.opener);
@@ -409,7 +404,6 @@ export const ask: Tool = async ({ ctx, roster }, caller, args) => {
 
 export const report: Tool = async ({ ctx, roster }, caller, args) => {
   const summary = str(args.summary);
-  if (!summary) return no("report needs a summary.");
   const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
   if (!lane) return no("You have no open lane.");
   const gate = args.ready === true ? await laneGate(ctx, caller.project, lane) : undefined;

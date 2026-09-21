@@ -89,7 +89,6 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
 
 export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const question = str(args.question);
-  if (!question) return no("ask needs a question.");
   const { project } = caller;
   const ledger = loadLedger(project.state);
   const task = taskOfPeer(ledger, caller.id);

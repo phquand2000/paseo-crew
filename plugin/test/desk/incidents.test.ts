@@ -61,7 +61,6 @@ test("a mark goes on the incident named and closes it, and a sighting of somethi
   await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
   assert.equal((await ack(services, supervisor, { id: "I9", verdict: "useful" })).ok, false);
-  assert.equal((await ack(services, supervisor, { id: "I1", verdict: "maybe" })).ok, false);
   const reply = await ack(services, supervisor, { id: "I2", verdict: "noise", note: "expected: a normal retry of `curl -H 'Authorization: Bearer 9f8e7d6c5b4a39281706'`" });
   assert.equal(reply.ok, true, reply.text);
   const held = loadIncidents(project.state).items;

@@ -1,7 +1,8 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type RoleSpec, can, seatOf, toolsOf, worksTasks } from "../catalog/kit.ts";
+import { type Kit, type RoleSpec, can, schemaOf, seatOf, worksTasks } from "../catalog/kit.ts";
 import type { Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
+import { argsProblems, shapeOf } from "./args.ts";
 import { sortKeys } from "../core/store.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type ToolReply, type ToolRequest, hash, no, ok } from "./context.ts";
 import { errorText } from "../core/errors.ts";
@@ -208,11 +209,17 @@ export class Desk {
     const caller = await this.caller(request);
     if ("error" in caller) return no(caller.error);
     const { ctx } = this.services;
-    const held = toolsOf(this.services.ctx.kit, caller.role).includes(request.tool);
-    const tool = held ? toolFor(caller.role, request.tool) : undefined;
+    const schema = schemaOf(ctx.kit, caller.role, request.tool);
+    const tool = schema ? toolFor(caller.role, request.tool) : undefined;
+    const args = (request.args ?? {}) as Args;
+    const problems = schema ? argsProblems(schema, args) : [];
     let reply: ToolReply;
     try {
-      reply = tool ? await tool(this.services, caller, (request.args ?? {}) as Args) : no(`Unknown tool ${request.tool}.`);
+      reply = !tool
+        ? no(`Unknown tool ${request.tool}.`)
+        : problems.length > 0
+          ? no(`${request.tool} was not carried out: it ${problems.join("; ")}. ${shapeOf(schema!)}`)
+          : await tool(this.services, caller, args);
     } catch (error) {
       ctx.log(caller.project, `${caller.role.role} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
       reply = no(`${request.tool} failed: ${errorText(error)}`);

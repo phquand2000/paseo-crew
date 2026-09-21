@@ -244,7 +244,8 @@ export type Kit = {
   roles: RoleSpec[];
   harnesses: Record<string, HarnessSpec>;
   mcp: Record<string, McpEntry>;
-  toolSets: Record<string, string[]>;
+  /** Each tool set in mcp/tools.json: its tools by name, with the schema each is shown with. */
+  toolSets: Record<string, Record<string, ArgSchema>>;
   templates: Record<string, TemplateSpec>;
   sensors: Record<string, SensorSpec>;
   attention: Attention;
@@ -270,11 +271,14 @@ function subdirs(root: string): string[] {
     .map((entry) => entry.name);
 }
 
-function loadToolSets(dir: string): Record<string, string[]> {
+/** The part of JSON Schema the desk's tools are written in, and every call to them is checked against. */
+export type ArgSchema = { type?: string; enum?: unknown[]; items?: ArgSchema; properties?: Record<string, ArgSchema>; required?: string[]; description?: string };
+
+function loadToolSets(dir: string): Record<string, Record<string, ArgSchema>> {
   const file = join(dir, "mcp", "tools.json");
   if (!existsSync(file)) return {};
-  const raw = JSON.parse(readFileSync(file, "utf-8")) as Record<string, { name?: string }[]>;
-  return Object.fromEntries(Object.entries(raw).map(([set, tools]) => [set, tools.map((tool) => String(tool.name ?? ""))]));
+  const raw = JSON.parse(readFileSync(file, "utf-8")) as Record<string, { name?: string; inputSchema?: ArgSchema }[]>;
+  return Object.fromEntries(Object.entries(raw).map(([set, tools]) => [set, Object.fromEntries(tools.map((tool) => [String(tool.name ?? ""), tool.inputSchema ?? {}]))]));
 }
 
 /** Where a proxy entry keeps something this kit will hand to `new RegExp`. */
@@ -489,7 +493,11 @@ export function roleThatCan(kit: Kit, capability: string, named?: string): RoleS
 }
 
 export function toolsOf(kit: Kit, role: RoleSpec | undefined): string[] {
-  return role?.tools ? (kit.toolSets[role.tools] ?? []) : [];
+  return role?.tools ? Object.keys(kit.toolSets[role.tools] ?? {}) : [];
+}
+
+export function schemaOf(kit: Kit, role: RoleSpec, tool: string): ArgSchema | undefined {
+  return role.tools ? kit.toolSets[role.tools]?.[tool] : undefined;
 }
 
 export function roleSettingsFile(kit: Kit, harness: HarnessSpec, role: RoleSpec): string {

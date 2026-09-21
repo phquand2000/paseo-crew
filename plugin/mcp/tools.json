@@ -222,7 +222,7 @@
               "noise",
               "unknown"
             ],
-            "description": "useful, noise, or unknown."
+            "description": "useful, if what the incident names happened and its brief neither asked for it nor needs it; noise, if not; unknown, only if the record can neither show it nor rule it out."
           },
           "note": {
             "type": "string",

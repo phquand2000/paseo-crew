@@ -22,7 +22,6 @@ export function namedOrNot(kit: Kit, capability: string, named: string, doing: s
 export const message: Tool = async ({ ctx, roster }, caller, args) => {
   const to = str(args.to);
   const text = str(args.text);
-  if (!to || !text) return no("message needs to and text.");
   const ledger = loadLedger(caller.project.state);
   // Keyed by the event, not the words. Keyed on the text, the same instruction sent again was dropped
   // as a repeat — the Peer's letter and the Lead's RECONCILE both — while the sender was told it had
@@ -83,7 +82,6 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
 export const answer: Tool = async ({ ctx }, caller, args) => {
   const id = str(args.ask).toUpperCase();
   const text = str(args.text);
-  if (!id || !text) return no("answer needs ask and text.");
   const result = await ctx.ledger(caller.project, (ledger): { ask: Ask; waitingRole?: string } | string => {
     const ask = ledger.asks[id];
     if (!ask) return `There is no ask ${id}.`;
