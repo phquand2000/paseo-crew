@@ -1,6 +1,6 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type RoleSpec, can, schemaOf, seatOf, worksTasks } from "../catalog/kit.ts";
-import type { Seats, Workspaces } from "../core/ports.ts";
+import { type Kit, type RoleSpec, can, roleThatCan, schemaOf, seatOf, worksTasks } from "../catalog/kit.ts";
+import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import { argsProblems, shapeOf } from "./args.ts";
 import { sortKeys } from "../core/store.ts";
@@ -128,6 +128,23 @@ export class Desk {
 
   supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
     return this.services.roster.supervisorFor(project, preferred);
+  }
+
+  watchers(project: Project, seats: Iterable<SeatView>): SeatView[] {
+    return this.services.roster.watchers(project, seats);
+  }
+
+  /** Seats the project's Watcher. The patrol is its only caller, one round at a time, so there is no second create to race. */
+  async seatWatcher(project: Project): Promise<string | undefined> {
+    const role = roleThatCan(this.services.ctx.kit, "watch");
+    if (!role) return undefined;
+    const id = await this.services.agents.startResident(project, role.role, {
+      title: `${role.label} ${project.slug}`,
+      prompt: `You are seated on this project as its ${role.label}. Readings arrive as mail; there is nothing to do until one does.`,
+      labels: {},
+    });
+    this.services.ctx.event(project, { kind: "watcher.seated", agent: id });
+    return id;
   }
 
   archive(agentId: string | undefined, force = false): Promise<void> {

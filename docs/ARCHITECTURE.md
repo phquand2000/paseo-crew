@@ -602,6 +602,27 @@ These facts go through the same incident book as what the watch reads from a tim
 `incidents`, `ack` and `calibrate` treat them alike. `docs/ANTIPATTERNS.md` says which shape each one
 answers.
 
+### By a Watcher seat
+
+Code in `watch/seat/`, beside `watch/jev/`, reading the same stream and trail:
+
+- **Seating.** Each patrol round, `settleWatcher` keeps one Watcher on a project whose watch is by a
+  seat and which has an open lane, and none on any other. It sits in the project's own workspace
+  (`Agents.startResident`), on the Peer's agent and model unless it has its own. When it is not
+  wanted it is archived after its turn, as a Lead is.
+- **Rotation.** After `watcherRotateAfter` readings, once it is idle with no reading waiting for it,
+  it is archived, and the next round seats a fresh one with the brief of every seat again.
+- **Readings.** `Reader` paces each watched seat with the same `Pacer` Jev uses: after
+  `watcherQuietSeconds` of quiet, at most `watcherEveryMinutes` apart, and at once when a turn ends
+  or something fails. A reading (`letters.reading`) carries, for one seat, the brief the first time
+  an instruction is read, then only the steps that are new or changed, each behind a ref naming the
+  reading (`R3.S5`), because step ids start again at every instruction. It also carries the claim
+  the turn ended on and the facts the code noticed. The oldest steps give way past
+  `watcherChars`.
+- **Delivery.** Readings go through the outbox, which never steers into a Watcher's running turn,
+  whatever its agent. What arrives meanwhile is handed over together.
+- **Reporting.** The Watcher has no desk tools yet, so nothing it concludes is recorded.
+
 ### When Jev is asked
 
 The sensor in `catalog/sensor/jev/` is Jev (`typesafe/jev-1.13`), asked through OpenRouter Decisions.
@@ -903,6 +924,8 @@ content with its keys sorted.
 | `askRemindMinutes` / `maxReminders` | 15 / 2 |
 | `watch` | false |
 | `by` | `seat` |
+| `watcherQuietSeconds` / `watcherEveryMinutes` | 60 / 5 |
+| `watcherChars` / `watcherRotateAfter` | 12000 / 40 |
 | `incidentsPerDay` | 5 |
 | `longTurnMinutes` | 30 |
 | `destructive` / `testPath` / `suppressed` / `repeatsAt` | patterns and 3 |

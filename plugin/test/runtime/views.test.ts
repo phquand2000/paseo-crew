@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { loadKit, sensorProblems } from "../../server/catalog/kit.ts";
 import { DESTRUCTIVE } from "../../server/runtime/watch/facts.ts";
 import { type Step, trailOf } from "../../server/runtime/watch/trail.ts";
-import { type Brief, VIEW_FIELDS, asked, stepText, viewsOf } from "../../server/runtime/watch/jev/views.ts";
+import { type Brief, VIEW_FIELDS, asked, viewsOf } from "../../server/runtime/watch/jev/views.ts";
+import { stepText } from "../../server/runtime/watch/trail.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));

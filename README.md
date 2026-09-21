@@ -104,9 +104,15 @@ While the Leads and Peers work, the desk follows them. It reads two kinds of evi
   to report only what it is sure of, and a brief that writes the work out instead of setting an
   outcome.
 
-By Jev (`attention.by`, below), it also puts each turn to **Jev**, a model outside the seat, for a second opinion. The turn is split
-into four views, and each view shows Jev only what its questions need. When Jev finds something,
-it is asked which step it meant, and the incident quotes that step.
+Beside the code, one of two readers takes a second look, chosen by `attention.by` (below):
+
+- **A Watcher seat**, the default. One Watcher sits in the project while a lane is open. The desk
+  mails it what each Lead and Peer did, said and thought, as they work: only the steps it has not
+  been shown, in batches, and never into the middle of its own turn. A fresh Watcher replaces it
+  after a set number of readings. It cannot report anything yet; that comes next.
+- **Jev**, a model outside the seat. The turn is split into four views, and each view shows Jev only
+  what its questions need. When Jev finds something, it is asked which step it meant, and the
+  incident quotes that step.
 
 Each finding becomes an **incident**:
 

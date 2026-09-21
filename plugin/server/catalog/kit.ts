@@ -209,6 +209,16 @@ export type Attention = {
   watch: boolean;
   /** What reads the watched seats: a Watcher seat, or Jev when a key is set. */
   by: "seat" | "jev";
+  /**
+   * How the Watcher is read to, by a seat. A watched seat's steps are mailed once it has been quiet
+   * this long, at most this far apart while it keeps working, and at once when its turn ends.
+   */
+  watcherQuietSeconds: number;
+  watcherEveryMinutes: number;
+  /** The most one seat's part of a reading holds; the oldest steps give way first. */
+  watcherChars: number;
+  /** Readings one Watcher takes before a fresh one replaces it, so its context never runs long enough to be compacted. */
+  watcherRotateAfter: number;
   destructive: string;
   testPath: string;
   repeatsAt: number;
@@ -266,6 +276,10 @@ const ATTENTION: Attention = {
   tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2,
   watch: false,
   by: "seat",
+  watcherQuietSeconds: 60,
+  watcherEveryMinutes: 5,
+  watcherChars: 12_000,
+  watcherRotateAfter: 40,
   destructive: DESTRUCTIVE,
   testPath: TEST_PATH,
   repeatsAt: 3,

@@ -31,8 +31,9 @@ import { type Finding, type Verdict, decide } from "./watch/findings.ts";
 import { weigh } from "./watch/jev/rules.ts";
 import { keepAssessment, lastKept, readTally } from "./watch/jev/assessments.ts";
 import { Assessor, type Reading, type SensorError, type Sensing } from "./watch/jev/sensor.ts";
-import { stepText } from "./watch/jev/views.ts";
+import { stepText } from "./watch/trail.ts";
 import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
+import { Reader } from "./watch/seat/reader.ts";
 import { malformed } from "./timeline.ts";
 import { loadIncidents } from "../desk/incidents.ts";
 import type { WatchSignal, WatchView } from "../../shared/views.ts";
@@ -62,6 +63,7 @@ export class Runtime {
   private readonly patrol: Patrol;
   private readonly watches: Watches;
   private readonly assessor: Assessor;
+  private readonly reader: Reader;
   private readonly sensorNoted = new Map<string, number>();
   private readonly troubles = new Map<string, { kind: string; at: number; detail: string }[]>();
   private readonly offline = new Set<string>();
@@ -86,7 +88,12 @@ export class Runtime {
       this.seats,
       (letter, at) =>
         console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
-      (seat) => seatOf(kit, seat.provider)?.harness.steers === true,
+      // Never into a Watcher's turn: a reading steered into one it is halfway through reading is read
+      // as part of it. Held, it arrives with the others once that turn is done.
+      (seat) => {
+        const found = seatOf(kit, seat.provider);
+        return found?.harness.steers === true && !can(found.role, "watch");
+      },
     );
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
@@ -105,16 +112,32 @@ export class Runtime {
       done: (watch, reading) => this.assessed(watch, reading),
       failed: (watch, error) => this.degraded(watch, error),
     });
+    this.reader = new Reader({
+      pace: (project) => {
+        const attention = this.source.teamFor(project).attention;
+        if (attention.by !== "seat") return undefined;
+        return { quietMs: attention.watcherQuietSeconds * 1000, everyMs: attention.watcherEveryMinutes * 60_000, chars: attention.watcherChars };
+      },
+      watcher: async (project) => this.desk.watchers(project, await this.seats.open())[0]?.id,
+      post: (to, key, text) => this.desk.post(to, key, text),
+    });
     this.watches = new Watches({
       kit,
       seats: this.seats,
       context: (seat) => this.watchContext(seat),
       found: (watch, facts) => this.watchFound(watch, facts),
       on: (seat) => this.watching(projectOf(seat.cwd)),
-      moment: (watch, urgent) => this.assessor.moment(watch, urgent),
-      dropped: (id) => this.assessor.drop(id),
+      // Each reader answers only where the watch is its own: Jev by jev, the Watcher by a seat.
+      moment: (watch, urgent) => {
+        this.assessor.moment(watch, urgent);
+        this.reader.moment(watch, urgent);
+      },
+      dropped: (id) => {
+        this.assessor.drop(id);
+        this.reader.drop(id);
+      },
     });
-    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, remember });
+    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, reader: this.reader, remember });
     this.control = new SettingsControl({
       kit,
       source: this.source,
@@ -466,6 +489,7 @@ export class Runtime {
   dispose(): void {
     this.watches.dispose();
     this.assessor.dispose();
+    this.reader.dispose();
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
     if (this.tick) clearTimeout(this.tick);

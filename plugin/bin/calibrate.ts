@@ -11,7 +11,7 @@ import { type Fact, FACT_LEVELS } from "../server/runtime/watch/facts.ts";
 import { weigh } from "../server/runtime/watch/jev/rules.ts";
 import { assessViews } from "../server/runtime/watch/jev/sensor.ts";
 import type { Step } from "../server/runtime/watch/trail.ts";
-import { stepText } from "../server/runtime/watch/jev/views.ts";
+import { stepText } from "../server/runtime/watch/trail.ts";
 
 export type Label = { id: string; seat: string; kind: string; opened: number; last: number; closed?: number; sensor?: Judged; label: "useful" | "noise" };
 

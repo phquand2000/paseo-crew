@@ -69,6 +69,11 @@ export class Roster {
     return found[0]?.id ?? (gone ? undefined : preferred);
   }
 
+  /** The live seats watching this project, the most recently active first. */
+  watchers(project: Project, seats: Iterable<SeatView>): SeatView[] {
+    return [...seats].filter((seat) => !seat.archivedAt && this.holds(seat, "watch", project)).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }
+
   private holds(seat: SeatView, capability: string, project: Project): boolean {
     return can(seatOf(this.kit, seat.provider)?.role, capability) && projectOf(seat.cwd).slug === project.slug;
   }

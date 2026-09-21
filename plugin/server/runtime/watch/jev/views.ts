@@ -150,13 +150,3 @@ export function asked(questions: Record<string, Question>, views: Partial<Record
     }),
   );
 }
-
-/** How a step reads in an incident: its id, what it was, and what it did. */
-export function stepText(step: Step): string {
-  if (step.kind === "ran") return `${step.id} ran: ${step.command}${step.result === "failed" ? ` (failed${step.exit ? `, exit ${step.exit}` : ""})` : ""}`;
-  if (step.kind === "changed") return `${step.id} changed ${step.path}${step.change ? `: ${step.change}` : ""}`;
-  if (step.kind === "read") return `${step.id} read ${step.target}`;
-  if (step.kind === "called") return `${step.id} called ${step.tool}${step.input ? ` ${step.input}` : ""}`;
-  if (step.kind === "compacted") return `${step.id} context compacted`;
-  return `${step.id} ${step.kind}: ${step.text}`;
-}

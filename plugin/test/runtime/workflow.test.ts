@@ -167,9 +167,9 @@ function harness(outbox: string) {
   const { root, git } = repo();
   const state = join(HOME, ".local", "share", "seatworks-v2");
   mkdirSync(state, { recursive: true });
-  // The key is the watch's switch, so a test about the watch has to set one: without it nothing here
-  // is followed at all. The endpoint is unreachable above unless a test asks for an answer, which is
-  // the state these tests are really in — the watch on, reading turns in code, the sensor silent.
+  // By Jev, with a key: the watch these tests were written against. The endpoint is unreachable above
+  // unless a test asks for an answer, which is the state they are really in — the watch on, reading
+  // turns in code, the sensor silent. A test about the Watcher seat says so in its own settings.
   writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, attention: { by: "jev" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
@@ -1674,6 +1674,140 @@ async function laneWithPeer(outbox: string, settings?: Record<string, unknown>) 
   await h.tick();
   return { h, sup, lane, peer, timeline: h.timelineOf(peer) };
 }
+
+const watchersOf = (h: ReturnType<typeof harness>) => [...h.agents.values()].filter((agent) => agent.provider.startsWith("sw2-watcher-"));
+const bySeat = (extra: Record<string, unknown> = {}) => ({ attention: { by: "seat", ...extra } });
+
+test("by a seat, one Watcher sits in the project while a lane is open, on the Peer's agent, and goes when the lanes do", async () => {
+  const h = harness("outbox-watcher-seat.json");
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify(bySeat()));
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.tick();
+  assert.deepEqual(watchersOf(h), [], "no lane, no Watcher");
+  await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  await h.tick();
+  await h.tick();
+  const [watcher, ...more] = watchersOf(h);
+  assert.deepEqual(more, [], "one, however many rounds find it");
+  assert.equal(watcher!.provider, "sw2-watcher-devin/swe-2-max", "on the Peer's agent and model, nothing having been set for it");
+  assert.equal(watcher!.cwd, h.project.root, "in the project, not in a lane's copy");
+  assert.equal(watcher!.status, "running");
+
+  // Its turn is let finish before it goes, as a Lead's is.
+  const lane = h.ledger().lanes.L1!;
+  h.agents.get(lane.lead!)!.status = "idle";
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "done" });
+  await h.tick();
+  assert.equal(watcher!.archivedAt, null, "not archived mid-turn");
+  watcher!.status = "idle";
+  await h.tick();
+  assert.ok(watcher!.archivedAt, "and archived once idle, with no lane left to watch");
+  h.runtime.dispose();
+});
+
+test("by Jev there is no Watcher, and one already seated is let go", async () => {
+  const h = harness("outbox-watcher-jev.json");
+  const settings = join(HOME, ".local", "share", "seatworks-v2", "settings.json");
+  writeFileSync(settings, JSON.stringify(bySeat()));
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  await h.tick();
+  const [watcher] = watchersOf(h);
+  watcher!.status = "idle";
+  writeFileSync(settings, JSON.stringify({ attention: { by: "jev" } }));
+  await h.tick();
+  assert.ok(watcher!.archivedAt);
+  await h.tick();
+  assert.equal(watchersOf(h).filter((agent) => !agent.archivedAt).length, 0);
+  h.runtime.dispose();
+});
+
+test("a Watcher reads what a Peer did, said and thought as it works, never a key, and only what is new", async () => {
+  const { h, peer, timeline } = await laneWithPeer("outbox-reading.json", bySeat());
+  const [watcher] = watchersOf(h);
+  await h.idle(watcher!.id);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  timeline.add({ type: "reasoning", text: "The suite is red; deleting the failing test would make it pass." }, "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "OPENROUTER_API_KEY=sk-or-v1-0123456789abcdef0123 npm test", output: "1 failing", exitCode: 1 } }, "t1");
+  timeline.add({ type: "assistant_message", text: "Done, all green." }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await h.idle(watcher!.id);
+  // A failed call is a moment worth reading at once, so the first reading comes mid-turn, and the end
+  // of the turn brings what came after it.
+  const first = watcher!.sent.join("\n");
+  assert.match(first, new RegExp(`READING R1 of the Peer on L1-T1 \\(Clean build\\), agent ${peer}\\. It is still working\\.`));
+  assert.match(first, /What it was asked:\nTask L1-T1: Clean build\nGoal: g/, "the brief, the first time");
+  assert.match(first, /R1\.S1 thought: The suite is red; deleting the failing test would make it pass\./, "what it thought, as a step it can be held to");
+  assert.match(first, /R1\.S2 ran: .*npm test \(failed, exit 1\) → 1 failing/, "what it ran and what that printed");
+  assert.match(first, /READING R2 [^\n]*Its turn has ended\.[\s\S]*It ended on: R2\.S3 Done, all green\./, "and what it claimed, apart from the evidence");
+  assert.doesNotMatch(first, /sk-or-v1-0123/, "a key it typed is never mailed on");
+  assert.equal(first.match(/What it was asked/g)!.length, 1);
+
+  timeline.beat("turn_started", "t2");
+  timeline.add({ type: "tool_call", callId: "c2", name: "Bash", status: "completed", detail: { type: "shell", command: "npm run lint", output: "clean" } }, "t2");
+  timeline.beat("turn_completed", "t2");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await h.idle(watcher!.id);
+  const third = watcher!.sent.at(-1)!;
+  assert.match(third, /READING R3 /);
+  assert.match(third, /R3\.S4 ran: npm run lint → clean/);
+  assert.doesNotMatch(third, /What it was asked|The suite is red|npm test|all green/, "nothing it has already been shown is sent again");
+  assert.equal(h.runtime.outbox.letters().filter((letter) => letter.to === peer).length, 0, "and nothing of it is queued for the Peer");
+  h.runtime.dispose();
+});
+
+test("a reading never steers into a Watcher's turn: it waits, and what came meanwhile arrives with it", async () => {
+  const { h, timeline } = await laneWithPeer("outbox-reading-held.json", { ...bySeat(), roles: { watcher: { harness: "claude" } } });
+  const [watcher] = watchersOf(h);
+  assert.equal(watcher!.provider, "sw2-watcher-claude/claude-opus-5", "on an agent that takes a message into a running turn");
+  h.runtime.outbox.turnStarted(watcher!.id, Date.now() - 120_000);
+  for (const turn of ["t1", "t2"]) {
+    timeline.beat("turn_started", turn);
+    timeline.add({ type: "tool_call", callId: `c-${turn}`, name: "Bash", status: "completed", detail: { type: "shell", command: `echo ${turn}`, output: turn } }, turn);
+    timeline.beat("turn_completed", turn);
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.deepEqual([watcher!.sent, watcher!.steered], [[], []], "nothing reaches it while it is reading");
+  assert.equal(h.runtime.outbox.pending(watcher!.id).length, 2);
+  await h.idle(watcher!.id);
+  assert.equal(watcher!.sent.length, 1, "both at once, when it is done");
+  assert.match(watcher!.sent[0]!, /2 messages[\s\S]*READING R1[\s\S]*echo t1[\s\S]*READING R2[\s\S]*echo t2/);
+  h.runtime.dispose();
+});
+
+test("a Watcher that has taken its share of readings is replaced once it is idle and nothing waits for it", async () => {
+  const { h, timeline } = await laneWithPeer("outbox-rotate.json", bySeat({ watcherRotateAfter: 1 }));
+  const [first] = watchersOf(h);
+  await h.idle(first!.id);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "completed", detail: { type: "shell", command: "ls", output: "a.txt" } }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(first!.sent.length, 1);
+  // Another reading comes while it is still on the first: that one waits for it, so it stays.
+  timeline.beat("turn_started", "t2");
+  timeline.add({ type: "tool_call", callId: "c2", name: "Bash", status: "completed", detail: { type: "shell", command: "pwd", output: "/" } }, "t2");
+  timeline.beat("turn_completed", "t2");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  first!.status = "idle";
+  await h.tick();
+  assert.equal(first!.archivedAt, null, "not while a reading waits for it, which would be lost with it");
+  await h.idle(first!.id);
+  await h.tick();
+  assert.ok(first!.archivedAt, "let go after its share");
+  await h.tick();
+  const live = watchersOf(h).filter((agent) => !agent.archivedAt);
+  assert.equal(live.length, 1);
+  assert.notEqual(live[0]!.id, first!.id, "and a fresh one sits in its place");
+  h.runtime.dispose();
+});
 
 const incidentsOf = (state: string) => JSON.parse(readFileSync(join(state, "incidents.json"), "utf-8")).items as Record<string, { kind: string; held?: string; told?: number; level: string }>;
 

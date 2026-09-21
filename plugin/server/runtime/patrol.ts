@@ -9,11 +9,12 @@ import { type Ask, type Ledger, activeTasks, loadLedger, openAsksFrom } from "..
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
-import type { Outbox } from "./outbox.ts";
+import { type Outbox, busy } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
 import { deskFacts } from "./watch/history.ts";
 import { decide } from "./watch/findings.ts";
+import type { Reader } from "./watch/seat/reader.ts";
 import type { Watches } from "./watch/watches.ts";
 
 type SeatMap = Map<string, SeatView>;
@@ -26,6 +27,7 @@ export type PatrolDeps = {
   outbox: Outbox;
   turns: TurnRules;
   watches: Watches;
+  reader: Reader;
   remember: (project: Project) => void;
 };
 
@@ -70,6 +72,7 @@ export class Patrol {
       await this.step(project, "a task whose Peer is gone could not be recorded", () => this.goneTasks(project, loadLedger(project.state), seats));
       await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
       await this.step(project, "what a lane's history shows could not be read", () => this.history(project, loadLedger(project.state), seats));
+      await this.step(project, "the Watcher could not be settled", () => this.settleWatcher(project, loadLedger(project.state), seats));
       await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
       await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
       await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
@@ -101,6 +104,30 @@ export class Patrol {
       await run();
     } catch (error) {
       console.error(`seatworks-v2: ${project.slug}: ${what}:`, error);
+    }
+  }
+
+  /**
+   * One Watcher while the watch is by a seat and a lane is open, and none otherwise. One that has
+   * taken its share of readings is let go once it is idle with nothing waiting for it, and the next
+   * round seats a fresh one: a Watcher is a long-lived seat, and a context left to run long is
+   * compacted, which is when a reader's discipline goes.
+   */
+  private async settleWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
+    const { desk, outbox, reader } = this.deps;
+    const attention = this.deps.source.teamFor(project).attention;
+    const wanted = attention.by === "seat" && Object.values(ledger.lanes).some((lane) => lane.status === "open");
+    const watchers = desk.watchers(project, seats.values());
+    const kept = wanted ? watchers[0] : undefined;
+    for (const seat of watchers) if (seat !== kept) await desk.archive(seat.id);
+    if (!wanted) return;
+    if (!kept) {
+      await desk.seatWatcher(project);
+      return;
+    }
+    if (reader.readings(kept.id) >= attention.watcherRotateAfter && !busy(kept.status) && outbox.pending(kept.id).length === 0) {
+      await desk.archive(kept.id);
+      desk.event(project, { kind: "watcher.rotated", agent: kept.id, readings: reader.readings(kept.id) });
     }
   }
 

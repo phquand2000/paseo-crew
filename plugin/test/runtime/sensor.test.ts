@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 import { type SensorSpec, loadKit, sensorProblems } from "../../server/catalog/kit.ts";
 import { mask } from "../../server/runtime/watch/mask.ts";
 import { confirmable } from "../../server/runtime/watch/jev/rules.ts";
-import { Assessor, Pacer, SensorError, assess, pinpoint, readAnswers } from "../../server/runtime/watch/jev/sensor.ts";
+import { Assessor, SensorError, assess, pinpoint, readAnswers } from "../../server/runtime/watch/jev/sensor.ts";
+import { Pacer } from "../../server/runtime/watch/pacer.ts";
 import type { Brief } from "../../server/runtime/watch/jev/views.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
