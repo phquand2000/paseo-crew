@@ -40,6 +40,7 @@ function fakePaseo() {
   const agents = new Map<string, Fake>();
   const workspaces = new Map<string, string>();
   const workspaceNames = new Map<string, string>();
+  const workspaceProjects = new Map<string, string>();
   const archivedWorkspaces = new Set<string>();
   const timelines = new Map<string, InstanceType<typeof FakeTimeline>>();
   const timelineOf = (id: string) => {
@@ -79,6 +80,7 @@ function fakePaseo() {
   };
   const workspace = (id: string) => ({
     id,
+    projectId: workspaceProjects.get(id) ?? null,
     agents: {
       async create(options: { config: { provider: string }; title: string; prompt: string }) {
         return ref(add(options.config.provider, workspaces.get(id)!, options.title, "running", options.prompt));
@@ -102,15 +104,18 @@ function fakePaseo() {
       },
     },
     workspaces: {
-      async create({ title, source }: { title?: string; source: { path: string } }) {
+      // The daemon files a directory under the project it is given, and makes a project of the
+      // directory itself when it is given none.
+      async create({ title, source }: { title?: string; source: { path: string; projectId?: string } }) {
         const id = `ws-${workspaces.size + 1}`;
         workspaces.set(id, source.path);
+        workspaceProjects.set(id, source.projectId ?? `prj:${source.path}`);
         if (title) workspaceNames.set(id, title);
         return workspace(id);
       },
       async list() {
         return {
-          entries: [...workspaces.keys()].map((id) => ({ id, name: workspaceNames.get(id) ?? "", archivingAt: archivedWorkspaces.has(id) ? new Date().toISOString() : null })),
+          entries: [...workspaces.keys()].map((id) => ({ id, projectId: workspaceProjects.get(id)!, name: workspaceNames.get(id) ?? "", archivingAt: archivedWorkspaces.has(id) ? new Date().toISOString() : null })),
           pageInfo: { nextCursor: null, prevCursor: null, hasMore: false },
         };
       },
@@ -121,7 +126,7 @@ function fakePaseo() {
       ref: workspace,
     },
   };
-  return { paseo: paseo as never, agents, add, workspaces, workspaceNames, archivedWorkspaces, timelineOf };
+  return { paseo: paseo as never, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf };
 }
 
 function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
@@ -162,7 +167,7 @@ function harness(outbox: string) {
   // is followed at all. The endpoint is unreachable above unless a test asks for an answer, which is
   // the state these tests are really in — the watch on, reading turns in code, the sensor silent.
   writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
-  const { paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, timelineOf } = fakePaseo();
+  const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
@@ -205,7 +210,7 @@ function harness(outbox: string) {
       agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
       request,
     });
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn, permission, timelineOf };
+  return { root, git, paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn, permission, timelineOf };
 }
 
 test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
@@ -806,6 +811,22 @@ test("a lane that declared no write set does not lock the project to one lane: t
   assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 3);
   const where = [lanes.L1!, lanes.L2!, lanes.L3!].map((lane) => h.agents.get(lane.lead!)!.cwd);
   assert.equal(new Set(where).size, 3, "no two Leads are left writing in one checkout");
+});
+
+test("a lane's own working copy is filed under the project, so closing it leaves no project behind", async () => {
+  const h = harness("outbox-oneproject.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Here", outcome: "a.txt changes", acceptance: ["a"], ...scope });
+  const away = await h.call(sup, "supervisor", "open_lane", { title: "Away", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
+  assert.equal(away.ok, true, away.text);
+
+  const { L1, L2 } = h.ledger().lanes;
+  assert.notEqual(h.workspaces.get(L2!.workspaceId!), h.root, "the second lane works in a copy of its own");
+  // Paseo keeps a project for every directory it is handed without one, and nothing the plugin can
+  // call removes a project: every closed lane left one in the sidebar for the Human to delete.
+  assert.equal(h.workspaceProjects.get(L2!.workspaceId!), h.workspaceProjects.get(L1!.workspaceId!), "the copy belongs to the project it was taken from");
+  h.runtime.dispose();
 });
 
 test("a ledger the desk cannot read is not written over, and the seat is told why", async () => {

@@ -358,6 +358,8 @@ project root and records what it finds:
 - **Where a lane works.** A lane works in the project's own checkout, switched to
   `lane/<id>-<title>`. If it asks to be isolated, or another lane already works in place, it gets a
   worktree slot at `~/.local/share/seatworks-v2/worktrees/<slug>/S<n>`, with its own Paseo workspace.
+  That workspace is filed under the project's own Paseo project. Handed a bare directory, Paseo makes
+  a project of it, and a plugin cannot remove a project.
 - **One writer at a time.** One lane-mode task holds the lane copy from the moment it starts until it
   is accepted or cut. A hand-back does not release it, because rework wakes that Peer in the same
   directory. While it holds, a second task and rework on a second task are refused. Parallel tasks

@@ -1,5 +1,5 @@
 import type { PaseoApi, PendingPermission, PermissionResponse, SeatView } from "./paseo.ts";
-import type { SeatLook, SeatSpec, Seats, Workspaces } from "./ports.ts";
+import type { SeatLook, SeatSpec, Seats, Workspace, Workspaces } from "./ports.ts";
 import { type TimelineHandle, follow } from "./stream.ts";
 
 export type Bound = () => PaseoApi | undefined;
@@ -87,13 +87,13 @@ export function seatsOn(bound: Bound): Seats {
 
 export function workspacesOn(bound: Bound): Workspaces {
   return {
-    async named(name: string): Promise<string | undefined> {
+    async named(name: string): Promise<Workspace | undefined> {
       const paseo = reach(bound);
       let cursor: string | undefined;
       for (let page = 0; page < 20; page++) {
         const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
         for (const entry of result.entries) {
-          if (entry.name === name && !entry.archivingAt) return entry.id;
+          if (entry.name === name && !entry.archivingAt) return { id: entry.id, project: entry.projectId };
         }
         if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) return undefined;
         cursor = result.pageInfo.nextCursor;
@@ -116,9 +116,10 @@ export function workspacesOn(bound: Bound): Workspaces {
       }
       return found;
     },
-    async make(title: string, path: string): Promise<string> {
-      const workspace = await reach(bound).workspaces.create({ title, source: { kind: "directory", path } });
-      return workspace.id;
+    async make(title: string, path: string, project?: string): Promise<Workspace> {
+      const source = project ? { kind: "directory" as const, path, projectId: project } : { kind: "directory" as const, path };
+      const workspace = await reach(bound).workspaces.create({ title, source });
+      return { id: workspace.id, project: workspace.projectId ?? "" };
     },
     async archive(workspace: string): Promise<void> {
       // The daemon answers a refusal with a payload carrying `error`, not with a throw. Awaited and

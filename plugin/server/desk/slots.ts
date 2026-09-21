@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { addWorktree, branchExists, cleanState, contains, currentBranch, excludeFromGit, git, pristineState, removeWorktree } from "../core/git.ts";
-import type { Workspaces } from "../core/ports.ts";
+import type { Workspace, Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
 import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
@@ -51,7 +51,7 @@ export class Slots {
     const run = await git(project.root, ["switch", "-c", branch, base]);
     if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
     try {
-      const workspaceId = await this.projectWorkspace(project);
+      const workspaceId = (await this.projectWorkspace(project)).id;
       this.index(project, { id: "main", path: project.root, createdAt: Date.now() }, true);
       this.ctx.event(project, { kind: "lane.inPlace", branch, base });
       return { path: project.root, workspaceId };
@@ -79,7 +79,7 @@ export class Slots {
     this.ctx.event(project, { kind: "lane.gaveBack", branch, base });
   }
 
-  async projectWorkspace(project: Project): Promise<string> {
+  async projectWorkspace(project: Project): Promise<Workspace> {
     const kept = await this.workspaces.named(project.slug).catch(() => undefined);
     return kept ?? (await this.workspaces.make(project.slug, project.root));
   }
@@ -285,8 +285,14 @@ export class Slots {
     return false;
   }
 
+  /**
+   * Files the copy under the project it was taken from. Handed a bare directory, Paseo makes a project
+   * of it, and the plugin API has no call that removes one: every closed lane left a project in the
+   * Human's sidebar to delete by hand.
+   */
   private async createWorkspace(project: Project, slot: Slot): Promise<string> {
-    const workspaceId = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path);
+    const home = await this.projectWorkspace(project);
+    const { id: workspaceId } = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path, home.project || undefined);
     await this.ctx.ledger(project, (ledger) => {
       const entry = ledger.slots[slot.id];
       if (entry) entry.workspaceId = workspaceId;

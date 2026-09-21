@@ -39,10 +39,13 @@ export type Seats = {
   watch(id: string, see: (seen: Seen) => void): Stream;
 };
 
+export type Workspace = { id: string; project: string };
+
 export type Workspaces = {
-  named(name: string): Promise<string | undefined>;
+  named(name: string): Promise<Workspace | undefined>;
   owned(prefix: string): Promise<{ id: string; name: string }[]>;
-  make(title: string, path: string): Promise<string>;
+  /** `project` files the directory under that Paseo project; without it Paseo makes one of its own. */
+  make(title: string, path: string, project?: string): Promise<Workspace>;
   seat(workspace: string, spec: SeatSpec): Promise<SeatLook>;
   archive(workspace: string): Promise<void>;
 };
