@@ -187,6 +187,16 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
  * an owner who chose nothing — so a hand-edited file with a trailing comma silently gave the kit's
  * defaults, and the doctor then reported a complete team the owner had not written a line of.
  */
+/** Jev reads only when the watch is by Jev and a key is set. */
+export function jevOn(team: Pick<Team, "attention" | "sensor">): boolean {
+  return team.attention.by === "jev" && Boolean(team.sensor);
+}
+
+/** Whether seats are followed at all: always by a Watcher seat, and by Jev only with its key. */
+export function watchOn(team: Pick<Team, "attention" | "sensor">): boolean {
+  return team.attention.by === "seat" || jevOn(team);
+}
+
 export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, unread: string[] = []): Team {
   const errors: string[] = [...unread];
   const layers = [machine, project];

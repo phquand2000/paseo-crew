@@ -56,6 +56,7 @@ export const AttentionChoice = z.strictObject({
   askRemindMinutes: z.number().int().min(1).optional(),
   maxReminders: z.number().int().min(0).optional(),
   watch: z.boolean().optional(),
+  by: z.enum(["seat", "jev"]).optional(),
   // Refused here, where the owner is looking at it. These are compiled on every turn ending, inside
   // the step that swallows what it throws, so a typo in one silently stopped the desk reading turns.
   destructive: Pattern.optional(),

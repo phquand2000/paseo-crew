@@ -19,10 +19,10 @@ import { labelsIn } from "../../bin/calibrate.ts";
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const questions = Object.values(kit.sensors)[0]!.questions;
 
-// A key is what the watch is made of, so a project with none never reaches any of this. The only
-// flag left is whether what it marks is mailed.
-function desk(mailing = false) {
-  const machine: Record<string, unknown> = { sensor: { key: "k" }, ...(mailing ? { attention: { watch: true } } : {}) };
+// By Jev a key is what the watch is made of, so a project with none never reaches any of this. The
+// only flag left is whether what it marks is mailed.
+function desk(mailing = false, by: "jev" | "seat" = "jev") {
+  const machine: Record<string, unknown> = { sensor: { key: "k" }, attention: { by, ...(mailing ? { watch: true } : {}) } };
   const root = tempDir("sw2-incidents-");
   const project = { root, slug: "p", state: join(root, "state") };
   const posted: { to: string; key: string; text: string }[] = [];
@@ -41,6 +41,15 @@ function desk(mailing = false) {
 }
 
 const stuck = { kind: "stuck", level: "attend" as const, quote: "the same action failing 3 times", facts: ["stuck"] };
+
+test("by a Watcher seat a fact Jev could judge is not held waiting for Jev, key or no key", async () => {
+  const { project, services, posted, seated } = desk(true, "seat");
+  seated.supervisor = "sup";
+  const sent = await notice(services, project, { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  assert.deepEqual(sent.sent, ["I1"]);
+  assert.equal(loadIncidents(project.state).items.I1!.held, undefined);
+  assert.equal(posted.length, 1);
+});
 
 test("the same thing seen of one seat, however often and however concurrently, is one incident", async () => {
   const { project, services } = desk();

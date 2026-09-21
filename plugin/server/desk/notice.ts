@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { seatOf } from "../catalog/kit.ts";
+import { jevOn } from "../catalog/team.ts";
 import { KEPT_FILE, assessmentsDir } from "../runtime/watch/jev/assessments.ts";
 import type { Attention } from "../catalog/kit.ts";
 import type { Finding, Verdict } from "../runtime/watch/findings.ts";
@@ -19,7 +20,8 @@ export type Placed = { where: string; lane?: Lane; task?: Task };
 const AWAIT_MS = 120_000;
 
 function waits(services: DeskServices, project: Project): Set<string> {
-  return confirmable(services.ctx.team(project).sensor?.spec.questions ?? {});
+  const team = services.ctx.team(project);
+  return jevOn(team) ? confirmable(team.sensor?.spec.questions ?? {}) : new Set();
 }
 
 function holdFor(incident: Incident, incidents: Incidents, attention: Attention, waiting: Set<string>, now: number): Held | undefined {
@@ -149,8 +151,9 @@ export async function retell(services: DeskServices, project: Project, now = Dat
   // No key is no watch, so there is nothing to tell later either. Left ungated this was the one path
   // that still spoke with the watch off — and it did not merely carry on: what holds an incident back
   // is read from the sensor's own questions, so with the key gone that set is empty, the hold
-  // dissolves, and taking the key away is the very thing that sends the mail.
-  if (!team.sensor) return [];
+  // dissolves, and taking the key away is the very thing that sends the mail. Going to a Watcher seat
+  // empties it the same way, so a hold Jev decided is not retold from there either.
+  if (!jevOn(team)) return [];
   const attention = team.attention;
   if (!attention.watch) return [];
   const waiting = waits(services, project);

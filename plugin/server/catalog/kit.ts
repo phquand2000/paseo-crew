@@ -202,6 +202,8 @@ export type Attention = {
   maxReminders: number;
   /** Whether an incident may reach the seat above at all. Off still records every incident; it stops the desk sending them. */
   watch: boolean;
+  /** What reads the watched seats: a Watcher seat, or Jev when a key is set. */
+  by: "seat" | "jev";
   destructive: string;
   testPath: string;
   repeatsAt: number;
@@ -258,6 +260,7 @@ export type Kit = {
 const ATTENTION: Attention = {
   tickSeconds: 30, leadIdleMinutes: 12, askRemindMinutes: 15, maxReminders: 2,
   watch: false,
+  by: "seat",
   destructive: DESTRUCTIVE,
   testPath: TEST_PATH,
   repeatsAt: 3,

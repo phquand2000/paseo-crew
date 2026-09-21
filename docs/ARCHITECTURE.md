@@ -509,23 +509,24 @@ is read as having started 30 minutes ago.
 
 ### The switch
 
-**The sensor key is the switch.**
+**`attention.by` is the switch.** Two helpers in `catalog/team.ts` read it:
 
-- **With a key**, the watch runs.
-- **With none**, it does not run at all. No seat is followed, no turn is read, and `deskFacts` is not
-  asked what a lane's record shows either. There is no mode that reads turns in code alone.
+- `watchOn`: are seats followed at all? Always by `seat`, the default. By `jev`, only with a key.
+  Off, no seat is followed, no turn is read, and `deskFacts` is not asked what a lane's record shows.
+- `jevOn`: is Jev asked? Only by `jev` with a key. By `seat` a key changes nothing.
 
-Where the key is checked:
+Where each is checked:
 
-- `Runtime.watching` answers the question.
-- `Watches.on` gates following on it.
-- `Patrol.history` gates the ledger half on it.
-- `retell` in `desk/notice.ts` gates the mail it sends late on it. With the key gone, the set of
-  questions that could hold an incident back is empty, so without this gate taking the key away would
-  release every held incident as mail.
+- `Runtime.watching` answers `watchOn`, and `Watches.on` gates following on it.
+- `Patrol.history` gates the ledger half on `watchOn`.
+- `Runtime.sensing` asks Jev only when `jevOn`.
+- `waits` in `desk/notice.ts` holds a fact back for Jev only when `jevOn`.
+- `retell` in `desk/notice.ts` gates the mail it sends late on `jevOn`. With the key gone, or the
+  watch gone to a seat, the set of questions that could hold an incident back is empty, so without
+  this gate either would release every held incident as mail.
 
-The settings are read every round, so taking the key away lets the seats go within one round, with
-no reload.
+The settings are read every round, so changing `by` or taking the key away takes effect within one
+round, with no reload.
 
 **What is watched.** Every live seat whose role can be `watched` is followed through one timeline
 subscription. The preset gives that capability to Lead and Peer, never to a Reviewer. The
@@ -871,6 +872,7 @@ A layer can set the following. Unknown keys are refused.
 | the Flow switch | yes |
 | the Flow interval | by hand |
 | `attention.watch`, the mail switch | yes |
+| `attention.by`, what reads the seats | by hand |
 | the other attention values | by hand |
 | the sensor's key, in the machine layer only | yes |
 

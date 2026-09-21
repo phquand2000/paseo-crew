@@ -170,7 +170,7 @@ function harness(outbox: string) {
   // The key is the watch's switch, so a test about the watch has to set one: without it nothing here
   // is followed at all. The endpoint is unreachable above unless a test asks for an answer, which is
   // the state these tests are really in — the watch on, reading turns in code, the sensor silent.
-  writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
+  writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, attention: { by: "jev" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
@@ -1712,9 +1712,9 @@ test("with the watch on but not telling, the desk records what it sees and sends
   h.runtime.dispose();
 });
 
-test("left as the kit ships it there is no key, so nothing is watched and nothing is recorded", async () => {
+test("by Jev with no key, nothing is watched and nothing is recorded", async () => {
   const { h, sup, timeline } = await laneWithPeer("outbox-off.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
   await h.tick();
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "running", detail: { type: "shell", command: "git push --force origin main" } }, "t1");
@@ -1727,9 +1727,28 @@ test("left as the kit ships it there is no key, so nothing is watched and nothin
   h.runtime.dispose();
 });
 
+test("left as the kit ships it the watch is by a Watcher seat: a seat is followed without a key, and Jev is never asked even with one", async (t) => {
+  for (const settings of [{}, { sensor: { key: "sk-or-seat-test" } }]) {
+    const { h, sup, timeline } = await laneWithPeer("outbox-by-seat.json");
+    writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify(settings));
+    const asked = t.mock.method(globalThis, "fetch", async () => new Response("{}", { status: 500 }));
+    await h.tick();
+    timeline.beat("turn_started", "t1");
+    timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "running", detail: { type: "shell", command: "git push --force origin main" } }, "t1");
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await h.idle(sup);
+    const book = JSON.parse(readFileSync(join(h.project.state, "incidents.json"), "utf-8")) as { items: Record<string, { kind: string }> };
+    assert.deepEqual(Object.values(book.items).map((item) => item.kind), ["destructive"], "what the code reads is recorded with or without a key");
+    assert.equal(asked.mock.callCount(), 0, "the key alone no longer turns Jev on");
+    asked.mock.restore();
+    h.runtime.dispose();
+  }
+});
+
 test("each assessment is kept with the state, questions, facts and answers it was made on, and is decided on the facts that were sent", async (t) => {
   const { h, peer, timeline } = await laneWithPeer("outbox-kept.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-kept-test" } }));
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-kept-test" }, attention: { by: "jev" } }));
   const bodies: { questions: Record<string, unknown> }[] = [];
   let release: () => void = () => {};
   const held = new Promise<void>((resolve) => (release = resolve));
@@ -2070,7 +2089,7 @@ test("a desk call the harness refused for bad JSON is recorded, though it never 
   assert.equal(readFileSync(join(h.project.state, "events.log"), "utf-8").match(/"kind":"call\.malformed"/g)!.length, 1);
 
   // And it is trouble whatever the watch is doing: the harness refused the call, not the sensor.
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   assert.equal(view.watch.on, false);
   assert.deepEqual(view.watch.trouble.map((entry) => entry.kind), ["call.malformed"], "shown with the watch off, or nobody is told after all");
@@ -2079,7 +2098,7 @@ test("a desk call the harness refused for bad JSON is recorded, though it never 
 
 test("with the watch off a lane's own record is not gone through either", async () => {
   const { h, sup, lane, peer } = await laneWithPeer("outbox-history-off.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
   for (const round of [1, 2, 3]) {
     await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
     await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
@@ -2090,6 +2109,20 @@ test("with the watch off a lane's own record is not gone through either", async 
   // half that needs no key to compute, which is exactly why they used to keep running with the watch
   // switched off — a project with no key still filled the Supervisor's mail.
   assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
+  h.runtime.dispose();
+});
+
+test("by a Watcher seat a lane's own record is gone through with no key", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer("outbox-history-seat.json");
+  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  for (const round of [1, 2, 3]) {
+    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
+    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  }
+  await h.tick();
+  await h.idle(sup);
+  const book = JSON.parse(readFileSync(join(h.project.state, "incidents.json"), "utf-8")) as { items: Record<string, { kind: string }> };
+  assert.deepEqual(Object.values(book.items).map((item) => item.kind), ["rework-loop"]);
   h.runtime.dispose();
 });
 

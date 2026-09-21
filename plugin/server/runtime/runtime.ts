@@ -7,7 +7,7 @@ import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
-import { type IndexedProxy, type Team, indexedProxies } from "../catalog/team.ts";
+import { type IndexedProxy, type Team, indexedProxies, jevOn, watchOn } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
 import { seatsOn, workspacesOn } from "../core/paseo-adapter.ts";
 import type { PaseoApi } from "../core/paseo.ts";
@@ -182,20 +182,20 @@ export class Runtime {
   }
 
   /**
-   * The one switch. A key is what the watch is made of, so without one there is no watch: no seat is
-   * followed, no turn is read, and a lane's history is not gone through either. It is not a quieter
-   * watch that reads turns in code alone — that second mode was two behaviours wearing one name, and
-   * a project could sit in it for a week without anyone meaning to.
+   * The one switch, `attention.by`. By a Watcher seat the watch is always on. By Jev a key is what
+   * the watch is made of, so without one there is no watch: no seat is followed, no turn is read,
+   * and a lane's history is not gone through either.
    */
   private watching(project: Project): boolean {
-    return Boolean(this.source.teamFor(project).sensor);
+    return watchOn(this.source.teamFor(project));
   }
 
   private sensing(watch: SeatWatch): Sensing | undefined {
     const project = projectOf(watch.seat.cwd);
-    const sensor = this.source.teamFor(project).sensor;
-    // Between the key being taken away and the round that lets this seat go.
-    if (!sensor) return undefined;
+    const team = this.source.teamFor(project);
+    const sensor = team.sensor;
+    // Between the key being taken away, or the watch going to a Watcher seat, and the round after.
+    if (!sensor || !jevOn(team)) return undefined;
     const brief = watch.brief();
     if (!brief || brief.goal === null) return undefined;
     const { goal, context, beside, role, rules } = brief;

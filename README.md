@@ -17,7 +17,7 @@ Seatworks never decides whether the work is right. It:
 - **keeps a shared desk** of lanes, tasks and questions that every seat works through
 - **carries the messages** between seats, and holds them until a seat can take them
 - **keeps a durable record** of what happened, outside your repository
-- **watches Leads and Peers**, when you give it a key, and tells the Supervisor what it saw
+- **watches Leads and Peers** as they work, and tells the Supervisor what it saw
 
 What it does enforce is mechanical:
 
@@ -102,7 +102,7 @@ While the Leads and Peers work, the desk follows them. It reads two kinds of evi
   to report only what it is sure of, and a brief that writes the work out instead of setting an
   outcome.
 
-It also puts each turn to **Jev**, a model outside the seat, for a second opinion. The turn is split
+By Jev (`attention.by`, below), it also puts each turn to **Jev**, a model outside the seat, for a second opinion. The turn is split
 into four views, and each view shows Jev only what its questions need. When Jev finds something,
 it is asked which step it meant, and the incident quotes that step.
 
@@ -119,15 +119,16 @@ with `ack`:
 
 Nothing the watch concludes ever reaches the seat it watched.
 
-**The OpenRouter key is the switch.**
+**`attention.by` says what reads the seats.**
 
-- **With a key**, the watch runs.
-- **Without a key**, it does not run at all. No seat is followed, and no turn or lane record is
-  read. It is not a quieter watch that reads turns in code alone.
+- **`seat`, the default.** The watch always runs, with no key: seats are followed and their turns
+  and lanes are read in code. Jev is never asked, even when a key is set.
+- **`jev`.** Jev reads beside the code, and the OpenRouter key is the switch. With a key the watch
+  runs. Without one it does not run at all: no seat is followed, and no turn or lane record is read.
 - The key is on the panel's **Team** tab, under **Watch**, on **Machine defaults**. It is kept on the
   machine and used for every project. The panel only says a key is set and never reads it back, and
   saving anything else leaves the key alone.
-- Take the key away and the seats are let go on the next patrol round, with no reload.
+- Change `by`, or take the key away, and the next patrol round follows suit, with no reload.
 
 **Mailing is a second, separate switch.** Out of the box a running watch is quiet: incidents are
 recorded and listed, but none is mailed. Turn on *Mail incidents to the Supervisor* on Machine
@@ -136,10 +137,10 @@ defaults or on one project.
 You can also write both switches by hand. The next patrol round picks up the file with no reload:
 
 ```json
-{ "attention": { "watch": true }, "sensor": { "key": "sk-or-…" } }
+{ "attention": { "watch": true, "by": "jev" }, "sensor": { "key": "sk-or-…" } }
 ```
 
-**A key alone starts paid calls.** Jev reads a watched seat:
+**By Jev, a key starts paid calls.** Jev reads a watched seat:
 
 - five seconds after the seat goes quiet
 - at least every thirty seconds while it works

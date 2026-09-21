@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Kit, can, roleNamed, seatOf } from "../catalog/kit.ts";
+import { watchOn } from "../catalog/team.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import type { Desk } from "../desk/desk.ts";
 import { loadIncidents, openFor, saidBefore } from "../desk/incidents.ts";
@@ -122,7 +123,7 @@ export class Patrol {
     const team = this.deps.source.teamFor(project);
     // The same switch the followed seats answer to. A lane's history is the watch reading the desk's
     // own record instead of a timeline; with the watch off it is not read either.
-    if (!team.sensor) return;
+    if (!watchOn(team)) return;
     const attention = team.attention;
     const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
     if (found.length === 0) return;
