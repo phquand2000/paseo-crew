@@ -1341,6 +1341,26 @@ test("an ask answered by the owner over a Lead's head is told to that Lead, not 
   h.runtime.dispose();
 });
 
+test("a seat opening in a project writes the team's block there, and the first lane still takes the copy the Human left clean", async () => {
+  const h = harness("outbox-team-file.json");
+  const open = (h.runtime as unknown as { openSession(request: { provider: string; cwd: string; env: Record<string, string> }): unknown }).openSession.bind(h.runtime);
+  open({ provider: "sw2-supervisor-claude", cwd: h.root, env: {} });
+  assert.match(readFileSync(join(h.root, "AGENTS.md"), "utf-8"), /seatworks:begin[\s\S]*## Working here as a team/);
+  assert.match(readFileSync(join(h.root, "CLAUDE.md"), "utf-8"), /^@AGENTS\.md$/m);
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+
+  // Untracked, and nothing of the Human's: the lane takes the copy as if it were clean.
+  const first = await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
+  assert.equal(first.ok, true, first.text);
+  await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "done" });
+
+  // The Human's own line in the same file is their work in progress, and a lane does not carry it off.
+  writeFileSync(join(h.root, "AGENTS.md"), `Use pnpm.\n\n${readFileSync(join(h.root, "AGENTS.md"), "utf-8")}`);
+  const second = await h.call(sup, "supervisor", "open_lane", { title: "Second", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
+  assert.equal(second.ok, false);
+  assert.match(second.text, /uncommitted changes/);
+});
+
 test("a Lead is pointed at the project's concept once the Human has settled one, and set_project keeps no pages", async () => {
   const h = harness("outbox-concept.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

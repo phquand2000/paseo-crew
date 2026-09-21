@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { addWorktree, branchExists, cleanState, contains, currentBranch, excludeFromGit, git, pristineState, removeWorktree } from "../core/git.ts";
+import { onlyTheBlock } from "../catalog/project-files.ts";
 import type { Workspace, Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -39,7 +40,7 @@ export class Slots {
   }
 
   async inPlace(project: Project, branch: string, base: string): Promise<{ path: string; workspaceId: string }> {
-    const copy = await pristineState(project.root);
+    const copy = await pristineState(project.root, (path) => onlyTheBlock(project.root, path));
     if (copy !== "clean") {
       throw new Error(
         copy === "dirty"

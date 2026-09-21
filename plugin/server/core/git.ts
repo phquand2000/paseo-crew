@@ -48,9 +48,15 @@ export function cleanState(cwd: string): Promise<Cleanliness> {
   return cleanliness(cwd, ["status", "--porcelain", "--untracked-files=no"]);
 }
 
-/** Nothing uncommitted and nothing untracked: what a copy has to be before a lane may take it over. */
-export function pristineState(cwd: string): Promise<Cleanliness> {
-  return cleanliness(cwd, ["status", "--porcelain"]);
+/**
+ * Nothing uncommitted and nothing untracked: what a copy has to be before a lane may take it over.
+ * `besides` excuses a change that is not anyone's work in progress.
+ */
+export async function pristineState(cwd: string, besides: (path: string) => Promise<boolean> = async () => false): Promise<Cleanliness> {
+  const run = await git(cwd, ["status", "--porcelain"]);
+  if (run.code !== 0) return "unknown";
+  for (const line of run.stdout.split("\n").filter(Boolean)) if (!(await besides(line.slice(3)))) return "dirty";
+  return "clean";
 }
 
 export async function trackedFiles(cwd: string): Promise<string[]> {

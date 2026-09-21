@@ -6,6 +6,7 @@ import { renderPrompt } from "../catalog/content.ts";
 import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
+import { placeProjectFiles } from "../catalog/project-files.ts";
 import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
 import { type IndexedProxy, type Team, indexedProxies, jevOn, watchOn } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
@@ -535,6 +536,11 @@ export class Runtime {
       seedRecords(this.kit, project.state);
     } catch (error) {
       console.error("seatworks-v2: could not seed project records:", error);
+    }
+    try {
+      if (this.kit.team) placeProjectFiles(project.root, this.kit.team);
+    } catch (error) {
+      console.error("seatworks-v2: could not write the team's block into the project's AGENTS.md:", error);
     }
     this.seating.ensure(seat.role.role, seat.harness, project);
     return seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project);

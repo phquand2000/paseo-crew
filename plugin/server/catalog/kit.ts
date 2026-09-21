@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { DESTRUCTIVE, FACT_LEVELS, SUPPRESSED, TEST_PATH } from "../runtime/watch/facts.ts";
 import { LEAST_STATE_CHARS, VIEW_FIELDS, type ViewName, isView } from "../runtime/watch/jev/views.ts";
+import { hiddenWordsIn } from "./content.ts";
 import { AttentionChoice } from "./settings.ts";
 import { isAbsolute, join } from "node:path";
 import { errorText } from "../core/errors.ts";
@@ -269,6 +270,8 @@ export type Kit = {
   /** Each tool set in mcp/tools.json: its tools by name, with the schema each is shown with. */
   toolSets: Record<string, Record<string, ArgSchema>>;
   sensors: Record<string, SensorSpec>;
+  /** What every agent working in a project reads in its AGENTS.md, from content/project/AGENTS.md; absent, nothing is written there. */
+  team?: string;
   /** What a Watcher seat may raise and which of the code's facts wait for its judgement; absent, it can do neither. */
   watcher?: WatcherSpec;
   attention: Attention;
@@ -489,9 +492,23 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     mcp: loadMcp(dir),
     toolSets: loadToolSets(dir),
     sensors: loadSensors(dir),
+    team: loadTeam(dir, roles),
     watcher: loadWatcher(dir),
     attention: { ...ATTENTION, ...presetAttention(raw.attention) },
   };
+}
+
+/**
+ * Every seat reads the project's AGENTS.md, so the block written there is held to the words each role
+ * must not see, all of them at once: a word one role is kept from would reach it there.
+ */
+function loadTeam(dir: string, roles: RoleSpec[]): string | undefined {
+  const file = join(dir, "content", "project", "AGENTS.md");
+  if (!existsSync(file)) return undefined;
+  const text = readFileSync(file, "utf-8");
+  const hidden = hiddenWordsIn(text, [...new Set(roles.flatMap((role) => role.hidesWords ?? []))]);
+  if (hidden.length > 0) throw new Error(`content/project/AGENTS.md is read by every role and shows words some must not see: ${hidden.join(", ")}`);
+  return text;
 }
 
 /**
