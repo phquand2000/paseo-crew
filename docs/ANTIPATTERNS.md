@@ -412,4 +412,4 @@ So the question to ask before letting an agent fix a list of findings is the one
 compiled around: **do these findings share one missing mechanism?**
 
 For what the watch does detect today, and how to tune it, see [Watching Leads and
-Peers](ARCHITECTURE.md#watching-leads-and-peers).
+Peers](ARCHITECTURE.md#the-watch).
