@@ -238,6 +238,25 @@ export function tasksOf(ledger: Ledger, laneId: string): Task[] {
 
 export const ACTIVE: TaskStatus[] = ["running", "rework", "queued", "merging"];
 
+/**
+ * The tasks being written beside this one, and the paths they own.
+ *
+ * A lane that splits into parts and starts a Peer on each gives every Peer a working copy branched
+ * before its neighbours had written anything. Each one then finds the other parts still as stubs and
+ * says so, and the sensor read that as a prerequisite nobody had built: eight incidents on one lane,
+ * every one marked noise by hand, the Supervisor's own notes reading "same episode as I3/I4/I6/I7/I8".
+ * The question that raises it already excuses what `goal` asks for; the goal simply never said that a
+ * file was somebody else's, still being written. Named here, it does.
+ *
+ * Only what is still unfinished: a task already taken in has its files in the copy, so a Peer that
+ * cannot find them is telling the truth about something else.
+ */
+export function alongside(ledger: Ledger, task: Task): string {
+  const others = tasksOf(ledger, task.lane).filter((other) => other.id !== task.id && ACTIVE.includes(other.status));
+  if (others.length === 0) return "";
+  return others.map((other) => `${other.id} (${other.title})${other.owned.length > 0 ? `, which owns ${other.owned.join(", ")}` : ""}`).join("; ");
+}
+
 export function activeTasks(ledger: Ledger, laneId: string): Task[] {
   return tasksOf(ledger, laneId).filter((task) => ACTIVE.includes(task.status));
 }

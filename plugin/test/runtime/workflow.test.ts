@@ -1678,6 +1678,33 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   h.runtime.dispose();
 });
 
+test("the brief a Peer is read against names the tasks being written beside it", async (t) => {
+  const { h, lane, peer } = await laneWithPeer("outbox-alongside.json");
+  // Parallel: its own working copy, running beside L1-T1 — the arrangement that makes a Peer find
+  // its neighbour's files unwritten in the first place.
+  const second = await h.call(lane.lead!, "lead", "start_task", { title: "Second part", goal: "g2", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], parallel: true });
+  assert.equal(second.ok, true, second.text);
+  const states: { goal: string }[] = [];
+  t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { state: { goal: string }; questions: Record<string, unknown> };
+    states.push(body.state);
+    return new Response(JSON.stringify({ answers: Object.fromEntries(Object.keys(body.questions).map((n) => [n, { type: "noul", noul: 0.1 }])), model: "m", id: "g", usage: { cost: 0 } }), { status: 200 });
+  });
+  const timeline = h.timelineOf(peer);
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "build it" }, "t1");
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const goal = states.at(-1)?.goal ?? "";
+  // Five Peers in five copies each find the other four files unwritten and say so; the sensor read
+  // that as a prerequisite nobody built. Its question already excuses what `goal` asks for.
+  assert.match(goal, /Being written beside it/);
+  assert.match(goal, /L1-T2 \(Second part\)/);
+  assert.match(goal, /b\.txt/, "the paths this seat will find missing are the point of saying it");
+  h.runtime.dispose();
+});
+
 test("a stuck seat the sensor does not think stuck is held back from the Supervisor, and the sensor's word is kept on the incident", async (t) => {
   const { h, sup, timeline } = await laneWithPeer("outbox-vetoed.json", { attention: { watch: true } });
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {

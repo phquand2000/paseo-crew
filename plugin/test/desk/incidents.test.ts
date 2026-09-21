@@ -71,7 +71,10 @@ test("a mark goes on the incident named and closes it, and a later sighting open
   assert.equal(held.I2!.open, false);
   assert.equal(held.I1!.label, undefined, "the other incident is untouched");
   assert.equal(held.I1!.open, true);
-  const reopened = await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [stuck]);
+  // Something new on the marked seat opens a new incident. The same words again do not — those are
+  // counted on the mark instead, which is what keeps a standing condition from being asked about
+  // once per sighting.
+  const reopened = await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [{ ...stuck, quote: "the same action failing 3 times: npm run build" }]);
   assert.deepEqual(reopened.opened.map((incident) => incident.id), ["I3"]);
   const listed = await incidents(services, supervisor, {});
   assert.match(listed.text, /2 not yet marked:/);
@@ -199,6 +202,47 @@ test("what was held for nobody is told by the round once somebody sits down, and
   const acked = await ack(services, supervisor, { id: "I1", verdict: "useful" });
   assert.match(acked.text, /after you were told: git push --force origin main/);
   assert.equal(loadIncidents(project.state).items.I1!.quote, "rm -rf src");
+});
+
+test("a condition the Supervisor marked noise is counted, not raised again, unless it pages", async () => {
+  const { project, services, supervisor, posted, seated } = desk(true);
+  seated.supervisor = "sup";
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  // Five Peers building five modules in parallel: each one's turn says the module next door does not
+  // exist yet, because it is being written in the next worktree. The sensor reads that the same way
+  // every time, and its words are the question's, so they are identical on every sighting.
+  const absent = [{ kind: "missing_mechanism", level: "attend" as const, quote: "src/pointer.js does not exist yet", facts: [] }];
+  await notice(services, project, peer, absent);
+  assert.equal((await ack(services, supervisor, { id: "I1", verdict: "noise", note: "expected: it is being written in parallel by L1-T1" })).ok, true);
+
+  const again = await notice(services, project, peer, absent);
+  assert.deepEqual(again.opened, [], "the same words, already marked noise on this seat: nothing new is opened");
+  const book = loadIncidents(project.state).items;
+  assert.deepEqual(Object.keys(book), ["I1"], "and no second incident is written");
+  assert.equal(book.I1!.count, 2, "it is counted, so `incidents` still says how often it was seen");
+  assert.equal(posted.length, 1, "the Supervisor is not asked about it twice");
+
+  // Different words are a different thing, and an irreversible act pages however often it is excused.
+  await notice(services, project, peer, [{ ...absent[0]!, quote: "src/patch.js does not exist yet" }]);
+  await notice(services, project, peer, [{ kind: "destructive", level: "page", quote: "rm -rf /tmp/verify-t1", facts: [] }]);
+  assert.equal((await ack(services, supervisor, { id: "I3", verdict: "noise", note: "expected: its own scratch directory" })).ok, true);
+  await notice(services, project, peer, [{ kind: "destructive", level: "page", quote: "rm -rf /tmp/verify-t1", facts: [] }]);
+  assert.deepEqual(Object.keys(loadIncidents(project.state).items), ["I1", "I2", "I3", "I4"], "a page is never settled away");
+});
+
+test("the letter points at the kept readings only when the watch really kept some", async () => {
+  const { project, services, posted, seated } = desk(true);
+  seated.supervisor = "sup";
+  const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
+  const page = [{ kind: "destructive", level: "page" as const, quote: "rm -rf /", facts: ["destructive"] }];
+  await notice(services, project, peer, page);
+  assert.doesNotMatch(posted[0]!.text, /assessments/, "the watch kept nothing here, so there is nothing to send anyone to");
+
+  mkdirSync(join(project.state, "assessments"), { recursive: true });
+  writeFileSync(join(project.state, "assessments", "current.jsonl"), '{"seat":"peer-1"}\n');
+  await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, page);
+  assert.match(posted[1]!.text, /assessments\/current\.jsonl/, "with readings kept, the incident says where they are");
+  assert.match(posted[1]!.text, /agent peer-2/);
 });
 
 test("an incident is never addressed to the seat it is about", async () => {

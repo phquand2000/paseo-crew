@@ -26,7 +26,9 @@ export type Kept = {
 export const ROTATE_BYTES = 32 * 1024 * 1024;
 export const KEEP_FILES = 64;
 
-const CURRENT = "current.jsonl";
+/** The file every reading is appended to, until it is rotated away. */
+export const KEPT_FILE = "current.jsonl";
+const CURRENT = KEPT_FILE;
 const ROTATED = /^(\d{8})\.jsonl(\.gz(\.part)?)?$/;
 const packed = promisify(gzip);
 

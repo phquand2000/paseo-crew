@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { runGate } from "../../server/core/gate.ts";
 import { issueArgs } from "../../server/desk/issue.ts";
-import { type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../../server/desk/ledger.ts";
+import { type Lane, type Task, alongside, emptyLedger, nextAskId, nextLaneId, nextTaskId, slugify } from "../../server/desk/ledger.ts";
 import { letters } from "../../server/desk/letters.ts";
 import { takeRequests, writeReply } from "../../server/runtime/spool.ts";
 import { hiddenWordsIn } from "../../server/catalog/content.ts";
@@ -153,4 +153,40 @@ test("an issue cannot close the fence it is read inside, or speak on the line ab
     assert.equal(nested.match(/<issue>/g)?.length, 1, `depth ${depth}: one fence open`);
     assert.equal(nested.match(/<\/issue>/g)?.length, 1, `depth ${depth}: and one close, which the reporter's words cannot be`);
   }
+});
+
+test("a Peer's brief names the tasks running beside it, so what they have not written yet is not a missing mechanism", () => {
+  // Five Peers build five modules at once, each in its own working copy. Every one of them sees the
+  // other four files still as stubs and says so, and the sensor read that as a prerequisite nobody
+  // had built — eight incidents on one lane, every one marked noise by hand. The question already
+  // excuses "what `goal` asks for"; the goal just never said this.
+  const ledger = emptyLedger();
+  ledger.lanes.L1 = { id: "L1", title: "kit", status: "open", outcome: "o", acceptance: ["a"], outOfScope: ["x"], branch: "b", base: "main", tasks: 5, opener: "sup", lead: "lead-1" } as never;
+  const task = (id: string, status: string, owned: string[], peer: string) =>
+    ({ id, lane: "L1", title: id, kind: "code", status, goal: "g", acceptance: ["a"], outOfScope: ["x"], owned, peer, reworks: 0, silent: 0, updatedAt: 0 }) as never;
+  ledger.tasks["L1-T1"] = task("L1-T1", "running", ["src/pointer.js", "test/pointer.test.js"], "p1");
+  ledger.tasks["L1-T2"] = task("L1-T2", "running", ["src/patch.js"], "p2");
+  ledger.tasks["L1-T3"] = task("L1-T3", "merged", ["src/merge.js"], "p3");
+
+  const beside = alongside(ledger, ledger.tasks["L1-T2"] as never);
+  assert.match(beside, /L1-T1/, "the task still being written beside it is named");
+  assert.match(beside, /src\/pointer\.js/, "and so are the paths it owns, which is what this Peer will find missing");
+  assert.doesNotMatch(beside, /L1-T2/, "not the Peer's own task");
+  assert.doesNotMatch(beside, /L1-T3/, "and not one already taken in, whose files are there");
+  assert.equal(alongside(ledger, ledger.tasks["L1-T1"] as never).includes("L1-T2"), true);
+});
+
+test("an incident says where the desk kept the steps that were read, because the copy they happened in is taken back", () => {
+  // Two incidents in one run could not be judged at all: the Supervisor reached for the agent's own
+  // record and got "working directory does not exist" — the task had been settled and its working
+  // copy given back. What the sensor read is kept by the desk and outlives the copy; the letter just
+  // never said so, and both of those were marked `unknown`.
+  const incident = { id: "I1", seat: "peer-1", where: "the Peer on L1-T1", kind: "unverified", level: "attend" as const, quote: "2 files written", facts: ["unverified"], opened: 0, last: 0, count: 1, open: true, turnId: "t7" } as never;
+  const plain = letters.incident(incident, {}, { steers: false, outputless: false });
+  assert.doesNotMatch(plain, /assessments/, "nothing to point at when the watch kept nothing");
+
+  const told = letters.incident(incident, {}, { steers: false, outputless: false }, "/state/assessments/current.jsonl");
+  assert.match(told, /\/state\/assessments\/current\.jsonl/);
+  assert.match(told, /peer-1/, "and which agent's lines to look for");
+  assert.match(told, /outlives|after .*(copy|worktree)|taken back/i, "said as the reason it is worth reading");
 });

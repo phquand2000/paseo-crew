@@ -13,7 +13,7 @@ import type { PaseoApi } from "../core/paseo.ts";
 import type { Seats, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
+import { alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, loadConfig, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
@@ -136,7 +136,17 @@ export class Runtime {
       const task = taskOfPeer(ledger, seat.id);
       const lane = task ? ledger.lanes[task.lane] : laneOfLead(ledger, seat.id);
       owned = task?.owned;
-      if (task) goal = [`Task ${task.id}: ${task.title}`, `Goal: ${task.goal}`, `Acceptance: ${task.acceptance.join("; ")}`, `Out of scope: ${task.outOfScope.join("; ")}`].join("\n");
+      if (task) {
+        const beside = alongside(ledger, task);
+        goal = [
+          `Task ${task.id}: ${task.title}`,
+          `Goal: ${task.goal}`,
+          `Acceptance: ${task.acceptance.join("; ")}`,
+          `Out of scope: ${task.outOfScope.join("; ")}`,
+          // What this seat will find unwritten, and why that is expected rather than missing.
+          ...(beside ? [`Being written beside it, in other copies, and so not finished here: ${beside}`] : []),
+        ].join("\n");
+      }
       else if (lane) goal = [`Lane ${lane.id}: ${lane.title}`, `Outcome: ${lane.outcome}`, `Acceptance: ${lane.acceptance.join("; ")}`, `Out of scope: ${lane.outOfScope.join("; ")}`].join("\n");
     } catch (error) {
       goal = null;

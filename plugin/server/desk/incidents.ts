@@ -85,6 +85,30 @@ export function saidBefore(incidents: Incidents, seat: string, kind: string, quo
   return Object.values(incidents.items).some((item) => item.seat === seat && item.kind === kind && (item.quote === quote || item.later === quote));
 }
 
+/**
+ * Already settled as noise on this seat, in these exact words. Counts the sighting and answers true.
+ *
+ * `sight` folds a repeat into an incident that is still open, so while one stands the book counts
+ * rather than multiplies. What it cannot see is a mark: `ack` closes the incident, and the next
+ * sighting of a condition that has not gone away opens another. On a lane of five Peers working in
+ * parallel that cost one Supervisor eight acks of a single episode — its own notes read "same episode
+ * as I3/I4/I6/I7/I8" — because each Peer's turn kept saying the module next door was not written yet,
+ * and the sensor's words for that are the question's own, identical every time.
+ *
+ * Only at `attend`, and only for `noise`. An irreversible act pages however often it is excused, and a
+ * mark of `useful` means the Human wanted to be told.
+ */
+export function settledAsNoise(incidents: Incidents, sighting: Sighting, now: number): boolean {
+  if (sighting.level === "page") return false;
+  const marked = Object.values(incidents.items).find(
+    (item) => !item.open && item.label === "noise" && item.seat === sighting.seat && item.kind === sighting.kind && item.quote === sighting.quote,
+  );
+  if (!marked) return false;
+  marked.count += 1;
+  marked.last = now;
+  return true;
+}
+
 export function sight(incidents: Incidents, sighting: Sighting, now: number): { incident: Incident; opened: boolean } {
   const seen = openFor(incidents, sighting.seat, sighting.kind);
   if (seen) {

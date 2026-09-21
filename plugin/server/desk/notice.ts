@@ -1,7 +1,10 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { seatOf } from "../catalog/kit.ts";
+import { KEPT_FILE, assessmentsDir } from "../runtime/watch/assessments.ts";
 import type { Attention } from "../catalog/kit.ts";
 import { type Finding, type Verdict, confirmable } from "../runtime/watch/rules.ts";
-import { type Held, type Incident, type Incidents, closeSeat, forget, openFor, sight, spentToday } from "./incidents.ts";
+import { type Held, type Incident, type Incidents, closeSeat, forget, openFor, settledAsNoise, sight, spentToday } from "./incidents.ts";
 import { type Lane, type Task, laneOfLead, loadLedger, taskOfPeer } from "./ledger.ts";
 import { errorText } from "../core/errors.ts";
 import { letters } from "./letters.ts";
@@ -51,11 +54,9 @@ export async function notice(services: DeskServices, project: Project, seat: Not
     const opened: Incident[] = [];
     const sending: Incident[] = [];
     for (const finding of findings) {
-      const { incident, opened: isNew } = sight(
-        incidents,
-        { seat: seat.id, provider: seat.provider, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model },
-        now,
-      );
+      const sighting = { seat: seat.id, provider: seat.provider, where: place.where, lane: place.lane?.id, task: place.task?.id, kind: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts, p: finding.p, model: finding.model };
+      if (settledAsNoise(incidents, sighting, now)) continue;
+      const { incident, opened: isNew } = sight(incidents, sighting, now);
       if (incident.told !== undefined) continue;
       const held = holdFor(incident, incidents, attention, waiting, now);
       if (held) incident.held = held;
@@ -99,9 +100,13 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
   }
   const harness = seatOf(ctx.kit, seat.provider)?.harness;
   const shape = { steers: harness?.steers === true, outputless: Boolean(harness?.exitPattern) };
+  // Named only when it is really there: with no key the watch never ran, and with the sensor
+  // unreachable it kept nothing, and an incident must not send anyone to a file that does not exist.
+  const file = join(assessmentsDir(project.state), KEPT_FILE);
+  const kept = existsSync(file) ? file : undefined;
   for (const incident of sending) {
     try {
-      await ctx.post(to, `incident:${project.slug}:${incident.id}:${incident.opened}:${incident.level}`, letters.incident(incident, place, shape));
+      await ctx.post(to, `incident:${project.slug}:${incident.id}:${incident.opened}:${incident.level}`, letters.incident(incident, place, shape, kept));
     } catch (error) {
       ctx.event(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
     }

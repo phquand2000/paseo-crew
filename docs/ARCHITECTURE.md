@@ -507,12 +507,31 @@ A `sensor.json` the loader cannot make sense of — an unknown field, a url that
 threshold on a question nothing decides, a `whole` on one nothing decides, a `confirms` naming a fact
 that is not attention-level — fails the plugin's load with the problem named.
 
+A Peer's brief names the tasks being written beside it and the paths they own, from `alongside` in
+`desk/ledger.ts`. A lane that splits into parts gives each Peer a copy branched before its neighbours
+had written anything, so every one of them finds the other parts still as stubs and says so; the
+sensor read that as a prerequisite nobody had built. The question that raises it already excuses what
+`goal` asks for — the goal simply never said the file was somebody else's, unfinished.
+
+An incident also says where the readings behind it are kept. A settled task has its working copy
+given back and the agent's own record goes with it, which left two incidents in one run unjudgeable:
+the Supervisor reached for that record and got "working directory does not exist". What the sensor was
+shown outlives the copy, and the letter names the file when there is one.
+
 A sensor that will not answer is not an incident and not the switch either: 429 and 5xx are retried,
 and a failure is written as `sensor.degraded` at most once a minute while the watch keeps reading
 turns in code. A key that stops working is a fault to fix, not a mode to sit in, so it is shown on
 the Flow tab rather than only logged.
 
 ### Incidents
+
+A sighting whose exact words the Supervisor already marked `noise` for that seat and kind is counted
+on the mark and opens nothing. `sight` folds a repeat into an incident that is still open, so while
+one stands the book counts rather than multiplies — but a mark closes it, and the next sighting of a
+condition that has not gone away used to open another. A lane of five Peers working in parallel cost
+one Supervisor eight acks of a single episode, its own notes reading "same episode as I3/I4/I6/I7/I8".
+Only at `attend`, and only for `noise`: an irreversible act pages however often it is excused, and
+`useful` means the Human wanted to be told.
 
 Each finding joins the open incident for its seat and kind in `incidents.json`, or opens one. An
 incident is sent once, as an INCIDENT letter to whoever supervises the project, and is quiet after
