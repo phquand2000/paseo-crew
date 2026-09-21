@@ -1,6 +1,7 @@
 import type { WatcherSpec } from "../catalog/kit.ts";
 import type { Counts } from "../core/git.ts";
 import { type PendingPermission, questionsIn } from "../core/paseo.ts";
+import { FACT_TITLES } from "../runtime/watch/facts.ts";
 import type { Incident } from "./incidents.ts";
 import type { Ask, Lane, Task } from "./ledger.ts";
 
@@ -381,7 +382,7 @@ export const letters = {
     const lines = [`You are seated on this project as its ${label}. Readings arrive as mail; there is nothing to do until one does.`];
     const kinds = Object.entries(spec?.kinds ?? {});
     if (kinds.length > 0) lines.push("", "What you may raise, each against the step that shows it:", list(kinds.map(([name, kind]) => `${name} (${kind.level}): ${kind.label}. ${kind.means}${kind.looks ? ` For example: ${kind.looks}` : ""}`)));
-    if (spec?.judges.length) lines.push("", `What the code raises and you judge before anyone is told: ${spec.judges.join(", ")}.`);
+    if (spec?.judges.length) lines.push("", "What the code raises and you judge before anyone is told:", list(spec.judges.map((fact) => (FACT_TITLES[fact] ? `${fact}: ${FACT_TITLES[fact]}.` : fact))));
     return lines.join("\n");
   },
 

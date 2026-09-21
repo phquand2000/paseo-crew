@@ -1816,7 +1816,7 @@ test("a Watcher raises against a step it was read: the step, not its words, reac
   const { h, sup, lane, peer, timeline } = await laneWithPeer("outbox-raise.json", bySeat({ watch: true }));
   const [watcher] = watchersOf(h);
   assert.match(watcher!.prompt!, /missing_mechanism \(attend\): Built a stand-in[^\n]*For example: "patch\.js is missing/, "seated knowing what it may raise, with an example of each, from the kit");
-  assert.match(watcher!.prompt!, /What the code raises and you judge before anyone is told: stuck, no-recovery/);
+  assert.match(watcher!.prompt!, /What the code raises and you judge before anyone is told:\n- stuck: Going round in circles\.\n- no-recovery: Did not recover from a failure\./, "each with what it means, as the kinds it raises are");
   await h.idle(watcher!.id);
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");

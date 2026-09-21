@@ -120,7 +120,7 @@
     },
     {
       "name": "close_lane",
-      "description": "Close a lane and archive its agents. With land true the desk runs the project's gate and lands the lane branch on the base branch: a fast-forward, or a merge in the main working copy when the base moved; if that is not possible the reason comes back and the branch stays for the Human. A red gate stops the landing unless you land over it with overGate true — the verdict is evidence, and landing over it is your call.",
+      "description": "Close a lane and archive its agents. With land true the desk first merges the base branch into the lane in the lane's own copy when the base has moved, runs the project's gate there, then moves the base branch up to the lane. If any of that cannot happen the lane stays open and the reason comes back; a conflict with the base is its Lead's to settle in the lane. The lane branch is kept either way. A red gate stops the landing unless you land over it with overGate true — the verdict is evidence, and landing over it is your call.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -187,7 +187,7 @@
     },
     {
       "name": "incidents",
-      "description": "What the desk has noticed about the Leads and Peers working in this project, latest first: every incident not yet marked, with the seat, what was seen, and whether you were told or it was held back. These are signals to look at, never verdicts.",
+      "description": "What the desk has noticed about the Leads and Peers working in this project, latest first: every incident not yet marked, with the seat, what was seen, and who was told or why it was held back. These are signals to look at, never verdicts.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -200,7 +200,7 @@
     },
     {
       "name": "ack",
-      "description": "Mark an incident once you have looked at the agent's record: useful if what it names happened and its brief neither asked for it nor needs it, noise if not, unknown only if the record can neither show it nor rule it out. It closes the incident; the desk's readings are measured against useful and noise. A measured fact happened unless the record contradicts it, and a sensor's question needs the record to show it. Decide from the record alone: whether you acted, knew already, what the agent said when asked, or how it turned out never decides one.",
+      "description": "Mark an incident once you have looked at the agent's record: useful if what it names happened and its brief neither asked for it nor needs it, noise if not, unknown only if the record can neither show it nor rule it out. It closes the incident; the desk's readings are measured against useful and noise. What the code measured happened unless the record contradicts it; what a reader of the work raised or confirmed needs the record to show it. Decide from the record alone: whether you acted, knew already, what the agent said when asked, or how it turned out never decides one.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -477,7 +477,7 @@
     },
     {
       "name": "incidents",
-      "description": "What the desk has noticed about the Peers in your lane, latest first: every incident sent to you not yet marked, with what was seen and whether it was told or held back. These are signals to look at, never verdicts.",
+      "description": "What the desk has noticed about the other agents of your lane, latest first: every incident about them not yet marked, sent to you or held back, with what was seen and why it was held. These are signals to look at, never verdicts.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -490,7 +490,7 @@
     },
     {
       "name": "ack",
-      "description": "Mark an incident once you have looked at the agent's record: useful if what it names happened and its brief neither asked for it nor needs it, noise if not, unknown only if the record can neither show it nor rule it out. It closes the incident; the desk's readings are measured against useful and noise. A measured fact happened unless the record contradicts it, and a sensor's question needs the record to show it. Decide from the record alone: whether you acted, knew already, what the agent said when asked, or how it turned out never decides one.",
+      "description": "Mark an incident once you have looked at the agent's record: useful if what it names happened and its brief neither asked for it nor needs it, noise if not, unknown only if the record can neither show it nor rule it out. It closes the incident; the desk's readings are measured against useful and noise. What the code measured happened unless the record contradicts it; what a reader of the work raised or confirmed needs the record to show it. Decide from the record alone: whether you acted, knew already, what the agent said when asked, or how it turned out never decides one.",
       "inputSchema": {
         "type": "object",
         "properties": {
