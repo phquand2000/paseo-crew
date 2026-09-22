@@ -1,7 +1,8 @@
 import { roleThatCan } from "../../catalog/kit.ts";
 import { skillSources } from "../../catalog/content.ts";
 import { skillDirsFor } from "../../catalog/team.ts";
-import { branchExists, currentBranch, diffCounts, git, headSha, outsideOwned, pristineState, resetHard, trackedFiles } from "../../core/git.ts";
+import { branchExists, currentBranch, diffCounts, git, headSha, outsideOwned, resetHard, trackedFiles } from "../../core/git.ts";
+import { workState } from "../../catalog/project-files.ts";
 import { firstOverlap, serialHits, serialPaths } from "../../core/scope.ts";
 import { type Args, type Caller, hash, no, ok, str, strs } from "../context.ts";
 import { errorText } from "../../core/errors.ts";
@@ -286,7 +287,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     );
   }
   if (!lane.worktree) return no(`Lane ${lane.id} has no working copy.`);
-  const copy = await pristineState(lane.worktree);
+  const copy = await workState(lane.worktree);
   if (copy === "unknown") return no(`git could not read the lane's working copy at ${lane.worktree}, so the desk cannot tell whether anything is uncommitted there.`);
   if (copy === "dirty") {
     // Whose uncommitted work it is decides what to do about it, so it has to be named correctly: the

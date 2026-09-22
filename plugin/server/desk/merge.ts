@@ -1,4 +1,5 @@
-import { commitsAhead, diffCounts, mergeBranch, outsideOwned, pristineState } from "../core/git.ts";
+import { commitsAhead, diffCounts, mergeBranch, outsideOwned } from "../core/git.ts";
+import { workState } from "../catalog/project-files.ts";
 import type { Agents } from "./agents.ts";
 import { type DeskContext } from "./context.ts";
 import { errorText } from "../core/errors.ts";
@@ -53,7 +54,7 @@ export class MergeQueue {
     };
     const cwd = lane.worktree;
     if (!cwd) return finish("failed", letters.mergeFailed(task, "the lane has no working copy", ""));
-    const copy = await pristineState(cwd);
+    const copy = await workState(cwd);
     if (copy === "dirty") {
       return finish("done", letters.mergeFailed(task, "the lane's working copy has uncommitted changes from its current writer; accept again after that task hands back", ""));
     }

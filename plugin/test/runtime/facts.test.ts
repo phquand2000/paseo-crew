@@ -257,6 +257,11 @@ test("a commit message written to the temp directory is not a write the gate has
   const start: StreamMessage = { event: { type: "turn_started", turnId: "t" } };
   const end: StreamMessage = { event: { type: "turn_completed", turnId: "t" } };
   assert.deepEqual(kinds(play([start, fixture("pi")[1]!, wrote, gate, message, end], rules({ gates: ["npm test"], cwd: "/work" }), true)).filter((kind) => kind === "unverified"), []);
+  // Devin names a file it creates "Wrote <path>", which read as a relative path inside the project.
+  const created = again(edit, "c", 5, (detail) => Object.assign(detail, { filePath: "Wrote /var/folders/xy/T/bench.mjs" }));
+  assert.deepEqual(kinds(play([start, fixture("pi")[1]!, wrote, gate, created, end], rules({ gates: ["npm test"], cwd: "/work" }), true)).filter((kind) => kind === "unverified"), []);
+  const inside = again(edit, "i", 5, (detail) => Object.assign(detail, { filePath: "Wrote ./src/b.ts" }));
+  assert.deepEqual(kinds(play([start, fixture("pi")[1]!, wrote, gate, inside, end], rules({ gates: ["npm test"], cwd: "/work" }), true)).filter((kind) => kind === "unverified"), ["unverified"]);
 });
 
 test("irreversible commands are caught where a command starts, in any flag order, and not in quoted text", () => {

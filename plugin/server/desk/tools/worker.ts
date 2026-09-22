@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { currentBranch, headSha, pristineState } from "../../core/git.ts";
+import { currentBranch, headSha } from "../../core/git.ts";
+import { workState } from "../../catalog/project-files.ts";
 import { type Args, hash, no, ok, str } from "../context.ts";
 import { taskGate } from "../gates.ts";
 import { type Ask, type Task, loadLedger, nextAskId, taskOfPeer } from "../ledger.ts";
@@ -35,7 +36,7 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
   const review = task.kind === "review";
   const commit = review ? undefined : str(args.commit) || (task.worktree ? await headSha(task.worktree) : undefined);
   // Only what git actually said: a copy it could not read is not a copy with work left in it.
-  const uncommitted = !review && task.worktree ? (await pristineState(task.worktree)) === "dirty" : false;
+  const uncommitted = !review && task.worktree ? (await workState(task.worktree)) === "dirty" : false;
   const handed = handbackBody(task, args, commit, uncommitted);
   const { outcome } = handed;
   // Where the owner gates each task, the verdict comes with the hand-back, as the Lead is told it

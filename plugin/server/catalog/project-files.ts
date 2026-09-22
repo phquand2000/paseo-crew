@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { git } from "../core/git.ts";
+import { type Cleanliness, git, pristineState } from "../core/git.ts";
 
 /**
  * The team's shared instructions, kept in the served project's own AGENTS.md so every agent that
@@ -66,4 +66,9 @@ export async function onlyTheBlock(root: string, path: string): Promise<boolean>
   const head = await git(root, ["show", `HEAD:${path}`]);
   const before = head.code === 0 ? head.stdout : "";
   return withoutBlock(read(join(root, path))).trim() === withoutBlock(before).trim();
+}
+
+/** A working copy's state as a writer's work sees it: the plugin's block is nobody's uncommitted work. */
+export function workState(cwd: string): Promise<Cleanliness> {
+  return pristineState(cwd, (path) => onlyTheBlock(cwd, path));
 }

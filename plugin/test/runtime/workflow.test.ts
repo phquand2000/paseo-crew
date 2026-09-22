@@ -1361,6 +1361,31 @@ test("a seat opening in a project writes the team's block there, and the first l
   assert.match(second.text, /uncommitted changes/);
 });
 
+test("the team's block left uncommitted in the project's own copy does not hold up accepting or reporting the lane there", async () => {
+  const h = harness("outbox-team-file-accept.json");
+  const open = (h.runtime as unknown as { openSession(request: { provider: string; cwd: string; env: Record<string, string> }): unknown }).openSession.bind(h.runtime);
+  open({ provider: "sw2-supervisor-claude", cwd: h.root, env: {} });
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "true" });
+  assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "x", acceptance: ["y"], outOfScope: ["z"] })).ok, true);
+  const lane = h.ledger().lanes.L1!;
+  assert.deepEqual(Object.keys(h.ledger().slots), [], "the lane works in the project's own copy, where the block is");
+  await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  writeFileSync(join(h.root, "a.txt"), "four\n");
+  h.git(h.root, "commit", "-qam", "add four");
+  const done = await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "four" });
+  assert.doesNotMatch(done.text, /uncommitted/);
+  h.agents.get(task.peer!)!.status = "idle";
+  const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  assert.equal(accepted.ok, true, accepted.text);
+  const reported = await h.call(lane.lead!, "lead", "report", { summary: "four is in", ready: true });
+  assert.equal(reported.ok, true, reported.text);
+  assert.match(readFileSync(join(h.project.state, "events.log"), "utf-8"), /"gate.passed"/, "the gate ran instead of refusing the copy");
+  assert.match(h.git(h.root, "status", "--porcelain"), /AGENTS\.md/, "the block is still the Human's to commit");
+  h.runtime.dispose();
+});
+
 test("a Lead is pointed at the project's concept once the Human has settled one, and set_project keeps no pages", async () => {
   const h = harness("outbox-concept.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
