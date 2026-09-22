@@ -157,6 +157,7 @@
   "mcp": {
     "file": "config.toml",
     "delivery": "launch",
+    "preapprove": true,
     "transports": [
       "stdio",
       "http"

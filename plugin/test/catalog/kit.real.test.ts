@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderPrompt } from "../../server/catalog/content.ts";
-import { PASEO_TOOLS, loadKit, providerId } from "../../server/catalog/kit.ts";
+import { PASEO_TOOLS, loadKit, providerId, toolsOf } from "../../server/catalog/kit.ts";
 import { type AgentConfig, applyRole, stateWrites } from "../../server/catalog/launch.ts";
 import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
 import { materialize, placeGuides, seatDir, seedRecords } from "../../server/catalog/seats.ts";
@@ -148,6 +148,26 @@ test("a Codex seat runs on the model provider the owner's own Codex names, and o
   assert.equal(seat.model_providers.ZAI.base_url, "https://example.invalid");
   assert.equal(seat.model, undefined, "the model is the role's, set at launch, not the owner's default");
   assert.equal(seat.approval_policy, "never", "and the kit's own settings still hold");
+});
+
+// Codex under approval_policy "never" refuses every MCP call that is not approved ahead: the first
+// Codex Leads could not start a task, ask, or read the desk's status.
+test("a Codex seat has every desk and proxy tool it is given approved ahead, and other agents get no such list", () => {
+  const kit = loadKit(pluginRoot);
+  const all = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
+  const context = { node: "/bin/node", spool: "/spool" };
+  const codex = withHarness(all, "lead", kit.harnesses.codex!);
+  const servers = serversFor(kit, codex, "lead", context);
+  const config = { provider: providerId(kit, "lead", "codex"), cwd: "/work/repo" } as AgentConfig;
+  const next = applyRole(kit, codex, config, () => "PROMPT", "/state/demo", servers) as unknown as { toolPolicy?: { preapproved: { kind: string; server: string; tool: string }[] } };
+  const approved = new Set(next.toolPolicy?.preapproved.map((ref) => `${ref.server}.${ref.tool}`));
+  const lead = kit.roles.find((role) => role.role === "lead")!;
+  for (const tool of toolsOf(kit, lead)) assert.ok(approved.has(`team.${tool}`), `team.${tool}`);
+  const proxies = Object.keys(servers).filter((id) => id !== "team" && String((servers[id] as { args?: string[] }).args?.[0]).endsWith("code.mjs"));
+  assert.ok(proxies.length > 0, "the shipped kit gives the Lead at least one proxied server");
+  for (const id of proxies) assert.ok([...approved].some((name) => name.startsWith(`${id}.`)), id);
+  const claude = applyRole(kit, all, { provider: providerId(kit, "lead", "claude"), cwd: "/work/repo" } as AgentConfig, () => "PROMPT", "/state/demo", serversFor(kit, all, "lead", context)) as unknown as { toolPolicy?: unknown };
+  assert.equal(claude.toolPolicy, undefined);
 });
 
 test("a Claude seat reads the project's own CLAUDE.md, though its settings come from its seat alone", () => {

@@ -371,6 +371,9 @@ it:
 - **Reading an archived Devin seat's history leaves a `devin acp` running.** Paseo resumes the
   agent to serve it and never closes it; `paseo logs` or the app's history view does this. The watch
   stops rather than read a seat once it is archived.
+- **A Codex seat can call only the tools the kit can name.** Codex refuses any MCP call not
+  approved ahead, so the desk's tools and proxied servers are approved at launch; a server you add
+  whose tools the kit doesn't know stays out of reach on Codex.
 - **Codex command rules match argument prefixes**, so `git -C <path> push` is not caught.
 - **A steer Paseo can't hand over replaces the turn.** A Claude seat that is compacting refuses a
   steer the same way.

@@ -15,6 +15,7 @@ import {
   can,
   supportsRole,
   teamServer,
+  toolsOf,
 } from "./kit.ts";
 import type { Connect, Layer, McpChoice } from "./settings.ts";
 
@@ -312,6 +313,19 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
     if (shaped) servers[id] = shaped;
   }
   return servers;
+}
+
+/** Every tool of the desk and of the proxied servers a seat is given, by server: the whole of what it may call there. */
+export function preapprovedFor(kit: Kit, team: Team, roleName: string): { kind: "mcp"; server: string; tool: string }[] {
+  const seat = team.roles[roleName];
+  if (!seat) return [];
+  const refs = (server: string, tools: string[]) => tools.map((tool) => ({ kind: "mcp" as const, server, tool }));
+  const approved = seat.role.tools ? refs("team", toolsOf(kit, seat.role)) : [];
+  for (const id of seat.mcp) {
+    const state = team.mcp[id]!;
+    if (state.entry?.kind === "proxy") approved.push(...refs(id, (state.tools ?? state.entry.tools)?.[roleName] ?? []));
+  }
+  return approved;
 }
 
 export function rulesFor(team: Team, roleName: string): string {

@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
 import { type Kit, type McpServers, type RoleSpec, seatOf } from "./kit.ts";
 import { stateTargets } from "./content.ts";
-import { type Team, rulesFor, skillDirsFor } from "./team.ts";
+import { type Team, preapprovedFor, rulesFor, skillDirsFor } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
@@ -75,6 +75,7 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   }
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
     next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
+    if (harness.mcp.preapprove) next.toolPolicy = { preapproved: preapprovedFor(kit, team, role.role).filter((ref) => ref.server in servers) };
   }
   let providerOptions: unknown = config.providerOptions;
   if (harness.stateWrites?.delivery === "launch" && state) {

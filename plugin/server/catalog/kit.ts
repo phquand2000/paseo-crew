@@ -61,6 +61,8 @@ export type HarnessSpec = {
   mcp: {
     file: string;
     delivery: "launch" | "file";
+    /** The agent refuses an MCP call nobody approved ahead, so every tool the seat is given is approved at launch. */
+    preapprove?: boolean;
     transports: McpTransport[];
     seed?: Record<string, unknown>;
     key?: string;
