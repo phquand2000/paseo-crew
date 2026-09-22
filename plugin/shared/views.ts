@@ -66,3 +66,45 @@ export type WatchView = {
 };
 export type FlowView = { project: string; at: number; revision: string; supervisors: FlowSeat[]; lanes: FlowLane[]; moreLanes: number; asks: FlowAsk[]; watch: WatchView };
 export type Check = { id: string; ok: boolean; detail: string };
+
+/** Something Clean up found that nothing uses any more. `held` says why it stays even if chosen. */
+export type CleanItem = {
+  path: string;
+  kind: "seat" | "copy" | "records" | "snapshot" | "backup";
+  why: string;
+  bytes: number;
+  /** Removed only when the owner picks it: it holds something of theirs, such as a CONTEXT.md. */
+  careful: boolean;
+  held: string | null;
+};
+export type CleanView = { items: CleanItem[]; removed: string[]; failed: { path: string; error: string }[] };
+
+export type UpdateCommit = { sha: string; subject: string };
+/** Where this checkout stands against the branch it follows, after a fetch. */
+export type UpdateView = {
+  dir: string;
+  head: string;
+  branch: string | null;
+  upstream: string | null;
+  behind: number;
+  ahead: number;
+  commits: UpdateCommit[];
+  /** package.json or its lockfile moves, so the update runs `npm install`. */
+  installs: boolean;
+  /** The Paseo range the update asks for, when it differs from this one's. */
+  paseo: string | null;
+  /** Why it cannot update itself, when it cannot. */
+  blocked: string | null;
+  running: number;
+  updated: { from: string; to: string } | null;
+};
+
+export type MigrateStep = {
+  kind: "settings" | "block" | "seat";
+  where: string;
+  what: string;
+  detail: string[];
+  /** Whether Migrate does it; the rest are for the owner, and say how. */
+  auto: boolean;
+};
+export type MigrateView = { stamp: string; since: string; steps: MigrateStep[]; done: string[] };

@@ -9,6 +9,7 @@ export type SeatView = {
   cwd: string;
   status: string;
   updatedAt: string;
+  createdAt?: string;
   archivedAt?: string | null;
   labels?: Record<string, string>;
   pendingPermissions?: PendingPermission[];

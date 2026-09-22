@@ -8,6 +8,7 @@ import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catal
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { placeProjectFiles } from "../catalog/project-files.ts";
 import { placeGuides, seatDir, seedRecords, sweepSnapshots } from "../catalog/seats.ts";
+import { stampKit } from "../upkeep/migrate.ts";
 import { type IndexedProxy, type Team, indexedProxies, jevOn, watchOn } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
 import { seatsOn, workspacesOn } from "../core/paseo-adapter.ts";
@@ -459,6 +460,7 @@ export class Runtime {
       spoolDirs(this.spool);
       placeGuides(this.kit);
       sweepSnapshots();
+      stampKit(this.kit, home());
     } catch (error) {
       console.error("seatworks-v2: could not prepare the state directory:", error);
     }

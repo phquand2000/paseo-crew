@@ -20,6 +20,9 @@ export interface Control {
   status(project: string): Promise<unknown>;
   flow(project: string, since?: string, open?: string[]): Promise<unknown>;
   listPaths(path?: string): unknown;
+  clean(remove?: string[]): Promise<unknown>;
+  update(apply: boolean): Promise<unknown>;
+  migrate(apply: boolean): Promise<unknown>;
 }
 
 type Contract = { name: string; input: z.ZodType; output: z.ZodType };
@@ -55,5 +58,8 @@ export function registerRpc(server: { handle: unknown }, control: Control, bind:
   handle(contracts.status, (input) => control.status(input.project));
   handle(contracts.flow, (input) => control.flow(input.project, input.since, input.open));
   handle(contracts.paths, (input) => control.listPaths(input.path));
+  handle(contracts.clean, (input) => control.clean(input.remove));
+  handle(contracts.update, (input) => control.update(input.apply));
+  handle(contracts.migrate, (input) => control.migrate(input.apply));
   return Object.values(contracts).map((contract) => contract.name);
 }

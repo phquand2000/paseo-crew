@@ -13,6 +13,7 @@ import { MACHINE, ProjectList } from "./projects.tsx";
 import { ServersSection } from "./servers.tsx";
 import { SetupDialog } from "./setup-dialog.tsx";
 import { TeamSection } from "./team.tsx";
+import { UpkeepSection } from "./upkeep.tsx";
 
 export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [open, setOpen] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
           </SettingsCard>
         ) : null}
+        <UpkeepSection theme={theme} />
         {dialogNode}
       </ScrollView>
     );

@@ -4,7 +4,7 @@ A [Paseo](https://paseo.sh) plugin that runs a team of coding agents the **SLP**
 **Supervisor** works with you, a **Lead** owns each line of work, and **Peers** each do one task. A
 **Reviewer** reads the work with clean context, and a **Watcher** reads how it is being done.
 
-> **Pre-release.** Nothing has shipped: no releases, no compatibility promises, no migrations.
+> **Pre-release.** Nothing has shipped: no releases, no compatibility promises.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -85,6 +85,17 @@ paseo plugin install "$PWD"
 ```
 
 Paseo remembers where the clone is. If you move it, install it again.
+
+**Keeping it current.** Under the project list, the **Plugin** section has three actions:
+
+- **Updates** fetches the branch the clone follows and lists what is new. **Update** only moves
+  forward, runs `npm install` when the packages changed, and reloads the plugin. A clone with
+  uncommitted changes or commits of its own is left for you.
+- **Migrate** carries a new version into the projects already set up. It drops settings the new
+  version cannot read, keeping a `settings.json.bak-<time>` copy, and rewrites the `AGENTS.md`
+  block, which you then commit. It also names the seats still running on the old prompts.
+- **Clean up** scans for seat folders, working copies, project records and copies nobody uses any
+  more. It removes only what you pick. Anything with uncommitted work stays.
 
 ## First run
 

@@ -7,10 +7,13 @@ import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transpor
 import { gitCommonDir } from "../core/git.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
-import { guidesDir, worktreeRoot } from "../core/paths.ts";
+import { guidesDir, home, worktreeRoot } from "../core/paths.ts";
 import { createHash } from "node:crypto";
 import { flowView } from "../desk/flow.ts";
-import type { WatchView } from "../../shared/views.ts";
+import type { CleanView, MigrateView, UpdateView, WatchView } from "../../shared/views.ts";
+import { removeGarbage, scanGarbage } from "../upkeep/clean.ts";
+import { type LiveSeat, migrate, migrationPlan } from "../upkeep/migrate.ts";
+import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../upkeep/update.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
 import { type Project, gitRoot, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -390,6 +393,51 @@ export class SettingsControl implements Control {
     // browsed against the projects already set up, so `/repo/src` never said that `/repo` was one.
     const root = gitRoot(here);
     return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), root: root === here ? null : root, folders };
+  }
+
+  async clean(remove?: string[]): Promise<CleanView> {
+    const { kit, source } = this.deps;
+    const ctx = { kit, home: home(), known: source.known(), teamFor: (project: Project) => source.teamFor(project), live: await this.live() };
+    if (!remove) return { items: await scanGarbage(ctx), removed: [], failed: [] };
+    const cleaned = await removeGarbage(ctx, remove);
+    for (const project of ctx.known) if (!source.named(project.slug)) source.forget(project.slug);
+    return cleaned;
+  }
+
+  async update(apply: boolean): Promise<UpdateView> {
+    const ctx = { dir: this.deps.kit.dir, managedRoot: join(home(), ".paseo", "plugins"), running: (await this.live()).length, install: npmInstall, reload: reloadSoon };
+    return apply ? applyUpdate(ctx) : checkUpdate(ctx);
+  }
+
+  async migrate(apply: boolean): Promise<MigrateView> {
+    const { kit, source } = this.deps;
+    const known = source.known();
+    const ctx = {
+      kit,
+      home: home(),
+      known,
+      settings: [
+        { where: "machine", file: source.machineFile(), schema: MachineLayerSchema },
+        ...known.map((project) => ({ where: project.slug, file: source.projectFile(project), schema: ProjectLayerSchema })),
+      ],
+      live: await this.live(),
+      now: Date.now(),
+    };
+    if (!apply) return migrationPlan(ctx);
+    const done = migrate(ctx);
+    this.deps.reconcile(source.teamFor());
+    return done;
+  }
+
+  /** The team's seats Paseo has open, and the project each works in. */
+  private async live(): Promise<LiveSeat[]> {
+    const seats = await this.deps.seats.open();
+    return seats.flatMap((seat) => {
+      const found = seatOf(this.deps.kit, seat.provider);
+      if (!found) return [];
+      const name = [found.role.label, found.harness.label, seat.title].filter(Boolean).join(" · ");
+      return [{ provider: seat.provider.split("/")[0]!, slug: projectOf(seat.cwd).slug, createdAt: seat.createdAt, name }];
+    });
   }
 
   private target(slug?: string): Target | string {

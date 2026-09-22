@@ -54,6 +54,17 @@ export function ensureLink(path: string, target: string): boolean {
 
 const SNAPSHOT_DAYS = 14;
 
+/** What the files under each path hold, and where, in 12 hex characters. */
+export function digest(sources: string[]): string {
+  const hash = createHash("sha256");
+  for (const [index, source] of sources.entries()) {
+    if (!existsSync(source)) continue;
+    const files = statSync(source).isDirectory() ? readdirSync(source, { recursive: true }).map(String).filter((file) => statSync(join(source, file)).isFile()).sort() : [""];
+    for (const file of files) hash.update(`${index}/${file}\0`).update(readFileSync(join(source, file))).update("\0");
+  }
+  return hash.digest("hex").slice(0, 12);
+}
+
 /**
  * A copy of `source` under the state root, named by what it holds, for a seat to read. What a seat
  * reads has to resolve outside every repository: Devin loads the AGENTS.md above each file it reads
@@ -61,10 +72,7 @@ const SNAPSHOT_DAYS = 14;
  * rules as their own. A copy is never written again once in place, so one being read never changes.
  */
 export function snapshot(source: string, name: string, homeDir = home()): string {
-  const hash = createHash("sha256");
-  const files = readdirSync(source, { recursive: true }).map(String).filter((file) => statSync(join(source, file)).isFile()).sort();
-  for (const file of files) hash.update(`${file}\0`).update(readFileSync(join(source, file))).update("\0");
-  const target = join(contentRoot(homeDir), `${name}-${hash.digest("hex").slice(0, 12)}`);
+  const target = join(contentRoot(homeDir), `${name}-${digest([source])}`);
   if (!existsSync(target)) {
     const building = `${target}.${process.pid}.building`;
     rmSync(building, { recursive: true, force: true });

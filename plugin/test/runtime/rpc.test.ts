@@ -52,6 +52,9 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.settings.write",
     "seatworks.status.read",
     "seatworks.team.read",
+    "seatworks.upkeep.clean",
+    "seatworks.upkeep.migrate",
+    "seatworks.upkeep.update",
   ]);
   const catalog = await call("seatworks.catalog.read");
   assert.deepEqual(catalog.roles.find((role: any) => role.id === "lead").harnesses, ["claude", "devin"]);

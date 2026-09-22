@@ -39,9 +39,9 @@ export function withPointer(text: string): string {
 
 const read = (file: string) => (existsSync(file) ? readFileSync(file, "utf-8") : "");
 
-/** Writes only what changed, and returns the files it wrote. */
-export function placeProjectFiles(root: string, body: string): string[] {
-  const written: string[] = [];
+/** The files whose text is not what this kit writes there, with the text it would write. */
+export function staleProjectFiles(root: string, body: string): { name: string; file: string; wanted: string }[] {
+  const stale: { name: string; file: string; wanted: string }[] = [];
   for (const [name, next] of [
     ["AGENTS.md", (text: string) => withBlock(text, body)],
     ["CLAUDE.md", withPointer],
@@ -49,11 +49,16 @@ export function placeProjectFiles(root: string, body: string): string[] {
     const file = join(root, name);
     const text = read(file);
     const wanted = next(text);
-    if (wanted === text) continue;
-    writeFileSync(file, wanted);
-    written.push(name);
+    if (wanted !== text) stale.push({ name, file, wanted });
   }
-  return written;
+  return stale;
+}
+
+/** Writes only what changed, and returns the files it wrote. */
+export function placeProjectFiles(root: string, body: string): string[] {
+  const stale = staleProjectFiles(root, body);
+  for (const { file, wanted } of stale) writeFileSync(file, wanted);
+  return stale.map(({ name }) => name);
 }
 
 /**

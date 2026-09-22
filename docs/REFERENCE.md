@@ -316,6 +316,8 @@ it is given its own. Each role still needs its settings files under `harness/<ag
 | **MCP** | Servers on or off, their roles and options, and adding one from a snippet |
 | **Health** | The machine's checks and, on a project, its lanes' status |
 
+The project list ends with **Plugin**: Updates, Migrate and Clean up, described in the README.
+
 The panel talks to the server only through the `seatworks.*` RPCs in `shared/rpc.ts`. Detaching a
 project keeps its ledger and logs, and is refused while a lane is open or a working copy is out.
 
@@ -326,6 +328,8 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
 ~/.local/share/seatworks-v2/
   roles.json                              optional; replaces the shipped preset
   settings.json                           machine settings, including the sensor key
+  settings.json.bak-<time>                what Migrate repaired, as it was; can hold the key
+  kit.json                                which kit runs, and since when
   outbox.json                             waiting letters, all projects
   spool/requests/  spool/replies/         seat tool calls
   content/<name>-<hash>/                  copies of the guides and skills seats read; safe to delete
