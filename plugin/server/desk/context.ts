@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
 import type { Team } from "../catalog/team.ts";
 import type { Kit, RoleSpec } from "../catalog/kit.ts";
 import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
+import { appendRecord } from "./records.ts";
 import { type Incidents, incidentsFault, loadIncidents, saveIncidents } from "./incidents.ts";
 import type { Sent } from "../runtime/watch/seat/reader.ts";
 
@@ -112,8 +111,7 @@ export class DeskContext {
 
   event(project: Project, data: Record<string, unknown>): void {
     try {
-      mkdirSync(project.state, { recursive: true });
-      appendFileSync(join(project.state, "events.log"), `${JSON.stringify({ at: new Date().toISOString(), ...data })}\n`);
+      appendRecord(project.state, "events", `${JSON.stringify({ at: new Date().toISOString(), ...data })}\n`);
     } catch (error) {
       console.error("seatworks-v2: events.log write failed:", error);
     }

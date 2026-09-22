@@ -1,6 +1,5 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "../catalog/content.ts";
 import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
@@ -20,6 +19,7 @@ import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
 import { type Ledger, type Sibling, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
+import { appendRecord } from "../desk/records.ts";
 import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
 import { codeIndex } from "./code-index.ts";
@@ -622,8 +622,7 @@ export class Runtime {
 
   private log(project: Project, line: string): void {
     try {
-      mkdirSync(project.state, { recursive: true });
-      appendFileSync(join(project.state, "attention.log"), `${new Date().toISOString()}  ${line}\n`);
+      appendRecord(project.state, "attention", `${new Date().toISOString()}  ${line}\n`);
     } catch (error) {
       console.error("seatworks-v2: attention log write failed:", error);
     }

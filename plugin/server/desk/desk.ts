@@ -8,6 +8,7 @@ import { type Args, type Caller, type CodeIndex, DeskContext, type DeskDeps, typ
 import { errorText } from "../core/errors.ts";
 import { type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
+import { tidyRecords } from "./records.ts";
 import { MergeQueue } from "./merge.ts";
 import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
@@ -180,8 +181,10 @@ export class Desk {
     return this.services.ctx.setTask(project, taskId, change);
   }
 
-  sweep(project: Project, busy = false): Promise<void> {
-    return this.services.slots.sweep(project, busy);
+  async sweep(project: Project, busy = false): Promise<void> {
+    await this.services.slots.sweep(project, busy);
+    const dropped = tidyRecords(project.state, loadLedger(project.state));
+    if (dropped.length > 0) this.services.ctx.event(project, { kind: "records.tidied", files: dropped.length });
   }
 
   /**
