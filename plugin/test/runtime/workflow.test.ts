@@ -856,6 +856,21 @@ test("a lane's own working copy is filed under the project, so closing it leaves
   h.runtime.dispose();
 });
 
+test("a working copy is not handed to Paseo bare when the project's workspace names no project", async () => {
+  const h = harness("outbox-noproject.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Here", outcome: "a.txt changes", acceptance: ["a"], ...scope });
+  h.workspaceProjects.set(h.ledger().lanes.L1!.workspaceId!, "");
+  const made = h.workspaces.size;
+
+  const away = await h.call(sup, "supervisor", "open_lane", { title: "Away", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
+  assert.equal(away.ok, false);
+  assert.match(away.text, /names no Paseo project/);
+  assert.equal(h.workspaces.size, made, "no workspace, and so no project, was made for the copy");
+  h.runtime.dispose();
+});
+
 test("a ledger the desk cannot read is not written over, and the seat is told why", async () => {
   const h = harness("outbox-badledger.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

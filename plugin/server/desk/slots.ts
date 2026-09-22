@@ -301,7 +301,8 @@ export class Slots {
    */
   private async createWorkspace(project: Project, slot: Slot): Promise<string> {
     const home = await this.projectWorkspace(project);
-    const { id: workspaceId } = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path, home.project || undefined);
+    if (!home.project) throw new Error(`the project's workspace in Paseo names no Paseo project, so its working copy was not made: Paseo would have made it a project of its own`);
+    const { id: workspaceId } = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path, home.project);
     await this.ctx.ledger(project, (ledger) => {
       const entry = ledger.slots[slot.id];
       if (entry) entry.workspaceId = workspaceId;
