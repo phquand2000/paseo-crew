@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { renderPrompt } from "../catalog/content.ts";
 import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
+import { type Listed, type ModelCache, applyModels, fetchModels, listingProviders } from "../catalog/models.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { placeProjectFiles } from "../catalog/project-files.ts";
@@ -72,6 +73,7 @@ export class Runtime {
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
   private api: PaseoApi | undefined;
+  private modelsAsked = false;
   private timers: ReturnType<typeof setInterval>[] = [];
   private tick: ReturnType<typeof setTimeout> | undefined;
 
@@ -147,6 +149,7 @@ export class Runtime {
       source: this.source,
       seating: this.seating,
       reconcile: (team) => this.reconcileProviders(team),
+      models: () => this.refreshModels(),
       seats: this.seats,
       held: () => this.outbox.letters(),
       watch: (project, seats) => this.watchView(project, seats),
@@ -472,6 +475,10 @@ export class Runtime {
   register(server: PluginServerContext): void {
     registerRpc(server, this.control, (paseo) => {
       this.api = paseo;
+      if (!this.modelsAsked) {
+        this.modelsAsked = true;
+        this.refreshModels().catch((error) => console.error("seatworks-v2: could not list the agents' models:", error));
+      }
     });
     server.before("agent.create", ({ request }, context) => {
       this.api = context.paseo;
@@ -602,6 +609,23 @@ export class Runtime {
 
   private indexesFor(project: Project): CodeIndex[] {
     return indexedProxies(this.source.teamFor(project)).map((proxy) => this.makeIndex(proxy));
+  }
+
+  /** Paseo's own model lists, asked of each agent again once a load and whenever the owner asks: Paseo keeps a catalog until told to refresh it. */
+  async refreshModels(): Promise<ModelCache> {
+    const paseo = this.api;
+    if (!paseo) throw new Error("Paseo is not connected, so it cannot list the agents' models");
+    // Scoped to one directory: unscoped, Paseo probes the agent again for every workspace it has ever
+    // opened, a hundred launches of it on a machine that has run evals, and the panel waited on all.
+    const cwd = stateRoot();
+    await Promise.all([...listingProviders(this.kit).values()].map((provider) => paseo.providers.refresh({ cwd, providers: [provider] })));
+    const { cache, changed } = await fetchModels(this.kit, (provider) => paseo.providers.listModels(provider, { cwd }) as Promise<Listed>, stateRoot());
+    applyModels(this.kit, cache);
+    if (changed) {
+      this.seating.forget();
+      this.reconcileProviders(this.source.teamFor());
+    }
+    return cache;
   }
 
   private reconcileProviders(team: Team): void {

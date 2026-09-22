@@ -43,6 +43,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.doctor.run",
     "seatworks.flow.read",
     "seatworks.mcp.parse",
+    "seatworks.models.refresh",
     "seatworks.paths.list",
     "seatworks.projects.add",
     "seatworks.projects.candidates",
@@ -53,6 +54,7 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
     "seatworks.status.read",
     "seatworks.team.read",
     "seatworks.upkeep.clean",
+    "seatworks.upkeep.decide",
     "seatworks.upkeep.migrate",
     "seatworks.upkeep.update",
   ]);

@@ -10,10 +10,24 @@ const SEAT_ROOM = new URL("../../bin/seat-room", import.meta.url).pathname;
 function seat(baseProvider: string) {
   const dir = tempDir("sw2-seat-room-");
   mkdirSync(join(dir, "harness", "acme"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify({ baseProvider, configDirEnv: "ACME_HOME", modes: [{ id: "ask", label: "Ask" }, { id: "bypass", label: "Bypass" }], provider: { command: ["KIT/bin/seat-room", "acp"] } }));
+  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify({ baseProvider, configDirEnv: "ACME_HOME", provider: { command: ["KIT/bin/seat-room", "acp"] } }));
   const launched = join(dir, "launched");
   const agent = join(dir, "agent");
-  writeFileSync(agent, `#!/bin/sh\necho "$ACME_HOME $*" > '${launched}'\n`);
+  // Configured, it records how it was started; unconfigured, it answers ACP and records each call.
+  writeFileSync(
+    agent,
+    `#!/usr/bin/env node
+const { appendFileSync, writeFileSync } = require("node:fs");
+if (process.env.ACME_HOME) { writeFileSync(${JSON.stringify(launched)}, process.env.ACME_HOME + " " + process.argv.slice(2).join(" ") + "\\n"); process.exit(0); }
+require("node:readline").createInterface({ input: process.stdin }).on("line", (line) => {
+  const m = JSON.parse(line);
+  appendFileSync(${JSON.stringify(launched)}, m.method + "\\n");
+  const result = m.method === "initialize" ? { protocolVersion: 1, agentCapabilities: { loadSession: true } } : { sessionId: "s1", modes: { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }] }, configOptions: [{ id: "model", category: "model", currentValue: "m1", options: [{ value: "m1", name: "M1" }] }] };
+  if (m.method === "session/new") process.stdout.write(JSON.stringify({ jsonrpc: "2.0", method: "session/update", params: { sessionId: "s1", update: { sessionUpdate: "available_commands_update", availableCommands: [] } } }) + "\\n");
+  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: m.id, result }) + "\\n");
+});
+`,
+  );
   chmodSync(agent, 0o755);
   return { launched, env: { PATH: process.env.PATH!, SEATWORKS_KIT: dir, SEATWORKS_HARNESS: "acme", SEATWORKS_AGENT_BIN: agent } };
 }
@@ -39,17 +53,20 @@ const PROBE = [
   { id: "4", method: "session/prompt", params: { sessionId: "seat-room", prompt: [{ type: "text", text: "hi" }] } },
 ];
 
-test("an ACP seat the plugin did not configure tells Paseo its modes and refuses everything else, without starting the agent", async () => {
+test("an ACP seat the plugin did not configure lets Paseo list the agent's own models and modes, and refuses everything else", async () => {
   const { launched, env } = seat("acp");
   const { code, replies } = await open(env, PROBE);
   assert.equal(code, 0);
-  assert.equal(existsSync(launched), false);
-  assert.deepEqual(replies.slice(0, 2), [
-    { jsonrpc: "2.0", id: 1, result: { protocolVersion: 1, agentCapabilities: {} } },
-    { jsonrpc: "2.0", id: 2, result: { sessionId: "seat-room", modes: { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }, { id: "bypass", name: "Bypass" }] } } },
+  assert.deepEqual(replies.slice(0, 3), [
+    { jsonrpc: "2.0", id: 1, result: { protocolVersion: 1, agentCapabilities: { loadSession: true } } },
+    // What the agent says of itself as the session opens reaches Paseo too: it waits for it.
+    { jsonrpc: "2.0", method: "session/update", params: { sessionId: "s1", update: { sessionUpdate: "available_commands_update", availableCommands: [] } } },
+    { jsonrpc: "2.0", id: 2, result: { sessionId: "s1", modes: { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }] }, configOptions: [{ id: "model", category: "model", currentValue: "m1", options: [{ value: "m1", name: "M1" }] }] } },
   ]);
-  assert.deepEqual(replies.slice(2).map((reply) => [reply.id, reply.result]), [[3, undefined], ["4", undefined]]);
-  for (const reply of replies.slice(2)) assert.match(reply.error.message, /^Seat room: ACME_HOME is unset, so this seat would run on your own settings/);
+  assert.deepEqual(replies.slice(3).map((reply) => [reply.id, reply.result]), [[3, undefined], ["4", undefined]]);
+  for (const reply of replies.slice(3)) assert.match(reply.error.message, /^Seat room: ACME_HOME is unset, so this seat would run on your own settings/);
+  // A prompt run on the owner's own settings is what the refusal is for: it never reaches the agent.
+  assert.equal(readFileSync(launched, "utf-8"), "initialize\nsession/new\n");
 });
 
 test("any other launch the plugin did not configure is refused outright", async () => {

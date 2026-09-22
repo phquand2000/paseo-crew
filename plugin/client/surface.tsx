@@ -131,7 +131,6 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
           </SettingsCard>
         ) : null}
-        <UpkeepSection theme={theme} />
         {dialogNode}
       </ScrollView>
     );
@@ -152,7 +151,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         {trouble}
         {tab === "team" ? (
           <>
-            <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} active={chip} onActive={setChip} save={save} />
+            <TeamSection catalog={data.catalog} team={data.team} values={data.values} machine={data.machine} layer={layer} theme={theme} disabled={locked} active={chip} onActive={setChip} save={save} reload={reload} />
           </>
         ) : null}
         {tab === "flow" ? (
@@ -191,6 +190,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
             addServer={addServer}
           />
         ) : null}
+        {tab === "plugin" ? <UpkeepSection theme={theme} /> : null}
         {tab === "health" ? (
           <HealthSection
             project={project}

@@ -6,34 +6,6 @@
   "configDirEnv": "XDG_CONFIG_HOME",
   "promptFile": "devin/AGENTS.md",
   "skillsDir": "devin/skills",
-  "models": [
-    {
-      "id": "swe-2-max",
-      "label": "SWE-2 Max"
-    },
-    {
-      "id": "swe-2-medium",
-      "label": "SWE-2 Medium"
-    }
-  ],
-  "modes": [
-    {
-      "id": "accept-edits",
-      "label": "Code"
-    },
-    {
-      "id": "ask",
-      "label": "Ask"
-    },
-    {
-      "id": "plan",
-      "label": "Plan"
-    },
-    {
-      "id": "bypass",
-      "label": "Bypass Permissions"
-    }
-  ],
   "mcp": {
     "file": "devin/mcp_config.json",
     "delivery": "file",

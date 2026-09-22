@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
-import type { Kit, RoleSpec } from "./kit.ts";
+import { type Kit, type RoleSpec, ownOr } from "./kit.ts";
 
 export type PromptPaths = { guides: string; state: string };
 
@@ -55,7 +55,7 @@ function skillDirs(root: string): string[] {
 
 /** A preset outside this package names its own files, so an absolute path is taken as given. */
 export function contentPath(kit: Kit, path: string): string {
-  return isAbsolute(path) ? path : join(kit.dir, "content", path);
+  return isAbsolute(path) ? path : ownOr(kit, path);
 }
 
 export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map()): Map<string, string> {
@@ -63,12 +63,12 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
   const found = new Map<string, string>();
   if (role.skills) {
     const own = isAbsolute(role.skills) ? role.skills : join(root, role.skills);
-    for (const name of skillDirs(own)) found.set(name, join(own, name));
+    for (const name of skillDirs(own)) found.set(name, isAbsolute(role.skills) ? join(own, name) : ownOr(kit, `skills/${role.skills}/${name}`));
   }
   for (const extra of role.extraSkills ?? []) {
     const [set, name] = extra.split(":");
     if (!set || !name) throw new Error(`role ${role.role} names extra skill "${extra}"; write it as set:name`);
-    const dir = join(root, set, name);
+    const dir = ownOr(kit, `skills/${set}/${name}`);
     if (!existsSync(join(dir, "SKILL.md"))) throw new Error(`role ${role.role} names extra skill ${extra}, but ${dir}/SKILL.md is missing`);
     found.set(name, dir);
   }

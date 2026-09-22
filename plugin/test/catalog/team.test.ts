@@ -181,7 +181,7 @@ test("a harness with no models and none chosen is refused where the owner can se
   // Paseo starts an agent only as provider/model and refuses a bare provider in the client, so this
   // resolved cleanly and then failed at every open_lane with a format error that named none of it.
   const team = resolveTeam(bare as typeof kit);
-  assert.ok(team.errors.some((error) => /lists no models and none is chosen for the Peer/.test(error)), team.errors.join("\n"));
+  assert.ok(team.errors.some((error) => /listed no models for .* yet and none is chosen for the Peer/.test(error)), team.errors.join("\n"));
   assert.deepEqual(resolveTeam(bare as typeof kit, { roles: { peer: { model: "swe-3" } } }).errors, [], "and choosing one is enough");
 });
 

@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
-import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, paseoToolsPolicy, providerId, supportsRole } from "./kit.ts";
+import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, agentDefault, paseoToolsPolicy, providerId, supportsRole } from "./kit.ts";
 import { writeConfigAtomic } from "../core/config-file.ts";
 import { paseoConfigPath } from "../core/paths.ts";
 import { sameJson } from "../core/store.ts";
@@ -28,19 +28,16 @@ function choiceFor(team: Team, role: RoleSpec, harness: HarnessSpec): { model?: 
   const preset = harness.id === role.defaults.harness ? role.defaults : undefined;
   const listed = harness.models?.find((entry) => entry.id === preset?.model);
   if (preset?.model && !listed) return { model: preset.model, thinking: harness.hasThinking === false ? undefined : preset.thinking };
-  const model = listed ?? harness.models?.find((entry) => entry.isDefault) ?? harness.models?.[0];
+  const model = listed ?? agentDefault(Object.values(team.roles).map((seat) => seat.role), harness);
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
   return { model: model?.id, thinking: (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id };
 }
 
-function modelsFor(harness: HarnessSpec, choice: { model?: string; thinking?: string }): ModelSpec[] {
-  return (harness.models ?? []).map((model) => {
-    const entry: ModelSpec = { id: model.id, label: model.label, isDefault: model.id === choice.model };
-    if (harness.hasThinking !== false && model.thinkingOptions?.length) {
-      entry.thinkingOptions = model.thinkingOptions.map((option) => ({ id: option.id, label: option.label, isDefault: model.id === choice.model && option.id === choice.thinking }));
-    }
-    return entry;
-  });
+/** Paseo lists the agent's own models; the plugin only says which of them a role starts on. */
+function defaultModel(harness: HarnessSpec, choice: { model?: string }): ModelSpec[] {
+  if (!choice.model) return [];
+  const label = harness.models?.find((entry) => entry.id === choice.model)?.label ?? choice.model;
+  return [{ id: choice.model, label, isDefault: true }];
 }
 
 export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
@@ -52,8 +49,8 @@ export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: H
   if (role.description) entry.description = role.description;
   const command = (harness.provider.command ?? []).map((part) => part.replaceAll("KIT", kit.dir));
   if (command.length > 0) entry.command = command;
-  const models = modelsFor(harness, choiceFor(team, role, harness));
-  if (models.length > 0) entry.models = models;
+  const models = defaultModel(harness, choiceFor(team, role, harness));
+  if (models.length > 0) entry.additionalModels = models;
   const tools = paseoToolsPolicy(role);
   if (tools) entry.paseoTools = tools;
   return entry;
@@ -107,7 +104,7 @@ export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; c
     const want = desiredProvider(kit, team, role, harness);
     const kept = Object.fromEntries(Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("SEATWORKS_") && !managed.has(key)));
     const merged: Json = { ...have, ...want, env: { ...kept, ...want.env } };
-    for (const key of ["command", "models", "paseoTools", "description"]) if (!(key in want)) delete merged[key];
+    for (const key of ["command", "models", "additionalModels", "paseoTools", "description"]) if (!(key in want)) delete merged[key];
     if (!sameJson(merged, have)) {
       next.agents.providers[id] = merged;
       changed.push(`provider ${id}`);

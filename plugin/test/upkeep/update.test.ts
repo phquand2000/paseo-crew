@@ -22,7 +22,7 @@ function world() {
   const upstream = tempDir("sw2-up-");
   git(upstream, "clone", "-q", origin, ".");
   git(upstream, "checkout", "-q", "-b", "main");
-  commit(upstream, { "paseo-plugin.json": '{"requirements":{"paseo":">=0.8.0 <0.9.0"}}', "package.json": "{}" }, "Start");
+  commit(upstream, { "paseo-plugin.json": '{"requirements":{"paseo":">=0.8.0 <0.9.0"}}', "package.json": '{"version":"2.0.0"}' }, "Start");
   git(upstream, "push", "-q", "origin", "main");
   const dir = tempDir("sw2-plugin-");
   git(dir, "clone", "-q", origin, ".");
@@ -31,7 +31,7 @@ function world() {
   const ctx: UpdateContext = {
     dir,
     managedRoot: "/nowhere/.paseo/plugins",
-    running: 0,
+    busy: [],
     install: async () => {
       calls.install++;
       return installFails;
@@ -58,6 +58,15 @@ test("check lists what is new upstream and what the update will need, and moves 
   assert.equal(git(dir, "rev-parse", "HEAD"), before);
 });
 
+test("the version shows without asking the remote, and a check that does not fetch sees only what the last fetch saw", async () => {
+  const { ctx, publish } = world();
+  publish({ "a.txt": "a" }, "Add a");
+  const local = await checkUpdate(ctx, false);
+  assert.deepEqual([local.version, local.behind, local.fetched], ["2.0.0", 0, false]);
+  assert.match(local.date ?? "", /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal((await checkUpdate(ctx)).behind, 1);
+});
+
 test("update moves the checkout forward, installs only when the packages changed, and reloads", async () => {
   const { dir, ctx, calls, publish } = world();
   publish({ "a.txt": "a" }, "Add a");
@@ -75,12 +84,22 @@ test("update refuses a checkout with uncommitted changes or commits of its own, 
   const { dir, ctx, calls, publish } = world();
   publish({ "a.txt": "a" }, "Add a");
   writeFileSync(join(dir, "package.json"), '{"mine":true}');
-  assert.equal((await applyUpdate(ctx)).blocked, "The checkout has uncommitted changes.");
+  assert.equal((await applyUpdate(ctx)).blocked, "It has local changes, so it does not update itself.");
 
   git(dir, "checkout", "-q", "--", "package.json");
   commit(dir, { "b.txt": "b" }, "Mine");
   assert.match((await applyUpdate(ctx)).blocked ?? "", /has 1 commit origin\/main does not/);
   assert.equal(git(dir, "log", "-1", "--format=%s"), "Mine");
+  assert.deepEqual(calls, { install: 0, reload: 0 });
+});
+
+test("update waits until no seat runs in any project, and moves nothing meanwhile", async () => {
+  const { dir, ctx, calls, publish } = world();
+  const before = git(dir, "rev-parse", "HEAD");
+  publish({ "a.txt": "a" }, "Add a");
+  const view = await applyUpdate({ ...ctx, busy: ["shop-abc123 3 seats", "api-def456 1 seat"] });
+  assert.equal(view.blocked, "Stop every seat first: shop-abc123 3 seats, api-def456 1 seat.");
+  assert.equal(git(dir, "rev-parse", "HEAD"), before);
   assert.deepEqual(calls, { install: 0, reload: 0 });
 });
 

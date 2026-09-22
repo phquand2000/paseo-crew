@@ -15,17 +15,18 @@ test("every role gets a provider on each harness that has settings for it", () =
   );
 });
 
-test("a role provider carries its harness base, launcher, env, models with the chosen defaults, and tool limits", () => {
+test("a role provider carries its harness base, launcher, env, the model it starts on, and tool limits", () => {
   const entry = desiredProvider(kit, team, role("lead"), kit.harnesses.claude!);
   assert.equal(entry.extends, "claude");
   assert.equal(entry.label, "Lead · Claude Code (sw2)");
   assert.deepEqual(entry.command, [`${kit.dir}/bin/seat-room`]);
   assert.equal(entry.env.SEATWORKS_ROLE, "lead");
   assert.equal(entry.env.SEATWORKS_KIT, kit.dir);
-  assert.deepEqual(entry.models[0], { id: "opus", label: "Opus", isDefault: true, thinkingOptions: [{ id: "medium", label: "M", isDefault: true }, { id: "high", label: "H", isDefault: false }] });
-  assert.equal(entry.models[1].isDefault, false);
-  const chosen = desiredProvider(kit, resolveTeam(kit, { roles: { lead: { thinking: "high" } } }), role("lead"), kit.harnesses.claude!);
-  assert.equal(chosen.models[0].thinkingOptions[1].isDefault, true);
+  // Paseo lists the agent's own models; replacing that list hid every model but the chosen one.
+  assert.equal(entry.models, undefined);
+  assert.deepEqual(entry.additionalModels, [{ id: "opus", label: "Opus", isDefault: true }]);
+  const chosen = desiredProvider(kit, resolveTeam(kit, { roles: { lead: { model: "haiku" } } }), role("lead"), kit.harnesses.claude!);
+  assert.deepEqual(chosen.additionalModels, [{ id: "haiku", label: "Haiku", isDefault: true }]);
   assert.deepEqual(desiredProvider(kit, team, role("peer"), kit.harnesses.devin!).paseoTools, { enabled: false });
   assert.deepEqual(desiredProfile(kit, team, role("peer"), kit.harnesses.devin!), { id: "sw2-peer-devin", name: "Peer · Devin CLI (sw2)", provider: "sw2-peer-devin", model: "swe", modeId: "bypass" });
 });
@@ -57,7 +58,7 @@ test("reconcile removes providers the kit no longer defines and keeps a user's o
     agents: {
       providers: {
         "sw2-peer": { extends: "acp" },
-        "sw2-peer-devin": { extends: "claude", env: { MY_KEY: "x", CLAUDE_CODE_DISABLE_CRON: "1", CLAUDE_CONFIG_DIR: "/old", SEATWORKS_SLUG: "old" }, description: "stale" },
+        "sw2-peer-devin": { extends: "claude", env: { MY_KEY: "x", CLAUDE_CODE_DISABLE_CRON: "1", CLAUDE_CONFIG_DIR: "/old", SEATWORKS_SLUG: "old" }, description: "stale", models: [{ id: "swe", label: "SWE" }] },
         peer: { extends: "acp" },
       },
     },
@@ -72,4 +73,7 @@ test("reconcile removes providers the kit no longer defines and keeps a user's o
   assert.equal(peer.extends, "acp");
   assert.deepEqual(Object.keys(peer.env).sort(), ["MY_KEY", "SEATWORKS_AGENT_BIN", "SEATWORKS_HARNESS", "SEATWORKS_KIT", "SEATWORKS_ROLE"]);
   assert.equal("description" in peer, false);
+  // A list written over Paseo's own hid every model the agent has but the one chosen.
+  assert.equal("models" in peer, false);
+  assert.deepEqual(peer.additionalModels, [{ id: "swe", label: "SWE", isDefault: true }]);
 });

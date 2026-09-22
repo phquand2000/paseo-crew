@@ -6,22 +6,6 @@
   "configDirEnv": "CLAUDE_CONFIG_DIR",
   "skillsDir": "skills",
   "steers": true,
-  "models": [
-    {
-      "id": "claude-opus-5",
-      "label": "Opus 5",
-      "thinkingOptions": [
-        {
-          "id": "medium",
-          "label": "Medium"
-        },
-        {
-          "id": "high",
-          "label": "High"
-        }
-      ]
-    }
-  ],
   "mcp": {
     "file": ".claude.json",
     "delivery": "launch",

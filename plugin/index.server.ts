@@ -1,5 +1,6 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { loadKit } from "./server/catalog/kit.ts";
+import { applyModels, readModels } from "./server/catalog/models.ts";
 import { PLUGIN_ID, pluginDir, stateRoot } from "./server/core/paths.ts";
 import { Runtime } from "./server/runtime/runtime.ts";
 
@@ -11,7 +12,9 @@ export default function contribute(server: PluginServerContext) {
   }
   let runtime: Runtime;
   try {
-    runtime = new Runtime(loadKit(dir, stateRoot()));
+    const kit = loadKit(dir, stateRoot());
+    applyModels(kit, readModels(stateRoot()));
+    runtime = new Runtime(kit);
   } catch (error) {
     console.error(`${PLUGIN_ID}: the kit in ${dir} failed to load:`, error);
     return () => {};

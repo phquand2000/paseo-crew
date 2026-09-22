@@ -12,6 +12,7 @@ process.env.HOME = HOME;
 globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof fetch;
 
 const { loadKit } = await import("../../server/catalog/kit.ts");
+const { applyModels } = await import("../../server/catalog/models.ts");
 const { loadLedger } = await import("../../server/desk/ledger.ts");
 const { projectOf } = await import("../../server/desk/project.ts");
 type Project = ReturnType<typeof projectOf>;
@@ -146,6 +147,12 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
 }
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
+// What Paseo lists for these agents, as the plugin caches it.
+const thinking = ["low", "medium", "high"].map((id) => ({ id, label: id }));
+applyModels(kit, {
+  claude: { at: "", error: null, models: [{ id: "claude-opus-5", label: "Opus 5", thinkingOptions: thinking }] },
+  devin: { at: "", error: null, models: [{ id: "swe-2-max", label: "SWE-2 Max" }] },
+});
 
 const ideCalls: { kind: "open" | "sync" | "close"; path: string }[] = [];
 const ide = {

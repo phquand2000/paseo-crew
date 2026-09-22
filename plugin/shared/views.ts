@@ -83,7 +83,15 @@ export type UpdateCommit = { sha: string; subject: string };
 /** Where this checkout stands against the branch it follows, after a fetch. */
 export type UpdateView = {
   dir: string;
+  /** The version its package.json names. */
+  version: string;
+  /** The version the branch it follows names, once fetched. */
+  next: string | null;
   head: string;
+  /** The day its commit was made. */
+  date: string | null;
+  /** Whether the remote was asked just now; otherwise behind counts what the last fetch saw. */
+  fetched: boolean;
   branch: string | null;
   upstream: string | null;
   behind: number;
@@ -95,7 +103,8 @@ export type UpdateView = {
   paseo: string | null;
   /** Why it cannot update itself, when it cannot. */
   blocked: string | null;
-  running: number;
+  /** Seats still running, by project: the update waits until there are none. */
+  busy: string[];
   updated: { from: string; to: string } | null;
 };
 
@@ -107,4 +116,14 @@ export type MigrateStep = {
   /** Whether Migrate does it; the rest are for the owner, and say how. */
   auto: boolean;
 };
-export type MigrateView = { stamp: string; since: string; steps: MigrateStep[]; done: string[] };
+/** A shipped unit that differs from what the owner last took in. Guides and records are only told about. */
+export type ContentChange = {
+  unit: string;
+  kind: "guide" | "record" | "prompt" | "skill" | "team";
+  change: "added" | "changed" | "removed";
+  /** The owner keeps their own copy of it, which the change does not touch. */
+  kept: boolean;
+  /** Whether the version they had can still be kept: it is on record in git. */
+  keepable: boolean;
+};
+export type MigrateView = { stamp: string; since: string; steps: MigrateStep[]; done: string[]; content: ContentChange[] };

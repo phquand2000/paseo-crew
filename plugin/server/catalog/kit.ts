@@ -56,8 +56,8 @@ export type HarnessSpec = {
   files?: Record<string, string[]>;
   modelCatalog?: { command: string[]; list: string; clear: string[]; file: string; setting: string };
   checks?: { path: string; help: string }[];
+  /** What Paseo lists for this agent, cached by the plugin; never written in harness.json. */
   models?: ModelSpec[];
-  modes?: { id: string; label: string }[];
   mcp: {
     file: string;
     delivery: "launch" | "file";
@@ -94,8 +94,6 @@ const HARNESS_FIELDS = new Set([
   "files",
   "modelCatalog",
   "checks",
-  "models",
-  "modes",
   "mcp",
   "provider",
 ]);
@@ -144,15 +142,6 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   const checks = raw.checks as unknown;
   if (checks !== undefined && (!Array.isArray(checks) || checks.some((check) => typeof check?.path !== "string" || typeof check?.help !== "string"))) {
     problems.push("lists checks without a path and a help each");
-  }
-  const modes = raw.modes as { id?: unknown; label?: unknown }[] | undefined;
-  if (modes !== undefined && (!Array.isArray(modes) || modes.some((mode) => typeof mode?.id !== "string" || typeof mode?.label !== "string"))) {
-    problems.push("lists modes without an id and a label each");
-  }
-  else if (raw.baseProvider === "acp" && !modes?.length) problems.push("extends acp but lists no modes for Paseo to read without launching it");
-  else if (modes) {
-    const modeId = (raw.provider as Record<string, unknown> | undefined)?.profileModeId;
-    if (typeof modeId === "string" && !modes.some((mode) => mode.id === modeId)) problems.push(`opens seats in mode ${modeId}, which its modes do not list`);
   }
   if (raw.exitPattern !== undefined) {
     let groups = -1;
@@ -279,6 +268,8 @@ export type Kit = {
   sensors: Record<string, SensorSpec>;
   /** What every agent working in a project reads in its AGENTS.md, from content/project/AGENTS.md; absent, nothing is written there. */
   team?: string;
+  /** Where the owner keeps their own copy of a shipped prompt, skill or team block, at the same path under content. */
+  own?: string;
   /** What a Watcher seat may raise and which of the code's facts wait for its judgement; absent, it can do neither. */
   watcher?: WatcherSpec;
   attention: Attention;
@@ -491,6 +482,7 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     if (!role.defaults?.harness) throw new Error(`role ${role.role} has no default harness`);
     if (!harnesses[role.defaults.harness]) throw new Error(`role ${role.role} defaults to harness ${role.defaults.harness}, which has no harness/${role.defaults.harness}/harness.json`);
   }
+  const own = stateDir ? join(stateDir, "own") : undefined;
   return {
     dir,
     prefix: typeof raw.providerPrefix === "string" ? raw.providerPrefix : "",
@@ -499,18 +491,34 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     mcp: loadMcp(dir),
     toolSets: loadToolSets(dir),
     sensors: loadSensors(dir),
-    team: loadTeam(dir, roles),
+    team: loadTeam(dir, roles, own),
+    own,
     watcher: loadWatcher(dir),
     attention: { ...ATTENTION, ...presetAttention(raw.attention) },
   };
+}
+
+/** The owner's copy of a content path when they keep one, else the shipped one. */
+export function shippedOrOwn(dir: string, own: string | undefined, path: string): string {
+  const mine = own ? join(own, path) : undefined;
+  return mine && existsSync(mine) ? mine : join(dir, "content", path);
+}
+
+export function ownOr(kit: Kit, path: string): string {
+  return shippedOrOwn(kit.dir, kit.own, path);
+}
+
+/** The team block again, after the owner chose whose copy of it to keep. */
+export function reloadTeam(kit: Kit): void {
+  kit.team = loadTeam(kit.dir, kit.roles, kit.own);
 }
 
 /**
  * Every seat reads the project's AGENTS.md, so the block written there is held to the words each role
  * must not see, all of them at once: a word one role is kept from would reach it there.
  */
-function loadTeam(dir: string, roles: RoleSpec[]): string | undefined {
-  const file = join(dir, "content", "project", "AGENTS.md");
+function loadTeam(dir: string, roles: RoleSpec[], own?: string): string | undefined {
+  const file = shippedOrOwn(dir, own, "project/AGENTS.md");
   if (!existsSync(file)) return undefined;
   const text = readFileSync(file, "utf-8");
   const hidden = hiddenWordsIn(text, [...new Set(roles.flatMap((role) => role.hidesWords ?? []))]);
@@ -528,6 +536,16 @@ function presetAttention(raw: unknown): Partial<Attention> {
   const parsed = AttentionChoice.safeParse(raw);
   if (!parsed.success) throw new Error(`roles.json has an attention block the desk cannot use: ${z.prettifyError(parsed.error)}`);
   return parsed.data as Partial<Attention>;
+}
+
+/**
+ * The model an agent starts on when a role names none for it: one another role's preset names for this
+ * agent, else the first Paseo lists. Paseo's own default cannot be read back, since the plugin sets it.
+ */
+export function agentDefault(roles: RoleSpec[], harness: HarnessSpec): ModelSpec | undefined {
+  const models = harness.models ?? [];
+  const preset = roles.map((role) => role.defaults).find((defaults) => defaults.harness === harness.id && defaults.model && models.some((entry) => entry.id === defaults.model));
+  return models.find((entry) => entry.id === preset?.model) ?? models[0];
 }
 
 export function providerId(kit: Kit, role: string, harness: string): string {

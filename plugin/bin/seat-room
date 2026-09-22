@@ -17,12 +17,8 @@ var=$(jq -r '.configDirEnv // empty' "$manifest")
 if [ -n "$var" ] && [ -z "$(printenv "$var" || true)" ]; then
     refusal="$var is unset, so this seat would run on your own settings instead of its role's. The seatworks-v2 plugin did not configure this launch: reload it, or start this agent from a provider it does not own."
     jq -e '.baseProvider == "acp" and .provider.command[1:] == $ARGS.positional' "$manifest" --args -- ${1+"$@"} >/dev/null || fail "$refusal"
-    exec jq -c --unbuffered --arg refusal "Seat room: $refusal" \
-        --argjson modes "$(jq -c '{currentModeId: .modes[0].id, availableModes: [.modes[] | {id, name: .label}]}' "$manifest")" '
-        select(has("id") and has("method"))
-        | {jsonrpc: "2.0", id} + if .method == "initialize" then {result: {protocolVersion: .params.protocolVersion, agentCapabilities: {}}}
-            elif .method == "session/new" then {result: {sessionId: "seat-room", modes: $modes}}
-            else {error: {code: -32603, message: $refusal}} end'
+    command -v node >/dev/null 2>&1 || fail "$refusal"
+    exec node "$(dirname "$0")/acp-catalog.mjs" "Seat room: $refusal" "$bin" ${1+"$@"}
 fi
 
 forced=$(jq -r '.provider.forceFlags // {} | to_entries[] | .key + "\t" + (.value | tostring)' "$manifest")

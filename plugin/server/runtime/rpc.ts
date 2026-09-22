@@ -20,8 +20,10 @@ export interface Control {
   status(project: string): Promise<unknown>;
   flow(project: string, since?: string, open?: string[]): Promise<unknown>;
   listPaths(path?: string): unknown;
+  refreshModels(): Promise<unknown>;
+  decide(unit: string, choice: "new" | "mine" | "seen"): Promise<unknown>;
   clean(remove?: string[]): Promise<unknown>;
-  update(apply: boolean): Promise<unknown>;
+  update(apply: boolean, fetch?: boolean): Promise<unknown>;
   migrate(apply: boolean): Promise<unknown>;
 }
 
@@ -58,8 +60,10 @@ export function registerRpc(server: { handle: unknown }, control: Control, bind:
   handle(contracts.status, (input) => control.status(input.project));
   handle(contracts.flow, (input) => control.flow(input.project, input.since, input.open));
   handle(contracts.paths, (input) => control.listPaths(input.path));
+  handle(contracts.models, () => control.refreshModels());
+  handle(contracts.decide, (input) => control.decide(input.unit, input.choice));
   handle(contracts.clean, (input) => control.clean(input.remove));
-  handle(contracts.update, (input) => control.update(input.apply));
+  handle(contracts.update, (input) => control.update(input.apply, input.fetch));
   handle(contracts.migrate, (input) => control.migrate(input.apply));
   return Object.values(contracts).map((contract) => contract.name);
 }

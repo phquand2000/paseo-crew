@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
-import { type Kit, type McpServers, type RoleSpec, seatOf } from "./kit.ts";
+import { type Kit, type McpServers, type RoleSpec, agentDefault, seatOf } from "./kit.ts";
 import { stateTargets } from "./content.ts";
 import { type Team, preapprovedFor, rulesFor, skillDirsFor } from "./team.ts";
 
@@ -52,8 +52,7 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   const model =
     models.find((entry) => entry.id === config.model) ??
     (sameHarness ? chosen?.model : undefined) ??
-    models.find((entry) => entry.isDefault) ??
-    models[0];
+    agentDefault(kit.roles, harness);
   const next: AgentConfig = { ...config };
   if (model) next.model = model.id;
   if (harness.provider.profileModeId) next.modeId = harness.provider.profileModeId;

@@ -15,7 +15,6 @@ const good = () => ({
   skillsDir: "skills",
   settings: { file: "config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
   mcp: { file: "mcp.json", delivery: "file", transports: ["stdio"], key: "mcpServers" },
-  modes: [{ id: "ask", label: "Ask" }, { id: "bypass", label: "Bypass" }],
   provider: { command: ["KIT/bin/seat-room", "acp"], profileModeId: "bypass" },
 });
 
@@ -38,15 +37,6 @@ test("the way a harness takes its prompt and its servers is checked, not assumed
   assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: ["additionalDirectories"] }), ["gives projectContextOption without an option path"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: "" }), ["gives projectContextOption without an option path"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: "additionalDirectories" }), []);
-});
-
-test("an acp harness declares the modes Paseo would otherwise launch it unconfigured to learn, and opens seats in one of them", () => {
-  const { modes, ...modeless } = good();
-  assert.deepEqual(harnessProblems("acme", modeless), ["extends acp but lists no modes for Paseo to read without launching it"]);
-  assert.deepEqual(harnessProblems("acme", { ...good(), modes: [] }), ["extends acp but lists no modes for Paseo to read without launching it"]);
-  assert.deepEqual(harnessProblems("acme", { ...good(), modes: [{ id: "ask" }] }), ["lists modes without an id and a label each"]);
-  assert.deepEqual(harnessProblems("acme", { ...good(), modes: [{ id: "ask", label: "Ask" }] }), ["opens seats in mode bypass, which its modes do not list"]);
-  assert.deepEqual(harnessProblems("acme", { ...modeless, baseProvider: "claude" }), []);
 });
 
 test("a role follows one other role that chooses for itself, and takes its defaults", () => {

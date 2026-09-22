@@ -86,16 +86,19 @@ paseo plugin install "$PWD"
 
 Paseo remembers where the clone is. If you move it, install it again.
 
-**Keeping it current.** Under the project list, the **Plugin** section has three actions:
+**Keeping it current.** The **Plugin** tab shows the version that runs and, once checked, the one
+the clone's branch has. **Update** moves forward only, runs `npm install` when the packages changed,
+and reloads the plugin. It waits until no seat runs in any project, because every project moves to
+the new version at once. Below the version, one row for each thing that needs you:
 
-- **Updates** fetches the branch the clone follows and lists what is new. **Update** only moves
-  forward, runs `npm install` when the packages changed, and reloads the plugin. A clone with
-  uncommitted changes or commits of its own is left for you.
-- **Migrate** carries a new version into the projects already set up. It drops settings the new
-  version cannot read, keeping a `settings.json.bak-<time>` copy, and rewrites the `AGENTS.md`
-  block, which you then commit. It also names the seats still running on the old prompts.
-- **Clean up** scans for seat folders, working copies, project records and copies nobody uses any
-  more. It removes only what you pick. Anything with uncommitted work stays.
+- A changed **prompt**, **skill** or **team block**: **Use new**, or **Keep mine** to go on with the
+  version you had. Yours is copied to `~/.local/share/seatworks-v2/own/` for you to edit by hand, and
+  you are still told when the original changes.
+- Changed **guides** and **records**: named only, for you to read in git.
+- Settings this version cannot read, a stale `AGENTS.md` block, seats still on an older version.
+
+**Clean up** lists seat folders, working copies and copies nobody uses any more, and removes only
+what you pick.
 
 ## First run
 

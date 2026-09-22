@@ -1,7 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tempDir } from "./tempdir.ts";
 import { type Kit, loadKit } from "../server/catalog/kit.ts";
+import { type ModelCache, applyModels } from "../server/catalog/models.ts";
 
 function put(root: string, path: string, value: unknown): void {
   const file = join(root, path);
@@ -100,7 +101,6 @@ export function makeKit(): Kit {
     settings: { file: "devin/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "swe", label: "SWE" }],
-    modes: [{ id: "accept-edits", label: "Code" }, { id: "bypass", label: "Bypass Permissions" }],
     mcp: { file: "devin/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
     provider: { env: { SEATWORKS_HARNESS: "devin", SEATWORKS_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
     checks: [{ path: "HOME/.devin/credentials.toml", help: "Log in to Devin once, outside any seat." }],
@@ -168,5 +168,15 @@ export function makeKit(): Kit {
   put(dir, "content/guides/BRIEF.md", "# Brief\n");
   put(dir, "content/skills/supervisor/plan-check/SKILL.md", "---\nname: plan-check\ndescription: checks a plan\n---\n");
   put(dir, "content/skills/peer/test-first/SKILL.md", "---\nname: test-first\ndescription: tests\n---\n");
-  return loadKit(dir);
+  // Models are what Paseo lists, never harness.json: the ones written above become that list.
+  const cache: ModelCache = {};
+  for (const id of readdirSync(join(dir, "harness"))) {
+    const file = join(dir, "harness", id, "harness.json");
+    const { models, ...rest } = JSON.parse(readFileSync(file, "utf-8"));
+    if (models) cache[id] = { at: "2026-01-01T00:00:00.000Z", models, error: null };
+    writeFileSync(file, JSON.stringify(rest));
+  }
+  const kit = loadKit(dir);
+  applyModels(kit, cache);
+  return kit;
 }

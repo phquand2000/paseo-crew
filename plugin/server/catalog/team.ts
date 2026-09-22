@@ -14,6 +14,7 @@ import {
   PASEO_TOOLS,
   can,
   supportsRole,
+  agentDefault,
   paseoToolsPolicy,
   teamServer,
   toolsOf,
@@ -163,11 +164,11 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   // The catalog is what the settings screen offers, not a fence. Which model a seat runs is the owner's
   // choice, and the evidence for several lenses is about different models, not one model resampled.
   let model = choice.model ? (models.find((entry) => entry.id === choice.model) ?? { id: choice.model, label: choice.model }) : undefined;
-  model ??= models.find((entry) => entry.isDefault) ?? models[0];
+  model ??= agentDefault(kit.roles, harness);
   // Paseo starts an agent only as `provider/model`, and refuses a bare provider before the request
   // reaches the daemon. A harness with no models and nothing chosen was accepted here and then failed
   // at every open_lane with a format error that said none of this.
-  if (!model) errors.push(`${harness.label} lists no models and none is chosen for the ${role.label}; Paseo starts an agent only with one, so choose a model for it`);
+  if (!model) errors.push(`Paseo has listed no models for ${harness.label} yet and none is chosen for the ${role.label}; Paseo starts an agent only with one, so refresh the models or choose one`);
   let thinking: string | undefined;
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
   if (options.length > 0) {
@@ -253,7 +254,7 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   // The role's own harness brings back what the kit chose for it there.
   const preset = harness.id === seat.role.defaults.harness ? seat.role.defaults : undefined;
   // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
-  const model = preset?.model ? (models.find((entry) => entry.id === preset.model) ?? { id: preset.model, label: preset.model }) : (models.find((entry) => entry.isDefault) ?? models[0]);
+  const model = preset?.model ? (models.find((entry) => entry.id === preset.model) ?? { id: preset.model, label: preset.model }) : agentDefault(Object.values(team.roles).map((entry) => entry.role), harness);
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
   const offCatalog = Boolean(preset?.model) && !models.some((entry) => entry.id === preset!.model);
   const thinking = offCatalog && harness.hasThinking !== false ? preset!.thinking : (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id;

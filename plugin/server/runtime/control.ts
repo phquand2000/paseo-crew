@@ -1,19 +1,20 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { type Kit, can, providerId, rolesThatCan, seatOf, supportsRole } from "../catalog/kit.ts";
+import { type Kit, can, providerId, reloadTeam, rolesThatCan, seatOf, supportsRole } from "../catalog/kit.ts";
 import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, withKey, withoutKey, writeLayer } from "../catalog/settings.ts";
 import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
-import { guidesDir, home, worktreeRoot } from "../core/paths.ts";
+import { guidesDir, home, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { createHash } from "node:crypto";
 import { flowView } from "../desk/flow.ts";
 import type { CleanView, MigrateView, UpdateView, WatchView } from "../../shared/views.ts";
 import { removeGarbage, scanGarbage } from "../upkeep/clean.ts";
 import { type LiveSeat, migrate, migrationPlan } from "../upkeep/migrate.ts";
 import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../upkeep/update.ts";
+import { contentChanges, decide } from "../upkeep/content.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
 import { type Project, gitRoot, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -166,6 +167,8 @@ export type ControlDeps = {
   source: TeamSource;
   seating: Seating;
   reconcile: (team: Team) => void;
+  /** Asks Paseo again for every agent's models. */
+  models: () => Promise<Record<string, { at: string; error: string | null; models: unknown[] }>>;
   seats: Seats;
   /** Mail the desk is still holding, so the owner's status page is the one the agents read. */
   held: () => { to: string; text: string; at: number }[];
@@ -395,6 +398,11 @@ export class SettingsControl implements Control {
     return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), root: root === here ? null : root, folders };
   }
 
+  async refreshModels(): Promise<unknown> {
+    const cache = await this.deps.models();
+    return Object.fromEntries(Object.entries(cache).map(([id, entry]) => [id, { at: entry.at, error: entry.error, count: entry.models.length }]));
+  }
+
   async clean(remove?: string[]): Promise<CleanView> {
     const { kit, source } = this.deps;
     const ctx = { kit, home: home(), known: source.known(), teamFor: (project: Project) => source.teamFor(project), live: await this.live() };
@@ -404,9 +412,12 @@ export class SettingsControl implements Control {
     return cleaned;
   }
 
-  async update(apply: boolean): Promise<UpdateView> {
-    const ctx = { dir: this.deps.kit.dir, managedRoot: join(home(), ".paseo", "plugins"), running: (await this.live()).length, install: npmInstall, reload: reloadSoon };
-    return apply ? applyUpdate(ctx) : checkUpdate(ctx);
+  async update(apply: boolean, fetch = true): Promise<UpdateView> {
+    const counts = new Map<string, number>();
+    for (const seat of await this.live()) counts.set(seat.slug, (counts.get(seat.slug) ?? 0) + 1);
+    const busy = [...counts].map(([slug, count]) => `${slug} ${count} seat${count === 1 ? "" : "s"}`);
+    const ctx = { dir: this.deps.kit.dir, managedRoot: join(home(), ".paseo", "plugins"), busy, install: npmInstall, reload: reloadSoon };
+    return apply ? applyUpdate(ctx) : checkUpdate(ctx, fetch);
   }
 
   async migrate(apply: boolean): Promise<MigrateView> {
@@ -423,10 +434,19 @@ export class SettingsControl implements Control {
       live: await this.live(),
       now: Date.now(),
     };
-    if (!apply) return migrationPlan(ctx);
+    const content = await contentChanges(kit, stateRoot());
+    if (!apply) return { ...migrationPlan(ctx), content };
     const done = migrate(ctx);
     this.deps.reconcile(source.teamFor());
-    return done;
+    return { ...done, content };
+  }
+
+  async decide(unit: string, choice: "new" | "mine" | "seen"): Promise<MigrateView> {
+    await decide(this.deps.kit, stateRoot(), unit, choice);
+    // The team block is read once a load, and a seat's skills when it is built: both follow the answer now.
+    reloadTeam(this.deps.kit);
+    this.deps.seating.forget();
+    return this.migrate(false);
   }
 
   /** The team's seats Paseo has open, and the project each works in. */

@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
 import { loadKit } from "../../server/catalog/kit.ts";
+import { applyModels } from "../../server/catalog/models.ts";
 import { composeSettings, materialize, seatDir, sweepSnapshots } from "../../server/catalog/seats.ts";
 import { contentRoot } from "../../server/core/paths.ts";
 import { seatPairs } from "../../server/catalog/providers.ts";
@@ -155,8 +156,6 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
     skillsDir: "skills",
     systemPrompt: "file",
     settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml", ownedPaths: ["sandbox", "approval"] },
-    models: [{ id: "m", label: "M" }],
-    modes: [{ id: "default", label: "Default" }],
     mcp: { file: "config.toml", delivery: "file", key: "mcp_servers", transports: ["stdio", "http"] },
     provider: {},
   });
@@ -165,6 +164,7 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   // The Scribe follows the Peer, so it goes wherever the Peer goes.
   put("harness/toml/settings/scribe.settings.toml", "");
   const kit = loadKit(base.dir);
+  applyModels(kit, { toml: { at: "", error: null, models: [{ id: "m", label: "M" }] } });
   const team = resolveTeam(kit, { roles: { peer: { harness: "toml" } }, mcp: { docs: { enabled: true } } });
   assert.deepEqual(team.errors, []);
   const home = tempDir("sw2-home-");
@@ -242,7 +242,6 @@ const agent = (catalog: string[]) =>
     contextFile: "AGENTS.md",
     skillsDir: "skills",
     systemPrompt: "config",
-    models: [{ id: "m", label: "M" }],
     settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml" },
     stateWrites: { path: "sandbox_workspace_write.writable_roots", delivery: "file" },
     files: { "rules/seat.rules": ["rules/all.rules", "rules/ROLE.rules"] },

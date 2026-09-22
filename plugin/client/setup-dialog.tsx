@@ -1,5 +1,6 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/client/react-native";
+import { ModelPicker } from "./model-picker.tsx";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
 import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
@@ -218,11 +219,12 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
                 disabled={disabled}
               />
               {models.length > 1 || row.stray ? (
-                <SettingsSelect
+                <ModelPicker
                   label="Model"
                   hint={row.stray ? `${row.value} is not one this agent offers. Pick one it does.` : "Used for every lane here."}
                   value={row.value}
                   options={row.options}
+                  theme={theme}
                   onValueChange={(next) => setDraft((current) => setRole(current, chosen.id, { model: next }))}
                   disabled={disabled}
                 />

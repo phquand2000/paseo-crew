@@ -152,9 +152,8 @@ only you can answer.
 | `projectContextOption` | The provider option that receives the working directory |
 | `steers` | Whether mail may be steered into a running turn |
 | `exitPattern` | How the agent writes a failed exit, so the watch can tell failure from output |
-| `modes` | Modes Paseo can list without launching. Required for `acp` |
 | `checks` | Files the Health tab looks for |
-| `models`, `hasThinking` | Models offered in the panel, and thinking levels |
+| `hasThinking` | Whether the agent takes a thinking level |
 | `provider` | Env, launch command, `forceFlags`, and the starting mode |
 
 Required: `id`, `label`, `baseProvider`, `configDirEnv`, `profileRoot`, `skillsDir`, `settings`,
@@ -315,8 +314,13 @@ it is given its own. Each role still needs its settings files under `harness/<ag
 | **Flow** | Supervisors, lanes, tasks and open asks, live. Then the watch: the Watcher and its open incidents, or the Jev card |
 | **MCP** | Servers on or off, their roles and options, and adding one from a snippet |
 | **Health** | The machine's checks and, on a project, its lanes' status |
+| **Plugin** | Updates, Migrate and Clean up, for the whole machine |
 
-The project list ends with **Plugin**: Updates, Migrate and Clean up, described in the README.
+Models and modes come from Paseo, which asks each agent. An ACP seat started without the plugin's
+hooks answers only that listing, from the agent itself, and refuses a prompt. The plugin lists them once a load, and **Refresh**
+under the Team tab asks again. A role's chosen model is written as that provider's default in
+Paseo (`additionalModels`), so Paseo's own picker offers every model and starts on the role's.
+
 
 The panel talks to the server only through the `seatworks.*` RPCs in `shared/rpc.ts`. Detaching a
 project keeps its ledger and logs, and is refused while a lane is open or a working copy is out.
@@ -330,6 +334,9 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
   settings.json                           machine settings, including the sensor key
   settings.json.bak-<time>                what Migrate repaired, as it was; can hold the key
   kit.json                                which kit runs, and since when
+  content.json                            the shipped prompts, skills and guides you have taken in
+  own/                                    your own copies, kept over the shipped ones
+  models.json                             each agent's models as Paseo lists them
   outbox.json                             waiting letters, all projects
   spool/requests/  spool/replies/         seat tool calls
   content/<name>-<hash>/                  copies of the guides and skills seats read; safe to delete
