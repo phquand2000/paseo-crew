@@ -75,7 +75,7 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   }
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
     next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
-    if (harness.mcp.preapprove) next.toolPolicy = { preapproved: preapprovedFor(kit, team, role.role).filter((ref) => ref.server in servers) };
+    if (harness.mcp.preapprove) next.toolPolicy = { preapproved: preapprovedFor(kit, team, role.role).filter((ref) => ref.server in servers || ref.server === "paseo") };
   }
   let providerOptions: unknown = config.providerOptions;
   if (harness.stateWrites?.delivery === "launch" && state) {

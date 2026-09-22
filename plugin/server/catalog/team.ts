@@ -14,6 +14,7 @@ import {
   PASEO_TOOLS,
   can,
   supportsRole,
+  paseoToolsPolicy,
   teamServer,
   toolsOf,
 } from "./kit.ts";
@@ -321,6 +322,9 @@ export function preapprovedFor(kit: Kit, team: Team, roleName: string): { kind: 
   if (!seat) return [];
   const refs = (server: string, tools: string[]) => tools.map((tool) => ({ kind: "mcp" as const, server, tool }));
   const approved = seat.role.tools ? refs("team", toolsOf(kit, seat.role)) : [];
+  // Paseo adds its own server at launch, named "paseo"; only the tools this role is allowed there.
+  const paseo = paseoToolsPolicy(seat.role);
+  if (paseo?.enabled !== false) approved.push(...refs("paseo", PASEO_TOOLS.filter((tool) => !paseo?.disabledTools?.includes(tool))));
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;
     if (state.entry?.kind === "proxy") approved.push(...refs(id, (state.tools ?? state.entry.tools)?.[roleName] ?? []));
