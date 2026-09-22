@@ -165,7 +165,14 @@
   "settings": {
     "file": "config.toml",
     "source": "settings.toml",
-    "roleSource": "settings/ROLE.settings.toml"
+    "roleSource": "settings/ROLE.settings.toml",
+    "inherits": {
+      "from": "HOME/.codex/config.toml",
+      "keys": [
+        "model_provider",
+        "model_providers"
+      ]
+    }
   },
   "stateWrites": {
     "path": "sandbox_workspace_write.writable_roots",

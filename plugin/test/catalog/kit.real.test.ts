@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -128,6 +128,26 @@ test("nothing a seat or its guides lead it to read resolves into a git repositor
     }
   }
   assert.deepEqual(inside.slice(0, 5), [], `${inside.length} paths resolve into a repository`);
+});
+
+test("a Codex seat runs on the model provider the owner's own Codex names, and on Codex's own when it names none", (t) => {
+  const kit = loadKit(pluginRoot);
+  const pair = seatPairs(kit).find((entry) => entry.harness.id === "codex" && entry.role.role === "lead")!;
+  if (!realProbes.has(pair.harness.modelCatalog!.command[0]!)) return t.skip("codex is not installed here");
+  const team = withHarness(resolveTeam(kit), "lead", pair.harness);
+  const project = { slug: "demo-000000", state: "/state/demo" };
+  const home = tempDir("sw2-codex-home-");
+  materialize(kit, team, "lead", home, project);
+  const file = join(seatDir(kit, pair.role, pair.harness, home, project), "config.toml");
+  assert.equal(readConfig<Record<string, unknown>>(file, {}).model_provider, undefined);
+  mkdirSync(join(home, ".codex"), { recursive: true });
+  writeFileSync(join(home, ".codex", "config.toml"), 'model_provider = "ZAI"\nmodel = "glm-5.3"\n\n[model_providers.ZAI]\nname = "Z"\nbase_url = "https://example.invalid"\nexperimental_bearer_token = "fake"\n');
+  materialize(kit, team, "lead", home, project);
+  const seat = readConfig<Record<string, any>>(file, {});
+  assert.equal(seat.model_provider, "ZAI");
+  assert.equal(seat.model_providers.ZAI.base_url, "https://example.invalid");
+  assert.equal(seat.model, undefined, "the model is the role's, set at launch, not the owner's default");
+  assert.equal(seat.approval_policy, "never", "and the kit's own settings still hold");
 });
 
 test("a Claude seat reads the project's own CLAUDE.md, though its settings come from its seat alone", () => {

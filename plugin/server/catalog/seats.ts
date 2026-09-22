@@ -206,11 +206,20 @@ function recorder(): Recorder {
   };
 }
 
-function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder, extra: Json): void {
+/** The keys a harness takes from the owner's own config: which model providers exist is theirs to say, not the kit's. */
+function inherited(harness: HarnessSpec, homeDir: string): Json {
+  const inherits = harness.settings.inherits;
+  if (!inherits) return {};
+  const own = readConfig<Json>(expandHome(inherits.from, homeDir), {});
+  return Object.fromEntries(inherits.keys.filter((key) => own[key] !== undefined).map((key) => [key, own[key]]));
+}
+
+function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, homeDir: string, record: Recorder, extra: Json): void {
   const { file, source, ownedPaths } = harness.settings;
   const roleFile = roleSettingsFile(kit, harness, role);
   if (!existsSync(roleFile)) throw new Error(`${role.role}: ${roleFile} is missing`);
-  const wanted = layerSettings(layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {})), extra) as Json;
+  const kitSettings = layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {}));
+  const wanted = layerSettings(layerSettings(inherited(harness, homeDir), kitSettings), extra) as Json;
   const settingsFile = join(dir, file);
   const next = ownedPaths ? composeSettings(isLink(settingsFile) ? {} : readConfig<Json>(settingsFile, {}), wanted, ownedPaths) : wanted;
   record.note(writeConfigIfChanged(settingsFile, next), file);
@@ -390,7 +399,7 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   const record = recorder();
   mkdirSync(dir, { recursive: true });
   const extra = layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(kit, team, roleName, project)) as Json;
-  writeRoleSettings(kit, seat.harness, seat.role, dir, record, extra);
+  writeRoleSettings(kit, seat.harness, seat.role, dir, homeDir, record, extra);
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);
   writeMcpFile(seat.harness, dir, servers, record);

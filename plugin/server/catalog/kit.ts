@@ -50,7 +50,8 @@ export type HarnessSpec = {
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
   exitPattern?: string;
-  settings: { file: string; source: string; roleSource: string; ownedPaths?: string[] };
+  /** `inherits` names top-level keys a seat takes from the owner's own config for that agent, such as the model providers it knows. */
+  settings: { file: string; source: string; roleSource: string; ownedPaths?: string[]; inherits?: { from: string; keys: string[] } };
   links?: { link: string; target: string; optional?: boolean }[];
   files?: Record<string, string[]>;
   modelCatalog?: { command: string[]; list: string; clear: string[]; file: string; setting: string };
@@ -105,6 +106,10 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   if (raw.id !== undefined && raw.id !== id) problems.push(`calls itself ${String(raw.id)} but sits in harness/${id}`);
   const settings = raw.settings as Record<string, unknown> | undefined;
   if (settings) for (const key of ["file", "source", "roleSource"]) if (settings[key] === undefined) problems.push(`has no settings.${key}`);
+  const inherits = settings?.inherits as { from?: unknown; keys?: unknown } | undefined;
+  if (inherits && (typeof inherits.from !== "string" || !Array.isArray(inherits.keys) || !inherits.keys.every((key) => typeof key === "string"))) {
+    problems.push("settings.inherits needs a from path and a list of keys");
+  }
   const mcp = raw.mcp as Record<string, unknown> | undefined;
   if (mcp) {
     for (const key of ["file", "delivery", "transports"]) if (mcp[key] === undefined) problems.push(`has no mcp.${key}`);

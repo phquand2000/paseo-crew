@@ -144,7 +144,7 @@ only you can answer.
 | `systemPrompt`, `promptFile` | Whether the prompt goes in the launch config or into a file |
 | `contextFile` | The file in the seat directory that gets the working rules |
 | `skillsDir` | Where skills are linked, each to its copy under `content/` |
-| `settings` | Base settings, the per-role overlay, and the paths the plugin owns in an existing file |
+| `settings` | Base settings, the per-role overlay, the paths the plugin owns in an existing file, and `inherits`: keys taken from your own config for that agent |
 | `mcp` | The MCP file, how servers are delivered, transports, seed and clear rules, and `desk` fields |
 | `links`, `files` | Files linked from your own setup (logins, history), and files composed per role |
 | `modelCatalog` | A command whose model list is written as the agent's catalog |
@@ -168,7 +168,7 @@ settings revision changes, its settings file is gone, or a login appeared since.
 | Agent | Directory | Written there | Launch |
 |---|---|---|---|
 | Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, `CLAUDE.md` for working rules | `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out |
-| Codex | `~/.codex/seats/…` | `config.toml` (`workspace-write`, or `read-only` for Reviewer and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
+| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
 | Pi | `~/.pi/seats/…` | `settings.json` (`pi-mcp-adapter`, project trust off, tool lists for Reviewer and Watcher), `mcp.json`, `skills/`, links to login, models and npm | Paseo's Pi provider |
 | Devin CLI | `~/.devin/seats/…` | `devin/config.json` (permissions, command denials, subagents off, other tools' config off), `devin/AGENTS.md`, `devin/mcp_config.json`, `devin/skills/`, a link to your git config | `bin/seat-room acp`, over Paseo's ACP provider |
 
