@@ -55,6 +55,8 @@ These are mostly absences, so the code won't show them to you.
 - **The watched seat never hears what the watch concluded about it.** No incident is ever addressed
   to it.
 - **The key is never read back.** The panel sees the word `KEPT` in place of the sensor key.
+- **Nothing a seat reads resolves into a repository.** Skills and guides are copies under
+  `content/`, because some agents load the `AGENTS.md` above every file they read.
 - **All or nothing.** A seat directory is written only when the whole seat can be built. A kit that
   fails to load leaves the plugin inert, with the problem named.
 
@@ -87,8 +89,8 @@ All paths are under `plugin/`.
    agent. The shipped kit makes twenty: five roles on four agents. It reloads the daemon only when
    something changed.
 2. **Before `agent.create`.** `Seating.ensure` builds the seat directory. This covers settings, deny
-   rules, the sandbox, MCP servers, linked skills and the working rules. `applyRole` then sets the
-   model, thinking level, mode, prompt and MCP servers.
+   rules, the sandbox, MCP servers, skills linked to copies outside any repository, and the working
+   rules. `applyRole` then sets the model, thinking level, mode, prompt and MCP servers.
 3. **Before `agent.session_open`.** The plugin points the agent's config directory at the seat
    directory and sets `SEATWORKS_ROLE`, `SEATWORKS_PROJECT` and `SEATWORKS_STATE`. It also seeds the
    project's records, such as `notebook.md`, and writes the

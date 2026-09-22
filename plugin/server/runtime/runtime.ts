@@ -7,7 +7,7 @@ import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { placeProjectFiles } from "../catalog/project-files.ts";
-import { ensureLink, seatDir, seedRecords } from "../catalog/seats.ts";
+import { placeGuides, seatDir, seedRecords, sweepSnapshots } from "../catalog/seats.ts";
 import { type IndexedProxy, type Team, indexedProxies, jevOn, watchOn } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
 import { seatsOn, workspacesOn } from "../core/paseo-adapter.ts";
@@ -457,7 +457,8 @@ export class Runtime {
     try {
       mkdirSync(stateRoot(), { recursive: true });
       spoolDirs(this.spool);
-      ensureLink(guidesDir(), join(this.kit.dir, "content", "guides"));
+      placeGuides(this.kit);
+      sweepSnapshots();
     } catch (error) {
       console.error("seatworks-v2: could not prepare the state directory:", error);
     }

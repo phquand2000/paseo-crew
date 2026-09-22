@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,9 @@ import { renderPrompt } from "../../server/catalog/content.ts";
 import { PASEO_TOOLS, loadKit, providerId } from "../../server/catalog/kit.ts";
 import { type AgentConfig, applyRole, stateWrites } from "../../server/catalog/launch.ts";
 import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
-import { materialize, seatDir, seedRecords } from "../../server/catalog/seats.ts";
+import { materialize, placeGuides, seatDir, seedRecords } from "../../server/catalog/seats.ts";
+import { git } from "../../server/core/git.ts";
+import { guidesDir } from "../../server/core/paths.ts";
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";
 import { realProbes } from "../../server/runtime/doctor.ts";
@@ -100,6 +102,32 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     }
     assert.ok(existsSync(join(dir, harness.skillsDir)), `${where}: skills`);
   }
+});
+
+// Devin loads the AGENTS.md above every file it reads, by the file's real path. Skills linked into the
+// plugin's own checkout gave twelve of fifteen Devin seats the plugin's developer rules as their own,
+// and one Peer stripped its comments to obey them.
+test("nothing a seat or its guides lead it to read resolves into a git repository", async () => {
+  const kit = loadKit(pluginRoot);
+  const home = tempDir("sw2-outside-home-");
+  const project = { slug: "demo-000000", state: "/state/demo" };
+  const roots = [guidesDir(home)];
+  placeGuides(kit, home);
+  for (const { role, harness } of seatPairs(kit)) {
+    if (harness.modelCatalog && !realProbes.has(harness.modelCatalog.command[0]!)) continue;
+    const team = withHarness(resolveTeam(kit), role.role, harness);
+    materialize(kit, team, role.role, home, project);
+    roots.push(join(seatDir(kit, role, harness, home, project), harness.skillsDir));
+  }
+  const inside: string[] = [];
+  for (const root of roots) {
+    for (const name of readdirSync(root, { recursive: true }).map(String)) {
+      const real = realpathSync(join(root, name));
+      const dir = statSync(real).isDirectory() ? real : dirname(real);
+      if ((await git(dir, ["rev-parse", "--show-toplevel"])).code === 0) inside.push(`${join(root, name)} -> ${real}`);
+    }
+  }
+  assert.deepEqual(inside.slice(0, 5), [], `${inside.length} paths resolve into a repository`);
 });
 
 test("a Claude seat reads the project's own CLAUDE.md, though its settings come from its seat alone", () => {

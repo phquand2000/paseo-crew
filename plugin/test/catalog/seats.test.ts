@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
 import { loadKit } from "../../server/catalog/kit.ts";
-import { composeSettings, materialize, seatDir } from "../../server/catalog/seats.ts";
+import { composeSettings, materialize, seatDir, sweepSnapshots } from "../../server/catalog/seats.ts";
+import { contentRoot } from "../../server/core/paths.ts";
 import { seatPairs } from "../../server/catalog/providers.ts";
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
 import { makeKit } from "../kit.ts";
@@ -30,7 +31,9 @@ test("a Claude seat per project writes shared plus role settings, links skills, 
   assert.equal(lstatSync(join(dir, "settings.json")).isSymbolicLink(), false);
   assert.deepEqual(JSON.parse(readFileSync(join(dir, "settings.json"), "utf-8")), { autoMemoryEnabled: false, permissions: { deny: ["WebSearch", "Agent"] } });
   assert.equal(readlinkSync(join(dir, "projects")), join(home, ".claude", "projects"));
-  assert.equal(readlinkSync(join(dir, "skills", "ide-guide")), join(kit.dir, "catalog/mcp/ide/skills/ide-guide"));
+  const skill = readlinkSync(join(dir, "skills", "ide-guide"));
+  assert.equal(dirname(skill), contentRoot(home), "a skill links to a copy under the state, not into the kit");
+  assert.equal(readFileSync(join(skill, "SKILL.md"), "utf-8"), readFileSync(join(kit.dir, "catalog/mcp/ide/skills/ide-guide/SKILL.md"), "utf-8"));
   const state = JSON.parse(readFileSync(join(dir, ".claude.json"), "utf-8"));
   assert.deepEqual(state.mcpServers, {});
   assert.equal(state.userID, "u");
@@ -294,4 +297,23 @@ test("a catalog that cannot be read refuses the seat instead of seating it with 
   const home = tempDir("sw2-cx-home-");
   assert.throws(() => materialize(kit, team, "lead", home, project, {}), /Cx's model list could not be read from `node -e process.exit\(3\)`/);
   assert.equal(existsSync(join(seatDir(kit, team.roles.lead!.role, kit.harnesses.cx!, home, project), "config.toml")), false, "and nothing of the seat is written");
+});
+
+test("a changed skill reaches the seat as a new copy, the one read before stays as it was, and a copy nobody touches for two weeks goes", () => {
+  const kit = makeKit();
+  const home = tempDir("sw2-home-");
+  const team = resolveTeam(kit);
+  const link = join(seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project), "devin", "skills", "test-first");
+  materialize(kit, team, "peer", home, project);
+  const before = readlinkSync(link);
+  writeFileSync(join(kit.dir, "content/skills/peer/test-first/SKILL.md"), "---\nname: test-first\ndescription: tests, now stricter\n---\n");
+  materialize(kit, team, "peer", home, project);
+  const after = readlinkSync(link);
+  assert.notEqual(after, before);
+  assert.match(readFileSync(join(before, "SKILL.md"), "utf-8"), /description: tests\n/, "a seat mid-turn on the old copy still reads it whole");
+  const old = new Date(Date.now() - 15 * 86_400_000);
+  utimesSync(before, old, old);
+  sweepSnapshots(home);
+  assert.equal(existsSync(before), false);
+  assert.equal(existsSync(after), true, "the copy a seat started on lately stays");
 });

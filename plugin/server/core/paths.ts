@@ -27,6 +27,11 @@ export function guidesDir(homeDir = home()): string {
   return join(stateRoot(homeDir), "guides");
 }
 
+/** Copies of what seats read, one folder per version. Safe to delete whole: the next seat to start rebuilds what it needs. */
+export function contentRoot(homeDir = home()): string {
+  return join(stateRoot(homeDir), "content");
+}
+
 export function worktreeRoot(homeDir = home()): string {
   return join(stateRoot(homeDir), "worktrees");
 }

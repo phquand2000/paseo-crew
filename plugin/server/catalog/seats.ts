@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, harnessFileSources, roleSettingsFile } from "./kit.ts";
 import { stateWrites } from "./launch.ts";
-import { expandHome, guidesDir, home } from "../core/paths.ts";
+import { contentRoot, expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
@@ -49,6 +50,49 @@ export function ensureLink(path: string, target: string): boolean {
   mkdirSync(dirname(path), { recursive: true });
   symlinkSync(target, path);
   return true;
+}
+
+const SNAPSHOT_DAYS = 14;
+
+/**
+ * A copy of `source` under the state root, named by what it holds, for a seat to read. What a seat
+ * reads has to resolve outside every repository: Devin loads the AGENTS.md above each file it reads
+ * by its real path, and linked into the plugin's own checkout its seats took the plugin's developer
+ * rules as their own. A copy is never written again once in place, so one being read never changes.
+ */
+export function snapshot(source: string, name: string, homeDir = home()): string {
+  const hash = createHash("sha256");
+  const files = readdirSync(source, { recursive: true }).map(String).filter((file) => statSync(join(source, file)).isFile()).sort();
+  for (const file of files) hash.update(`${file}\0`).update(readFileSync(join(source, file))).update("\0");
+  const target = join(contentRoot(homeDir), `${name}-${hash.digest("hex").slice(0, 12)}`);
+  if (!existsSync(target)) {
+    const building = `${target}.${process.pid}.building`;
+    rmSync(building, { recursive: true, force: true });
+    cpSync(source, building, { recursive: true, dereference: true });
+    try {
+      renameSync(building, target);
+    } catch (error) {
+      rmSync(building, { recursive: true, force: true });
+      if (!existsSync(target)) throw error;
+    }
+  }
+  const now = new Date();
+  utimesSync(target, now, now);
+  return target;
+}
+
+/** Every seat that starts touches the copies it links, so one untouched for two weeks has no reader left. */
+export function sweepSnapshots(homeDir = home(), now = Date.now()): void {
+  const root = contentRoot(homeDir);
+  if (!existsSync(root)) return;
+  for (const name of readdirSync(root)) {
+    const path = join(root, name);
+    if (now - statSync(path).mtimeMs > SNAPSHOT_DAYS * 86_400_000) rmSync(path, { recursive: true, force: true });
+  }
+}
+
+export function placeGuides(kit: Kit, homeDir = home()): void {
+  ensureLink(guidesDir(homeDir), snapshot(join(kit.dir, "content", "guides"), "guides", homeDir));
 }
 
 export function writeReal(path: string, text: string): boolean {
@@ -279,7 +323,7 @@ function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, 
   else removeIfPresent(contextPath, harness.contextFile, record);
 }
 
-function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, record: Recorder): void {
+function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, homeDir: string, record: Recorder): void {
   const { role, harness } = team.roles[roleName]!;
   const skillsDir = join(dir, harness.skillsDir);
   mkdirSync(skillsDir, { recursive: true });
@@ -288,7 +332,7 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, record:
     const problems = skillProblems(role, name, source);
     if (problems.length > 0) throw new Error(problems.join("; "));
     try {
-      record.note(ensureLink(join(skillsDir, name), source), `skill ${name}`);
+      record.note(ensureLink(join(skillsDir, name), snapshot(source, name, homeDir)), `skill ${name}`);
     } catch (error) {
       // As the shared links beside this already do, and as `ensureLink` itself says it is for: a real
       // directory where a link should go is left alone and said out loud. Thrown from here it left
@@ -351,6 +395,6 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   linkShared(seat.harness, dir, homeDir, record);
   writeMcpFile(seat.harness, dir, servers, record);
   writeInstructions(kit, team, roleName, dir, paths, record);
-  linkSkills(kit, team, roleName, dir, record);
+  linkSkills(kit, team, roleName, dir, homeDir, record);
   return record.changes;
 }

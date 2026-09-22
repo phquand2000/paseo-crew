@@ -143,7 +143,7 @@ only you can answer.
 | `configDirEnv`, `profileRoot` | The variable that points the agent at its seat directory, and where those live |
 | `systemPrompt`, `promptFile` | Whether the prompt goes in the launch config or into a file |
 | `contextFile` | The file in the seat directory that gets the working rules |
-| `skillsDir` | Where skills are linked |
+| `skillsDir` | Where skills are linked, each to its copy under `content/` |
 | `settings` | Base settings, the per-role overlay, and the paths the plugin owns in an existing file |
 | `mcp` | The MCP file, how servers are delivered, transports, seed and clear rules, and `desk` fields |
 | `links`, `files` | Files linked from your own setup (logins, history), and files composed per role |
@@ -328,7 +328,8 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
   settings.json                           machine settings, including the sensor key
   outbox.json                             waiting letters, all projects
   spool/requests/  spool/replies/         seat tool calls
-  guides -> plugin/content/guides
+  content/<name>-<hash>/                  copies of the guides and skills seats read; safe to delete
+  guides -> content/guides-<hash>
   worktrees/<slug>/S<n>/                  isolated working copies
   projects/<slug>/                        slug = repo folder name + 6 hex chars of sha1(root)
     meta.json  settings.json  project.json
