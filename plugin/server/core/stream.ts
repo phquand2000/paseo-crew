@@ -22,7 +22,7 @@ export type TimelineHandle = {
   refetch(options: { direction: "tail" | "after"; cursor?: Cursor; limit?: number; projection: "canonical" }): Promise<Page>;
 };
 
-export type FollowOptions = { readyMs?: number; log?: (line: string, error?: unknown) => void };
+export type FollowOptions = { readyMs?: number; log?: (line: string, error?: unknown) => void; archived?: () => Promise<boolean> };
 
 const ENDED: Record<string, "completed" | "failed" | "canceled"> = { turn_completed: "completed", turn_failed: "failed", turn_canceled: "canceled" };
 
@@ -36,7 +36,7 @@ function within<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
 }
 
 export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, options: FollowOptions = {}): Stream {
-  const { readyMs = 10_000, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? "") } = options;
+  const { readyMs = 10_000, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? ""), archived = async () => false } = options;
   /** How much history a join seeds from. Paseo pages the rest in, so this is a first mouthful. */
   const seedRows = 200;
   let stopped = false;
@@ -63,7 +63,19 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
     tell({ kind: "row", row });
   };
 
+  // Paseo resumes an archived agent to serve its history and does not close it again: each read left
+  // a Devin process running for hours. An archive ends the runtime, and what that sends is exactly
+  // what asks for history here, so whoever archived it, the stream stops instead of reading.
+  const gone = async (): Promise<boolean> => {
+    if (!stopped && (await archived())) {
+      stopped = true;
+      unsubscribe();
+    }
+    return stopped;
+  };
+
   const seed = async () => {
+    if (await gone()) return;
     const page = await timeline.refetch({ direction: "tail", limit: seedRows, projection: "canonical" });
     if (page.error) throw new Error(page.error);
     epoch = page.epoch;
@@ -78,6 +90,7 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
   };
 
   const fill = async (from: number) => {
+    if (await gone()) return;
     const page = await timeline.refetch({ direction: "after", cursor: { epoch: epoch!, seq: from }, projection: "canonical" });
     if (page.error) throw new Error(page.error);
     if (page.reset || page.staleCursor || page.epoch !== epoch) {

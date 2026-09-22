@@ -135,3 +135,33 @@ test("a join that never becomes ready is given up and leaves nothing subscribed"
   await assert.rejects(stream.ready, /took longer than 20 ms/);
   assert.equal(timeline.listeners.size, 0);
 });
+
+// Paseo resumes an archived agent to serve its history and never closes it again: for Devin that was
+// a `devin acp` left running for hours. Archiving a seat ends its runtime, which sends the stream a
+// reset while it is being stopped.
+test("a stream stopped while a message is on its way reads no more history for it", async () => {
+  const timeline = new FakeTimeline();
+  const { stream } = watching(timeline);
+  await stream.ready;
+  const before = timeline.fetches.length;
+  timeline.rewind(0);
+  stream.stop();
+  await settle();
+  assert.equal(timeline.fetches.length, before);
+});
+
+test("a seat archived by anyone, its parent's archive included, is not read again: the stream stops instead", async () => {
+  const timeline = new FakeTimeline();
+  let archived = false;
+  const seen: Seen[] = [];
+  const stream = follow(timeline, (entry) => seen.push(entry), { log: () => {}, archived: async () => archived });
+  await stream.ready;
+  const before = timeline.fetches.length;
+  archived = true;
+  timeline.rewind(0);
+  await settle();
+  assert.equal(timeline.fetches.length, before, "no history is asked of an archived agent");
+  timeline.add({ type: "assistant_message", text: "late" });
+  await settle();
+  assert.equal(seen.filter((entry) => entry.kind === "row").length, 0, "and nothing more is told once it has stopped");
+});

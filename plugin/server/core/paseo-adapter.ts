@@ -80,7 +80,19 @@ export function seatsOn(bound: Bound): Seats {
       await ref(id).archive();
     },
     watch(id, see) {
-      return follow(ref(id).timeline, see);
+      const handle = ref(id);
+      return follow(handle.timeline, see, {
+        // A seat that cannot be looked up is read as before: stopped for good on a passing failure,
+        // it would stay unwatched, because a followed seat is not followed again.
+        archived: async () => {
+          try {
+            await handle.refresh();
+          } catch {
+            return false;
+          }
+          return Boolean(handle.archivedAt);
+        },
+      });
     },
   };
 }
