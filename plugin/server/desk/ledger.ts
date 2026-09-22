@@ -271,6 +271,8 @@ export function slugify(text: string, max = 32): string {
     text
       .toLowerCase()
       .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .replace(/đ/g, "d")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, max)

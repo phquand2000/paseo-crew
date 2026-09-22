@@ -52,6 +52,7 @@ test("ids count per ledger and per lane, and titles become branch slugs", () => 
   assert.equal(nextTaskId(entry, "review"), "L1-R2");
   assert.equal(nextAskId(ledger), "A1");
   assert.equal(slugify("Add Discount Codes: 10% off!", 24), "add-discount-codes-10-of");
+  assert.equal(slugify("Chi tiêu định kỳ", 24), "chi-tieu-dinh-ky", "a title in Vietnamese keeps its letters, not a dash for each mark");
 });
 
 test("what a Peer and a Lead read carries none of the words hidden from them", () => {
