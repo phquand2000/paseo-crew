@@ -85,6 +85,9 @@ Wait for the hand-back and put everything in one `rework`.
   judgment? say so and let it keep its position with evidence: told it is wrong, it will find a fault
   to agree with); `cut` if the task was wrong; `start_review` for a material doubt (security, data,
   concurrency, a contract).
+- Reviewed before it counts: `start_review` on a big task (several modules, or hundreds of lines)
+  before you accept it, and once without a task on the whole lane against its acceptance before you
+  `report` it ready. A green gate is not a review.
 
 ## Code focus
 

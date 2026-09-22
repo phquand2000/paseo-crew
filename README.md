@@ -28,8 +28,8 @@ call, or yours.
    project's `CONTEXT.md`, outside your repo.
 2. **The Supervisor opens a lane** with an outcome and acceptance criteria. The desk seats a Lead for
    it.
-3. **The Lead splits the lane into tasks.** It starts a Peer on each task and a Reviewer on each
-   change, then accepts or sends the work back.
+3. **The Lead splits the lane into tasks.** It starts a Peer on each task, has a Reviewer read each
+   big task and then the whole lane, and accepts or sends the work back.
 4. **The Lead reports the lane ready.** The desk runs the gate first.
 5. **The Supervisor closes the lane.** The desk merges in your base branch if it moved, runs the
    gate on the result, then fast-forwards the base.
