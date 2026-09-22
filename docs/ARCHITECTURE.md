@@ -138,7 +138,8 @@ A seat mid-turn, a conflict or a red gate refuses the call and leaves the lane o
 can be overridden, with `overGate`, and the override is written to `events.log`.
 
 **Teardown** waits for seats that are still mid-turn. The pending release is recorded in the ledger,
-so a daemon restart doesn't lose it. Your checkout goes back to base, and the lane branch is kept.
+so a daemon restart doesn't lose it. Your checkout goes back to base. A landed lane's branch is
+deleted, and one closed without landing is kept for you.
 
 **The first gate.** The first `open_lane` of a project with no recorded gate detects one from the
 project's files, for example `npm test` or `cargo test`. `set_project` changes it.

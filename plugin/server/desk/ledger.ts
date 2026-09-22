@@ -96,7 +96,7 @@ export type Releasing = { writers: string[]; dropBranch?: string; into?: string 
  * where it was left. Kept on the lane rather than in memory, because a restart used to lose it and
  * leave the owner's own repository sitting on a dead lane's branch.
  */
-export type Restoring = { writers: string[]; base: string; branch: string };
+export type Restoring = { writers: string[]; base: string; branch: string; landed?: boolean };
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 

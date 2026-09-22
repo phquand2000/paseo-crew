@@ -80,6 +80,11 @@ export class Slots {
     this.ctx.event(project, { kind: "lane.gaveBack", branch, base });
   }
 
+  /** A landed lane's branch is all in its base by now: the desk's to clear, not the Human's to keep. */
+  private async dropLanded(project: Project, branch: string, base: string): Promise<void> {
+    if ((await contains(project.root, base, branch)) === true) await git(project.root, ["branch", "-D", branch]);
+  }
+
   async projectWorkspace(project: Project): Promise<Workspace> {
     const kept = await this.workspaces.named(project.slug).catch(() => undefined);
     return kept ?? (await this.workspaces.make(project.slug, project.root));
@@ -132,7 +137,7 @@ export class Slots {
     } else if (teardown.lane) {
       await this.ctx.ledger(teardown.project, (ledger) => {
         const lane = ledger.lanes[teardown.lane!];
-        if (lane) lane.restoring = { writers: waiting, base: teardown.restore!, branch: teardown.branch ?? lane.branch };
+        if (lane) lane.restoring = { writers: waiting, base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.dropBranch ? { landed: true } : {}) };
       });
     }
     this.ctx.event(teardown.project, { kind: "slot.heldOpen", slot: teardown.slot ?? "in place", writers: waiting });
@@ -176,6 +181,7 @@ export class Slots {
       // goes only once the copy is really back. Deleted first, a switch that could not happen took
       // the only token a later round could have retried from with it.
       if (!(await this.restore(project, lane.restoring!.base, lane.restoring!.branch))) continue;
+      if (lane.restoring!.landed) await this.dropLanded(project, lane.restoring!.branch, lane.restoring!.base);
       await this.ctx.ledger(project, (ledger) => {
         const entry = ledger.lanes[lane.id];
         if (entry) delete entry.restoring;
@@ -202,10 +208,11 @@ export class Slots {
       // Recorded when it does not happen, as a wait for nobody, so the round retries it and Detach
       // sees it: with no writers to wait for, a copy that would not switch left no trace in the ledger.
       return this.restore(teardown.project, teardown.restore, teardown.branch).then(async (back) => {
+        if (back && teardown.dropBranch) await this.dropLanded(teardown.project, teardown.dropBranch, teardown.restore!);
         if (back || !teardown.lane) return undefined;
         await this.ctx.ledger(teardown.project, (ledger) => {
           const lane = ledger.lanes[teardown.lane!];
-          if (lane) lane.restoring = { writers: [], base: teardown.restore!, branch: teardown.branch ?? lane.branch };
+          if (lane) lane.restoring = { writers: [], base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.dropBranch ? { landed: true } : {}) };
         });
         return undefined;
       });

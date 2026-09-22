@@ -222,7 +222,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     const result = await landLane(project.root, lane.base, lane.branch);
     if (!result.landed) return no(`Lane ${lane.id} was not closed: it could not land, because ${result.how}. Close it again once that is cleared, or close it with land false.`);
     if (!gate.ok) ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: caller.id });
-    landing = `${result.how}${gate.ok ? "" : ", over a red gate"}; ${lane.branch} is kept`;
+    landing = `${result.how}${gate.ok ? "" : ", over a red gate"}`;
   }
   const retired = await ctx.ledger(project, (current) => {
     const entry = current.lanes[lane.id];
@@ -245,7 +245,8 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   const writers = [lane.lead, ...retired.filter((task) => task.mode !== "parallel").map((task) => task.peer)].filter(
     (id): id is string => typeof id === "string" && roster.pendingArchive.has(id),
   );
-  const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch }, writers);
+  const drop = args.land === true ? { dropBranch: lane.branch, into: lane.base } : {};
+  const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch, ...drop }, writers);
   if (branch) kept.push(branch);
 
   if (lane.detourOf) {

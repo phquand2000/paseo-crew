@@ -464,6 +464,7 @@ test("a lane in the project's own copy lands after its base moved, once nobody i
   assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
   assert.equal(h.git(h.root, "log", "-1", "--format=%s", "main").trim(), `Bring main into ${lane.branch}`);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
+  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim(), "", "a landed branch is all in main, so it goes");
   h.runtime.dispose();
 });
 
@@ -918,7 +919,7 @@ test("a lane closed while its Lead is still writing keeps the working copy until
   assert.equal(existsSync(lane.worktree!), false, "once the Lead stops, the copy is put away");
   assert.equal(existsSync(dirname(lane.worktree!)), false, "and the folder the desk made for this project's copies goes with the last of them");
   assert.deepEqual(Object.keys(h.ledger().slots), []);
-  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim().length > 0, true, "the lane branch is kept for the Human either way");
+  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim().length > 0, true, "a lane closed without landing keeps its branch for the Human");
   h.runtime.dispose();
 });
 
@@ -959,6 +960,7 @@ test("a lane lands after another lane moved main, even while a third holds the p
   assert.doesNotMatch(second.text, /not landed/);
   assert.equal(h.git(h.root, "show", "main:b/b.txt"), "b/b.txt\n");
   assert.equal(h.git(h.root, "show", "main:c/c.txt"), "c/c.txt\n");
+  assert.equal(h.git(h.root, "branch", "--list", lanes.L2!.branch, lanes.L3!.branch).trim(), "", "landed branches go with their copies");
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), lanes.L1!.branch, "the lane in the project's own copy is not moved for it");
   assert.equal(h.ledger().lanes.L1!.status, "open");
   h.runtime.dispose();
