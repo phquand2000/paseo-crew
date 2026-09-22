@@ -40,6 +40,8 @@ Split the way the work divides; no quota on Peers.
 ## Briefing
 
 - `start_task` fields: goal as an outcome, acceptance as behaviors, limits in `owned` and out of scope.
+- A name or shape your directive gives word for word goes into the brief word for word: reworded, it
+  reads as yours to choose, and the Peer chooses.
 - Context: settled facts, the parts of the concept the task touches, and approaches ruled out *with
   why*. A reason can be argued with; a bare ruling only gets obeyed.
 - Leave out the answer you worked out alone: a brief that holds it gets it back unchecked.
@@ -55,6 +57,9 @@ Split the way the work divides; no quota on Peers.
 
 A Peer that reads mail only between turns is never interrupted: don't send it corrections mid-task.
 Wait for the hand-back and put everything in one `rework`.
+
+Waiting means ending your turn: the hand-back, an answer or a review wakes you as mail. No `sleep`,
+no `status` in a loop: the Peer is no faster for it, and mail waits until your turn ends.
 
 | Letter | Do |
 |---|---|
