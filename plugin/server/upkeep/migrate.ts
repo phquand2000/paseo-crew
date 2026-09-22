@@ -160,6 +160,7 @@ const view = (stamp: Stamp, steps: MigrateStep[], done: string[]): MigrateView =
   steps: steps.map(({ kind, where, what, detail, auto }) => ({ kind, where, what, detail, auto })),
   done,
   content: [],
+  state: { upgraded: [], failed: [] },
 });
 
 export function migrationPlan(ctx: MigrateContext): MigrateView {

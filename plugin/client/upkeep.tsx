@@ -114,6 +114,7 @@ export function UpkeepSection({ theme }: { theme: PluginTheme }) {
         <View style={styles.actions}>{actions}</View>
       </View>,
     );
+  for (const failed of migrated?.state.failed ?? []) row(`state:${failed.where}`, true, `${failed.where}: its records could not be upgraded`, failed.error, null);
   const content = migrated?.content ?? [];
   for (const change of content.filter((entry) => entry.kind !== "guide" && entry.kind !== "record")) {
     const name = unitName(change);

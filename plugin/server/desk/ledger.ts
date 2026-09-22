@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
 import { errorText } from "../core/errors.ts";
+import { STATE_VERSION } from "../core/state.ts";
 
 export type LaneStatus = "open" | "closed";
 export type TaskStatus = "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
@@ -105,7 +106,7 @@ export type Slot = { id: string; path: string; workspaceId?: string; lane?: stri
 export type AgentRef = { id: string; role: string; lane?: string; task?: string; recordedAt?: number; spokeAt?: number };
 
 export type Ledger = {
-  version: 1;
+  version: number;
   seq: { lane: number; ask: number; slot?: number };
   lanes: Record<string, Lane>;
   tasks: Record<string, Task>;
@@ -115,7 +116,7 @@ export type Ledger = {
 };
 
 export function emptyLedger(): Ledger {
-  return { version: 1, seq: { lane: 0, ask: 0 }, lanes: {}, tasks: {}, asks: {}, agents: {}, slots: {} };
+  return { version: STATE_VERSION, seq: { lane: 0, ask: 0 }, lanes: {}, tasks: {}, asks: {}, agents: {}, slots: {} };
 }
 
 export function ledgerFile(state: string): string {
@@ -156,7 +157,8 @@ export function ledgerFault(state: string): string | undefined {
   }
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return `${file} does not hold a record`;
   const version = (stored as { version?: unknown }).version;
-  if (version !== 1) return `${file} is version ${JSON.stringify(version)}, which this plugin does not know how to read`;
+  if (typeof version === "number" && version > STATE_VERSION) return `${file} is at state ${version}, made by a newer Seatworks than this one, which reads ${STATE_VERSION}`;
+  if (version !== STATE_VERSION) return `${file} is at state ${JSON.stringify(version)} and this plugin reads ${STATE_VERSION}: its upgrade did not go through; the Plugin tab says why`;
   return undefined;
 }
 

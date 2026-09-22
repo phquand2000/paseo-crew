@@ -15,6 +15,7 @@ import { removeGarbage, scanGarbage } from "../upkeep/clean.ts";
 import { type LiveSeat, migrate, migrationPlan } from "../upkeep/migrate.ts";
 import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../upkeep/update.ts";
 import { contentChanges, decide } from "../upkeep/content.ts";
+import type { StateReport } from "../upkeep/state.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
 import { type Project, gitRoot, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
@@ -169,6 +170,8 @@ export type ControlDeps = {
   reconcile: (team: Team) => void;
   /** Asks Paseo again for every agent's models. */
   models: () => Promise<Record<string, { at: string; error: string | null; models: unknown[] }>>;
+  /** What carrying the kept files to this version's format did when the plugin started. */
+  state: () => StateReport;
   seats: Seats;
   /** Mail the desk is still holding, so the owner's status page is the one the agents read. */
   held: () => { to: string; text: string; at: number }[];
@@ -435,10 +438,11 @@ export class SettingsControl implements Control {
       now: Date.now(),
     };
     const content = await contentChanges(kit, stateRoot());
-    if (!apply) return { ...migrationPlan(ctx), content };
+    const state = this.deps.state();
+    if (!apply) return { ...migrationPlan(ctx), content, state };
     const done = migrate(ctx);
     this.deps.reconcile(source.teamFor());
-    return { ...done, content };
+    return { ...done, content, state };
   }
 
   async decide(unit: string, choice: "new" | "mine" | "seen"): Promise<MigrateView> {

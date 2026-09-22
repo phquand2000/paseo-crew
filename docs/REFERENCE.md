@@ -334,6 +334,7 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
   settings.json                           machine settings, including the sensor key
   settings.json.bak-<time>                what Migrate repaired, as it was; can hold the key
   kit.json                                which kit runs, and since when
+  state.json                              the format of the files kept here
   content.json                            the shipped prompts, skills and guides you have taken in
   own/                                    your own copies, kept over the shipped ones
   models.json                             each agent's models as Paseo lists them
@@ -348,6 +349,7 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
     assessments/                          what Jev was shown and said
     events.log  attention.log  status.md
     handbacks/  gates/  notebook.md  CONTEXT.md
+    backup-state-<from>-<time>/           the files as they were before their format was upgraded
 <profileRoot>/sw2-<role>-<agent>-<slug>/  one seat directory per role, agent and project
 ```
 

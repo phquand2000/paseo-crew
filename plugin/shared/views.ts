@@ -126,4 +126,12 @@ export type ContentChange = {
   /** Whether the version they had can still be kept: it is on record in git. */
   keepable: boolean;
 };
-export type MigrateView = { stamp: string; since: string; steps: MigrateStep[]; done: string[]; content: ContentChange[] };
+export type MigrateView = {
+  stamp: string;
+  since: string;
+  steps: MigrateStep[];
+  done: string[];
+  content: ContentChange[];
+  /** What upgrading the kept files did when the plugin started; a failed place is refused until repaired. */
+  state: { upgraded: string[]; failed: { where: string; error: string }[] };
+};

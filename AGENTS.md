@@ -44,8 +44,13 @@ No build step; tests are `node --test` over `test/**/*.test.ts`.
 ## Conventions that differ from the defaults
 
 - **One live contract, hard cut.** No dual path, version branch, shim, facade, old-shape adapter,
-  legacy parser, read-time upgrade, migration path or fallback. `version` stays `1`. Fail closed.
-  Change every producer and consumer together, and audit tests rather than syncing them.
+  legacy parser, read-time upgrade or fallback. Fail closed. Change every producer and consumer
+  together, and audit tests rather than syncing them.
+- **Kept files change only by a step.** A change to the format of a file the plugin keeps and cannot
+  rebuild (ledger, incidents, project, meta, settings, outbox, content.json) raises `STATE_VERSION` in
+  `server/core/state.ts`, adds a step in `server/upkeep/state.ts` that carries the files from the
+  format before, and adds `test/fixtures/state/v<N>`. Old fixtures are never edited. Logs are only
+  appended to and never migrated. A change to `content/` raises the version in `package.json`.
 - **Tests protect a settled contract.** Unit tests only for money, state changes, permissions,
   migrations or concurrency; everything else gets one focused check at the level a user sees it.
 - **A test that invents an API before its contract exists is a defect:** the next agent will bend

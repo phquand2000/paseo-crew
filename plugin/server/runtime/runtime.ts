@@ -10,6 +10,7 @@ import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { placeProjectFiles } from "../catalog/project-files.ts";
 import { placeGuides, seatDir, seedRecords, sweepSnapshots } from "../catalog/seats.ts";
 import { stampKit } from "../upkeep/migrate.ts";
+import { type StateReport, upgradeState } from "../upkeep/state.ts";
 import { type IndexedProxy, type Team, indexedProxies, jevOn, watchOn } from "../catalog/team.ts";
 import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
 import { seatsOn, workspacesOn } from "../core/paseo-adapter.ts";
@@ -74,6 +75,7 @@ export class Runtime {
   private readonly reload: () => Promise<boolean>;
   private api: PaseoApi | undefined;
   private modelsAsked = false;
+  private state: StateReport = { upgraded: [], failed: [] };
   private timers: ReturnType<typeof setInterval>[] = [];
   private tick: ReturnType<typeof setTimeout> | undefined;
 
@@ -150,6 +152,7 @@ export class Runtime {
       seating: this.seating,
       reconcile: (team) => this.reconcileProviders(team),
       models: () => this.refreshModels(),
+      state: () => this.state,
       seats: this.seats,
       held: () => this.outbox.letters(),
       watch: (project, seats) => this.watchView(project, seats),
@@ -460,6 +463,9 @@ export class Runtime {
   prepare(): void {
     try {
       mkdirSync(stateRoot(), { recursive: true });
+      // Before anything reads a kept file: a seat opened on a half-read ledger would write it back wrong.
+      this.state = upgradeState(stateRoot());
+      for (const failed of this.state.failed) console.error(`seatworks-v2: state of ${failed.where} ${failed.error}`);
       spoolDirs(this.spool);
       placeGuides(this.kit);
       sweepSnapshots();
