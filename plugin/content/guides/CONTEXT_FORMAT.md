@@ -26,7 +26,8 @@ _Avoid_: <other words people use for it>
 - **Only what the Human said or confirmed.** Stack, design, tests, process and sequencing are yours
   to decide and do not go here. An inference the Human has not confirmed is a question, not a line.
 - **No implementation.** No files, modules, APIs, schemas or libraries: a Lead finds those in the
-  code, and written here they go stale and are still believed.
+  code, and written here they go stale and are still believed. The exception is an interface the
+  Human named (a function, a field, a format callers see): that is their word, written as they said.
 - **Current, not history.** When the Human changes an answer, replace the line where it stands. The
   old answer is gone because it is no longer true.
 - **Tight.** One or two sentences an entry. A term goes in only when it is specific to this project,

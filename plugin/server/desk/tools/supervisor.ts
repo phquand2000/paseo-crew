@@ -1,5 +1,6 @@
 import { configFault } from "../../core/config-file.ts";
 import { branchExists, currentBranch, isAncestor, landLane, mergeBranch, trackedFiles } from "../../core/git.ts";
+import { blockUncommitted } from "../../catalog/project-files.ts";
 import { roleThatCan } from "../../catalog/kit.ts";
 import { firstOverlap, serialPaths, serialReach } from "../../core/scope.ts";
 import { type Args, type Caller, no, ok, str, strs } from "../context.ts";
@@ -157,7 +158,10 @@ export const openLane: Tool = async (desk, caller, args) => {
       ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
     });
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base, slot: slot.id ?? "in place" });
-    return ok(`${openedReply(project, lane, slot, lead, issue)}${unread ? `\n\nThe issue was not read into the lane: ${clip(unread, 300)}. The Lead has the outcome and the checks; give it the issue yourself if it needs one.` : ""}`);
+    const unshared = slot.id && (await blockUncommitted(project.root))
+      ? "\n\nThe team block in AGENTS.md and CLAUDE.md is not committed, so this lane's copy was made without it: ask the Human to commit those two files now."
+      : "";
+    return ok(`${openedReply(project, lane, slot, lead, issue)}${unshared}${unread ? `\n\nThe issue was not read into the lane: ${clip(unread, 300)}. The Lead has the outcome and the checks; give it the issue yourself if it needs one.` : ""}`);
   } catch (error) {
     return fail(`The Lead could not start: ${errorText(error)}`, slot);
   }

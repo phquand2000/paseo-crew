@@ -1358,6 +1358,12 @@ test("a seat opening in a project writes the team's block there, and the first l
   // Untracked, and nothing of the Human's: the lane takes the copy as if it were clean.
   const first = await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
   assert.equal(first.ok, true, first.text);
+  assert.doesNotMatch(first.text, /not committed/, "a lane in the project's own copy has the block where it stands");
+  // A copy of its own is made from what is committed, so that lane starts without the team's rules.
+  const own = await h.call(sup, "supervisor", "open_lane", { title: "Own", outcome: "x", acceptance: ["y"], outOfScope: ["z"], isolate: true });
+  assert.equal(own.ok, true, own.text);
+  assert.match(own.text, /team block in AGENTS\.md and CLAUDE\.md is not committed/);
+  await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: false, reason: "done" });
   await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "done" });
 
   // The Human's own line in the same file is their work in progress, and a lane does not carry it off.

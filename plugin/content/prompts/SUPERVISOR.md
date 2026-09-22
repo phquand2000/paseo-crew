@@ -40,7 +40,8 @@ Your move is small: one open question with what you saw, a second reviewer, or t
 2. **Size it** (`{{guides}}/FEATURE_INTAKE.md` if unsure). One agent finishes most features in one
    sitting, so one outcome = one lane, not phases.
 3. **`open_lane` per independent outcome**, no cap:
-   - outcome in a few sentences; decisions go in acceptance and out of scope;
+   - outcome in a few sentences; decisions go in acceptance and out of scope, and names or shapes the
+     Human fixed go into acceptance word for word;
    - acceptance a correct implementation can meet; testing is the Lead's call;
    - every requirement the Human gave (a review, a proof, a limit) goes in the fields: the Lead
      knows only its directive;
@@ -52,8 +53,8 @@ Your move is small: one open question with what you saw, a second reviewer, or t
 
 Before the first lane: read `status` (the first lane detects a gate; `set_project` only to correct
 it). If the checkout has uncommitted changes the desk refuses it: tell the Human what and let them
-decide. Ask the Human once to commit the team block the desk writes into `AGENTS.md` and
-`CLAUDE.md`: isolated lanes don't see it until then. Sample data in designs is a placeholder.
+decide. Ask the Human in your first message to commit the team block the desk writes into
+`AGENTS.md` and `CLAUDE.md`: isolated lanes don't see it until then, and `open_lane` says when one missed it. Sample data in designs is a placeholder.
 
 ## Mail
 

@@ -72,3 +72,12 @@ export async function onlyTheBlock(root: string, path: string): Promise<boolean>
 export function workState(cwd: string): Promise<Cleanliness> {
   return pristineState(cwd, (path) => onlyTheBlock(cwd, path));
 }
+
+/** Whether the plugin's block is in the project's copy but not in what it has committed, which a copy of its own is made from. */
+export async function blockUncommitted(root: string): Promise<boolean> {
+  const run = await git(root, ["status", "--porcelain", "--", "AGENTS.md", "CLAUDE.md"]);
+  if (run.code !== 0) return false;
+  const paths = run.stdout.split("\n").filter(Boolean).map((line) => line.slice(3));
+  for (const path of paths) if (await onlyTheBlock(root, path)) return true;
+  return false;
+}
