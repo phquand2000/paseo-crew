@@ -26,7 +26,7 @@ test("the fixture of the current format exists, so the next change to a kept fil
   assert.ok(existsSync(join(FIXTURES, `v${STATE_VERSION}`)), `test/fixtures/state/v${STATE_VERSION} is missing`);
 });
 
-for (const version of readdirSync(FIXTURES)) {
+for (const version of readdirSync(FIXTURES).filter((name) => /^v\d+$/.test(name))) {
   test(`what was kept in state format ${version.slice(1)} is carried to this version and read in full`, () => {
     const { root, shop } = machineAt(version);
     assert.deepEqual(upgradeState(root, undefined, undefined, NOW).failed, []);

@@ -137,6 +137,19 @@ Out of the box the watch only records and lists. To mail incidents, turn on **Ma
 Watcher's chip in the **Team** tab. How it all works is in
 [the architecture](docs/ARCHITECTURE.md#the-watch).
 
+## Known Paseo behaviour
+
+- **Opening an archived seat's history starts its agent again, and leaves it running.** Paseo
+  resumes an archived agent to show its history, from the app or `paseo logs`, and never closes it.
+  A Devin seat leaves a `devin acp` process, a Pi seat a `pi` process. The plugin never reads an
+  archived seat itself. To be rid of them: `pkill -f "devin acp"` or `pkill -f "pi --mode rpc"`,
+  with no seat of yours running.
+- **An agent gets only the provider keys Paseo's daemon has.** A key set in your shell, such as
+  `NVIDIA_API_KEY` for Pi, does not reach the daemon, so those models are neither listed nor usable.
+  Put the key where the agent keeps its own (`~/.pi/agent/auth.json` for Pi).
+- **Paseo keeps a project for a folder you have deleted.** List them with `paseo project ls` and
+  remove one with `paseo project delete <id>`.
+
 ## Development
 
 ```bash
