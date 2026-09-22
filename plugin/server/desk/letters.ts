@@ -332,6 +332,10 @@ export const letters = {
     return lines.join("\n");
   },
 
+  canLand(lane: Lane): string {
+    return `CAN LAND ${lane.id} (${lane.title}): the turn that was in the way has ended. close_lane it again with land true.`;
+  },
+
   /** The way back out of a DETOUR: the lane that waited is told, since it cannot see the other one. */
   detourLanded(detour: Lane, waiting: Lane, landing: string): string {
     return [

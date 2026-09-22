@@ -66,6 +66,7 @@ Answer every open ask in the turn you see it: a waiting Lead is not working.
 | STILL OPEN | Your ask is overdue: answer now. |
 | REPORT ready | Acceptance met → `close_lane` land true, tell the Human in two lines. Red gate: `overGate` is your call, with a reason. A base conflict is the Lead's; other blockers go to the Human. |
 | REPORT not ready | Reply only if it changes a decision. |
+| CAN LAND | The seat mid-turn in the lane's copy has stopped: `close_lane` land true again. |
 | Peer HANDBACK/ASK, Lead gone | `answer` the ask. For a hand-back: `close_lane` land false, reopen with `base` = the kept branch and the hand-back file in the outcome. |
 | LANE IDLE, UNANSWERED | If the words read worse than the work looks, read the Lead's record first. Then the smallest unblocking step (often `answer` the Peer's ask yourself). |
 | FAILED | Nothing restarts it. Read what it did; `message` the lane to continue, or close and reopen. |

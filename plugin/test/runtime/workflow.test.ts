@@ -434,6 +434,10 @@ test("a lane in the project's own copy whose base moved waits for a seat mid-tur
   // a lane cannot be closed again, and the Supervisor's decision could never be carried out.
   assert.equal(h.ledger().lanes.L1!.status, "open");
   h.agents.get(lane.lead!)!.status = "idle";
+  // Nothing else would bring the Supervisor back: it waited for a heartbeat, ten minutes in one run.
+  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /CAN LAND/);
+  await h.endTurn(lane.lead!, "reported");
+  assert.match(h.agents.get(sup)!.sent.join("\n"), /CAN LAND L1/, "the end of the turn that was in the way is mail for whoever tried to land");
   const landed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(landed.ok, true, landed.text);
   assert.match(h.git(h.root, "show", "main:a.txt"), /four/);

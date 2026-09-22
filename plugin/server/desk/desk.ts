@@ -6,7 +6,7 @@ import { argsProblems, shapeOf } from "./args.ts";
 import { sortKeys } from "../core/store.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type DeskDeps, type Mailer, type Posted, type ToolReply, type ToolRequest, hash, no, ok } from "./context.ts";
 import { errorText } from "../core/errors.ts";
-import type { Ledger, Task } from "./ledger.ts";
+import { type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
 import { MergeQueue } from "./merge.ts";
 import { type Project, projectOf } from "./project.ts";
@@ -157,8 +157,22 @@ export class Desk {
   }
 
   /** A seat's turn ended: finish the teardown its own writing was holding up. */
-  stopped(agentId: string): Promise<void> {
-    return this.services.slots.stopped(agentId);
+  async stopped(agentId: string): Promise<void> {
+    await this.services.slots.stopped(agentId);
+    const { ctx } = this.services;
+    for (const project of ctx.projects.values()) {
+      const waiting = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open" && lane.landing?.writers.includes(agentId));
+      for (const lane of waiting) {
+        const left = lane.landing!.writers.filter((id) => id !== agentId);
+        await ctx.ledger(project, (ledger) => {
+          const entry = ledger.lanes[lane.id];
+          if (!entry?.landing) return;
+          if (left.length > 0) entry.landing.writers = left;
+          else delete entry.landing;
+        });
+        if (left.length === 0) await ctx.post(lane.landing!.by, `canland:${lane.id}:${Date.now()}`, letters.canLand(lane));
+      }
+    }
   }
 
   /** In the round: finish a teardown whose writers are not seats any more. */

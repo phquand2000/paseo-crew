@@ -79,10 +79,11 @@ All of them are written in `desk/letters.ts`.
 |---|---|
 | Opening a seat | OWNER DIRECTIVE, TASK, REVIEW |
 | Between seats | MESSAGE, RECONCILE, ASK, ANSWER to your ask, ANSWERED FOR YOU, STILL OPEN, UNANSWERED |
-| Work moving | HANDBACK, REWORK, STOP, MERGED, MERGE FAILED, MERGE CONFLICT, REPORT, CLEARED |
+| Work moving | HANDBACK, REWORK, STOP, MERGED, MERGE FAILED, MERGE CONFLICT, REPORT, CAN LAND, CLEARED |
 | The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, INCIDENT, the bare nudge |
 | Answering late | ANSWER to your `<tool>` call |
 
+CAN LAND tells whoever tried to land a lane under a seat mid-turn that the turn has ended.
 RECONCILE tells a Lead what the Supervisor sent its Peer. ANSWERED FOR YOU tells a seat that someone
 else answered an ask addressed to it.
 

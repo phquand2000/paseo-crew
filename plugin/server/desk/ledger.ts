@@ -30,6 +30,8 @@ export type Lane = {
   opener: string;
   status: LaneStatus;
   restoring?: Restoring;
+  /** Who tried to land it while a seat was mid-turn in its copy, and the seats that were: mailed once they stop. */
+  landing?: { by: string; writers: string[] };
   openedAt: number;
   tasks: number;
 };

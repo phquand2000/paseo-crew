@@ -170,8 +170,8 @@ export const openLane: Tool = async (desk, caller, args) => {
  * Not under a seat mid-turn there: what it writes is its own until its turn ends, and a merge would
  * land under it. A seat the desk cannot see counts as writing.
  */
-async function bringBaseIn(roster: Roster, ledger: Ledger, lane: Lane): Promise<string | undefined> {
-  if (!lane.worktree) return `it has no working copy on record to merge ${lane.base} into.`;
+async function bringBaseIn(roster: Roster, ledger: Ledger, lane: Lane): Promise<{ why: string; writers?: string[] } | undefined> {
+  if (!lane.worktree) return { why: `it has no working copy on record to merge ${lane.base} into.` };
   if (await isAncestor(lane.worktree, lane.base, lane.branch)) return undefined;
   const writers = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)];
   const writing = await Promise.all(
@@ -185,11 +185,17 @@ async function bringBaseIn(roster: Roster, ledger: Ledger, lane: Lane): Promise<
       }
     }),
   );
-  if (writing.some(Boolean)) return `${lane.base} has moved on, so landing it starts with merging ${lane.base} into ${lane.branch} in its copy, and a seat is mid-turn there. Close it again once that turn ends, or close it with land false.`;
+  const busy = writers.filter((id, index): id is string => typeof id === "string" && writing[index] === true);
+  if (busy.length > 0) {
+    return {
+      why: `${lane.base} has moved on, so landing it starts with merging ${lane.base} into ${lane.branch} in its copy, and a seat is mid-turn there. CAN LAND comes as mail when that turn ends; close it again then, or close it with land false.`,
+      writers: busy,
+    };
+  }
   const merged = await mergeBranch(lane.worktree, lane.base, `Bring ${lane.base} into ${lane.branch}`);
   if (merged.ok) return undefined;
   const why = merged.conflicts.length > 0 ? `conflicts in ${merged.conflicts.join(", ")}` : merged.message;
-  return `${lane.base} has moved on and does not merge into ${lane.branch}: ${why}. Nothing was changed. Message its Lead to merge ${lane.base} into the lane and settle it, or close it with land false.`;
+  return { why: `${lane.base} has moved on and does not merge into ${lane.branch}: ${why}. Nothing was changed. Message its Lead to merge ${lane.base} into the lane and settle it, or close it with land false.` };
 }
 
 export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, caller, args) => {
@@ -211,7 +217,13 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     // had moved, the only copy that could stand on it was carrying another lane, and the reply was
     // "not landed" under an ok.
     const synced = await bringBaseIn(roster, ledger, lane);
-    if (synced) return no(`Lane ${lane.id} was not closed: ${synced}`);
+    if (synced?.writers) {
+      await ctx.ledger(project, (current) => {
+        const entry = current.lanes[lane.id];
+        if (entry) entry.landing = { by: caller.id, writers: synced.writers! };
+      });
+    }
+    if (synced) return no(`Lane ${lane.id} was not closed: ${synced.why}`);
     const gate = await laneGate(ctx, project, lane);
     // A red gate stops the landing by default, and landing over it is the Supervisor's to decide — the
     // verdict is evidence. There was no way to say so: the only choices were not to land at all, or to
