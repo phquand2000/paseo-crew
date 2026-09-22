@@ -15,7 +15,6 @@ function useStyles(theme: PluginTheme) {
       labels: { flex: 1, gap: 4, minWidth: 0 },
       title: { color: theme.colors.foreground, fontSize: 14, fontWeight: "500" as const },
       hint: { color: theme.colors.foregroundMuted, fontSize: 12 },
-      // The dot sits on the title's line: half the line's height less half its own.
       dot: { paddingTop: 5 },
       evidence: { alignSelf: "flex-start" as const, borderLeftWidth: 2, borderLeftColor: theme.colors.border, paddingLeft: 10, paddingVertical: 2 },
       mono: { color: theme.colors.foregroundMuted, fontSize: 11.5, fontFamily: "monospace" },
@@ -29,7 +28,6 @@ function useStyles(theme: PluginTheme) {
 type Colors = PluginTheme["colors"];
 const levelColor = (colors: Colors, item: WatchIncident) => (item.level === "page" ? colors.statusDanger : item.told ? colors.statusWarning : colors.foregroundMuted);
 
-/** One incident: what was seen, on whom, the step that shows it, how it was raised and where it has got to. */
 const IncidentRow = memo(function IncidentRow({ item, watch, theme }: { item: WatchIncident; watch: WatchView; theme: PluginTheme }) {
   const styles = useStyles(theme);
   const c = theme.colors;
@@ -106,11 +104,7 @@ function Trouble({ watch, theme }: { watch: WatchView; theme: PluginTheme }) {
   );
 }
 
-/**
- * The watch by Jev, on the Flow tab: whether Jev is reading, what needs a look, what it leans towards
- * without raising, and how right it has been here. By a seat there is none of this: the Watcher is a
- * seat on the canvas, and what it raises is in `IncidentsCard`.
- */
+/** The watch by Jev; by a seat the Watcher sits on the canvas and what it raises is in `IncidentsCard`. */
 export function WatchCard({ watch, theme, onAddKey, onWatchBySeat }: { watch: WatchView; theme: PluginTheme; onAddKey(): void; onWatchBySeat(): void }) {
   const styles = useStyles(theme);
   const c = theme.colors;

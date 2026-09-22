@@ -59,8 +59,7 @@ test("a settings file that cannot be read is never saved over, because saving wo
   assert.match(refused.status === "invalid" ? refused.error : "", /could not be read/);
   assert.deepEqual(JSON.parse(readFileSync(file, "utf-8")), onDisk);
 
-  // And a file that does not parse at all, which is the likelier hand edit: every key in a layer is
-  // optional, so the empty object it used to read as was a valid layer and the next save was allowed.
+  // A file that does not parse at all: every layer key is optional, so reading it as {} allowed the next save.
   writeFileSync(file, `${JSON.stringify(onDisk).slice(0, -1)},}`);
   const broken = readLayer(file, MachineLayerSchema);
   assert.equal(broken.status, "invalid", "a trailing comma is not a project with no settings yet");
@@ -79,8 +78,7 @@ test("a rule that would leave a seat unbuildable is refused where it is written,
     return team.errors.length > 0 ? team.errors : Object.keys(team.roles).flatMap((role) => seatProblems(kit, team, role, paths));
   };
 
-  // The line a real owner writes about the tool they are configuring. Nothing in the schema or the
-  // team resolution objects to it, and every Peer and Reviewer seat then fails to build.
+  // Nothing in the schema or team resolution objects to this line, yet every Peer and Reviewer seat fails to build.
   const rule = { rules: "Leave the Paseo config alone; ask before touching migrations." };
   assert.deepEqual(resolveTeam(kit, rule).errors, []);
   const refused = writeLayer(machine, MachineLayerSchema, readLayer(machine, MachineLayerSchema).revision, rule, unbuildable);

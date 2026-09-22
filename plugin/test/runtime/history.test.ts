@@ -48,7 +48,6 @@ function ledgerOf(tasks: Task[], over: Partial<Lane> = {}): Ledger {
 
 const kinds = (ledger: Ledger) => deskFacts(ledger, READING).map((seen) => seen.fact.kind).sort();
 
-/** What a Peer leaves behind when it did finish, which is what these fixtures mean by accepted. */
 const finished = { file: "f", outcome: "complete", summary: "s", at: 0 };
 
 test("a task sent back again and again is a loop, and the lane patching several at once is a missing foundation", () => {
@@ -61,8 +60,7 @@ test("a task sent back again and again is a loop, and the lane patching several 
   assert.equal(seen!.seat, "lead-1", "the Lead decides to send it back, so the Lead is who this is about");
   assert.match(seen!.fact.quote, /L1-T1 \(Apply discount\) has been sent back 3 times, last outcome partial/);
 
-  // The same three sendings spread over different tasks is the other shape: one hole, patched a task
-  // at a time. It is not the same finding and must not be reported as one.
+  // The same three sendings spread over tasks is one hole patched a task at a time, a different finding.
   const spread = ledgerOf([task({ id: "L1-T1", reworks: 1 }), task({ id: "L1-T2", reworks: 1 }), task({ id: "L1-T3", reworks: 1 })]);
   assert.deepEqual(kinds(spread), ["patched-not-fixed"]);
   assert.match(deskFacts(spread, READING)[0]!.fact.quote, /3 sendings-back across 3 tasks .*L1-T1 ×1, L1-T2 ×1, L1-T3 ×1/);
@@ -111,9 +109,7 @@ test("the quote is the whole of what was counted, so the book can tell new evide
   held.tasks["L1-T1"]!.reworks = 4;
   assert.notEqual(deskFacts(held, READING)[0]!.fact.quote, first, "a fourth sending-back is new evidence");
 
-  // One fact of a kind per lane, not one per task: the book keys an incident by seat and kind, and
-  // the seat is the Lead, so a second fact of the same kind would land as an afterword on the first
-  // and reach nobody who was not already reading `incidents`.
+  // The book keys an incident by seat and kind, and the seat is the Lead, so one fact of a kind per lane.
   const two = ledgerOf([task({ id: "L1-T1", reworks: 3 }), task({ id: "L1-T2", reworks: 3 })]);
   const loops = deskFacts(two, READING).filter((seen) => seen.fact.kind === "rework-loop");
   assert.equal(loops.length, 1);
@@ -135,15 +131,12 @@ test("a task taken in although its Peer never said it was finished is on the rec
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), ["accepted-unfinished"]);
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "complete", summary: "s", at: 0 } })])), [], "a Peer that said it finished raises nothing");
 
-  // `accept` refuses a task that is merged, queued, merging or cut, and nothing else — so a task can
-  // be taken in having never handed back, and then no outcome was ever declared at all.
+  // `accept` refuses only merged, queued, merging or cut tasks, so a task can be taken in never handed back.
   const never = ledgerOf([task({ id: "L1-T1", status: "merged" })]);
   assert.deepEqual(kinds(never), ["accepted-unfinished"]);
   assert.match(deskFacts(never, READING)[0]!.fact.quote, /though it was never handed back/);
 
-  // The desk knew why: it counted the quiet turns itself and wrote the Lead a SILENT letter about
-  // them. Saying so turns the Supervisor's reconstruction — read the Peer's record, find out whether
-  // the work was really done — into a judgement it can make from the line.
+  // The desk counted the quiet turns itself, so saying so spares the Supervisor reconstructing it.
   const quiet = ledgerOf([task({ id: "L1-T1", status: "merged", silent: 3 })]);
   assert.match(deskFacts(quiet, READING)[0]!.fact.quote, /was accepted after its Peer went quiet 3 times without handing back/);
   assert.match(deskFacts(ledgerOf([task({ id: "L1-T1", status: "merged", silent: 1 })]), READING)[0]!.fact.quote, /went quiet once without handing back/);
@@ -154,8 +147,7 @@ test("a task taken in although its Peer never said it was finished is on the rec
 });
 
 test("an outcome word the schema does not offer reads as finished, and a lane names only its first few", () => {
-  // `done` stores whatever string arrives and nothing validates it against the schema's three words,
-  // so a stray one must fall the safe way: silence, not a report about a task nobody said was unfinished.
+  // `done` stores any string unvalidated, so a stray word falls the safe way: silence.
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "completed", summary: "s", at: 0 } })])), []);
 
   const many = ledgerOf(Array.from({ length: 7 }, (_, index) => task({ id: `L1-T${index + 1}`, status: "merged", handback: { file: "f", outcome: "partial", summary: "s", at: 0 } })));

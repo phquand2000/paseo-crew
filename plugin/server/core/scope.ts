@@ -31,10 +31,7 @@ export function globToRegex(pattern: string): RegExp {
     if (char === "*") {
       if (clean[index + 1] === "*") {
         index++;
-        // `**/` stands for whole segments or none of them. Rendered as `.*` with the separator
-        // swallowed, it matched any segment merely ending in the next name: `**/migrations/**` put
-        // `server/db_migrations/` in the project's serial-only set, and two lanes that never touch a
-        // migration were told they overlap. `patternsOverlap` walks segments and never agreed.
+        // `**/` means whole segments or none; as `.*` it let `**/migrations/**` match `server/db_migrations/`.
         if (clean[index + 1] === "/") {
           out += "(?:.*/)?";
           index++;
@@ -47,15 +44,7 @@ export function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${out}$`);
 }
 
-/**
- * Can one path segment satisfy both of these segment globs?
- *
- * Sampling one against a made-up witness of the other fails here for the same reason it failed for
- * whole paths: `*.ts` and `app.*` are both satisfied by `app.ts`, and neither matches a sample of
- * the other. Only `*` and `?` occur inside a segment — `globToRegex` escapes the rest — so the two
- * are walked together, `*` standing for any run of characters that is not a slash and `?` for one.
- * A state reached twice cannot be reached a third way with a different answer, so it is not retried.
- */
+/** Walks both segment globs together: sampling one against the other misses `*.ts` vs `app.*`. */
 function segmentsMeet(a: string, b: string): boolean {
   if (a === b || a === "*" || b === "*") return true;
   const seen = new Set<number>();
@@ -76,18 +65,10 @@ function segmentsMeet(a: string, b: string): boolean {
   return walk(0, 0);
 }
 
-/**
- * Whether any one path could match both patterns.
- *
- * Walked segment by segment, because testing one pattern against a single synthetic sample of the
- * other misses every case where both sides hold a wildcard: `src/**\/*.ts` and `**\/*.test.ts` both
- * match `src/pricing.test.ts`, and a sample of either matches neither. Two lanes are allowed to
- * share a working copy on the strength of this answer, so a missed overlap lets both write one file.
- */
+/** Walked by segment, since sampling misses overlaps where both sides hold wildcards; lanes share a copy on this answer. */
 function meet(a: string[], b: string[]): boolean {
   if (a.length === 0 || b.length === 0) {
-    // What is left can still match nothing only if every segment of it is allowed to. A trailing ""
-    // comes from a directory pattern and stands for everything under it; "**" spans zero segments.
+    // Leftovers match nothing only if each is "**" or a trailing "" (a directory pattern: everything under it).
     const rest = a.length === 0 ? b : a;
     return rest.every((segment) => segment === "**" || segment === "");
   }
@@ -109,15 +90,7 @@ export function firstOverlap(left: string[], right: string[]): string | undefine
   return undefined;
 }
 
-/**
- * The serial-only paths a repository really has.
- *
- * A rule is a glob and so is a write set, and of two globs it can only be said that they *might*
- * meet: every lane claiming a subtree might hold a lock file or a migration somewhere under it.
- * Refusing on might leaves a project stuck on one lane, so the rules are resolved against the files
- * that exist and the write set is compared against real paths. A rule that reserves a whole
- * directory yields the directory, so the next migration — which nobody has written yet — counts.
- */
+/** Resolves serial-only globs against real files, since glob-vs-glob can only say "might"; a reserved directory yields itself. */
 export function serialPaths(tracked: string[], serialOnly: string[]): string[] {
   const found = new Set<string>();
   for (const rule of serialOnly) {

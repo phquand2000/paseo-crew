@@ -6,12 +6,8 @@ import type { Trail } from "../../server/runtime/watch/trail.ts";
 import type { Brief } from "../../server/runtime/watch/jev/views.ts";
 
 /**
- * A turn the sensor should read one way, and what each question should say about it.
- *
- * `brief` and `trail` are what `viewsOf` is given for a real seat, so a case is sent the views a
- * seat's turn really sends. `expect` pins every question the case says something about, not only
- * the one it was written for: a scenario that makes a second question fire is how a day's incident
- * budget is spent on one event, and that is worth pinning too.
+ * A turn the sensor should read one way. `expect` pins every question the case touches, since a
+ * second question firing spends a day's incident budget on one event.
  */
 export type SensorCase = {
   id: string;

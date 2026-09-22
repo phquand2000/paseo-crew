@@ -136,9 +136,7 @@ test("a join that never becomes ready is given up and leaves nothing subscribed"
   assert.equal(timeline.listeners.size, 0);
 });
 
-// Paseo resumes an archived agent to serve its history and never closes it again: for Devin that was
-// a `devin acp` left running for hours. Archiving a seat ends its runtime, which sends the stream a
-// reset while it is being stopped.
+// Paseo resumes an archived agent to serve history and never closes it; for Devin that left `devin acp` running for hours.
 test("a stream stopped while a message is on its way reads no more history for it", async () => {
   const timeline = new FakeTimeline();
   const { stream } = watching(timeline);

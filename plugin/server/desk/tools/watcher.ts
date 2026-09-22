@@ -23,11 +23,7 @@ function notBySeat(services: Parameters<Tool>[0], caller: Caller): string | unde
   return services.ctx.team(caller.project).attention.by === "seat" ? undefined : "The watch on this project is by Jev now, so nothing a Watcher reports is taken. There is nothing more to do.";
 }
 
-/**
- * What a Watcher reports is the step it points at, as the reading sent it: never its own account of
- * the step. The reading's number is left out of what is kept, so the same step read again is the same
- * words, and a mark of noise on it holds.
- */
+/** Keeps the pointed-at step's words, not the Watcher's, minus the reading's number, so a noise mark holds on a re-read. */
 export const raise: Tool = async (services, caller, args) => {
   const off = notBySeat(services, caller);
   if (off) return no(off);
@@ -49,11 +45,7 @@ export const raise: Tool = async (services, caller, args) => {
   return ok(opened.length > 0 ? `Raised ${item.id}, ${kind} on ${place.where}: ${state(item)}.` : `${item.id} already stands for ${kind} on ${place.where}; this is counted as seen again, and ${state(item)}.`);
 };
 
-/**
- * A Watcher's judgement on a fact the code raised. It gives no probability, so it is filed with p 1
- * for confirms and 0 for vetoes, under a question of its own, and whatever reads a judgement reads
- * it the same way. Its reason is kept on the incident, never sent.
- */
+/** No probability is given, so it is filed with p 1 for confirms and 0 for vetoes; the reason stays on the incident, never sent. */
 export const judge: Tool = async (services, caller, args) => {
   const off = notBySeat(services, caller);
   if (off) return no(off);

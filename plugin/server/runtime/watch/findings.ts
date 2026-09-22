@@ -7,7 +7,6 @@ export type Finding = {
   facts: string[];
   p?: number;
   model?: string;
-  /** Set when a Watcher raised it rather than the code or Jev. */
   by?: "watcher";
 };
 

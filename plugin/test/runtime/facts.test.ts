@@ -365,8 +365,7 @@ test("Claude's task notifications stay in what the sensor reads, though nothing 
 });
 
 test("every fact that can open an incident has a title a person can read", () => {
-  // A note is evidence for the sensor and never an incident on its own, so only the others reach the
-  // watch card — and the card names them, rather than printing `accepted-unfinished`.
+  // A note is sensor evidence and never an incident on its own, so only the other levels need a title.
   for (const [kind, level] of Object.entries(FACT_LEVELS)) {
     if (level === "note") assert.equal(FACT_TITLES[kind], undefined, `${kind} never reaches a screen`);
     else assert.ok(FACT_TITLES[kind] && !/[-_]/.test(FACT_TITLES[kind]!.split(" ")[0]!), `${kind} has no readable title`);
@@ -374,8 +373,7 @@ test("every fact that can open an incident has a title a person can read", () =>
 });
 
 test("an irreversible command is quoted where it is irreversible, however long what comes before it", () => {
-  // One run's page quoted `cat … > …/S10/src/text/wrap.js && rm -rf /Users/lon`: the first 200
-  // characters of the command, cut right where the Supervisor needed to read what was removed.
+  // A page once quoted the first 200 characters, cut right where the `rm -rf` target began.
   const command = `cat ${"/long/path/segment".repeat(12)}/wrap.js > ${"/long/path/segment".repeat(6)}/wrap.js && rm -rf /Users/me/stray-copy`;
   const [fact] = onDetail({ id: "c", name: "Bash", status: "completed", ended: true, detail: { type: "shell", command } } as never, rules());
   assert.equal(fact?.kind, "destructive");
@@ -384,9 +382,7 @@ test("an irreversible command is quoted where it is irreversible, however long w
 });
 
 test("calls the record cannot tell apart are not read as one call repeated", () => {
-  // A Lead fanning out four Peers makes four start_task calls with four different briefs. Paseo
-  // records a Claude seat's MCP calls with an empty input, so the four compared equal, and every
-  // Claude Lead of one run opened a "stuck" incident in its first minute.
+  // Paseo records a Claude seat's MCP calls with an empty input, so four different start_task calls compared equal.
   const call = (id: string, detail: Record<string, unknown>) => ({ kind: "call" as const, call: { id, name: "mcp__team__start_task", status: "completed", ended: true, error: null, detail: { type: "unknown", ...detail } } as never });
   const bare = ["1", "2", "3", "4"].map((id) => call(id, { input: {}, output: "started" }));
   assert.equal(stuck(bare, { repeatsAt: 3 }), undefined);

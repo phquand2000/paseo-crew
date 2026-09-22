@@ -22,11 +22,9 @@ export class SeatWatch {
   turnId: string | null = null;
   startedAt = 0;
   reading: { turnId: string | null; answers: Record<string, number> } | undefined;
-  /** What a screen can say about this seat without asking the sensor anything: the tally so far. */
   readings = 0;
   spent = 0;
   readAt = 0;
-  /** The highest each question has read on this seat, kept rather than replaced by the last answer. */
   readonly peaks = new Map<string, number>();
   private readonly durations: number[] = [];
   private readonly told = new Set<string>();
@@ -64,9 +62,7 @@ export class SeatWatch {
       this.recovery.reset();
       for (const key of [...this.told]) if (key !== "long-turn") this.told.delete(key);
       this.noted.length = 0;
-      // The subject has changed, so the last reading is no longer the one before this one. A question
-      // that only opens on two high answers running would otherwise be satisfied by one answer about
-      // the old instruction and one about the new: two readings of two different things.
+      // New subject: a two-in-a-row question must not pair a reading of the old instruction with the new.
       this.reading = undefined;
       return [];
     }
@@ -126,11 +122,7 @@ export class SeatWatch {
     return undefined;
   }
 
-  /**
-   * Read again until the ledger has placed the seat. A Peer's first turn starts before `start_task`
-   * has written it into its task, and a brief kept from then had no goal and no owned paths for the
-   * whole task.
-   */
+  /** Re-read until the ledger places the seat: a Peer's first turn starts before `start_task` writes its task. */
   brief(): SeatContext | undefined {
     if (!this.current?.goal) this.current = this.context();
     return this.current;
@@ -154,7 +146,6 @@ export type WatchDeps = {
   seats: Seats;
   context: (seat: WatchedSeat) => SeatContext | undefined;
   found: (watch: SeatWatch, facts: Fact[]) => void;
-  /** Whether the watch runs at all where this seat sits. Off is off: not a quieter watch, none. */
   on: (seat: WatchedSeat) => boolean;
   moment?: (watch: SeatWatch, urgent: boolean) => void;
   dropped?: (id: string) => void;
@@ -181,7 +172,6 @@ export class Watches {
     return [...this.followed.values()].map((entry) => entry.watch);
   }
 
-  /** Watched by role, and switched on where it sits. Both, or the seat is not followed at all. */
   private on(seat: WatchedSeat): boolean {
     return this.watched(seat.provider) && this.deps.on(seat);
   }
@@ -221,8 +211,7 @@ export class Watches {
     const ids = new Set<string>();
     for (const seat of live) {
       if (seat.archivedAt) continue;
-      // Switched off since the last round, this seat is let go below rather than kept. The settings
-      // are read every round, so the switch takes hold within one of them and needs no reload.
+      // Settings are read every round, so switching off lets the seat go within one, with no reload.
       if (this.on(seat)) ids.add(seat.id);
       this.follow(seat);
     }

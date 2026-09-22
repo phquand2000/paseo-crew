@@ -33,7 +33,6 @@ function choiceFor(team: Team, role: RoleSpec, harness: HarnessSpec): { model?: 
   return { model: model?.id, thinking: (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id };
 }
 
-/** Paseo lists the agent's own models; the plugin only says which of them a role starts on. */
 function defaultModel(harness: HarnessSpec, choice: { model?: string }): ModelSpec[] {
   if (!choice.model) return [];
   const label = harness.models?.find((entry) => entry.id === choice.model)?.label ?? choice.model;
@@ -128,11 +127,7 @@ export function applyReconcile(kit: Kit, team: Team): string[] {
   const configPath = paseoConfigPath();
   const config = JSON.parse(readFileSync(configPath, "utf-8")) as Json;
   const { config: next, changed } = reconcile(config, kit, team);
-  // This is the owner's own Paseo config — every provider they have, their agent profiles, and the
-  // registration of this plugin. Written in place it was a prefix of itself until the write
-  // returned, and a daemon killed in that window cannot parse its own config or come back. Staged
-  // and renamed, it is either the old document or the new one. The mode is kept at the file's own,
-  // since a config Paseo keeps private must not be widened by being rewritten.
+  // Staged and renamed: a daemon killed mid-write could not parse its own config. The mode is kept so a private config is not widened.
   if (changed.length > 0) writeConfigAtomic(configPath, `${JSON.stringify(next, null, 2)}\n`, statSync(configPath).mode & 0o777);
   return changed;
 }

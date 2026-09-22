@@ -39,7 +39,6 @@ export const FACT_LEVELS: Record<string, Level> = {
   "outside-scope": "note",
 };
 
-/** What a person reads for a fact that can open an incident. A note never does, so it has none. */
 export const FACT_TITLES: Record<string, string> = {
   destructive: "Ran a command that cannot be undone",
   stuck: "Going round in circles",
@@ -61,7 +60,6 @@ export type Rules = {
   testPath: RegExp;
   suppressed: RegExp;
   exit?: RegExp;
-  /** The commands that run the project's gate, the one it names first; empty when it has none. */
   gates: string[];
   cwd?: string;
   temp?: string;
@@ -87,10 +85,7 @@ export function isGate(call: Call, gates: string[]): boolean {
 
 const said = (value: unknown): boolean => value !== undefined && value !== null && value !== "" && !(typeof value === "object" && Object.keys(value).length === 0);
 
-/**
- * What tells one call from another, or undefined when the record holds nothing that could: Paseo
- * records a Claude seat's MCP calls with an empty input, and four different ones compared equal.
- */
+/** Undefined when nothing tells calls apart: Paseo records a Claude seat's MCP calls with an empty input. */
 function actionOf(call: Call): string | undefined {
   const { output: _output, exitCode: _exit, ...rest } = call.detail;
   return Object.entries(rest).some(([key, value]) => key !== "type" && said(value)) ? `${call.name}\n${JSON.stringify(rest)}` : undefined;
@@ -161,8 +156,7 @@ function scratchOnly(part: string, temp?: string): boolean {
 
 export function onDetail(call: Call, rules: Rules): Fact[] {
   if (call.detail.type !== "shell") return [];
-  // Read a command at a time: removing the file a commit message was written to is not what this is
-  // for, and one run paged a Lead for exactly that.
+  // A command at a time: removing a commit message's temp file once paged a Lead.
   const risky = str(call.detail.command)
     .split(/&&|\|\||;|\n/)
     .find((part) => rules.destructive.test(part) && !scratchOnly(part, rules.temp));
@@ -177,10 +171,7 @@ export function within(text: string, limit: number): string {
   return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
 }
 
-/**
- * `text` cut to about `limit`, keeping where `pattern` matched, with "…" wherever it was cut. What
- * makes a long command irreversible is often at its end, and a cut from the front kept all but that.
- */
+/** Cuts around the match, not from the front: what makes a long command irreversible is often at its end. */
 export function around(text: string, pattern: RegExp | undefined, limit: number): string {
   if (text.length <= limit) return text;
   const found = pattern ? new RegExp(pattern.source, pattern.flags.replace("g", "")).exec(text) : null;

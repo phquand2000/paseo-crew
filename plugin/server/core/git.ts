@@ -6,9 +6,7 @@ export type Run = { code: number; stdout: string; stderr: string };
 
 export function git(cwd: string, args: string[], timeout = 60_000): Promise<Run> {
   return new Promise((resolve) => {
-    // core.quotePath=false because every path this module reads back is then matched against the
-    // owned paths and shown to a Lead. Left on, git wraps any path with a character outside ASCII
-    // in quotes and octal-escapes it, so a real file lands as gibberish that matches nothing.
+    // core.quotePath=false: otherwise non-ASCII paths come back quoted and octal-escaped and match no owned path.
     execFile("git", ["-C", cwd, "-c", "core.quotePath=false", ...args], { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
       const code = error ? (typeof (error as { code?: unknown }).code === "number" ? ((error as { code: number }).code) : 1) : 0;
       resolve({ code, stdout: String(stdout), stderr: String(stderr) });
@@ -26,15 +24,7 @@ export async function headSha(cwd: string, ref = "HEAD"): Promise<string | undef
   return run.code === 0 ? run.stdout.trim() : undefined;
 }
 
-/**
- * Three answers, because a boolean gave the same one to two different states.
- *
- * `status` exits non-zero when the directory is gone, when it is not a repository, when the 60s
- * timeout takes it, and when git is not there at all. Folded into `false`, every caller went on to
- * state a cause: the lane's copy "has uncommitted changes from its current writer", which named a
- * writer for a copy nobody could read, and sent its Lead to look for work that does not exist.
- * `contains` and `diffCounts` in this file already answer `undefined` for exactly this reason.
- */
+/** Three states because a failed `status` (dir gone, not a repo, timeout, no git) must not read as dirty. */
 export type Cleanliness = "clean" | "dirty" | "unknown";
 
 async function cleanliness(cwd: string, args: string[]): Promise<Cleanliness> {
@@ -43,15 +33,12 @@ async function cleanliness(cwd: string, args: string[]): Promise<Cleanliness> {
   return run.stdout.trim() === "" ? "clean" : "dirty";
 }
 
-/** Nothing uncommitted among the tracked files. An untracked file is not this question. */
+/** Tracked files only; untracked files do not count. */
 export function cleanState(cwd: string): Promise<Cleanliness> {
   return cleanliness(cwd, ["status", "--porcelain", "--untracked-files=no"]);
 }
 
-/**
- * Nothing uncommitted and nothing untracked: what a copy has to be before a lane may take it over.
- * `besides` excuses a change that is not anyone's work in progress.
- */
+/** Nothing uncommitted or untracked, as a lane takeover requires; `besides` excuses a change that is nobody's work. */
 export async function pristineState(cwd: string, besides: (path: string) => Promise<boolean> = async () => false): Promise<Cleanliness> {
   const run = await git(cwd, ["status", "--porcelain"]);
   if (run.code !== 0) return "unknown";
@@ -88,8 +75,7 @@ export async function addWorktree(root: string, path: string, branch: string, ba
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
   const run = await git(root, ["worktree", "add", "-b", branch, path, base], 120_000);
-  // git says nothing at all when it could not be run — a timeout, a missing binary — and a refusal
-  // with an empty reason tells the Supervisor only that something went wrong.
+  // git can fail with no output at all (timeout, missing binary); never report an empty reason.
   return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say` };
 }
 
@@ -126,14 +112,7 @@ export function kindOf(path: string): "src" | "test" | "docs" {
   return "src";
 }
 
-/**
- * Counts from `git diff -z --numstat`.
- *
- * With -z a rename is three fields — counts, then the old path, then the new one — instead of the
- * display form `src/{old.ts => new.ts}`, which is not a path any seat can open and matches no owned
- * path, so a rename inside a task's own paths was reported to its Lead as a write outside them.
- * Both sides are counted: the file that went and the file that came.
- */
+/** Uses `-z` so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no owned path. */
 export function countNumstat(numstat: string): Counts {
   const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
   const fields = numstat.split("\0");
@@ -180,12 +159,7 @@ export async function isAncestor(root: string, base: string, branch: string): Pr
   return (await git(root, ["merge-base", "--is-ancestor", base, branch])).code === 0;
 }
 
-/**
- * Moves `base` up to `branch`, which must already contain it: every merge a landing needs has been
- * made in the lane's own copy and gated there, so what lands is exactly what the gate saw. Merging
- * here instead needed a working copy standing on `base`, and with the project's own copy carrying
- * another lane there was none, so a finished lane closed on a branch left for the Human.
- */
+/** Fast-forwards `base` to `branch`: merges are made and gated in the lane's copy, so what lands is what the gate saw. */
 export async function landLane(root: string, base: string, branch: string): Promise<LandResult> {
   if (!(await isAncestor(root, base, branch))) return { landed: false, how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated` };
   if ((await currentBranch(root)) === base) {

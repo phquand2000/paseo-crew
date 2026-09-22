@@ -58,8 +58,7 @@ export class MergeQueue {
     if (copy === "dirty") {
       return finish("done", letters.mergeFailed(task, "the lane's working copy has uncommitted changes from its current writer; accept again after that task hands back", ""));
     }
-    // A copy git could not read is not a copy with a writer in it. Told otherwise, the Lead went
-    // looking for uncommitted work in a directory that had already been taken away.
+    // A copy git could not read has no writer in it: it is already gone.
     if (copy === "unknown") {
       return finish("failed", letters.mergeFailed(task, `git could not read the lane's working copy at ${cwd}`, ""));
     }
@@ -74,9 +73,7 @@ export class MergeQueue {
         : finish("failed", letters.mergeFailed(task, "git merge failed", merged.message));
     }
     const counts = await diffCounts(cwd, merged.before, merged.after);
-    // No gate here. Where the owner gates each task the Lead had the verdict with the hand-back and
-    // accepted with it in hand; running it again and undoing the merge on red took back a decision
-    // that was the Lead's — the "evidence, not a veto" the Lead's own prompt promises.
+    // No gate here: the Lead accepted with the verdict in hand, and undoing the merge on red would take that decision back.
     const gate = gateNote(project, task);
     await this.ctx.setTask(project, taskId, (entry) => {
       entry.mergeSha = merged.after;

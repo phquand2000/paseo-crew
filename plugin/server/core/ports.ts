@@ -32,7 +32,6 @@ export type Stream = { readonly ready: Promise<void>; stop(): void };
 export type Seats = {
   open(): Promise<SeatView[]>;
   look(id: string): Promise<SeatLook>;
-  /** `steer` takes the text into a turn that is running instead of replacing that turn with it. */
   send(id: string, text: string, steer?: boolean): Promise<void>;
   respond(id: string, requestId: string, response: PermissionResponse): Promise<void>;
   archive(id: string): Promise<void>;
@@ -44,7 +43,6 @@ export type Workspace = { id: string; project: string };
 export type Workspaces = {
   named(name: string): Promise<Workspace | undefined>;
   owned(prefix: string): Promise<{ id: string; name: string }[]>;
-  /** `project` files the directory under that Paseo project; without it Paseo makes one of its own. */
   make(title: string, path: string, project?: string): Promise<Workspace>;
   seat(workspace: string, spec: SeatSpec): Promise<SeatLook>;
   archive(workspace: string): Promise<void>;

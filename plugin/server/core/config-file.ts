@@ -14,14 +14,7 @@ export function readConfig<T>(path: string, fallback: T): T {
   }
 }
 
-/**
- * Why a config could not be read, when it is there and cannot be.
- *
- * These files belong to a harness, not to this plugin: a seat's `.claude.json` holds its account,
- * its machine id and its per-project history. Reading an unparseable one as "not there" and writing
- * the plugin's seed in its place replaces all of that with three keys, and reports it as a routine
- * update. Absent is not a fault — the seed exists for a file that is genuinely not there yet.
- */
+/** Unparseable is a fault, not absent: seeding over a harness's config would erase its account and history. */
 export function configFault(path: string): string | undefined {
   if (!existsSync(path)) return undefined;
   try {

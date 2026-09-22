@@ -61,9 +61,7 @@ test("a seat's shell may write every place under state its own content names, an
     return [...new Set(texts.flatMap((text) => [...text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_.-]+)/g)].map((match) => match[1]!)))];
   };
 
-  // The first narrowing named the two places the prompts mention and nothing else, while the skills
-  // in the same seats run scripts that write under ultra-review/, council/, repo-refresh/ and
-  // pre-mortem/ — every one of which the sandboxed shell then refused. This asserted that list.
+  // Skills write under ultra-review/, council/, repo-refresh/ and pre-mortem/ too, not only where the prompts say.
   for (const role of real.roles.map((entry) => entry.role)) {
     const paths = granted(role);
     for (const segment of named(role).filter((name) => !DESK_OWNED.has(name))) {
@@ -75,8 +73,7 @@ test("a seat's shell may write every place under state its own content names, an
   assert.ok(granted("supervisor").includes("/state/repo/CONTEXT.md"), "the Supervisor writes the project's concept as the Human settles it");
   assert.ok(!granted("lead").includes("/state/repo/CONTEXT.md"), "a Lead reads the Human's word and does not rewrite it");
 
-  // The sandbox binds the shell only. project.json's gate runs through /bin/sh in the daemon, so a
-  // file tool that could rewrite it was the way out of the sandbox the grant above exists to keep.
+  // The sandbox binds the shell only; a file tool that could rewrite project.json's gate escapes it via /bin/sh.
   const deny: string[] = JSON.parse(readFileSync(join(real.dir, "harness", "claude", "settings.json"), "utf-8")).permissions.deny;
   for (const owned of DESK_OWNED) {
     const rule = owned.includes(".") ? `Edit(~/.local/share/seatworks-v2/projects/*/${owned})` : `Edit(~/.local/share/seatworks-v2/projects/*/${owned}/**)`;

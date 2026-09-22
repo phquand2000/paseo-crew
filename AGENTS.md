@@ -58,7 +58,11 @@ No build step; tests are `node --test` over `test/**/*.test.ts`.
 - **Fail first.** For every fix, put the old behaviour back and watch the new test fail. Green suites
   here have agreed with bugs before.
 - **No dormant machinery:** no framework, abstraction or setting without a real consumer today.
-- **No docs, decision records or comments unless asked.** Git history is the record.
+- **No docs or decision records unless asked.** Git history is the record.
+- **Comments are few and short.** At most one docstring per function, method, class or type, one or
+  two lines, saying what the name and code don't: why, a hidden constraint, a platform quirk. None on
+  a field, member, constant or single line, and none that restates the code. Inside a body, a `//`
+  only where the reason is invisible in the code, one line.
 - **Commit subjects:** one imperative sentence on what changed in behaviour, sentence case, no
   prefix, often two clauses. E.g. "Let the work decide how many agents run, not a quota". Never
   `fix:`/`feat:` or a file name.

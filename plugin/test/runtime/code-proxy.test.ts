@@ -92,7 +92,6 @@ function ideConfig(url: string, tools: string[]) {
   return { name: "intellij-index", label, instructions, tools, ...proxy, backend: { type: "http", url }, wait: { ...proxy.wait, seconds: 2, pollSeconds: 0.01 } };
 }
 
-/** A preset that opens the working copy itself, pinned here so the hook's own tests do not move with the shipped entry. */
 const OPENING = {
   tool: "ide_open_project",
   args: { path: "{root}", timeoutSeconds: 300 },
@@ -291,10 +290,7 @@ test("the desk opens a copy it takes with the shipped entry, routed through an o
 });
 
 test("a server that is slow to start does not hold the tool list for the whole call budget", async () => {
-  // A stdio server that never answers anything, which is what a cold start looks like while the
-  // package it runs from is still being fetched. `initialize` was issued with the call budget while
-  // the list asks for its own, so the list waited for both in turn: the harness gave up on the
-  // server long before the answer saying it was not reachable could be written.
+  // Never answers, like a cold start still fetching its package; the list once waited out init's budget, then its own.
   const code = proxy(repo(), {
     name: "code-search",
     label: "Code search",

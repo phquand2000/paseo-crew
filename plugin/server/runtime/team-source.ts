@@ -45,9 +45,7 @@ export class TeamSource {
   }
 
   record(project: Project): void {
-    // The Set is a way of not writing the same file every turn, not proof that the file is there: a
-    // project detached in this same session left the record behind and the next attach wrote nothing,
-    // reported success, and opened a screen for a project no handler could find.
+    // The Set only skips rewrites: a project detached this session leaves it set with no file on disk.
     if (this.recorded.has(project.slug) && existsSync(join(project.state, "meta.json"))) return;
     try {
       mkdirSync(project.state, { recursive: true });

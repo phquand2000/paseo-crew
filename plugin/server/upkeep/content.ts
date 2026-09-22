@@ -6,11 +6,7 @@ import { digest } from "../catalog/seats.ts";
 import { git } from "../core/git.ts";
 import { readJson, writeJson } from "../core/store.ts";
 
-/**
- * What of the shipped content the owner has already taken in, one entry per unit a change is told
- * about: a guide, a record template, a prompt, a skill, the team block. `commit` is the plugin's own
- * at the time, so the version they had can be read back out of git to keep.
- */
+/** `commit` is the plugin's own at the time, so the version the owner had can be read back out of git. */
 type Taken = { units: Record<string, { hash: string; commit: string | null }> };
 
 type Kind = ContentChange["kind"];
@@ -84,11 +80,7 @@ async function restore(kit: Kit, unit: string, commit: string, into: string): Pr
   }
 }
 
-/**
- * The owner's answer for one unit. `new` takes the shipped version, setting their own copy aside
- * rather than deleting it; `mine` keeps the version they had, copied out of git, for them to edit by
- * hand; `seen` takes in a guide or a record template they were only told about.
- */
+/** `new` sets the owner's copy aside rather than deleting it; `mine` copies their version out of git for them to edit. */
 export async function decide(kit: Kit, stateDir: string, unit: string, choice: "new" | "mine" | "seen", now = Date.now()): Promise<void> {
   const held = readJson<Taken>(takenFile(stateDir), { units: {} });
   const shipped = shippedUnits(kit)[unit];

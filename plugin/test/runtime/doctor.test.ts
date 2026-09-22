@@ -56,8 +56,7 @@ test("what a harness says its seats need on this machine is checked, and how to 
 
 test("a malformed answer from one server costs that server's check, not the whole report", async () => {
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
-  // What an outside server answers is data. A null in its tools list used to throw out of the report
-  // and take the settings, git and harness checks — computed before it — with the exception.
+  // A null in an outside server's tools list once threw out of the report, taking every check with it.
   const hostile: Probes = {
     has: (bin) => ["git", "jq", "claude"].includes(bin),
     exists: () => true,
@@ -78,9 +77,7 @@ test("settings that could not be read are not a team the owner wrote, and the do
   const home = tempDir("sw2-coldsettings-");
   const state = stateRoot(home);
   mkdirSync(state, { recursive: true });
-  // The commonest hand edit there is. Before, every consumer turned this into `{}`, which cannot be
-  // told apart from an owner who chose nothing: the kit's defaults resolved, and the doctor reported a
-  // complete team none of whose settings were the owner's.
+  // The commonest hand edit; read as {}, the doctor reported the kit's defaults as the owner's team.
   writeFileSync(join(state, "settings.json"), '{ "rules": "Keep diffs small.", }');
   const previous = process.env.HOME;
   process.env.HOME = home;

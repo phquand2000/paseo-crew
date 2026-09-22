@@ -19,8 +19,7 @@ import { labelsIn } from "../../bin/calibrate.ts";
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const questions = Object.values(kit.sensors)[0]!.questions;
 
-// By Jev a key is what the watch is made of, so a project with none never reaches any of this. The
-// only flag left is whether what it marks is mailed.
+// By Jev a key is the watch itself; the only flag left is whether what it marks is mailed.
 function desk(mailing = false, by: "jev" | "seat" = "jev") {
   const machine: Record<string, unknown> = { sensor: { key: "k" }, attention: { by, ...(mailing ? { watch: true } : {}) } };
   const root = tempDir("sw2-incidents-");
@@ -111,9 +110,7 @@ test("a mark goes on the incident named and closes it, and a sighting of somethi
   assert.equal(held.I2!.open, false);
   assert.equal(held.I1!.label, undefined, "the other incident is untouched");
   assert.equal(held.I1!.open, true);
-  // Something new on the marked seat opens a new incident. The same words again do not — those are
-  // counted on the mark instead, which is what keeps a standing condition from being asked about
-  // once per sighting.
+  // The same words again are counted on the mark, so a standing condition is not asked about per sighting.
   const reopened = await notice(services, project, { id: "peer-2", provider: "sw2-peer-devin/swe-2-max" }, [{ ...stuck, quote: "the same action failing 3 times: npm run build" }]);
   assert.deepEqual(reopened.opened.map((incident) => incident.id), ["I3"]);
   const listed = await incidents(services, supervisor, {});
@@ -248,9 +245,7 @@ test("a condition the Supervisor marked noise is counted, not raised again, unle
   const { project, services, supervisor, posted, seated } = desk(true);
   seated.supervisor = "sup";
   const peer = { id: "peer-1", provider: "sw2-peer-devin/swe-2-max" };
-  // Five Peers building five modules in parallel: each one's turn says the module next door does not
-  // exist yet, because it is being written in the next worktree. The sensor reads that the same way
-  // every time, and its words are the question's, so they are identical on every sighting.
+  // Parallel Peers each report the module next door missing, in the same words on every sighting.
   const absent = [{ kind: "missing_mechanism", level: "attend" as const, quote: "src/pointer.js does not exist yet", facts: [] }];
   await notice(services, project, peer, absent);
   assert.equal((await ack(services, supervisor, { id: "I1", verdict: "noise", note: "expected: it is being written in parallel by L1-T1" })).ok, true);

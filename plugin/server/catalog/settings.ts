@@ -12,7 +12,6 @@ const RoleChoice = z.strictObject({
   harness: z.string().min(1).optional(),
   model: z.string().min(1).optional(),
   thinking: z.string().min(1).optional(),
-  /** What this one seat is told, on top of what every seat is told. A role is settings, and its instruction is one of them. */
   rules: z.string().optional(),
 });
 
@@ -62,8 +61,6 @@ export const AttentionChoice = z.strictObject({
   watcherChars: z.number().int().min(2000).optional(),
   watcherRotateAfter: z.number().int().min(1).optional(),
   watcherJudgeMinutes: z.number().int().min(1).optional(),
-  // Refused here, where the owner is looking at it. These are compiled on every turn ending, inside
-  // the step that swallows what it throws, so a typo in one silently stopped the desk reading turns.
   destructive: Pattern.optional(),
   testPath: Pattern.optional(),
   repeatsAt: z.number().int().min(2).optional(),
@@ -97,6 +94,7 @@ export type Layer = z.infer<typeof MachineLayerSchema>;
 export type SensorChoice = z.infer<typeof SensorChoice>;
 export type LayerSchema = typeof MachineLayerSchema | typeof ProjectLayerSchema;
 
+/** The key buys paid calls, so the screen never reads it back: it sees KEPT, and a save carrying KEPT keeps the key on disk. */
 export function withoutKey(layer: Layer): Layer {
   return layer.sensor?.key ? { ...layer, sensor: { ...layer.sensor, key: KEPT } } : layer;
 }
@@ -118,28 +116,14 @@ export function revisionOf(values: unknown): string {
   return createHash("sha1").update(JSON.stringify(sortKeys(values ?? {}))).digest("hex").slice(0, 16);
 }
 
-/**
- * Where a parse failed, and nothing of what it read.
- *
- * V8 quotes a window of the file's own text in its message, and this file holds the sensor's key and
- * every pasted server's token. That message is shown on the settings screen, in the team's errors and
- * in the health report, so only the place it gives is carried over — and it does not always give one.
- */
+/** Only the position: V8 quotes the file's own text, which holds the sensor key and pasted tokens. */
 function placeOf(error: unknown): string {
   const said = errorText(error);
   const where = /at position \d+(?: \(line \d+ column \d+\))?/.exec(said);
   return where ? `, ${where[0]}` : "";
 }
 
-/**
- * Why a settings file could not be read, when it is there and cannot be.
- *
- * `readJson` answers `{}` for a file that will not parse, and `{}` is a valid layer — every key is
- * optional — so a trailing comma or a truncated write reads as a layer the owner has not written
- * anything into, and the next save puts that over the top: the rules, every role's harness and
- * model, the attention tuning and every pasted server's connect block with its tokens in it. Absent
- * is not a fault, because a layer nobody has written really is empty.
- */
+/** `readJson` reads a broken file as `{}`, a valid empty layer, so the next save would overwrite all the owner wrote. */
 function faultOf(file: string): string | undefined {
   if (!existsSync(file)) return undefined;
   let held: unknown;

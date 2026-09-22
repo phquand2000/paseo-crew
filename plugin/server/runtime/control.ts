@@ -31,10 +31,7 @@ const unknownProject = (slug: string) => `No project named ${slug} has been seen
 
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-// A vendor's README writes a port or a flag as a number, and a snippet is pasted as it was found.
-// Everything here ends up in a process environment or a header, where it is text either way; what
-// has no text form is named back rather than dropped, since a server saved without its token is a
-// server that fails later for no visible reason.
+/** Pasted snippets write ports and flags as numbers; a value with no text form is named back, not dropped. */
 const scalar = (value: unknown): string | undefined =>
   typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : undefined;
 
@@ -168,14 +165,10 @@ export type ControlDeps = {
   source: TeamSource;
   seating: Seating;
   reconcile: (team: Team) => void;
-  /** Asks Paseo again for every agent's models. */
   models: () => Promise<Record<string, { at: string; error: string | null; models: unknown[] }>>;
-  /** What carrying the kept files to this version's format did when the plugin started. */
   state: () => StateReport;
   seats: Seats;
-  /** Mail the desk is still holding, so the owner's status page is the one the agents read. */
   held: () => { to: string; text: string; at: number }[];
-  /** What the watch is doing right now, which only the runtime following the seats can say. */
   watch: (project: Project, seats: Iterable<SeatView>) => WatchView;
 };
 
@@ -208,10 +201,7 @@ export class SettingsControl implements Control {
     const check = (layer: Layer) => {
       const team = resolve(layer);
       if (team.errors.length > 0) return team.errors;
-      // What the owner writes in rules is folded into every seat's instructions, so a line naming a
-      // word a role must not see refuses that seat's whole build — which used to happen well after
-      // the save, with nothing on screen to say so. Only what this save would introduce is refused:
-      // something already broken in the kit is not the owner's to fix from a settings screen.
+      // Only what this save introduces is refused: a bad rule refuses a seat's whole build, long after the save.
       const already = new Set(unbuildable(resolve(layerValues(target.file, target.schema))));
       return unbuildable(team).filter((problem) => !already.has(problem));
     };
@@ -233,8 +223,7 @@ export class SettingsControl implements Control {
     if (!path || !existsSync(path) || !statSync(path).isDirectory()) return { error: `${path || "That path"} is not a directory on this machine.` };
     const project = projectOf(path);
     this.deps.source.record(project);
-    // record() only logs what went wrong, and an attach that answers with a slug the rest of the
-    // plugin cannot find leaves every screen for it dead.
+    // record() only logs failures; an attach whose slug cannot be found leaves every screen for it dead.
     if (!this.deps.source.named(project.slug)) return { error: `${project.root} could not be put on record; see the daemon log.` };
     return { slug: project.slug, root: project.root };
   }
@@ -293,17 +282,12 @@ export class SettingsControl implements Control {
   removeProject(slug: string): unknown {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
-    // Live work, not work on record. Nothing ever removes an entry from `lanes` or `tasks` — closing
-    // a lane marks it closed and re-labels its tasks, because that record is the provenance — so
-    // counting them made Detach impossible for ever after the first lane, under a refusal that told
-    // the owner to close lanes they had already closed.
+    // Live work only: lanes and tasks are never removed, so counting them made Detach impossible after the first lane.
     const ledger = loadLedger(project.state);
     const open = Object.values(ledger.lanes).filter((lane) => lane.status === "open").length;
-    // A closed lane still waiting to put the owner's own copy back is live work: detached, the project
-    // leaves the round after a restart and the repository stays on that lane's branch for good.
+    // A closed lane still restoring the owner's copy is live: detached, the repo stays on its branch for good.
     const restoring = Object.values(ledger.lanes).filter((lane) => lane.restoring).length;
-    // A slot row left free by a failed checkout is the desk's pool, not a copy anyone holds. Counting
-    // every row made one failed checkout another reason Detach could never work again.
+    // A free slot row left by a failed checkout is the desk's pool, not a copy anyone holds.
     const copies = Object.values(ledger.slots).filter((slot) => slot.lane || slot.task || slot.releasing).length;
     if (open > 0 || copies > 0 || restoring > 0) {
       const held = [
@@ -338,9 +322,7 @@ export class SettingsControl implements Control {
     const project = this.deps.source.named(slug);
     if (!project) return { text: "", error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
-    // The same page the agents read. Built without these two arguments, the owner's copy was the one
-    // version of this report that could never show a seat waiting on them, or mail nobody has taken —
-    // which are the two things on it that are theirs to act on.
+    // Built with these two, or the owner's copy could never show a seat waiting on them or unclaimed mail.
     const waiting = [...seats.values()].filter(
       (seat) => can(seatOf(this.deps.kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
     );
@@ -358,9 +340,7 @@ export class SettingsControl implements Control {
       .sort((a, b) => Date.parse(b.seat.updatedAt) - Date.parse(a.seat.updatedAt))
       .map(({ seat, role }) => ({ id: seat.id, role: role!.role }));
     const view = flowView(project, readLedger(project.state), seats, Date.now(), new Set(open ?? []), supervises, seated);
-    // What the watch is doing is live state, not the ledger, so it is folded in here rather than read
-    // by the view — but it is still part of the revision, or the card would freeze whenever the desk's
-    // own record happened not to change.
+    // Live state, but part of the revision, or the card freezes whenever the ledger does not change.
     const watch = this.deps.watch(project, seats.values());
     const revision = createHash("sha1").update(`${view.revision}${JSON.stringify(watch)}`).digest("hex").slice(0, 16);
     return since && since === revision ? { unchanged: true, revision } : { ...view, watch, revision };
@@ -378,25 +358,20 @@ export class SettingsControl implements Control {
     const parent = dirname(here);
     let children: string[];
     try {
-      // A folder can be listed and not readable — a protected one, or another user's. The screen
-      // handles a refusal and cannot handle a rejected promise, which left Open doing nothing at all.
+      // Listable is not readable; the screen handles a refusal but not a rejected promise.
       children = readdirSync(here, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
         .map((entry) => join(here, entry.name));
     } catch {
       return { error: `${asked} is on this machine but could not be read.` };
     }
-    // One stat per child, not one git process: 300 folders cost seconds of a blocked event loop, in
-    // the same process that is serving the seats' tool calls. A repository has .git, file or folder.
+    // One stat per child, not a git process: hundreds of spawns block the loop serving the seats' tool calls.
     const looksLikeRepo = (child: string) => existsSync(join(child, ".git"));
     const folders = children
       .sort((left, right) => left.localeCompare(right))
       .slice(0, 300)
       .map((child) => ({ name: child.slice(here.length + 1), path: child, repository: looksLikeRepo(child) }));
-    // `repository` answers git's own upward search, so it is true inside a repository as well as at
-    // its root — which is right, because attaching from a subdirectory registers the root above it.
-    // That root is what the screen has to name: without it the dialog compared the folder being
-    // browsed against the projects already set up, so `/repo/src` never said that `/repo` was one.
+    // True in subdirectories too; the root is named so browsing `/repo/src` shows `/repo` is already a project.
     const root = gitRoot(here);
     return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), root: root === here ? null : root, folders };
   }
@@ -453,7 +428,6 @@ export class SettingsControl implements Control {
     return this.migrate(false);
   }
 
-  /** The team's seats Paseo has open, and the project each works in. */
   private async live(): Promise<LiveSeat[]> {
     const seats = await this.deps.seats.open();
     return seats.flatMap((seat) => {

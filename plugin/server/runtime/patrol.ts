@@ -42,14 +42,7 @@ export class Patrol {
     this.deps = deps;
   }
 
-  /**
-   * One round at a time.
-   *
-   * The runtime arms the next timer on the line after starting this one, without awaiting it, so a
-   * round that takes longer than the interval ran beside its successor. Both read the ledger, both
-   * decided from what they read, and both wrote: an ask due a reminder was reminded twice and its
-   * count went up by two, past the owner's maximum in one step.
-   */
+  /** One round at a time: the runtime arms the next timer without awaiting this one, and overlapping rounds double-wrote the ledger. */
   tick(now = Date.now()): Promise<void> {
     const running = this.round;
     if (running) return running;
@@ -78,9 +71,7 @@ export class Patrol {
       await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
       await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
     }
-    // A restart is the one thing that loses a teardown waiting on a seat's turn, and a project with
-    // no seats left is not in the round at all — so on the first round, every project on record gets
-    // one look. Not every round: there is nothing else to do for a project nobody is working in.
+    // A restart loses teardowns waiting on a turn, so the first round looks once at every project on record.
     if (!this.reaped) {
       this.reaped = true;
       const live = new Set(seats.keys());
@@ -108,12 +99,7 @@ export class Patrol {
     }
   }
 
-  /**
-   * One Watcher while the watch is by a seat and a lane is open, and none otherwise. One that has
-   * taken its share of readings is let go once it is idle with nothing waiting for it, and the next
-   * round seats a fresh one: a Watcher is a long-lived seat, and a context left to run long is
-   * compacted, which is when a reader's discipline goes.
-   */
+  /** One Watcher while watched by seat with a lane open; a spent one is replaced once idle, before compaction erodes it. */
   private async settleWatcher(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const { desk, outbox, reader } = this.deps;
     const attention = this.deps.source.teamFor(project).attention;
@@ -139,31 +125,20 @@ export class Patrol {
     await this.deps.desk.sweep(project, busy);
   }
 
-  /**
-   * What the desk's own record shows about a lane, which no window can hold.
-   *
-   * The seat named is the lane's Lead, because every one of these is something a Lead decides: to
-   * send a task back again, to start another review, or to write the answer into a brief. It goes
-   * through the same incident book as what the watch reads from a timeline, so the Supervisor holds
-   * it, marks it and calibrates against it the one way.
-   */
+  /** Desk-record facts about a lane, filed against its Lead in the same incident book the watch uses. */
   private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const team = this.deps.source.teamFor(project);
-    // The same switch the followed seats answer to. A lane's history is the watch reading the desk's
-    // own record instead of a timeline; with the watch off it is not read either.
+    // Same switch as the followed seats: with the watch off the lane history is not read either.
     if (!watchOn(team)) return;
     const attention = team.attention;
     const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
     if (found.length === 0) return;
     const book = loadIncidents(project.state);
     for (const seen of found) {
-      // A seat that has gone cannot be told anything and its incidents were closed when it went, so
-      // raising one about it leaves a sighting nothing will ever close.
+      // A gone seat's incidents closed when it went; raising one leaves a sighting nothing closes.
       const seat = seats.get(seen.seat);
       if (!seat || seat.archivedAt) continue;
-      // Said before, and still on the book: sight it again, so what holds it back — the watch being
-      // off, or a day's budget spent — is weighed again with today's settings. Said before and
-      // settled: leave it. It cannot say anything new until the record does.
+      // Still open: sight it again so today's settings reweigh it. Settled: nothing new until the record changes.
       const open = openFor(book, seen.seat, seen.fact.kind);
       if (!open && saidBefore(book, seen.seat, seen.fact.kind, seen.fact.quote)) continue;
       if (open && open.quote === seen.fact.quote && open.told !== undefined) continue;
@@ -207,9 +182,7 @@ export class Patrol {
     const waited = (ask: Ask) => now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000;
     for (const ask of Object.values(ledger.asks).filter((entry) => entry.status === "open")) {
       const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
-      // An ask whose reader has gone goes to whoever supervises now, whoever asked it. Only an idle
-      // reader was ever looked at, so an ask to an archived seat was never reminded, escalated or
-      // seen again — a Lead's own ask included, which has nobody else above it to escalate to.
+      // An ask whose reader has gone goes to whoever supervises now, a Lead's own ask included.
       if (!seats.has(ask.to)) {
         const to = await desk.supervisorFor(project, lane?.opener);
         if (!to || to === ask.to) continue;
@@ -228,16 +201,13 @@ export class Patrol {
       const reminding = ask.reminders < maxReminders;
       if (reminding) {
         await desk.post(ask.to, `remind:${project.slug}:${ask.id}:${ask.reminders}`, letters.reminder(ask, age));
-        // Escalated only from a Lead to the seat above it, which is the one case the letter describes:
-        // an ask already put to whoever supervises has nobody further up to go to.
+        // Escalated only from a Lead: an ask already put to the supervisor has nowhere further up.
       } else if (ask.to === lane?.lead && !can(roleNamed(this.deps.kit, ask.fromRole), "lead") && !ask.escalated) {
         const to = await desk.supervisorFor(project, lane?.opener);
-        // Marked escalated only once it has reached somebody: with nobody supervising seated it is
-        // tried again next round, rather than recorded as done and never sent.
+        // Marked escalated only once delivered; with nobody seated it is retried next round.
         if ((await desk.post(to, `escalate:${project.slug}:${ask.id}`, letters.escalated(ask, age, ask.lane ?? "the project"))) === "nobody") continue;
       } else continue;
-      // Pinned to the count this round read. Two rounds that overlapped each added one to the same
-      // number and the ask jumped past the owner's maximum without ever being reminded that often.
+      // Pinned to this round's count so overlapping rounds cannot push it past the owner's maximum.
       await desk.ledger(project, (current) => {
         const entry = current.asks[ask.id];
         if (!entry || entry.reminders !== ask.reminders) return;

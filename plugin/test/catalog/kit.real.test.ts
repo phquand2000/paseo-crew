@@ -89,10 +89,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.equal(settings.defaultProjectTrust, "never", `${where}: the repository's own .pi does not load in a seat`);
       const tools = { reviewer: ["read", "bash", "grep", "find", "ls"], watcher: [] }[role.role as "reviewer"];
       assert.deepEqual(settings.defaultTools, tools, where);
-      // The adapter connects a server when a tool of it is first called, and lists a fresh seat's
-      // servers as disconnected with no tools until then: a Peer searched for `done`, was told no
-      // tool matched, and wrote its hand-back as prose. Connected at start, the desk's verbs are
-      // the seat's own tools from its first turn.
+      // The adapter lists an unconnected server with no tools until first called, so a fresh Peer could not find `done`.
       const desk = readConfig<Record<string, any>>(join(dir, harness.mcp.file), {}).mcpServers?.team;
       if (!role.tools) assert.equal(desk, undefined, `${where}: a role given no desk tools is not connected to the desk`);
       else {
@@ -104,9 +101,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
   }
 });
 
-// Devin loads the AGENTS.md above every file it reads, by the file's real path. Skills linked into the
-// plugin's own checkout gave twelve of fifteen Devin seats the plugin's developer rules as their own,
-// and one Peer stripped its comments to obey them.
+// Devin loads the AGENTS.md above every file it reads by real path, so seats picked up the plugin's own developer rules.
 test("nothing a seat or its guides lead it to read resolves into a git repository", async () => {
   const kit = loadKit(pluginRoot);
   const home = tempDir("sw2-outside-home-");
@@ -150,8 +145,7 @@ test("a Codex seat runs on the model provider the owner's own Codex names, and o
   assert.equal(seat.approval_policy, "never", "and the kit's own settings still hold");
 });
 
-// Codex under approval_policy "never" refuses every MCP call that is not approved ahead: the first
-// Codex Leads could not start a task, ask, or read the desk's status.
+// Codex under approval_policy "never" refuses every MCP call not approved ahead.
 test("a Codex seat has every desk and proxy tool it is given approved ahead, and other agents get no such list", () => {
   const kit = loadKit(pluginRoot);
   const all = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
@@ -233,10 +227,7 @@ test("the arguments the desk reads back are the ones each seat's own tool set of
   const tools = JSON.parse(readFileSync(join(pluginRoot, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string; inputSchema?: { properties?: Record<string, unknown> } }[]>;
   const propsOf = (set: string, tool: string) => Object.keys(tools[set]?.find((entry) => entry.name === tool)?.inputSchema?.properties ?? {});
 
-  // A hand-back is read differently for a review than for code — worker.ts takes verdict and
-  // findings from one and outcome and summary from the other — so each seat has to be OFFERED the
-  // words its own hand-back is read with. Two roles may share a tool set; these two must not,
-  // because a reviewer hands back a judgement and a peer hands back work.
+  // worker.ts reads verdict/findings from a review and outcome/summary from work, so each seat must be offered its own words.
   const setFor = (roleName: string) => kit.roles.find((role) => role.role === roleName)!.tools!;
   for (const field of ["verdict", "findings"]) {
     assert.ok(propsOf(setFor("reviewer"), "done").includes(field), `a reviewer is never asked for its ${field}, so the desk would read an empty one`);
@@ -262,12 +253,10 @@ test("a prompt never tells a seat to use something that seat cannot reach", () =
     const allowed = role.paseoTools?.allow;
 
     for (const name of ticked) {
-      // A Paseo tool it names has to be one its own policy leaves on.
       if (PASEO_TOOLS.includes(name)) {
         const reachable = allowed ? allowed.includes(name) : role.paseoTools?.enabled !== false;
         assert.ok(reachable, `${role.role}'s prompt says to use the Paseo tool ${name}, which its policy denies it`);
       }
-      // A skill it names has to be one it is given.
       if (everySkill.has(name)) {
         const given = new Set([
           ...(role.skills ? readdirSync(join(pluginRoot, "content", "skills", role.skills)) : []),
@@ -275,7 +264,6 @@ test("a prompt never tells a seat to use something that seat cannot reach", () =
         ]);
         assert.ok(given.has(name), `${role.role}'s prompt says to open the skill ${name}, which it is not given`);
       }
-      // A desk tool it names has to be in its own set. Names that are neither are ordinary prose.
       const deskTool = Object.values(tools).some((set) => set.some((entry) => entry.name === name));
       if (deskTool && !PASEO_TOOLS.includes(name)) {
         assert.ok(ownTools.has(name), `${role.role}'s prompt says to call ${name}, which belongs to another seat's set`);

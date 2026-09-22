@@ -39,9 +39,7 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
   const uncommitted = !review && task.worktree ? (await workState(task.worktree)) === "dirty" : false;
   const handed = handbackBody(task, args, commit, uncommitted);
   const { outcome } = handed;
-  // Where the owner gates each task, the verdict comes with the hand-back, as the Lead is told it
-  // does. It used to run only once the Lead had accepted — too late to act on — and for a parallel
-  // task a red one then undid the merge the Lead had already chosen to make.
+  // Gated at hand-back so the Lead has the verdict in time; gating after accept undid a merge already chosen.
   const run = !review && task.worktree ? await taskGate(project, task.id, task.worktree) : undefined;
   const body = run
     ? `${handed.body}\n\nGate: ${run.ok ? run.note : `${run.note}. This is evidence for your decision, not a decision.\n\n${run.tail}\n\nFull log: ${run.logFile}`}`
@@ -49,9 +47,7 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
   const file = join(project.state, "handbacks", `${task.id}-${Date.now()}.md`);
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
   writeFileSync(file, `# ${task.id} ${task.title}\n\n${body}\n`);
-  // Decided under the lock from the status as it is then, not from the read at the top: the gate and
-  // git ran in between, and an accept or a cut can land there. A parallel task the Lead had accepted
-  // is `queued`, and writing `done` over it made the merge queue skip it without a word.
+  // Decided under the lock: an accept or cut can land during the gate, and `done` over `queued` made the merge queue skip it.
   const already = await ctx.ledger(project, (current) => {
     const entry = current.tasks[task.id];
     if (!entry) return "gone";
@@ -69,14 +65,12 @@ export const done: Tool = async ({ ctx, roster }, caller, args) => {
     );
   }
   const heading = review ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
-  // To whoever can take it. A hand-back to a Lead that is no longer seated waits in the outbox for
-  // nobody; the level above is told instead, and can seat a Lead for it.
+  // A Lead no longer seated would never read it; the level above is told instead and can seat one.
   const lead = ledger.lanes[task.lane]?.lead;
   const reader = lead && (await roster.seated(lead)) ? lead : await roster.supervisorFor(project, ledger.lanes[task.lane]?.opener);
   await ctx.post(reader, `done:${task.id}:${hash(body)}`, letters.handback(heading, file, body, caller.id));
   ctx.event(project, { kind: review ? "review.done" : "task.done", task: task.id, outcome, commit });
-  // A commit made while the copy is off its branch — mid-bisect, most likely — belongs to no branch,
-  // and the copy's own record of it goes when the copy does. Said here, while it can still be fixed.
+  // A commit made off the branch (mid-bisect) belongs to no branch and goes with the copy; said while fixable.
   const branch = review ? undefined : ledger.lanes[task.lane]?.branch;
   const meant = task.mode === "parallel" ? task.branch : branch;
   const adrift = !review && meant && task.worktree ? (await currentBranch(task.worktree)) !== meant : false;
@@ -95,8 +89,7 @@ export const ask: Tool = async ({ ctx, roster }, caller, args) => {
   const task = taskOfPeer(ledger, caller.id);
   const lane = task ? ledger.lanes[task.lane] : undefined;
   if (!task || !lane?.lead) return no("Nobody is assigned to answer you; end your turn with the question.");
-  // A Lead that has gone would never read it, never be reminded and never escalate it, while the
-  // Peer was told its answer was coming. It goes up a level instead, and the Peer is told so.
+  // A gone Lead would never answer; it goes up a level instead, and the Peer is told so.
   const to = (await roster.seated(lane.lead)) ? lane.lead : await roster.supervisorFor(project, lane.opener);
   if (!to) return no("Your lead is not there and nobody above it is either, so nobody can answer now. Carry on with your default where you can, and end your turn with the question.");
   const tried = str(args.tried);
@@ -108,8 +101,6 @@ export const ask: Tool = async ({ ctx, roster }, caller, args) => {
       to,
       lane: lane.id,
       task: task.id,
-      // Not "blocked": a Peer asks to push back, to offer a third way or to check a premise as much
-      // as because it is stuck, and every one of those reached its Lead labelled as blocked.
       kind: "question",
       text: tried ? `${question}\n\nTried: ${tried}` : question,
       status: "open",

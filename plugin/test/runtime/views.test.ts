@@ -93,8 +93,7 @@ test("what a step did reaches the trail: the end of what it printed, its error w
 });
 
 test("the part of a long command that makes it irreversible is kept", () => {
-  // Every step is cut to fit, from the front: a run's `rm -rf` sat past the cut in every state the
-  // sensor read, and its question about irreversible actions never rose above a third.
+  // Steps are cut to fit from the front, which once cut a run's `rm -rf` off every state.
   const command = `cat ${"/long/path/segment".repeat(40)}/wrap.js > out.js && rm -rf /Users/me/stray-copy`;
   const [step] = trailOf(turn(shell("c", command)), false, { destructive: new RegExp(DESTRUCTIVE, "i") }).steps;
   assert.match((step as { command: string }).command, /rm -rf \/Users\/me\/stray-copy$/);
@@ -129,9 +128,7 @@ test("a claim is read beside the check it rests on and anything changed after th
 });
 
 test("a question about the steps straight after the instruction is not asked of a turn that lost them", () => {
-  // It rests on a step not being there, and a lost step may be the one it would have found. Saying so
-  // in the state did not make the sensor more careful — measured, it moved the answers by -0.05,
-  // 0.00 and +0.01 — so the view is not built at all.
+  // Stating the gap in the state moved the sensor's answers by at most 0.05, so the view is not built at all.
   const window = new Window();
   window.add(row({ type: "user_message", text: "No, the rate table is not in pricing.ts" }, 1));
   window.add(row(shell("c1", "grep RATES"), 2));
@@ -169,8 +166,7 @@ test("a step reads in an incident as its id and what it was", () => {
 });
 
 test("a step that speaks of a file a sibling task is writing says so where it stands", () => {
-  // The sensor was told in another field what was being written beside the seat, and still read a
-  // Peer that found its neighbour's file unwritten as a Peer inventing a stand-in, at 0.93.
+  // Told in another field, the sensor still read a Peer finding its neighbour's file unwritten as inventing a stand-in.
   const trail = trailOf(
     turn(
       { type: "tool_call", callId: "c1", name: "Read", status: "completed", detail: { type: "read", filePath: "/work/app/src/json/pointer.js", content: "stub" } },

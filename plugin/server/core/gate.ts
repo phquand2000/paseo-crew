@@ -4,7 +4,6 @@ import { dirname } from "node:path";
 
 export type GateResult = { ok: boolean; code: number | null; timedOut: boolean; seconds: number; tail: string };
 
-/** What a red gate is worth reading: the end of it, which is where the failure is said. */
 const TAIL_LINES = 40;
 const TAIL_CHARS = 3000;
 
@@ -13,13 +12,7 @@ export function tailOf(text: string): string {
   return kept.length > TAIL_CHARS ? kept.slice(-TAIL_CHARS) : kept;
 }
 
-/**
- * The end of a log, read from the end of it.
- *
- * A gate may write for as long as it runs, and reading the whole file back to keep three thousand
- * characters allocates all of it — past half a gigabyte the read throws outright and the failure
- * arrives with nothing to explain it. A partial first line is dropped rather than shown mangled.
- */
+/** Reads only the tail: a gate log can grow past what a whole-file read survives. Drops a partial first line. */
 function lastBytes(file: string, limit = 64 * 1024): string {
   try {
     const size = statSync(file).size;
@@ -44,12 +37,7 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
   const fd = openSync(logFile, "w");
   writeSync(fd, `$ ${command}\n`);
   return new Promise((resolve) => {
-    // The gate writes to the log file itself. Piping it through this process put a copy of that pipe
-    // in every process the gate leaves running, and "close" — which is what the verdict used to wait
-    // for — comes after the pipes end, not after the command does: a suite that passed in seconds and
-    // left a file-watching process behind was reported as a timeout half an hour later, and one whose leftover
-    // process escaped the group kill was never answered at all. A write that fails is also the
-    // child's problem now, rather than an unhandled stream error in the process holding the desk.
+    // Straight to the log fd: a pipe would be inherited by leftover processes and hold "close" open indefinitely.
     const child = spawn("/bin/sh", ["-c", command], { cwd, env: { ...process.env, CI: "1" }, detached: true, stdio: ["ignore", fd, fd] });
     let timedOut = false;
     let answered = false;
@@ -63,9 +51,7 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
       if (answered) return;
       answered = true;
       clearTimeout(timer);
-      // The command has answered; whatever it left running in its group has not, and nothing else
-      // would ever stop it — a file-watching process, a dev server, a `&` job kept writing in the lane's working copy
-      // and into this log after the verdict was read from it. The group goes with the verdict.
+      // Kill the group: a leftover watcher, dev server or `&` job would keep writing into the lane's copy and this log.
       try {
         process.kill(-child.pid!, "SIGKILL");
       } catch {}

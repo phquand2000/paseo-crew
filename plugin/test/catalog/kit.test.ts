@@ -127,7 +127,6 @@ test("several seats can supervise one project, each for its own concern, declare
     ],
     "a project is not limited to one supervising seat, and each carries what it specialises in",
   );
-  // Two roles share one tool set, so a specialisation costs no second copy of the tools.
   assert.deepEqual(toolsOf(kit, supervising[0]), ["open_lane", "answer"]);
   assert.deepEqual(toolsOf(kit, supervising[1]), ["open_lane", "answer"]);
   assert.deepEqual(toolsOf(kit, roleThatCan(kit, "lead")), ["report"]);
@@ -147,7 +146,6 @@ test("a roles file of one's own replaces the kit's preset, and may name its file
   writeFileSync(join(dir, "roles.json"), JSON.stringify({ providerPrefix: "sw2-", roles: [shipped] }));
   assert.deepEqual(loadKit(dir).roles.map((role) => role.role), ["lead"], "with nothing of the owner's, the kit runs what it ships");
 
-  // Somebody who wants a different arrangement writes one beside their own prompts, without forking the package.
   const mine = tempDir("sw2-preset-mine-");
   const ownPrompt = join(mine, "DRIVER.md");
   writeFileSync(ownPrompt, "# Driver\n\nYou drive.\n");
@@ -187,8 +185,7 @@ test("a capability several roles hold can name which of them, and a stored name 
   assert.equal(roleThatCan(kit, "review", "lead"), undefined, "a role that cannot do it is not a stand-in for one that can");
   assert.equal(roleThatCan(kit, "review", "nobody"), undefined);
 
-  // What the patrol asks of an ask's stored role. A name comparison called only the role literally
-  // called "lead" a lead, so a second lead-capable role had its asks escalated over its own head.
+  // A name comparison once called only a role literally named "lead" a lead, escalating other leads' asks.
   assert.equal(can(roleNamed(kit, "arch-lead"), "lead"), true);
   assert.equal(can(roleNamed(kit, "careful"), "lead"), false, "and a reviewer still has someone above it");
   assert.equal(can(roleNamed(kit, "a role this kit lost"), "lead"), false, "a name the kit no longer has can do nothing, so its ask still escalates");

@@ -1,6 +1,5 @@
-// Paseo lists an ACP agent's models and modes by starting it without the plugin's hooks. A seat started
-// that way would run on the owner's own settings, so only the two calls a listing makes are answered,
-// by the agent itself; anything else, a prompt above all, is refused.
+// Paseo lists an ACP agent's models and modes by starting it hookless, on the owner's own settings,
+// so only the two listing calls are answered; anything else, a prompt above all, is refused.
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 

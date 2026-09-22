@@ -3,11 +3,6 @@ import { z } from "zod";
 
 const project = z.string().min(1).optional();
 
-/**
- * What the settings screen is shown in place of the sensor's key, and what it sends back to leave it
- * alone. The key buys calls to someone else's endpoint, so it is written from the screen and never
- * read back into it: a save that carries this word keeps whatever is already on disk.
- */
 export const KEPT = "kept, not shown";
 
 export const catalogRpc = defineRpc({ name: "seatworks.catalog.read", input: z.object({}), output: z.json() });

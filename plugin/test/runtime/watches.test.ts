@@ -85,9 +85,7 @@ test("with the watch switched off nothing is followed, and switching it off lets
 });
 
 test("a seat's brief is read again until the ledger has placed it", () => {
-  // A Peer's first turn starts before start_task has written it into its task, so the first read
-  // finds nothing. Kept, that nothing was every reading's goal for the whole task: 68 readings of one
-  // run's Peers went to the sensor as "no task or lane", with no owned paths to hold its writes to.
+  // A Peer's first turn starts before start_task places it, so an empty first read must not be kept.
   let placed = false;
   const rules = { destructive: /x^/, testPath: /x^/, suppressed: /x^/, gates: [], cwd: "/work", repeatsAt: 3, recoverWithin: 10 };
   const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, owned: placed ? ["src/a.ts"] : undefined }, heardSince: () => false, goal: placed ? "Task L1-T1: a" : "", context: "", beside: [], role: "Peer" }));

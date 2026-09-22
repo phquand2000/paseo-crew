@@ -62,20 +62,10 @@ export class Slots {
     }
   }
 
-  /**
-   * Undoes what `inPlace` did to the owner's own repository.
-   *
-   * `inPlace` switches that copy onto the lane's branch, and it had no inverse any caller could
-   * reach: `openLane` cleans up through a slot id, which an in-place lane does not have, so a lane
-   * that failed after taking the copy — a role that cannot lead, a Lead that would not start — left
-   * the owner's repository checked out on a branch belonging to a lane that had just been closed.
-   * `restore` is reachable only from a teardown, and `close_lane` refuses a lane that is closed
-   * already, so there was no way back that did not involve git by hand.
-   */
+  /** Undoes what `inPlace` did to the owner's repository: a lane failing mid-open has no slot id for `openLane` to clean up through. */
   async giveBack(project: Project, base: string, branch: string): Promise<void> {
     if (!(await this.restore(project, base, branch))) return;
-    // Nothing was committed on it, or the lane never got far enough to commit: the branch is the
-    // desk's own litter then, not a Peer's work, and `release` keeps the other case for the Human.
+    // Nothing committed on it: the branch is the desk's litter, and `release` keeps the other case for the Human.
     if ((await contains(project.root, base, branch)) === true) await git(project.root, ["branch", "-D", branch]);
     this.ctx.event(project, { kind: "lane.gaveBack", branch, base });
   }
@@ -91,14 +81,8 @@ export class Slots {
   }
 
   /**
-   * Puts the project's own copy back on base, and says whether it is there.
-   *
-   * `left` is the branch this wait was for: a copy some later lane now owns is not this one's to move,
-   * and that counts as done. Everything else that stops the switch is written down. It used to return
-   * on a falsy read and a non-zero exit alike, with no event and no line in the log, after its caller
-   * had already deleted the record that remembered the copy was parked — so the project sat on a lane
-   * branch that no longer existed and nothing anywhere said so. An untracked file is not a reason:
-   * git switches over those, and a gate log or a coverage directory left by a seat was enough.
+   * Puts the project's own copy back on base and says whether it is there. A copy a later lane now owns counts
+   * as done; every other failure is logged, since the caller has already dropped the parked record.
    */
   async restore(project: Project, base: string, left?: string): Promise<boolean> {
     if (left && (await currentBranch(project.root)) !== left) return true;
@@ -118,14 +102,7 @@ export class Slots {
     return true;
   }
 
-  /**
-   * Puts a lane's working copy away, or waits for the seats still writing in it to stop.
-   *
-   * A seat whose archive was deferred to the end of its turn is still writing: removing its copy
-   * --force takes the work it has not committed, dropping the branch takes the work it has, and
-   * switching the project's own copy back to base lets its next commit land on base. So the
-   * teardown waits with it, and runs when the last writer there stops.
-   */
+  /** Puts a lane's copy away, or waits for the seats still writing in it: removing or switching it under them loses their work. */
   async putAway(teardown: Teardown, writers: string[] = []): Promise<string | undefined> {
     const waiting = [...new Set(writers)];
     if (waiting.length === 0 || (!teardown.slot && !teardown.restore)) return this.run(teardown);
@@ -151,14 +128,7 @@ export class Slots {
     }
   }
 
-  /**
-   * A writer that is not a seat any more has stopped for good.
-   *
-   * The end of a turn is the ordinary way a teardown finishes, and it does not always come: a seat
-   * can be archived by its owner, crash, or be left behind by a daemon restart that took the
-   * in-memory half of this with it. Without this the copy, its workspace and its branch would sit
-   * there for good, and the sweep will not touch a copy the ledger still lists.
-   */
+  /** A writer that is no longer a seat has stopped for good: after an archive, crash or restart its turn-end never comes. */
   reap(project: Project, live: Set<string>): Promise<void> {
     return this.finish(project, (id) => !live.has(id));
   }
@@ -177,9 +147,7 @@ export class Slots {
         });
         continue;
       }
-      // The record is what remembers that the project's own copy is parked on a lane branch, so it
-      // goes only once the copy is really back. Deleted first, a switch that could not happen took
-      // the only token a later round could have retried from with it.
+      // The record goes only once the copy is really back: it is the only token a later round can retry from.
       if (!(await this.restore(project, lane.restoring!.base, lane.restoring!.branch))) continue;
       if (lane.restoring!.landed) await this.dropLanded(project, lane.restoring!.branch, lane.restoring!.base);
       await this.ctx.ledger(project, (ledger) => {
@@ -205,8 +173,7 @@ export class Slots {
   private run(teardown: Teardown): Promise<string | undefined> {
     if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch, teardown.into);
     if (teardown.restore) {
-      // Recorded when it does not happen, as a wait for nobody, so the round retries it and Detach
-      // sees it: with no writers to wait for, a copy that would not switch left no trace in the ledger.
+      // Recorded as a wait for nobody when it fails, so the round retries it and Detach sees it.
       return this.restore(teardown.project, teardown.restore, teardown.branch).then(async (back) => {
         if (back && teardown.dropBranch) await this.dropLanded(teardown.project, teardown.dropBranch, teardown.restore!);
         if (back || !teardown.lane) return undefined;
@@ -220,13 +187,7 @@ export class Slots {
     return Promise.resolve(undefined);
   }
 
-  /**
-   * Returns the branch it was asked to drop and kept, because the work on it is not in `into` yet.
-   *
-   * `into` is the branch the work was supposed to land in, and it has to be named: `branch -d` reads
-   * whatever is checked out where it runs, which for a lane in a copy of its own is the base branch
-   * — so a task merged into its lane would look unmerged and every landed branch would pile up.
-   */
+  /** Returns the branch it kept because its work is not in `into` yet. `into` must be named: `branch -d` checks against whatever is checked out. */
   async release(project: Project, slotId: string | undefined, dropBranch?: string, into?: string): Promise<string | undefined> {
     if (!slotId) return undefined;
     const slot = loadLedger(project.state).slots[slotId];
@@ -236,14 +197,10 @@ export class Slots {
       if (existsSync(slot.path)) {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
-        // And the directory the desk made for it. git leaves one behind often enough — a file it did
-        // not track, a removal it half did — and the only thing that swept it was a patrol round for
-        // a project the desk still remembers, which is not a promise. Four of these were sitting in
-        // the owner's worktree root, from projects that no longer had any state at all.
+        // And the directory the desk made: git leaves one often enough, and nothing else reliably sweeps it.
         this.discard(project, slot.path);
       }
-      // A branch whose commits are not in `into` holds work nothing else has, and for a cut task
-      // those commits are all the Peer leaves behind. Clutter is cheaper than deleting them.
+      // A branch whose commits are not in `into` holds the only copy of that work: clutter is cheaper.
       if (dropBranch) {
         const landed = into ? (await contains(project.root, into, dropBranch)) === true : false;
         if (landed) await git(project.root, ["branch", "-D", dropBranch]);
@@ -294,11 +251,7 @@ export class Slots {
     return false;
   }
 
-  /**
-   * Files the copy under the project it was taken from. Handed a bare directory, Paseo makes a project
-   * of it, and the plugin API has no call that removes one: every closed lane left a project in the
-   * Human's sidebar to delete by hand.
-   */
+  /** Files the copy under its project: given a bare directory Paseo makes a new project, and the plugin API cannot remove one. */
   private async createWorkspace(project: Project, slot: Slot): Promise<string> {
     const home = await this.projectWorkspace(project);
     if (!home.project) throw new Error(`the project's workspace in Paseo names no Paseo project, so its working copy was not made: Paseo would have made it a project of its own`);
@@ -310,15 +263,7 @@ export class Slots {
     return workspaceId;
   }
 
-  /**
-   * What the desk opened and nothing holds any more.
-   *
-   * Liveness is read under the ledger lock at the moment it is used, not from a snapshot taken
-   * before. `reserve` writes a new slot row under that same lock and only then does `git worktree
-   * add`, and a sweep waits on a run of daemon round-trips in between — so a copy that was created
-   * while this method was waiting could not be in a list read before it started, and was removed with
-   * `--force` out from under the lane that was still opening.
-   */
+  /** What the desk opened and nothing holds any more. Liveness is read under the ledger lock when used: `reserve` writes its row before `git worktree add`. */
   async sweep(project: Project, busy = false): Promise<void> {
     const heldIds = (ledger: Ledger): Set<string> => {
       const held = new Set<string>();
@@ -338,9 +283,7 @@ export class Slots {
     }
     const root = join(worktreeRoot(), project.slug);
     if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
-    // Read and listed together inside the lock, so nothing can reserve a slot between the two. The
-    // removal itself spans several awaits outside it; what keeps a new copy from being caught there is
-    // that a slot id is never handed out twice, so a stray's path is never a path `reserve` gives out.
+    // Read and listed inside the lock; removal outside it is safe because a slot id is never handed out twice.
     const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => slot.path));
     const strays = await this.ctx.read(project, (current) => {
       const held = live(current);
@@ -349,8 +292,7 @@ export class Slots {
         .filter((path) => !held.has(path));
     });
     for (const path of strays) {
-      // And asked once more just before, for a row a reserve may have written for a path from before
-      // ids stopped being reused.
+      // Asked again just before, for a row reserved for a path from before ids stopped being reused.
       if (await this.ctx.read(project, (current) => live(current).has(path))) continue;
       await removeWorktree(project.root, path);
       try {

@@ -21,8 +21,7 @@ test("a placeholder the renderer does not know is refused rather than shipped", 
 test("the words a role must not see are looked for in what was written, not in the paths the desk puts in", () => {
   const kit = makeKit();
   const lead = kit.roles.find((role) => role.role === "lead")!;
-  // Checked after substitution, a repository — or a home directory — named after one of those words
-  // made the seat impossible to build.
+  // Checked after substitution, a repository or home directory named after one of those words made the seat unbuildable.
   const text = renderText(lead, "Write your plans in {{state}}/plans.", { guides: "/g", state: "/Users/supervisor/projects/x" });
   assert.match(text, /\/Users\/supervisor\/projects\/x\/plans/);
   assert.throws(() => renderText(lead, "Ask the supervisor.", { guides: "/g", state: "/s" }), /must not see: supervisor/);

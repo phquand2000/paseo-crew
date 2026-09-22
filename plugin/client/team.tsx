@@ -19,11 +19,9 @@ type Props = {
   layer: "machine" | "project";
   theme: PluginTheme;
   disabled: boolean;
-  /** The role whose chip is open; the Flow tab opens the Watcher's to add a key. */
   active: string | null;
   onActive(role: string): void;
   save(change: (values: Layer) => Layer): Promise<boolean>;
-  /** Reads the catalog again, once Paseo has listed the models anew. */
   reload(): void;
 };
 
@@ -66,11 +64,7 @@ function ModelsCard({ catalog, disabled, reload }: Pick<Props, "catalog" | "disa
 
 type Role = Catalog["roles"][number];
 
-/**
- * A role's agent, model and thinking, as the rows of a card. Rows rather than a component, because
- * the card draws a border on each child it is given, and the Watcher's card puts its own rows around
- * these.
- */
+/** Rows, not a component: the card borders each child it gets, and the Watcher's card wraps its own rows around these. */
 export function roleRows({ catalog, team, values, machine, layer, theme, disabled, save, role }: Omit<Props, "active" | "onActive" | "reload"> & { role: Role }): ReactElement[] {
   const seat = team.roles[role.id];
   const follows = role.follows ? catalog.roles.find((entry) => entry.id === role.follows)?.label : undefined;

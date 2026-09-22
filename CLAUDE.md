@@ -17,6 +17,8 @@ Only the Claude Code specifics are below; everything in `AGENTS.md` applies.
   it by text; its line numbers are stale) before touching a role prompt.
 - **`hidesWords` fails the build** when a role's text uses a word it must not see: rephrase, don't
   remove the lint.
+- **Comments: one short docstring per function at most** (the rule is in `AGENTS.md`). A comment
+  cleanup changes comments only: the code with comments stripped must print the same before and after.
 - **Don't click settings in the user's live Paseo** to test the panel: it writes their config.
 
 ## Writing

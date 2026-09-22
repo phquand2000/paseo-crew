@@ -4,12 +4,7 @@ import type { Call, Unit, Window } from "./window.ts";
 
 type Result = "running" | "ok" | "failed";
 
-/**
- * One thing a seat did or said since its last instruction, as the sensor is shown it. Each has an id
- * a question can point at, and a kind that says whether it is an act or the seat's own account of
- * one: what a seat says about its work is not evidence of it, and a state that ran the two together
- * read a seat's "this is expected" as the reason something was.
- */
+/** Acts and the seat's own accounts are kept apart: what a seat says about its work is not evidence of it. */
 export type Step = (
   | { id: string; kind: "ran"; command: string; result: Result; exit?: number; output?: string }
   | { id: string; kind: "changed"; path: string; result: Result; change?: string }
@@ -100,12 +95,7 @@ function step(id: string, unit: Unit, exit?: RegExp, destructive?: RegExp): Step
   return { id, kind: "compacted" };
 }
 
-/**
- * The turn since its instruction as steps. A turn that has ended on something said ends on that, and
- * it is the turn's `final`: what the seat claims, read apart from the evidence for it.
- * Ids count from the instruction, including steps that fell out of the window, so an id means the same
- * step in every reading of a turn.
- */
+/** Ids count from the instruction, dropped steps included, so an id means the same step in every reading. */
 export function trailOf(window: Window, ended: boolean, rules: { exit?: RegExp; destructive?: RegExp }): Trail {
   const units = window.sinceInstruction();
   const lost = window.lostSinceInstruction();
@@ -117,7 +107,6 @@ export function trailOf(window: Window, ended: boolean, rules: { exit?: RegExp; 
   return { instruction: flat(mask(window.lastInstruction())), steps, lost, ...(final ? { final } : {}) };
 }
 
-/** How a step reads in an incident: its id, what it was, and what it did. */
 export function stepText(step: Step): string {
   if (step.kind === "ran") return `${step.id} ran: ${step.command}${step.result === "failed" ? ` (failed${step.exit ? `, exit ${step.exit}` : ""})` : ""}`;
   if (step.kind === "changed") return `${step.id} changed ${step.path}${step.change ? `: ${step.change}` : ""}`;

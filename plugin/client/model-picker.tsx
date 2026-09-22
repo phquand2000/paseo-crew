@@ -29,10 +29,7 @@ function matching(options: Option[], query: string): Option[] {
 
 const BOX = { width: 420, height: 380, gap: 6, margin: 8 };
 
-/**
- * A select with a search box, floating over the screen as Paseo's own model picker does: an agent can
- * list hundreds of models, Devin almost four hundred. Drawn in a transparent modal so no card clips it.
- */
+/** Searchable and floating like Paseo's own picker: an agent can list hundreds of models, and a transparent modal keeps cards from clipping it. */
 export function ModelPicker({ label, hint, value, options, theme, disabled, onValueChange }: Props) {
   const [at, setAt] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [query, setQuery] = useState("");
@@ -72,7 +69,6 @@ export function ModelPicker({ label, hint, value, options, theme, disabled, onVa
         elevation: 12,
       },
       search: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8, paddingHorizontal: 12, borderBottomWidth: 1, borderColor: theme.colors.border },
-      // The web draws its own focus ring round a focused input; the box around it is the focus here.
       input: { flex: 1, paddingVertical: 11, color: theme.colors.foreground, fontSize: CONTROL.font, outlineStyle: "none" as never },
       row: { flexDirection: "row" as const, alignItems: "baseline" as const, gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
       picked: { backgroundColor: theme.colors.surface2 },

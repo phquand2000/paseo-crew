@@ -36,8 +36,7 @@ test("a directory outside git is its own project", () => {
 });
 
 test("a gate that names a package script is also run by the runner that script starts", () => {
-  // Briefs tell a Peer to run `node --test "test/json/pointer.test.js"`; the watch knew only the words
-  // `npm test`, and read every such hand-back as one nobody had verified.
+  // Briefs tell a Peer to run `node --test ...` directly; the watch once knew only `npm test`.
   const root = tempDir("sw2-gates-");
   writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: 'node --test "test/**/*.test.js"', check: "tsc --noEmit && vitest run --reporter dot" } }));
   assert.deepEqual(gateCommands(root, "npm test"), ["npm test", "node --test"]);

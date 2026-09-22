@@ -45,10 +45,8 @@ import { errorText } from "../core/errors.ts";
 
 type EventName = keyof PluginLifecycleEvents;
 
-/** How much recent trouble a screen is shown. It is a live view, not a second log. */
 const TROUBLES = 10;
 
-/** How many incidents a screen is sent. Its counts stay exact past this; the Supervisor's `incidents` lists them all. */
 const INCIDENTS_SHOWN = 200;
 
 export type RuntimeOptions = { outboxFile?: string; paseo?: PaseoApi; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean> };
@@ -94,8 +92,7 @@ export class Runtime {
       this.seats,
       (letter, at) =>
         console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
-      // Never into a Watcher's turn: a reading steered into one it is halfway through reading is read
-      // as part of it. Held, it arrives with the others once that turn is done.
+      // Never steered into a Watcher's turn: mid-reading, it is read as part of that reading.
       (seat) => {
         const found = seatOf(kit, seat.provider);
         return found?.harness.steers === true && !can(found.role, "watch");
@@ -167,8 +164,7 @@ export class Runtime {
     const attention = this.source.teamFor(project).attention;
     let owned: string[] | undefined;
     let goal: string | null = "";
-    // What the Lead told a Peer beyond its goal — a stand-in to write, say — and what is being written
-    // beside it in other copies. Without them the sensor read both as the Peer's own invention.
+    // What the Lead asked beyond the goal and what sibling copies write; without them the sensor calls both invention.
     let context = "";
     let beside: Sibling[] = [];
     try {
@@ -214,11 +210,7 @@ export class Runtime {
     };
   }
 
-  /**
-   * The one switch, `attention.by`. By a Watcher seat the watch is always on. By Jev a key is what
-   * the watch is made of, so without one there is no watch: no seat is followed, no turn is read,
-   * and a lane's history is not gone through either.
-   */
+  /** `attention.by`: by a Watcher seat the watch is always on; by Jev only with a key. */
   private watching(project: Project): boolean {
     return watchOn(this.source.teamFor(project));
   }
@@ -242,9 +234,7 @@ export class Runtime {
     watch.readings += 1;
     watch.spent += assessment.cost ?? 0;
     watch.readAt = Date.now();
-    // Per question, and kept rather than replaced: a screen showing only the last reading says nothing
-    // about the turn where something nearly opened an incident. Per question because one overall peak
-    // is whatever reads high on every turn — "did it say it is done" — and it hid the one that mattered.
+    // Peaks per question, kept: one overall peak is whatever reads high every turn and hid the one that mattered.
     for (const [question, p] of Object.entries(assessment.answers)) if (p > (watch.peaks.get(question) ?? -1)) watch.peaks.set(question, p);
     const before = watch.reading && watch.reading.turnId === reading.turnId ? watch.reading.answers : undefined;
     watch.reading = { turnId: reading.turnId, answers: assessment.answers };
@@ -254,12 +244,7 @@ export class Runtime {
     void this.located(watch, reading, findings).then((located) => this.noticed(watch, located));
   }
 
-  /**
-   * Each finding a question opened, quoting the step it was about rather than the question itself:
-   * the incident then names where to look, and whoever reads it need not search the record for it.
-   * A question the sensor answers literally is excused here, in code, when that step speaks of a file
-   * a sibling task is writing: what makes such a stand-in expected is the ledger, not the words.
-   */
+  /** Findings quote their step so the incident says where to look; a literal answer about a sibling's file is excused here. */
   private async located(watch: SeatWatch, reading: Reading, findings: Finding[]): Promise<Finding[]> {
     const located = await Promise.all(
       findings.map(async (finding) => {
@@ -316,9 +301,7 @@ export class Runtime {
     const project = projectOf(watch.seat.cwd);
     this.desk
       .notice(project, watch.seat, findings)
-      // What waits for a Watcher's judgement is read to it now, not at the seat's next quiet moment,
-      // whether it opened or was seen again: seen again, it waits for a fresh judgement. Asked again
-      // after the wait, since a seat let go meanwhile must not be read about.
+      // Pending judgements are read now, not at the next quiet moment; re-asked after the wait since the seat may be gone.
       .then(() => {
         const judges = this.kit.watcher?.judges ?? [];
         if (this.watches.get(watch.seat.id) === watch && findings.some((finding) => judges.includes(finding.kind))) this.reader.moment(watch, true);
@@ -344,11 +327,7 @@ export class Runtime {
     this.troubles.set(project.slug, list);
   }
 
-  /**
-   * A call the seat's own harness refused before it was made, because the model wrote an input that
-   * is not JSON. It never reached the desk, so nothing else here has heard of it: the seat sees the
-   * error and usually writes the call again, and until now that was the end of it for everybody else.
-   */
+  /** A call the harness refused because its input was not JSON; it never reaches the desk, so only this reports it. */
   private malformedCalls(event: PluginLifecycleEvents["agent.turn_ended"]): void {
     const role = seatOf(this.kit, event.agent.provider)?.role;
     if (!role?.tools) return;
@@ -378,9 +357,7 @@ export class Runtime {
       return lane ? `Lead · ${lane.id} ${lane.title}` : fallback;
     };
 
-    // What a seat's latest reading leans towards without raising it: a question that can open an
-    // incident, read within its unclear band below the bar. One that only judges a fact, like "did it
-    // say it is done", reads high on every good turn and would lean on them all.
+    // Only questions that can open an incident lean; fact-judging ones read high on every good turn.
     const leanOf = (watch: SeatWatch): WatchLean | null => {
       if (!spec || !watch.reading) return null;
       let best: WatchLean | null = null;
@@ -421,8 +398,7 @@ export class Runtime {
 
     const troubles = this.troubles.get(project.slug) ?? [];
     const lastRead = lastKept(project.state) ?? null;
-    // Against the last answer itself, not the kept file's age in whole minutes: a failure ten seconds
-    // after an answer and one ten seconds before it round to the same minute.
+    // Against the last answer itself: whole-minute file age rounds a failure before and after it to the same.
     const degraded = troubles.filter((entry) => entry.kind === "sensor.degraded").at(-1);
     const answered = Math.max(0, ...watched.map((watch) => watch.readAt));
     const failing = jevOn(team) && degraded && degraded.at > answered ? { minutes: ago(degraded.at), detail: degraded.detail } : null;
@@ -570,9 +546,7 @@ export class Runtime {
   private async turnEnded(event: PluginLifecycleEvents["agent.turn_ended"]): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
     this.malformedCalls(event);
-    // The mail waiting for this seat goes whatever reading its turn ran into. A throw in there — an
-    // unreadable ledger, a bad pattern — used to leave every letter for it sitting until some other
-    // event happened to pump it. (For a seat being put away, the pump finds it archived and stops.)
+    // Wrapped: a throw here left the seat's mail waiting until some unrelated event pumped it.
     try {
       const archiving = this.desk.pendingArchive.has(event.agent.id);
       if (archiving) await this.desk.archive(event.agent.id, true);
@@ -598,7 +572,6 @@ export class Runtime {
     await this.desk.post(owner, `permission:${agent.id}:${request.id}`, letters.permission(`${role.label} ${agent.title ?? agent.id}`, request, this.addressOf(project, agent.id, role)));
   }
 
-  /** The id its owner's `message` reaches this seat by. */
   private addressOf(project: Project, agentId: string, role: RoleSpec): string | undefined {
     try {
       const ledger = loadLedger(project.state);
@@ -617,12 +590,11 @@ export class Runtime {
     return indexedProxies(this.source.teamFor(project)).map((proxy) => this.makeIndex(proxy));
   }
 
-  /** Paseo's own model lists, asked of each agent again once a load and whenever the owner asks: Paseo keeps a catalog until told to refresh it. */
+  /** Asked once per load and on demand: Paseo keeps a catalog until told to refresh it. */
   async refreshModels(): Promise<ModelCache> {
     const paseo = this.api;
     if (!paseo) throw new Error("Paseo is not connected, so it cannot list the agents' models");
-    // Scoped to one directory: unscoped, Paseo probes the agent again for every workspace it has ever
-    // opened, a hundred launches of it on a machine that has run evals, and the panel waited on all.
+    // Scoped to one directory: unscoped, Paseo probes the agent for every workspace it has ever opened.
     const cwd = stateRoot();
     await Promise.all([...listingProviders(this.kit).values()].map((provider) => paseo.providers.refresh({ cwd, providers: [provider] })));
     const { cache, changed } = await fetchModels(this.kit, (provider) => paseo.providers.listModels(provider, { cwd }) as Promise<Listed>, stateRoot());

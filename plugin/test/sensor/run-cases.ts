@@ -1,6 +1,5 @@
 // npm run eval:sensor [-- --runs 3] [--case agreed-fires] [--question injected_intent]
-// Not part of npm test: every case costs a real reading. The key is read from the machine settings
-// layer, the same place the plugin reads it, and is never printed.
+// Not part of npm test: every case costs a real reading; the key comes from the machine settings layer.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,7 +38,7 @@ for (const entry of cases) {
   for (const [name, want] of Object.entries(entry.expect)) {
     if (values.question && values.question !== name) continue;
     const read = answers[name];
-    // A question its views cannot answer is not a failure: `needs`, and a view that is not there, hold it back on purpose.
+    // A question its views cannot answer is held back on purpose, not a failure.
     if (!read) {
       said.push(`  · ${name} held back, so nothing was asked`);
       continue;

@@ -3,12 +3,6 @@ import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { Source } from "./data.ts";
 
-/**
- * Paseo's own button geometry, read from the app's control tokens: a small button is
- * CONTROL_HEIGHTS.compact tall, spacing[3] wide, borderRadius.md round, with fontSize.base text at
- * fontWeight.normal. The SDK exports no button, so anything outside a SettingsAction row is drawn
- * here; these numbers keep it the same control.
- */
 export const CONTROL = { radius: 6, height: 32, padding: 12, gap: 8, font: 14, pressed: 0.85, faded: 0.5 };
 
 /** `follows` is the label of the role a role follows while nothing is set for it. */
@@ -144,10 +138,7 @@ export function Empty({ title, body, theme }: { title: string; body: string; the
   );
 }
 
-/**
- * A group's heading inside a card, in capitals: THIS MACHINE, WORTH A LOOK. The Health tab drew its
- * own and the watch card needed the same, so there is one.
- */
+/** A capitalised group heading, shared by the Health tab and the watch card. */
 export function Heading({ text, theme, tone = "muted" }: { text: string; theme: PluginTheme; tone?: "muted" | "danger" }) {
   return (
     <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 }}>
@@ -156,17 +147,14 @@ export function Heading({ text, theme, tone = "muted" }: { text: string; theme: 
   );
 }
 
-/** A row's divider, the card's own border colour. */
 export function Rule({ theme }: { theme: PluginTheme }) {
   return <View style={{ height: 1, backgroundColor: theme.colors.border }} />;
 }
 
-/** A state marker: running, idle, worth a look, irreversible. */
 export function Dot({ color, size = 8 }: { color: string; size?: number }) {
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
 }
 
-/** A small pill for a level or a mark: page, attend, useful, told. */
 export function Tag({ text, color, theme }: { text: string; color: string; theme: PluginTheme }) {
   return (
     <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: theme.colors.surface2 }}>

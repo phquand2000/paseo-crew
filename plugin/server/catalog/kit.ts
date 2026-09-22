@@ -16,16 +16,9 @@ export type RoleSpec = {
   role: string;
   label: string;
   description?: string;
-  /** What this seat specialises in, so several seats can supervise one project without being the same seat. */
   concern?: string;
-  /** What this seat is allowed to be asked to do. An open set: the desk asks whether a seat can do a thing, never what it is called. */
   can?: string[];
-  /** Which set of tools in mcp/tools.json this seat is given. Several roles may share one set. */
   tools?: string;
-  /**
-   * Another role whose agent, model and thinking in force this one takes until a layer gives it its
-   * own. In place of `defaults`, which the kit fills from that role's so every reader sees a harness.
-   */
   follows?: string;
   defaults: { harness: string; model?: string; thinking?: string };
   prompt: string;
@@ -50,25 +43,21 @@ export type HarnessSpec = {
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
   exitPattern?: string;
-  /** `inherits` names top-level keys a seat takes from the owner's own config for that agent, such as the model providers it knows. */
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[]; inherits?: { from: string; keys: string[] } };
   links?: { link: string; target: string; optional?: boolean }[];
   files?: Record<string, string[]>;
   modelCatalog?: { command: string[]; list: string; clear: string[]; file: string; setting: string };
   checks?: { path: string; help: string }[];
-  /** What Paseo lists for this agent, cached by the plugin; never written in harness.json. */
   models?: ModelSpec[];
   mcp: {
     file: string;
     delivery: "launch" | "file";
-    /** The agent refuses an MCP call nobody approved ahead, so every tool the seat is given is approved at launch. */
     preapprove?: boolean;
     transports: McpTransport[];
     seed?: Record<string, unknown>;
     key?: string;
     clear?: { set?: Record<string, unknown>; remove?: string[]; setInEach?: Record<string, Record<string, unknown>> };
     rule?: string;
-    /** Fields this agent reads on the desk's own server entry beyond its command, merged into it. */
     desk?: Record<string, unknown>;
   };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[]; forceFlags?: Record<string, string> };
@@ -163,7 +152,6 @@ export type ProxySpec = {
   pin?: string;
   gitExclude?: string[];
   open?: ProxyHook & { route?: { when: string; from: string; field: string } };
-  /** Undoes `open` for a copy the desk is removing; never called for the project's own. */
   close?: ProxyHook;
   wait?: ProxyHook & { busy?: string; seconds?: number; pollSeconds?: number };
   sync?: { tool: string; paths?: string; maxPaths?: number };
@@ -192,7 +180,6 @@ export type McpEntry = {
   roleNotes?: Record<string, string>;
   skills?: string[];
   help?: string;
-  /** Paths the project must have for this server to serve it, relative to its root. */
   requires?: string[];
 };
 
@@ -201,21 +188,12 @@ export type Attention = {
   leadIdleMinutes: number;
   askRemindMinutes: number;
   maxReminders: number;
-  /** Whether an incident may reach the seat above at all. Off still records every incident; it stops the desk sending them. */
   watch: boolean;
-  /** What reads the watched seats: a Watcher seat, or Jev when a key is set. */
   by: "seat" | "jev";
-  /**
-   * How the Watcher is read to, by a seat. A watched seat's steps are mailed once it has been quiet
-   * this long, at most this far apart while it keeps working, and at once when its turn ends.
-   */
   watcherQuietSeconds: number;
   watcherEveryMinutes: number;
-  /** The most one seat's part of a reading holds; the oldest steps give way first. */
   watcherChars: number;
-  /** Readings one Watcher takes before a fresh one replaces it, so its context never runs long enough to be compacted. */
   watcherRotateAfter: number;
-  /** How long a fact the Watcher judges waits for it before it is told anyway. */
   watcherJudgeMinutes: number;
   destructive: string;
   testPath: string;
@@ -228,7 +206,6 @@ export type Attention = {
 };
 
 export type Question = {
-  /** The state it is asked over: each question is shown only what it reads. */
   view: ViewName;
   instructions: string;
   criteria?: { true: string; false: string };
@@ -238,9 +215,7 @@ export type Question = {
   agrees?: string[];
   confirms?: string[];
   needs?: string[];
-  /** A finding on a step that speaks of a file a sibling task is writing is expected, and not raised. */
   excusedBeside?: boolean;
-  /** What a person reads for it on a screen. Never sent to the sensor. */
   label?: string;
 };
 
@@ -263,14 +238,10 @@ export type Kit = {
   roles: RoleSpec[];
   harnesses: Record<string, HarnessSpec>;
   mcp: Record<string, McpEntry>;
-  /** Each tool set in mcp/tools.json: its tools by name, with the schema each is shown with. */
   toolSets: Record<string, Record<string, ArgSchema>>;
   sensors: Record<string, SensorSpec>;
-  /** What every agent working in a project reads in its AGENTS.md, from content/project/AGENTS.md; absent, nothing is written there. */
   team?: string;
-  /** Where the owner keeps their own copy of a shipped prompt, skill or team block, at the same path under content. */
   own?: string;
-  /** What a Watcher seat may raise and which of the code's facts wait for its judgement; absent, it can do neither. */
   watcher?: WatcherSpec;
   attention: Attention;
 };
@@ -301,7 +272,6 @@ function subdirs(root: string): string[] {
     .map((entry) => entry.name);
 }
 
-/** The part of JSON Schema the desk's tools are written in, and every call to them is checked against. */
 export type ArgSchema = { type?: string; enum?: unknown[]; items?: ArgSchema; properties?: Record<string, ArgSchema>; required?: string[]; description?: string };
 
 function loadToolSets(dir: string): Record<string, Record<string, ArgSchema>> {
@@ -336,9 +306,7 @@ function loadMcp(dir: string): Record<string, McpEntry> {
       throw new Error(`MCP ${id} is a proxy with no http url or stdio command for its backend`);
     }
     if (raw.kind === "server" && !raw.server?.type) throw new Error(`MCP ${id} is a server with no transport type`);
-    // Every pattern a proxy entry carries is compiled per call, inside a try that answers the seat
-    // "the server is not reachable". A typo in one therefore looked like a server that was down, on
-    // every call, with nothing naming the entry — and a preset is written by whoever writes the kit.
+    // Compiled per call inside a try that reads as "not reachable", so a typo must be caught here, naming the entry.
     for (const [where, pattern] of patternsOf(raw.proxy)) {
       try {
         new RegExp(pattern, "i");
@@ -401,7 +369,6 @@ export function sensorProblems(id: string, raw: Record<string, unknown>): string
   return problems;
 }
 
-/** `looks` is a short example of how the kind shows in a seat's steps, so no one reads a catalogue to learn it. */
 export type WatcherKind = { level: "page" | "attend"; label: string; means: string; looks?: string };
 export type WatcherSpec = { kinds: Record<string, WatcherKind>; judges: string[] };
 
@@ -447,12 +414,7 @@ function loadSensors(dir: string): Record<string, SensorSpec> {
   return sensors;
 }
 
-/**
- * Which roles this kit runs. The kit ships SLP as its preset; a file of the same name in the state
- * root replaces it, so somebody who wants a different arrangement writes one rather than forking
- * this. A role in that file may name its prompt and skills by absolute path, which is what makes an
- * arrangement outside this package possible at all.
- */
+/** The shipped SLP preset, unless the state root holds a file of the same name, which replaces it. */
 export function rolesFile(dir: string, stateDir?: string): string {
   const own = stateDir ? join(stateDir, "roles.json") : undefined;
   return own && existsSync(own) ? own : join(dir, "roles.json");
@@ -498,7 +460,6 @@ export function loadKit(dir: string, stateDir?: string): Kit {
   };
 }
 
-/** The owner's copy of a content path when they keep one, else the shipped one. */
 export function shippedOrOwn(dir: string, own: string | undefined, path: string): string {
   const mine = own ? join(own, path) : undefined;
   return mine && existsSync(mine) ? mine : join(dir, "content", path);
@@ -513,10 +474,7 @@ export function reloadTeam(kit: Kit): void {
   kit.team = loadTeam(kit.dir, kit.roles, kit.own);
 }
 
-/**
- * Every seat reads the project's AGENTS.md, so the block written there is held to the words each role
- * must not see, all of them at once: a word one role is kept from would reach it there.
- */
+/** Every seat reads AGENTS.md, so the block is held to every role's hidden words at once. */
 function loadTeam(dir: string, roles: RoleSpec[], own?: string): string | undefined {
   const file = shippedOrOwn(dir, own, "project/AGENTS.md");
   if (!existsSync(file)) return undefined;
@@ -526,11 +484,7 @@ function loadTeam(dir: string, roles: RoleSpec[], own?: string): string | undefi
   return text;
 }
 
-/**
- * The preset's attention, held to the same rules as a settings layer's. Merged unchecked, a pattern
- * the settings screen would have refused — a typo in `destructive` — threw on every turn ending
- * instead, inside the step that also sends that seat its waiting mail.
- */
+/** Held to a settings layer's rules: merged unchecked, a bad pattern threw on every turn end, inside the step that sends mail. */
 function presetAttention(raw: unknown): Partial<Attention> {
   if (raw === undefined) return {};
   const parsed = AttentionChoice.safeParse(raw);
@@ -538,10 +492,7 @@ function presetAttention(raw: unknown): Partial<Attention> {
   return parsed.data as Partial<Attention>;
 }
 
-/**
- * The model an agent starts on when a role names none for it: one another role's preset names for this
- * agent, else the first Paseo lists. Paseo's own default cannot be read back, since the plugin sets it.
- */
+/** Another role's preset for this agent, else Paseo's first: Paseo's own default cannot be read back, since the plugin sets it. */
 export function agentDefault(roles: RoleSpec[], harness: HarnessSpec): ModelSpec | undefined {
   const models = harness.models ?? [];
   const preset = roles.map((role) => role.defaults).find((defaults) => defaults.harness === harness.id && defaults.model && models.some((entry) => entry.id === defaults.model));
@@ -572,17 +523,11 @@ export function can(role: RoleSpec | undefined, capability: string): boolean {
   return role?.can?.includes(capability) ?? false;
 }
 
-/**
- * Whether the desk serves a role as one working a task: its `ask` goes to its Lead, its quiet turns are
- * nudged, its hand-back is read. `start_task` seats a role that can `write` and `start_review` one that
- * can `review`; asked only about `work`, a kit role seated by either and lacking `work` was answered
- * "Unknown tool ask." and its silent turns were never noticed — a rule that lived in one code comment.
- */
+/** `start_task` seats `write` roles and `start_review` `review` ones, so a role seated by either works a task without `work`. */
 export function worksTasks(role: RoleSpec | undefined): boolean {
   return ["work", "write", "review"].some((capability) => can(role, capability));
 }
 
-/** The role a stored name refers to, so a name kept on disk can still be asked what it can do. */
 export function roleNamed(kit: Kit, name: string | undefined): RoleSpec | undefined {
   return name ? kit.roles.find((role) => role.role === name) : undefined;
 }
@@ -591,14 +536,7 @@ export function rolesThatCan(kit: Kit, capability: string): RoleSpec[] {
   return kit.roles.filter((role) => can(role, capability));
 }
 
-/**
- * The role to seat for a capability: the one named, or the kit's first as the preset's default.
- *
- * Several roles may hold one capability on purpose. Two lenses on one review are only evidence if
- * they are not the same reader, and a second work role is how best-of-n gets two kinds of Peer.
- * Taking the first match and offering the caller no say made every extra role the owner declared
- * unreachable — the role set was open data that only one member of could ever be seated.
- */
+/** Several roles may hold one capability on purpose (two review lenses, best-of-n Peers), so the caller may name which. */
 export function roleThatCan(kit: Kit, capability: string, named?: string): RoleSpec | undefined {
   const holders = rolesThatCan(kit, capability);
   return named ? holders.find((role) => role.role === named) : holders[0];
@@ -626,16 +564,6 @@ export function supportsRole(kit: Kit, harness: HarnessSpec, role: RoleSpec): bo
   return existsSync(roleSettingsFile(kit, harness, role)) && Object.values(harnessFileSources(kit, harness, role)).every((sources) => sources.every((source) => existsSync(source)));
 }
 
-/**
- * Paseo's own agent-facing tools, copied by hand because the SDK exports no list.
- *
- * A role's `allow` is turned into a denial of everything NOT on it, so this list is load-bearing in
- * two directions and fails differently in each. A name in `allow` that is not here denies the role
- * every Paseo tool — see the check in resolveRole, which turns that into a settings error instead of
- * a silence. A tool Paseo adds that is not here is *enabled* for every role using `allow`, silently,
- * which is the direction that cannot be caught from inside: keep this in step with Paseo, and treat
- * a version bump as a reason to re-read it.
- */
 export const PASEO_TOOLS = [
   "create_workspace", "list_workspaces", "archive_workspace", "create_agent", "send_agent_prompt", "get_agent_status",
   "list_agents", "cancel_agent", "archive_agent", "kill_agent", "update_agent", "rename_workspace", "list_workspace_scripts",
@@ -646,6 +574,7 @@ export const PASEO_TOOLS = [
   "list_pending_permissions", "respond_to_permission",
 ];
 
+/** `allow` disables each PASEO_TOOLS name it omits, so a tool Paseo adds that the list lacks stays on: keep the list in step with Paseo. */
 export function paseoToolsPolicy(role: RoleSpec): { enabled?: boolean; disabledTools?: string[] } | undefined {
   const policy = role.paseoTools;
   if (!policy) return undefined;

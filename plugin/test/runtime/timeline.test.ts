@@ -27,8 +27,7 @@ test("a turn that ends right after a refused call is reported with the call", ()
 
 test("a last call that never came back ends the turn too, and is not called a refusal", () => {
   const timeline = t({ type: "user_message", text: "go" }, { type: "tool_call", name: "exec", status: "canceled", detail: { command: "gh api user" } });
-  // It ends the turn the same way, and the Lead is told which of the two it was: one is a policy the
-  // owner set, the other is an ordinary tool failure, and they are not the same conversation.
+  // A policy refusal and an ordinary tool failure are different conversations for the Lead.
   assert.deepEqual(deniedCall(timeline), { what: "exec: gh api user", refused: false });
 });
 
@@ -58,8 +57,7 @@ test("a harness names how its refusals read, and only those count as refused", (
 });
 
 test("a call the harness refused because its input was not JSON is reported, and an ordinary failure is not", () => {
-  // The shape is the one a Supervisor's first open_lane took on 2026-09-20: Claude Code keeps the
-  // text it could not read under `__unparsedToolInput` and says so again in the error it hands back.
+  // Claude Code keeps unparsable input under `__unparsedToolInput` and repeats it in the error.
   const timeline = t(
     { type: "user_message", text: "go" },
     {
@@ -87,9 +85,7 @@ test("a malformed call is still reported when only the input it could not read s
 });
 
 test("a failed call whose own output happens to mention unparsed JSON is not a malformed call", () => {
-  // The phrase is an ordinary error string: a seat running the gate over a repository that parses
-  // JSON prints it, and a seat grepping this very file prints the marker too. Only what the harness
-  // was handed decides, never what the tool wrote back.
+  // The phrase is an ordinary error string; only what the harness was handed decides.
   const timeline = t(
     { type: "user_message", text: "go" },
     { type: "tool_call", callId: "c1", name: "Bash", status: "failed", error: { content: "exit 1" }, detail: { type: "shell", command: "npm test", exitCode: 1, output: "FAIL config.test.ts: could not be parsed as JSON" } },
@@ -99,9 +95,7 @@ test("a failed call whose own output happens to mention unparsed JSON is not a m
 });
 
 test("a malformed call belongs to the turn it was made in, and is not reported again at the end of the next", () => {
-  // Paseo hands `agent.turn_ended` the agent's whole timeline, not the turn that ended: the daemon's
-  // `getItems` returns every row it has ever stored for that seat, append-only. So the turn has to be
-  // cut out of it here, the way `outputText` and `deniedCall` already do.
+  // Paseo hands `agent.turn_ended` the seat's whole append-only timeline, so the turn is cut out here.
   const turn = [
     { type: "user_message", text: "open the lane" },
     { type: "tool_call", callId: "c1", name: "mcp__team__open_lane", status: "failed", error: { content: "InputValidationError: mcp__team__open_lane was called with input that could not be parsed as JSON." }, detail: { type: "unknown", input: { __unparsedToolInput: { raw: "{" } }, output: null } },

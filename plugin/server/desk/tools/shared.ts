@@ -6,13 +6,7 @@ import { loadConfig } from "../project.ts";
 import type { Tool } from "../services.ts";
 import { statusText } from "../status.ts";
 
-/**
- * Why nobody could be seated: the kit holds no such role, or the one asked for is not one of them.
- *
- * The second case names the roles that do hold the capability, because a caller that may choose has
- * to be able to find out what there is to choose from — the kit is data and the desk is the only
- * thing that has read it.
- */
+/** Names the roles that do hold the capability, since the kit is data and only the desk has read it. */
 export function namedOrNot(kit: Kit, capability: string, named: string, doing: string): string {
   const holders = rolesThatCan(kit, capability).map((role) => role.role);
   if (holders.length === 0) return `No role in this kit can ${doing}.`;
@@ -23,9 +17,7 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
   const to = str(args.to);
   const text = str(args.text);
   const ledger = loadLedger(caller.project.state);
-  // Keyed by the event, not the words. Keyed on the text, the same instruction sent again was dropped
-  // as a repeat — the Peer's letter and the Lead's RECONCILE both — while the sender was told it had
-  // gone; `rework` was fixed for exactly this and `message` never was.
+  // Keyed by the event, not the words: keyed on text, the same instruction sent again was dropped as a repeat.
   const key = `message:${caller.id}:${hash(to, text)}:${Date.now()}`;
   const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;
   const settled = (task: { id: string; status: string }) =>
@@ -50,8 +42,7 @@ export const message: Tool = async ({ ctx, roster }, caller, args) => {
     }
     const task = findTask(ledger, to);
     if (task?.peer) {
-      // Checked before anything is sent: a RECONCILE telling the Lead a task "is still owned by" a Peer
-      // and "still yours to judge" was going out for tasks already accepted and Peers already gone.
+      // Checked before anything is sent, so a settled task never gets a RECONCILE.
       const done = settled(task);
       if (done) return no(done);
       if (!(await roster.seated(task.peer))) return no(unread(`The Peer on ${task.id}`));
@@ -93,10 +84,7 @@ export const answer: Tool = async ({ ctx }, caller, args) => {
   });
   if (typeof result === "string") return no(result);
   const { ask } = result;
-  // Answering an ask that was put to someone else is allowed — the round escalates unanswered ones
-  // upward for exactly that. Leaving whoever it was put to out of it is not: they are told first,
-  // the same way a message that reaches their Peer tells them first. A Lead or Peer knows the level
-  // above it as the owner, by design; a seat that supervises is told which seat it was.
+  // Answering an ask put to someone else is allowed (the round escalates them), but that seat is told first.
   const waiting = ask.to === caller.id ? undefined : ask.to;
   const by = waiting && can(roleNamed(ctx.kit, result.waitingRole ?? ""), "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
   if (waiting) await ctx.post(waiting, `answeredFor:${ask.id}`, letters.answeredFor(ask, by, can(roleNamed(ctx.kit, result.waitingRole ?? ""), "lead")));

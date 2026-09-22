@@ -2,18 +2,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Cleanliness, git, pristineState } from "../core/git.ts";
 
-/**
- * The team's shared instructions, kept in the served project's own AGENTS.md so every agent that
- * works there reads them the way it reads the Human's: in a marked block the plugin owns and replaces
- * whole, beside whatever the Human wrote, which it never touches. CLAUDE.md gets a pointer to it.
- */
 export const BEGIN = "<!-- seatworks:begin (written by Seatworks; edit outside this block, it is replaced whole) -->";
 export const END = "<!-- seatworks:end -->";
 const POINTER = "@AGENTS.md";
 
 const block = (body: string) => `${BEGIN}\n${body.trim()}\n${END}\n`;
 
-/** The text with the block cut out, so the Human's part can be compared on its own. */
 export function withoutBlock(text: string): string {
   const start = text.indexOf(BEGIN.slice(0, 20));
   const end = text.indexOf(END);
@@ -39,7 +33,6 @@ export function withPointer(text: string): string {
 
 const read = (file: string) => (existsSync(file) ? readFileSync(file, "utf-8") : "");
 
-/** The files whose text is not what this kit writes there, with the text it would write. */
 export function staleProjectFiles(root: string, body: string): { name: string; file: string; wanted: string }[] {
   const stale: { name: string; file: string; wanted: string }[] = [];
   for (const [name, next] of [
@@ -54,18 +47,13 @@ export function staleProjectFiles(root: string, body: string): { name: string; f
   return stale;
 }
 
-/** Writes only what changed, and returns the files it wrote. */
 export function placeProjectFiles(root: string, body: string): string[] {
   const stale = staleProjectFiles(root, body);
   for (const { file, wanted } of stale) writeFileSync(file, wanted);
   return stale.map(({ name }) => name);
 }
 
-/**
- * Whether a change git reports in the project's copy is only the plugin's block: the Human's own text
- * in that file is what HEAD holds. A lane may take over a copy whose only uncommitted change is this,
- * because nothing of the Human's rides along with it.
- */
+/** A lane may take over a copy whose only uncommitted change is the plugin's block: none of the Human's text rides along. */
 export async function onlyTheBlock(root: string, path: string): Promise<boolean> {
   if (path !== "AGENTS.md" && path !== "CLAUDE.md") return false;
   const head = await git(root, ["show", `HEAD:${path}`]);
@@ -73,12 +61,11 @@ export async function onlyTheBlock(root: string, path: string): Promise<boolean>
   return withoutBlock(read(join(root, path))).trim() === withoutBlock(before).trim();
 }
 
-/** A working copy's state as a writer's work sees it: the plugin's block is nobody's uncommitted work. */
 export function workState(cwd: string): Promise<Cleanliness> {
   return pristineState(cwd, (path) => onlyTheBlock(cwd, path));
 }
 
-/** Whether the plugin's block is in the project's copy but not in what it has committed, which a copy of its own is made from. */
+/** A copy of its own is made from what is committed, so a block only in the working copy is missing there. */
 export async function blockUncommitted(root: string): Promise<boolean> {
   const run = await git(root, ["status", "--porcelain", "--", "AGENTS.md", "CLAUDE.md"]);
   if (run.code !== 0) return false;

@@ -17,34 +17,22 @@ type Props = {
   theme: PluginTheme;
   disabled: boolean;
   role: Catalog["roles"][number];
-  /** The Watcher role's own agent, model and thinking, shown while the watch is by a seat. */
   rows: ReactElement[];
   save(change: (values: Layer) => Layer): Promise<boolean>;
 };
 
-/**
- * Where the mail switch was chosen, said as a sentence.
- *
- * `sourceLabel` is a bare noun phrase, which reads correctly as a whole hint the way the Team and MCP
- * tabs use it. Appended after a statement it read as a second claim about the setting's state — "none
- * of it is mailed. Set for this project" — so this row says it with a verb instead.
- */
 const CHOSEN = {
   here: { machine: "Chosen here, for every project that sets nothing.", project: "This project chose it." },
   machine: { machine: "", project: "Not chosen here; following this machine." },
   default: { machine: "Not chosen anywhere; the catalog's default.", project: "Not chosen anywhere; the catalog's default." },
 } as const;
 
-/**
- * The watch, on the Watcher's own chip and nowhere else: what reads the seats, then either the
- * Watcher seat's agent or Jev's key and sensor, then whether incidents are mailed.
- */
+/** The watch settings, on the Watcher's chip only: what reads the seats, then its agent or Jev's key, then mail. */
 export function WatcherSettings({ catalog, team, values, machine, layer, theme, disabled, rows, save }: Props) {
   const [draft, setDraft] = useState("");
   const field = useRef<SettingsInputHandle>(null);
   const by = team.attention.by;
-  // The key itself never comes back from the server, so what a screen can know is only whether one is
-  // set. It is kept on the machine, and Jev reads it for every project.
+  // The key never comes back from the server, only whether one is set; it lives on the machine for every project.
   const set = (layer === "machine" ? values : machine).sensor?.key === KEPT;
   const typed = draft.trim();
   const mailFrom = CHOSEN[sourceOf(values, machine, (entry) => entry.attention?.watch, layer)][layer];
@@ -52,8 +40,7 @@ export function WatcherSettings({ catalog, team, values, machine, layer, theme, 
 
   const write = (key: string | null) => {
     void save((current) => setSensorKey(current, key)).then((saved) => {
-      // The typed key is the owner's only copy of it, so it is left in the field when the save is
-      // refused and cleared only once it is on disk.
+      // The typed key is the owner's only copy, so it is cleared only once saved.
       if (!saved) return;
       setDraft("");
       field.current?.replaceText("");

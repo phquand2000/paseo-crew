@@ -60,9 +60,7 @@ test("what was written last is kept even when the clock steps back, and a pack l
 });
 
 test("the tally of every reading kept counts what was added since, and keeps counting across a rotation", async () => {
-  // The watch card shows how many turns the watch has read in a project and what that cost, whether
-  // or not anything is running. The file behind it runs to megabytes, and the card is polled every
-  // few seconds, so it is read once and then only from where it was left.
+  // The card is polled every few seconds over a file of megabytes, so it is read once and then from where it left off.
   const state = tempDir("sw2-tally-");
   assert.deepEqual(readTally(state), { turns: 0, cost: 0 }, "a project the watch never read in");
   const one = (cost: number | null) => ({ at: Date.now(), seat: "s", cost }) as unknown as Kept;

@@ -26,18 +26,7 @@ function appendAt(options: unknown, path: string, value: string): Json {
   return root;
 }
 
-/**
- * What a seat's sandboxed shell may write inside the project's state, which is not the whole of it.
- *
- * The grant used to be `state` itself. That directory also holds the desk's own record — the ledger,
- * the strike table, the event log, and `project.json`, whose `gate` the desk runs through `/bin/sh -c`
- * in the daemon, outside the seat's sandbox. So the grant is what the seat's own content tells it to
- * write there (`stateTargets`).
- *
- * This binds the shell only. The same files are kept from the file tools by deny rules in the
- * harness's own settings; a harness with no sandbox and no path rules has neither, and this cannot
- * give it one.
- */
+/** Only the state paths the seat's content writes: state also holds the desk's record, whose `gate` runs unsandboxed in the daemon. */
 export function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
   return stateTargets(kit, role, skillDirsFor(team, role.role), rulesFor(team, role.role)).map((segment) => join(state, segment));
 }
@@ -58,7 +47,6 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   if (harness.provider.profileModeId) next.modeId = harness.provider.profileModeId;
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
   if (options.length === 0) {
-    // A model outside the catalog has no list to check against; the owner's thinking for it goes through.
     const owned = harness.hasThinking === false ? undefined : sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
     if (owned) next.thinkingOptionId = owned;
     else delete next.thinkingOptionId;

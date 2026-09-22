@@ -21,14 +21,12 @@ export type Kept = {
   facts: { kind: string; level: string; quote: string }[];
   found: string[];
   verdicts: { kind: string; question: string; says: string; p: number }[];
-  /** Each state the reading sent, by view, as the questions that read it saw it. */
   views: Partial<Record<ViewName, View>>;
 };
 
 export const ROTATE_BYTES = 32 * 1024 * 1024;
 export const KEEP_FILES = 64;
 
-/** The file every reading is appended to, until it is rotated away. */
 export const KEPT_FILE = "current.jsonl";
 const ROTATED = /^(\d{8})\.jsonl(\.gz(\.part)?)?$/;
 const packed = promisify(gzip);
@@ -39,13 +37,7 @@ export function assessmentsDir(state: string): string {
 
 const gone = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 
-/**
- * Minutes since the watch last kept a reading here, or undefined if it never has.
- *
- * One `stat`, because the alternative is parsing a file that runs to megabytes on every poll of a
- * screen. The question it answers is the one a screen is really asking — has this thing ever run
- * here, and how long ago — not how many times.
- */
+/** Minutes since a reading was last kept, by one `stat` rather than parsing a megabytes-long file on every poll. */
 export function lastKept(state: string, now = Date.now()): number | undefined {
   try {
     return Math.max(0, Math.round((now - statSync(join(assessmentsDir(state), KEPT_FILE)).mtimeMs) / 60_000));
@@ -124,17 +116,11 @@ const tallyOf = (text: string): Tally => {
   return { turns, cost };
 };
 
-/** Per assessments directory: how far into the current file has been counted, and each rotated file once. */
 const counted = new Map<string, { ino: number; offset: number; current: Tally; rotated: Map<string, Tally> }>();
 
 /**
- * Every reading the watch has kept for a project, and what they cost — the whole project, not the
- * seats that happen to be running.
- *
- * The screen asks every few seconds and the file runs to megabytes, so it is never read twice: a
- * rotated file does not change, and is counted once; the current one is read from where the last
- * count stopped, up to its last whole line. A rotation is seen as a new file under the old name,
- * and the one it replaced turns up as a rotated file, so nothing is counted twice or lost.
+ * Every kept reading for the project, counted incrementally: rotated files once, the current one from
+ * the last offset, since the screen polls every few seconds and the file runs to megabytes.
  */
 export function readTally(state: string): Tally {
   const dir = assessmentsDir(state);

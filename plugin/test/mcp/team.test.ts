@@ -8,9 +8,7 @@ import { tempDir } from "../tempdir.ts";
 
 const teamServer = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "team.mjs");
 
-// Codex starts an MCP server with a filtered environment, so a Codex Lead's calls reached the desk
-// with no agent and were refused as "works only inside a team agent". Its app-server, the server's
-// parent, is the agent's own process and carries the id.
+// Codex starts MCP servers with a filtered environment; its app-server, the server's parent, carries the agent id.
 test("a desk call names its agent even when the server was started without the agent's environment", async () => {
   const spool = tempDir("sw2-spool-");
   const parent = spawn(

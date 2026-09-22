@@ -17,10 +17,7 @@ const git = (...args: string[]) => {
 const versionAt = (ref: string) => (JSON.parse(git("show", `${ref}:./package.json`) ?? "{}") as { version?: string }).version;
 const versionNow = () => (JSON.parse(readFileSync(join(PLUGIN, "package.json"), "utf-8")) as { version?: string }).version;
 
-/**
- * What seats read reaches every owner through the version: Update names it, and Migrate asks about
- * what changed in it. Content changed under an unchanged version reaches nobody as a change.
- */
+/** Seats' content reaches owners only through the version: Update names it and Migrate asks about it. */
 test("content that changes comes with a new version", { skip: git("rev-parse", "HEAD") === undefined && "not a git checkout" }, () => {
   const dirty = git("status", "--porcelain", "--", "content")?.trim();
   if (dirty) {

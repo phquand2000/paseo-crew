@@ -27,17 +27,9 @@ import { type Project, loadConfig } from "../project.ts";
 import type { DeskServices, Tool } from "../services.ts";
 import { namedOrNot } from "./shared.ts";
 
-/**
- * A lane-mode task holds the lane's one working copy from the moment it starts until it is accepted
- * or cut — a task that has handed back still holds it, because its Peer is still seated and rework
- * wakes it in that same directory. Reading the hold as "running or reworking" let a Lead start a
- * second task over a hand-back it had not accepted, and then be told to rework the first one.
- */
-// A stalled task holds it too: its Peer is still seated in that copy, and a message to it wakes it
-// there. Left out, a SILENT letter was enough to let a second Peer be seated in the same checkout.
 const HOLDS: TaskStatus[] = ["running", "rework", "done", "stalled"];
 
-/** Holding the copy, unless it is stalled because its Peer's seat is gone: then nobody is writing there. */
+/** Handed-back and stalled tasks still hold the copy (their Peer is seated there), unless the stalled Peer's seat is gone. */
 const holds = (task: Task): boolean => HOLDS.includes(task.status) && !(task.status === "stalled" && task.peerGone);
 
 /** What is in the way, named: a stray message file reads as unfinished work otherwise. */
@@ -48,7 +40,6 @@ async function uncommittedIn(cwd: string): Promise<string> {
   return lines.length > 6 ? `${shown} and ${lines.length - 6} more` : shown || "something git reports but does not name";
 }
 
-/** The lane-mode task that has the lane's working copy, if any. */
 function holderOf(ledger: Ledger, lane: Lane, except?: string): Task | undefined {
   return Object.values(ledger.tasks).find(
     (task) => task.lane === lane.id && task.id !== except && task.kind === "code" && task.mode !== "parallel" && holds(task),
@@ -122,16 +113,11 @@ export const startTask: Tool = async (desk, caller, args) => {
   if (!lane?.worktree) return no("You have no open lane.");
   const problem = await placementProblem(project, ledger, lane, owned, parallel);
   if (problem) return no(problem);
-  // Writing, not working. A role that reviews holds `work` too — that is how its ask and its turn-end
-  // are routed like any other seat on a task — and asking for `work` here offered the Lead the
-  // read-only Reviewer as a second kind of Peer. It would have started: denied edit, write and every
-  // git write by its own settings, holding a `done` with no outcome to give, under a brief telling it
-  // to commit. What a task needs is a role that writes.
+  // Writing, not `work`: a reviewing role holds `work` too, and would be offered as a Peer that cannot write.
   const asked = str(args.role);
   const workRole = roleThatCan(ctx.kit, "write", asked || undefined);
   if (!workRole) return no(namedOrNot(ctx.kit, "write", asked, "take a task"));
-  // A skill the Peer does not have is a line in its brief telling it to open something that is not
-  // there. Nothing in the Lead's own context lists them, so the refusal is where it finds out.
+  // Refused here: nothing in the Lead's context lists the skills, and a missing one is a dead line in the brief.
   const held = [...skillSources(ctx.kit, workRole, skillDirsFor(ctx.team(project), workRole.role)).keys()];
   const unknown = strs(args.skills).filter((name) => !held.includes(name));
   if (unknown.length > 0) {
@@ -170,13 +156,7 @@ export const startTask: Tool = async (desk, caller, args) => {
   }
 };
 
-/**
- * Where a reviewer can read the change, and how.
- *
- * A parallel task keeps its own copy only until its work lands; after that the copy is back and its
- * branch is deleted, because the commits are in the lane. So the merge is what is left to read it
- * from, and `laneBranch...HEAD` — true while the task was running — would show nothing at all.
- */
+/** A landed parallel task's copy and branch are gone, so its change is read from the merge, not `laneBranch...HEAD`. */
 async function changeOf(project: Project, target: Task, lane: Lane, inOwnCopy: boolean): Promise<{ where: string; range: string } | undefined> {
   if (target.mode !== "parallel") return { where: "Your working copy holds the change", range: `git diff ${target.startSha ?? lane.branch}..HEAD` };
   if (inOwnCopy) return { where: "Your working copy holds the change", range: `git diff ${lane.branch}...HEAD` };
@@ -194,9 +174,7 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   if (!lane?.worktree) return no("You have no open lane.");
   const target = str(args.task) ? findTask(ledger, str(args.task)) : undefined;
   if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code")) return no(`${str(args.task)} is not a code task in your lane.`);
-  // A slot already marked for teardown stays in the ledger — that is what keeps it from being reused
-  // — so it still answers as the task's own copy. Seating a reviewer in it and telling it that copy
-  // holds the change means the directory goes the moment the task's Peer ends its turn.
+  // A slot marked for teardown still answers as the task's copy; a reviewer seated there loses it at the Peer's turn end.
   const holds = target?.slot ? ledger.slots[target.slot] : undefined;
   const own = target?.mode === "parallel" && holds?.task === target.id && !holds.releasing ? holds : undefined;
   const change = target ? await changeOf(project, target, lane, Boolean(own)) : undefined;
@@ -205,9 +183,7 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
   const slot: { id?: string; path: string; workspaceId?: string } | undefined =
     own ?? (lane.slot ? ledger.slots[lane.slot] : { path: lane.worktree, workspaceId: lane.workspaceId });
   if (!slot) return no("The working copy for that review is gone.");
-  // A reviewer is a worker that reviews, so the kit is asked for that rather than for a role called
-  // "reviewer". There is no falling back to a plain worker: what keeps a review read-only is that
-  // role's own settings, not a capability, so a stand-in would review with the right to rewrite.
+  // No fallback to a plain worker: read-only comes from the reviewer role's settings, so a stand-in could rewrite.
   const lens = str(args.role);
   const reviewRole = roleThatCan(ctx.kit, "review", lens || undefined);
   if (!reviewRole) return no(namedOrNot(ctx.kit, "review", lens, "review, so there is nobody to ask a read-only question of"));
@@ -220,8 +196,6 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
       kind: "review",
       mode: "lane",
       of: target?.id,
-      // The title the Lead gave wins either way: council and ultra-review start several reviewers on one
-      // task and tell them apart — scout-01 to scout-10 — by it.
       title: str(args.title) || (target ? `Review ${target.id}` : clip(focus.split(/\r?\n/)[0] ?? "Review", 50)),
       goal: focus,
       acceptance: target?.acceptance ?? [],
@@ -229,8 +203,6 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
       outOfScope: [],
       context: lane.branch,
       worktree: slot.path,
-      // Which copy, not just which path: the teardown asks the ledger who is in a copy before it
-      // takes it away, and a reviewer reading a parallel task's own copy is in there too.
       slot: slot.id,
       status: "running",
       openedAt: now,
@@ -278,9 +250,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     merges.enqueue(project, task.id);
     return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED or MERGE FAILED arrives as mail.`);
   }
-  // "its commits are already on the lane branch" is the claim this tool makes, and a copy that is not
-  // on that branch makes it false — a commit made mid-bisect belongs to no branch at all and is
-  // collected once the copy goes. Clean and detached is exactly what accept used to read as landed.
+  // A copy off the lane branch (mid-bisect) has commits on no branch; clean and detached is not landed.
   if (lane.worktree && (await currentBranch(lane.worktree)) !== lane.branch) {
     return no(
       `The lane's working copy is not on ${lane.branch}, so nothing committed in it is on the lane branch. Send rework asking the Peer on ${task.id} to put the copy back on ${lane.branch} — if it bisected, git bisect reset — and to commit its work there, then accept again.`,
@@ -290,8 +260,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
   const copy = await workState(lane.worktree);
   if (copy === "unknown") return no(`git could not read the lane's working copy at ${lane.worktree}, so the desk cannot tell whether anything is uncommitted there.`);
   if (copy === "dirty") {
-    // Whose uncommitted work it is decides what to do about it, so it has to be named correctly: the
-    // old text said to rework this task, which would have woken its Peer into another one's writing.
+    // Named correctly: the uncommitted work may be another task's, and reworking this one would wake its Peer into it.
     const other = holderOf(loadLedger(project.state), lane, task.id);
     return no(
       other
@@ -300,8 +269,7 @@ export const accept: Tool = async ({ ctx, agents, merges }, caller, args) => {
     );
   }
   const counts = await diffCounts(lane.worktree, task.startSha ?? lane.base, "HEAD");
-  // Not run again here: a project that gates each task gave the Lead its verdict with the hand-back,
-  // which is where a verdict can still be weighed.
+  // Not rerun: a per-task gate already gave the Lead its verdict with the hand-back.
   const gate = gateNote(project, task);
   const updated = await ctx.setTask(project, task.id, (entry) => {
     entry.status = "merged";
@@ -335,8 +303,7 @@ export const rework: Tool = async ({ ctx, roster }, caller, args) => {
   if (!result.peer) return no(`${result.id} has no Peer.`);
   const seat = await roster.look(result.peer);
   if (seat.archivedAt) return no(`The Peer on ${result.id} is gone; cut the task and start a new one.`);
-  // Keyed by the task's own clock, not by the words: a Lead repeating an instruction is a second
-  // instruction, and keying it by its text dropped it as a duplicate while telling the Lead it went.
+  // Keyed by the task's clock, not the words: a repeated instruction is a second instruction, not a duplicate.
   const posted = await ctx.post(result.peer, `rework:${result.id}:${result.reworks}`, letters.rework(text));
   return posted === "duplicate"
     ? no(`That rework was already sent to the Peer on ${result.id} and it has not ended a turn since, so this would be the same letter twice. Wait for its hand-back, or cut it.`)
@@ -357,8 +324,7 @@ export const cut: Tool = async ({ ctx, roster, slots }, caller, args) => {
   await roster.archive(task.peer, true);
   let undone = "";
   if (task.kind === "code" && task.mode === "lane" && task.startSha && lane.worktree) {
-    // Going back to where the task started would also drop whatever landed in the lane after it
-    // started, and the Peers of those tasks were told their work was in.
+    // Resetting to the task's start would also drop later merges whose Peers were told their work was in.
     const since = Object.values(ledger.tasks).filter((other) => other.lane === lane.id && other.id !== task.id && other.status === "merged" && other.updatedAt > task.openedAt);
     if (since.length > 0) {
       undone = ` Its writing is left in the lane's working copy: ${since.map((other) => other.id).join(", ")} landed there after ${task.id} started, and going back to ${task.startSha.slice(0, 7)} would take that too. Undo what you want gone.`;
@@ -412,9 +378,7 @@ export const report: Tool = async ({ ctx, roster }, caller, args) => {
   const letter = letters.report(lane, summary, args.ready === true, strs(args.carried), gate);
   const posted = await ctx.post(to, `report:${lane.id}:${hash(summary)}`, letter);
   ctx.event(caller.project, { kind: "lane.report", lane: lane.id, ready: args.ready === true, gate: gate?.ok, to: to ?? null, text: posted === "nobody" ? letter : undefined });
-  // With nobody supervising seated, the post goes nowhere — and the Lead was told it had been
-  // reported and to wait, so the lane stopped with its report in no outbox, page or digest. It is kept
-  // whole in the project's event log, and the Lead is told the truth about it.
+  // With nobody supervising seated the post goes nowhere; it is kept in the event log and the Lead told so.
   if (posted === "nobody") {
     return ok(`Nobody supervising this project is seated, so the report reached no one. It is kept in ${caller.project.state}/events.log for whoever comes back; there is nothing to wait for until someone does.`);
   }

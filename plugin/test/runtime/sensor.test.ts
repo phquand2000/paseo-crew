@@ -88,8 +88,7 @@ test("a busy or failing endpoint is asked again, and a refusal that retrying can
 });
 
 test("pieces arriving close together make one assessment, a steady stream makes one per interval, and never two at once", async (t) => {
-  // On the mock clock, not the real one: with real timers the margins were tens of milliseconds, and
-  // a busy machine running the whole suite stretched a wait past the quiet window.
+  // Mock clock: on real timers a busy machine stretched a wait past the quiet window.
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
   const advance = async (ms: number) => {
     for (let i = 0; i < ms; i++) {
@@ -136,10 +135,7 @@ test("pieces arriving close together make one assessment, a steady stream makes 
 test("the shipped sensor asks only questions it can use, and the kit refuses one that could not be read", () => {
   assert.deepEqual(sensorProblems(shipped.id, shipped as unknown as Record<string, unknown>), []);
   assert.ok(Object.values(shipped.questions).some((question) => question.alone), "some questions stand alone");
-  // A fact the code already reads is judged, never asked about a second time: `unverified` is an
-  // attention-level fact and opens its own incident, so a question that also opened one would put
-  // two incidents on the Supervisor for one turn. The question adds only what code cannot see —
-  // whether the seat claimed the work was done — so it confirms that incident rather than opening one.
+  // `unverified` already opens its own incident, so the question confirms it rather than opening a second.
   const claims = shipped.questions.unverified_success!;
   assert.deepEqual(claims.confirms, ["unverified"]);
   assert.equal(claims.level, undefined, "it opens no incident of its own");
@@ -163,8 +159,7 @@ test("the shipped sensor asks only questions it can use, and the kit refuses one
     "asks q with criterion, which a question does not take",
     "asks q with criteria that are not a true and a false text",
   ], "a misspelt key is refused, not silently dropped");
-  // Each question is asked over one view, and can need only what that view holds: a question needing
-  // `claim` over the steps of work would never be asked, and nothing would say why.
+  // A question can need only what its one view holds, or it would silently never be asked.
   assert.deepEqual(sensorProblems("x", { ...shipped, id: "x", questions: { q: { view: "everything", instructions: "?" }, r: { view: "work", instructions: "?", needs: ["claim"] } } } as never), [
     "asks q over everything, which is not a view (actions, work, claim, instruction)",
     "asks r with needs that is not a list of its view's fields (role, goal, context, beside, instruction, steps)",
@@ -265,8 +260,7 @@ test("each view is asked in a request of its own, only for the questions it can 
   window.add(row(shell("c1", "ls"), 2));
   assessor.moment(watch, true);
   await wait(20);
-  // The turn still runs, so there is no claim yet and nothing is asked over one; a question that also
-  // reads the instruction is asked without a goal, since it is held back only when all it reads is blank.
+  // No claim while the turn runs; a question also reading the instruction is held back only when all it reads is blank.
   assert.deepEqual(sent(0), [of("actions"), of("work"), of("instruction")].map((names) => names.sort()));
   assert.ok(bodies.every((body) => Object.keys(body.questions).every((name) => Object.keys(body.state).length > 0 && shipped.questions[name]!.view !== undefined)));
   assert.ok(Math.abs(readings[0]!.cost! - 0.00003) < 1e-12, "one reading costs what its requests did together");
@@ -319,9 +313,6 @@ test("a decision is made on the facts noted when the state was taken, whatever t
 });
 
 test("every question the shipped sensor asks carries a label a person can read, and a label is never sent", () => {
-  // The watch card names what it saw, and a question's name is an identifier — `missing_mechanism`,
-  // `wrapped_instead_of_changed` — which is what the card used to print. The label is data beside
-  // the question, like its threshold, and it goes nowhere near the sensor.
   for (const [name, question] of Object.entries(shipped.questions)) {
     assert.equal(typeof question.label, "string", `${name} has no label`);
     assert.ok(question.label!.length > 0 && !question.label!.includes("_"), `${name}'s label reads as a name, not a sentence`);
@@ -330,8 +321,7 @@ test("every question the shipped sensor asks carries a label a person can read, 
 });
 
 test("a script waiting out a busy sensor waits for the answer rather than exiting on the way", () => {
-  // A retry's pause did not hold the process open, so `npm run eval:sensor` and `calibrate --ask`
-  // stopped mid-run, silently, the first time the sensor said it was busy.
+  // A retry's pause did not hold the process open, so the eval scripts exited silently mid-run.
   const script = `
     import { assess } from ${JSON.stringify(join(here, "..", "..", "server", "runtime", "watch", "jev", "sensor.ts"))};
     let calls = 0;

@@ -68,13 +68,10 @@ test("the supervisor shown is the one seated now, not the first one the project 
   later.delete("seat-sup");
   later.set("seat-sup2", { id: "seat-sup2", provider: "sw2-supervisor-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 30_000).toISOString() });
 
-  // `ledger.agents` is appended to and never pruned, and its keys come back in insertion order, so
-  // the first Supervisor ever to call a tool here was named for ever — and as "gone" from the moment
-  // its seat was archived, with the one actually working never shown.
+  // `ledger.agents` is never pruned and keeps insertion order, so the first Supervisor ever was shown for ever.
   const shown = flowView(project, ledger, later, now, new Set(), new Set(["supervisor"])).supervisors;
   assert.deepEqual(shown.map((seat) => [seat.id, seat.status]), [["seat-sup2", "running"]], "the gone one is not shown beside a seated one of the same concern");
 
-  // And with none of them seated, the newest recorded is the one reported gone.
   const none = flowView(project, ledger, new Map(), now, new Set(), new Set(["supervisor"])).supervisors;
   assert.deepEqual(none.map((seat) => [seat.id, seat.status]), [["seat-sup2", "gone"]]);
 });
@@ -85,8 +82,7 @@ test("several seats supervising a project are all shown, each for its own concer
   ledger.agents["seat-safety"] = { id: "seat-safety", role: "safety" };
   const both = new Map(seats);
   both.set("seat-arch", { id: "seat-arch", provider: "sw2-architecture-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
-  // A view with room for one supervisor showed the busiest and hid the rest — and the concept has
-  // several by concern. A concern whose seat has gone still shows, as gone, rather than disappearing.
+  // The concept has several supervisors by concern, and a concern whose seat has gone still shows, as gone.
   const view = flowView(project, ledger, both, now, new Set(), new Set(["supervisor", "architecture", "safety"]));
   assert.deepEqual(view.supervisors.map((seat) => [seat.role, seat.status]).sort(), [["architecture", "idle"], ["safety", "gone"], ["supervisor", "idle"]]);
 });

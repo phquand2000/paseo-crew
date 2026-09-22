@@ -101,11 +101,7 @@ export async function assess(spec: SensorSpec, key: string, state: unknown, sess
   return readAnswers(await decide(spec, key, state, questions, session, fetcher, halt), spec);
 }
 
-/**
- * Which of `view`'s steps is the one `question` is about, and how sure the sensor is: one choice over
- * the step ids, as a line is found in a long document. An incident used to quote the question itself,
- * and whoever read it had to search the whole record for what the sensor had seen.
- */
+/** Which of `view`'s steps `question` is about, as one choice over step ids, so an incident can quote it. */
 export async function pinpoint(spec: SensorSpec, key: string, view: View, question: Question, session: string, fetcher: Fetch = fetch as unknown as Fetch): Promise<{ id: string; p: number } | undefined> {
   const ids = (Array.isArray(view.steps) ? (view.steps as { id?: unknown }[]) : []).map((step) => step.id).filter((id): id is string => typeof id === "string");
   if (ids.length === 0 || ids.length > 255) return undefined;
@@ -122,10 +118,7 @@ export type Reading = { spec: SensorSpec; askedAt: number; turnId: string | null
 
 export type Asked = { assessment: Assessment; questions: Record<string, Question> };
 
-/**
- * Every question these views can answer, one request per view, sent together; undefined when none
- * can be asked. A reading, a replay and a case are all asked this way, so all three see the same.
- */
+/** One request per view, sent together; a reading, a replay and a case all ask this way so all three see the same. */
 export async function assessViews(spec: SensorSpec, key: string, views: Partial<Record<ViewName, View>>, session: string, fetcher?: Fetch, halt?: AbortSignal): Promise<Asked | undefined> {
   const questions = asked(spec.questions, views);
   const groups = new Map<ViewName, Record<string, Question>>();
@@ -135,7 +128,6 @@ export async function assessViews(spec: SensorSpec, key: string, views: Partial<
   return { assessment: merged(parts), questions };
 }
 
-/** One reading's answers, from as many requests as it had views. */
 function merged(parts: Assessment[]): Assessment {
   const ids = parts.map((part) => part.id).filter((id): id is string => id !== null);
   const costs = parts.map((part) => part.cost).filter((cost): cost is number => cost !== null);

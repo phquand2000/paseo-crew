@@ -33,8 +33,7 @@ export class TurnRules {
   }
 
   async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<string | undefined> {
-    // A Lead's owner is whoever supervises, which the ledger only narrows. Read first and thrown on,
-    // an unreadable ledger stopped a Lead's failed turn and its permission requests reaching anyone.
+    // A Lead's owner is whoever supervises; an unreadable ledger must not stop its failures reaching anyone.
     if (can(role, "lead")) {
       let opener: string | undefined;
       try {
@@ -65,8 +64,7 @@ export class TurnRules {
     }
     const ledger = loadLedger(project.state);
     const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
-    // Heard from at all, and heard from in a way that reaches somebody, are different questions: the
-    // read-only status tool is the first but not the second, and only the second is not being silent.
+    // The read-only status tool counts as heard from, but not as reaching somebody.
     const spoke = (ledger.agents[agent.id]?.spokeAt ?? 0) >= started;
     if (worksTasks(role)) await this.workerEnded(project, ledger, event, text, recorded, spoke);
   }
@@ -80,19 +78,13 @@ export class TurnRules {
     if (settled && !recorded) return;
     const lane = ledger.lanes[task.lane];
     if (recorded || task.status === "done") {
-      // Heard from, so the count of quiet turns starts again. Left standing, it was a lifetime tally:
-      // a task that went quiet once, asked its question, and went quiet again was marked stalled on
-      // its second-ever quiet turn, under a letter saying its turn had ended twice without an ask.
+      // Heard from, so the quiet count restarts; left standing it was a lifetime tally.
       if (spoke && task.silent > 0) await desk.setTask(project, task.id, (entry) => { entry.silent = 0; });
-      // And a stalled task whose Peer is working again is running. Nothing else ever set it back —
-      // not the Lead's message the SILENT letter tells it to send, not the Peer's own ask — so the
-      // idle-lane check and the gone-Peer check stopped seeing a Peer that was plainly there.
+      // Nothing else sets a stalled task back to running once its Peer works again.
       if (recorded && task.status === "stalled") await desk.setTask(project, task.id, (entry) => { if (entry.status === "stalled") { entry.status = "running"; delete entry.peerGone; } });
       return;
     }
-    // A call still being worked on is not silence: a hand-back whose gate runs past what a call can
-    // wait was answered "the answer comes by mail", the Peer ended its turn as told, and was then
-    // nudged to call done again — which started a second gate beside the first.
+    // A call still in flight is not silence: a nudge here started a second gate beside the first.
     if (desk.inFlight(agent.id)) return;
     const denied = deniedCall(timeline);
     desk.event(project, { kind: "turn.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });

@@ -42,9 +42,7 @@ export function ensureLink(path: string, target: string): boolean {
     if (readlinkSync(path) === target) return false;
     unlinkSync(path);
   } else if (present(path)) {
-    // Something real is there — a directory the harness made for itself, most likely. Deleting it to
-    // put a link in its place would take whatever it holds, and throwing left the rest of the seat
-    // unbuilt, so it is left alone and said out loud.
+    // Likely a directory the harness made itself: deleting it loses its contents, throwing leaves the seat unbuilt.
     throw new LeftAlone(`${path} exists and is not a link, so it was left alone`);
   }
   mkdirSync(dirname(path), { recursive: true });
@@ -54,7 +52,6 @@ export function ensureLink(path: string, target: string): boolean {
 
 const SNAPSHOT_DAYS = 14;
 
-/** What the files under each path hold, and where, in 12 hex characters. */
 export function digest(sources: string[]): string {
   const hash = createHash("sha256");
   for (const [index, source] of sources.entries()) {
@@ -65,12 +62,7 @@ export function digest(sources: string[]): string {
   return hash.digest("hex").slice(0, 12);
 }
 
-/**
- * A copy of `source` under the state root, named by what it holds, for a seat to read. What a seat
- * reads has to resolve outside every repository: Devin loads the AGENTS.md above each file it reads
- * by its real path, and linked into the plugin's own checkout its seats took the plugin's developer
- * rules as their own. A copy is never written again once in place, so one being read never changes.
- */
+/** Copied under the state root, never linked, so it resolves outside every repo: Devin loads the AGENTS.md above a file's real path. */
 export function snapshot(source: string, name: string, homeDir = home()): string {
   const target = join(contentRoot(homeDir), `${name}-${digest([source])}`);
   if (!existsSync(target)) {
@@ -305,11 +297,7 @@ function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: 
 function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, record: Recorder): void {
   const file = join(dir, harness.mcp.file);
   const fault = configFault(file);
-  // Whose document it is decides what to do with an unreadable one. A harness that takes its servers
-  // at launch keeps its own things in that file — an account, a machine id, a project history — and
-  // the plugin's three-key seed must not replace them. A harness that takes them from the file has
-  // nothing else in it, and this file carries the seat's only two tools: leaving it unreadable is a
-  // Peer that boots with no way to hand back or ask.
+  // A launch-delivery harness keeps its own account data in this file; a file-delivery one holds only the seat's two tools here.
   if (fault && harness.mcp.delivery !== "file") {
     console.error(`seatworks-v2: ${fault}, so its MCP servers were left alone`);
     return;
@@ -351,10 +339,7 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, homeDir
     try {
       record.note(ensureLink(join(skillsDir, name), snapshot(source, name, homeDir)), `skill ${name}`);
     } catch (error) {
-      // As the shared links beside this already do, and as `ensureLink` itself says it is for: a real
-      // directory where a link should go is left alone and said out loud. Thrown from here it left
-      // the seat unbuilt, which the launch hook turns into a refusal — for ever, because nothing ever
-      // removes that directory. One folder a harness made for itself could not be recovered from.
+      // Thrown, the launch hook refused the seat for ever, since nothing removes that directory.
       if (!(error instanceof LeftAlone)) throw error;
       console.error(`seatworks-v2: skill ${name} for the ${role.role}: ${error.message}`);
     }
@@ -368,15 +353,7 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, homeDir
   }
 }
 
-/**
- * What a seat cannot be built from, said before anything is written.
- *
- * Rendering refuses for a placeholder nothing fills in and for a word the role must not see — and
- * the owner's own rules are folded into that text, so an ordinary line like "leave the Paseo config
- * alone" refuses every Peer. It used to refuse in the middle of building the seat, after the config
- * and the MCP file were written and before the instructions were, which is a seat that boots with no
- * instructions at all. Either the seat is rebuilt or it is left exactly as it was.
- */
+/** Checked before anything is written: refusing mid-build left a seat booting with config and MCP but no instructions. */
 export function seatProblems(kit: Kit, team: Team, roleName: string, paths: PromptPaths): string[] {
   const seat = team.roles[roleName];
   if (!seat) return [`the team has no ${roleName} seat`];

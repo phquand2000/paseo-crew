@@ -133,11 +133,7 @@ function stdioBackend(command = []) {
   return async (method, params, timeoutMs) => {
     if (!command[0]) throw new Error("no command is set");
     client ??= start();
-    // The whole call, not only its second leg. `initialize` was issued with the call budget — three
-    // minutes by default — while `tools/list` asks for twenty seconds, and starting the server is the
-    // slow part: a package fetched on first use held the list for as long as the call budget allowed,
-    // with nothing written to the harness, so the harness gave up on the server before the answer
-    // saying it was not reachable could ever be sent.
+    // Bounds the whole call: starting the server is the slow part, and the harness gave up before "not reachable" was sent.
     const started = await within(client.ready, timeoutMs);
     if (started.error) throw backendError(started.error);
     const reply = await client.request(method, params, timeoutMs);
@@ -164,9 +160,7 @@ async function listTools() {
   const wanted = [...allowed];
   if (wanted.length === 0) return [];
   const describe = (name, fallback) => config.descriptions?.[name] ?? fallback;
-  // The note about a server that is not there is appended, never replaced: a tool the preset gives a
-  // description of showed that description and nothing else, so a seat read a healthy tool with an
-  // empty schema and called it, over and over, against a server that had never answered.
+  // Appended, never replaced: a preset description alone hid the note, and a seat kept calling a server that never answered.
   const unreachable = (name, note) => `${describe(name, "")}\n\n${note}`.trim();
   try {
     const listed = await rpc("tools/list", {}, LIST_MS);

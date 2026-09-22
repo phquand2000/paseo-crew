@@ -37,7 +37,6 @@ function within<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
 
 export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, options: FollowOptions = {}): Stream {
   const { readyMs = 10_000, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? ""), archived = async () => false } = options;
-  /** How much history a join seeds from. Paseo pages the rest in, so this is a first mouthful. */
   const seedRows = 200;
   let stopped = false;
   let joined = false;
@@ -63,9 +62,7 @@ export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, opti
     tell({ kind: "row", row });
   };
 
-  // Paseo resumes an archived agent to serve its history and does not close it again: each read left
-  // a Devin process running for hours. An archive ends the runtime, and what that sends is exactly
-  // what asks for history here, so whoever archived it, the stream stops instead of reading.
+  // Stop once archived: Paseo resumes an archived agent to serve its history and never closes it again.
   const gone = async (): Promise<boolean> => {
     if (!stopped && (await archived())) {
       stopped = true;

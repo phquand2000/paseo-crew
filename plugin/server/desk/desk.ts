@@ -42,7 +42,6 @@ const TOOLS: Record<string, Tool> = {
   judge: watcher.judge,
 };
 
-// "ask" means one thing to every seat that holds it — reach the seat above me — and only what is above differs.
 const ASK: { holds: (role: RoleSpec) => boolean; tool: Tool }[] = [
   { holds: (role) => can(role, "lead"), tool: lead.ask },
   { holds: worksTasks, tool: worker.ask },
@@ -63,10 +62,8 @@ export type DeskOptions = {
   sent?: DeskDeps["sent"];
 };
 
-/** Tools whose whole point is that somebody else reads the result. Reading the room is not speaking. */
 const SPEAKS = ["done", "ask", "answer", "message", "report"];
 
-/** Under the five minutes the seat's bridge waits (`mcp/team.mjs`), so the seat is always told something. */
 export const ANSWER_WITHIN_MS = 240_000;
 
 export class Desk {
@@ -79,7 +76,6 @@ export class Desk {
     return false;
   }
 
-  /** Calls still being worked on, by caller, tool and arguments. */
   private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
 
   constructor(options: DeskOptions) {
@@ -189,23 +185,15 @@ export class Desk {
   }
 
   /**
-   * Answer a tool call — within the time the seat can wait, or by mail once it is done.
-   *
-   * The seat's bridge (`mcp/team.mjs`) waits five minutes, and three calls run the project's gate
-   * inside them, which is allowed thirty: `report` ready, `close_lane` land, and a hand-back on a
-   * project that gates per task. Past the five minutes the bridge told the seat to call again, and the
-   * desk, still working on the first, served the second beside it — a second gate in the same working
-   * copy and, for `close_lane`, a second landing in the owner's repository. So a call that runs long is
-   * answered with what is happening and its result goes by mail, and the same call again while it
-   * runs is the same call, not another one.
+   * The seat's bridge (`mcp/team.mjs`) waits five minutes but a gate may run thirty: a call that runs long is
+   * answered with what is happening and its result mailed, and the same call again while it runs joins it.
    */
   answer(request: ToolRequest, within = ANSWER_WITHIN_MS): Promise<ToolReply> {
     const key = `${request.agent}\n${request.tool}\n${JSON.stringify(sortKeys(request.args ?? {}))}`;
     const running = this.running.get(key);
     if (running) return this.inTime(request, running.reply, running.started, within, true);
     const started = Date.now();
-    // A call that throws is answered too. Left to reject, the seat waited four minutes, was promised
-    // mail, and the letter — which only a resolved reply posts — never came.
+    // A throw is answered too: only a resolved reply posts the letter the seat was promised.
     const reply = this.handle(request)
       .catch((error: unknown) => no(`The desk failed: ${errorText(error)}`))
       .finally(() => {

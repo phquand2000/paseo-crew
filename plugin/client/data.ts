@@ -15,7 +15,6 @@ export type Catalog = {
   roles: { id: string; label: string; description: string; can: string[]; concern: string | null; defaults: { harness: string; model?: string; thinking?: string }; follows: string | null; harnesses: string[] }[];
   harnesses: { id: string; label: string; models: ModelView[]; thinking: boolean; transports: string[] }[];
   mcp: { id: string; label: string; description: string; kind: string; transport: string; settings: Record<string, SettingSpec>; defaults: { enabled: boolean }; roles: string[] }[];
-  /** The model Jev runs as, when the kit ships a sensor. */
   sensor: { model: string } | null;
 };
 
@@ -55,7 +54,6 @@ export type Data =
   | { status: "error"; error: string }
   | {
       status: "ready";
-      /** Which screen this is for, so a refresh keeps it up and a move to another one does not. */
       of: string;
       catalog: Catalog;
       team: TeamView;
@@ -108,20 +106,16 @@ export function useSeatworks(project?: string) {
   latest.current = bound as unknown as Calls;
   const [data, setData] = useState<Data>({ status: "loading" });
   const [saving, setSaving] = useState(false);
-  // Set by a save and cleared by the reload it asked for, so the controls stay locked until they are
-  // drawn from what the save produced.
+  // Set by a save, cleared by its reload: the controls stay locked until drawn from what it produced.
   const settling = useRef(false);
-  // Held with the screen it came from. The hook serves every screen, and a refusal on one project was
-  // shown under "Needs your attention" on every other one and on the list, until the next save anywhere.
+  // Tagged with its screen: the hook serves every screen, and an untagged refusal showed on all of them.
   const [refusal, setRefusal] = useState<{ of: string; text: string } | null>(null);
-  // Read through a ref, so a callback built on an earlier render still tags the screen that is open
-  // now: closed over `project`, detach and add kept the list's "" from the first render for good.
+  // A ref, so a callback built on an earlier render still tags the screen open now.
   const here = useRef(project ?? "");
   here.current = project ?? "";
   const setSaveError = useCallback((text: string | null) => setRefusal(text === null ? null : { of: here.current, text }), []);
   const saveError = refusal?.of === (project ?? "") ? refusal.text : null;
-  // Whether the last write really went. The "Saved" toast used to infer it from there being no error
-  // on the screen now open, so a refusal recorded for another screen read as a success.
+  // Whether the last write went; inferring it from no error here read another screen's refusal as success.
   const [saved, setSaved] = useState<boolean | null>(null);
   const [nonce, setNonce] = useState(0);
 
@@ -166,11 +160,7 @@ export function useSeatworks(project?: string) {
         settingsError: settings.status === "ready" ? null : settings.error,
       });
     };
-    // Only a move to another screen blanks it. Every save ends in a reload, and blanking on that
-    // returned the surface to its loading view, which unmounts every section and remounts it with
-    // fresh local state: the tab the owner was on, the server they had just pasted and were told to
-    // narrow, the draft they were halfway through, and any error shown beside it. Keeping it up for a
-    // different project would show one project's settings as another's, so what it is for is checked.
+    // Only a move to another screen blanks it: blanking on a save's reload remounted every section and lost its local state.
     setData((held) => (held.status === "ready" && held.of === (project ?? "") ? held : { status: "loading" }));
     load().catch((error: unknown) => {
       if (!alive) return;
@@ -188,13 +178,8 @@ export function useSeatworks(project?: string) {
   const reload = useCallback(() => setNonce((value) => value + 1), []);
 
   /**
-   * The shell every write to the desk runs inside: locked, cleared of the last refusal, and ending in
-   * a reload the controls stay locked until.
-   *
-   * Cleared anywhere but here, the controls came back live while they were still drawn from the team
-   * read before the save: first a second click was refused as a conflict over the owner's own change,
-   * and then — once the new revision alone was adopted — it went through, built on a view one save
-   * behind, and silently undid the first.
+   * Every desk write runs inside this: locked, refusal cleared, ending in a reload the controls stay locked until;
+   * unlocking earlier let a click built on the pre-save view silently undo the save.
    */
   const writing = useCallback(
     async <T,>(run: () => Promise<T>, failed: T): Promise<T> => {
@@ -263,9 +248,7 @@ export function useSeatworks(project?: string) {
             setSaved(false);
             return added.slug;
           }
-          // A write is the whole layer, so what the dialog collected is folded into what the project
-          // already holds. Sending the draft on its own erased the rules, the pasted servers with
-          // their tokens and the attention tuning of a project that turned out to be attached already.
+          // A write is the whole layer, so the draft is folded into what the project holds; alone it erased rules, servers and tuning.
           const catalogue = data.status === "ready" ? data.catalog.roles : [];
           const merged = foldRoles(read.values, values, (role) => {
             const spec = catalogue.find((entry) => entry.id === role);
@@ -282,8 +265,7 @@ export function useSeatworks(project?: string) {
         return added.slug;
       }, null);
     },
-    // `data` is read for the catalog's default harness: without it here the callback keeps the one
-    // built on the first render, where the settings are still loading and the catalog is empty.
+    // `data` for the catalog's default harness; without it the callback keeps the first render's empty catalog.
     [data, writing],
   );
 
@@ -317,9 +299,7 @@ export function useSeatworks(project?: string) {
           setSaveError("That snippet does not name the server; paste it as {\"mcp\": {\"name\": { … }}}.");
           return null;
         }
-        // Given only to the roles whose agent can reach it. Left to "every eligible role", a hosted
-        // server was refused for whichever role runs an agent with no transport for it — and the
-        // control that narrows it only appears once the server is saved, so it could never be added.
+        // Only to roles whose agent can reach it: otherwise it was refused, and the narrowing control appears only once saved.
         if (data.status !== "ready") return null;
         const harnessOf = (role: InForce) => harnessInForce(role, data.values, data.machine);
         const reachable = data.catalog.roles
@@ -329,9 +309,7 @@ export function useSeatworks(project?: string) {
           setSaveError(`No role's agent can reach a ${parsed.connect.type} server, so there is nobody to give it to.`);
           return null;
         }
-        // Pasting the same name again is how a connection is updated — a rotated token, a new url —
-        // so the roles the owner narrowed to are kept, intersected with what can reach the transport.
-        // `roles` is derived from the kit, not carried by the snippet, so a paste must not assert it.
+        // A re-paste updates the connection, so the owner's narrowing is kept, intersected with what can reach the transport.
         const narrowed = data.values.mcp?.[id]?.roles;
         const roles = keptRoles(narrowed, reachable);
         if (narrowed?.length && roles.length === 0) {
@@ -418,19 +396,10 @@ function prune<T extends object>(values: Layer, key: "roles" | "mcp", id: string
   return next;
 }
 
-/**
- * Folds a setup draft into the layer a project already holds.
- *
- * Each role goes through `setRole` with the answer to the question that function exists to ask: is
- * this a *different* agent from the one this role runs now? A draft that moves the Peer to another
- * agent while the layer still holds the old agent's model would otherwise keep that model and pin it
- * onto the new one, and nothing downstream fences a model an agent does not have.
- */
+/** Folds a setup draft into a project's layer; a role moved to another agent must drop the old agent's model, which nothing downstream fences. */
 export function foldRoles(into: Layer, draft: Layer, harnessNow: (role: string) => string | undefined): Layer {
   return Object.entries(draft.roles ?? {}).reduce((values, [role, choice]) => {
-    // Only a harness we can *name* counts as the one being replaced. Reading "not recorded anywhere"
-    // as "different from this one" threw away a model the owner had picked for a role still running
-    // its kit default, which is the ordinary state of a role nobody has moved.
+    // Only a named harness counts as replaced; an unrecorded one is the kit default, whose picked model must survive.
     const now = harnessNow(role);
     const moved = Boolean(choice.harness) && now !== undefined && choice.harness !== now;
     return setRole(values, role, choice, moved);
@@ -439,33 +408,19 @@ export function foldRoles(into: Layer, draft: Layer, harnessNow: (role: string) 
 
 export function setRole(values: Layer, role: string, choice: RoleChoice, newHarness = false): Layer {
   const current = values.roles?.[role] ?? {};
-  // A new harness invalidates the model and the thinking level picked for the old one. It does not
-  // invalidate what this seat was told: that is the owner's writing and holds whatever runs it.
+  // A new harness drops the old one's model and thinking, but not the seat's rules: those are the owner's writing.
   const base: RoleChoice = newHarness ? (current.rules ? { rules: current.rules } : {}) : current;
   return prune(values, "roles", role, { ...base, ...choice });
 }
 
-/**
- * Who a re-pasted server stays given to.
- *
- * A list the owner emptied is a narrowing to nobody — the resolver reads it that way and really does
- * give the server to no role — so a paste that rotates its token must leave it that way. Reading the
- * empty list as "nothing to preserve" handed the server, and the new token with it, to every role
- * whose agent could reach it, and said only "Saved".
- */
+/** An emptied list is a narrowing to nobody, so a re-paste keeps it rather than hand the new token to every role. */
 export function keptRoles(narrowed: string[] | undefined, reachable: string[]): string[] {
   return narrowed ? narrowed.filter((role) => reachable.includes(role)) : reachable;
 }
 
-/**
- * The agent in force for a role, nearest layer first: a draft the owner is filling in, then the
- * project's settings, then the machine's, then the kit's default.
- *
- * A screen that skipped the two middle layers showed the kit's default as if it were the choice in
- * force, so it offered the wrong agent's model list and wrote the model onto the agent really there.
- */
 type InForce = { id: string; follows?: string | null; defaults: { harness: string; model?: string } };
 
+/** Nearest layer first: draft, project, machine, kit default; skipping the middle two offered the wrong agent's models. */
 export function harnessInForce(role: InForce, ...layers: (Layer | undefined)[]): string {
   for (const layer of layers) {
     const named = layer?.roles?.[role.id]?.harness;
@@ -475,15 +430,9 @@ export function harnessInForce(role: InForce, ...layers: (Layer | undefined)[]):
   return role.follows ? harnessInForce({ id: role.follows, defaults: role.defaults }, ...layers) : role.defaults.harness;
 }
 
-/**
- * The model in force for a role, by the resolver's own rule, walked from the lowest layer up: a layer
- * that names another agent drops every model chosen below it, and returning to the role's own agent
- * brings back the kit's choice there. A screen that took the nearest model it could find showed one
- * chosen for an agent no longer in force.
- */
+/** Walked lowest layer up, as the resolver does: a layer naming another agent drops the models chosen below it. */
 export function modelInForce(role: InForce, ...nearestFirst: (Layer | undefined)[]): string | undefined {
-  // Where the role starts before any layer, as the resolver has it: its defaults, or what the role it
-  // follows has in force.
+  // Where the resolver starts it: its defaults, or what the role it follows has in force.
   const followed = role.follows ? { id: role.follows, defaults: role.defaults } : undefined;
   const origin = followed ? { harness: harnessInForce(followed, ...nearestFirst), model: modelInForce(followed, ...nearestFirst) } : role.defaults;
   let harness = origin.harness;
@@ -500,14 +449,7 @@ export function modelInForce(role: InForce, ...nearestFirst: (Layer | undefined)
   return model;
 }
 
-/**
- * The model row a settings screen should show: what is in force, and whether this agent lists it.
- *
- * The resolver does not fence the model against the catalogue — the catalogue is what a screen offers,
- * not a law — so a screen that printed the catalogued model instead of the one in force claimed the
- * seat was running something it was not, and where the agent listed only one it rendered no control to
- * put it right.
- */
+/** The resolver does not fence models against the catalogue, so show the one in force and flag it when the agent does not list it. */
 export function modelRow(model: string, models: { id: string; label: string }[]): { value: string; options: { label: string; value: string }[]; stray: boolean } {
   const known = models.map((entry) => ({ label: entry.label, value: entry.id }));
   const stray = Boolean(model) && !models.some((entry) => entry.id === model);
@@ -518,10 +460,7 @@ export function setAttention(values: Layer, choice: AttentionChoice): Layer {
   return { ...values, attention: { ...values.attention, ...choice } };
 }
 
-/**
- * Money in dollars, always. Three places below a dollar, because watching a whole lane costs a few
- * cents and two places would print most seats as $0.00; two above it.
- */
+/** Three places below a dollar, since a lane costs cents and two would print most seats as $0.00. */
 export const spent = (cost: number): string => (cost === 0 ? "nothing yet" : `$${cost.toFixed(cost < 1 ? 3 : 2)}`);
 
 const since = (minutes: number): string => {
@@ -605,14 +544,7 @@ export function setFlow(values: Layer, choice: { live?: boolean; everySeconds?: 
   return { ...values, flow: { ...values.flow, ...choice } };
 }
 
-/**
- * Write, keep or forget the sensor's key.
- *
- * `KEPT` is what a read hands the screen in place of a key that is set, so every save the screen makes
- * carries it back and the key on disk is left alone — including saves about something else entirely,
- * since a write is the whole layer. `null` is the owner forgetting it: the block goes, and with it the
- * paid calls.
- */
+/** `KEPT` stands in for a set key so every whole-layer save carries it back untouched; `null` forgets it and its paid calls. */
 export function setSensorKey(values: Layer, key: string | null): Layer {
   const next = { ...values };
   if (key === null) delete next.sensor;
@@ -620,14 +552,7 @@ export function setSensorKey(values: Layer, key: string | null): Layer {
   return next;
 }
 
-/**
- * Forget a server this layer added, rather than marking it removed.
- *
- * A template from the kit has to stay on record as removed or the kit would switch it back on. One the
- * owner pasted has no template behind it: marking it left the whole entry on disk — its url and its
- * `Authorization` header — with no tab, no switch and no way back, under a screen that had just said
- * removing it drops it.
- */
+/** A pasted server has no kit template to re-enable it, so it is dropped, url and token with it, not marked removed. */
 export function dropMcp(values: Layer, id: string): Layer {
   return prune(values, "mcp", id, {});
 }
@@ -641,14 +566,7 @@ export function setMcp(values: Layer, id: string, choice: McpChoice): Layer {
   return prune(values, "mcp", id, entry);
 }
 
-/**
- * Whether a collapsed lane may show its task counts in place of its Lead.
- *
- * Lanes start collapsed, so for any lane with a live task the Lead's line was never drawn — and that
- * line is the only place the flow screen renders a seat waiting on a permission. A Lead blocked on
- * the owner read as "3 tasks, 1 running" in the same green as a healthy one, and a Lead whose seat
- * had gone read the same with only the colour dropped and the word never shown.
- */
+/** Lanes start collapsed and the Lead's line is the only place a seat waiting on a permission shows, so counts must not hide it. */
 export function countsInstead(lane: { taskCount: number; open: boolean; lead: { status: string; waiting: string[] } | null }): boolean {
   if (lane.taskCount === 0 || lane.open) return false;
   return Boolean(lane.lead) && lane.lead!.status !== "gone" && lane.lead!.waiting.length === 0;

@@ -9,7 +9,6 @@ import { STATE_VERSION } from "../../server/core/state.ts";
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SHAPES = join(PLUGIN, "test", "fixtures", "state", "shapes.json");
 
-/** Every declaration that fixes the shape of a file the plugin keeps and cannot rebuild. */
 const KEPT: [string, string[]][] = [
   ["server/desk/ledger.ts", ["LaneStatus", "TaskStatus", "AskKind", "Lane", "Handback", "Task", "Ask", "Releasing", "Restoring", "Slot", "AgentRef", "Ledger"]],
   ["server/desk/incidents.ts", ["Held", "Judged", "Incident", "Incidents"]],

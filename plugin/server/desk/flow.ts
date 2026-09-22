@@ -6,7 +6,6 @@ import type { Project } from "./project.ts";
 
 export type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView };
 
-/** A lane costs a row; its tasks cost a row each. Only the lanes the screen has opened carry tasks. */
 export const LANE_CAP = 50;
 
 const minutes = (now: number, at: number | string | undefined): number =>
@@ -15,8 +14,7 @@ const minutes = (now: number, at: number | string | undefined): number =>
 function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: string, now: number, heard?: number): FlowSeat | null {
   if (!id) return null;
   const seat = seats.get(id);
-  // How long since it was last heard from, when the desk knows; stamped zero, a seat gone for a week
-  // read as having gone just now.
+  // Stamped zero, a seat gone for a week read as gone just now.
   if (!seat) return { id, role, status: "gone", minutes: heard ? minutes(now, heard) : 0, waiting: [] };
   return {
     id,
@@ -27,11 +25,7 @@ function seatOf(seats: Map<string, SeatView>, id: string | undefined, role: stri
   };
 }
 
-/**
- * `seated` is every open seat on this project that can supervise, newest first, with its role — asked
- * of the roster by the caller, because a seat is on the ledger's record only once a tool call of its
- * has succeeded, and a Supervisor that had just sat down was otherwise never the one shown.
- */
+/** `seated` comes from the roster: the ledger records a seat only after its first successful tool call. */
 export function flowView(
   project: Project,
   ledger: Ledger,
@@ -101,17 +95,12 @@ export function flowView(
     });
   }
 
-  // The Supervisor that is seated now, not the first one ever recorded here. `ledger.agents` is
-  // appended to and never pruned, and its keys come back in insertion order, so this named the
-  // oldest Supervisor that had ever called a tool on the project — permanently, and as "gone" from
-  // the moment that seat was archived, with the one actually working never shown at all.
+  // The Supervisor seated now: `ledger.agents` is never pruned, so its first entry is the oldest, maybe archived.
   const recorded = Object.values(ledger.agents).filter((agent) => supervises.has(agent.role));
   const live = recorded
     .filter((agent) => seats.has(agent.id))
     .sort((a, b) => Date.parse(seats.get(b.id)!.updatedAt) - Date.parse(seats.get(a.id)!.updatedAt));
-  // Every seat supervising the project, not one: the concept has several, each for its own concern,
-  // and a view with room for one hid all but the busiest. A concern with nobody seated shows the last
-  // seat it had, as gone, so the screen says the concern is uncovered rather than saying nothing.
+  // Every supervising seat, one per concern; a concern with nobody seated shows its last seat as gone.
   const shown = new Map<string, FlowSeat>();
   const heard = (id: string) => ledger.agents[id]?.recordedAt;
   for (const entry of [...seated, ...live]) if (!shown.has(entry.id)) shown.set(entry.id, seatOf(seats, entry.id, entry.role, now, heard(entry.id))!);

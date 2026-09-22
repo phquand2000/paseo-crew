@@ -9,7 +9,6 @@ export type Listed = {
   error?: string | null;
 };
 
-/** What Paseo listed for each agent, by harness id: the models are Paseo's, never the kit's. */
 export type ModelCache = Record<string, { at: string; models: ModelSpec[]; error: string | null }>;
 
 const cacheFile = (stateDir: string) => join(stateDir, "models.json");
@@ -26,24 +25,19 @@ export function applyModels(kit: Kit, cache: ModelCache): void {
   }
 }
 
-/**
- * A model's own default is not kept: Paseo marks the one this plugin tells it to, so what it lists as
- * default is the plugin's choice read back. The thinking default is Paseo's, since that is left alone.
- */
+/** A model's own default is dropped: Paseo marks the one this plugin told it to, so it is our choice read back. */
 function specOf(model: NonNullable<Listed["models"]>[number]): ModelSpec {
   const spec: ModelSpec = { id: model.id, label: model.label };
   if (model.thinkingOptions?.length) spec.thinkingOptions = model.thinkingOptions.map((option) => ({ id: option.id, label: option.label, ...(option.id === model.defaultThinkingOptionId ? { isDefault: true } : {}) }));
   return spec;
 }
 
-/** One seat provider per agent, which Paseo is asked about for that agent. */
 export function listingProviders(kit: Kit): Map<string, string> {
   const providers = new Map<string, string>();
   for (const { role, harness } of seatPairs(kit)) if (!providers.has(harness.id)) providers.set(harness.id, providerId(kit, role.role, harness.id));
   return providers;
 }
 
-/** Asks Paseo for each agent's models, and keeps the last good list when it cannot answer. */
 export async function fetchModels(kit: Kit, list: (provider: string) => Promise<Listed>, stateDir: string, now = Date.now()): Promise<{ cache: ModelCache; changed: boolean }> {
   const held = readModels(stateDir);
   const next: ModelCache = {};

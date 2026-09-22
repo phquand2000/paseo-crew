@@ -12,8 +12,6 @@ export type Steers = (seat: SeatLook) => boolean;
 const KEEP_MS = 7 * 24 * 3_600_000;
 const DUPLICATE_MS = 30 * 60_000;
 const GRACE_MS = 10 * 60_000;
-// Paseo's own bound on a provider getting a run going. A steer the provider cannot take yet — Claude
-// before its query is up — the daemon turns into replacing the turn: the interruption holding is for.
 const SETTLE_MS = 60_000;
 
 export function busy(status: string | null | undefined): boolean {
@@ -30,13 +28,7 @@ export class Outbox {
   private readonly started = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
 
-  /**
-   * A duplicate is the same letter to the same reader. Keyed on the key alone, it was also the same
-   * key to a *different* reader: every id the desk builds a key from — a lane, a task, an ask — is
-   * only unique inside its own project, and this is one file for all of them. So on a daemon holding
-   * two projects the second project's Lead was told nothing about its own task, and a seat that came
-   * back in place of one that had gone was refused the letter the old seat never read.
-   */
+  /** Keyed on the reader too: desk ids are unique only per project, and this one file serves them all. */
   private static held(letter: { to: string; key: string }): string {
     return `${letter.to}\n${letter.key}`;
   }
@@ -51,13 +43,7 @@ export class Outbox {
     this.steers = steers;
   }
 
-  /**
-   * Everything the file holds, including what is about to age out.
-   *
-   * The age filter used to live here, and both writers rebuild the file from this read — so seven
-   * days was not a view, it was a delete, and it happened with nothing written down anywhere. A
-   * letter held for a seat that was busy every time the round came round simply stopped existing.
-   */
+  /** Aged-out letters included: both writers rebuild the file from this read, so filtering here deletes. */
   letters(): Letter[] {
     const stored = readJson<Letter[]>(this.file, []);
     return Array.isArray(stored) ? stored.filter((letter) => Boolean(letter) && typeof letter.to === "string" && typeof letter.at === "number") : [];
@@ -86,8 +72,7 @@ export class Outbox {
   async post(letter: Omit<Letter, "id" | "at">): Promise<Posted> {
     const now = Date.now();
     const sentAt = this.sentKeys.get(Outbox.held(letter));
-    // A letter past its time is not one still waiting: counted as a repeat, it blocked the same letter
-    // from being posted afresh for as long as nothing else was posted to prune it.
+    // An expired letter is not a pending duplicate; counted as one, it blocked a fresh post.
     if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to && now - entry.at < KEEP_MS)) {
       return "duplicate";
     }
@@ -119,9 +104,7 @@ export class Outbox {
     return this.lane(to, async () => {
       const mine = this.pending(to);
       if (mine.length === 0) return new Set<string>();
-      // A seat Paseo cannot answer for is held, not thrown at the caller: mail is the one thing the
-      // desk must not lose, and one unanswerable address must not stop the round for the others.
-      // status.md lists what is held and how old it is, which is where a stuck letter surfaces.
+      // Held, not thrown: mail must not be lost, and one unanswerable address must not stop the round.
       const seat = await this.seats.look(to).catch(() => undefined);
       if (!seat) return new Set<string>();
       if (seat.archivedAt) {

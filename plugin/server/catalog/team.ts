@@ -47,10 +47,7 @@ export function templateRoles(entry: McpEntry): string[] {
   return entry.kind === "proxy" ? Object.keys(entry.tools ?? {}) : (entry.roles ?? []);
 }
 
-/**
- * A server that names no roles goes to every role that works with tools. Not to one that watches: it
- * reads what it is mailed and must not touch the work, and a pasted server's tools can write.
- */
+/** No roles named means every role working with tools, not a watcher: a pasted server's tools can write. */
 export function eligibleRoles(state: McpState, kit: Kit): string[] {
   const entry = state.entry;
   if (entry?.kind === "proxy") return Object.keys(state.tools ?? entry.tools ?? {});
@@ -133,9 +130,7 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   for (const layer of layers) {
     const next = layer.roles?.[role.role];
     if (!next) continue;
-    // Leaving a harness drops what was chosen for it; coming back to the role's own restores what the
-    // kit chose for it. Reset to the harness alone, a later layer putting the role back got the
-    // catalog's first model and thinking instead of the preset's.
+    // Back on the role's own harness restores the preset; reset to the harness alone, it lost the preset's model and thinking.
     if (next.harness && next.harness !== choice.harness) choice = next.harness === origin.harness ? { ...origin } : { harness: next.harness };
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
@@ -161,13 +156,10 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     errors.push(`${harness.label} has no ${role.role} settings under harness/${harness.id}/settings, so it can't run the ${role.label}`);
   }
   const models = harness.models ?? [];
-  // The catalog is what the settings screen offers, not a fence. Which model a seat runs is the owner's
-  // choice, and the evidence for several lenses is about different models, not one model resampled.
+  // The catalog is an offer, not a fence: which model a seat runs is the owner's choice.
   let model = choice.model ? (models.find((entry) => entry.id === choice.model) ?? { id: choice.model, label: choice.model }) : undefined;
   model ??= agentDefault(kit.roles, harness);
-  // Paseo starts an agent only as `provider/model`, and refuses a bare provider before the request
-  // reaches the daemon. A harness with no models and nothing chosen was accepted here and then failed
-  // at every open_lane with a format error that said none of this.
+  // Paseo refuses a bare provider before the daemon, which surfaced only as a format error at open_lane.
   if (!model) errors.push(`Paseo has listed no models for ${harness.label} yet and none is chosen for the ${role.label}; Paseo starts an agent only with one, so refresh the models or choose one`);
   let thinking: string | undefined;
   const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
@@ -177,8 +169,7 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     }
     thinking = options.some((option) => option.id === choice.thinking) ? choice.thinking : (options.find((option) => option.isDefault) ?? options[0])!.id;
   } else if (choice.thinking && harness.hasThinking !== false && model && !models.some((entry) => entry.id === model!.id)) {
-    // A model outside the catalog carries no list of thinking options, which is not a list of none:
-    // the owner's thinking for it was dropped without a word while the model itself was kept.
+    // No thinking options listed is not a list of none: the owner's choice is kept.
     thinking = choice.thinking;
   }
   const enabled = Object.values(mcp)
@@ -194,21 +185,15 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   return { role, harness, model, thinking, rules: ownRules.join("\n\n"), mcp: enabled };
 }
 
-/** Jev reads only when the watch is by Jev and a key is set. */
 export function jevOn(team: Pick<Team, "attention" | "sensor">): boolean {
   return team.attention.by === "jev" && Boolean(team.sensor);
 }
 
-/** Whether seats are followed at all: always by a Watcher seat, and by Jev only with its key. */
 export function watchOn(team: Pick<Team, "attention" | "sensor">): boolean {
   return team.attention.by === "seat" || jevOn(team);
 }
 
-/**
- * `unread` are layers that could not be read. They resolve to nothing, which is indistinguishable from
- * an owner who chose nothing — so a hand-edited file with a trailing comma silently gave the kit's
- * defaults, and the doctor then reported a complete team the owner had not written a line of.
- */
+/** `unread` layers are reported, since resolving to nothing looked like a complete team the owner never wrote. */
 export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, unread: string[] = []): Team {
   const errors: string[] = [...unread];
   const layers = [machine, project];
@@ -251,7 +236,6 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   const seat = team.roles[roleName];
   if (!seat || seat.harness.id === harness.id) return team;
   const models = harness.models ?? [];
-  // The role's own harness brings back what the kit chose for it there.
   const preset = harness.id === seat.role.defaults.harness ? seat.role.defaults : undefined;
   // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
   const model = preset?.model ? (models.find((entry) => entry.id === preset.model) ?? { id: preset.model, label: preset.model }) : agentDefault(Object.values(team.roles).map((entry) => entry.role), harness);
@@ -261,12 +245,7 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 
-/**
- * The team as it serves one project. A server that needs something the project does not have — an
- * IDE's own folder for the project — is switched off there, and so left off every seat with its
- * rule, notes and skills. Handed to every seat anyway, the IntelliJ index told each Peer to check its
- * files with a tool that answered "the IDE does not have this working copy open", every time.
- */
+/** A server needing what the project lacks (an IDE's folder) is switched off, or a Peer is told to use a tool that cannot answer. */
 export function servingProject(team: Team, root: string): Team {
   const lacking = new Set(Object.values(team.mcp).filter((state) => state.enabled && (state.entry?.requires ?? []).some((path) => !existsSync(join(root, path)))).map((state) => state.id));
   if (lacking.size === 0) return team;
@@ -287,9 +266,7 @@ export function indexedProxies(team: Team): IndexedProxy[] {
   const found: IndexedProxy[] = [];
   for (const state of Object.values(team.mcp)) {
     const proxy = state.enabled ? proxyOf(state) : undefined;
-    // Anything the desk does for a working copy it takes — open it in the index, sync it, keep the
-    // index's own files out of git — makes a proxy one it serves. Keyed on opening alone, a preset
-    // without an open tool also lost the sync and the git exclude, and a Peer could commit `.idea/`.
+    // Keyed on opening alone, a preset without an open tool lost the sync and git exclude, and a Peer could commit `.idea/`.
     const serves = Boolean(proxy?.open || proxy?.close || proxy?.sync || proxy?.gitExclude?.length);
     if (proxy && serves && proxy.backend.type === "http") found.push({ ...proxy, backend: proxy.backend, id: state.id, label: state.label });
   }
@@ -317,7 +294,6 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
   return servers;
 }
 
-/** Every tool of the desk and of the proxied servers a seat is given, by server: the whole of what it may call there. */
 export function preapprovedFor(kit: Kit, team: Team, roleName: string): { kind: "mcp"; server: string; tool: string }[] {
   const seat = team.roles[roleName];
   if (!seat) return [];

@@ -24,11 +24,7 @@ export function statusText(
 ): string {
   const gate = config.gate || (config.gate === "" ? "none, by this project's own choice" : "none");
   const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${gate}.`, ""];
-  // One outbox file holds every project's mail and a letter carries no project, so a page titled for
-  // this project used to print, and quote, letters addressed to seats of another one. A seated
-  // recipient belongs to the project its working copy is in; one that has gone is this project's if it
-  // is on this project's record. The record alone missed every seat that had not yet completed a tool
-  // call — a seat stuck on its first permission prompt, with every letter piling up for it.
+  // One outbox holds every project's mail: a seated recipient belongs to its copy's project, a gone one to this project's record.
   const mine = held.filter((letter) => {
     const seat = seats.get(letter.to);
     return seat ? Boolean(seat.cwd) && projectOf(seat.cwd).slug === project.slug : Boolean(ledger.agents[letter.to]);
@@ -43,8 +39,7 @@ export function statusText(
     }
     lines.push("");
   }
-  // Held for a seat that is there but has not taken it: busy, waiting on a permission, or inside the
-  // grace after its last letter. This is where a letter that is going nowhere actually shows.
+  // Held for a seat that is there but has not taken it: this is where a letter going nowhere shows.
   if (queued.length > 0) {
     lines.push("## Mail waiting to be taken", "", "The seat is there and has not read these yet.", "");
     for (const letter of queued) lines.push(`- to ${letter.to}, waiting ${minutes(now, letter.at)} min (${seats.get(letter.to)?.status ?? "unknown"})`);

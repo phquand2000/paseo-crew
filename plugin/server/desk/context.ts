@@ -28,7 +28,7 @@ export type CodeIndex = {
   close(path: string): Promise<{ ok: boolean; text: string }>;
 };
 
-/** What the outbox did with a letter. "duplicate" means it was dropped as a repeat of one already sent. */
+/** "duplicate": dropped as a repeat of a letter already sent. */
 export type Posted = "sent" | "held" | "duplicate";
 
 export type Mailer = { post(letter: { to: string; key: string; text: string }): Promise<Posted> };
@@ -39,7 +39,6 @@ export type DeskDeps = {
   log: (project: Project, line: string) => void;
   teamFor: (project?: Project) => Team;
   indexesFor: (project: Project) => CodeIndex[];
-  /** The step a Watcher was sent under a ref; undefined when it was not, or the desk has restarted since. */
   sent?: (watcher: string, ref: string) => Sent | undefined;
 };
 
@@ -70,12 +69,7 @@ export class DeskContext {
     this.deps.log(project, line);
   }
 
-  /**
-   * The one place work on a project is put in line behind the work already running on it.
-   *
-   * Spelled out at each of its callers, a fourth method could line up behind a different key and
-   * nobody would see it: what keeps two writers off one ledger is that they name the same key here.
-   */
+  /** The one place project work queues behind running work: two writers stay off one ledger only by naming the same key here. */
   private under<T>(key: string, run: () => T | Promise<T>): Promise<T> {
     const waiting = this.locks.get(key) ?? Promise.resolve();
     const next = waiting.then(() => run());
@@ -95,14 +89,7 @@ export class DeskContext {
     });
   }
 
-  /**
-   * Read the ledger in turn with its writers, and write nothing back.
-   *
-   * The sweep has to decide what is live in the same breath as it lists the directory, and doing that
-   * through `ledger` rewrote the file on every patrol round for no change at all — and created one for
-   * a project that had never opened a lane. An unreadable ledger still refuses: read as empty, every
-   * working copy on disk would look like a stray.
-   */
+  /** Read the ledger in turn with its writers, writing nothing back. An unreadable ledger still refuses: read as empty, every copy would look stray. */
   read<T>(project: Project, look: (ledger: Ledger) => T): Promise<T> {
     return this.under(project.slug, () => {
       const fault = ledgerFault(project.state);
@@ -132,7 +119,6 @@ export class DeskContext {
     }
   }
 
-  /** What became of the letter: sent, held for a seat that is busy, or dropped as a repeat of one already sent. */
   async post(to: string | undefined, key: string, text: string): Promise<Posted | "nobody"> {
     if (!to) return "nobody";
     return this.deps.outbox.post({ to, key, text });

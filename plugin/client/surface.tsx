@@ -20,11 +20,9 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [tab, setTab] = useState<DetailTab>("team");
   const [chip, setChip] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
-  // Which screen these were run on. Held in the surface and never cleared, another project's results
-  // were shown as this project's — same headings, same "all pass", another project's servers.
+  // Tagged with the screen they ran on, or another project's results showed as this one's.
   const [checks, setChecks] = useState<{ of: string; at: string; rows: Check[] } | null>(null);
-  // Lane ids are a project's own — every project's first lane is L1 — so a set kept across a move to
-  // another project opened a lane there that the owner had never touched.
+  // Tagged by project: lane ids repeat across projects, every first lane is L1.
   const [openLanes, setOpenLanes] = useState<{ of: string; lanes: string[] }>({ of: "", lanes: [] });
   const project = open && open !== MACHINE ? open : undefined;
   const lanesOpen = openLanes.of === (project ?? "") ? openLanes.lanes : [];
@@ -68,8 +66,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   }
 
   const nameOf = (slug: string, root: string) => data.known.find((entry) => entry.root === root)?.name ?? slug;
-  // What a report was run against: the project's layer and the machine's, which it resolves through.
-  // The project's revision alone missed a machine save, and the report went on reading as current.
+  // Both layers, since the project's revision alone missed a machine save.
   const settledAs = `${data.revision}:${JSON.stringify(data.machine)}`;
   const here = data.projects.find((entry) => entry.slug === project);
   const layer = project ? "project" : "machine";

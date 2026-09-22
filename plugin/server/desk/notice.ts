@@ -19,7 +19,6 @@ export type Placed = { where: string; lane?: Lane; task?: Task };
 
 const AWAIT_MS = 120_000;
 
-/** The question a Watcher's judgement is filed under, which says a Watcher made it rather than Jev. */
 export const WATCHER_JUDGED = "watcher";
 
 /** The facts that wait to be judged before they are told, and how long: Jev's by jev, the Watcher's by a seat. */
@@ -91,11 +90,7 @@ export async function notice(services: DeskServices, project: Project, seat: Not
 
 export type Reader = "lead" | "supervisor";
 
-/**
- * Who hears of an incident. One at attention level about a Peer goes to the Lead of its lane, whose
- * acceptance it bears on; one about a Lead, one that pages, and one whose Lead is gone go to whoever
- * supervises. Never to the seat it is about.
- */
+/** Attention-level incidents about a Peer go to its Lead; the rest, or a Peer with no Lead, to whoever supervises. Never to the seat itself. */
 async function recipientFor(services: DeskServices, project: Project, seat: Noticed, place: Placed, level: Incident["level"]): Promise<{ to: string | undefined; as: Reader }> {
   const lead = place.lane?.lead;
   if (level === "attend" && place.task && lead && lead !== seat.id && (await services.roster.seated(lead))) return { to: lead, as: "lead" };
@@ -107,8 +102,7 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
   const { ctx } = services;
   const harness = seatOf(ctx.kit, seat.provider)?.harness;
   const shape = { steers: harness?.steers === true, outputless: Boolean(harness?.exitPattern) };
-  // Named only when it is really there: with no key the watch never ran, and with the sensor
-  // unreachable it kept nothing, and an incident must not send anyone to a file that does not exist.
+  // Named only when the file exists: with no key or an unreachable sensor, nothing was kept.
   const file = join(assessmentsDir(project.state), KEPT_FILE);
   const kept = existsSync(file) ? file : undefined;
   const told: string[] = [];
@@ -153,10 +147,7 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
   return told;
 }
 
-/**
- * `expect` pins the one incident a judgement was made on, as it was when read: a Watcher judges by
- * id, from a letter, and a sighting or a second judgement since means it judged something else.
- */
+/** `expect` pins the incident as read: a Watcher judges by id from a letter, and a sighting since means it judged something else. */
 export async function judge(services: DeskServices, project: Project, seat: Noticed, verdicts: Verdict[], now = Date.now(), expect?: { id: string; count: number }): Promise<string[]> {
   const { ctx } = services;
   if (verdicts.length === 0) return [];
@@ -188,10 +179,7 @@ export async function judge(services: DeskServices, project: Project, seat: Noti
 export async function retell(services: DeskServices, project: Project, now = Date.now()): Promise<string[]> {
   const { ctx } = services;
   const team = ctx.team(project);
-  // No watch, nothing to tell later either. Left ungated this was the one path that still spoke with
-  // the watch off — and it did not merely carry on: what holds an incident back is read from the
-  // sensor's own questions, so with the key gone that set is empty, the hold dissolves, and taking
-  // the key away is the very thing that sends the mail.
+  // Gated: with the key gone the hold set is empty, so an ungated path would send everything held back.
   if (!watchOn(team)) return [];
   const attention = team.attention;
   if (!attention.watch) return [];
@@ -201,8 +189,7 @@ export async function retell(services: DeskServices, project: Project, now = Dat
     const taken: Incident[] = [];
     for (const incident of Object.values(incidents.items)) {
       if (!incident.open || incident.told !== undefined || (incident.held !== "awaiting" && incident.held !== "vetoed")) continue;
-      // A veto is lifted only by the reader that made it. Going from Jev to a seat, or back, changes
-      // which facts wait to be judged, and would otherwise send what the other one held back.
+      // A veto is lifted only by the reader that made it: switching readers changes what waits to be judged.
       if (incident.held === "vetoed" && (incident.sensor?.question === WATCHER_JUDGED ? "seat" : "jev") !== team.attention.by) continue;
       const held = holdFor(incident, incidents, attention, waiting, now);
       if (held) incident.held = held;

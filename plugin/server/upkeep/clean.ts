@@ -16,7 +16,6 @@ export type CleanContext = {
   home: string;
   known: Project[];
   teamFor(project: Project): Team;
-  /** The seats Paseo has open, by provider and the project their cwd is in. */
   live: { provider: string; slug: string }[];
 };
 
@@ -43,12 +42,7 @@ function entries(dir: string): string[] {
 
 const item = (path: string, kind: CleanItem["kind"], why: string, extra: Partial<CleanItem> = {}): CleanItem => ({ path, kind, why, bytes: bytesOf(path), careful: false, held: null, ...extra });
 
-/**
- * Seat directories are named `<prefix><role>-<agent>-<slug>`, one per role, agent and project, and
- * nothing ever removes one: a detached project, or a role moved to another agent, leaves them behind
- * with every transcript the seat wrote. One an open seat still runs in is never garbage, whatever the
- * settings say now — its harness is reading it.
- */
+/** Nothing else removes a seat directory, but one an open seat runs in is never garbage: its harness is reading it. */
 function seats(ctx: CleanContext): CleanItem[] {
   const { kit } = ctx;
   const attached = new Map(ctx.known.map((project) => [project.slug, project]));
@@ -92,8 +86,7 @@ async function copies(ctx: CleanContext): Promise<CleanItem[]> {
       const path = join(root, slug, name);
       if (held.has(resolve(path))) continue;
       const why = project ? "the desk holds no slot for it" : `${slug} is not attached`;
-      // A copy with work in it that no slot names is most likely a seat's that crashed: that work is
-      // in no commit, so it is shown and left for the owner to look at.
+      // Work in a copy no slot names is likely a crashed seat's and in no commit, so it is shown, not taken.
       const state = existsSync(join(path, ".git")) ? await pristineState(path) : "clean";
       found.push(item(path, "copy", why, state === "clean" ? {} : { held: state === "dirty" ? "it has uncommitted changes" : "git could not read it" }));
     }
@@ -101,10 +94,7 @@ async function copies(ctx: CleanContext): Promise<CleanItem[]> {
   return found;
 }
 
-/**
- * A project's records outlive Detach on purpose, so attaching it again finds its lanes and its
- * CONTEXT.md. They are garbage only once the owner says so, or once the project itself is gone.
- */
+/** Records outlive Detach on purpose, so attaching again finds its lanes and CONTEXT.md. */
 function records(ctx: CleanContext): CleanItem[] {
   const base = join(stateRoot(ctx.home), "projects");
   const attached = new Map(ctx.known.map((project) => [project.slug, project]));
@@ -180,10 +170,7 @@ function commonDir(copy: string): string | undefined {
   }
 }
 
-/**
- * Removes only what a scan made now still finds, and can remove: the list the owner picked from
- * was made earlier, and a seat may have started in one of those folders since.
- */
+/** Rescans first: the list the owner picked from is older, and a seat may have started in one of those folders since. */
 export async function removeGarbage(ctx: CleanContext, picked: string[]): Promise<CleanView> {
   const now = new Map((await scanGarbage(ctx)).map((found) => [found.path, found]));
   const removed: string[] = [];

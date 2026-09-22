@@ -8,9 +8,7 @@ import { PLUGIN_ID, nodeBin } from "../core/paths.ts";
 
 export type UpdateContext = {
   dir: string;
-  /** Where Paseo keeps the plugins it installed from Git itself. */
   managedRoot: string;
-  /** Seats still running, by project. */
   busy: string[];
   install(dir: string): Promise<string | undefined>;
   reload(): void;
@@ -64,8 +62,7 @@ export async function checkUpdate(ctx: UpdateContext, fetch = true): Promise<Upd
 export async function applyUpdate(ctx: UpdateContext): Promise<UpdateView> {
   const view = await checkUpdate(ctx);
   if (view.blocked || view.behind === 0) return view;
-  // A seat keeps the prompt, the tools and the desk it started with, and every project moves at once:
-  // updated under a running lane, one lane would run on two versions.
+  // A seat keeps the version it started with, so updating under a running lane would run it on two versions.
   if (ctx.busy.length > 0) return { ...view, blocked: `Stop every seat first: ${ctx.busy.join(", ")}.` };
   const from = view.head;
   const moved = await git(ctx.dir, ["merge", "--ff-only", "--quiet", "@{u}"]);

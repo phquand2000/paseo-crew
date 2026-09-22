@@ -91,8 +91,7 @@ function fakePaseo() {
   const paseo = {
     agents: {
       ref,
-      // The daemon caps a page at 200 rows whether or not one was asked for, and reports the rest
-      // through pageInfo. A fake that answers everything cannot show what reading one page costs.
+      // The daemon caps a page at 200 rows and reports the rest through pageInfo, so the fake does too.
       async list(options?: { page?: { limit?: number; cursor?: string } }) {
         const all = [...agents.values()].map((agent) => ({ agent: { ...agent, pendingPermissions: agent.pending } }));
         const from = Number(options?.page?.cursor ?? 0);
@@ -105,8 +104,7 @@ function fakePaseo() {
       },
     },
     workspaces: {
-      // The daemon files a directory under the project it is given, and makes a project of the
-      // directory itself when it is given none.
+      // The daemon files a directory under the given project, or makes one of the directory when given none.
       async create({ title, source }: { title?: string; source: { path: string; projectId?: string } }) {
         const id = `ws-${workspaces.size + 1}`;
         workspaces.set(id, source.path);
@@ -147,7 +145,6 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
 }
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
-// What Paseo lists for these agents, as the plugin caches it.
 const thinking = ["low", "medium", "high"].map((id) => ({ id, label: id }));
 applyModels(kit, {
   claude: { at: "", error: null, models: [{ id: "claude-opus-5", label: "Opus 5", thinkingOptions: thinking }] },
@@ -174,16 +171,13 @@ function harness(outbox: string) {
   const { root, git } = repo();
   const state = join(HOME, ".local", "share", "seatworks-v2");
   mkdirSync(state, { recursive: true });
-  // By Jev, with a key: the watch these tests were written against. The endpoint is unreachable above
-  // unless a test asks for an answer, which is the state they are really in — the watch on, reading
-  // turns in code, the sensor silent. A test about the Watcher seat says so in its own settings.
+  // By Jev with a key and an unreachable endpoint: the watch on, the sensor silent unless a test asks.
   writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, attention: { by: "jev" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } = fakePaseo();
   const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
   let n = 0;
-  // `where` is the working copy the call comes from: a second project on one daemon is an arrangement
-  // the desk has to hold, and several of its keys turned out to be shared between them.
+  // `where` is the calling working copy, since several desk keys turned out shared between projects.
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>, where = root) =>
     runtime.desk.handle({ id: `${outbox}-${++n}`, agent, role, tool, args, cwd: where, at: Date.now() });
   const idle = async (id: string) => {
@@ -198,12 +192,9 @@ function harness(outbox: string) {
   };
   const ledger = (of: Project = project) => loadLedger(of.state);
   const tick = (now?: number) => (runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick(now);
-  // Paseo fires a turn start before a turn end, and what the desk heard from a seat "this turn" is
-  // measured from it; without one, every turn is measured from half an hour ago.
+  // Paseo fires a turn start before a turn end; without one, a turn is measured from half an hour ago.
   const beginTurn = (id: string) => (runtime as unknown as { turnStarted(agentId: string): void }).turnStarted(id);
-  // Paseo hands this hook everything it has ever stored for the seat, not the turn that ended: its
-  // timeline store is append-only and `getItems` returns all of it. A fresh one-turn array per call
-  // was the wrong shape, and it hid a reader that found the same failed call at every later turn.
+  // Paseo hands this hook the seat's whole append-only timeline, not the turn that ended.
   const told = new Map<string, unknown[]>();
   const endTurn = (id: string, text: string, ...calls: unknown[]) => {
     const timeline = told.get(id) ?? [];
@@ -230,8 +221,7 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.ok(firstOverlap(["src/**/*.ts"], ["src/api/users.ts"]));
   assert.ok(firstOverlap(["**/*.ts"], ["lib/x.ts"]));
   assert.equal(firstOverlap(["**/*.ts"], ["src/app.py"]), undefined, "a glob at the front does not mean it overlaps everything");
-  // Two lanes share a working copy on the strength of this answer, so a wildcard on both sides has
-  // to be decided rather than sampled: each of these pairs is satisfied by one real path.
+  // Lanes share a copy on this answer, so wildcards on both sides are decided, not sampled.
   assert.ok(firstOverlap(["src/**/*.ts"], ["**/*.test.ts"]), "src/pricing.test.ts matches both");
   assert.ok(firstOverlap(["src/**"], ["**/*.ts"]), "src/a.ts matches both");
   assert.ok(firstOverlap(["src/**/*.ts"], ["**/api/*.ts"]), "src/api/x.ts matches both");
@@ -242,18 +232,14 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
   assert.ok(firstOverlap(["app/a*.tsx"], ["app/*b.tsx"]), "app/ab.tsx satisfies both");
   assert.ok(firstOverlap(["src/?.ts"], ["src/a.*"]), "src/a.ts satisfies both");
   assert.equal(firstOverlap(["src/*.ts"], ["src/*.py"]), undefined, "and one extension cannot be the other");
-  // The rules are globs and so are write sets, so they are resolved against the repository first:
-  // a lane claiming a subtree is held back for the lock file that is really in it, not for one that
-  // a glob says might be, or every lane claiming a subtree would wait for every other.
+  // Rules and write sets are both globs, so rules resolve against tracked files, or every subtree lane would wait.
   const tracked = ["package-lock.json", "db/migrations/0001.sql", "src/app.ts", "Assets/Scenes/Main.unity"];
   const serial = serialPaths(tracked, SERIAL_ONLY);
   assert.deepEqual(serial, ["Assets/Scenes/Main.unity", "db/migrations/", "package-lock.json"], "the migration's directory is reserved, so the next one counts before it is written");
   assert.deepEqual(serialHits(["app/**"], serial), [], "a tree with none of them in it is not held back for them");
   assert.deepEqual(serialHits(["src/**", "package-lock.json"], serial), ["package-lock.json"]);
   assert.deepEqual(serialHits(["db/**"], serial), ["db/**"], "and a tree that does hold one is");
-  // `**/migrations/**` stands for whole segments. Rendered without the boundary it matched any
-  // segment merely ending in the name, so a directory nobody's rule named was made serial and two
-  // lanes that never touch a migration were refused for overlapping.
+  // `**/migrations/**` stands for whole segments, not any segment merely ending in the name.
   assert.deepEqual(serialPaths(["server/db_migrations/0001.sql"], SERIAL_ONLY), []);
   assert.deepEqual(serialPaths(["db/migrations/0001.sql"], SERIAL_ONLY), ["db/migrations/"]);
   assert.deepEqual(serialHits(["db/migrations/0002.sql"], serial), ["db/migrations/0002.sql"], "including a migration nobody has written yet");
@@ -373,9 +359,7 @@ test("a lane that fails after taking the project's own copy gives it back", asyn
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const before = h.git(h.project.root, "branch", "--show-current").trim();
 
-  // A role that cannot lead is refused after `inPlace` has already switched the owner's repository
-  // onto the lane branch. openLane cleans up by slot id, which a lane in the project's own copy does
-  // not have, so this used to close the lane and walk away from the checkout it had just moved.
+  // Refused after `inPlace` switched the owner's checkout; openLane's cleanup by slot id used to leave it moved.
   const refused = await h.call(sup, "supervisor", "open_lane", {
     title: "Numbers",
     outcome: "a.txt gains words",
@@ -399,9 +383,7 @@ test("a gate the owner switched off is still off when the next lane opens", asyn
   h.git(h.project.root, "commit", "-qm", "a package");
 
   assert.match((await h.call(sup, "supervisor", "set_project", { gate: "" })).text, /gate none/);
-  // "The owner switched it off" and "nobody has ever set one" were the same stored value, and
-  // open_lane seeds a gate whenever it reads the second — so the next lane detected `npm test` from
-  // the repository, wrote it back over the answer, and told the Lead it runs before anything lands.
+  // "Switched off" and "never set" used to be one stored value, so the next lane re-detected `npm test`.
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
   assert.equal(opened.ok, true, opened.text);
   assert.match(opened.text, /Gate: none set, by this project's own choice/, opened.text);
@@ -419,26 +401,21 @@ test("a lane in the project's own copy whose base moved waits for a seat mid-tur
   h.git(h.project.root, "add", "-A");
   h.git(h.project.root, "commit", "-qm", "four");
 
-  // main moves on while the lane runs, so landing starts with merging main into the lane, in the
-  // copy the lane works in — which here is the project's own.
+  // main moves on while the lane runs, so landing first merges main into the lane in its own copy.
   const side = join(mkdtempSync(join(tmpdir(), "sw2-moved-")), "wt");
   h.git(h.project.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.project.root, "branch", "-f", "main", "side");
   h.git(h.project.root, "worktree", "remove", "--force", side);
 
-  // While the Lead is mid-turn in that copy, nothing is merged under it. The first version of this
-  // guard asked a set that fills only once an archive has found a seat running, before anything had
-  // been archived — so it never held, and this test, whose Lead was running the whole time, passed
-  // because of that.
+  // Nothing is merged under a Lead mid-turn in that copy.
   const head = h.git(h.root, "rev-parse", "HEAD");
   const reports = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(reports.ok, false, reports.text);
   assert.match(reports.text, /a seat is mid-turn there/);
   assert.equal(h.git(h.root, "rev-parse", "HEAD"), head, "the copy under a running seat is left as the seat has it");
   assert.doesNotMatch(h.git(h.root, "show", "main:a.txt"), /four/);
-  // And the lane is still open, so the landing waits for the turn instead of being lost: closed first,
-  // a lane cannot be closed again, and the Supervisor's decision could never be carried out.
+  // Still open, so the landing waits for the turn rather than being lost with a closed lane.
   assert.equal(h.ledger().lanes.L1!.status, "open");
   h.agents.get(lane.lead!)!.status = "idle";
   // Nothing else would bring the Supervisor back: it waited for a heartbeat, ten minutes in one run.
@@ -466,9 +443,7 @@ test("a lane in the project's own copy lands after its base moved, once nobody i
   h.git(h.project.root, "branch", "-f", "main", "side");
   h.git(h.project.root, "worktree", "remove", "--force", side);
 
-  // The desk put the project's own copy on the lane branch to open the lane, and then refused to land
-  // over exactly that. With the Lead stopped, main is merged into the lane where it stands, and main
-  // moves up to the result.
+  // With the Lead stopped, main is merged into the lane where it stands and main moves up to it.
   h.agents.get(lane.lead!)!.status = "idle";
   const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
   assert.equal(closed.ok, true, closed.text);
@@ -581,9 +556,7 @@ test("a call that runs longer than a seat can wait is answered by mail, and call
   const lane = h.ledger().lanes.L1!;
   const request = { id: "r1", agent: lane.lead!, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() };
 
-  // The seat's bridge waits five minutes; the gate this runs is allowed thirty. Past the five the
-  // bridge told the seat to call again, and the desk served the second call beside the first: a
-  // second gate in the same working copy, and for close_lane a second landing.
+  // The bridge waits five minutes but the gate thirty, so a retried call must not start a second gate.
   const [first, again] = await Promise.all([h.runtime.desk.answer(request, 100), h.runtime.desk.answer({ ...request, id: "r2" }, 100)]);
   assert.match(first.text, /still working on report/);
   assert.match(again.text, /already running/);
@@ -609,9 +582,7 @@ test("a hand-back whose gate outlasts the call is not read as a silent turn", as
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   h.commit(lane.worktree!, "a.txt", "A\n");
 
-  // The gate runs inside `done`; past what a call can wait, the Peer is told the answer comes by mail
-  // and to end its turn. It does — and that turn was then read as one that never called done: the
-  // Peer was nudged to call it again, which would have run a second gate beside the first.
+  // Past what a call can wait, the Peer is told to end its turn; that turn must not read as one that never called done.
   h.beginTurn(peer);
   const reply = await h.runtime.desk.answer({ id: "d1", agent: peer, role: "peer", tool: "done", args: { outcome: "complete", summary: "done" }, cwd: h.root, at: Date.now() }, 100);
   assert.match(reply.text, /still working on done/);
@@ -638,13 +609,11 @@ test("a task stalled because its Peer is gone holds no copy, and an ask to a gon
   await h.tick(Date.now());
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
 
-  // Nobody is writing in the copy any more. Held as if somebody were, the Lead was told to wait for a
-  // hand-back that could not come, and the only way out was cut, which resets the Peer's work away.
+  // Nobody writes in the copy any more, so the Lead must not be told to wait for a hand-back.
   const next = await h.call(lane.lead!, "lead", "start_task", { title: "More", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
   assert.equal(next.ok, true, next.text);
 
-  // A Lead's own ask to a Supervisor that has since gone: never reminded, never escalated, and the
-  // Supervisor who sat down afterwards was never told of it.
+  // A Lead's ask to a Supervisor that has since gone must reach the one who sits down afterwards.
   assert.equal((await h.call(lane.lead!, "lead", "ask", { kind: "question", text: "Keep the old endpoint?", default: "keep it" })).ok, true);
   Object.assign(h.agents.get(sup)!, { archivedAt: new Date().toISOString(), status: "closed" });
   const back = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup-2");
@@ -666,8 +635,7 @@ test("an escalation with nobody supervising seated waits for one instead of bein
   h.agents.get(lane.lead!)!.status = "idle";
   Object.assign(h.agents.get(sup)!, { archivedAt: new Date().toISOString(), status: "closed" });
 
-  // Two reminders to the Lead, then the escalation. With the only Supervisor archived there is nobody
-  // to escalate to; marking it escalated anyway meant it was never sent, even once one sat down.
+  // With the only Supervisor archived there is nobody to escalate to, so it must not be marked escalated.
   const start = Date.now();
   for (const minutes of [16, 32, 48]) await h.tick(start + minutes * 60_000);
   const ask = Object.values(h.ledger().asks)[0]!;
@@ -698,13 +666,11 @@ test("a stalled task still holds its working copy, and runs again once its Peer 
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   assert.match(h.agents.get(peer)!.prompt ?? "", /Your task started from [0-9a-f]{40}/, "the brief names where the task began, which is BASE for its checks");
 
-  // Its Peer is still seated in the lane's copy, and the Lead is told to message it there. Read as not
-  // holding the copy, a stalled task let a second Peer be seated in the same checkout.
+  // Its Peer is still seated in the lane's copy, so a stalled task still holds it.
   const second = await h.call(lane.lead!, "lead", "start_task", { title: "More", goal: "g", acceptance: ["b"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
   assert.equal(second.ok, false, second.text);
 
-  // And once it is working again it is running. Nothing set it back before, so the patrol's gone-Peer
-  // and idle-lane checks went on ignoring a Peer that was plainly there.
+  // Working again, it is running, so the patrol's gone-Peer and idle-lane checks see it.
   h.runtime.outbox.turnEnded(peer);
   await new Promise((resolve) => setTimeout(resolve, 3));
   h.beginTurn(peer);
@@ -723,7 +689,6 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
   const task = h.ledger().tasks["L1-T1"]!;
   const peer = task.peer!;
 
-  // Turn one: still working, nothing said. The desk nudges it.
   h.agents.get(peer)!.status = "idle";
   h.beginTurn(peer);
   await h.endTurn(peer, "still reading");
@@ -731,8 +696,7 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
   assert.equal(h.ledger().tasks["L1-T1"]!.silent, 1);
   assert.match(h.agents.get(peer)!.sent.at(-1)!, /without calling done or ask/);
 
-  // Turn two: it hits a question and asks. That is the opposite of silence. (Real turns are seconds
-  // apart; what the desk heard "this turn" is measured in milliseconds, so the test has to move.)
+  // Real turns are seconds apart, so the test waits for the desk's millisecond turn clock to move.
   h.runtime.outbox.turnEnded(peer);
   await new Promise((resolve) => setTimeout(resolve, 3));
   h.beginTurn(peer);
@@ -740,7 +704,6 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
   await h.endTurn(peer, "asked and waiting");
   assert.equal(h.ledger().tasks["L1-T1"]!.silent, 0, "the count is of consecutive quiet turns, not a lifetime tally");
 
-  // Turn three: applying the answer, quiet again. One quiet turn is a nudge, not a stall.
   h.runtime.outbox.turnEnded(peer);
   await new Promise((resolve) => setTimeout(resolve, 3));
   h.beginTurn(peer);
@@ -748,7 +711,7 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "a Peer that asked in between has not gone silent twice");
   assert.equal(h.ledger().tasks["L1-T1"]!.silent, 1);
 
-  // And the same instruction twice: the letter is keyed by the event, so the second one really goes.
+  // The same instruction twice: letters are keyed by the event, so the second one really goes.
   const first = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "Commit your work." });
   assert.equal(first.ok, true, first.text);
   const again = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "Commit your work." });
@@ -832,8 +795,7 @@ test("a lane that declared no write set does not lock the project to one lane: t
   const first = await h.call(sup, "supervisor", "open_lane", { title: "Authorization", outcome: "roles gate the api", acceptance: ["a"], ...scope });
   assert.equal(first.ok, true, first.text);
 
-  // The next lane is not refused for what the first one did not declare. One checkout is one branch,
-  // so it gets a copy of its own rather than switching the branch under the first lane's Lead.
+  // One checkout is one branch, so the next lane gets its own copy rather than switching the first's.
   const next = await h.call(sup, "supervisor", "open_lane", { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], writeSet: ["src/auth/**"], ...scope });
   assert.equal(next.ok, true, next.text);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), h.ledger().lanes.L1!.branch, "the project's own copy stays on the lane it is carrying");
@@ -857,8 +819,7 @@ test("a lane's own working copy is filed under the project, so closing it leaves
 
   const { L1, L2 } = h.ledger().lanes;
   assert.notEqual(h.workspaces.get(L2!.workspaceId!), h.root, "the second lane works in a copy of its own");
-  // Paseo keeps a project for every directory it is handed without one, and nothing the plugin can
-  // call removes a project: every closed lane left one in the sidebar for the Human to delete.
+  // Nothing the plugin can call removes a Paseo project, so a copy must join the project it came from.
   assert.equal(h.workspaceProjects.get(L2!.workspaceId!), h.workspaceProjects.get(L1!.workspaceId!), "the copy belongs to the project it was taken from");
   h.runtime.dispose();
 });
@@ -885,8 +846,7 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   await h.call(sup, "supervisor", "open_lane", { title: "Real work", outcome: "x", acceptance: ["a"], ...scope });
   assert.ok(h.ledger().lanes.L1, "there is something on record to lose");
 
-  // Whatever put it there — a half-written disk, an editor, a newer plugin's version — what reads as
-  // nothing reads exactly like a project that has not started yet.
+  // Whatever wrote it, an unreadable ledger must not read like a project that has not started.
   const file = join(h.project.state, "ledger.json");
   const kept = '{ "version": 1, "lanes": ';
   writeFileSync(file, kept);
@@ -896,8 +856,7 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   assert.match(refused.text, /could not be read/, "the seat is told, rather than getting a lane in a project that forgot the first one");
   assert.equal(readFileSync(file, "utf-8"), kept, "an empty ledger written over it forgets every lane, task and working copy on record");
 
-  // And reading is held to the same rule as writing. The status tool answered with an empty project —
-  // "No open lanes." — which is exactly what the refusal above exists to stop anyone believing.
+  // Reading is held to the same rule: status used to answer "No open lanes."
   const status = await h.call(sup, "supervisor", "status", {});
   assert.equal(status.ok, false);
   assert.match(status.text, /could not be read/);
@@ -978,9 +937,7 @@ test("a lane lands after another lane moved main, even while a third holds the p
 
   const third = await h.call(sup, "supervisor", "close_lane", { lane: "L3", land: true });
   assert.equal(third.ok, true, third.text);
-  // main has moved on, and the only copy that could stand on it is carrying L1. The desk closed L2
-  // anyway, said "not landed" under an ok, and had no verb left to land it with: a finished part of
-  // the run was left on a branch for the Human.
+  // main moved on and the only copy on it carries L1, yet L2 must still be landed, not closed unlanded.
   const second = await h.call(sup, "supervisor", "close_lane", { lane: "L2", land: true });
   assert.equal(second.ok, true, second.text);
   assert.doesNotMatch(second.text, /not landed/);
@@ -1062,8 +1019,7 @@ test("a copy waiting on a seat that never ends its turn is put away in the round
   assert.equal(existsSync(lane.worktree!), true, "the Lead is mid-turn, so the copy waits for it");
   assert.deepEqual(h.ledger().slots[lane.slot!]!.releasing!.writers, [lane.lead!], "and what it is waiting on is on the record, not only in memory");
 
-  // The turn never ends: the owner archived the seat, it crashed, or a restart took the desk's own
-  // memory of this with it. Either way nothing is writing there any more.
+  // The turn never ends: archived, crashed, or the desk restarted; nothing writes there any more.
   h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());
 
@@ -1133,9 +1089,7 @@ test("a red task gate reaches the Lead with the hand-back, and landing it anyway
   h.commit(task.worktree!, "b.txt", "B\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "b" });
 
-  // LEAD.md promises the per-task verdict with the hand-back, as evidence and not a veto. The desk
-  // ran it only after the Lead had accepted — too late to weigh — and on red undid the merge the Lead
-  // had chosen to make, finishing the task as failed. This test asserted exactly that.
+  // LEAD.md promises the per-task verdict with the hand-back, as evidence and not a veto.
   await h.idle(lane.lead!);
   const handback = h.agents.get(lane.lead!)!.sent.join("\n");
   assert.match(handback, /Gate: echo red; exit 1: the gate failed with exit 1/);
@@ -1180,8 +1134,7 @@ test("a task cannot be told to open a skill its Peer does not have", async () =>
   const lane = h.ledger().lanes.L1!;
   const scope = { goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] };
 
-  // Nothing in a Lead's own context lists the Peer's skills, so a guess reached the brief verbatim
-  // and told the Peer to open something that is not there.
+  // Nothing in a Lead's context lists the Peer's skills, so a guessed one must be refused.
   const guessed = await h.call(lane.lead!, "lead", "start_task", { title: "Guessed", ...scope, skills: ["tdd"] });
   assert.equal(guessed.ok, false);
   assert.match(guessed.text, /no skill called tdd/);
@@ -1317,8 +1270,7 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   assert.match(toLead, /Topology: unchanged/);
   assert.match(toLead, /Integration and acceptance: unchanged/);
 
-  // The same instruction again is a second instruction: keyed on its words, it was dropped as a repeat
-  // for the Peer and for the Lead's reconcile both, while the Supervisor was told it went.
+  // The same instruction again is a second instruction, not a repeat to drop by its words.
   await h.idle(task.peer!);
   await h.idle(lane.lead!);
   assert.equal((await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "Use banker's rounding, not half-up." })).ok, true);
@@ -1333,8 +1285,7 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   assert.equal(orphaned.ok, false);
   assert.match(orphaned.text, /no running Lead/);
 
-  // And a task already cut has no Peer left to steer: the Lead was being told it "is still owned by"
-  // a Peer that had been put away, and still its to judge.
+  // A task already cut has no Peer left to steer.
   await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false });
   const cut = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "One more thing." });
   assert.equal(cut.ok, false);
@@ -1349,8 +1300,7 @@ test("an ask answered by the owner over a Lead's head is told to that Lead, not 
   await h.call(lane.lead!, "lead", "start_task", { title: "Drop it", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
   const task = h.ledger().tasks["L1-T1"]!;
 
-  // The Peer puts the question to its Lead. The round escalates unanswered asks to the owner, so the
-  // owner answering one is the design — being the only one who knows the answer is not.
+  // Unanswered asks escalate to the owner, so the owner answering one is the design.
   const asked = await h.call(task.peer!, "peer", "ask", { question: "Drop the column or keep it nullable?", tried: "read the migration" });
   assert.equal(asked.ok, true, asked.text);
   const ask = Object.values(h.ledger().asks)[0]!;
@@ -1457,8 +1407,7 @@ test("a review hands back a verdict and its findings, and the Lead is told both"
   const review = Object.values(h.ledger().tasks).find((task) => task.kind === "review")!;
   const reviewer = review.peer!;
 
-  // A reviewer hands back a judgement, not work. The words it is given to do that with are its own
-  // tool set's, and they have to survive all the way to the Lead.
+  // A reviewer hands back a judgement in its own tool set's words, which must reach the Lead intact.
   const handed = await h.call(reviewer, "reviewer", "done", {
     verdict: "accept",
     findings: "P3 a.txt:1 — banker's rounding would be safer at the boundary, but half-up matches the spec.",
@@ -1499,8 +1448,7 @@ test("a copy a reviewer is reading is not taken away when the task it reviews is
   await h.endTurn(review.peer!, "verdict sent");
   assert.equal(existsSync(review.worktree!), false, "once it stops, the copy goes as it always did");
 
-  // And a review started *after* the copy is already marked for teardown is not seated in it: that
-  // copy goes the moment the task's own Peer ends its turn, whatever the reviewer was told.
+  // A copy already marked for teardown goes when the task's Peer ends its turn, so no review is seated in it.
   await h.call(lane.lead!, "lead", "start_task", { title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], ...scope, parallel: true });
   const second = Object.values(h.ledger().tasks).find((entry) => entry.title === "B")!;
   h.commit(second.worktree!, "b.txt", "B\n");
@@ -1556,8 +1504,7 @@ test("a review of a parallel task whose copy went back is pointed at the merge t
 test("a task branch is dropped once its work is in the lane's, whichever branch the project's own copy is on", async () => {
   const h = harness("outbox-branchdrop.json");
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  // The lane takes a copy of its own, so the project's copy stays on main — and main is what
-  // `git branch -d` would read there, though the task's work lands in the lane's branch.
+  // The lane's own copy keeps the project's copy on main, which is what `git branch -d` would read.
   await h.call(sup, "supervisor", "open_lane", { title: "Apart", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
   const lane = h.ledger().lanes.L1!;
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
@@ -1581,16 +1528,13 @@ test("a task goes to a role that writes, and a review to one that reads, and nei
   await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
 
-  // The preset's Reviewer holds `work` — that is how its ask and its turn-end are routed like any
-  // other seat on a task — and it is denied edit, write and every git write by its own settings. So it
-  // is not a second kind of Peer, and offering it as one started a seat that could not do the job.
+  // The preset's Reviewer holds `work` for routing but is denied every write, so it is no second kind of Peer.
   const readOnly = await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"], role: "reviewer" });
   assert.equal(readOnly.ok, false, "a role that only reads cannot be given a task to write");
   assert.match(readOnly.text, /no reviewer that can take a task/i);
   assert.match(readOnly.text, /peer/, "and the refusal names who can, rather than recommending the one that cannot");
   assert.deepEqual(Object.keys(h.ledger().tasks), [], "and nothing was started or recorded");
 
-  // The other direction, and the default.
   const wrongLens = await h.call(lane.lead!, "lead", "start_review", { focus: "Is the rounding right?", role: "peer" });
   assert.equal(wrongLens.ok, false);
   assert.match(wrongLens.text, /no peer that can review/i);
@@ -1622,7 +1566,6 @@ test("two projects on one daemon both name their first task L1-T1, and both Lead
   const theirs = h.ledger(other).tasks["L1-T1"]!;
   assert.equal(mine.id, theirs.id, "the two ledgers really do use the same task id");
 
-  // Both Peers are closed. Each Lead is owed a letter about its own project's task.
   for (const task of [mine, theirs]) h.agents.get(task.peer!)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());
   await h.idle(here.lead!);
@@ -1690,8 +1633,7 @@ test("mail reaches a running seat inside its turn where its harness can take it 
   assert.equal(h.agents.get(lane.lead!)!.status, "running");
   assert.equal(h.agents.get(peer)!.status, "running");
 
-  // Paseo turns a steer the provider cannot take yet into replacing the turn, so a turn in its first
-  // minute is left alone.
+  // Paseo turns a steer the provider cannot take yet into replacing the turn, so a new turn is left alone.
   mock.timers.enable({ apis: ["Date"], now: Date.now() });
   try {
     h.beginTurn(lane.lead!);
@@ -1789,8 +1731,7 @@ test("a Watcher reads what a Peer did, said and thought as it works, never a key
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 20));
   await h.idle(watcher!.id);
-  // A failed call is a moment worth reading at once, so the first reading comes mid-turn, and the end
-  // of the turn brings what came after it.
+  // A failed call is read at once, mid-turn; the turn's end brings what came after it.
   const first = watcher!.sent.join("\n");
   assert.match(first, new RegExp(`READING R1 of the Peer on L1-T1 \\(Clean build\\), agent ${peer}\\. It is still working\\.`));
   assert.match(first, /What it was asked:\nTask L1-T1: Clean build\nGoal: g/, "the brief, the first time");
@@ -1971,8 +1912,7 @@ test("a fact the patrol finds, with nothing else happening, is read to the Watch
   assert.equal(shows(), 1);
   assert.equal((await h.call(watcher!.id, "watcher", "judge", { incident: `${id}.1`, says: "vetoes", why: "a long build" })).ok, true);
 
-  // The next turn runs on too: seen again, it waits for a fresh judgement, and the Watcher is read it
-  // though the seat still does nothing that would bring a reading.
+  // Seen again next turn, it waits for a fresh judgement though the seat does nothing to bring a reading.
   timeline.beat("turn_completed", "t1");
   timeline.beat("turn_started", "t2");
   await settle();
@@ -2210,8 +2150,7 @@ test("by Jev with no key, nothing is watched and nothing is recorded", async () 
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 20));
   await h.idle(sup);
-  // Off is off. The irreversible command is the loudest thing the watch reads in code, and with no
-  // key it is not read: the seat is not followed, so there is no book to record it in.
+  // Off is off: with no key the seat is not followed, so not even an irreversible command is recorded.
   assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
   h.runtime.dispose();
 });
@@ -2278,8 +2217,7 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const { h, peer, timeline } = await laneWithPeer("outbox-watchview.json");
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
-    // `unverified_success` reads high on every turn that says it is done — that is what it is for — and
-    // it opens nothing of its own. A screen that flagged the highest answer would flag every seat.
+    // `unverified_success` reads high on every finished turn and opens nothing, so it is not the lean shown.
     const high: Record<string, number> = { goal_drift: 0.62, unverified_success: 0.99 };
     const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: high[name] ?? 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917", id: "gen-view", usage: { cost: 0.00013 } }), { status: 200 });
@@ -2291,10 +2229,8 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
 
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
-  // Inside what the task owns, and goal_drift below its bar: what the card shows is what Jev leans
-  // towards without raising it.
+  // Inside what the task owns, with goal_drift below its bar.
   timeline.add({ type: "tool_call", callId: "c1", name: "Edit", status: "completed", detail: { type: "edit", filePath: "a.txt", oldString: "x", newString: "y" } }, "t1");
-  // It says it is done, so "did it say it is done" is asked — and reads 0.99, as it should.
   timeline.add({ type: "assistant_message", text: "Done — the build is clean." }, "t1");
   timeline.beat("turn_completed", "t1");
   await settle();
@@ -2303,8 +2239,7 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   const read = view.watch.seats.find((seat: WatchSeat) => seat.id === peer)!;
   assert.equal(view.watch.marks.open, 0, "nothing was opened");
-  // A question that can open something, within its unclear band below the bar — not the highest answer
-  // overall, which is the one that reads high on every turn that says it is done.
+  // The lean is an openable question within its unclear band, not the highest answer overall.
   assert.deepEqual(read.lean, { title: "Worked on something it was not asked for", p: 0.62, bar: 0.7 });
   assert.equal(view.watch.read.turns >= 1, true, "the project's own tally, not just the seats running now");
   assert.ok(view.watch.read.cost >= 4 * 0.00013 - 1e-12, "what Jev charged for the reading, a request for each of its four views");
@@ -2313,8 +2248,7 @@ test("the flow screen can say what the watch is doing: which seats, how many rea
 
 test("the brief a Peer is read against names the tasks being written beside it", async (t) => {
   const { h, lane, peer } = await laneWithPeer("outbox-alongside.json");
-  // Parallel: its own working copy, running beside L1-T1 — the arrangement that makes a Peer find
-  // its neighbour's files unwritten in the first place.
+  // Parallel, so it runs in its own copy beside L1-T1.
   const second = await h.call(lane.lead!, "lead", "start_task", { title: "Second part", goal: "g2", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], parallel: true });
   assert.equal(second.ok, true, second.text);
   const states: Record<string, unknown>[] = [];
@@ -2330,8 +2264,7 @@ test("the brief a Peer is read against names the tasks being written beside it",
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 60));
   const beside = String(states.find((state) => "role" in state)?.beside ?? "");
-  // Five Peers in five copies each find the other four files unwritten and say so; the sensor read
-  // that as a prerequisite nobody built. Its question already excuses what `beside` names.
+  // Parallel Peers find each other's files unwritten, and the sensor's question already excuses what `beside` names.
   assert.match(beside, /Being written in other copies/);
   assert.match(beside, /L1-T2 \(Second part\)/);
   assert.match(beside, /b\.txt/, "the paths this seat will find missing are the point of saying it");
@@ -2340,8 +2273,7 @@ test("the brief a Peer is read against names the tasks being written beside it",
 
 test("the brief a Peer is read against carries what its Lead said in the task's context", async (t) => {
   const { h, lane } = await laneWithPeer("outbox-briefcontext.json");
-  // The Lead told this Peer to write its own stand-in in the test file; the sensor, not shown that,
-  // read the stand-in as a missing mechanism the Peer had invented.
+  // Not shown the Lead's instruction, the sensor read this stand-in as an invented missing mechanism.
   const told = "write a small local applier inside test/b.test.js";
   const second = await h.call(lane.lead!, "lead", "start_task", { title: "Second part", goal: "g2", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], context: told, parallel: true });
   assert.equal(second.ok, true, second.text);
@@ -2400,8 +2332,7 @@ test("a turn that runs long is told without waiting on the sensor, which cannot 
 test("a question that raises alone does so on one reading of a turn that ended, while one still running needs a second reading in the same turn", async (t) => {
   const { h, sup, lane, timeline } = await laneWithPeer("outbox-needs-human.json", { attention: { watch: true } });
   t.mock.method(globalThis, "fetch", async (_url: string, init: { body: string }) => {
-    // It reads high on every reading; what decides whether that opens anything is how many readings a
-    // turn had, and whether the turn had ended.
+    // Always high, so only the turn's reading count and whether it ended decide what opens.
     const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
     const answers = Object.fromEntries(Object.keys(body.questions).map((name) => [name, { type: "noul", noul: name === "missing_mechanism" ? 0.95 : 0.1 }]));
     return new Response(JSON.stringify({ answers, model: "typesafe/jev-1.13-20260917" }), { status: 200 });
@@ -2456,10 +2387,7 @@ test("an incident a question opens quotes the step the sensor points at, not the
 });
 
 test("a stand-in for a file a sibling task is still writing is expected work, not an incident", async (t) => {
-  // Five Peers in five copies each find the other four files unwritten, say so and work around them
-  // inside their own files. Asked literally, the sensor is right that each names a missing thing and
-  // builds its own; what makes that expected is a fact about the ledger, so code decides it, on the
-  // step the sensor points at.
+  // The sensor is literally right; what makes it expected is a ledger fact, so code decides it on the step it points at.
   const { h, lane, timeline } = await laneWithPeer("outbox-besidestub.json", { attention: { watch: true } });
   assert.equal((await h.call(lane.lead!, "lead", "start_task", { title: "Pointer", goal: "g2", acceptance: ["a"], owned: ["src/pointer.js"], outOfScope: ["the rest"], parallel: true })).ok, true);
   await h.tick();
@@ -2507,9 +2435,7 @@ test("taking the key away does not release the incidents the watch was still hol
   writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
   await h.tick();
   await h.idle(sup);
-  // With no key there is no watch, so there is nothing to tell later either. Worse than merely
-  // carrying on: the retell reads which kinds the sensor confirms, and with the key gone that set is
-  // empty, so the hold dissolves and removing the key is the very thing that sends the mail.
+  // With the key gone the confirming set is empty, so a naive retell would send the very mail the hold kept back.
   assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => item.held), ["awaiting"], "still held, not released by the watch being switched off");
   assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
   h.runtime.dispose();
@@ -2518,8 +2444,7 @@ test("taking the key away does not release the incidents the watch was still hol
 test("a day's budget holds back what is only worth attention, however many arrive at once, and never what is irreversible", async () => {
   const { h, sup } = await laneWithPeer("outbox-budget.json", { attention: { watch: true, incidentsPerDay: 1 } });
   const seat = (id: string) => ({ id, provider: "sw2-peer-devin/swe-2-max", title: id });
-  // Not `stuck`: the sensor confirms that one, so it is held awaiting a reading first and the budget
-  // never gets a say. This test is about the budget, so it uses a kind nothing else holds back.
+  // Not `stuck`: the sensor confirms that one, so it would be held awaiting a reading before the budget has a say.
   const attend = (quote: string) => [{ kind: "test-weakened", level: "attend" as const, quote, facts: ["test-weakened"] }];
   await Promise.all([
     h.runtime.desk.notice(h.project, seat("p-a"), attend("one")),
@@ -2564,16 +2489,14 @@ test("a desk call the harness refused for bad JSON is recorded, though it never 
     error: { content: "InputValidationError: mcp__team__open_lane was called with input that could not be parsed as JSON." },
     detail: { type: "unknown", input: { __unparsedToolInput: { raw: '{"title": "Build"' } }, output: null },
   });
-  // Nothing else here has heard of this call: it never reached the desk, so there is no `tool` event
-  // for it, and the Supervisor is the one role no watch follows. Its own retry was the whole record.
+  // The call never reached the desk and no watch follows the Supervisor, so this log is its only record.
   const log = readFileSync(join(h.project.state, "events.log"), "utf-8");
   assert.match(log, /"kind":"call\.malformed"/);
   assert.match(log, /"tool":"mcp__team__open_lane"/);
   assert.match(log, /"role":"supervisor"/, "the Supervisor is the one role no watch follows, so this is the only way it is ever said");
   assert.equal(log.match(/"ok":false/g), null, "and no failed desk call was recorded, because the desk was never reached");
 
-  // Paseo hands the hook the whole session, so the turn after this one carries the same failed call
-  // again. It is one thing that happened once, and the log must say so once.
+  // Paseo hands the hook the whole session, so the next turn carries the same failed call again.
   await h.endTurn(sup, "Now the task.", { type: "tool_call", callId: "c2", name: "status", status: "completed", detail: {} });
   assert.equal(readFileSync(join(h.project.state, "events.log"), "utf-8").match(/"kind":"call\.malformed"/g)!.length, 1);
 
@@ -2594,9 +2517,7 @@ test("with the watch off a lane's own record is not gone through either", async 
   }
   await h.tick();
   await h.idle(sup);
-  // The history facts are the watch reading the desk's record rather than a timeline. They are the
-  // half that needs no key to compute, which is exactly why they used to keep running with the watch
-  // switched off — a project with no key still filled the Supervisor's mail.
+  // History facts need no key to compute, which is why they once kept mailing with the watch off.
   assert.equal(existsSync(join(h.project.state, "incidents.json")), false);
   h.runtime.dispose();
 });
@@ -2629,10 +2550,7 @@ test("a task the Lead keeps sending back is an incident about the Lead, raised o
   assert.match(told, /INCIDENT I1 \(rework-loop, attend\) on the Lead of L1 \(Build\)/, "the seat it is about is the one that decides to send it back");
   assert.match(told, /What was seen: L1-T1 \(Clean build\) has been sent back 3 times/);
 
-  // A window would never hold this: every rework letter is a message, which restarts it. And what a
-  // window sees is an episode that ends, while three sendings-back stay three forever — so once the
-  // Supervisor has marked this one, the same unchanged record must not raise it again on the next
-  // round, and the round after that.
+  // Three sendings-back stay three forever, so once marked the unchanged record must not raise again.
   const marked = await h.call(sup, "supervisor", "ack", { id: "I1", verdict: "noise", note: "expected: the brief changed under it" });
   assert.equal(marked.ok, true, marked.text);
   await h.tick();
@@ -2649,9 +2567,7 @@ test("a task the Lead keeps sending back is an incident about the Lead, raised o
 });
 
 test("a standing condition held back while the watch is off is still there to tell when it is turned on", async () => {
-  // The shipped default: everything is recorded and nothing is mailed. A timeline fact survives that
-  // because the seat keeps acting and the watch sees it again; a lane's history never changes on its
-  // own, so if the patrol only ever looked once, turning the watch on would tell nobody anything.
+  // A lane's history never changes on its own, so a condition held while off must be told when turned on.
   const { h, sup, lane, peer } = await laneWithPeer("outbox-history-shadow.json");
   for (const round of [1, 2, 3]) {
     await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
@@ -2683,10 +2599,7 @@ test("a lane whose Lead has gone raises nothing about it, since nothing would ev
 });
 
 test("every call is held to the schema the seat was shown, and told what it takes", async () => {
-  // A harness that does not check its tool calls sent prose where one of three words belonged, a
-  // misnamed field and a list where text belonged; the desk took the hand-back and wrote "No summary
-  // given." and "Checks: not given" into it. A report without `ready` went through as not ready,
-  // its carried notes dropped.
+  // An unchecking harness sent prose, misnamed fields and lists, and the desk wrote "No summary given." into hand-backs.
   const { h, lane, peer } = await laneWithPeer("outbox-schema.json");
   const prose = await h.call(peer, "peer", "done", { outcome: "I finished the module and tests pass", summary: "built it" });
   assert.equal(prose.ok, false, prose.text);

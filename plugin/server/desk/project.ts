@@ -66,11 +66,7 @@ export function detectGate(root: string): string | undefined {
   return undefined;
 }
 
-/**
- * The commands that run `gate`, the gate itself first. A gate naming a package script is also run
- * by the runner that script starts — `node --test`, `vitest run` — which is how a seat runs its own
- * module's tests; known only by the words `npm test`, every such run read as no run at all.
- */
+/** The commands that run `gate`: the gate first, then the test runner its script starts, which is how a seat runs its own module's tests. */
 export function gateCommands(root: string, gate: string | undefined): string[] {
   if (!gate?.trim()) return [];
   const script = /^(?:npm|pnpm|yarn|bun)(?: run)? ([\w:.-]+)$/.exec(gate.trim())?.[1];
@@ -79,9 +75,7 @@ export function gateCommands(root: string, gate: string | undefined): string[] {
     body = script ? JSON.parse(readFileSync(join(root, "package.json"), "utf-8"))?.scripts?.[script] : undefined;
   } catch {}
   if (typeof body !== "string") return [gate];
-  // The last command of the script is the one that runs the tests; before it come builds and checks.
-  // Its runner is the program and at most one word after it, and never a path: what every narrower
-  // run of the same tests still starts with.
+  // The script's last command runs the tests; its runner is the program plus at most one word, never a path.
   const words = body.split(/&&|\|\||;/).at(-1)!.trim().split(/\s+/).slice(0, 2);
   const runner = words.slice(0, words.findIndex((word) => !/^[\w@.:-]+$/.test(word)) >>> 0).join(" ");
   return runner && runner !== gate ? [gate, runner] : [gate];
@@ -91,23 +85,13 @@ export function configFile(state: string): string {
   return join(state, "project.json");
 }
 
-/**
- * The project's concept as the Human settled it: what it does and how it behaves. The Supervisor
- * writes it, with nothing from the desk; a Lead is pointed at it once there is one.
- */
+/** The Supervisor alone writes it; a Lead is pointed at it once there is one. */
 export function conceptFile(state: string): string | undefined {
   const file = join(state, "CONTEXT.md");
   return existsSync(file) ? file : undefined;
 }
 
-/**
- * An empty gate is a decision, and it has to survive being read back.
- *
- * Collapsed into `undefined`, "the owner switched the gate off" and "nobody has ever set one" were
- * the same value, and `open_lane` seeds a gate whenever it reads the second — so the next lane
- * detected a gate from the repository and wrote it back over the owner's answer, then told the Lead
- * it runs before anything lands.
- */
+/** An empty gate is the owner's decision and must survive a read: as `undefined`, `open_lane` would seed a detected gate over it. */
 export function loadConfig(state: string): ProjectConfig {
   const stored = readJson<Partial<ProjectConfig>>(configFile(state), {});
   const minutes = Number(stored.gateTimeoutMinutes);

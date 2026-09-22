@@ -138,8 +138,6 @@ test("a role that follows another takes that role's agent, model and thinking in
 });
 
 test("a Paseo tool the kit does not know is reported, because allowing one denies all the others", () => {
-  // An allow list is applied by denying everything else, so a name that is not on the known list
-  // silently strips the role of every Paseo tool. That is worth an error rather than a surprise.
   const typo = resolveTeam({ ...kit, roles: kit.roles.map((role) => (role.role === "lead" ? { ...role, paseoTools: { allow: ["get_agent_activty"] } } : role)) });
   assert.match(typo.errors.join("\n"), /allowed Paseo tools this kit does not know: get_agent_activty/);
   assert.match(typo.errors.join("\n"), /denies the Lead every Paseo tool rather than granting it one/);
@@ -149,16 +147,13 @@ test("a Paseo tool the kit does not know is reported, because allowing one denie
 });
 
 test("a seat pointed at a tool set the kit does not have is reported, not seated mute", () => {
-  // An arrangement written outside the package names its own tool sets, and the sets still come from
-  // the package. A name that misses leaves a seat that boots, offers nothing and can never answer.
+  // A preset outside the package names tool sets that still come from the package.
   const wrong = resolveTeam({ ...kit, roles: kit.roles.map((role) => (role.role === "peer" ? { ...role, tools: "worker" } : role)) });
   assert.match(wrong.errors.join("\n"), /Peer is given the tool set worker, which this kit does not have/);
   assert.deepEqual(resolveTeam(kit).errors, []);
 });
 
 test("putting a role back on its own harness brings back what the kit chose for it there", () => {
-  // Leaving a harness drops what was chosen for it. Coming back reset to the harness alone, so the
-  // preset's thinking was replaced by the catalog's first option.
   const team = resolveTeam(kit, { roles: { supervisor: { harness: "devin" } } }, { roles: { supervisor: { harness: "claude" } } });
   assert.deepEqual(team.errors, []);
   assert.deepEqual([team.roles.supervisor!.model!.id, team.roles.supervisor!.thinking], ["opus", "high"]);
@@ -178,17 +173,14 @@ test("a harness with no models and none chosen is refused where the owner can se
     harnesses: { ...kit.harnesses, devin: { ...kit.harnesses.devin!, models: undefined } },
     roles: kit.roles.map((role) => (role.role === "peer" ? { ...role, defaults: { harness: "devin" } } : role)),
   };
-  // Paseo starts an agent only as provider/model and refuses a bare provider in the client, so this
-  // resolved cleanly and then failed at every open_lane with a format error that named none of it.
+  // Paseo starts an agent only as provider/model, so a bare provider failed later at every open_lane.
   const team = resolveTeam(bare as typeof kit);
   assert.ok(team.errors.some((error) => /listed no models for .* yet and none is chosen for the Peer/.test(error)), team.errors.join("\n"));
   assert.deepEqual(resolveTeam(bare as typeof kit, { roles: { peer: { model: "swe-3" } } }).errors, [], "and choosing one is enough");
 });
 
 test("a server that needs something the project lacks is left off its seats, with everything that tells them to use it", () => {
-  // The IDE index was switched on for the machine and handed to every seat of a project the IDE had
-  // never opened. Each Peer was told to run its diagnostics before handing back, and each call
-  // answered that the IDE does not have this working copy open.
+  // The IDE index was once given to seats of a project the IDE had never opened, and every call failed.
   const kit = makeKit();
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
   const bare = tempDir("sw2-bare-");

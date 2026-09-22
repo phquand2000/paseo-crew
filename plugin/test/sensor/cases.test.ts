@@ -10,10 +10,7 @@ const shipped = Object.values(kit.sensors)[0]!;
 const cases = loadCases();
 
 test("every question the sensor asks has a turn that should make it read high and one that should not", () => {
-  // The hole this closes: a question can be added, given a guessed threshold and shipped without
-  // anyone ever seeing it answer. It costs money on every reading and a slice of a day's budget
-  // when it is wrong. `npm run eval:sensor` is what measures it; this is what refuses to let it
-  // ship unmeasured, and it costs nothing and needs no key.
+  // A question shipped with a guessed threshold costs on every reading; this refuses it unmeasured, for free.
   const { high, low } = covered(cases);
   const missing = Object.keys(shipped.questions).flatMap((name) => [
     ...(high.has(name) ? [] : [`${name} has no case that should read high`]),

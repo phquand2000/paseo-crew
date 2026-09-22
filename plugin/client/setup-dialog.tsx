@@ -15,7 +15,6 @@ type Props = {
   available: PaseoProject[];
   projects: ProjectRow[];
   readSettings(slug: string): Promise<{ status: string; values?: Layer; machine?: Layer } | { error: string }>;
-  /** The machine's own layer, which a repository that is not set up yet runs on. */
   machine: Layer;
   theme: PluginTheme;
   disabled: boolean;
@@ -39,9 +38,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
   const [browsing, setBrowsing] = useState<Folders | null>(null);
   const [picking, setPicking] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
-  // What the project being pointed at already holds. Without it every agent select showed the kit's
-  // default rather than the one in force, so the model list offered belonged to the wrong agent and
-  // picking one wrote it onto the agent the owner really had.
+  // What the target already holds; without it the selects showed the kit's agent, not the one in force.
   const [held, setHeld] = useState<{ root: string; values: Layer; machine: Layer } | null>(null);
   const attached = projects.map((entry) => entry.root);
   const styles = useMemo(
@@ -56,8 +53,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
   const chosen = catalog.roles.find((entry) => entry.id === role) ?? catalog.roles[0];
   const path = root.trim();
   const inForce = held?.root === path ? held : undefined;
-  // A repository not set up yet still runs on the machine's defaults. Read only for an attached one,
-  // a new repository — what this dialog is mostly for — was shown the kit's agents as the ones in force.
+  // A repository not set up yet still runs on the machine's defaults, not the kit's.
   const below = inForce?.machine ?? machine;
   const harnessOf = (id: string) => {
     const spec = catalog.roles.find((entry) => entry.id === id);
@@ -107,8 +103,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
         setPicking(false);
         setBrowsing(answer);
       })
-      // A call can fail for reasons the desk cannot answer with; without this the row went dead and
-      // the footer kept whatever it said before.
+      // Without this a failed call left the row dead and the footer stale.
       .catch((error: unknown) => setTrouble(message(error)));
 
   const summary = () => {
@@ -142,9 +137,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
                 <SettingsCard>
                   <SettingsAction
                     label={browsing.repository ? "Use this folder" : "Use it anyway"}
-                    // Attaching a folder inside a repository registers the repository, so what to
-                    // compare against the projects already set up is that root and not the folder:
-                    // browsing into one of an attached project's subdirectories said nothing at all.
+                    // Attaching a folder registers its repository, so compare against that root, not the folder.
                     hint={
                       attached.includes(browsing.root ?? browsing.path)
                         ? "Already set up. Going on from here changes the agents; everything else it holds is kept."
@@ -157,8 +150,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
                     actionLabel="Use"
                     disabled={disabled}
                     onPress={() => {
-                      // What gets set up is the repository the folder is in, so that is what is kept:
-                      // storing the folder lost the attached project the hint above had just named.
+                      // The repository is what gets set up, so keep its root, not the folder.
                       setRootPath(browsing.root ?? browsing.path);
                       setBrowsing(null);
                     }}

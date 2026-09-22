@@ -30,10 +30,7 @@ export class Roster {
     return this.seats.look(agentId);
   }
 
-  /**
-   * A seat stopped on a question reads nothing until it is answered, so a message to it answers it.
-   * `waiting` is a seat stopped on something only the Human can decide.
-   */
+  /** A seat stopped on a question reads nothing until it is answered, so a message answers it. `waiting`: only the Human can. */
   async answerQuestion(agentId: string, text: string): Promise<"answered" | "waiting" | undefined> {
     let pending;
     try {
@@ -63,9 +60,7 @@ export class Roster {
     const found = (await this.seats.open())
       .filter((seat) => this.holds(seat, "supervise", project))
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-    // Falling back to the preferred id handed back the very seat this method had just read as
-    // archived, and every letter to it was held for an address nobody will ever read. `undefined` is
-    // the answer callers already have a path for: nobody is seated to be told.
+    // Not the preferred id: it may be the seat just read as archived, and every letter to it would be held forever.
     return found[0]?.id ?? (gone ? undefined : preferred);
   }
 

@@ -10,10 +10,7 @@ const toolSet = process.argv[3] ?? "";
 const spool = process.argv[4] ?? "";
 const waitMs = Number(process.env.SEATWORKS_TOOL_WAIT_MS ?? 300000);
 
-/**
- * Codex starts an MCP server with a filtered environment, so the agent's id is not here. The process
- * that started this server is the agent's own, one per agent, and carries it.
- */
+/** Codex filters the server's environment, so the agent id comes from the parent process, the agent's own. */
 function agentId() {
   if (process.env.PASEO_AGENT_ID) return process.env.PASEO_AGENT_ID;
   try {
@@ -59,8 +56,7 @@ async function call(name, args) {
     }
     await sleep(250);
   }
-  // The desk answers within four minutes whenever it is running, and sends by mail what takes longer.
-  // Telling the seat to call again served a second gate and a second landing beside the first.
+  // The desk answers or mails within four minutes; a retry served a second gate and landing beside the first.
   return { ok: false, text: "The team desk did not answer at all, so it is probably not running. Do not repeat the call; end your turn saying which call went unanswered." };
 }
 

@@ -12,9 +12,7 @@ export function renderText(role: RoleSpec, source: string, paths: PromptPaths): 
   const text = source.replaceAll("{{guides}}", paths.guides).replaceAll("{{state}}", paths.state);
   const leftover = text.match(/\{\{[^}]*\}\}/);
   if (leftover) throw new Error(`the ${role.role} prompt still holds the placeholder ${leftover[0]}`);
-  // The words a role must not see are a rule about what was written for it, so they are looked for in
-  // what was written — not in the paths the desk puts in. Checked after substitution, a repository
-  // named after one of those words, or a home directory that was, made the seat impossible to build.
+  // Checked in the source, not the rendered text: a repo or home path holding a hidden word made the seat unbuildable.
   const hidden = hiddenWordsIn(source, role.hidesWords ?? []);
   if (hidden.length > 0) {
     throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);
@@ -76,23 +74,10 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
   return found;
 }
 
-/**
- * What the desk writes under a project's state itself. Content names some of these for a seat to
- * read — the event log, the hand-back files — and none of them is a seat's to write.
- */
 export const DESK_OWNED = new Set(["ledger.json", "incidents.json", "assessments", "project.json", "meta.json", "settings.json", "status.md", "events.log", "attention.log", "handbacks", "gates"]);
 
-/**
- * Every place under the project's state this role's own content tells it to write: its prompt and
- * every skill the seat is given, read for `{{state}}/…` and `$SEATWORKS_STATE/…`.
- *
- * Derived rather than listed, because the list drifted the moment it was written by hand: it named
- * the two places the prompts mention, while the skills in the same seats run scripts that write under
- * `ultra-review/`, `council/`, `repo-refresh/`, `pre-mortem/` — and a sandboxed shell refused every one.
- */
+/** Derived from the role's prompt, skills and rules, since a hand-kept list drifted and the sandbox refused the writes it missed. */
 export function stateTargets(kit: Kit, role: RoleSpec, extra: Map<string, string> = new Map(), rules = ""): string[] {
-  // And the rules the seat is handed beside them — the owner's, the role's, each server's — which are
-  // rendered with {{state}} into the same instructions and were left out of the grant.
   const texts: string[] = [rules];
   const prompt = contentPath(kit, role.prompt);
   if (existsSync(prompt)) texts.push(readFileSync(prompt, "utf-8"));

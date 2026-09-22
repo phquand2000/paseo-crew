@@ -1,8 +1,4 @@
-/**
- * Runs a reading once a seat has been quiet for `quietMs`, and at most `mostMs` after the first
- * nudge while it keeps going; `now` runs it at once. One run at a time, and a nudge during one runs
- * it again after.
- */
+/** Reads once a seat is quiet for `quietMs`, at most `mostMs` after the first nudge; a nudge mid-run runs it again after. */
 export class Pacer {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private waitingSince = 0;

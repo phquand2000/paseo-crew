@@ -18,17 +18,14 @@ function scopeProblem(serial: string[], open: Lane[], writeSet: string[], contra
   if (open.length === 0) return undefined;
   const mine = serialReach(writeSet, serial);
   for (const other of open) {
-    // A lane that declared no write set could be writing any of them, and a working copy of its own
-    // does not help here: these are the files a merge cannot reconcile, so the second writer loses.
+    // No write set could mean any of them, and a copy of its own does not help: a merge cannot reconcile these.
     const theirs = other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial);
     const both = mine.filter((path) => theirs.includes(path));
-    // Named, not listed: the rules are resolved against real files, and a Unity or Unreal tree has
-    // tens of thousands of them. A refusal that spends the seat's context cannot be acted on.
+    // Capped at four: resolved against real files, a Unity or Unreal tree can match tens of thousands.
     if (both.length > 0)
       return `Lane ${other.id} may already be writing ${both.slice(0, 4).join(", ")}${both.length > 4 ? ` and ${both.length - 4} more` : ""}, and only one lane at a time may write those; open this lane after ${other.id} lands, or keep those paths out of it.`;
   }
-  // Two lanes that declared the same paths are one lane the Supervisor has not noticed yet. Nothing
-  // is said when either declared nothing: that is the Supervisor's call, not a hole to refuse over.
+  // Nothing is said when either declared nothing: that is the Supervisor's call, not a hole to refuse over.
   for (const other of open) {
     if (writeSet.length === 0 || other.writeSet.length === 0) continue;
     const clash = firstOverlap(writeSet, [...other.writeSet, ...other.contracts]) ?? firstOverlap(contracts, other.writeSet);
@@ -37,14 +34,7 @@ function scopeProblem(serial: string[], open: Lane[], writeSet: string[], contra
   return undefined;
 }
 
-/**
- * The issue, or why it could not be read — which is a note on the lane, not a reason to refuse one.
- *
- * `issue` is optional in the tool's schema and the lane keeps only its url, so a ref the desk could
- * not resolve — `gh` not installed, not logged in, a host the reader did not recognise, a number that
- * is not there — used to abort `open_lane` entirely. The Supervisor got no lane, and nothing said the
- * only thing that had actually failed was reading a link.
- */
+/** An unreadable issue ref is a note on the lane, never a reason to refuse opening it. */
 async function readIssue(args: Args, project: Project): Promise<{ issue?: Issue; unread?: string }> {
   const ref = str(args.issue);
   if (!ref) return {};
@@ -104,29 +94,24 @@ export const openLane: Tool = async (desk, caller, args) => {
   const config = loadConfig(project.state);
   const base = str(args.base) || config.base || (await currentBranch(project.root)) || "main";
   if (!(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
-  // Seeded only where the owner has answered nothing at all. `config.gate` is "" when they answered
-  // "no gate", and detecting one over that answers for them about what may land.
+  // Seeded only when unanswered: `config.gate` is "" when the owner answered "no gate".
   if (!config.base || config.gate === undefined) {
     const fault = configFault(configFile(project.state));
     if (fault) return no(`${fault}\nOnly the Human can repair it or move it aside — no seat may write the desk's own files — so tell them; the desk will not write its own defaults over a file it could not read.`);
     saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
   }
   const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
-  // One checkout is one branch: a second lane switching the project's own copy would take the first
-  // Lead with it, and its commits would land on this lane's branch. So the desk takes a copy for it
-  // rather than refusing the lane, and isolate stays for a copy asked for when nothing is in the way.
+  // One checkout is one branch: a second lane gets its own copy rather than switching the first lane's.
   const ownCopy = args.isolate === true || open.some((lane) => !lane.slot);
   const detourOf = str(args.detourOf);
-  // A detour that names nothing real is a lane nobody is waiting on, and the letter back out of it
-  // would have nowhere to go.
+  // A detour must name a real open lane, or the letter back out of it has nowhere to go.
   if (detourOf && !open.some((lane) => lane.id === detourOf.trim().toUpperCase())) return no(`There is no open lane ${detourOf} for this one to clear the way for.`);
   const serial = open.length > 0 ? serialPaths(await trackedFiles(project.root), config.serialOnly) : [];
   const problem = scopeProblem(serial, open, strs(args.writeSet), strs(args.contracts));
   if (problem) return no(problem);
   const { issue, unread } = await readIssue(args, project);
   const lane = await recordLane(desk, caller, args, base, issue);
-  // Whatever the lane took has to go back, and a lane in the project's own copy took the owner's
-  // repository: cleaning up by slot id alone left that copy on the lane's branch for good.
+  // Cleanup restores the project's own copy too; by slot id alone it stayed on the lane's branch.
   const fail = async (reason: string, taken?: { id?: string }) => {
     await ctx.ledger(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
@@ -167,13 +152,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   }
 };
 
-/**
- * Merges the lane's base into the lane, in the lane's own copy, when base has moved on since the lane
- * started. Returns why it could not, or undefined when the lane now contains base.
- *
- * Not under a seat mid-turn there: what it writes is its own until its turn ends, and a merge would
- * land under it. A seat the desk cannot see counts as writing.
- */
+/** Merges base into the lane in its own copy; never under a seat mid-turn there, and an unseen seat counts as writing. */
 async function bringBaseIn(roster: Roster, ledger: Ledger, lane: Lane): Promise<{ why: string; writers?: string[] } | undefined> {
   if (!lane.worktree) return { why: `it has no working copy on record to merge ${lane.base} into.` };
   if (await isAncestor(lane.worktree, lane.base, lane.branch)) return undefined;
@@ -208,18 +187,11 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   const lane = findLane(ledger, str(args.lane));
   if (!lane) return no(`There is no lane ${str(args.lane)}.`);
   if (lane.status !== "open") return no(`Lane ${lane.id} is already closed.`);
-  // An accept on a parallel task queues its merge and returns at once, and that merge runs `git
-  // merge` in the lane's own working copy. Closing the lane meanwhile ran the gate in that copy,
-  // landed its branch and then removed the directory the merge was standing in. `settled` was
-  // written for this and nothing outside the tests had ever called it.
+  // Wait for queued merges: they run in the lane's copy, which closing gates, lands and removes.
   await merges.settled(project);
   let landing = `the branch ${lane.branch} is kept for the Human`;
   if (args.land === true) {
-    // One order, whatever else is open: bring base into the lane in the lane's own copy, gate that,
-    // then move base up to it. A landing that cannot happen is refused while the lane is still open.
-    // Closed first, a lane cannot be closed again, and one run lost a finished part that way: base
-    // had moved, the only copy that could stand on it was carrying another lane, and the reply was
-    // "not landed" under an ok.
+    // Land before closing: a closed lane cannot be closed again, so a landing that cannot happen is refused while open.
     const synced = await bringBaseIn(roster, ledger, lane);
     if (synced?.writers) {
       await ctx.ledger(project, (current) => {
@@ -229,9 +201,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     }
     if (synced) return no(`Lane ${lane.id} was not closed: ${synced.why}`);
     const gate = await laneGate(ctx, project, lane);
-    // A red gate stops the landing by default, and landing over it is the Supervisor's to decide — the
-    // verdict is evidence. There was no way to say so: the only choices were not to land at all, or to
-    // wait for a green the Supervisor may have decided it did not need.
+    // A red gate stops landing unless the Supervisor passes `overGate`: the verdict is evidence, not a veto.
     if (!gate.ok && args.overGate !== true) {
       return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, close it with land false, or land it over the gate with overGate true — that is your call.`);
     }
@@ -256,8 +226,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     if (branch) kept.push(branch);
   }
   await roster.archive(lane.lead);
-  // Whoever is mid-turn is still writing in the lane's copy, and what they write is theirs until
-  // their turn ends; the copy goes away then, not under them.
+  // Mid-turn seats are still writing in the lane's copy; it goes when their turn ends, not under them.
   const writers = [lane.lead, ...retired.filter((task) => task.mode !== "parallel").map((task) => task.peer)].filter(
     (id): id is string => typeof id === "string" && roster.pendingArchive.has(id),
   );

@@ -40,14 +40,7 @@ function lookOf(handle: Handle): SeatLook {
 export function seatsOn(bound: Bound): Seats {
   const ref = (id: string): Handle => reach(bound).agents.ref(id) as unknown as Handle;
   return {
-    /**
-     * Every seat that is open, paged the way the workspaces beside it are paged.
-     *
-     * An unpaged read is capped by the daemon and sorted by last activity, and this list is read as
-     * the whole roster: a seat missing from it is taken as gone, its task is marked stalled, its Lead
-     * is told its Peer was closed, and a working copy it is still writing in is torn down. Past the
-     * cap the seats that fall off are the quietest ones, which is exactly a Peer thinking.
-     */
+    /** Paged: an unpaged read is capped by the daemon, and a seat missing from this list is treated as gone. */
     async open(): Promise<SeatView[]> {
       const paseo = bound();
       if (!paseo) return [];
@@ -82,8 +75,7 @@ export function seatsOn(bound: Bound): Seats {
     watch(id, see) {
       const handle = ref(id);
       return follow(handle.timeline, see, {
-        // A seat that cannot be looked up is read as before: stopped for good on a passing failure,
-        // it would stay unwatched, because a followed seat is not followed again.
+        // A failed lookup reads as not archived: a seat stopped on a passing failure is never followed again.
         archived: async () => {
           try {
             await handle.refresh();
@@ -134,9 +126,7 @@ export function workspacesOn(bound: Bound): Workspaces {
       return { id: workspace.id, project: workspace.projectId ?? "" };
     },
     async archive(workspace: string): Promise<void> {
-      // The daemon answers a refusal with a payload carrying `error`, not with a throw. Awaited and
-      // dropped, every refusal read as done: the callers' "could not be put away" never fired, and the
-      // sweep logged a workspace as swept every round while it stayed open in Paseo.
+      // The daemon reports a refusal as `error` in the payload, not as a throw.
       const result = (await reach(bound).workspaces.archive(workspace)) as { error?: string | null } | undefined;
       if (result?.error) throw new Error(result.error);
     },

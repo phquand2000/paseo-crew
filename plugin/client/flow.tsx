@@ -7,7 +7,6 @@ import { type FlowLane, type FlowSeat, type FlowView, countsInstead, watcherStat
 import { IncidentsCard, WatchCard } from "./watching.tsx";
 
 type Props = {
-  /** False on the machine screen, where there is no project to follow and nothing is read. */
   following: boolean;
   flow: FlowView | null;
   error: string | null;
@@ -16,7 +15,6 @@ type Props = {
   disabled: boolean;
   onLive(live: boolean): void;
   onOpen(lane: string): void;
-  /** Where the watch's key is set: Machine defaults, on the Team tab, the Watcher's own chip. */
   onAddKey(): void;
   onWatchBySeat(): void;
 };
@@ -69,7 +67,6 @@ const Node = memo(function Node({ title, hint, state, alive, caret, reads, theme
   state: string;
   alive: boolean;
   caret?: string;
-  /** A seat that reads the others rather than working in a lane: drawn with a dashed edge. */
   reads?: boolean;
   theme: PluginTheme;
   onPress?: () => void;

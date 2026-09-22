@@ -9,7 +9,6 @@ type Props = {
   project?: string;
   theme: PluginTheme;
   checks: Check[] | null;
-  /** Whether the settings have been saved since this report was run. */
   stale: boolean;
   onChecks(checks: Check[]): void;
   runDoctor(): Promise<Check[]>;
@@ -23,8 +22,7 @@ const groupOf = (id: string): (typeof GROUPS)[number] => (id.startsWith("harness
 export function HealthSection({ project, theme, checks, stale, onChecks, runDoctor, readStatus }: Props) {
   const [status, setStatus] = useState("");
   const [statusError, setStatusError] = useState<string | null>(null);
-  // One flag drove both action labels and one error string was shown under Doctor whatever had
-  // failed, so a Status read that threw printed its message beside the wrong control.
+  // Busy and error per action, so a failed Status read is not shown beside Doctor.
   const [busy, setBusy] = useState<"doctor" | "status" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const styles = useMemo(
@@ -52,8 +50,7 @@ export function HealthSection({ project, theme, checks, stale, onChecks, runDoct
 
   const all = checks ?? [];
   const failing = all.filter((check) => !check.ok);
-  // In the past tense, and only for the settings it was run against. Held across every save, a report
-  // from before a fix stated "3 of 4 pass" as current fact, with nothing on screen to say it was old.
+  // Past tense and only for the settings it ran against, so an old report is not read as current.
   const summary =
     all.length === 0
       ? "Agents, tools and servers."

@@ -18,8 +18,7 @@ function served(paseo?: unknown) {
   const runtime = new Runtime(kit, { outboxFile: join(HOME, "outbox.json"), reloadDaemon: async () => true });
   const handlers = new Map<string, (input: any) => any>();
   const bound: unknown[] = [];
-  // The host hands every handler the live daemon handle beside the input, and the desk is registered
-  // with the one callback that keeps it.
+  // The host hands every handler the live daemon handle beside the input.
   const names = registerRpc(
     {
       handle: (contract: { name: string; input: { parse(value: unknown): unknown } }, handler: (input: unknown, context: { paseo: unknown }) => unknown) =>
@@ -65,18 +64,12 @@ test("the plugin serves the catalog, settings, projects, team and status over RP
 });
 
 test("the daemon handle a panel call arrives with is kept, not thrown away", async () => {
-  // Only its identity is read, so it is a marker. It used to be a shaped daemon with one open seat,
-  // under a comment saying the shape was what let the call tell one seat from none — and nothing ever
-  // called a method on it. A fixture that says more than the test reads is a claim nothing checks.
+  // Only its identity is read, so it is a marker, not a shaped daemon.
   const paseo = { handle: "the daemon" };
   const { call, bound } = served(paseo);
   assert.deepEqual(bound, [], "nothing has called in yet");
 
-  // Bound only from the agent lifecycle hooks, the desk had none between a daemon reload and the next
-  // seat being created: the patrol skipped every tick, and the roster read back empty — which both
-  // screens render as every Lead and Peer gone, because an id absent from the roster is a seat that
-  // has left. A settings save reloads the daemon itself, so the owner's own click put the desk there,
-  // and opening a panel to look was the one thing that could not get it out.
+  // A settings save reloads the daemon; bound only from lifecycle hooks, the desk had no handle until the next seat.
   await call("seatworks.catalog.read");
   assert.deepEqual(bound, [paseo], "the one handle the runtime was missing came in with the call");
 });
@@ -156,9 +149,7 @@ test("attaching a project is undone by detaching it, unless work is still runnin
   const refused = await call("seatworks.projects.remove", { project: added.slug });
   assert.match(refused.error, /open lane\(s\)/);
 
-  // A lane that is closed and the tasks it cut are the project's provenance, and nothing ever deletes
-  // them. Counted as work, they made Detach refuse for ever, and told the owner to close lanes that
-  // were already closed. The records stay on disk; the attachment is what Detach undoes.
+  // Closed lanes and their cut tasks are provenance that nothing deletes, so they must not count as work.
   writeFileSync(
     join(state, "ledger.json"),
     JSON.stringify({ version: 1, lanes: { L1: { id: "L1", status: "closed" } }, tasks: { "L1-T1": { id: "L1-T1", lane: "L1", status: "cut" } } }),
@@ -204,8 +195,7 @@ test("a pasted server is understood whatever dialect it is written in", async ()
   const remote = await call("seatworks.mcp.parse", { text: JSON.stringify({ type: "remote", url: "https://mcp.example/mcp", headers: { Authorization: "Bearer x" } }) });
   assert.deepEqual(remote.connect, { type: "http", url: "https://mcp.example/mcp", headers: { Authorization: "Bearer x" } });
 
-  // A README writes a port as a number, and the snippet is pasted as it was found. Dropping the
-  // table it appears in loses the token beside it, and the server then fails for no visible reason.
+  // A README writes a port as a number; dropping its table also lost the token beside it.
   const fromReadme = await call("seatworks.mcp.parse", {
     text: JSON.stringify({ mcpServers: { db: { command: "npx", args: ["db-mcp", 8080], env: { PORT: 5432, DEBUG: false, TOKEN: "keep me" } } } }),
   });
@@ -265,17 +255,14 @@ test("a project detached in this session can be attached again, and the desk's h
   });
   assert.equal(saved.status, "saved", saved.error);
 
-  // Setting the same repository up again writes the whole layer. The folding is the screen's, and is
-  // covered where it lives (test/client/data.test.ts); this asserts only the desk's half — that a
-  // second add does not itself touch the layer.
+  // The folding is the screen's (test/client/data.test.ts); this asserts only that a second add leaves the layer alone.
   const again = await call("seatworks.projects.add", { root });
   assert.equal(again.slug, added.slug, "the same repository is the same project");
   const still = await call("seatworks.settings.read", { project: added.slug });
   assert.equal(still.values.rules, "Never touch the release branch.");
   assert.equal(still.values.mcp.docs.connect.headers.Authorization, "Bearer SECRET");
 
-  // Detach, then add it again in the same daemon: the record was kept in memory and the second add
-  // wrote nothing, reported success, and left every slug-addressed screen answering "never seen".
+  // The record was once kept in memory, so a second add after Detach wrote nothing.
   assert.deepEqual(await call("seatworks.projects.remove", { project: added.slug }), { removed: added.slug });
   const back = await call("seatworks.projects.add", { root });
   assert.equal(back.slug, added.slug);
@@ -322,8 +309,7 @@ test("the sensor's key is written from the panel, never read back into it, and f
   assert.deepEqual(back.values.sensor, { key: KEPT }, "the panel is told a key is set, and nothing more");
   assert.doesNotMatch(JSON.stringify(back), /sk-or-secret/);
 
-  // A write is the whole layer, so every save the panel makes carries that word back — and a save
-  // about something else must not be the one that revokes the key.
+  // A write is the whole layer, so a save about something else must not revoke the key.
   const else_ = await call("seatworks.settings.write", { revision: back.revision, values: { ...back.values, rules: "watch the watch" } });
   assert.equal(else_.status, "saved");
   assert.equal(onDisk().sensor?.key, "sk-or-secret");
@@ -335,8 +321,7 @@ test("the sensor's key is written from the panel, never read back into it, and f
   const project = await call("seatworks.settings.read", { project: "sensor-abc123" });
   assert.deepEqual(project.machine.sensor, { key: KEPT }, "a project screen sees that a key is set, not what it is");
   assert.doesNotMatch(JSON.stringify(project), /sk-or-secret/);
-  // The team the desk resolves holds the key itself, because the watch calls with it. What is drawn
-  // from it for a screen must not.
+  // The desk's resolved team holds the key because the watch calls with it; what a screen gets must not.
   assert.doesNotMatch(JSON.stringify(await call("seatworks.team.read")), /sk-or-secret/);
   assert.doesNotMatch(JSON.stringify(await call("seatworks.team.read", { project: "sensor-abc123" })), /sk-or-secret/);
 
@@ -351,10 +336,7 @@ test("a settings file that will not parse is reported without quoting what it ho
   const file = join(HOME, ".local/share/seatworks-v2/settings.json");
   const read = await call("seatworks.settings.read");
   assert.equal((await call("seatworks.settings.write", { revision: read.revision, values: { ...read.values, sensor: { key: "sk-or-secret" } } })).status, "saved");
-  // The commonest way to break this file by hand, and the one whose parse error quotes the line the
-  // key is on. It is a valid state: the file is documented as hand-writable.
-  // Short enough that the whole of it falls inside the window V8 quotes, which is the point: the
-  // window is a run of the file's own text, and where it lands is the owner's typo, not our choice.
+  // A common hand typo whose parse error quotes the key's line, short enough to fall inside V8's quoted window.
   writeFileSync(file, '{ "rules": "keep it small", "sensor": { "key": \'SEKRIT\' } }');
 
   const shown = [

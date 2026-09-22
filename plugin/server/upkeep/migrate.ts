@@ -63,7 +63,6 @@ function drop(root: unknown, path: Path): Path | undefined {
   return undefined;
 }
 
-/** The layer with every value this version's schema refuses taken out, and the paths it took. */
 export function repairLayer(raw: unknown, schema: LayerSchema): { values: unknown; dropped: string[] } | undefined {
   const values = structuredClone(raw);
   const dropped: string[] = [];

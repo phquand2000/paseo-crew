@@ -10,11 +10,9 @@ import type { SeatWatch, WatchedSeat } from "../watches.ts";
 export type Pace = { quietMs: number; everyMs: number; chars: number };
 
 export type ReaderDeps = {
-  /** How this project reads to a Watcher; undefined when its watch is not by a seat. */
   pace: (project: Project) => Pace | undefined;
   watcher: (project: Project) => Promise<string | undefined>;
   post: (to: string, key: string, text: string) => Promise<Posted | "nobody">;
-  /** The facts a Watcher judges. */
   judges: string[];
 };
 
@@ -24,14 +22,9 @@ type Shown = { watcher: string; instruction: string; steps: Map<string, string>;
 /** A step a Watcher was shown, by the ref it was shown under: what `raise` reports is this, not the Watcher's words. */
 export type Sent = { seat: WatchedSeat; project: string; text: string };
 
-/** Refs kept per Watcher. A rotation starts a fresh one long before this, and only a ref it was sent can be raised. */
 const KEPT_REFS = 2000;
 
-/**
- * An incident as the Watcher is shown it, and names it back to `judge`: its id and how many times it
- * had been seen. Seen again, it waits for a fresh judgement, is shown again under a new name, and a
- * judgement given under the old one is refused rather than laid on words the Watcher never read.
- */
+/** The count is in the name, so a judgement given under an old sighting is refused, not laid on words never read. */
 export const shownAs = (item: Pick<Incident, "id" | "count">) => `${item.id}.${item.count}`;
 
 /** What the code raised about this seat that waits for the Watcher's judgement and has not been shown it. */
@@ -43,18 +36,13 @@ const waitingOn = (state: string, seat: string, judges: string[], shown: Set<str
   }
 };
 
-/** A step as the Watcher reads it: what `stepText` says, and what it printed. */
 function stepLine(ref: string, step: Step): string {
   const text = stepText({ ...step, id: ref });
   const output = "output" in step && step.output ? ` → ${step.output}` : "";
   return `${text}${step.kind === "ran" && step.result === "running" ? " (still running)" : ""}${output}`;
 }
 
-/**
- * Mails a Watcher what the seats it watches are doing, as they do it: the steps that are new or
- * changed since it was last shown them, paced per seat so a busy seat is read in batches rather than
- * row by row. The outbox holds what arrives while the Watcher is reading, and hands it over together.
- */
+/** Mails a Watcher new or changed steps of the seats it watches, paced per seat; the outbox batches what arrives mid-reading. */
 export class Reader {
   private readonly deps: ReaderDeps;
   private readonly pacers = new Map<string, Pacer>();
@@ -66,7 +54,6 @@ export class Reader {
     this.deps = deps;
   }
 
-  /** The step this Watcher was sent under this ref, if it was. */
   sent(watcher: string, ref: string): Sent | undefined {
     return this.refs.get(watcher)?.get(ref);
   }
@@ -80,7 +67,6 @@ export class Reader {
     }
   }
 
-  /** How many readings this Watcher has been sent. */
   readings(watcher: string): number {
     return this.counts.get(watcher) ?? 0;
   }
@@ -125,8 +111,7 @@ export class Reader {
     const waiting = waitingOn(project.state, watch.seat.id, this.deps.judges, shown.incidents);
     if (steps.length === 0 && !final && facts.length === 0 && waiting.length === 0) return;
 
-    // Taken before the post is awaited: two seats read at once would otherwise both be R5, and a ref
-    // has to name one step.
+    // Taken before the post is awaited, or two seats read at once would share a ref.
     const n = this.readings(to) + 1;
     this.counts.set(to, n);
     const lines = steps.map((step) => ({ ref: `R${n}.${step.id}`, text: stepLine(`R${n}.${step.id}`, step) }));

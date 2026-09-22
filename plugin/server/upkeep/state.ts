@@ -4,16 +4,11 @@ import { errorText } from "../core/errors.ts";
 import { STATE_VERSION } from "../core/state.ts";
 import { readJson, writeJson } from "../core/store.ts";
 
-/**
- * One step from the format before `to`: each moves the machine's kept files, a project's, or both.
- * They run in order when the plugin starts, which an update only does once every seat has stopped.
- */
+/** Steps run in order at plugin start, which an update only does once every seat has stopped. */
 export type StateStep = { to: number; machine?: (root: string) => void; project?: (state: string) => void };
 
-/** Empty until a kept format changes; the fixture under test/fixtures/state holds each format there was. */
 export const STEPS: StateStep[] = [];
 
-/** The files a step may rewrite, and so the files set aside before it runs. Logs are only ever appended to. */
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json"];
 const PROJECT_FILES = ["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json"];
 
@@ -34,10 +29,7 @@ function stampOf(now: number): string {
   return `${digits.slice(0, 8)}-${digits.slice(8)}`;
 }
 
-/**
- * Carries one place's files from `from` to `current`: set aside first, put back whole when a step
- * throws, so a failed upgrade leaves the files as they were and the place refused rather than half-moved.
- */
+/** Set aside first and put back whole when a step throws, so a failed upgrade leaves the place refused, not half-moved. */
 function upgrade(where: string, dir: string, files: string[], from: number, current: number, steps: StateStep[], apply: (step: StateStep) => void, finish: () => void, now: number, report: StateReport): void {
   if (from === current) return;
   if (from > current) {
@@ -62,7 +54,6 @@ function upgrade(where: string, dir: string, files: string[], from: number, curr
   }
 }
 
-/** Every kept file on this machine, carried to the format this plugin reads. */
 export function upgradeState(root: string, steps = STEPS, current = STATE_VERSION, now = Date.now()): StateReport {
   const report: StateReport = { upgraded: [], failed: [] };
   if (!existsSync(root)) return report;

@@ -4,7 +4,6 @@ const TYPE_WORDS: Record<string, string> = { string: "text", boolean: "true or f
 
 const typeOf = (value: unknown): string => (Array.isArray(value) ? "array" : value === null ? "null" : typeof value);
 
-/** Empty for a required field: a text with nothing in it, or a list with nothing in it, answers nothing. */
 const blank = (value: unknown): boolean => value === undefined || value === null || (typeof value === "string" && value.trim() === "") || (Array.isArray(value) && value.every(blank));
 
 function fits(name: string, schema: ArgSchema, value: unknown): string | undefined {
@@ -17,14 +16,7 @@ function fits(name: string, schema: ArgSchema, value: unknown): string | undefin
   return undefined;
 }
 
-/**
- * Why `args` do not fit the schema the seat was shown for this tool; empty when they do.
- *
- * Nothing checked them. A harness that does not validate its own tool calls sent prose where one of
- * three words belonged, a misnamed field and a list where text belonged, and the desk took the
- * hand-back anyway, writing "No summary given." into it; a report missing `ready` went through as
- * not ready, with its carried notes dropped.
- */
+/** Why `args` miss the schema the seat was shown; empty when they fit. Some harnesses never validate their own tool calls. */
 export function argsProblems(schema: ArgSchema, args: Record<string, unknown>): string[] {
   const properties = schema.properties ?? {};
   const problems: string[] = [];

@@ -38,30 +38,25 @@ test("running the setup screen over a project keeps what it holds, and does not 
   assert.deepEqual(folded.attention, { longTurnMinutes: 45 });
   assert.deepEqual(folded.roles!.peer, { harness: "devin" }, "the model and thinking level picked for the old agent are not kept on the new one");
 
-  // A draft that changes nothing about the agent keeps what was chosen for it.
   const same = foldRoles(project, { roles: { peer: { thinking: "low" } } }, (role) => project.roles?.[role]?.harness);
   assert.deepEqual(same.roles!.peer, { harness: "claude", model: "claude-opus-5", thinking: "low" });
 });
 
 test("a role whose agent is not recorded anywhere keeps the model the owner picked for it", () => {
-  // The ordinary state of a role nobody has moved: it runs the kit's default agent, so no layer says
-  // which agent that is, and the owner has still chosen a model for it on the Team tab.
+  // A role nobody moved runs the kit's default agent, so no layer names it, yet the owner chose a model.
   const project: Layer = { roles: { peer: { model: "swe-2-medium" } } };
   const draft: Layer = { roles: { peer: { harness: "devin" } } };
 
   const unknown = foldRoles(project, draft, () => undefined);
   assert.deepEqual(unknown.roles!.peer, { model: "swe-2-medium", harness: "devin" }, "an agent nobody can name is not an agent being replaced");
 
-  // And when it can be named and really is different, the old agent's model does go.
   const moved = foldRoles(project, { roles: { peer: { harness: "claude" } } }, () => "devin");
   assert.deepEqual(moved.roles!.peer, { harness: "claude" });
 });
 
 test("re-pasting a server the owner gave to nobody leaves it given to nobody", () => {
   const reachable = ["supervisor", "lead", "peer", "reviewer"];
-  // Unticking the last role on a server's own tab writes an empty list, and the resolver honours it:
-  // the server really is given to no role. Rotating its token is a re-paste of the same snippet, and
-  // reading that empty list as "nothing to preserve" handed the server, and the new token, to all four.
+  // Unticking the last role writes an empty list; a re-paste to rotate the token once gave the server to all four.
   assert.deepEqual(keptRoles([], reachable), [], "a narrowing to nobody is a narrowing, not an absence");
   assert.deepEqual(keptRoles(undefined, reachable), reachable, "never narrowed is what does mean every reachable role");
   assert.deepEqual(keptRoles(["lead", "peer"], reachable), ["lead", "peer"]);
@@ -73,8 +68,7 @@ test("a settings screen offers the agent in force, not the one the kit would hav
   const project: Layer = { roles: { peer: { harness: "claude" } } };
   const machine: Layer = { roles: { peer: { harness: "codex" } } };
 
-  // Skipping the two middle layers is what showed Devin for a Peer the owner had put on Claude Code,
-  // and then offered Devin's models for it.
+  // Skipping the two middle layers once showed Devin for a Peer the owner had put on Claude Code.
   assert.equal(harnessInForce(peer, {}, project, machine), "claude", "the project's choice wins");
   assert.equal(harnessInForce(peer, {}, {}, machine), "codex", "then the machine's");
   assert.equal(harnessInForce(peer, {}, {}, {}), "devin", "and the kit's default only when nobody chose");
@@ -88,8 +82,7 @@ test("the model row shows what is in force even when this agent does not list it
   assert.equal(settled.stray, false);
   assert.deepEqual(settled.options, [{ label: "Opus 5", value: "claude-opus-5" }]);
 
-  // What a wrong agent's model list leaves behind. The screen used to print "Opus 5" here, which is
-  // not what the seat runs, and rendered no control because the agent lists only one.
+  // The screen once printed "Opus 5" here, which is not what the seat runs, and rendered no control.
   const wrong = modelRow("swe-2-medium", opus);
   assert.equal(wrong.value, "swe-2-medium", "the seat's own model is what is shown");
   assert.equal(wrong.stray, true);
@@ -114,8 +107,7 @@ test("a collapsed lane gives up its counts for a Lead that is waiting or gone", 
   assert.equal(countsInstead(lane({ status: "idle", waiting: [] }, true)), false, "an opened lane shows its Lead and its tasks");
   assert.equal(countsInstead({ taskCount: 0, open: false, lead: { status: "idle", waiting: [] } }), false);
 
-  // Lanes start collapsed, and the Lead's line is the only place this screen shows a seat waiting on
-  // the owner: blocked on a permission, a Lead read as "3 tasks, 1 running" in healthy green.
+  // Lanes start collapsed, so the Lead's line is the only place a seat waiting on the owner shows.
   assert.equal(countsInstead(lane({ status: "running", waiting: ["Write outside the working copy"] })), false);
   assert.equal(countsInstead(lane({ status: "gone", waiting: [] })), false, "and a Lead that has gone is never news the counts may hide");
   assert.equal(countsInstead(lane(null)), false);
@@ -124,8 +116,7 @@ test("a collapsed lane gives up its counts for a Lead that is waiting or gone", 
 test("the model in force follows the resolver: a layer naming another agent drops the models below it", () => {
   const lead = { id: "lead", defaults: { harness: "claude", model: "claude-opus-5" } };
   const machine: Layer = { roles: { lead: { harness: "devin", model: "swe-2-max" } } };
-  // The nearest model the screen could find was the machine's, chosen for an agent the project had
-  // since moved off — and it was shown, and folded into a save, as the one in force.
+  // The machine's model was chosen for an agent the project has since moved off, so it is not in force.
   assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "codex" } } }, machine), undefined);
   assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "claude" } } }, machine), "claude-opus-5", "back on its own agent, the kit's choice there");
   assert.equal(modelInForce(lead, { roles: { lead: { model: "claude-sonnet-5" } } }, undefined, machine), "claude-sonnet-5");
@@ -150,9 +141,7 @@ test("switching the watch on keeps the rest of the tuning, and the sensor's key 
   assert.deepEqual(on.attention, { longTurnMinutes: 30, watch: true }, "the other attention settings are not a casualty of the switch");
   assert.equal(on.rules, "Keep diffs small.");
 
-  // The panel is only ever handed `KEPT`, and a write is the whole layer, so carrying that word back
-  // is the whole of what keeps the key on disk through a save about something else. Every helper a
-  // section saves through has to do it, not just this card's own.
+  // A write is the whole layer, so every helper a section saves through must carry `KEPT` back or the key is lost.
   const screen: Layer = { ...held, sensor: { key: KEPT } };
   const elsewhere: Record<string, Layer> = {
     "a role moved to another agent": setRole(screen, "peer", { harness: "devin" }, true),

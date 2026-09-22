@@ -8,15 +8,8 @@ export type Brief = { role: string; goal: string; context: string; beside: Sibli
 
 export type View = Record<string, unknown>;
 
-/** The least a view may hold: under it a view cannot carry a brief and one step. */
 export const LEAST_STATE_CHARS = 1000;
 
-/**
- * The states a reading can send, each built for the questions that read it, and the fields each
- * holds. One state for every question was the thing the sensor's makers warn against: unrelated
- * material costs a System One model accuracy, and a question about one command was asked over eighty
- * steps and a closing message it did not need, while the brief it did need was cut to fit.
- */
 export const VIEW_FIELDS = {
   actions: ["goal", "context", "instruction", "working_copy", "steps"],
   work: ["role", "goal", "context", "beside", "instruction", "steps"],
@@ -38,10 +31,7 @@ function act(step: Step): Step {
   return rest as Step;
 }
 
-/**
- * `fields` and as many `steps` as fit in `limit`: the latest, or for a view about what came first,
- * the earliest. Fields too long to leave room for that one step are halved, the longest first.
- */
+/** Fits `fields` and as many latest (or earliest) `steps` as `limit` allows; overlong fields are halved, longest first. */
 function fit(fields: Record<string, string | undefined>, steps: Step[], limit: number, keep: "latest" | "earliest"): View {
   const text: Record<string, string> = Object.fromEntries(Object.entries(fields).filter((entry): entry is [string, string] => entry[1] !== undefined));
   const first = keep === "latest" ? steps.at(-1) : steps[0];
@@ -78,12 +68,7 @@ function mentioned(said: string, siblings: Sibling[]): { path: string; task: str
 
 const spoken = (step: Step): string => ("text" in step ? step.text : "command" in step ? step.command : "target" in step ? step.target : "path" in step ? step.path : "");
 
-/**
- * Steps as the work view shows them, each that speaks of a file a sibling task owns noted as such
- * where it stands. The sensor was told in another field what was being written beside the seat, and
- * still read a Peer that found its neighbour's file unwritten as a Peer inventing a stand-in: tying
- * the step to the sibling is a second hop it does not reliably make, so code makes it.
- */
+/** Notes a step that speaks of a sibling's file where it stands: the sensor does not reliably make that hop itself. */
 function noted(steps: Step[], siblings: Sibling[]): Step[] {
   return steps.map((step) => {
     const found = mentioned(spoken(step), siblings);
@@ -100,11 +85,7 @@ function lastCheck(steps: Step[], gates: string[]): number {
   return -1;
 }
 
-/**
- * `claim` beside the evidence for it, as a citation is checked against its source: the check the
- * seat last ran and anything it changed after that. What the seat says about its own work is the
- * claim, never the evidence.
- */
+/** `claim` beside its evidence, the last check and what changed after it; what a seat says of its work is never evidence. */
 function claimOf(trail: Trail, brief: Brief, limit: number): View | undefined {
   const final = trail.final?.text;
   if (!final) return undefined;
@@ -133,8 +114,7 @@ export function viewsOf(trail: Trail, brief: Brief, limit: number): Partial<Reco
   };
   const claim = claimOf(trail, brief, limit);
   if (claim) views.claim = claim;
-  // About the steps straight after the instruction, so it needs them: a turn long enough to lose its
-  // first steps cannot answer it, and saying so in the state did not make the sensor more careful.
+  // Needs the first steps: a turn that lost them cannot answer, and saying so did not make the sensor careful.
   if (trail.lost === 0 && trail.instruction) views.instruction = fit({ instruction: trail.instruction }, trail.steps, limit, "earliest");
   return views;
 }

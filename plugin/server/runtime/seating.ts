@@ -29,10 +29,7 @@ export class Seating {
   ensure(roleName: string, harness: HarnessSpec, project?: Project): Team {
     const team = withHarness(this.source.teamFor(project), roleName, harness);
     const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}`;
-    // Remembering that a seat was built is not evidence that it still is. The directory lives in the
-    // owner's home and nothing here owns it: cleaned up, restored from a backup, or removed with the
-    // harness, the seat was launched anyway — and the whole reason the failure below is not swallowed
-    // is that a seat whose instructions were not written runs with none.
+    // Remembering a seat was built is no proof its directory still exists; a seat without instructions runs with none.
     const seat = team.roles[roleName];
     const dir = seat ? seatDir(this.kit, seat.role, harness, home(), project) : undefined;
     // And a login made after the seat was built is a link the seat does not have yet.
@@ -44,9 +41,7 @@ export class Seating {
       if (changes.length > 0) console.log(`seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
       this.built.add(key);
     } catch (error) {
-      // Not swallowed: a seat whose instructions could not be written is a seat that would run with
-      // none, and the three before-hooks are the only places a plugin can refuse anything. Refusing
-      // the launch names the reason; letting it through hands a full-access agent no brief at all.
+      // Not swallowed: refusing the launch names the reason; letting it through runs a full-access agent with no brief.
       console.error(`seatworks-v2: seat ${roleName} on ${harness.id} could not be built:`, error);
       throw new Error(`the ${roleName} seat could not be built, so it was not started: ${errorText(error)}`);
     }

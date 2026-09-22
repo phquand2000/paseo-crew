@@ -71,7 +71,6 @@ export function ProjectList({ projects, nameOf, catalog, team, waiting, theme, d
           row(project.slug, nameOf(project.slug, project.root).slice(0, 1), nameOf(project.slug, project.root), project.root, "", project.slug, index === projects.length - 1),
         )}
       </View>
-      {/* Both strings used to name a control called "Set up a project", which is not the label of anything. */}
       <Text style={styles.sub}>{waiting > 0 ? `${waiting} more repository${waiting === 1 ? "" : " choices"} Paseo knows can be set up.` : "Set up any repository on this machine with Add project."}</Text>
     </View>
   );

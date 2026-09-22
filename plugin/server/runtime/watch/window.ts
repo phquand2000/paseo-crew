@@ -12,7 +12,6 @@ export type Detail = {
   [key: string]: unknown;
 };
 
-/** How many steps of a turn the sensor is shown. Older ones fall out; the instruction is kept apart. */
 const UNITS = 80;
 
 export type Call = {

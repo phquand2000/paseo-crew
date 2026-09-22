@@ -73,9 +73,7 @@ export class Agents {
   async retire(project: Project, task: Task, into?: string): Promise<string | undefined> {
     await this.roster.archive(task.peer);
     if (task.kind !== "code" || task.mode !== "parallel") return undefined;
-    // Everyone the ledger puts in that copy, not only this task's own Peer: a review of this task
-    // reads it from the same checkout, and taking the directory away under a running reviewer loses
-    // the verdict its Lead was told to wait for.
+    // Everyone sharing the copy, not only this Peer: a reviewer reads from it too, and removing it loses the verdict.
     const sharing = task.slot
       ? Object.values(loadLedger(project.state).tasks).filter((other) => other.id !== task.id && other.slot === task.slot && other.status === "running")
       : [];

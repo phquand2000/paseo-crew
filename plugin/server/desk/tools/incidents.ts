@@ -44,10 +44,7 @@ function briefs(state: string, shown: Incident[]): string[] {
   return out.length > 0 ? ["", "What they were asked:", ...out] : [];
 }
 
-/**
- * What this seat may read and mark. Whoever supervises, every incident; a Lead, those about the other
- * seats of its own open lane, which are the ones sent to it, and never one about itself.
- */
+/** A supervisor sees every incident; a Lead only those about its own open lane's other seats, never itself. */
 function mine(caller: Caller): ((item: Incident) => boolean) | string {
   if (can(caller.role, "supervise")) return () => true;
   let lane: string | undefined;

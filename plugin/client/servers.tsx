@@ -18,7 +18,6 @@ type Props = {
   layer: "machine" | "project";
   theme: PluginTheme;
   disabled: boolean;
-  /** Resolves to whether the write was kept, so a form can hold what the owner typed until it is. */
   save(change: (values: Layer) => Layer): Promise<boolean> | void;
   addServer(text: string): Promise<string | null>;
 };
@@ -72,8 +71,7 @@ function Tuning({ entry, current, disabled, save, labelOf }: {
           disabled={disabled || wrong}
           onPress={() => {
             const settings = Object.fromEntries(edited.map((key) => [key, value(key, entry.settings[key]!)]));
-            // Kept until the write is. Cleared first, a refused save took the "Unsaved change" row away
-            // and left the field showing a value that was never stored.
+            // Cleared only once kept: cleared first, a refused save dropped the unsaved row and showed a value never stored.
             void Promise.resolve(save((values) => setMcp(values, entry.id, { settings }))).then((kept) => {
               if (kept !== false) setDraft({});
             });
@@ -86,16 +84,12 @@ function Tuning({ entry, current, disabled, save, labelOf }: {
 
 export function ServersSection({ catalog, team, values, machine, layer, theme, disabled, save, addServer }: Props) {
   const ids = Object.keys(team.mcp);
-  // A removed template keeps its tab, because the hint on Remove says it can be added again and this
-  // is the control that makes that true: resolving drops a removed server, so building the tabs from
-  // the resolved team alone left a catalogue entry with no tab, no switch and no way back.
+  // A removed template keeps its tab: resolving drops removed servers, which left no way to add it back.
   const put = catalog.mcp.map((item) => item.id).filter((id) => !ids.includes(id));
   const [active, setActive] = useState(ids[0] ?? ADD);
   const [paste, setPaste] = useState("");
   const state = team.mcp[active];
-  // Forgotten only where this layer is what added it. A server pasted on the machine appears on every
-  // project's tab too, and "forgetting" it there deleted nothing — or deleted the project's narrowing
-  // of it, which widened it — under a line saying it had been forgotten.
+  // Forgotten only where this layer added it; a machine server shown on a project has nothing there to forget.
   const addedHere = layer === "machine" || machine.mcp?.[active] === undefined;
   const entry = catalog.mcp.find((item) => item.id === active);
   const tabs = [...ids.map((id) => ({ id, label: team.mcp[id]!.label })), ...put.map((id) => ({ id, label: catalog.mcp.find((item) => item.id === id)?.label ?? id })), { id: ADD, label: "Add a server" }];
@@ -215,8 +209,7 @@ export function ServersSection({ catalog, team, values, machine, layer, theme, d
           disabled={disabled}
           onPress={() =>
             save((current) => {
-              // Switched off, not removed, for a server another layer added: removed, the resolver drops it
-              // and with it the tab, so the project had no way to switch it back on.
+              // Switched off, not removed: removed, the resolver drops it and its tab, leaving no way to switch it back on.
               const next = state.template ? setMcp(current, active, { removed: true, enabled: false }) : addedHere ? dropMcp(current, active) : setMcp(current, active, { enabled: false });
               setActive(ids.find((id) => id !== active) ?? ADD);
               return next;

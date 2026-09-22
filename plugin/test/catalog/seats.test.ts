@@ -92,9 +92,7 @@ test("a seat that cannot be built writes nothing, rather than a config with no i
   const kit = makeKit();
   const home = tempDir("sw2-home-");
 
-  // The owner's own rules are folded into every seat's instructions, so an ordinary line naming the
-  // tool they are configuring refuses the Peer. The build used to write the config and the MCP file
-  // first and refuse when it reached the instructions: a seat that boots with no brief at all.
+  // Owner rules are folded into every seat's instructions; a refusal there must come before anything is written.
   const owned = resolveTeam(kit, { rules: "Leave the Paseo config alone." });
   assert.deepEqual(owned.errors, [], "nothing the schema or the team resolution objects to");
   assert.throws(() => materialize(kit, owned, "peer", home, project), /must not see: paseo/);
@@ -103,7 +101,6 @@ test("a seat that cannot be built writes nothing, rather than a config with no i
   const left = existsSync(dir) ? readdirSync(dir, { recursive: true }).filter((entry) => String(entry).includes(".")) : [];
   assert.deepEqual(left, [], "nothing at all, because half a seat is worse than none");
 
-  // And with the rule rephrased, the same seat builds completely.
   const fine = resolveTeam(kit, { rules: "Leave the daemon config alone." });
   assert.equal(materialize(kit, fine, "peer", home, project).length > 0, true);
   assert.match(readFileSync(join(dir, "devin/AGENTS.md"), "utf-8"), /Leave the daemon config alone/);
@@ -127,10 +124,7 @@ test("a real directory where a skill link should go is left alone, not turned in
   mkdirSync(join(dir, "devin", "skills", "test-first"), { recursive: true });
   writeFileSync(join(dir, "devin", "skills", "test-first", "NOTES.md"), "something the harness made for itself\n");
 
-  // `ensureLink` says in its own words that it leaves such a directory alone because throwing "left
-  // the rest of the seat unbuilt", and the shared links beside this catch it for that reason. Thrown
-  // from the skills loop, the launch hook turned it into a refusal — permanently, since nothing here
-  // removes that directory.
+  // Thrown from the skills loop, this became a permanent launch refusal, since nothing removes that directory.
   const changes = materialize(kit, team, "peer", home, project);
   assert.ok(changes.length > 0, "the rest of the seat is still built");
   assert.equal(readFileSync(join(dir, "devin", "skills", "test-first", "NOTES.md"), "utf-8").trim(), "something the harness made for itself");
@@ -185,8 +179,7 @@ test("an unreadable MCP file the plugin owns is written again, because it carrie
   const kit = makeKit();
   const home = tempDir("sw2-home-");
   const team = resolveTeam(kit);
-  // The Peer's harness takes its servers from the file (`delivery: "file"`), and nothing else lives
-  // in that document. Leaving it unreadable is a Peer that boots with no `done` and no `ask`.
+  // The Peer's harness takes its servers from this file alone; left unreadable, the Peer boots with no `done` or `ask`.
   const peer = team.roles.peer!;
   assert.equal(peer.harness.mcp.delivery, "file", "the premise of this test");
   const dir = seatDir(kit, peer.role, peer.harness, home, project);
@@ -208,9 +201,7 @@ test("an MCP file the harness owns and the plugin cannot read is left alone, not
   const dir = seatDir(kit, team.roles.lead!.role, team.roles.lead!.harness, home, project);
   const file = join(dir, team.roles.lead!.harness.mcp.file);
 
-  // The harness's own file, holding what only it knows, and unreadable at this moment — a crash
-  // mid-write, or a version this plugin does not parse. Read as "not there", the seed replaces the
-  // account, the machine id and the project history with three keys and calls it an MCP update.
+  // A crash mid-write or an unparsed newer version; read as absent, the seed would wipe the account and history.
   const held = `{ "userID": "u-1", "oauthAccount": { "emailAddress": "owner@example.test" }, "projects": { "/work": {} },`;
   writeFileSync(file, held);
   const changes = materialize(kit, team, "lead", home, project);
@@ -272,8 +263,7 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   assert.equal(config.approval_policy, "never");
   assert.equal(config.sandbox_mode, "workspace-write");
   assert.equal(config.sandbox_workspace_write.network_access, true, "the grant is added to the table, not put in its place");
-  // Named, not computed: comparing against `stateWrites` itself made the assertion true for any
-  // answer that function gave, including none at all.
+  // Named, not computed: comparing against `stateWrites` itself passed for any answer, even none.
   assert.deepEqual(config.sandbox_workspace_write.writable_roots, [join(project.state, "plans")]);
   assert.equal(config.model_catalog_json, join(dir, "catalog.json"));
   const catalog = JSON.parse(readFileSync(config.model_catalog_json, "utf-8"));

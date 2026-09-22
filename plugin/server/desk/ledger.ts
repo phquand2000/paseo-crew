@@ -6,7 +6,7 @@ import { STATE_VERSION } from "../core/state.ts";
 
 export type LaneStatus = "open" | "closed";
 export type TaskStatus = "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
-/** What an ask is about. The tool schema offers the kinds the SLP preset uses; the ledger carries whatever it is told, because nothing routes on it. */
+/** Free-form: the ledger carries whatever it is told, because nothing routes on it. */
 export type AskKind = string;
 
 export type Lane = {
@@ -20,7 +20,6 @@ export type Lane = {
   issue?: string;
   base: string;
   branch: string;
-  /** The lane this one was opened to get out of the way of: a hole found mid-lane gets its own Lead, not a wider lane. */
   detourOf?: string;
   worktree?: string;
   slot?: string;
@@ -31,7 +30,6 @@ export type Lane = {
   opener: string;
   status: LaneStatus;
   restoring?: Restoring;
-  /** Who tried to land it while a seat was mid-turn in its copy, and the seats that were: mailed once they stop. */
   landing?: { by: string; writers: string[] };
   openedAt: number;
   tasks: number;
@@ -57,16 +55,13 @@ export type Task = {
   worktree?: string;
   slot?: string;
   startSha?: string;
-  /** The merge that brought a parallel task's work into the lane, which outlives its branch and copy. */
   mergeSha?: string;
   status: TaskStatus;
   openedAt: number;
   updatedAt: number;
   handback?: Handback;
-  /** How many times this task has been sent back, so each sending is its own event and not a repeat. */
   reworks?: number;
   silent: number;
-  /** Stalled because its Peer's seat is gone, rather than because it went quiet: it holds nothing then. */
   peerGone?: boolean;
 };
 
@@ -91,14 +86,7 @@ export type Ask = {
 /** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
 export type Releasing = { writers: string[]; dropBranch?: string; into?: string };
 
-/**
- * A lane that worked in the project's own copy, waiting to put its branch back.
- *
- * `branch` is what the copy was left on: a later lane may take that copy before the wait ends, and
- * switching it then would move somebody else's checkout — so the wait only acts on a copy still
- * where it was left. Kept on the lane rather than in memory, because a restart used to lose it and
- * leave the owner's own repository sitting on a dead lane's branch.
- */
+/** A lane in the project's own copy waiting to put its branch back; it acts only on a copy still on `branch`, since a later lane may own it. */
 export type Restoring = { writers: string[]; base: string; branch: string; landed?: boolean };
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
@@ -123,13 +111,7 @@ export function ledgerFile(state: string): string {
   return join(state, "ledger.json");
 }
 
-/**
- * The ledger, or why it cannot be read — never an empty one standing in for a file that is there.
- *
- * Writes already refused an unreadable ledger, and every read still answered with an empty one, so the
- * status tool, the owner's pages, a Peer's hand-back and the patrol all saw a project with no work on
- * record — the very thing `ledgerFault` exists to stop anyone believing. Absent is still empty.
- */
+/** The ledger, or throws why it cannot be read: never an empty one standing in for a file that is there. Absent is empty. */
 export function loadLedger(state: string): Ledger {
   const fault = ledgerFault(state);
   if (fault) throw new Error(`${fault}. Nothing was read from it as if the project had no work on record. Only the Human can repair it or move it aside; no seat may write the desk's own files.`);
@@ -138,14 +120,7 @@ export function loadLedger(state: string): Ledger {
   return { ...emptyLedger(), ...stored };
 }
 
-/**
- * Why the ledger on disk cannot be read, when it is there and cannot.
- *
- * An unreadable file parses as nothing, and nothing looks exactly like a project that has not
- * started yet: every lane, task, ask and the paths of every live working copy would be forgotten,
- * and the next write would put that emptiness on disk. A version this plugin does not know is the
- * likely way in — a newer plugin wrote it and an older one is now running. Absent is not a fault.
- */
+/** Why the ledger on disk cannot be read: parsed as nothing, the next write would erase the project. Absent is not a fault. */
 export function ledgerFault(state: string): string | undefined {
   const file = ledgerFile(state);
   if (!existsSync(file)) return undefined;
@@ -194,10 +169,7 @@ export function nextTaskId(lane: Lane, kind: Task["kind"]): string {
   return `${lane.id}-${kind === "review" ? "R" : "T"}${lane.tasks}`;
 }
 
-/**
- * Never handed out twice. Reusing the highest free number meant a copy the sweep was still removing
- * had the same path as the next one being created, so the sweep could delete a lane's new copy.
- */
+/** Never handed out twice: a reused id gave a copy the sweep was removing the same path as the next one created. */
 export function nextSlotId(ledger: Ledger): string {
   const taken = Object.keys(ledger.slots)
     .map((id) => Number(id.replace(/^S/, "")))
@@ -242,19 +214,7 @@ export function tasksOf(ledger: Ledger, laneId: string): Task[] {
 
 export const ACTIVE: TaskStatus[] = ["running", "rework", "queued", "merging"];
 
-/**
- * The tasks being written beside this one, and the paths they own.
- *
- * A lane that splits into parts and starts a Peer on each gives every Peer a working copy branched
- * before its neighbours had written anything. Each one then finds the other parts still as stubs and
- * says so, and the sensor read that as a prerequisite nobody had built: eight incidents on one lane,
- * every one marked noise by hand, the Supervisor's own notes reading "same episode as I3/I4/I6/I7/I8".
- * The question that raises it already excuses what `goal` asks for; the goal simply never said that a
- * file was somebody else's, still being written. Named here, it does.
- *
- * Only what is still unfinished: a task already taken in has its files in the copy, so a Peer that
- * cannot find them is telling the truth about something else.
- */
+/** A task written beside this one and the paths it owns, so a Peer's goal says a stub is somebody else's work in progress. */
 export type Sibling = { task: string; title: string; owned: string[] };
 
 /** The tasks of `task`'s lane still being written, each in a copy of its own, and what each owns. */
