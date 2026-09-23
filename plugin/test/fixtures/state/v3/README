@@ -1,0 +1,3 @@
+The files Paseo Crew kept in state format 3, as a machine with one project held them. Never edited:
+a new format gets its own folder, and state.test.ts carries every folder up to the current one.
+Format 3 adds Lane.onBranch: L1 carried on the Human's own branch.

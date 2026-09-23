@@ -21,6 +21,7 @@ export type Lane = {
   base: string;
   branch: string;
   detourOf?: string;
+  onBranch?: boolean;
   worktree?: string;
   slot?: string;
   writeSet: string[];

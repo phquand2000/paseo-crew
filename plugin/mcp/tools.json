@@ -48,6 +48,14 @@
             "type": "string",
             "description": "Optional base branch; defaults to the project's."
           },
+          "onBranch": {
+            "type": "boolean",
+            "description": "Carry on the branch the project's own copy is on, here, instead of starting a lane branch, once the Human has chosen that. Nothing is switched and uncommitted work stays where it is, for the lane to build on. The lane is never merged anywhere: landing it runs the gate and closes it, and the branch stays checked out. It takes no base and no isolate, and waits while another lane works in the project's copy."
+          },
+          "newBranch": {
+            "type": "string",
+            "description": "With onBranch: first start this branch where the copy is, taking its uncommitted work along, and carry that on instead; for when the Human chose a new branch that keeps their work in progress and agreed its name. It must not exist yet."
+          },
           "writeSet": {
             "type": "array",
             "items": {
@@ -120,7 +128,7 @@
     },
     {
       "name": "close_lane",
-      "description": "Close a lane and archive its agents. With land true the desk first merges the base branch into the lane in the lane's own copy when the base has moved, runs the project's gate there, then moves the base branch up to the lane. If any of that cannot happen the lane stays open and the reason comes back; a conflict with the base is its Lead's to settle in the lane. A landed lane branch is deleted once its copy is put away; one closed without landing is kept. A red gate stops the landing unless you land over it with overGate true — the verdict is evidence, and landing over it is your call.",
+      "description": "Close a lane and archive its agents. With land true the desk first merges the base branch into the lane in the lane's own copy when the base has moved, runs the project's gate there, then moves the base branch up to the lane. If any of that cannot happen the lane stays open and the reason comes back; a conflict with the base is its Lead's to settle in the lane. A landed lane branch is deleted once its copy is put away; one closed without landing is kept. A lane opened with onBranch is not merged or switched away from: landing it runs the gate and closes it, and its branch stays as it is. A red gate stops the landing unless you land over it with overGate true — the verdict is evidence, and landing over it is your call.",
       "inputSchema": {
         "type": "object",
         "properties": {

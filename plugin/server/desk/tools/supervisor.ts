@@ -42,7 +42,7 @@ async function readIssue(args: Args, project: Project): Promise<{ issue?: Issue;
   return "error" in fetched ? { unread: `${ref} could not be read: ${fetched.error}` } : { issue: fetched };
 }
 
-function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string, issue: Issue | undefined): Promise<Lane> {
+function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string, issue: Issue | undefined, onBranch: boolean): Promise<Lane> {
   const title = str(args.title);
   return desk.ctx.ledger(caller.project, (ledger) => {
     const id = nextLaneId(ledger);
@@ -56,8 +56,9 @@ function recordLane(desk: DeskServices, caller: Caller, args: Args, base: string
       outOfScope: strs(args.outOfScope),
       issue: issue?.url,
       base,
-      branch: `lane/${id.toLowerCase()}-${slugify(title, 24)}`,
+      branch: onBranch ? base : `lane/${id.toLowerCase()}-${slugify(title, 24)}`,
       detourOf: str(args.detourOf).trim().toUpperCase() || undefined,
+      onBranch: onBranch || undefined,
       writeSet: strs(args.writeSet),
       contracts: strs(args.contracts),
       opener: caller.id,
@@ -85,24 +86,36 @@ function openedReply(project: Project, lane: Lane, slot: { id?: string }, lead: 
     ? `\n\nIssue #${issue.number} as the Lead received it: ${outside("issue", issue.title, 200)} (${outside("issue", issue.url, 300)})\n<issue>\n${outside("issue", issue.body, 4000)}\n</issue>`
     : "";
   const where = slot.id ? `in working copy ${slot.id}` : "in the project's own working copy";
-  return `Lane ${lane.id} is open on ${lane.branch} (off ${lane.base}) ${where}, and its Lead ${lead} is starting. Gate: ${gate}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
+  const on = lane.onBranch
+    ? `carries on ${lane.branch} ${where}${lane.branch === loadConfig(project.state).base ? `, which is the project's base: nothing separates this work from it and there is no lane branch to fall back on` : ""}`
+    : `is open on ${lane.branch} (off ${lane.base}) ${where}`;
+  return `Lane ${lane.id} ${on}, and its Lead ${lead} is starting. Gate: ${gate}. Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
 }
 
 export const openLane: Tool = async (desk, caller, args) => {
   const { ctx, slots, agents } = desk;
   const { project } = caller;
   const config = loadConfig(project.state);
-  const base = str(args.base) || config.base || (await currentBranch(project.root)) || "main";
-  if (!(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
-  // Seeded only when unanswered: `config.gate` is "" when the owner answered "no gate".
+  const onBranch = args.onBranch === true;
+  const newBranch = str(args.newBranch).trim();
+  const here = await currentBranch(project.root);
+  if (newBranch && !onBranch) return no("newBranch goes with onBranch: it starts the branch the lane then carries on.");
+  if (onBranch && (args.isolate === true || str(args.base))) return no("onBranch carries on the branch the project's own copy is on, in that copy, so it takes no base and no isolate.");
+  if (onBranch && !here) return no("The project's own copy is not on a branch, so there is no branch to carry on; open the lane without onBranch to start one.");
+  if (newBranch && (await branchExists(project.root, newBranch))) return no(`The branch ${newBranch} already exists; carry it on after switching to it, or pick another name with the Human.`);
+  const base = onBranch ? newBranch || here! : str(args.base) || config.base || here || "main";
+  if (!newBranch && !(await branchExists(project.root, base))) return no(`The base branch ${base} does not exist.`);
+  // Seeded only when unanswered: `config.gate` is "" when the owner answered "no gate". A branch carried on is not a base.
   if (!config.base || config.gate === undefined) {
     const fault = configFault(configFile(project.state));
     if (fault) return no(`${fault}\nOnly the Human can repair it or move it aside — no seat may write the desk's own files — so tell them; the desk will not write its own defaults over a file it could not read.`);
-    saveConfig(project.state, { ...config, base: config.base ?? base, gate: config.gate ?? detectGate(project.root) });
+    saveConfig(project.state, { ...config, base: config.base ?? (onBranch ? undefined : base), gate: config.gate ?? detectGate(project.root) });
   }
   const open = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open");
+  const holder = open.find((lane) => !lane.slot);
+  if (onBranch && holder) return no(`Lane ${holder.id} is working in the project's own copy on ${holder.branch}, and one checkout holds one branch; carry this branch on once ${holder.id} closes, or open the lane on a branch of its own.`);
   // One checkout is one branch: a second lane gets its own copy rather than switching the first lane's.
-  const ownCopy = args.isolate === true || open.some((lane) => !lane.slot);
+  const ownCopy = !onBranch && (args.isolate === true || holder !== undefined);
   const detourOf = str(args.detourOf);
   // A detour must name a real open lane, or the letter back out of it has nowhere to go.
   if (detourOf && !open.some((lane) => lane.id === detourOf.trim().toUpperCase())) return no(`There is no open lane ${detourOf} for this one to clear the way for.`);
@@ -110,7 +123,7 @@ export const openLane: Tool = async (desk, caller, args) => {
   const problem = scopeProblem(serial, open, strs(args.writeSet), strs(args.contracts));
   if (problem) return no(problem);
   const { issue, unread } = await readIssue(args, project);
-  const lane = await recordLane(desk, caller, args, base, issue);
+  const lane = await recordLane(desk, caller, args, base, issue, onBranch);
   // Cleanup restores the project's own copy too; by slot id alone it stayed on the lane's branch.
   const fail = async (reason: string, taken?: { id?: string }) => {
     await ctx.ledger(project, (ledger) => {
@@ -118,12 +131,13 @@ export const openLane: Tool = async (desk, caller, args) => {
       if (entry) entry.status = "closed";
     });
     if (taken?.id) await slots.release(project, taken.id, lane.branch, base);
-    else if (taken) await slots.giveBack(project, base, lane.branch);
+    else if (taken && newBranch) await slots.unstart(project, here!, newBranch);
+    else if (taken && !onBranch) await slots.giveBack(project, base, lane.branch);
     return no(reason);
   };
   let slot: { id?: string; path: string; workspaceId?: string };
   try {
-    slot = ownCopy ? await slots.acquire(project, lane.branch, base, { lane: lane.id }) : await slots.inPlace(project, lane.branch, base);
+    slot = onBranch ? await slots.carryOn(project, lane.branch, newBranch ? here : undefined) : ownCopy ? await slots.acquire(project, lane.branch, base, { lane: lane.id }) : await slots.inPlace(project, lane.branch, base);
   } catch (error) {
     return fail(`The lane could not get a working copy: ${errorText(error)}`);
   }
@@ -205,7 +219,7 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
     if (!gate.ok && args.overGate !== true) {
       return no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, close it with land false, or land it over the gate with overGate true — that is your call.`);
     }
-    const result = await landLane(project.root, lane.base, lane.branch);
+    const result = lane.onBranch ? { landed: true, how: `the work stays on ${lane.branch}, the branch it carried on; nothing was merged anywhere` } : await landLane(project.root, lane.base, lane.branch);
     if (!result.landed) return no(`Lane ${lane.id} was not closed: it could not land, because ${result.how}. Close it again once that is cleared, or close it with land false.`);
     if (!gate.ok) ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: caller.id });
     landing = `${result.how}${gate.ok ? "" : ", over a red gate"}`;
@@ -230,17 +244,21 @@ export const closeLane: Tool = async ({ ctx, roster, slots, agents, merges }, ca
   const writers = [lane.lead, ...retired.filter((task) => task.mode !== "parallel").map((task) => task.peer)].filter(
     (id): id is string => typeof id === "string" && roster.pendingArchive.has(id),
   );
-  const drop = args.land === true ? { dropBranch: lane.branch, into: lane.base } : {};
-  const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch, ...drop }, writers);
-  if (branch) kept.push(branch);
+  // A branch carried on is the Human's: nothing switches the copy off it or deletes it.
+  if (!lane.onBranch) {
+    const drop = args.land === true ? { dropBranch: lane.branch, into: lane.base } : {};
+    const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch, ...drop }, writers);
+    if (branch) kept.push(branch);
+  }
 
   if (lane.detourOf) {
     const waiting = loadLedger(project.state).lanes[lane.detourOf];
     if (waiting?.status === "open" && waiting.lead) await ctx.post(waiting.lead, `detour:${lane.id}:${Date.now()}`, letters.detourLanded(lane, waiting, landing));
   }
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing, reason: str(args.reason), writers });
-  const copy =
-    writers.length > 0
+  const copy = lane.onBranch
+    ? `The project's own copy stays on ${lane.branch}.`
+    : writers.length > 0
       ? `Its working copy is put away once ${writers.join(" and ")} finish the turn they are in.`
       : "Its working copy is free for the next lane.";
   const branches = kept.length > 0 ? ` ${kept.join(" and ")} ${kept.length === 1 ? "holds commits" : "hold commits"} nothing else has and ${kept.length === 1 ? "is" : "are"} kept.` : "";

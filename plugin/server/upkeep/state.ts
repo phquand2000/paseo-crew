@@ -16,6 +16,8 @@ export const STEPS: StateStep[] = [
       if (existsSync(file)) writeJson(file, { links: [], writable: [], claudePointer: true, ...readJson<object>(file, {}) });
     },
   },
+  // 3 only adds `Lane.onBranch`; a lane without it is the lane branch it always was, so nothing is carried.
+  { to: 3 },
 ];
 
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json"];

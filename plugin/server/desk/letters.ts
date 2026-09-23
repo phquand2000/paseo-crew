@@ -54,7 +54,9 @@ export const letters = {
       "Out of scope:",
       list(lane.outOfScope),
       "",
-      `Lane branch: ${lane.branch}, off ${lane.base}. Your working copy is on it; tasks merge into it.`,
+      lane.onBranch
+        ? `Lane branch: ${lane.branch}, the Human's own, carried on where it is; closing the lane merges it nowhere. Your working copy is on it; tasks merge into it. Anything uncommitted there when the lane opened is the Human's work in progress: before changing anything, commit it as found in a commit of its own that says so, then build on it; never discard it.`
+        : `Lane branch: ${lane.branch}, off ${lane.base}. Your working copy is on it; tasks merge into it.`,
       `Gate: ${gate}`,
     ];
     if (concept) {

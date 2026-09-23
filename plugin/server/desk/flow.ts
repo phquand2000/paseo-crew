@@ -73,7 +73,7 @@ export function flowView(
       title: lane.title,
       status: lane.status,
       branch: lane.branch,
-      base: lane.base,
+      base: lane.onBranch ? undefined : lane.base,
       lead: seatOf(seats, lane.lead, ledger.agents[lane.lead ?? ""]?.role ?? "lead", now),
       tasks: held.get(lane.id) ?? [],
       taskCount: count.total,

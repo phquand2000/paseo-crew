@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { mock, test } from "node:test";
@@ -17,9 +17,11 @@ const { applyModels } = await import("../../server/catalog/models.ts");
 const { placeProjectFiles } = await import("../../server/catalog/project-files.ts");
 const { loadLedger, saveLedger } = await import("../../server/desk/ledger.ts");
 const { KEEP_CLOSED_LANES } = await import("../../server/desk/archive.ts");
-const { projectOf } = await import("../../server/desk/project.ts");
+const { loadConfig, projectOf } = await import("../../server/desk/project.ts");
 type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
+const { STATE_VERSION } = await import("../../server/core/state.ts");
+const { upgradeState } = await import("../../server/upkeep/state.ts");
 const { firstOverlap, serialHits, serialPaths, SERIAL_ONLY } = await import("../../server/core/scope.ts");
 const { FakeTimeline, settle } = await import("./fake-timeline.ts");
 const { readAssessments } = await import("../../server/runtime/watch/jev/assessments.ts");
@@ -376,12 +378,22 @@ test("a lane that fails after taking the project's own copy gives it back", asyn
   assert.equal(lane.status, "closed");
   assert.equal(h.git(h.project.root, "branch", "--show-current").trim(), before, "the owner's repository is back where it was");
   assert.equal(h.git(h.project.root, "branch", "--list", lane.branch).trim(), "", "and the branch the lane made, which holds nothing, is gone");
+
+  // The first attempt left the project's workspace behind, so the daemon has to fail to find it as well as to make one.
+  const workspaces = (h.paseo as unknown as { workspaces: { create: unknown; list: unknown } }).workspaces;
+  workspaces.list = workspaces.create = async () => {
+    throw new Error("the daemon made no workspace");
+  };
+  const unhoused = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
+  assert.equal(unhoused.ok, false, unhoused.text);
+  assert.equal(h.git(h.project.root, "branch", "--show-current").trim(), before, "a copy Paseo would not take is handed back too");
+  assert.equal(h.git(h.project.root, "branch", "--list", h.ledger().lanes.L2!.branch).trim(), "");
   h.runtime.dispose();
 });
 
 test("the Supervisor's status shows the Human's own copy, names a choice only where carrying on is a real question, and what each open lane is for", async () => {
   const h = harness("outbox-own-copy.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { base: "main", gate: "true" });
   const status = async () => (await h.call(sup, "supervisor", "status", {})).text;
   const choice = /The Human decides where the next lane works/;
@@ -414,6 +426,146 @@ test("the Supervisor's status shows the Human's own copy, names a choice only wh
 
   const lead = (await h.call(h.ledger().lanes.L1!.lead!, "lead", "status", {})).text;
   assert.doesNotMatch(lead, /The project's own copy|Outcome:/, "a Lead's status is its own lane, as before");
+  h.runtime.dispose();
+});
+
+test("a lane asked to carry on the Human's branch works on it where it is, keeps their uncommitted work, and lands by its gate alone", async () => {
+  const h = harness("outbox-onbranch.json");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
+  h.git(h.root, "switch", "-qc", "fix/login");
+  h.commit(h.root, "a.txt", "one\ntwo\nthree\nhalf a fix\n");
+  writeFileSync(join(h.root, "b.txt"), "bee, still being edited\n");
+  const main = h.git(h.root, "rev-parse", "main").trim();
+  const scope = { outcome: "the login fix is finished", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
+
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Finish the fix", ...scope, onBranch: true });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = h.ledger().lanes.L1!;
+  assert.equal(lane.branch, "fix/login", "no lane branch of its own");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login");
+  assert.deepEqual(h.git(h.root, "branch", "--format=%(refname:short)").trim().split("\n").sort(), ["fix/login", "main"]);
+  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, still being edited\n", "the Human's uncommitted edit is where they left it");
+  assert.equal(h.agents.get(lane.lead!)!.cwd, h.project.root);
+  assert.match(h.agents.get(lane.lead!)!.prompt ?? "", /fix\/login, the Human's own[\s\S]*commit it as found in a commit of its own/, "the Human's work in progress stays theirs, apart from the lane's");
+  assert.notEqual(loadConfig(h.project.state).base, "fix/login", "a branch carried on is not made the project's base");
+
+  const second = await h.call(sup, "supervisor", "open_lane", { title: "Also here", ...scope, onBranch: true });
+  assert.equal(second.ok, false, "one checkout holds one branch, and L1 has it");
+  assert.match(second.text, /L1/);
+
+  h.commit(h.root, "b.txt", "bee, done\n");
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
+  assert.equal(closed.ok, true, closed.text);
+  assert.match(closed.text, /the work stays on fix\/login, the branch it carried on; nothing was merged anywhere/);
+  assert.equal(h.git(h.root, "rev-parse", "main").trim(), main, "nothing was merged into main");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login", "and the Human's copy was not switched away");
+  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, done\n");
+  h.runtime.dispose();
+});
+
+test("carrying on a branch is refused where there is none to carry on, and a failed open leaves the Human's branch alone", async () => {
+  const h = harness("outbox-onbranch-refused.json");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
+  h.git(h.root, "switch", "-qc", "fix/login");
+
+  for (const extra of [{ isolate: true }, { base: "main" }]) {
+    const refused = await h.call(sup, "supervisor", "open_lane", { title: "Odd", ...scope, onBranch: true, ...extra });
+    assert.equal(refused.ok, false, JSON.stringify(extra));
+  }
+  const failed = await h.call(sup, "supervisor", "open_lane", { title: "No lead", ...scope, onBranch: true, role: "peer" });
+  assert.equal(failed.ok, false, failed.text);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login", "still on the Human's branch");
+  assert.match(h.git(h.root, "branch", "--list", "fix/login"), /fix\/login/, "and it was not deleted");
+  assert.doesNotMatch(readFileSync(join(h.project.state, "events.log"), "utf-8"), /lane\.gaveBack/, "nor was it ever handed to the undo made for a lane branch");
+
+  writeFileSync(join(h.root, "b.txt"), "bee, half done\n");
+  const alone = await h.call(sup, "supervisor", "open_lane", { title: "Alone", ...scope, newBranch: "fix/login-2" });
+  assert.match(alone.text, /newBranch goes with onBranch/, "a new branch is only started for a lane that carries it on");
+  const taken = await h.call(sup, "supervisor", "open_lane", { title: "Taken", ...scope, onBranch: true, newBranch: "main" });
+  assert.equal(taken.ok, false);
+  assert.match(taken.text, /main already exists/);
+  const unled = await h.call(sup, "supervisor", "open_lane", { title: "No lead", ...scope, onBranch: true, newBranch: "fix/login-2", role: "peer" });
+  assert.equal(unled.ok, false, unled.text);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login", "a branch started for a lane that failed to open is undone");
+  assert.equal(h.git(h.root, "branch", "--list", "fix/login-2").trim(), "");
+  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, half done\n", "and the uncommitted work came back with the copy");
+
+  h.git(h.root, "switch", "-q", "--detach");
+  const detached = await h.call(sup, "supervisor", "open_lane", { title: "Nowhere", ...scope, onBranch: true });
+  assert.equal(detached.ok, false);
+  assert.match(detached.text, /not on a branch/);
+  h.runtime.dispose();
+});
+
+test("a new branch the Human agreed to starts where their copy is, takes their uncommitted work along, and is carried on", async () => {
+  const h = harness("outbox-onbranch-new.json");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { base: "main" });
+  h.git(h.root, "switch", "-qc", "fix/login");
+  writeFileSync(join(h.root, "b.txt"), "bee, half done\n");
+
+  const workspaces = (h.paseo as unknown as { workspaces: { create: unknown } }).workspaces;
+  const create = workspaces.create;
+  workspaces.create = async () => {
+    throw new Error("the daemon made no workspace");
+  };
+  const unhoused = await h.call(sup, "supervisor", "open_lane", { title: "Split off", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], onBranch: true, newBranch: "fix/login-2" });
+  workspaces.create = create;
+  assert.equal(unhoused.ok, false, unhoused.text);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login", "a branch started for a copy Paseo would not take is undone");
+  assert.equal(h.git(h.root, "branch", "--list", "fix/login-2").trim(), "");
+  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, half done\n");
+
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Split off", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], onBranch: true, newBranch: "fix/login-2" });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = Object.values(h.ledger().lanes).find((entry) => entry.status === "open")!;
+  assert.equal(lane.branch, "fix/login-2");
+  assert.match((await h.call(sup, "supervisor", "status", {})).text, new RegExp(`## ${lane.id} Split off\\n\\nBranch fix/login-2, carried on in the project's own copy\\.`));
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login-2");
+  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, half done\n");
+  assert.equal(h.git(h.root, "rev-parse", "fix/login").trim(), h.git(h.root, "rev-parse", "fix/login-2").trim(), "the branch it left is where it was");
+
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: lane.id, land: false });
+  assert.equal(closed.ok, true, closed.text);
+  assert.equal(h.ledger().lanes[lane.id]!.restoring, undefined, "nothing is left to put back, so no round retries it");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login-2");
+  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, half done\n");
+
+  h.git(h.root, "switch", "-q", "main");
+  const onBase = await h.call(sup, "supervisor", "open_lane", { title: "Straight on main", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], onBranch: true });
+  assert.equal(onBase.ok, true, onBase.text);
+  assert.match(onBase.text, /carries on main [^,]*, which is the project's base: nothing separates this work from it/, "allowed, and said plainly");
+  h.runtime.dispose();
+});
+
+test("a lane open when the Human updates the plugin from state 1 carries on and lands as the lane branch it was", async () => {
+  const h = harness("outbox-upgrade.json");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "true" });
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = h.ledger().lanes.L1!;
+  h.commit(h.root, "a.txt", "one\ntwo\nthree\nfour\n");
+
+  // What the plugin before this version left on disk: the same ledger, numbered 1, and a machine with no number.
+  const file = join(h.project.state, "ledger.json");
+  writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf-8")), version: 1 }));
+  const root = join(HOME, ".local", "share", "paseo-crew");
+  rmSync(join(root, "state.json"), { force: true });
+  const report = upgradeState(root);
+  assert.deepEqual(report.failed, []);
+  assert.ok(report.upgraded.includes(`${h.project.slug}: 1 → ${STATE_VERSION}`), report.upgraded.join(", "));
+  assert.deepEqual(h.ledger().lanes.L1, lane, "the open lane is on record exactly as it was");
+
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: true });
+  assert.equal(closed.ok, true, closed.text);
+  assert.equal(h.git(h.root, "show", "main:a.txt"), "one\ntwo\nthree\nfour\n", "the lane landed on its base");
+  h.agents.get(lane.lead!)!.status = "idle";
+  await h.endTurn(lane.lead!, "closing up");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "the copy is handed back on its base once the Lead stops");
+  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim(), "", "and the landed lane branch is gone");
   h.runtime.dispose();
 });
 

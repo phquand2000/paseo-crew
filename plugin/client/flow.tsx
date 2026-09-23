@@ -97,7 +97,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme
       <Node
         theme={theme}
         title={`Lead · ${lane.id} ${lane.title}`}
-        hint={`${lane.branch} off ${lane.base}`}
+        hint={lane.base ? `${lane.branch} off ${lane.base}` : `${lane.branch}, carried on in place`}
         state={countsInstead(lane) ? `${lane.taskCount} task${lane.taskCount === 1 ? "" : "s"}, ${lane.running} running` : seatText(lane.lead)}
         alive={Boolean(lane.lead && lane.lead.status !== "gone")}
         caret={lane.taskCount === 0 ? undefined : lane.open ? "▾" : "▸"}

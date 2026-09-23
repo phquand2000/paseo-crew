@@ -156,3 +156,10 @@ test("a working copy given back does not hand its name to the next one while a l
   ledger.slots.S2 = { id: "S2", path: "/w/shop/S2", createdAt: now + 2 };
   assert.equal(nextSlotId(ledger), "S3");
 });
+
+test("a lane carrying on the Human's branch is drawn without a base, so it never reads as a branch off itself", () => {
+  const ledger = working();
+  ledger.lanes.L2 = { ...ledger.lanes.L2!, base: "fix/login", branch: "fix/login", onBranch: true };
+  const lanes = flowView(project, ledger, seats, now).lanes;
+  assert.deepEqual(lanes.map((lane) => [lane.id, lane.branch, lane.base]), [["L1", "lane-l1", "main"], ["L2", "fix/login", undefined]]);
+});
