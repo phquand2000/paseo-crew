@@ -24,7 +24,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   assert.deepEqual(Object.values(off.mcp).filter((state) => state.enabled), [], "the kit ships no server switched on");
   const team = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["hunter", "lead", "peer", "reviewer", "supervisor", "watcher"]);
+  assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["backup-peer", "hunter", "lead", "peer", "reviewer", "supervisor", "watcher"]);
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);
   const every = kit.roles.flatMap((role) => ["claude", "codex", "opencode", "agy"].map((harness) => `${role.role}-${harness}`)).sort();
   assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), every, "every role can sit on every agent the kit ships");
@@ -304,5 +304,5 @@ test("a pasted server that names no roles is given to every role that works with
   const kit = loadKit(pluginRoot);
   const team = resolveTeam(kit, { mcp: { pasted: { enabled: true, label: "Pasted", connect: { type: "http", url: "https://mcp.example.com" } } } });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(Object.entries(team.roles).filter(([, seat]) => seat.mcp.includes("pasted")).map(([name]) => name).sort(), ["hunter", "lead", "peer", "reviewer", "supervisor"]);
+  assert.deepEqual(Object.entries(team.roles).filter(([, seat]) => seat.mcp.includes("pasted")).map(([name]) => name).sort(), ["backup-peer", "hunter", "lead", "peer", "reviewer", "supervisor"]);
 });

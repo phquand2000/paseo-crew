@@ -37,6 +37,8 @@ Split the way the work divides; no quota on Peers.
   else `ask` kind need, so no two tasks fix one foundation two ways.
 - **A missing prerequisite** (you're asked for authorization and there's no authentication): `ask`
   kind need; the owner opens a detour lane and you wait for CLEARED. Branched lanes compact badly.
+- **The Peer's agent runs short of quota** (a Peer stops on a usage limit, or the owner says so): start
+  tasks with `role: "backup-peer"`, which runs on another agent; `cut` a stopped one and start it again that way.
 
 ## Briefing
 

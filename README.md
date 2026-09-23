@@ -41,6 +41,9 @@ Changes from upstream so far:
   Peer and Reviewer default to Codex `gpt-5.5`. A new **Hunter** role runs the Lead's ultra-review
   hunt: one seat, ten scouts of its own, one hand-back, where the Lead used to start ten Reviewers.
   Peers get `repo-refresh`. An OpenCode seat loads only its role's skills.
+- 3.1.0: Supervisor, Lead and Peer default to Claude `claude-opus-5-5` at high thinking. A new
+  **Backup Peer** on Codex `gpt-5.6-luna` at max takes tasks the Lead starts with
+  `role: "backup-peer"` when the Peer's agent runs short of quota.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -78,7 +81,8 @@ The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane)
 |---|---|---|
 | Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5-5` · high |
 | Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5-5` · high |
-| Peer | One task, and the engineering judgement inside it | Claude Code · `claude-opus-5-5` · high; when Claude is out of quota, switch it to Codex · `gpt-5.6-luna` · max |
+| Peer | One task, and the engineering judgement inside it | Claude Code · `claude-opus-5-5` · high |
+| Backup Peer | The same, when the Peer's agent runs short of quota: the Lead starts it with `role: "backup-peer"` | Codex · `gpt-5.6-luna` · max |
 | Reviewer | A read-only review of one change | Codex · `gpt-5.5` |
 | Hunter | A read-only bug hunt across one scope, with ten scouts of its own | Antigravity · `gemini-3.8-flash-high` |
 | Watcher | Reading Leads and Peers as they work. It cannot touch the work | the Peer's agent |

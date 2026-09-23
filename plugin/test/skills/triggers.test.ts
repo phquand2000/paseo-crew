@@ -13,7 +13,9 @@ test("every skill a role is given has briefs that should open it and near misses
   const cases = loadCases();
   for (const role of kit.roles) {
     const cards = skillCards(kit, role.role);
-    const own = cases[role.role] ?? [];
+    // A role holding exactly another role's skills is briefed by that role's cases.
+    const twin = kit.roles.find((other) => cases[other.role] && [...skillCards(kit, other.role).keys()].sort().join() === [...cards.keys()].sort().join());
+    const own = cases[role.role] ?? (twin ? cases[twin.role]! : []);
     for (const one of own) {
       for (const name of [...one.expect, ...(one.near ? [one.near] : [])]) {
         assert.ok(cards.has(name), `${role.role} brief names ${name}, which that role is not given: ${one.brief}`);

@@ -18,7 +18,7 @@ schema. A call that doesn't fit is refused, with what is wrong.
 |---|---|
 | Supervisor | `open_lane` `close_lane` `set_project` `message` `answer` `status` `incidents` `ack` |
 | Lead | `start_task` `start_review` `accept` `rework` `cut` `report` `message` `answer` `ask` `status` `incidents` `ack` |
-| Peer, Reviewer, Hunter | `done` `ask` |
+| Peer, Backup Peer, Reviewer, Hunter | `done` `ask` |
 | Watcher | `raise` `judge` |
 
 | Verb | Effect |
