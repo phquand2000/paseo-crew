@@ -40,7 +40,7 @@
       "defaults": {
         "harness": "claude",
         "model": "claude-opus-5-5",
-        "thinking": "medium"
+        "thinking": "high"
       },
       "can": [
         "lead",
