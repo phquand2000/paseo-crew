@@ -3,6 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { rolledStamps } from "../../server/core/rolling.ts";
 import { tempDir } from "../tempdir.ts";
 import { appendRolling } from "../../server/core/rolling.ts";
 import { type Lane, emptyLedger } from "../../server/desk/ledger.ts";
@@ -18,6 +19,17 @@ test("a record log rolls over, keeps its newest roll as text for a grep, and pac
   assert.deepEqual(names.filter((name) => name.endsWith(".gz")), ["events.00000003.log.gz", "events.00000004.log.gz"]);
   assert.equal(gunzipSync(readFileSync(join(dir, "events.00000003.log.gz"))).toString("utf-8"), line.repeat(2));
   assert.equal(readFileSync(join(dir, "events.log"), "utf-8"), line.repeat(2), "the name agents read stays the live file");
+});
+
+test("two rolls close together pack each file once, so neither packing trips over the other's half-written copy", async () => {
+  const dir = tempDir("sw2-roll-race-");
+  const roll = { dir, current: "events.log", prefix: "events.", ext: ".log", rotateAt: 1, keepBytes: 1 << 20, plain: 0 };
+  await appendRolling(roll, "a\n");
+  await Promise.all(["b\n", "c\n", "d\n"].map((line) => appendRolling(roll, line)));
+  const names = readdirSync(dir);
+  assert.deepEqual(names.filter((name) => !name.endsWith(".gz")).sort(), ["events.log"], names.join(", "));
+  const packed = rolledStamps(names, roll).map((stamp) => gunzipSync(readFileSync(join(dir, `events.${stamp}.log.gz`))).toString("utf-8"));
+  assert.deepEqual(packed, ["a\n", "b\n", "c\n"]);
 });
 
 const lane = (id: string): Lane =>

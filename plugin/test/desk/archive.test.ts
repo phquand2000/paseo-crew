@@ -26,24 +26,25 @@ function busyLedger(count: number) {
 const read = (state: string, id: string) => JSON.parse(gunzipSync(readFileSync(join(archiveDir(state), `${id}.json.gz`))).toString("utf-8")) as LaneArchive;
 
 test("closed lanes past the newest few leave the ledger whole once nothing of theirs is pending and no open work names them", () => {
-  const extra = 8;
+  const extra = 11;
   const ledger = busyLedger(KEEP_CLOSED_LANES + extra);
   ledger.lanes.L1!.restoring = { writers: [], base: "main", branch: "lane/l1" };
   ledger.slots.S1 = { id: "S1", path: "/tmp/s1", lane: "L2", createdAt: 0 };
   ledger.tasks["L3-T1"]!.status = "queued";
   ledger.asks.A4!.status = "open";
   const live = new Set(["peer-5"]);
-  ledger.lanes.L99 = { ...lane(99, "open"), outcome: "Carry on from handbacks/L6-T1-1.md" };
-  ledger.tasks["L99-T1"] = { ...task(99, "running"), context: "the fix in L7 was half done" };
+  ledger.lanes.L99 = { ...lane(99, "open"), outcome: "Carry on from handbacks/L6-T1-1.md", base: "lane/l9-parser" };
+  ledger.tasks["L99-T1"] = { ...task(99, "running"), context: "the fix in L7 was half done, see lane/l8-cache" };
+  ledger.lanes.L98 = { ...lane(98, "open"), acceptance: ["l10 is gone"] };
 
   const taken = takeFinished(ledger, (id) => !live.has(id))!;
 
-  assert.deepEqual(taken.lanes.map((entry) => entry.lane!.id), ["L8"], "only the unpinned lane beyond the newest kept");
-  assert.deepEqual(taken.lanes[0]!.tasks.map((entry) => entry.id), ["L8-T1"]);
-  assert.deepEqual(taken.lanes[0]!.asks.map((entry) => entry.id), ["A8"]);
-  assert.deepEqual(taken.lanes[0]!.agents.map((entry) => entry.id), ["lead-8"]);
-  for (const kept of ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L9"]) assert.ok(ledger.lanes[kept], `${kept} stays`);
-  assert.ok(!ledger.lanes.L8 && !ledger.tasks["L8-T1"] && !ledger.asks.A8 && !ledger.agents["lead-8"]);
+  assert.deepEqual(taken.lanes.map((entry) => entry.lane!.id), ["L11"], "only the unpinned lane beyond the newest kept");
+  assert.deepEqual(taken.lanes[0]!.tasks.map((entry) => entry.id), ["L11-T1"]);
+  assert.deepEqual(taken.lanes[0]!.asks.map((entry) => entry.id), ["A11"]);
+  assert.deepEqual(taken.lanes[0]!.agents.map((entry) => entry.id), ["lead-11"]);
+  for (const kept of ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L12"]) assert.ok(ledger.lanes[kept], `${kept} stays`);
+  assert.ok(!ledger.lanes.L11 && !ledger.tasks["L11-T1"] && !ledger.asks.A11 && !ledger.agents["lead-11"]);
   assert.equal(ledger.seq.lane, KEEP_CLOSED_LANES + extra, "ids come from seq, which never moves");
   assert.equal(takeFinished(ledger, (id) => !live.has(id)), undefined, "a second look finds nothing more");
 });
