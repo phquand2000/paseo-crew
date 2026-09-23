@@ -136,7 +136,7 @@ export const startTask: Tool = async (desk, caller, args) => {
       parent: caller.id,
       title: `${task.id} ${task.title}`,
       prompt: letters.brief(task, lane),
-      labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": workRole.role },
+      labels: { "paseo-crew.lane": lane.id, "paseo-crew.task": task.id, "paseo-crew.role": workRole.role },
     });
     await ctx.setTask(project, task.id, (entry) => {
       entry.peer = peer;
@@ -217,7 +217,7 @@ export const startReview: Tool = async ({ ctx, agents }, caller, args) => {
       parent: caller.id,
       title: `${review.id} ${target?.title ?? review.title}`,
       prompt: letters.reviewBrief(review, target, focus, lane.branch, change),
-      labels: { "seatworks.lane": lane.id, "seatworks.task": review.id, "seatworks.role": reviewRole.role },
+      labels: { "paseo-crew.lane": lane.id, "paseo-crew.task": review.id, "paseo-crew.role": reviewRole.role },
     });
     await ctx.setTask(project, review.id, (entry) => {
       entry.peer = reviewer;

@@ -196,7 +196,7 @@ export class SettingsControl implements Control {
     const target = this.target(slug);
     if (typeof target === "string") return { status: "invalid", error: target };
     const resolve = (layer: Layer) => (target.project ? resolveTeam(kit, source.machineLayer(), layer) : resolveTeam(kit, layer));
-    const paths = { guides: guidesDir(), state: target.project?.state ?? "$SEATWORKS_STATE" };
+    const paths = { guides: guidesDir(), state: target.project?.state ?? "$PASEO_CREW_STATE" };
     const unbuildable = (team: Team) => Object.keys(team.roles).flatMap((role) => seatProblems(kit, team, role, paths));
     const check = (layer: Layer) => {
       const team = resolve(layer);

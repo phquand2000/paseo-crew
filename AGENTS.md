@@ -36,7 +36,7 @@ Only **session lifecycle, transport, routing, notification, durable state and pr
 
 ```bash
 cd plugin && npm run check    # typecheck (both tsconfigs) + tests; before every commit
-paseo plugin reload seatworks-v2   # after a client change, to see it in the panel
+paseo plugin reload paseo-crew   # after a client change, to see it in the panel
 ```
 
 No build step; tests are `node --test` over `test/**/*.test.ts`.

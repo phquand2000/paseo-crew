@@ -62,13 +62,13 @@ async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number; rout
 }
 
 function repo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "sw2-code-"));
+  const dir = mkdtempSync(join(tmpdir(), "crew-code-"));
   execFileSync("git", ["init", "-q", dir]);
   return realpathSync(dir);
 }
 
 function fakeSemble(): string {
-  const file = join(mkdtempSync(join(tmpdir(), "sw2-semble-")), "semble.mjs");
+  const file = join(mkdtempSync(join(tmpdir(), "crew-semble-")), "semble.mjs");
   writeFileSync(
     file,
     `import { createInterface } from "node:readline";

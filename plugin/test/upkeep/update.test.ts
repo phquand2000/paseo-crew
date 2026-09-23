@@ -17,14 +17,14 @@ function commit(dir: string, files: Record<string, string>, subject: string): vo
 
 /** A checkout following origin/main, and another clone that pushes to it. */
 function world() {
-  const origin = tempDir("sw2-origin-");
+  const origin = tempDir("crew-origin-");
   git(origin, "init", "-q", "--bare", "-b", "main");
-  const upstream = tempDir("sw2-up-");
+  const upstream = tempDir("crew-up-");
   git(upstream, "clone", "-q", origin, ".");
   git(upstream, "checkout", "-q", "-b", "main");
   commit(upstream, { "paseo-plugin.json": '{"requirements":{"paseo":">=0.8.0 <0.9.0"}}', "package.json": '{"version":"2.0.0"}' }, "Start");
   git(upstream, "push", "-q", "origin", "main");
-  const dir = tempDir("sw2-plugin-");
+  const dir = tempDir("crew-plugin-");
   git(dir, "clone", "-q", origin, ".");
   const calls = { install: 0, reload: 0 };
   let installFails: string | undefined;
@@ -115,6 +115,6 @@ test("an install that fails puts the checkout back where it was", async () => {
 
 test("a copy Paseo installed from Git is left to Paseo's own update", async () => {
   const { ctx } = world();
-  const view = await checkUpdate({ ...ctx, dir: "/home/me/.paseo/plugins/seatworks-v2/abc/checkout/plugin", managedRoot: "/home/me/.paseo/plugins" });
-  assert.equal(view.blocked, "Paseo installed this copy from Git: run `paseo plugin update seatworks-v2`.");
+  const view = await checkUpdate({ ...ctx, dir: "/home/me/.paseo/plugins/paseo-crew/abc/checkout/plugin", managedRoot: "/home/me/.paseo/plugins" });
+  assert.equal(view.blocked, "Paseo installed this copy from Git: run `paseo plugin update paseo-crew`.");
 });

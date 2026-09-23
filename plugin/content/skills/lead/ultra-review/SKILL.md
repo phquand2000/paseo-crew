@@ -5,7 +5,7 @@ description: "Hunts bugs across one named scope with ten independent read-only s
 
 # Ultra review
 
-**hunt**, the default, is for recall: a false positive costs a verification step and a missed bug costs far more, so no candidate leaves the report for being speculative, unique, low-confidence or duplicated, and verification is your ruling after the report exists. **pack** gives a reviewer outside the project one file it can read without the repository. The scripts own file selection, scout assignment and the report's layout; your judgment goes into concerns, focuses and rulings. Everything this skill writes goes under `$SEATWORKS_STATE/ultra-review/`, never into the repository.
+**hunt**, the default, is for recall: a false positive costs a verification step and a missed bug costs far more, so no candidate leaves the report for being speculative, unique, low-confidence or duplicated, and verification is your ruling after the report exists. **pack** gives a reviewer outside the project one file it can read without the repository. The scripts own file selection, scout assignment and the report's layout; your judgment goes into concerns, focuses and rulings. Everything this skill writes goes under `$PASEO_CREW_STATE/ultra-review/`, never into the repository.
 
 ## 1. Scope
 
@@ -17,14 +17,14 @@ ocr delegate rule --format json $(jq -r '(.reviewable_files // [.files[] | selec
 
 Skip the rule call when nothing is reviewable. The tool filters by file type, so an excluded file is not a cleared one; the hunt script keeps excluded files in scope. Without `ocr`, say so and run the scripts without the two JSON files.
 
-Write the brief the scouts will be given — the scope, the change intent, the contracts that govern it and its directives `D01`, `D02`, ... — to `$SEATWORKS_STATE/ultra-review/NAME-brief.md`. The report stamps that file's sha256, so a later round can tell whether the brief it reviewed was this one. Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius. Pass their number as `--concern-count` in place of `--directive-count`, so the scouts are given them.
+Write the brief the scouts will be given — the scope, the change intent, the contracts that govern it and its directives `D01`, `D02`, ... — to `$PASEO_CREW_STATE/ultra-review/NAME-brief.md`. The report stamps that file's sha256, so a later round can tell whether the brief it reviewed was this one. Without directives, write concerns `G01`, `G02`, ... from repository contracts, change intent, call paths, lifecycle, data flow and blast radius. Pass their number as `--concern-count` in place of `--directive-count`, so the scouts are given them.
 
 ## 2a. hunt
 
 ```bash
-python3 "$SEATWORKS_KIT/content/skills/lead/ultra-review/scripts/create_ultra_review_report.py" \
-  --workspace "$(git rev-parse --show-toplevel)" --report-dir "$SEATWORKS_STATE/ultra-review" \
-  --review-name NAME --scope "SCOPE" --review-brief "$SEATWORKS_STATE/ultra-review/NAME-brief.md" --directive-count N \
+python3 "$PASEO_CREW_KIT/content/skills/lead/ultra-review/scripts/create_ultra_review_report.py" \
+  --workspace "$(git rev-parse --show-toplevel)" --report-dir "$PASEO_CREW_STATE/ultra-review" \
+  --review-name NAME --scope "SCOPE" --review-brief "$PASEO_CREW_STATE/ultra-review/NAME-brief.md" --directive-count N \
   --ocr-preview "$TMPDIR/ocr-preview.json" --ocr-rules "$TMPDIR/ocr-rules.json"
 ```
 
@@ -43,9 +43,9 @@ End your turn; handbacks arrive as mail. Share no candidate before consolidation
 ## 2b. pack
 
 ```bash
-python3 "$SEATWORKS_KIT/content/skills/lead/ultra-review/scripts/review_pack.py" create --root "$(git rev-parse --show-toplevel)" \
+python3 "$PASEO_CREW_KIT/content/skills/lead/ultra-review/scripts/review_pack.py" create --root "$(git rev-parse --show-toplevel)" \
   --ocr-preview "$TMPDIR/ocr-preview.json" --ocr-rules "$TMPDIR/ocr-rules.json" \
-  --include AGENTS.md --exclude-tests --task "BRIEF" --out "$SEATWORKS_STATE/ultra-review/NAME-review.md" --dry-run
+  --include AGENTS.md --exclude-tests --task "BRIEF" --out "$PASEO_CREW_STATE/ultra-review/NAME-review.md" --dry-run
 ```
 
 It packs the reviewable files with the change's diff, turns each rule group into a reviewer question, and writes the reviewer prompt. Add `--focus` for an excluded file that carries behavior and `--include` for each governing document the reviewer needs to judge the architecture. For a large or architecture review, `--format zip` builds a source snapshot without the diff and writes the prompt beside it, so the reviewer reads source truth rather than a patch. `ask` the owner with the dry run's file count and size, defaulting to build, then build without `--dry-run`.

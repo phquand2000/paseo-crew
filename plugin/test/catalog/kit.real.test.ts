@@ -28,7 +28,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);
   const every = kit.roles.flatMap((role) => ["claude", "codex", "devin", "pi"].map((harness) => `${role.role}-${harness}`)).sort();
   assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), every, "every role can sit on every agent the kit ships");
-  const home = tempDir("sw2-real-home-");
+  const home = tempDir("crew-real-home-");
   const project = { slug: "demo-000000", state: "/state/demo" };
   for (const [name, seat] of Object.entries(team.roles)) {
     const { role, harness } = seat;
@@ -60,7 +60,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
 test("every role builds on every agent the kit ships, each in that agent's own terms", (t) => {
   const kit = loadKit(pluginRoot);
   const base = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
-  const home = tempDir("sw2-every-home-");
+  const home = tempDir("crew-every-home-");
   const project = { slug: "demo-000000", state: "/state/demo" };
   for (const { role, harness } of seatPairs(kit)) {
     if (harness.modelCatalog && !realProbes.has(harness.modelCatalog.command[0]!)) {
@@ -80,7 +80,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const catalog = JSON.parse(readFileSync(settings.model_catalog_json, "utf-8"));
       assert.ok(catalog.models.length > 0 && catalog.models.every((model: Record<string, unknown>) => model.multi_agent_version === null), `${where}: no model offers native agents`);
       assert.ok(settings.sandbox_workspace_write.writable_roots.every((path: string) => path.startsWith("/state/demo/")), `${where}: writes into the state only where its content says`);
-      const rules = readFileSync(join(dir, "rules", "seatworks.rules"), "utf-8");
+      const rules = readFileSync(join(dir, "rules", "paseo-crew.rules"), "utf-8");
       assert.match(rules, /"git", "push"/, `${where}: carries the rules every seat has`);
       assert.equal(/"git", "commit"/.test(rules), ["supervisor", "lead"].includes(role.role), `${where}: commits only where the role commits`);
     }
@@ -104,7 +104,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
 // Devin loads the AGENTS.md above every file it reads by real path, so seats picked up the plugin's own developer rules.
 test("nothing a seat or its guides lead it to read resolves into a git repository", async () => {
   const kit = loadKit(pluginRoot);
-  const home = tempDir("sw2-outside-home-");
+  const home = tempDir("crew-outside-home-");
   const project = { slug: "demo-000000", state: "/state/demo" };
   const roots = [guidesDir(home)];
   placeGuides(kit, home);
@@ -131,7 +131,7 @@ test("a Codex seat runs on the model provider the owner's own Codex names, and o
   if (!realProbes.has(pair.harness.modelCatalog!.command[0]!)) return t.skip("codex is not installed here");
   const team = withHarness(resolveTeam(kit), "lead", pair.harness);
   const project = { slug: "demo-000000", state: "/state/demo" };
-  const home = tempDir("sw2-codex-home-");
+  const home = tempDir("crew-codex-home-");
   materialize(kit, team, "lead", home, project);
   const file = join(seatDir(kit, pair.role, pair.harness, home, project), "config.toml");
   assert.equal(readConfig<Record<string, unknown>>(file, {}).model_provider, undefined);
@@ -184,7 +184,7 @@ test("a Claude seat reads the project's own CLAUDE.md, though its settings come 
 
 test("project records are seeded once and never overwritten", () => {
   const kit = loadKit(pluginRoot);
-  const state = tempDir("sw2-state-");
+  const state = tempDir("crew-state-");
   const first = seedRecords(kit, state);
   assert.ok(first.includes("notebook.md"));
   assert.deepEqual(seedRecords(kit, state), []);

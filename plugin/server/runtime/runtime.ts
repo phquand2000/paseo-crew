@@ -93,7 +93,7 @@ export class Runtime {
       (to, list) => this.compose(to, list),
       this.seats,
       (letter, at) =>
-        console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
+        console.error(`paseo-crew: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
       // Never steered into a Watcher's turn: mid-reading, it is read as part of that reading.
       (seat) => {
         const found = seatOf(kit, seat.provider);
@@ -262,7 +262,7 @@ export class Runtime {
 
   private judged(watch: SeatWatch, verdicts: Verdict[]): void {
     if (verdicts.length === 0 || this.watches.get(watch.seat.id) !== watch) return;
-    this.desk.judge(projectOf(watch.seat.cwd), watch.seat, verdicts).catch((error) => console.error("seatworks-v2: what the sensor said of an incident could not be recorded:", error));
+    this.desk.judge(projectOf(watch.seat.cwd), watch.seat, verdicts).catch((error) => console.error("paseo-crew: what the sensor said of an incident could not be recorded:", error));
   }
 
   private keep(project: Project, watch: SeatWatch, reading: Reading, findings: Finding[], verdicts: Verdict[]): void {
@@ -308,7 +308,7 @@ export class Runtime {
         const judges = this.kit.watcher?.judges ?? [];
         if (this.watches.get(watch.seat.id) === watch && findings.some((finding) => judges.includes(finding.kind))) this.reader.moment(watch, true);
       })
-      .catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
+      .catch((error) => console.error("paseo-crew: what the watch noticed could not be recorded:", error));
   }
 
   private degraded(watch: SeatWatch, error: SensorError): void {
@@ -443,16 +443,16 @@ export class Runtime {
       mkdirSync(stateRoot(), { recursive: true });
       // Before anything reads a kept file: a seat opened on a half-read ledger would write it back wrong.
       this.state = upgradeState(stateRoot());
-      for (const failed of this.state.failed) console.error(`seatworks-v2: state of ${failed.where} ${failed.error}`);
+      for (const failed of this.state.failed) console.error(`paseo-crew: state of ${failed.where} ${failed.error}`);
       spoolDirs(this.spool);
       placeGuides(this.kit);
       sweepSnapshots();
       stampKit(this.kit, home());
     } catch (error) {
-      console.error("seatworks-v2: could not prepare the state directory:", error);
+      console.error("paseo-crew: could not prepare the state directory:", error);
     }
     const team = this.source.teamFor();
-    for (const problem of team.errors) console.error(`seatworks-v2: settings: ${problem}`);
+    for (const problem of team.errors) console.error(`paseo-crew: settings: ${problem}`);
     this.reconcileProviders(team);
   }
 
@@ -461,7 +461,7 @@ export class Runtime {
       this.api = paseo;
       if (!this.modelsAsked) {
         this.modelsAsked = true;
-        this.refreshModels().catch((error) => console.error("seatworks-v2: could not list the agents' models:", error));
+        this.refreshModels().catch((error) => console.error("paseo-crew: could not list the agents' models:", error));
       }
     });
     server.before("agent.create", ({ request }, context) => {
@@ -492,8 +492,8 @@ export class Runtime {
   }
 
   private tickFailed(error: unknown): void {
-    console.error("seatworks-v2: tick failed:", error);
-    if (this.tick && this.relink.failed(errorText(error))) console.error("seatworks-v2: lost the daemon link; reloading the plugin.");
+    console.error("paseo-crew: tick failed:", error);
+    if (this.tick && this.relink.failed(errorText(error))) console.error("paseo-crew: lost the daemon link; reloading the plugin.");
     if (!/not connected|client closed|transport/i.test(errorText(error))) return;
     for (const project of this.desk.projects.values()) {
       if (this.offline.has(project.slug)) continue;
@@ -530,12 +530,12 @@ export class Runtime {
     try {
       seedRecords(this.kit, project.state);
     } catch (error) {
-      console.error("seatworks-v2: could not seed project records:", error);
+      console.error("paseo-crew: could not seed project records:", error);
     }
     try {
       if (this.kit.team) placeProjectFiles(project.root, this.kit.team);
     } catch (error) {
-      console.error("seatworks-v2: could not write the team's block into the project's AGENTS.md:", error);
+      console.error("paseo-crew: could not write the team's block into the project's AGENTS.md:", error);
     }
     this.seating.ensure(seat.role.role, seat.harness, project);
     return seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project);
@@ -613,10 +613,10 @@ export class Runtime {
     try {
       const changed = applyReconcile(this.kit, team);
       if (changed.length === 0) return;
-      console.log(`seatworks-v2: config updated (${changed.join(", ")}); reloading the daemon`);
+      console.log(`paseo-crew: config updated (${changed.join(", ")}); reloading the daemon`);
       void this.reload();
     } catch (error) {
-      console.error("seatworks-v2: could not reconcile role providers:", error);
+      console.error("paseo-crew: could not reconcile role providers:", error);
     }
   }
 
@@ -624,7 +624,7 @@ export class Runtime {
     try {
       appendRecord(project.state, "attention", `${new Date().toISOString()}  ${line}\n`);
     } catch (error) {
-      console.error("seatworks-v2: attention log write failed:", error);
+      console.error("paseo-crew: attention log write failed:", error);
     }
   }
 
@@ -645,7 +645,7 @@ export class Runtime {
       try {
         await handler(event, context);
       } catch (error) {
-        console.error(`seatworks-v2: ${name} handler failed:`, error);
+        console.error(`paseo-crew: ${name} handler failed:`, error);
       }
     });
   }
@@ -656,7 +656,7 @@ export class Runtime {
     try {
       requests = takeRequests(this.spool);
     } catch (error) {
-      console.error("seatworks-v2: spool read failed:", error);
+      console.error("paseo-crew: spool read failed:", error);
       return;
     }
     for (const request of requests) {
@@ -664,7 +664,7 @@ export class Runtime {
         .answer(request)
         .catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` }))
         .then((reply) => writeReply(this.spool, request.id, reply))
-        .catch((error) => console.error("seatworks-v2: spool reply failed:", error));
+        .catch((error) => console.error("paseo-crew: spool reply failed:", error));
     }
   }
 }

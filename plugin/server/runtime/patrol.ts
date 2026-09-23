@@ -87,7 +87,7 @@ export class Patrol {
       try {
         await outbox.pump(to);
       } catch (error) {
-        console.error(`seatworks-v2: mail for ${to} could not be delivered:`, error);
+        console.error(`paseo-crew: mail for ${to} could not be delivered:`, error);
       }
     }
   }
@@ -97,7 +97,7 @@ export class Patrol {
     try {
       await run();
     } catch (error) {
-      console.error(`seatworks-v2: ${project.slug}: ${what}:`, error);
+      console.error(`paseo-crew: ${project.slug}: ${what}:`, error);
     }
   }
 

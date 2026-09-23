@@ -36,8 +36,8 @@
   ],
   "provider": {
     "env": {
-      "SEATWORKS_HARNESS": "devin",
-      "SEATWORKS_AGENT_BIN": "devin"
+      "PASEO_CREW_HARNESS": "devin",
+      "PASEO_CREW_AGENT_BIN": "devin"
     },
     "profileModeId": "bypass",
     "command": [

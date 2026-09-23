@@ -34,7 +34,7 @@
     "delivery": "file"
   },
   "files": {
-    "rules/seatworks.rules": [
+    "rules/paseo-crew.rules": [
       "rules/seat.rules",
       "rules/ROLE.rules"
     ]
@@ -67,8 +67,8 @@
   ],
   "provider": {
     "env": {
-      "SEATWORKS_HARNESS": "codex",
-      "SEATWORKS_AGENT_BIN": "codex"
+      "PASEO_CREW_HARNESS": "codex",
+      "PASEO_CREW_AGENT_BIN": "codex"
     }
   }
 }

@@ -24,6 +24,6 @@ export class Relink {
 /** Detached, because the reload stops the process that asked for it. */
 export function reloadPlugin(): void {
   const child = spawn("paseo", ["plugin", "reload", PLUGIN_ID], { detached: true, stdio: "ignore" });
-  child.on("error", (error) => console.error("seatworks-v2: could not reload itself:", error.message));
+  child.on("error", (error) => console.error("paseo-crew: could not reload itself:", error.message));
   child.unref();
 }

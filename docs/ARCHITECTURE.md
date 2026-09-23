@@ -1,6 +1,6 @@
 # Architecture
 
-How Seatworks works inside, in one sitting. The [README](../README.md) says what it is and how to
+How Paseo Crew works inside, in one sitting. The [README](../README.md) says what it is and how to
 install it. Lookups such as verbs, letters, facts, settings and files are in
 [REFERENCE.md](REFERENCE.md).
 
@@ -21,13 +21,13 @@ is always a seat's call.
 
 ## Bird's eye
 
-![Seatworks inside Paseo](images/overview.svg)
+![Paseo Crew inside Paseo](images/overview.svg)
 
-| Process | Seatworks code in it |
+| Process | Paseo Crew code in it |
 |---|---|
 | Paseo daemon | `plugin/server/**`, entered through `index.server.ts` |
 | Paseo app | `plugin/client/**`, the panel, entered through `index.client.tsx` |
-| A seat: an agent started from a `sw2-<role>-<agent>` provider | Only `bin/seat-room`, the launcher for Claude and Devin seats |
+| A seat: an agent started from a `crew-<role>-<agent>` provider | Only `bin/seat-room`, the launcher for Claude and Devin seats |
 | A seat's MCP servers | `mcp/team.mjs` (the desk tools), and `mcp/code.mjs` for proxied servers |
 
 The daemon and the seats share no memory. There are two one-way channels:
@@ -69,7 +69,7 @@ These are mostly absences, so the code won't show them to you.
 | `server/desk/` | The ledger and the verbs seats call: lanes, tasks, asks, working copies, merges, gates, incidents, letters |
 | `server/runtime/` | The composition root and the loops: hooks, spool, outbox, patrol, turn reading, RPC, health |
 | `server/runtime/watch/` | The watch: the window over a timeline, facts, findings and the pacer. `seat/` is the Watcher reader, `jev/` the sensor |
-| `client/` | The Seatworks panel |
+| `client/` | The Paseo Crew panel |
 | `shared/` | What the panel and server share: RPC contracts (`rpc.ts`) and views (`views.ts`) |
 | `mcp/` | `team.mjs`, `code.mjs`, and `tools.json` (the tool sets and their schemas) |
 | `bin/` | `seat-room` (the launcher) and `calibrate.ts` (the watch's report card) |
@@ -92,7 +92,7 @@ All paths are under `plugin/`.
    rules, the sandbox, MCP servers, skills linked to copies outside any repository, and the working
    rules. `applyRole` then sets the model, thinking level, mode, prompt and MCP servers.
 3. **Before `agent.session_open`.** The plugin points the agent's config directory at the seat
-   directory and sets `SEATWORKS_ROLE`, `SEATWORKS_PROJECT` and `SEATWORKS_STATE`. It also seeds the
+   directory and sets `PASEO_CREW_ROLE`, `PASEO_CREW_PROJECT` and `PASEO_CREW_STATE`. It also seeds the
    project's records, such as `notebook.md`, and writes the
    [team block](#the-concept-and-the-team-block) into the project.
 4. **`bin/seat-room`** checks the launch and then `exec`s Claude or Devin. Codex and Pi seats start
@@ -104,7 +104,7 @@ from the role's `hidesWords` fails the build. For example, a Peer may not read "
 
 The sandbox is derived from the content too. On Claude Code and Codex, a seat's shell may write under
 the project's state only where its prompt, skills or rules name that path (`{{state}}/…` or
-`$SEATWORKS_STATE/…`). The desk's own files are never granted, and only the Supervisor names
+`$PASEO_CREW_STATE/…`). The desk's own files are never granted, and only the Supervisor names
 `CONTEXT.md`. Pi and Devin have no sandbox.
 
 What each agent's seat directory holds is in [the reference](REFERENCE.md#seat-directories).
@@ -221,8 +221,8 @@ directive once the file exists.
 
 **The team block is shared context.** `content/project/AGENTS.md` holds what every role would
 otherwise repeat: who does what, the git limits, how mail works. When a seat's session opens,
-`catalog/project-files.ts` writes it into the project's own `AGENTS.md` between `seatworks:begin` and
-`seatworks:end`, and adds an `@AGENTS.md` pointer to `CLAUDE.md`. Every role reads it, so the kit
+`catalog/project-files.ts` writes it into the project's own `AGENTS.md` between `paseo-crew:begin` and
+`paseo-crew:end`, and adds an `@AGENTS.md` pointer to `CLAUDE.md`. Every role reads it, so the kit
 refuses a block that uses any role's hidden words.
 
 ## The patrol
@@ -243,7 +243,7 @@ Then it pumps every seat that has mail.
 
 ## Settings
 
-There are two JSON layers: the machine layer (`~/.local/share/seatworks-v2/settings.json`) and a
+There are two JSON layers: the machine layer (`~/.local/share/paseo-crew/settings.json`) and a
 project layer. For any single value the project wins, and rules from both are joined. Unknown keys
 are refused.
 

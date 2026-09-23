@@ -81,9 +81,9 @@ export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, projec
     env: {
       ...request.env,
       [seat.harness.configDirEnv]: seatPath,
-      SEATWORKS_ROLE: seat.role.role,
-      SEATWORKS_PROJECT: project.root,
-      SEATWORKS_STATE: project.state,
+      PASEO_CREW_ROLE: seat.role.role,
+      PASEO_CREW_PROJECT: project.root,
+      PASEO_CREW_STATE: project.state,
     },
   };
 }

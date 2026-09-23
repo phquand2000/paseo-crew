@@ -74,7 +74,7 @@ test("a malformed answer from one server costs that server's check, not the whol
 });
 
 test("settings that could not be read are not a team the owner wrote, and the doctor says so", () => {
-  const home = tempDir("sw2-coldsettings-");
+  const home = tempDir("crew-coldsettings-");
   const state = stateRoot(home);
   mkdirSync(state, { recursive: true });
   // The commonest hand edit; read as {}, the doctor reported the kit's defaults as the owner's team.

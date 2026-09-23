@@ -244,6 +244,6 @@ export class Watches {
   }
 
   private log(line: string, error?: unknown): void {
-    (this.deps.log ?? ((text, cause) => console.error(`seatworks-v2: ${text}`, cause ?? "")))(line, error);
+    (this.deps.log ?? ((text, cause) => console.error(`paseo-crew: ${text}`, cause ?? "")))(line, error);
   }
 }

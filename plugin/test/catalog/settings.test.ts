@@ -11,7 +11,7 @@ import { tempDir } from "../tempdir.ts";
 const ok = () => [];
 
 test("missing settings read as empty, and a write with the read revision saves", () => {
-  const file = join(tempDir("sw2-settings-"), "nested", "settings.json");
+  const file = join(tempDir("crew-settings-"), "nested", "settings.json");
   const first = readLayer(file, MachineLayerSchema);
   assert.deepEqual(first, { status: "ready", revision: revisionOf({}), values: {} });
   const values = { mcp: { docs: { enabled: true } }, roles: { lead: { thinking: "high" } } };
@@ -22,7 +22,7 @@ test("missing settings read as empty, and a write with the read revision saves",
 });
 
 test("a write based on a stale revision is refused as a conflict", () => {
-  const file = join(tempDir("sw2-settings-"), "settings.json");
+  const file = join(tempDir("crew-settings-"), "settings.json");
   const { revision } = readLayer(file, MachineLayerSchema);
   assert.equal(writeLayer(file, MachineLayerSchema, revision, { rules: "one" }, ok).status, "saved");
   const late = writeLayer(file, MachineLayerSchema, revision, { rules: "two" }, ok);
@@ -30,7 +30,7 @@ test("a write based on a stale revision is refused as a conflict", () => {
 });
 
 test("values outside the schema or that fail the team check are refused and not written", () => {
-  const file = join(tempDir("sw2-settings-"), "settings.json");
+  const file = join(tempDir("crew-settings-"), "settings.json");
   const { revision } = readLayer(file, MachineLayerSchema);
   const unknown = writeLayer(file, MachineLayerSchema, revision, { color: "red" }, ok);
   assert.equal(unknown.status, "invalid");
@@ -42,7 +42,7 @@ test("values outside the schema or that fail the team check are refused and not 
 });
 
 test("a settings file that cannot be read is never saved over, because saving would throw away what it holds", () => {
-  const file = join(tempDir("sw2-settings-"), "settings.json");
+  const file = join(tempDir("crew-settings-"), "settings.json");
   const { revision } = readLayer(file, MachineLayerSchema);
   const held = { rules: "keep me", roles: { lead: { thinking: "high" } }, attention: { tickSeconds: 10 } };
   assert.equal(writeLayer(file, MachineLayerSchema, revision, held, ok).status, "saved");
@@ -71,8 +71,8 @@ test("a settings file that cannot be read is never saved over, because saving wo
 
 test("a rule that would leave a seat unbuildable is refused where it is written, not where it lands", () => {
   const kit = makeKit();
-  const machine = join(tempDir("sw2-settings-"), "settings.json");
-  const paths = { guides: "/guides", state: "$SEATWORKS_STATE" };
+  const machine = join(tempDir("crew-settings-"), "settings.json");
+  const paths = { guides: "/guides", state: "$PASEO_CREW_STATE" };
   const unbuildable = (layer: Layer) => {
     const team = resolveTeam(kit, layer);
     return team.errors.length > 0 ? team.errors : Object.keys(team.roles).flatMap((role) => seatProblems(kit, team, role, paths));

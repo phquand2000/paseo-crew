@@ -11,9 +11,9 @@ function put(root: string, path: string, value: unknown): void {
 }
 
 export function makeKit(): Kit {
-  const dir = tempDir("sw2-kit-");
+  const dir = tempDir("crew-kit-");
   put(dir, "roles.json", {
-    providerPrefix: "sw2-",
+    providerPrefix: "crew-",
     attention: { leadIdleMinutes: 15 },
     roles: [
       {
@@ -82,7 +82,7 @@ export function makeKit(): Kit {
       clear: { set: { mcpServers: {}, enabledMcpjsonServers: [] }, remove: ["enableAllProjectMcpServers"], setInEach: { projects: { mcpServers: {} } } },
       transports: ["stdio", "http"],
     },
-    provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
+    provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", PASEO_CREW_HARNESS: "claude", PASEO_CREW_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
   });
   put(dir, "harness/claude/settings.json", { autoMemoryEnabled: false, permissions: { deny: ["WebSearch"] } });
   put(dir, "harness/claude/settings/supervisor.settings.json", { askUserQuestionTimeout: "never" });
@@ -102,7 +102,7 @@ export function makeKit(): Kit {
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "swe", label: "SWE" }],
     mcp: { file: "devin/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
-    provider: { env: { SEATWORKS_HARNESS: "devin", SEATWORKS_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
+    provider: { env: { PASEO_CREW_HARNESS: "devin", PASEO_CREW_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
     checks: [{ path: "HOME/.devin/credentials.toml", help: "Log in to Devin once, outside any seat." }],
   });
   put(dir, "harness/devin/settings.json", { read_config_from: { claude: false }, notify: "never", permissions: { deny: ["Exec(git push)"] } });

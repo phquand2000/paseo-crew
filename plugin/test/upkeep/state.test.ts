@@ -17,7 +17,7 @@ const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures",
 const NOW = Date.parse("2026-09-22T07:12:30Z");
 
 function machineAt(version: string): { root: string; shop: string } {
-  const root = tempDir("sw2-state-");
+  const root = tempDir("crew-state-");
   cpSync(join(FIXTURES, version), root, { recursive: true });
   return { root, shop: join(root, "projects", "shop-abc123") };
 }
@@ -88,6 +88,6 @@ test("a step that fails puts the project's files back as they were, and says why
 test("state a newer version made is refused, not read", () => {
   const { root, shop } = machineAt("v1");
   writeJson(join(shop, "ledger.json"), { ...readJson<object>(join(shop, "ledger.json"), {}), version: STATE_VERSION + 1 });
-  assert.match(upgradeState(root, undefined, undefined, NOW).failed[0]!.error, /made by a newer Seatworks/);
-  assert.match(ledgerFault(shop) ?? "", /made by a newer Seatworks/);
+  assert.match(upgradeState(root, undefined, undefined, NOW).failed[0]!.error, /made by a newer Paseo Crew/);
+  assert.match(ledgerFault(shop) ?? "", /made by a newer Paseo Crew/);
 });

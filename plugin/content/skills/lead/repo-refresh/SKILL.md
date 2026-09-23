@@ -27,4 +27,4 @@ An age threshold marks suspects, never deletion targets. Leave unrelated and pre
 
 ## Ends in
 
-A report at `$SEATWORKS_STATE/repo-refresh/YYYY-MM-DD.md` of the before and after inventory; what was merged, deleted, rewritten and deliberately kept; the proof machinery removed or demoted and why; the validation actually run; and blocked decisions with remaining debt, summarized to the owner in `report`. It isn't complete while live references point at removed material, two documents own one contract, finished plans still read as active, or a mandatory proof route has no named risk and consumer.
+A report at `$PASEO_CREW_STATE/repo-refresh/YYYY-MM-DD.md` of the before and after inventory; what was merged, deleted, rewritten and deliberately kept; the proof machinery removed or demoted and why; the validation actually run; and blocked decisions with remaining debt, summarized to the owner in `report`. It isn't complete while live references point at removed material, two documents own one contract, finished plans still read as active, or a mandatory proof route has no named risk and consumer.

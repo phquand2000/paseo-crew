@@ -111,7 +111,7 @@ The audit doesn't replace the verdict: resolve each material finding by revising
 - material dissent and your answer to it;
 - limitations and reopen conditions, and whether the run was degraded, coverage incomplete, or an optional audit skipped.
 
-Write it to `$SEATWORKS_STATE/council/<case-id>.md`, not into the repository.
+Write it to `$PASEO_CREW_STATE/council/<case-id>.md`, not into the repository.
 
 ## Stopping rules
 

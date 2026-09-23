@@ -20,7 +20,7 @@ The mechanism is the tense. Each story starts from the directive having been car
    - **Assumption:** which stated premise turned out false, and what would have shown it early.
    - **Process** (when the work spans several tasks): where ownership overlapped, which decision nobody made, what acceptance let through.
 
-   For most lanes write them yourself, one lens at a time, finishing each story before starting the next. When the code must be read to tell the story, `open_lane` a read-only lane instead: outcome "a pre-mortem report on <the plan>", any code change out of scope; then `message` its Lead to use one sealed reviewer per lens, each started with `start_review` whose focus holds the plan, the named failure and that lens in the past tense, with no other reviewer's answer. A report is fifteen lines, so tell the Lead to put the full result in `$SEATWORKS_STATE/plans/` and name the file in its report; read that, then `close_lane` with land false.
+   For most lanes write them yourself, one lens at a time, finishing each story before starting the next. When the code must be read to tell the story, `open_lane` a read-only lane instead: outcome "a pre-mortem report on <the plan>", any code change out of scope; then `message` its Lead to use one sealed reviewer per lens, each started with `start_review` whose focus holds the plan, the named failure and that lens in the past tense, with no other reviewer's answer. A report is fifteen lines, so tell the Lead to put the full result in `$PASEO_CREW_STATE/plans/` and name the file in its report; read that, then `close_lane` with land false.
 4. **Merge, dropping nothing for being unlikely.** Keep every distinct cause; one you can't place in the system is marked unplaced, not deleted.
 5. **Turn each cause into a row.** A cause the directive can't act on is a worry, not a risk.
 
@@ -38,4 +38,4 @@ The output can shrink the outcome, add an out-of-scope entry, or stop the lane; 
 
 ## Ends in
 
-The `open_lane` call with its fields filled, and the named failure with rows ordered by how early their first signal appears in `$SEATWORKS_STATE/pre-mortem/<lane-title>.md`.
+The `open_lane` call with its fields filled, and the named failure with rows ordered by how early their first signal appears in `$PASEO_CREW_STATE/pre-mortem/<lane-title>.md`.

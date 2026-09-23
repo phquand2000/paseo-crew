@@ -113,7 +113,7 @@ export class DeskContext {
     try {
       appendRecord(project.state, "events", `${JSON.stringify({ at: new Date().toISOString(), ...data })}\n`);
     } catch (error) {
-      console.error("seatworks-v2: events.log write failed:", error);
+      console.error("paseo-crew: events.log write failed:", error);
     }
   }
 

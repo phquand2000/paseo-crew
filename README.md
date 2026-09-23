@@ -1,10 +1,29 @@
-# Seatworks
+# Paseo Crew
 
 A [Paseo](https://paseo.sh) plugin that runs a team of coding agents the **SLP** way. A
 **Supervisor** works with you, a **Lead** owns each line of work, and **Peers** each do one task. A
 **Reviewer** reads the work with clean context, and a **Watcher** reads how it is being done.
 
 > **Pre-release.** Nothing has shipped: no releases, no compatibility promises.
+
+## Origin
+
+Paseo Crew is a clone of [Seatworks](https://github.com/sting9k/seatworks) by long7400, taken from
+branch `v2` at commit
+[`efd0da0`](https://github.com/sting9k/seatworks/commit/efd0da00e5a7eea08579652a4e110b606e0e8161)
+(version 2.0.3), and customized from there. It is an independent copy, not a GitHub fork, and is not
+affiliated with or endorsed by the Seatworks author. The full upstream history is kept, the
+[MIT license](LICENSE) is unchanged, and [NOTICE.md](NOTICE.md) still describes where the bundled
+skills come from.
+
+Changes from upstream so far:
+
+- Renamed so both can be installed side by side: plugin id `seatworks-v2` → `paseo-crew`, provider
+  prefix `sw2-` → `crew-`, state directory `~/.local/share/seatworks-v2` → `~/.local/share/paseo-crew`,
+  environment variables `SEATWORKS_*` → `PASEO_CREW_*`, RPC and label namespace `seatworks.` →
+  `paseo-crew.`, and the `AGENTS.md` block markers `seatworks:begin`/`seatworks:end` →
+  `paseo-crew:begin`/`paseo-crew:end`.
+- Version raised to 2.1.0. Behaviour is otherwise the same as upstream.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -92,7 +111,7 @@ and reloads the plugin. It waits until no seat runs in any project, because ever
 the new version at once. Below the version, one row for each thing that needs you:
 
 - A changed **prompt**, **skill** or **team block**: **Use new**, or **Keep mine** to go on with the
-  version you had. Yours is copied to `~/.local/share/seatworks-v2/own/` for you to edit by hand, and
+  version you had. Yours is copied to `~/.local/share/paseo-crew/own/` for you to edit by hand, and
   you are still told when the original changes.
 - Changed **guides** and **records**: named only, for you to read in git.
 - Settings this version cannot read, a stale `AGENTS.md` block, seats still on an older version.
@@ -102,23 +121,23 @@ what you pick.
 
 ## First run
 
-1. In Paseo, open **Seatworks** in the sidebar.
+1. In Paseo, open **Paseo Crew** in the sidebar.
 2. **Add project**, pick the repository, choose an agent for each role, and attach.
 3. Open **Health** and choose **Run**.
-4. Start an agent in that project with the provider **Supervisor · Claude Code (sw2)**, and tell it
+4. Start an agent in that project with the provider **Supervisor · Claude Code (crew)**, and tell it
    what you want.
 
 The desk seats everyone else as the work needs them. The first lane works in your checkout, and each
 later one in a working copy of its own.
 
 **Your project's `AGENTS.md`.** The first time a seat opens, the plugin writes the team's shared
-rules into your `AGENTS.md`, in a marked `seatworks` block. It replaces that block whole and never
+rules into your `AGENTS.md`, in a marked `paseo-crew` block. It replaces that block whole and never
 touches your own text. `CLAUDE.md` gets a pointer to `AGENTS.md`. Commit both once, because a lane in
 its own working copy sees only what is committed.
 
 The panel has four tabs: **Team** (agents and the watch), **Flow** (lanes, tasks and questions,
 live), **MCP** (optional servers per role) and **Health**. Everything the desk keeps lives under
-`~/.local/share/seatworks-v2/`.
+`~/.local/share/paseo-crew/`.
 
 ## The watch
 

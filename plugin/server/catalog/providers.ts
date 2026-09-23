@@ -43,7 +43,7 @@ export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: H
   const entry: Json = {
     extends: harness.baseProvider,
     label: labelFor(kit, role, harness),
-    env: { ...(harness.provider.env ?? {}), SEATWORKS_ROLE: role.role, SEATWORKS_KIT: kit.dir },
+    env: { ...(harness.provider.env ?? {}), PASEO_CREW_ROLE: role.role, PASEO_CREW_KIT: kit.dir },
   };
   if (role.description) entry.description = role.description;
   const command = (harness.provider.command ?? []).map((part) => part.replaceAll("KIT", kit.dir));
@@ -101,7 +101,7 @@ export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; c
     const id = providerId(kit, role.role, harness.id);
     const have: Json = next.agents.providers[id] ?? {};
     const want = desiredProvider(kit, team, role, harness);
-    const kept = Object.fromEntries(Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("SEATWORKS_") && !managed.has(key)));
+    const kept = Object.fromEntries(Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("PASEO_CREW_") && !managed.has(key)));
     const merged: Json = { ...have, ...want, env: { ...kept, ...want.env } };
     for (const key of ["command", "models", "additionalModels", "paseoTools", "description"]) if (!(key in want)) delete merged[key];
     if (!sameJson(merged, have)) {
@@ -135,7 +135,7 @@ export function applyReconcile(kit: Kit, team: Team): string[] {
 export function reloadDaemon(): Promise<boolean> {
   return new Promise((resolve) => {
     execFile("paseo", ["daemon", "reload"], { timeout: 30_000 }, (error, _stdout, stderr) => {
-      if (error) console.error("seatworks-v2: paseo daemon reload failed:", stderr || error.message);
+      if (error) console.error("paseo-crew: paseo daemon reload failed:", stderr || error.message);
       resolve(!error);
     });
   });

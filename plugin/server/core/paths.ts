@@ -2,7 +2,7 @@ import { accessSync, constants, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, delimiter, join } from "node:path";
 
-export const PLUGIN_ID = "seatworks-v2";
+export const PLUGIN_ID = "paseo-crew";
 
 export function home(): string {
   return process.env.HOME || homedir();
@@ -20,7 +20,7 @@ export function paseoConfigPath(homeDir = home()): string {
 }
 
 export function stateRoot(homeDir = home()): string {
-  return join(homeDir, ".local", "share", "seatworks-v2");
+  return join(homeDir, ".local", "share", "paseo-crew");
 }
 
 export function guidesDir(homeDir = home()): string {
@@ -57,7 +57,7 @@ export function outboxPath(homeDir = home()): string {
 }
 
 export function pluginDir(configPath = paseoConfigPath()): string | undefined {
-  if (process.env.SEATWORKS_PLUGIN_DIR) return process.env.SEATWORKS_PLUGIN_DIR;
+  if (process.env.PASEO_CREW_PLUGIN_DIR) return process.env.PASEO_CREW_PLUGIN_DIR;
   try {
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     const entry = config?.plugins?.[PLUGIN_ID];

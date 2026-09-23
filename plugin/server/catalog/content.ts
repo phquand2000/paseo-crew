@@ -83,6 +83,6 @@ export function stateTargets(kit: Kit, role: RoleSpec, extra: Map<string, string
   if (existsSync(prompt)) texts.push(readFileSync(prompt, "utf-8"));
   for (const dir of skillSources(kit, role, extra).values()) for (const file of markdownIn(dir)) texts.push(readFileSync(file, "utf-8"));
   const found = new Set<string>();
-  for (const text of texts) for (const match of text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_.-]+)/g)) found.add(match[1]!);
+  for (const text of texts) for (const match of text.matchAll(/(?:\{\{state\}\}|\$PASEO_CREW_STATE)\/([A-Za-z0-9_.-]+)/g)) found.add(match[1]!);
   return [...found].filter((segment) => !DESK_OWNED.has(segment)).sort();
 }

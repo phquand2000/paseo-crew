@@ -25,9 +25,9 @@ const seat = (id: string, provider: string): SeatView => ({ id, provider, cwd: "
 test("a seat created while the round sweeps is followed once, and only the roles that are watched", () => {
   const timelines = new Map<string, FakeTimeline>();
   const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, on: () => true, log: () => {} });
-  const peer = seat("p1", "sw2-peer-devin/swe-2-max");
+  const peer = seat("p1", "crew-peer-devin/swe-2-max");
   watches.follow(peer);
-  watches.sync([peer, seat("s1", "sw2-supervisor-claude/claude-opus-5"), seat("r1", "sw2-reviewer-claude/claude-opus-5"), seat("l1", "sw2-lead-claude/claude-opus-5")]);
+  watches.sync([peer, seat("s1", "crew-supervisor-claude/claude-opus-5"), seat("r1", "crew-reviewer-claude/claude-opus-5"), seat("l1", "crew-lead-claude/claude-opus-5")]);
   watches.follow(peer);
   assert.equal(timelines.get("p1")!.subscriptions, 1);
   assert.deepEqual([...timelines.keys()].sort(), ["l1", "p1"], "Leads and Peers are watched; a Supervisor and a Reviewer are not");
@@ -40,13 +40,13 @@ test("a seat archived while it is being joined leaves no subscription behind, an
   slow.ready = new Promise((resolve) => (open = resolve));
   timelines.set("p1", slow);
   const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, on: () => true, log: () => {} });
-  watches.follow(seat("p1", "sw2-peer-devin/swe-2-max"));
+  watches.follow(seat("p1", "crew-peer-devin/swe-2-max"));
   watches.drop("p1");
   open();
   await settle();
   assert.equal(slow.listeners.size, 0);
   assert.equal((watches.get("p1") !== undefined), false);
-  watches.sync([seat("p1", "sw2-peer-devin/swe-2-max")]);
+  watches.sync([seat("p1", "crew-peer-devin/swe-2-max")]);
   assert.equal((watches.get("p1") !== undefined), true);
 });
 
@@ -56,10 +56,10 @@ test("a seat the round no longer sees is let go, and one that failed to join is 
   broken.refetch = async () => ({ epoch: "e", entries: [], error: "no such agent" });
   timelines.set("p2", broken);
   const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, on: () => true, log: () => {} });
-  watches.sync([seat("p1", "sw2-peer-devin/swe-2-max"), seat("p2", "sw2-peer-devin/swe-2-max")]);
+  watches.sync([seat("p1", "crew-peer-devin/swe-2-max"), seat("p2", "crew-peer-devin/swe-2-max")]);
   await settle();
   assert.equal((watches.get("p2") !== undefined), false, "a join that failed is not held as followed");
-  watches.sync([seat("p2", "sw2-peer-devin/swe-2-max")]);
+  watches.sync([seat("p2", "crew-peer-devin/swe-2-max")]);
   assert.equal((watches.get("p1") !== undefined), false);
   assert.equal(timelines.get("p1")!.listeners.size, 0);
   assert.equal(broken.subscriptions, 2);
@@ -69,7 +69,7 @@ test("with the watch switched off nothing is followed, and switching it off lets
   const timelines = new Map<string, FakeTimeline>();
   let on = false;
   const watches = new Watches({ kit, seats: seatsWith(timelines), context: () => undefined, found: () => {}, on: () => on, log: () => {} });
-  const peer = seat("p1", "sw2-peer-devin/swe-2-max");
+  const peer = seat("p1", "crew-peer-devin/swe-2-max");
   watches.follow(peer);
   watches.sync([peer]);
   assert.equal(watches.get("p1"), undefined, "off means off: not followed at all, rather than read in code alone");
@@ -88,7 +88,7 @@ test("a seat's brief is read again until the ledger has placed it", () => {
   // A Peer's first turn starts before start_task places it, so an empty first read must not be kept.
   let placed = false;
   const rules = { destructive: /x^/, testPath: /x^/, suppressed: /x^/, gates: [], cwd: "/work", repeatsAt: 3, recoverWithin: 10 };
-  const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, owned: placed ? ["src/a.ts"] : undefined }, heardSince: () => false, goal: placed ? "Task L1-T1: a" : "", context: "", beside: [], role: "Peer" }));
+  const watch = new SeatWatch({ id: "p1", provider: "crew-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, owned: placed ? ["src/a.ts"] : undefined }, heardSince: () => false, goal: placed ? "Task L1-T1: a" : "", context: "", beside: [], role: "Peer" }));
   assert.equal(watch.brief()?.goal, "");
   placed = true;
   assert.equal(watch.brief()?.goal, "Task L1-T1: a");

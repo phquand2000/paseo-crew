@@ -10,13 +10,13 @@ const opus = { id: "opus", label: "Opus", isDefault: true, thinkingOptions: [{ i
 
 test("the models are what Paseo lists for each agent, not what the plugin marked as default", async () => {
   const kit = makeKit();
-  const state = tempDir("sw2-state-");
+  const state = tempDir("crew-state-");
   const asked: string[] = [];
   const { cache, changed } = await fetchModels(kit, async (provider) => {
     asked.push(provider);
     return provider.endsWith("-claude") ? { models: [opus, { id: "old", label: "Old", isSelectable: false }] } : { models: [{ id: "swe-2", label: "SWE 2" }] };
   }, state);
-  assert.deepEqual(asked, ["sw2-supervisor-claude", "sw2-lead-devin"]);
+  assert.deepEqual(asked, ["crew-supervisor-claude", "crew-lead-devin"]);
   assert.equal(changed, true);
   assert.deepEqual(cache.claude!.models, [{ id: "opus", label: "Opus", thinkingOptions: [{ id: "low", label: "Low" }, { id: "high", label: "High", isDefault: true }] }]);
   assert.deepEqual(readModels(state), cache);
@@ -27,7 +27,7 @@ test("the models are what Paseo lists for each agent, not what the plugin marked
 
 test("an agent Paseo cannot list keeps its last list, and says why", async () => {
   const kit = makeKit();
-  const state = tempDir("sw2-state-");
+  const state = tempDir("crew-state-");
   await fetchModels(kit, async () => ({ models: [opus] }), state, Date.parse("2026-09-01T00:00:00Z"));
   const { cache, changed } = await fetchModels(kit, async (provider) => {
     if (provider.endsWith("-devin")) throw new Error("devin is not on PATH");

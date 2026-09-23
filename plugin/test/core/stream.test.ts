@@ -118,7 +118,7 @@ test("turn beats pass through, and the plugin's own items are not the seat's doi
   const { seen, stream } = watching(timeline);
   await stream.ready;
   timeline.beat("turn_started");
-  timeline.add({ type: "plugin", pluginId: "seatworks-v2", text: "note" });
+  timeline.add({ type: "plugin", pluginId: "paseo-crew", text: "note" });
   timeline.add({ type: "assistant_message", text: "x" });
   timeline.beat("turn_failed", "turn-1", "boom");
   await settle();

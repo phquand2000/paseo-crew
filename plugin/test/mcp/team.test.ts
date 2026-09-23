@@ -10,7 +10,7 @@ const teamServer = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mc
 
 // Codex starts MCP servers with a filtered environment; its app-server, the server's parent, carries the agent id.
 test("a desk call names its agent even when the server was started without the agent's environment", async () => {
-  const spool = tempDir("sw2-spool-");
+  const spool = tempDir("crew-spool-");
   const parent = spawn(
     process.execPath,
     ["-e", `require("node:child_process").spawn(process.execPath, ${JSON.stringify([teamServer, "lead", "lead", spool])}, { env: { PATH: process.env.PATH }, stdio: "inherit" }).on("exit", (code) => process.exit(code ?? 0))`],

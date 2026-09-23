@@ -114,7 +114,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
   };
 
   return (
-    <Modal title="Set Seatworks up for a project" open={open} onOpenChange={onOpenChange}>
+    <Modal title="Set Paseo Crew up for a project" open={open} onOpenChange={onOpenChange}>
       <Modal.Content>
         <TabBar theme={theme} active={STEPS[step]!.id} disabled={disabled} onPick={(id) => setStep(Math.max(0, STEPS.findIndex((entry) => entry.id === id)))} tabs={STEPS} />
 
@@ -145,7 +145,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
                           ? `Setting this up sets up ${browsing.root}.`
                           : browsing.repository
                             ? "A git repository."
-                            : "Seatworks will register it as its own project."
+                            : "Paseo Crew will register it as its own project."
                     }
                     actionLabel="Use"
                     disabled={disabled}
@@ -173,7 +173,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
             ) : null}
 
             {picking ? (
-              <SettingsSection title="Projects Paseo knows" info="These have no Seatworks settings yet.">
+              <SettingsSection title="Projects Paseo knows" info="These have no Paseo Crew settings yet.">
                 <SettingsCard>
                   {available.length === 0 ? (
                     <SettingsRow label="Nothing to pick" hint="Every project Paseo knows is already set up." />

@@ -54,8 +54,8 @@
   ],
   "provider": {
     "env": {
-      "SEATWORKS_HARNESS": "pi",
-      "SEATWORKS_AGENT_BIN": "pi"
+      "PASEO_CREW_HARNESS": "pi",
+      "PASEO_CREW_AGENT_BIN": "pi"
     }
   }
 }

@@ -11,7 +11,7 @@ Only the Claude Code specifics are below; everything in `AGENTS.md` applies.
   suite has agreed with bugs before (it compared tool names where schemas mattered).
 - **Never start the daemon or launch seats to test.** Seats are real agents with broad permissions
   and they cost money. The suite, your reading and `~/.paseo/daemon.log` are the evidence.
-- **Never print or cat a file that can hold a key:** `~/.local/share/seatworks-v2/settings.json`,
+- **Never print or cat a file that can hold a key:** `~/.local/share/paseo-crew/settings.json`,
   any project `settings.json`, `~/.paseo/config.json`. Test fixtures use fake `sk-or-v1-…` keys.
 - **`plugin/content/**` is runtime content.** Check the KEEP list in `../REBUILD-TRACKER.md` (resolve
   it by text; its line numbers are stale) before touching a role prompt.

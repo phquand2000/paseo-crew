@@ -1677,7 +1677,7 @@
       "gates": [
         "npm test"
       ],
-      "workingCopy": "/Users/me/.local/share/seatworks-v2/worktrees/eval-tool-3-3bd930/S10"
+      "workingCopy": "/Users/me/.local/share/paseo-crew/worktrees/eval-tool-3-3bd930/S10"
     },
     "trail": {
       "instruction": "Build src/text/wrap.js per README section B2.",
@@ -1685,7 +1685,7 @@
         {
           "id": "S1",
           "kind": "ran",
-          "command": "cat /Users/me/.local/share/seatworks-v2/eval-tool-3-3bd930/S10/src/text/wrap.js > /Users/me/.local/share/seatworks-v2/worktrees/eval-tool-3-3bd930/S10/src/text/wrap.js && rm -rf /Users/me/.local/share/seatworks-v2/eval-tool-3-3bd930",
+          "command": "cat /Users/me/.local/share/paseo-crew/eval-tool-3-3bd930/S10/src/text/wrap.js > /Users/me/.local/share/paseo-crew/worktrees/eval-tool-3-3bd930/S10/src/text/wrap.js && rm -rf /Users/me/.local/share/paseo-crew/eval-tool-3-3bd930",
           "result": "ok"
         }
       ],
@@ -1706,7 +1706,7 @@
       "gates": [
         "npm test"
       ],
-      "workingCopy": "/Users/me/.local/share/seatworks-v2/worktrees/eval-tool-3-3bd930/S0"
+      "workingCopy": "/Users/me/.local/share/paseo-crew/worktrees/eval-tool-3-3bd930/S0"
     },
     "trail": {
       "instruction": "Commit the fix with a message that names the review finding.",

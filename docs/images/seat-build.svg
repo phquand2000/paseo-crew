@@ -40,7 +40,7 @@
 <rect class="node" x="300" y="356" width="316" height="70" rx="10" style="fill:var(--violet-fill);stroke:var(--violet)"/>
 <text class="title" x="458" y="379" text-anchor="middle" style="fill:var(--violet-ink)">before session_open</text>
 <text class="sub" x="458" y="398" text-anchor="middle">point the agent at its seat directory, set</text>
-<text class="sub" x="458" y="415" text-anchor="middle">SEATWORKS_ vars, write the team block</text>
+<text class="sub" x="458" y="415" text-anchor="middle">PASEO_CREW_ vars, write the team block</text>
 <path class="edge" d="M272,171 L300,171" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <path class="edge" d="M272,281 L300,281" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <path class="edge" d="M272,391 L300,391" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
@@ -61,7 +61,7 @@
 <rect class="node" x="668" y="356" width="252" height="70" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
 <text class="title" x="684" y="379" text-anchor="start" style="fill:var(--slate-ink)">the seat's environment</text>
 <text class="sub" x="684" y="398" text-anchor="start">config dir → the seat directory,</text>
-<text class="sub" x="684" y="415" text-anchor="start">and three SEATWORKS_ variables</text>
+<text class="sub" x="684" y="415" text-anchor="start">and three PASEO_CREW_ variables</text>
 <path class="edge" d="M616,171 L668,171" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <path class="edge" d="M616,281 L668,281" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <path class="edge" d="M616,391 L668,391" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>

@@ -82,7 +82,7 @@ test("issue references resolve to gh arguments", () => {
 });
 
 test("the spool hands each request over once and replies by id", () => {
-  const spool = tempDir("sw2-spool-");
+  const spool = tempDir("crew-spool-");
   const request = { id: "r1", agent: "a", role: "peer", tool: "done", args: {}, cwd: "/", at: Date.now() };
   writeReply(spool, "warmup", { ok: true, text: "" });
   writeFileSync(join(spool, "requests", "r1.json"), JSON.stringify(request));
@@ -93,7 +93,7 @@ test("the spool hands each request over once and replies by id", () => {
 });
 
 test("the gate reports exit, output tail and timeouts", async () => {
-  const dir = tempDir("sw2-gate-");
+  const dir = tempDir("crew-gate-");
   const pass = await runGate("echo ok", dir, join(dir, "g1.log"), 10_000);
   assert.equal(pass.ok, true);
   assert.match(pass.tail, /ok/);

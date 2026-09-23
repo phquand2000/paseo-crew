@@ -14,7 +14,7 @@ const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, 
 
 /** A kit in a repository, with the owner's state beside it, taken in once as it ships. */
 async function world() {
-  const state = tempDir("sw2-state-");
+  const state = tempDir("crew-state-");
   const kit = { ...makeKit(), own: join(state, "own") };
   writeFileSync(join(kit.dir, "content", "guides", "PLANS.md"), "# Plans\n");
   mkdirSync(join(kit.dir, "content", "project"), { recursive: true });

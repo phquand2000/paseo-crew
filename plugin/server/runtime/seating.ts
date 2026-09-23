@@ -38,11 +38,11 @@ export class Seating {
     if (this.built.has(key) && built) return team;
     try {
       const changes = materialize(this.kit, team, roleName, home(), project, this.servers(team, roleName));
-      if (changes.length > 0) console.log(`seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
+      if (changes.length > 0) console.log(`paseo-crew: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
       this.built.add(key);
     } catch (error) {
       // Not swallowed: refusing the launch names the reason; letting it through runs a full-access agent with no brief.
-      console.error(`seatworks-v2: seat ${roleName} on ${harness.id} could not be built:`, error);
+      console.error(`paseo-crew: seat ${roleName} on ${harness.id} could not be built:`, error);
       throw new Error(`the ${roleName} seat could not be built, so it was not started: ${errorText(error)}`);
     }
     return team;

@@ -10,7 +10,7 @@ export const GATE_LOGS_PER_OWNER = 5;
 /** The newest roll stays text, because the retrospective greps a period that may straddle it. */
 export function appendRecord(state: string, name: "events" | "attention", line: string): void {
   const roll = { dir: state, current: `${name}.log`, prefix: `${name}.`, ext: ".log", rotateAt: RECORD_ROTATE_BYTES, keepBytes: RECORD_KEEP_BYTES, plain: 1 };
-  appendRolling(roll, line).catch((error: unknown) => console.error(`seatworks-v2: packing a rolled ${name}.log failed:`, error));
+  appendRolling(roll, line).catch((error: unknown) => console.error(`paseo-crew: packing a rolled ${name}.log failed:`, error));
 }
 
 export type Named = { dir: string; name: string; owner: string; lane: string; at: number };

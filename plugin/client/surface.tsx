@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
 import type { Check } from "./data.ts";
-import { setAttention, setFlow, useFlow, useSeatworks } from "./data.ts";
+import { setAttention, setFlow, useFlow, usePaseoCrew } from "./data.ts";
 import { type DetailTab, Detail } from "./detail.tsx";
 import { FlowSection } from "./flow.tsx";
 import { HealthSection } from "./health.tsx";
@@ -15,7 +15,7 @@ import { SetupDialog } from "./setup-dialog.tsx";
 import { TeamSection } from "./team.tsx";
 import { UpkeepSection } from "./upkeep.tsx";
 
-export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
+export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>("team");
   const [chip, setChip] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
   const [openLanes, setOpenLanes] = useState<{ of: string; lanes: string[] }>({ of: "", lanes: [] });
   const project = open && open !== MACHINE ? open : undefined;
   const lanesOpen = openLanes.of === (project ?? "") ? openLanes.lanes : [];
-  const { data, save, reload, saving, saved, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = useSeatworks(project);
+  const { data, save, reload, saving, saved, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = usePaseoCrew(project);
   const settings = data.status === "ready" ? data : null;
   const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
   const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
@@ -60,7 +60,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
     return (
       <View style={styles.centered}>
         <Text style={styles.danger}>{data.error}</Text>
-        <SettingsAction label="Seatworks" hint="The plugin did not answer." actionLabel="Try again" onPress={reload} />
+        <SettingsAction label="Paseo Crew" hint="The plugin did not answer." actionLabel="Try again" onPress={reload} />
       </View>
     );
   }
@@ -125,7 +125,7 @@ export function SeatworksSurface({ theme, layout }: PluginSurfaceProps) {
         />
         {data.projects.length === 0 ? (
           <SettingsCard>
-            <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
+            <Empty theme={theme} title="No project uses Paseo Crew yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
           </SettingsCard>
         ) : null}
         {dialogNode}

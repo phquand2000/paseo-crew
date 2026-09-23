@@ -40,7 +40,7 @@ test("the way a harness takes its prompt and its servers is checked, not assumed
 });
 
 test("a role follows one other role that chooses for itself, and takes its defaults", () => {
-  const dir = tempDir("sw2-kit-");
+  const dir = tempDir("crew-kit-");
   mkdirSync(join(dir, "harness", "acme"), { recursive: true });
   writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
   const peer = { role: "peer", label: "Peer", defaults: { harness: "acme", model: "m" }, prompt: "prompts/PEER.md", skills: null };
@@ -75,7 +75,7 @@ test("what a Watcher may raise and judge is refused when it is not something the
 });
 
 test("loading a kit refuses a harness that breaks the contract, naming the field", () => {
-  const dir = tempDir("sw2-kit-");
+  const dir = tempDir("crew-kit-");
   mkdirSync(join(dir, "harness", "acme"), { recursive: true });
   writeFileSync(join(dir, "roles.json"), JSON.stringify({ roles: [{ role: "peer", label: "Peer", defaults: { harness: "acme" }, prompt: "prompts/PEER.md", skills: null }] }));
   const write = (harness: Record<string, unknown>) => writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(harness));
@@ -94,7 +94,7 @@ test("the shipped harnesses satisfy their own contract", async () => {
 });
 
 test("several seats can supervise one project, each for its own concern, declared as data", () => {
-  const dir = tempDir("sw2-concerns-");
+  const dir = tempDir("crew-concerns-");
   mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
   writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
   writeFileSync(join(dir, "harness", "acme", "settings.json"), "{}");
@@ -108,7 +108,7 @@ test("several seats can supervise one project, each for its own concern, declare
   writeFileSync(
     join(dir, "roles.json"),
     JSON.stringify({
-      providerPrefix: "sw2-",
+      providerPrefix: "crew-",
       roles: [
         role("architecture", ["supervise"], "supervisor", "architecture"),
         role("safety", ["supervise"], "supervisor", "safety"),
@@ -135,7 +135,7 @@ test("several seats can supervise one project, each for its own concern, declare
 });
 
 test("a roles file of one's own replaces the kit's preset, and may name its files anywhere", () => {
-  const dir = tempDir("sw2-preset-kit-");
+  const dir = tempDir("crew-preset-kit-");
   mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
   writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
   writeFileSync(join(dir, "harness", "acme", "settings", "lead.settings.json"), "{}");
@@ -143,15 +143,15 @@ test("a roles file of one's own replaces the kit's preset, and may name its file
   mkdirSync(join(dir, "mcp"), { recursive: true });
   writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ lead: [{ name: "report" }] }));
   const shipped = { role: "lead", label: "Lead", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: "prompts/LEAD.md", skills: null };
-  writeFileSync(join(dir, "roles.json"), JSON.stringify({ providerPrefix: "sw2-", roles: [shipped] }));
+  writeFileSync(join(dir, "roles.json"), JSON.stringify({ providerPrefix: "crew-", roles: [shipped] }));
   assert.deepEqual(loadKit(dir).roles.map((role) => role.role), ["lead"], "with nothing of the owner's, the kit runs what it ships");
 
-  const mine = tempDir("sw2-preset-mine-");
+  const mine = tempDir("crew-preset-mine-");
   const ownPrompt = join(mine, "DRIVER.md");
   writeFileSync(ownPrompt, "# Driver\n\nYou drive.\n");
   writeFileSync(
     join(mine, "roles.json"),
-    JSON.stringify({ providerPrefix: "sw2-", roles: [{ role: "driver", label: "Driver", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: ownPrompt, skills: null }] }),
+    JSON.stringify({ providerPrefix: "crew-", roles: [{ role: "driver", label: "Driver", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: ownPrompt, skills: null }] }),
   );
 
   const kit = loadKit(dir, mine);
@@ -160,7 +160,7 @@ test("a roles file of one's own replaces the kit's preset, and may name its file
 });
 
 test("a capability several roles hold can name which of them, and a stored name is asked what it can do", () => {
-  const dir = tempDir("sw2-several-");
+  const dir = tempDir("crew-several-");
   mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
   writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
   writeFileSync(join(dir, "harness", "acme", "settings.json"), "{}");
@@ -173,7 +173,7 @@ test("a capability several roles hold can name which of them, and a stored name 
   writeFileSync(
     join(dir, "roles.json"),
     JSON.stringify({
-      providerPrefix: "sw2-",
+      providerPrefix: "crew-",
       roles: [role("careful", ["review"], "reviewer"), role("adversary", ["review"], "reviewer"), role("lead", ["lead"], "lead"), role("arch-lead", ["lead"], "lead")],
     }),
   );

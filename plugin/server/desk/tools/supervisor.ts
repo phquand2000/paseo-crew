@@ -135,7 +135,7 @@ export const openLane: Tool = async (desk, caller, args) => {
       parent: caller.id,
       title: `${lane.id} ${lane.title}`,
       prompt: letters.directive(lane, issue, conceptFile(project.state), gateRegime(project)),
-      labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
+      labels: { "paseo-crew.lane": lane.id, "paseo-crew.role": leadRole.role },
     });
     await ctx.ledger(project, (ledger) => {
       const entry = ledger.lanes[lane.id];

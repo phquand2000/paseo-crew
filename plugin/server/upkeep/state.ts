@@ -33,7 +33,7 @@ function stampOf(now: number): string {
 function upgrade(where: string, dir: string, files: string[], from: number, current: number, steps: StateStep[], apply: (step: StateStep) => void, finish: () => void, now: number, report: StateReport): void {
   if (from === current) return;
   if (from > current) {
-    report.failed.push({ where, error: `its state is at ${from}, made by a newer Seatworks than this one, which reads ${current}` });
+    report.failed.push({ where, error: `its state is at ${from}, made by a newer Paseo Crew than this one, which reads ${current}` });
     return;
   }
   const backup = join(dir, `backup-state-${from}-${stampOf(now)}`);

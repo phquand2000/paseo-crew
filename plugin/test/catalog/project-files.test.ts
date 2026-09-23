@@ -11,13 +11,13 @@ import { tempDir } from "../tempdir.ts";
 const read = (root: string, name: string) => readFileSync(join(root, name), "utf-8");
 
 test("a project gets the team's block in AGENTS.md and a pointer to it in CLAUDE.md, and the Human's text is never touched", () => {
-  const root = tempDir("sw2-files-");
+  const root = tempDir("crew-files-");
   assert.deepEqual(placeProjectFiles(root, "Team rules."), ["AGENTS.md", "CLAUDE.md"]);
   assert.equal(read(root, "AGENTS.md"), `${BEGIN}\nTeam rules.\n${END}\n`);
-  assert.match(read(root, "CLAUDE.md"), /^<!-- seatworks:begin.*\n@AGENTS\.md\n<!-- seatworks:end -->\n$/);
+  assert.match(read(root, "CLAUDE.md"), /^<!-- paseo-crew:begin.*\n@AGENTS\.md\n<!-- paseo-crew:end -->\n$/);
   assert.deepEqual(placeProjectFiles(root, "Team rules."), [], "written again only when something changed");
 
-  const other = tempDir("sw2-files-");
+  const other = tempDir("crew-files-");
   writeFileSync(join(other, "AGENTS.md"), "# Ours\n\nUse pnpm.\n");
   writeFileSync(join(other, "CLAUDE.md"), "Be brief.\n\n@AGENTS.md\n");
   placeProjectFiles(other, "Old rules.");
@@ -27,7 +27,7 @@ test("a project gets the team's block in AGENTS.md and a pointer to it in CLAUDE
 });
 
 test("a lane may take over a copy whose only change is the team's block, and not one the Human has changed", async () => {
-  const root = tempDir("sw2-files-");
+  const root = tempDir("crew-files-");
   const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf-8" });
   git("init", "-q");
   git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "start");

@@ -36,7 +36,7 @@ function within<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
 }
 
 export function follow(timeline: TimelineHandle, see: (seen: Seen) => void, options: FollowOptions = {}): Stream {
-  const { readyMs = 10_000, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? ""), archived = async () => false } = options;
+  const { readyMs = 10_000, log = (line, error) => console.error(`paseo-crew: ${line}`, error ?? ""), archived = async () => false } = options;
   const seedRows = 200;
   let stopped = false;
   let joined = false;

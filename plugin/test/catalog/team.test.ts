@@ -183,7 +183,7 @@ test("a server that needs something the project lacks is left off its seats, wit
   // The IDE index was once given to seats of a project the IDE had never opened, and every call failed.
   const kit = makeKit();
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
-  const bare = tempDir("sw2-bare-");
+  const bare = tempDir("crew-bare-");
   const served = servingProject(team, bare);
   assert.deepEqual(served.roles.peer!.mcp, ["docs"]);
   assert.equal(served.mcp.ide!.enabled, false, "and the desk does not open the project in it either");
@@ -191,7 +191,7 @@ test("a server that needs something the project lacks is left off its seats, wit
   assert.equal(skillDirsFor(served, "peer").has("ide-guide"), false);
   assert.equal(serversFor(kit, served, "peer", { node: "node", spool: "/s" }).ide, undefined);
 
-  const opened = tempDir("sw2-idea-");
+  const opened = tempDir("crew-idea-");
   mkdirSync(join(opened, ".idea"));
   assert.deepEqual(servingProject(team, opened).roles.peer!.mcp, ["ide", "docs"]);
 });

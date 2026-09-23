@@ -19,7 +19,7 @@ Open this before a refresh audit; it is the bar every suspect is classified agai
 
 ## Tests and proof
 
-A retained mandatory proof route names: the current risk; the production behavior or machine contract; its current consumer; an observation that fails when the behavior disappears; an oracle independent of the implementation; and why cheaper ordinary testing isn't enough. Machinery missing these is replaced, demoted or deleted, using the routes in `$SEATWORKS_KIT/content/skills/peer/test-proof-debt-audit/references/proof-debt-catalog.md`. Keep a historical compatibility value only while it is still a public, security, wire, storage or migration contract.
+A retained mandatory proof route names: the current risk; the production behavior or machine contract; its current consumer; an observation that fails when the behavior disappears; an oracle independent of the implementation; and why cheaper ordinary testing isn't enough. Machinery missing these is replaced, demoted or deleted, using the routes in `$PASEO_CREW_KIT/content/skills/peer/test-proof-debt-audit/references/proof-debt-catalog.md`. Keep a historical compatibility value only while it is still a public, security, wire, storage or migration contract.
 
 ## Cleanup rules
 

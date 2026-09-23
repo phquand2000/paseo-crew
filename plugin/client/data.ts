@@ -85,7 +85,7 @@ type Calls = {
 
 export const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-export function useSeatworks(project?: string) {
+export function usePaseoCrew(project?: string) {
   const bound = {
     catalog: useRpc(catalogRpc),
     projects: useRpc(projectsRpc),

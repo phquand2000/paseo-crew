@@ -41,9 +41,9 @@ function working() {
 }
 
 const seats = new Map<string, SeatView>([
-  ["seat-lead", { id: "seat-lead", provider: "sw2-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 180_000).toISOString() }],
-  ["seat-peer", { id: "seat-peer", provider: "sw2-peer-devin", cwd: "/w", status: "running", updatedAt: new Date(now - 60_000).toISOString(), pendingPermissions: [{ title: "Write outside the working copy" }] }],
-  ["seat-sup", { id: "seat-sup", provider: "sw2-supervisor-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 600_000).toISOString() }],
+  ["seat-lead", { id: "seat-lead", provider: "crew-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 180_000).toISOString() }],
+  ["seat-peer", { id: "seat-peer", provider: "crew-peer-devin", cwd: "/w", status: "running", updatedAt: new Date(now - 60_000).toISOString(), pendingPermissions: [{ title: "Write outside the working copy" }] }],
+  ["seat-sup", { id: "seat-sup", provider: "crew-supervisor-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 600_000).toISOString() }],
 ]);
 
 test("a project with nothing running draws nothing", () => {
@@ -66,7 +66,7 @@ test("the supervisor shown is the one seated now, not the first one the project 
   ledger.agents["seat-sup2"] = { id: "seat-sup2", role: "supervisor" };
   const later = new Map(seats);
   later.delete("seat-sup");
-  later.set("seat-sup2", { id: "seat-sup2", provider: "sw2-supervisor-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 30_000).toISOString() });
+  later.set("seat-sup2", { id: "seat-sup2", provider: "crew-supervisor-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 30_000).toISOString() });
 
   // `ledger.agents` is never pruned and keeps insertion order, so the first Supervisor ever was shown for ever.
   const shown = flowView(project, ledger, later, now, new Set(), new Set(["supervisor"])).supervisors;
@@ -81,7 +81,7 @@ test("several seats supervising a project are all shown, each for its own concer
   ledger.agents["seat-arch"] = { id: "seat-arch", role: "architecture" };
   ledger.agents["seat-safety"] = { id: "seat-safety", role: "safety" };
   const both = new Map(seats);
-  both.set("seat-arch", { id: "seat-arch", provider: "sw2-architecture-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
+  both.set("seat-arch", { id: "seat-arch", provider: "crew-architecture-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
   // The concept has several supervisors by concern, and a concern whose seat has gone still shows, as gone.
   const view = flowView(project, ledger, both, now, new Set(), new Set(["supervisor", "architecture", "safety"]));
   assert.deepEqual(view.supervisors.map((seat) => [seat.role, seat.status]).sort(), [["architecture", "idle"], ["safety", "gone"], ["supervisor", "idle"]]);
@@ -131,7 +131,7 @@ test("an open ask reaches the flow with its first line, and an answered one does
 });
 
 test("the ledger is parsed again only when the file on disk has changed", () => {
-  const state = tempDir("sw2-flow-state-");
+  const state = tempDir("crew-flow-state-");
   const ledger = emptyLedger();
   ledger.lanes.L1 = lane("L1", "open");
   saveLedger(state, ledger);

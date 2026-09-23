@@ -9,7 +9,7 @@ import { Seating } from "../../server/runtime/seating.ts";
 import { TeamSource } from "../../server/runtime/team-source.ts";
 
 test("a login made after a seat was built reaches that seat the next time it starts", () => {
-  const home = tempDir("sw2-seating-home-");
+  const home = tempDir("crew-seating-home-");
   const previous = process.env.HOME;
   process.env.HOME = home;
   try {

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import type { WatchView, WatchSeat } from "../../shared/views.ts";
 
-const HOME = mkdtempSync(join(tmpdir(), "sw2-flow-home-"));
+const HOME = mkdtempSync(join(tmpdir(), "crew-flow-home-"));
 process.env.HOME = HOME;
 globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof fetch;
 
@@ -131,7 +131,7 @@ function fakePaseo() {
 }
 
 function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
-  const root = mkdtempSync(join(tmpdir(), "sw2-flow-repo-"));
+  const root = mkdtempSync(join(tmpdir(), "crew-flow-repo-"));
   const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   writeFileSync(join(root, "a.txt"), "one\ntwo\nthree\n");
   writeFileSync(join(root, "b.txt"), "bee\n");
@@ -171,7 +171,7 @@ const ide = {
 
 function harness(outbox: string) {
   const { root, git } = repo();
-  const state = join(HOME, ".local", "share", "seatworks-v2");
+  const state = join(HOME, ".local", "share", "paseo-crew");
   mkdirSync(state, { recursive: true });
   // By Jev with a key and an unreachable endpoint: the watch on, the sensor silent unless a test asks.
   writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, attention: { by: "jev" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
@@ -250,7 +250,7 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
 
 test("a lane works serially in the project's own copy and hands it back on its base branch", async () => {
   const h = harness("outbox-serial.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
   const noLimits = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"] });
   assert.equal(noLimits.ok, false);
@@ -340,7 +340,7 @@ test("a lane works serially in the project's own copy and hands it back on its b
 
 test("a copy the desk opened in the index is closed there when the copy goes, and the project's own never is", async () => {
   const h = harness("outbox-ideclose.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Away", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
   const lane = h.ledger().lanes.L1!;
@@ -358,7 +358,7 @@ test("a copy the desk opened in the index is closed there when the copy goes, an
 
 test("a lane that fails after taking the project's own copy gives it back", async () => {
   const h = harness("outbox-inplace.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const before = h.git(h.project.root, "branch", "--show-current").trim();
 
   // Refused after `inPlace` switched the owner's checkout; openLane's cleanup by slot id used to leave it moved.
@@ -379,7 +379,7 @@ test("a lane that fails after taking the project's own copy gives it back", asyn
 
 test("a gate the owner switched off is still off when the next lane opens", async () => {
   const h = harness("outbox-gate.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   writeFileSync(join(h.project.root, "package.json"), JSON.stringify({ scripts: { test: "echo ran" } }));
   h.git(h.project.root, "add", "-A");
   h.git(h.project.root, "commit", "-qm", "a package");
@@ -395,7 +395,7 @@ test("a gate the owner switched off is still off when the next lane opens", asyn
 
 test("a lane in the project's own copy whose base moved waits for a seat mid-turn there, then lands", async () => {
   const h = harness("outbox-moved.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
   assert.equal(opened.ok, true, opened.text);
   const lane = h.ledger().lanes.L1!;
@@ -404,7 +404,7 @@ test("a lane in the project's own copy whose base moved waits for a seat mid-tur
   h.git(h.project.root, "commit", "-qm", "four");
 
   // main moves on while the lane runs, so landing first merges main into the lane in its own copy.
-  const side = join(mkdtempSync(join(tmpdir(), "sw2-moved-")), "wt");
+  const side = join(mkdtempSync(join(tmpdir(), "crew-moved-")), "wt");
   h.git(h.project.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.project.root, "branch", "-f", "main", "side");
@@ -432,14 +432,14 @@ test("a lane in the project's own copy whose base moved waits for a seat mid-tur
 
 test("a lane in the project's own copy lands after its base moved, once nobody is writing there", async () => {
   const h = harness("outbox-moved-idle.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
   assert.equal(opened.ok, true, opened.text);
   const lane = h.ledger().lanes.L1!;
   writeFileSync(join(h.project.root, "a.txt"), "one\ntwo\nthree\nfour\n");
   h.git(h.project.root, "add", "-A");
   h.git(h.project.root, "commit", "-qm", "four");
-  const side = join(mkdtempSync(join(tmpdir(), "sw2-moved-")), "wt");
+  const side = join(mkdtempSync(join(tmpdir(), "crew-moved-")), "wt");
   h.git(h.project.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.project.root, "branch", "-f", "main", "side");
@@ -458,7 +458,7 @@ test("a lane in the project's own copy lands after its base moved, once nobody i
 
 test("parallel work needs independent write sets and merges back from its own working copy", async () => {
   const h = harness("outbox-parallel.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a", "b"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt", "b.txt"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "A", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -500,7 +500,7 @@ test("parallel work needs independent write sets and merges back from its own wo
 test("asks reach the level above, answers come back, and a silent Peer is nudged then reported", async () => {
   const h = harness("outbox-asks.json");
   const turnEnded = h.endTurn;
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["y"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.idle(lane.lead!);
@@ -532,9 +532,9 @@ test("asks reach the level above, answers come back, and a silent Peer is nudged
 
 test("a working Peer past the first page of agents is not read as gone", async () => {
   const h = harness("outbox-paged.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   // A long-lived daemon: plenty of other agents, more recently active than the Peer about to start.
-  for (let index = 0; index < 205; index++) h.add("sw2-supervisor-claude/claude-opus-5", h.root, `other-${index}`);
+  for (let index = 0; index < 205; index++) h.add("crew-supervisor-claude/claude-opus-5", h.root, `other-${index}`);
 
   await h.call(sup, "supervisor", "open_lane", { title: "Busy machine", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
@@ -552,7 +552,7 @@ test("a working Peer past the first page of agents is not read as gone", async (
 
 test("a call that runs longer than a seat can wait is answered by mail, and calling it again does not run it twice", async () => {
   const h = harness("outbox-later.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "sleep 1" });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
@@ -576,7 +576,7 @@ test("a call that runs longer than a seat can wait is answered by mail, and call
 
 test("a hand-back whose gate outlasts the call is not read as a silent turn", async () => {
   const h = harness("outbox-slowdone.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "sleep 1", gateOn: "task" });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
@@ -602,7 +602,7 @@ test("a hand-back whose gate outlasts the call is not read as a silent turn", as
 
 test("a task stalled because its Peer is gone holds no copy, and an ask to a gone reader goes to whoever supervises now", async () => {
   const h = harness("outbox-goneholder.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Gone", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -618,7 +618,7 @@ test("a task stalled because its Peer is gone holds no copy, and an ask to a gon
   // A Lead's ask to a Supervisor that has since gone must reach the one who sits down afterwards.
   assert.equal((await h.call(lane.lead!, "lead", "ask", { kind: "question", text: "Keep the old endpoint?", default: "keep it" })).ok, true);
   Object.assign(h.agents.get(sup)!, { archivedAt: new Date().toISOString(), status: "closed" });
-  const back = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup-2");
+  const back = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup-2");
   await h.tick(Date.now() + 16 * 60_000);
   await h.idle(back);
   assert.match(h.agents.get(back)!.sent.join("\n"), /Keep the old endpoint\?/);
@@ -628,7 +628,7 @@ test("a task stalled because its Peer is gone holds no copy, and an ask to a gon
 
 test("an escalation with nobody supervising seated waits for one instead of being marked sent", async () => {
   const h = harness("outbox-escalate.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Asks", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -643,7 +643,7 @@ test("an escalation with nobody supervising seated waits for one instead of bein
   const ask = Object.values(h.ledger().asks)[0]!;
   assert.equal(ask.escalated ?? false, false, "nobody received it, so it is not recorded as escalated");
 
-  const back = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup-2");
+  const back = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup-2");
   await h.tick(start + 64 * 60_000);
   await h.idle(back);
   assert.equal(Object.values(h.ledger().asks)[0]!.escalated, true);
@@ -653,7 +653,7 @@ test("an escalation with nobody supervising seated waits for one instead of bein
 
 test("a stalled task still holds its working copy, and runs again once its Peer is heard from", async () => {
   const h = harness("outbox-stalled.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -684,7 +684,7 @@ test("a stalled task still holds its working copy, and runs again once its Peer 
 
 test("a Peer that asked is not stalled on its next quiet turn, and a repeated rework is not called sent", async () => {
   const h = harness("outbox-silent.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Work", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -727,14 +727,14 @@ test("a Peer that asked is not stalled on its next quiet turn, and a repeated re
 
 test("each project gets the agent and model its own settings choose, and the machine layer keeps the rest", async () => {
   const h = harness("outbox-per-project.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "true" });
   await h.call(sup, "supervisor", "open_lane", { title: "Defaults", outcome: "a.txt changes", acceptance: ["one"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Default peer", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
   const onDefaults = h.agents.get(h.ledger().tasks["L1-T1"]!.peer!)!.provider;
-  assert.equal(onDefaults, "sw2-peer-devin/swe-2-max");
-  assert.equal(h.agents.get(lane.lead!)!.provider, "sw2-lead-claude/claude-opus-5");
+  assert.equal(onDefaults, "crew-peer-devin/swe-2-max");
+  assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5");
 
   writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ roles: { peer: { harness: "claude", model: "claude-opus-5" } } }));
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "done" });
@@ -742,8 +742,8 @@ test("each project gets the agent and model its own settings choose, and the mac
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   await h.call(lane.lead!, "lead", "start_task", { title: "Claude peer", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
   const switched = h.agents.get(h.ledger().tasks["L1-T2"]!.peer!)!.provider;
-  assert.equal(switched, "sw2-peer-claude/claude-opus-5");
-  assert.equal(h.agents.get(lane.lead!)!.provider, "sw2-lead-claude/claude-opus-5");
+  assert.equal(switched, "crew-peer-claude/claude-opus-5");
+  assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5");
   h.runtime.dispose();
 });
 
@@ -753,7 +753,7 @@ test("each project gets the agent and model its own settings choose, and the mac
 test("what the desk opened and nothing holds any more is swept away without being asked", async () => {
   const h = harness("outbox-sweep.json");
   const tick = h.tick;
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Swept", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
 
   const ws = h.paseo as unknown as { workspaces: { create(options: { title: string; source: { kind: string; path: string } }): Promise<{ id: string }> } };
@@ -771,7 +771,7 @@ test("what the desk opened and nothing holds any more is swept away without bein
 test("one workspace carries a whole project, and the desk puts it away when the project goes quiet", async () => {
   const h = harness("outbox-quiet.json");
   const tick = h.tick;
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
 
@@ -790,7 +790,7 @@ test("one workspace carries a whole project, and the desk puts it away when the 
 
 test("a lane that declared no write set does not lock the project to one lane: the next lane takes a copy of its own", async () => {
   const h = harness("outbox-lockout.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
 
   // The first lane is allowed to open with no write set, and takes the project's own copy.
@@ -813,7 +813,7 @@ test("a lane that declared no write set does not lock the project to one lane: t
 
 test("a lane's own working copy is filed under the project, so closing it leaves no project behind", async () => {
   const h = harness("outbox-oneproject.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Here", outcome: "a.txt changes", acceptance: ["a"], ...scope });
   const away = await h.call(sup, "supervisor", "open_lane", { title: "Away", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
@@ -828,7 +828,7 @@ test("a lane's own working copy is filed under the project, so closing it leaves
 
 test("a working copy is not handed to Paseo bare when the project's workspace names no project", async () => {
   const h = harness("outbox-noproject.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Here", outcome: "a.txt changes", acceptance: ["a"], ...scope });
   h.workspaceProjects.set(h.ledger().lanes.L1!.workspaceId!, "");
@@ -843,7 +843,7 @@ test("a working copy is not handed to Paseo bare when the project's workspace na
 
 test("a ledger the desk cannot read is not written over, and the seat is told why", async () => {
   const h = harness("outbox-badledger.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Real work", outcome: "x", acceptance: ["a"], ...scope });
   assert.ok(h.ledger().lanes.L1, "there is something on record to lose");
@@ -868,7 +868,7 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
 
 test("a detour hands back to the lane that was waiting on it, and cannot be opened for a lane that is not", async () => {
   const h = harness("outbox-detour.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Checkout", outcome: "an order can be paid for", acceptance: ["a"], ...scope });
   const waiting = h.ledger().lanes.L1!;
@@ -890,7 +890,7 @@ test("a detour hands back to the lane that was waiting on it, and cannot be open
 
 test("a lane closed while its Lead is still writing keeps the working copy until that turn ends", async () => {
   const h = harness("outbox-closerace.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Cut short", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
   const lane = h.ledger().lanes.L1!;
   writeFileSync(join(lane.worktree!, "half-written.txt"), "not committed yet\n");
@@ -913,7 +913,7 @@ test("a lane closed while its Lead is still writing keeps the working copy until
 /** Three lanes as a run opens them: the first in the project's own copy, the other two in copies of their own. */
 async function threeLanes(outbox: string, gate: string) {
   const h = harness(outbox);
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate });
   const scope = { outOfScope: ["anything else in the repository"] };
   for (const [title, path] of [["Part A", "a/**"], ["Part B", "b/**"], ["Part C", "c/**"]] as const) {
@@ -979,7 +979,7 @@ test("a lane main cannot be merged into is refused and stays open, its copy as i
 
 test("a lane closed in the project's own copy does not switch the branch out from under the next lane", async () => {
   const h = harness("outbox-stalerestore.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["anything else in the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["a"], ...scope });
   const first = h.ledger().lanes.L1!;
@@ -1014,7 +1014,7 @@ test("a lane closed in the project's own copy does not switch the branch out fro
 
 test("a copy waiting on a seat that never ends its turn is put away in the round, not left for good", async () => {
   const h = harness("outbox-reap.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Abandoned", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
   const lane = h.ledger().lanes.L1!;
   await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "the outcome was wrong" });
@@ -1032,7 +1032,7 @@ test("a copy waiting on a seat that never ends its turn is put away in the round
 
 test("a copy two seats are writing in is put away by the last of them to stop, not the first", async () => {
   const h = harness("outbox-lastout.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Both in here", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "In the lane's copy", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -1058,7 +1058,7 @@ test("a copy two seats are writing in is put away by the last of them to stop, n
 
 test("with gateOn task, the gate really runs on a lane-mode task and the Lead is told the result, not a description", async () => {
   const h = harness("outbox-taskgate.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "task" });
   const scope = { outOfScope: ["the rest of the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
@@ -1081,7 +1081,7 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
 
 test("a red task gate reaches the Lead with the hand-back, and landing it anyway is the Lead's call", async () => {
   const h = harness("outbox-gateundo.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "echo red; exit 1", gateOn: "task" });
   await h.call(sup, "supervisor", "open_lane", { title: "Bee", outcome: "b.txt changes", acceptance: ["b"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
   const lane = h.ledger().lanes.L1!;
@@ -1107,7 +1107,7 @@ test("a red task gate reaches the Lead with the hand-back, and landing it anyway
 
 test("a commit made while the lane's copy is off its branch is not accepted as landed", async () => {
   const h = harness("outbox-detached.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Regression", outcome: "the bug goes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Find it", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -1131,7 +1131,7 @@ test("a commit made while the lane's copy is off its branch is not accepted as l
 
 test("a task cannot be told to open a skill its Peer does not have", async () => {
   const h = harness("outbox-skills.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Skilled", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   const scope = { goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] };
@@ -1153,7 +1153,7 @@ test("a task cannot be told to open a skill its Peer does not have", async () =>
 
 test("a hand-back the Lead has not accepted still holds the lane's copy, so nothing is sent in beside it", async () => {
   const h = harness("outbox-holds.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["the rest of the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Two in a row", outcome: "a and b change", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
@@ -1188,7 +1188,7 @@ test("a hand-back the Lead has not accepted still holds the lane's copy, so noth
 
 test("a task whose honest answer is that nothing needed changing can be accepted, not only cut", async () => {
   const h = harness("outbox-nochange.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Audit", outcome: "the parser is checked", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Check the parser", goal: "find out whether it drops input", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
@@ -1207,7 +1207,7 @@ test("a task whose honest answer is that nothing needed changing can be accepted
 
 test("a seat reaches only the tools its own role holds, whatever it asks for", async () => {
   const h = harness("outbox-reach.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Edit", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
@@ -1227,8 +1227,8 @@ test("a seat reaches only the tools its own role holds, whatever it asks for", a
 
 test("two supervising seats hold one project, and each lane's mail goes to the seat that opened it", async () => {
   const h = harness("outbox-two-sups.json");
-  const architecture = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "architecture");
-  const safety = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "safety");
+  const architecture = h.add("crew-supervisor-claude/claude-opus-5", h.root, "architecture");
+  const safety = h.add("crew-supervisor-claude/claude-opus-5", h.root, "safety");
   const scope = { outOfScope: ["anything else"] };
 
   await h.call(architecture, "supervisor", "open_lane", { title: "Schema", outcome: "the schema moves", acceptance: ["a"], ...scope });
@@ -1251,7 +1251,7 @@ test("two supervising seats hold one project, and each lane's mail goes to the s
 
 test("reaching a Peer directly tells its Lead what reached it, and is refused when there is no Lead to tell", async () => {
   const h = harness("outbox-reconcile.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Pricing", outcome: "discounts round correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
@@ -1296,7 +1296,7 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
 
 test("an ask answered by the owner over a Lead's head is told to that Lead, not run behind its back", async () => {
   const h = harness("outbox-answeredfor.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Columns", outcome: "the column goes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Drop it", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -1324,10 +1324,10 @@ test("an ask answered by the owner over a Lead's head is told to that Lead, not 
 test("a seat opening in a project writes the team's block there, and the first lane still takes the copy the Human left clean", async () => {
   const h = harness("outbox-team-file.json");
   const open = (h.runtime as unknown as { openSession(request: { provider: string; cwd: string; env: Record<string, string> }): unknown }).openSession.bind(h.runtime);
-  open({ provider: "sw2-supervisor-claude", cwd: h.root, env: {} });
-  assert.match(readFileSync(join(h.root, "AGENTS.md"), "utf-8"), /seatworks:begin[\s\S]*## Working here as a team/);
+  open({ provider: "crew-supervisor-claude", cwd: h.root, env: {} });
+  assert.match(readFileSync(join(h.root, "AGENTS.md"), "utf-8"), /paseo-crew:begin[\s\S]*## Working here as a team/);
   assert.match(readFileSync(join(h.root, "CLAUDE.md"), "utf-8"), /^@AGENTS\.md$/m);
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
 
   // Untracked, and nothing of the Human's: the lane takes the copy as if it were clean.
   const first = await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
@@ -1350,8 +1350,8 @@ test("a seat opening in a project writes the team's block there, and the first l
 test("the team's block left uncommitted in the project's own copy does not hold up accepting or reporting the lane there", async () => {
   const h = harness("outbox-team-file-accept.json");
   const open = (h.runtime as unknown as { openSession(request: { provider: string; cwd: string; env: Record<string, string> }): unknown }).openSession.bind(h.runtime);
-  open({ provider: "sw2-supervisor-claude", cwd: h.root, env: {} });
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  open({ provider: "crew-supervisor-claude", cwd: h.root, env: {} });
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "true" });
   assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "x", acceptance: ["y"], outOfScope: ["z"] })).ok, true);
   const lane = h.ledger().lanes.L1!;
@@ -1374,7 +1374,7 @@ test("the team's block left uncommitted in the project's own copy does not hold 
 
 test("a Lead is pointed at the project's concept once the Human has settled one, and set_project keeps no pages", async () => {
   const h = harness("outbox-concept.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
 
   // Nothing is written for the Supervisor, and a Lead is not sent to read a file that is not there.
   await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["y"], outOfScope: ["z"], writeSet: ["a.txt"] });
@@ -1395,7 +1395,7 @@ test("a Lead is pointed at the project's concept once the Human has settled one,
 
 test("a review hands back a verdict and its findings, and the Lead is told both", async () => {
   const h = harness("outbox-review.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
@@ -1426,7 +1426,7 @@ test("a review hands back a verdict and its findings, and the Lead is told both"
 
 test("a copy a reviewer is reading is not taken away when the task it reviews is accepted", async () => {
   const h = harness("outbox-reviewshare.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["the rest of the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Reviewed", outcome: "a changes", acceptance: ["a"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt"] });
   const lane = h.ledger().lanes.L1!;
@@ -1468,7 +1468,7 @@ test("a copy a reviewer is reading is not taken away when the task it reviews is
 
 test("a review of a parallel task whose copy went back is pointed at the merge that holds the change", async () => {
   const h = harness("outbox-reviewgone.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["the rest of the repository"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt", "b.txt"] });
   const lane = h.ledger().lanes.L1!;
@@ -1505,7 +1505,7 @@ test("a review of a parallel task whose copy went back is pointed at the merge t
 
 test("a task branch is dropped once its work is in the lane's, whichever branch the project's own copy is on", async () => {
   const h = harness("outbox-branchdrop.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   // The lane's own copy keeps the project's copy on main, which is what `git branch -d` would read.
   await h.call(sup, "supervisor", "open_lane", { title: "Apart", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
   const lane = h.ledger().lanes.L1!;
@@ -1526,7 +1526,7 @@ test("a task branch is dropped once its work is in the lane's, whichever branch 
 
 test("a task goes to a role that writes, and a review to one that reads, and neither stands in for the other", async () => {
   const h = harness("outbox-lenses.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
 
@@ -1555,7 +1555,7 @@ test("two projects on one daemon both name their first task L1-T1, and both Lead
   const other = projectOf(second.root);
 
   const open = async (where: string, name: string) => {
-    const sup = h.add("sw2-supervisor-claude/claude-opus-5", where, name);
+    const sup = h.add("crew-supervisor-claude/claude-opus-5", where, name);
     await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["the rest"] }, where);
     const lane = h.ledger(where === h.root ? undefined : other).lanes.L1!;
     await h.call(lane.lead!, "lead", "start_task", { title: "Add four", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] }, where);
@@ -1581,7 +1581,7 @@ test("two projects on one daemon both name their first task L1-T1, and both Lead
 
 test("a Peer stopped on a question is answered by its Lead's message, and one stopped on anything else waits for the Human", async () => {
   const h = harness("outbox-question.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Colours", outcome: "the button is coloured", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Colour", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
@@ -1627,7 +1627,7 @@ test("a Peer stopped on a question is answered by its Lead's message, and one st
 
 test("mail reaches a running seat inside its turn where its harness can take it there, and waits where it cannot", async () => {
   const h = harness("outbox-steer.json");
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Pricing", outcome: "discounts round correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] });
@@ -1664,7 +1664,7 @@ async function laneWithPeer(outbox: string, settings?: Record<string, unknown>) 
     mkdirSync(h.project.state, { recursive: true });
     writeFileSync(join(h.project.state, "settings.json"), JSON.stringify(settings));
   }
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Clean build", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
@@ -1673,13 +1673,13 @@ async function laneWithPeer(outbox: string, settings?: Record<string, unknown>) 
   return { h, sup, lane, peer, timeline: h.timelineOf(peer) };
 }
 
-const watchersOf = (h: ReturnType<typeof harness>) => [...h.agents.values()].filter((agent) => agent.provider.startsWith("sw2-watcher-"));
+const watchersOf = (h: ReturnType<typeof harness>) => [...h.agents.values()].filter((agent) => agent.provider.startsWith("crew-watcher-"));
 const bySeat = (extra: Record<string, unknown> = {}) => ({ attention: { by: "seat", ...extra } });
 
 test("by a seat, one Watcher sits in the project while a lane is open, on the Peer's agent, and goes when the lanes do", async () => {
   const h = harness("outbox-watcher-seat.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify(bySeat()));
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify(bySeat()));
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.tick();
   assert.deepEqual(watchersOf(h), [], "no lane, no Watcher");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
@@ -1687,7 +1687,7 @@ test("by a seat, one Watcher sits in the project while a lane is open, on the Pe
   await h.tick();
   const [watcher, ...more] = watchersOf(h);
   assert.deepEqual(more, [], "one, however many rounds find it");
-  assert.equal(watcher!.provider, "sw2-watcher-devin/swe-2-max", "on the Peer's agent and model, nothing having been set for it");
+  assert.equal(watcher!.provider, "crew-watcher-devin/swe-2-max", "on the Peer's agent and model, nothing having been set for it");
   assert.equal(watcher!.cwd, h.project.root, "in the project, not in a lane's copy");
   assert.equal(watcher!.status, "running");
 
@@ -1705,9 +1705,9 @@ test("by a seat, one Watcher sits in the project while a lane is open, on the Pe
 
 test("by Jev there is no Watcher, and one already seated is let go", async () => {
   const h = harness("outbox-watcher-jev.json");
-  const settings = join(HOME, ".local", "share", "seatworks-v2", "settings.json");
+  const settings = join(HOME, ".local", "share", "paseo-crew", "settings.json");
   writeFileSync(settings, JSON.stringify(bySeat()));
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   await h.tick();
   const [watcher] = watchersOf(h);
@@ -1760,7 +1760,7 @@ test("a Watcher reads what a Peer did, said and thought as it works, never a key
 test("a reading never steers into a Watcher's turn: it waits, and what came meanwhile arrives with it", async () => {
   const { h, timeline } = await laneWithPeer("outbox-reading-held.json", { ...bySeat(), roles: { watcher: { harness: "claude" } } });
   const [watcher] = watchersOf(h);
-  assert.equal(watcher!.provider, "sw2-watcher-claude/claude-opus-5", "on an agent that takes a message into a running turn");
+  assert.equal(watcher!.provider, "crew-watcher-claude/claude-opus-5", "on an agent that takes a message into a running turn");
   h.runtime.outbox.turnStarted(watcher!.id, Date.now() - 120_000);
   for (const turn of ["t1", "t2"]) {
     timeline.beat("turn_started", turn);
@@ -1835,7 +1835,7 @@ test("a Watcher raises against a step it was read: the step, not its words, reac
   const invented = await raise({ kind: "missing_mechanism", step: "R4.S9" });
   assert.equal(invented.ok, false);
   assert.match(invented.text, /R4\.S9 is not a step a reading sent you/, "a step it was never read cannot be reported");
-  const other = h.add("sw2-watcher-devin/swe-2-max", h.project.root, "another watcher");
+  const other = h.add("crew-watcher-devin/swe-2-max", h.project.root, "another watcher");
   assert.equal((await raise({ kind: "missing_mechanism", step: "R1.S1" }, other)).ok, false, "nor one read to another Watcher");
 
   const raised = await raise({ kind: "missing_mechanism", step: "R1.S1" });
@@ -2145,7 +2145,7 @@ test("with the watch on but not telling, the desk records what it sees and sends
 
 test("by Jev with no key, nothing is watched and nothing is recorded", async () => {
   const { h, sup, timeline } = await laneWithPeer("outbox-off.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
   await h.tick();
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "running", detail: { type: "shell", command: "git push --force origin main" } }, "t1");
@@ -2160,7 +2160,7 @@ test("by Jev with no key, nothing is watched and nothing is recorded", async () 
 test("left as the kit ships it the watch is by a Watcher seat: a seat is followed without a key, and Jev is never asked even with one", async (t) => {
   for (const settings of [{}, { sensor: { key: "sk-or-seat-test" } }]) {
     const { h, sup, timeline } = await laneWithPeer("outbox-by-seat.json");
-    writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify(settings));
+    writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify(settings));
     const asked = t.mock.method(globalThis, "fetch", async () => new Response("{}", { status: 500 }));
     await h.tick();
     timeline.beat("turn_started", "t1");
@@ -2178,7 +2178,7 @@ test("left as the kit ships it the watch is by a Watcher seat: a seat is followe
 
 test("each assessment is kept with the state, questions, facts and answers it was made on, and is decided on the facts that were sent", async (t) => {
   const { h, peer, timeline } = await laneWithPeer("outbox-kept.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-kept-test" }, attention: { by: "jev" } }));
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({ sensor: { key: "sk-or-kept-test" }, attention: { by: "jev" } }));
   const bodies: { questions: Record<string, unknown> }[] = [];
   let release: () => void = () => {};
   const held = new Promise<void>((resolve) => (release = resolve));
@@ -2431,10 +2431,10 @@ test("a seat whose brief cannot be read is not described to the sensor as having
 test("taking the key away does not release the incidents the watch was still holding", async () => {
   const { h, sup } = await laneWithPeer("outbox-retell-off.json", { attention: { watch: true } });
   // `stuck` is a kind the sensor confirms, so this is held "awaiting" its reading rather than sent.
-  await h.runtime.desk.notice(h.project, { id: "p-a", provider: "sw2-peer-devin/swe-2-max", title: "p-a" }, [{ kind: "stuck", level: "attend", quote: "round and round", facts: ["stuck"] }]);
+  await h.runtime.desk.notice(h.project, { id: "p-a", provider: "crew-peer-devin/swe-2-max", title: "p-a" }, [{ kind: "stuck", level: "attend", quote: "round and round", facts: ["stuck"] }]);
   assert.deepEqual(Object.values(incidentsOf(h.project.state)).map((item) => item.held), ["awaiting"]);
 
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({}));
   await h.tick();
   await h.idle(sup);
   // With the key gone the confirming set is empty, so a naive retell would send the very mail the hold kept back.
@@ -2445,7 +2445,7 @@ test("taking the key away does not release the incidents the watch was still hol
 
 test("a day's budget holds back what is only worth attention, however many arrive at once, and never what is irreversible", async () => {
   const { h, sup } = await laneWithPeer("outbox-budget.json", { attention: { watch: true, incidentsPerDay: 1 } });
-  const seat = (id: string) => ({ id, provider: "sw2-peer-devin/swe-2-max", title: id });
+  const seat = (id: string) => ({ id, provider: "crew-peer-devin/swe-2-max", title: id });
   // Not `stuck`: the sensor confirms that one, so it would be held awaiting a reading before the budget has a say.
   const attend = (quote: string) => [{ kind: "test-weakened", level: "attend" as const, quote, facts: ["test-weakened"] }];
   await Promise.all([
@@ -2469,10 +2469,10 @@ test("two projects each hear about their own seats, though their incidents carry
   const other = projectOf(second.root);
   mkdirSync(other.state, { recursive: true });
   writeFileSync(join(other.state, "settings.json"), JSON.stringify({ attention: { watch: true } }));
-  const supB = h.add("sw2-supervisor-claude/claude-opus-5", second.root, "sup-b");
+  const supB = h.add("crew-supervisor-claude/claude-opus-5", second.root, "sup-b");
   const page = [{ kind: "destructive", level: "page" as const, quote: "rm -rf build", facts: ["destructive"] }];
-  await h.runtime.desk.notice(h.project, { id: "p-a", provider: "sw2-peer-devin/swe-2-max" }, page);
-  await h.runtime.desk.notice(other, { id: "p-b", provider: "sw2-peer-devin/swe-2-max" }, page);
+  await h.runtime.desk.notice(h.project, { id: "p-a", provider: "crew-peer-devin/swe-2-max" }, page);
+  await h.runtime.desk.notice(other, { id: "p-b", provider: "crew-peer-devin/swe-2-max" }, page);
   await h.idle(sup);
   await h.idle(supB);
   assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(destructive, page\)/);
@@ -2503,7 +2503,7 @@ test("a desk call the harness refused for bad JSON is recorded, though it never 
   assert.equal(readFileSync(join(h.project.state, "events.log"), "utf-8").match(/"kind":"call\.malformed"/g)!.length, 1);
 
   // And it is trouble whatever the watch is doing: the harness refused the call, not the sensor.
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
   const view = (await h.runtime.control.flow(h.project.slug)) as { watch: WatchView };
   assert.equal(view.watch.on, false);
   assert.deepEqual(view.watch.trouble.map((entry) => entry.kind), ["call.malformed"], "shown with the watch off, or nobody is told after all");
@@ -2512,7 +2512,7 @@ test("a desk call the harness refused for bad JSON is recorded, though it never 
 
 test("with the watch off a lane's own record is not gone through either", async () => {
   const { h, sup, lane, peer } = await laneWithPeer("outbox-history-off.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({ attention: { by: "jev" } }));
   for (const round of [1, 2, 3]) {
     await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
     await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
@@ -2526,7 +2526,7 @@ test("with the watch off a lane's own record is not gone through either", async 
 
 test("by a Watcher seat a lane's own record is gone through with no key", async () => {
   const { h, sup, lane, peer } = await laneWithPeer("outbox-history-seat.json");
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({}));
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({}));
   for (const round of [1, 2, 3]) {
     await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
     await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
@@ -2622,7 +2622,7 @@ test("every call is held to the schema the seat was shown, and told what it take
 
 test("a patrol round files finished lanes past the newest few into the archive, and leaves the rest", async () => {
   const h = harness("outbox-archive.json");
-  h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.tick(Date.now());
   const ledger = h.ledger();
   for (let n = 1; n <= KEEP_CLOSED_LANES + 1; n++) {

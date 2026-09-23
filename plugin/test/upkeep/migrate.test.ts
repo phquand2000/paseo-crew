@@ -13,8 +13,8 @@ const NOW = Date.parse("2026-09-22T07:12:30Z");
 
 function world(): MigrateContext & { file: string } {
   const kit = { ...makeKit(), team: "Work in lanes." };
-  const home = tempDir("sw2-home-");
-  const root = tempDir("sw2-repo-");
+  const home = tempDir("crew-home-");
+  const root = tempDir("crew-repo-");
   const shop = { root, slug: "shop-abc123", state: join(stateRoot(home), "projects", "shop-abc123") };
   mkdirSync(shop.state, { recursive: true });
   writeFileSync(join(root, "AGENTS.md"), withBlock("# Mine", "Work in lanes."));
@@ -74,8 +74,8 @@ test("migrate names the seats started before this kit was loaded, and changes no
   const next = stampKit(ctx.kit, ctx.home, NOW + 60_000);
   assert.ok(next.since > since);
   ctx.live.push(
-    { provider: "sw2-lead-claude", slug: "shop-abc123", createdAt: new Date(NOW).toISOString(), name: "Lead · Claude Code" },
-    { provider: "sw2-peer-devin", slug: "shop-abc123", createdAt: new Date(NOW + 120_000).toISOString(), name: "Peer · Devin CLI" },
+    { provider: "crew-lead-claude", slug: "shop-abc123", createdAt: new Date(NOW).toISOString(), name: "Lead · Claude Code" },
+    { provider: "crew-peer-devin", slug: "shop-abc123", createdAt: new Date(NOW + 120_000).toISOString(), name: "Peer · Devin CLI" },
   );
   const plan = migrate(ctx);
   assert.deepEqual(plan.steps.map((step) => [step.kind, step.auto, step.detail.slice(0, -1)]), [["seat", false, ["Lead · Claude Code"]]]);

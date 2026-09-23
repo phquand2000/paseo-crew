@@ -108,7 +108,7 @@ function stdioBackend(command = []) {
         });
         child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
       });
-    const ready = request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-code", version: "2.0.0" } }, CALL_MS).then((reply) => {
+    const ready = request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "paseo-crew-code", version: "2.0.0" } }, CALL_MS).then((reply) => {
       if (!reply.error) child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
       return reply;
     });

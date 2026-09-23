@@ -35,7 +35,7 @@ export class Agents {
 
   /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
   private marks(role: RoleSpec, project: Project): Record<string, string> {
-    return { "seatworks.project": project.slug, "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) };
+    return { "paseo-crew.project": project.slug, "paseo-crew.role": role.role, ...(role.concern ? { "paseo-crew.concern": role.concern } : {}) };
   }
 
   /** A seat that belongs to the project rather than to a lane: it sits in the project's own workspace. */

@@ -88,7 +88,7 @@ function fileLane(state: string, id: string, change: (archive: LaneArchive) => v
     try {
       archive = JSON.parse(gunzipSync(readFileSync(file)).toString("utf-8")) as LaneArchive;
     } catch (error) {
-      console.error(`seatworks-v2: ${file} could not be read and is started over:`, error);
+      console.error(`paseo-crew: ${file} could not be read and is started over:`, error);
     }
   }
   change(archive);
@@ -103,7 +103,7 @@ export function keepArchived(state: string, taken: Taken): void {
   if (taken.agents.length + taken.asks.length === 0) return;
   const roll = { dir: archiveDir(state), current: "desk.log", prefix: "desk.", ext: ".log", rotateAt: DESK_ROTATE_BYTES, keepBytes: DESK_KEEP_BYTES, plain: 1 };
   const line = `${JSON.stringify({ at: new Date().toISOString(), agents: taken.agents, asks: taken.asks })}\n`;
-  appendRolling(roll, line).catch((error: unknown) => console.error("seatworks-v2: packing a rolled archive/desk.log failed:", error));
+  appendRolling(roll, line).catch((error: unknown) => console.error("paseo-crew: packing a rolled archive/desk.log failed:", error));
 }
 
 /**

@@ -18,11 +18,11 @@ const context = { node: "/bin/node", spool: "/spool" };
 test("a Claude seat per project writes shared plus role settings, links skills, clears MCP files and writes the rules to CLAUDE.md", () => {
   const kit = makeKit();
   const team = resolveTeam(kit);
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   mkdirSync(join(home, ".claude", "projects"), { recursive: true });
   const lead = team.roles.lead!;
   const dir = seatDir(kit, lead.role, lead.harness, home, project);
-  assert.equal(basename(dir), "sw2-lead-claude-shop-abc123");
+  assert.equal(basename(dir), "crew-lead-claude-shop-abc123");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, ".claude.json"), JSON.stringify({ userID: "u", mcpServers: { old: {} }, enableAllProjectMcpServers: true, projects: { "/x": { mcpServers: { rogue: {} }, trust: true } } }));
   symlinkSync(join(kit.dir, "harness/claude/settings/lead.settings.json"), join(dir, "settings.json"));
@@ -55,12 +55,12 @@ test("a Claude seat per project writes shared plus role settings, links skills, 
 test("a Devin seat merges settings, writes its MCP file and a real prompt with the rules appended", () => {
   const kit = makeKit();
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const peer = team.roles.peer!;
   const dir = seatDir(kit, peer.role, peer.harness, home, project);
   mkdirSync(join(dir, "devin"), { recursive: true });
   writeFileSync(join(dir, "devin", "config.json"), JSON.stringify({ version: 3, permissions: { allow: ["Exec(rm)"] } }));
-  const outside = join(tempDir("sw2-outside-"), "PEER.md");
+  const outside = join(tempDir("crew-outside-"), "PEER.md");
   writeFileSync(outside, "project prompt that must not change");
   symlinkSync(outside, join(dir, "devin", "AGENTS.md"));
 
@@ -83,14 +83,14 @@ test("a Devin seat merges settings, writes its MCP file and a real prompt with t
 
 test("a prompt carrying a word its role must not see is refused", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   writeFileSync(join(kit.dir, "content/prompts/PEER.md"), "# Peer\n\nAsk the seat above you.\n");
   assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /must not see: seat/);
 });
 
 test("a seat that cannot be built writes nothing, rather than a config with no instructions beside it", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
 
   // Owner rules are folded into every seat's instructions; a refusal there must come before anything is written.
   const owned = resolveTeam(kit, { rules: "Leave the Paseo config alone." });
@@ -108,7 +108,7 @@ test("a seat that cannot be built writes nothing, rather than a config with no i
 
 test("a skill carrying a word its role must not see, or a placeholder nothing fills in, is refused", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const skill = join(kit.dir, "content/skills/peer/test-first/SKILL.md");
   writeFileSync(skill, "---\nname: test-first\ndescription: tests\n---\n\nAsk the seat above you.\n");
   assert.throws(() => materialize(kit, resolveTeam(kit), "peer", home, project), /skill test-first shows the peer words it must not see in SKILL.md: seat/);
@@ -118,7 +118,7 @@ test("a skill carrying a word its role must not see, or a placeholder nothing fi
 
 test("a real directory where a skill link should go is left alone, not turned into a seat that cannot start", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   const dir = seatDir(kit, kit.roles.find((role) => role.role === "peer")!, kit.harnesses.devin!, home, project);
   mkdirSync(join(dir, "devin", "skills", "test-first"), { recursive: true });
@@ -161,7 +161,7 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   applyModels(kit, { toml: { at: "", error: null, models: [{ id: "m", label: "M" }] } });
   const team = resolveTeam(kit, { roles: { peer: { harness: "toml" } }, mcp: { docs: { enabled: true } } });
   assert.deepEqual(team.errors, []);
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const servers = serversFor(kit, team, "peer", context);
   assert.ok(materialize(kit, team, "peer", home, project, servers).length > 0);
   const dir = seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project);
@@ -177,7 +177,7 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
 
 test("an unreadable MCP file the plugin owns is written again, because it carries the seat's only tools", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   // The Peer's harness takes its servers from this file alone; left unreadable, the Peer boots with no `done` or `ask`.
   const peer = team.roles.peer!;
@@ -195,7 +195,7 @@ test("an unreadable MCP file the plugin owns is written again, because it carrie
 
 test("an MCP file the harness owns and the plugin cannot read is left alone, not replaced by the seed", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   materialize(kit, team, "lead", home, project);
   const dir = seatDir(kit, team.roles.lead!.role, team.roles.lead!.harness, home, project);
@@ -256,7 +256,7 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   writeFileSync(join(kit.dir, "content", "prompts", "LEAD.md"), "# Lead\n\nWrite a plan in {{state}}/plans/ first.\n");
   const base = resolveTeam(kit);
   const team = withHarness(base, "lead", kit.harnesses.cx!);
-  const home = tempDir("sw2-cx-home-");
+  const home = tempDir("crew-cx-home-");
   materialize(kit, team, "lead", home, project, serversFor(kit, team, "lead", context));
   const dir = seatDir(kit, team.roles.lead!.role, kit.harnesses.cx!, home, project);
   const config = parse(readFileSync(join(dir, "config.toml"), "utf-8")) as Record<string, any>;
@@ -283,14 +283,14 @@ test("a catalog that cannot be read refuses the seat instead of seating it with 
     "rules/lead.rules": "",
   });
   const team = withHarness(resolveTeam(kit), "lead", kit.harnesses.cx!);
-  const home = tempDir("sw2-cx-home-");
+  const home = tempDir("crew-cx-home-");
   assert.throws(() => materialize(kit, team, "lead", home, project, {}), /Cx's model list could not be read from `node -e process.exit\(3\)`/);
   assert.equal(existsSync(join(seatDir(kit, team.roles.lead!.role, kit.harnesses.cx!, home, project), "config.toml")), false, "and nothing of the seat is written");
 });
 
 test("a changed skill reaches the seat as a new copy, the one read before stays as it was, and a copy nobody touches for two weeks goes", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   const link = join(seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project), "devin", "skills", "test-first");
   materialize(kit, team, "peer", home, project);

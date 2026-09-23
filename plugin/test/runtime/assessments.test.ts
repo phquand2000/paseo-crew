@@ -10,7 +10,7 @@ const record = (at: number): Kept => ({
   at,
   askedAt: at,
   seat: "peer-1",
-  provider: "sw2-peer-claude",
+  provider: "crew-peer-claude",
   turnId: "t1",
   running: true,
   sensor: "jev",
@@ -26,7 +26,7 @@ const record = (at: number): Kept => ({
 });
 
 test("kept assessments roll over into packed files, the oldest go first, and every one left reads back once and in order", async () => {
-  const state = tempDir("sw2-kept-");
+  const state = tempDir("crew-kept-");
   const two = 2 * Buffer.byteLength(`${JSON.stringify(record(1000))}\n`);
   const packed = (at: number) => gzipSync(`${JSON.stringify(record(at))}\n${JSON.stringify(record(at + 1))}\n`).length;
   for (let index = 0; index < 12; index++) await keepAssessment(state, record(1000 + index), two, packed(1004) + packed(1006) + packed(1008));
@@ -49,7 +49,7 @@ test("kept assessments roll over into packed files, the oldest go first, and eve
 });
 
 test("what was written last is kept even when the clock steps back, and a pack left half done goes with its file", async () => {
-  const state = tempDir("sw2-kept-back-");
+  const state = tempDir("crew-kept-back-");
   const two = 2 * Buffer.byteLength(`${JSON.stringify(record(1000))}\n`);
   const budget = 2 * gzipSync(`${JSON.stringify(record(5000))}\n${JSON.stringify(record(4900))}\n`).length + 8;
   for (let index = 0; index < 6; index++) await keepAssessment(state, record(5000 - index * 100), two, budget);
@@ -63,7 +63,7 @@ test("what was written last is kept even when the clock steps back, and a pack l
 
 test("the tally of every reading kept counts what was added since, and keeps counting across a rotation", async () => {
   // The card is polled every few seconds over a file of megabytes, so it is read once and then from where it left off.
-  const state = tempDir("sw2-tally-");
+  const state = tempDir("crew-tally-");
   assert.deepEqual(readTally(state), { turns: 0, cost: 0 }, "a project the watch never read in");
   const one = (cost: number | null) => ({ at: Date.now(), seat: "s", cost }) as unknown as Kept;
   await keepAssessment(state, one(0.001));

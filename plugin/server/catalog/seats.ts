@@ -284,7 +284,7 @@ function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: 
         record.note(ensureLink(path, target), link.link);
       } catch (error) {
         if (!(error instanceof LeftAlone)) throw error;
-        console.error(`seatworks-v2: ${error.message}`);
+        console.error(`paseo-crew: ${error.message}`);
       }
     }
     else if (link.optional && isLink(path)) {
@@ -299,10 +299,10 @@ function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, re
   const fault = configFault(file);
   // A launch-delivery harness keeps its own account data in this file; a file-delivery one holds only the seat's two tools here.
   if (fault && harness.mcp.delivery !== "file") {
-    console.error(`seatworks-v2: ${fault}, so its MCP servers were left alone`);
+    console.error(`paseo-crew: ${fault}, so its MCP servers were left alone`);
     return;
   }
-  if (fault) console.error(`seatworks-v2: ${fault}, and the plugin owns that file, so it was written again`);
+  if (fault) console.error(`paseo-crew: ${fault}, and the plugin owns that file, so it was written again`);
   const current = fault ? structuredClone(harness.mcp.seed ?? {}) : readConfig<Json>(file, structuredClone(harness.mcp.seed ?? {}));
   record.note(writeConfigIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
 }
@@ -341,7 +341,7 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, homeDir
     } catch (error) {
       // Thrown, the launch hook refused the seat for ever, since nothing removes that directory.
       if (!(error instanceof LeftAlone)) throw error;
-      console.error(`seatworks-v2: skill ${name} for the ${role.role}: ${error.message}`);
+      console.error(`paseo-crew: skill ${name} for the ${role.role}: ${error.message}`);
     }
   }
   for (const name of readdirSync(skillsDir)) {
@@ -378,7 +378,7 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   const seat = team.roles[roleName];
   if (!seat) throw new Error(`the team has no ${roleName} seat`);
   const dir = seatDir(kit, seat.role, seat.harness, homeDir, project);
-  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" };
+  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$PASEO_CREW_STATE" };
   const problems = seatProblems(kit, team, roleName, paths);
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();

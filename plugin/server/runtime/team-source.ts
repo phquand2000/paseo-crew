@@ -52,7 +52,7 @@ export class TeamSource {
       writeJson(join(project.state, "meta.json"), { root: project.root, slug: project.slug });
       this.recorded.add(project.slug);
     } catch (error) {
-      console.error("seatworks-v2: could not record the project:", error);
+      console.error("paseo-crew: could not record the project:", error);
     }
   }
 

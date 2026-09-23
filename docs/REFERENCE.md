@@ -124,7 +124,7 @@ only you can answer.
 
 | Hook or event | What the plugin does |
 |---|---|
-| before `agent.create` | For a `sw2-` provider, builds the seat directory and shapes the launch. A seat that can't be built refuses the launch, with the reason |
+| before `agent.create` | For a `crew-` provider, builds the seat directory and shapes the launch. A seat that can't be built refuses the launch, with the reason |
 | before `agent.session_open` | Seeds the project's records, writes the team block, rebuilds the seat directory if needed, and points the agent's config directory at it |
 | `agent.created` | Follows the seat's timeline, if its role can be `watched` |
 | `agent.turn_started` | Records the turn's start, for turn reading and steering |
@@ -161,13 +161,13 @@ Required: `id`, `label`, `baseProvider`, `configDirEnv`, `profileRoot`, `skillsD
 
 ## Seat directories
 
-One per role, agent and project: `<profileRoot>/sw2-<role>-<agent>-<slug>`. It is rebuilt when the
+One per role, agent and project: `<profileRoot>/crew-<role>-<agent>-<slug>`. It is rebuilt when the
 settings revision changes, its settings file is gone, or a login appeared since.
 
 | Agent | Directory | Written there | Launch |
 |---|---|---|---|
 | Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, `CLAUDE.md` for working rules | `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out |
-| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
+| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
 | Pi | `~/.pi/seats/…` | `settings.json` (`pi-mcp-adapter`, project trust off, tool lists for Reviewer and Watcher), `mcp.json`, `skills/`, links to login, models and npm | Paseo's Pi provider |
 | Devin CLI | `~/.devin/seats/…` | `devin/config.json` (permissions, command denials, subagents off, other tools' config off), `devin/AGENTS.md`, `devin/mcp_config.json`, `devin/skills/`, a link to your git config | `bin/seat-room acp`, over Paseo's ACP provider |
 
@@ -274,7 +274,7 @@ verdict. It calls Jev only with `--ask`.
 
 ## Settings
 
-There are two layers: `~/.local/share/seatworks-v2/settings.json` for the machine, and
+There are two layers: `~/.local/share/paseo-crew/settings.json` for the machine, and
 `projects/<slug>/settings.json` for a project. The project layer wins per value.
 
 | Setting | Where |
@@ -302,7 +302,7 @@ There are two layers: `~/.local/share/seatworks-v2/settings.json` for the machin
 | `reworksAt` / `reviewsAt` | 3 / 3 |
 | `destructive` / `testPath` / `suppressed` / `repeatsAt` | patterns, and 3 |
 
-A `roles.json` in `~/.local/share/seatworks-v2/` replaces the preset whole. A role names `defaults`
+A `roles.json` in `~/.local/share/paseo-crew/` replaces the preset whole. A role names `defaults`
 or `follows`, never both. A follower takes the agent, model and thinking of the role it follows until
 it is given its own. Each role still needs its settings files under `harness/<agent>/settings/`.
 
@@ -322,14 +322,14 @@ under the Team tab asks again. A role's chosen model is written as that provider
 Paseo (`additionalModels`), so Paseo's own picker offers every model and starts on the role's.
 
 
-The panel talks to the server only through the `seatworks.*` RPCs in `shared/rpc.ts`. Detaching a
+The panel talks to the server only through the `paseo-crew.*` RPCs in `shared/rpc.ts`. Detaching a
 project keeps its ledger and logs, and is refused while a lane is open or a working copy is out.
 
 ## State on disk
 
 ```
-~/.paseo/config.json                      providers sw2-<role>-<agent>, agent profiles
-~/.local/share/seatworks-v2/
+~/.paseo/config.json                      providers crew-<role>-<agent>, agent profiles
+~/.local/share/paseo-crew/
   roles.json                              optional; replaces the shipped preset
   settings.json                           machine settings, including the sensor key
   settings.json.bak-<time>                what Migrate repaired, as it was; can hold the key
@@ -350,7 +350,7 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
     events.log  attention.log  status.md
     handbacks/  gates/  notebook.md  CONTEXT.md
     backup-state-<from>-<time>/           the files as they were before their format was upgraded
-<profileRoot>/sw2-<role>-<agent>-<slug>/  one seat directory per role, agent and project
+<profileRoot>/crew-<role>-<agent>-<slug>/  one seat directory per role, agent and project
 ```
 
 `events.log` is the provenance record: one JSON line per tool call and per lane, task, merge, gate

@@ -132,7 +132,7 @@ export function ledgerFault(state: string): string | undefined {
   }
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return `${file} does not hold a record`;
   const version = (stored as { version?: unknown }).version;
-  if (typeof version === "number" && version > STATE_VERSION) return `${file} is at state ${version}, made by a newer Seatworks than this one, which reads ${STATE_VERSION}`;
+  if (typeof version === "number" && version > STATE_VERSION) return `${file} is at state ${version}, made by a newer Paseo Crew than this one, which reads ${STATE_VERSION}`;
   if (version !== STATE_VERSION) return `${file} is at state ${JSON.stringify(version)} and this plugin reads ${STATE_VERSION}: its upgrade did not go through; the Plugin tab says why`;
   return undefined;
 }

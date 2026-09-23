@@ -43,15 +43,15 @@ function unitName(change: ContentChange): string {
 
 /** The version line: what runs, and what the branch it follows has. */
 function versionLine(view: UpdateView | null): { title: string; state: string } {
-  if (!view) return { title: "Seatworks", state: "Reading this copy's version." };
+  if (!view) return { title: "Paseo Crew", state: "Reading this copy's version." };
   const now = view.version || view.head;
-  if (view.updated) return { title: `Seatworks ${now}`, state: `Updated from ${view.updated.from}. The plugin is reloading.` };
+  if (view.updated) return { title: `Paseo Crew ${now}`, state: `Updated from ${view.updated.from}. The plugin is reloading.` };
   if (view.behind > 0) {
-    const title = `Seatworks ${now} → ${view.next && view.next !== now ? view.next : plural(view.behind, "commit")}`;
+    const title = `Paseo Crew ${now} → ${view.next && view.next !== now ? view.next : plural(view.behind, "commit")}`;
     return { title, state: view.busy.length > 0 ? `Stop every seat first: ${view.busy.join(", ")}.` : (view.blocked ?? plural(view.behind, "new commit")) };
   }
-  if (view.blocked) return { title: `Seatworks ${now} · ${view.head}`, state: view.blocked };
-  return { title: `Seatworks ${now} · ${view.head}`, state: view.fetched ? "Up to date." : `Check asks ${view.upstream ?? "its remote"} for anything newer.` };
+  if (view.blocked) return { title: `Paseo Crew ${now} · ${view.head}`, state: view.blocked };
+  return { title: `Paseo Crew ${now} · ${view.head}`, state: view.fetched ? "Up to date." : `Check asks ${view.upstream ?? "its remote"} for anything newer.` };
 }
 
 export function UpkeepSection({ theme }: { theme: PluginTheme }) {

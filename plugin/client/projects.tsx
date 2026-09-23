@@ -60,7 +60,7 @@ export function ProjectList({ projects, nameOf, catalog, team, waiting, theme, d
     <View style={{ gap: 24 }}>
       <View style={styles.header}>
         <View style={styles.titles}>
-          <Text style={styles.title}>Seatworks</Text>
+          <Text style={styles.title}>Paseo Crew</Text>
           <Text style={styles.sub}>Pick a project, or edit the defaults this machine uses.</Text>
         </View>
         <Button label="Add project" tone="accent" theme={theme} disabled={disabled} onPress={onSetup} />

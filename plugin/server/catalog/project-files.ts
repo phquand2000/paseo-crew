@@ -2,8 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Cleanliness, git, pristineState } from "../core/git.ts";
 
-export const BEGIN = "<!-- seatworks:begin (written by Seatworks; edit outside this block, it is replaced whole) -->";
-export const END = "<!-- seatworks:end -->";
+export const BEGIN = "<!-- paseo-crew:begin (written by Paseo Crew; edit outside this block, it is replaced whole) -->";
+export const END = "<!-- paseo-crew:end -->";
 const POINTER = "@AGENTS.md";
 
 const block = (body: string) => `${BEGIN}\n${body.trim()}\n${END}\n`;

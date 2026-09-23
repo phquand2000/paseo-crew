@@ -86,7 +86,7 @@ export class Roster {
       this.pendingArchive.delete(agentId);
       await this.seats.archive(agentId);
     } catch (error) {
-      console.error(`seatworks-v2: archiving ${agentId} failed:`, error);
+      console.error(`paseo-crew: archiving ${agentId} failed:`, error);
     }
   }
 }

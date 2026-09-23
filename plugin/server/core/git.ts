@@ -90,7 +90,7 @@ export type MergeResult = { ok: true; before: string; after: string } | { ok: fa
 export async function mergeBranch(cwd: string, branch: string, message: string): Promise<MergeResult> {
   const before = await headSha(cwd);
   if (!before) return { ok: false, conflicts: [], message: "the lane working copy has no HEAD" };
-  const run = await git(cwd, ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "merge", "--no-ff", "-m", message, branch], 120_000);
+  const run = await git(cwd, ["-c", "user.name=paseo-crew", "-c", "user.email=paseo-crew@localhost", "merge", "--no-ff", "-m", message, branch], 120_000);
   if (run.code === 0) return { ok: true, before, after: (await headSha(cwd)) ?? before };
   const unmerged = await git(cwd, ["diff", "--name-only", "--diff-filter=U"]);
   const conflicts = unmerged.stdout.split("\n").map((line) => line.trim()).filter(Boolean);

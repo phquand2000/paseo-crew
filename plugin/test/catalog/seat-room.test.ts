@@ -8,7 +8,7 @@ import { tempDir } from "../tempdir.ts";
 const SEAT_ROOM = new URL("../../bin/seat-room", import.meta.url).pathname;
 
 function seat(baseProvider: string) {
-  const dir = tempDir("sw2-seat-room-");
+  const dir = tempDir("crew-seat-room-");
   mkdirSync(join(dir, "harness", "acme"), { recursive: true });
   writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify({ baseProvider, configDirEnv: "ACME_HOME", provider: { command: ["KIT/bin/seat-room", "acp"] } }));
   const launched = join(dir, "launched");
@@ -29,7 +29,7 @@ require("node:readline").createInterface({ input: process.stdin }).on("line", (l
 `,
   );
   chmodSync(agent, 0o755);
-  return { launched, env: { PATH: process.env.PATH!, SEATWORKS_KIT: dir, SEATWORKS_HARNESS: "acme", SEATWORKS_AGENT_BIN: agent } };
+  return { launched, env: { PATH: process.env.PATH!, PASEO_CREW_KIT: dir, PASEO_CREW_HARNESS: "acme", PASEO_CREW_AGENT_BIN: agent } };
 }
 
 function open(env: Record<string, string>, messages: object[], args = ["acp"]): Promise<{ code: number | null; replies: any[]; stderr: string }> {

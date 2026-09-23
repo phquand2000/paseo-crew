@@ -7,7 +7,7 @@ import { loadKit } from "../../server/catalog/kit.ts";
 import { tempDir } from "../tempdir.ts";
 import { type Kept, keepAssessment } from "../../server/runtime/watch/jev/assessments.ts";
 
-const HOME = tempDir("sw2-calibrate-home-");
+const HOME = tempDir("crew-calibrate-home-");
 process.env.HOME = HOME;
 const { calibrate, mark, sample } = await import("../../bin/calibrate.ts");
 const shipped = Object.values(loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", "..")).sensors)[0]!.questions;
@@ -19,7 +19,7 @@ const record = (at: number, seat: string, turnId: string, answers: Record<string
   at,
   askedAt: at,
   seat,
-  provider: "sw2-peer-claude",
+  provider: "crew-peer-claude",
   turnId,
   running: true,
   sensor: "jev",
@@ -36,7 +36,7 @@ const record = (at: number, seat: string, turnId: string, answers: Record<string
 });
 
 test("the report reads each question on its own incidents, each judging question on the incidents it judged, and the turns nobody flagged", async () => {
-  const state = tempDir("sw2-calibrate-");
+  const state = tempDir("crew-calibrate-");
   const base = Date.parse("2026-09-01T00:00:00Z");
   const items: Record<string, unknown> = {};
   const acks: string[] = [];
@@ -83,8 +83,8 @@ test("the report reads each question on its own incidents, each judging question
   assert.doesNotMatch(sample(state, 5, () => 0), new RegExp(id), "a turn read once is not offered again");
   assert.match(await calibrate({ state }), /3 turns the watch did not flag; 1 spot-checked, 1 of them missed something \(miss rate 1\.00\)/);
 
-  mkdirSync(join(HOME, ".local", "share", "seatworks-v2"), { recursive: true });
-  writeFileSync(join(HOME, ".local", "share", "seatworks-v2", "settings.json"), JSON.stringify({ sensor: { key: "k" } }));
+  mkdirSync(join(HOME, ".local", "share", "paseo-crew"), { recursive: true });
+  writeFileSync(join(HOME, ".local", "share", "paseo-crew", "settings.json"), JSON.stringify({ sensor: { key: "k" } }));
   const fetcher = async (_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { state: { steps?: { text?: string; command?: string }[] }; questions: Record<string, unknown> };
     const first = body.state.steps?.[0];
@@ -103,7 +103,7 @@ test("the report reads each question on its own incidents, each judging question
 });
 
 test("what a Watcher raised or judged is counted as the Watcher's, never as the sensor's", async () => {
-  const state = tempDir("sw2-calibrate-watcher-");
+  const state = tempDir("crew-calibrate-watcher-");
   const base = Date.now() - 3_600_000;
   await keepAssessment(state, record(base, "p1", "t1", { goal_drift: 0.9 }, { found: ["goal_drift"] }));
   const ack = (id: string, finding: string, verdict: string, extra: Record<string, unknown>) =>
