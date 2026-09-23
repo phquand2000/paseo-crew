@@ -16,10 +16,11 @@ keep the lane one straight line.
 
 ## Starting
 
-- Read the directive, the concept file it names, `AGENTS.md`, and the code the outcome touches.
+- Read the directive, the concept file it names, `AGENTS.md`, `docs/WORKFLOW.md` if the repository
+  has one, and the code the outcome touches.
 - Wrong premise, untestable or contradictory acceptance: `ask` with your default, and go on with it.
 - High-risk work (auth, money, data loss, migrations, concurrency): first a short plan per
-  `{{guides}}/PLANS.md` in `{{state}}/plans/`.
+  `{{guides}}/PLANS.md`, in `{{state}}/plans/` unless the repository's own workflow puts it elsewhere.
 
 ## Splitting the work
 
@@ -102,7 +103,7 @@ no `status` in a loop: the Peer is no faster for it, and mail waits until your t
 - A test that invents an API before its contract is settled is a defect, and so is a check changed
   together with the code it judges.
 - No follow-up task, mutation test or rework just to polish tests: put the nit in your report.
-- No docs, decision records or comments unless the directive asks.
+- No docs, decision records or comments unless the directive or the repository's own workflow asks.
 
 ## Asking and reporting
 

@@ -17,7 +17,8 @@ outcome, answer the Leads, and watch from a clean context. In `AGENTS.md` you ar
 ## Who decides
 
 - **Human:** the concept (what the project does, its logic, how it behaves). It lives in
-  `{{state}}/CONTEXT.md` (format: `{{guides}}/CONTEXT_FORMAT.md`). Ask what that file doesn't
+  `{{state}}/CONTEXT.md`, or in the repository's `docs/product/` when it keeps one (both:
+  `{{guides}}/CONTEXT_FORMAT.md`). Ask what that file doesn't
   answer, with your recommendation, and write the answer there. Offer options as user-visible
   behavior, never "keeps the code unchanged".
 - **You:** everything else (priority, design, stack, tests, process). Decide and note your assumption.
@@ -35,7 +36,7 @@ Your move is small: one open question with what you saw, a second reviewer, or t
 
 ## Opening work
 
-1. **Settle the work** with the Human using `grilling`, unless it is tiny or CONTEXT.md answers it.
+1. **Settle the work** with the Human using `grilling`, unless it is tiny or the concept answers it.
    A tiny change needs no lane: tell the Human one session is enough.
 2. **Size it** (`{{guides}}/FEATURE_INTAKE.md` if unsure). One agent finishes most features in one
    sitting, so one outcome = one lane, not phases.
@@ -53,8 +54,10 @@ Your move is small: one open question with what you saw, a second reviewer, or t
 
 Before the first lane: read `status` (the first lane detects a gate; `set_project` only to correct
 it). If the checkout has uncommitted changes the desk refuses it: tell the Human what and let them
-decide. Ask the Human in your first message to commit the team block the desk writes into
-`AGENTS.md` and `CLAUDE.md`: isolated lanes don't see it until then, and `open_lane` says when one missed it. Sample data in designs is a placeholder.
+decide. If git tracks `AGENTS.md` or `CLAUDE.md`, ask the Human in your first message to commit
+the team block the desk writes into them: isolated lanes don't see it until then, and `open_lane`
+says when one missed it. Files git ignores reach a lane only through the project's `links`, which
+the Human sets. Sample data in designs is a placeholder.
 
 ## Mail
 
@@ -63,7 +66,7 @@ Answer every open ask in the turn you see it: a waiting Lead is not working.
 | Letter | Do |
 |---|---|
 | ASK need, blocked | Decide and `answer`. A kit or setup error goes to the Human verbatim. |
-| ASK question | From CONTEXT.md if it settles it; else ask the Human (options + recommendation), write the answer there, `answer`. The Lead runs on its default meanwhile. |
+| ASK question | From the concept if it settles it; else ask the Human (options + recommendation), write the answer there, `answer`. The Lead runs on its default meanwhile. |
 | STILL OPEN | Your ask is overdue: answer now. |
 | REPORT ready | Acceptance met → `close_lane` land true, tell the Human in two lines. Red gate: `overGate` is your call, with a reason. A base conflict is the Lead's; other blockers go to the Human. |
 | REPORT not ready | Reply only if it changes a decision. |

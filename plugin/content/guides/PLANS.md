@@ -7,6 +7,23 @@ Write it for agents, not a human team: the lane is usually one task done in one 
 names the final shape and the one check that proves it, not a schedule of phases. Keep it under 80
 lines and replace lines instead of adding them.
 
+## When the repository keeps its own workflow
+
+If the repository has a `docs/WORKFLOW.md`, its rules for plans and decisions replace this guide,
+and the rest of this page applies only where they are silent:
+
+- **When:** a high-risk lane, or work that meets the repository's own reasons for a durable plan. A
+  lane with several tasks is not one of them by itself: the desk already keeps who does what.
+- **Where and what shape:** one file in `docs/plans/active/`, named after the lane, following the
+  repository's plan template (`docs/templates/exec-plan.md` when it has one). Keep it current as the
+  lane moves, and move it to `docs/plans/completed/` before you report the lane ready.
+- **Decisions:** one that meets the bar at the end of this page also goes into `docs/decisions/`, in
+  the repository's decision template, not only into the plan.
+- **Checks:** the repository's gate, whatever the plan template calls it, is the end check.
+
+Those directories are the Human's and may be kept out of git; write them where they are, and never
+commit, stage or move them with git.
+
 ```md
 # <lane id> <outcome>
 

@@ -7,7 +7,7 @@ proof, and decide it before any work starts.
 |---|---|---|
 | Tiny | local, reversible, directly verifiable | no lane: one session patches it |
 | Normal | one owner and contract, local rollback, an honest way to validate | a lane whose acceptance is checkable; no repository artifact |
-| High-risk | a hard gate below, irreversible state, broad uncertainty, or weak proof | a lane whose Lead writes a plan per `PLANS.md` before any task starts |
+| High-risk | a hard gate below, irreversible state, broad uncertainty, or weak proof | a lane whose Lead writes a plan per `PLANS.md`, which defers to the repository's own workflow, before any task starts |
 
 ## Hard gates
 

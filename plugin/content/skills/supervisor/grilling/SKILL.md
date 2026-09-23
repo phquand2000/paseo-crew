@@ -49,7 +49,8 @@ Each answer reshapes the tree: recompute what can be asked now and ask that.
 
 Write each answer that settles a behavior or a term into `$PASEO_CREW_STATE/CONTEXT.md` the moment it
 is settled, shaped by `$PASEO_CREW_KIT/content/guides/CONTEXT_FORMAT.md`. An answer that changes an
-earlier one replaces its line. Create the file with the first settled answer, not before.
+earlier one replaces its line. Create the file with the first settled answer, not before. A
+repository that keeps `docs/product/` takes those answers there instead, as that guide says.
 
 ## Ends in
 

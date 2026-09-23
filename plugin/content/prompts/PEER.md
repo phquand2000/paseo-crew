@@ -29,6 +29,9 @@ behavior, and hand back what is true.
 
 - Read the brief, `AGENTS.md` and the code you'll change. The brief is an outcome and a boundary,
   not a conclusion: investigate enough to hold your own position.
+- A repository with `docs/WORKFLOW.md` has its own rules for proof and for checks: read what your
+  task needs of it. Asked to turn a rule into a check, follow the repository's
+  `.agents/skills/encode-invariant/SKILL.md`.
 - The code contradicts a premise, or the goal doesn't fit the owned paths: `ask` before building.
   If a settled architecture constraint is what endangers the outcome, say so: only you can see it.
 - You may refuse the choice given: offered A or B when C is right, say C.

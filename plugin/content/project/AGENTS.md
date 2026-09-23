@@ -21,9 +21,12 @@ and a disagreement is settled with evidence, not with rank.
 
 ### What holds for everyone
 
-- **What the project does is the Human's word**, kept in a `CONTEXT.md` outside this repository.
-  The parts your work touches reach you in your directive or brief, with its path when you need the
-  whole. Where it is silent on a behavior your work needs, ask; do not choose.
+- **What the project does is the Human's word**, kept in this repository's `docs/product/` when it
+  has one, and otherwise in a `CONTEXT.md` outside this repository. The parts your work touches reach
+  you in your directive or brief, with its path when you need the whole. Where it is silent on a
+  behavior your work needs, ask; do not choose.
+- **A repository with its own workflow** (`docs/WORKFLOW.md`) owns plans, decisions and rules for
+  code: follow it for those. Lanes, tasks, reviews, mail and landing follow this section.
 - **Nothing here has shipped** unless the Human's part of this file says so. Change a contract and
   every caller and test with it; add no shim, adapter, re-export, dual path, flag or stub to keep an
   old shape alive.

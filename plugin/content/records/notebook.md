@@ -9,8 +9,8 @@ lives. Read it at the start of a session and match what you see against it befor
 |---|---|
 | An event, a quote, a time or a SHA | nowhere: the desk logs events in `events.log` beside this file |
 | A ruling on work in flight | a `message` to the Lead |
-| A rule for code in this repository | a `message` asking the Lead to put it in `AGENTS.md` through a task |
-| What the project does or how it behaves, as the Human settled it | `CONTEXT.md` beside this file |
+| A rule for code in this repository | a `message` asking the Lead to put it in `AGENTS.md` through a task; in a repository with `docs/WORKFLOW.md`, to encode it as a check its gate runs, through a task that uses its `encode-invariant` skill, and only once the Human has accepted the rule |
+| What the project does or how it behaves, as the Human settled it | the repository's `docs/product/` when it has one, else `CONTEXT.md` beside this file |
 | A pattern, new or seen again | a row below |
 | A change to a prompt, skill, role setting or profile | a diff for the Human |
 

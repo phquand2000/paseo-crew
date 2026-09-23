@@ -31,6 +31,10 @@ Changes from upstream so far:
   keeps its agent instructions and plans out of git. See
   [Local files](docs/REFERENCE.md#local-files). State format 2 adds these values to each existing
   `project.json`, with defaults that keep 2.1 behaviour. An older Paseo Crew refuses state format 2.
+- 2.3.0: a repository that keeps its own workflow in `docs/WORKFLOW.md` (as a Harness install does)
+  owns plans, decisions, rules for code and the Human's word in `docs/product/`; the team keeps
+  lanes, tasks, reviews, mail and landing. Prompts and guides point at the project's own files;
+  nothing from Harness is shipped here. A repository without `docs/WORKFLOW.md` works as before.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
