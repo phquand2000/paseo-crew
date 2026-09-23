@@ -78,7 +78,7 @@ The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane)
 |---|---|---|
 | Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5-5` · high |
 | Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5-5` · high |
-| Peer | One task, and the engineering judgement inside it | Codex · `gpt-5.5` |
+| Peer | One task, and the engineering judgement inside it | Claude Code · `claude-opus-5-5` · high; when Claude is out of quota, switch it to Codex · `gpt-5.6-luna` · max |
 | Reviewer | A read-only review of one change | Codex · `gpt-5.5` |
 | Hunter | A read-only bug hunt across one scope, with ten scouts of its own | Antigravity · `gemini-3.8-flash-high` |
 | Watcher | Reading Leads and Peers as they work. It cannot touch the work | the Peer's agent |

@@ -734,16 +734,16 @@ test("each project gets the agent and model its own settings choose, and the mac
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "start_task", { title: "Default peer", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
   const onDefaults = h.agents.get(h.ledger().tasks["L1-T1"]!.peer!)!.provider;
-  assert.equal(onDefaults, "crew-peer-codex/gpt-5.5");
+  assert.equal(onDefaults, "crew-peer-claude/claude-opus-5-5");
   assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5-5");
 
-  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ roles: { peer: { harness: "claude", model: "claude-opus-5" } } }));
+  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ roles: { peer: { harness: "codex", model: "gpt-5.6-luna", thinking: "max" } } }));
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "done" });
   h.commit(h.root, "a.txt", "one\n");
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  await h.call(lane.lead!, "lead", "start_task", { title: "Claude peer", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
+  await h.call(lane.lead!, "lead", "start_task", { title: "Luna peer", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
   const switched = h.agents.get(h.ledger().tasks["L1-T2"]!.peer!)!.provider;
-  assert.equal(switched, "crew-peer-claude/claude-opus-5");
+  assert.equal(switched, "crew-peer-codex/gpt-5.6-luna");
   assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5-5");
   h.runtime.dispose();
 });
@@ -1689,7 +1689,7 @@ test("by a seat, one Watcher sits in the project while a lane is open, on the Pe
   await h.tick();
   const [watcher, ...more] = watchersOf(h);
   assert.deepEqual(more, [], "one, however many rounds find it");
-  assert.equal(watcher!.provider, "crew-watcher-codex/gpt-5.5", "on the Peer's agent and model, nothing having been set for it");
+  assert.equal(watcher!.provider, "crew-watcher-claude/claude-opus-5-5", "on the Peer's agent and model, nothing having been set for it");
   assert.equal(watcher!.cwd, h.project.root, "in the project, not in a lane's copy");
   assert.equal(watcher!.status, "running");
 

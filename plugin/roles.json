@@ -63,8 +63,9 @@
       "label": "Peer",
       "description": "Does one task and hands it back",
       "defaults": {
-        "harness": "codex",
-        "model": "gpt-5.5"
+        "harness": "claude",
+        "model": "claude-opus-5-5",
+        "thinking": "high"
       },
       "can": [
         "work",
