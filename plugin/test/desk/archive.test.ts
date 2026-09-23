@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
 import { tempDir } from "../tempdir.ts";
-import { KEEP_CLOSED_LANES, type LaneArchive, archiveDir, fileRecords, keepArchived, takeFinished } from "../../server/desk/archive.ts";
+import { KEEP_CLOSED_LANES, type LaneArchive, RECORD_TAIL_BYTES, archiveDir, fileRecords, keepArchived, takeFinished } from "../../server/desk/archive.ts";
 import { type Lane, type Task, emptyLedger } from "../../server/desk/ledger.ts";
 
 const lane = (n: number, status: Lane["status"] = "closed"): Lane =>
@@ -112,4 +112,20 @@ test("records left by a crash between the ledger and the files are filed on the 
   assert.deepEqual(readdirSync(archiveDir(state)).sort(), ["L3.json.gz", "L4.json.gz", "L5.json.gz"]);
   assert.deepEqual(Object.keys(read(state, "L5").records).sort(), ["handbacks/L5-T1-1.md", "handbacks/L5-T2-2.md"], "a late record joins its lane's file");
   assert.ok(!existsSync(join(state, "handbacks", "L5-T2-2.md")));
+});
+
+test("a gate log too big to hold is filed by its tail, where a failure is, and nothing larger is ever read in", () => {
+  const state = tempDir("sw2-archive-big-");
+  const ledger = emptyLedger();
+  ledger.seq.lane = 1;
+  mkdirSync(join(state, "gates"));
+  const line = "PASS a case that ran fine\n";
+  writeFileSync(join(state, "gates", "L1-T1-1.log"), `${line.repeat(Math.ceil((RECORD_TAIL_BYTES * 1.5) / line.length))}FAIL the one that broke\n`);
+
+  fileRecords(state, ledger);
+
+  const kept = read(state, "L1").records["gates/L1-T1-1.log"]!;
+  assert.match(kept, /^\[the start of this log was cut/);
+  assert.match(kept, /FAIL the one that broke\n$/);
+  assert.ok(Buffer.byteLength(kept) <= RECORD_TAIL_BYTES + 100, `${Buffer.byteLength(kept)} bytes kept`);
 });

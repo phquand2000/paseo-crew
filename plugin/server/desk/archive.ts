@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { lastBytes } from "../core/gate.ts";
 import { appendRolling } from "../core/rolling.ts";
 import type { AgentRef, Ask, Lane, Ledger, Task } from "./ledger.ts";
 import { laneRecords } from "./records.ts";
@@ -9,6 +10,7 @@ export const KEEP_CLOSED_LANES = 20;
 export const ARCHIVE_KEEP_BYTES = 64 * 1024 * 1024;
 export const DESK_ROTATE_BYTES = 8 * 1024 * 1024;
 export const DESK_KEEP_BYTES = 16 * 1024 * 1024;
+export const RECORD_TAIL_BYTES = 1024 * 1024;
 
 /** A lane that left the ledger, one file each: its entries and the records it wrote, by path under the state directory. */
 export type LaneArchive = { lane?: Lane; tasks: Task[]; asks: Ask[]; agents: AgentRef[]; records: Record<string, string> };
@@ -121,7 +123,10 @@ export function fileRecords(state: string, ledger: Ledger, keepBytes = ARCHIVE_K
         const key = `${record.dir}:${record.owner}`;
         if (record.dir === "gates" && last.has(key)) continue;
         last.add(key);
-        archive.records[`${record.dir}/${record.name}`] = readFileSync(join(state, record.dir, record.name), "utf-8");
+        const file = join(state, record.dir, record.name);
+        // Only the tail: a gate that printed hundreds of megabytes brought the plugin down whole, and its failure is at the end.
+        const cut = statSync(file).size > RECORD_TAIL_BYTES ? `[the start of this log was cut; its last ${RECORD_TAIL_BYTES} bytes follow]\n` : "";
+        archive.records[`${record.dir}/${record.name}`] = cut + lastBytes(file, RECORD_TAIL_BYTES);
       }
     });
     for (const record of records) {
