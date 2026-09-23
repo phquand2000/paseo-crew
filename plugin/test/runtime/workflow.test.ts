@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { mock, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 import type { WatchView, WatchSeat } from "../../shared/views.ts";
 
 const HOME = mkdtempSync(join(tmpdir(), "sw2-flow-home-"));
@@ -13,7 +14,8 @@ globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof f
 
 const { loadKit } = await import("../../server/catalog/kit.ts");
 const { applyModels } = await import("../../server/catalog/models.ts");
-const { loadLedger } = await import("../../server/desk/ledger.ts");
+const { loadLedger, saveLedger } = await import("../../server/desk/ledger.ts");
+const { KEEP_CLOSED_LANES } = await import("../../server/desk/archive.ts");
 const { projectOf } = await import("../../server/desk/project.ts");
 type Project = ReturnType<typeof projectOf>;
 const { Runtime } = await import("../../server/runtime/runtime.ts");
@@ -2615,5 +2617,27 @@ test("every call is held to the schema the seat was shown, and told what it take
   assert.match(report.text, /needs ready/);
   const blank = await h.call(peer, "peer", "done", { outcome: "complete", summary: "  " });
   assert.match(blank.text, /needs summary/, "a required text has to say something");
+  h.runtime.dispose();
+});
+
+test("a patrol round files finished lanes past the newest few into the archive, and leaves the rest", async () => {
+  const h = harness("outbox-archive.json");
+  h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.tick(Date.now());
+  const ledger = h.ledger();
+  for (let n = 1; n <= KEEP_CLOSED_LANES + 1; n++) {
+    ledger.lanes[`L${n}`] = { id: `L${n}`, title: `old ${n}`, outcome: "", acceptance: [], outOfScope: [], base: "main", branch: `lane/l${n}`, writeSet: [], contracts: [], opener: "sup", status: "closed", openedAt: n, tasks: 0, lead: `gone-lead-${n}` };
+  }
+  ledger.seq.lane = KEEP_CLOSED_LANES + 1;
+  saveLedger(h.project.state, ledger);
+  mkdirSync(join(h.project.state, "handbacks"), { recursive: true });
+  writeFileSync(join(h.project.state, "handbacks", "L1-T1-1.md"), "what L1 handed back");
+  await h.tick(Date.now());
+  assert.ok(!existsSync(join(h.project.state, "handbacks", "L1-T1-1.md")), "its hand-back went with it");
+  assert.equal(h.ledger().lanes.L1, undefined, "the oldest finished lane left the ledger");
+  assert.equal(Object.keys(h.ledger().lanes).length, KEEP_CLOSED_LANES);
+  const filed = gunzipSync(readFileSync(join(h.project.state, "archive", "L1.json.gz"))).toString("utf-8");
+  assert.match(filed, /"id":"L1"/);
+  assert.match(filed, /what L1 handed back/);
   h.runtime.dispose();
 });

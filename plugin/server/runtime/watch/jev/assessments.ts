@@ -24,7 +24,7 @@ export type Kept = {
 };
 
 export const ROTATE_BYTES = 32 * 1024 * 1024;
-export const KEEP_FILES = 64;
+export const KEEP_BYTES = 96 * 1024 * 1024;
 
 export const KEPT_FILE = "current.jsonl";
 const ROLLED = { prefix: "", ext: ".jsonl" };
@@ -44,8 +44,8 @@ export function lastKept(state: string, now = Date.now()): number | undefined {
 
 const stamps = (names: string[], complete = false) => rolledStamps(names, ROLLED, complete);
 
-export function keepAssessment(state: string, kept: Kept, rotateAt = ROTATE_BYTES, keep = KEEP_FILES): Promise<void> {
-  return appendRolling({ dir: assessmentsDir(state), current: KEPT_FILE, ...ROLLED, rotateAt, keep, plain: 0 }, `${JSON.stringify(kept)}\n`);
+export function keepAssessment(state: string, kept: Kept, rotateAt = ROTATE_BYTES, keepBytes = KEEP_BYTES): Promise<void> {
+  return appendRolling({ dir: assessmentsDir(state), current: KEPT_FILE, ...ROLLED, rotateAt, keepBytes, plain: 0 }, `${JSON.stringify(kept)}\n`);
 }
 
 export type Tally = { turns: number; cost: number };

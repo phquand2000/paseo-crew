@@ -9,6 +9,7 @@ import { errorText } from "../core/errors.ts";
 import { type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { clip, letters } from "./letters.ts";
 import { tidyRecords } from "./records.ts";
+import { fileRecords, keepArchived, takeFinished } from "./archive.ts";
 import { MergeQueue } from "./merge.ts";
 import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
@@ -179,6 +180,21 @@ export class Desk {
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.services.ctx.setTask(project, taskId, change);
+  }
+
+  /** Checked on a plain read first, so a round with nothing to archive does not rewrite the ledger; records follow once it is saved. */
+  async archiveFinished(project: Project, gone: (agentId: string) => boolean): Promise<void> {
+    const taken = takeFinished(loadLedger(project.state), gone)
+      ? await this.services.ctx.ledger(project, (ledger) => {
+          const found = takeFinished(ledger, gone);
+          if (found) keepArchived(project.state, found);
+          return found;
+        })
+      : undefined;
+    const filed = fileRecords(project.state, loadLedger(project.state));
+    if (taken || filed.length > 0) {
+      this.services.ctx.event(project, { kind: "ledger.archived", lanes: taken?.lanes.map((entry) => entry.lane!.id) ?? [], agents: taken?.agents.length ?? 0, asks: taken?.asks.length ?? 0, records: filed.length });
+    }
   }
 
   async sweep(project: Project, busy = false): Promise<void> {

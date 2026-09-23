@@ -95,7 +95,7 @@ export function flowView(
     });
   }
 
-  // The Supervisor seated now: `ledger.agents` is never pruned, so its first entry is the oldest, maybe archived.
+  // The Supervisor seated now: `ledger.agents` keeps each role's newest gone seat, so its first entry may be archived.
   const recorded = Object.values(ledger.agents).filter((agent) => supervises.has(agent.role));
   const live = recorded
     .filter((agent) => seats.has(agent.id))

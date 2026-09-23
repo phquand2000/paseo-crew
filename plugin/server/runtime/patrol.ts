@@ -68,6 +68,8 @@ export class Patrol {
       await this.step(project, "what a lane's history shows could not be read", () => this.history(project, loadLedger(project.state), seats));
       await this.step(project, "the Watcher could not be settled", () => this.settleWatcher(project, loadLedger(project.state), seats));
       await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
+      // An empty listing is a daemon that answered nothing, not a project whose every seat is gone.
+      if (seats.size > 0) await this.step(project, "finished lanes could not be archived", () => desk.archiveFinished(project, (id) => !seats.has(id) && outbox.pending(id).length === 0));
       await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
       await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
     }
