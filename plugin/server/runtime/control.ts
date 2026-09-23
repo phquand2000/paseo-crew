@@ -326,7 +326,7 @@ export class SettingsControl implements Control {
     const waiting = [...seats.values()].filter(
       (seat) => can(seatOf(this.deps.kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
     );
-    return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now(), undefined, waiting, this.deps.held()) };
+    return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now(), { waiting, held: this.deps.held() }) };
   }
 
   async flow(slug: string, since?: string, open?: string[]): Promise<unknown> {

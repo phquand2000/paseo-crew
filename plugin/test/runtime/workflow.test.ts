@@ -14,6 +14,7 @@ globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof f
 
 const { loadKit } = await import("../../server/catalog/kit.ts");
 const { applyModels } = await import("../../server/catalog/models.ts");
+const { placeProjectFiles } = await import("../../server/catalog/project-files.ts");
 const { loadLedger, saveLedger } = await import("../../server/desk/ledger.ts");
 const { KEEP_CLOSED_LANES } = await import("../../server/desk/archive.ts");
 const { projectOf } = await import("../../server/desk/project.ts");
@@ -375,6 +376,44 @@ test("a lane that fails after taking the project's own copy gives it back", asyn
   assert.equal(lane.status, "closed");
   assert.equal(h.git(h.project.root, "branch", "--show-current").trim(), before, "the owner's repository is back where it was");
   assert.equal(h.git(h.project.root, "branch", "--list", lane.branch).trim(), "", "and the branch the lane made, which holds nothing, is gone");
+  h.runtime.dispose();
+});
+
+test("the Supervisor's status shows the Human's own copy, names a choice only where carrying on is a real question, and what each open lane is for", async () => {
+  const h = harness("outbox-own-copy.json");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { base: "main", gate: "true" });
+  const status = async () => (await h.call(sup, "supervisor", "status", {})).text;
+  const choice = /The Human decides where the next lane works/;
+  placeProjectFiles(h.root, "Team rules.");
+
+  const fresh = await status();
+  assert.match(fresh, /Base main\.[^\n]*\n\n## The project's own copy\n\n[^\n]* is on main, clean\.\nNo lane is working in it\./, fresh);
+  assert.doesNotMatch(fresh, choice, "on the base and clean but for the desk's own block, a lane just opens");
+
+  h.git(h.root, "switch", "-qc", "fix/login");
+  const offBase = await status();
+  assert.match(offBase, /is on fix\/login, clean\./);
+  assert.match(offBase, choice, "the reported case: a clean branch that is not the base");
+  assert.match(offBase, /carry on fix\/login here, or a new branch off main/);
+
+  for (let n = 1; n <= 12; n++) writeFileSync(join(h.root, `wip-${String(n).padStart(2, "0")}.txt`), "half done\n");
+  writeFileSync(join(h.root, "a.txt"), "edited\n");
+  const dirty = await status();
+  assert.match(dirty, /with 13 uncommitted files: a\.txt, wip-01\.txt, [^\n]*wip-09\.txt, and 3 more\./, dirty);
+  assert.match(dirty, /takes the uncommitted work along/);
+
+  h.git(h.root, "stash", "-u", "-q");
+  h.git(h.root, "switch", "-q", "main");
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"], writeSet: ["a.txt"], contracts: ["b.txt"] });
+  assert.equal(opened.ok, true, opened.text);
+  const held = await status();
+  assert.match(held, /Lane L1 is working in it\./);
+  assert.doesNotMatch(held, choice, "a lane holds the copy, so the next one takes a copy of its own");
+  assert.match(held, /Outcome: a\.txt gains words\nWrites: a\.txt\nDepends on: b\.txt/);
+
+  const lead = (await h.call(h.ledger().lanes.L1!.lead!, "lead", "status", {})).text;
+  assert.doesNotMatch(lead, /The project's own copy|Outcome:/, "a Lead's status is its own lane, as before");
   h.runtime.dispose();
 });
 

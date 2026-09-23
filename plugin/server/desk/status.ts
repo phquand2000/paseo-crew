@@ -1,5 +1,5 @@
 import type { SeatView } from "../core/paseo.ts";
-import type { Ledger } from "./ledger.ts";
+import type { Lane, Ledger } from "./ledger.ts";
 import { type Project, type ProjectConfig, projectOf } from "./project.ts";
 
 
@@ -12,18 +12,48 @@ function seatLine(seats: Map<string, SeatView>, id: string | undefined, now: num
   return seat.status === "idle" ? `${id} idle ${minutes(now, seat.updatedAt)} min` : `${id} ${seat.status}`;
 }
 
+/** What the status tool read from the project's own checkout; `work` is undefined when git could not say. */
+export type OwnCopy = { branch?: string; head?: string; work?: string[] };
+
+const SHOWN_FILES = 10;
+const SHOWN_OUTCOME = 300;
+
+/** Names a choice for the Human only where one is real: uncommitted work, or a branch that is not the base, with no lane in the copy. */
+function ownCopyLines(project: Project, ledger: Ledger, config: ProjectConfig, copy: OwnCopy): string[] {
+  const at = copy.branch ? `on ${copy.branch}` : `not on a branch (detached at ${copy.head ?? "an unknown commit"})`;
+  const work = copy.work ? [...copy.work].sort() : undefined;
+  const more = work && work.length > SHOWN_FILES ? `, and ${work.length - SHOWN_FILES} more` : "";
+  const state = !work ? "and git could not say what is uncommitted" : work.length === 0 ? "clean" : `with ${work.length} uncommitted ${work.length === 1 ? "file" : "files"}: ${work.slice(0, SHOWN_FILES).join(", ")}${more}`;
+  const holder = Object.values(ledger.lanes).find((lane) => lane.status === "open" && !lane.slot);
+  const lines = ["## The project's own copy", "", `${project.root} is ${at}, ${state}.`, holder ? `Lane ${holder.id} is working in it.` : "No lane is working in it."];
+  if (!holder && copy.branch && work) {
+    if (work.length > 0) lines.push(`The Human decides where the next lane works, before it opens: carry on ${copy.branch} here, a new branch that takes the uncommitted work along, or a new branch that leaves it where it is.`);
+    else if (config.base && copy.branch !== config.base) lines.push(`The Human decides where the next lane works, before it opens: carry on ${copy.branch} here, or a new branch off ${config.base}.`);
+  }
+  lines.push("");
+  return lines;
+}
+
+function laneAim(lane: Lane): string[] {
+  const outcome = lane.outcome.replace(/\s+/g, " ").trim();
+  return [
+    `Outcome: ${outcome.length > SHOWN_OUTCOME ? `${outcome.slice(0, SHOWN_OUTCOME).trimEnd()}…` : outcome}`,
+    `Writes: ${lane.writeSet.join(", ") || "not declared, so taken to reach every path this project keeps to one writer"}`,
+    ...(lane.contracts.length > 0 ? [`Depends on: ${lane.contracts.join(", ")}`] : []),
+  ];
+}
+
 export function statusText(
   project: Project,
   ledger: Ledger,
   config: ProjectConfig,
   seats: Map<string, SeatView>,
   now: number,
-  laneId?: string,
-  waiting: SeatView[] = [],
-  held: { to: string; text: string; at: number }[] = [],
+  { laneId, waiting = [], held = [], copy }: { laneId?: string; waiting?: SeatView[]; held?: { to: string; text: string; at: number }[]; copy?: OwnCopy } = {},
 ): string {
   const gate = config.gate || (config.gate === "" ? "none, by this project's own choice" : "none");
   const lines = [`# Status: ${project.root}`, "", `Updated ${new Date(now).toISOString()}. Base ${config.base ?? "unset"}. Gate ${gate}.`, ""];
+  if (copy) lines.push(...ownCopyLines(project, ledger, config, copy));
   // One outbox holds every project's mail: a seated recipient belongs to its copy's project, a gone one to this project's record.
   const mine = held.filter((letter) => {
     const seat = seats.get(letter.to);
@@ -58,7 +88,7 @@ export function statusText(
   if (open.length === 0) lines.push("No open lanes.", "");
   for (const lane of open) {
     const detour = lane.detourOf ? ` Clearing the way for ${lane.detourOf}.` : "";
-    lines.push(`## ${lane.id} ${lane.title}`, "", `Branch ${lane.branch} off ${lane.base}. Lead ${seatLine(seats, lane.lead, now)}.${detour}`, "");
+    lines.push(`## ${lane.id} ${lane.title}`, "", `Branch ${lane.branch} off ${lane.base}. Lead ${seatLine(seats, lane.lead, now)}.${detour}`, ...(copy ? laneAim(lane) : []), "");
     const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
     if (tasks.length === 0) lines.push("- no tasks yet");
     for (const task of tasks) {
