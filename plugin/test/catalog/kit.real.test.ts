@@ -149,6 +149,30 @@ test("a Codex seat runs on the model provider the owner's own Codex names, and o
   assert.equal(seat.approval_policy, "never", "and the kit's own settings still hold");
 });
 
+test("a Codex seat turns off each skill in the owner's own ~/.agents/skills by its path, and keeps its own of the same name", (t) => {
+  const kit = loadKit(pluginRoot);
+  const pair = seatPairs(kit).find((entry) => entry.harness.id === "codex" && entry.role.role === "lead")!;
+  if (!realProbes.has(pair.harness.modelCatalog!.command[0]!)) return t.skip("codex is not installed here");
+  const team = withHarness(resolveTeam(kit), "lead", pair.harness);
+  const project = { slug: "demo-000000", state: "/state/demo" };
+  const home = tempDir("crew-codex-skills-");
+  const dir = seatDir(kit, pair.role, pair.harness, home, project);
+  const file = join(dir, "config.toml");
+  materialize(kit, team, "lead", home, project);
+  assert.equal(readConfig<Record<string, any>>(file, {}).skills?.config, undefined, "no own skills, nothing to turn off");
+  const own = join(home, ".agents", "skills");
+  for (const name of ["ultra-review", "tilth"]) {
+    mkdirSync(join(own, name), { recursive: true });
+    writeFileSync(join(own, name, "SKILL.md"), `---\nname: ${name}\ndescription: x\n---\n`);
+  }
+  mkdirSync(join(own, "notes"), { recursive: true });
+  materialize(kit, team, "lead", home, project);
+  const seat = readConfig<Record<string, any>>(file, {});
+  assert.deepEqual(seat.skills.config, ["tilth", "ultra-review"].map((name) => ({ path: join(own, name, "SKILL.md"), enabled: false })), "a folder without a SKILL.md is no skill");
+  assert.equal(seat.skills.bundled.enabled, false, "and Codex's own stay off beside them");
+  assert.ok(existsSync(join(dir, "skills", "ultra-review", "SKILL.md")), "the seat's own ultra-review is another path, so it stays");
+});
+
 // Codex under approval_policy "never" refuses every MCP call not approved ahead.
 test("a Codex seat has every desk and proxy tool it is given approved ahead, and other agents get no such list", () => {
   const kit = loadKit(pluginRoot);

@@ -8,6 +8,12 @@
   "skillsDir": "skills",
   "steers": true,
   "systemPrompt": "config",
+  "hideSkills": {
+    "roots": [
+      "HOME/.agents/skills"
+    ],
+    "setting": "skills.config"
+  },
   "mcp": {
     "file": "config.toml",
     "delivery": "launch",

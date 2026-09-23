@@ -43,6 +43,7 @@ export type HarnessSpec = {
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
   skillPermission?: string;
+  hideSkills?: { roots: string[]; setting: string };
   exitPattern?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[]; inherits?: { from: string; keys: string[] } };
   links?: { link: string; target: string; optional?: boolean }[];
@@ -78,6 +79,7 @@ const HARNESS_FIELDS = new Set([
   "stateWrites",
   "projectContextOption",
   "skillPermission",
+  "hideSkills",
   "exitPattern",
   "settings",
   "links",
@@ -117,6 +119,10 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   }
   if (raw.skillPermission !== undefined && (typeof raw.skillPermission !== "string" || raw.skillPermission === "")) {
     problems.push("gives skillPermission without a settings path");
+  }
+  const hide = raw.hideSkills as { roots?: unknown; setting?: unknown } | undefined;
+  if (hide !== undefined && (!Array.isArray(hide?.roots) || hide.roots.some((root) => typeof root !== "string") || typeof hide.setting !== "string" || hide.setting === "")) {
+    problems.push("gives hideSkills without a list of roots and a settings path");
   }
   const files = raw.files as Record<string, unknown> | undefined;
   if (files !== undefined) {

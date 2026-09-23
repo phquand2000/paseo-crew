@@ -168,6 +168,7 @@ only you can answer.
 | `contextFile` | The file in the seat directory that gets the working rules |
 | `skillsDir` | Where skills are linked, each to its copy under `content/` |
 | `skillPermission` | A dotted settings path that gets the role's skills allowed and every other skill denied |
+| `hideSkills` | Your own skill folders the agent would load anyway, and the settings path where each skill found there is written as `{ path, enabled: false }` |
 | `settings` | Base settings, the per-role overlay, the paths the plugin owns in an existing file, and `inherits`: keys taken from your own config for that agent |
 | `mcp` | The MCP file, how servers are delivered, transports, and seed and clear rules |
 | `links`, `files` | Files linked from your own setup (logins, history), and files composed per role |
@@ -412,11 +413,11 @@ it:
 - **An Antigravity seat still sees agy's built-in skills** (`agy-customizations`,
   `antigravity_guide`, `automation`, `generative_ui`, `migrate-workflows`, `permissioned-github`).
   They ship inside agy and no setting turns them off.
-- **A Codex seat still sees the skills in your own `~/.agents/skills`.** `[skills.bundled]` turns
-  off only Codex's own. Codex hides one skill per `[[skills.config]]` entry by the absolute
-  path of its `SKILL.md`; no key hides a whole directory, and an entry by `name` also hides the
-  seat's own skill of that name. So a Lead seat whose owner has an `ultra-review` of their own sees
-  two. Nothing in the kit knows your paths, so nothing writes those entries.
+- **A Codex seat hides your `~/.agents/skills` only as they were when it was built.** Codex has no
+  key that hides a whole folder, so the seat gets one `[[skills.config]]` entry per `SKILL.md` it
+  finds there, by path; by name would hide the seat's own skill of that name too. A skill you add
+  later shows in the seat until the daemon restarts or settings are saved. A
+  repository's own `.agents/skills` stays visible: it belongs to the repository.
 - **The Hunter needs an agent with subagents of its own.** On Codex, where the seat's subagents are
   off, a Hunter says so and stops.
 - **Reading an archived ACP seat's history leaves its agent running.** Paseo resumes the agent to

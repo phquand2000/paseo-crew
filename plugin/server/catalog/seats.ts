@@ -269,6 +269,21 @@ function skillPermissionSetting(kit: Kit, team: Team, roleName: string): Json {
   return setting;
 }
 
+/** Skills the agent would load from the owner's own roots, each turned off by the path it is listed under. */
+function hideSkillsSetting(harness: HarnessSpec, homeDir: string): Json {
+  const spec = harness.hideSkills;
+  if (!spec) return {};
+  const hidden = spec.roots.flatMap((root) => {
+    const dir = expandHome(root, homeDir);
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir).sort().map((name) => join(dir, name, "SKILL.md")).filter((path) => existsSync(path)).map((path) => ({ path, enabled: false }));
+  });
+  if (hidden.length === 0) return {};
+  const setting: Json = {};
+  setPath(setting, spec.setting.split("."), hidden);
+  return setting;
+}
+
 function stateWritesSetting(kit: Kit, team: Team, roleName: string, project?: SeatProject): Json {
   const { role, harness } = team.roles[roleName]!;
   if (harness.stateWrites?.delivery !== "file" || !project) return {};
@@ -395,7 +410,7 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();
   mkdirSync(dir, { recursive: true });
-  const extra = layerSettings(layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(kit, team, roleName, project)), skillPermissionSetting(kit, team, roleName)) as Json;
+  const extra = [stateWritesSetting(kit, team, roleName, project), skillPermissionSetting(kit, team, roleName), hideSkillsSetting(seat.harness, homeDir)].reduce<unknown>(layerSettings, writeModelCatalog(seat.harness, dir, record)) as Json;
   writeRoleSettings(kit, seat.harness, seat.role, dir, homeDir, record, extra);
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);
