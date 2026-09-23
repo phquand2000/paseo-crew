@@ -9,11 +9,12 @@ import { contentRoot, expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
+import { projectWrites } from "../desk/project.ts";
 import { errorText } from "../core/errors.ts";
 
 type Json = Record<string, unknown>;
 
-export type SeatProject = { slug: string; state: string };
+export type SeatProject = { slug: string; state: string; root?: string };
 
 export function seatDir(kit: Kit, role: RoleSpec, harness: HarnessSpec, homeDir = home(), project?: SeatProject): string {
   const name = `${kit.prefix}${role.role}-${harness.id}${project ? `-${project.slug}` : ""}`;
@@ -262,7 +263,8 @@ function stateWritesSetting(kit: Kit, team: Team, roleName: string, project?: Se
   const { role, harness } = team.roles[roleName]!;
   if (harness.stateWrites?.delivery !== "file" || !project) return {};
   const setting: Json = {};
-  setPath(setting, harness.stateWrites.path.split("."), stateWrites(kit, team, role, project.state));
+  const writes = project.root ? projectWrites({ root: project.root, state: project.state }) : [];
+  setPath(setting, harness.stateWrites.path.split("."), [...stateWrites(kit, team, role, project.state), ...writes]);
   return setting;
 }
 

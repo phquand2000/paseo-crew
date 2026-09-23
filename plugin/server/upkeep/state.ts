@@ -7,7 +7,16 @@ import { readJson, writeJson } from "../core/store.ts";
 /** Steps run in order at plugin start, which an update only does once every seat has stopped. */
 export type StateStep = { to: number; machine?: (root: string) => void; project?: (state: string) => void };
 
-export const STEPS: StateStep[] = [];
+export const STEPS: StateStep[] = [
+  {
+    to: 2,
+    // project.json gains links, writable and claudePointer; these defaults are format 1's behaviour.
+    project: (state) => {
+      const file = join(state, "project.json");
+      if (existsSync(file)) writeJson(file, { links: [], writable: [], claudePointer: true, ...readJson<object>(file, {}) });
+    },
+  },
+];
 
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json"];
 const PROJECT_FILES = ["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json"];

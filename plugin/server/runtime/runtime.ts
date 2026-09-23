@@ -20,7 +20,7 @@ import { Desk } from "../desk/desk.ts";
 import { type Ledger, type Sibling, alongside, laneOfLead, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { appendRecord } from "../desk/records.ts";
-import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
+import { type Project, gateCommands, loadConfig, projectOf, projectWrites } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
 import { codeIndex } from "./code-index.ts";
 import { type Letter, Outbox } from "./outbox.ts";
@@ -519,7 +519,7 @@ export class Runtime {
     this.remember(project);
     const team = this.seating.ensure(seat.role.role, seat.harness, project);
     const render = (role: Parameters<typeof renderPrompt>[1]) => renderPrompt(this.kit, role, { guides: guidesDir(), state: project.state });
-    return applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role));
+    return applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role), projectWrites(project));
   }
 
   private openSession(request: SessionOpen): SessionOpen {
@@ -533,7 +533,7 @@ export class Runtime {
       console.error("paseo-crew: could not seed project records:", error);
     }
     try {
-      if (this.kit.team) placeProjectFiles(project.root, this.kit.team);
+      if (this.kit.team) placeProjectFiles(project.root, this.kit.team, loadConfig(project.state));
     } catch (error) {
       console.error("paseo-crew: could not write the team's block into the project's AGENTS.md:", error);
     }

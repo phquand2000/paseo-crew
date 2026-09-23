@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Cleanliness, git, pristineState } from "../core/git.ts";
 
@@ -31,13 +31,23 @@ export function withPointer(text: string): string {
   return withBlock(text, POINTER);
 }
 
+/** Without the pointer only the plugin's own block goes: a file left holding nothing else was the plugin's to begin with. */
+function withoutPointer(text: string): string | undefined {
+  const rest = withoutBlock(text);
+  if (rest === text) return text;
+  return rest ? `${rest}\n` : undefined;
+}
+
 const read = (file: string) => (existsSync(file) ? readFileSync(file, "utf-8") : "");
 
-export function staleProjectFiles(root: string, body: string): { name: string; file: string; wanted: string }[] {
-  const stale: { name: string; file: string; wanted: string }[] = [];
+/** `wanted` undefined: the file goes. */
+export type ProjectFile = { name: string; file: string; wanted: string | undefined };
+
+export function staleProjectFiles(root: string, body: string, { claudePointer = true }: { claudePointer?: boolean } = {}): ProjectFile[] {
+  const stale: ProjectFile[] = [];
   for (const [name, next] of [
     ["AGENTS.md", (text: string) => withBlock(text, body)],
-    ["CLAUDE.md", withPointer],
+    ["CLAUDE.md", claudePointer ? withPointer : withoutPointer],
   ] as const) {
     const file = join(root, name);
     const text = read(file);
@@ -47,9 +57,14 @@ export function staleProjectFiles(root: string, body: string): { name: string; f
   return stale;
 }
 
-export function placeProjectFiles(root: string, body: string): string[] {
-  const stale = staleProjectFiles(root, body);
-  for (const { file, wanted } of stale) writeFileSync(file, wanted);
+export function writeProjectFile({ file, wanted }: ProjectFile): void {
+  if (wanted === undefined) rmSync(file, { force: true });
+  else writeFileSync(file, wanted);
+}
+
+export function placeProjectFiles(root: string, body: string, options: { claudePointer?: boolean } = {}): string[] {
+  const stale = staleProjectFiles(root, body, options);
+  for (const entry of stale) writeProjectFile(entry);
   return stale.map(({ name }) => name);
 }
 

@@ -70,6 +70,9 @@ test("a seat's shell may write every place under state its own content names, an
     for (const owned of DESK_OWNED) assert.ok(!paths.includes(`/state/repo/${owned}`), `the ${role} was given the desk's own ${owned}`);
   }
   assert.ok(granted("lead").includes("/state/repo/ultra-review"));
+  const writes = (applyRole(real, realTeam, sandboxed("peer"), render, "/state/repo", {}, ["/work/repo/docs/plans"]) as unknown as { providerOptions: any }).providerOptions.settings.sandbox.filesystem.allowWrite;
+  assert.ok(writes.includes("/work/repo/docs/plans"), "and the paths the Human made writable in the project");
+  assert.ok(!granted("peer").includes("/work/repo/docs/plans"));
   assert.ok(granted("supervisor").includes("/state/repo/CONTEXT.md"), "the Supervisor writes the project's concept as the Human settles it");
   assert.ok(!granted("lead").includes("/state/repo/CONTEXT.md"), "a Lead reads the Human's word and does not rewrite it");
 

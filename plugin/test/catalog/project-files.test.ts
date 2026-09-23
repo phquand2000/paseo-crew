@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { loadKit } from "../../server/catalog/kit.ts";
@@ -24,6 +24,23 @@ test("a project gets the team's block in AGENTS.md and a pointer to it in CLAUDE
   placeProjectFiles(other, "New rules.");
   assert.equal(read(other, "AGENTS.md"), `# Ours\n\nUse pnpm.\n\n${BEGIN}\nNew rules.\n${END}\n`, "the block is replaced whole, beside the Human's text");
   assert.equal(read(other, "CLAUDE.md"), "Be brief.\n\n@AGENTS.md\n", "a CLAUDE.md that already reaches AGENTS.md is left as it is");
+});
+
+test("with the pointer turned off CLAUDE.md is never made, and only the plugin's own block is taken back out of one", () => {
+  const root = tempDir("crew-files-");
+  assert.deepEqual(placeProjectFiles(root, "Team rules.", { claudePointer: false }), ["AGENTS.md"]);
+  assert.equal(existsSync(join(root, "CLAUDE.md")), false);
+
+  placeProjectFiles(root, "Team rules.");
+  assert.deepEqual(placeProjectFiles(root, "Team rules.", { claudePointer: false }), ["CLAUDE.md"]);
+  assert.equal(existsSync(join(root, "CLAUDE.md")), false, "a file that was nothing but the plugin's pointer goes");
+
+  writeFileSync(join(root, "CLAUDE.md"), "Be brief.\n");
+  placeProjectFiles(root, "Team rules.");
+  placeProjectFiles(root, "Team rules.", { claudePointer: false });
+  assert.equal(read(root, "CLAUDE.md"), "Be brief.\n", "the Human's text stays");
+  writeFileSync(join(root, "CLAUDE.md"), "Be brief.\n\n@AGENTS.md\n");
+  assert.deepEqual(placeProjectFiles(root, "Team rules.", { claudePointer: false }), [], "a pointer the Human wrote is theirs");
 });
 
 test("a lane may take over a copy whose only change is the team's block, and not one the Human has changed", async () => {

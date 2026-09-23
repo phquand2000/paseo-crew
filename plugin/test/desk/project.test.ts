@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { clearProjects, gateCommands, gitRoot, projectOf, slugFor } from "../../server/desk/project.ts";
+import { clearProjects, gateCommands, gitRoot, loadConfig, pathProblem, projectOf, projectWrites, saveConfig, slugFor } from "../../server/desk/project.ts";
 import { tempDir } from "../tempdir.ts";
 
 test("a slug is stable and readable", () => {
@@ -44,4 +44,30 @@ test("a gate that names a package script is also run by the runner that script s
   assert.deepEqual(gateCommands(root, "cargo test"), ["cargo test"]);
   assert.deepEqual(gateCommands(root, "npm run missing"), ["npm run missing"]);
   assert.deepEqual(gateCommands(root, undefined), []);
+});
+
+test("the Human's links and writable paths default to none, and the CLAUDE.md pointer to on", () => {
+  const state = tempDir("crew-state-");
+  const config = loadConfig(state);
+  assert.deepEqual([config.links, config.writable, config.claudePointer], [[], [], true]);
+  saveConfig(state, { ...config, links: ["AGENTS.md"], claudePointer: false });
+  assert.deepEqual([loadConfig(state).links, loadConfig(state).claudePointer], [["AGENTS.md"], false]);
+});
+
+test("a configured path must stay inside the project, and a writable one is granted as its real path", () => {
+  const root = realpathSync(tempDir("crew-root-"));
+  const outside = realpathSync(tempDir("crew-outside-"));
+  mkdirSync(join(root, "docs", "plans"), { recursive: true });
+  symlinkSync(outside, join(root, "away"));
+  assert.equal(pathProblem(root, "docs/plans"), undefined);
+  assert.equal(pathProblem(root, "docs/../docs/plans"), undefined);
+  assert.match(pathProblem(root, "/etc") ?? "", /not a path relative/);
+  assert.match(pathProblem(root, "../x") ?? "", /leaves the project/);
+  assert.match(pathProblem(root, ".") ?? "", /leaves the project/);
+  assert.match(pathProblem(root, "missing") ?? "", /does not exist/);
+  assert.match(pathProblem(root, "away") ?? "", /resolves outside/);
+
+  const state = tempDir("crew-state-");
+  saveConfig(state, { ...loadConfig(state), writable: ["docs/plans", "away", "../x", "missing"] });
+  assert.deepEqual(projectWrites({ root, state }), [join(root, "docs", "plans")]);
 });

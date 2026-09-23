@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
@@ -9,6 +9,8 @@ import { composeSettings, materialize, seatDir, sweepSnapshots } from "../../ser
 import { contentRoot } from "../../server/core/paths.ts";
 import { seatPairs } from "../../server/catalog/providers.ts";
 import { resolveTeam, serversFor, withHarness } from "../../server/catalog/team.ts";
+import { Seating } from "../../server/runtime/seating.ts";
+import { TeamSource } from "../../server/runtime/team-source.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -272,6 +274,36 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   // The Peer has its settings but no rules file: it cannot sit on this agent, rather than sitting on it without its rules.
   assert.equal(seatPairs(kit).some((pair) => pair.role.role === "lead" && pair.harness.id === "cx"), true);
   assert.equal(seatPairs(kit).some((pair) => pair.role.role === "peer" && pair.harness.id === "cx"), false);
+});
+
+test("the Human's writable paths reach an agent's own sandbox as real paths, and changing them rebuilds the seat", () => {
+  const kit = withAgent({
+    "harness.json": agent(offering),
+    "settings.toml": "",
+    "settings/lead.settings.toml": 'sandbox_mode = "workspace-write"\n',
+    "rules/all.rules": "",
+    "rules/lead.rules": "",
+  });
+  writeFileSync(join(kit.dir, "content", "prompts", "LEAD.md"), "# Lead\n\nWrite a plan in {{state}}/plans/ first.\n");
+  const root = realpathSync(tempDir("crew-cx-root-"));
+  mkdirSync(join(root, "docs", "plans"), { recursive: true });
+  const where = { root, slug: "shop-abc123", state: tempDir("crew-cx-state-") };
+  const home = tempDir("crew-cx-home-");
+  const previous = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    const seating = new Seating(kit, new TeamSource(kit), context);
+    const lead = kit.roles.find((role) => role.role === "lead")!;
+    const roots = () => (parse(readFileSync(join(seatDir(kit, lead, kit.harnesses.cx!, home, where), "config.toml"), "utf-8")) as Record<string, any>).sandbox_workspace_write.writable_roots;
+    seating.ensure("lead", kit.harnesses.cx!, where);
+    assert.deepEqual(roots(), [join(where.state, "plans")]);
+    writeFileSync(join(where.state, "project.json"), JSON.stringify({ writable: ["docs/plans", "../elsewhere"] }));
+    seating.ensure("lead", kit.harnesses.cx!, where);
+    assert.deepEqual(roots(), [join(where.state, "plans"), join(root, "docs", "plans")]);
+  } finally {
+    if (previous === undefined) delete process.env.HOME;
+    else process.env.HOME = previous;
+  }
 });
 
 test("a catalog that cannot be read refuses the seat instead of seating it with native agents on offer", () => {

@@ -91,3 +91,13 @@ test("state a newer version made is refused, not read", () => {
   assert.match(upgradeState(root, undefined, undefined, NOW).failed[0]!.error, /made by a newer Paseo Crew/);
   assert.match(ledgerFault(shop) ?? "", /made by a newer Paseo Crew/);
 });
+
+test("format 2 writes format 1's behaviour into project.json and keeps what the Human had set", () => {
+  const { root, shop } = machineAt("v1");
+  assert.deepEqual(upgradeState(root, undefined, undefined, NOW).failed, []);
+  const stored = readJson<Record<string, unknown>>(join(shop, "project.json"), {});
+  assert.deepEqual([stored.links, stored.writable, stored.claudePointer, stored.gate, stored.gateTimeoutMinutes], [[], [], true, "npm test", 20]);
+  const carried = machineAt("v2");
+  assert.deepEqual(upgradeState(carried.root, undefined, undefined, NOW).upgraded, []);
+  assert.equal(loadConfig(carried.shop).claudePointer, false);
+});

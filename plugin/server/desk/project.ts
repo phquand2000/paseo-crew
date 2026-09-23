@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, normalize, sep } from "node:path";
 import { gitCommonDir } from "../core/git.ts";
 import { stateRoot } from "../core/paths.ts";
 import { SERIAL_ONLY } from "../core/scope.ts";
@@ -10,7 +10,16 @@ export type Project = { root: string; slug: string; state: string };
 
 export type GateOn = "lane" | "task";
 
-export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly: string[] };
+export type ProjectConfig = {
+  base?: string;
+  gate?: string;
+  gateTimeoutMinutes: number;
+  gateOn: GateOn;
+  serialOnly: string[];
+  links: string[];
+  writable: string[];
+  claudePointer: boolean;
+};
 
 const cache = new Map<string, Project>();
 
@@ -101,9 +110,32 @@ export function loadConfig(state: string): ProjectConfig {
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
     gateOn: stored.gateOn === "task" ? "task" : "lane",
     serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : SERIAL_ONLY,
+    links: Array.isArray(stored.links) ? stored.links.map(String) : [],
+    writable: Array.isArray(stored.writable) ? stored.writable.map(String) : [],
+    claudePointer: stored.claudePointer !== false,
   };
 }
 
 export function saveConfig(state: string, config: ProjectConfig): void {
   writeJson(configFile(state), config);
+}
+
+/** Why `rel` cannot name a path inside the project's own checkout, or undefined when it can. */
+export function pathProblem(root: string, rel: string): string | undefined {
+  if (!rel || isAbsolute(rel)) return "is not a path relative to the project";
+  const clean = normalize(rel);
+  if (clean === "." || clean.split(/[\\/]/).includes("..")) return "leaves the project";
+  const path = join(root, clean);
+  if (!existsSync(path)) return "does not exist in the project";
+  const home = realpathSync(root);
+  const real = realpathSync(path);
+  if (real !== home && !real.startsWith(home + sep)) return "resolves outside the project";
+  return undefined;
+}
+
+/** The Human's `writable` paths, resolved: a sandbox checks the real path, not a lane copy's link to it. */
+export function projectWrites(project: { root: string; state: string }): string[] {
+  return loadConfig(project.state)
+    .writable.filter((rel) => !pathProblem(project.root, rel))
+    .map((rel) => realpathSync(join(project.root, normalize(rel))));
 }

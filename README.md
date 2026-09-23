@@ -27,6 +27,10 @@ Changes from upstream so far:
 - 2.1.1: accepts Paseo `>=0.8.0 <0.10.0` and is built and tested against the 0.9.1 SDK; tests
   resolve their own paths with `fileURLToPath`, so the suite passes in a directory whose path has
   spaces.
+- 2.2.0: `links`, `writable` and `claudePointer` in a project's `project.json`, for a project that
+  keeps its agent instructions and plans out of git. See
+  [Local files](docs/REFERENCE.md#local-files). State format 2 adds these values to each existing
+  `project.json`, with defaults that keep 2.1 behaviour. An older Paseo Crew refuses state format 2.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -94,7 +98,7 @@ Vietnamese: change `language` in `plugin/harness/claude/settings.json` for anoth
 
 You need:
 
-- Paseo `>=0.8.0 <0.9.0`
+- Paseo `>=0.8.0 <0.10.0`
 - Node.js 24 or newer. There is no build step.
 - `git` and `jq`
 - the CLI of each agent you use, signed in
@@ -136,7 +140,8 @@ later one in a working copy of its own.
 **Your project's `AGENTS.md`.** The first time a seat opens, the plugin writes the team's shared
 rules into your `AGENTS.md`, in a marked `paseo-crew` block. It replaces that block whole and never
 touches your own text. `CLAUDE.md` gets a pointer to `AGENTS.md`. Commit both once, because a lane in
-its own working copy sees only what is committed.
+its own working copy sees only what is committed. To keep them out of git instead, see
+[Local files](docs/REFERENCE.md#local-files).
 
 The panel has four tabs: **Team** (agents and the watch), **Flow** (lanes, tasks and questions,
 live), **MCP** (optional servers per role) and **Health**. Everything the desk keeps lives under

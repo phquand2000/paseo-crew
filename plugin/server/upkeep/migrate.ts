@@ -1,13 +1,13 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MigrateStep, MigrateView } from "../../shared/views.ts";
 import type { Kit } from "../catalog/kit.ts";
-import { staleProjectFiles } from "../catalog/project-files.ts";
+import { staleProjectFiles, writeProjectFile } from "../catalog/project-files.ts";
 import { digest } from "../catalog/seats.ts";
 import type { LayerSchema } from "../catalog/settings.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import type { Project } from "../desk/project.ts";
+import { type Project, loadConfig } from "../desk/project.ts";
 
 export const BACKUP = /^settings\.json\.bak-\d{8}-\d{6}$/;
 
@@ -119,7 +119,8 @@ function blockSteps(ctx: MigrateContext): Step[] {
   if (!body) return [];
   return ctx.known.flatMap<Step>((project) => {
     if (!existsSync(project.root)) return [];
-    const stale = staleProjectFiles(project.root, body);
+    const options = loadConfig(project.state);
+    const stale = staleProjectFiles(project.root, body, options);
     if (stale.length === 0) return [];
     return [
       {
@@ -129,7 +130,7 @@ function blockSteps(ctx: MigrateContext): Step[] {
         detail: ["Commit it afterwards: a lane's working copy is made from what is committed."],
         auto: true,
         apply: () => {
-          for (const { file, wanted } of staleProjectFiles(project.root, body)) writeFileSync(file, wanted);
+          for (const entry of staleProjectFiles(project.root, body, options)) writeProjectFile(entry);
         },
       },
     ];

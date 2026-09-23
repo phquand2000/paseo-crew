@@ -4,6 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFil
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { STATE_VERSION } from "../../server/core/state.ts";
 
 const HOME = mkdtempSync(join(tmpdir(), "crew-rpc-home-"));
 process.env.HOME = HOME;
@@ -145,14 +146,14 @@ test("attaching a project is undone by detaching it, unless work is still runnin
   await call("paseo-crew.settings.write", { project: added.slug, revision: read.revision, values: { roles: { peer: { harness: "devin" } } } });
 
   const state = join(HOME, ".local/share/paseo-crew/projects", added.slug);
-  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: 1, lanes: { L1: { id: "L1", status: "open" } }, tasks: {} }));
+  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: STATE_VERSION, lanes: { L1: { id: "L1", status: "open" } }, tasks: {} }));
   const refused = await call("paseo-crew.projects.remove", { project: added.slug });
   assert.match(refused.error, /open lane\(s\)/);
 
   // Closed lanes and their cut tasks are provenance that nothing deletes, so they must not count as work.
   writeFileSync(
     join(state, "ledger.json"),
-    JSON.stringify({ version: 1, lanes: { L1: { id: "L1", status: "closed" } }, tasks: { "L1-T1": { id: "L1-T1", lane: "L1", status: "cut" } } }),
+    JSON.stringify({ version: STATE_VERSION, lanes: { L1: { id: "L1", status: "closed" } }, tasks: { "L1-T1": { id: "L1-T1", lane: "L1", status: "cut" } } }),
   );
   assert.deepEqual(await call("paseo-crew.projects.remove", { project: added.slug }), { removed: added.slug });
   const listed = await call("paseo-crew.projects.list");

@@ -2641,3 +2641,41 @@ test("a patrol round files finished lanes past the newest few into the archive, 
   assert.match(filed, /what L1 handed back/);
   h.runtime.dispose();
 });
+
+test("a lane's own copy links the Human's ignored files from the project, and never one git would count as a change", async () => {
+  const h = harness("outbox-links.json");
+  const { lstatSync, readlinkSync } = await import("node:fs");
+  const { loadConfig } = await import("../../server/desk/project.ts");
+  writeFileSync(join(h.root, ".git", "info", "exclude"), "NOTES.md\ndocs/plans\n");
+  writeFileSync(join(h.root, "NOTES.md"), "local\n");
+  mkdirSync(join(h.root, "docs", "plans"), { recursive: true });
+  writeFileSync(join(h.root, "docs", "plans", "p.md"), "plan\n");
+  writeFileSync(join(h.root, "loose.md"), "not ignored\n");
+  mkdirSync(h.project.state, { recursive: true });
+  writeFileSync(join(h.project.state, "project.json"), JSON.stringify({ links: ["NOTES.md", "docs/plans", "loose.md", "missing.md", "../outside", "a.txt"] }));
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  const away = await h.call(sup, "supervisor", "open_lane", { title: "Away", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
+  assert.equal(away.ok, true, away.text);
+  const copy = h.ledger().slots[h.ledger().lanes.L1!.slot!]!.path;
+  assert.equal(readlinkSync(join(copy, "NOTES.md")), join(h.project.root, "NOTES.md"));
+  assert.equal(readlinkSync(join(copy, "docs", "plans")), join(h.project.root, "docs", "plans"));
+  assert.equal(existsSync(join(copy, "loose.md")), false, "an untracked file git sees would make the copy dirty");
+  assert.equal(existsSync(join(copy, "missing.md")), false);
+  assert.equal(lstatSync(join(copy, "a.txt")).isSymbolicLink(), false, "what is committed wins over a link");
+  assert.equal(h.git(copy, "status", "--porcelain"), "");
+
+  const set = await h.call(sup, "supervisor", "set_project", { gate: "true" });
+  assert.equal(set.ok, true, set.text);
+  assert.deepEqual(loadConfig(h.project.state).links, ["NOTES.md", "docs/plans", "loose.md", "missing.md", "../outside", "a.txt"], "the Supervisor's edit keeps the Human's links");
+
+  h.agents.get(h.ledger().lanes.L1!.lead!)!.status = "idle";
+  const closed = await h.call(sup, "supervisor", "close_lane", { lane: "L1", land: false, reason: "done" });
+  assert.equal(closed.ok, true, closed.text);
+  assert.equal(existsSync(copy), false);
+  assert.equal(readFileSync(join(h.root, "NOTES.md"), "utf-8"), "local\n", "putting the copy away leaves what it linked to");
+  assert.equal(readFileSync(join(h.root, "docs", "plans", "p.md"), "utf-8"), "plan\n");
+  const again = await h.call(sup, "supervisor", "open_lane", { title: "Again", outcome: "b.txt changes", acceptance: ["a"], isolate: true, ...scope });
+  assert.equal(again.ok, true, again.text);
+  h.runtime.dispose();
+});

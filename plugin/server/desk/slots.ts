@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, rmSync, rmdirSync, symlinkSync } from "node:fs";
+import { dirname, join, normalize } from "node:path";
 import { addWorktree, branchExists, cleanState, contains, currentBranch, excludeFromGit, git, removeWorktree } from "../core/git.ts";
 import { workState } from "../catalog/project-files.ts";
 import type { Workspace, Workspaces } from "../core/ports.ts";
@@ -7,7 +7,7 @@ import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
 import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
 import { clip } from "./letters.ts";
-import type { Project } from "./project.ts";
+import { type Project, loadConfig, pathProblem } from "./project.ts";
 import { errorText } from "../core/errors.ts";
 
 export type Holder = { lane?: string; task?: string };
@@ -29,6 +29,7 @@ export class Slots {
     const picked = await this.reserve(project, holder);
     try {
       const reused = await this.checkOut(project, picked, branch, base);
+      await this.placeLinks(project, picked);
       const workspaceId = picked.workspaceId ?? (await this.createWorkspace(project, picked));
       this.ctx.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
       this.index(project, picked, reused);
@@ -249,6 +250,30 @@ export class Slots {
     const added = await addWorktree(project.root, slot.path, branch, base);
     if (!added.ok) throw new Error(added.message);
     return false;
+  }
+
+  /** Links the Human's uncommitted, git-ignored paths into a copy made from what is committed; anything else would leave it dirty. */
+  private async placeLinks(project: Project, slot: Slot): Promise<void> {
+    for (const rel of loadConfig(project.state).links) {
+      const problem = pathProblem(project.root, rel);
+      const path = problem ? rel : normalize(rel);
+      const target = join(slot.path, path);
+      let skipped = problem;
+      if (!skipped && lstatSync(target, { throwIfNoEntry: false })) continue;
+      // Asked before the link exists, so git judges it as the file a symlink is, never as a directory.
+      if (!skipped && (await git(slot.path, ["check-ignore", "-q", "--", path])).code !== 0) skipped = "is not ignored by git, so the copy would count as changed";
+      if (!skipped) {
+        try {
+          mkdirSync(dirname(target), { recursive: true });
+          symlinkSync(join(project.root, path), target);
+          continue;
+        } catch (error) {
+          skipped = `could not be linked: ${errorText(error)}`;
+        }
+      }
+      this.ctx.log(project, `${rel} was not linked into working copy ${slot.id}: it ${skipped}`);
+      this.ctx.event(project, { kind: "link.skipped", slot: slot.id, path: rel, why: skipped });
+    }
   }
 
   /** Files the copy under its project: given a bare directory Paseo makes a new project, and the plugin API cannot remove one. */
