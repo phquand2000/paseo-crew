@@ -88,3 +88,40 @@ test("a seat the plugin configured starts the agent on its own settings", async 
   assert.deepEqual(replies, []);
   assert.equal(readFileSync(launched, "utf-8"), "/seats/acme-peer acp\n");
 });
+
+const AGY_HOME = fileURLToPath(new URL("../../bin/agy-home", import.meta.url));
+
+function agySeat() {
+  const dir = tempDir("crew-agy-home-");
+  mkdirSync(join(dir, "harness", "agy"), { recursive: true });
+  writeFileSync(join(dir, "harness", "agy", "harness.json"), JSON.stringify({ baseProvider: "acp", configDirEnv: "PASEO_CREW_AGY_HOME", provider: { command: ["KIT/bin/agy-home"] } }));
+  const launched = join(dir, "launched");
+  const agent = join(dir, "agent");
+  writeFileSync(agent, `#!/usr/bin/env bash\necho "$HOME $*" >> ${JSON.stringify(launched)}\n`);
+  chmodSync(agent, 0o755);
+  return { launched, env: { PATH: process.env.PATH!, HOME: "/owner", PASEO_CREW_KIT: dir, PASEO_CREW_HARNESS: "agy", PASEO_CREW_AGENT_BIN: agent } };
+}
+
+function run(env: Record<string, string>, args: string[]): Promise<number | null> {
+  return new Promise((resolve) => {
+    const child = spawn(AGY_HOME, args, { env, stdio: ["pipe", "ignore", "ignore"] });
+    child.stdin.on("error", () => {});
+    child.on("close", resolve);
+    child.stdin.end(`${JSON.stringify({ jsonrpc: "2.0", ...PROBE[0] })}\n`);
+  });
+}
+
+test("an agy seat runs with the seat as its home, since agy reads every setting from there", async () => {
+  const { launched, env } = agySeat();
+  assert.equal(await run({ ...env, PASEO_CREW_AGY_HOME: "/seats/agy-peer" }, []), 0);
+  assert.equal(readFileSync(launched, "utf-8"), "/seats/agy-peer \n");
+});
+
+test("an agy launch the plugin did not configure keeps the owner's home and goes only as far as the catalog", async () => {
+  const { launched, env } = agySeat();
+  await run(env, []);
+  assert.equal(readFileSync(launched, "utf-8"), "/owner \n");
+  const refused = agySeat();
+  assert.equal(await run(refused.env, ["--version"]), 2);
+  assert.equal(existsSync(refused.launched), false);
+});

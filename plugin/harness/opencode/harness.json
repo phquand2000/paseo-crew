@@ -1,0 +1,46 @@
+{
+  "id": "opencode",
+  "label": "OpenCode",
+  "baseProvider": "opencode",
+  "profileRoot": "HOME/.opencode/seats",
+  "configDirEnv": "XDG_CONFIG_HOME",
+  "contextFile": "opencode/AGENTS.md",
+  "skillsDir": "opencode/skills",
+  "systemPrompt": "config",
+  "skillPermission": "permission.skill",
+  "mcp": {
+    "file": "opencode/opencode.json",
+    "delivery": "launch",
+    "transports": [
+      "stdio",
+      "http"
+    ]
+  },
+  "settings": {
+    "file": "opencode/opencode.json",
+    "source": "settings.json",
+    "roleSource": "settings/ROLE.settings.json"
+  },
+  "links": [
+    {
+      "link": "git",
+      "target": "HOME/.config/git",
+      "optional": true
+    }
+  ],
+  "checks": [
+    {
+      "path": "HOME/.local/share/opencode/auth.json",
+      "help": "Log in with `opencode auth login` once, outside any seat; every OpenCode seat shares that login."
+    }
+  ],
+  "provider": {
+    "env": {
+      "OPENCODE_DISABLE_CLAUDE_CODE": "1",
+      "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1",
+      "OPENCODE_DISABLE_AUTOUPDATE": "1",
+      "PASEO_CREW_HARNESS": "opencode",
+      "PASEO_CREW_AGENT_BIN": "opencode"
+    }
+  }
+}

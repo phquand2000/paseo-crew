@@ -3,5 +3,5 @@ prefix_rule(pattern = ["git", ["merge", "checkout", "switch", "reset", "rebase",
 prefix_rule(pattern = ["git", "branch", ["-f", "-D", "--force"]], decision = "forbidden", justification = "Branches belong to the desk.")
 prefix_rule(pattern = ["gh"], decision = "forbidden", justification = "The desk talks to the forge.")
 prefix_rule(pattern = ["paseo"], decision = "forbidden", justification = "Paseo is the only control plane, and the desk drives it.")
-prefix_rule(pattern = [["claude", "codex", "opencode", "devin", "pi"]], decision = "forbidden", justification = "A seat does not start agents.")
+prefix_rule(pattern = [["claude", "codex", "opencode", "agy"]], decision = "forbidden", justification = "A seat does not start agents.")
 prefix_rule(pattern = [["npx", "bunx"], ["claude", "codex", "opencode"]], decision = "forbidden", justification = "A seat does not start agents.")

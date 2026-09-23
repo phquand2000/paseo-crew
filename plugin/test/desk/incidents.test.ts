@@ -45,7 +45,7 @@ test("by a Watcher seat a fact waits for the Watcher as long as the project says
   const { project, services, posted, seated } = desk(true, "seat");
   seated.supervisor = "sup";
   const at = Date.now();
-  const sent = await notice(services, project, { id: "peer-1", provider: "crew-peer-devin/swe-2-max" }, [stuck], at);
+  const sent = await notice(services, project, { id: "peer-1", provider: "crew-peer-agy/swe-2-max" }, [stuck], at);
   assert.deepEqual(sent.sent, []);
   assert.equal(loadIncidents(project.state).items.I1!.held, "awaiting");
   assert.deepEqual(await retell(services, project, at + 3 * 60_000), [], "Jev's two minutes are not the Watcher's");
@@ -56,24 +56,24 @@ test("by a Watcher seat a fact waits for the Watcher as long as the project says
 test("a veto is lifted only by the reader that made it, so changing reader sends nothing either held back", async () => {
   const { project, services, posted, seated, machine } = desk(true, "seat");
   seated.supervisor = "sup";
-  const seat = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const seat = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   const at = Date.now();
   await notice(services, project, seat, [{ kind: "test-weakened", level: "attend", quote: "an assertion gone", facts: ["test-weakened"] }], at);
   assert.equal(loadIncidents(project.state).items.I1!.held, "awaiting", "a fact the Watcher judges waits for it");
-  await judge(services, project, seat, [{ kind: "test-weakened", question: WATCHER_JUDGED, p: 0, model: "devin/swe", says: "vetoes" }], at);
+  await judge(services, project, seat, [{ kind: "test-weakened", question: WATCHER_JUDGED, p: 0, model: "agy/swe", says: "vetoes" }], at);
   assert.equal(loadIncidents(project.state).items.I1!.held, "vetoed");
   // Jev does not judge this fact, so by Jev nothing would hold it any more.
   (machine.attention as { by: string }).by = "jev";
   assert.deepEqual(await retell(services, project, at + 3_600_000), [], "the Watcher held it back, and only a Watcher lets it go");
   assert.equal(posted.length, 0);
   (machine.attention as { by: string }).by = "seat";
-  await judge(services, project, seat, [{ kind: "test-weakened", question: WATCHER_JUDGED, p: 1, model: "devin/swe", says: "confirms" }], at + 3_600_000);
+  await judge(services, project, seat, [{ kind: "test-weakened", question: WATCHER_JUDGED, p: 1, model: "agy/swe", says: "confirms" }], at + 3_600_000);
   assert.equal(posted.length, 1, "and one that comes round to it is told");
 });
 
 test("what a Watcher raised and what Jev raised under the same name are two incidents, each its own reader's", async () => {
   const { project, services } = desk();
-  const seat = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const seat = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   await notice(services, project, seat, [{ kind: "goal_drift", level: "attend", quote: "S4 changed docs/", facts: [], by: "watcher" }]);
   await notice(services, project, seat, [{ kind: "goal_drift", level: "attend", quote: "wandered off", facts: ["outside-scope"], p: 0.9, model: "jev" }]);
   await notice(services, project, seat, [{ kind: "goal_drift", level: "attend", quote: "S7 changed docs/", facts: [], by: "watcher" }]);
@@ -83,7 +83,7 @@ test("what a Watcher raised and what Jev raised under the same name are two inci
 
 test("the same thing seen of one seat, however often and however concurrently, is one incident", async () => {
   const { project, services } = desk();
-  const seat = { id: "peer-1", title: "Peer", provider: "crew-peer-devin/swe-2-max" };
+  const seat = { id: "peer-1", title: "Peer", provider: "crew-peer-agy/swe-2-max" };
   const results = await Promise.all([notice(services, project, seat, [stuck]), notice(services, project, seat, [stuck]), notice(services, project, seat, [{ ...stuck, quote: "again" }])]);
   assert.equal(results.flatMap((result) => result.opened).length, 1, "only the first sighting opens anything");
   const held = loadIncidents(project.state);
@@ -91,15 +91,15 @@ test("the same thing seen of one seat, however often and however concurrently, i
   assert.equal(items.length, 1);
   assert.equal(items[0]!.count, 3);
   assert.equal(items[0]!.quote, "again", "the latest words are kept");
-  await notice(services, project, { id: "peer-2", provider: "crew-peer-devin/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-2", provider: "crew-peer-agy/swe-2-max" }, [stuck]);
   await notice(services, project, seat, [{ kind: "destructive", level: "page", quote: "rm -rf /", facts: ["destructive"] }]);
   assert.equal(Object.keys(loadIncidents(project.state).items).length, 3, "another seat, or another kind, is another incident");
 });
 
 test("a mark goes on the incident named and closes it, and a sighting of something else opens a new one", async () => {
   const { project, services, supervisor } = desk();
-  await notice(services, project, { id: "peer-1", provider: "crew-peer-devin/swe-2-max" }, [stuck]);
-  await notice(services, project, { id: "peer-2", provider: "crew-peer-devin/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-1", provider: "crew-peer-agy/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-2", provider: "crew-peer-agy/swe-2-max" }, [stuck]);
   assert.equal((await ack(services, supervisor, { id: "I9", verdict: "useful" })).ok, false);
   const reply = await ack(services, supervisor, { id: "I2", verdict: "noise", note: "expected: a normal retry of `curl -H 'Authorization: Bearer 9f8e7d6c5b4a39281706'`" });
   assert.equal(reply.ok, true, reply.text);
@@ -111,7 +111,7 @@ test("a mark goes on the incident named and closes it, and a sighting of somethi
   assert.equal(held.I1!.label, undefined, "the other incident is untouched");
   assert.equal(held.I1!.open, true);
   // The same words again are counted on the mark, so a standing condition is not asked about per sighting.
-  const reopened = await notice(services, project, { id: "peer-2", provider: "crew-peer-devin/swe-2-max" }, [{ ...stuck, quote: "the same action failing 3 times: npm run build" }]);
+  const reopened = await notice(services, project, { id: "peer-2", provider: "crew-peer-agy/swe-2-max" }, [{ ...stuck, quote: "the same action failing 3 times: npm run build" }]);
   assert.deepEqual(reopened.opened.map((incident) => incident.id), ["I3"]);
   const listed = await incidents(services, supervisor, {});
   assert.match(listed.text, /2 not yet marked:/);
@@ -139,9 +139,9 @@ test("a question alone raises on two readings in a running turn or one at its en
 test("a fact the sensor can judge waits for it, is held back when it disagrees, sent when it agrees, and sent anyway if it never answers", async () => {
   const { project, services, posted, seated } = desk(true);
   seated.supervisor = "sup";
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
-  const other = { id: "peer-2", provider: "crew-peer-devin/swe-2-max" };
-  const late = { id: "peer-3", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
+  const other = { id: "peer-2", provider: "crew-peer-agy/swe-2-max" };
+  const late = { id: "peer-3", provider: "crew-peer-agy/swe-2-max" };
   const at = Date.now();
   for (const seat of [peer, other, late]) await notice(services, project, seat, [stuck], at);
   assert.deepEqual(Object.values(loadIncidents(project.state).items).map((item) => item.held), ["awaiting", "awaiting", "awaiting"]);
@@ -166,8 +166,8 @@ test("a fact the sensor can judge waits for it, is held back when it disagrees, 
 test("a veto holds back only what it judged, and the next sighting waits for the sensor again", async () => {
   const { project, services, seated } = desk(true);
   seated.supervisor = "sup";
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
-  const other = { id: "peer-2", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
+  const other = { id: "peer-2", provider: "crew-peer-agy/swe-2-max" };
   const at = Date.now();
   for (const seat of [peer, other]) {
     await notice(services, project, seat, [stuck], at);
@@ -181,7 +181,7 @@ test("a veto holds back only what it judged, and the next sighting waits for the
 test("a doubtful reading raised at attention does not swallow the certain one that follows: that one pages", async () => {
   const { project, services, posted, seated } = desk(true);
   seated.supervisor = "sup";
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   const unsafe = (level: "page" | "attend", p: number) => [{ kind: "unsafe_action", level, quote: `p=${p}`, facts: [], p }];
   assert.deepEqual((await notice(services, project, peer, unsafe("attend", 0.55))).sent, ["I1"]);
   assert.deepEqual((await notice(services, project, peer, unsafe("page", 0.97))).sent, ["I1"]);
@@ -194,7 +194,7 @@ test("a doubtful reading raised at attention does not swallow the certain one th
 
 test("what was held because nobody could be told is told on its next sighting once somebody can, and only then goes quiet", async () => {
   const { project, services, posted, seated } = desk(true);
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   const page = (quote: string) => [{ kind: "destructive", level: "page" as const, quote, facts: ["destructive"] }];
   await notice(services, project, peer, page("rm -rf build"));
   assert.equal(loadIncidents(project.state).items.I1!.held, "nobody");
@@ -212,13 +212,13 @@ test("an incident book that cannot be read is refused rather than started again 
   const { project, services, supervisor } = desk(true);
   mkdirSync(project.state, { recursive: true });
   writeFileSync(join(project.state, "incidents.json"), "{ not json");
-  await assert.rejects(notice(services, project, { id: "peer-1", provider: "crew-peer-devin/swe-2-max" }, [stuck]), /could not be read: [\s\S]*Nothing was written over it/);
+  await assert.rejects(notice(services, project, { id: "peer-1", provider: "crew-peer-agy/swe-2-max" }, [stuck]), /could not be read: [\s\S]*Nothing was written over it/);
   assert.equal((await incidents(services, supervisor, {})).ok, false);
 });
 
 test("an incident closed because its seat went away still waits to be marked", async () => {
   const { project, services, supervisor } = desk();
-  await notice(services, project, { id: "peer-1", provider: "crew-peer-devin/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-1", provider: "crew-peer-agy/swe-2-max" }, [stuck]);
   await closeIncidentsOf(services, project, "peer-1");
   const listed = await incidents(services, supervisor, {});
   assert.match(listed.text, /I1 \[attend, closed, not sent: shadow, not marked\]/);
@@ -228,7 +228,7 @@ test("an incident closed because its seat went away still waits to be marked", a
 
 test("what was held for nobody is told by the round once somebody sits down, and a sighting after the letter is kept beside what was told", async () => {
   const { project, services, supervisor, posted, seated } = desk(true);
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   await notice(services, project, peer, [{ kind: "destructive", level: "page", quote: "rm -rf src", facts: ["destructive"] }]);
   assert.deepEqual(await retell(services, project), [], "nobody yet");
   seated.supervisor = "sup";
@@ -244,7 +244,7 @@ test("what was held for nobody is told by the round once somebody sits down, and
 test("a condition the Supervisor marked noise is counted, not raised again, unless it pages", async () => {
   const { project, services, supervisor, posted, seated } = desk(true);
   seated.supervisor = "sup";
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   // Parallel Peers each report the module next door missing, in the same words on every sighting.
   const absent = [{ kind: "missing_mechanism", level: "attend" as const, quote: "src/pointer.js does not exist yet", facts: [] }];
   await notice(services, project, peer, absent);
@@ -268,14 +268,14 @@ test("a condition the Supervisor marked noise is counted, not raised again, unle
 test("the letter points at the kept readings only when the watch really kept some", async () => {
   const { project, services, posted, seated } = desk(true);
   seated.supervisor = "sup";
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   const page = [{ kind: "destructive", level: "page" as const, quote: "rm -rf /", facts: ["destructive"] }];
   await notice(services, project, peer, page);
   assert.doesNotMatch(posted[0]!.text, /assessments/, "the watch kept nothing here, so there is nothing to send anyone to");
 
   mkdirSync(join(project.state, "assessments"), { recursive: true });
   writeFileSync(join(project.state, "assessments", "current.jsonl"), '{"seat":"peer-1"}\n');
-  await notice(services, project, { id: "peer-2", provider: "crew-peer-devin/swe-2-max" }, page);
+  await notice(services, project, { id: "peer-2", provider: "crew-peer-agy/swe-2-max" }, page);
   assert.match(posted[1]!.text, /assessments\/current\.jsonl/, "with readings kept, the incident says where they are");
   assert.match(posted[1]!.text, /agent peer-2/);
 });
@@ -283,7 +283,7 @@ test("the letter points at the kept readings only when the watch really kept som
 test("an incident is never addressed to the seat it is about", async () => {
   const { project, services, posted, seated } = desk(true);
   seated.supervisor = "peer-1";
-  const result = await notice(services, project, { id: "peer-1", provider: "crew-peer-devin/swe-2-max" }, [{ kind: "destructive", level: "page", quote: "rm -rf build", facts: ["destructive"] }]);
+  const result = await notice(services, project, { id: "peer-1", provider: "crew-peer-agy/swe-2-max" }, [{ kind: "destructive", level: "page", quote: "rm -rf build", facts: ["destructive"] }]);
   assert.deepEqual(result.sent, []);
   assert.deepEqual(posted, []);
   assert.equal(loadIncidents(project.state).items.I1!.held, "nobody");
@@ -291,7 +291,7 @@ test("an incident is never addressed to the seat it is about", async () => {
 
 test("a mark outlives the incident it was put on, so the thresholds are still tuned from it once the book has let the incident go", async () => {
   const { project, services, supervisor } = desk();
-  const peer = { id: "peer-1", provider: "crew-peer-devin/swe-2-max" };
+  const peer = { id: "peer-1", provider: "crew-peer-agy/swe-2-max" };
   await notice(services, project, peer, [stuck]);
   await judge(services, project, peer, [{ kind: "stuck", question: "worker_stuck", p: 0.3, model: "m", says: "vetoes" }]);
   assert.equal(loadIncidents(project.state).items.I1!.held, "shadow", "in shadow the sensor's word is kept, and nothing is sent either way");
@@ -313,8 +313,8 @@ test("the list carries what each seat was asked, and a mark the record cannot se
   ledger.tasks["L1-T1"] = { id: "L1-T1", lane: "L1", kind: "code", mode: "lane", title: "Empty cart message", goal: "show the empty cart message", acceptance: ["empty cart renders it"], owned: ["src/cart/**"], outOfScope: ["checkout"], peer: "peer-1", status: "working", openedAt: 1, updatedAt: 1, silent: 0 } as never;
   mkdirSync(project.state, { recursive: true });
   saveLedger(project.state, ledger);
-  await notice(services, project, { id: "peer-1", provider: "crew-peer-devin/swe-2-max" }, [stuck]);
-  await notice(services, project, { id: "peer-2", provider: "crew-peer-devin/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-1", provider: "crew-peer-agy/swe-2-max" }, [stuck]);
+  await notice(services, project, { id: "peer-2", provider: "crew-peer-agy/swe-2-max" }, [stuck]);
   const listed = (await incidents(services, supervisor, {})).text;
   assert.match(listed, /What they were asked:\n- L1-T1 Empty cart message: goal show the empty cart message; acceptance empty cart renders it; owned src\/cart\/\*\*; out of scope checkout/);
   assert.equal((await ack(services, supervisor, { id: "I1", verdict: "unknown", note: "the record does not show what npm run build printed" })).ok, true);

@@ -17,7 +17,7 @@ function world() {
   const root = tempDir("crew-repo-");
   const shop = { root, slug: "shop-abc123", state: join(stateRoot(home), "projects", "shop-abc123") };
   const seat = (name: string) => {
-    const dir = join(home, name.includes("claude") ? ".claude/profiles" : ".devin/seats", name);
+    const dir = join(home, name.includes("claude") ? ".claude/profiles" : ".agy/seats", name);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "settings.json"), "{}");
     return dir;
@@ -33,16 +33,16 @@ const paths = async (ctx: Parameters<typeof scanGarbage>[0]) => (await scanGarba
 test("clean up finds seat folders nothing will sit in again, and never one a seat is running in", async () => {
   const { seat, live, ctx, moveLead } = world();
   const current = seat("crew-lead-claude-shop-abc123");
-  const detached = seat("crew-peer-devin-gone-def456");
-  const removedRole = seat("crew-scout-devin-shop-abc123");
-  const running = seat("crew-peer-devin-old-fff000");
-  live.push({ provider: "crew-peer-devin", slug: "old-fff000" });
+  const detached = seat("crew-peer-agy-gone-def456");
+  const removedRole = seat("crew-scout-agy-shop-abc123");
+  const running = seat("crew-peer-agy-old-fff000");
+  live.push({ provider: "crew-peer-agy", slug: "old-fff000" });
   seat("crew-lead-claude");
   assert.deepEqual(await paths(ctx), [detached, removedRole].sort());
 
-  moveLead("devin");
+  moveLead("agy");
   const moved = (await scanGarbage(ctx)).find((item) => item.path === current);
-  assert.equal(moved?.why, "the Lead sits on Devin CLI now");
+  assert.equal(moved?.why, "the Lead sits on Antigravity now");
   assert.ok(!(await paths(ctx)).includes(running));
 });
 
@@ -91,10 +91,10 @@ test("clean up takes a copy of the guides nothing links to, not the one in use",
 
 test("remove takes only what a fresh scan still finds, and leaves a folder a seat has started in since", async () => {
   const { seat, live, ctx } = world();
-  const one = seat("crew-peer-devin-gone-def456");
-  const two = seat("crew-lead-devin-gone-def456");
+  const one = seat("crew-peer-agy-gone-def456");
+  const two = seat("crew-lead-agy-gone-def456");
   const scanned = await paths(ctx);
-  live.push({ provider: "crew-lead-devin", slug: "gone-def456" });
+  live.push({ provider: "crew-lead-agy", slug: "gone-def456" });
 
   const result = await removeGarbage(ctx, scanned);
   assert.deepEqual(result.removed, [one]);

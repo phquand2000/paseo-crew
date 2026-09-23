@@ -36,12 +36,6 @@ export type Change = { call?: Call; detailed: boolean; settled: boolean };
 
 const TERMINAL = new Set(["completed", "failed", "canceled"]);
 
-/** Devin names a file it creates "Wrote <path>": the path is what every reader of a write compares. */
-function withPath(detail: Detail): Detail {
-  const path = detail.filePath;
-  return typeof path === "string" && path.startsWith("Wrote ") ? { ...detail, filePath: path.slice("Wrote ".length) } : detail;
-}
-
 function pseudo(item: Record<string, unknown>): boolean {
   const metadata = item.metadata as { synthetic?: unknown } | undefined;
   const detail = item.detail as { type?: unknown } | undefined;
@@ -109,7 +103,7 @@ export class Window {
     const item = row.item;
     const id = text(item.callId) || `seq-${row.seq}`;
     const status = text(item.status) || "running";
-    const detail = withPath((item.detail && typeof item.detail === "object" ? item.detail : {}) as Detail);
+    const detail = (item.detail && typeof item.detail === "object" ? item.detail : {}) as Detail;
     const seen = this.calls.get(id);
     if (!seen) {
       const call: Call = {

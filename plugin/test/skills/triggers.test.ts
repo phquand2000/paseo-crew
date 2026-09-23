@@ -43,7 +43,7 @@ test("a trigger answer is read from the last JSON the agent printed, and a near 
 test("the trigger prompt shows the role each skill's name and description, as a seat sees them", () => {
   const kit = loadKit(pluginRoot);
   const cards = skillCards(kit, "peer");
-  assert.deepEqual([...cards.keys()].sort(), ["diagnosing-bugs", "security-check", "test-first", "test-proof-debt-audit"]);
+  assert.deepEqual([...cards.keys()].sort(), ["diagnosing-bugs", "repo-refresh", "security-check", "test-first", "test-proof-debt-audit"]);
   const prompt = triggerPrompt("peer", cards, "Goal: fix it.");
   assert.match(prompt, /- test-first: Puts evidence before behavior/);
   assert.match(prompt, /Your brief:\nGoal: fix it\./);

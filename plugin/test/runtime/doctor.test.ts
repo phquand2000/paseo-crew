@@ -11,7 +11,7 @@ import { makeKit } from "../kit.ts";
 
 const kit = makeKit();
 
-function probes(bins: string[], tools: string[] | null, docsUp = true, paths: string[] = [join(home(), ".devin", "credentials.toml")]): Probes {
+function probes(bins: string[], tools: string[] | null, docsUp = true, paths: string[] = [join(home(), ".agy", "credentials.toml")]): Probes {
   return {
     has: (bin) => bins.includes(bin),
     exists: (path) => paths.includes(path),
@@ -29,7 +29,7 @@ test("doctor names what a machine is missing for the chosen team", async () => {
   assert.equal(byId.settings!.ok, true);
   assert.equal(byId["bin:jq"]!.ok, false);
   assert.equal(byId["harness:claude"]!.ok, true);
-  assert.equal(byId["harness:devin"]!.ok, false);
+  assert.equal(byId["harness:agy"]!.ok, false);
   assert.equal(byId["mcp:ide"]!.ok, false);
   assert.match(byId["mcp:ide"]!.detail, /ide_refactor_rename/);
   assert.equal(byId["mcp:docs"]!.ok, false);
@@ -37,21 +37,21 @@ test("doctor names what a machine is missing for the chosen team", async () => {
 
 test("doctor passes a machine that has everything, and skips servers nobody uses", async () => {
   const team = resolveTeam(kit);
-  const checks = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]));
+  const checks = await doctor(kit, team, probes(["git", "jq", "claude", "agy"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]));
   assert.ok(checks.every((check) => check.ok), JSON.stringify(checks));
   assert.equal(checks.some((check) => check.id === "mcp:docs"), false);
-  const down = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], null));
+  const down = await doctor(kit, team, probes(["git", "jq", "claude", "agy"], null));
   assert.match(down.find((check) => check.id === "mcp:ide")!.detail, /No IDE server answered/);
 });
 
 test("what a harness says its seats need on this machine is checked, and how to get it is said", async () => {
   const team = resolveTeam(kit);
-  const missing = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"], true, []));
-  const check = missing.find((entry) => entry.id === "harness:devin:HOME/.devin/credentials.toml")!;
+  const missing = await doctor(kit, team, probes(["git", "jq", "claude", "agy"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"], true, []));
+  const check = missing.find((entry) => entry.id === "harness:agy:HOME/.agy/credentials.toml")!;
   assert.equal(check.ok, false);
-  assert.match(check.detail, /credentials\.toml for Peer, Scribe\. Log in to Devin once/);
-  const present = await doctor(kit, team, probes(["git", "jq", "claude", "devin"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]));
-  assert.equal(present.find((entry) => entry.id === "harness:devin:HOME/.devin/credentials.toml")!.ok, true);
+  assert.match(check.detail, /credentials\.toml for Peer, Scribe\. Log in to Agy once/);
+  const present = await doctor(kit, team, probes(["git", "jq", "claude", "agy"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]));
+  assert.equal(present.find((entry) => entry.id === "harness:agy:HOME/.agy/credentials.toml")!.ok, true);
 });
 
 test("a malformed answer from one server costs that server's check, not the whole report", async () => {

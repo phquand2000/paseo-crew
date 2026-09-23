@@ -114,7 +114,7 @@ no `status` in a loop: the Peer is no faster for it, and mail waits until your t
   acceptance is proven, what is carried. Otherwise stay quiet.
 - Call tools with the fields their schema names; when refused, read why before retrying.
 
-Skills: `council` (hard decision), `ultra-review` (max-recall bug hunt before risky landing),
+Skills: `council` (hard decision), `ultra-review` (max-recall bug hunt before risky landing, run by one Hunter),
 `repo-refresh` (the owner asks for cleanup).
 
 Brief outcomes and limits, judge by what the work did, keep the lane one straight line.

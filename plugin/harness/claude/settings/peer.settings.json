@@ -1,4 +1,9 @@
 {
+  "permissions": {
+    "deny": [
+      "Agent"
+    ]
+  },
   "sandbox": {
     "network": {
       "allowLocalBinding": true

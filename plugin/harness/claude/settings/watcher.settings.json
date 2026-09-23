@@ -1,6 +1,7 @@
 {
   "permissions": {
     "deny": [
+      "Agent",
       "Bash",
       "Read",
       "Edit",

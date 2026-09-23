@@ -31,8 +31,8 @@ test("a valid model and thinking option are kept and a caller prompt is appended
   assert.equal(next.systemPrompt, "ROLE PROMPT\n\nextra");
 });
 
-test("a Devin Peer gets no thinking option and no system prompt", () => {
-  const config = { provider: "crew-peer-devin", cwd: "/repo", thinkingOptionId: "high" } as AgentConfig;
+test("a Agy Peer gets no thinking option and no system prompt", () => {
+  const config = { provider: "crew-peer-agy", cwd: "/repo", thinkingOptionId: "high" } as AgentConfig;
   const next = applyRole(kit, team, config, render);
   assert.equal(next.model, "swe");
   assert.equal(next.modeId, "bypass");
@@ -40,8 +40,8 @@ test("a Devin Peer gets no thinking option and no system prompt", () => {
   assert.equal(next.systemPrompt, undefined);
 });
 
-test("a Lead opened on Devin follows that harness, whatever the settings choose", () => {
-  const next = applyRole(kit, team, { provider: "crew-lead-devin", cwd: "/repo", model: "opus" } as AgentConfig, render);
+test("a Lead opened on Agy follows that harness, whatever the settings choose", () => {
+  const next = applyRole(kit, team, { provider: "crew-lead-agy", cwd: "/repo", model: "opus" } as AgentConfig, render);
   assert.equal(next.model, "swe");
   assert.equal(next.modeId, "bypass");
   assert.equal(next.systemPrompt, undefined);
@@ -83,7 +83,7 @@ test("a seat's shell may write every place under state its own content names, an
     assert.ok(deny.includes(rule), `nothing keeps a Claude seat's file tools off ${owned}`);
   }
 
-  const peer = applyRole(kit, team, { provider: "crew-peer-devin", cwd: "/repo" } as AgentConfig, render, "/state/repo");
+  const peer = applyRole(kit, team, { provider: "crew-peer-agy", cwd: "/repo" } as AgentConfig, render, "/state/repo");
   assert.equal(peer.providerOptions, undefined, "a harness that declares no write list is untouched");
 });
 
@@ -93,7 +93,7 @@ test("a seat is handed its own working directory where its harness reads a proje
   assert.deepEqual(next.providerOptions.additionalDirectories, ["/elsewhere", "/repo"]);
   const again = applyRole(kit, team, { ...config, providerOptions: next.providerOptions } as unknown as AgentConfig, render) as unknown as { providerOptions: { additionalDirectories: string[] } };
   assert.deepEqual(again.providerOptions.additionalDirectories, ["/elsewhere", "/repo"], "a seat opened again is not handed its directory twice");
-  const peer = applyRole(kit, team, { provider: "crew-peer-devin", cwd: "/repo" } as AgentConfig, render);
+  const peer = applyRole(kit, team, { provider: "crew-peer-agy", cwd: "/repo" } as AgentConfig, render);
   assert.equal(peer.providerOptions, undefined, "a harness that reads the project on its own is left alone");
 });
 
@@ -102,7 +102,7 @@ test("a harness that takes MCP servers at launch gets them in the launch config;
   const servers = { team: { type: "stdio", command: "node", args: ["team.mjs", "lead", "/spool"] } };
   const next = applyRole(kit, team, config, render, undefined, servers) as unknown as { mcpServers: Record<string, unknown> };
   assert.deepEqual(Object.keys(next.mcpServers).sort(), ["other", "team"]);
-  const peer = applyRole(kit, team, { provider: "crew-peer-devin", cwd: "/repo" } as AgentConfig, render, undefined, servers);
+  const peer = applyRole(kit, team, { provider: "crew-peer-agy", cwd: "/repo" } as AgentConfig, render, undefined, servers);
   assert.equal(peer.mcpServers, undefined);
 });
 
@@ -113,11 +113,11 @@ test("providers outside the kit are left untouched", () => {
 });
 
 test("a seat's session gets its config directory and project variables", () => {
-  const request = { agentId: "a", workspaceId: null, provider: "crew-peer-devin", cwd: "/repo", reason: "create", purpose: "interactive", env: { KEEP: "1" } } as SessionOpen;
-  const next = seatEnv(kit, request, "/seats/peer-devin-repo", { root: "/repo", state: "/state/repo" });
+  const request = { agentId: "a", workspaceId: null, provider: "crew-peer-agy", cwd: "/repo", reason: "create", purpose: "interactive", env: { KEEP: "1" } } as SessionOpen;
+  const next = seatEnv(kit, request, "/seats/peer-agy-repo", { root: "/repo", state: "/state/repo" });
   assert.deepEqual(next.env, {
     KEEP: "1",
-    XDG_CONFIG_HOME: "/seats/peer-devin-repo",
+    XDG_CONFIG_HOME: "/seats/peer-agy-repo",
     PASEO_CREW_ROLE: "peer",
     PASEO_CREW_PROJECT: "/repo",
     PASEO_CREW_STATE: "/state/repo",
@@ -125,12 +125,12 @@ test("a seat's session gets its config directory and project variables", () => {
 });
 
 test("a seat keeps its own harness's model and thinking when the settings put that role on another harness", () => {
-  const onDevin = resolveTeam(kit, { roles: { lead: { harness: "devin", model: "swe" } } });
-  assert.equal(onDevin.roles.lead!.harness.id, "devin");
-  const devinSeat = applyRole(kit, onDevin, { provider: "crew-lead-devin", cwd: "/repo" } as AgentConfig, render);
-  assert.equal(devinSeat.model, "swe");
-  const claudeSeat = applyRole(kit, onDevin, { provider: "crew-lead-claude", cwd: "/repo" } as AgentConfig, render);
+  const onAgy = resolveTeam(kit, { roles: { lead: { harness: "agy", model: "swe" } } });
+  assert.equal(onAgy.roles.lead!.harness.id, "agy");
+  const agySeat = applyRole(kit, onAgy, { provider: "crew-lead-agy", cwd: "/repo" } as AgentConfig, render);
+  assert.equal(agySeat.model, "swe");
+  const claudeSeat = applyRole(kit, onAgy, { provider: "crew-lead-claude", cwd: "/repo" } as AgentConfig, render);
   assert.equal(claudeSeat.model, "opus");
   assert.equal(claudeSeat.thinkingOptionId, "medium");
-  assert.equal(applyRole(kit, onDevin, { provider: "crew-lead-claude", cwd: "/repo", model: "haiku" } as AgentConfig, render).model, "haiku");
+  assert.equal(applyRole(kit, onAgy, { provider: "crew-lead-claude", cwd: "/repo", model: "haiku" } as AgentConfig, render).model, "haiku");
 });

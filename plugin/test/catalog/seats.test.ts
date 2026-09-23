@@ -54,32 +54,32 @@ test("a Claude seat per project writes shared plus role settings, links skills, 
   assert.equal(existsSync(join(dir, "CLAUDE.md")), false);
 });
 
-test("a Devin seat merges settings, writes its MCP file and a real prompt with the rules appended", () => {
+test("a Agy seat merges settings, writes its MCP file and a real prompt with the rules appended", () => {
   const kit = makeKit();
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
   const home = tempDir("crew-home-");
   const peer = team.roles.peer!;
   const dir = seatDir(kit, peer.role, peer.harness, home, project);
-  mkdirSync(join(dir, "devin"), { recursive: true });
-  writeFileSync(join(dir, "devin", "config.json"), JSON.stringify({ version: 3, permissions: { allow: ["Exec(rm)"] } }));
+  mkdirSync(join(dir, "agy"), { recursive: true });
+  writeFileSync(join(dir, "agy", "config.json"), JSON.stringify({ version: 3, permissions: { allow: ["Exec(rm)"] } }));
   const outside = join(tempDir("crew-outside-"), "PEER.md");
   writeFileSync(outside, "project prompt that must not change");
-  symlinkSync(outside, join(dir, "devin", "AGENTS.md"));
+  symlinkSync(outside, join(dir, "agy", "AGENTS.md"));
 
   materialize(kit, team, "peer", home, project, serversFor(kit, team, "peer", context));
-  const config = JSON.parse(readFileSync(join(dir, "devin", "config.json"), "utf-8"));
+  const config = JSON.parse(readFileSync(join(dir, "agy", "config.json"), "utf-8"));
   assert.equal(config.version, 3);
   assert.equal(config.notify, "never");
   assert.deepEqual(config.permissions, { deny: ["Exec(git push)"] });
-  const prompt = join(dir, "devin", "AGENTS.md");
+  const prompt = join(dir, "agy", "AGENTS.md");
   assert.equal(lstatSync(prompt).isSymbolicLink(), false);
   const text = readFileSync(prompt, "utf-8");
   assert.match(text, /^# Peer/);
   assert.match(text, /# Working rules/);
   assert.match(text, /Look library APIs up in the docs\./);
   assert.equal(readFileSync(outside, "utf-8"), "project prompt that must not change");
-  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(dir, "devin", "mcp_config.json"), "utf-8")).mcpServers).sort(), ["docs", "ide", "team"]);
-  for (const skill of ["test-first", "plan-check", "ide-guide"]) assert.ok(existsSync(join(dir, "devin", "skills", skill, "SKILL.md")), skill);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(dir, "agy", "mcp_config.json"), "utf-8")).mcpServers).sort(), ["docs", "ide", "team"]);
+  for (const skill of ["test-first", "plan-check", "ide-guide"]) assert.ok(existsSync(join(dir, "agy", "skills", skill, "SKILL.md")), skill);
   assert.equal(existsSync(join(dir, "git")), false);
 });
 
@@ -105,7 +105,7 @@ test("a seat that cannot be built writes nothing, rather than a config with no i
 
   const fine = resolveTeam(kit, { rules: "Leave the daemon config alone." });
   assert.equal(materialize(kit, fine, "peer", home, project).length > 0, true);
-  assert.match(readFileSync(join(dir, "devin/AGENTS.md"), "utf-8"), /Leave the daemon config alone/);
+  assert.match(readFileSync(join(dir, "agy/AGENTS.md"), "utf-8"), /Leave the daemon config alone/);
 });
 
 test("a skill carrying a word its role must not see, or a placeholder nothing fills in, is refused", () => {
@@ -122,14 +122,14 @@ test("a real directory where a skill link should go is left alone, not turned in
   const kit = makeKit();
   const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
-  const dir = seatDir(kit, kit.roles.find((role) => role.role === "peer")!, kit.harnesses.devin!, home, project);
-  mkdirSync(join(dir, "devin", "skills", "test-first"), { recursive: true });
-  writeFileSync(join(dir, "devin", "skills", "test-first", "NOTES.md"), "something the harness made for itself\n");
+  const dir = seatDir(kit, kit.roles.find((role) => role.role === "peer")!, kit.harnesses.agy!, home, project);
+  mkdirSync(join(dir, "agy", "skills", "test-first"), { recursive: true });
+  writeFileSync(join(dir, "agy", "skills", "test-first", "NOTES.md"), "something the harness made for itself\n");
 
   // Thrown from the skills loop, this became a permanent launch refusal, since nothing removes that directory.
   const changes = materialize(kit, team, "peer", home, project);
   assert.ok(changes.length > 0, "the rest of the seat is still built");
-  assert.equal(readFileSync(join(dir, "devin", "skills", "test-first", "NOTES.md"), "utf-8").trim(), "something the harness made for itself");
+  assert.equal(readFileSync(join(dir, "agy", "skills", "test-first", "NOTES.md"), "utf-8").trim(), "something the harness made for itself");
 });
 
 test("composeSettings deletes an owned key the kit no longer sets", () => {
@@ -324,7 +324,7 @@ test("a changed skill reaches the seat as a new copy, the one read before stays 
   const kit = makeKit();
   const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
-  const link = join(seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project), "devin", "skills", "test-first");
+  const link = join(seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project), "agy", "skills", "test-first");
   materialize(kit, team, "peer", home, project);
   const before = readlinkSync(link);
   writeFileSync(join(kit.dir, "content/skills/peer/test-first/SKILL.md"), "---\nname: test-first\ndescription: tests, now stricter\n---\n");

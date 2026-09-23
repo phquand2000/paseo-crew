@@ -63,7 +63,7 @@ export function digest(sources: string[]): string {
   return hash.digest("hex").slice(0, 12);
 }
 
-/** Copied under the state root, never linked, so it resolves outside every repo: Devin loads the AGENTS.md above a file's real path. */
+/** Copied under the state root, never linked, so it resolves outside every repo: an agent may load the AGENTS.md above a file's real path. */
 export function snapshot(source: string, name: string, homeDir = home()): string {
   const target = join(contentRoot(homeDir), `${name}-${digest([source])}`);
   if (!existsSync(target)) {
@@ -259,6 +259,16 @@ function writeModelCatalog(harness: HarnessSpec, dir: string, record: Recorder):
   return setting;
 }
 
+function skillPermissionSetting(kit: Kit, team: Team, roleName: string): Json {
+  const { role, harness } = team.roles[roleName]!;
+  if (!harness.skillPermission) return {};
+  const allowed: Json = { "*": "deny" };
+  for (const name of skillSources(kit, role, skillDirsFor(team, roleName)).keys()) allowed[name] = "allow";
+  const setting: Json = {};
+  setPath(setting, harness.skillPermission.split("."), allowed);
+  return setting;
+}
+
 function stateWritesSetting(kit: Kit, team: Team, roleName: string, project?: SeatProject): Json {
   const { role, harness } = team.roles[roleName]!;
   if (harness.stateWrites?.delivery !== "file" || !project) return {};
@@ -385,7 +395,7 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();
   mkdirSync(dir, { recursive: true });
-  const extra = layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(kit, team, roleName, project)) as Json;
+  const extra = layerSettings(layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(kit, team, roleName, project)), skillPermissionSetting(kit, team, roleName)) as Json;
   writeRoleSettings(kit, seat.harness, seat.role, dir, homeDir, record, extra);
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);

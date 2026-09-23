@@ -63,8 +63,8 @@
       "label": "Peer",
       "description": "Does one task and hands it back",
       "defaults": {
-        "harness": "devin",
-        "model": "swe-2-max"
+        "harness": "codex",
+        "model": "gpt-5.5"
       },
       "can": [
         "work",
@@ -74,6 +74,9 @@
       "tools": "peer",
       "prompt": "prompts/PEER.md",
       "skills": "peer",
+      "extraSkills": [
+        "lead:repo-refresh"
+      ],
       "paseoTools": {
         "enabled": false
       },
@@ -89,8 +92,8 @@
       "label": "Reviewer",
       "description": "Read-only Peer that reviews a task branch with clean context",
       "defaults": {
-        "harness": "devin",
-        "model": "swe-2-max"
+        "harness": "codex",
+        "model": "gpt-5.5"
       },
       "can": [
         "work",
@@ -103,6 +106,32 @@
       "extraSkills": [
         "peer:test-proof-debt-audit"
       ],
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "seat",
+        "seats"
+      ]
+    },
+    {
+      "role": "hunter",
+      "label": "Hunter",
+      "description": "Read-only Peer that hunts a whole scope for defects with ten scouts of its own and hands back every finding",
+      "defaults": {
+        "harness": "agy",
+        "model": "gemini-3.8-flash-high"
+      },
+      "can": [
+        "work",
+        "review"
+      ],
+      "tools": "reviewer",
+      "concern": "review",
+      "prompt": "prompts/HUNTER.md",
+      "skills": "hunter",
       "paseoTools": {
         "enabled": false
       },

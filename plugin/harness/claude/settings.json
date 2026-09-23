@@ -3,7 +3,6 @@
   "permissions": {
     "defaultMode": "bypassPermissions",
     "deny": [
-      "Agent",
       "Workflow",
       "EnterPlanMode",
       "ExitPlanMode",
@@ -31,6 +30,7 @@
       "Bash(bunx claude *)",
       "Bash(codex *)",
       "Bash(opencode *)",
+      "Bash(agy *)",
       "Edit(~/.paseo/**)",
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/profiles/*/settings.json)",

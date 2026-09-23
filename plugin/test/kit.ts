@@ -41,7 +41,7 @@ export function makeKit(): Kit {
         label: "Peer",
         can: ["work"],
         tools: "peer",
-        defaults: { harness: "devin", model: "swe" },
+        defaults: { harness: "agy", model: "swe" },
         prompt: "prompts/PEER.md",
         skills: "peer",
         extraSkills: ["supervisor:plan-check"],
@@ -88,27 +88,27 @@ export function makeKit(): Kit {
   put(dir, "harness/claude/settings/supervisor.settings.json", { askUserQuestionTimeout: "never" });
   put(dir, "harness/claude/settings/lead.settings.json", { permissions: { deny: ["Agent"] } });
   put(dir, "harness/claude/settings/scribe.settings.json", {});
-  put(dir, "harness/devin/harness.json", {
-    id: "devin",
-    label: "Devin CLI",
+  put(dir, "harness/agy/harness.json", {
+    id: "agy",
+    label: "Antigravity",
     baseProvider: "acp",
     configDirEnv: "XDG_CONFIG_HOME",
-    profileRoot: "HOME/.devin/seats",
-    promptFile: "devin/AGENTS.md",
-    skillsDir: "devin/skills",
+    profileRoot: "HOME/.agy/seats",
+    promptFile: "agy/AGENTS.md",
+    skillsDir: "agy/skills",
     hasThinking: false,
     systemPrompt: "file",
-    settings: { file: "devin/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
+    settings: { file: "agy/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "swe", label: "SWE" }],
-    mcp: { file: "devin/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
-    provider: { env: { PASEO_CREW_HARNESS: "devin", PASEO_CREW_AGENT_BIN: "devin" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
-    checks: [{ path: "HOME/.devin/credentials.toml", help: "Log in to Devin once, outside any seat." }],
+    mcp: { file: "agy/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
+    provider: { env: { PASEO_CREW_HARNESS: "agy", PASEO_CREW_AGENT_BIN: "agy" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
+    checks: [{ path: "HOME/.agy/credentials.toml", help: "Log in to Agy once, outside any seat." }],
   });
-  put(dir, "harness/devin/settings.json", { read_config_from: { claude: false }, notify: "never", permissions: { deny: ["Exec(git push)"] } });
-  put(dir, "harness/devin/settings/lead.settings.json", {});
-  put(dir, "harness/devin/settings/peer.settings.json", {});
-  put(dir, "harness/devin/settings/scribe.settings.json", { permissions: { deny: ["exec"] } });
+  put(dir, "harness/agy/settings.json", { read_config_from: { claude: false }, notify: "never", permissions: { deny: ["Exec(git push)"] } });
+  put(dir, "harness/agy/settings/lead.settings.json", {});
+  put(dir, "harness/agy/settings/peer.settings.json", {});
+  put(dir, "harness/agy/settings/scribe.settings.json", { permissions: { deny: ["exec"] } });
   put(dir, "catalog/mcp/ide/mcp.json", {
     id: "ide",
     label: "IDE",

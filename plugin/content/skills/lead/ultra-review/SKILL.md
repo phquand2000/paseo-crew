@@ -1,6 +1,6 @@
 ---
 name: ultra-review
-description: "Hunts bugs across one named scope with ten independent read-only scouts, or packs the scope for an outside reviewer, with Open Code Review selecting the files and grouping them by review rule. Use when risky work is about to land, a missed bug would cost more than ten scouts, or someone outside the project is to review code they won't clone, who gets it as one packed file. Not for reviewing one change, which is one reviewer."
+description: "Hunts bugs across one named scope through one Hunter that runs ten independent read-only scouts, or packs the scope for an outside reviewer, with Open Code Review selecting the files and grouping them by review rule. Use when risky work is about to land, a missed bug would cost more than ten scouts, or someone outside the project is to review code they won't clone, who gets it as one packed file. Not for reviewing one change, which is one reviewer."
 ---
 
 # Ultra review
@@ -30,15 +30,14 @@ python3 "$PASEO_CREW_KIT/content/skills/lead/ultra-review/scripts/create_ultra_r
 
 It writes this round's report, never over an earlier one, with a coverage ledger, and prints the units (each rule group with its files and rule text, plus the excluded files) and each scout's units and directives: two scouts per unit, three per directive. Give a risky unit a third scout yourself.
 
-Scouts read the lane branch, or a task's branch when started with that `task`; you do not merge yourself. When the scope is a task not yet accepted, start `scout-01` to `scout-10` in one turn, each with `start_review`, that task and that title; otherwise with no task. Each focus carries:
+One Hunter runs the ten scouts as its own subagents; you start it once. It reads the lane branch, or a task's branch when started with that `task`; you do not merge yourself. Call `start_review` once with `role: "hunter"`, a title naming the review, the task when the scope is one not yet accepted, and a focus carrying inline, never as a path into the state directory:
 
-- the scope, change intent and relevant repository contracts;
-- its units' files and rule text, and its directives and concerns, each with a search angle no other scout on that unit has, because copies of one focus find the same bugs twice;
+- the brief: scope, change intent, relevant repository contracts, directives or concerns;
+- the units with their files and rule text, the excluded files, and each scout's units and directives as the script assigned them;
 - warnings from earlier rounds: confirmed fixes, rejected false positives, open routes, where a rejection is a warning, not a filter;
-- static inspection only: run nothing that builds or tests, since ten scouts building at once collide;
-- the ask, returned in `done` findings: every candidate, speculative ones included, with severity `P0`–`P3`, confidence, `file:line`, evidence, contract violated, plausible failure, durable fix hypothesis and a read-only disconfirming check; and each assigned file marked reviewed, or skipped with a reason.
+- the ask: `F001`, `F002`, ... grouped by root cause with severity `P0`–`P3`, confidence, `file:line`, evidence, contract violated, plausible failure, durable fix hypothesis and a read-only disconfirming check, speculative candidates included; each assigned file marked reviewed, or skipped with a reason.
 
-End your turn; handbacks arrive as mail. Share no candidate before consolidation, and restart only a scout that went silent without handing back, under its original title and assignment. `cut` each scout once its findings are in the report: ten seats left idle cost ten seats. Then fill the report's TODOs: each file's coverage status, findings `F001`, `F002`, ... grouped by root cause with the fields above and no raw candidate list, one Verification Queue line per finding, and the strongest reason not to merge yet; with no candidates, `No candidates reported.` under Findings.
+End your turn; one handback arrives as mail, and its full hand-back file holds what the mail clips. Restart the Hunter only if it went silent without handing back, with the same focus. A reopen saying it has no subagents means the Hunter's agent cannot hunt: tell the owner in `ask` rather than scouting yourself. Once the findings are in the report, `cut` the Hunter. Then fill the report's TODOs: each file's coverage status, the findings with the fields above and no raw candidate list, one Verification Queue line per finding, and the strongest reason not to merge yet; with no candidates, `No candidates reported.` under Findings.
 
 ## 2b. pack
 

@@ -1,0 +1,1 @@
+prefix_rule(pattern = ["git", ["add", "commit", "rm", "mv", "restore", "revert", "clean", "apply", "am", "config", "pull"]], decision = "forbidden", justification = "The Hunter reads; it changes nothing.")

@@ -1,7 +1,6 @@
 {
   "permissions": {
     "deny": [
-      "Agent",
       "Edit",
       "Write",
       "MultiEdit",

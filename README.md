@@ -2,7 +2,8 @@
 
 A [Paseo](https://paseo.sh) plugin that runs a team of coding agents the **SLP** way. A
 **Supervisor** works with you, a **Lead** owns each line of work, and **Peers** each do one task. A
-**Reviewer** reads the work with clean context, and a **Watcher** reads how it is being done.
+**Reviewer** reads the work with clean context, a **Hunter** hunts a whole scope for bugs, and a
+**Watcher** reads how it is being done.
 
 > **Pre-release.** Nothing has shipped: no releases, no compatibility promises.
 
@@ -35,6 +36,11 @@ Changes from upstream so far:
   owns plans, decisions, rules for code and the Human's word in `docs/product/`; the team keeps
   lanes, tasks, reviews, mail and landing. Prompts and guides point at the project's own files;
   nothing from Harness is shipped here. A repository without `docs/WORKFLOW.md` works as before.
+- 3.0.0: Pi and Devin CLI are gone; OpenCode and Antigravity (`agy`) take their place. A project
+  that still names `pi` or `devin` shows "unknown harness" in Health until you pick another agent.
+  Peer and Reviewer default to Codex `gpt-5.5`. A new **Hunter** role runs the Lead's ultra-review
+  hunt: one seat, ten scouts of its own, one hand-back, where the Lead used to start ten Reviewers.
+  Peers get `repo-refresh`. An OpenCode seat loads only its role's skills.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -72,8 +78,9 @@ The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane)
 |---|---|---|
 | Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5` · high |
 | Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5` · medium |
-| Peer | One task, and the engineering judgement inside it | Devin CLI · `swe-2-max` |
-| Reviewer | A read-only review of one change | Devin CLI · `swe-2-max` |
+| Peer | One task, and the engineering judgement inside it | Codex · `gpt-5.5` |
+| Reviewer | A read-only review of one change | Codex · `gpt-5.5` |
+| Hunter | A read-only bug hunt across one scope, with ten scouts of its own | Antigravity · `gemini-3.8-flash-high` |
 | Watcher | Reading Leads and Peers as they work. It cannot touch the work | the Peer's agent |
 
 Roles are data in `plugin/roles.json`, not code. Each role's tools are in
@@ -88,12 +95,15 @@ thinking level where the agent offers them.
 |---|---|---|---|
 | Claude Code | `claude` signed in | yes | yes |
 | Codex | `codex login` once. The `codex` CLI must be on the machine that runs the daemon | yes | yes |
-| Pi | `pi` signed in, and `pi install npm:pi-mcp-adapter` once. That adapter is how a Pi seat reaches the desk | no | yes |
-| Devin CLI | `devin` signed in | no | no, it waits for the turn to end |
+| OpenCode | `opencode auth login` once | no | no, it waits for the turn to end |
+| Antigravity | `agy` signed in once, and `agy-acp` on the `PATH` of the daemon | no | no, it waits for the turn to end |
 
 Every seat reads your project's own instructions: Claude reads `CLAUDE.md`, and the others read
-`AGENTS.md`. Claude Code, Codex and Devin seats are denied `git push`, `gh`, `paseo` and starting
-other agents. A Pi seat is held only by the tools it is given. The shipped Claude settings answer in
+`AGENTS.md`. Claude Code, Codex and OpenCode seats are denied `git push`, `gh`, `paseo` and starting
+other agents. An Antigravity seat has no sandbox and no path or command rules: it runs with
+`--dangerously-skip-permissions` and is held only by its prompt, so give it roles you would trust
+unsupervised. Only the Hunter may start subagents, on the agents that have them. No seat reads your
+own global instructions (`~/.claude/CLAUDE.md`, `~/.config/opencode`, `~/.gemini/GEMINI.md`). The shipped Claude settings answer in
 Vietnamese: change `language` in `plugin/harness/claude/settings.json` for another language. The details are under
 [seat directories](docs/REFERENCE.md#seat-directories) and
 [known limits](docs/REFERENCE.md#known-limits).
@@ -172,12 +182,13 @@ Watcher's chip in the **Team** tab. How it all works is in
 
 - **Opening an archived seat's history starts its agent again, and leaves it running.** Paseo
   resumes an archived agent to show its history, from the app or `paseo logs`, and never closes it.
-  A Devin seat leaves a `devin acp` process, a Pi seat a `pi` process. The plugin never reads an
-  archived seat itself. To be rid of them: `pkill -f "devin acp"` or `pkill -f "pi --mode rpc"`,
-  with no seat of yours running.
+  The plugin never reads an archived seat itself. To be rid of a leftover Antigravity seat:
+  `pkill -f agy-acp`, with no seat of yours running.
 - **An agent gets only the provider keys Paseo's daemon has.** A key set in your shell, such as
-  `NVIDIA_API_KEY` for Pi, does not reach the daemon, so those models are neither listed nor usable.
-  Put the key where the agent keeps its own (`~/.pi/agent/auth.json` for Pi).
+  a provider key for OpenCode, does not reach the daemon, so those models are neither listed nor
+  usable. Put the key where the agent keeps its own (`opencode auth login` for OpenCode).
+- **An Antigravity seat hears mail only between turns.** `agy-acp` runs `agy` in print mode, one
+  prompt per turn with a 45-minute limit, so mail waits for the turn to end.
 - **Paseo keeps a project for a folder you have deleted.** List them with `paseo project ls` and
   remove one with `paseo project delete <id>`.
 

@@ -18,7 +18,7 @@ schema. A call that doesn't fit is refused, with what is wrong.
 |---|---|
 | Supervisor | `open_lane` `close_lane` `set_project` `message` `answer` `status` `incidents` `ack` |
 | Lead | `start_task` `start_review` `accept` `rework` `cut` `report` `message` `answer` `ask` `status` `incidents` `ack` |
-| Peer, Reviewer | `done` `ask` |
+| Peer, Reviewer, Hunter | `done` `ask` |
 | Watcher | `raise` `judge` |
 
 | Verb | Effect |
@@ -162,13 +162,14 @@ only you can answer.
 | Field | Drives |
 |---|---|
 | `id`, `label` | The harness's name, and the agent half of a provider's label |
-| `baseProvider` | The Paseo provider it extends: `claude`, `codex`, `pi` or `acp` |
+| `baseProvider` | The Paseo provider it extends: `claude`, `codex`, `opencode` or `acp` |
 | `configDirEnv`, `profileRoot` | The variable that points the agent at its seat directory, and where those live |
 | `systemPrompt`, `promptFile` | Whether the prompt goes in the launch config or into a file |
 | `contextFile` | The file in the seat directory that gets the working rules |
 | `skillsDir` | Where skills are linked, each to its copy under `content/` |
+| `skillPermission` | A dotted settings path that gets the role's skills allowed and every other skill denied |
 | `settings` | Base settings, the per-role overlay, the paths the plugin owns in an existing file, and `inherits`: keys taken from your own config for that agent |
-| `mcp` | The MCP file, how servers are delivered, transports, seed and clear rules, and `desk` fields |
+| `mcp` | The MCP file, how servers are delivered, transports, and seed and clear rules |
 | `links`, `files` | Files linked from your own setup (logins, history), and files composed per role |
 | `modelCatalog` | A command whose model list is written as the agent's catalog |
 | `stateWrites` | Where the seat's writable state paths go |
@@ -190,15 +191,18 @@ settings revision changes, its settings file is gone, or a login appeared since.
 | Agent | Directory | Written there | Launch |
 |---|---|---|---|
 | Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, `CLAUDE.md` for working rules | `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out |
-| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
-| Pi | `~/.pi/seats/…` | `settings.json` (`pi-mcp-adapter`, project trust off, tool lists for Reviewer and Watcher), `mcp.json`, `skills/`, links to login, models and npm | Paseo's Pi provider |
-| Devin CLI | `~/.devin/seats/…` | `devin/config.json` (permissions, command denials, subagents off, other tools' config off), `devin/AGENTS.md`, `devin/mcp_config.json`, `devin/skills/`, a link to your git config | `bin/seat-room acp`, over Paseo's ACP provider |
+| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer, Hunter and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
+| OpenCode | `~/.opencode/seats/…` | `opencode/opencode.json` (command denials, subagents off but for the Hunter, edits off for Reviewer, Hunter and Watcher, only the role's skills allowed), `opencode/AGENTS.md`, `opencode/skills/`, a link to your git config | Paseo's OpenCode provider, with `OPENCODE_DISABLE_CLAUDE_CODE` and `OPENCODE_DISABLE_EXTERNAL_SKILLS` |
+| Antigravity | `~/.gemini/seats/…`, used as the seat's `HOME` | `.gemini/GEMINI.md` (prompt and working rules), `.gemini/config/mcp_config.json`, `.gemini/config/skills/`, a link to your `agy` login token, links to your git config | `bin/agy-home`, which sets `HOME` and hands over to `bin/seat-room`, running `agy-acp` over Paseo's ACP provider |
 
 - **Claude Code** still reads the project's `CLAUDE.md`: the working directory is passed as an
   additional directory.
 - **Codex** needs the `codex` CLI to build a seat, because the build asks it for its models.
-- **Devin** uses `XDG_CONFIG_HOME` as its config variable. Without `~/.config/git`, a Devin seat
-  commits as whoever git resolves.
+- **OpenCode** uses `XDG_CONFIG_HOME` as its config variable, so `~/.config/opencode` stays out;
+  its login lives under `~/.local/share/opencode` and is shared. Without `~/.config/git`, an
+  OpenCode seat commits as whoever git resolves.
+- **Antigravity** reads every setting from `$HOME`, and no variable moves it, so the seat directory
+  is the seat's home. `~/.agents/skills` and your own `~/.gemini` stay out.
 
 ## MCP servers
 
@@ -401,12 +405,23 @@ it:
 
 ## Known limits
 
-- **Devin can't be steered.** Mail to a running Devin seat waits for its turn to end.
-- **Pi and Devin have no sandbox.** Pi has no command rules either, so a Pi seat is held only by its
-  tools. Devin has command denials, such as `git push` and `gh`, but no path rules.
-- **Reading an archived Devin seat's history leaves a `devin acp` running.** Paseo resumes the
-  agent to serve it and never closes it; `paseo logs` or the app's history view does this. The watch
-  stops rather than read a seat once it is archived.
+- **OpenCode and Antigravity can't be steered.** Mail to a running seat on either waits for its
+  turn to end. `agy-acp` runs `agy` in print mode, one prompt per turn, cut off after 45 minutes.
+- **OpenCode and Antigravity have no sandbox.** OpenCode has command denials, such as `git push` and
+  `gh`, but no path rules. Antigravity runs with `--dangerously-skip-permissions` and has neither.
+- **An Antigravity seat still sees agy's built-in skills** (`agy-customizations`,
+  `antigravity_guide`, `automation`, `generative_ui`, `migrate-workflows`, `permissioned-github`).
+  They ship inside agy and no setting turns them off.
+- **A Codex seat still sees the skills in your own `~/.agents/skills`.** `[skills.bundled]` turns
+  off only Codex's own. Codex hides one skill per `[[skills.config]]` entry by the absolute
+  path of its `SKILL.md`; no key hides a whole directory, and an entry by `name` also hides the
+  seat's own skill of that name. So a Lead seat whose owner has an `ultra-review` of their own sees
+  two. Nothing in the kit knows your paths, so nothing writes those entries.
+- **The Hunter needs an agent with subagents of its own.** On Codex, where the seat's subagents are
+  off, a Hunter says so and stops.
+- **Reading an archived ACP seat's history leaves its agent running.** Paseo resumes the agent to
+  serve it and never closes it; `paseo logs` or the app's history view does this. The watch stops
+  rather than read a seat once it is archived.
 - **A Codex seat can call only the tools the kit can name.** Codex refuses any MCP call not
   approved ahead, so the desk's tools and proxied servers are approved at launch; a server you add
   whose tools the kit doesn't know stays out of reach on Codex.

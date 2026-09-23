@@ -11,8 +11,8 @@ const held: Layer = {
 };
 
 test("changing a seat's agent forgets what was chosen for the old one and keeps what the owner wrote", () => {
-  const moved = setRole(held, "lead", { harness: "devin" }, true);
-  assert.deepEqual(moved.roles!.lead, { rules: "Never touch the generated client.", harness: "devin" });
+  const moved = setRole(held, "lead", { harness: "agy" }, true);
+  assert.deepEqual(moved.roles!.lead, { rules: "Never touch the generated client.", harness: "agy" });
   assert.equal(moved.rules, "Keep diffs small.", "what every seat is told is untouched");
   assert.deepEqual(moved.attention, { longTurnMinutes: 30, watch: false }, "and so is everything else in the layer");
 });
@@ -30,13 +30,13 @@ test("running the setup screen over a project keeps what it holds, and does not 
     roles: { peer: { harness: "claude", model: "claude-opus-5", thinking: "high" } },
   };
   // What the dialog collected: one role moved to another agent. A write is the whole layer.
-  const draft: Layer = { roles: { peer: { harness: "devin" } } };
+  const draft: Layer = { roles: { peer: { harness: "agy" } } };
   const folded = foldRoles(project, draft, (role) => project.roles?.[role]?.harness);
 
   assert.equal(folded.rules, "Never touch the release branch.", "the rule every seat is told survives");
   assert.equal(folded.mcp!.docs!.connect!.headers!.Authorization, "Bearer SECRET", "and so does the token the owner pasted");
   assert.deepEqual(folded.attention, { longTurnMinutes: 45 });
-  assert.deepEqual(folded.roles!.peer, { harness: "devin" }, "the model and thinking level picked for the old agent are not kept on the new one");
+  assert.deepEqual(folded.roles!.peer, { harness: "agy" }, "the model and thinking level picked for the old agent are not kept on the new one");
 
   const same = foldRoles(project, { roles: { peer: { thinking: "low" } } }, (role) => project.roles?.[role]?.harness);
   assert.deepEqual(same.roles!.peer, { harness: "claude", model: "claude-opus-5", thinking: "low" });
@@ -45,12 +45,12 @@ test("running the setup screen over a project keeps what it holds, and does not 
 test("a role whose agent is not recorded anywhere keeps the model the owner picked for it", () => {
   // A role nobody moved runs the kit's default agent, so no layer names it, yet the owner chose a model.
   const project: Layer = { roles: { peer: { model: "swe-2-medium" } } };
-  const draft: Layer = { roles: { peer: { harness: "devin" } } };
+  const draft: Layer = { roles: { peer: { harness: "agy" } } };
 
   const unknown = foldRoles(project, draft, () => undefined);
-  assert.deepEqual(unknown.roles!.peer, { model: "swe-2-medium", harness: "devin" }, "an agent nobody can name is not an agent being replaced");
+  assert.deepEqual(unknown.roles!.peer, { model: "swe-2-medium", harness: "agy" }, "an agent nobody can name is not an agent being replaced");
 
-  const moved = foldRoles(project, { roles: { peer: { harness: "claude" } } }, () => "devin");
+  const moved = foldRoles(project, { roles: { peer: { harness: "claude" } } }, () => "agy");
   assert.deepEqual(moved.roles!.peer, { harness: "claude" });
 });
 
@@ -64,16 +64,16 @@ test("re-pasting a server the owner gave to nobody leaves it given to nobody", (
 });
 
 test("a settings screen offers the agent in force, not the one the kit would have picked", () => {
-  const peer = { id: "peer", defaults: { harness: "devin" } };
+  const peer = { id: "peer", defaults: { harness: "agy" } };
   const project: Layer = { roles: { peer: { harness: "claude" } } };
   const machine: Layer = { roles: { peer: { harness: "codex" } } };
 
-  // Skipping the two middle layers once showed Devin for a Peer the owner had put on Claude Code.
+  // Skipping the two middle layers once showed Agy for a Peer the owner had put on Claude Code.
   assert.equal(harnessInForce(peer, {}, project, machine), "claude", "the project's choice wins");
   assert.equal(harnessInForce(peer, {}, {}, machine), "codex", "then the machine's");
-  assert.equal(harnessInForce(peer, {}, {}, {}), "devin", "and the kit's default only when nobody chose");
+  assert.equal(harnessInForce(peer, {}, {}, {}), "agy", "and the kit's default only when nobody chose");
   assert.equal(harnessInForce(peer, { roles: { peer: { harness: "codex" } } }, project, machine), "codex", "a draft being filled in wins over both");
-  assert.equal(harnessInForce(peer, undefined, undefined), "devin", "a layer not read yet is not a choice");
+  assert.equal(harnessInForce(peer, undefined, undefined), "agy", "a layer not read yet is not a choice");
 });
 
 test("the model row shows what is in force even when this agent does not list it, and offers a way back", () => {
@@ -115,7 +115,7 @@ test("a collapsed lane gives up its counts for a Lead that is waiting or gone", 
 
 test("the model in force follows the resolver: a layer naming another agent drops the models below it", () => {
   const lead = { id: "lead", defaults: { harness: "claude", model: "claude-opus-5" } };
-  const machine: Layer = { roles: { lead: { harness: "devin", model: "swe-2-max" } } };
+  const machine: Layer = { roles: { lead: { harness: "agy", model: "swe-2-max" } } };
   // The machine's model was chosen for an agent the project has since moved off, so it is not in force.
   assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "codex" } } }, machine), undefined);
   assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "claude" } } }, machine), "claude-opus-5", "back on its own agent, the kit's choice there");
@@ -124,7 +124,7 @@ test("the model in force follows the resolver: a layer naming another agent drop
 });
 
 test("a role that follows another shows that role's agent and model in force until it has its own", () => {
-  const watcher = { id: "watcher", follows: "peer", defaults: { harness: "devin", model: "swe-2-max" } };
+  const watcher = { id: "watcher", follows: "peer", defaults: { harness: "agy", model: "swe-2-max" } };
   const machine: Layer = { roles: { peer: { harness: "claude", model: "claude-opus-5" } } };
   assert.equal(harnessInForce(watcher, {}, {}, machine), "claude", "the Peer's own choice, not the kit's default");
   assert.equal(modelInForce(watcher, {}, {}, machine), "claude-opus-5");
@@ -144,7 +144,7 @@ test("switching the watch on keeps the rest of the tuning, and the sensor's key 
   // A write is the whole layer, so every helper a section saves through must carry `KEPT` back or the key is lost.
   const screen: Layer = { ...held, sensor: { key: KEPT } };
   const elsewhere: Record<string, Layer> = {
-    "a role moved to another agent": setRole(screen, "peer", { harness: "devin" }, true),
+    "a role moved to another agent": setRole(screen, "peer", { harness: "agy" }, true),
     "a server switched on": setMcp(screen, "docs", { enabled: true }),
     "a pasted server forgotten": dropMcp(setMcp(screen, "docs", { enabled: true }), "docs"),
     "the flow switch": setFlow(screen, { live: true }),

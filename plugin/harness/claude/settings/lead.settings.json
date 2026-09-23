@@ -1,6 +1,7 @@
 {
   "permissions": {
     "deny": [
+      "Agent",
       "AskUserQuestion",
       "Bash(git commit *)",
       "Bash(git -C * commit *)"

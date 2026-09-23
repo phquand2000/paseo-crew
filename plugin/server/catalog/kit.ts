@@ -42,6 +42,7 @@ export type HarnessSpec = {
   systemPrompt?: "config" | "file";
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
+  skillPermission?: string;
   exitPattern?: string;
   settings: { file: string; source: string; roleSource: string; ownedPaths?: string[]; inherits?: { from: string; keys: string[] } };
   links?: { link: string; target: string; optional?: boolean }[];
@@ -58,7 +59,6 @@ export type HarnessSpec = {
     key?: string;
     clear?: { set?: Record<string, unknown>; remove?: string[]; setInEach?: Record<string, Record<string, unknown>> };
     rule?: string;
-    desk?: Record<string, unknown>;
   };
   provider: { env?: Record<string, string>; profileModeId?: string; command?: string[]; forceFlags?: Record<string, string> };
 };
@@ -77,6 +77,7 @@ const HARNESS_FIELDS = new Set([
   "systemPrompt",
   "stateWrites",
   "projectContextOption",
+  "skillPermission",
   "exitPattern",
   "settings",
   "links",
@@ -105,7 +106,6 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
     if (mcp.delivery !== undefined && mcp.delivery !== "launch" && mcp.delivery !== "file") problems.push(`delivers MCP servers as ${String(mcp.delivery)}, which is neither launch nor file`);
     if (mcp.delivery === "file" && !mcp.key) problems.push("delivers MCP servers in a file but names no mcp.key");
     if (Array.isArray(mcp.transports) && mcp.transports.length === 0) problems.push("lists no mcp.transports");
-    if (mcp.desk !== undefined && (typeof mcp.desk !== "object" || mcp.desk === null || Array.isArray(mcp.desk))) problems.push("gives mcp.desk fields that are not an object");
   }
   if (raw.steers !== undefined && typeof raw.steers !== "boolean") problems.push(`says steers is ${String(raw.steers)}, which is neither true nor false`);
   const writes = raw.stateWrites as Record<string, unknown> | undefined;
@@ -114,6 +114,9 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   }
   if (raw.projectContextOption !== undefined && (typeof raw.projectContextOption !== "string" || raw.projectContextOption === "")) {
     problems.push("gives projectContextOption without an option path");
+  }
+  if (raw.skillPermission !== undefined && (typeof raw.skillPermission !== "string" || raw.skillPermission === "")) {
+    problems.push("gives skillPermission without a settings path");
   }
   const files = raw.files as Record<string, unknown> | undefined;
   if (files !== undefined) {

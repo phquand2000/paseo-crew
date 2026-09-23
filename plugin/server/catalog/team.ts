@@ -277,7 +277,7 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
   const seat = team.roles[roleName];
   if (!seat) return {};
   const desk = teamServer(kit, seat.role, context.spool, context.node);
-  const servers: McpServers = desk.team && seat.harness.mcp.desk ? { team: { ...(desk.team as object), ...seat.harness.mcp.desk } } : { ...desk };
+  const servers: McpServers = { ...desk };
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;
     const { entry } = state;

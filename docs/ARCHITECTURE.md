@@ -27,7 +27,7 @@ is always a seat's call.
 |---|---|
 | Paseo daemon | `plugin/server/**`, entered through `index.server.ts` |
 | Paseo app | `plugin/client/**`, the panel, entered through `index.client.tsx` |
-| A seat: an agent started from a `crew-<role>-<agent>` provider | Only `bin/seat-room`, the launcher for Claude and Devin seats |
+| A seat: an agent started from a `crew-<role>-<agent>` provider | `bin/seat-room`, the launcher for Claude and Antigravity seats, and `bin/agy-home` before it for Antigravity |
 | A seat's MCP servers | `mcp/team.mjs` (the desk tools), and `mcp/code.mjs` for proxied servers |
 
 The daemon and the seats share no memory. There are two one-way channels:
@@ -95,8 +95,9 @@ All paths are under `plugin/`.
    directory and sets `PASEO_CREW_ROLE`, `PASEO_CREW_PROJECT` and `PASEO_CREW_STATE`. It also seeds the
    project's records, such as `notebook.md`, and writes the
    [team block](#the-concept-and-the-team-block) into the project.
-4. **`bin/seat-room`** checks the launch and then `exec`s Claude or Devin. Codex and Pi seats start
-   through Paseo's own providers.
+4. **`bin/seat-room`** checks the launch and then `exec`s Claude or `agy-acp`; for Antigravity,
+   `bin/agy-home` first makes the seat directory its `HOME`. Codex and OpenCode seats start through
+   Paseo's own providers.
 
 The content lint runs during the build. A role prompt, a working rule or a skill that uses a word
 from the role's `hidesWords` fails the build. For example, a Peer may not read "seat". Only
@@ -105,7 +106,7 @@ from the role's `hidesWords` fails the build. For example, a Peer may not read "
 The sandbox is derived from the content too. On Claude Code and Codex, a seat's shell may write under
 the project's state only where its prompt, skills or rules name that path (`{{state}}/…` or
 `$PASEO_CREW_STATE/…`). The desk's own files are never granted, and only the Supervisor names
-`CONTEXT.md`. Pi and Devin have no sandbox.
+`CONTEXT.md`. OpenCode and Antigravity have no sandbox.
 
 What each agent's seat directory holds is in [the reference](REFERENCE.md#seat-directories).
 

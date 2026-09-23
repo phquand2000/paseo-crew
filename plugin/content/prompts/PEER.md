@@ -67,6 +67,6 @@ If `done` warns about uncommitted changes or a wrong branch, fix it and call `do
 
 Skills: `test-first` (contract settled, failing check first), `diagnosing-bugs` (cause unknown),
 `security-check` (input, auth, secrets, data exposure), `test-proof-debt-audit` (does a test prove
-what it claims?).
+what it claims?), `repo-refresh` (your task asks for cleanup).
 
 Build the final shape in your owned paths, prove each behavior, hand back what is true.

@@ -110,7 +110,7 @@ test("what a Watcher raised or judged is counted as the Watcher's, never as the 
     appendFileSync(join(state, "events.log"), `${JSON.stringify({ at: new Date(base + 1000).toISOString(), kind: "incident.ack", id, seat: "p1", finding, verdict, opened: base, last: base + 10, ...extra })}\n`);
   ack("I1", "goal_drift", "useful", {});
   ack("I2", "goal_drift", "noise", { by: "watcher" });
-  ack("I3", "stuck", "noise", { sensor: { question: "watcher", p: 0, model: "devin/swe", says: "vetoes" } });
+  ack("I3", "stuck", "noise", { sensor: { question: "watcher", p: 0, model: "agy/swe", says: "vetoes" } });
   let report = await calibrate({ state });
   assert.match(report, /raised by a sensor question: 1 useful of 1 /);
   assert.match(report, /raised by the Watcher: 0 useful of 1 /);

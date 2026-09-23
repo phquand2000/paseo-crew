@@ -42,7 +42,7 @@ function working() {
 
 const seats = new Map<string, SeatView>([
   ["seat-lead", { id: "seat-lead", provider: "crew-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 180_000).toISOString() }],
-  ["seat-peer", { id: "seat-peer", provider: "crew-peer-devin", cwd: "/w", status: "running", updatedAt: new Date(now - 60_000).toISOString(), pendingPermissions: [{ title: "Write outside the working copy" }] }],
+  ["seat-peer", { id: "seat-peer", provider: "crew-peer-agy", cwd: "/w", status: "running", updatedAt: new Date(now - 60_000).toISOString(), pendingPermissions: [{ title: "Write outside the working copy" }] }],
   ["seat-sup", { id: "seat-sup", provider: "crew-supervisor-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 600_000).toISOString() }],
 ]);
 
