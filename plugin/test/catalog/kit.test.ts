@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { can, harnessProblems, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf, watcherProblems } from "../../server/catalog/kit.ts";
 import { renderPrompt } from "../../server/catalog/content.ts";
 import { tempDir } from "../tempdir.ts";
@@ -89,7 +90,7 @@ test("loading a kit refuses a harness that breaks the contract, naming the field
 
 test("the shipped harnesses satisfy their own contract", async () => {
   const { loadKit } = await import("../../server/catalog/kit.ts");
-  const kit = loadKit(new URL("../..", import.meta.url).pathname);
+  const kit = loadKit(fileURLToPath(new URL("../..", import.meta.url)));
   for (const [id, harness] of Object.entries(kit.harnesses)) assert.deepEqual(harnessProblems(id, harness as unknown as Record<string, unknown>), [], `harness ${id}`);
 });
 

@@ -24,6 +24,9 @@ Changes from upstream so far:
   `paseo-crew.`, and the `AGENTS.md` block markers `seatworks:begin`/`seatworks:end` →
   `paseo-crew:begin`/`paseo-crew:end`.
 - Version raised to 2.1.0. Behaviour is otherwise the same as upstream.
+- 2.1.1: accepts Paseo `>=0.8.0 <0.10.0` and is built and tested against the 0.9.1 SDK; tests
+  resolve their own paths with `fileURLToPath`, so the suite passes in a directory whose path has
+  spaces.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 

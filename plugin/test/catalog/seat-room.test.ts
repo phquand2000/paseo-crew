@@ -3,9 +3,10 @@ import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { tempDir } from "../tempdir.ts";
 
-const SEAT_ROOM = new URL("../../bin/seat-room", import.meta.url).pathname;
+const SEAT_ROOM = fileURLToPath(new URL("../../bin/seat-room", import.meta.url));
 
 function seat(baseProvider: string) {
   const dir = tempDir("crew-seat-room-");
