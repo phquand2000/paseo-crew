@@ -76,8 +76,8 @@ The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane)
 
 | Role | Owns | Default agent |
 |---|---|---|
-| Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5` · high |
-| Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5` · medium |
+| Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5-5` · high |
+| Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5-5` · medium |
 | Peer | One task, and the engineering judgement inside it | Codex · `gpt-5.5` |
 | Reviewer | A read-only review of one change | Codex · `gpt-5.5` |
 | Hunter | A read-only bug hunt across one scope, with ten scouts of its own | Antigravity · `gemini-3.8-flash-high` |

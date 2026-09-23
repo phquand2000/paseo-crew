@@ -149,7 +149,7 @@ function repo(): { root: string; git: (cwd: string, ...args: string[]) => string
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const thinking = ["low", "medium", "high"].map((id) => ({ id, label: id }));
 applyModels(kit, {
-  claude: { at: "", error: null, models: [{ id: "claude-opus-5", label: "Opus 5", thinkingOptions: thinking }] },
+  claude: { at: "", error: null, models: [{ id: "claude-opus-5-5", label: "Opus 5.5", thinkingOptions: thinking }, { id: "claude-opus-5", label: "Opus 5", thinkingOptions: thinking }] },
   codex: { at: "", error: null, models: [{ id: "gpt-5.5", label: "GPT-5.5" }] },
   agy: { at: "", error: null, models: [{ id: "gemini-3.8-flash-high", label: "Gemini 3.8 Flash High" }] },
 });
@@ -735,7 +735,7 @@ test("each project gets the agent and model its own settings choose, and the mac
   await h.call(lane.lead!, "lead", "start_task", { title: "Default peer", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
   const onDefaults = h.agents.get(h.ledger().tasks["L1-T1"]!.peer!)!.provider;
   assert.equal(onDefaults, "crew-peer-codex/gpt-5.5");
-  assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5");
+  assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5-5");
 
   writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ roles: { peer: { harness: "claude", model: "claude-opus-5" } } }));
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "done" });
@@ -744,7 +744,7 @@ test("each project gets the agent and model its own settings choose, and the mac
   await h.call(lane.lead!, "lead", "start_task", { title: "Claude peer", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] });
   const switched = h.agents.get(h.ledger().tasks["L1-T2"]!.peer!)!.provider;
   assert.equal(switched, "crew-peer-claude/claude-opus-5");
-  assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5");
+  assert.equal(h.agents.get(lane.lead!)!.provider, "crew-lead-claude/claude-opus-5-5");
   h.runtime.dispose();
 });
 
@@ -1762,7 +1762,7 @@ test("a Watcher reads what a Peer did, said and thought as it works, never a key
 test("a reading never steers into a Watcher's turn: it waits, and what came meanwhile arrives with it", async () => {
   const { h, timeline } = await laneWithPeer("outbox-reading-held.json", { ...bySeat(), roles: { watcher: { harness: "claude" } } });
   const [watcher] = watchersOf(h);
-  assert.equal(watcher!.provider, "crew-watcher-claude/claude-opus-5", "on an agent that takes a message into a running turn");
+  assert.equal(watcher!.provider, "crew-watcher-claude/claude-opus-5-5", "on an agent that takes a message into a running turn");
   h.runtime.outbox.turnStarted(watcher!.id, Date.now() - 120_000);
   for (const turn of ["t1", "t2"]) {
     timeline.beat("turn_started", turn);
