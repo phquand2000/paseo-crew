@@ -1,6 +1,6 @@
 import { accessSync, constants, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, delimiter, join } from "node:path";
+import { basename, delimiter, join, resolve } from "node:path";
 
 export const PLUGIN_ID = "paseo-crew";
 
@@ -15,8 +15,13 @@ export function expandHome(value: string, homeDir = home()): string {
   return value;
 }
 
-export function paseoConfigPath(homeDir = home()): string {
-  return join(homeDir, ".paseo", "config.json");
+export function paseoHome(): string {
+  const raw = process.env.PASEO_HOME;
+  return raw ? resolve(expandHome(raw)) : join(home(), ".paseo");
+}
+
+export function paseoConfigPath(): string {
+  return join(paseoHome(), "config.json");
 }
 
 export function stateRoot(homeDir = home()): string {

@@ -8,6 +8,7 @@ import { STATE_VERSION } from "../../server/core/state.ts";
 
 const HOME = mkdtempSync(join(tmpdir(), "crew-rpc-home-"));
 process.env.HOME = HOME;
+delete process.env.PASEO_HOME;
 
 const { Runtime } = await import("../../server/runtime/runtime.ts");
 const { registerRpc } = await import("../../server/runtime/rpc.ts");

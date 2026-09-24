@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 export const HOME = mkdtempSync(join(tmpdir(), "crew-flow-home-"));
 process.env.HOME = HOME;
+delete process.env.PASEO_HOME;
 globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof fetch;
 
 const { loadKit } = await import("../../server/catalog/kit.ts");

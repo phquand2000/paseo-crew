@@ -7,7 +7,7 @@ import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transpor
 import { gitCommonDir } from "../core/git.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
-import { guidesDir, home, stateRoot, worktreeRoot } from "../core/paths.ts";
+import { guidesDir, home, paseoHome, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { createHash } from "node:crypto";
 import { flowView } from "../desk/flow.ts";
 import type { CleanView, MigrateView, UpdateView, WatchView } from "../../shared/views.ts";
@@ -394,7 +394,7 @@ export class SettingsControl implements Control {
     const counts = new Map<string, number>();
     for (const seat of await this.live()) counts.set(seat.slug, (counts.get(seat.slug) ?? 0) + 1);
     const busy = [...counts].map(([slug, count]) => `${slug} ${count} seat${count === 1 ? "" : "s"}`);
-    const ctx = { dir: this.deps.kit.dir, managedRoot: join(home(), ".paseo", "plugins"), busy, install: npmInstall, reload: reloadSoon };
+    const ctx = { dir: this.deps.kit.dir, managedRoot: join(paseoHome(), "plugins"), busy, install: npmInstall, reload: reloadSoon };
     return apply ? applyUpdate(ctx) : checkUpdate(ctx, fetch);
   }
 
