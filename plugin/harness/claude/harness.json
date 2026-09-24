@@ -3,8 +3,8 @@
   "label": "Claude Code",
   "baseProvider": "claude",
   "profileRoot": "HOME/.claude/profiles",
-  "configDirEnv": "CLAUDE_CONFIG_DIR",
-  "skillsDir": "skills",
+  "configDirEnv": "PASEO_CREW_CLAUDE_SEAT",
+  "skillsDir": "crew/skills",
   "steers": true,
   "mcp": {
     "file": ".claude.json",
@@ -56,13 +56,12 @@
     },
     "profileModeId": "bypassPermissions",
     "command": [
-      "KIT/bin/seat-room"
+      "KIT/bin/claude-seat"
     ],
     "forceFlags": {
-      "--setting-sources": "user"
+      "--setting-sources": ""
     }
   },
-  "contextFile": "CLAUDE.md",
   "systemPrompt": "config",
   "stateWrites": {
     "path": "settings.sandbox.filesystem.allowWrite",

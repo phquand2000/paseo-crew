@@ -125,3 +125,48 @@ test("an agy launch the plugin did not configure keeps the owner's home and goes
   assert.equal(await run(refused.env, ["--version"]), 2);
   assert.equal(existsSync(refused.launched), false);
 });
+
+const CLAUDE_SEAT = fileURLToPath(new URL("../../bin/claude-seat", import.meta.url));
+
+function claudeSeat() {
+  const dir = tempDir("crew-claude-seat-");
+  mkdirSync(join(dir, "harness", "claude"), { recursive: true });
+  writeFileSync(join(dir, "harness", "claude", "harness.json"), JSON.stringify({ baseProvider: "claude", configDirEnv: "PASEO_CREW_CLAUDE_SEAT", provider: { command: ["KIT/bin/claude-seat"], forceFlags: { "--setting-sources": "" } } }));
+  const seatPath = join(dir, "seat");
+  mkdirSync(seatPath);
+  writeFileSync(join(seatPath, "settings.json"), JSON.stringify({ language: "vietnamese", permissions: { deny: ["WebFetch"] }, sandbox: { enabled: true } }));
+  const launched = join(dir, "launched");
+  const agent = join(dir, "agent");
+  writeFileSync(agent, `#!/usr/bin/env node\nrequire("node:fs").writeFileSync(${JSON.stringify(launched)}, JSON.stringify({ config: process.env.CLAUDE_CONFIG_DIR ?? null, argv: process.argv.slice(2) }));\n`);
+  chmodSync(agent, 0o755);
+  return { seatPath, launched, env: { PATH: process.env.PATH!, PASEO_CREW_KIT: dir, PASEO_CREW_HARNESS: "claude", PASEO_CREW_AGENT_BIN: agent } };
+}
+
+function launch(env: Record<string, string>, args: string[]): Promise<number | null> {
+  return new Promise((resolve) => {
+    const child = spawn(CLAUDE_SEAT, args, { env, stdio: ["ignore", "ignore", "ignore"] });
+    child.on("close", resolve);
+  });
+}
+
+test("a Claude seat runs on the owner's login, with its role merged into the one --settings Paseo passes", async () => {
+  const { seatPath, launched, env } = claudeSeat();
+  const paseo = JSON.stringify({ fastMode: false, sandbox: { filesystem: { allowWrite: ["/state/x"] } } });
+  assert.equal(await launch({ ...env, PASEO_CREW_CLAUDE_SEAT: seatPath }, ["--setting-sources=user,project,local", "--settings", paseo, "--model", "opus"]), 0);
+  const { config, argv } = JSON.parse(readFileSync(launched, "utf-8"));
+  assert.equal(config, null, "no config dir of its own, so no login of its own");
+  assert.deepEqual(argv.filter((_: string, i: number) => i !== 2), ["--setting-sources=", "--settings", "--model", "opus", "--strict-mcp-config", "--plugin-dir", join(seatPath, "crew")]);
+  assert.deepEqual(JSON.parse(argv[2]), { language: "vietnamese", permissions: { deny: ["WebFetch"] }, sandbox: { enabled: true, filesystem: { allowWrite: ["/state/x"] } }, fastMode: false });
+});
+
+test("a Claude seat Paseo passes no settings to still gets its own", async () => {
+  const { seatPath, launched, env } = claudeSeat();
+  assert.equal(await launch({ ...env, PASEO_CREW_CLAUDE_SEAT: seatPath }, ["--model", "opus"]), 0);
+  assert.deepEqual(JSON.parse(readFileSync(launched, "utf-8")).argv, ["--model", "opus", "--settings", join(seatPath, "settings.json"), "--strict-mcp-config", "--plugin-dir", join(seatPath, "crew"), "--setting-sources", ""]);
+});
+
+test("a Claude launch the plugin did not configure is refused before it reaches the owner's settings", async () => {
+  const { launched, env } = claudeSeat();
+  assert.equal(await launch(env, ["--model", "opus"]), 2);
+  assert.equal(existsSync(launched), false);
+});

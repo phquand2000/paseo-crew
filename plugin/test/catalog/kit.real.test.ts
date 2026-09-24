@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSy
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { renderPrompt } from "../../server/catalog/content.ts";
+import { renderPrompt, renderText } from "../../server/catalog/content.ts";
 import { PASEO_TOOLS, loadKit, providerId, toolsOf } from "../../server/catalog/kit.ts";
 import { type AgentConfig, applyRole, stateWrites } from "../../server/catalog/launch.ts";
 import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
@@ -41,10 +41,14 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
       const file = join(dir, harness.promptFile);
       assert.equal(lstatSync(file).isSymbolicLink(), false, `${name} prompt is a real file`);
       context = readFileSync(file, "utf-8");
-    } else {
+    } else if (harness.contextFile) {
       assert.doesNotMatch(renderPrompt(kit, role, { guides: "/guides", state: "/state" }), /\{\{/, `${name} prompt has no placeholder left`);
-      const file = join(dir, harness.contextFile!);
+      const file = join(dir, harness.contextFile);
       context = existsSync(file) ? readFileSync(file, "utf-8") : "";
+    } else {
+      const paths = { guides: "/guides", state: "/state" };
+      const next = applyRole(kit, team, { provider: providerId(kit, name, harness.id), cwd: "/work/repo" } as AgentConfig, (r, source) => (source === undefined ? renderPrompt(kit, r, paths) : renderText(r, source, paths)));
+      context = next.systemPrompt ?? "";
     }
     assert.doesNotMatch(context, /\{\{/, `${name} seat has no placeholder left`);
     if (seat.mcp.length === 0) {
@@ -201,7 +205,10 @@ test("a Claude seat reads the project's own CLAUDE.md, though its settings come 
   const pairs = seatPairs(kit).filter((pair) => pair.harness.id === "claude");
   assert.equal(pairs.length, kit.roles.length);
   for (const { role, harness } of pairs) {
-    assert.equal(harness.provider.forceFlags?.["--setting-sources"], "user", "the seat reads no project settings, which is why it needs the way in below");
+    assert.equal(harness.provider.forceFlags?.["--setting-sources"], "", "the seat reads neither the owner's settings nor the project's, which is why it needs the way in below");
+    assert.notEqual(harness.configDirEnv, "CLAUDE_CONFIG_DIR", "Claude keeps its login per config dir, so a seat runs on the owner's one");
+    assert.deepEqual(harness.provider.command, ["KIT/bin/claude-seat"]);
+    assert.equal(harness.skillsDir, "crew/skills", "bin/claude-seat loads the seat's skills as the plugin in crew/");
     const env = (desiredProvider(kit, team, role, harness) as { env: Record<string, string> }).env;
     assert.equal(env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD, "1", `${role.role}: Claude reads CLAUDE.md from an added directory only with this set`);
     const config = { provider: providerId(kit, role.role, "claude"), cwd: "/work/repo" } as AgentConfig;

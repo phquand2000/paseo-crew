@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -eu
+# Claude keeps its login per config dir, so a seat runs on the owner's one and brings its role as flags.
+room=$(dirname "$0")/seat-room
+seat=${PASEO_CREW_CLAUDE_SEAT:-}
+[ -n "$seat" ] || exec "$room" ${1+"$@"}
+own=$seat/settings.json
+
+merge() {
+    case $1 in
+    \{*) jq -c --argjson paseo "$1" '. * $paseo' "$own" ;;
+    *) jq -c --slurpfile paseo "$1" '. * $paseo[0]' "$own" ;;
+    esac
+}
+
+args=()
+merged=0
+next=0
+for arg in ${1+"$@"}; do
+    if [ "$next" = 1 ]; then
+        next=0
+        args+=("$(merge "$arg")")
+        continue
+    fi
+    case $arg in
+    --settings)
+        next=1
+        merged=1
+        args+=("$arg")
+        ;;
+    --settings=*)
+        merged=1
+        args+=("--settings=$(merge "${arg#--settings=}")")
+        ;;
+    *) args+=("$arg") ;;
+    esac
+done
+[ "$merged" = 1 ] || args+=(--settings "$own")
+args+=(--strict-mcp-config --plugin-dir "$seat/crew")
+exec "$room" "${args[@]}"

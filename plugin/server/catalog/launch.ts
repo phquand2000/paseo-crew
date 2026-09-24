@@ -6,7 +6,7 @@ import { type Team, preapprovedFor, rulesFor, skillDirsFor } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
-export type RenderPrompt = (role: RoleSpec) => string;
+export type RenderPrompt = (role: RoleSpec, source?: string) => string;
 
 type Json = Record<string, unknown>;
 
@@ -57,7 +57,9 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
     next.thinkingOptionId = [config.thinkingOptionId, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
   }
   if (harness.systemPrompt === "config") {
-    const prompt = render(role);
+    // A harness with no context file of its own takes the role's rules in its prompt.
+    const rules = harness.contextFile ? "" : rulesFor(team, role.role);
+    const prompt = rules ? `${render(role).trimEnd()}\n\n${render(role, rules)}` : render(role);
     next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
   }
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
