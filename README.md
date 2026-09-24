@@ -44,6 +44,8 @@ Changes from upstream so far:
 - 3.1.0: Supervisor, Lead and Peer default to Claude `claude-opus-5-5` at high thinking. A new
   **Backup Peer** on Codex `gpt-5.6-luna` at max takes tasks the Lead starts with
   `role: "backup-peer"` when the Peer's agent runs short of quota.
+- 3.1.1: The Lead no longer cuts a Peer stopped on a usage limit, which threw its work away; it
+  messages the Peer to continue once the limit resets.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 

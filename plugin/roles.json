@@ -91,7 +91,7 @@
     {
       "role": "backup-peer",
       "label": "Backup Peer",
-      "description": "Does one task and hands it back, on another agent for when the Peer's runs short of quota",
+      "description": "Does one task and hands it back, on another agent for when the Peer's agent runs short of quota",
       "defaults": {
         "harness": "codex",
         "model": "gpt-5.6-luna",
