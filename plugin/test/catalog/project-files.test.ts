@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { loadKit } from "../../server/catalog/kit.ts";
@@ -43,12 +43,24 @@ test("with the pointer turned off CLAUDE.md is never made, and only the plugin's
   assert.deepEqual(placeProjectFiles(root, "Team rules.", { claudePointer: false }), [], "a pointer the Human wrote is theirs");
 });
 
+test("a CLAUDE.md that is a link to AGENTS.md is the same file, and the block in it stays", () => {
+  for (const claudePointer of [false, true]) {
+    const root = tempDir("crew-files-");
+    writeFileSync(join(root, "AGENTS.md"), "# Ours");
+    symlinkSync("AGENTS.md", join(root, "CLAUDE.md"));
+    assert.deepEqual(placeProjectFiles(root, "Team rules.", { claudePointer }), ["AGENTS.md"]);
+    assert.equal(read(root, "AGENTS.md"), `# Ours\n\n${BEGIN}\nTeam rules.\n${END}\n`);
+    assert.equal(lstatSync(join(root, "CLAUDE.md")).isSymbolicLink(), true);
+    assert.deepEqual(placeProjectFiles(root, "Team rules.", { claudePointer }), []);
+  }
+});
+
 test("a lane may take over a copy whose only change is the team's block, and not one the Human has changed", async () => {
   const root = tempDir("crew-files-");
   const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf-8" });
   git("init", "-q");
   git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "start");
-  writeFileSync(join(root, "AGENTS.md"), "# Ours\n");
+  writeFileSync(join(root, "AGENTS.md"), "# Ours");
   git("add", "AGENTS.md");
   git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "ours");
 

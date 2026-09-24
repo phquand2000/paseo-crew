@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Cleanliness, git, pristineState, uncommittedPaths } from "../core/git.ts";
 
@@ -39,6 +39,7 @@ function withoutPointer(text: string): string | undefined {
 }
 
 const read = (file: string) => (existsSync(file) ? readFileSync(file, "utf-8") : "");
+const sameFile = (a: string, b: string) => existsSync(a) && existsSync(b) && realpathSync(a) === realpathSync(b);
 
 /** `wanted` undefined: the file goes. */
 export type ProjectFile = { name: string; file: string; wanted: string | undefined };
@@ -50,6 +51,8 @@ export function staleProjectFiles(root: string, body: string, { claudePointer = 
     ["CLAUDE.md", claudePointer ? withPointer : withoutPointer],
   ] as const) {
     const file = join(root, name);
+    // A CLAUDE.md linked to AGENTS.md is that file, and its block is placed there.
+    if (name === "CLAUDE.md" && sameFile(file, join(root, "AGENTS.md"))) continue;
     const text = read(file);
     const wanted = next(text);
     if (wanted !== text) stale.push({ name, file, wanted });
