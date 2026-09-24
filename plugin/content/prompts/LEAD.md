@@ -53,7 +53,8 @@ Split the way the work divides; no quota on Peers.
 
 ## Hard decisions
 
-- Put the question to two reviewers: `start_review` with no task (`council` structures it).
+- Put the question to two reviewers: `start_review` with no task, one of them with
+  `role: "senior-reviewer"`, so two different readers answer (`council` structures it).
 - Hold your own answer first. Agreement with you proves little (you framed it); a contradiction is
   where to spend your turn. Don't pick what two of three said: that's counting, not reading.
 
@@ -97,6 +98,9 @@ no `status` in a loop: the Peer is no faster for it, and mail waits until your t
 - Reviewed before it counts: `start_review` on a big task (several modules, or hundreds of lines)
   before you accept it, and once without a task on the whole lane against its acceptance before you
   `report` it ready. A green gate is not a review.
+- Complex or high-stakes design (a contract, security or identity, data, concurrency, a design across
+  modules, anything hard to undo): `start_review` with `role: "senior-reviewer"`, which reads on a
+  stronger model. Every other review stays with the default Reviewer.
 
 ## Code focus
 

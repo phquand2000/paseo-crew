@@ -46,6 +46,8 @@ Changes from upstream so far:
   `role: "backup-peer"` when the Peer's agent runs short of quota.
 - 3.1.1: The Lead no longer cuts a Peer stopped on a usage limit, which threw its work away; it
   messages the Peer to continue once the limit resets.
+- 3.2.0: A **Senior Reviewer** on Codex `gpt-6-astra` at xhigh reads complex or high-stakes design
+  when the Lead starts a review with `role: "senior-reviewer"`. The Reviewer is unchanged.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -86,6 +88,7 @@ The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane)
 | Peer | One task, and the engineering judgement inside it | Claude Code · `claude-opus-5-5` · high |
 | Backup Peer | The same, when the Peer's agent runs short of quota: the Lead starts it with `role: "backup-peer"` | Codex · `gpt-5.6-luna` · max |
 | Reviewer | A read-only review of one change | Codex · `gpt-5.5` |
+| Senior Reviewer | The same, for complex or high-stakes design: the Lead starts it with `role: "senior-reviewer"` | Codex · `gpt-6-astra` · xhigh |
 | Hunter | A read-only bug hunt across one scope, with ten scouts of its own | Antigravity · `gemini-3.8-flash-high` |
 | Watcher | Reading Leads and Peers as they work. It cannot touch the work | the Peer's agent |
 

@@ -148,6 +148,36 @@
       ]
     },
     {
+      "role": "senior-reviewer",
+      "label": "Senior Reviewer",
+      "description": "Read-only Peer that reviews complex or high-stakes design with clean context, on a stronger model",
+      "defaults": {
+        "harness": "codex",
+        "model": "gpt-6-astra",
+        "thinking": "xhigh"
+      },
+      "can": [
+        "work",
+        "review"
+      ],
+      "tools": "reviewer",
+      "concern": "review",
+      "prompt": "prompts/REVIEWER.md",
+      "skills": null,
+      "extraSkills": [
+        "peer:test-proof-debt-audit"
+      ],
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "seat",
+        "seats"
+      ]
+    },
+    {
       "role": "hunter",
       "label": "Hunter",
       "description": "Read-only Peer that hunts a whole scope for defects with ten scouts of its own and hands back every finding",

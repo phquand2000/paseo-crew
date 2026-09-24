@@ -18,7 +18,7 @@ schema. A call that doesn't fit is refused, with what is wrong.
 |---|---|
 | Supervisor | `open_lane` `close_lane` `set_project` `message` `answer` `status` `incidents` `ack` |
 | Lead | `start_task` `start_review` `accept` `rework` `cut` `report` `message` `answer` `ask` `status` `incidents` `ack` |
-| Peer, Backup Peer, Reviewer, Hunter | `done` `ask` |
+| Peer, Backup Peer, Reviewer, Senior Reviewer, Hunter | `done` `ask` |
 | Watcher | `raise` `judge` |
 
 | Verb | Effect |
@@ -192,7 +192,7 @@ settings revision changes, its settings file is gone, or a login appeared since.
 | Agent | Directory | Written there | Launch |
 |---|---|---|---|
 | Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, `CLAUDE.md` for working rules | `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out |
-| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer, Hunter and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
+| Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer, Senior Reviewer, Hunter and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
 | OpenCode | `~/.opencode/seats/…` | `opencode/opencode.json` (command denials, subagents off but for the Hunter, edits off for Reviewer, Hunter and Watcher, only the role's skills allowed), `opencode/AGENTS.md`, `opencode/skills/`, a link to your git config | Paseo's OpenCode provider, with `OPENCODE_DISABLE_CLAUDE_CODE` and `OPENCODE_DISABLE_EXTERNAL_SKILLS` |
 | Antigravity | `~/.gemini/seats/…`, used as the seat's `HOME` | `.gemini/GEMINI.md` (prompt and working rules), `.gemini/config/mcp_config.json`, `.gemini/config/skills/`, a link to your `agy` login token, links to your git config | `bin/agy-home`, which sets `HOME` and hands over to `bin/seat-room`, running `agy-acp` over Paseo's ACP provider |
 

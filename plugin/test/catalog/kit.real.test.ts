@@ -24,7 +24,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   assert.deepEqual(Object.values(off.mcp).filter((state) => state.enabled), [], "the kit ships no server switched on");
   const team = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["backup-peer", "hunter", "lead", "peer", "reviewer", "supervisor", "watcher"]);
+  assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["backup-peer", "hunter", "lead", "peer", "reviewer", "senior-reviewer", "supervisor", "watcher"]);
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);
   const every = kit.roles.flatMap((role) => ["claude", "codex", "opencode", "agy"].map((harness) => `${role.role}-${harness}`)).sort();
   assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), every, "every role can sit on every agent the kit ships");
@@ -77,7 +77,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.deepEqual(settings.features, { multi_agent: false, multi_agent_v2: false }, `${where}: Paseo is the only control plane`);
       assert.equal(settings.approval_policy, "never", `${where}: nobody is there to approve`);
       assert.equal(settings.skills.bundled.enabled, false, `${where}: only the role's skills, as on every other agent`);
-      assert.equal(settings.sandbox_mode, ["reviewer", "hunter", "watcher"].includes(role.role) ? "read-only" : "workspace-write", where);
+      assert.equal(settings.sandbox_mode, ["reviewer", "senior-reviewer", "hunter", "watcher"].includes(role.role) ? "read-only" : "workspace-write", where);
       const catalog = JSON.parse(readFileSync(settings.model_catalog_json, "utf-8"));
       assert.ok(catalog.models.length > 0 && catalog.models.every((model: Record<string, unknown>) => model.multi_agent_version === null), `${where}: no model offers native agents`);
       assert.ok(settings.sandbox_workspace_write.writable_roots.every((path: string) => path.startsWith("/state/demo/")), `${where}: writes into the state only where its content says`);
@@ -92,7 +92,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const skills = readdirSync(join(dir, harness.skillsDir)).sort();
       assert.deepEqual(settings.permission.skill, { "*": "deny", ...Object.fromEntries(skills.map((name) => [name, "allow"])) }, `${where}: only the role's skills load`);
       assert.equal(settings.permission.task, role.role === "hunter" ? "allow" : "deny", `${where}: only the Hunter starts subagents`);
-      assert.equal(settings.permission.edit, ["reviewer", "hunter", "watcher"].includes(role.role) ? "deny" : "allow", where);
+      assert.equal(settings.permission.edit, ["reviewer", "senior-reviewer", "hunter", "watcher"].includes(role.role) ? "deny" : "allow", where);
       if (role.role === "watcher") assert.equal(settings.permission.bash, "deny", `${where}: runs nothing`);
       else assert.equal(settings.permission.bash["git push*"], "deny", `${where}: carries the rules every seat has`);
     }
@@ -304,5 +304,5 @@ test("a pasted server that names no roles is given to every role that works with
   const kit = loadKit(pluginRoot);
   const team = resolveTeam(kit, { mcp: { pasted: { enabled: true, label: "Pasted", connect: { type: "http", url: "https://mcp.example.com" } } } });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(Object.entries(team.roles).filter(([, seat]) => seat.mcp.includes("pasted")).map(([name]) => name).sort(), ["backup-peer", "hunter", "lead", "peer", "reviewer", "supervisor"]);
+  assert.deepEqual(Object.entries(team.roles).filter(([, seat]) => seat.mcp.includes("pasted")).map(([name]) => name).sort(), ["backup-peer", "hunter", "lead", "peer", "reviewer", "senior-reviewer", "supervisor"]);
 });
