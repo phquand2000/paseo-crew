@@ -50,7 +50,7 @@ export class Slots {
       );
     }
     if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
-    const run = await git(project.root, ["switch", "-c", branch, base]);
+    const run = await git(project.root, ["switch", "--no-track", "-c", branch, base]);
     if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
     try {
       const taken = await this.takeOwnCopy(project);
@@ -65,7 +65,7 @@ export class Slots {
   /** Carries on the branch the project's own copy is on, or first starts `branch` from `from` there with the uncommitted work along. */
   async carryOn(project: Project, branch: string, from?: string): Promise<{ path: string; workspaceId: string }> {
     if (from) {
-      const run = await git(project.root, ["switch", "-c", branch]);
+      const run = await git(project.root, ["switch", "--no-track", "-c", branch]);
       if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
     }
     try {
@@ -275,7 +275,7 @@ export class Slots {
     if (existsSync(join(slot.path, ".git"))) {
       const held = await workState(slot.path);
       if (held !== "clean") throw new Error(held === "dirty" ? `working copy ${slot.id} has uncommitted changes` : `git could not read working copy ${slot.id} at ${slot.path}`);
-      const run = await git(slot.path, ["switch", "-c", branch, base]);
+      const run = await git(slot.path, ["switch", "--no-track", "-c", branch, base]);
       if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
       return true;
     }

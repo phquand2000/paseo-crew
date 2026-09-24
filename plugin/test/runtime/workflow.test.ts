@@ -336,6 +336,34 @@ test("a new branch the Human agreed to starts where their copy is, takes their u
   h.runtime.dispose();
 });
 
+test("no branch the desk starts tracks its base's upstream, so a first push cannot land on main", async () => {
+  const upstream = (h: ReturnType<typeof harness>, branch: string) => h.git(h.root, "config", "--list").split("\n").filter((line) => line.startsWith(`branch.${branch}.`)).join(" ");
+  const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
+  const tracked = (name: string) => {
+    const h = harness(name);
+    h.git(h.root, "config", "branch.autoSetupMerge", "inherit");
+    h.git(h.root, "config", "branch.main.remote", "origin");
+    h.git(h.root, "config", "branch.main.merge", "refs/heads/main");
+    return h;
+  };
+
+  const h = tracked("outbox-notrack.json");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { base: "main" });
+  assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Away", ...scope, isolate: true })).ok, true);
+  assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Here", ...scope })).ok, true);
+  for (const lane of Object.values(h.ledger().lanes)) assert.equal(upstream(h, lane.branch), "", `${lane.id} on ${lane.branch}`);
+  h.runtime.dispose();
+
+  const n = tracked("outbox-notrack-new.json");
+  const nsup = n.add("crew-supervisor-claude/claude-opus-5", n.root, "sup");
+  await n.call(nsup, "supervisor", "set_project", { base: "main" });
+  const opened = await n.call(nsup, "supervisor", "open_lane", { title: "Split off", ...scope, onBranch: true, newBranch: "fix/split" });
+  assert.equal(opened.ok, true, opened.text);
+  assert.equal(upstream(n, "fix/split"), "");
+  n.runtime.dispose();
+});
+
 test("a lane open when the Human updates the plugin from state 1 carries on and lands as the lane branch it was", async () => {
   const h = harness("outbox-upgrade.json");
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
