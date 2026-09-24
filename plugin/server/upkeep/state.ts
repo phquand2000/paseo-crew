@@ -18,6 +18,10 @@ export const STEPS: StateStep[] = [
   },
   // 3 only adds `Lane.onBranch`; a lane without it is the lane branch it always was, so nothing is carried.
   { to: 3 },
+  // 4 only adds lanes that wait, their record of landing, and amendment history; state 3 has none of them to carry.
+  { to: 4 },
+  // 5 only adds tasks that wait; state 4 has none to carry.
+  { to: 5 },
 ];
 
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json"];

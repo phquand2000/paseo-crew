@@ -61,13 +61,20 @@ export class Patrol {
     this.deps.reader.keep(new Set([...seats.values()].filter((seat) => !seat.archivedAt).map((seat) => seat.id)));
     for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
+      // Written to, a project removed while the plugin runs would come back as a state directory of its own.
+      if (!this.deps.source.onRecord(project)) {
+        desk.projects.delete(project.slug);
+        continue;
+      }
       await this.step(project, "idle lanes could not be read", () => this.idleLanes(project, loadLedger(project.state), seats, now));
       await this.step(project, "incidents held for nobody or for the sensor could not be told", async () => void (await desk.retell(project)));
       await this.step(project, "a task whose Peer is gone could not be recorded", () => this.goneTasks(project, loadLedger(project.state), seats));
+      await this.step(project, "a lane whose Lead is gone could not be told", () => this.goneLeads(project, loadLedger(project.state), seats));
       await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
       await this.step(project, "what a lane's history shows could not be read", () => this.history(project, loadLedger(project.state), seats));
       await this.step(project, "the Watcher could not be settled", () => this.settleWatcher(project, loadLedger(project.state), seats));
       await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
+      await this.step(project, "waiting lanes could not be opened", () => desk.openWaiting(project));
       // An empty listing is a daemon that answered nothing, not a project whose every seat is gone.
       if (seats.size > 0) await this.step(project, "finished lanes could not be archived", () => desk.archiveFinished(project, (id) => !seats.has(id) && outbox.pending(id).length === 0));
       await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
@@ -175,6 +182,18 @@ export class Patrol {
         entry.peerGone = true;
       });
       await desk.post(ledger.lanes[task.lane]?.lead, `gone:${project.slug}:${task.id}`, letters.failed(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"));
+    }
+  }
+
+  /** Nothing restarts a lane whose Lead went, so whoever supervises is told once per Lead; an empty listing tells nothing. */
+  private async goneLeads(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
+    const { desk } = this.deps;
+    if (seats.size === 0) return;
+    for (const lane of Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead && !seats.has(entry.lead))) {
+      const gone = `${project.slug}:${lane.id}:${lane.lead}`;
+      if (this.goneFlag.has(gone)) continue;
+      const posted = await desk.post(await desk.supervisorFor(project, lane.opener), `leadgone:${gone}`, letters.leadGone(lane));
+      if (posted !== "nobody") this.goneFlag.add(gone);
     }
   }
 

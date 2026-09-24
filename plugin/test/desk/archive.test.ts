@@ -49,6 +49,13 @@ test("closed lanes past the newest few leave the ledger whole once nothing of th
   assert.equal(takeFinished(ledger, (id) => !live.has(id)), undefined, "a second look finds nothing more");
 });
 
+test("a closed lane a waiting lane waits for stays on record, however old", () => {
+  const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
+  ledger.lanes.L99 = { ...lane(99, "waiting"), after: ["L1"] };
+  assert.equal(takeFinished(ledger, () => true), undefined);
+  assert.ok(ledger.lanes.L1);
+});
+
 test("an open lane is never archived; a seat with no lane keeps its role's newest entry and any open ask; an answered ask goes with its asker", () => {
   const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
   ledger.lanes.L1!.status = "open";

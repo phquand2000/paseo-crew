@@ -16,19 +16,22 @@ schema. A call that doesn't fit is refused, with what is wrong.
 
 | Role | Tools |
 |---|---|
-| Supervisor | `open_lane` `close_lane` `set_project` `message` `answer` `status` `incidents` `ack` |
-| Lead | `start_task` `start_review` `accept` `rework` `cut` `report` `message` `answer` `ask` `status` `incidents` `ack` |
+| Supervisor | `open_lane` `close_lane` `amend_lane` `replace_lead` `set_project` `message` `answer` `status` `incidents` `ack` |
+| Lead | `start_task` `start_review` `accept` `rework` `amend_task` `cut` `report` `message` `answer` `ask` `status` `incidents` `ack` |
 | Peer, Backup Peer, Reviewer, Senior Reviewer, Hunter | `done` `ask` |
 | Watcher | `raise` `judge` |
 
 | Verb | Effect |
 |---|---|
-| `open_lane` | Records the lane, takes a working copy and seats a Lead, with a directive that names `CONTEXT.md` once it exists. It can read a GitHub issue. It refuses a lane whose declared write set or `contracts` overlap an open lane's write set, or that reaches a path the project keeps to one writer. The project's own checkout must be clean |
+| `open_lane` | Records the lane, takes a working copy and seats a Lead, with a directive that names `CONTEXT.md` once it exists. It can read a GitHub issue. It refuses a lane whose declared write set or `contracts` overlap an open lane's write set, or that reaches a path the project keeps to one writer. While another lane holds the project's copy it needs `isolate` (its own copy) or `after` (it waits for the named lanes to land, then opens by itself). `onBranch` carries on the branch the Human's copy is on, and with `newBranch` starts a new branch there that takes their work in progress along |
 | `close_lane` | Waits for queued merges. With `land`, it [lands the lane](ARCHITECTURE.md#a-lane). Then it cuts leftover tasks, archives their seats and the Lead, and puts the copy away |
+| `amend_lane` | Changes what an open or waiting lane is asked, keeping the old values with why. Its Lead is told, and a READY it gave before no longer stands |
+| `replace_lead` | Seats a new Lead on an open lane whose Lead is gone; the copy, branch, tasks and waiting asks carry over |
 | `set_project` | Sets the base branch, the gate command and its timeout (30 min by default), whether the gate runs per lane or per task, and the serial-only paths. An empty gate is an answer, and the desk never detects one over it |
-| `start_task` | Seats a writing role on a task. In lane mode it shares the lane's copy. In parallel mode it gets its own slot and `task/…` branch. `skills` must be ones the role has |
+| `start_task` | Seats a writing role on a task. In lane mode it shares the lane's copy. In parallel mode it gets its own slot and `task/…` branch. `skills` must be ones the role has. With `after` it waits for the named tasks, by the same rule lanes wait by |
 | `start_review` | Seats a read-only reviewing role. It runs where the change is now: the task's copy, the lane's copy, or the task branch |
 | `accept` | Lane mode: marks the task merged in place and retires the Peer. It is refused if the lane copy is off its branch or dirty. Parallel mode: queues the task for merging |
+| `amend_task` | Changes what a task asks while its Peer works on it, keeping the old values with why; the Peer reads it at its next turn |
 | `rework` | Sends the task back with a letter. It is refused while another task holds the lane copy |
 | `cut` | Stops the task and archives its Peer. It resets the lane copy to where the task started, when nothing merged there since |
 | `report` | Reports to the Supervisor. With `ready`, it runs the lane gate first |

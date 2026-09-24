@@ -15,6 +15,9 @@ export type Caller = { id: string; role: RoleSpec; title: string; project: Proje
 export const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 export const strs = (value: unknown): string[] =>
   Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : typeof value === "string" && value.trim() ? [value.trim()] : [];
+/** Only the fields the call names, read as text or as a list: an amendment changes what it is given and nothing else. */
+export const given = (args: Args, texts: string[], lists: string[]): Record<string, string | string[]> =>
+  Object.fromEntries([...texts.map((key) => [key, str(args[key])] as const), ...lists.map((key) => [key, strs(args[key])] as const)].filter(([key]) => args[key] !== undefined));
 export const ok = (text: string): ToolReply => ({ ok: true, text });
 export const no = (text: string): ToolReply => ({ ok: false, text });
 export const hash = (...parts: string[]): string => createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
@@ -44,6 +47,7 @@ export type DeskDeps = {
 export class DeskContext {
   readonly kit: Kit;
   readonly projects = new Map<string, Project>();
+  readonly seating = new Set<string>();
   private readonly deps: DeskDeps;
   private readonly locks = new Map<string, Promise<unknown>>();
 

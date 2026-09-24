@@ -1,5 +1,5 @@
 import type { SeatView } from "../core/paseo.ts";
-import type { Lane, Ledger } from "./ledger.ts";
+import { type Lane, type Ledger, ownCopyHolder } from "./ledger.ts";
 import { type Project, type ProjectConfig, projectOf } from "./project.ts";
 
 
@@ -24,8 +24,9 @@ function ownCopyLines(project: Project, ledger: Ledger, config: ProjectConfig, c
   const work = copy.work ? [...copy.work].sort() : undefined;
   const more = work && work.length > SHOWN_FILES ? `, and ${work.length - SHOWN_FILES} more` : "";
   const state = !work ? "and git could not say what is uncommitted" : work.length === 0 ? "clean" : `with ${work.length} uncommitted ${work.length === 1 ? "file" : "files"}: ${work.slice(0, SHOWN_FILES).join(", ")}${more}`;
-  const holder = Object.values(ledger.lanes).find((lane) => lane.status === "open" && !lane.slot);
-  const lines = ["## The project's own copy", "", `${project.root} is ${at}, ${state}.`, holder ? `Lane ${holder.id} is working in it.` : "No lane is working in it."];
+  const holder = ownCopyHolder(Object.values(ledger.lanes));
+  const held = holder?.status === "open" ? `Lane ${holder.id} is working in it.` : holder ? `Lane ${holder.id} is closed, and its Lead is ending a turn in it; it goes back to ${holder.base} after.` : "No lane is working in it.";
+  const lines = ["## The project's own copy", "", `${project.root} is ${at}, ${state}.`, held];
   if (!holder && copy.branch && work) {
     if (work.length > 0) lines.push(`The Human decides where the next lane works, before it opens: carry on ${copy.branch} here, a new branch that takes the uncommitted work along, or a new branch that leaves it where it is.`);
     else if (config.base && copy.branch !== config.base) lines.push(`The Human decides where the next lane works, before it opens: carry on ${copy.branch} here, or a new branch off ${config.base}.`);
@@ -92,11 +93,27 @@ export function statusText(
     const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
     if (tasks.length === 0) lines.push("- no tasks yet");
     for (const task of tasks) {
-      const detail = ["running", "rework"].includes(task.status) ? `, Peer ${seatLine(seats, task.peer, now)}` : task.handback ? `, hand-back ${minutes(now, task.handback.at)} min ago` : "";
+      const detail = ["running", "rework"].includes(task.status)
+        ? `, Peer ${seatLine(seats, task.peer, now)}`
+        : task.status === "waiting"
+          ? `, after ${(task.after ?? []).join(", ")}${task.held ? `. Not started: ${task.held.why}` : ""}`
+          : task.handback
+            ? `, hand-back ${minutes(now, task.handback.at)} min ago`
+            : "";
       lines.push(`- ${task.id} ${task.title}: ${task.status}${detail}`);
     }
     lines.push("");
   }
+  const pending = lanes.filter((lane) => lane.status === "waiting");
+  if (pending.length > 0) lines.push("## Waiting lanes", "");
+  for (const lane of pending) {
+    const after = (lane.after ?? []).map((id) => {
+      const other = ledger.lanes[id];
+      return `${id} ${other?.status === "closed" ? (other.landed ? "landed" : "closed without landing") : (other?.status ?? "gone")}`;
+    });
+    lines.push(`- ${lane.id} ${lane.title}: after ${after.join(", ")}${lane.held ? `. Not open: ${lane.held.why}` : ""}`, ...(copy ? laneAim(lane).map((line) => `  ${line}`) : []));
+  }
+  if (pending.length > 0) lines.push("");
   if (!laneId) {
     const slots = Object.values(ledger.slots ?? {});
     if (slots.length > 0) {

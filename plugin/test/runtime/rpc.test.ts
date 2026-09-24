@@ -148,7 +148,9 @@ test("attaching a project is undone by detaching it, unless work is still runnin
   const state = join(HOME, ".local/share/paseo-crew/projects", added.slug);
   writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: STATE_VERSION, lanes: { L1: { id: "L1", status: "open" } }, tasks: {} }));
   const refused = await call("paseo-crew.projects.remove", { project: added.slug });
-  assert.match(refused.error, /open lane\(s\)/);
+  assert.match(refused.error, /1 open or waiting lane\(s\)/);
+  writeFileSync(join(state, "ledger.json"), JSON.stringify({ version: STATE_VERSION, lanes: { L1: { id: "L1", status: "waiting", after: ["L0"] } }, tasks: {} }));
+  assert.match((await call("paseo-crew.projects.remove", { project: added.slug })).error, /1 open or waiting lane\(s\)/, "a lane waiting to open is work still to come");
 
   // Closed lanes and their cut tasks are provenance that nothing deletes, so they must not count as work.
   writeFileSync(

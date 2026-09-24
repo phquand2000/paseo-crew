@@ -24,9 +24,9 @@ const laneNumber = (id: string) => Number(id.slice(1));
 
 /** Lane ids the open work names, a hand-back or a `lane/l7-…` branch included; naming one too many only keeps it longer. */
 function carriedOn(ledger: Ledger): Set<string> {
-  const open = new Set(Object.values(ledger.lanes).filter((lane) => lane.status === "open").map((lane) => lane.id));
+  const open = new Set(Object.values(ledger.lanes).filter((lane) => lane.status !== "closed").map((lane) => lane.id));
   const text = [
-    ...Object.values(ledger.lanes).filter((lane) => open.has(lane.id)).flatMap((lane) => [lane.title, lane.outcome, lane.base, lane.issue ?? "", ...lane.acceptance]),
+    ...Object.values(ledger.lanes).filter((lane) => open.has(lane.id)).flatMap((lane) => [lane.title, lane.outcome, lane.base, lane.issue ?? "", ...lane.acceptance, ...(lane.after ?? [])]),
     ...Object.values(ledger.tasks).filter((task) => open.has(task.lane)).flatMap((task) => [task.title, task.goal, task.context ?? "", ...task.acceptance]),
     ...Object.values(ledger.asks).filter((ask) => ask.status === "open").map((ask) => ask.text),
   ].join("\n");

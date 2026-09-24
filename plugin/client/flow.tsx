@@ -92,6 +92,13 @@ const Node = memo(function Node({ title, hint, state, alive, caret, reads, theme
 
 const Lane = memo(function Lane({ lane, theme, onOpen }: { lane: FlowLane; theme: PluginTheme; onOpen(id: string): void }) {
   const styles = useStyles(theme);
+  if (lane.status === "waiting") {
+    return (
+      <View style={styles.lane}>
+        <Node theme={theme} title={`Waiting · ${lane.id} ${lane.title}`} hint={`after ${(lane.after ?? []).join(", ")}`} state={lane.held ? `not open: ${lane.held}` : "opens once those land"} alive={false} />
+      </View>
+    );
+  }
   return (
     <View style={styles.lane}>
       <Node
@@ -131,7 +138,7 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
   const styles = useStyles(theme);
   const empty = flow !== null && flow.lanes.length === 0 && flow.supervisors.length === 0;
   // By a seat the Watcher is a seat like the others, beside the Supervisor, once a lane has put it there.
-  const watcher = flow && flow.watch.by === "seat" && (flow.watch.watcher || flow.lanes.length > 0) ? watcherState(flow.watch.watcher) : null;
+  const watcher = flow && flow.watch.by === "seat" && (flow.watch.watcher || flow.lanes.some((lane) => lane.status === "open")) ? watcherState(flow.watch.watcher) : null;
 
   return (
     <SettingsSection title="Flow" info="Only what the team is holding right now. Open a lane to see its Peers.">
@@ -184,7 +191,7 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
         <SettingsCard>
           <SettingsRow
             label={`${flow.moreLanes} more lane${flow.moreLanes === 1 ? "" : "s"}`}
-            hint={`This screen draws the first ${flow.lanes.length} open lanes and no more. The rest are running; the status page lists every one of them.`}
+            hint={`This screen draws the first ${flow.lanes.length} open lanes and no more. The rest are open or waiting; the status page lists every one of them.`}
           />
         </SettingsCard>
       ) : null}

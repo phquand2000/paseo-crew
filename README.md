@@ -48,6 +48,12 @@ Changes from upstream so far:
   messages the Peer to continue once the limit resets.
 - 3.2.0: A **Senior Reviewer** on Codex `gpt-6-astra` at xhigh reads complex or high-stakes design
   when the Lead starts a review with `role: "senior-reviewer"`. The Reviewer is unchanged.
+- 3.3.0: Seatworks v2 up to 2.0.6 (`50c3a2f`) is ported: the Supervisor sees the Human's own
+  checkout; a lane can carry on the Human's branch (`onBranch`, `newBranch`), wait for other lanes
+  (`after`) or take its own copy (`isolate`), and be amended in flight (`amend_lane`); a lane whose
+  Lead is gone gets a new one (`replace_lead`); a Lead can amend a task (`amend_task`) or start one
+  that waits (`start_task` `after`). State formats 3–5 carry upstream's formats 2–4, shifted by one
+  after this project's format 2. An older Paseo Crew refuses state format 5.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 

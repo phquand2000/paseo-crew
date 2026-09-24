@@ -21,17 +21,21 @@ import * as incidents from "./tools/incidents.ts";
 import * as lead from "./tools/lead.ts";
 import * as shared from "./tools/shared.ts";
 import * as supervisor from "./tools/supervisor.ts";
+import { openWaiting, startWaiting } from "./waiting.ts";
 import * as watcher from "./tools/watcher.ts";
 import * as worker from "./tools/worker.ts";
 
 const TOOLS: Record<string, Tool> = {
   open_lane: supervisor.openLane,
   close_lane: supervisor.closeLane,
+  amend_lane: supervisor.amendLane,
+  replace_lead: supervisor.replaceLead,
   set_project: supervisor.setProject,
   start_task: lead.startTask,
   start_review: lead.startReview,
   accept: lead.accept,
   rework: lead.rework,
+  amend_task: lead.amendTask,
   cut: lead.cut,
   report: lead.report,
   done: worker.done,
@@ -180,6 +184,12 @@ export class Desk {
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
     return this.services.ctx.setTask(project, taskId, change);
+  }
+
+  /** The patrol's net under a close or an acceptance that never got to start what waited on it; one whose start failed waits for the next. */
+  async openWaiting(project: Project): Promise<void> {
+    await openWaiting(this.services, project, false);
+    await startWaiting(this.services, project, false);
   }
 
   /** Checked on a plain read first, so a round with nothing to archive does not rewrite the ledger; records follow once it is saved. */
