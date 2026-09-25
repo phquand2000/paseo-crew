@@ -1,6 +1,7 @@
 import { type RoleSpec, providerId } from "../catalog/kit.ts";
 import type { Workspaces } from "../core/ports.ts";
 import type { DeskContext } from "./context.ts";
+import { letGo } from "./gone.ts";
 import { type Slot, type Task, loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import type { Roster } from "./roster.ts";
@@ -78,13 +79,13 @@ export class Agents {
 
   /** `into` is the branch the task's work was to land in: its own branch goes only once it is in there. */
   async retire(project: Project, task: Task, into?: string): Promise<string | undefined> {
-    await this.roster.archive(task.peer);
+    await letGo(this.ctx, this.roster, project, task.peer);
     if (task.kind !== "code" || task.mode !== "parallel") return undefined;
     // Everyone sharing the copy, not only this Peer: a reviewer reads from it too, and removing it loses the verdict.
     const sharing = task.slot
       ? Object.values(loadLedger(project.state).tasks).filter((other) => other.id !== task.id && other.slot === task.slot && other.status === "running")
       : [];
-    for (const other of sharing) await this.roster.archive(other.peer);
+    for (const other of sharing) await letGo(this.ctx, this.roster, project, other.peer);
     const writing = [task.peer, ...sharing.map((other) => other.peer)].filter((id): id is string => typeof id === "string" && this.roster.archiving(id));
     return this.slots.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
   }

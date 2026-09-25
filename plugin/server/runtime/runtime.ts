@@ -218,7 +218,7 @@ export class Runtime implements HostHooks {
     this.outbox.archived(agent.id);
     this.turns.forget(agent.id);
     this.watches.drop(agent.id);
-    if (this.watches.watched(agent.provider)) this.desk.closeIncidents(projectOf(agent.cwd), agent.id);
+    this.desk.archived(projectOf(agent.cwd), agent.id, this.watches.watched(agent.provider));
   }
 
   start(): void {

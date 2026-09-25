@@ -1,6 +1,7 @@
 import { branchExists, currentBranch, headSha } from "../core/git.ts";
 import { LANE } from "../domain/lane.ts";
 import { TASK } from "../domain/task.ts";
+import { letGo } from "./gone.ts";
 import { fetchIssue } from "./issue.ts";
 import { handOver, keptPeer, keptTaker } from "./kept.ts";
 import { type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
@@ -126,7 +127,7 @@ async function releaseTask(desk: DeskServices, project: Project, lane: Lane, tas
     return undefined;
   }
   // One writer in the copy: the kept Peer goes before a new one starts there.
-  if (kept) await desk.roster.archive(kept.id, true);
+  if (kept) await letGo(desk.ctx, desk.roster, project, kept.id, true);
   const started = await startPeer(desk, project, lane, claimed, { role: claimed.opening!.role, parent: lane.lead, failed: "wait" });
   if (typeof started === "string") return { why: started, next: "It is tried again when a task is accepted or cut; cut it to drop it.", tried: true };
   desk.ctx.setTask(project, task.id, (entry) => {

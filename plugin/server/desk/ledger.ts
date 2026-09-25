@@ -117,7 +117,7 @@ type Restoring = { writers: string[]; base: string; branch: string; landed?: boo
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 
-export type AgentRef = { id: string; role: string; lane?: string; task?: string; team?: string; startedAs?: string; recordedAt?: number; spokeAt?: number };
+export type AgentRef = { id: string; role: string; lane?: string; task?: string; team?: string; gone?: boolean; startedAs?: string; recordedAt?: number; spokeAt?: number };
 
 export type Ledger = {
   seq: { lane: number; ask: number; slot?: number; question?: number; team?: number; peers?: Record<string, number> };

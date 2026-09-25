@@ -26,6 +26,7 @@ import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
 import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
 import { Slots } from "./slots.ts";
+import { markGone } from "./gone.ts";
 import { type Noticed, closeIncidentsOf, notice, retell } from "./notice.ts";
 import { openWaiting, startWaiting } from "./waiting.ts";
 import { Watcher } from "./watcher.ts";
@@ -100,8 +101,10 @@ export class Desk {
     return retell(this.services, project);
   }
 
-  closeIncidents(project: Project, seat: string): string[] {
-    return closeIncidentsOf(this.services, project, seat);
+  /** Paseo archived a seat: its binding is let go, and a watched seat's incidents close with it. */
+  archived(project: Project, seat: string, watched: boolean): void {
+    markGone(this.services.ctx, project, seat);
+    if (watched) closeIncidentsOf(this.services, project, seat);
   }
 
   post(to: string | undefined, letter: Letter): Promise<Posted | "nobody"> {

@@ -102,3 +102,31 @@ test("what the watch told about a Peer's last task does not swallow the same on 
   assert.match(told, /L1-T1 skipped a test/);
   assert.match(told, /L1-T2 skipped a test/);
 });
+
+test("once the Peer kept in the copy is let go, the next task goes to the Peer kept after it, not to a new one beside it", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  await acceptWork(h, lead, peer, "L1-T1");
+  assert.equal((await h.call(lead, "lead", "release", { task: "L1-T1" })).ok, true);
+  assert.equal((await h.call(lead, "lead", "add_tasks", { tasks: [task("u", "Second")] })).ok, true);
+  const second = h.ledger().tasks["L1-T2"]!.peer!;
+  await acceptWork(h, lead, second, "L1-T2");
+  assert.equal((await h.call(lead, "lead", "add_tasks", { tasks: [task("v", "Third")] })).ok, true);
+  assert.equal(h.ledger().tasks["L1-T3"]!.peer, second, "the Peer kept from L1-T2 takes it");
+  assert.deepEqual(peers(h).filter((agent) => !agent.archivedAt).map((agent) => agent.id), [second]);
+});
+
+test("a kept Peer the Human archives in Paseo is let go as well, so the Peer kept after it takes the next task", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  await acceptWork(h, lead, peer, "L1-T1");
+  const seat = h.agents.get(peer)!;
+  seat.archivedAt = new Date().toISOString();
+  await h.runtime.archived({ id: peer, provider: seat.provider, cwd: seat.cwd, title: seat.title });
+  assert.equal(h.ledger().agents[peer]!.gone, true);
+  assert.equal((await h.call(lead, "lead", "add_tasks", { tasks: [task("u", "Second")] })).ok, true);
+  const second = h.ledger().tasks["L1-T2"]!.peer!;
+  await acceptWork(h, lead, second, "L1-T2");
+  assert.equal((await h.call(lead, "lead", "add_tasks", { tasks: [task("v", "Third")] })).ok, true);
+  assert.equal(h.ledger().tasks["L1-T3"]!.peer, second);
+});

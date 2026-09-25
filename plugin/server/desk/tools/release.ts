@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { no, ok, str } from "../context.ts";
+import { letGo } from "../gone.ts";
 import { releaseKept } from "../kept.ts";
 import { findLane, loadLedger } from "../ledger.ts";
 import { defineTool } from "../services.ts";
@@ -23,7 +24,7 @@ export const releasePeer = defineTool({
     const bound = ledger.agents[peer]?.task;
     if (bound && bound !== task.id) return no(`Its Peer went on to ${bound}; release it from there once ${bound} is accepted.`);
     if (!(await roster.seated(peer))) return no(`The Peer kept from ${task.id} is gone already.`);
-    await roster.archive(peer);
+    await letGo(ctx, roster, project, peer);
     ctx.event(project, { kind: "seat.released", seat: peer, of: task.id });
     return ok(`The Peer kept from ${task.id} is released; the next task in the lane's working copy starts a new one.`);
   },

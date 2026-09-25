@@ -1,5 +1,6 @@
 import { landedRef } from "../core/git.ts";
 import { besideOf } from "./briefs.ts";
+import { letGo } from "./gone.ts";
 import { keptLetters } from "./kept-letters.ts";
 import { type AgentRef, type Lane, type Ledger, type Task, loadLedger, tasksOf } from "./ledger.ts";
 import type { Project } from "./project.ts";
@@ -9,7 +10,7 @@ import type { DeskServices } from "./services.ts";
 export function keptPeer(ledger: Ledger, laneId: string): AgentRef | undefined {
   return Object.values(ledger.agents).find((agent) => {
     const task = ledger.tasks[agent.task ?? ""];
-    return agent.lane === laneId && task?.peer === agent.id && task.kind === "code" && task.mode === "lane" && task.status === "merged";
+    return agent.lane === laneId && !agent.gone && task?.peer === agent.id && task.kind === "code" && task.mode === "lane" && task.status === "merged";
   });
 }
 
@@ -52,7 +53,7 @@ export async function releaseKept(desk: DeskServices, project: Project, lane: La
   const copy = keptCopy(ledger, lane);
   if (!lead && !copy) return undefined;
   if (lead) {
-    await roster.archive(lead);
+    await letGo(ctx, roster, project, lead);
     ctx.event(project, { kind: "seat.released", seat: lead, of: lane.id });
   }
   const writing = stillWriting(desk, ledger, lane);
