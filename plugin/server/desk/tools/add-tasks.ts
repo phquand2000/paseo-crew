@@ -94,8 +94,7 @@ export const addTasks = defineTool({
     const now = loadLedger(project.state).tasks;
     const lines = plan.map((task) => {
       const entry = now[ids.get(task.key)!]!;
-      const kept = entry.peer ? Object.values(now).filter((other) => other.id !== entry.id && other.peer === entry.peer).at(-1) : undefined;
-      const state = entry.held ? `held: ${clip(entry.held.why, 200)}` : entry.status === "waiting" ? `waits for ${entry.after!.join(", ")}` : `${entry.status}${entry.peer ? `, Peer ${entry.peer}${kept ? `, kept from ${kept.id}` : ""}` : ""}`;
+      const state = entry.held ? `held: ${clip(entry.held.why, 200)}` : entry.status === "waiting" ? `waits for ${entry.after!.join(", ")}` : `${entry.status}${entry.peer ? `, Peer ${entry.peer}` : ""}`;
       return `- ${task.key} is ${entry.id} ${entry.title}: ${state}`;
     });
     return ok(`Added; each task starts by itself once what it waits for is accepted, and hand-backs arrive as mail.\n${lines.join("\n")}`);
