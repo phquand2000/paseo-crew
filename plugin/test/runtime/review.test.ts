@@ -42,6 +42,7 @@ test("a lane reported ready carries what its reviews leave standing, and each fa
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
   h.commit(lane.worktree!, "a.txt", "rounded\n");
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "rounded" });
+  await h.idle(h.ledger().tasks["L1-T1"]!.peer!);
   const finding = { severity: "P1", where: "a.txt:1", failure: "rounds half down", fix: "round half up" };
   const start = async (task?: string) => {
     await h.call(lane.lead!, "lead", "start_review", { ...(task ? { task } : {}), focus: "Is the rounding right?" });
@@ -90,6 +91,7 @@ test("a review's changes stand until a hand-back after them or a review acceptin
   const handBack = async (task: string, file: string, text: string) => {
     h.commit(lane.worktree!, file, `${text}\n`);
     await h.call(h.ledger().tasks[task]!.peer!, "peer", "done", { outcome: "complete", summary: text });
+    await h.idle(h.ledger().tasks[task]!.peer!);
     await tick();
   };
   const review = async (task: string, verdict: string) => {

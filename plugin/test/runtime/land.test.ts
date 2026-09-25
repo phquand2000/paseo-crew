@@ -167,6 +167,7 @@ test("an open incident on a lane is evidence for whoever lands it, and never rea
   timeline.beat("turn_completed", "t1");
   await settle();
   await new Promise((resolve) => setTimeout(resolve, 30));
+  await h.idle(peer);
   await h.idle(lane.lead!);
   assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /INCIDENT I\d+ \(claim-contradicted, attend\) on the Peer on L1-T1[^]*handed back as complete, but `npm test` failed the last time it ran, after the last edit/);
   const reported = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });

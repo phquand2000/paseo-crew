@@ -908,7 +908,7 @@
           },
           "ready": {
             "type": "boolean",
-            "description": "True when the lane branch holds the whole outcome; the gate runs first, and its verdict, red or green, goes with the report."
+            "description": "True when the lane branch holds the whole outcome; your accepted merges land, the gate runs, and its verdict goes with the report."
           },
           "carried": {
             "type": "array",

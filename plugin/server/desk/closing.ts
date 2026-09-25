@@ -15,6 +15,7 @@ import { type Project, loadConfig } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 import { seatingKey } from "./opening.ts";
 import { openWaiting } from "./waiting.ts";
+import { midTurnAmong } from "./writing.ts";
 
 type Closed = ToolReply & { blocked?: string };
 
@@ -30,19 +31,8 @@ async function bringBaseIn(desk: DeskServices, project: Project, ledger: Ledger,
   if (await isAncestor(lane.worktree, lane.base, lane.branch)) return undefined;
   const settle = "land_lane it again once the Lead reports it ready, or drop_lane it.";
   if (await mergeUnderWay(lane.worktree)) return { why: `the merge of ${lane.base} into ${lane.branch} left in its copy is not settled yet`, then: `Its Lead has it to settle; ${settle}` };
-  const writers = [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)];
-  const writing = await Promise.all(
-    writers.map(async (id) => {
-      if (typeof id !== "string") return false;
-      try {
-        const seat = await roster.look(id);
-        return !seat.archivedAt && midTurn(seat.status);
-      } catch {
-        return true;
-      }
-    }),
-  );
-  const busy = writers.filter((id, index): id is string => typeof id === "string" && writing[index] === true);
+  // Readers count too: a merge changes the files under whoever is reading them.
+  const busy = await midTurnAmong(roster, [lane.lead, ...tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel").map((task) => task.peer)]);
   if (busy.length > 0) {
     return {
       why: `${lane.base} has moved on, so landing it starts with merging ${lane.base} into ${lane.branch} in its copy, and a seat is mid-turn there`,

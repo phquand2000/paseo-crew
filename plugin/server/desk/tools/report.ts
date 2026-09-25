@@ -2,9 +2,10 @@ import { z } from "zod";
 import { no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
 import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "../landing.ts";
-import { type Lane, laneOfLead, loadLedger } from "../ledger.ts";
+import { type Lane, laneOfLead, loadLedger, tasksOf } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { putOnHold } from "../hold.ts";
+import { midTurnAmong } from "../writing.ts";
 import type { Project } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 
@@ -36,6 +37,14 @@ export const report = defineTool({
     const summary = str(args.summary);
     const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
     if (!lane) return no("You have no open lane.");
+    if (args.ready === true) {
+      // What ready claims is what the gate runs on: the merges accepted before it land first, and nobody writes under it.
+      await desk.merges.retry(caller.project);
+      await desk.merges.settled(caller.project);
+      const inCopy = tasksOf(loadLedger(caller.project.state), lane.id).filter((task) => task.kind === "code" && task.mode !== "parallel");
+      const busy = await midTurnAmong(roster, inCopy.map((task) => task.peer));
+      if (busy.length > 0) return no(`${busy.join(" and ")} ${busy.length === 1 ? "is" : "are"} mid-turn in the lane's working copy, so what ready claims could still change under the gate. Report ready once ${busy.length === 1 ? "that turn ends" : "those turns end"}.`);
+    }
     const gate = args.ready === true ? await laneGate(ctx, caller.project, lane) : undefined;
     // Recorded on the lane the caller still leads: it may have closed, or had its Lead replaced, while the gate ran.
     const still = ctx.transact(caller.project, (current) => {
