@@ -5,6 +5,7 @@ import { test } from "node:test";
 import type { Desk } from "../../server/desk/desk.ts";
 import { saveLedger } from "../../server/desk/ledger.ts";
 import { tempDir } from "../tempdir.ts";
+import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer, nobodySeated } from "./harness.ts";
 
 /** A lane whose second task worked in a copy of its own and handed its commit back, ready to be merged. */
@@ -151,4 +152,39 @@ test("an answer promised as mail that a stop lost is owned up to once the plugin
   await h.tick();
   await h.idle(lead);
   assert.equal(told(), 1, "an answer that came is not owned up to again");
+});
+
+/** Opens a lane whose Lead Paseo seats, then stops the plugin before the desk hears back, as a crash there would. */
+async function stoppedOpening(where: Record<string, unknown>) {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const paseo = h.paseo as unknown as { workspaces: { ref(id: string): { agents: { create(options: unknown): Promise<unknown> } } } };
+  const ref = paseo.workspaces.ref;
+  paseo.workspaces.ref = (id) => {
+    const workspace = ref(id);
+    const create = workspace.agents.create;
+    workspace.agents.create = async (options) => (await create(options), new Promise(() => {}));
+    return workspace;
+  };
+  const head = h.git(h.root, "rev-parse", "HEAD").trim();
+  void h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["the rest"], ...where });
+  const seated = () => [...h.agents.values()].find((agent) => agent.title.endsWith(" · Lead"));
+  for (let i = 0; i < 200 && !seated(); i++) await settle();
+  paseo.workspaces.ref = ref;
+  h.restart();
+  await h.tick(Date.now());
+  return { h, lead: seated()!.id, head };
+}
+
+test("a Lead seated in the Human's copy before a stop is taken on where it works, so its lane's tasks start", async () => {
+  const { h, lead } = await stoppedOpening({});
+  assert.equal(h.ledger().lanes.L1!.lead, lead);
+  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] }] });
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", String(h.ledger().tasks["L1-T1"]!.held?.why));
+});
+
+test("a lane carrying on the Human's branch keeps the commit it started from when its Lead is taken on after a stop", async () => {
+  const { h, lead, head } = await stoppedOpening({ onBranch: true });
+  assert.equal(h.ledger().lanes.L1!.lead, lead);
+  assert.equal(h.ledger().lanes.L1!.startSha, head, "what the lane changed is read from here when it lands");
 });

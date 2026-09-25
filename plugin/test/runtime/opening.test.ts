@@ -26,3 +26,15 @@ test("a lane opened with no write set beside lanes that may write a one-writer p
   assert.match(directive, /^Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer\. Lanes already open may be writing what only one lane at a time may write: L1 \(package-lock\.json\)\. Leave those to them until they land, or ask with kind need\.$/m);
   assert.doesNotMatch(h.agents.get(h.ledger().lanes.L2!.lead!)!.prompt ?? "", /Lanes already open/, "a lane that declared its write set keeps to it");
 });
+
+test("a lane whose Lead cannot start keeps no copy on record: the one it took is given back", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const paseo = h.paseo as unknown as { workspaces: { ref(id: string): { agents: { create(options: unknown): Promise<unknown> } } } };
+  const ref = paseo.workspaces.ref;
+  paseo.workspaces.ref = (id) => ({ ...ref(id), agents: { create: async () => Promise.reject(new Error("no seat today")) } });
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["z"], isolate: true });
+  assert.match(opened.text, /The Lead could not start: no seat today/);
+  const lane = h.ledger().lanes.L1!;
+  assert.deepEqual([lane.status, lane.slot, lane.worktree, lane.workspaceId, Object.keys(h.ledger().slots)], ["closed", undefined, undefined, undefined, []]);
+});

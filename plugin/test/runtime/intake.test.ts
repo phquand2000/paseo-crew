@@ -294,7 +294,7 @@ test("a lane a stop left half-open gives back what it took: one that waited wait
   Object.assign(ledger.lanes.L1!, { status: "closed", landed: true });
   ledger.lanes.L2!.status = "open";
   ledger.slots.S9 = { id: "S9", path: join(h.project.state, "gone-S9"), createdAt: Date.now(), lane: "L2" };
-  ledger.lanes.L3 = { ...ledger.lanes.L1!, id: "L3", title: "Aside", branch: "lane/l3-aside", status: "open", landed: undefined, lead: undefined, slot: undefined, worktree: undefined, workspaceId: undefined };
+  ledger.lanes.L3 = { ...ledger.lanes.L1!, id: "L3", title: "Aside", branch: "lane/l3-aside", status: "open", landed: undefined, lead: undefined, slot: undefined, worktree: h.root, workspaceId: "gone" };
   ledger.seq.lane = 3;
   saveLedger(h.project.state, ledger);
 
@@ -304,6 +304,7 @@ test("a lane a stop left half-open gives back what it took: one that waited wait
   assert.equal(after.lanes.L2!.status, "open");
   assert.ok(after.lanes.L2!.lead, "and the lane that waited is opened again, with a Lead");
   assert.equal(after.lanes.L3!.status, "closed", "a lane whose opening was never answered is not opened behind its Supervisor");
+  assert.deepEqual([after.lanes.L3!.worktree, after.lanes.L3!.workspaceId], [undefined, undefined], "and keeps no copy it gave back on record");
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "the Human's copy is back on its base");
   assert.equal(h.git(h.root, "branch", "--list", "lane/l3-aside").trim(), "");
   assert.match(h.agents.get(sup)!.sent.join("\n"), /NOT OPENED L3 \(Aside\): the desk stopped while its Lead was being started/);

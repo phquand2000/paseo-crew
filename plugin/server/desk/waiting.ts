@@ -5,7 +5,7 @@ import { fetchIssue } from "./issue.ts";
 import { handOver, keptPeer, keptTaker } from "./kept.ts";
 import { type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { letters } from "./letters.ts";
-import { type Refusal, leadSeatOf, openedReply, placement, seatingKey, serialIn, startLead, startPeer, taskPlacement } from "./opening.ts";
+import { type Refusal, forgetPlace, leadSeatOf, openedReply, placement, seatingKey, serialIn, startLead, startPeer, taskPlacement } from "./opening.ts";
 import type { Project } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 
@@ -216,11 +216,12 @@ async function putBackHalfOpen(desk: DeskServices, project: Project): Promise<vo
       const slot = Object.values(ledger.slots).find((entry) => entry.lane === lane.id);
       const lead = leadSeatOf(seats, project, lane.id);
       if (lead) {
-        Object.assign(lane, { lead: lead.id, worktree: lead.cwd, slot: slot?.id, workspaceId: slot?.workspaceId });
+        lane.lead = lead.id;
         ledger.agents[lead.id] = { id: lead.id, role: lead.labels!["seatworks.role"] ?? "lead", lane: lane.id, team: lead.labels!["seatworks.team"] };
       } else {
         LANE.move(lane, lane.after ? "wait" : "close");
         delete lane.held;
+        forgetPlace(lane);
       }
       return { lane: { ...lane }, slot: slot?.id };
     }),

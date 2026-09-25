@@ -121,25 +121,39 @@ async function seatLead(desk: DeskServices, project: Project, lane: Lane, how: S
       return namedOrNot(ctx.kit, "lead", how.role ?? "", "lead a lane");
     }
     const directed = await directiveFor(ctx.kit, project, lane, slot.path, how.issue);
-    const named = ctx.transact(project, newLead);
+    const startSha = lane.onBranch ? await headSha(slot.path) : undefined;
+    // Where the Lead works goes on record before it starts, so a lane a stop leaves without its Lead still knows.
+    const named = ctx.transact(project, (ledger) => {
+      Object.assign(ledger.lanes[lane.id] ?? {}, { worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId, startSha });
+      return newLead(ledger);
+    });
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: how.parent,
       title: named.title,
       prompt: directed.text,
       labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.role": leadRole.role },
     });
-    const startSha = lane.onBranch ? await headSha(slot.path) : undefined;
     ctx.transact(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
-      if (entry) Object.assign(entry, { lead, worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId, startSha });
+      if (entry) entry.lead = lead;
       ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id, team: named.team };
     });
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot: slot.id ?? "in place" });
     return { slot, lead, elsewhere: directed.elsewhere };
   } catch (error) {
     await giveBack(slot);
+    ctx.transact(project, (ledger) => forgetPlace(ledger.lanes[lane.id]));
     return `The Lead could not start: ${errorText(error)}`;
   }
+}
+
+/** Drops the copy a lane took for a Lead that never started: it has been given back, and the lane waits or closes without it. */
+export function forgetPlace(lane: Lane | undefined): void {
+  if (!lane) return;
+  delete lane.worktree;
+  delete lane.slot;
+  delete lane.workspaceId;
+  delete lane.startSha;
 }
 
 /** Where a task may start in its lane, or why not: decided in the transaction that starts it. `serial` counts for a parallel task. */
