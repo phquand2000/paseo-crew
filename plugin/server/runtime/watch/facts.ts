@@ -1,6 +1,6 @@
 import { isAbsolute, relative } from "node:path";
 import { weakened } from "../../catalog/kit.ts";
-import { globToRegex, normalize } from "../../core/scope.ts";
+import { coverOf, normalize } from "../../core/scope.ts";
 import { oneLine } from "../../core/text.ts";
 import type { Level } from "../../domain/incident.ts";
 import type { Call, Unit, Window } from "./window.ts";
@@ -131,7 +131,8 @@ function outside(path: string, rules: Rules): boolean {
   const rel = isAbsolute(path) ? relative(rules.cwd, path) : normalize(path);
   if (rel.startsWith("..")) return true;
   if (!rules.owned || rules.owned.length === 0) return false;
-  return !rules.owned.some((glob) => globToRegex(glob).test(rel));
+  // Read as git reads them: a bare directory owns what is under it.
+  return !rules.owned.some((path) => coverOf(path).test(rel));
 }
 
 const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
