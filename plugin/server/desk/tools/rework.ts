@@ -9,6 +9,7 @@ import { letters } from "../letters.ts";
 import { tellMoment } from "../moments.ts";
 import { holderOf } from "../holder.ts";
 import { defineTool } from "../services.ts";
+import { bringLaneIn } from "../sync.ts";
 import { laneTask } from "./lane-task.ts";
 
 /** Why an accepted task cannot go back to its Peer, if it cannot: that Peer must still be kept on it, in a copy still its own. */
@@ -56,6 +57,8 @@ export const rework = defineTool({
       return { ...task };
     });
     if (typeof result === "string") return no(result);
+    // Reopened beside others, it takes up the lane as it stands now; one that cannot is brought up to date at its hand-back.
+    if (asked.task.status === "merged" && result.mode === "parallel" && result.worktree && result.branch) await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane);
     const posted = await ctx.post(result.peer, letters.rework(result, text));
     if (result.reworks === 2 && posted !== "duplicate") await tellMoment(desk, caller.project, result, "STRUGGLING", `its Lead sent it back a second time: ${oneLine(text)}`);
     return posted === "duplicate"

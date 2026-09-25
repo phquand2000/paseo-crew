@@ -65,3 +65,31 @@ test("a task whose copy has work uncommitted hands back as it stands, and says i
   await h.idle(lane.lead!);
   assert.match(letters(h, lane.lead!), new RegExp(`\\nNot brought up to date with ${lane.branch}: its copy has work uncommitted\\.\\n`));
 });
+
+test("a task beside others sent back after its merge takes up the lane as it stands now, not the branch it merged from", async () => {
+  const { h, lane } = await laneWithPeer();
+  await h.call(lane.lead!, "lead", "add_tasks", beside("p", "Prices", ["c.txt"]));
+  await h.call(lane.lead!, "lead", "add_tasks", beside("q", "Quotes", ["d.txt"]));
+  for (const [id, file] of [["L1-T2", "c.txt"], ["L1-T3", "d.txt"]] as const) {
+    const task = h.ledger().tasks[id]!;
+    h.commit(task.worktree!, file, `${file}\n`);
+    await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: file });
+    h.agents.get(task.peer!)!.status = "idle";
+    await h.call(lane.lead!, "lead", "accept", { task: id });
+    await h.runtime.desk.settled(h.project);
+  }
+  assert.equal((await h.call(lane.lead!, "lead", "rework", { task: "L1-T2", text: "Round the prices." })).ok, true);
+  const copy = h.ledger().tasks["L1-T2"]!.worktree!;
+  assert.equal(h.git(copy, "show", "HEAD:d.txt"), "d.txt\n", "what merged after it is in its copy before it reads the letter");
+});
+
+test("a task beside others sent back before its merge is left as its Peer had it: a conflict with its lane is met at its next hand-back, with the reason", async () => {
+  const { h, lane } = await laneWithPeer();
+  await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
+  const side = h.ledger().tasks["L1-T2"]!;
+  h.commit(side.worktree!, "c.txt", "side\n");
+  await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
+  h.commit(lane.worktree!, "c.txt", "lane\n");
+  assert.equal((await h.call(lane.lead!, "lead", "rework", { task: "L1-T2", text: "Shorter, please." })).ok, true);
+  assert.throws(() => h.git(side.worktree!, "rev-parse", "-q", "--verify", "MERGE_HEAD"), "no merge is begun under it");
+});
