@@ -1,6 +1,6 @@
 import { isAbsolute, relative } from "node:path";
 import { weakened } from "../../catalog/kit.ts";
-import { coverOf, normalize } from "../../core/scope.ts";
+import { covers, normalize } from "../../core/scope.ts";
 import { oneLine } from "../../core/text.ts";
 import type { Level } from "../../domain/incident.ts";
 import type { Call, Unit, Window } from "./window.ts";
@@ -51,7 +51,8 @@ export type Rules = {
   gates: string[];
   cwd?: string;
   temp?: string;
-  owned?: string[];
+  /** What the seat writes inside: a parallel task's holds, or its lane's write set; empty or none is anywhere in its copy. */
+  scope?: string[];
   repeatsAt: number;
   recoverWithin: number;
 };
@@ -130,9 +131,7 @@ function outside(path: string, rules: Rules): boolean {
   const rel = isAbsolute(path) ? relative(rules.cwd, path) : normalize(path);
   // The temp directory is scratch only outside the copy: a copy that lies in it is still read by its scope.
   if (rel.startsWith("..")) return !(rules.temp && isAbsolute(path) && !relative(rules.temp, path).startsWith(".."));
-  if (!rules.owned || rules.owned.length === 0) return false;
-  // Read as git reads them: a bare directory owns what is under it.
-  return !rules.owned.some((path) => coverOf(path).test(rel));
+  return rules.scope !== undefined && rules.scope.length > 0 && !covers(rules.scope, rel);
 }
 
 const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;

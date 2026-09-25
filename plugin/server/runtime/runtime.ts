@@ -115,12 +115,12 @@ export class Runtime implements HostHooks {
     if (!found) return undefined;
     const project = projectOf(seat.cwd);
     const attention = this.source.teamFor(project).attention;
-    let owned: string[] | undefined;
+    let scope: string[] | undefined;
     let placed = false;
     try {
       const ledger = loadLedger(project.state);
       const task = taskOfPeer(ledger, seat.id);
-      owned = task?.owned;
+      scope = task?.kind !== "code" ? undefined : task.mode === "parallel" ? task.holds : ledger.lanes[task.lane]?.writeSet;
       placed = Boolean(task ?? laneOfLead(ledger, seat.id));
     } catch (error) {
       this.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: errorText(error) });
@@ -133,7 +133,7 @@ export class Runtime implements HostHooks {
         gates: gateCommands(seat.cwd, loadConfig(project.state).gate, this.kit.ecosystem),
         cwd: seat.cwd,
         temp: tmpdir(),
-        owned,
+        scope,
         repeatsAt: attention.repeatsAt,
         recoverWithin: 10,
       },

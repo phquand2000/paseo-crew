@@ -74,7 +74,7 @@ test("with nobody seated, a lane a stop left half-open in the Human's copy is cl
 test("a seat started while a round runs is not taken for gone by that round, which listed the seats before it: no task stalls, no Lead is reported gone, no ask moves", async (t) => {
   const { h, sup, lane } = await laneWithPeer();
   const { round, release } = await heldRound(h, t);
-  const parallel = (key: string, title: string, owned: string) => ({ tasks: [{ key, title, goal: "g", acceptance: ["a"], owned: [owned], outOfScope: ["the rest of the repository"], parallel: true }] });
+  const parallel = (key: string, title: string, held: string) => ({ tasks: [{ key, title, goal: "g", acceptance: ["a"], holds: [held], outOfScope: ["the rest of the repository"], parallel: true }] });
   assert.equal((await h.call(lane.lead!, "lead", "add_tasks", parallel("u", "Second", "b.txt"))).ok, true);
   assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"], isolate: true })).ok, true);
   const other = h.ledger().lanes.L2!;

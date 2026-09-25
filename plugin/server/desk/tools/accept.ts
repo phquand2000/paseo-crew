@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { fileKinds } from "../../catalog/kit.ts";
-import { currentBranch, outsideOwned, ownCounts, pristineState, uncommittedIn } from "../../core/git.ts";
+import { currentBranch, ownCounts, pristineState, uncommittedIn } from "../../core/git.ts";
 import { IN_QUEUE, TASK } from "../../domain/task.ts";
 import { no, ok, str } from "../context.ts";
 import { gateNote } from "../gates.ts";
@@ -8,6 +8,7 @@ import { loadLedger, othersLeft } from "../ledger.ts";
 import { mergeLetters } from "../merge-letters.ts";
 import { closeIncidentsOf } from "../notice.ts";
 import { holderOf } from "../holder.ts";
+import { reachNotes } from "../reach.ts";
 import { defineTool } from "../services.ts";
 import { startWaiting } from "../waiting.ts";
 import { laneTask } from "./lane-task.ts";
@@ -54,8 +55,8 @@ export const accept = defineTool({
     const gate = gateNote(project, task);
     const updated = ctx.moveTask(project, task.id, "accept", (entry) => (entry.acceptedAt = Date.now()));
     if (typeof updated !== "object") return no(`${task.id} is ${updated ?? "gone"}.`);
-    const last = othersLeft(loadLedger(project.state), task).length === 0;
-    await ctx.post(lane.lead, mergeLetters.merged(task, counts, outsideOwned(counts?.files ?? [], task.owned), gate, last));
+    const now = loadLedger(project.state);
+    await ctx.post(lane.lead, mergeLetters.merged(task, counts, reachNotes(now, task, lane, counts?.files ?? [], []), gate, othersLeft(now, task).length === 0));
     // Its task is settled, so what the watch told about it is too: the next task starts with a clean book.
     if (task.peer) closeIncidentsOf(desk, project, task.peer);
     ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });

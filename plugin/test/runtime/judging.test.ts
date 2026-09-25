@@ -50,11 +50,11 @@ const kept = (state: string): Kept[] => {
 after(() => assert.deepEqual([...everAsked].sort(), [...catalog].sort(), "every question the catalog holds is asked at some moment of the record"));
 
 
-async function lane(h: ReturnType<typeof harness>, owned: string) {
+async function lane(h: ReturnType<typeof harness>, hint: string) {
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const opened = h.ledger().lanes.L1!;
-  await h.call(opened.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], owned: [owned], outOfScope: ["the CSV export"] }] });
+  await h.call(opened.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], hints: [hint], outOfScope: ["the CSV export"] }] });
   return opened;
 }
 

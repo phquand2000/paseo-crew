@@ -6,7 +6,7 @@ import { tempDir } from "../tempdir.ts";
 import { harness, laneWithPeer } from "./harness.ts";
 
 const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
-const work = (title: string, extra: Record<string, unknown> = {}) => ({ tasks: [{ key: "t", title, goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"], ...extra }] });
+const work = (title: string, extra: Record<string, unknown> = {}) => ({ tasks: [{ key: "t", title, goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"], ...extra }] });
 
 async function openLane() {
   const h = harness();
@@ -71,16 +71,16 @@ test("a waiting lane released while another is opened beside it puts one lane in
 
 test("an amendment and a new task reaching for the same paths at once do not both get them", async () => {
   const { h, lead } = await openLane();
-  await h.call(lead, "lead", "add_tasks", work("Beside", { owned: ["b.txt"], parallel: true }));
+  await h.call(lead, "lead", "add_tasks", work("Beside", { holds: ["b.txt"], parallel: true }));
   const [amended, started] = await Promise.all([
-    h.call(lead, "lead", "amend_task", { task: "L1-T1", why: "it needs c too", owned: ["b.txt", "c.txt"] }),
-    h.call(lead, "lead", "add_tasks", work("Other", { owned: ["c.txt"], parallel: true })),
+    h.call(lead, "lead", "amend_task", { task: "L1-T1", why: "it needs c too", holds: ["b.txt", "c.txt"] }),
+    h.call(lead, "lead", "add_tasks", work("Other", { holds: ["c.txt"], parallel: true })),
   ]);
   const said = `${amended.text}\n${started.text}`;
-  const owners = Object.values(h.ledger().tasks).filter((task) => task.owned.includes("c.txt") && task.status === "running");
-  assert.equal(owners.length, 1, said);
+  const holders = Object.values(h.ledger().tasks).filter((task) => task.holds.includes("c.txt") && task.status === "running");
+  assert.equal(holders.length, 1, said);
   // Whichever came second is refused or held, by the task it would have written beside.
-  assert.match(said, /overlap L1-T\d at c\.txt|owns c\.txt, which L1-T1 is still writing/);
+  assert.match(said, /overlaps what L1-T\d holds at c\.txt|holds c\.txt, which L1-T1 holds and is still writing/);
 });
 
 test("two lanes amended at once to write the same path do not both get it", async () => {

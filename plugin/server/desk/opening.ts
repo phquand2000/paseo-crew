@@ -1,8 +1,8 @@
-import { type Kit, namedOrNot, roleNamed, roleThatCan } from "../catalog/kit.ts";
-import { headSha, trackedFiles } from "../core/git.ts";
+import { namedOrNot, roleNamed, roleThatCan } from "../catalog/kit.ts";
+import { headSha } from "../core/git.ts";
 import type { SeatView } from "../core/paseo.ts";
 import { errorText } from "../core/errors.ts";
-import { firstOverlap, serialHits, serialPaths, serialReach } from "../core/scope.ts";
+import { firstOverlap, serialHits, serialReach } from "../core/scope.ts";
 import { TASK } from "../domain/task.ts";
 import type { Issue } from "./issue.ts";
 import { type Lane, type Ledger, type Task, activeTasks, loadLedger, ownCopyHolder } from "./ledger.ts";
@@ -11,16 +11,11 @@ import { besideOf, taskBrief } from "./briefs.ts";
 import { holderOf } from "./holder.ts";
 import { type Elsewhere, directiveFor, elsewhereText } from "./directive.ts";
 import { seatTitle } from "./names.ts";
-import { type Project, loadConfig, serialOnlyOf } from "./project.ts";
+import { type Project, loadConfig } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 
 /** Why a lane cannot open, and what open_lane would do instead: the reason is shared, the advice is not. */
 export type Refusal = { why: string; instead: string };
-
-/** The paths of `cwd` that one writer at a time may write, as git tracks them now: read before a placement is decided. */
-export async function serialIn(kit: Kit, project: Project, cwd: string): Promise<string[]> {
-  return serialPaths(await trackedFiles(cwd), serialOnlyOf(project, kit));
-}
 
 export function scopeProblem(serial: string[], open: Lane[], writeSet: string[], contracts: string[]): Refusal | undefined {
   if (open.length === 0) return undefined;
@@ -155,25 +150,25 @@ export function forgetPlace(lane: Lane | undefined): void {
   delete lane.startSha;
 }
 
-/** Where a task may start in its lane, or why not: decided in the transaction that starts it. `serial` counts for a parallel task. */
-export function taskPlacement(ledger: Ledger, lane: Lane, owned: string[], parallel: boolean, serial: string[]): Refusal | undefined {
+/** Where a task may start in its lane, or why not: decided in the transaction that starts it. `holds` and `serial` count for a parallel task. */
+export function taskPlacement(ledger: Ledger, lane: Lane, holds: string[], parallel: boolean, serial: string[]): Refusal | undefined {
   if (!parallel) {
     const holder = holderOf(ledger, lane);
     if (!holder) return undefined;
     return holder.status === "done"
-      ? { why: `${holder.id} has handed back and is waiting on you, and it still holds the lane's working copy — rework would wake its Peer in there.`, instead: "Accept or cut it first, or set parallel only for owned paths independent of it." }
-      : { why: `${holder.id} is still writing in the lane's working copy, and it holds one writer at a time.`, instead: `Pass after ${holder.id} to start this once it is accepted, or set parallel only for owned paths independent of it.` };
+      ? { why: `${holder.id} has handed back and is waiting on you, and it still holds the lane's working copy — rework would wake its Peer in there.`, instead: "Accept or cut it first, or run this beside it in parallel, holding paths independent of it." }
+      : { why: `${holder.id} is still writing in the lane's working copy, and it holds one writer at a time.`, instead: `Pass after ${holder.id} to start this once it is accepted, or run this beside it in parallel, holding paths independent of it.` };
   }
-  return parallelProblem(ledger, lane, owned, serial);
+  return parallelProblem(ledger, lane, holds, serial);
 }
 
-/** What a parallel task owning these paths would collide with: a path one writer at a time may write, or a task running beside it. */
-export function parallelProblem(ledger: Ledger, lane: Lane, owned: string[], serial: string[], self?: string): Refusal | undefined {
-  const hits = serialHits(owned, serial);
-  if (hits.length > 0) return { why: `A parallel task can't own ${hits.join(", ")}.`, instead: "Run it in the lane's working copy instead." };
+/** What a parallel task holding these paths would collide with: a path one writer at a time may write, or what a task beside it holds. */
+export function parallelProblem(ledger: Ledger, lane: Lane, holds: string[], serial: string[], self?: string): Refusal | undefined {
+  const hits = serialHits(holds, serial);
+  if (hits.length > 0) return { why: `A parallel task can't hold ${hits.join(", ")}.`, instead: "Run it in the lane's working copy instead." };
   for (const task of activeTasks(ledger, lane.id).filter((entry) => entry.kind === "code" && entry.id !== self)) {
-    const clash = firstOverlap(owned, task.owned);
-    if (clash) return { why: `The owned paths overlap ${task.id} at ${clash}.`, instead: `Pass after ${task.id} instead of running it in parallel.` };
+    const clash = firstOverlap(holds, task.holds);
+    if (clash) return { why: `What it holds overlaps what ${task.id} holds at ${clash}.`, instead: `Pass after ${task.id} instead of running it in parallel.` };
   }
   return undefined;
 }

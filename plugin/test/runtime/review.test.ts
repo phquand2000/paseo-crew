@@ -9,7 +9,7 @@ test("a review hands back a verdict and its findings, and the Lead is told both"
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
   h.commit(lane.worktree!, "a.txt", "rounded\n");
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "rounded" });
@@ -39,7 +39,7 @@ test("a lane reported ready carries what its reviews leave standing, and each fa
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
   h.commit(lane.worktree!, "a.txt", "rounded\n");
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "rounded" });
   const finding = { severity: "P1", where: "a.txt:1", failure: "rounds half down", fix: "round half up" };
@@ -108,7 +108,7 @@ test("a review's changes stand until a hand-back after them or a review acceptin
     const heard = h.heard(sup).join("\n");
     return { reply, next: /\nNext: (.*)/.exec(heard.slice(heard.lastIndexOf("REPORT L1")))![1]! };
   };
-  const add = (key: string, owned: string) => h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key, title: "Round", goal: "g", acceptance: ["a"], owned: [owned], outOfScope: ["the rest"] }] });
+  const add = (key: string, hint: string) => h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key, title: "Round", goal: "g", acceptance: ["a"], hints: [hint], outOfScope: ["the rest"] }] });
 
   await add("t", "a.txt");
   await handBack("L1-T1", "a.txt", "rounded");
@@ -139,7 +139,7 @@ test("a review of a change a risk rule covers is asked the rule's question, and 
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Invoices", outcome: "invoices move", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "m", title: "Move", goal: "g", acceptance: ["a"], owned: ["db/migrations"], outOfScope: ["the rest"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "m", title: "Move", goal: "g", acceptance: ["a"], hints: ["db/migrations"], outOfScope: ["the rest"] }] });
   mkdirSync(join(lane.worktree!, "db", "migrations"), { recursive: true });
   h.commit(lane.worktree!, "db/migrations/001.sql", "update invoices set total = total * 100;\n");
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "moved" });

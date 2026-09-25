@@ -7,7 +7,7 @@ description: "Puts evidence before behavior: chooses the proof that fits the cha
 
 The rule that matters most: settle the contract, see the test fail at the seam, then write the code. A test you never saw fail proves nothing, and a test that invents the contract becomes the spec.
 
-No behavior changes without evidence you produced first, and no test pins what acceptance doesn't name. With no owned paths, report the proof and seam you would use and commit nothing.
+No behavior changes without evidence you produced first, and no test pins what acceptance doesn't name. When the brief asks only for the proof, report it and the seam you would use and commit nothing.
 
 ## 1. Choose the proof
 

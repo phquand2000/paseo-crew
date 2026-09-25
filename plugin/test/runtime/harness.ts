@@ -293,7 +293,7 @@ export async function laneWithPeer(settings?: Record<string, unknown>, options?:
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   await h.tick();
   return { h, sup, lane, peer, timeline: h.timelineOf(peer) };

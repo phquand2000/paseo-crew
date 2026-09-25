@@ -62,7 +62,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Globs this lane writes, no wider than its outcome: `src/**` leaves no lane room beside it. Left out, the lane holds every one-writer path."
+            "description": "Directories or modules this lane writes, as coarse as its outcome; `src/**` leaves no lane room beside it. Left out, it holds every one-writer path."
           },
           "contracts": {
             "type": "array",
@@ -490,7 +490,7 @@
                 },
                 "rehearse": {
                   "type": "string",
-                  "description": "A command of the project's that rehearses the invariant, run with the gate when a lane touching those paths reports ready and lands; red is a red gate.",
+                  "description": "A project command rehearsing the invariant, run with the gate when a lane touching those paths reports ready and lands; red is a red gate.",
                   "minLength": 1
                 }
               },
@@ -582,7 +582,7 @@
   "lead": [
     {
       "name": "add_tasks",
-      "description": "Lay tasks out in your lane: each with what it owns, what it waits for (after), and whether it runs in parallel. Each starts by itself once what it waits for is accepted; tasks sharing the lane's copy run one at a time. Refused as a whole, saying what to change, when owned paths collide or leave the write set.",
+      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is accepted; tasks in the lane's copy run one at a time, their Peers finding where to change. Refused whole when held paths collide or leave the write set.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -603,7 +603,7 @@
                 },
                 "goal": {
                   "type": "string",
-                  "description": "The outcome, not the implementation."
+                  "description": "The outcome and what it is for, not the implementation."
                 },
                 "acceptance": {
                   "type": "array",
@@ -612,34 +612,41 @@
                   },
                   "description": "Behaviors that show the task done; each needs one focused check."
                 },
-                "owned": {
+                "hints": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exact paths the Peer may change."
+                  "description": "Where its Peer might start reading: files, modules or symbols. A start, not a fence; leave out what you have not looked at."
+                },
+                "holds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "With parallel: the paths or globs it writes while others run beside it, as coarse as the work allows. Nobody else writes them meanwhile."
                 },
                 "outOfScope": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Limits the owned paths don't already hold: what the Peer must leave alone, not do, or not decide."
+                  "description": "What the Peer must leave alone, not do, or not decide."
                 },
                 "context": {
                   "type": "string",
-                  "description": "Decisions made, approaches ruled out, where to start reading."
+                  "description": "Decisions made and why, approaches ruled out and why, facts already found; never the answer you worked out alone."
                 },
                 "skills": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Skills the Peer should open, by name. Only the ones it has: name one that it does not and the desk answers with the list it does have. Its own prompt already opens the obvious ones, so this is for a case it would not reach for."
+                  "description": "Skills the Peer should open that it would not reach for itself, by name; one it lacks is refused with the list it has."
                 },
                 "parallel": {
                   "type": "boolean",
-                  "description": "Run beside the lane's writer in a separate working copy. Only for an independent write set."
+                  "description": "Run beside the lane's writer in a working copy of its own; give what it holds in holds."
                 },
                 "after": {
                   "type": "array",
@@ -650,7 +657,7 @@
                 },
                 "role": {
                   "type": "string",
-                  "description": "Optional role to take it, when the kit has more than one that writes. Left out, the kit's first. This is how best-of-n gets two kinds of Peer on one question; a role that only reads is refused, with the list of those that write."
+                  "description": "The role to take it when the kit has several that write; left out, the first. Best-of-n uses it for two kinds of Peer."
                 }
               },
               "required": [
@@ -658,7 +665,6 @@
                 "title",
                 "goal",
                 "acceptance",
-                "owned",
                 "outOfScope"
               ]
             }
@@ -802,12 +808,23 @@
             },
             "description": "Everything out of scope as it stands now."
           },
-          "owned": {
+          "context": {
+            "type": "string",
+            "description": "Its context as it stands now: decisions made, approaches ruled out, facts found since."
+          },
+          "hints": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Every path it owns now. A task running beside others that takes more is checked against them, as when it started."
+            "description": "Every hint as it stands now: where its Peer might start reading."
+          },
+          "holds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A parallel task's held paths as they stand now; more are checked against the tasks beside it, as at its start."
           }
         },
         "required": [

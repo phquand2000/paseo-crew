@@ -4,7 +4,8 @@ import { repeatsIncident } from "../incidents.ts";
 import { amend, findLane, loadLedger } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { defineTool } from "../services.ts";
-import { scopeProblem, serialIn } from "../opening.ts";
+import { scopeProblem } from "../opening.ts";
+import { serialIn } from "../project.ts";
 
 /** Changes what a lane is asked while it is open or waiting, keeping what it was asked before; its Lead is told what moved. */
 export const amendLane = defineTool({

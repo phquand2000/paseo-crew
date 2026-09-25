@@ -68,7 +68,7 @@ test("a parallel task that conflicts with its lane has the lane brought into its
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Two", ...scope, writeSet: ["a.txt", "b.txt"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "B", goal: "g", acceptance: ["a"], outOfScope: ["the rest"], owned: ["b.txt"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "B", goal: "g", acceptance: ["a"], outOfScope: ["the rest"], holds: ["b.txt"], parallel: true }] });
   const task = h.ledger().tasks["L1-T1"]!;
   h.commit(task.worktree!, "b.txt", "task side\n");
   h.commit(lane.worktree!, "b.txt", "lane side\n");
@@ -99,7 +99,7 @@ test("a parallel task accepted with nothing committed merges as the nothing it i
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Probe", ...scope, isolate: true });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "p", title: "Look", goal: "g", acceptance: ["a"], outOfScope: ["the rest"], owned: ["b.txt"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "p", title: "Look", goal: "g", acceptance: ["a"], outOfScope: ["the rest"], holds: ["b.txt"], parallel: true }] });
   const task = h.ledger().tasks["L1-T1"]!;
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "nothing needed changing" });
   h.agents.get(task.peer!)!.status = "idle";
@@ -113,7 +113,7 @@ test("a parallel task accepted with nothing committed merges as the nothing it i
 
 test("a parallel task accepted while the lane's copy has work uncommitted waits in the queue, and merges once a turn ends with the copy clean", async () => {
   const { h, lane, peer } = await laneWithPeer();
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Side", goal: "g", acceptance: ["c"], owned: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Side", goal: "g", acceptance: ["c"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
   const side = h.ledger().tasks["L1-T2"]!;
   h.commit(side.worktree!, "c.txt", "C\n");
   await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
@@ -140,7 +140,7 @@ test("a parallel task accepted while the lane's copy has work uncommitted waits 
 
 test("landing a lane while an accepted task waits on its copy tries that merge once more first, so the accepted work lands with it", async () => {
   const { h, sup, lane } = await laneWithPeer();
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Side", goal: "g", acceptance: ["c"], owned: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Side", goal: "g", acceptance: ["c"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
   const side = h.ledger().tasks["L1-T2"]!;
   h.commit(side.worktree!, "c.txt", "C\n");
   await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });

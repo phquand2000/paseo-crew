@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { LAND_AS, type LandAs, gitCommonDir } from "../core/git.ts";
+import { LAND_AS, type LandAs, gitCommonDir, trackedFiles } from "../core/git.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
 import type { Ecosystem, Kit } from "../catalog/kit.ts";
 import { RiskRule } from "../catalog/schema.ts";
-import { coverOf } from "../core/scope.ts";
+import { coverOf, serialPaths } from "../core/scope.ts";
 
 export type Project = { root: string; slug: string; state: string };
 
@@ -135,6 +135,11 @@ export function laneHomeFor(asked: LaneHome | undefined, config: ProjectConfig, 
 /** The paths only one writer at a time may write in this project. */
 export function serialOnlyOf(project: Project, kit: Kit): string[] {
   return loadConfig(project.state).serialOnly ?? kit.ecosystem.serialOnly;
+}
+
+/** The paths of `cwd` that one writer at a time may write, as git tracks them now: read before a placement is decided. */
+export async function serialIn(kit: Kit, project: Project, cwd: string): Promise<string[]> {
+  return serialPaths(await trackedFiles(cwd), serialOnlyOf(project, kit));
 }
 
 export function riskRulesOf(project: Project, kit: Kit): RiskRule[] {

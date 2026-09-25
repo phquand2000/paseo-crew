@@ -9,7 +9,7 @@ test("mail a call brings about is not steered into the caller's turn until the c
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const { lead, worktree } = h.ledger().lanes.L1!;
-  await h.call(lead!, "lead", "add_tasks", { tasks: [{ key: "build", title: "Clean build", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
+  await h.call(lead!, "lead", "add_tasks", { tasks: [{ key: "build", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   h.commit(worktree!, "a.txt", "A\n");
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });

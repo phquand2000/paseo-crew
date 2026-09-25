@@ -2,17 +2,15 @@ import { z } from "zod";
 import { skillSources } from "../../catalog/content.ts";
 import { type RoleSpec, namedOrNot, roleThatCan } from "../../catalog/kit.ts";
 import { skillDirsFor } from "../../catalog/team.ts";
-import { trackedFiles } from "../../core/git.ts";
-import { serialPaths } from "../../core/scope.ts";
 import { clip, slugify } from "../../core/text.ts";
 import { type Args, type DeskContext, no, ok, str, strs } from "../context.ts";
 import { type Lane, type Ledger, laneOfLead, loadLedger, nextTaskId } from "../ledger.ts";
 import { layoutProblems, readPlan } from "../plan.ts";
-import { type Project, serialOnlyOf } from "../project.ts";
+import { type Project, serialIn } from "../project.ts";
 import { defineTool } from "../services.ts";
 import { startWaiting } from "../waiting.ts";
 
-const Asked = z.strictObject({ key: z.string(), title: z.string().max(60), goal: z.string(), acceptance: z.array(z.string()), owned: z.array(z.string()), outOfScope: z.array(z.string()), context: z.string().optional(), skills: z.array(z.string()).optional(), parallel: z.boolean().optional(), after: z.array(z.string()).optional(), role: z.string().optional() });
+const Asked = z.strictObject({ key: z.string(), title: z.string().max(60), goal: z.string(), acceptance: z.array(z.string()), hints: z.array(z.string()).optional(), holds: z.array(z.string()).optional(), outOfScope: z.array(z.string()), context: z.string().optional(), skills: z.array(z.string()).optional(), parallel: z.boolean().optional(), after: z.array(z.string()).optional(), role: z.string().optional() });
 
 /** The role that takes a task, or why none can: a skill it lacks is refused here, since the Lead's context does not list them. */
 function workRoleFor(ctx: DeskContext, project: Project, args: Args): RoleSpec | string {
@@ -39,7 +37,8 @@ function recordTask(ledger: Ledger, lane: Lane, args: Args, parallel: boolean, w
     title,
     goal: str(args.goal),
     acceptance: strs(args.acceptance),
-    owned: strs(args.owned),
+    hints: strs(args.hints),
+    holds: strs(args.holds),
     outOfScope: strs(args.outOfScope),
     context: str(args.context) || undefined,
     skills: strs(args.skills),
@@ -57,7 +56,7 @@ function recordTask(ledger: Ledger, lane: Lane, args: Args, parallel: boolean, w
   return id;
 }
 
-/** Adds tasks to the Lead's lane in one go, each waiting for what it names, and starts what can start; a layout with two writers on one path is refused. */
+/** Adds tasks to the Lead's lane in one go, each waiting for what it names, and starts what can start; a layout holding one path twice is refused. */
 export const addTasks = defineTool({
   name: "add_tasks",
   input: z.strictObject({ tasks: z.array(Asked) }),
@@ -73,7 +72,7 @@ export const addTasks = defineTool({
       if (typeof role === "string") return no(`${key}: ${role}`);
       roles.set(key, role.role);
     }
-    const serial = serialPaths(await trackedFiles(lane.worktree), serialOnlyOf(project, ctx.kit));
+    const serial = await serialIn(ctx.kit, project, lane.worktree);
     // Checked and recorded in one transaction: a layout read before another call recorded its tasks could put two writers on a path.
     const added = ctx.transact(project, (ledger) => {
       const now = laneOfLead(ledger, caller.id);
@@ -82,7 +81,7 @@ export const addTasks = defineTool({
       const plan = readPlan(ledger, now, args.tasks);
       if (typeof plan === "string") return plan;
       const problems = layoutProblems(ledger, now, plan, serial);
-      if (problems.length > 0) return `No task was added, since ${problems.length === 1 ? "this" : "these"} would put two writers on one path or take one the lane does not own:\n${problems.map((problem) => `- ${problem}`).join("\n")}`;
+      if (problems.length > 0) return `No task was added, since ${problems.length === 1 ? "this" : "these"} would have two tasks hold one path or hold one the lane does not write:\n${problems.map((problem) => `- ${problem}`).join("\n")}`;
       const ids = new Map<string, string>();
       for (const task of plan) ids.set(task.key, recordTask(ledger, now, task.args, task.parallel, { after: task.after.map((id) => ids.get(id) ?? id), role: roles.get(task.key)! }));
       return { plan, ids };

@@ -9,7 +9,7 @@ test("a task already cut is not cut again, so the lane's copy is not reset under
   const { h, lane } = await laneWithPeer();
   const copy = h.ledger().lanes.L1!.worktree!;
   assert.equal((await h.call(lane.lead!, "lead", "cut", { task: "L1-T1", reason: "wrong" })).ok, true);
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Again", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Again", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "running");
   h.commit(copy, "a.txt", "the second task's work\n");
 
@@ -21,7 +21,7 @@ test("a task already cut is not cut again, so the lane's copy is not reset under
 
 test("a task whose merge is under way is not cut, since the cut would not stop its work landing", async () => {
   const { h, lane } = await laneWithPeer();
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], owned: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
   const ledger = h.ledger();
   ledger.tasks["L1-T2"]!.status = "merging";
   saveLedger(h.project.state, ledger);

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { saveLedger } from "../../server/desk/ledger.ts";
 import { laneWithPeer } from "./harness.ts";
 
-const task = { key: "t", title: "More", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], parallel: true };
+const task = { key: "t", title: "More", goal: "g", acceptance: ["a"], holds: ["b.txt"], outOfScope: ["the rest"], parallel: true };
 
 test("a lane on hold stops every seat in it at once, keeps their mail and permissions, and starts, accepts or lands nothing until it resumes", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();

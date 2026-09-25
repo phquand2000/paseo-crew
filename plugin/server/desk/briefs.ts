@@ -20,12 +20,20 @@ export function besideOf(ledger: Ledger, task: Task): Task[] {
   );
 }
 
-/** Who writes beside a task and what they own. */
+/** Who writes beside a task and what they hold. */
 function besideLine(task: Task, beside: Task[]): string {
   if (beside.length === 0) return "";
   const where = task.mode === "parallel" ? "in copies of their own or the lane's" : "in copies of their own and merged into this one as each is accepted";
-  const who = beside.map((other) => `${other.id} (${other.title})${other.owned.length > 0 ? ` owns ${other.owned.join(", ")}` : ""}`).join("; ");
-  return `Beside you, ${where}: ${who}. What they own may be missing or half-done ${task.mode === "parallel" ? "in your copy" : "here"}: leave it to them, and ask if you need it first.`;
+  const who = beside.map((other) => `${other.id} (${other.title})${other.holds.length > 0 ? ` holds ${other.holds.join(", ")}` : ""}`).join("; ");
+  return `Beside you, ${where}: ${who}. What they write may be missing or half-done ${task.mode === "parallel" ? "in your copy" : "here"}: leave it to them, and ask if you need it first.`;
+}
+
+/** Where a task starts and what bounds it: hints are a start to read from; a parallel task writes in what it holds, one in the lane's copy wherever its goal reaches in the lane's write set. */
+function whereLines(task: Task, lane: Lane): string[] {
+  const start = task.hints.length > 0 ? ["Where to start reading (a start, not a fence):", list(task.hints), ""] : [];
+  if (task.mode === "parallel") return [...start, "You hold (others write beside you, so ask before writing outside it):", list(task.holds)];
+  const writes = lane.writeSet.length > 0 ? `, inside the lane's write set: ${lane.writeSet.join(", ")}` : "";
+  return [...start, `Where the change goes, callers and tests included, is yours to find${writes}.`];
 }
 
 export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
@@ -37,8 +45,7 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
     "Acceptance:",
     list(task.acceptance),
     "",
-    "Owned paths (change only these):",
-    list(task.owned),
+    ...whereLines(task, lane),
     "",
     "Out of scope:",
     list(task.outOfScope),

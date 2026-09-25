@@ -84,10 +84,10 @@ test("what a seat is watched against is read again until the ledger has placed i
   // A Peer's first turn starts before start_task places it, so an empty first read must not be kept.
   let placed = false;
   const rules = { destructive: /x^/, testPath: /x^/, suppressed: /x^/, skipped: /x^/g, assertion: /x^/g, runners: new Set<string>(), gates: [], cwd: "/work", repeatsAt: 3, recoverWithin: 10 };
-  const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, owned: placed ? ["src/a.ts"] : undefined }, handedBack: () => undefined, placed }));
-  assert.equal(watch.placed()?.rules.owned, undefined);
+  const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: { ...rules, scope: placed ? ["src/a.ts"] : undefined }, handedBack: () => undefined, placed }));
+  assert.equal(watch.placed()?.rules.scope, undefined);
   placed = true;
-  assert.deepEqual(watch.placed()?.rules.owned, ["src/a.ts"]);
+  assert.deepEqual(watch.placed()?.rules.scope, ["src/a.ts"]);
 });
 
 test("a refusal from the desk reaches no one as a failed call, while a command that failed does", async () => {

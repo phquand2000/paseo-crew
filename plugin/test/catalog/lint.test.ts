@@ -24,7 +24,11 @@ const files = (dir: string, ending: string): string[] =>
   existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? files(join(dir, entry.name), ending) : entry.name.endsWith(ending) ? [join(dir, entry.name)] : [])) : [];
 const skills = readdirSync(join(PLUGIN, "content", "skills")).flatMap((set) => readdirSync(join(PLUGIN, "content", "skills", set)).map((name) => ({ name, dir: join(PLUGIN, "content", "skills", set, name) })));
 const deltas = files(join(PLUGIN, "harness"), ".md").filter((file) => file.includes("/delta/"));
-const tools = JSON.parse(readFileSync(join(PLUGIN, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string; description?: string; inputSchema?: { properties?: Record<string, { description?: string }> } }[]>;
+type Schema = { description?: string; properties?: Record<string, Schema>; items?: Schema };
+const tools = JSON.parse(readFileSync(join(PLUGIN, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string; description?: string; inputSchema?: Schema }[]>;
+/** Every parameter a schema names, with its description: the fields of a list's items too, which a seat reads as closely. */
+const params = (schema: Schema | undefined, prefix = ""): [string, string][] =>
+  Object.entries(schema?.properties ?? {}).flatMap(([name, field]) => [[`${prefix}${name}`, field.description ?? ""] as [string, string], ...params(field.items, `${prefix}${name}.`)]);
 const deskTools = new Set(Object.values(tools).flatMap((set) => set.map((tool) => tool.name)));
 
 test("every role prompt keeps within its budget of words and rule lines", () => {
@@ -48,10 +52,11 @@ test("every skill keeps within its budget, and its description says what it does
 });
 
 test("every tool says when to call it and what it does in 60 words, and each of its parameters in 25", () => {
+  assert.deepEqual(params({ properties: { tasks: { items: { properties: { key: { description: "k" } } } } } }), [["tasks", ""], ["tasks.key", "k"]], "the fields of a list's items are counted too");
   for (const [set, list] of Object.entries(tools)) {
     for (const tool of list) {
       assert.ok(words(tool.description ?? "") <= 60, `${set} ${tool.name}: ${words(tool.description ?? "")} words`);
-      for (const [param, schema] of Object.entries(tool.inputSchema?.properties ?? {})) assert.ok(words(schema.description ?? "") <= 25, `${set} ${tool.name}.${param}: ${words(schema.description ?? "")} words`);
+      for (const [param, description] of params(tool.inputSchema)) assert.ok(words(description) <= 25, `${set} ${tool.name}.${param}: ${words(description)} words`);
     }
   }
 });

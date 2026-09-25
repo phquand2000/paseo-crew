@@ -1,4 +1,4 @@
-import { commitsAhead, diffCounts, git, headSha, mergeBranch, mergeOf, outsideOwned, pristineState, uncommittedIn } from "../core/git.ts";
+import { commitsAhead, diffCounts, git, headSha, mergeBranch, mergeOf, pristineState, uncommittedIn } from "../core/git.ts";
 import { fileKinds } from "../catalog/kit.ts";
 import { type DeskContext } from "./context.ts";
 import { errorText } from "../core/errors.ts";
@@ -9,7 +9,8 @@ import type { Letter } from "./letters.ts";
 import { mergeLetters } from "./merge-letters.ts";
 import { holderOf } from "./holder.ts";
 import { closeSeat } from "./incidents.ts";
-import type { Project } from "./project.ts";
+import { type Project, serialIn } from "./project.ts";
+import { reachNotes } from "./reach.ts";
 
 type Outcome = "merged" | "conflict" | "fail";
 
@@ -138,13 +139,14 @@ export class MergeQueue {
   /** A merge git made, recorded and told with what it changed. */
   private async landed(project: Project, task: Task, lane: Lane, cwd: string, merged: { before: string; after: string }): Promise<void> {
     const counts = await diffCounts(cwd, merged.before, merged.after, fileKinds(this.ctx.kit));
+    const serial = await serialIn(this.ctx.kit, project, cwd);
     // No gate here: the Lead accepted with the verdict in hand, and undoing the merge on red would take that decision back.
     const gate = gateNote(project, task);
     this.ctx.setTask(project, task.id, (entry) => {
       entry.mergeSha = merged.after;
     });
-    const last = othersLeft(loadLedger(project.state), task).length === 0;
-    await this.finish(project, task, lane, "merged", mergeLetters.merged(task, counts, outsideOwned(counts?.files ?? [], task.owned), gate, last));
+    const now = loadLedger(project.state);
+    await this.finish(project, task, lane, "merged", mergeLetters.merged(task, counts, reachNotes(now, task, lane, counts?.files ?? [], serial), gate, othersLeft(now, task).length === 0));
   }
 
   /** The record follows what the merge did, and its Lead is told. */

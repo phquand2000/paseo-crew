@@ -35,7 +35,7 @@ function briefs(state: string, shown: Incident[]): string[] {
   const out: string[] = [];
   for (const id of [...new Set(shown.flatMap((item) => (item.task ? [item.task] : [])))]) {
     const task = ledger.tasks[id];
-    if (task) out.push(`- ${task.id} ${text(task.title, 120)}: goal ${text(task.goal, 300)}; acceptance ${text(task.acceptance.join("; "), 300)}; owned ${text(task.owned.join(", ") || "not declared", 200)}; out of scope ${text(task.outOfScope.join("; ") || "nothing named", 200)}`);
+    if (task) out.push(`- ${task.id} ${text(task.title, 120)}: goal ${text(task.goal, 300)}; acceptance ${text(task.acceptance.join("; "), 300)}; ${task.holds.length > 0 ? `holds ${text(task.holds.join(", "), 200)}` : `hints ${text(task.hints.join(", ") || "none", 200)}`}; out of scope ${text(task.outOfScope.join("; ") || "nothing named", 200)}`);
   }
   for (const id of [...new Set(shown.flatMap((item) => (item.lane && !item.task ? [item.lane] : [])))]) {
     const lane = ledger.lanes[id];

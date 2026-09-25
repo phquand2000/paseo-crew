@@ -63,5 +63,5 @@ For a material factual dispute, start one to three Verifiers, each with one prop
 
 - One sealed Round 1; one retry per reviewer; one challenge and response per disputed unit, new facts sent to verification; one audit round.
 - No voting, group chat or shared room: in a shared room the most assertive model wins, not the best evidence.
-- The council ends at the verdict: an `add_tasks` task carries its action as goal and acceptance, its boundaries as owned paths and out of scope, and its decisions in context.
+- The council ends at the verdict: an `add_tasks` task carries its action as goal and acceptance, its limits as out of scope, where to start as hints, its decisions in context.
 - `cut` each reviewer once you have no further question for it: an idle one still costs money.

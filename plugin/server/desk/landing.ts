@@ -1,6 +1,7 @@
 import { configFault } from "../core/config-file.ts";
-import { changedFiles, commitsAhead, diffCounts, git, kindOf, mergeBase, outsideOwned } from "../core/git.ts";
-import { coverOf, globToRegex } from "../core/scope.ts";
+import { changedFiles, commitsAhead, diffCounts, git, kindOf, mergeBase } from "../core/git.ts";
+import { coverOf, globToRegex, uncovered } from "../core/scope.ts";
+import { capped } from "../core/text.ts";
 import { type Kit, fileKinds, testMarkers, weakened } from "../catalog/kit.ts";
 import { loadIncidents } from "./incidents.ts";
 import { type Lane, type Ledger, type Task, tasksOf } from "./ledger.ts";
@@ -14,8 +15,6 @@ type Change = { from?: string; files?: string[] };
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 const SHOWN = 5;
-
-const shown = (paths: string[]) => (paths.length > SHOWN ? `${paths.slice(0, SHOWN).join(", ")} and ${paths.length - SHOWN} more` : paths.join(", "));
 
 type Reviewed = Task & { handback: NonNullable<Task["handback"]> };
 
@@ -81,7 +80,7 @@ export function askFirstHits(project: Project, change: Change): string[] {
   return askFirst.flatMap((path) => {
     const cover = coverOf(path);
     const hit = files.filter((file) => cover.test(file));
-    return hit.length > 0 ? [`It changes ${shown(hit)}, under ${path}, which the Human asked to be asked about first.`] : [];
+    return hit.length > 0 ? [`It changes ${capped(hit, SHOWN)}, under ${path}, which the Human asked to be asked about first.`] : [];
   });
 }
 
@@ -121,7 +120,7 @@ export async function landFacts(kit: Kit, project: Project, ledger: Ledger, lane
     ...(tests.length > 0 ? [`Tests changed: ${tests.join(", ")}.`] : []),
     ...deleted.map((path) => `${path} is deleted.`),
     ...weaker,
-    ...(lane.writeSet.length > 0 ? outsideOwned(files, lane.writeSet).map((path) => `${path} is outside the lane's write set, ${lane.writeSet.join(", ")}.`) : []),
+    ...(lane.writeSet.length > 0 ? uncovered(files, lane.writeSet).map((path) => `${path} is outside the lane's write set, ${lane.writeSet.join(", ")}.`) : []),
     ...tasks.filter((task) => task.status === "merged" && task.handback?.gate?.ok === false).map((task) => `${task.id} was accepted over its red gate: ${task.handback!.gate!.note}.`),
     ...open.map((incident) => `Incident ${incident.id} on this lane is still open: ${incident.kind}.`),
     ...tasks.filter((task) => task.kind === "review" && task.handback).map((task) => `${task.id} review: ${task.handback!.outcome}.`),

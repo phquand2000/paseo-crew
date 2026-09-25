@@ -25,7 +25,7 @@ async function watched() {
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", acceptance: ["a"], outOfScope: ["anything else"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the CSV export"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Round", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the CSV export"] }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   const handBack = async (summary: string, again = false) => {
     if (again) await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "Again." });

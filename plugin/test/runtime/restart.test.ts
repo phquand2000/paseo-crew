@@ -12,7 +12,7 @@ import { harness, laneWithPeer, nobodySeated } from "./harness.ts";
 async function handedBack() {
   const lane = await laneWithPeer();
   const { h } = lane;
-  await h.call(lane.lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], owned: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
   const task = h.ledger().tasks["L1-T2"]!;
   h.commit(task.worktree!, "c.txt", "beside\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "c" });
@@ -179,7 +179,7 @@ async function stoppedOpening(where: Record<string, unknown>) {
 test("a Lead seated in the Human's copy before a stop is taken on where it works, so its lane's tasks start", async () => {
   const { h, lead } = await stoppedOpening({});
   assert.equal(h.ledger().lanes.L1!.lead, lead);
-  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest"] }] });
+  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", String(h.ledger().tasks["L1-T1"]!.held?.why));
 });
 

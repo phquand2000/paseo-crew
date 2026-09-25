@@ -1,29 +1,37 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import { changedFiles, currentBranch, headSha, outsideOwned, ownChangedFiles, pristineState } from "../../core/git.ts";
+import type { Kit } from "../../catalog/kit.ts";
+import { changedFiles, currentBranch, headSha, ownChangedFiles, pristineState } from "../../core/git.ts";
+import { capped, clip } from "../../core/text.ts";
 import { IN_QUEUE, SETTLED, TASK } from "../../domain/task.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { handbackCase } from "../checks.ts";
 import { taskGate } from "../gates.ts";
 import { judge } from "../judging.ts";
-import { type Lane, type Task, loadLedger, taskOfPeer } from "../ledger.ts";
-import { clip } from "../../core/text.ts";
+import { type Lane, type Ledger, type Task, loadLedger, taskOfPeer } from "../ledger.ts";
 import { letters } from "../letters.ts";
+import { type Project, serialIn } from "../project.ts";
+import { reachNotes } from "../reach.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 
-type Work = { commit?: string; uncommitted: boolean; outside: string[] };
+const SHOWN_CHANGED = 20;
 
-/** What a code task's copy holds as it hands back, as git says: its commit, work left uncommitted, and files changed outside its owned paths. */
-async function workOf(task: Task, lane: Lane | undefined): Promise<Work> {
-  if (task.kind === "review" || !task.worktree) return { uncommitted: false, outside: [] };
+type Work = { commit?: string; uncommitted: boolean; changed?: string[]; notes: string[] };
+
+/** What a code task's copy holds as it hands back, as git says: its commit, work left uncommitted, the files it changed, and what of those its Lead should weigh. */
+async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task): Promise<Work> {
+  if (task.kind === "review" || !task.worktree) return { uncommitted: false, notes: [] };
+  const lane = ledger.lanes[task.lane];
+  const parallel = task.mode === "parallel";
   // A task in the lane's copy counts its own commits only: a task beside it may have been merged into that copy meanwhile.
-  const changed = task.mode === "parallel" ? (lane ? await changedFiles(task.worktree, `${lane.branch}...HEAD`) : undefined) : task.startSha ? await ownChangedFiles(task.worktree, task.startSha) : undefined;
+  const changed = parallel ? (lane ? await changedFiles(task.worktree, `${lane.branch}...HEAD`) : undefined) : task.startSha ? await ownChangedFiles(task.worktree, task.startSha) : undefined;
+  const notes = lane && changed ? reachNotes(ledger, task, lane, changed, parallel ? await serialIn(kit, project, task.worktree) : []) : [];
   // Only what git actually said: a copy it could not read is not a copy with work left in it.
-  return { commit: await headSha(task.worktree), uncommitted: (await pristineState(task.worktree)) === "dirty", outside: outsideOwned(changed ?? [], task.owned) };
+  return { commit: await headSha(task.worktree), uncommitted: (await pristineState(task.worktree)) === "dirty", changed, notes };
 }
 
-function handbackBody(task: Task, args: Args, { commit, uncommitted, outside }: Work): { outcome: string; body: string } {
+function handbackBody(task: Task, args: Args, { commit, uncommitted, changed, notes }: Work): { outcome: string; body: string } {
   if (task.kind === "review") {
     const outcome = str(args.verdict);
     const findings = ((args.findings ?? []) as Finding[]).map((found) => `- ${found.severity} ${found.where}: ${found.failure} Fix: ${found.fix}${found.confirmedBy ? ` Confirmed by: ${found.confirmedBy}` : ""}`);
@@ -42,7 +50,8 @@ function handbackBody(task: Task, args: Args, { commit, uncommitted, outside }: 
     `Checks: ${str(args.checks) || "not given"}`,
     `Left undone: ${str(args.leftUndone) || "nothing"}`,
     `Discovered: ${str(args.discovered) || "nothing"}`,
-    ...(outside.length > 0 ? [`Changed outside its owned paths: ${outside.join(", ")}`] : []),
+    ...(changed ? [`Changed: ${changed.length > 0 ? capped(changed, SHOWN_CHANGED) : "no files"}`] : []),
+    ...notes.map((note) => `Note: ${note}.`),
   ];
   return { outcome, body: lines.join("\n") };
 }
@@ -93,7 +102,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   if (review && asked.some((_, index) => !args.answers?.[index]?.trim())) {
     return no(`The project's risk rules ask this review ${asked.length === 1 ? "a question" : `${asked.length} questions`}; give answers, one per question, in this order:\n${asked.map((question, index) => `${index + 1}. ${question}`).join("\n")}`);
   }
-  const work = await workOf(task, ledger.lanes[task.lane]);
+  const work = await workOf(ctx.kit, project, ledger, task);
   const { commit } = work;
   const handed = handbackBody(task, args, work);
   const { outcome } = handed;
@@ -123,8 +132,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   }
   await tell(services, caller, task, ledger.lanes[task.lane], { file, outcome, body, summary: str(review ? args.answer : args.summary), commit });
   const reminder = review ? "" : await reminderOf(task, ledger.lanes[task.lane]?.branch, work.uncommitted);
-  const outside = work.outside.length > 0 ? ` You changed ${work.outside.join(", ")} outside your owned paths; your Lead sees that with the hand-back.` : "";
-  return ok(`Handed back.${outside}${reminder} End your turn now; if anything changes you will get a message.`);
+  return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 }
 
 export const done = defineTool({ name: "done", input: HandBack, handle: handBack });

@@ -12,7 +12,7 @@ test("a seat is named for the one duty it has for life: its lane or task, its ro
   const title = (id: string) => h.agents.get(id)!.title;
   assert.equal(title(lane.lead!), "L1 · Lead · Build");
   assert.equal(title(peer), "L1-T1 · Peer · Clean build");
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "Side", goal: "g", ...scope, owned: ["b.txt"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "Side", goal: "g", ...scope, holds: ["b.txt"], parallel: true }] });
   assert.equal(title(h.ledger().tasks["L1-T2"]!.peer!), "L1-T2 · Peer · Side");
 
   h.commit(lane.worktree!, "a.txt", "A\n");
@@ -52,7 +52,7 @@ test("a letter names a seat as Paseo shows it, which says what it works on", asy
 
 test("a copy's workspace is named for the project and then the work it holds, which the round's sweep still knows it by", async () => {
   const { h, sup, lane } = await laneWithPeer();
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "Side", goal: "g", ...scope, owned: ["b.txt"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "Side", goal: "g", ...scope, holds: ["b.txt"], parallel: true }] });
   const side = h.ledger().slots[h.ledger().tasks["L1-T2"]!.slot!]!;
   assert.equal(h.workspaceNames.get(side.workspaceId!), `${h.project.slug} ${side.id} · L1-T2 Side`);
   await h.call(sup, "supervisor", "open_lane", { title: "Order", outcome: "c.txt changes", ...scope, isolate: true });

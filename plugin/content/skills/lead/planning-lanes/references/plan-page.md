@@ -18,9 +18,9 @@ caller and test moves to it in the same change>
 
 ## Tasks (one row each)
 
-| Task | Write set | Why it is separate |
+| Task | Holds (parallel only) | Why it is separate |
 |---|---|---|
-| <L1-T1> | <paths> | only task, or the named reason: independent write set run in parallel, mechanical fan-out, separate deliverable |
+| <L1-T1> | <paths, or none in the lane's copy> | only task, or the named reason: independent paths held in parallel, mechanical fan-out, separate deliverable |
 
 ## Intermediate states
 

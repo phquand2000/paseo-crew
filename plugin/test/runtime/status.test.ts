@@ -11,6 +11,6 @@ test("a seat asking for status again with nothing changed is told to end its tur
   assert.equal((await status(lane.lead!, "lead")).text, "Nothing has changed since you last asked: end your turn, and mail wakes you when something does.");
   assert.match((await status(sup, "supervisor")).text, /Lane L1/, "each seat is judged by what it was shown itself");
 
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "g", acceptance: ["a"], holds: ["b.txt"], outOfScope: ["the rest"], parallel: true }] });
   assert.match((await status(lane.lead!, "lead")).text, /L1-T2/, "a new task is a change");
 });

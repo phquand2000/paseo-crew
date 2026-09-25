@@ -37,7 +37,7 @@ async function askedOf(desk: DeskServices, project: Project, lane: Lane, copy: s
   return [...new Set((files ? rulesFor(rules, files) : rules).map((rule) => rule.reviewQuestion))];
 }
 
-/** A review is a task of the lane that owns nothing, recorded running and marked seating like any other. */
+/** A review is a task of the lane that holds nothing, recorded running and marked seating like any other. */
 function recordReview(ctx: DeskContext, project: Project, lane: Lane, target: Task | undefined, title: string, focus: string, slot: { id?: string; path: string }, asked: string[]): Task {
   return ctx.transact(project, (current) => {
     const id = nextTaskId(current.lanes[lane.id]!, "review");
@@ -52,7 +52,8 @@ function recordReview(ctx: DeskContext, project: Project, lane: Lane, target: Ta
       title: title || (target ? `Review ${target.id}` : clip(focus.split(/\r?\n/)[0] ?? "Review", 50)),
       goal: focus,
       acceptance: target?.acceptance ?? [],
-      owned: [],
+      hints: [],
+      holds: [],
       outOfScope: [],
       context: lane.branch,
       worktree: slot.path,

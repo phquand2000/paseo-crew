@@ -152,13 +152,19 @@ treated as empty.
 
 - **Lane mode**, the default. The task shares the lane's copy and branch. `accept` marks it merged
   in place, and its Peer stays until the Lead `release`s it. A seat has one duty for life: every
-  task starts a Peer of its own, and a kept Peer never takes another.
-- **Parallel mode.** The task gets its own slot and `task/…` branch. `accept` queues it, and one merge
+  task starts a Peer of its own, and a kept Peer never takes another. Its Peer finds where the change
+  goes: `hints` say where to start reading and fence nothing, and what it writes is bounded by the
+  lane's write set and what tasks beside it hold.
+- **Parallel mode.** The task gets its own slot and `task/…` branch, and `holds` what it writes, as
+  coarsely as the work allows: no task that may run at once holds any of it, nor is any of it a
+  one-writer path. `accept` queues it, and one merge
   queue per project merges branches into their lane, one at a time. The queue is the tasks' status in
   the ledger, so a restart picks it up: a merge cut off midway is undone and run again, and one git had
   already made is only recorded. A merge never runs into a lane copy with work uncommitted: the task
   stays queued, its Lead is told once, and the merge is tried again as each turn ends and before the
   lane lands. A task in the lane's copy is read by its own commits, never by the merges beside it.
+  What a task changed is read at hand-back and at merge, not declared: a file in what another task
+  holds, outside the lane's write set, or outside what a parallel task holds is a note to its Lead.
 
 **Landing.** `land_lane` does four things in a fixed order:
 

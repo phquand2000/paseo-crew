@@ -201,7 +201,7 @@ export const letters = {
 
   amended(entry: Lane | Task, amendment: Amendment, reader: "lead" | "worker"): Letter {
     const now = entry as unknown as Record<string, string | string[]>;
-    const show = (value: string | string[]) => (Array.isArray(value) ? list(value) : value);
+    const show = (value: string | string[]) => (Array.isArray(value) ? list(value) : value || "none");
     const text = [
       `AMENDED ${entry.id} (${entry.title}): ${amendment.why}`,
       ...Object.entries(amendment.was).flatMap(([field, was]) => ["", `${field}, was:`, show(was), `${field}, now:`, show(now[field]!)]),

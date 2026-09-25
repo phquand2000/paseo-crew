@@ -6,7 +6,7 @@ import { type harness, laneWithPeer } from "./harness.ts";
 
 type Harness = ReturnType<typeof harness>;
 
-const task = (key: string, title: string, owned = "a.txt", extra: Record<string, unknown> = {}) => ({ key, title, goal: "g", acceptance: ["a"], owned: [owned], outOfScope: ["the rest of the repository"], ...extra });
+const task = (key: string, title: string, path = "a.txt", extra: Record<string, unknown> = {}) => ({ key, title, goal: "g", acceptance: ["a"], ...(extra.parallel ? { holds: [path] } : { hints: [path] }), outOfScope: ["the rest of the repository"], ...extra });
 
 /** The Peer commits `text` to `file` in the lane's copy and hands its task back, and the Lead accepts it. */
 async function acceptWork(h: Harness, lead: string, peer: string, id: string, file = "a.txt", text = `${id}\n`) {

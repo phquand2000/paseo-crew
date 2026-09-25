@@ -161,7 +161,7 @@ test("work that arrives mid-lane is folded into the lane that owns it, and the l
   await h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "add and update cart items", acceptance: ["adds an item"], ...scope, writeSet: ["a.txt"] });
   await h.call(sup, "supervisor", "open_lane", { title: "Order", outcome: "an order from the cart", acceptance: ["orders what is in the cart"], ...scope, writeSet: ["b.txt"], contracts: ["a.txt"], after: ["L1"] });
   const cart = h.ledger().lanes.L1!;
-  await h.call(cart.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Add to cart", goal: "add an item", acceptance: ["adds an item"], owned: ["a.txt"], outOfScope: ["the rest"] }] });
+  await h.call(cart.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Add to cart", goal: "add an item", acceptance: ["adds an item"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
 
   // Ten minutes in, the Human asks for an upsert: it rewrites the code the Peer is writing, so it goes to that lane.
@@ -414,7 +414,7 @@ test("a Lead Paseo seated for a lane but the ledger never recorded is taken on r
 test("a task that waits for another starts by itself once that one is accepted, as it was amended, and its Lead is told", async () => {
   const { h, lane, peer } = await laneWithPeer();
   const lead = lane.lead!;
-  const queued = await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "show the total", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest"], after: ["l1-t1"] }] });
+  const queued = await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "show the total", acceptance: ["a"], hints: ["b.txt"], outOfScope: ["the rest"], after: ["l1-t1"] }] });
   assert.equal(queued.ok, true, queued.text);
   assert.match(queued.text, /T is L1-T2 Receipt: waits for L1-T1/);
   assert.deepEqual([h.ledger().tasks["L1-T2"]!.status, h.ledger().tasks["L1-T2"]!.peer], ["waiting", undefined], "recorded, with no Peer started");
@@ -442,10 +442,10 @@ test("a task waits only for tasks of its own lane, one waiting for a cut task is
   const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
   await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", ...scope, isolate: true });
   const other = h.ledger().lanes.L2!;
-  await h.call(other.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Theirs", goal: "g", ...scope, owned: ["c.txt"] }] });
-  assert.match((await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "T", goal: "g", ...scope, owned: ["b.txt"], after: ["L2-T1"] }] })).text, /There is no task in this lane L2-T1 to wait for/);
+  await h.call(other.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Theirs", goal: "g", ...scope, hints: ["c.txt"] }] });
+  assert.match((await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "T", goal: "g", ...scope, hints: ["b.txt"], after: ["L2-T1"] }] })).text, /There is no task in this lane L2-T1 to wait for/);
 
-  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "g", ...scope, owned: ["b.txt"], after: ["L1-T1"] }] });
+  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "g", ...scope, hints: ["b.txt"], after: ["L1-T1"] }] });
   await h.call(lead, "lead", "cut", { task: "L1-T1", reason: "wrong approach" });
   const held = h.ledger().tasks["L1-T2"]!;
   assert.equal(held.status, "waiting");
@@ -454,7 +454,7 @@ test("a task waits only for tasks of its own lane, one waiting for a cut task is
   await h.idle(lead);
   const mail = h.agents.get(lead)!.sent.join("\n---\n");
   assert.equal(mail.match(/WAITING L1-T2/g)?.length, 1, mail);
-  assert.match((await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Again", goal: "g", ...scope, owned: ["b.txt"], after: ["L1-T1"] }] })).text, /L1-T1 was cut[^]*Take it out of after/);
+  assert.match((await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Again", goal: "g", ...scope, hints: ["b.txt"], after: ["L1-T1"] }] })).text, /L1-T1 was cut[^]*Take it out of after/);
 
   h.agents.get(lead)!.status = "idle";
   await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" });
@@ -465,8 +465,8 @@ test("a task whose turn comes while another holds the lane's copy is held with w
   const { h, lane, peer } = await laneWithPeer();
   const lead = lane.lead!;
   const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
-  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", ...scope, owned: ["b.txt"], parallel: true }] });
-  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "After beside", goal: "g", ...scope, owned: ["c.txt"], after: ["L1-T2"] }] });
+  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", ...scope, holds: ["b.txt"], parallel: true }] });
+  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "After beside", goal: "g", ...scope, hints: ["c.txt"], after: ["L1-T2"] }] });
   const beside = h.ledger().tasks["L1-T2"]!;
   h.commit(beside.worktree!, "b.txt", "B\n");
   await h.call(beside.peer!, "peer", "done", { outcome: "complete", summary: "b" });
@@ -503,7 +503,7 @@ test("a project is not detached while a seat still works in it, since that seat 
 test("a task left running with no Peer by a stop starts again if it waited, and is cut with its Lead told if not", async () => {
   const { h, lane } = await laneWithPeer();
   const ledger = h.ledger();
-  const base = { lane: "L1", kind: "code" as const, mode: "lane" as const, goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: [], branch: lane.branch, worktree: lane.worktree, status: "running" as const, openedAt: Date.now(), updatedAt: Date.now(), silent: 0 };
+  const base = { lane: "L1", kind: "code" as const, mode: "lane" as const, goal: "g", acceptance: ["a"], hints: ["b.txt"], holds: [], outOfScope: [], branch: lane.branch, worktree: lane.worktree, status: "running" as const, openedAt: Date.now(), updatedAt: Date.now(), silent: 0 };
   ledger.tasks["L1-T1"]!.status = "merged";
   ledger.tasks["L1-T2"] = { ...base, id: "L1-T2", title: "Waited", opening: { role: "peer" }, after: ["L1-T1"] };
   ledger.tasks["L1-T3"] = { ...base, id: "L1-T3", title: "Straight" };
@@ -522,7 +522,7 @@ test("a task whose Peer Paseo had started before a stop is taken on, not started
   const { h, lane } = await laneWithPeer();
   const ledger = h.ledger();
   ledger.tasks["L1-T1"]!.status = "merged";
-  ledger.tasks["L1-T2"] = { id: "L1-T2", title: "Seated", lane: "L1", kind: "code", mode: "lane", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: [], branch: lane.branch, worktree: lane.worktree, status: "running", opening: { role: "peer" }, openedAt: Date.now(), updatedAt: Date.now(), silent: 0 };
+  ledger.tasks["L1-T2"] = { id: "L1-T2", title: "Seated", lane: "L1", kind: "code", mode: "lane", goal: "g", acceptance: ["a"], hints: ["b.txt"], holds: [], outOfScope: [], branch: lane.branch, worktree: lane.worktree, status: "running", opening: { role: "peer" }, openedAt: Date.now(), updatedAt: Date.now(), silent: 0 };
   ledger.lanes.L1!.tasks = 2;
   saveLedger(h.project.state, ledger);
   const already = h.add("sw2-peer-claude/claude-opus-5", lane.worktree!, "L1-T2 Seated", "running", "brief", { "seatworks.project": h.project.slug, "seatworks.lane": "L1", "seatworks.task": "L1-T2", "seatworks.role": "peer" });
@@ -547,7 +547,7 @@ test("a round while a task's Peer is being started leaves it to start, rather th
     };
     return found;
   };
-  const started = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], owned: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  const started = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
   assert.equal(started.ok, true, started.text);
   const task = h.ledger().tasks["L1-T2"]!;
   assert.deepEqual([task.status, Boolean(task.peer)], ["running", true]);

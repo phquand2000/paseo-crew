@@ -3,19 +3,20 @@ import { type Args, str, strs } from "./context.ts";
 import { type Lane, type Ledger, activeTasks } from "./ledger.ts";
 import { taskWaitsFor } from "./waiting.ts";
 
-/** One task of a layout: its fields as `add_tasks` takes them, and what it waits for, its keys and task ids alike. */
-type Planned = { key: string; args: Args; parallel: boolean; owned: string[]; after: string[] };
+/** One task of a layout: its fields as `add_tasks` takes them, what it holds if it runs beside others, and what it waits for, its keys and task ids alike. */
+type Planned = { key: string; args: Args; parallel: boolean; holds: string[]; after: string[] };
 
 /**
- * The tasks in an order they can run in, or why they cannot: each key once, each `after` a key of it or a task of this
- * lane that can still be accepted, and no loop. Tasks in the lane's copy then run one after another in that order.
+ * The tasks in an order they can run in, or why they cannot: each key once, paths held by exactly the tasks that run beside
+ * others, each `after` a key of it or a task of this lane that can still be accepted, and no loop. Tasks in the lane's copy
+ * then run one after another in that order.
  */
 export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] | string {
   const tasks: Planned[] = listed.map((args) => ({
     key: str(args.key).trim().toUpperCase(),
     args,
     parallel: args.parallel === true,
-    owned: strs(args.owned),
+    holds: strs(args.holds),
     after: [...new Set(strs(args.after).map((id) => id.trim().toUpperCase()))],
   }));
   const keys = new Set<string>();
@@ -24,6 +25,8 @@ export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] 
     if (keys.has(task.key)) return `The key ${task.key} names two tasks; give each its own.`;
     if (ledger.tasks[task.key]) return `The key ${task.key} is already a task of this project; pick keys that are not task ids.`;
     keys.add(task.key);
+    if (task.parallel && task.holds.length === 0) return `${task.key} runs beside others but holds nothing: name the paths it writes meanwhile, as coarse as the work allows.`;
+    if (!task.parallel && task.holds.length > 0) return `${task.key} holds ${task.holds.join(", ")} but runs in the lane's copy, which has one writer at a time: leave holds out, or give those paths as hints.`;
   }
   for (const task of tasks) {
     const outside = task.after.filter((id) => !keys.has(id));
@@ -48,7 +51,7 @@ export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] 
   return order;
 }
 
-/** What in the layout would collide as the desk will run it: two writers on one path, or a path the lane does not own. */
+/** What in the layout would collide as the desk will run it: two tasks holding one path, or a held path the lane does not write. */
 export function layoutProblems(ledger: Ledger, lane: Lane, plan: Planned[], serial: string[]): string[] {
   const findings: string[] = [];
   const before = new Map<string, Set<string>>();
@@ -57,17 +60,17 @@ export function layoutProblems(ledger: Ledger, lane: Lane, plan: Planned[], seri
   for (const [index, task] of plan.entries()) {
     for (const other of plan.slice(index + 1)) {
       if (!(task.parallel || other.parallel) || ordered(task, other)) continue;
-      const clash = firstOverlap(task.owned, other.owned);
-      if (clash) findings.push(`${task.key} and ${other.key} may run at once and both own ${clash}: order them with after, or split the paths.`);
+      const clash = firstOverlap(task.holds, other.holds);
+      if (clash) findings.push(`${task.key} and ${other.key} may run at once and both hold ${clash}: order them with after, or split the paths.`);
     }
-    const hits = task.parallel ? serialHits(task.owned, serial) : [];
-    if (hits.length > 0) findings.push(`${task.key} runs in parallel but owns ${hits.join(", ")}, which only one writer at a time may write: run it in the lane's copy.`);
-    const loose = lane.writeSet.length > 0 ? task.owned.filter((path) => !firstOverlap([path], lane.writeSet)) : [];
-    if (loose.length > 0) findings.push(`${task.key} owns ${loose.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}: leave it out, or ask for the lane to take it.`);
+    const hits = serialHits(task.holds, serial);
+    if (hits.length > 0) findings.push(`${task.key} runs beside others but holds ${hits.join(", ")}, which only one writer at a time may write: run it in the lane's copy.`);
+    const loose = lane.writeSet.length > 0 ? task.holds.filter((path) => !firstOverlap([path], lane.writeSet)) : [];
+    if (loose.length > 0) findings.push(`${task.key} holds ${loose.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}: leave it out, or ask for the lane to take it.`);
     for (const active of activeTasks(ledger, lane.id).filter((entry) => entry.kind === "code")) {
       if (before.get(task.key)!.has(active.id) || (!task.parallel && active.mode !== "parallel")) continue;
-      const clash = firstOverlap(task.owned, active.owned);
-      if (clash) findings.push(`${task.key} owns ${clash}, which ${active.id} is still writing, and does not wait for it: add ${active.id} to its after, or leave those paths to ${active.id}.`);
+      const clash = firstOverlap(task.holds, active.holds);
+      if (clash) findings.push(`${task.key} holds ${clash}, which ${active.id} holds and is still writing, and does not wait for it: add ${active.id} to its after, or leave those paths to ${active.id}.`);
     }
   }
   return findings;

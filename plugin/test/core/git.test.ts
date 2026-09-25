@@ -4,7 +4,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileKinds } from "../../server/catalog/kit.ts";
-import { contains, countNumstat, diffCounts, headSha, kindOf, mergeBranch, outsideOwned } from "../../server/core/git.ts";
+import { contains, countNumstat, diffCounts, headSha, kindOf, mergeBranch } from "../../server/core/git.ts";
+import { uncovered } from "../../server/core/scope.ts";
 import { advanceBase, landLane } from "../../server/core/land.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
@@ -110,7 +111,7 @@ test("a conflicting task leaves the lane unchanged and names the files", async (
   assert.equal(run("status", "--porcelain").trim(), "");
 });
 
-test("lines are counted as source, tests or docs, and files outside owned paths are named", () => {
+test("lines are counted as source, tests or docs, and the files a list of paths does not cover are named", () => {
   assert.equal(kindOf("src/pricing.js", kinds), "src");
   assert.equal(kindOf("test/pricing.test.js", kinds), "test");
   assert.equal(kindOf("src/main/java/OrderServiceTest.java", kinds), "test");
@@ -120,10 +121,10 @@ test("lines are counted as source, tests or docs, and files outside owned paths 
   assert.equal(kindOf("src/main/java/OrderServicetest.java", kinds), "src");
   const counts = countNumstat(["10\t2\tsrc/a.js", "5\t0\ttest/a.test.js", "3\t3\tREADME.md", ""].join("\0"), kinds);
   assert.deepEqual({ src: counts.src, test: counts.test, docs: counts.docs }, { src: 12, test: 5, docs: 6 });
-  assert.deepEqual(outsideOwned(["src/a.js", "src/b/c.js", "lib/x.js"], ["src/a.js", "src/b/"]), ["lib/x.js"]);
-  assert.deepEqual(outsideOwned(["src/apparel/secret.ts"], ["src/app"]), ["src/apparel/secret.ts"], "an owned src/app is not ownership of src/apparel");
+  assert.deepEqual(uncovered(["src/a.js", "src/b/c.js", "lib/x.js"], ["src/a.js", "src/b/"]), ["lib/x.js"]);
+  assert.deepEqual(uncovered(["src/apparel/secret.ts"], ["src/app"]), ["src/apparel/secret.ts"], "src/app covers nothing of src/apparel");
   // A write set as a Supervisor writes it: a glob from the front, and a choice of extensions.
-  assert.deepEqual(outsideOwned(["test/cart.test.js", "src/cart.ts", "src/cart.md"], ["**/test*/**", "**/*.{js,ts}"]), ["src/cart.md"]);
+  assert.deepEqual(uncovered(["test/cart.test.js", "src/cart.ts", "src/cart.md"], ["**/test*/**", "**/*.{js,ts}"]), ["src/cart.md"]);
 });
 
 test("a rename is counted as the two real paths it moved between, not as git's display form", async () => {
@@ -136,8 +137,8 @@ test("a rename is counted as the two real paths it moved between, not as git's d
 
   const counts = (await diffCounts(root, before, "HEAD", kinds))!;
   assert.deepEqual(counts.files.sort(), ["src/price.ts", "src/pricing.ts"], "both sides are real paths a seat can open");
-  // The task was asked to do exactly this rename, so its Lead must not be told it wrote elsewhere.
-  assert.deepEqual(outsideOwned(counts.files, ["src/pricing.ts", "src/price.ts"]), []);
+  // A task beside others holding both sides of this rename wrote nowhere else, so its Lead must not be told it did.
+  assert.deepEqual(uncovered(counts.files, ["src/pricing.ts", "src/price.ts"]), []);
 });
 
 test("a path with a character outside ASCII is read back as itself, not as git's escaped form", async () => {
@@ -153,8 +154,8 @@ test("a path with a character outside ASCII is read back as itself, not as git's
   const counts = (await diffCounts(root, "HEAD~1", "HEAD", kinds))!;
   assert.deepEqual(counts.files, ["src/giá-trị.ts"], "the Lead is shown the file that changed, not an octal escape of it");
   assert.equal(counts.src, 1);
-  // And it is inside the paths the task owned, which the escaped form would not have been.
-  assert.deepEqual(outsideOwned(counts.files, ["src/**"]), []);
+  // And it is inside the paths a task holds, which the escaped form would not have been.
+  assert.deepEqual(uncovered(counts.files, ["src/**"]), []);
 });
 
 test("whether a branch is already in another is answered from the branches, not from what is checked out", async () => {

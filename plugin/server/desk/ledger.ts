@@ -67,7 +67,7 @@ export type Task = {
   title: string;
   goal: string;
   acceptance: string[];
-  owned: string[];
+  hints: string[]; holds: string[];
   outOfScope: string[];
   context?: string;
   skills?: string[];
@@ -188,7 +188,7 @@ export function amend(entry: Lane | Task, changes: Record<string, string | strin
   const was: Amendment["was"] = {};
   for (const [field, value] of Object.entries(changes)) {
     if (JSON.stringify(fields[field]) === JSON.stringify(value)) continue;
-    was[field] = fields[field]!;
+    was[field] = fields[field] ?? "";
     fields[field] = value;
   }
   if (Object.keys(was).length === 0) return undefined;
@@ -267,7 +267,7 @@ export function laneOnHold(state: string, agentId: string): Lane | undefined {
   return lane?.onHold && lane.status !== "closed" ? lane : undefined;
 }
 
-/** The task a Peer or reviewer is on now: its binding names it, and one Peer can carry a lane's tasks in turn. */
+/** The task a Peer or reviewer is on: its binding names it, and it has no other. */
 export function taskOfPeer(ledger: Ledger, agentId: string): Task | undefined {
   const task = ledger.tasks[ledger.agents[agentId]?.task ?? ""];
   return task?.peer === agentId ? task : undefined;

@@ -2,17 +2,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { laneWithPeer } from "./harness.ts";
 
-test("a Lead widening what a task owns, or turning it to another goal, wakes whoever supervises; less than that does not", async () => {
+test("a Lead widening what a task beside others holds, or turning a task to another goal, wakes whoever supervises; less than that does not", async () => {
   const { h, sup, lane } = await laneWithPeer();
-  const amend = (args: Record<string, unknown>) => h.call(lane.lead!, "lead", "amend_task", { task: "L1-T1", why: "the parser lives there", ...args });
-  for (const change of [{ acceptance: ["a", "b"] }, { owned: ["a.txt", "b.txt"] }, { owned: ["b.txt"] }, { goal: "parse the header instead" }]) {
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Parser", goal: "g", acceptance: ["a"], holds: ["b.txt"], outOfScope: ["the rest"], parallel: true }] });
+  const amend = (args: Record<string, unknown>) => h.call(lane.lead!, "lead", "amend_task", { task: "L1-T2", why: "the parser lives there", ...args });
+  for (const change of [{ acceptance: ["a", "b"] }, { holds: ["b.txt", "c.txt"] }, { holds: ["c.txt"] }, { hints: ["d.txt"], context: "d.txt reads the header" }, { goal: "parse the header instead" }]) {
     const amended = await amend(change);
     assert.equal(amended.ok, true, amended.text);
   }
   const said = h.heard(sup).join("\n");
-  assert.match(said, /ARCHITECTURE L1-T1 \(Clean build\) in L1: its Lead widened what it owns by b\.txt, because the parser lives there/);
-  assert.match(said, /TURNING L1-T1 \(Clean build\) in L1: its Lead changed what it is for, because the parser lives there\nwas: g\nnow: parse the header instead/);
-  assert.equal(said.match(/ARCHITECTURE|TURNING/g)!.length, 2, "new acceptance, or a task owning less, is the Lead's own business");
+  assert.match(said, /ARCHITECTURE L1-T2 \(Parser\) in L1: its Lead widened what it holds by c\.txt, because the parser lives there/);
+  assert.match(said, /TURNING L1-T2 \(Parser\) in L1: its Lead changed what it is for, because the parser lives there\nwas: g\nnow: parse the header instead/);
+  assert.equal(said.match(/ARCHITECTURE|TURNING/g)!.length, 2, "new acceptance, holding less, or where to start reading is the Lead's own business");
 });
 
 test("a task sent back a second time, or gone quiet until it stalls, wakes whoever supervises once for each", async () => {

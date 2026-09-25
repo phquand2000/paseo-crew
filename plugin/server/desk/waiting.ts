@@ -4,8 +4,8 @@ import { TASK } from "../domain/task.ts";
 import { fetchIssue } from "./issue.ts";
 import { type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { letters } from "./letters.ts";
-import { type Refusal, forgetPlace, leadSeatOf, openedReply, placement, seatingKey, serialIn, startLead, startPeer, taskPlacement } from "./opening.ts";
-import type { Project } from "./project.ts";
+import { type Refusal, forgetPlace, leadSeatOf, openedReply, placement, seatingKey, startLead, startPeer, taskPlacement } from "./opening.ts";
+import { type Project, serialIn } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 
 /** The one rule for `after`, lanes and tasks alike: each must exist, one done counts, one dropped holds, the rest are waited for. */
@@ -96,7 +96,7 @@ async function releaseTask(desk: DeskServices, project: Project, lane: Lane, tas
     const entry = ledger.tasks[task.id];
     const now = ledger.lanes[lane.id];
     if (!entry || !now || now.onHold || !TASK.may(entry.status, "start")) return undefined;
-    const problem = taskPlacement(ledger, now, entry.owned, parallel, serial);
+    const problem = taskPlacement(ledger, now, entry.holds, parallel, serial);
     if (problem) return problem;
     TASK.move(entry, "start");
     Object.assign(entry, { startSha, updatedAt: Date.now() });

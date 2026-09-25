@@ -179,14 +179,18 @@ test("an incident is never addressed to the seat it is about", async () => {
 test("the list carries what each seat was asked", async () => {
   const { project, services, supervisor } = desk();
   const ledger = emptyLedger();
-  ledger.tasks["L1-T1"] = { id: "L1-T1", lane: "L1", kind: "code", mode: "lane", title: "Empty cart message", goal: "show the empty cart message", acceptance: ["empty cart renders it"], owned: ["src/cart/**"], outOfScope: ["checkout"], peer: "peer-1", status: "working", openedAt: 1, updatedAt: 1, silent: 0 } as never;
+  ledger.tasks["L1-T1"] = { id: "L1-T1", lane: "L1", kind: "code", mode: "lane", title: "Empty cart message", goal: "show the empty cart message", acceptance: ["empty cart renders it"], hints: ["src/cart/**"], holds: [], outOfScope: ["checkout"], peer: "peer-1", status: "working", openedAt: 1, updatedAt: 1, silent: 0 } as never;
   ledger.agents["peer-1"] = { id: "peer-1", role: "peer", lane: "L1", task: "L1-T1" };
+  ledger.tasks["L1-T2"] = { ...ledger.tasks["L1-T1"]!, id: "L1-T2", mode: "parallel", title: "Receipt", hints: [], holds: ["src/receipt/**"], peer: "peer-3" };
+  ledger.agents["peer-3"] = { id: "peer-3", role: "peer", lane: "L1", task: "L1-T2" };
   mkdirSync(project.state, { recursive: true });
   saveLedger(project.state, ledger);
   await notice(services, project, { id: "peer-1", provider: "sw2-peer-claude/claude-opus-5" }, [stuck]);
   await notice(services, project, { id: "peer-2", provider: "sw2-peer-claude/claude-opus-5" }, [stuck]);
+  await notice(services, project, { id: "peer-3", provider: "sw2-peer-claude/claude-opus-5" }, [stuck]);
   const listed = (await incidents.handle(services, supervisor, {})).text;
-  assert.match(listed, /What they were asked:\n- L1-T1 Empty cart message: goal show the empty cart message; acceptance empty cart renders it; owned src\/cart\/\*\*; out of scope checkout/);
+  assert.match(listed, /What they were asked:\n(- .*\n)*- L1-T1 Empty cart message: goal show the empty cart message; acceptance empty cart renders it; hints src\/cart\/\*\*; out of scope checkout/);
+  assert.match(listed, /- L1-T2 Receipt: goal show the empty cart message; acceptance empty cart renders it; holds src\/receipt\/\*\*; out of scope checkout/);
 });
 
 test("a kind most of whose last ten marks were noise is held on probation, a page never is, and marks that turn it round let it go again", async () => {

@@ -23,7 +23,7 @@ You turn what the project state already recorded into updated rows of `$SEATWORK
 4. **Match the notebook.** A group matching a row raises its Seen and Last; a recurrence under an `applied` row means the fix was too weak, a stronger finding than a new row. An unmatched group becomes a row at `seen` when its mechanism is new, or when it shows an existing row more sharply than that row does; the same thing in different words adds nothing. Seen again on a different day, the row moves to `adopted`.
 5. **Propose at most one change:** the group with the highest count and clearest class, as the smallest diff to one file (a prompt line, a skill step, an acceptance habit, a role setting), with its two dated episodes, its class, and what would show it made things worse. One change per retrospective keeps its effect attributable. Removing a rule whose episodes stopped counts as a change.
 
-Judge the system, not the agent: "the brief's owned paths were one directory and the work needed two" is a finding, "the Peer was careless" is not. Keep what a log says apart from what you infer from it.
+Judge the system, not the agent: "the task held one directory and the work needed two" is a finding, "the Peer was careless" is not. Keep what a log says apart from what you infer from it.
 
 ## Ends in
 

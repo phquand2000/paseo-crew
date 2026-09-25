@@ -13,7 +13,7 @@ test("of two moves on one task the first goes through, and the second changes no
   const ctx = new DeskContext({ kit, outbox: { post: async () => "sent" }, log: () => {}, teamFor: () => resolveTeam(kit, {}), indexesFor: () => [] });
   const project: Project = { root: tempDir("sw2-context-"), slug: "p", state: tempDir("sw2-context-state-") };
   const ledger = emptyLedger();
-  const task = { id: "L1-T1", lane: "L1", kind: "code", mode: "lane", title: "t", goal: "g", acceptance: ["a"], owned: ["a.ts"], outOfScope: [], status: "running", openedAt: 0, updatedAt: 0, silent: 0 } satisfies Task;
+  const task = { id: "L1-T1", lane: "L1", kind: "code", mode: "lane", title: "t", goal: "g", acceptance: ["a"], hints: ["a.ts"], holds: [], outOfScope: [], status: "running", openedAt: 0, updatedAt: 0, silent: 0 } satisfies Task;
   ledger.tasks[task.id] = task;
   saveLedger(project.state, ledger);
 

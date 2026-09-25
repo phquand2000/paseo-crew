@@ -4,8 +4,8 @@ import { type Letter, fyi, mail } from "./letters.ts";
 
 /** The letters the merge of an accepted task sends its Lead: merged, failed, or stopped on conflicts. */
 export const mergeLetters = {
-  /** `last` when no other task of the lane is left to accept or cut: only then does a merge with nothing to note ask anything of the Lead. */
-  merged(task: Task, counts: Counts | undefined, outside: string[], gate: string, last: boolean): Letter {
+  /** `reach` is what of its files the Lead should weigh; `last` when no other task of the lane is left to accept or cut: only then does a merge with nothing to note ask anything of the Lead. */
+  merged(task: Task, counts: Counts | undefined, reach: string[], gate: string, last: boolean): Letter {
     const lines = [
       counts?.files.length === 0 ? `MERGED ${task.id} (${task.title}): it changed no files, so there was nothing to merge.` : `MERGED ${task.id} (${task.title}) into the lane branch.`,
       counts ? `Lines changed: source ${counts.src}, tests ${counts.test}, docs ${counts.docs}.` : "Lines changed: git could not say, so this is the merge without its size.",
@@ -14,7 +14,7 @@ export const mergeLetters = {
     const notes: string[] = [];
     if (counts && counts.src === 0 && counts.test + counts.docs > 0) notes.push("Note: no source lines changed.");
     if (counts && counts.src > 0 && counts.test > counts.src * 1.5) notes.push(`Note: test lines are ${(counts.test / counts.src).toFixed(1)} times source lines.`);
-    if (outside.length > 0) notes.push(`Note: files outside the owned paths: ${outside.slice(0, 10).join(", ")}`);
+    for (const note of reach) notes.push(`Note: ${note}.`);
     const letter = (next: string) => mail("merge", [task.id, Date.now()], [...lines, ...notes].join("\n"), next);
     if (last) return letter("Every task of the lane is settled: if its outcome is complete, have the whole lane reviewed (start_review, no task), then report it ready.");
     return notes.length > 0 ? letter("Act on a note only if it matters to the lane.") : fyi(letter("Nothing now: the next hand-back arrives as mail."));

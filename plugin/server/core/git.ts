@@ -1,13 +1,12 @@
 import { execFile, execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { coverOf } from "./scope.ts";
 
 type Run = { code: number; stdout: string; stderr: string };
 
 export function git(cwd: string, args: string[], timeout = 60_000): Promise<Run> {
   return new Promise((resolve) => {
-    // core.quotePath=false: otherwise non-ASCII paths come back quoted and octal-escaped and match no owned path.
+    // core.quotePath=false: otherwise non-ASCII paths come back quoted and octal-escaped and match no path a write set or hold names.
     execFile("git", ["-C", cwd, "-c", "core.quotePath=false", ...args], { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
       const code = error ? (typeof (error as { code?: unknown }).code === "number" ? ((error as { code: number }).code) : 1) : 0;
       resolve({ code, stdout: String(stdout), stderr: String(stderr) });
@@ -136,7 +135,7 @@ export function kindOf(path: string, kinds: FileKinds): "src" | "test" | "docs" 
   return kinds.docs.test(path) ? "docs" : "src";
 }
 
-/** Uses `-z` so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no owned path. */
+/** Uses `-z` so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no path a write set or hold names. */
 /** Lines of an `uncounted` path are left out of the counts; the path is still listed. */
 export function countNumstat(numstat: string, kinds: FileKinds, uncounted: (path: string) => boolean = () => false): Counts {
   const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
@@ -210,12 +209,6 @@ export async function uncommittedIn(cwd: string): Promise<string> {
 export async function mergesIn(cwd: string, from: string, to: string): Promise<boolean> {
   const run = await git(cwd, ["rev-list", "--first-parent", "--merges", "--count", `${from}..${to}`]);
   return run.code === 0 && Number(run.stdout.trim()) > 0;
-}
-
-export function outsideOwned(files: string[], owned: string[]): string[] {
-  if (owned.length === 0) return [];
-  const rules = owned.map(coverOf);
-  return files.filter((file) => !rules.some((rule) => rule.test(file)));
 }
 
 /** Where `branch` left `base`: what a lane changed is read from here, however far `base` has moved since. */

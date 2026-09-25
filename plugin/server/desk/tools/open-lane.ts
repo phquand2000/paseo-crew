@@ -5,9 +5,9 @@ import { type Args, type Caller, no, ok, str, strs } from "../context.ts";
 import { type Issue, fetchIssue } from "../issue.ts";
 import { type Lane, type Ledger, loadLedger, nextLaneId, ownCopyHolder } from "../ledger.ts";
 import { clip, slugify } from "../../core/text.ts";
-import { type LaneHome, type Project, type ProjectConfig, configFile, detectGate, laneHomeFor, loadConfig, saveConfig } from "../project.ts";
+import { type LaneHome, type Project, type ProjectConfig, configFile, detectGate, laneHomeFor, loadConfig, saveConfig, serialIn } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
-import { type Refusal, openedReply, placement, seatingKey, serialIn, startLead } from "../opening.ts";
+import { type Refusal, openedReply, placement, seatingKey, startLead } from "../opening.ts";
 import { waitsFor } from "../waiting.ts";
 
 /** An unreadable issue ref is a note on the lane, never a reason to refuse opening it. */

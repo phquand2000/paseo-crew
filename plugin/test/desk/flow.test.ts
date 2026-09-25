@@ -18,7 +18,7 @@ function lane(id: string, status: "open" | "closed", lead?: string) {
 
 function task(id: string, laneId: string, status: string, peer?: string) {
   return {
-    id, lane: laneId, kind: "code" as const, mode: "lane" as const, title: `Task ${id}`, goal: "", acceptance: [], owned: [],
+    id, lane: laneId, kind: "code" as const, mode: "lane" as const, title: `Task ${id}`, goal: "", acceptance: [], hints: [], holds: [],
     outOfScope: [], peer, status: status as never, openedAt: now - 1_800_000, updatedAt: now - 120_000, silent: 0,
   };
 }

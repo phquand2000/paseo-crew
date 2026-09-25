@@ -42,7 +42,7 @@ function shop() {
 }
 
 const task = (id: string, extra: Partial<Task>): Task =>
-  ({ id, lane: "L1", kind: "code", mode: "lane", title: `Task ${id}`, goal: "", acceptance: [], owned: [], outOfScope: [], status: "merged", openedAt: 0, updatedAt: 0, silent: 0, ...extra }) as Task;
+  ({ id, lane: "L1", kind: "code", mode: "lane", title: `Task ${id}`, goal: "", acceptance: [], hints: [], holds: [], outOfScope: [], status: "merged", openedAt: 0, updatedAt: 0, silent: 0, ...extra }) as Task;
 
 test("a lane brings what it changed since it left its base, however far the base has moved since, and the gate", async () => {
   const { git, write, commit, project, lane, ledger } = shop();
