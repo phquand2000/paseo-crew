@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
+import { saveLedger } from "../../server/desk/ledger.ts";
 import { type harness, laneWithPeer } from "./harness.ts";
 
 type Harness = ReturnType<typeof harness>;
@@ -148,4 +149,61 @@ test("landing lets a kept parallel Peer go after the turn it is in, and its merg
   await h.endTurn(side.peer!, "done");
   assert.equal(existsSync(side.worktree!), false);
   assert.equal(h.git(h.root, "branch", "--list", side.branch!).trim(), "", "its work is in the landed lane, so its branch goes");
+});
+
+test("the Lead sends an accepted task back to the Peer kept on it, which fixes it on top of what was accepted", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  await acceptWork(h, lead, peer, "L1-T1");
+  const ledger = h.ledger();
+  ledger.lanes.L1!.ready = { at: Date.now() };
+  saveLedger(h.project.state, ledger);
+  const sent = await h.call(lead, "lead", "rework", { task: "L1-T1", text: "the lane review found the total off by one" });
+  assert.equal(sent.ok, true, sent.text);
+  const task = h.ledger().tasks["L1-T1"]!;
+  assert.deepEqual([task.status, task.peer, task.startSha], ["rework", peer, h.git(lane.worktree!, "rev-parse", "HEAD").trim()], "the same Peer, its work read from where the lane stands now");
+  assert.equal(h.ledger().lanes.L1!.ready, undefined, "a lane with a task open again is not ready");
+  await h.idle(peer);
+  assert.match(h.heard(peer).join("\n"), /REWORK requested by your lead\n\nthe lane review found the total off by one/);
+  await acceptWork(h, lead, peer, "L1-T1", "a.txt", "fixed\n");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+});
+
+test("a merged parallel task goes back to the Peer kept in its copy, and merges again once accepted", async () => {
+  const { h, lane } = await laneWithPeer();
+  const lead = lane.lead!;
+  const side = await mergedBeside(h, lead);
+  assert.equal((await h.call(lead, "lead", "rework", { task: "L1-T2", text: "b wants its second line" })).ok, true);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "rework");
+  h.commit(side.worktree!, "b.txt", "B\nB2\n");
+  assert.equal((await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "b2" })).ok, true);
+  await h.idle(side.peer!);
+  assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T2" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
+  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:b.txt`), "B\nB2\n", "the fix is in the lane");
+});
+
+test("an accepted task goes back only to its Peer while kept, and not into a copy another task holds", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  await acceptWork(h, lead, peer, "L1-T1");
+  await h.call(lead, "lead", "add_tasks", { tasks: [task("u", "Second")] });
+  assert.match((await h.call(lead, "lead", "rework", { task: "L1-T1", text: "x" })).text, /L1-T2 holds the lane's working copy/);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "and nothing moved");
+  assert.equal((await h.call(lead, "lead", "cut", { task: "L1-T2", reason: "later" })).ok, true);
+  h.agents.get(peer)!.status = "running";
+  assert.equal((await h.call(lead, "lead", "release", { task: "L1-T1" })).ok, true);
+  assert.equal(h.agents.get(peer)!.archivedAt, null, "Paseo still lists it while it ends its turn");
+  assert.match((await h.call(lead, "lead", "rework", { task: "L1-T1", text: "x" })).text, /The Peer on L1-T1 is gone: add a task for what must change\./);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+});
+
+test("a hand-back sent back to a Peer that is gone stays as it was, for its Lead to cut", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(peer)!.archivedAt = new Date().toISOString();
+  assert.match((await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "x" })).text, /The Peer on L1-T1 is gone; cut the task and start a new one\./);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "done", "not left waiting on a rework nobody will do");
 });

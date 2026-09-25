@@ -8,7 +8,8 @@ const MOVES = {
   start: { from: ["waiting"], to: "running" },
   wait: { from: ["running"], to: "waiting" },
   handBack: { from: IN_HAND, to: "done" },
-  rework: { from: IN_HAND, to: "rework" },
+  // An accepted task goes back to the Peer kept on it: it is that Peer's ticket until its Lead releases it.
+  rework: { from: [...IN_HAND, "merged"], to: "rework" },
   accept: { from: IN_HAND, to: "merged" },
   queue: { from: IN_HAND, to: "queued" },
   merge: { from: ["queued"], to: "merging" },

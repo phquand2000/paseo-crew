@@ -753,7 +753,7 @@
     },
     {
       "name": "rework",
-      "description": "Send a task back to its Peer with what must change.",
+      "description": "Send a task back to its Peer with what must change. An accepted task goes back to the Peer kept on it, to fix within that task; the lane is then no longer ready.",
       "inputSchema": {
         "type": "object",
         "properties": {

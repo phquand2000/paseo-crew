@@ -1050,7 +1050,7 @@ test("a hand-back the Lead has not accepted still holds the lane's copy, so noth
   // And a rework that would wake a Peer into another task's writing is refused, not prescribed.
   const back = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "commit it" });
   assert.equal(back.ok, false);
-  assert.match(back.text, /is merged/, "an accepted task has nothing to rework");
+  assert.match(back.text, /L1-T2 holds the lane's working copy/, "its Peer goes back to it only once the copy is free");
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "C", goal: "g", acceptance: ["c"], owned: ["c.txt"], ...scope, parallel: true }] });
   const par = Object.values(h.ledger().tasks).find((task) => task.title === "C")!;
   writeFileSync(join(lane.worktree!, "b.txt"), "half\n");

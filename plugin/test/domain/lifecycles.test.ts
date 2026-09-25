@@ -37,11 +37,12 @@ test("every task status is reached from how a task is recorded, and all but a se
   assert.deepEqual([...reached(TASK, ["waiting", "running"])].sort(), [...TASK_STATUSES].sort());
   const stuck = TASK_STATUSES.filter((status) => !SETTLED.includes(status) && !steps(TASK).some((step) => step.from.includes(status) && step.to !== status));
   assert.deepEqual(stuck, []);
-  assert.deepEqual(steps(TASK).filter((step) => step.from.includes("merged")).map((step) => step.move), [], "nothing moves a merged task");
+  assert.deepEqual(steps(TASK).filter((step) => step.from.includes("merged")).map((step) => step.move), ["rework"], "a merged task only goes back to its Peer, sent by its Lead");
 });
 
-test("once the Lead has decided a task, its Peer can no longer hand it back or be sent back to it, and its silence is not a stall", () => {
-  for (const move of ["handBack", "rework", "stall"] as const) assert.deepEqual(TASK.moves[move].from.filter((status) => DECIDED.includes(status)), [], move);
+test("once the Lead has decided a task, its Peer can no longer hand it back, and its silence is not a stall; only an accepted one goes back to it", () => {
+  for (const move of ["handBack", "stall"] as const) assert.deepEqual(TASK.moves[move].from.filter((status) => DECIDED.includes(status)), [], move);
+  assert.deepEqual(TASK.moves.rework.from.filter((status) => DECIDED.includes(status)), ["merged"], "not while it is queued, merging or cut");
 });
 
 test("a move the table does not allow from the status an entry has leaves the entry as it was", () => {
