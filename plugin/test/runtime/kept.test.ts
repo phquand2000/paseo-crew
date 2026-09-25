@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { test } from "node:test";
 import { type harness, laneWithPeer } from "./harness.ts";
 
@@ -56,7 +57,6 @@ test("the Lead releases the Peer kept from an accepted task; not while the task 
   assert.match((await h.call(lead, "lead", "release", { task: "L1-T1" })).text, /The Peer kept from L1-T1 is gone already\./);
 
   await h.call(lead, "lead", "add_tasks", { tasks: [task("p", "Beside", "b.txt", { parallel: true })] });
-  assert.match((await h.call(lead, "lead", "release", { task: "L1-T2" })).text, /L1-T2 ran in a copy of its own, and its Peer goes with that copy once it is merged\./);
   await h.call(lead, "lead", "start_review", { task: "L1-T2", focus: "Is it right?" });
   const review = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review")!;
   assert.match((await h.call(lead, "lead", "release", { task: review.id })).text, new RegExp(`${review.id} is a review: its reviewer goes when you cut it\\.`));
@@ -79,4 +79,73 @@ test("a kept Peer released while it ends a turn is not shown as kept, though Pas
   assert.equal((await h.call(lane.lead!, "lead", "release", { task: "L1-T1" })).ok, true);
   assert.equal(h.agents.get(peer)!.archivedAt, null, "archived once its turn ends, not under it");
   assert.doesNotMatch((await h.call(lane.lead!, "lead", "status", {})).text, /is kept until you release it/);
+});
+
+/** A parallel task beside L1-T1, committed in its own copy, handed back, accepted and merged into the lane. */
+async function mergedBeside(h: Harness, lead: string) {
+  await h.call(lead, "lead", "add_tasks", { tasks: [task("p", "Beside", "b.txt", { parallel: true })] });
+  const side = h.ledger().tasks["L1-T2"]!;
+  h.commit(side.worktree!, "b.txt", "B\n");
+  assert.equal((await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "b" })).ok, true);
+  await h.idle(side.peer!);
+  assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T2" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
+  return h.ledger().tasks["L1-T2"]!;
+}
+
+test("a parallel task's Peer stays in its own copy once merged, until its Lead releases it and the copy goes with its branch", async () => {
+  const { h, lane } = await laneWithPeer();
+  const lead = lane.lead!;
+  const side = await mergedBeside(h, lead);
+  assert.equal(h.agents.get(side.peer!)!.archivedAt, null, "the merge does not let it go: its Lead does");
+  assert.ok(existsSync(side.worktree!), "and it keeps the copy it works in");
+  assert.match((await h.call(lead, "lead", "status", {})).text, new RegExp(`- L1-T2 Beside: merged[^\\n]*; its Peer ${side.peer} idle \\d+ min is kept until you release it`));
+
+  const released = await h.call(lead, "lead", "release", { task: "L1-T2" });
+  assert.equal(released.ok, true, released.text);
+  assert.ok(h.agents.get(side.peer!)!.archivedAt);
+  assert.equal(existsSync(side.worktree!), false, "its copy is put away with it");
+  assert.equal(h.git(h.root, "branch", "--list", side.branch!).trim(), "", "and so is its branch, merged into the lane");
+});
+
+test("a merged parallel task's copy goes once its kept Peer is gone, whether the Human archived it or the lane closed", async () => {
+  const { h, lane } = await laneWithPeer();
+  const side = await mergedBeside(h, lane.lead!);
+  const seat = h.agents.get(side.peer!)!;
+  seat.archivedAt = new Date().toISOString();
+  await h.tick();
+  assert.equal(existsSync(side.worktree!), false, "the round puts away a copy whose Peer is gone");
+
+  const other = await laneWithPeer();
+  const kept = await mergedBeside(other.h, other.lane.lead!);
+  assert.equal((await other.h.call(other.sup, "supervisor", "drop_lane", { lane: "L1", reason: "not wanted" })).ok, true);
+  assert.ok(other.h.agents.get(kept.peer!)!.archivedAt, "closing the lane lets its Peers go");
+  assert.equal(existsSync(kept.worktree!), false);
+});
+
+test("a review of a merged parallel task reads it from the lane's copy, not from the copy its Peer keeps", async () => {
+  const { h, lane } = await laneWithPeer();
+  const side = await mergedBeside(h, lane.lead!);
+  assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: "L1-T2", focus: "Is b right?" })).ok, true);
+  const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
+  assert.equal(h.agents.get(reviewer)!.cwd, lane.worktree);
+  assert.notEqual(h.agents.get(reviewer)!.cwd, side.worktree);
+});
+
+test("landing lets a kept parallel Peer go after the turn it is in, and its merged branch goes with its copy", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  const side = await mergedBeside(h, lead);
+  await acceptWork(h, lead, peer, "L1-T1");
+  h.agents.get(lead)!.status = "idle";
+  h.agents.get(side.peer!)!.status = "running";
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim(), "", "the lane branch goes at once, being all under its landed ref");
+  assert.equal(landed.ok, true, landed.text);
+  assert.ok(existsSync(side.worktree!), "not taken from under a turn");
+  h.agents.get(side.peer!)!.status = "idle";
+  await h.endTurn(side.peer!, "done");
+  assert.equal(existsSync(side.worktree!), false);
+  assert.equal(h.git(h.root, "branch", "--list", side.branch!).trim(), "", "its work is in the landed lane, so its branch goes");
 });

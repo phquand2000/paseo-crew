@@ -1,6 +1,5 @@
 import { commitsAhead, diffCounts, git, headSha, mergeBranch, mergeOf, outsideOwned, pristineState, uncommittedIn } from "../core/git.ts";
 import { fileKinds } from "../catalog/kit.ts";
-import type { Agents } from "./agents.ts";
 import { type DeskContext } from "./context.ts";
 import { errorText } from "../core/errors.ts";
 import { IN_QUEUE, TASK } from "../domain/task.ts";
@@ -9,18 +8,17 @@ import { type Lane, type Task, loadLedger, othersLeft } from "./ledger.ts";
 import type { Letter } from "./letters.ts";
 import { mergeLetters } from "./merge-letters.ts";
 import { holderOf } from "./holder.ts";
+import { closeSeat } from "./incidents.ts";
 import type { Project } from "./project.ts";
 
 type Outcome = "merged" | "conflict" | "fail";
 
 export class MergeQueue {
   private readonly ctx: DeskContext;
-  private readonly agents: Agents;
   private readonly queues = new Map<string, Promise<unknown>>();
 
-  constructor(ctx: DeskContext, agents: Agents) {
+  constructor(ctx: DeskContext) {
     this.ctx = ctx;
-    this.agents = agents;
   }
 
   settled(project: Project): Promise<unknown> {
@@ -155,6 +153,7 @@ export class MergeQueue {
     if (typeof moved !== "object") return;
     await this.ctx.post(lane.lead, letter);
     this.ctx.event(project, { kind: `merge.${moved.status}`, task: task.id });
-    if (moved.status === "merged") await this.agents.retire(project, task, lane.branch);
+    // Its task is settled, so what the watch told about it is too; its Peer stays with its copy until its Lead releases it.
+    if (moved.status === "merged" && task.peer) this.ctx.incidents(project, (incidents) => closeSeat(incidents, task.peer!, Date.now()));
   }
 }

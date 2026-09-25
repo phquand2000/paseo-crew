@@ -390,7 +390,7 @@ test("parallel work needs independent write sets and merges back from its own wo
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
   assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "B\n");
-  assert.deepEqual(Object.keys(h.ledger().slots), [], "the copy a parallel task opened is torn down once its work is in");
+  assert.deepEqual(Object.keys(h.ledger().slots), [taskB.slot], "the copy a parallel task opened stays with its Peer once its work is in, until its Lead releases it");
 
   const clash = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
   assert.equal(clash.ok, false);
@@ -1237,16 +1237,16 @@ test("a copy a reviewer is reading is not taken away when the task it reviews is
 
   h.agents.get(review.peer!)!.status = "idle";
   await h.endTurn(review.peer!, "verdict sent");
-  assert.equal(existsSync(review.worktree!), false, "once it stops, the copy goes as it always did");
+  assert.equal(existsSync(review.worktree!), true, "once it stops, the copy stays with the task's Peer until its Lead releases it");
 
-  // A copy already marked for teardown goes when the task's Peer ends its turn, so no review is seated in it.
+  // A review of a task already merged reads the merge from the lane's copy, not from the copy its Peer keeps.
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], owned: ["b.txt"], ...scope, parallel: true }] });
   const second = Object.values(h.ledger().tasks).find((entry) => entry.title === "B")!;
   h.commit(second.worktree!, "b.txt", "B\n");
   await h.call(second.peer!, "peer", "done", { outcome: "complete", summary: "b" });
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: second.id })).ok, true);
   await h.runtime.desk.settled(h.project);
-  assert.ok(h.ledger().slots[second.slot!]?.releasing, "its Peer is mid-turn, so the copy is waiting to be put away");
+  assert.equal(h.ledger().slots[second.slot!]?.task, second.id, "its copy stays with its Peer");
 
   assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: second.id, focus: "and this one?" })).ok, true);
   const late = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review" && entry.of === second.id)!;
@@ -1254,7 +1254,7 @@ test("a copy a reviewer is reading is not taken away when the task it reviews is
   assert.match(h.agents.get(late.peer!)!.prompt!, /as the merge/);
 });
 
-test("a review of a parallel task whose copy went back is pointed at the merge that holds the change", async () => {
+test("a review of a merged parallel task is pointed at the merge that holds the change", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outOfScope: ["the rest of the repository"] };
@@ -1268,14 +1268,14 @@ test("a review of a parallel task whose copy went back is pointed at the merge t
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
-  assert.equal(Object.keys(h.ledger().slots).length, 0, "the copy the task worked in has gone back");
+  assert.equal(h.ledger().slots[task.slot!]?.task, "L1-T1", "the copy it worked in stays with its Peer, and holds nothing the lane lacks");
 
   const opened = await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Does this hold at the boundary?" });
   assert.equal(opened.ok, true, opened.text);
   const review = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review")!;
   const merge = h.ledger().tasks["L1-T1"]!.mergeSha!;
   const brief = h.agents.get(review.peer!)!.prompt!;
-  assert.match(brief, new RegExp(`The change is in ${lane.branch}, as the merge ${merge.slice(0, 7)}`), "its own copy and branch are both gone once the work lands");
+  assert.match(brief, new RegExp(`The change is in ${lane.branch}, as the merge ${merge.slice(0, 7)}`), "once merged, the work is read where it landed");
   assert.match(brief, new RegExp(`git diff ${merge}\\^1\\.\\.${merge}`), "a range that shows nothing is a review of nothing");
   assert.equal(h.git(lane.worktree!, "diff", "--name-only", `${merge}^1..${merge}`).trim(), "a.txt", "and the range really shows the task's work");
 
@@ -1290,7 +1290,7 @@ test("a review of a parallel task whose copy went back is pointed at the merge t
   assert.match(nothing.text, /neither a merge nor a branch is left to read it from/);
 });
 
-test("a task branch is dropped once its work is in the lane's, whichever branch the project's own copy is on", async () => {
+test("a task branch is dropped once its work is in the lane's and its Peer is released, whichever branch the project's own copy is on", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   // The lane's own copy keeps the project's copy on main, which is what `git branch -d` would read.
@@ -1305,7 +1305,7 @@ test("a task branch is dropped once its work is in the lane's, whichever branch 
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
   await h.runtime.desk.settled(h.project);
 
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.equal((await h.call(lane.lead!, "lead", "release", { task: "L1-T1" })).ok, true, "a merged task's Peer, released, takes its copy with it");
   assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:a.txt`), "A\n", "the work is in the lane's branch");
   assert.equal(h.git(h.root, "branch", "--list", task.branch!).trim(), "", "and its own branch has nothing the lane does not, so it goes");
 });

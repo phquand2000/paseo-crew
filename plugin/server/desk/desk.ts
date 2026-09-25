@@ -75,7 +75,7 @@ export class Desk {
     const slots = new Slots(ctx, options.workspaces);
     const agents = new Agents(ctx, roster, slots, options.workspaces);
     this.watcher = new Watcher(ctx, roster, agents);
-    this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx, agents), watcher: this.watcher };
+    this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx), watcher: this.watcher };
     this.tools = options.tools;
     this.projects = ctx.projects;
     this.human = new Human(this.services);

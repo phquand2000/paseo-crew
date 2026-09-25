@@ -6,25 +6,27 @@ import { findLane, loadLedger } from "../ledger.ts";
 import { defineTool } from "../services.ts";
 import { laneTask } from "./lane-task.ts";
 
-/** A Lead lets go of the Peer kept from a task it accepted in the lane's copy; the lane's Peers all go when it closes. */
+/** A Lead lets go of the Peer kept from a task it accepted, and of a copy of its own with it; the lane's Peers all go when it closes. */
 export const releasePeer = defineTool({
   name: "release",
   input: z.strictObject({ task: z.string() }),
-  async handle({ ctx, roster }, caller, args) {
+  async handle({ ctx, roster, agents }, caller, args) {
     const { project } = caller;
     const ledger = loadLedger(project.state);
     const found = laneTask(ledger, caller, str(args.task));
     if (typeof found === "string") return no(found);
-    const { task } = found;
+    const { lane, task } = found;
     if (task.kind === "review") return no(`${task.id} is a review: its reviewer goes when you cut it.`);
-    if (task.mode === "parallel") return no(`${task.id} ran in a copy of its own, and its Peer goes with that copy once it is merged.`);
     if (task.status === "cut") return no(`${task.id} was cut, and its Peer stopped with it.`);
     if (task.status !== "merged") return no(`${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`);
     const peer = task.peer!;
     if (!(await roster.seated(peer))) return no(`The Peer kept from ${task.id} is gone already.`);
-    await letGo(ctx, roster, project, peer);
+    const reading = Object.values(ledger.tasks).find((other) => other.kind === "review" && other.of === task.id && other.slot === task.slot && other.status === "running");
+    if (task.mode === "parallel" && reading) return no(`${reading.id} still reviews ${task.id} in its copy: cut it first.`);
+    if (task.mode === "parallel") await agents.retire(project, task, lane.branch);
+    else await letGo(ctx, roster, project, peer);
     ctx.event(project, { kind: "seat.released", seat: peer, of: task.id });
-    return ok(`The Peer kept from ${task.id} is released.`);
+    return ok(`The Peer kept from ${task.id} is released${task.mode === "parallel" ? `, and its copy ${task.slot} is put away with it` : ""}.`);
   },
 });
 

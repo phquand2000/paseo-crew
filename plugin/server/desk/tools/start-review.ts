@@ -82,7 +82,8 @@ export const startReview = defineTool({
     if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code")) return no(`${str(args.task)} is not a code task in your lane.`);
     // A slot marked for teardown still answers as the task's copy; a reviewer seated there loses it at the Peer's turn end.
     const holds = target?.slot ? ledger.slots[target.slot] : undefined;
-    const own = target?.mode === "parallel" && holds?.task === target.id && !holds.releasing ? holds : undefined;
+    // Once merged it is read from the lane's copy: the copy its Peer keeps holds nothing the lane lacks.
+    const own = target?.mode === "parallel" && target.status !== "merged" && holds?.task === target.id && !holds.releasing ? holds : undefined;
     const change = target ? await rangeOf(project, target, lane, Boolean(own)) : undefined;
     if (target && !change)
       return no(`${target.id} worked in a copy that has been given back, and neither a merge nor a branch is left to read it from. Ask for a review of the lane instead.`);

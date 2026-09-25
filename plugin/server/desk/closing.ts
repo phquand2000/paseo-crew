@@ -205,7 +205,7 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
   });
   const branches: string[] = [];
   for (const task of retired) {
-    const branch = await agents.retire(project, task, lane.branch);
+    const branch = await agents.retire(project, task, args.land === true ? landedRef(lane.id) : lane.branch);
     if (branch) branches.push(branch);
   }
   // A look Paseo could not answer is not a Lead gone: it stays kept, and a round that finds it gone puts its copy away.

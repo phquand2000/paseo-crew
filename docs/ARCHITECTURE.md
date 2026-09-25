@@ -177,10 +177,11 @@ its reviews leave standing) goes with the REPORT letter and the reply as evidenc
 touches a path the project's risk rules name (the kit's cover migrations, schemas and SQL) carries
 their questions, and its verdict is refused until it answers them.
 
-**Who stays.** Closing a lane lets its Peers go. Its Lead stays, with the lane's copy of its own if
-it had one, until whoever supervises releases it or it is archived in Paseo, which archives a
-Supervisor's Leads with it; the next round then puts that copy away. Your checkout goes back to base
-at close.
+**Who stays.** A Peer stays after its task is accepted, a parallel task's in its own copy, until its Lead
+releases it; the next round puts away the copy of one archived in Paseo. Closing a lane lets its Peers go.
+Its Lead stays, with the lane's copy of its own if it had one, until whoever supervises releases it or
+it is archived in Paseo, which archives a Supervisor's Leads with it; the next round then puts that
+copy away. Your checkout goes back to base at close.
 
 **Teardown** waits for seats that are still mid-turn. The pending release is recorded in the ledger,
 and a seat waiting to be archived in `intents.json`, so a daemon restart loses neither: the first
