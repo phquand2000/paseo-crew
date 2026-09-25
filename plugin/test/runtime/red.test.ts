@@ -223,3 +223,52 @@ test("a lane's copy on its branch left with work uncommitted while a merge's gat
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
 });
+
+test("with gateOn task, the gate really runs on a lane-mode task and the Lead is told the result, not a description", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "task" });
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  const lane = h.ledger().lanes.L1!;
+
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Add four", goal: "g", acceptance: ["a"], hints: ["a.txt"], ...scope }] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  h.commit(lane.worktree!, "a.txt", "one\ntwo\nthree\nfour\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "four" });
+  h.agents.get(peer)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+
+  // The task is on the default, non-parallel path — the one where the task gate used to be skipped in silence.
+  await h.idle(lane.lead!);
+  const letter = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(letter, /MERGED L1-T1/);
+  assert.match(letter, /Gate: test ! -f BROKEN passed in/, "the Lead has to be told what the gate did, not what it would do later");
+  assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
+});
+
+test("a red task gate reaches the Lead with the hand-back, and the lane takes it only when the Lead accepts it over the gate, with a reason", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "echo red; exit 1", gateOn: "task" });
+  await h.call(sup, "supervisor", "open_lane", { title: "Bee", outcome: "b.txt changes", acceptance: ["b"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  const started = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], holds: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true }] });
+  assert.equal(started.ok, true, started.text);
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "b.txt", "B\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+
+  // The directive promises the per-task verdict with the hand-back; beside others, red keeps it out of the lane until its Lead says why not.
+  await h.idle(lane.lead!);
+  const handback = h.agents.get(lane.lead!)!.sent.join("\n");
+  assert.match(handback, /Gate: echo red; exit 1: the gate failed with exit 1\. The lane takes it red only if you accept it over the gate with a reason\./);
+
+  h.agents.get(task.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, false);
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1", overGate: true, reason: "the gate is broken, not the task" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "accepted over the gate with a reason, it lands");
+  assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/);
+});

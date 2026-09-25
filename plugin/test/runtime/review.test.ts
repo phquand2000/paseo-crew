@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
@@ -161,4 +161,81 @@ test("a review of a change a risk rule covers is asked the rule's question, and 
   await h.call(lane.lead!, "lead", "start_review", { focus: "And the lane?" });
   const second = Object.values(h.ledger().tasks).filter((task) => task.kind === "review").at(-1)!;
   assert.equal(second.asked, undefined, "a project's own list, even an empty one, replaces the kit's");
+});
+
+test("a copy a reviewer is reading is not taken away when the task it reviews is accepted", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Reviewed", outcome: "a and b change", acceptance: ["a"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt", "b.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "A", goal: "g", acceptance: ["a"], holds: ["a.txt"], ...scope, parallel: true }] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "a.txt", "A\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(task.peer!)!.status = "idle";
+
+  // The documented way to review a task's commits: it reads them in that task's own working copy.
+  assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Is this right at the boundary?" })).ok, true);
+  const review = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review")!;
+  assert.equal(review.slot, task.slot, "the ledger says which copy the reviewer is living in");
+
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.equal(existsSync(review.worktree!), true, "the reviewer is mid-turn, and its verdict is what the Lead was told to wait for");
+
+  h.agents.get(review.peer!)!.status = "idle";
+  await h.endTurn(review.peer!, "verdict sent");
+  assert.equal(existsSync(review.worktree!), true, "once it stops, the copy stays with the task's Peer until its Lead releases it");
+
+  // A review of a task already merged reads the merge from the lane's copy, not from the copy its Peer keeps.
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], holds: ["b.txt"], ...scope, parallel: true }] });
+  const second = Object.values(h.ledger().tasks).find((entry) => entry.title === "B")!;
+  h.commit(second.worktree!, "b.txt", "B\n");
+  await h.call(second.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: second.id })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().slots[second.slot!]?.task, second.id, "its copy stays with its Peer");
+
+  assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: second.id, focus: "and this one?" })).ok, true);
+  const late = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review" && entry.of === second.id)!;
+  assert.notEqual(late.worktree, second.worktree, "it reads the merge from the lane's copy instead");
+  assert.match(h.agents.get(late.peer!)!.prompt!, /as the merge/);
+});
+
+test("a review of a merged parallel task is pointed at the merge that holds the change", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["the rest of the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt", "b.txt"] });
+  const lane = h.ledger().lanes.L1!;
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "A", goal: "g", acceptance: ["a"], holds: ["a.txt"], ...scope, parallel: true }] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "a.txt", "A\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(task.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.equal(h.ledger().slots[task.slot!]?.task, "L1-T1", "the copy it worked in stays with its Peer, and holds nothing the lane lacks");
+
+  const opened = await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Does this hold at the boundary?" });
+  assert.equal(opened.ok, true, opened.text);
+  const review = Object.values(h.ledger().tasks).find((entry) => entry.kind === "review")!;
+  const merge = h.ledger().tasks["L1-T1"]!.mergeSha!;
+  const brief = h.agents.get(review.peer!)!.prompt!;
+  assert.match(brief, new RegExp(`The change is in ${lane.branch}, as the merge ${merge.slice(0, 7)}`), "once merged, the work is read where it landed");
+  assert.match(brief, new RegExp(`git diff ${merge}\\^1\\.\\.${merge}`), "a range that shows nothing is a review of nothing");
+  assert.equal(h.git(lane.worktree!, "diff", "--name-only", `${merge}^1..${merge}`).trim(), "a.txt", "and the range really shows the task's work");
+
+  // A task cut before it committed leaves neither a copy nor a branch, and there is nothing to read.
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], holds: ["b.txt"], ...scope, parallel: true }] });
+  const empty = Object.values(h.ledger().tasks).find((entry) => entry.title === "B")!;
+  const cutReply = await h.call(lane.lead!, "lead", "cut", { task: empty.id, reason: "wrong shape" });
+  assert.equal(cutReply.ok, true, cutReply.text);
+  assert.equal(h.git(h.root, "branch", "--list", empty.branch!).trim(), "", "a cut task with no commits of its own leaves no branch behind");
+  const nothing = await h.call(lane.lead!, "lead", "start_review", { task: empty.id, focus: "anything?" });
+  assert.equal(nothing.ok, false);
+  assert.match(nothing.text, /neither a merge nor a branch is left to read it from/);
 });

@@ -36,7 +36,6 @@ const LONG_FILES: Record<string, number> = {
   "server/desk/slots.ts": 329,
   "test/runtime/facts.test.ts": 401,
   "test/runtime/intake.test.ts": 556,
-  "test/runtime/workflow.test.ts": 1602,
 };
 
 const LONG_FUNCTIONS: Record<string, number> = {

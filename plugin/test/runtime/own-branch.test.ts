@@ -287,3 +287,23 @@ test("a task in the lane's copy whose Peer cannot start leaves the copy on the l
   assert.equal(onBranch(h, lane.worktree!), lane.branch);
   assert.equal(h.git(h.root, "branch", "--list", h.ledger().tasks["L1-T1"]!.branch!).trim(), "");
 });
+
+test("a task branch is dropped once its work is in the lane's and its Peer is released, whichever branch the project's own copy is on", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  // The lane's own copy keeps the project's copy on main, which is what `git branch -d` would read.
+  await h.call(sup, "supervisor", "open_lane", { title: "Apart", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
+  const lane = h.ledger().lanes.L1!;
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "A", goal: "g", acceptance: ["a"], holds: ["a.txt"], outOfScope: ["the rest of the repository"], parallel: true }] });
+  const task = h.ledger().tasks["L1-T1"]!;
+  h.commit(task.worktree!, "a.txt", "A\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(task.peer!)!.status = "idle";
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+
+  assert.equal((await h.call(lane.lead!, "lead", "release", { task: "L1-T1" })).ok, true, "a merged task's Peer, released, takes its copy with it");
+  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:a.txt`), "A\n", "the work is in the lane's branch");
+  assert.equal(h.git(h.root, "branch", "--list", task.branch!).trim(), "", "and its own branch has nothing the lane does not, so it goes");
+});
