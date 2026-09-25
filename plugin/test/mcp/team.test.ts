@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { type ChildProcessByStdio, spawn } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import type { Readable, Writable } from "node:stream";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { tempDir } from "../tempdir.ts";
@@ -50,6 +52,32 @@ test("a seat is shown the choices the desk named for its tools as enums, whereve
     assert.deepEqual(task.skills.items.enum, ["test-first", "diagnosing-bugs"], "a list takes the set for its items");
     assert.deepEqual(tools.find((tool) => tool.name === "note")!.inputSchema.properties.kind.enum, ["plans", "council"]);
     assert.equal(tools.find((tool) => tool.name === "start_review")!.inputSchema.properties.role.enum, undefined, "a field the desk named nothing for is left open");
+  } finally {
+    server.kill();
+  }
+});
+
+/** The server's result for one JSON-RPC request. */
+function request(server: ChildProcessByStdio<Writable, Readable, null>, id: number, method: string, params: object = {}): Promise<any> {
+  const answered = new Promise((resolve) => {
+    createInterface({ input: server.stdout }).on("line", (line) => {
+      const reply = JSON.parse(line);
+      if (reply.id === id) resolve(reply.result);
+    });
+  });
+  server.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+  return answered;
+}
+
+test("a seat's harness is told what the team server is for, and each tool's title and what it changes, as the kit writes them", async () => {
+  const data = (file: string) => JSON.parse(readFileSync(join(dirname(teamServer), file), "utf-8")).reviewer;
+  const server = spawn(process.execPath, [teamServer, "reviewer", "reviewer", tempDir("sw2-spool-")], { stdio: ["pipe", "pipe", "inherit"] });
+  try {
+    const hello = await request(server, 1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "probe", version: "0" } });
+    assert.equal(hello.instructions, data("instructions.json"));
+    const { tools } = await request(server, 2, "tools/list");
+    const shown = (list: { name: string; title: string; annotations: object }[]) => list.map(({ name, title, annotations }) => ({ name, title, annotations }));
+    assert.deepEqual(shown(tools), shown(data("tools.json")));
   } finally {
     server.kill();
   }

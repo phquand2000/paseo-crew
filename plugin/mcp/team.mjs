@@ -26,7 +26,10 @@ function agentId() {
   }
 }
 const agent = agentId();
-const tools = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "tools.json"), "utf-8"))[toolSet] ?? [];
+const here = dirname(fileURLToPath(import.meta.url));
+const tools = JSON.parse(readFileSync(join(here, "tools.json"), "utf-8"))[toolSet] ?? [];
+// What the harness shows the model of the server itself, where its tools are found only by searching.
+const instructions = JSON.parse(readFileSync(join(here, "instructions.json"), "utf-8"))[toolSet];
 
 /** Each field the desk named a fixed set for takes it as its enum, however deep in the tool's schema the field sits. */
 function offer(schema, fields) {
@@ -81,7 +84,7 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
   }
   const { id, method, params } = message;
   if (method === "initialize") {
-    send({ jsonrpc: "2.0", id, result: { protocolVersion: params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "team", version: "2.0.0" } } });
+    send({ jsonrpc: "2.0", id, result: { protocolVersion: params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "team", version: "2.0.0" }, instructions } });
   } else if (method === "tools/list") {
     send({ jsonrpc: "2.0", id, result: { tools } });
   } else if (method === "tools/call") {

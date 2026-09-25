@@ -14,7 +14,10 @@ A call runs only when three things hold: the seat's provider maps to a role whos
 `mcp/tools.json`) holds the verb, the seat's bridge names that same role, and the arguments fit the
 schema. A call that doesn't fit is refused, with what is wrong. Where a field takes one of a set the kit
 fixes (the roles that write and their skills, the roles that review or lead, the folders a role keeps
-pages in), the seat's bridge shows that set as the field's choices.
+pages in), the seat's bridge shows that set as the field's choices. Each tool carries a title and hints
+saying whether it only reads, may destroy, repeats safely or reaches outside the desk, and each field a
+description; `mcp/instructions.json` says, per tool set, what the server is for, which a harness shows
+where it keeps tools behind a search.
 
 <!-- drawn from the code: verbs -->
 | Role | Tools |

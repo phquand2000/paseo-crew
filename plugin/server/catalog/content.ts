@@ -44,12 +44,14 @@ function markdownIn(dir: string): string[] {
   return found;
 }
 
-/** The words a role must not see, looked for in every name and description of the tools it is given. */
+/** The words a role must not see, looked for in everything of the tools it is given: names, titles, descriptions, and what the server says of them. */
 export function toolProblems(kit: Kit, role: RoleSpec): string[] {
   const file = join(kit.dir, "mcp", "tools.json");
   if (!role.tools || !existsSync(file)) return [];
   const tools = (JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown[]>)[role.tools] ?? [];
-  const hidden = hiddenWordsIn(JSON.stringify(tools), role.hidesWords ?? []);
+  const told = join(kit.dir, "mcp", "instructions.json");
+  const instructions = existsSync(told) ? ((JSON.parse(readFileSync(told, "utf-8")) as Record<string, string>)[role.tools] ?? "") : "";
+  const hidden = hiddenWordsIn(`${JSON.stringify(tools)}\n${instructions}`, role.hidesWords ?? []);
   return hidden.length > 0 ? [`the ${role.tools} tools the ${role.role} is given show words it must not see: ${hidden.join(", ")}`] : [];
 }
 

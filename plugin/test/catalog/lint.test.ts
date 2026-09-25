@@ -25,7 +25,8 @@ const files = (dir: string, ending: string): string[] =>
 const skills = readdirSync(join(PLUGIN, "content", "skills")).flatMap((set) => readdirSync(join(PLUGIN, "content", "skills", set)).map((name) => ({ name, dir: join(PLUGIN, "content", "skills", set, name) })));
 const deltas = files(join(PLUGIN, "harness"), ".md").filter((file) => file.includes("/delta/"));
 type Schema = { description?: string; properties?: Record<string, Schema>; items?: Schema };
-const tools = JSON.parse(readFileSync(join(PLUGIN, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string; description?: string; inputSchema?: Schema }[]>;
+type Hints = { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
+const tools = JSON.parse(readFileSync(join(PLUGIN, "mcp", "tools.json"), "utf-8")) as Record<string, { name: string; title?: string; description?: string; annotations?: Hints; inputSchema?: Schema }[]>;
 /** Every parameter a schema names, with its description: the fields of a list's items too, which a seat reads as closely. */
 const params = (schema: Schema | undefined, prefix = ""): [string, string][] =>
   Object.entries(schema?.properties ?? {}).flatMap(([name, field]) => [[`${prefix}${name}`, field.description ?? ""] as [string, string], ...params(field.items, `${prefix}${name}.`)]);
@@ -57,6 +58,25 @@ test("every tool says when to call it and what it does in 60 words, and each of 
     for (const tool of list) {
       assert.ok(words(tool.description ?? "") <= 60, `${set} ${tool.name}: ${words(tool.description ?? "")} words`);
       for (const [param, description] of params(tool.inputSchema)) assert.ok(words(description) <= 25, `${set} ${tool.name}.${param}: ${words(description)} words`);
+    }
+  }
+});
+
+test("every tool has a title, says what it changes and describes each field within what harnesses take, and each set's server says what it is for", () => {
+  const told = JSON.parse(readFileSync(join(PLUGIN, "mcp", "instructions.json"), "utf-8")) as Record<string, string>;
+  for (const [set, list] of Object.entries(tools)) {
+    assert.ok(told[set] && told[set].length <= 300, `${set}: its server says what it is for, in 300 characters`);
+    for (const tool of list) {
+      assert.match(tool.name, /^[a-z_]{1,64}$/);
+      assert.ok(tool.title, `${set} ${tool.name} has no title`);
+      const hints = tool.annotations ?? {};
+      assert.deepEqual([typeof hints.readOnlyHint, typeof hints.openWorldHint], ["boolean", "boolean"], `${set} ${tool.name} says whether it writes and whether it reaches outside`);
+      // Whether a call destroys or repeats safely means something only for a tool that writes.
+      const writing = hints.readOnlyHint ? ["undefined", "undefined"] : ["boolean", "boolean"];
+      assert.deepEqual([typeof hints.destructiveHint, typeof hints.idempotentHint], writing, `${set} ${tool.name}`);
+      // Codex refuses a schema over 5,000 bytes and Claude cuts a description at 2,048 characters.
+      assert.ok(JSON.stringify(tool.inputSchema).length < 5000 && (tool.description ?? "").length < 2048, `${set} ${tool.name} is too large for a harness`);
+      for (const [param, description] of params(tool.inputSchema)) assert.ok(description, `${set} ${tool.name}.${param} says nothing of what it takes`);
     }
   }
 });

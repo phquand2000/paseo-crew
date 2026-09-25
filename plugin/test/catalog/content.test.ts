@@ -37,6 +37,13 @@ test("a tool whose description shows a word its role must not see makes that rol
   assert.match(seatProblems(kit, resolveTeam(kit), "peer", { guides: "/g", state: "/s" }).join("\n"), /the peer tools the peer is given show words it must not see/);
 });
 
+test("what the team server says of a role's tools is held to the words that role must not see, as the tools are", () => {
+  const kit = makeKit();
+  const peer = kit.roles.find((role) => role.role === "peer")!;
+  writeFileSync(join(kit.dir, "mcp", "instructions.json"), JSON.stringify({ peer: `Hand work back to your ${peer.hidesWords![0]}.` }));
+  assert.deepEqual(toolProblems(kit, peer), [`the peer tools the peer is given show words it must not see: ${peer.hidesWords![0]}`]);
+});
+
 test("a placeholder the renderer does not know is refused rather than shipped", () => {
   const kit = makeKit();
   const lead = kit.roles.find((role) => role.role === "lead")!;
