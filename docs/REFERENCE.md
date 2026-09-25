@@ -266,7 +266,11 @@ settings revision changes, its settings file is gone, or a login appeared since.
 Catalog servers are off until a settings layer turns them on. One that names no roles goes to every
 role with desk tools. `mcp/code.mjs` can pin calls to the seat's git root, sync
 changed files, open and close the working copy in the backend, wait out indexing, rewrite errors and
-replace tool descriptions.
+replace tool descriptions. It speaks to its backend with the official MCP client, so a backend that
+keeps a session or streams its answers works, and shows each tool with the backend's own title and
+hints. A backend that answers only after the session started has its tools shown once it does, as a
+changed list. Progress passes through to a harness that asks for it, a stopped call is stopped at the
+backend too, and changed files are synced one call at a time, before the call that follows.
 
 A desk call can take minutes (a gate), and the desk answers within 240 s, "arrives as mail" past that.
 A seat must wait longer than that, or the answer comes back to nobody: omp gives up after 30 s and Pi's

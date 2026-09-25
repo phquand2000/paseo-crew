@@ -33,7 +33,6 @@ const LIMITS = { file: 300, testFile: 400, function: 50 };
 
 const LONG_FILES: Record<string, number> = {
   "client/data.ts": 437,
-  "mcp/code.mjs": 308,
   "server/catalog/seats.ts": 370,
   "server/desk/slots.ts": 329,
   "server/runtime/control.ts": 418,
@@ -55,7 +54,6 @@ const LONG_FUNCTIONS: Record<string, number> = {
   "client/surface.tsx SeatworksSurface": 172,
   "client/team.tsx roleRows": 56,
   "client/upkeep.tsx UpkeepSection": 163,
-  "mcp/code.mjs stdioBackend": 70,
   "server/catalog/team.ts resolveRole": 60,
   "server/desk/status.ts statusText": 86,
   "server/runtime/doctor.ts doctor": 77,

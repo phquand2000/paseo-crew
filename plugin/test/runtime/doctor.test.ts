@@ -14,10 +14,8 @@ function probes(bins: string[], tools: string[] | null, docsUp = true, paths: st
   return {
     has: (bin) => bins.includes(bin),
     exists: (path) => paths.includes(path),
-    async post(url) {
-      if (url.includes("127.0.0.1")) return tools ? { ok: true, json: { result: { tools: tools.map((name) => ({ name })) } } } : { ok: false, error: "refused" };
-      return docsUp ? { ok: true, json: { result: {} } } : { ok: false, error: "timeout" };
-    },
+    tools: async () => (tools ? { names: tools } : { error: "refused" }),
+    reaches: async () => (docsUp ? { ok: true } : { ok: false, error: "timeout" }),
   };
 }
 
@@ -53,22 +51,22 @@ test("what a harness says its seats need on this machine is checked, and how to 
   assert.equal(present.find((entry) => entry.id === "harness:omp:HOME/.omp/agent/agent.db")!.ok, true);
 });
 
-test("a malformed answer from one server costs that server's check, not the whole report", async () => {
+test("a server that cannot be read costs its own check, not the whole report", async () => {
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
   // A null in an outside server's tools list once threw out of the report, taking every check with it.
   const hostile: Probes = {
     has: (bin) => ["git", "jq", "claude"].includes(bin),
     exists: () => true,
-    async post(url) {
-      if (url.includes("127.0.0.1")) return { ok: true, json: { result: { tools: [null, { name: "ide_open_project" }, "ide_find_references", { name: 7 }] } } };
-      return { ok: true, json: { result: {} } };
+    tools: async () => {
+      throw new Error("the list it gave is not a list of tools");
     },
+    reaches: async () => ({ ok: true }),
   };
   const checks = await doctor(kit, team, hostile);
   const byId = Object.fromEntries(checks.map((check) => [check.id, check]));
   assert.equal(byId.settings!.ok, true, "the checks that have nothing to do with that server still arrive");
   assert.equal(byId["mcp:ide"]!.ok, false);
-  assert.match(byId["mcp:ide"]!.detail, /doesn't expose/, "and the entries it could read are the ones counted");
+  assert.match(byId["mcp:ide"]!.detail, /could not be checked: the list it gave is not a list of tools/);
   assert.equal(byId["mcp:docs"]!.ok, true);
 });
 
