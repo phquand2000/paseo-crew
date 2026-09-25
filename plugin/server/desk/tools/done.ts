@@ -124,7 +124,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   const handed = handbackBody(task, args, work);
   const { outcome } = handed;
   // Gated at hand-back so the Lead has the verdict in time; gating after accept undid a merge already chosen.
-  const run = !review && task.worktree ? await taskGate(project, task.id, task.worktree) : undefined;
+  const run = !review && task.worktree ? await taskGate(ctx.kit, project, task.id, task.worktree, work.changed) : undefined;
   const body = run
     ? `${handed.body}\n\nGate: ${run.ok ? run.note : `${run.note}. ${task.mode === "parallel" ? "The lane takes it red only if you accept it over the gate with a reason." : "This is evidence for your decision, not a decision."}\n\n${run.tail}\n\nFull log: ${run.logFile}`}`
     : handed.body;

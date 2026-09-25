@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { runGate } from "../core/gate.ts";
 import { pristineState } from "../core/git.ts";
+import type { Kit } from "../catalog/kit.ts";
 import type { DeskContext } from "./context.ts";
 import { changeOf } from "./landing.ts";
 import type { Lane } from "./ledger.ts";
@@ -39,16 +40,29 @@ export async function laneGate(ctx: DeskContext, project: Project, lane: Lane): 
   return { ok: verdicts.every((verdict) => verdict.ok), text: verdicts.map((verdict) => verdict.text).join("\n\n"), ran: true };
 }
 
-type GateRun = { ok: boolean; note: string; reason: string; tail: string; logFile: string };
+type GateRun = { ok: boolean; note: string; tail: string; logFile: string };
 
-/** The one owner of "run the gate on a task". Returns undefined when this project does not gate tasks. */
-export async function taskGate(project: Project, taskId: string, cwd: string): Promise<GateRun | undefined> {
+/**
+ * The one owner of "run the gate on a task": the project's gate, then a rehearsal for each risk rule the task's `files` reach,
+ * stopping at the first that fails. Undefined when this project does not gate tasks.
+ */
+export async function taskGate(kit: Kit, project: Project, taskId: string, cwd: string, files: string[] | undefined): Promise<GateRun | undefined> {
   const config = loadConfig(project.state);
   if (!config.gate || config.gateOn !== "task") return undefined;
-  const logFile = join(project.state, "gates", `${taskId}-${Date.now()}.log`);
-  const result = await runGate(config.gate, cwd, logFile, config.gateTimeoutMinutes * 60_000);
-  const reason = result.timedOut ? `the gate timed out after ${config.gateTimeoutMinutes} minutes` : `the gate failed with exit ${result.code}`;
-  return { ok: result.ok, note: result.ok ? `${config.gate} passed in ${result.seconds}s` : `${config.gate}: ${reason}`, reason, tail: result.tail, logFile };
+  const rules = riskRulesOf(project, kit).filter((rule) => rule.rehearse);
+  // A change git cannot read is rehearsed against every rule, rather than none.
+  const rehearsals = (files ? rulesFor(rules, files) : rules).map((rule) => ({ command: rule.rehearse!, what: `${rule.rehearse}, rehearsing that ${rule.invariant},` }));
+  const notes: string[] = [];
+  let last = { ok: true, tail: "", logFile: "" };
+  for (const [index, { command, what }] of [{ command: config.gate, what: config.gate }, ...rehearsals].entries()) {
+    const logFile = join(project.state, "gates", `${taskId}-${Date.now()}${index > 0 ? `-${index}` : ""}.log`);
+    const result = await runGate(command, cwd, logFile, config.gateTimeoutMinutes * 60_000);
+    const failed = result.timedOut ? `timed out after ${config.gateTimeoutMinutes} minutes` : `failed with exit ${result.code}`;
+    notes.push(result.ok ? `${what} passed in ${result.seconds}s` : index === 0 ? `${what}: the gate ${failed}` : `${what} ${failed}`);
+    last = { ok: result.ok, tail: result.tail, logFile };
+    if (!result.ok) break;
+  }
+  return { ...last, note: notes.join("; ") };
 }
 
 /** What the MERGED letter says about the gate, from what actually ran. */

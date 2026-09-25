@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
@@ -144,4 +144,57 @@ test("a project that gates only its lanes is told plainly with each merge that m
   await h.runtime.desk.settled(h.project);
   await h.idle(lane.lead!);
   assert.match(letters(h, lane.lead!).split("MERGED L1-T2")[1] ?? "", /Gate: not run on merges, so the lane branch can break between reports; it runs on the whole lane when you report it ready/);
+});
+
+test("a task whose change reaches a risk rule is rehearsed with its gate, and a red rehearsal keeps it out of the lane as a red gate does", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  const rule = { paths: ["db/**"], invariant: "running it twice changes nothing", reviewQuestion: "What does a second run do?", rehearse: "false" };
+  await h.call(sup, "supervisor", "set_project", { gate: "true", riskRules: [rule] });
+  await h.call(lane.lead!, "lead", "add_tasks", beside("m", "Migrate", ["db/"]));
+  await h.call(lane.lead!, "lead", "add_tasks", beside("c", "Copy", ["c.txt"]));
+  const [migrate, copy] = ["L1-T2", "L1-T3"].map((id) => h.ledger().tasks[id]!);
+  mkdirSync(join(migrate!.worktree!, "db"), { recursive: true });
+  h.commit(migrate!.worktree!, "db/001.sql", "create table t;\n");
+  h.commit(copy!.worktree!, "c.txt", "C\n");
+  for (const task of [migrate!, copy!]) await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "done" });
+  await h.idle(lane.lead!);
+  const said = letters(h, lane.lead!);
+  assert.match(said.split("HANDBACK L1-T2")[1] ?? "", /Gate: true passed in \d+s; false, rehearsing that running it twice changes nothing, failed with exit 1/);
+  assert.doesNotMatch(said.split("HANDBACK L1-T3")[1] ?? "", /rehearsing/, "a change the rule does not reach is not rehearsed");
+  assert.match((await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" })).text, /^L1-T2's gate is red on the tree the lane would become/);
+});
+
+test("two migrations numbered alike, each green alone, are rehearsed together at merge, and the second is kept out", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  const unique = "test -z \"$(ls db | cut -c1-3 | sort | uniq -d)\"";
+  await h.call(sup, "supervisor", "set_project", { gate: "true", riskRules: [{ paths: ["db/**"], invariant: "no two migrations share a number", reviewQuestion: "Is its number free?", rehearse: unique }] });
+  await h.call(lane.lead!, "lead", "add_tasks", beside("a", "Add a", ["db/001-a.sql"]));
+  await h.call(lane.lead!, "lead", "add_tasks", beside("b", "Add b", ["db/001-b.sql"]));
+  for (const [id, file] of [["L1-T2", "db/001-a.sql"], ["L1-T3", "db/001-b.sql"]] as const) {
+    const task = h.ledger().tasks[id]!;
+    mkdirSync(join(task.worktree!, "db"), { recursive: true });
+    h.commit(task.worktree!, file, "select 1;\n");
+    await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: file });
+    h.agents.get(task.peer!)!.status = "idle";
+    assert.equal(h.ledger().tasks[id]!.handback!.gate!.ok, true, `${id} is green alone`);
+  }
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
+  await h.runtime.desk.settled(h.project);
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T3" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T3"]!.status, "done");
+  await h.idle(lane.lead!);
+  assert.match(letters(h, lane.lead!), /MERGE RED L1-T3 \(Add b\)[^]*rehearsing that no two migrations share a number, failed with exit 1/);
+});
+
+test("a red gate stays red whatever the rehearsals after it would say, and they do not run", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  await h.call(sup, "supervisor", "set_project", { gate: "false", riskRules: [{ paths: ["db/**"], invariant: "it runs twice", reviewQuestion: "Twice?", rehearse: "true" }] });
+  await h.call(lane.lead!, "lead", "add_tasks", beside("m", "Migrate", ["db/"]));
+  const task = h.ledger().tasks["L1-T2"]!;
+  mkdirSync(join(task.worktree!, "db"), { recursive: true });
+  h.commit(task.worktree!, "db/001.sql", "select 1;\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "m" });
+  const gate = h.ledger().tasks["L1-T2"]!.handback!.gate!;
+  assert.deepEqual([gate.ok, gate.note], [false, "false: the gate failed with exit 1"]);
 });

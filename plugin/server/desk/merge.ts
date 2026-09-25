@@ -1,4 +1,4 @@
-import { commitsAhead, diffCounts, git, headSha, mergeBranch, mergeOf, pristineState, uncommittedIn } from "../core/git.ts";
+import { changedFiles, commitsAhead, diffCounts, git, headSha, mergeBranch, mergeOf, pristineState, uncommittedIn } from "../core/git.ts";
 import { fileKinds } from "../catalog/kit.ts";
 import { type DeskContext } from "./context.ts";
 import { errorText } from "../core/errors.ts";
@@ -137,7 +137,7 @@ export class MergeQueue {
       await this.hold(project, task, lane, `its own copy cannot take ${lane.branch} in: ${synced.not}`);
       return false;
     }
-    const verdict = await this.verdict(project, task);
+    const verdict = await this.verdict(project, task, lane);
     if (verdict?.ok === false && verdict.over === undefined) {
       await this.finish(project, task, lane, "red", mergeLetters.red(task, lane.branch, verdict.note, verdict.run));
       return false;
@@ -147,11 +147,11 @@ export class MergeQueue {
   }
 
   /** The gate's verdict on the task's head: its hand-back's when that ran on the same commit, else one run now and kept on the task. */
-  private async verdict(project: Project, task: Task & { worktree: string }): Promise<Verdict | undefined> {
+  private async verdict(project: Project, task: Task & { worktree: string }, lane: Lane): Promise<Verdict | undefined> {
     const head = await headSha(task.worktree);
     const last = task.handback?.gate;
     if (last && last.sha === head) return last;
-    const run = await taskGate(project, task.id, task.worktree);
+    const run = await taskGate(this.ctx.kit, project, task.id, task.worktree, await changedFiles(task.worktree, `${lane.branch}...HEAD`));
     if (!run) return undefined;
     this.ctx.setTask(project, task.id, (entry) => {
       if (entry.handback) entry.handback.gate = { ok: run.ok, note: run.note, sha: head };
