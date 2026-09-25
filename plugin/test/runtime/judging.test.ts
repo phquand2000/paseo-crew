@@ -179,7 +179,7 @@ test("a hand-back the record does not back is asked whether it says the checks p
   const { asked, make } = sensor(0.95);
   const { h, peer, timeline } = await laneWithPeer(undefined, { sensor: make });
   judgedBy("jev", KEY);
-  saveConfig(h.project.state, { ...loadConfig(h.project.state), gate: "npm test" });
+  saveConfig(h.project.state, { ...loadConfig(h.project.state), gate: "npm test", gateOn: "lane" });
   const copy = h.ledger().tasks["L1-T1"]!.worktree!;
   turn(timeline, "t1", "Round the totals.", "opened", { type: "read", filePath: join(copy, "src/cart.ts") }, { type: "edit", filePath: join(copy, "src/cart.ts"), oldString: "a", newString: "b" });
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "Rounded.", checks: "All 35 tests green." });

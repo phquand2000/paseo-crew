@@ -180,7 +180,7 @@ test("the Watcher is let go once the watch is judged by something else, and not 
 test("two cases of one moment seat one Watcher, and it may read the steps of the seat a case is about", async () => {
   const { h, peer, timeline } = await laneWithPeer();
   judgedBy("watcher");
-  saveConfig(h.project.state, { ...loadConfig(h.project.state), gate: "npm test" });
+  saveConfig(h.project.state, { ...loadConfig(h.project.state), gate: "npm test", gateOn: "lane" });
   const copy = h.ledger().tasks["L1-T1"]!.worktree!;
   // A change before any look opens one question, and a hand-back no gate backs another, both as the turn ends.
   timeline.beat("turn_started", "t1");

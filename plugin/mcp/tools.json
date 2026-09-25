@@ -411,7 +411,7 @@
     },
     {
       "name": "set_project",
-      "description": "Set this project's base branch and gate: the command that proves the lane works (for example npm test). By default it runs once on the whole lane, when its Lead reports it ready and before it lands, so tasks merge into the lane without each having to build on its own.",
+      "description": "Set this project's base branch and gate: the command that proves the lane works (for example npm test). By default it runs on each task as it is handed back and before the lane takes it, and on the whole lane when its Lead reports it ready and before it lands.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -430,7 +430,7 @@
               "lane",
               "task"
             ],
-            "description": "lane (default): the gate runs when a lane is reported ready and before it lands; task: also on each hand-back, for its Lead."
+            "description": "task (default): also on each hand-back and before a task beside others merges; lane: only at ready and landing, for a slow suite."
           },
           "serialOnly": {
             "type": "array",

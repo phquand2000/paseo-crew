@@ -156,7 +156,7 @@ test("standing orders the desk cannot read hold every landing for the Human rath
 
 test("an open incident on a lane is evidence for whoever lands it, and never reaches the Lead it may be about", async () => {
   const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true } });
-  await h.call(sup, "supervisor", "set_project", { gate: "npm test" });
+  await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
   const worktree = h.ledger().tasks["L1-T1"]!.worktree!;
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");

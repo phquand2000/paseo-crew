@@ -131,3 +131,17 @@ test("a commit made in the lane's copy while a merge's gate ran fails that merge
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "rework", "the commit came into its copy, conflicts and all, for its Peer");
 });
+
+test("a project that gates only its lanes is told plainly with each merge that merges run ungated", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  await h.call(sup, "supervisor", "set_project", { gate: "true", gateOn: "lane" });
+  await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
+  const side = h.ledger().tasks["L1-T2"]!;
+  h.commit(side.worktree!, "c.txt", "C\n");
+  await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
+  h.agents.get(side.peer!)!.status = "idle";
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
+  await h.runtime.desk.settled(h.project);
+  await h.idle(lane.lead!);
+  assert.match(letters(h, lane.lead!).split("MERGED L1-T2")[1] ?? "", /Gate: not run on merges, so the lane branch can break between reports; it runs on the whole lane when you report it ready/);
+});

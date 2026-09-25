@@ -108,7 +108,7 @@ export function loadConfig(state: string): ProjectConfig {
     base: typeof stored.base === "string" && stored.base ? stored.base : undefined,
     gate: typeof stored.gate === "string" ? stored.gate : undefined,
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
-    gateOn: stored.gateOn === "task" ? "task" : "lane",
+    gateOn: stored.gateOn === "lane" ? "lane" : "task",
     serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : undefined,
     landAs: LAND_AS.find((as) => as === stored.landAs) ?? "squash",
     laneHome: LANE_HOMES.find((home) => home === stored.laneHome),

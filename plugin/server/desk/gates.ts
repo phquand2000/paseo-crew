@@ -55,7 +55,7 @@ export async function taskGate(project: Project, taskId: string, cwd: string): P
 export function gateNote(project: Project, task?: { handback?: { gate?: { ok: boolean; note: string; over?: string } } }): string {
   const config = loadConfig(project.state);
   if (!config.gate) return "none set";
-  if (config.gateOn !== "task") return "runs on the whole lane when you report it ready";
+  if (config.gateOn !== "task") return "not run on merges, so the lane branch can break between reports; it runs on the whole lane when you report it ready";
   const ran = task?.handback?.gate;
   return ran ? `ran on this task: ${ran.note}${ran.ok ? "" : ran.over ? ` — merged over it: ${ran.over}` : " — accepted over it"}` : "did not run on this task: it was not handed back while the project gated each task";
 }
