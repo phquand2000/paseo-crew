@@ -15,7 +15,7 @@ export const ended = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim()
 
 /** Every kind of letter the desk mails. A letter's key starts with its kind, and so does the id Paseo shows for the message. */
 type Kind =
-  | "answer" | "answeredFor" | "ask" | "amended" | "baseconflict" | "brief" | "canland" | "case" | "closed" | "detour" | "done" | "escalate" | "failed" | "gone"
+  | "answer" | "answeredFor" | "ask" | "amended" | "baseconflict" | "beside" | "brief" | "canland" | "case" | "closed" | "detour" | "done" | "escalate" | "failed" | "gone"
   | "halfopen" | "held" | "hold" | "humananswered" | "humanwrote" | "idle" | "incident" | "land" | "landback" | "landheld" | "later" | "leadgone" | "merge" | "message" | "moment"
   | "notstarted" | "nudge" | "opened" | "permission" | "reconcile" | "remind" | "report" | "resumed" | "rework" | "silent" | "started" | "unanswered";
 
@@ -258,6 +258,11 @@ export const letters = {
 
   moment(heading: Moment, task: Task, what: string): Letter {
     return mail("moment", [heading, task.id, hash(what)], `${heading} ${task.id} (${task.title}) in ${task.lane}: ${what}`, MOMENT_NEXT[heading]);
+  },
+
+  /** A task started beside the one at work in the lane's copy after that one's brief was written: what it holds is no longer the Peer's to write. */
+  beside(started: Task): Letter {
+    return mail("beside", [started.id], `BESIDE ${started.id} (${started.title}) now runs beside you in a copy of its own and holds ${started.holds.join(", ")}.`, "Leave that to it, and ask your Lead if your goal needs it.");
   },
 
   started(task: Task, what: string): Letter {

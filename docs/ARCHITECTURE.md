@@ -157,7 +157,7 @@ treated as empty.
   lane's write set and what tasks beside it hold.
 - **Parallel mode.** The task gets its own slot and `task/…` branch, and `holds` what it writes, as
   coarsely as the work allows: no task that may run at once holds any of it, nor is any of it a
-  one-writer path. `accept` queues it, and one merge
+  one-writer path, and a Peer at work in the lane's copy is told. `accept` queues it, and one merge
   queue per project merges branches into their lane, one at a time. The queue is the tasks' status in
   the ledger, so a restart picks it up: a merge cut off midway is undone and run again, and one git had
   already made is only recorded. A merge never runs into a lane copy with work uncommitted: the task

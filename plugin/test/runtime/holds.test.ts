@@ -151,3 +151,21 @@ test("a Lead points a task somewhere new or tells it what was found, and only a 
   assert.match((await amend({ task: "L1-T2", holds: [] })).text, /keeps at least one held path/);
   assert.deepEqual(h.ledger().tasks["L1-T2"]!.holds, ["c.txt"], "a refused change leaves the record as it was");
 });
+
+test("a Peer at work in the lane's copy is told when a task starts beside it after its brief, and what that task holds", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Receipt", goal: "g", ...scope, holds: ["src/receipt/"], parallel: true }] });
+  const told = h.heard(peer).join("\n");
+  assert.match(told, /BESIDE L1-T2 \(Receipt\) now runs beside you in a copy of its own and holds src\/receipt\/\.\n\nNext: Leave that to it, and ask your Lead if your goal needs it\./);
+  assert.doesNotMatch(h.heard(h.ledger().tasks["L1-T2"]!.peer!).join("\n"), /BESIDE/, "its own brief already names who writes beside it");
+
+  await h.idle(peer);
+  assert.match(letters(h, peer), /BESIDE L1-T2/, "at work, it is told now");
+
+  // Handed back, it is not at work: the word waits for the next letter that asks something of it.
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Totals", goal: "g", ...scope, holds: ["src/totals/"], parallel: true }] });
+  await h.idle(peer);
+  assert.doesNotMatch(letters(h, peer), /BESIDE L1-T3/);
+  assert.match(h.heard(peer).join("\n"), /BESIDE L1-T3 \(Totals\) now runs beside you in a copy of its own and holds src\/totals\/\./);
+});

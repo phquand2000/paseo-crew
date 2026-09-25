@@ -1,9 +1,10 @@
 import { branchExists, currentBranch, headSha } from "../core/git.ts";
 import { LANE } from "../domain/lane.ts";
-import { TASK } from "../domain/task.ts";
+import { AT_WORK, TASK } from "../domain/task.ts";
 import { fetchIssue } from "./issue.ts";
 import { type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
-import { letters } from "./letters.ts";
+import { fyi, letters } from "./letters.ts";
+import { holderOf } from "./holder.ts";
 import { type Refusal, forgetPlace, leadSeatOf, openedReply, placement, seatingKey, startLead, startPeer, taskPlacement } from "./opening.ts";
 import { type Project, serialIn } from "./project.ts";
 import type { DeskServices } from "./services.ts";
@@ -111,6 +112,9 @@ async function releaseTask(desk: DeskServices, project: Project, lane: Lane, tas
     delete entry.held;
   });
   if (told) await desk.ctx.post(lane.lead, letters.started(claimed, `Started ${task.id} ${started.where} with Peer ${started.peer}.`));
+  // The lane's copy has one writer, briefed before this task held anything: what it holds is news to that Peer, now if it is at work.
+  const writer = parallel ? holderOf(loadLedger(project.state), lane) : undefined;
+  if (writer?.peer) await desk.ctx.post(writer.peer, AT_WORK.includes(writer.status) ? letters.beside(claimed) : fyi(letters.beside(claimed)));
   return undefined;
 }
 
