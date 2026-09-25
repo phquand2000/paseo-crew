@@ -4,6 +4,7 @@ import { DECIDED, TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, laneOnHold, leadLaneOf, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
+import { seatWho } from "../desk/names.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 
@@ -68,7 +69,7 @@ export class TurnRules {
       return;
     }
     const owner = await this.ownerOf(project, agent.id, role);
-    await this.deps.desk.post(owner.to, letters.permission(agent.id, `${role.label} ${agent.title ?? agent.id}`, request, owner.reader));
+    await this.deps.desk.post(owner.to, letters.permission(agent.id, seatWho(loadLedger(project.state), agent, role.label), request, owner.reader));
   }
 
   /** The Human wrote to a Lead or Peer in its own chat: whoever supervises is told, so nothing reaches a lane past its owner unseen. */
@@ -97,7 +98,7 @@ export class TurnRules {
     this.lastEnding.set(agent.id, text);
     if (outcome.kind === "failed") {
       const owner = await this.ownerOf(project, agent.id, role);
-      await this.deps.desk.post(owner.to, letters.failed(agent.id, event.turnId ?? Date.now(), `${role.label} ${agent.title ?? agent.id}`, outcome.error.message, owner.reader));
+      await this.deps.desk.post(owner.to, letters.failed(agent.id, event.turnId ?? Date.now(), seatWho(loadLedger(project.state), agent, role.label), outcome.error.message, owner.reader));
       return;
     }
     const ledger = loadLedger(project.state);

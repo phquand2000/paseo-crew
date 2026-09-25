@@ -10,6 +10,7 @@ import { outside } from "../core/text.ts";
 import { besideOf, taskBrief } from "./briefs.ts";
 import { holderOf } from "./holder.ts";
 import { type Elsewhere, directiveFor, elsewhereText } from "./directive.ts";
+import { newLead, newPeer } from "./names.ts";
 import { type Project, loadConfig, serialOnlyOf } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 
@@ -120,17 +121,18 @@ async function seatLead(desk: DeskServices, project: Project, lane: Lane, how: S
       return namedOrNot(ctx.kit, "lead", how.role ?? "", "lead a lane");
     }
     const directed = await directiveFor(ctx.kit, project, lane, slot.path, how.issue);
+    const named = ctx.transact(project, newLead);
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: how.parent,
-      title: `${lane.id} ${lane.title}`,
+      title: named.title,
       prompt: directed.text,
-      labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
+      labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.role": leadRole.role },
     });
     const startSha = lane.onBranch ? await headSha(slot.path) : undefined;
     ctx.transact(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
       if (entry) Object.assign(entry, { lead, worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId, startSha });
-      ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
+      ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id, team: named.team };
     });
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot: slot.id ?? "in place" });
     return { slot, lead, elsewhere: directed.elsewhere };
@@ -175,17 +177,18 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
     } else {
       slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree!, workspaceId: lane.workspaceId };
     }
+    const named = ctx.transact(project, (ledger) => newPeer(ledger, lane));
     const peer = await agents.start(project, slot, how.role, {
       parent: how.parent,
-      title: `${task.id} ${task.title}`,
+      title: named.title,
       prompt: taskBrief(task, lane, besideOf(loadLedger(project.state), task)),
-      labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": how.role },
+      labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.task": task.id, "seatworks.role": how.role },
     });
     ctx.setTask(project, task.id, (entry) => {
       entry.peer = peer;
     });
     ctx.transact(project, (current) => {
-      current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id, startedAs: agents.startsAs(project, how.role) };
+      current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id, team: named.team, startedAs: agents.startsAs(project, how.role) };
     });
     ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
     return { peer, where: parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}` };

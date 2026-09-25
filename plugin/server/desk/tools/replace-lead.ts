@@ -4,23 +4,25 @@ import { namedOrNot, roleThatCan } from "../../catalog/kit.ts";
 import { errorText } from "../../core/errors.ts";
 import { type Caller, no, ok, str } from "../context.ts";
 import { type Lane, findLane, loadLedger } from "../ledger.ts";
+import { nextLead } from "../names.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 import { takeoverFor } from "../directive.ts";
 import { leadSeatOf, seatingKey } from "../opening.ts";
 
 /** Starts a Lead in the lane's copy, told it takes over where the lane stands; or says why none can start. */
-async function takeOver({ ctx, agents }: DeskServices, caller: Caller, lane: Lane, asked: string): Promise<{ lead: string; role: string } | string> {
+async function takeOver({ ctx, agents }: DeskServices, caller: Caller, lane: Lane, asked: string): Promise<{ lead: string; role: string; team: string } | string> {
   const leadRole = roleThatCan(ctx.kit, "lead", asked || undefined);
   if (!leadRole) return namedOrNot(ctx.kit, "lead", asked, "lead a lane");
   if (!lane.worktree || !existsSync(lane.worktree)) return `Lane ${lane.id} has no working copy left${lane.worktree ? ` at ${lane.worktree}` : ""}; close it and open the work again.`;
   try {
+    const named = nextLead(loadLedger(caller.project.state), lane);
     const lead = await agents.start(caller.project, { path: lane.worktree, workspaceId: lane.workspaceId }, leadRole.role, {
       parent: caller.id,
-      title: `${lane.id} ${lane.title}`,
+      title: named.title,
       prompt: await takeoverFor(ctx.kit, caller.project, lane, lane.worktree),
-      labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
+      labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.role": leadRole.role },
     });
-    return { lead, role: leadRole.role };
+    return { lead, role: leadRole.role, team: named.team };
   } catch (error) {
     return `The new Lead could not start: ${errorText(error)}`;
   }
@@ -48,12 +50,12 @@ export const replaceLead = defineTool({
     if (!claimed) return no(`Lane ${lane.id} changed while this was asked; read status and ask again if its Lead is still gone.`);
     try {
       const started = leadSeatOf(seats, project, lane.id);
-      const seated = started ? { lead: started.id, role: started.labels?.["seatworks.role"] ?? "lead" } : await takeOver(desk, caller, lane, str(args.role));
+      const seated = started ? { lead: started.id, role: started.labels?.["seatworks.role"] ?? "lead", team: started.labels?.["seatworks.team"] } : await takeOver(desk, caller, lane, str(args.role));
       if (typeof seated === "string") return no(seated);
-      const { lead, role } = seated;
+      const { lead, role, team } = seated;
       const moved = ctx.transact(project, (ledger) => {
         ledger.lanes[lane.id]!.lead = lead;
-        ledger.agents[lead] = { id: lead, role, lane: lane.id };
+        ledger.agents[lead] = { id: lead, role, lane: lane.id, team };
         const asks = Object.values(ledger.asks).filter((ask) => ask.status === "open" && ask.to === lane.lead);
         for (const ask of asks) ask.to = lead;
         return asks.length;

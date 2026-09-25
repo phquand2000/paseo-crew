@@ -183,7 +183,7 @@ async function putBackHalfStarted(desk: DeskServices, project: Project): Promise
       const seat = seats.find((entry) => !entry.archivedAt && entry.labels?.["seatworks.project"] === project.slug && entry.labels["seatworks.task"] === task.id);
       if (seat) {
         task.peer = seat.id;
-        ledger.agents[seat.id] = { id: seat.id, role: seat.labels!["seatworks.role"] ?? "peer", lane: task.lane, task: task.id };
+        ledger.agents[seat.id] = { id: seat.id, role: seat.labels!["seatworks.role"] ?? "peer", lane: task.lane, task: task.id, team: seat.labels!["seatworks.team"] };
         return [];
       }
       const slot = task.mode === "parallel" ? task.slot : undefined;
@@ -217,7 +217,7 @@ async function putBackHalfOpen(desk: DeskServices, project: Project): Promise<vo
       const lead = leadSeatOf(seats, project, lane.id);
       if (lead) {
         Object.assign(lane, { lead: lead.id, worktree: lead.cwd, slot: slot?.id, workspaceId: slot?.workspaceId });
-        ledger.agents[lead.id] = { id: lead.id, role: lead.labels!["seatworks.role"] ?? "lead", lane: lane.id };
+        ledger.agents[lead.id] = { id: lead.id, role: lead.labels!["seatworks.role"] ?? "lead", lane: lane.id, team: lead.labels!["seatworks.team"] };
       } else {
         LANE.move(lane, lane.after ? "wait" : "close");
         delete lane.held;

@@ -209,6 +209,22 @@ instructions, such as who "the user" is, or a habit of implementing that a Lead 
 added after the role's prompt, in the same place, and held to the same checks; a role with none gets
 nothing added.
 
+## Seat names
+
+What Paseo shows a seat as is fixed when the seat starts, since a plugin cannot rename an agent, so it
+names the seat's team rather than its work. Team and Peer numbers count up in each project and are
+never used twice.
+
+| Seat | Name |
+|---|---|
+| Lead | `Team N · Lead`. A new Lead starts team N; a Lead that replaces one gone joins its team |
+| Peer | `Team N · Peer M`, in its lane's team |
+| Reviewer | `Team N · Review <task or lane>`: it lives for one review |
+
+Labels carry `seatworks.project`, `seatworks.role`, `seatworks.team`, and the lane and task a seat
+started for. Letters name a seat by its name and by what it works on now, for example
+`Team 1 · Peer 2 on L1-T3 (Cart total)`.
+
 ## Seat directories
 
 One per role, agent and project: `<profileRoot>/sw2-<role>-<agent>-<slug>`. It is rebuilt when the

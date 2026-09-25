@@ -348,7 +348,7 @@ test("a Lead Paseo started before a stop kept the desk from recording it is take
   const lane = h.ledger().lanes.L1!;
   assert.deepEqual([lane.status, lane.lead, h.ledger().agents[opened.lead!]?.lane], ["open", opened.lead, "L1"]);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), opened.branch, "the copy its Lead writes in is left where it is");
-  assert.equal([...h.agents.values()].filter((agent) => agent.title.startsWith("L1 ")).length, 1, "and no second Lead is started");
+  assert.equal([...h.agents.values()].filter((agent) => agent.title.endsWith(" · Lead") && agent.labels["seatworks.lane"] === "L1").length, 1, "and no second Lead is started");
   assert.match(h.heard(sup).join("\n"), /OPENED L1 \(Cart\): the desk stopped while its Lead was being started, and that Lead, [^,]+, is kept on it/);
 });
 
@@ -364,7 +364,7 @@ test("a waiting lane asked to open by a round and a close at once opens once, wi
 
   await Promise.all([h.runtime.desk.openWaiting(h.project), h.runtime.desk.openWaiting(h.project)]);
   assert.equal(h.ledger().lanes.L2!.status, "open");
-  assert.equal([...h.agents.values()].filter((agent) => agent.title.startsWith("L2 ")).length, 1, "both passed the checks, and only one claimed it");
+  assert.equal([...h.agents.values()].filter((agent) => agent.title.endsWith(" · Lead") && agent.labels["seatworks.lane"] === "L2").length, 1, "both passed the checks, and only one claimed it");
   assert.equal(Object.values(h.ledger().slots).filter((slot) => slot.lane === "L2").length, 1, "and only one copy was taken for it");
 });
 
