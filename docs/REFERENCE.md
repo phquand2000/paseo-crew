@@ -211,19 +211,17 @@ nothing added.
 
 ## Seat names
 
-What Paseo shows a seat as is fixed when the seat starts, since a plugin cannot rename an agent, so it
-names the seat's team rather than its work. Team and Peer numbers count up in each project and are
-never used twice.
+A seat has one duty for life, and a plugin cannot rename an agent, so the name Paseo shows is fixed
+when the seat starts and says that duty.
 
 | Seat | Name |
 |---|---|
-| Lead | `Team N · Lead`. A new Lead starts team N; a Lead that replaces one gone joins its team |
-| Peer | `Team N · Peer M`, in its lane's team |
-| Reviewer | `Team N · Review <task or lane>`: it lives for one review |
+| Lead | `<lane> · Lead · <lane title>`, as `L1 · Lead · Cart`. A Lead that replaces one gone gets the same name |
+| Peer | `<task> · <role> · <task title>`, as `L1-T3 · Peer · Cart total` |
+| Reviewer | `<review> · Review <task or lane>`, as `L1-R1 · Review L1-T3` |
 
-Labels carry `seatworks.project`, `seatworks.role`, `seatworks.team`, and the lane and task a seat
-started for. Letters name a seat by its name and by what it works on now, for example
-`Team 1 · Peer 2 on L1-T3 (Cart total)`.
+Labels carry `seatworks.project`, `seatworks.role`, and the lane and task a seat works for. Letters
+name a seat as Paseo shows it, or by its role and id where Paseo shows no name.
 
 A copy of its own is a Paseo workspace named `<project> <copy> · <work>`, for example
 `shop S2 · L2 Filter results`, and renamed when it takes other work. The round's sweep knows the

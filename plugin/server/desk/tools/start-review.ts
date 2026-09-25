@@ -7,7 +7,7 @@ import { type Lane, type Task, findTask, laneOfLead, loadLedger, nextTaskId } fr
 import { clip } from "../../core/text.ts";
 import { reviewBrief } from "../briefs.ts";
 import { changeOf } from "../landing.ts";
-import { newReviewer } from "../names.ts";
+import { seatTitle } from "../names.ts";
 import { seatingKey } from "../opening.ts";
 import { type Project, riskRulesOf, rulesFor } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
@@ -98,18 +98,17 @@ export const startReview = defineTool({
     const read = change?.own && (await mergesIn(slot.path, change.own.from, change.own.to)) ? `git log -p --first-parent --no-merges ${change.spec}` : `git diff ${change?.spec}`;
     const review = recordReview(ctx, project, lane, target, str(args.title), focus, slot, asked);
     try {
-      const named = newReviewer(loadLedger(project.state), lane, target?.id ?? lane.id);
       const reviewer = await agents.start(project, slot, reviewRole.role, {
         parent: caller.id,
-        title: named.title,
+        title: seatTitle.review(review.id, target?.id ?? lane.id),
         prompt: reviewBrief(review, target, focus, lane.branch, change && { where: change.where, range: read }),
-        labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.task": review.id, "seatworks.role": reviewRole.role },
+        labels: { "seatworks.lane": lane.id, "seatworks.task": review.id, "seatworks.role": reviewRole.role },
       });
       ctx.setTask(project, review.id, (entry) => {
         entry.peer = reviewer;
       });
       ctx.transact(project, (current) => {
-        current.agents[reviewer] = { id: reviewer, role: reviewRole.role, lane: lane.id, task: review.id, team: named.team };
+        current.agents[reviewer] = { id: reviewer, role: reviewRole.role, lane: lane.id, task: review.id };
       });
       ctx.event(project, { kind: "review.started", task: review.id, of: target?.id ?? null, reviewer });
       return ok(`Started ${review.id}${target ? ` on ${target.id}` : ""} with reviewer ${reviewer}. The verdict arrives as mail.`);

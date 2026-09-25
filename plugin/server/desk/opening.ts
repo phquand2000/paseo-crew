@@ -1,4 +1,4 @@
-import { type Kit, namedOrNot, roleThatCan } from "../catalog/kit.ts";
+import { type Kit, namedOrNot, roleNamed, roleThatCan } from "../catalog/kit.ts";
 import { headSha, trackedFiles } from "../core/git.ts";
 import type { SeatView } from "../core/paseo.ts";
 import { errorText } from "../core/errors.ts";
@@ -10,7 +10,7 @@ import { outside } from "../core/text.ts";
 import { besideOf, taskBrief } from "./briefs.ts";
 import { holderOf } from "./holder.ts";
 import { type Elsewhere, directiveFor, elsewhereText } from "./directive.ts";
-import { newLead, newPeer } from "./names.ts";
+import { seatTitle } from "./names.ts";
 import { type Project, loadConfig, serialOnlyOf } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 
@@ -123,20 +123,19 @@ async function seatLead(desk: DeskServices, project: Project, lane: Lane, how: S
     const directed = await directiveFor(ctx.kit, project, lane, slot.path, how.issue);
     const startSha = lane.onBranch ? await headSha(slot.path) : undefined;
     // Where the Lead works goes on record before it starts, so a lane a stop leaves without its Lead still knows.
-    const named = ctx.transact(project, (ledger) => {
+    ctx.transact(project, (ledger) => {
       Object.assign(ledger.lanes[lane.id] ?? {}, { worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId, startSha });
-      return newLead(ledger);
     });
     const lead = await agents.start(project, slot, leadRole.role, {
       parent: how.parent,
-      title: named.title,
+      title: seatTitle.of(lane, leadRole),
       prompt: directed.text,
-      labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.role": leadRole.role },
+      labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
     ctx.transact(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
       if (entry) entry.lead = lead;
-      ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id, team: named.team };
+      ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
     });
     ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot: slot.id ?? "in place" });
     return { slot, lead, elsewhere: directed.elsewhere };
@@ -191,18 +190,17 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
     } else {
       slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree!, workspaceId: lane.workspaceId };
     }
-    const named = ctx.transact(project, (ledger) => newPeer(ledger, lane));
     const peer = await agents.start(project, slot, how.role, {
       parent: how.parent,
-      title: named.title,
+      title: seatTitle.of(task, roleNamed(ctx.kit, how.role)!),
       prompt: taskBrief(task, lane, besideOf(loadLedger(project.state), task)),
-      labels: { "seatworks.lane": lane.id, "seatworks.team": named.team, "seatworks.task": task.id, "seatworks.role": how.role },
+      labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": how.role },
     });
     ctx.setTask(project, task.id, (entry) => {
       entry.peer = peer;
     });
     ctx.transact(project, (current) => {
-      current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id, team: named.team, startedAs: agents.startsAs(project, how.role) };
+      current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id, startedAs: agents.startsAs(project, how.role) };
     });
     ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
     return { peer, where: parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}` };

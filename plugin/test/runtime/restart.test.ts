@@ -168,7 +168,7 @@ async function stoppedOpening(where: Record<string, unknown>) {
   };
   const head = h.git(h.root, "rev-parse", "HEAD").trim();
   void h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["the rest"], ...where });
-  const seated = () => [...h.agents.values()].find((agent) => agent.title.endsWith(" · Lead"));
+  const seated = () => [...h.agents.values()].find((agent) => agent.title.startsWith("L1 · Lead"));
   for (let i = 0; i < 200 && !seated(); i++) await settle();
   paseo.workspaces.ref = ref;
   h.restart();
