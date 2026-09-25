@@ -51,10 +51,9 @@ test("a question is put as a choice with a recommendation among its options, and
 });
 
 test("a lane that went on without the Human's answer to a costly question stops when it reports ready, and a no is kept apart from an answer", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
+  const { h, sup, lane } = await laneWithPeer(undefined, undefined, { holds: ["a.txt"], parallel: true });
   assert.match((await h.call(sup, "supervisor", "ask_human", packet({ lane: "L1", class: "costly" }))).text, /stops at its next report of ready if they have not answered by then\./);
   assert.equal(h.ledger().lanes.L1!.onHold, undefined, "nothing stops before the checkpoint");
-  await h.idle(peer);
   await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   assert.match(h.ledger().lanes.L1!.onHold?.reason ?? "", /went on without the Human's answer to H1, and stops at its ready report until they answer/);
   await h.idle(sup);

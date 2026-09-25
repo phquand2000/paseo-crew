@@ -1,4 +1,4 @@
-import { headSha, isAncestor, landedRef, mergeBranch, mergeUnderWay } from "../core/git.ts";
+import { currentBranch, headSha, isAncestor, landedRef, mergeBranch, mergeUnderWay } from "../core/git.ts";
 import { landLane } from "../core/land.ts";
 import { midTurn } from "../core/paseo.ts";
 import { ASK } from "../domain/ask.ts";
@@ -14,6 +14,7 @@ import { closeIncidentsOf } from "./notice.ts";
 import { type Project, loadConfig } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 import { seatingKey } from "./opening.ts";
+import { stowCopy } from "./stow.ts";
 import { openWaiting } from "./waiting.ts";
 import { midTurnAmong } from "./writing.ts";
 
@@ -28,6 +29,10 @@ type Closing = { lane: string; land: boolean; reason?: string; overGate?: boolea
 async function bringBaseIn(desk: DeskServices, project: Project, ledger: Ledger, lane: Lane): Promise<{ why: string; then: string; writers?: string[] } | undefined> {
   const { ctx, roster } = desk;
   if (!lane.worktree) return { why: `it has no working copy on record to merge ${lane.base} into`, then: "Drop it with drop_lane." };
+  // A task's branch there is work the lane has not taken: neither base nor the gate would meet the lane's own tree.
+  const on = await currentBranch(lane.worktree);
+  const holding = tasksOf(ledger, lane.id).find((task) => task.kind === "code" && task.branch === on);
+  if (holding) return { why: `its working copy is on ${on}, ${holding.id}'s branch, not ${lane.branch}`, then: `Land it once ${holding.id} is merged or cut.` };
   if (await isAncestor(lane.worktree, lane.base, lane.branch)) return undefined;
   const settle = "land_lane it again once the Lead reports it ready, or drop_lane it.";
   if (await mergeUnderWay(lane.worktree)) return { why: `the merge of ${lane.base} into ${lane.branch} left in its copy is not settled yet`, then: `Its Lead has it to settle; ${settle}` };
@@ -176,17 +181,9 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
   return { how: `${result.how}${gate.ok ? "" : ", over a red gate"}`, note: check.note };
 }
 
-/** Where the lane's copy stands once it closes: on a carried-on branch, kept with its Lead, going away, or the Human's going back. */
-function copyNote(lane: Lane, kept: boolean, writers: string[]): string {
-  if (lane.onBranch) return `The project's own copy stays on ${lane.branch}.`;
-  if (lane.slot && kept) return `Its working copy ${lane.slot} stays with its Lead.`;
-  const where = lane.slot ? "Its working copy is put away" : `The project's own copy goes back to ${lane.base}`;
-  return writers.length > 0 ? `${where} once ${writers.join(" and ")} finish the turn they are in.` : lane.slot ? "Its working copy is put away." : `The project's own copy is back on ${lane.base}.`;
-}
-
 /** Closes the lane on record and cuts what it still had going: its Peers go, and its Lead stays with any copy of its own until released. */
 async function retire(desk: DeskServices, project: Project, lane: Lane, args: Closing, landed: { how: string; note: string }): Promise<Closed> {
-  const { ctx, roster, slots, agents } = desk;
+  const { ctx, roster, agents } = desk;
   const retired = ctx.transact(project, (current) => {
     const entry = current.lanes[lane.id];
     if (entry && LANE.move(entry, "close")) Object.assign(entry, { landed: args.land === true || undefined, closedAt: Date.now() });
@@ -212,12 +209,7 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
   // Mid-turn seats are still writing in the lane's copy, the kept Lead included; it goes back when their turn ends, not under them.
   const peers = retired.filter((task) => task.mode !== "parallel").map((task) => task.peer).filter((id): id is string => typeof id === "string" && roster.archiving(id));
   const writers = [...new Set([...(look && !look.archivedAt && midTurn(look.status) ? [lane.lead!] : []), ...peers])];
-  // A branch carried on is the Human's, and a copy of the lane's own stays with a kept Lead until it is released.
-  if (!lane.onBranch && (!lane.slot || !kept)) {
-    const drop = args.land === true ? { dropBranch: lane.branch, into: landedRef(lane.id) } : {};
-    const branch = await slots.putAway({ project, slot: lane.slot, restore: lane.base, lane: lane.id, branch: lane.branch, ...drop }, writers);
-    if (branch) branches.push(branch);
-  }
+  const stowed = await stowCopy(desk, project, lane, retired, { land: args.land === true, kept, writers });
   if (lane.lead) closeIncidentsOf(desk, project, lane.lead);
   if (kept) await ctx.post(lane.lead, keptLetters.closed(lane, args.land === true, landed.how));
   if (lane.detourOf) {
@@ -226,9 +218,10 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
   }
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing: landed.how, reason: str(args.reason), writers });
   const seats = kept ? `Its Peers are archived, and its Lead ${lane.lead} stays until you release it.` : "Its Peers are archived, and its Lead is gone.";
-  const held = branches.length > 0 ? ` ${branches.join(" and ")} ${branches.length === 1 ? "holds commits" : "hold commits"} nothing else has and ${branches.length === 1 ? "is" : "are"} kept.` : "";
+  const named = [...new Set([...branches, ...stowed.kept])];
+  const held = named.length > 0 ? ` ${named.join(" and ")} ${named.length === 1 ? "holds commits" : "hold commits"} nothing else has and ${named.length === 1 ? "is" : "are"} kept.` : "";
   await openWaiting(desk, project, true);
-  return ok(`Lane ${lane.id} closed; ${landed.how}. ${seats} ${copyNote(lane, kept, writers)}${held}${landed.note}`);
+  return ok(`Lane ${lane.id} closed; ${landed.how}. ${seats} ${stowed.note}${held}${landed.note}`);
 }
 
 /**

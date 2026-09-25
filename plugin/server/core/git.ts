@@ -62,6 +62,19 @@ export async function branchExists(cwd: string, branch: string): Promise<boolean
   return (await git(cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;
 }
 
+/** Deletes `branch` once everything on it is in `into`; false when it holds commits `into` lacks, or git could not tell, and is kept. */
+export async function dropMerged(cwd: string, branch: string, into: string): Promise<boolean> {
+  return (await contains(cwd, into, branch)) === true && (await git(cwd, ["branch", "-D", branch])).code === 0;
+}
+
+/** Puts `cwd` on `branch`, made from `start` when it is not there yet; git's reason when it cannot. `discard` drops work uncommitted there. */
+export async function switchTo(cwd: string, branch: string, start: string, discard = false): Promise<string | undefined> {
+  const exists = await branchExists(cwd, branch);
+  const run = await git(cwd, ["switch", ...(discard ? ["--discard-changes"] : []), ...(exists ? [branch] : ["-c", branch, start])]);
+  if (run.code === 0 && discard) await git(cwd, ["clean", "-fd"]);
+  return run.code === 0 ? undefined : run.stderr.trim() || `git switch exited ${run.code}`;
+}
+
 /** Undefined when git could not answer: zero read as "no commits beyond the lane branch", which is a claim. */
 export async function commitsAhead(cwd: string, base: string, branch: string): Promise<number | undefined> {
   const run = await git(cwd, ["rev-list", "--count", `${base}..${branch}`]);
@@ -125,10 +138,6 @@ export async function mergeOf(cwd: string, into: string, branch: string): Promis
   return after && before && merged && merged === tip ? { before, after } : undefined;
 }
 
-export async function resetHard(cwd: string, sha: string): Promise<boolean> {
-  return (await git(cwd, ["reset", "--hard", sha])).code === 0;
-}
-
 export type Counts = { src: number; test: number; docs: number; files: string[] };
 
 /** Which paths are tests and which are docs, as the ecosystem the kit holds names them. */
@@ -181,40 +190,12 @@ export async function changedFiles(cwd: string, range: string): Promise<string[]
   return run.code === 0 ? run.stdout.split("\0").filter(Boolean) : undefined;
 }
 
-/** Every path the commits on a copy's first-parent line touched from `from` to `to`, a rename's both ends apart; merges left out. */
-async function ownPaths(cwd: string, from: string, to: string): Promise<Set<string> | undefined> {
-  const run = await git(cwd, ["log", "-z", "--first-parent", "--no-merges", "--no-renames", "--name-only", "--format=", `${from}..${to}`]);
-  return run.code === 0 ? new Set(run.stdout.split("\0").filter(Boolean)) : undefined;
-}
-
-/**
- * The files a copy's own writer changed from `from` to `to`, as git diff reads them, leaving out what merges brought in: the desk
- * merges with --no-ff and no seat may merge, so the copy's first-parent line is its writer's own work. Undefined when git cannot say.
- */
-export async function ownChangedFiles(cwd: string, from: string, to = "HEAD"): Promise<string[] | undefined> {
-  const [net, own] = await Promise.all([changedFiles(cwd, `${from}..${to}`), ownPaths(cwd, from, to)]);
-  return net && own && net.filter((path) => own.has(path));
-}
-
-/** What `diffCounts` says of a copy's own writer's work since `from`: the lines and files merges brought in are left out. */
-export async function ownCounts(cwd: string, from: string, kinds: FileKinds): Promise<Counts | undefined> {
-  const own = await ownPaths(cwd, from, "HEAD");
-  const counts = own && (await diffCounts(cwd, from, "HEAD", kinds, (path) => !own.has(path)));
-  return counts && { ...counts, files: counts.files.filter((path) => own!.has(path)) };
-}
-
 /** What is uncommitted in `cwd`, named: a stray message file reads as unfinished work otherwise. */
 export async function uncommittedIn(cwd: string): Promise<string> {
   const run = await git(cwd, ["status", "--porcelain"]);
   const lines = run.stdout.split("\n").filter((line) => line.trim());
   const shown = lines.slice(0, 6).map((line) => line.trim()).join(", ");
   return lines.length > 6 ? `${shown} and ${lines.length - 6} more` : shown || "something git reports but does not name";
-}
-
-/** Whether the desk merged anything into the copy's line between `from` and `to`: a diff across them then shows others' work too. */
-export async function mergesIn(cwd: string, from: string, to: string): Promise<boolean> {
-  const run = await git(cwd, ["rev-list", "--first-parent", "--merges", "--count", `${from}..${to}`]);
-  return run.code === 0 && Number(run.stdout.trim()) > 0;
 }
 
 /** Where `branch` left `base`: what a lane changed is read from here, however far `base` has moved since. */

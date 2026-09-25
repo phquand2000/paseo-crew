@@ -1,5 +1,21 @@
-import { git, headSha, isAncestor, mergeBranch, pristineState } from "../core/git.ts";
+import { branchExists, currentBranch, dropMerged, git, headSha, isAncestor, mergeBranch, pristineState, switchTo } from "../core/git.ts";
 import type { Lane, Task } from "./ledger.ts";
+
+/** The lane's copy back on the lane branch from a task's own, `discard`ing work left there; git's reason when it cannot. */
+export async function backOnLane(lane: Lane, discard = false): Promise<string | undefined> {
+  return lane.worktree ? switchTo(lane.worktree, lane.branch, lane.branch, discard) : undefined;
+}
+
+/**
+ * Takes the lane's copy off the branch of a task that is gone back onto the lane branch, which keeps that branch only while it
+ * holds commits nothing else has. Work left there goes with the task, save on the Human's own branch: theirs is never discarded.
+ */
+export async function leaveCopy(lane: Lane, task: Task): Promise<{ refused?: string; kept?: string } | undefined> {
+  if (!lane.worktree || !task.branch || (await currentBranch(lane.worktree)) !== task.branch) return undefined;
+  const refused = await backOnLane(lane, !lane.onBranch);
+  if (refused) return { refused };
+  return { kept: !(await dropMerged(lane.worktree, task.branch, lane.branch)) && (await branchExists(lane.worktree, task.branch)) ? task.branch : undefined };
+}
 
 /** Where a task's copy stands against its lane: up to date at a lane commit, stopped on conflicts left there, or not brought in, and why. */
 export type Synced = { at: string } | { conflicts: string[]; by: string[] } | { not: string };

@@ -46,9 +46,12 @@ function gateRegime(project: Project): string {
   const config = loadConfig(project.state);
   if (!config.gate) return "none set, so nothing is checked for you";
   return config.gateOn === "task"
-    ? `${config.gate} runs on every task, and its verdict reaches the Lead with the hand-back. A task beside others runs it with the lane brought in, and the lane takes it red only when its Lead accepts it over the gate with a reason`
+    ? `${config.gate} runs on every task with the lane brought in, and its verdict reaches the Lead with the hand-back; the lane takes a task red only when its Lead accepts it over the gate with a reason`
     : `${config.gate} runs on the whole lane when you report it ready; merges are not gated, so the lane branch can break between reports`;
 }
+
+/** Where the Lead's copy stands, lane branch or task branch: the lane branch takes a task's work only by its merge. */
+const onLane = "Your working copy is on it save while a task works there on a branch of its own; tasks merge into it.";
 
 /** `serial` holds the paths in the lane's copy that only one writer at a time may write, as the desk will read them. */
 export function directive(lane: Lane, { gate, serial, elsewhere = [], concept, issue }: { gate: string; serial: string[]; elsewhere?: Elsewhere[]; concept?: string; issue?: Issue }): string {
@@ -73,8 +76,8 @@ export function directive(lane: Lane, { gate, serial, elsewhere = [], concept, i
     ...(serial.length > 0 ? [`One writer at a time: ${capped(serial, SHOWN_SERIAL)}. A task that writes any of these works in the lane's working copy, not in parallel.`] : []),
     "",
     lane.onBranch
-      ? `Lane branch: ${lane.branch}, the Human's own, carried on where it is; closing the lane merges it nowhere. Your working copy is on it; tasks merge into it. Anything uncommitted there when the lane opened is the Human's work in progress, never to be discarded: have the first task working there commit it as found, in a commit of its own that says so, before it changes anything.`
-      : `Lane branch: ${lane.branch}, off ${lane.base}. Your working copy is on it; tasks merge into it.`,
+      ? `Lane branch: ${lane.branch}, the Human's own, carried on where it is; closing the lane merges it nowhere. ${onLane} Anything uncommitted there when the lane opened is the Human's work in progress, never to be discarded: have the first task working there commit it as found, in a commit of its own that says so, before it changes anything.`
+      : `Lane branch: ${lane.branch}, off ${lane.base}. ${onLane}`,
     `Gate: ${gate}`,
   ];
   if (concept) {

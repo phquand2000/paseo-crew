@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rmSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
@@ -50,11 +50,11 @@ test("each lane merges in its own queue: a gate running on one lane's merge hold
 
 test("taking a lane's queue up again as a turn ends never mistakes another lane's merge under way for one a stop cut off", async (t) => {
   const { h, lanes, go } = await heldLanes(t);
-  const scratch = join(lanes[1]!.worktree!, "scratch.txt");
-  writeFileSync(scratch, "x\n");
+  const busy = join(lanes[1]!.worktree!, "a.txt");
+  writeFileSync(busy, "being written\n");
   await h.call(lanes[1]!.lead!, "lead", "accept", { task: "L2-T1" });
   assert.ok(await within(5000, () => h.ledger().tasks["L2-T1"]!.held !== undefined), "it waits for the second lane's copy");
-  rmSync(scratch);
+  h.git(lanes[1]!.worktree!, "checkout", "--", "a.txt");
   void h.runtime.desk.resumeMerges(h.project);
   assert.ok(await within(5000, () => h.ledger().tasks["L2-T1"]!.status === "merged"));
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merging", "the first lane's merge is still its own, running");

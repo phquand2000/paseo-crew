@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Kit } from "../../catalog/kit.ts";
-import { changedFiles, currentBranch, headSha, ownChangedFiles, pristineState } from "../../core/git.ts";
+import { changedFiles, currentBranch, headSha, pristineState } from "../../core/git.ts";
 import { capped, clip } from "../../core/text.ts";
 import { IN_QUEUE, SETTLED, TASK } from "../../domain/task.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
@@ -20,9 +20,9 @@ const SHOWN_CHANGED = 20;
 
 type Work = { commit?: string; uncommitted: boolean; synced?: string; changed?: string[]; notes: string[] };
 
-/** A task beside others hands back what its lane would become: the lane comes into its copy first. */
+/** A task hands back what its lane would become: the lane comes into its copy first. */
 async function syncOf(task: Task, lane: Lane | undefined): Promise<Synced | undefined> {
-  return task.kind === "code" && task.mode === "parallel" && lane && task.worktree && task.branch ? bringLaneIn({ ...task, worktree: task.worktree, branch: task.branch }, lane) : undefined;
+  return task.kind === "code" && lane && task.worktree && task.branch ? bringLaneIn({ ...task, worktree: task.worktree, branch: task.branch }, lane) : undefined;
 }
 
 /** Bringing the lane in stopped on conflicts: the Peer settles them before it hands back, and its Lead is told in passing. */
@@ -37,10 +37,9 @@ async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task, sy
   if (task.kind === "review" || !task.worktree) return { uncommitted: false, notes: [] };
   const lane = ledger.lanes[task.lane];
   const line = !synced || !lane ? undefined : "at" in synced ? `Brought up to date with ${lane.branch} at ${synced.at.slice(0, 7)}.` : "not" in synced ? `Not brought up to date with ${lane.branch}: ${synced.not}.` : undefined;
-  const parallel = task.mode === "parallel";
-  // A task in the lane's copy counts its own commits only: a task beside it may have been merged into that copy meanwhile.
-  const changed = parallel ? (lane ? await changedFiles(task.worktree, `${lane.branch}...HEAD`) : undefined) : task.startSha ? await ownChangedFiles(task.worktree, task.startSha) : undefined;
-  const notes = lane && changed ? reachNotes(ledger, task, lane, changed, parallel ? await serialIn(kit, project, task.worktree) : []) : [];
+  // Read from where its branch meets the lane's: what came in with the lane is not the task's.
+  const changed = lane ? await changedFiles(task.worktree, `${lane.branch}...HEAD`) : undefined;
+  const notes = lane && changed ? reachNotes(ledger, task, lane, changed, task.mode === "parallel" ? await serialIn(kit, project, task.worktree) : []) : [];
   // Only what git actually said: a copy it could not read is not a copy with work left in it.
   return { commit: await headSha(task.worktree), uncommitted: (await pristineState(task.worktree)) === "dirty", synced: line, changed, notes };
 }
@@ -79,8 +78,8 @@ type Finding = z.infer<typeof Finding>;
 const Verdict = z.strictObject({ verdict: z.enum(["accept", "changes", "reopen"]), answer: z.string(), answers: z.array(z.string()).optional(), findings: z.array(Finding).optional(), read: z.array(z.string()).optional(), ran: z.array(z.string()).optional() });
 
 /** What the Peer must fix before its turn ends: work left uncommitted, or a copy off the branch, where a commit belongs to no branch and goes with the copy. */
-async function reminderOf(task: Task, laneBranch: string | undefined, uncommitted: boolean): Promise<string> {
-  const meant = task.mode === "parallel" ? task.branch : laneBranch;
+async function reminderOf(task: Task, uncommitted: boolean): Promise<string> {
+  const meant = task.branch;
   const adrift = meant && task.worktree ? (await currentBranch(task.worktree)) !== meant : false;
   if (uncommitted) return " Your working copy still has uncommitted changes: commit them before ending your turn.";
   return adrift ? ` Your working copy is not on ${meant} any more, so anything you committed is on no branch and will be collected. After a bisect, git bisect reset takes it back to ${meant}: commit there before your turn ends. If you left it some other way, say so with ask: moving a copy between branches is the desk's.` : "";
@@ -110,7 +109,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   const ledger = loadLedger(project.state);
   const task = taskOfPeer(ledger, caller.id);
   if (!task) return no("No task is assigned to you.");
-  if (SETTLED.includes(task.status)) return no(`This task is already ${task.status === "merged" ? "accepted" : "cut"}; there is nothing to hand back.`);
+  if (SETTLED.includes(task.status)) return no(`This task is already ${task.status}; there is nothing to hand back.`);
   const review = task.kind === "review";
   if (review && args.verdict !== "accept" && (args.findings ?? []).length === 0) return no(`A verdict of ${args.verdict} names what must change: give each finding.`);
   const asked = task.asked ?? [];
@@ -126,7 +125,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   // Gated at hand-back so the Lead has the verdict in time; gating after accept undid a merge already chosen.
   const run = !review && task.worktree ? await taskGate(ctx.kit, project, task.id, task.worktree, work.changed) : undefined;
   const body = run
-    ? `${handed.body}\n\nGate: ${run.ok ? run.note : `${run.note}. ${task.mode === "parallel" ? "The lane takes it red only if you accept it over the gate with a reason." : "This is evidence for your decision, not a decision."}\n\n${run.tail}\n\nFull log: ${run.logFile}`}`
+    ? `${handed.body}\n\nGate: ${run.ok ? run.note : `${run.note}. The lane takes it red only if you accept it over the gate with a reason.\n\n${run.tail}\n\nFull log: ${run.logFile}`}`
     : handed.body;
   const file = join(project.state, "handbacks", `${task.id}-${Date.now()}.md`);
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
@@ -144,11 +143,11 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
     return no(
       already !== "gone" && IN_QUEUE.includes(already)
         ? `${task.id} is already accepted and waiting to be merged; handing it back again would take it out of the queue. End your turn.`
-        : `${task.id} is already ${already === "merged" ? "accepted" : already}; there is nothing to hand back.`,
+        : `${task.id} is already ${already}; there is nothing to hand back.`,
     );
   }
   await tell(services, caller, task, ledger.lanes[task.lane], { file, outcome, body, summary: str(review ? args.answer : args.summary), commit });
-  const reminder = review ? "" : await reminderOf(task, ledger.lanes[task.lane]?.branch, work.uncommitted);
+  const reminder = review ? "" : await reminderOf(task, work.uncommitted);
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 }
 

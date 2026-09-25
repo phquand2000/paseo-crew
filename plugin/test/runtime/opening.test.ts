@@ -39,14 +39,16 @@ test("a lane whose Lead cannot start keeps no copy on record: the one it took is
   assert.deepEqual([lane.status, lane.slot, lane.worktree, lane.workspaceId, Object.keys(h.ledger().slots)], ["closed", undefined, undefined, undefined, []]);
 });
 
-test("a Lead is told how its project gates: per task, a task beside others joins the lane red only over the gate with a reason", async () => {
+test("a Lead is told how its project gates: per task, any task joins the lane red only over the gate with a reason", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { acceptance: ["a"], outOfScope: ["z"], isolate: true };
   // Per task unless the project says otherwise: the lane takes a task only once it is tested with the lane in it.
   assert.match((await h.call(sup, "supervisor", "set_project", { gate: "npm test" })).text, /gate npm test, run per task/);
   await h.call(sup, "supervisor", "open_lane", { title: "Per task", outcome: "x", ...scope });
-  assert.match(h.agents.get(h.ledger().lanes.L1!.lead!)!.prompt ?? "", /^Gate: npm test runs on every task, and its verdict reaches the Lead with the hand-back\. A task beside others runs it with the lane brought in, and the lane takes it red only when its Lead accepts it over the gate with a reason$/m);
+  const lead = h.agents.get(h.ledger().lanes.L1!.lead!)!.prompt ?? "";
+  assert.match(lead, /^Gate: npm test runs on every task with the lane brought in, and its verdict reaches the Lead with the hand-back; the lane takes a task red only when its Lead accepts it over the gate with a reason$/m);
+  assert.match(lead, /^Lane branch: lane\/l1-per-task, off main\. Your working copy is on it save while a task works there on a branch of its own; tasks merge into it\.$/m);
   await h.call(sup, "supervisor", "set_project", { gateOn: "lane" });
   await h.call(sup, "supervisor", "open_lane", { title: "Per lane", outcome: "y", ...scope });
   assert.match(h.agents.get(h.ledger().lanes.L2!.lead!)!.prompt ?? "", /^Gate: npm test runs on the whole lane when you report it ready; merges are not gated, so the lane branch can break between reports$/m);

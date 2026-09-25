@@ -233,6 +233,15 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     git(cwd, "add", "-A");
     git(cwd, "commit", "-qm", `edit ${file}`);
   };
+  // A branch moved as another task's merge moves a lane: committed where it is checked out, or in a copy made for the commit.
+  const commitTo = (branch: string, file: string, text: string) => {
+    const where = git(root, "worktree", "list", "--porcelain").split("\n\n").find((entry) => entry.includes(`branch refs/heads/${branch}\n`));
+    if (where) return commit(where.split("\n")[0]!.slice("worktree ".length), file, text);
+    const copy = join(tempDir("sw2-commit-to-"), "copy");
+    git(root, "worktree", "add", "-q", copy, branch);
+    commit(copy, file, text);
+    git(root, "worktree", "remove", "--force", copy);
+  };
   const ledger = (of: Project = project) => loadLedger(of.state);
   // What a seat has been sent and what waits for it: word that asks nothing rides along with its next letter.
   const heard = (id: string) => [...agents.get(id)!.sent, ...runtime.outbox.pending(id).map((letter) => letter.text)];
@@ -272,6 +281,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     call,
     idle,
     commit,
+    commitTo,
     ledger,
     heard,
     endTurn,
@@ -284,7 +294,8 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   };
 }
 
-export async function laneWithPeer(settings?: Record<string, unknown>, options?: Parameters<typeof harness>[0]) {
+/** A lane with its Lead and one task under way: in the lane's copy, unless `task` puts it beside others. */
+export async function laneWithPeer(settings?: Record<string, unknown>, options?: Parameters<typeof harness>[0], task: Record<string, unknown> = {}) {
   const h = harness(options);
   if (settings) {
     mkdirSync(h.project.state, { recursive: true });
@@ -293,7 +304,7 @@ export async function laneWithPeer(settings?: Record<string, unknown>, options?:
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"], ...task }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   await h.tick();
   return { h, sup, lane, peer, timeline: h.timelineOf(peer) };

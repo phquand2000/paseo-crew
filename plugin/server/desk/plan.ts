@@ -8,7 +8,7 @@ type Planned = { key: string; args: Args; parallel: boolean; holds: string[]; af
 
 /**
  * The tasks in an order they can run in, or why they cannot: each key once, paths held by exactly the tasks that run beside
- * others, each `after` a key of it or a task of this lane that can still be accepted, and no loop. Tasks in the lane's copy
+ * others, each `after` a key of it or a task of this lane still to be merged, and no loop. Tasks in the lane's copy
  * then run one after another in that order.
  */
 export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] | string {

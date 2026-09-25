@@ -1,7 +1,7 @@
 import { HOLDS_COPY } from "../domain/task.ts";
 import type { Lane, Ledger, Task } from "./ledger.ts";
 
-/** Handed-back and stalled tasks still hold the copy (their Peer is seated there), unless the stalled Peer's seat is gone. */
+/** Tasks waiting on their Lead or the merge queue still hold the copy (it is on their branch), unless a stalled Peer's seat is gone. */
 const holds = (task: Task): boolean => HOLDS_COPY.includes(task.status) && !(task.status === "stalled" && task.peerGone);
 
 /** The task whose Peer writes in a lane's copy, or waits there on its Lead: the copy holds one writer at a time. */

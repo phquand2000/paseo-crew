@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { Desk } from "../../server/desk/desk.ts";
@@ -24,7 +23,8 @@ async function handedBack() {
   return { ...lane, task, stopped };
 }
 
-const merges = (h: Awaited<ReturnType<typeof laneWithPeer>>["h"], copy: string) => h.git(copy, "rev-list", "--merges", "--count", "HEAD").trim();
+/** The merges on the lane branch: another task in the lane's copy has that copy on its own branch meanwhile. */
+const merges = (h: Awaited<ReturnType<typeof laneWithPeer>>["h"], copy: string) => h.git(copy, "rev-list", "--merges", "--count", h.ledger().lanes.L1!.branch).trim();
 
 test("a merge the queue held when the plugin stopped goes through once it starts again", async () => {
   const { h, lane, stopped } = await handedBack();
@@ -34,7 +34,7 @@ test("a merge the queue held when the plugin stopped goes through once it starts
   await h.tick();
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(readFileSync(join(lane.worktree!, "c.txt"), "utf-8"), "beside\n");
+  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:c.txt`), "beside\n");
   await h.idle(lane.lead!);
   assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /MERGED L1-T2/);
 });
@@ -60,10 +60,12 @@ test("a merge the plugin stopped in the middle of is run again from the start, a
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
   assert.equal(merges(h, copy), "1", "merged once");
 
-  // Stopped after git merged it, before the record said so.
+  // Stopped after the lane branch moved to its merge, before the record said so.
   const again = await handedBack();
   const second = again.lane.worktree!;
-  again.h.git(second, "merge", "-q", "--no-ff", "-m", "Merge L1-T2", again.task.branch!);
+  const before = again.h.git(second, "rev-parse", again.lane.branch).trim();
+  const made = again.h.git(second, "commit-tree", `${again.task.branch}^{tree}`, "-p", before, "-p", again.task.branch!, "-m", "Merge L1-T2").trim();
+  again.h.git(second, "update-ref", `refs/heads/${again.lane.branch}`, made, before);
   again.stopped("merging");
   again.h.restart();
   await again.h.tick();

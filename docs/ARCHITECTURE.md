@@ -60,8 +60,8 @@ These are mostly absences, so the code won't show them to you.
   ends with one `Next:` line, what it asks of whoever reads it. What a Peer or Reviewer starts from
   is in `desk/briefs.ts`, a Lead's directive in `desk/directive.ts` and a Pager's two lines in
   `desk/pager.ts`; a Watcher starts from its first case.
-- **One writer per working copy.** A lane-mode task holds the lane's copy from start until it is
-  accepted or cut.
+- **One writer per working copy.** A lane-mode task holds the lane's copy, on its own branch, from
+  start until it is merged or cut, a failed merge included.
 - **No hidden command chain.** When the Supervisor messages a Peer, the Peer's Lead is told first.
 - **The desk writes nothing of the Human's.** No file in the project is written by the plugin; what
   every role shares is in its own prompt.
@@ -148,28 +148,31 @@ treated as empty.
   clean.
 - A later lane, or one that asks to be isolated, gets a git worktree slot of its own.
 
-**Two task modes.**
+**Two task modes.** Every task works on a `task/…` branch of its own, and the lane branch takes work
+only by the desk's merge.
 
-- **Lane mode**, the default. The task shares the lane's copy and branch. `accept` marks it merged
-  in place, and its Peer stays until the Lead `release`s it. A seat has one duty for life: every
+- **Lane mode**, the default. The task works in the lane's copy, switched to its branch from its start
+  until it is merged or cut, and then back on the lane branch. A seat has one duty for life: every
   task starts a Peer of its own, and a kept Peer never takes another. Its Peer finds where the change
   goes: `hints` say where to start reading and fence nothing, and what it writes is bounded by the
   lane's write set and what tasks beside it hold.
-- **Parallel mode.** The task gets its own slot and `task/…` branch, and `holds` what it writes, as
-  coarsely as the work allows: no task that may run at once holds any of it, nor is any of it a
-  one-writer path, and a Peer at work in the lane's copy is told. `accept` queues it once handed back,
-  and each lane's merge queue merges its branches one at a time, beside the other lanes': the lane is brought
-  into the task's copy again if it moved, the gate runs there unless it already ran on that commit, and
-  the lane takes a red tree only when the Lead accepted it over the gate with a reason. The merge commit
-  is made from that very tree, and the lane branch moves to it only from the tip the task was gated with:
-  a lane that moved meanwhile sends it round again. The queue is the tasks' status in the ledger, so a
-  restart picks it up: a merge cut off before the lane moved is run again, and one that moved it is only
-  recorded. A lane copy with work uncommitted holds the merge: the task stays queued, its Lead is told
-  once, and the merge is tried again as each turn ends and before the lane lands. A task in the lane's copy is read by its own commits, never by the merges beside it.
-  At hand-back a parallel task has its lane brought into its own copy, so its gate runs on what the lane
-  would become; conflicts there go back to its Peer before anything is handed back.
-  What a task changed is read at hand-back and at merge, not declared: a file in what another task
-  holds, outside the lane's write set, or outside what a parallel task holds is a note to its Lead.
+- **Parallel mode.** The task gets its own slot, and `holds` what it writes, as coarsely as the work
+  allows: no task that may run at once holds any of it, nor is any of it a one-writer path, and a Peer
+  at work in the lane's copy is told.
+
+**One way in.** At hand-back every task has its lane brought into its branch, so its gate runs on what
+the lane would become; conflicts there go back to its Peer before anything is handed back. `accept`
+queues it, and each lane's merge queue merges its branches one at a time, beside the other lanes': the
+lane is brought in again if it moved, the gate runs unless it already ran on that commit, and the lane
+takes a red tree only when the Lead accepted it over the gate with a reason. The merge commit is made
+from that very tree, and the lane branch moves to it only from the tip the task was gated with: a lane
+that moved meanwhile sends it round again. The queue is the tasks' status in the ledger, so a restart
+picks it up: a merge cut off before the lane moved is run again, and one that moved it is only
+recorded. A copy with work uncommitted, the lane's or the task's, holds the merge: the task stays
+queued, its Lead is told once, and the merge is tried again as each turn ends and before the lane lands.
+A task is read from where its branch meets the lane's, never with what came in with the lane. What a
+task changed is read at hand-back and at merge, not declared: a file in what another task holds,
+outside the lane's write set, or outside what a parallel task holds is a note to its Lead.
 
 **Landing.** `land_lane` does four things in a fixed order:
 
@@ -185,18 +188,22 @@ Landings in one project run one at a time, so the next one merges in what the la
 moves only from the commit read at the start, and what lands is the head its gate saw: a landing never
 writes over another, and a lane that moved after its gate lands nothing.
 
-A seat mid-turn, a conflict or a red gate refuses the call and leaves the lane open. Only a red gate
+A task still on its branch in the lane's copy, a seat mid-turn, a conflict or a red gate refuses the
+call and leaves the lane open. Only a red gate
 can be overridden, with `overGate`, and the override is written to `events.log`. Everything else the
 desk reads of the lane (deleted or weakened tests, files outside the write set, open incidents, what
 its reviews leave standing) goes with the REPORT letter and the reply as evidence. A review whose range
 touches a path the project's risk rules name (the kit's cover migrations, schemas and SQL) carries
 their questions, and its verdict is refused until it answers them.
 
-**Who stays.** A Peer stays after its task is accepted, a parallel task's in its own copy, until its Lead
+**Who stays.** A Peer stays after its task is merged, a parallel task's in its own copy, until its Lead
 releases it; the next round puts away the copy of one archived in Paseo. Closing a lane lets its Peers go.
 Its Lead stays, with the lane's copy of its own if it had one, until whoever supervises releases it or
 it is archived in Paseo, which archives a Supervisor's Leads with it; the next round then puts that
-copy away. Your checkout goes back to base at close.
+copy away. Your checkout goes back to base at close. A task still in the lane's copy left it on its own
+branch: the copy comes off it once no seat is mid-turn there, onto the Human's own branch with their
+uncommitted work along when the lane carried theirs, and the task's branch goes unless it holds commits
+nothing else has.
 
 **Teardown** waits for seats that are still mid-turn. The pending release is recorded in the ledger,
 and a seat waiting to be archived in `intents.json`, so a daemon restart loses neither: the first

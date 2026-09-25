@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IN_QUEUE } from "../../domain/task.ts";
 import { no, ok, str } from "../context.ts";
 import { letGo } from "../gone.ts";
 import { releaseKept } from "../kept.ts";
@@ -18,6 +19,7 @@ export const releasePeer = defineTool({
     const { lane, task } = found;
     if (task.kind === "review") return no(`${task.id} is a review: its reviewer goes when you cut it.`);
     if (task.status === "cut") return no(`${task.id} was cut, and its Peer stopped with it.`);
+    if (IN_QUEUE.includes(task.status)) return no(`${task.id} is in the merge queue: release its Peer once MERGED arrives.`);
     if (task.status !== "merged") return no(`${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`);
     const peer = task.peer!;
     if (!(await roster.seated(peer))) return no(`The Peer kept from ${task.id} is gone already.`);

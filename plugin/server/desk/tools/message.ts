@@ -18,7 +18,7 @@ async function handTo({ ctx, roster }: DeskServices, to: { target: string; from:
 
 const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;
 
-const settled = (task: Task) => (SETTLED.includes(task.status) ? `${task.id} is ${task.status === "merged" ? "accepted" : "cut"}, and its Peer has been put away with it.` : undefined);
+const settled = (task: Task) => (SETTLED.includes(task.status) ? `${task.id} is ${task.status}, and its Peer has been put away with it.` : undefined);
 
 /** Whoever supervises reaches a lane's Lead, or a task's Peer with its Lead told first. */
 async function fromOwner(desk: DeskServices, caller: Caller, ledger: Ledger, sending: Sending, text: string): Promise<ToolReply> {

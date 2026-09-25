@@ -64,6 +64,7 @@ test("the record of a Peer that is gone is what the desk kept, and its history i
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a.txt now says changed." });
   h.agents.get(peer)!.status = "idle";
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
   assert.equal((await h.call(lane.lead!, "lead", "release", { task: "L1-T1" })).ok, true);
   assert.ok(h.agents.get(peer)!.archivedAt, "released, the Peer is gone");
 

@@ -1,4 +1,4 @@
-import { changedFiles, commitsAhead, diffCounts, headSha, mergeOf, pristineState, uncommittedIn } from "../core/git.ts";
+import { changedFiles, commitsAhead, currentBranch, diffCounts, headSha, mergeOf, uncommittedIn } from "../core/git.ts";
 import { advance, mergeCommit } from "../core/land.ts";
 import { fileKinds } from "../catalog/kit.ts";
 import { type DeskContext } from "./context.ts";
@@ -8,11 +8,10 @@ import { gateNote, taskGate } from "./gates.ts";
 import { type Lane, type Task, loadLedger, othersLeft } from "./ledger.ts";
 import type { Letter } from "./letters.ts";
 import { mergeLetters } from "./merge-letters.ts";
-import { holderOf } from "./holder.ts";
 import { closeSeat } from "./incidents.ts";
 import { type Project, serialIn } from "./project.ts";
 import { reachNotes } from "./reach.ts";
-import { bringLaneIn } from "./sync.ts";
+import { backOnLane, bringLaneIn } from "./sync.ts";
 
 type Outcome = "merged" | "conflict" | "red" | "fail";
 
@@ -23,9 +22,12 @@ type Verdict = { ok: boolean; note: string; over?: string; run?: { tail: string;
 export class MergeQueue {
   private readonly ctx: DeskContext;
   private readonly queues = new Map<string, Promise<unknown>>();
+  /** What a merge lets go on: the tasks that waited for it start. */
+  private readonly merged: (project: Project) => Promise<void>;
 
-  constructor(ctx: DeskContext) {
+  constructor(ctx: DeskContext, merged: (project: Project) => Promise<void>) {
     this.ctx = ctx;
+    this.merged = merged;
   }
 
   settled(project: Project): Promise<unknown> {
@@ -98,12 +100,6 @@ export class MergeQueue {
     const finish = (move: Outcome, letter: Letter) => this.finish(project, task, lane, move, letter);
     const cwd = lane.worktree;
     if (!cwd) return finish("fail", mergeLetters.mergeFailed(task, "the lane has no working copy", ""));
-    const copy = await pristineState(cwd);
-    if (copy === "dirty") return this.waitFor(project, task, lane, cwd);
-    // A copy git could not read has no writer in it: it is already gone.
-    if (copy === "unknown") {
-      return finish("fail", mergeLetters.mergeFailed(task, `git could not read the lane's working copy at ${cwd}`, ""));
-    }
     if (!task.branch || !task.worktree) return finish("fail", mergeLetters.mergeFailed(task, "the task's branch or copy is not on record", ""));
     const at = await this.cleared(project, { ...task, branch: task.branch, worktree: task.worktree }, lane);
     if (!at) return;
@@ -115,7 +111,7 @@ export class MergeQueue {
     const made = await mergeCommit(cwd, at, task.branch, `Merge ${task.id}: ${task.title}`);
     if (!made) return finish("fail", mergeLetters.mergeFailed(task, "git could not make the merge commit", ""));
     const stopped = await advance(cwd, lane.branch, at, made);
-    if (stopped?.why === "moved") return this.hold(project, task, lane, `${lane.branch} moved while it was gated, so it goes round again with that brought in`);
+    if (stopped?.why === "moved") return this.hold(project, task, lane, `${lane.branch} moved while it was gated, so it goes round again with that brought in`, false);
     if (stopped?.why === "dirty") return this.waitFor(project, task, lane, cwd);
     if (stopped) return finish("fail", mergeLetters.mergeFailed(task, stopped.why === "elsewhere" ? `${lane.branch} is checked out in another working copy` : (stopped.detail ?? `git could not read the lane's working copy at ${cwd}`), ""));
     await this.landed(project, task, lane, cwd, { before: at, after: made });
@@ -157,20 +153,22 @@ export class MergeQueue {
     return { ok: run.ok, note: run.note, run: { tail: run.tail, logFile: run.logFile } };
   }
 
-  /** The lane's copy holds another writer's work: the Lead's accept stands, the task waits queued, and its Lead is told once for each reason. */
+  /** The lane branch is checked out in the lane's copy, and work is left there: the merge would move files under it. */
   private async waitFor(project: Project, task: Task, lane: Lane, cwd: string): Promise<void> {
-    const holder = holderOf(loadLedger(project.state), lane);
-    await this.hold(project, task, lane, `the lane's working copy has uncommitted changes (${await uncommittedIn(cwd)})${holder ? `, and ${holder.id} holds it` : ""}`, holder?.id);
+    await this.hold(project, task, lane, `the lane's working copy has uncommitted changes (${await uncommittedIn(cwd)})`);
   }
 
-  /** The task waits queued for `why` to clear, tried again as each turn ends; its Lead is told once for each reason. */
-  private async hold(project: Project, task: Task, lane: Lane, why: string, holder?: string): Promise<void> {
+  /**
+   * The Lead's accept stands, the task waits queued for `why` to clear, and it is tried again as each turn ends; its Lead is told
+   * once for each reason, woken only when `why` is something to clear.
+   */
+  private async hold(project: Project, task: Task, lane: Lane, why: string, clears = true): Promise<void> {
     let told = false;
     this.ctx.moveTask(project, task.id, "requeue", (entry) => {
       told = entry.held?.why === why;
       entry.held = { why };
     });
-    if (!told) await this.ctx.post(lane.lead, mergeLetters.waits(task, why, holder));
+    if (!told) await this.ctx.post(lane.lead, mergeLetters.waits(task, why, clears));
   }
 
   /** A merge git made, recorded and told with what it changed. */
@@ -180,6 +178,8 @@ export class MergeQueue {
     this.ctx.setTask(project, task.id, (entry) => {
       entry.mergeSha = merged.after;
     });
+    // A task in the lane's copy gives it back to the lane branch: the same tree, so nothing in it changes.
+    if (task.mode !== "parallel" && (await currentBranch(cwd)) === task.branch) await backOnLane(lane);
     const now = loadLedger(project.state);
     // The gate ran before the merge, on the tree it made; the verdict on record, or its Lead's word over it, is what it says.
     const gate = gateNote(project, now.tasks[task.id] ?? task);
@@ -194,5 +194,6 @@ export class MergeQueue {
     this.ctx.event(project, { kind: `merge.${moved.status}`, task: task.id });
     // Its task is settled, so what the watch told about it is too; its Peer stays with its copy until its Lead releases it.
     if (moved.status === "merged" && task.peer) this.ctx.incidents(project, (incidents) => closeSeat(incidents, task.peer!, Date.now()));
+    if (moved.status === "merged") await this.merged(project);
   }
 }

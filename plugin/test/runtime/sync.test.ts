@@ -14,7 +14,7 @@ test("a task beside others is brought up to date with its lane as it hands back,
   await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
   const side = h.ledger().tasks["L1-T2"]!;
   // The lane moves on after the task branched from it.
-  h.commit(lane.worktree!, "shared.txt", "from the lane\n");
+  h.commitTo(lane.branch, "shared.txt", "from the lane\n");
   h.commit(side.worktree!, "c.txt", "C\n");
   assert.equal((await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" })).ok, true);
   await h.idle(lane.lead!);
@@ -59,7 +59,7 @@ test("a task whose copy has work uncommitted hands back as it stands, and says i
   const { h, lane } = await laneWithPeer();
   await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
   const side = h.ledger().tasks["L1-T2"]!;
-  h.commit(lane.worktree!, "shared.txt", "from the lane\n");
+  h.commitTo(lane.branch, "shared.txt", "from the lane\n");
   writeFileSync(join(side.worktree!, "c.txt"), "not committed\n");
   assert.equal((await h.call(side.peer!, "peer", "done", { outcome: "partial", summary: "c" })).ok, true);
   await h.idle(lane.lead!);
@@ -89,7 +89,7 @@ test("a task beside others sent back before its merge is left as its Peer had it
   const side = h.ledger().tasks["L1-T2"]!;
   h.commit(side.worktree!, "c.txt", "side\n");
   await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
-  h.commit(lane.worktree!, "c.txt", "lane\n");
+  h.commitTo(lane.branch, "c.txt", "lane\n");
   assert.equal((await h.call(lane.lead!, "lead", "rework", { task: "L1-T2", text: "Shorter, please." })).ok, true);
   assert.throws(() => h.git(side.worktree!, "rev-parse", "-q", "--verify", "MERGE_HEAD"), "no merge is begun under it");
 });

@@ -95,7 +95,7 @@ test("a refusal from the desk reaches no one as a failed call, while a command t
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
   // A refused hand-back, as a Peer's call to the team server records it.
-  const refusal = "MCP tool 'done' returned an error: [\n  {\n    \"type\": \"text\",\n    \"text\": \"This task is already accepted; there is nothing to hand back.\"\n  }\n]";
+  const refusal = "MCP tool 'done' returned an error: [\n  {\n    \"type\": \"text\",\n    \"text\": \"This task is already merged; there is nothing to hand back.\"\n  }\n]";
   timeline.add({ type: "tool_call", callId: "r1", name: "mcp__team__done", status: "failed", detail: { type: "plain_text", label: "done", text: refusal }, error: { message: "Tool call failed" } }, "t1");
   timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "failed", detail: { type: "shell", command: "cat ./missing.txt", output: "" } }, "t1");
   await settle();

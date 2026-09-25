@@ -582,7 +582,7 @@
   "lead": [
     {
       "name": "add_tasks",
-      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is accepted; tasks in the lane's copy run one at a time, their Peers finding where to change. Refused whole when held paths collide or leave the write set.",
+      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is merged; tasks in the lane's copy run one at a time, their Peers finding where to change. Refused whole when held paths collide or leave the write set.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -653,7 +653,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Keys of this call, or tasks of the lane, this one waits for. It starts once every one of them has been accepted."
+                  "description": "Keys of this call, or tasks of the lane, this one waits for. It starts once every one of them has merged."
                 },
                 "role": {
                   "type": "string",
@@ -744,7 +744,7 @@
     },
     {
       "name": "accept",
-      "description": "Accept a handed-back task. One in the lane's copy is already on the lane branch. A parallel task has its lane brought in, is gated when the directive gates tasks, and merges if green: MERGED, MERGE RED, MERGE WAITS or MERGE FAILED comes as mail. Its Peer stays until you release it.",
+      "description": "Accept a handed-back task into the lane's merge queue, the only way the lane branch takes work: its branch has the lane brought in, is gated when the directive gates tasks, and merges if green. MERGED, MERGE RED, MERGE WAITS or MERGE FAILED comes as mail. Its Peer stays until you release it.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -753,7 +753,7 @@
           },
           "overGate": {
             "type": "boolean",
-            "description": "With a task beside others red on the tree the lane would become: merge it anyway. Say why in reason."
+            "description": "With a task red on the tree the lane would become: merge it anyway. Say why in reason."
           },
           "reason": {
             "type": "string",
@@ -767,7 +767,7 @@
     },
     {
       "name": "rework",
-      "description": "Send a task back to its Peer with what must change. An accepted task goes back to the Peer kept on it, to fix within that task; the lane is then no longer ready.",
+      "description": "Send a task back to its Peer with what must change. A merged task goes back to the Peer kept on it, to fix within that task on its branch; the lane is then no longer ready.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -843,7 +843,7 @@
     },
     {
       "name": "cut",
-      "description": "Cut a task or finish with a reviewer: its agent stops. A cut task in the lane's working copy has its commits and changes since it started removed; a parallel task's branch is dropped.",
+      "description": "Cut a task or finish with a reviewer: its agent stops, and none of its work reaches the lane branch. One in the lane's working copy leaves it on the lane branch, its uncommitted work gone unless that is the Human's own branch; its branch is kept only if it holds commits nothing else has.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -862,7 +862,7 @@
     },
     {
       "name": "release",
-      "description": "Let go of the Peer kept from a task you accepted, once that task needs nothing more from it: it is archived, and a parallel task's own copy is put away with it. A task never goes to a Peer that worked another, and the lane's Peers all go when it closes.",
+      "description": "Let go of the Peer kept from a task that merged, once that task needs nothing more from it: it is archived, and a parallel task's own copy is put away with it. A task never goes to a Peer that worked another, and the lane's Peers all go when it closes.",
       "inputSchema": {
         "type": "object",
         "properties": {

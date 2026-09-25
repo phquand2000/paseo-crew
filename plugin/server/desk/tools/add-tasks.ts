@@ -42,7 +42,8 @@ function recordTask(ledger: Ledger, lane: Lane, args: Args, parallel: boolean, w
     outOfScope: strs(args.outOfScope),
     context: str(args.context) || undefined,
     skills: strs(args.skills),
-    branch: parallel ? `task/${id.toLowerCase()}-${slugify(title, 24)}` : lane.branch,
+    // Every task writes on a branch of its own, one beside others in a copy of its own too: the lane branch takes only merges.
+    branch: `task/${id.toLowerCase()}-${slugify(title, 24)}`,
     worktree: parallel ? undefined : lane.worktree,
     slot: parallel ? undefined : lane.slot,
     status: "waiting",
@@ -96,6 +97,6 @@ export const addTasks = defineTool({
       const state = entry.held ? `held: ${clip(entry.held.why, 200)}` : entry.status === "waiting" ? `waits for ${entry.after!.join(", ")}` : `${entry.status}${entry.peer ? `, Peer ${entry.peer}` : ""}`;
       return `- ${task.key} is ${entry.id} ${entry.title}: ${state}`;
     });
-    return ok(`Added; each task starts by itself once what it waits for is accepted, and hand-backs arrive as mail.\n${lines.join("\n")}`);
+    return ok(`Added; each task starts by itself once what it waits for is merged, and hand-backs arrive as mail.\n${lines.join("\n")}`);
   },
 });

@@ -112,8 +112,8 @@ export type Ask = {
 /** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
 type Releasing = { writers: string[]; dropBranch?: string; into?: string };
 
-/** A lane in the project's own copy waiting to put its branch back; it acts only on a copy still on `branch`, since a later lane may own it. */
-type Restoring = { writers: string[]; base: string; branch: string; landed?: boolean };
+/** A lane's copy, the project's own, waiting to come back off `branch`, then dropped `into` its lane; only while still on it, since a later lane may own it. */
+type Restoring = { writers: string[]; base: string; branch: string; into?: string };
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 
@@ -290,7 +290,7 @@ export function tasksOf(ledger: Ledger, laneId: string): Task[] {
   return Object.values(ledger.tasks).filter((task) => task.lane === laneId);
 }
 
-/** The tasks of `task`'s lane other than it still to be accepted or cut. */
+/** The tasks of `task`'s lane other than it still to be merged or cut. */
 export function othersLeft(ledger: Ledger, task: Task): Task[] {
   return tasksOf(ledger, task.lane).filter((entry) => entry.id !== task.id && !SETTLED.includes(entry.status));
 }

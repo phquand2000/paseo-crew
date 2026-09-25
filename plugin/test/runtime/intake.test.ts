@@ -426,6 +426,7 @@ test("a task that waits for another starts by itself once that one is accepted, 
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "done" });
   h.agents.get(peer)!.status = "idle";
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
 
   const started = h.ledger().tasks["L1-T2"]!;
   assert.equal(started.status, "running");
@@ -486,6 +487,7 @@ test("a task whose turn comes while another holds the lane's copy is held with w
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   h.agents.get(peer)!.status = "idle";
   await h.call(lead, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "running", "accepting what held the copy starts it");
   assert.equal(h.ledger().tasks["L1-T3"]!.held, undefined);
 });

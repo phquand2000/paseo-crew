@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { currentBranch } from "../../core/git.ts";
 import { no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
 import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "../landing.ts";
@@ -44,6 +45,9 @@ export const report = defineTool({
       const inCopy = tasksOf(loadLedger(caller.project.state), lane.id).filter((task) => task.kind === "code" && task.mode !== "parallel");
       const busy = await midTurnAmong(roster, inCopy.map((task) => task.peer));
       if (busy.length > 0) return no(`${busy.join(" and ")} ${busy.length === 1 ? "is" : "are"} mid-turn in the lane's working copy, so what ready claims could still change under the gate. Report ready once ${busy.length === 1 ? "that turn ends" : "those turns end"}.`);
+      const on = await currentBranch(lane.worktree!);
+      const holding = inCopy.find((task) => task.branch === on);
+      if (holding) return no(`The lane's working copy is on ${on}, ${holding.id}'s branch, not ${lane.branch}: the gate would read ${holding.id}'s tree. Report ready once it is merged or cut.`);
     }
     const gate = args.ready === true ? await laneGate(ctx, caller.project, lane) : undefined;
     // Recorded on the lane the caller still leads: it may have closed, or had its Lead replaced, while the gate ran.

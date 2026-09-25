@@ -14,7 +14,7 @@ async function lane() {
   return { h, sup, lead: h.ledger().lanes.L1!.lead! };
 }
 
-test("a Lead lays its lane out at once: tasks in the lane's copy run in turn, parallel ones beside them, each starting once what it waits for is accepted", async () => {
+test("a Lead lays its lane out at once: tasks in the lane's copy run in turn, parallel ones beside them, each starting once what it waits for is merged", async () => {
   const { h, lane: opened, peer } = await laneWithPeer();
   const lead = opened.lead!;
   const planned = await h.call(lead, "lead", "add_tasks", {
@@ -31,6 +31,7 @@ test("a Lead lays its lane out at once: tasks in the lane's copy run in turn, pa
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "done" });
   h.agents.get(peer)!.status = "idle";
   await h.call(lead, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
   assert.deepEqual(["L1-T2", "L1-T4"].map((id) => h.ledger().tasks[id]!.status), ["running", "waiting"], "L1-T2 starts once L1-T1 is accepted, and L1-T4 still waits for it");
 });
 
@@ -99,8 +100,8 @@ test("a task's brief names what is written beside it and what each holds, and on
   const lead = lane.lead!;
   await h.call(lead, "lead", "add_tasks", { tasks: [task("n", ["n.txt"]), task("b", ["b.txt"], { parallel: true }), task("c", ["c.txt"], { parallel: true }), task("w", ["w.txt"], { after: ["b", "c"] })] });
   const brief = (id: string) => h.agents.get(h.ledger().tasks[id]!.peer!)!.prompt ?? "";
-  assert.match(brief("L1-T3"), /\n\nBeside you, in copies of their own or the lane's: L1-T1 \(Clean build\); L1-T2 \(Task n\); L1-T4 \(Task c\) holds c\.txt\. What they write may be missing or half-done in your copy: leave it to them, and ask if you need it first\.\n\nYou are on branch/, "L1-T5 comes after it, so it is not beside it");
-  assert.match(brief("L1-T4"), /Beside you, in copies of their own or the lane's: L1-T1 \(Clean build\); L1-T2 \(Task n\); L1-T3 \(Task b\) holds b\.txt\./);
+  assert.match(brief("L1-T3"), /\n\nBeside you, in copies of their own or the lane's, each merged into the lane branch once accepted: L1-T1 \(Clean build\); L1-T2 \(Task n\); L1-T4 \(Task c\) holds c\.txt\. What they write reaches your copy only as your hand-back brings the lane in: leave it to them, and ask if you need it first\.\n\nYou are on branch/, "L1-T5 comes after it, so it is not beside it");
+  assert.match(brief("L1-T4"), /Beside you, in copies of their own or the lane's, each merged into the lane branch once accepted: L1-T1 \(Clean build\); L1-T2 \(Task n\); L1-T3 \(Task b\) holds b\.txt\./);
   // Added apart, it waits for the lane's copy with no after naming a task: it comes after whichever holds the copy, not beside it.
   await h.call(lead, "lead", "add_tasks", { tasks: [task("z", ["z.txt"])] });
 
@@ -108,7 +109,8 @@ test("a task's brief names what is written beside it and what each holds, and on
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   await h.idle(peer);
   await h.call(lead, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
   const next = h.ledger().tasks["L1-T2"]!.peer!;
   assert.notEqual(next, peer, "the task waiting in the lane's copy gets a Peer of its own");
-  assert.match(h.agents.get(next)!.prompt ?? "", /\n\nBeside you, in copies of their own and merged into this one as each is accepted: L1-T3 \(Task b\) holds b\.txt; L1-T4 \(Task c\) holds c\.txt\. What they write may be missing or half-done here: leave it to them, and ask if you need it first\.\n\nYou work on branch/);
+  assert.match(h.agents.get(next)!.prompt ?? "", /\n\nBeside you, in copies of their own, each merged into the lane branch once accepted: L1-T3 \(Task b\) holds b\.txt; L1-T4 \(Task c\) holds c\.txt\. What they write reaches your copy only as your hand-back brings the lane in: leave it to them, and ask if you need it first\.\n\nYou work on branch/);
 });

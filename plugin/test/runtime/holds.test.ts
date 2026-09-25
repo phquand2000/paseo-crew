@@ -43,7 +43,7 @@ test("a brief points where to start reading, not a fence, and names what a task 
   });
   const brief = (id: string) => h.agents.get(h.ledger().tasks[id]!.peer!)!.prompt ?? "";
   assert.match(brief("L1-T1"), /\n\nWhere to start reading \(a start, not a fence\):\n- src\/cart\.ts\n\nWhere the change goes, callers and tests included, is yours to find, inside the lane's write set: src\/\*\*, test\/\*\*\.\n\nOut of scope:/);
-  assert.match(brief("L1-T1"), /Beside you, in copies of their own and merged into this one as each is accepted: L1-T2 \(Receipt\) holds src\/receipt\/\. What they write may be missing or half-done here/);
+  assert.match(brief("L1-T1"), /Beside you, in copies of their own, each merged into the lane branch once accepted: L1-T2 \(Receipt\) holds src\/receipt\/\. What they write reaches your copy only as your hand-back brings the lane in/);
   assert.match(brief("L1-T2"), /\n\nYou hold \(others write beside you, so ask before writing outside it\):\n- src\/receipt\/\n\nOut of scope:/);
   assert.doesNotMatch(brief("L1-T2"), /Where to start reading/, "no hints given, none shown");
 });
@@ -83,7 +83,9 @@ test("a task in the lane's copy that writes into what a task beside it holds is 
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a, and c on the way" });
   await h.idle(lane.lead!);
   assert.match(letters(h, lane.lead!), /Note: in what L1-T2 holds \(c\.txt\): c\.txt\./);
+  await h.idle(peer);
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
   await h.idle(lane.lead!);
   assert.match(letters(h, lane.lead!).split("MERGED L1-T1")[1] ?? "", /Note: in what L1-T2 holds \(c\.txt\): c\.txt\./);
 });

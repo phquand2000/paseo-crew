@@ -1,27 +1,30 @@
 import assert from "node:assert/strict";
-import { rmSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { DeskServices } from "../../server/desk/services.ts";
-import { laneWithPeer } from "./harness.ts";
+import { harness, laneWithPeer } from "./harness.ts";
 
 test("a ready report waits for the merges its Lead accepted before it, and gates the lane with them in", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
-  await h.call(sup, "supervisor", "set_project", { gate: "test -f c.txt" });
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Beside only", outcome: "c", acceptance: ["c"], outOfScope: ["the rest"] });
+  const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "s", title: "Side", goal: "g", acceptance: ["c"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
-  const side = h.ledger().tasks["L1-T2"]!;
+  const side = h.ledger().tasks["L1-T1"]!;
   h.commit(side.worktree!, "c.txt", "C\n");
   await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
-  // Work left in the lane's copy holds the merge back until a turn ends there.
-  writeFileSync(join(lane.worktree!, "scratch.txt"), "x\n");
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
+  h.agents.get(side.peer!)!.status = "idle";
+  await h.call(sup, "supervisor", "set_project", { gate: "test -f c.txt", gateOn: "lane" });
+  // Work left in the lane's copy, on the lane branch, holds the merge back until it is clean.
+  writeFileSync(join(lane.worktree!, "a.txt"), "being written\n");
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "queued");
-  rmSync(join(lane.worktree!, "scratch.txt"));
-  await h.idle(peer);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "queued");
+  h.git(lane.worktree!, "checkout", "--", "a.txt");
 
   assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
   assert.match(h.heard(sup).join("\n"), /test -f c\.txt passed on the lane branch/);
 });
 
@@ -34,6 +37,11 @@ test("a ready report is refused while a seat is mid-turn in the lane's copy, and
   assert.equal(h.ledger().lanes.L1!.ready, undefined);
   assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "not yet", ready: false })).ok, true, "a report that claims nothing is not held back");
   await h.idle(peer);
+  // Its turn over, its task still has the copy on its own branch: the lane branch there is not what ready would claim.
+  assert.match((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).text, new RegExp(`^The lane's working copy is on ${h.ledger().tasks["L1-T1"]!.branch}, L1-T1's branch, not ${lane.branch}: the gate would read L1-T1's tree\\. Report ready once it is merged or cut\\.$`));
+  assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "nothing to change" })).ok, true);
+  await h.idle(peer);
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
   assert.ok(h.ledger().lanes.L1!.ready);
 });

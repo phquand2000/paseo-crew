@@ -108,15 +108,23 @@ test("a copy two seats were writing in is put back once both turns end, however 
 
 test("a landing two seats were in the way of can go once both turns end, however close together they end", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
-  // main moves on, so landing starts with merging it into the lane's copy, where both are mid-turn.
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  h.agents.get(peer)!.status = "idle";
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Is a right?" });
+  const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
+  // main moves on, so landing starts with merging it into the lane's copy, where the Lead and the reviewer are mid-turn.
   const side = join(tempDir("sw2-moved-"), "wt");
   h.git(h.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.root, "branch", "-f", "main", "side");
   h.git(h.root, "worktree", "remove", "--force", side);
   assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).text, /a seat is mid-turn there/);
-  for (const id of [lane.lead!, peer]) h.agents.get(id)!.status = "idle";
-  await Promise.all([h.endTurn(lane.lead!, "done"), h.endTurn(peer, "done")]);
+  assert.deepEqual(h.ledger().lanes.L1!.landing?.writers.sort(), [lane.lead!, reviewer].sort());
+  for (const id of [lane.lead!, reviewer]) h.agents.get(id)!.status = "idle";
+  await Promise.all([h.endTurn(lane.lead!, "done"), h.endTurn(reviewer, "done")]);
   await h.idle(sup);
   assert.equal(h.agents.get(sup)!.sent.join("\n").split("CAN LAND L1").length - 1, 1);
 });

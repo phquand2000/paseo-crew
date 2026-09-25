@@ -1,23 +1,23 @@
 import { z } from "zod";
-import { fileKinds } from "../../catalog/kit.ts";
-import { currentBranch, headSha, ownCounts, pristineState, uncommittedIn } from "../../core/git.ts";
+import { currentBranch, headSha, pristineState, uncommittedIn } from "../../core/git.ts";
 import { AT_WORK, IN_QUEUE, TASK } from "../../domain/task.ts";
 import { type Args, type ToolReply, no, ok, str } from "../context.ts";
-import { gateNote } from "../gates.ts";
-import { type Task, loadLedger, othersLeft } from "../ledger.ts";
-import { mergeLetters } from "../merge-letters.ts";
-import { closeIncidentsOf } from "../notice.ts";
-import { holderOf } from "../holder.ts";
-import { reachNotes } from "../reach.ts";
+import { type Task, loadLedger } from "../ledger.ts";
 import type { Project } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
-import { startWaiting } from "../waiting.ts";
 import { laneTask } from "./lane-task.ts";
 
-/** A task beside others goes into the merge queue once handed back, and over a red gate on its tree only with its Lead's reason. */
-async function queueBeside(desk: DeskServices, project: Project, task: Task, args: Args): Promise<ToolReply> {
+/** A task goes into its lane's merge queue once handed back, and over a red gate on its tree only with its Lead's reason. */
+async function queueTask(desk: DeskServices, project: Project, task: Task, args: Args): Promise<ToolReply> {
   const { ctx, merges } = desk;
   if (AT_WORK.includes(task.status) || !task.handback) return no(`${task.id} is not handed back: accept it once its Peer hands it back, or cut it.`);
+  // A copy off its branch (mid-bisect) has commits on no branch; clean and detached is not work the merge would take.
+  if (task.worktree && task.branch && (await currentBranch(task.worktree)) !== task.branch) {
+    return no(`${task.id}'s working copy is not on ${task.branch}, so nothing committed in it is on its branch. If its Peer bisected, send rework asking it to run git bisect reset, which takes the copy back to ${task.branch}, and to commit its work there; then accept it again. A copy that left some other way is not the Peer's to put back: raise it with ask.`);
+  }
+  // Only what is committed merges: work left beside it would be lost to the lane, and a copy that goes back to it carries it on.
+  const copy = task.worktree ? await pristineState(task.worktree) : "clean";
+  if (copy !== "clean") return no(`${task.id}'s working copy ${copy === "dirty" ? `has work uncommitted (${await uncommittedIn(task.worktree!)})` : "could not be read by git"}: send rework asking its Peer to commit what belongs to it, then accept it again.`);
   const over = args.overGate === true;
   if (over && !str(args.reason)) return no("Say why in reason: merging over a red gate is yours to explain.");
   const gate = task.handback.gate;
@@ -29,7 +29,7 @@ async function queueBeside(desk: DeskServices, project: Project, task: Task, arg
     if (over && entry.handback?.gate?.ok === false) entry.handback.gate.over = str(args.reason);
   });
   if (typeof queued !== "object") return no(`${task.id} is ${queued ?? "gone"}.`);
-  const ahead = Object.values(loadLedger(project.state).tasks).filter((entry) => IN_QUEUE.includes(entry.status)).length - 1;
+  const ahead = Object.values(loadLedger(project.state).tasks).filter((entry) => entry.lane === task.lane && IN_QUEUE.includes(entry.status)).length - 1;
   merges.enqueue(project, task.id);
   return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED, MERGE RED, MERGE WAITS or MERGE FAILED arrives as mail.`);
 }
@@ -38,47 +38,13 @@ export const accept = defineTool({
   name: "accept",
   input: z.strictObject({ task: z.string(), overGate: z.boolean().optional(), reason: z.string().optional() }),
   async handle(desk, caller, args) {
-    const { ctx } = desk;
     const { project } = caller;
     const found = laneTask(loadLedger(project.state), caller, str(args.task));
     if (typeof found === "string") return no(found);
     const { lane, task } = found;
     if (lane.onHold) return no(`Lane ${lane.id} is on hold: ${lane.onHold.reason}. Nothing is accepted, started or landed in it until it resumes.`);
     if (task.kind !== "code") return no(`${task.id} is a review; cut it when you are done with it.`);
-    if (!TASK.may(task.status, task.mode === "parallel" ? "queue" : "accept")) return no(`${task.id} is ${task.status}.`);
-    if (task.mode === "parallel") return queueBeside(desk, project, task, args);
-    // A copy off the lane branch (mid-bisect) has commits on no branch; clean and detached is not landed.
-    if (lane.worktree && (await currentBranch(lane.worktree)) !== lane.branch) {
-      return no(
-        `The lane's working copy is not on ${lane.branch}, so nothing committed in it is on the lane branch. If its Peer bisected, send rework asking the Peer on ${task.id} to run git bisect reset, which takes the copy back to ${lane.branch}, and to commit its work there; then accept again. A copy that left some other way is not the Peer's to put back: raise it with ask.`,
-      );
-    }
-    if (!lane.worktree) return no(`Lane ${lane.id} has no working copy.`);
-    const copy = await pristineState(lane.worktree);
-    if (copy === "unknown") return no(`git could not read the lane's working copy at ${lane.worktree}, so the desk cannot tell whether anything is uncommitted there.`);
-    if (copy === "dirty") {
-      // Named correctly: the uncommitted work may be another task's, and reworking this one would wake its Peer into it.
-      const other = holderOf(loadLedger(project.state), lane, task.id);
-      return no(
-        other
-          ? `The lane's working copy has uncommitted changes, and ${other.id} is the task holding it — they are not ${task.id}'s. Accept ${task.id} once ${other.id} has handed back and been accepted or cut.`
-          : `The lane's working copy has uncommitted changes: ${await uncommittedIn(lane.worktree)}. Send rework asking the Peer on ${task.id} for those, then accept again.`,
-      );
-    }
-    const counts = await ownCounts(lane.worktree, task.startSha ?? lane.base, fileKinds(ctx.kit));
-    // Not rerun: a per-task gate already gave the Lead its verdict with the hand-back.
-    const gate = gateNote(project, task);
-    const updated = ctx.moveTask(project, task.id, "accept", (entry) => (entry.acceptedAt = Date.now()));
-    if (typeof updated !== "object") return no(`${task.id} is ${updated ?? "gone"}.`);
-    const now = loadLedger(project.state);
-    await ctx.post(lane.lead, mergeLetters.merged(task, counts, reachNotes(now, task, lane, counts?.files ?? [], []), gate, othersLeft(now, task).length === 0));
-    // Its task is settled, so what the watch told about it is too: the next task starts with a clean book.
-    if (task.peer) closeIncidentsOf(desk, project, task.peer);
-    ctx.event(project, { kind: "task.accepted", task: task.id, mode: "lane" });
-    await startWaiting(desk, project, true);
-    const where = counts && counts.files.length === 0 ? `it changed nothing, so ${lane.branch} stands where it did` : `its commits are already on ${lane.branch}`;
-    return ok(
-      `${task.id} is accepted; ${where}. The working copy is free for the next task. Its Peer stays until you release it.`,
-    );
+    if (!TASK.may(task.status, "queue")) return no(`${task.id} is ${task.status}.`);
+    return queueTask(desk, project, task, args);
   },
 });

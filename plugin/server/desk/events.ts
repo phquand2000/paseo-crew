@@ -41,7 +41,6 @@ export type DeskEvent =
   | { kind: "task.halfStarted"; task: string; now: TaskStatus }
   | { kind: "task.amended"; task: string; fields: string[]; by: string }
   | { kind: "task.done" | "review.done"; task: string; outcome: string; commit: string | undefined }
-  | { kind: "task.accepted"; task: string; mode: "lane" }
   | { kind: "task.cut"; task: string; reason: string; kept: string | undefined }
   | { kind: "task.silent"; task: string; denied: string | null; refused: boolean }
   | { kind: "turn.silent"; task: string; denied: string | null; refused: boolean; lastCall: string }

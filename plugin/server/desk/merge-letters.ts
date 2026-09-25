@@ -20,12 +20,12 @@ export const mergeLetters = {
     return notes.length > 0 ? letter("Act on a note only if it matters to the lane.") : fyi(letter("Nothing now: the next hand-back arrives as mail."));
   },
 
-  /** The Lead's accept stands while the lane's copy is not clean: the task stays queued and merges once a turn ends with it clean. */
-  waits(task: Task, why: string, holder: string | undefined): Letter {
-    const text = `MERGE WAITS ${task.id} (${task.title}): ${why}. It merges by itself once ${holder ? "that work is committed" : "they are committed or cleared"}.`;
-    return holder
-      ? fyi(mail("merge", [task.id, Date.now()], text, "Nothing now: MERGED arrives as mail, and cut withdraws the task."))
-      : mail("merge", [task.id, Date.now()], text, "Have a task of the lane commit or clear them, or cut the task to withdraw it.");
+  /** The Lead's accept stands while something keeps the merge from its lane: the task stays queued and merges once that clears. `clears`, when that asks for the Lead. */
+  waits(task: Task, why: string, clears: boolean): Letter {
+    const text = `MERGE WAITS ${task.id} (${task.title}): ${why}. It merges by itself once that clears, tried again as each turn ends.`;
+    return clears
+      ? mail("merge", [task.id, Date.now()], text, "Have what is left there committed or cleared, or cut the task to withdraw it.")
+      : fyi(mail("merge", [task.id, Date.now()], text, "Nothing now: MERGED arrives as mail, and cut withdraws the task."));
   },
 
   /** Its gate failed on its branch with the lane brought in: `run` is the failing run when this merge ran it, and none when its hand-back did. */

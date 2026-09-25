@@ -71,5 +71,6 @@ export function gateNote(project: Project, task?: { handback?: { gate?: { ok: bo
   if (!config.gate) return "none set";
   if (config.gateOn !== "task") return "not run on merges, so the lane branch can break between reports; it runs on the whole lane when you report it ready";
   const ran = task?.handback?.gate;
-  return ran ? `ran on this task: ${ran.note}${ran.ok ? "" : ran.over ? ` — merged over it: ${ran.over}` : " — accepted over it"}` : "did not run on this task: it was not handed back while the project gated each task";
+  // A red gate merges only over its Lead's word, so a red one here always carries the reason.
+  return ran ? `ran on this task: ${ran.note}${ran.ok ? "" : ` — merged over it: ${ran.over}`}` : "did not run on this task: it was not handed back while the project gated each task";
 }

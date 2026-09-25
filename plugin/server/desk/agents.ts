@@ -1,4 +1,5 @@
 import { type RoleSpec, providerId } from "../catalog/kit.ts";
+import { contains, dropMerged } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import type { DeskContext } from "./context.ts";
 import { letGo } from "./gone.ts";
@@ -74,7 +75,9 @@ export class Agents {
   /** `into` is the branch the task's work was to land in: its own branch goes only once it is in there. */
   async retire(project: Project, task: Task, into?: string): Promise<string | undefined> {
     await letGo(this.ctx, this.roster, project, task.peer);
-    if (task.kind !== "code" || task.mode !== "parallel") return undefined;
+    if (task.kind !== "code") return undefined;
+    // A task in the lane's copy leaves only its branch: dropped once `into` holds all of it, kept and named while it holds more.
+    if (task.mode !== "parallel") return task.branch && into && !(await dropMerged(project.root, task.branch, into)) && (await contains(project.root, into, task.branch)) === false ? task.branch : undefined;
     // Everyone sharing the copy, not only this Peer: a reviewer reads from it too, and removing it loses the verdict.
     const sharing = task.slot
       ? Object.values(loadLedger(project.state).tasks).filter((other) => other.id !== task.id && other.slot === task.slot && other.status === "running")

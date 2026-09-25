@@ -29,7 +29,7 @@ export function waitsFor(ledger: Ledger, after: string[], onBranch: boolean): La
   return pending;
 }
 
-/** Why a task cannot wait on these, or the tasks of them still to be accepted; only code tasks of its own lane count. */
+/** Why a task cannot wait on these, or the tasks of them still to be merged; only code tasks of its own lane count. */
 export function taskWaitsFor(ledger: Ledger, lane: string, after: string[]): Task[] | string {
   const find = (id: string) => (ledger.tasks[id]?.lane === lane && ledger.tasks[id].kind === "code" ? ledger.tasks[id] : undefined);
   return awaiting(after, find, (task) => task.status === "merged", (task) => (task.status === "cut" ? `${task.id} was cut` : undefined), "task in this lane");
@@ -71,7 +71,7 @@ export async function openWaiting(desk: DeskServices, project: Project, retryHel
 }
 
 /**
- * The same for tasks, in open lanes: an accepted or cut task frees what held one, a round does not. The tasks in
+ * The same for tasks, in open lanes: a merged or cut task frees what held one, a round does not. The tasks in
  * `answered` belong to the call running this, whose reply already says what became of each, so no letter repeats it.
  */
 export async function startWaiting(desk: DeskServices, project: Project, retryHeld: boolean, answered: ReadonlySet<string> = new Set()): Promise<void> {
@@ -92,7 +92,7 @@ export async function startWaiting(desk: DeskServices, project: Project, retryHe
 async function releaseTask(desk: DeskServices, project: Project, lane: Lane, task: Task, told: boolean): Promise<Holding | undefined> {
   const parallel = task.mode === "parallel";
   const serial = parallel ? await serialIn(desk.ctx.kit, project, lane.worktree!) : [];
-  const startSha = parallel ? undefined : await headSha(lane.worktree!);
+  const startSha = parallel ? undefined : await headSha(lane.worktree!, lane.branch);
   const claimed = desk.ctx.transact(project, (ledger): Task | Refusal | undefined => {
     const entry = ledger.tasks[task.id];
     const now = ledger.lanes[lane.id];
@@ -107,7 +107,7 @@ async function releaseTask(desk: DeskServices, project: Project, lane: Lane, tas
   if (!claimed) return undefined;
   if ("why" in claimed) return { why: claimed.why, next: "It starts by itself once that clears; amend it, or cut it to drop it." };
   const started = await startPeer(desk, project, lane, claimed, { role: claimed.opening!.role, parent: lane.lead, failed: "wait" });
-  if (typeof started === "string") return { why: started, next: "It is tried again when a task is accepted or cut; cut it to drop it.", tried: true };
+  if (typeof started === "string") return { why: started, next: "It is tried again when a task is merged or cut; cut it to drop it.", tried: true };
   desk.ctx.setTask(project, task.id, (entry) => {
     delete entry.held;
   });

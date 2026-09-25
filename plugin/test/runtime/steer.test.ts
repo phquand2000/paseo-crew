@@ -14,7 +14,7 @@ test("mail a call brings about is not steered into the caller's turn until the c
   h.commit(worktree!, "a.txt", "A\n");
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   h.agents.get(peer)!.status = "idle";
-  // As seen live: a Lead well into a long turn accepts, and the acceptance mails it MERGED at once.
+  // As seen live: a Lead well into a long turn accepts, and the merge mails it MERGED before that turn ends.
   const seat = h.agents.get(lead!)!;
   seat.status = "running";
   h.runtime.outbox.turnStarted(lead!, Date.now() - 2 * 60_000);
@@ -24,7 +24,8 @@ test("mail a call brings about is not steered into the caller's turn until the c
   writeFileSync(join(spool, "requests", "call-1.json"), JSON.stringify({ id: "call-1", agent: lead, role: "lead", tool: "accept", args: { task: "L1-T1" }, cwd: h.root, at: Date.now() }));
   (h.runtime as unknown as { serveSpool(): void }).serveSpool();
   for (let i = 0; i < 100 && !existsSync(replyFile); i++) await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.match(readFileSync(replyFile, "utf-8"), /L1-T1 is accepted/);
+  assert.match(readFileSync(replyFile, "utf-8"), /L1-T1 is in the merge queue/);
+  await h.runtime.desk.settled(h.project);
   const merged = () => [...seat.steered, ...seat.sent].filter((text) => /MERGED L1-T1/.test(text));
   assert.deepEqual(merged(), [], "a text arriving while a call waits is taken as the call being cut short");
   await h.tick();

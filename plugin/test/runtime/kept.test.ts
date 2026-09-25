@@ -8,7 +8,7 @@ type Harness = ReturnType<typeof harness>;
 
 const task = (key: string, title: string, path = "a.txt", extra: Record<string, unknown> = {}) => ({ key, title, goal: "g", acceptance: ["a"], ...(extra.parallel ? { holds: [path] } : { hints: [path] }), outOfScope: ["the rest of the repository"], ...extra });
 
-/** The Peer commits `text` to `file` in the lane's copy and hands its task back, and the Lead accepts it. */
+/** The Peer commits `text` to `file` in the lane's copy and hands its task back, and the Lead accepts it and it merges. */
 async function acceptWork(h: Harness, lead: string, peer: string, id: string, file = "a.txt", text = `${id}\n`) {
   h.commit(h.ledger().lanes.L1!.worktree!, file, text);
   const done = await h.call(peer, "peer", "done", { outcome: "complete", summary: text.trim() });
@@ -16,6 +16,8 @@ async function acceptWork(h: Harness, lead: string, peer: string, id: string, fi
   await h.idle(peer);
   const accepted = await h.call(lead, "lead", "accept", { task: id });
   assert.equal(accepted.ok, true, accepted.text);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks[id]!.status, "merged");
   return accepted.text;
 }
 
@@ -25,12 +27,12 @@ test("a Peer whose task is accepted stays until its Lead releases it, and never 
   const { h, lane, peer } = await laneWithPeer();
   const lead = lane.lead!;
   assert.equal((await h.call(lead, "lead", "add_tasks", { tasks: [task("u", "Second", "a.txt", { after: ["L1-T1"] })] })).ok, true);
-  assert.match(await acceptWork(h, lead, peer, "L1-T1"), /Its Peer stays until you release it\./);
+  assert.match(await acceptWork(h, lead, peer, "L1-T1"), /^L1-T1 is in the merge queue\./);
   const second = h.ledger().tasks["L1-T2"]!;
   assert.equal(second.status, "running");
   assert.notEqual(second.peer, peer, "a task never goes to a Peer that worked another");
   assert.deepEqual(live(h), [peer, second.peer], "and the Peer kept is not let go for it");
-  assert.match(h.heard(lead).join("\n"), new RegExp(`Started L1-T2 in the lane's working copy on ${lane.branch} with Peer ${second.peer}\\.`));
+  assert.match(h.heard(lead).join("\n"), new RegExp(`Started L1-T2 in the lane's working copy on ${second.branch} with Peer ${second.peer}\\.`));
   assert.match((await h.call(lead, "lead", "status", {})).text, new RegExp(`- L1-T1 Clean build: merged, hand-back \\d+ min ago; its Peer ${peer} idle \\d+ min is kept until you release it`));
 });
 
@@ -44,6 +46,15 @@ test("Peers are kept one for each accepted task, each until its Lead releases it
   assert.deepEqual(live(h), [peer, second]);
   const status = (await h.call(lead, "lead", "status", {})).text;
   for (const [id, seat] of [["L1-T1", peer], ["L1-T2", second]]) assert.match(status, new RegExp(`- ${id} [^:]+: merged, hand-back \\d+ min ago; its Peer ${seat} idle \\d+ min is kept until you release it`));
+});
+
+test("a task in the merge queue keeps its Peer until it has merged", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  // Accepted on record, and not yet taken up by the merge queue.
+  h.runtime.desk.moveTask(h.project, "L1-T1", "queue");
+  assert.equal((await h.call(lane.lead!, "lead", "release", { task: "L1-T1" })).text, "L1-T1 is in the merge queue: release its Peer once MERGED arrives.");
 });
 
 test("the Lead releases the Peer kept from an accepted task; not while the task runs", async () => {
@@ -161,7 +172,8 @@ test("the Lead sends an accepted task back to the Peer kept on it, which fixes i
   const sent = await h.call(lead, "lead", "rework", { task: "L1-T1", text: "the lane review found the total off by one" });
   assert.equal(sent.ok, true, sent.text);
   const task = h.ledger().tasks["L1-T1"]!;
-  assert.deepEqual([task.status, task.peer, task.startSha], ["rework", peer, h.git(lane.worktree!, "rev-parse", "HEAD").trim()], "the same Peer, its work read from where the lane stands now");
+  assert.deepEqual([task.status, task.peer, h.git(lane.worktree!, "branch", "--show-current").trim()], ["rework", peer, task.branch], "the same Peer, on its own branch again");
+  h.git(lane.worktree!, "merge-base", "--is-ancestor", lane.branch, "HEAD");
   assert.equal(h.ledger().lanes.L1!.ready, undefined, "a lane with a task open again is not ready");
   await h.idle(peer);
   assert.match(h.heard(peer).join("\n"), /REWORK requested by your lead\n\nthe lane review found the total off by one/);

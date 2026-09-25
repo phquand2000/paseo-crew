@@ -14,7 +14,7 @@ import { type Pending, harness, ideCalls, laneWithPeer, repo } from "./harness.t
 test("a lane works serially in the project's own copy and hands it back on its base branch", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
+  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "lane" });
   const noLimits = await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"] });
   assert.equal(noLimits.ok, false);
   assert.match(noLimits.text, /needs outOfScope/);
@@ -41,7 +41,8 @@ test("a lane works serially in the project's own copy and hands it back on its b
   assert.equal(t1.ok, true, t1.text);
   const task1 = h.ledger().tasks["L1-T1"]!;
   assert.equal(h.agents.get(task1.peer!)!.cwd, slot.path);
-  assert.equal(task1.branch, lane.branch);
+  assert.match(task1.branch!, /^task\/l1-t1-/);
+  assert.equal(h.git(slot.path, "branch", "--show-current").trim(), task1.branch, "it writes on a branch of its own in the lane's copy");
   const blocked = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "More", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
   assert.equal(blocked.ok, true, blocked.text);
   assert.match(blocked.text, /L1-T2 More: held: L1-T1 is still writing in the lane's working copy, and it holds one writer at a time/);
@@ -57,6 +58,7 @@ test("a lane works serially in the project's own copy and hands it back on its b
   h.git(slot.path, "commit", "-qam", "add four");
   const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   assert.equal(accepted.ok, true, accepted.text);
+  await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
   assert.equal(h.agents.get(task1.peer!)!.archivedAt, null, "its Peer stays in the copy for the next task");
 
@@ -649,6 +651,7 @@ test("each project gets the agent and model its own settings choose, and the mac
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "done" });
   h.commit(h.root, "a.txt", "one\n");
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Pi peer", goal: "g", acceptance: ["a"], hints: ["b.txt"], outOfScope: ["the rest of the repository"] }] });
   const switched = h.agents.get(h.ledger().tasks["L1-T2"]!.peer!)!.provider;
   assert.equal(switched, "sw2-peer-pi/glm-5");
@@ -948,6 +951,7 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "four" });
   h.agents.get(peer)!.status = "idle";
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
 
   // The task is on the default, non-parallel path — the one where the task gate used to be skipped in silence.
   await h.idle(lane.lead!);
@@ -980,29 +984,6 @@ test("a red task gate reaches the Lead with the hand-back, and the lane takes it
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "accepted over the gate with a reason, it lands");
   assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/);
-});
-
-test("a commit made while the lane's copy is off its branch is not accepted as landed", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Regression", outcome: "the bug goes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Find it", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
-  const task = h.ledger().tasks["L1-T1"]!;
-
-  // What a bisect leaves behind: a clean copy, on no branch, with the fix committed into nothing.
-  h.git(lane.worktree!, "checkout", "-q", "--detach", "HEAD");
-  h.commit(lane.worktree!, "a.txt", "fixed at the source\n");
-  const handed = await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "found and fixed it" });
-  assert.equal(handed.ok, true, "the hand-back is not refused — the Peer is told, while it can still put it right");
-  assert.match(handed.text, new RegExp(`not on ${lane.branch} any more`));
-  assert.match(handed.text, /git bisect reset takes it back[^]*left it some other way, say so with ask/, "nothing else it may run puts a copy back");
-
-  h.agents.get(task.peer!)!.status = "idle";
-  const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  assert.equal(accepted.ok, false, "clean and detached is what the desk used to read as landed");
-  assert.match(accepted.text, /nothing committed in it is on the lane branch[^]*git bisect reset[^]*some other way[^]*raise it with ask/);
-  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:a.txt`), "one\ntwo\nthree\n", "and the lane branch really does not have it");
 });
 
 test("a task cannot be told to open a skill its Peer does not have", async () => {
@@ -1045,6 +1026,7 @@ test("a hand-back the Lead has not accepted still holds the lane's copy, so noth
 
   // With the second task never started, the copy is clean and the first accepts as it always did; the second then starts.
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "running");
 
   // And a rework that would wake a Peer into another task's writing is refused, not prescribed.
@@ -1067,10 +1049,11 @@ test("a task whose honest answer is that nothing needed changing can be accepted
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
 
   // The Peer investigates, finds the code already correct, and commits nothing. That is a real outcome.
-  await h.call(peer, "peer", "done", { outcome: "nothing needed changing", summary: "the parser already handles it" });
+  assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "nothing needed changing: the parser already handles it" })).ok, true);
   h.agents.get(peer)!.status = "idle";
   const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   assert.equal(accepted.ok, true, accepted.text);
+  await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "the Lead judges the hand-back; the desk does not decide that no diff means no work");
 
   await h.idle(lane.lead!);

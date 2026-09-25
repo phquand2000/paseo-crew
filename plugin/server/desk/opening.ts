@@ -1,9 +1,9 @@
 import { namedOrNot, roleNamed, roleThatCan } from "../catalog/kit.ts";
-import { headSha } from "../core/git.ts";
+import { dropMerged, headSha, switchTo } from "../core/git.ts";
 import type { SeatView } from "../core/paseo.ts";
 import { errorText } from "../core/errors.ts";
 import { firstOverlap, serialHits, serialReach } from "../core/scope.ts";
-import { TASK } from "../domain/task.ts";
+import { IN_QUEUE, TASK } from "../domain/task.ts";
 import type { Issue } from "./issue.ts";
 import { type Lane, type Ledger, type Task, activeTasks, loadLedger, ownCopyHolder } from "./ledger.ts";
 import { outside } from "../core/text.ts";
@@ -12,6 +12,7 @@ import { holderOf } from "./holder.ts";
 import { type Elsewhere, directiveFor, elsewhereText } from "./directive.ts";
 import { seatTitle } from "./names.ts";
 import { type Project, loadConfig } from "./project.ts";
+import { backOnLane } from "./sync.ts";
 import type { DeskServices } from "./services.ts";
 
 /** Why a lane cannot open, and what open_lane would do instead: the reason is shared, the advice is not. */
@@ -155,9 +156,13 @@ export function taskPlacement(ledger: Ledger, lane: Lane, holds: string[], paral
   if (!parallel) {
     const holder = holderOf(ledger, lane);
     if (!holder) return undefined;
-    return holder.status === "done"
-      ? { why: `${holder.id} has handed back and is waiting on you, and it still holds the lane's working copy — rework would wake its Peer in there.`, instead: "Accept or cut it first, or run this beside it in parallel, holding paths independent of it." }
-      : { why: `${holder.id} is still writing in the lane's working copy, and it holds one writer at a time.`, instead: `Pass after ${holder.id} to start this once it is accepted, or run this beside it in parallel, holding paths independent of it.` };
+    const beside = "or run this beside it in parallel, holding paths independent of it.";
+    if (holder.status === "done" || holder.status === "failed") {
+      const waits = holder.status === "done" ? "has handed back" : "failed to merge";
+      return { why: `${holder.id} ${waits} and is waiting on you, and it still holds the lane's working copy — rework would wake its Peer in there.`, instead: `Accept or cut it first, ${beside}` };
+    }
+    const doing = IN_QUEUE.includes(holder.status) ? "is in the merge queue, and holds the lane's working copy until it merges." : "is still writing in the lane's working copy, and it holds one writer at a time.";
+    return { why: `${holder.id} ${doing}`, instead: `Pass after ${holder.id} to start this once it is merged, ${beside}` };
   }
   return parallelProblem(ledger, lane, holds, serial);
 }
@@ -184,6 +189,9 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
       ctx.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
     } else {
       slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree!, workspaceId: lane.workspaceId };
+      // The lane's copy takes the task's own branch, made from the lane as it stands; the lane branch moves only by merges.
+      const refused = await switchTo(slot.path, task.branch!, task.startSha ?? lane.branch);
+      if (refused) throw new Error(`the lane's working copy could not go onto ${task.branch}: ${refused}`);
     }
     const peer = await agents.start(project, slot, how.role, {
       parent: how.parent,
@@ -198,7 +206,7 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
       current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id };
     });
     ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
-    return { peer, where: parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}` };
+    return { peer, where: parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${task.branch}` };
   } catch (error) {
     const taken = loadLedger(project.state).tasks[task.id]?.slot;
     ctx.setTask(project, task.id, (entry) => {
@@ -209,6 +217,7 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
       }
     });
     if (parallel) await slots.release(project, taken, task.branch, lane.branch);
+    else if (!(await backOnLane(lane))) await dropMerged(lane.worktree!, task.branch!, lane.branch);
     return `The Peer could not start: ${errorText(error)}`;
   } finally {
     ctx.seating.delete(seatingKey(project, task.id));

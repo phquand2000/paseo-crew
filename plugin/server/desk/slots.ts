@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addWorktree, branchExists, cleanState, contains, currentBranch, git, landedRef, mergeUnderWay, pristineState, removeWorktree } from "../core/git.ts";
+import { addWorktree, branchExists, cleanState, currentBranch, dropMerged, git, mergeUnderWay, pristineState, removeWorktree } from "../core/git.ts";
 import type { Workspace, Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
@@ -18,7 +18,6 @@ type Teardown = { project: Project; slot?: string; dropBranch?: string; into?: s
 export class Slots {
   private readonly ctx: DeskContext;
   private readonly workspaces: Workspaces;
-
 
   constructor(ctx: DeskContext, workspaces: Workspaces) {
     this.ctx = ctx;
@@ -86,7 +85,7 @@ export class Slots {
       this.ctx.log(project, `the project's own copy could not go back from ${branch} to ${from}: ${run.stderr.trim() || `git switch exited ${run.code}`}`);
       return;
     }
-    if ((await contains(project.root, from, branch)) === true) await git(project.root, ["branch", "-D", branch]);
+    await dropMerged(project.root, branch, from);
     this.ctx.event(project, { kind: "lane.unstarted", branch, from });
   }
 
@@ -100,13 +99,8 @@ export class Slots {
   async giveBack(project: Project, base: string, branch: string): Promise<void> {
     if (!(await this.restore(project, base, branch))) return;
     // Nothing committed on it: the branch is the desk's litter, and `release` keeps the other case for the Human.
-    if ((await contains(project.root, base, branch)) === true) await git(project.root, ["branch", "-D", branch]);
+    await dropMerged(project.root, branch, base);
     this.ctx.event(project, { kind: "lane.gaveBack", branch, base });
-  }
-
-  /** A landed lane's branch is all under its landed ref by now: the desk's to clear, not the Human's to keep. */
-  private async dropLanded(project: Project, branch: string, into: string): Promise<void> {
-    if ((await contains(project.root, into, branch)) === true) await git(project.root, ["branch", "-D", branch]);
   }
 
   async projectWorkspace(project: Project): Promise<Workspace> {
@@ -115,14 +109,14 @@ export class Slots {
   }
 
   /**
-   * Puts the project's own copy back on base and says whether it is there. A copy a later lane now owns counts
-   * as done; every other failure is logged, since the caller has already dropped the parked record.
+   * Puts the project's own copy back on base and says whether it is there. A copy a later lane now owns counts as done; every
+   * other failure is logged, since the caller has already dropped the parked record. `carry` takes work uncommitted along.
    */
-  async restore(project: Project, base: string, left?: string): Promise<boolean> {
+  async restore(project: Project, base: string, left?: string, carry = false): Promise<boolean> {
     if (left && (await currentBranch(project.root)) !== left) return true;
     // One under way here is the desk's own, left for the lane to settle: no seat may begin one, and the lane is closing without it.
     if (await mergeUnderWay(project.root)) await git(project.root, ["merge", "--abort"]);
-    const copy = await cleanState(project.root);
+    const copy = carry ? "clean" : await cleanState(project.root);
     if (copy !== "clean") {
       const why = copy === "dirty" ? "it has uncommitted changes" : "git could not read it";
       this.ctx.log(project, `the project's own working copy is still on ${left ?? "a lane branch"} and not back on ${base}: ${why}`);
@@ -150,7 +144,7 @@ export class Slots {
     } else if (teardown.lane) {
       this.ctx.transact(teardown.project, (ledger) => {
         const lane = ledger.lanes[teardown.lane!];
-        if (lane) lane.restoring = { writers: waiting, base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.dropBranch ? { landed: true } : {}) };
+        if (lane) lane.restoring = { writers: waiting, base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.into ? { into: teardown.into } : {}) };
       });
     }
     this.ctx.event(teardown.project, { kind: "slot.heldOpen", slot: teardown.slot ?? "in place", writers: waiting });
@@ -177,8 +171,8 @@ export class Slots {
         return entry && this.leftToWait(entry, stopped);
       });
       // The record goes only once the copy is really back: it is the only token a later round can retry from.
-      if (!restoring || !(await this.restore(project, restoring.base, restoring.branch))) continue;
-      if (restoring.landed) await this.dropLanded(project, restoring.branch, landedRef(lane.id));
+      if (!restoring || !(await this.restore(project, restoring.base, restoring.branch, lane.onBranch))) continue;
+      if (restoring.into) await dropMerged(project.root, restoring.branch, restoring.into);
       this.ctx.transact(project, (current) => {
         const entry = current.lanes[lane.id];
         if (entry) delete entry.restoring;
@@ -203,13 +197,14 @@ export class Slots {
   private run(teardown: Teardown): Promise<string | undefined> {
     if (teardown.slot) return this.release(teardown.project, teardown.slot, teardown.dropBranch, teardown.into);
     if (teardown.restore) {
+      const carry = teardown.lane ? loadLedger(teardown.project.state).lanes[teardown.lane]?.onBranch : undefined;
       // Recorded as a wait for nobody when it fails, so the round retries it and Detach sees it.
-      return this.restore(teardown.project, teardown.restore, teardown.branch).then(async (back) => {
-        if (back && teardown.dropBranch && teardown.into) await this.dropLanded(teardown.project, teardown.dropBranch, teardown.into);
+      return this.restore(teardown.project, teardown.restore, teardown.branch, carry).then(async (back) => {
+        if (back && teardown.dropBranch && teardown.into) await dropMerged(teardown.project.root, teardown.dropBranch, teardown.into);
         if (back || !teardown.lane) return undefined;
         this.ctx.transact(teardown.project, (ledger) => {
           const lane = ledger.lanes[teardown.lane!];
-          if (lane) lane.restoring = { writers: [], base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.dropBranch ? { landed: true } : {}) };
+          if (lane) lane.restoring = { writers: [], base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.into ? { into: teardown.into } : {}) };
         });
         return undefined;
       });
@@ -224,6 +219,8 @@ export class Slots {
     let kept: string | undefined;
     if (slot) {
       closeIndexes(this.ctx, project, slot);
+      // A lane's copy left on a task's branch: that branch goes with the copy once the lane branch has all of it.
+      const off = slot.lane && existsSync(slot.path) ? await currentBranch(slot.path) : undefined;
       if (existsSync(slot.path)) {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
@@ -231,11 +228,9 @@ export class Slots {
         this.discard(project, slot.path);
       }
       // A branch whose commits are not in `into` holds the only copy of that work: clutter is cheaper.
-      if (dropBranch) {
-        const landed = into ? (await contains(project.root, into, dropBranch)) === true : false;
-        if (landed) await git(project.root, ["branch", "-D", dropBranch]);
-        else kept = dropBranch;
-      }
+      if (dropBranch && !(into && (await dropMerged(project.root, dropBranch, into)))) kept = dropBranch;
+      const laneBranch = slot.lane ? loadLedger(project.state).lanes[slot.lane]?.branch : undefined;
+      if (off && laneBranch && off !== laneBranch && off !== dropBranch) await dropMerged(project.root, off, laneBranch);
       if (slot.workspaceId) {
         try {
           await this.workspaces.archive(slot.workspaceId);

@@ -10,7 +10,6 @@ const MOVES = {
   handBack: { from: IN_HAND, to: "done" },
   // An accepted task goes back to the Peer kept on it: it is that Peer's ticket until its Lead releases it.
   rework: { from: [...IN_HAND, "merged"], to: "rework" },
-  accept: { from: IN_HAND, to: "merged" },
   queue: { from: IN_HAND, to: "queued" },
   merge: { from: ["queued"], to: "merging" },
   requeue: { from: ["merging"], to: "queued" },
@@ -33,5 +32,6 @@ export const DECIDED: readonly TaskStatus[] = ["queued", "merging", "merged", "c
 export const SETTLED: readonly TaskStatus[] = ["merged", "cut"];
 export const IN_QUEUE: readonly TaskStatus[] = ["queued", "merging"];
 export const AT_WORK: readonly TaskStatus[] = ["running", "rework"];
-export const HOLDS_COPY: readonly TaskStatus[] = ["running", "rework", "done", "stalled"];
+// A task in the lane's copy has it on its own branch from its start until it is merged or cut, a failed merge included.
+export const HOLDS_COPY: readonly TaskStatus[] = ["running", "rework", "done", "failed", "stalled", "queued", "merging"];
 export const ACTIVE: readonly TaskStatus[] = ["running", "rework", "queued", "merging"];
