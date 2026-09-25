@@ -143,7 +143,7 @@ test("nothing is asked with the watch off or a sensor without its key, and a sen
   await handBack("third");
   const [unasked] = kept(h.project.state);
   assert.deepEqual([unasked!.subject, unasked!.unasked, unasked!.answers], ["L1-T1", "503: busy", undefined]);
-  assert.match(readFileSync(join(h.project.state, "events.log"), "utf-8"), /"kind":"watch\.unasked","subject":"L1-T1","by":"jev","error":"503: busy"/);
+  assert.deepEqual(h.events("watch.unasked").map(({ subject, by, error }) => [subject, by, error]), [["L1-T1", "jev", "503: busy"]]);
 
   rmSync(join(h.project.state, "assessments.log"));
   mkdirSync(join(h.project.state, "assessments.log"));
@@ -238,7 +238,7 @@ test("once the watch's window has lost the instruction, nothing that reads it is
   await pause();
 
   assert.deepEqual(asked, []);
-  assert.doesNotMatch(readFileSync(join(h.project.state, "events.log"), "utf-8"), /edit-before-look/);
+  assert.deepEqual(h.events("watch.fact").filter((event) => event.fact === "edit-before-look"), []);
 });
 
 test("the Flow tab says who answers the watch and how that stands: off, no key, nothing asked yet, answering, or failing", async () => {

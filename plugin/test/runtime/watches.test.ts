@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -99,6 +98,6 @@ test("a refusal from the desk reaches no one as a failed call, while a command t
   timeline.add({ type: "tool_call", callId: "r1", name: "mcp__team__done", status: "failed", detail: { type: "plain_text", label: "done", text: refusal }, error: { message: "Tool call failed" } }, "t1");
   timeline.add({ type: "tool_call", callId: "c1", name: "Bash", status: "failed", detail: { type: "shell", command: "cat ./missing.txt", output: "" } }, "t1");
   await settle();
-  const facts = readFileSync(join(h.project.state, "events.log"), "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((event) => event.kind === "watch.fact");
+  const facts = h.events("watch.fact");
   assert.deepEqual(facts.map((event) => [event.fact, event.quote]), [["call-failed", "Bash: cat ./missing.txt"]]);
 });

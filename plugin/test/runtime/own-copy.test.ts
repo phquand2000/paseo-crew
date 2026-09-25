@@ -199,7 +199,7 @@ test("carrying on a branch is refused where there is none to carry on, and a fai
   assert.equal(failed.ok, false, failed.text);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login", "still on the Human's branch");
   assert.match(h.git(h.root, "branch", "--list", "fix/login"), /fix\/login/, "and it was not deleted");
-  assert.doesNotMatch(readFileSync(join(h.project.state, "events.log"), "utf-8"), /lane\.gaveBack/, "nor was it ever handed to the undo made for a lane branch");
+  assert.deepEqual(h.events("lane.gaveBack"), [], "nor was it ever handed to the undo made for a lane branch");
 
   writeFileSync(join(h.root, "b.txt"), "bee, half done\n");
   const alone = await h.call(sup, "supervisor", "open_lane", { title: "Alone", ...scope, newBranch: "fix/login-2" });

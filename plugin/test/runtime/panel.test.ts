@@ -38,15 +38,12 @@ test("a desk call the harness refused for bad JSON is recorded, though it never 
     detail: { type: "unknown", input: { __unparsedToolInput: { raw: '{"title": "Build"' } }, output: null },
   });
   // The call never reached the desk and no watch follows the Supervisor, so this log is its only record.
-  const log = readFileSync(join(h.project.state, "events.log"), "utf-8");
-  assert.match(log, /"kind":"call\.malformed"/);
-  assert.match(log, /"tool":"mcp__team__open_lane"/);
-  assert.match(log, /"role":"supervisor"/, "the Supervisor is the one role no watch follows, so this is the only way it is ever said");
-  assert.equal(log.match(/"ok":false/g), null, "and no failed desk call was recorded, because the desk was never reached");
+  assert.deepEqual(h.events("call.malformed").map(({ tool, role }) => [tool, role]), [["mcp__team__open_lane", "supervisor"]], "the Supervisor is the one role no watch follows, so this is the only way it is ever said");
+  assert.deepEqual(h.events("tool").filter((event) => !event.ok), [], "and no failed desk call was recorded, because the desk was never reached");
 
   // Paseo hands the hook the whole session, so the next turn carries the same failed call again.
   await h.endTurn(sup, "Now the task.", { type: "tool_call", callId: "c2", name: "status", status: "completed", detail: {} });
-  assert.equal(readFileSync(join(h.project.state, "events.log"), "utf-8").match(/"kind":"call\.malformed"/g)!.length, 1);
+  assert.equal(h.events("call.malformed").length, 1);
 
   // No letter carries it, so the panel is where it is seen.
   const view = await h.rpc(contracts.flow, { project: h.project.slug });

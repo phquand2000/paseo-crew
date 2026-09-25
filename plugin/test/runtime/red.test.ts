@@ -53,8 +53,7 @@ test("a red task is accepted again only over its gate, with a reason, and then m
   assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:y.txt`), "y.txt\n");
   await h.idle(lane.lead!);
   assert.match(letters(h, lane.lead!).split("MERGED L1-T3")[1] ?? "", /Gate: ran on this task: test ! -f x\.txt \|\| test ! -f y\.txt: the gate failed with exit 1 — merged over it: y replaces x next task/);
-  const events = readFileSync(join(h.project.state, "events.log"), "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
-  assert.ok(events.some((event) => event.kind === "gate.overridden" && event.task === "L1-T3" && event.reason === "y replaces x next task"));
+  assert.ok(h.events("gate.overridden").some((event) => event.task === "L1-T3" && event.reason === "y replaces x next task"));
 });
 
 test("a task whose lane has not moved since its hand-back merges on that verdict, and the gate does not run again", async () => {

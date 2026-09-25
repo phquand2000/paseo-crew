@@ -18,5 +18,5 @@ test("a Lead keeps a page in a folder its role writes under the project's state,
   assert.match((await note({ kind: "gates", name: "x.md", text: "t" })).text, /gates is no folder you keep pages in: plans, council, ultra-review, repo-refresh\./);
   assert.match((await note({ kind: "..", name: "ledger.json", text: "{}" })).text, /\.\. is no folder you keep pages in/);
   assert.match((await note({ kind: "plans", name: "../ledger.json", text: "{}" })).text, /\.\.\/ledger\.json is not one file name/);
-  assert.match(readFileSync(join(h.project.state, "events.log"), "utf-8"), /"kind":"note\.written","file":"plans\/cart-plan\.md","by":"[^"]+","replaced":true/);
+  assert.deepEqual(h.events("note.written").map(({ file, replaced }) => [file, replaced]), [["plans/cart-plan.md", false], ["plans/cart-plan.md", true]]);
 });

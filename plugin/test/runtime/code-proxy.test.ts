@@ -11,7 +11,7 @@ test("the IDE server carries the navigation rule, lists only the role's tools an
   const code = await proxy(repo(), ideConfig(ide.url, ["ide_find_references"]));
   try {
     assert.equal(code.client.getServerVersion()?.name, "intellij-index");
-    assert.match(code.client.getInstructions() ?? "", /prefer using intellij-index MCP tools for code navigation and refactoring/);
+    assert.equal(code.client.getInstructions(), entry("intellij-index").instructions, "the catalog's rule, as the catalog words it");
     const listed = await code.client.listTools();
     assert.deepEqual(listed.tools.map((tool: { name: string }) => tool.name), ["ide_find_references"]);
     assert.equal((listed.tools[0]!.inputSchema.properties as Record<string, unknown>).project_path, undefined);
@@ -34,11 +34,12 @@ test("an IDE call is pinned to the working copy, a preset that opens it does so 
     assert.deepEqual(work(ide.calls), ["ide_find_references", "ide_open_project", "ide_find_references"]);
     assert.equal(ide.calls.find((call) => call.name === "ide_open_project")!.args.path, cwd);
     assert.match(readFileSync(join(cwd, ".git", "info", "exclude"), "utf-8"), /^\.idea\/$/m);
+    // Each backend error is answered with the reply the catalog gives for it.
+    const catalogReply = (backendSaid: string, tool: string) => (entry("intellij-index").proxy.errors as { when: string; reply: string }[]).find((error) => new RegExp(error.when, "i").test(backendSaid))!.reply.replaceAll("{tool}", tool);
     const off = await code.call("ide_find_symbol", { query: "x" });
-    assert.equal(off.isError, true);
-    assert.match(off.content[0]!.text, /switched off/);
+    assert.deepEqual([off.isError, off.content[0]!.text], [true, catalogReply("Tool ide_find_symbol not found", "ide_find_symbol")]);
     const broken = await code.call("ide_diagnostics", { file: "a.ts" });
-    assert.match(broken.content[0]!.text, /language server plugin inside the IDE failed/);
+    assert.equal(broken.content[0]!.text, catalogReply("CannotStartProcessException", "ide_diagnostics"));
   } finally {
     await code.stop();
     ide.close();

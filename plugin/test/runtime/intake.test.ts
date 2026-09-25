@@ -80,7 +80,7 @@ test("a waiting lane whose turn comes while an open lane writes its paths is hel
   await h.call(sup, "supervisor", "open_lane", { title: "Aside", outcome: "aside", ...scope, writeSet: [".idea/misc.xml"], isolate: true });
   h.agents.get(h.ledger().lanes.L4!.lead!)!.status = "idle";
   await h.call(sup, "supervisor", "drop_lane", { lane: "L4", reason: "no longer wanted" });
-  const told = readFileSync(join(h.project.state, "events.log"), "utf-8").split("\n").filter((line) => line.includes('"lane.held"') && line.includes('"L3"'));
+  const told = h.events("lane.held").filter((event) => event.lane === "L3");
   assert.equal(told.length, 1, "tried again when a lane closed, held for the same reason, and not told twice");
   await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "no longer wanted" });
   assert.equal(h.ledger().lanes.L3!.status, "open", "the close that freed its paths opens it");
@@ -197,7 +197,7 @@ test("a waiting lane that cannot start is held with why, and a patrol round does
 
   assert.match(h.ledger().lanes.L2!.held?.why ?? "", /peer that can lead a lane|can lead a lane/);
   assert.match(h.ledger().lanes.L3!.held?.why ?? "", /its base branch gone-base no longer exists/);
-  const taken = () => readFileSync(join(h.project.state, "events.log"), "utf-8").split("\n").filter((line) => line.includes('"slot.taken"')).length;
+  const taken = () => h.events("slot.taken").length;
   const before = taken();
   await h.tick(Date.now());
   await h.tick(Date.now());
@@ -208,6 +208,7 @@ test("a waiting lane that cannot start is held with why, and a patrol round does
   await h.tick(Date.now());
   assert.deepEqual([h.ledger().lanes.L2!.status, h.ledger().lanes.L3!.status], ["waiting", "open"], "a round opens the lane whose base came back, with no lane closing");
   assert.equal(h.ledger().lanes.L3!.held, undefined);
+  assert.equal(taken(), before + 1, "and takes its copy then, once");
 });
 
 test("a lane waiting to carry on a branch is held if the Human's copy has moved off it by its turn", async () => {

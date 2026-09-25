@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { settle } from "./fake-timeline.ts";
@@ -135,7 +135,7 @@ test("the watch reads a Peer in the lane's copy against the lane's write set, an
   write("L1-T1", "d.txt", "w2");
   write("L1-T2", "b.txt", "w3");
   await settle();
-  const facts = readFileSync(join(h.project.state, "events.log"), "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((event) => event.kind === "watch.fact" && event.fact === "outside-scope");
+  const facts = h.events("watch.fact").filter((event) => event.fact === "outside-scope");
   const peers = ["L1-T1", "L1-T2"].map((id) => h.ledger().tasks[id]!.peer!);
   assert.deepEqual(facts.map((event) => `${peers.indexOf(event.agent)} ${event.quote.split("/").at(-1)}`).sort(), ["0 d.txt", "1 b.txt"]);
 });

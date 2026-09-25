@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { configFile } from "../../server/desk/project.ts";
@@ -144,6 +144,5 @@ test("a landing the Human approves twice at once lands once, and the second appr
   const [first, second] = await Promise.all([once(), once()]);
   assert.deepEqual(["decided" in first, "decided" in second].sort(), [false, true]);
   assert.match("error" in first ? first.error : "error" in second ? second.error : "", /has no landing waiting for your approval/);
-  const events = readFileSync(join(h.project.state, "events.log"), "utf-8").split("\n").filter((line) => line.includes('"lane.closed"'));
-  assert.equal(events.length, 1, "closed once");
+  assert.equal(h.events("lane.closed").length, 1, "closed once");
 });

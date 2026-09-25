@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type TestContext, afterEach } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import { type SensorSpec, loadKit } from "../../server/catalog/kit.ts";
 import { applyModels } from "../../server/catalog/models.ts";
 import { stateRoot } from "../../server/core/paths.ts";
 import type { HookAgent, Judge, TimelineItem } from "../../server/core/ports.ts";
+import type { DeskEvent } from "../../server/desk/events.ts";
 import { loadLedger } from "../../server/desk/ledger.ts";
 import { type Project, projectOf } from "../../server/desk/project.ts";
 import { registerRpc } from "../../server/runtime/rpc.ts";
@@ -243,6 +244,12 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     git(root, "worktree", "remove", "--force", copy);
   };
   const ledger = (of: Project = project) => loadLedger(of.state);
+  // What the desk recorded of one kind, each line read as the event it is rather than matched as text.
+  const events = <K extends DeskEvent["kind"]>(kind: K, of: Project = project): Extract<DeskEvent, { kind: K }>[] => {
+    const file = join(of.state, "events.log");
+    if (!existsSync(file)) return [];
+    return readFileSync(file, "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line) as DeskEvent).filter((event): event is Extract<DeskEvent, { kind: K }> => event.kind === kind);
+  };
   // What a seat has been sent and what waits for it: word that asks nothing rides along with its next letter.
   const heard = (id: string) => [...agents.get(id)!.sent, ...runtime.outbox.pending(id).map((letter) => letter.text)];
   const tick = (now?: number) => (runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick(now);
@@ -283,6 +290,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     commit,
     commitTo,
     ledger,
+    events,
     heard,
     endTurn,
     tick,
