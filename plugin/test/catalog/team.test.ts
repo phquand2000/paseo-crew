@@ -8,7 +8,7 @@ import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
 const kit = makeKit();
-const context = { node: "/bin/node", spool: "/spool" };
+const context = { node: "/bin/node", socket: "/desk.sock" };
 
 test("with no settings every role gets its catalog defaults and the MCP servers enabled by default", () => {
   const team = resolveTeam(kit);
@@ -179,7 +179,7 @@ test("a server that needs something the project lacks is left off its seats, wit
   assert.equal(served.mcp.ide!.enabled, false, "and the desk does not open the project in it either");
   assert.doesNotMatch(rulesFor(served, "peer"), /IDE|diagnostics/);
   assert.equal(skillDirsFor(served, "peer").has("ide-guide"), false);
-  assert.equal(serversFor(kit, served, "peer", { node: "node", spool: "/s" }).ide, undefined);
+  assert.equal(serversFor(kit, served, "peer", { node: "node", socket: "/desk.sock" }).ide, undefined);
 
   const opened = tempDir("sw2-idea-");
   mkdirSync(join(opened, ".idea"));

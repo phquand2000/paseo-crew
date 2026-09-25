@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { runGate } from "../../server/core/gate.ts";
@@ -12,7 +12,6 @@ import { type Letter, letters } from "../../server/desk/letters.ts";
 import { landLetters } from "../../server/desk/land-letters.ts";
 import { mergeLetters } from "../../server/desk/merge-letters.ts";
 import { reviewBrief, taskBrief } from "../../server/desk/briefs.ts";
-import { takeRequests, writeReply } from "../../server/runtime/spool.ts";
 import { hiddenWordsIn } from "../../server/catalog/hidden-words.ts";
 import type { Question } from "../../server/domain/question.ts";
 import { loadKit } from "../../server/catalog/kit.ts";
@@ -156,17 +155,6 @@ test("issue references resolve to gh arguments", () => {
   assert.deepEqual(issueArgs("acme/shop#7"), ["issue", "view", "7", "-R", "acme/shop"]);
   assert.deepEqual(issueArgs("https://github.com/acme/shop/issues/9"), ["issue", "view", "9", "-R", "acme/shop"]);
   assert.equal(issueArgs("fix the bug"), undefined);
-});
-
-test("the spool hands each request over once and replies by id", () => {
-  const spool = tempDir("sw2-spool-");
-  const request = { id: "r1", agent: "a", role: "peer", tool: "done", args: {}, cwd: "/", at: Date.now() };
-  writeReply(spool, "warmup", { ok: true, text: "" });
-  writeFileSync(join(spool, "requests", "r1.json"), JSON.stringify(request));
-  assert.deepEqual(takeRequests(spool).map((entry) => entry.id), ["r1"]);
-  assert.deepEqual(takeRequests(spool), []);
-  writeReply(spool, "r1", { ok: true, text: "handed back" });
-  assert.equal(JSON.parse(readFileSync(join(spool, "replies", "r1.json"), "utf-8")).text, "handed back");
 });
 
 test("the gate reports exit, output tail and timeouts", async () => {

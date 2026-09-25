@@ -1,7 +1,7 @@
 {
   "name": "seatworks-v2-paseo-plugin",
   "private": true,
-  "version": "3.0.0-dev.44",
+  "version": "3.0.0-dev.45",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json",
@@ -10,6 +10,8 @@
     "eval:triggers": "node test/skills/run-triggers.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "2.1.0",
+    "@modelcontextprotocol/server": "2.1.0",
     "smol-toml": "^1.8.0",
     "zod": "^4.6.4"
   },

@@ -132,7 +132,7 @@ test("an answer promised as mail that a stop lost is owned up to once the plugin
   await h.call(sup, "supervisor", "set_project", { gate: "sleep 1" });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lead = h.ledger().lanes.L1!.lead!;
-  const report = (id: string) => h.runtime.desk.answer({ id, agent: lead, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() }, 100);
+  const report = (id: string) => h.runtime.desk.answer({ id, agent: lead, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() }, { within: 100 });
   const told = () => h.agents.get(lead)!.sent.join("\n").split("NO ANSWER to your report call").length - 1;
 
   // Told to end its turn and wait for the answer as mail, and the plugin stopped before its gate did.

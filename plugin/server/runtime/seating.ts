@@ -10,7 +10,7 @@ import type { Project } from "../desk/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { errorText } from "../core/errors.ts";
 
-type SeatContext = { node: string; spool: string };
+type SeatContext = { node: string; socket: string };
 
 export class Seating {
   private readonly kit: Kit;
@@ -24,8 +24,8 @@ export class Seating {
     this.context = context;
   }
 
-  servers(team: Team, roleName: string): McpServers {
-    return serversFor(this.kit, team, roleName, this.context);
+  servers(team: Team, roleName: string, key?: string): McpServers {
+    return serversFor(this.kit, team, roleName, this.context, key);
   }
 
   ensure(roleName: string, harness: HarnessSpec, project?: Project): Team {

@@ -15,7 +15,7 @@ import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
 const project = { root: "/work/shop", slug: "shop-abc123", state: "/state/shop" };
-const context = { node: "/bin/node", spool: "/spool" };
+const context = { node: "/bin/node", socket: "/desk.sock" };
 
 test("a Claude seat per project writes shared plus role settings, links skills, clears MCP files and writes the rules to CLAUDE.md", () => {
   const kit = makeKit();
@@ -166,7 +166,8 @@ test("a harness with TOML config files gets its layered settings and its MCP ser
   const mcp = parse(readFileSync(join(dir, "mcp.toml"), "utf-8")) as Record<string, any>;
   // The seat is told which role it is and which tool set it holds, so two roles can share one set.
   assert.equal(mcp.mcp_servers.team.command, "/bin/node");
-  assert.deepEqual(mcp.mcp_servers.team.args, [join(kit.dir, "mcp", "team.mjs"), "peer", "peer", "/spool", "{}"]);
+  assert.deepEqual(mcp.mcp_servers.team.args, [join(kit.dir, "mcp", "team.mjs"), "peer", "peer", "/desk.sock"]);
+  assert.equal(mcp.mcp_servers.team.env, undefined, "a file every seat of its kind reads holds no seat's key");
   assert.equal(mcp.mcp_servers.docs.url, "https://docs.example/mcp");
   assert.deepEqual(materialize(kit, team, "peer", home, project, servers), []);
 });

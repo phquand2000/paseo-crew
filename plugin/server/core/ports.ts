@@ -84,11 +84,11 @@ export type AgentConfig = {
   providerOptions?: Record<string, unknown>;
 };
 
-export type SessionOpen = { provider: string; cwd: string; env: Record<string, string> };
+export type SessionOpen = { agentId: string; reason: "create" | "resume" | "refresh" | "import"; provider: string; cwd: string; env: Record<string, string> };
 
 /** What the plugin does on each Paseo hook. */
 export type HostHooks = {
-  create(config: AgentConfig): AgentConfig;
+  create(config: AgentConfig, env: Record<string, string>): { config: AgentConfig; env: Record<string, string> };
   sessionOpen(request: SessionOpen): SessionOpen;
   turnStarted(agent: HookAgent): Promise<void>;
   turnEnded(event: TurnEnded): Promise<void>;

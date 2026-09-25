@@ -12,7 +12,7 @@ import { desiredProvider, seatPairs } from "../../server/catalog/providers.ts";
 import { materialize, placeGuides, seatDir, seedRecords } from "../../server/catalog/seats.ts";
 import { git } from "../../server/core/git.ts";
 import { guidesDir, stateRoot } from "../../server/core/paths.ts";
-import { serversFor } from "../../server/catalog/servers.ts";
+import { choicesFor, serversFor } from "../../server/catalog/servers.ts";
 import { resolveTeam, withHarness } from "../../server/catalog/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";
 import { realProbes } from "../../server/runtime/doctor.ts";
@@ -38,7 +38,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   for (const [name, seat] of Object.entries(team.roles)) {
     const { role, harness } = seat;
     const where = project;
-    materialize(kit, team, name, home, where, serversFor(kit, team, name, { node: "/bin/node", spool: "/spool" }));
+    materialize(kit, team, name, home, where, serversFor(kit, team, name, { node: "/bin/node", socket: "/desk.sock" }));
     const dir = seatDir(kit, role, harness, home, where);
     assert.ok(existsSync(join(dir, harness.skillsDir)), `${name} skills dir`);
     for (const on of Object.keys(kit.harnesses)) assert.doesNotMatch(renderPrompt(kit, role, on, { guides: "/guides", state: "/state" }), /\{\{/, `${name} prompt on ${on} has no placeholder left`);
@@ -81,7 +81,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       continue;
     }
     const team = withHarness(base, role.role, harness);
-    materialize(kit, team, role.role, home, project, serversFor(kit, team, role.role, { node: "/bin/node", spool: "/spool" }));
+    materialize(kit, team, role.role, home, project, serversFor(kit, team, role.role, { node: "/bin/node", socket: "/desk.sock" }));
     const dir = seatDir(kit, role, harness, home, project);
     const settings = readConfig<Record<string, any>>(join(dir, harness.settings.file), {});
     const where = `${role.role} on ${harness.id}`;
@@ -214,7 +214,7 @@ test("a Codex seat runs on the model provider the owner's own Codex names, and o
 test("a Codex seat has every desk and proxy tool it is given approved ahead, and other agents get no such list", () => {
   const kit = loadKit(pluginRoot);
   const all = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
-  const context = { node: "/bin/node", spool: "/spool" };
+  const context = { node: "/bin/node", socket: "/desk.sock" };
   const codex = withHarness(all, "lead", kit.harnesses.codex!);
   const servers = serversFor(kit, codex, "lead", context);
   const config = { provider: providerId(kit, "lead", "codex"), cwd: "/work/repo" } as AgentConfig;
@@ -383,7 +383,7 @@ test("a pasted server that names no roles is given to every role that works with
 test("the desk names each seat's fixed choices from the kit: who writes and with which skills, who reviews, who leads, where its pages go", () => {
   const kit = loadKit(pluginRoot);
   const team = resolveTeam(kit);
-  const choices = (role: string) => JSON.parse((serversFor(kit, team, role, { node: "/bin/node", spool: "/spool" }).team as { args: string[] }).args[4]!);
+  const choices = (role: string) => choicesFor(kit, team, role);
   const skills = readdirSync(join(pluginRoot, "content", "skills", "peer")).sort();
   assert.deepEqual(choices("lead"), { add_tasks: { role: ["peer"], skills }, start_review: { role: ["reviewer"] }, note: { kind: ["plans", "council", "ultra-review", "repo-refresh"] } });
   assert.deepEqual(choices("supervisor"), { open_lane: { role: ["lead"] } });

@@ -475,7 +475,7 @@ test("a call that runs longer than a seat can wait is answered by mail, and call
   const request = { id: "r1", agent: lane.lead!, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() };
 
   // The bridge waits five minutes but the gate thirty, so a retried call must not start a second gate.
-  const [first, again] = await Promise.all([h.runtime.desk.answer(request, 100), h.runtime.desk.answer({ ...request, id: "r2" }, 100)]);
+  const [first, again] = await Promise.all([h.runtime.desk.answer(request, { within: 100 }), h.runtime.desk.answer({ ...request, id: "r2" }, { within: 100 })]);
   assert.match(first.text, /still working on report/);
   assert.match(again.text, /already running/);
   await Promise.all([...(h.runtime.desk as unknown as { running: Map<string, { reply: Promise<unknown> }> }).running.values()].map((entry) => entry.reply));
@@ -501,7 +501,7 @@ test("a hand-back whose gate outlasts the call is not read as a silent turn", as
 
   // Past what a call can wait, the Peer is told to end its turn; that turn must not read as one that never called done.
   h.beginTurn(peer);
-  const reply = await h.runtime.desk.answer({ id: "d1", agent: peer, role: "peer", tool: "done", args: { outcome: "complete", summary: "done" }, cwd: h.root, at: Date.now() }, 100);
+  const reply = await h.runtime.desk.answer({ id: "d1", agent: peer, role: "peer", tool: "done", args: { outcome: "complete", summary: "done" }, cwd: h.root, at: Date.now() }, { within: 100 });
   assert.match(reply.text, /still working on done/);
   h.agents.get(peer)!.status = "idle";
   await h.endTurn(peer, "handed back, ending my turn as told");

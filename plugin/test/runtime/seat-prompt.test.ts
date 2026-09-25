@@ -7,7 +7,7 @@ import { harness } from "./harness.ts";
 
 test("a seat is created with its role's prompt, then what its harness needs said against that agent's own instructions", () => {
   const h = harness();
-  const prompt = (provider: string) => h.runtime.create({ provider, cwd: h.root } as AgentConfig).systemPrompt ?? "";
+  const prompt = (provider: string) => h.runtime.create({ provider, cwd: h.root } as AgentConfig, {}).config.systemPrompt ?? "";
   const delta = readFileSync(join(import.meta.dirname, "..", "..", "harness", "codex", "delta", "peer.md"), "utf-8");
   const onCodex = prompt("sw2-peer-codex");
   assert.match(onCodex, /^# Peer\n/);

@@ -149,10 +149,9 @@ wait for the next letter that does.
 
 | Timing | Value |
 |---|---|
-| Spool drained | every 500 ms |
-| `team.mjs` polls for a reply | every 250 ms, for up to 300 s |
-| A call answered "arrives as mail" | after 240 s |
-| Spool requests dropped | after 10 minutes |
+| A call answered "arrives as mail" | after 240 s, or at once when its harness stops it |
+| A harness that asked for progress hears a call still runs | every 20 s |
+| A seat's dropped line to the desk is tried again | after 2 s, or at its next call |
 | A duplicate letter, same kind, same ids and same reader | dropped while waiting, and for 30 minutes after sending |
 | A letter nobody took | dropped after 7 days |
 
@@ -269,10 +268,10 @@ role with desk tools. `mcp/code.mjs` can pin calls to the seat's git root, sync
 changed files, open and close the working copy in the backend, wait out indexing, rewrite errors and
 replace tool descriptions.
 
-A desk call can take minutes (a gate), and the desk answers within 240 s, "arrives as mail" past that;
-`team.mjs` waits 300 s. A seat must wait longer than that, or the answer comes back to nobody: omp gives
-up after 30 s and Pi's adapter after 60 s unless told, so omp seats get `OMP_MCP_TIMEOUT_MS=600000` and
-Pi's `team` server `requestTimeoutMs: 600000`. Claude Code waits hours and Codex 300 s by default.
+A desk call can take minutes (a gate), and the desk answers within 240 s, "arrives as mail" past that.
+A seat must wait longer than that, or the answer comes back to nobody: omp gives up after 30 s and Pi's
+adapter after 60 s unless told, so omp seats get `OMP_MCP_TIMEOUT_MS=600000` and Pi's `team` server
+`requestTimeoutMs: 600000`. Claude Code waits hours and Codex 300 s by default.
 
 ## Facts
 
@@ -422,7 +421,8 @@ project keeps its ledger and logs, and is refused while a lane is open or a work
   models.json                             each agent's models as Paseo lists them
   outbox.json                             waiting letters, all projects
   intents.json                            seats to archive when their turn ends; answers promised as mail
-  spool/requests/  spool/replies/         seat tool calls
+  desk.sock                               where seats' team servers reach the desk
+  keys.json                               which seat each key belongs to; readable, it lets one call as another
   content/<name>-<hash>/                  copies of the guides and skills seats read; safe to delete
   guides -> content/guides-<hash>
   worktrees/<slug>/S<n>/                  isolated working copies
@@ -462,7 +462,12 @@ it:
   by its tools and by what its `PATH` refuses: the desk's git commands, `gh` and `paseo`, but not
   another agent's command, since the seat's own agent starts through that same `PATH`. Oh My Pi and
   OpenCode have command denials, such as `git push` and `gh`, but no path rules, so a seat there can
-  write the desk's records and the spool its tool calls travel through.
+  write the desk's records, and read the key file that tells the desk which seat calls.
+- **A seat's key says which seat calls; it is not a secret.** Claude takes its MCP servers on its
+  command line, where this user's other processes can read the key, and a seat without a sandbox can
+  read `keys.json`. It keeps one seat from being taken for another by mistake or by a stray script, not
+  against a seat set on it. A seat started before keys has none, and the desk carries out nothing from
+  it until it is archived and started again.
 - **A seat's `PATH` holds spelling, not a sandbox.** Its `git`, `gh` and `paseo` refuse however the
   command is written (`-C`, an alias, `env gh`), but a program called by its full path runs.
 - **A repository's own omp hooks, extensions and tools run in an Oh My Pi seat.** No setting keeps

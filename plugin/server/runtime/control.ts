@@ -24,7 +24,6 @@ import { describeCatalog } from "./catalog-view.ts";
 import { HumanPanel } from "./human.ts";
 import { type Check, doctor } from "./doctor.ts";
 import type { Control } from "./rpc.ts";
-import type { Seating } from "./seating.ts";
 import type { TeamSource } from "./team-source.ts";
 import { errorText } from "../core/errors.ts";
 
@@ -128,7 +127,8 @@ function describeTeam(kit: Kit, team: Team, project?: Project): TeamView {
 type ControlDeps = {
   kit: Kit;
   source: TeamSource;
-  seating: Seating;
+  /** The team or its skills changed: seats are built again, and shown the sets their fields take now. */
+  changed: () => void;
   reconcile: () => void;
   models: () => Promise<Record<string, { at: string; error: string | null; models: unknown[] }>>;
   seats: Seats;
@@ -158,7 +158,7 @@ export class SettingsControl implements Control {
   }
 
   writeSettings(slug: string | undefined, revision: string, values: unknown): WriteResult {
-    const { kit, source, seating, reconcile } = this.deps;
+    const { kit, source, changed, reconcile } = this.deps;
     const target = this.target(slug);
     if (typeof target === "string") return { status: "invalid", error: target };
     const resolve = (layer: Layer) => (target.project ? resolveTeam(kit, source.machineLayer(), layer) : resolveTeam(kit, layer));
@@ -173,7 +173,7 @@ export class SettingsControl implements Control {
     };
     const result = writeLayer(target.file, revision, withKeys(values, layerValues(target.file)), check);
     if (result.status === "saved") {
-      seating.forget();
+      changed();
       if (!target.project) reconcile();
     }
     return result.status === "saved" ? { ...result, values: withoutKeys(result.values) } : result;
@@ -275,7 +275,7 @@ export class SettingsControl implements Control {
       if (readdirSync(project.state).length === 0) rmSync(project.state, { recursive: true, force: true });
     } catch {}
     this.deps.source.forget(slug);
-    this.deps.seating.forget();
+    this.deps.changed();
     return { removed: slug };
   }
 
@@ -395,7 +395,7 @@ export class SettingsControl implements Control {
   async decide(unit: string, choice: "new" | "mine" | "seen"): Promise<MigrateView> {
     await decide(this.deps.kit, stateRoot(), unit, choice);
     // A seat's skills are read when it is built: the next one follows the answer.
-    this.deps.seating.forget();
+    this.deps.changed();
     return this.migrate(false);
   }
 

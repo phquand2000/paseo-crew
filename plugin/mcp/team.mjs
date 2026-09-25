@@ -1,103 +1,155 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
 
-const role = process.argv[2] ?? "";
-const toolSet = process.argv[3] ?? "";
-const spool = process.argv[4] ?? "";
-const choices = JSON.parse(process.argv[5] || "{}");
-const waitMs = Number(process.env.SEATWORKS_TOOL_WAIT_MS ?? 300000);
-
-/** Codex filters the server's environment, so the agent id comes from the parent process, the agent's own. */
-function agentId() {
-  if (process.env.PASEO_AGENT_ID) return process.env.PASEO_AGENT_ID;
-  try {
-    const found = readFileSync(`/proc/${process.ppid}/environ`, "utf-8").split("\0").find((pair) => pair.startsWith("PASEO_AGENT_ID="));
-    if (found) return found.slice("PASEO_AGENT_ID=".length);
-  } catch {}
-  try {
-    const listed = execFileSync("ps", ["eww", "-o", "command=", "-p", String(process.ppid)], { encoding: "utf-8" });
-    return /(?:^|\s)PASEO_AGENT_ID=(\S+)/.exec(listed)?.[1] ?? "";
-  } catch {
-    return "";
-  }
-}
-const agent = agentId();
+const [role = "", toolSet = "", socket = ""] = process.argv.slice(2);
 const here = dirname(fileURLToPath(import.meta.url));
-const tools = JSON.parse(readFileSync(join(here, "tools.json"), "utf-8"))[toolSet] ?? [];
-// What the harness shows the model of the server itself, where its tools are found only by searching.
-const instructions = JSON.parse(readFileSync(join(here, "instructions.json"), "utf-8"))[toolSet];
+const read = (file) => JSON.parse(readFileSync(join(here, file), "utf-8"));
+const tools = read("tools.json")[toolSet] ?? [];
+const instructions = read("instructions.json")[toolSet];
+const { version } = read("../package.json");
+// A harness that asked for progress hears that often that a call still runs, which also keeps one that counts idle time waiting.
+const PROGRESS_MS = Number(process.env.SEATWORKS_PROGRESS_MS ?? 20_000);
+// A dropped line is tried again that soon. A harness's first list waits that long for the desk's choices, well inside the
+// second Codex gives a server to start; choices that come later reach it as a changed list, and the desk checks values anyway.
+const RETRY_MS = 2_000;
+const WELCOME_MS = 300;
 
-/** Each field the desk named a fixed set for takes it as its enum, however deep in the tool's schema the field sits. */
-function offer(schema, fields) {
-  for (const [name, field] of Object.entries(schema?.properties ?? {})) {
-    const values = fields[name];
-    const target = field.type === "array" ? field.items : field;
-    if (values?.length > 0 && target?.type === "string") target.enum = values;
-    offer(field.type === "array" ? field.items : field, fields);
-  }
-}
-for (const tool of tools) offer(tool.inputSchema, choices[tool.name] ?? {});
+/** The model is shown each schema as the kit writes it; the desk checks the arguments and says what is wrong in its own words. */
+const unchecked = { getValidator: () => (input) => ({ valid: true, data: input, errorMessage: undefined }) };
 
-const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function call(name, args) {
-  if (!spool) return { ok: false, text: "The team desk is not configured for this agent." };
-  const id = randomUUID();
-  const requests = join(spool, "requests");
-  const replies = join(spool, "replies");
-  mkdirSync(requests, { recursive: true });
-  mkdirSync(replies, { recursive: true });
-  const request = { id, agent, role, tool: name, args: args ?? {}, cwd: process.cwd(), at: Date.now() };
-  const temp = join(requests, `${id}.tmp`);
-  writeFileSync(temp, JSON.stringify(request));
-  renameSync(temp, join(requests, `${id}.json`));
-  const reply = join(replies, `${id}.json`);
-  const until = Date.now() + waitMs;
-  while (Date.now() < until) {
-    if (existsSync(reply)) {
-      try {
-        const value = JSON.parse(readFileSync(reply, "utf-8"));
-        unlinkSync(reply);
-        return value;
-      } catch {
-        await sleep(100);
-        continue;
-      }
-    }
-    await sleep(250);
-  }
-  // The desk answers or mails within four minutes; a retry served a second gate and landing beside the first.
-  return { ok: false, text: "The team desk did not answer at all, so it is probably not running. Do not repeat the call; end your turn saying which call went unanswered." };
+/** A copy of `schema` where each field the desk named a fixed set for takes it as its enum, however deep the field sits. */
+function offered(schema, fields) {
+  if (!schema?.properties) return schema;
+  const shown = (field, values) => {
+    const fixed = (target) => (values?.length > 0 && target?.type === "string" ? { ...target, enum: values } : target);
+    return field.type === "array" ? { ...field, items: offered(fixed(field.items), fields) } : offered(fixed(field), fields);
+  };
+  return { ...schema, properties: Object.fromEntries(Object.entries(schema.properties).map(([name, field]) => [name, shown(field, fields[name])])) };
 }
 
-createInterface({ input: process.stdin }).on("line", async (line) => {
-  let message;
-  try {
-    message = JSON.parse(line);
-  } catch {
-    return;
+/** The line to the desk: opened at start and again when it drops, since the plugin reloads under running seats. */
+class Desk {
+  #line;
+  #opening;
+  #retry;
+  #seq = 0;
+  #waiting = new Map();
+  refused;
+  choices = {};
+  changed = () => {};
+
+  open() {
+    if (this.#line) return Promise.resolve();
+    clearTimeout(this.#retry);
+    this.#opening ??= new Promise((settle) => {
+      const line = createConnection(socket);
+      const done = () => {
+        this.#opening = undefined;
+        settle();
+      };
+      line.on("connect", () => {
+        // The harness's pipe keeps this server alive; the line to the desk never does on its own.
+        line.unref();
+        this.#line = line;
+        this.#write({ type: "hello", key: process.env.SEATWORKS_DESK_KEY ?? "", role, cwd: process.cwd() });
+      });
+      // readline passes on the line's errors: a line that fails is closed, which is handled below.
+      createInterface({ input: line }).on("line", (text) => this.#heard(text, done)).on("error", () => {});
+      line.on("error", () => {});
+      line.on("close", () => {
+        if (this.#line === line) this.#line = undefined;
+        for (const answer of this.#waiting.values()) answer(undefined);
+        this.#waiting.clear();
+        done();
+        this.#retry = setTimeout(() => void this.open(), RETRY_MS).unref();
+      });
+    });
+    return this.#opening;
   }
-  const { id, method, params } = message;
-  if (method === "initialize") {
-    send({ jsonrpc: "2.0", id, result: { protocolVersion: params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "team", version: "2.0.0" }, instructions } });
-  } else if (method === "tools/list") {
-    send({ jsonrpc: "2.0", id, result: { tools } });
-  } else if (method === "tools/call") {
-    const name = params?.name;
-    if (!tools.some((tool) => tool.name === name)) {
-      send({ jsonrpc: "2.0", id, result: { content: [{ type: "text", text: `Unknown tool ${name}.` }], isError: true } });
+
+  /** The desk's answer to one call; the harness stopping it tells the desk, which mails the answer instead. */
+  async call(tool, args, ctx) {
+    await this.open();
+    if (this.refused) return { ok: false, text: this.refused };
+    if (!this.#line) return { ok: false, text: `The team desk is not running, so ${tool} was not carried out. Do not call it again; end your turn saying which call went unanswered.` };
+    const id = String(++this.#seq);
+    let settle;
+    const answered = new Promise((resolve) => (settle = resolve));
+    this.#waiting.set(id, settle);
+    this.#write({ type: "call", id, tool, args });
+    const stop = () => {
+      if (this.#waiting.delete(id)) this.#write({ type: "cancel", id });
+      settle(undefined);
+    };
+    const { signal, _meta: meta, notify } = ctx.mcpReq;
+    signal.addEventListener("abort", stop, { once: true });
+    let beat = 0;
+    const token = meta?.progressToken;
+    const progress = token === undefined ? undefined : setInterval(() => void notify({ method: "notifications/progress", params: { progressToken: token, progress: ++beat, message: `The desk is still working on ${tool}.` } }).catch(() => {}), PROGRESS_MS);
+    const reply = await answered;
+    clearInterval(progress);
+    signal.removeEventListener("abort", stop);
+    if (reply) this.#write({ type: "taken", id });
+    return reply ?? { ok: false, text: `The team desk stopped while ${tool} ran, and its answer is lost here. If ${tool} changes something, look before calling it again: a second call may do it twice.` };
+  }
+
+  #heard(text, done) {
+    let said;
+    try {
+      said = JSON.parse(text);
+    } catch {
       return;
     }
-    const result = await call(name, params?.arguments);
-    send({ jsonrpc: "2.0", id, result: { content: [{ type: "text", text: String(result?.text ?? "") }], isError: !result?.ok } });
-  } else if (method === "ping") {
-    send({ jsonrpc: "2.0", id, result: {} });
-  } else if (id !== undefined && id !== null) {
-    send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
+    if (said.type === "welcome" || said.type === "choices") {
+      this.refused = undefined;
+      const before = JSON.stringify(this.choices);
+      this.choices = said.choices ?? {};
+      if (JSON.stringify(this.choices) !== before) this.changed();
+      done();
+    } else if (said.type === "refused") {
+      this.refused = said.why;
+      done();
+    } else if (said.type === "result") {
+      const answer = this.#waiting.get(said.id);
+      this.#waiting.delete(said.id);
+      answer?.(said);
+    }
   }
+
+  #write(message) {
+    this.#line?.write(`${JSON.stringify(message)}\n`);
+  }
+}
+
+const desk = new Desk();
+void desk.open();
+
+serveStdio(async () => {
+  await Promise.race([desk.open(), new Promise((resolve) => setTimeout(resolve, WELCOME_MS).unref())]);
+  const server = new McpServer({ name: "team", version }, { capabilities: { tools: { listChanged: true } }, instructions });
+  const schemaOf = (tool) => JSON.stringify(offered(tool.inputSchema, desk.choices[tool.name] ?? {}));
+  const held = new Map();
+  for (const tool of tools) {
+    const schema = schemaOf(tool);
+    const entry = server.registerTool(tool.name, { title: tool.title, description: tool.description, annotations: tool.annotations, inputSchema: fromJsonSchema(JSON.parse(schema), unchecked) }, async (args, ctx) => {
+      const reply = await desk.call(tool.name, args ?? {}, ctx);
+      return { content: [{ type: "text", text: String(reply.text ?? "") }], isError: !reply.ok };
+    });
+    held.set(tool, { schema, entry });
+  }
+  // Only a tool whose choices changed is updated: each update tells the harness to list the tools again.
+  desk.changed = () => {
+    for (const [tool, shown] of held) {
+      const schema = schemaOf(tool);
+      if (schema === shown.schema) continue;
+      shown.schema = schema;
+      shown.entry.update({ paramsSchema: fromJsonSchema(JSON.parse(schema), unchecked) });
+    }
+  };
+  return server;
 });

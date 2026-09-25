@@ -98,11 +98,12 @@ test("a Claude seat's file tools stay off what sets up the machine's agents and 
     assert.ok(denied("Edit", `${home(harness.profileRoot)}/sw2-supervisor-${harness.id}-shop-1a2b/${harness.settings.file}`), `a Claude seat may edit ${harness.id} seats' settings`);
     for (const link of harness.links ?? []) assert.ok(denied("Edit", home(link.target)) || denied("Edit", `${home(link.target)}/x`), `a Claude seat may edit ${link.target}`);
   }
-  // A request in the spool is served as whichever seat it names; every seat reads the content copies and runs the git launcher.
+  // Every seat reads the content copies and runs the git launcher; the desk knows a caller by the key it shows.
   const machine = stateRoot("~");
-  for (const path of ["intents.json", "kit.json", "content.json", "models.json", "bin/git", "spool/requests/1.json", "content/grilling-09b6abde7462/SKILL.md", "guides/PLANS.md"]) {
+  for (const path of ["intents.json", "kit.json", "content.json", "models.json", "bin/git", "keys.json", "content/grilling-09b6abde7462/SKILL.md", "guides/PLANS.md"]) {
     assert.ok(denied("Edit", `${machine}/${path}`), `a Claude seat may edit ${path} in the plugin's own state`);
   }
+  for (const path of ["keys.json", "keys.json.123.tmp"]) assert.ok(denied("Read", `${machine}/${path}`), `a Claude seat may read ${path}, and show the desk another seat's key`);
   for (const login of ["~/.paseo/config.json", "~/.codex/auth.json", "~/.pi/agent/auth.json", "~/.omp/agent/agent.db", "~/.local/share/opencode/auth.json", "~/.claude/.credentials.json"]) {
     assert.ok(deny.includes(`Read(${login})`), `a Claude seat may read ${login}, a login; named without a glob, the only kind Claude's sandbox keeps on Linux`);
   }

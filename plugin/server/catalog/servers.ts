@@ -38,7 +38,7 @@ export function indexedProxies(team: Team): IndexedProxy[] {
 }
 
 /** The fixed sets a role's desk tools take, by tool and field, read from the kit and team: a seat is shown them as choices. */
-function choicesFor(kit: Kit, team: Team, roleName: string): Record<string, Record<string, string[]>> {
+export function choicesFor(kit: Kit, team: Team, roleName: string): Record<string, Record<string, string[]>> {
   const holding = (capability: string) => kit.roles.filter((role) => can(role, capability)).map((role) => role.role);
   const writers = holding("write");
   const skills = writers.flatMap((name) => (team.roles[name] ? [...skillSources(kit, team.roles[name].role, skillDirsFor(team, name)).keys()] : []));
@@ -49,10 +49,11 @@ function choicesFor(kit: Kit, team: Team, roleName: string): Record<string, Reco
   return Object.fromEntries(Object.entries(all).filter(([tool]) => offered.has(tool)));
 }
 
-export function serversFor(kit: Kit, team: Team, roleName: string, context: { node: string; spool: string }): McpServers {
+/** `key` is the seat's, for a harness handed its servers at launch; one reading them from a file shared by its seats gets none. */
+export function serversFor(kit: Kit, team: Team, roleName: string, context: { node: string; socket: string }, key?: string): McpServers {
   const seat = team.roles[roleName];
   if (!seat) return {};
-  const desk = teamServer(kit, seat.role, context.spool, context.node, choicesFor(kit, team, roleName));
+  const desk = teamServer(kit, seat.role, context.socket, context.node, key);
   const servers: McpServers = desk[TEAM_SERVER] && seat.harness.mcp.desk ? { [TEAM_SERVER]: { ...(desk[TEAM_SERVER] as object), ...seat.harness.mcp.desk } } : { ...desk };
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;

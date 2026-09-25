@@ -33,7 +33,8 @@ is always a seat's call.
 
 The daemon and the seats share no memory. There are two one-way channels:
 
-- **Seats reach the plugin through files**, the spool.
+- **Seats reach the plugin through a socket**, `desk.sock` in the state root, open to this user alone:
+  each seat's `team` server keeps a line to it and shows the key the seat was created with.
 - **The plugin reaches seats through Paseo**, with `agents.ref(id).send`.
 
 ## Invariants
@@ -83,7 +84,7 @@ These are mostly absences, so the code won't show them to you.
 | `server/catalog/` | Data to seats: the kit loader, team resolution, providers, seat directories, launch config, content, the project files |
 | `server/desk/` | The ledger and what the tools do to it: lanes, tasks, asks, working copies, merges, gates, incidents, letters, closing a lane |
 | `server/desk/tools/` | One module per tool the seats call, each a zod input and a handler; `registry.ts` lists them for the desk |
-| `server/runtime/` | The composition root and the loops: hooks, spool, outbox, patrol, turn reading, RPC, health |
+| `server/runtime/` | The composition root and the loops: hooks, seat keys, the desk's socket, outbox, patrol, turn reading, RPC, health |
 | `server/runtime/watch/` | The watch: the window over a timeline, the facts read from it and from each lane's record, and the findings they make |
 | `client/` | The Seatworks panel |
 | `shared/` | What the panel and server share, as zod schemas both take their types from: the RPC contracts (`rpc.ts`), each answer's shape (`views.ts`, which the panel checks every answer against) and the settings layer (`settings.ts`) |
@@ -127,7 +128,7 @@ state. The lint fails a prompt, rule or skill that names a path under state (`{{
 `$SEATWORKS_STATE/…`) its role does not write, unless it is the desk's own record, which seats only
 read. A role may not declare the desk's own files, and only the Supervisor writes `CONTEXT.md`. Claude
 Code's file tools are outside its sandbox, so their rules deny them the desk's records, the plugin's
-own files beside the projects (the spool that carries seats' tool calls, the content seats read, the
+own files beside the projects (the key file that says which seat calls, the content seats read, the
 `git` launcher), every agent's configuration and git's, and deny reads of every agent's login. Pi,
 Oh My Pi and OpenCode have no sandbox.
 
@@ -217,11 +218,15 @@ project's files, for example `npm test` or `cargo test`. `set_project` changes i
 
 ![Tool calls in, letters out](images/calls-and-mail.svg)
 
-**In.** A seat calls a desk tool. `team.mjs` writes the call as a file under `spool/requests/`.
-The daemon drains the spool every 500 ms, checks the arguments, runs the verb and writes a reply.
-A call still running after 240 s is answered with "the answer arrives as mail". That promise is
-kept in `intents.json` until the letter is posted; if the plugin stops first, the seat is told NO
-ANSWER when it starts again.
+**In.** A seat calls a desk tool. Its `team.mjs`, an MCP server on the official SDK, sends the call
+on its line to the desk's socket. The desk knows the seat by the key it showed when the line opened:
+made as the seat is created, bound to the agent when Paseo opens its session, and given back each time
+it opens again. The desk checks the arguments, runs the verb and answers on the line. A call still
+running after 240 s is answered with "the answer arrives as mail", and so is one the seat's harness
+stops or whose line drops. That promise is kept in `intents.json` until the letter is posted; if the
+plugin stops first, the seat is told NO ANSWER when it starts again. A harness that asked for progress
+hears every 20 s that a call still runs, and the desk's choices for a role's fields reach its seats as
+a changed tool list when the team's settings change.
 
 **Out.** Every letter goes into one `outbox.json`. Mail to a seat is pumped when a letter is
 posted, when a turn ends, and after each patrol round. Everything waiting for one seat goes out as

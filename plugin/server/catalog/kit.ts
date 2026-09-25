@@ -274,9 +274,12 @@ export function paseoToolsPolicy(kit: Kit, role: RoleSpec): { enabled?: boolean;
 }
 
 export const TEAM_SERVER = "team";
+/** What a seat's team server tells the desk it is: the key the seat was created with. */
+export const SEAT_KEY = "SEATWORKS_DESK_KEY";
 export const PASEO_SERVER = "paseo";
 
-export function teamServer(kit: Kit, role: RoleSpec, spool: string, node: string, choices: Record<string, Record<string, string[]>>): McpServers {
+/** A seat's own team server, reaching the desk at `socket`; `key` goes in its env where the harness keeps one per seat. */
+export function teamServer(kit: Kit, role: RoleSpec, socket: string, node: string, key?: string): McpServers {
   if (!role.tools) return {};
-  return { [TEAM_SERVER]: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "team.mjs"), role.role, role.tools, spool, JSON.stringify(choices)] } };
+  return { [TEAM_SERVER]: { type: "stdio", command: node, args: [join(kit.dir, "mcp", "team.mjs"), role.role, role.tools, socket], ...(key ? { env: { [SEAT_KEY]: key } } : {}) } };
 }

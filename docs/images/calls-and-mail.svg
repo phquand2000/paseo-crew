@@ -4,7 +4,7 @@
 <defs><marker id="a-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--teal)"/></marker><marker id="a-red" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--red)"/></marker><marker id="a-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--amber)"/></marker><marker id="a-blue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--blue)"/></marker><marker id="a-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--green)"/></marker></defs>
 <rect class="canvas" x="0.5" y="0.5" width="959" height="609" rx="18"/>
 <text class="h1" x="32" y="46">Tool calls in, letters out</text>
-<text class="lede" x="32" y="70">Two one-way paths: files into the daemon, messages back through Paseo.</text>
+<text class="lede" x="32" y="70">Two paths: a socket into the daemon, messages back through Paseo.</text>
 <rect class="group" x="24" y="100" width="912" height="272" rx="14"/>
 <text class="group-label" x="40" y="124">TOOL CALLS IN</text>
 <rect class="node" x="44" y="140" width="136" height="60" rx="10" style="fill:var(--green-fill);stroke:var(--green)"/>
@@ -15,8 +15,8 @@
 <text class="sub" x="288" y="177" text-anchor="middle">the role's tool set,</text>
 <text class="sub" x="288" y="194" text-anchor="middle">over stdio</text>
 <rect class="node" x="396" y="140" width="200" height="60" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
-<text class="title mono" x="496" y="166.5" text-anchor="middle" style="fill:var(--slate-ink)">requests/&lt;id&gt;.json</text>
-<text class="sub" x="496" y="185.5" text-anchor="middle">a temp file, then a rename</text>
+<text class="title mono" x="496" y="166.5" text-anchor="middle" style="fill:var(--slate-ink)">desk.sock</text>
+<text class="sub" x="496" y="185.5" text-anchor="middle">one line per seat, by its key</text>
 <rect class="node" x="622" y="140" width="150" height="60" rx="10" style="fill:var(--teal-fill);stroke:var(--teal)"/>
 <text class="title" x="697" y="158" text-anchor="middle" style="fill:var(--teal-ink)">fits the schema?</text>
 <text class="sub" x="697" y="177" text-anchor="middle">desk/args.ts, against</text>
@@ -30,15 +30,15 @@
 <path class="edge" d="M596,170 L622,170" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
 <path class="edge" d="M772,170 L798,170" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
 <rect class="node" x="396" y="246" width="200" height="60" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
-<text class="title mono" x="496" y="272.5" text-anchor="middle" style="fill:var(--slate-ink)">replies/&lt;id&gt;.json</text>
-<text class="sub" x="496" y="291.5" text-anchor="middle">polled every 250 ms</text>
+<text class="title mono" x="496" y="272.5" text-anchor="middle" style="fill:var(--slate-ink)">the answer, on the line</text>
+<text class="sub" x="496" y="291.5" text-anchor="middle">held until the harness takes it</text>
 <path class="edge" d="M697,200 L697.0,258.0 Q697,266 689.0,266.0 L596,266" style="stroke:var(--red)" marker-end="url(#a-red)"/>
 <path class="edge" d="M857,200 L857.0,282.0 Q857,290 849.0,290.0 L596,290" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
 <path class="edge" d="M396,276 L296.0,276.0 Q288,276 288.0,268.0 L288,200" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
-<text class="note" x="44" y="336" text-anchor="start">team.mjs waits up to 300 s, then</text>
-<text class="note" x="44" y="353" text-anchor="start">tells the seat the desk is not running.</text>
-<text class="note" x="396" y="336" text-anchor="start">Drained every 500 ms. Anything ten</text>
-<text class="note" x="396" y="353" text-anchor="start">minutes old is dropped.</text>
+<text class="note" x="44" y="336" text-anchor="start">No desk on the socket: the seat</text>
+<text class="note" x="44" y="353" text-anchor="start">is told, and the line tried again.</text>
+<text class="note" x="396" y="336" text-anchor="start">A call its harness stops, or whose</text>
+<text class="note" x="396" y="353" text-anchor="start">line drops, is answered as mail.</text>
 <text class="note" x="622" y="336" text-anchor="start">Still running at 240 s: the answer comes</text>
 <text class="note" x="622" y="353" text-anchor="start">as mail. The same call twice joins the first.</text>
 <rect class="group" x="24" y="396" width="912" height="190" rx="14"/>

@@ -31,8 +31,9 @@ export class PaseoHost implements Host {
   connect(server: PluginServerContext, hooks: HostHooks): void {
     server.before("agent.create", ({ request }, context) => {
       this.api = context.paseo;
+      const made = hooks.create(request.config, request.env ?? {});
       // The plugin's config type is narrower than Paseo's, and the daemon checks what a hook returns.
-      return { ...request, config: hooks.create(request.config) as typeof request.config };
+      return { ...request, config: made.config as typeof request.config, env: made.env };
     });
     server.before("agent.session_open", ({ request }, context) => {
       this.api = context.paseo;

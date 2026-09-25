@@ -40,8 +40,9 @@ export function worktreeRoot(homeDir = home()): string {
   return join(stateRoot(homeDir), "worktrees");
 }
 
-export function spoolDir(homeDir = home()): string {
-  return join(stateRoot(homeDir), "spool");
+/** Where seats' team servers reach the desk: beside the state it keeps, and open to this user alone. */
+export function deskSocket(homeDir = home()): string {
+  return join(stateRoot(homeDir), "desk.sock");
 }
 
 export function nodeBin(): string {

@@ -53,8 +53,10 @@ const waited = (entry: Lane | Task, what: string): string => {
 
 export const letters = {
   /** The answer to a call that ran longer than the seat that made it could wait for. */
-  later(call: Waited, reply: { ok: boolean; text: string }): Letter {
-    const text = [`ANSWER to your ${call.tool} call, which ran longer than a tool call can wait.`, "", reply.ok ? reply.text : `It was refused: ${reply.text}`].join("\n");
+  /** `cut`: the call was stopped on the seat's side before its answer came, rather than outrunning the wait. */
+  later(call: Waited, reply: { ok: boolean; text: string }, cut = false): Letter {
+    const why = cut ? "which was stopped on your side before its answer reached you" : "which ran longer than a tool call can wait";
+    const text = [`ANSWER to your ${call.tool} call, ${why}.`, "", reply.ok ? reply.text : `It was refused: ${reply.text}`].join("\n");
     return mail("later", [hash(call.agent, call.tool, String(call.started))], text, reply.ok ? "Go on from this answer as if the call had just returned it." : "Read why it was refused before you call it again.");
   },
 

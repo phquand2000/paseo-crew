@@ -45,7 +45,7 @@ type DeskOptions = {
 
 const SPEAKS = ["done", "ask", "answer", "message", "report"];
 
-const ANSWER_WITHIN_MS = 240_000;
+export const ANSWER_WITHIN_MS = 240_000;
 
 export class Desk {
   readonly projects: Map<string, Project>;
@@ -198,13 +198,13 @@ export class Desk {
   }
 
   /**
-   * The seat's bridge (`mcp/team.mjs`) waits five minutes but a gate may run thirty: a call that runs long is
-   * answered with what is happening and its result mailed, and the same call again while it runs joins it.
+   * A harness waits minutes for a call but a gate may run thirty: a call that runs long is answered with what is happening
+   * and its result mailed, and the same call again while it runs joins it. One its caller gives up on is mailed too.
    */
-  answer(request: ToolRequest, within = ANSWER_WITHIN_MS): Promise<ToolReply> {
+  answer(request: ToolRequest, { within = ANSWER_WITHIN_MS, cancelled }: { within?: number; cancelled?: AbortSignal } = {}): Promise<ToolReply> {
     const key = `${request.agent}\n${request.tool}\n${JSON.stringify(sortKeys(request.args ?? {}))}`;
     const running = this.running.get(key);
-    if (running) return this.inTime(request, running.reply, running.started, within, true);
+    if (running) return this.inTime(request, running.reply, { started: running.started, within, again: true, cancelled });
     const started = Date.now();
     // A throw is answered too: only a resolved reply posts the letter the seat was promised.
     const reply = this.handle(request)
@@ -213,31 +213,36 @@ export class Desk {
         if (this.running.get(key)?.started === started) this.running.delete(key);
       });
     this.running.set(key, { reply, started });
-    return this.inTime(request, reply, started, within, false);
+    return this.inTime(request, reply, { started, within, again: false, cancelled });
   }
 
-  private inTime(request: ToolRequest, reply: Promise<ToolReply>, started: number, within: number, again: boolean): Promise<ToolReply> {
+  /** A reply that went out but never reached its seat, whose call was stopped or whose line dropped: mailed instead. */
+  mailLost(request: ToolRequest, reply: ToolReply): Promise<unknown> {
+    return this.services.ctx.post(request.agent, letters.later({ agent: request.agent, tool: request.tool, started: request.at }, reply, true));
+  }
+
+  private inTime(request: ToolRequest, reply: Promise<ToolReply>, how: { started: number; within: number; again: boolean; cancelled?: AbortSignal }): Promise<ToolReply> {
     return new Promise((resolve) => {
       let answered = false;
-      const timer = setTimeout(() => {
+      // One letter for one run, whichever of its callers stopped waiting first; kept on disk until it is posted.
+      const mailed = (said: string, cut: boolean) => {
         if (answered) return;
         answered = true;
-        resolve(
-          ok(
-            again
-              ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`
-              : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail. End your turn now; do not call ${request.tool} again.`,
-          ),
-        );
-        // One letter for one run, whichever of its callers gave up waiting first; kept on disk until it is posted.
-        const promised = { agent: request.agent, tool: request.tool, started };
+        clearTimeout(timer);
+        resolve(ok(said));
+        const promised = { agent: request.agent, tool: request.tool, started: how.started };
         this.intents.promise(promised);
         void reply.then(async (done) => {
-          await this.services.ctx.post(request.agent, letters.later(promised, done));
+          await this.services.ctx.post(request.agent, letters.later(promised, done, cut));
           this.intents.kept(promised);
         });
-      }, within);
+      };
+      const long = how.again
+        ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`
+        : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail. End your turn now; do not call ${request.tool} again.`;
+      const timer = setTimeout(() => mailed(long, false), how.within);
       timer.unref?.();
+      how.cancelled?.addEventListener("abort", () => mailed(`${request.tool} was stopped on the seat's side.`, true), { once: true });
       void reply.then((done) => {
         if (answered) return;
         answered = true;

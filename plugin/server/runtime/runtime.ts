@@ -1,14 +1,14 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { renderPrompt } from "../catalog/content.ts";
-import { type Kit, type SensorSpec, TEAM_SERVER, seatOf, watchPatterns } from "../catalog/kit.ts";
+import { type Kit, SEAT_KEY, type SensorSpec, TEAM_SERVER, seatOf, watchPatterns } from "../catalog/kit.ts";
 import { type ModelCache, applyModels, fetchModels, listingProviders } from "../catalog/models.ts";
 import { applyRole, seatBin, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
 import { placeGuides, seatDir, seedRecords, sweepSnapshots } from "../catalog/seats.ts";
 import { stampKit } from "../upkeep/migrate.ts";
-import { type IndexedProxy, indexedProxies } from "../catalog/servers.ts";
-import { guidesDir, home, nodeBin, outboxPath, spoolDir, stateRoot } from "../core/paths.ts";
+import { type IndexedProxy, choicesFor, indexedProxies } from "../catalog/servers.ts";
+import { deskSocket, guidesDir, home, nodeBin, outboxPath, stateRoot } from "../core/paths.ts";
 import type { AgentConfig, HookAgent, Host, HostHooks, Judge, PermissionRequested, Seats, SessionOpen, TurnEnded, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
@@ -22,8 +22,9 @@ import { type Trouble, watchView } from "./watch-view.ts";
 import { codeIndex } from "./code-index.ts";
 import { type Letter, Outbox, type Rules } from "./outbox.ts";
 import { Patrol } from "./patrol.ts";
+import { SeatKeys } from "./keys.ts";
 import { Seating } from "./seating.ts";
-import { replyFile, spoolDirs, takeRequests, writeReply } from "./spool.ts";
+import { TeamSocket } from "./team-socket.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
 import { type Fact, callsTo } from "./watch/facts.ts";
@@ -34,7 +35,6 @@ import { errorText } from "../core/errors.ts";
 
 const TROUBLES = 10;
 
-
 type RuntimeOptions = { outboxFile?: string; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean>; sensor?: (spec: SensorSpec, key: string) => Judge };
 
 export class Runtime implements HostHooks {
@@ -42,8 +42,8 @@ export class Runtime implements HostHooks {
   readonly outbox: Outbox;
   readonly desk: Desk;
   readonly control: SettingsControl;
-  private readonly spool = spoolDir();
-  private readonly calls = new Map<string, { id: string; replied: boolean }[]>();
+  private readonly keys = new SeatKeys();
+  private readonly socket: TeamSocket;
   private readonly seats: Seats;
   private readonly workspaces: Workspaces;
   private readonly source: TeamSource;
@@ -57,7 +57,6 @@ export class Runtime implements HostHooks {
   private readonly reload: () => Promise<boolean>;
   private readonly host: Host;
   private modelsAsked = false;
-  private timers: ReturnType<typeof setInterval>[] = [];
   private tick: ReturnType<typeof setTimeout> | undefined;
 
   constructor(kit: Kit, host: Host, options: RuntimeOptions = {}) {
@@ -68,7 +67,7 @@ export class Runtime implements HostHooks {
     this.seats = host.seats;
     this.workspaces = host.workspaces;
     this.source = new TeamSource(kit);
-    this.seating = new Seating(kit, this.source, { node: nodeBin(), spool: this.spool });
+    this.seating = new Seating(kit, this.source, { node: nodeBin(), socket: deskSocket() });
     this.outbox = new Outbox(
       options.outboxFile ?? outboxPath(),
       (to, list) => this.compose(to, list),
@@ -88,6 +87,7 @@ export class Runtime implements HostHooks {
       indexesFor: (project) => this.indexesFor(project),
       sensor: options.sensor,
     });
+    this.socket = this.teamSocket();
     this.turns = new TurnRules({ kit, desk: this.desk, seats: this.seats, remember, log: (project, line) => this.log(project, line) });
     this.watches = new Watches({
       kit,
@@ -100,7 +100,7 @@ export class Runtime implements HostHooks {
     this.control = new SettingsControl({
       kit,
       source: this.source,
-      seating: this.seating,
+      changed: () => this.teamChanged(),
       reconcile: () => this.reconcileProviders(),
       models: () => this.refreshModels(),
       seats: this.seats,
@@ -108,6 +108,22 @@ export class Runtime implements HostHooks {
       watch: (project) => watchView(project, this.troubles.get(project.slug) ?? [], this.source.teamFor(project), kit),
       human: this.desk.human,
     });
+  }
+
+  /** Where seats' team servers reach the desk: known by their keys, shown their roles' choices, their calls answered. */
+  private teamSocket(): TeamSocket {
+    return new TeamSocket(deskSocket(), {
+      agentOf: (key) => this.keys.agentOf(key),
+      choices: (role, cwd) => choicesFor(this.kit, this.source.teamFor(projectOf(cwd)), role),
+      answer: (request, cancelled) => this.desk.answer(request, { cancelled }).catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` })),
+      mailLost: (request, reply) => this.desk.mailLost(request, reply),
+    });
+  }
+
+  /** The team or its skills changed: seats are built again, and shown the choices their fields take now. */
+  private teamChanged(): void {
+    this.seating.forget();
+    this.socket.refresh();
   }
 
   private watchContext(seat: WatchedSeat): SeatContext | undefined {
@@ -182,7 +198,6 @@ export class Runtime implements HostHooks {
   prepare(): void {
     try {
       mkdirSync(stateRoot(), { recursive: true });
-      spoolDirs(this.spool);
       placeGuides(this.kit);
       sweepSnapshots();
       stampKit(this.kit, home());
@@ -200,14 +215,17 @@ export class Runtime implements HostHooks {
     this.refreshModels().catch((error) => console.error("seatworks-v2: could not list the agents' models:", error));
   }
 
-  create(config: AgentConfig): AgentConfig {
+  /** A seat with tools is given a key, which its team server shows the desk to say which seat calls. */
+  create(config: AgentConfig, env: Record<string, string> = {}): { config: AgentConfig; env: Record<string, string> } {
     const seat = seatOf(this.kit, config.provider);
-    if (!seat) return config;
+    if (!seat) return { config, env };
     const project = projectOf(config.cwd);
     this.remember(project);
     const team = this.seating.ensure(seat.role.role, seat.harness, project);
     const render = (role: Parameters<typeof renderPrompt>[1]) => renderPrompt(this.kit, role, seat.harness.id, { guides: guidesDir(), state: project.state });
-    return applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role));
+    const key = seat.role.tools ? this.keys.issue() : undefined;
+    const applied = applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role, key));
+    return { config: applied, env: key ? { ...env, [SEAT_KEY]: key } : env };
   }
 
   async created(agent: HookAgent): Promise<void> {
@@ -215,6 +233,7 @@ export class Runtime implements HostHooks {
   }
 
   async archived(agent: HookAgent): Promise<void> {
+    this.keys.forget(agent.id);
     this.outbox.archived(agent.id);
     this.turns.forget(agent.id);
     this.watches.drop(agent.id);
@@ -222,7 +241,7 @@ export class Runtime implements HostHooks {
   }
 
   start(): void {
-    this.timers.push(setInterval(() => this.serveSpool(), 500));
+    this.socket.listen();
     // The cadence is read every time round, so changing it in settings takes hold without a reload.
     const patrol = () => {
       if (this.host.connected()) this.patrol.tick().then(() => this.offline.clear(), (error) => this.tickFailed(error));
@@ -242,9 +261,8 @@ export class Runtime implements HostHooks {
   }
 
   dispose(): void {
+    this.socket.close();
     this.watches.dispose();
-    for (const timer of this.timers) clearInterval(timer);
-    this.timers = [];
     if (this.tick) clearTimeout(this.tick);
     this.tick = undefined;
   }
@@ -260,7 +278,11 @@ export class Runtime implements HostHooks {
       console.error("seatworks-v2: could not seed project records:", error);
     }
     this.seating.ensure(seat.role.role, seat.harness, project);
-    return seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project, seatBin(this.kit));
+    const opened = seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project, seatBin(this.kit));
+    // Created, the seat brings the key made for it; opened again, it is given back the one it was bound to.
+    const key = request.reason === "create" ? request.env[SEAT_KEY] : this.keys.keyOf(request.agentId);
+    if (request.reason === "create" && key) this.keys.bind(request.agentId, key);
+    return key ? { ...opened, env: { ...opened.env, [SEAT_KEY]: key } } : opened;
   }
 
   async turnStarted(agent: HookAgent): Promise<void> {
@@ -343,38 +365,8 @@ export class Runtime implements HostHooks {
       dropped: (letter, at) =>
         console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
       steers: (seat) => seatOf(kit, seat.provider)?.harness.steers === true,
-      calling: (agentId) => this.waitedOn(agentId).length > 0,
+      calling: (agentId) => this.socket.calling(agentId),
       holding: (seat) => Boolean(seat.cwd && laneOnHold(projectOf(seat.cwd).state, seat.id)),
     };
-  }
-
-  private waitedOn(agentId: string): { id: string; replied: boolean }[] {
-    const live = (this.calls.get(agentId) ?? []).filter((call) => !call.replied || existsSync(replyFile(this.spool, call.id)));
-    if (live.length > 0) this.calls.set(agentId, live);
-    else this.calls.delete(agentId);
-    return live;
-  }
-
-  private serveSpool(): void {
-    if (!this.host.connected()) return;
-    let requests;
-    try {
-      requests = takeRequests(this.spool);
-    } catch (error) {
-      console.error("seatworks-v2: spool read failed:", error);
-      return;
-    }
-    for (const request of requests) {
-      const call = { id: request.id, replied: false };
-      this.calls.set(request.agent, [...this.waitedOn(request.agent), call]);
-      this.desk
-        .answer(request)
-        .catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` }))
-        .then((reply) => writeReply(this.spool, request.id, reply))
-        .catch((error) => console.error("seatworks-v2: spool reply failed:", error))
-        .finally(() => {
-          call.replied = true;
-        });
-    }
   }
 }

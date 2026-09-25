@@ -11,7 +11,7 @@ import { tempDir } from "../tempdir.ts";
 
 test("a login made after a seat was built reaches that seat the next time it starts", () => {
   const kit = makeKit();
-  const seating = new Seating(kit, new TeamSource(kit), { node: "/bin/node", spool: "/spool" });
+  const seating = new Seating(kit, new TeamSource(kit), { node: "/bin/node", socket: "/desk.sock" });
   const lead = kit.roles.find((role) => role.role === "lead")!;
   const claude = kit.harnesses.claude!;
   const link = join(seatDir(kit, lead, claude, home()), "projects");
@@ -24,7 +24,7 @@ test("a login made after a seat was built reaches that seat the next time it sta
 
 test("a Claude seat takes in a project's AGENTS.md while the project has no CLAUDE.md, and stops once one appears", () => {
   const kit = makeKit();
-  const seating = new Seating(kit, new TeamSource(kit), { node: "/bin/node", spool: "/spool" });
+  const seating = new Seating(kit, new TeamSource(kit), { node: "/bin/node", socket: "/desk.sock" });
   const claude = kit.harnesses.claude!;
   // A seat's own directory is added, and Claude reads an added directory's CLAUDE.md but never its AGENTS.md.
   const root = tempDir("sw2-supervisor-project-");
