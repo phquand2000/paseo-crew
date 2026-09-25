@@ -52,10 +52,10 @@ export async function taskGate(project: Project, taskId: string, cwd: string): P
 }
 
 /** What the MERGED letter says about the gate, from what actually ran. */
-export function gateNote(project: Project, task?: { handback?: { gate?: { ok: boolean; note: string } } }): string {
+export function gateNote(project: Project, task?: { handback?: { gate?: { ok: boolean; note: string; over?: string } } }): string {
   const config = loadConfig(project.state);
   if (!config.gate) return "none set";
   if (config.gateOn !== "task") return "runs on the whole lane when you report it ready";
   const ran = task?.handback?.gate;
-  return ran ? `ran on this task when it was handed back: ${ran.note}${ran.ok ? "" : " — accepted over it"}` : "did not run on this task: it was not handed back while the project gated each task";
+  return ran ? `ran on this task: ${ran.note}${ran.ok ? "" : ran.over ? ` — merged over it: ${ran.over}` : " — accepted over it"}` : "did not run on this task: it was not handed back while the project gated each task";
 }

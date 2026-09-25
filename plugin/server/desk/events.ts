@@ -26,7 +26,7 @@ export type DeskEvent =
   | { kind: "land.held"; lane: string; signals: number }
   | { kind: "land.approved" | "land.sentBack"; lane: string }
   | { kind: "gate.passed" | "gate.failed"; lane: string; seconds: number; command: string }
-  | { kind: "gate.overridden"; lane: string; by: string }
+  | { kind: "gate.overridden"; lane: string; by: string; task?: string; reason?: string }
   | { kind: "restore.held"; base: string; branch: string | null; why: string }
   | { kind: "tasks.added"; lane: string; tasks: string[] }
   | { kind: "lane.onHold"; lane: string; by: string; reason: string; stopped: string[] }

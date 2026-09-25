@@ -3,7 +3,7 @@ import { fileKinds } from "../catalog/kit.ts";
 import { type DeskContext } from "./context.ts";
 import { errorText } from "../core/errors.ts";
 import { IN_QUEUE, TASK } from "../domain/task.ts";
-import { gateNote } from "./gates.ts";
+import { gateNote, taskGate } from "./gates.ts";
 import { type Lane, type Task, loadLedger, othersLeft } from "./ledger.ts";
 import type { Letter } from "./letters.ts";
 import { mergeLetters } from "./merge-letters.ts";
@@ -11,8 +11,12 @@ import { holderOf } from "./holder.ts";
 import { closeSeat } from "./incidents.ts";
 import { type Project, serialIn } from "./project.ts";
 import { reachNotes } from "./reach.ts";
+import { bringLaneIn } from "./sync.ts";
 
-type Outcome = "merged" | "conflict" | "fail";
+type Outcome = "merged" | "conflict" | "red" | "fail";
+
+/** A gate verdict on a task's branch, with the failing run's tail when this merge ran it. */
+type Verdict = { ok: boolean; note: string; over?: string; run?: { tail: string; logFile: string } };
 
 export class MergeQueue {
   private readonly ctx: DeskContext;
@@ -98,7 +102,8 @@ export class MergeQueue {
     if (copy === "unknown") {
       return finish("fail", mergeLetters.mergeFailed(task, `git could not read the lane's working copy at ${cwd}`, ""));
     }
-    if (!task.branch) return finish("fail", mergeLetters.mergeFailed(task, "the task branch is not on record", ""));
+    if (!task.branch || !task.worktree) return finish("fail", mergeLetters.mergeFailed(task, "the task's branch or copy is not on record", ""));
+    if (!(await this.cleared(project, { ...task, branch: task.branch, worktree: task.worktree }, lane))) return;
     const ahead = await commitsAhead(cwd, "HEAD", task.branch);
     if (ahead === undefined) return finish("fail", mergeLetters.mergeFailed(task, `git could not count what ${task.branch} carries beyond the lane branch`, ""));
     // Nothing committed is a task that changed nothing, as in the lane's own copy: the Lead's accept stands.
@@ -106,46 +111,77 @@ export class MergeQueue {
       const head = await headSha(cwd);
       return head ? this.landed(project, task, lane, cwd, { before: head, after: head }) : finish("fail", mergeLetters.mergeFailed(task, `git could not read the lane branch in ${cwd}`, ""));
     }
+    // It carries the lane's tip, so this merge conflicts only with a commit made in the lane's copy since it was gated.
     const merged = await mergeBranch(cwd, task.branch, `Merge ${task.id}: ${task.title}`);
     if (!merged.ok) {
-      return merged.conflicts.length > 0
-        ? finish("conflict", mergeLetters.conflict(task, merged.conflicts, lane.branch, await this.settleIn(task, lane)))
-        : finish("fail", mergeLetters.mergeFailed(task, "git merge failed", merged.message));
+      const why = merged.conflicts.length > 0 ? `the lane's copy took a commit while it was gated, which conflicts with it in ${merged.conflicts.join(", ")}; accepting it again brings that in first` : "git merge failed";
+      return finish("fail", mergeLetters.mergeFailed(task, why, merged.message));
     }
     await this.landed(project, task, lane, cwd, merged);
+  }
+
+  /**
+   * Whether the task may merge now: its lane brought into its own copy, and a green gate on that tree or its Lead's word over a
+   * red one. What stops it is settled here: conflicts left for its Peer, a copy that cannot take the lane, a red gate.
+   */
+  private async cleared(project: Project, task: Task & { branch: string; worktree: string }, lane: Lane): Promise<boolean> {
+    const synced = await bringLaneIn(task, lane);
+    if ("conflicts" in synced) {
+      await this.finish(project, task, lane, "conflict", mergeLetters.conflict(task, synced.conflicts, lane.branch, "left", synced.by));
+      return false;
+    }
+    if ("not" in synced) {
+      await this.hold(project, task, lane, `its own copy cannot take ${lane.branch} in: ${synced.not}`);
+      return false;
+    }
+    const verdict = await this.verdict(project, task);
+    if (verdict?.ok === false && verdict.over === undefined) {
+      await this.finish(project, task, lane, "red", mergeLetters.red(task, lane.branch, verdict.note, verdict.run));
+      return false;
+    }
+    if (verdict?.over !== undefined) this.ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: lane.lead ?? "", task: task.id, reason: verdict.over });
+    return true;
+  }
+
+  /** The gate's verdict on the task's head: its hand-back's when that ran on the same commit, else one run now and kept on the task. */
+  private async verdict(project: Project, task: Task & { worktree: string }): Promise<Verdict | undefined> {
+    const head = await headSha(task.worktree);
+    const last = task.handback?.gate;
+    if (last && last.sha === head) return last;
+    const run = await taskGate(project, task.id, task.worktree);
+    if (!run) return undefined;
+    this.ctx.setTask(project, task.id, (entry) => {
+      if (entry.handback) entry.handback.gate = { ok: run.ok, note: run.note, sha: head };
+    });
+    return { ok: run.ok, note: run.note, run: { tail: run.tail, logFile: run.logFile } };
   }
 
   /** The lane's copy holds another writer's work: the Lead's accept stands, the task waits queued, and its Lead is told once for each reason. */
   private async waitFor(project: Project, task: Task, lane: Lane, cwd: string): Promise<void> {
     const holder = holderOf(loadLedger(project.state), lane);
-    const why = `the lane's working copy has uncommitted changes (${await uncommittedIn(cwd)})${holder ? `, and ${holder.id} holds it` : ""}`;
+    await this.hold(project, task, lane, `the lane's working copy has uncommitted changes (${await uncommittedIn(cwd)})${holder ? `, and ${holder.id} holds it` : ""}`, holder?.id);
+  }
+
+  /** The task waits queued for `why` to clear, tried again as each turn ends; its Lead is told once for each reason. */
+  private async hold(project: Project, task: Task, lane: Lane, why: string, holder?: string): Promise<void> {
     let told = false;
     this.ctx.moveTask(project, task.id, "requeue", (entry) => {
       told = entry.held?.why === why;
       entry.held = { why };
     });
-    if (!told) await this.ctx.post(lane.lead, mergeLetters.waits(task, why, holder?.id));
-  }
-
-  /** No seat may run git merge, so the task's own copy is given the lane branch to settle against, conflicts and all. */
-  private async settleIn(task: Task, lane: Lane): Promise<"left" | "clean" | { not: string }> {
-    if (!task.worktree) return { not: "its copy is not on record" };
-    const copy = await pristineState(task.worktree);
-    if (copy !== "clean") return { not: copy === "dirty" ? "it has uncommitted changes" : "git could not read it" };
-    const merged = await mergeBranch(task.worktree, lane.branch, `Bring ${lane.branch} into ${task.branch ?? task.id}`, true);
-    return merged.ok ? "clean" : merged.conflicts.length > 0 ? "left" : { not: merged.message.split("\n")[0] || "git merge failed" };
+    if (!told) await this.ctx.post(lane.lead, mergeLetters.waits(task, why, holder));
   }
 
   /** A merge git made, recorded and told with what it changed. */
   private async landed(project: Project, task: Task, lane: Lane, cwd: string, merged: { before: string; after: string }): Promise<void> {
     const counts = await diffCounts(cwd, merged.before, merged.after, fileKinds(this.ctx.kit));
     const serial = await serialIn(this.ctx.kit, project, cwd);
-    // No gate here: the Lead accepted with the verdict in hand, and undoing the merge on red would take that decision back.
-    const gate = gateNote(project, task);
     this.ctx.setTask(project, task.id, (entry) => {
       entry.mergeSha = merged.after;
     });
     const now = loadLedger(project.state);
+    // The gate ran before the merge, on the tree it made; the verdict on record, or its Lead's word over it, is what it says.
+    const gate = gateNote(project, now.tasks[task.id] ?? task);
     await this.finish(project, task, lane, "merged", mergeLetters.merged(task, counts, reachNotes(now, task, lane, counts?.files ?? [], serial), gate, othersLeft(now, task).length === 0));
   }
 

@@ -45,7 +45,9 @@ export async function takeoverFor(kit: Kit, project: Project, lane: Lane, copy: 
 function gateRegime(project: Project): string {
   const config = loadConfig(project.state);
   if (!config.gate) return "none set, so nothing is checked for you";
-  return config.gateOn === "task" ? `${config.gate} runs on every task, and its verdict reaches the Lead with the hand-back — evidence, not a veto` : `${config.gate} runs on the whole lane when you report it ready`;
+  return config.gateOn === "task"
+    ? `${config.gate} runs on every task, and its verdict reaches the Lead with the hand-back. A task beside others runs it with the lane brought in, and the lane takes it red only when its Lead accepts it over the gate with a reason`
+    : `${config.gate} runs on the whole lane when you report it ready`;
 }
 
 /** `serial` holds the paths in the lane's copy that only one writer at a time may write, as the desk will read them. */

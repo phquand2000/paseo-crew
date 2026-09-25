@@ -28,21 +28,28 @@ export const mergeLetters = {
       : mail("merge", [task.id, Date.now()], text, "Have a task of the lane commit or clear them, or cut the task to withdraw it.");
   },
 
+  /** Its gate failed on its branch with the lane brought in: `run` is the failing run when this merge ran it, and none when its hand-back did. */
+  red(task: Task, lane: string, note: string, run?: { tail: string; logFile: string }): Letter {
+    const lines = [`MERGE RED ${task.id} (${task.title}): the gate failed on its branch with ${lane} brought in, the tree the lane would become. The lane branch is unchanged.`, `Gate: ${note}`];
+    lines.push(...(run ? ["", run.tail, "", `Full log: ${run.logFile}`] : ["Its hand-back carries the log."]));
+    return mail("merge", [task.id, Date.now()], lines.join("\n"), "Send rework to its Peer with what must change, or accept it again with overGate and a reason to merge it over the gate.");
+  },
+
   mergeFailed(task: Task, reason: string, tail: string): Letter {
     const lines = [`MERGE FAILED ${task.id} (${task.title}): ${reason}`, "The lane branch is unchanged."];
     if (tail) lines.push("", "```", tail, "```");
     return mail("merge", [task.id, Date.now()], lines.join("\n"), "Clear what it names, then accept it again.");
   },
 
-  /** `settling` is how bringing the lane branch into the task's own copy went, since no seat may run git merge: left with its conflicts, clean, or not begun. */
-  conflict(task: Task, conflicts: string[], laneBranch: string, settling: "left" | "clean" | { not: string }): Letter {
+  /** `settling` is how bringing the lane branch into the task's own copy went, since no seat may run git merge: left with its conflicts, clean, or not begun; `by`, the tasks whose merges wrote the lane's side. */
+  conflict(task: Task, conflicts: string[], laneBranch: string, settling: "left" | "clean" | { not: string }, by: string[] = []): Letter {
     const [done, next] =
       settling === "left"
         ? [`The desk began merging ${laneBranch} into the task's branch in its own copy and left the conflicts there.`, "Send rework asking its Peer to settle them and commit the merge with git commit, then accept it again; or cut the task."]
         : settling === "clean"
           ? [`The desk merged ${laneBranch} into the task's branch in its own copy without conflicts.`, "Accept it again."]
           : [`The desk could not begin merging ${laneBranch} into the task's branch in its own copy, because ${settling.not}.`, "Send rework asking its Peer to commit what is left there, then accept it again; or cut the task."];
-    const text = [`MERGE CONFLICT ${task.id} (${task.title}) with ${laneBranch}.`, `Files: ${conflicts.join(", ") || "unknown"}`, `The lane branch is unchanged. ${done}`].join("\n");
+    const text = [`MERGE CONFLICT ${task.id} (${task.title}) with ${laneBranch}.`, `Files: ${conflicts.join(", ") || "unknown"}${by.length > 0 ? `, changed there by ${by.join(", ")}` : ""}`, `The lane branch is unchanged. ${done}`].join("\n");
     return mail("merge", [task.id, Date.now()], text, next);
   },
 };

@@ -1,23 +1,44 @@
 import { z } from "zod";
 import { fileKinds } from "../../catalog/kit.ts";
-import { currentBranch, ownCounts, pristineState, uncommittedIn } from "../../core/git.ts";
-import { IN_QUEUE, TASK } from "../../domain/task.ts";
-import { no, ok, str } from "../context.ts";
+import { currentBranch, headSha, ownCounts, pristineState, uncommittedIn } from "../../core/git.ts";
+import { AT_WORK, IN_QUEUE, TASK } from "../../domain/task.ts";
+import { type Args, type ToolReply, no, ok, str } from "../context.ts";
 import { gateNote } from "../gates.ts";
-import { loadLedger, othersLeft } from "../ledger.ts";
+import { type Task, loadLedger, othersLeft } from "../ledger.ts";
 import { mergeLetters } from "../merge-letters.ts";
 import { closeIncidentsOf } from "../notice.ts";
 import { holderOf } from "../holder.ts";
 import { reachNotes } from "../reach.ts";
-import { defineTool } from "../services.ts";
+import type { Project } from "../project.ts";
+import { type DeskServices, defineTool } from "../services.ts";
 import { startWaiting } from "../waiting.ts";
 import { laneTask } from "./lane-task.ts";
 
+/** A task beside others goes into the merge queue once handed back, and over a red gate on its tree only with its Lead's reason. */
+async function queueBeside(desk: DeskServices, project: Project, task: Task, args: Args): Promise<ToolReply> {
+  const { ctx, merges } = desk;
+  if (AT_WORK.includes(task.status) || !task.handback) return no(`${task.id} is not handed back: accept it once its Peer hands it back, or cut it.`);
+  const over = args.overGate === true;
+  if (over && !str(args.reason)) return no("Say why in reason: merging over a red gate is yours to explain.");
+  const gate = task.handback.gate;
+  if (gate?.ok === false && !over && gate.sha === (task.branch ? await headSha(project.root, task.branch) : undefined)) {
+    return no(`${task.id}'s gate is red on the tree the lane would become: send it back with rework, or accept it with overGate and a reason to merge it over the gate.`);
+  }
+  const queued = ctx.moveTask(project, task.id, "queue", (entry) => {
+    entry.acceptedAt = Date.now();
+    if (over && entry.handback?.gate?.ok === false) entry.handback.gate.over = str(args.reason);
+  });
+  if (typeof queued !== "object") return no(`${task.id} is ${queued ?? "gone"}.`);
+  const ahead = Object.values(loadLedger(project.state).tasks).filter((entry) => IN_QUEUE.includes(entry.status)).length - 1;
+  merges.enqueue(project, task.id);
+  return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED, MERGE RED, MERGE WAITS or MERGE FAILED arrives as mail.`);
+}
+
 export const accept = defineTool({
   name: "accept",
-  input: z.strictObject({ task: z.string() }),
+  input: z.strictObject({ task: z.string(), overGate: z.boolean().optional(), reason: z.string().optional() }),
   async handle(desk, caller, args) {
-    const { ctx, merges } = desk;
+    const { ctx } = desk;
     const { project } = caller;
     const found = laneTask(loadLedger(project.state), caller, str(args.task));
     if (typeof found === "string") return no(found);
@@ -25,13 +46,7 @@ export const accept = defineTool({
     if (lane.onHold) return no(`Lane ${lane.id} is on hold: ${lane.onHold.reason}. Nothing is accepted, started or landed in it until it resumes.`);
     if (task.kind !== "code") return no(`${task.id} is a review; cut it when you are done with it.`);
     if (!TASK.may(task.status, task.mode === "parallel" ? "queue" : "accept")) return no(`${task.id} is ${task.status}.`);
-    if (task.mode === "parallel") {
-      const queued = ctx.moveTask(project, task.id, "queue", (entry) => (entry.acceptedAt = Date.now()));
-      if (typeof queued !== "object") return no(`${task.id} is ${queued ?? "gone"}.`);
-      const ahead = Object.values(loadLedger(project.state).tasks).filter((entry) => IN_QUEUE.includes(entry.status)).length - 1;
-      merges.enqueue(project, task.id);
-      return ok(`${task.id} is in the merge queue${ahead > 0 ? ` behind ${ahead}` : ""}. MERGED, MERGE WAITS or MERGE FAILED arrives as mail.`);
-    }
+    if (task.mode === "parallel") return queueBeside(desk, project, task, args);
     // A copy off the lane branch (mid-bisect) has commits on no branch; clean and detached is not landed.
     if (lane.worktree && (await currentBranch(lane.worktree)) !== lane.branch) {
       return no(

@@ -744,12 +744,20 @@
     },
     {
       "name": "accept",
-      "description": "Accept a handed-back task. One in the lane's copy is already on the lane branch; a parallel task merges in once the lane's copy is clean, and MERGED, MERGE WAITS or MERGE FAILED comes as mail. Either way its Peer stays until you release it. The gate runs on the whole lane at ready, unless your directive says per task.",
+      "description": "Accept a handed-back task. One in the lane's copy is already on the lane branch. A parallel task has its lane brought in, is gated when the directive gates tasks, and merges if green: MERGED, MERGE RED, MERGE WAITS or MERGE FAILED comes as mail. Its Peer stays until you release it.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "task": {
             "type": "string"
+          },
+          "overGate": {
+            "type": "boolean",
+            "description": "With a task beside others red on the tree the lane would become: merge it anyway. Say why in reason."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the lane should take it over its red gate."
           }
         },
         "required": [

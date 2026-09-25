@@ -957,7 +957,7 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
 });
 
-test("a red task gate reaches the Lead with the hand-back, and landing it anyway is the Lead's call", async () => {
+test("a red task gate reaches the Lead with the hand-back, and the lane takes it only when the Lead accepts it over the gate, with a reason", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "echo red; exit 1", gateOn: "task" });
@@ -969,16 +969,16 @@ test("a red task gate reaches the Lead with the hand-back, and landing it anyway
   h.commit(task.worktree!, "b.txt", "B\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "b" });
 
-  // LEAD.md promises the per-task verdict with the hand-back, as evidence and not a veto.
+  // The directive promises the per-task verdict with the hand-back; beside others, red keeps it out of the lane until its Lead says why not.
   await h.idle(lane.lead!);
   const handback = h.agents.get(lane.lead!)!.sent.join("\n");
-  assert.match(handback, /Gate: echo red; exit 1: the gate failed with exit 1/);
-  assert.match(handback, /evidence for your decision, not a decision/);
+  assert.match(handback, /Gate: echo red; exit 1: the gate failed with exit 1\. The lane takes it red only if you accept it over the gate with a reason\./);
 
   h.agents.get(task.peer!)!.status = "idle";
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, false);
+  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1", overGate: true, reason: "the gate is broken, not the task" })).ok, true);
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "accepted with the verdict in hand, it lands");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "accepted over the gate with a reason, it lands");
   assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/);
 });
 
