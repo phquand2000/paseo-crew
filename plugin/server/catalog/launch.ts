@@ -1,12 +1,13 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
-import { type Kit, type McpServers, type RoleSpec, agentDefault, seatOf } from "./kit.ts";
+import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, agentDefault, seatOf } from "./kit.ts";
 import { stateTargets } from "./content.ts";
 import { type Team, preapprovedFor, rulesFor, skillDirsFor } from "./team.ts";
 
 export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
 export type SessionOpen = PluginBeforeRequests["agent.session_open"];
-export type RenderPrompt = (role: RoleSpec, source?: string) => string;
+export type RenderPrompt = (role: RoleSpec) => string;
 
 type Json = Record<string, unknown>;
 
@@ -57,9 +58,7 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
     next.thinkingOptionId = [config.thinkingOptionId, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
   }
   if (harness.systemPrompt === "config") {
-    // A harness with no context file of its own takes the role's rules in its prompt.
-    const rules = harness.contextFile ? "" : rulesFor(team, role.role);
-    const prompt = rules ? `${render(role).trimEnd()}\n\n${render(role, rules)}` : render(role);
+    const prompt = render(role);
     next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
   }
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
@@ -73,6 +72,13 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   if (harness.projectContextOption && config.cwd) providerOptions = appendAt(providerOptions, harness.projectContextOption, config.cwd);
   if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions as AgentConfig["providerOptions"];
   return next;
+}
+
+/** What a seat's rules file takes in of the project's own instructions that its agent reads nowhere else: only while the project has none it reads. */
+export function projectImports(harness: HarnessSpec, root: string | undefined): string {
+  const spec = harness.projectInstructions;
+  if (!spec || !root || spec.reads.some((file) => existsSync(join(root, file)))) return "";
+  return spec.otherwise.filter((file) => existsSync(join(root, file))).map((file) => `${spec.importAs.replace("{path}", join(root, file))}\n`).join("");
 }
 
 export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, project: { root: string; state: string }): SessionOpen {

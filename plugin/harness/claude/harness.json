@@ -3,8 +3,8 @@
   "label": "Claude Code",
   "baseProvider": "claude",
   "profileRoot": "HOME/.claude/profiles",
-  "configDirEnv": "PASEO_CREW_CLAUDE_SEAT",
-  "skillsDir": "crew/skills",
+  "configDirEnv": "CLAUDE_CONFIG_DIR",
+  "skillsDir": "skills",
   "steers": true,
   "mcp": {
     "file": ".claude.json",
@@ -52,15 +52,28 @@
       "PASEO_CREW_AGENT_BIN": "claude",
       "ENABLE_TOOL_SEARCH": "false",
       "ENABLE_PROMPT_CACHING_1H": "1",
-      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1"
+      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1",
+      "CLAUDE_SECURESTORAGE_CONFIG_DIR": ""
     },
     "profileModeId": "bypassPermissions",
     "command": [
-      "KIT/bin/claude-seat"
+      "KIT/bin/seat-room"
     ],
     "forceFlags": {
-      "--setting-sources": ""
+      "--setting-sources": "user"
     }
+  },
+  "contextFile": "CLAUDE.md",
+  "projectInstructions": {
+    "reads": [
+      "CLAUDE.md",
+      ".claude/CLAUDE.md"
+    ],
+    "otherwise": [
+      "AGENTS.md",
+      ".claude/AGENTS.md"
+    ],
+    "importAs": "@{path}"
   },
   "systemPrompt": "config",
   "stateWrites": {

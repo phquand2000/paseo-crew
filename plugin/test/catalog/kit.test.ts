@@ -37,6 +37,10 @@ test("the way a harness takes its prompt and its servers is checked, not assumed
   assert.deepEqual(harnessProblems("acme", { ...good(), settings: { file: "config.json", source: "settings.json" } }), ["has no settings.roleSource"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: ["additionalDirectories"] }), ["gives projectContextOption without an option path"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: "" }), ["gives projectContextOption without an option path"]);
+  const instructions = { reads: ["CLAUDE.md"], otherwise: ["AGENTS.md"], importAs: "@{path}" };
+  assert.deepEqual(harnessProblems("acme", { ...good(), projectInstructions: instructions }), []);
+  assert.deepEqual(harnessProblems("acme", { ...good(), projectInstructions: { ...instructions, importAs: "@AGENTS.md" } }), ["gives projectInstructions without the files it reads, the files to take in otherwise, and an importAs naming {path}"]);
+  assert.deepEqual(harnessProblems("acme", { ...good(), projectInstructions: { ...instructions, otherwise: [] } }), ["gives projectInstructions without the files it reads, the files to take in otherwise, and an importAs naming {path}"]);
   assert.deepEqual(harnessProblems("acme", { ...good(), projectContextOption: "additionalDirectories" }), []);
 });
 

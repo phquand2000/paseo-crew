@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import type { PluginHookContext, PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
-import { renderPrompt, renderText } from "../catalog/content.ts";
+import { renderPrompt } from "../catalog/content.ts";
 import { type Kit, type RoleSpec, can, seatOf } from "../catalog/kit.ts";
 import { type Listed, type ModelCache, applyModels, fetchModels, listingProviders } from "../catalog/models.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../catalog/launch.ts";
@@ -518,8 +518,7 @@ export class Runtime {
     const project = projectOf(config.cwd);
     this.remember(project);
     const team = this.seating.ensure(seat.role.role, seat.harness, project);
-    const paths = { guides: guidesDir(), state: project.state };
-    const render = (role: Parameters<typeof renderPrompt>[1], source?: string) => (source === undefined ? renderPrompt(this.kit, role, paths) : renderText(role, source, paths));
+    const render = (role: Parameters<typeof renderPrompt>[1]) => renderPrompt(this.kit, role, { guides: guidesDir(), state: project.state });
     return applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role), projectWrites(project));
   }
 

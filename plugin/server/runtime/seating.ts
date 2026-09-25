@@ -1,6 +1,7 @@
 import type { HarnessSpec, Kit, McpServers } from "../catalog/kit.ts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { projectImports } from "../catalog/launch.ts";
 import { materialize, seatDir } from "../catalog/seats.ts";
 import { type Team, serversFor, withHarness } from "../catalog/team.ts";
 import { expandHome, home } from "../core/paths.ts";
@@ -28,7 +29,7 @@ export class Seating {
 
   ensure(roleName: string, harness: HarnessSpec, project?: Project): Team {
     const team = withHarness(this.source.teamFor(project), roleName, harness);
-    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${project ? projectWrites(project).join("\n") : ""}`;
+    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${project ? projectWrites(project).join("\n") : ""}|${projectImports(harness, project?.root)}`;
     // Remembering a seat was built is no proof its directory still exists; a seat without instructions runs with none.
     const seat = team.roles[roleName];
     const dir = seat ? seatDir(this.kit, seat.role, harness, home(), project) : undefined;

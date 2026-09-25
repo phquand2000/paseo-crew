@@ -42,6 +42,7 @@ export type HarnessSpec = {
   systemPrompt?: "config" | "file";
   stateWrites?: { path: string; delivery: "launch" | "file" };
   projectContextOption?: string;
+  projectInstructions?: { reads: string[]; otherwise: string[]; importAs: string };
   skillPermission?: string;
   hideSkills?: { roots: string[]; setting: string };
   exitPattern?: string;
@@ -78,6 +79,7 @@ const HARNESS_FIELDS = new Set([
   "systemPrompt",
   "stateWrites",
   "projectContextOption",
+  "projectInstructions",
   "skillPermission",
   "hideSkills",
   "exitPattern",
@@ -116,6 +118,11 @@ export function harnessProblems(id: string, raw: Record<string, unknown>): strin
   }
   if (raw.projectContextOption !== undefined && (typeof raw.projectContextOption !== "string" || raw.projectContextOption === "")) {
     problems.push("gives projectContextOption without an option path");
+  }
+  const instructions = raw.projectInstructions as { reads?: unknown; otherwise?: unknown; importAs?: unknown } | undefined;
+  const named = (list: unknown) => Array.isArray(list) && list.length > 0 && list.every((file) => typeof file === "string" && file !== "");
+  if (instructions !== undefined && (!named(instructions?.reads) || !named(instructions.otherwise) || typeof instructions.importAs !== "string" || !instructions.importAs.includes("{path}"))) {
+    problems.push("gives projectInstructions without the files it reads, the files to take in otherwise, and an importAs naming {path}");
   }
   if (raw.skillPermission !== undefined && (typeof raw.skillPermission !== "string" || raw.skillPermission === "")) {
     problems.push("gives skillPermission without a settings path");

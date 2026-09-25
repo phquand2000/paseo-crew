@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { DESK_OWNED, skillSources } from "../../server/catalog/content.ts";
 import { loadKit, providerId } from "../../server/catalog/kit.ts";
 import { type AgentConfig, type SessionOpen, applyRole, seatEnv } from "../../server/catalog/launch.ts";
-import { resolveTeam, rulesFor } from "../../server/catalog/team.ts";
+import { resolveTeam } from "../../server/catalog/team.ts";
 import { makeKit } from "../kit.ts";
 
 const kit = makeKit();
@@ -22,14 +22,6 @@ test("a Lead gets the model its settings choose for an unknown alias, its mode, 
   assert.equal(next.systemPrompt, "ROLE PROMPT");
   const high = applyRole(kit, resolveTeam(kit, { roles: { lead: { thinking: "high" } } }), config, render);
   assert.equal(high.thinkingOptionId, "high");
-});
-
-test("a harness with no context file of its own takes the role's rules in its prompt", () => {
-  const bare = { ...kit, harnesses: { ...kit.harnesses, claude: { ...kit.harnesses.claude!, contextFile: undefined } } };
-  const rules = rulesFor(team, "lead");
-  assert.ok(rules, "the fixture's Lead has rules");
-  const next = applyRole(bare, team, { provider: "crew-lead-claude", cwd: "/repo" } as AgentConfig, (_role, source) => source ?? "ROLE PROMPT");
-  assert.equal(next.systemPrompt, `ROLE PROMPT\n\n${rules}`);
 });
 
 test("a valid model and thinking option are kept and a caller prompt is appended", () => {

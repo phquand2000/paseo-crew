@@ -69,6 +69,7 @@ export function makeKit(): Kit {
     systemPrompt: "config",
     stateWrites: { path: "settings.sandbox.filesystem.allowWrite", delivery: "launch" },
     projectContextOption: "additionalDirectories",
+    projectInstructions: { reads: ["CLAUDE.md", ".claude/CLAUDE.md"], otherwise: ["AGENTS.md", ".claude/AGENTS.md"], importAs: "@{path}" },
     settings: { file: "settings.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     models: [

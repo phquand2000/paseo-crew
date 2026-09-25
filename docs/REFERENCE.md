@@ -194,13 +194,17 @@ settings revision changes, its settings file is gone, or a login appeared since.
 
 | Agent | Directory | Written there | Launch |
 |---|---|---|---|
-| Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, `CLAUDE.md` for working rules | `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out |
+| Claude Code | `~/.claude/profiles/…` | `settings.json` (deny rules, sandbox), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link, `CLAUDE.md` for working rules and, when the project has no `CLAUDE.md`, an import of its `AGENTS.md` | `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out |
 | Codex | `~/.codex/seats/…` | `config.toml` (`model_provider` and `model_providers` from your own `~/.codex/config.toml`; `workspace-write`, or `read-only` for Reviewer, Senior Reviewer, Hunter and Watcher; `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json` link, `AGENTS.md` | Paseo's Codex provider |
 | OpenCode | `~/.opencode/seats/…` | `opencode/opencode.json` (command denials, subagents off but for the Hunter, edits off for Reviewer, Hunter and Watcher, only the role's skills allowed), `opencode/AGENTS.md`, `opencode/skills/`, a link to your git config | Paseo's OpenCode provider, with `OPENCODE_DISABLE_CLAUDE_CODE` and `OPENCODE_DISABLE_EXTERNAL_SKILLS` |
 | Antigravity | `~/.gemini/seats/…`, used as the seat's `HOME` | `.gemini/GEMINI.md` (prompt and working rules), `.gemini/config/mcp_config.json`, `.gemini/config/skills/`, a link to your `agy` login token, links to your git config | `bin/agy-home`, which sets `HOME` and hands over to `bin/seat-room`, running `agy-acp` over Paseo's ACP provider |
 
 - **Claude Code** still reads the project's `CLAUDE.md`: the working directory is passed as an
-  additional directory.
+  additional directory. Claude never reads an added directory's `AGENTS.md`, so where the project
+  has no `CLAUDE.md` the seat's own `CLAUDE.md` imports the project's `AGENTS.md`, as Claude Code
+  reads it outside a seat.
+- **Claude Code** keeps its login per config dir. A seat sets `CLAUDE_SECURESTORAGE_CONFIG_DIR` empty,
+  so it reads the one login made outside any seat, and never needs one of its own.
 - **Codex** needs the `codex` CLI to build a seat, because the build asks it for its models.
 - **OpenCode** uses `XDG_CONFIG_HOME` as its config variable, so `~/.config/opencode` stays out;
   its login lives under `~/.local/share/opencode` and is shared. Without `~/.config/git`, an

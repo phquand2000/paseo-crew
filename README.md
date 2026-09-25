@@ -108,13 +108,13 @@ thinking level where the agent offers them.
 
 | Agent | Before its first seat | Sandbox | Mail into a running turn |
 |---|---|---|---|
-| Claude Code | `claude` signed in | yes | yes |
+| Claude Code | `claude` signed in once, outside any seat; every seat uses that login | yes | yes |
 | Codex | `codex login` once. The `codex` CLI must be on the machine that runs the daemon | yes | yes |
 | OpenCode | `opencode auth login` once | no | no, it waits for the turn to end |
 | Antigravity | `agy` signed in once, and `agy-acp` on the `PATH` of the daemon | no | no, it waits for the turn to end |
 
-Every seat reads your project's own instructions: Claude reads `CLAUDE.md`, and the others read
-`AGENTS.md`. Claude Code, Codex and OpenCode seats are denied `git push`, `gh`, `paseo` and starting
+Every seat reads your project's own instructions: Claude reads `CLAUDE.md`, or `AGENTS.md` when
+the project has no `CLAUDE.md`, and the others read `AGENTS.md`. Claude Code, Codex and OpenCode seats are denied `git push`, `gh`, `paseo` and starting
 other agents. An Antigravity seat has no sandbox and no path or command rules: it runs with
 `--dangerously-skip-permissions` and is held only by its prompt, so give it roles you would trust
 unsupervised. Only the Hunter may start subagents, on the agents that have them. No seat reads your

@@ -4,7 +4,7 @@ import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, re
 import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, harnessFileSources, roleSettingsFile } from "./kit.ts";
-import { stateWrites } from "./launch.ts";
+import { projectImports, stateWrites } from "./launch.ts";
 import { contentRoot, expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
@@ -340,7 +340,7 @@ function removeIfPresent(path: string, what: string, record: Recorder): void {
   record.removed(what);
 }
 
-function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, paths: PromptPaths, record: Recorder): void {
+function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, paths: PromptPaths, record: Recorder, root?: string): void {
   const { role, harness } = team.roles[roleName]!;
   const rules = renderText(role, rulesFor(team, roleName), paths);
   if (harness.systemPrompt === "file" && harness.promptFile) {
@@ -351,7 +351,9 @@ function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, 
   }
   if (!harness.contextFile) return;
   const contextPath = join(dir, harness.contextFile);
-  if (rules) record.note(writeReal(contextPath, rules), harness.contextFile);
+  // Added after the lint: the project's path is the Human's, and a hidden word in it must not refuse the seat.
+  const imported = [rules, projectImports(harness, root)].filter(Boolean).join("\n");
+  if (imported) record.note(writeReal(contextPath, imported), harness.contextFile);
   else removeIfPresent(contextPath, harness.contextFile, record);
 }
 
@@ -415,7 +417,7 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);
   writeMcpFile(seat.harness, dir, servers, record);
-  writeInstructions(kit, team, roleName, dir, paths, record);
+  writeInstructions(kit, team, roleName, dir, paths, record, project?.root);
   linkSkills(kit, team, roleName, dir, homeDir, record);
   return record.changes;
 }
