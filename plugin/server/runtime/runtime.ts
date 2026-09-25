@@ -106,7 +106,8 @@ export class Runtime implements HostHooks {
     return new TeamSocket(deskSocket(), {
       agentOf: (key) => this.keys.agentOf(key),
       choices: (role, cwd) => choicesFor(this.kit, this.source.teamFor(projectOf(cwd)), role),
-      answer: (request, cancelled) => this.desk.answer(request, { cancelled }).catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` })),
+      // A reloaded plugin has Paseo's API only once a hook or a panel call brings it: a call waits for it rather than fail to reach a seat.
+      answer: (request, cancelled) => this.host.reached().then(() => this.desk.answer(request, { cancelled })).catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` })),
       mailLost: (request, reply) => this.desk.mailLost(request, reply),
     });
   }

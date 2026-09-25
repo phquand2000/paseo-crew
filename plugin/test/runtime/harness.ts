@@ -207,8 +207,8 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   writeFileSync(join(state, "settings.json"), JSON.stringify({ mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } = fakePaseo();
   const project = projectOf(root);
-  const start = () => {
-    const next = new Runtime(kit, new PaseoHost(paseo), { codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true, sensor: options.sensor });
+  const start = (host = new PaseoHost(paseo)) => {
+    const next = new Runtime(kit, host, { codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true, sensor: options.sensor });
     made.push(next);
     // Paseo seats a project's agents through the create hook, which records the project; the seats added here skip it.
     (next as unknown as { remember(project: Project): void }).remember(project);
@@ -216,9 +216,10 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   };
   let runtime = start();
   // The plugin starting again on the same machine: the daemon, its agents and what is on disk stay, the plugin's memory does not.
-  const restart = () => {
+  // Given a host, it starts as a reload does, without Paseo's API until a hook or a panel call hands it over.
+  const restart = (host?: PaseoHost) => {
     runtime.dispose();
-    runtime = start();
+    runtime = start(host);
   };
   let n = 0;
   // `where` is the calling working copy, since several desk keys turned out shared between projects.

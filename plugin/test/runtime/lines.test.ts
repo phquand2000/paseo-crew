@@ -3,6 +3,7 @@ import { connect } from "node:net";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { contracts } from "../../shared/rpc.ts";
+import { PaseoHost } from "../../server/adapters/paseo/host.ts";
 import { deskSocket } from "../../server/core/paths.ts";
 import type { TeamSocket } from "../../server/runtime/team-socket.ts";
 import { harness } from "./harness.ts";
@@ -66,4 +67,30 @@ test("an answer that reached the line but not the harness is mailed, saying the 
   await new Promise((resolve) => setTimeout(resolve, 100));
   await h.idle(lead);
   assert.match(seat.sent.join("\n"), /ANSWER to your status call, which was stopped on your side before its answer reached you\./);
+});
+
+test("a call that comes before Paseo has reached the plugin again waits for it rather than failing, and is carried out once it has", async (t) => {
+  const { h } = await leadOnTheLine(t);
+  const host = new PaseoHost();
+  h.restart(host);
+  const socket = (h.runtime as unknown as { socket: TeamSocket }).socket;
+  socket.listen();
+  t.after(() => socket.close());
+  const line = connect(deskSocket());
+  await new Promise((resolve) => line.on("connect", resolve));
+  t.after(() => line.destroy());
+  const heard: Heard[] = [];
+  createInterface({ input: line }).on("line", (text) => heard.push(JSON.parse(text)));
+  const say = (message: object) => line.write(`${JSON.stringify(message)}\n`);
+  say({ type: "hello", key: "k-lead", role: "lead", cwd: h.root });
+  assert.ok(await within(2000, () => heard.some((said) => said.type === "welcome")), "the seat's key outlives the restart");
+  say({ type: "call", id: "1", tool: "add_tasks", args: { tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] } });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(heard.some((said) => said.type === "result"), false, "it waits, as the call cannot reach a seat yet");
+  // A panel call hands the plugin Paseo's API, as a hook would.
+  host.answering({ handle: (_contract: unknown, handler: (input: unknown, context: { paseo: unknown }) => unknown) => handler(undefined, { paseo: h.paseo }) } as never)({ name: "status" }, () => undefined);
+  assert.ok(await within(3000, () => heard.some((said) => said.type === "result")));
+  const result = heard.find((said) => said.type === "result") as Heard & { ok?: boolean };
+  assert.equal(result.ok, true, result.text);
+  assert.ok(h.ledger().tasks["L1-T1"]!.peer, "its task started with a Peer of its own");
 });

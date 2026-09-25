@@ -108,8 +108,8 @@ export type Models = {
   list(provider: string, cwd: string): Promise<ModelList>;
 };
 
-/** Paseo as the plugin reaches it; `connected` is false until a hook or a panel call has handed over its API. */
-export type Host = { connected(): boolean; seats: Seats; workspaces: Workspaces; models: Models };
+/** Paseo as the plugin reaches it; `connected` is false, and `reached` unsettled, until a hook or a panel call has handed over its API. */
+export type Host = { connected(): boolean; reached(): Promise<void>; seats: Seats; workspaces: Workspaces; models: Models };
 
 /** A question as the watch's catalog words it, the fields the code fills filled: a noul is one condition, a choice picks one of its criteria. */
 export type Question = { type: "noul" | "choice"; instructions: string | Record<string, string>; criteria: Record<string, string> };
