@@ -4,8 +4,8 @@ import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@get
 import { memo, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Button, Empty } from "./bits.tsx";
-import type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView } from "../shared/views.ts";
-import { countsInstead } from "./data.ts";
+import type { FlowAsk, FlowLane, FlowSeat, FlowTask, FlowView } from "../../shared/views.ts";
+import { countsInstead } from "../format/flow.ts";
 import { ApprovalsCards } from "./approvals.tsx";
 import { QuestionCards } from "./questions.tsx";
 import { WatchCard } from "./watching.tsx";

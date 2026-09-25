@@ -2,9 +2,9 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { Text } from "react-native";
 import { Empty } from "./bits.tsx";
-import { reportRpc } from "../shared/rpc.ts";
-import type { ReportItem } from "../shared/views.ts";
-import { useProjectRead } from "./reads.ts";
+import { reportRpc } from "../../shared/rpc.ts";
+import type { ReportItem } from "../../shared/views.ts";
+import { useProjectRead } from "../state/reads.ts";
 
 const ago = (minutes: number): string => (minutes < 1 ? "just now" : minutes < 90 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`);
 

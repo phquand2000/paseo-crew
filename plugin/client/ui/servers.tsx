@@ -4,9 +4,9 @@ import { SettingsAction, SettingsCard, SettingsInput, SettingsRow, SettingsSecti
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Chips, sourceLabel } from "./bits.tsx";
-import type { Layer, McpChoice, Scalar } from "../shared/settings.ts";
-import type { CatalogView, SettingSpec, TeamView } from "../shared/views.ts";
-import { dropMcp, setMcp, sourceOf } from "./data.ts";
+import type { Layer, McpChoice, Scalar } from "../../shared/settings.ts";
+import type { CatalogView, SettingSpec, TeamView } from "../../shared/views.ts";
+import { dropMcp, setMcp, sourceOf } from "../model/layer.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Entry = CatalogView["mcp"][number];

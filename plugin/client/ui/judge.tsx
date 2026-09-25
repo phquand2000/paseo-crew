@@ -2,11 +2,11 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsInput, type SettingsInputHandle, SettingsRow } from "@getpaseo/plugin/client/ui";
 import { type ReactElement, type RefObject, useRef, useState } from "react";
 import { Text } from "react-native";
-import { KEPT, type Layer } from "../shared/settings.ts";
-import type { CatalogView, TeamView } from "../shared/views.ts";
+import { KEPT, type Layer } from "../../shared/settings.ts";
+import type { CatalogView, TeamView } from "../../shared/views.ts";
 import { sourceLabel } from "./bits.tsx";
-import { setAttention, sourceOf } from "./data.ts";
-import { withKey } from "./judging.ts";
+import { setAttention, sourceOf } from "../model/layer.ts";
+import { withKey } from "../model/layer.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {

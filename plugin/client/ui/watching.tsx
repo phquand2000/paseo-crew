@@ -3,9 +3,9 @@ import { SettingsCard } from "@getpaseo/plugin/client/ui";
 import { type ReactNode, useMemo } from "react";
 import { Text, View } from "react-native";
 import { Dot, Rule } from "./bits.tsx";
-import type { WatchJudge, WatchView } from "../shared/views.ts";
-import { incidentState } from "./data.ts";
-import { judgeWords } from "./judging.ts";
+import type { WatchJudge, WatchView } from "../../shared/views.ts";
+import { incidentState } from "../format/watch.ts";
+import { judgeWords } from "../format/watch.ts";
 
 const ago = (minutes: number): string => (minutes < 1 ? "just now" : minutes < 60 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`);
 

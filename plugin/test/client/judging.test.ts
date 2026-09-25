@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { judgeWords, withKey } from "../../client/judging.ts";
+import { judgeWords } from "../../client/format/watch.ts";
+import { withKey } from "../../client/model/layer.ts";
 import { KEPT } from "../../shared/settings.ts";
 
 test("a key typed on the panel goes with the save beside the ones shown as KEPT, and forgetting one leaves the others", () => {

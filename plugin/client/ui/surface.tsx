@@ -5,8 +5,10 @@ import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@get
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import type { Check } from "../shared/views.ts";
-import { setFlow, useFlow, useSeatworks } from "./data.ts";
+import type { Check } from "../../shared/views.ts";
+import { setFlow } from "../model/layer.ts";
+import { useFlow } from "../state/flow.ts";
+import { useSeatworks } from "../state/seatworks.ts";
 import { type DetailTab, Detail } from "./detail.tsx";
 import { FlowSection } from "./flow.tsx";
 import { HealthSection } from "./health.tsx";

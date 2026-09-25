@@ -5,10 +5,11 @@ import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSel
 import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Button } from "./bits.tsx";
-import type { Layer } from "../shared/settings.ts";
-import type { CatalogView, Folders, ProjectRow } from "../shared/views.ts";
-import type { PaseoProject } from "./data.ts";
-import { harnessInForce, message, modelInForce, modelRow, setRole } from "./data.ts";
+import type { Layer } from "../../shared/settings.ts";
+import type { CatalogView, Folders, ProjectRow } from "../../shared/views.ts";
+import type { PaseoProject } from "../state/seatworks.ts";
+import { message } from "../format/error.ts";
+import { harnessInForce, modelInForce, modelRow, setRole } from "../model/layer.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {

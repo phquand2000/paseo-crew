@@ -32,7 +32,6 @@ const NAMED: string[] = [];
 const LIMITS = { file: 300, testFile: 400, function: 50 };
 
 const LONG_FILES: Record<string, number> = {
-  "client/data.ts": 437,
   "server/catalog/seats.ts": 370,
   "server/desk/slots.ts": 329,
   "test/runtime/facts.test.ts": 401,
@@ -41,17 +40,17 @@ const LONG_FILES: Record<string, number> = {
 };
 
 const LONG_FUNCTIONS: Record<string, number> = {
-  "client/data.ts useSeatworks": 240,
-  "client/flow.tsx FlowSection": 63,
-  "client/health.tsx HealthSection": 94,
-  "client/model-picker.tsx ModelPicker": 128,
-  "client/projects.tsx ProjectList": 57,
-  "client/servers.tsx ServersSection": 138,
-  "client/servers.tsx Tuning": 56,
-  "client/setup-dialog.tsx SetupDialog": 242,
-  "client/surface.tsx SeatworksSurface": 172,
-  "client/team.tsx roleRows": 56,
-  "client/upkeep.tsx UpkeepSection": 163,
+  "client/state/seatworks.ts useSeatworks": 240,
+  "client/ui/flow.tsx FlowSection": 63,
+  "client/ui/health.tsx HealthSection": 94,
+  "client/ui/model-picker.tsx ModelPicker": 128,
+  "client/ui/projects.tsx ProjectList": 57,
+  "client/ui/servers.tsx ServersSection": 138,
+  "client/ui/servers.tsx Tuning": 56,
+  "client/ui/setup-dialog.tsx SetupDialog": 242,
+  "client/ui/surface.tsx SeatworksSurface": 172,
+  "client/ui/team.tsx roleRows": 56,
+  "client/ui/upkeep.tsx UpkeepSection": 163,
   "server/catalog/team.ts resolveRole": 60,
   "server/desk/status.ts statusText": 86,
   "server/runtime/doctor.ts doctor": 77,

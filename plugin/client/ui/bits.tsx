@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
-import type { Source } from "./data.ts";
+import type { Source } from "../model/layer.ts";
 
 export const CONTROL = { radius: 6, height: 32, padding: 12, gap: 8, font: 14, pressed: 0.85, faded: 0.5 };
 

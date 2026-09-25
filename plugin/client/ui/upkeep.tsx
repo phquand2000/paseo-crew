@@ -4,10 +4,10 @@ import { ScrollView } from "@getpaseo/plugin/client/react-native";
 import { SettingsAction, SettingsCard, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
-import { cleanRpc, decideRpc, migrateRpc, updateRpc } from "../shared/rpc.ts";
-import type { CleanItem, CleanView, ContentChange, MigrateView, UpdateView } from "../shared/views.ts";
+import { cleanRpc, decideRpc, migrateRpc, updateRpc } from "../../shared/rpc.ts";
+import type { CleanItem, CleanView, ContentChange, MigrateView, UpdateView } from "../../shared/views.ts";
 import { Button } from "./bits.tsx";
-import { message } from "./data.ts";
+import { message } from "../format/error.ts";
 
 type Busy = "update" | "migrate" | "clean" | "decide" | null;
 

@@ -2,9 +2,9 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import { ordersRpc } from "../shared/rpc.ts";
-import type { OrdersView } from "../shared/views.ts";
-import { useProjectRead } from "./reads.ts";
+import { ordersRpc } from "../../shared/rpc.ts";
+import type { OrdersView } from "../../shared/views.ts";
+import { useProjectRead } from "../state/reads.ts";
 
 const HOMES: Record<string, string> = {
   onBranch: "On the branch your copy is on, carried on where it is.",

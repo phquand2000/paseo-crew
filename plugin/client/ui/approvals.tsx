@@ -3,8 +3,8 @@ import { useRpc } from "@getpaseo/plugin/client";
 import { SettingsAction, SettingsCard, SettingsInput, type SettingsInputHandle, SettingsRow } from "@getpaseo/plugin/client/ui";
 import { useRef, useState } from "react";
 import { Text } from "react-native";
-import { landDecideRpc } from "../shared/rpc.ts";
-import type { FlowLane, LandDecided } from "../shared/views.ts";
+import { landDecideRpc } from "../../shared/rpc.ts";
+import type { FlowLane, LandDecided } from "../../shared/views.ts";
 
 type Decide = (input: RpcInput<typeof landDecideRpc>) => Promise<LandDecided>;
 

@@ -86,7 +86,7 @@ These are mostly absences, so the code won't show them to you.
 | `server/desk/tools/` | One module per tool the seats call, each a zod input and a handler; `registry.ts` lists them for the desk |
 | `server/runtime/` | The composition root and the loops: hooks, seat keys, the desk's socket, outbox, patrol, turn reading, RPC, health |
 | `server/runtime/watch/` | The watch: the window over a timeline, the facts read from it and from each lane's record, and the findings they make |
-| `client/` | The Seatworks panel |
+| `client/` | The Seatworks panel: `state/` holds the hooks that read and save through RPC, `model/` edits the settings layer, `format/` decides what a card says of an answer, `ui/` draws the cards |
 | `shared/` | What the panel and server share, as zod schemas both take their types from: the RPC contracts (`rpc.ts`), each answer's shape (`views.ts`, which the panel checks every answer against) and the settings layer (`settings.ts`) |
 | `mcp/` | `team.mjs`, `code.mjs`, `tools.json` (the tool sets: titles, hints, schemas) and `instructions.json` (what each set's server is for) |
 | `bin/` | `seat-room`, the launcher that refuses a seat the plugin did not configure |

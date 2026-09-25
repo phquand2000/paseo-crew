@@ -3,9 +3,9 @@ import { useRpc } from "@getpaseo/plugin/client";
 import { SettingsAction, SettingsCard, SettingsInput, type SettingsInputHandle, SettingsRow } from "@getpaseo/plugin/client/ui";
 import { useRef, useState } from "react";
 import { Text } from "react-native";
-import { questionAnswerRpc } from "../shared/rpc.ts";
-import type { FlowQuestion, QuestionAnswered } from "../shared/views.ts";
-import { message } from "./data.ts";
+import { questionAnswerRpc } from "../../shared/rpc.ts";
+import type { FlowQuestion, QuestionAnswered } from "../../shared/views.ts";
+import { message } from "../format/error.ts";
 
 type Answer = (input: RpcInput<typeof questionAnswerRpc>) => Promise<QuestionAnswered>;
 

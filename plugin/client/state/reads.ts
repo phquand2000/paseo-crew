@@ -2,7 +2,7 @@ import type { PluginRpcContract } from "@getpaseo/plugin";
 import { useRpc } from "@getpaseo/plugin/client";
 import { useEffect, useRef, useState } from "react";
 import type { ZodType, output } from "zod";
-import { message } from "./data.ts";
+import { message } from "../format/error.ts";
 
 type Answer<O extends ZodType> = Exclude<output<O>, { error: string }>;
 

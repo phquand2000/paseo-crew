@@ -1,11 +1,12 @@
-import type { Layer } from "../shared/settings.ts";
-import type { WatchJudge } from "../shared/views.ts";
+import type { WatchIncident, WatchJudge } from "../../shared/views.ts";
 
-/** A sensor's key set, or with `null` forgotten; the server keeps any other key the values show as KEPT. */
-export function withKey(values: Layer, id: string, key: string | null): Layer {
-  const { [id]: _was, ...others } = values.sensor ?? {};
-  const sensor = key ? { ...others, [id]: { key } } : others;
-  return { ...values, sensor: Object.keys(sensor).length > 0 ? sensor : undefined };
+const HELD: Record<string, string> = { budget: "held · the lane's limit for today is reached", probation: "held · most of this kind's last ten were marked noise", nobody: "held · nobody is seated to tell", shadow: "recorded · mail is off" };
+
+/** Where an incident has got to, as the card shows it. */
+export function incidentState(item: WatchIncident): string {
+  if (item.told === "lead") return item.lane ? `told Lead ${item.lane}` : "told its Lead";
+  if (item.told === "supervisor") return "told the Supervisor";
+  return (item.held ? HELD[item.held] : undefined) ?? "recorded";
 }
 
 /** Who answers the watch's questions and how that stands, in words and a tone: fine, failing, or nobody asked. */
