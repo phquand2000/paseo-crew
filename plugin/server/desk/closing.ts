@@ -208,11 +208,12 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
     const branch = await agents.retire(project, task, lane.branch);
     if (branch) branches.push(branch);
   }
-  const look = lane.lead ? await roster.look(lane.lead).catch(() => undefined) : undefined;
-  const kept = Boolean(look && !look.archivedAt);
+  // A look Paseo could not answer is not a Lead gone: it stays kept, and a round that finds it gone puts its copy away.
+  const look = lane.lead ? await roster.look(lane.lead).catch(() => null) : undefined;
+  const kept = look === null || Boolean(look && !look.archivedAt);
   // Mid-turn seats are still writing in the lane's copy, the kept Lead included; it goes back when their turn ends, not under them.
   const peers = retired.filter((task) => task.mode !== "parallel").map((task) => task.peer).filter((id): id is string => typeof id === "string" && roster.archiving(id));
-  const writers = [...new Set([...(kept && midTurn(look!.status) ? [lane.lead!] : []), ...peers])];
+  const writers = [...new Set([...(look && !look.archivedAt && midTurn(look.status) ? [lane.lead!] : []), ...peers])];
   // A branch carried on is the Human's, and a copy of the lane's own stays with a kept Lead until it is released.
   if (!lane.onBranch && (!lane.slot || !kept)) {
     const drop = args.land === true ? { dropBranch: lane.branch, into: landedRef(lane.id) } : {};

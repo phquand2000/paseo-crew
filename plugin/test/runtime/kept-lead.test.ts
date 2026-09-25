@@ -121,3 +121,21 @@ test("closing a lane settles the asks still open in it, so its kept Lead is neve
   await h.tick(Date.now() + 60 * 60_000);
   assert.equal(h.heard(lane.lead!).length, before, "no reminder about a lane that is closed");
 });
+
+test("a kept Lead Paseo could not read at close keeps its copy: one failed look is not a Lead gone", async () => {
+  const { h, sup, lane, lead } = await isolatedLane();
+  const seats = (h.paseo as unknown as { agents: { ref(id: string): { refresh(): Promise<unknown> } } }).agents;
+  const ref = seats.ref;
+  let failed = false;
+  seats.ref = (id) => {
+    const handle = ref(id);
+    if (id !== lead || failed || h.ledger().lanes.L1!.status !== "closed") return handle;
+    failed = true;
+    return Object.assign(Object.create(handle), { refresh: () => Promise.reject(new Error("the daemon is busy")) });
+  };
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  assert.equal(landed.ok, true, landed.text);
+  assert.equal(failed, true, "the close read its Lead while Paseo could not answer");
+  assert.equal(h.agents.get(lead)!.archivedAt, null);
+  assert.ok(existsSync(lane.worktree!), "its copy stays with it; the round puts it away if the Lead really is gone");
+});
