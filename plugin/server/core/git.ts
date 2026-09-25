@@ -218,8 +218,6 @@ export function outsideOwned(files: string[], owned: string[]): string[] {
   return files.filter((file) => !rules.some((rule) => rule.test(file)));
 }
 
-type LandResult = { landed: boolean; how: string };
-
 /** Where `branch` left `base`: what a lane changed is read from here, however far `base` has moved since. */
 export async function mergeBase(cwd: string, base: string, branch: string): Promise<string | undefined> {
   const run = await git(cwd, ["merge-base", base, branch]);
@@ -237,45 +235,6 @@ export const LAND_AS: LandAs[] = ["squash", "merge", "ff"];
 
 /** Where a landed lane's own commits stay reachable once its branch is gone: squashed, base never carries them. */
 export const landedRef = (lane: string) => `refs/seatworks/lanes/${lane}`;
-
-/**
- * Lands `branch` on `base` as one commit, a merge commit or a fast-forward. The tree is always the one the gate saw on
- * the lane branch, which already contains `base`; the commit is made without checking anything out.
- */
-export async function landLane(root: string, base: string, branch: string, how: { as: LandAs; message: string; keep: string }): Promise<LandResult> {
-  if (!(await isAncestor(root, base, branch))) return { landed: false, how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated` };
-  // Undefined when the lane changes nothing on base: there is nothing to commit and base stays where it is.
-  let tip: string | undefined = branch;
-  if (how.as !== "ff") {
-    const trees = await git(root, ["rev-parse", `${base}^{tree}`, `${branch}^{tree}`]);
-    const [from, to] = trees.stdout.trim().split("\n");
-    if (trees.code === 0 && from === to) tip = undefined;
-    else {
-      const parents = how.as === "merge" ? [base, branch] : [base];
-      const made = await git(root, ["commit-tree", `${branch}^{tree}`, ...parents.flatMap((parent) => ["-p", parent]), "-m", how.message]);
-      if (made.code !== 0) return { landed: false, how: made.stderr.trim() || "git could not make the commit to land" };
-      tip = made.stdout.trim();
-    }
-  }
-  if (tip && (await currentBranch(root)) === base) {
-    const state = await cleanState(root);
-    if (state === "dirty") return { landed: false, how: `the main working copy on ${base} has uncommitted changes` };
-    if (state === "unknown") return { landed: false, how: `git could not read the main working copy at ${root}` };
-    const run = await git(root, ["merge", "--ff-only", tip]);
-    if (run.code !== 0) return { landed: false, how: run.stderr.trim() || "fast-forward failed" };
-  } else if (tip) {
-    const used = await git(root, ["worktree", "list", "--porcelain"]);
-    if (used.stdout.split("\n").some((line) => line.trim() === `branch refs/heads/${base}`)) {
-      return { landed: false, how: `${base} is checked out in another working copy` };
-    }
-    const run = await git(root, ["branch", "-f", base, tip]);
-    if (run.code !== 0) return { landed: false, how: run.stderr.trim() || "branch update failed" };
-  }
-  // Should this fail, the branch is kept rather than lost: dropping it checks it against this ref.
-  await git(root, ["update-ref", how.keep, branch]);
-  if (!tip) return { landed: true, how: `${branch} changes nothing on ${base}, so nothing was committed` };
-  return { landed: true, how: how.as === "squash" ? `squashed ${branch} into one commit on ${base}, its own commits kept at ${how.keep}` : how.as === "merge" ? `merged ${branch} into ${base}` : `fast-forwarded ${base} to ${branch}` };
-}
 
 export function gitCommonDir(cwd: string): string | undefined {
   try {

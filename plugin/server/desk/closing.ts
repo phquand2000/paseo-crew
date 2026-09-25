@@ -1,4 +1,5 @@
-import { headSha, isAncestor, landLane, landedRef, mergeBranch, mergeUnderWay } from "../core/git.ts";
+import { headSha, isAncestor, landedRef, mergeBranch, mergeUnderWay } from "../core/git.ts";
+import { landLane } from "../core/land.ts";
 import { midTurn } from "../core/paseo.ts";
 import { ASK } from "../domain/ask.ts";
 import { LANE } from "../domain/lane.ts";
@@ -114,7 +115,12 @@ export async function close(desk: DeskServices, project: Project, by: string, ar
     // Wait for queued merges, one more try included for those waiting on a clean copy: they run in the copy closing gates, lands and removes.
     await merges.retry(project);
     await merges.settled(project);
-    const landed = args.land === true ? await land(desk, project, ledger, lane, by, args.overGate === true) : { how: `the branch ${lane.branch} is kept for the Human`, note: "" };
+    // One landing at a time moves a project's base; the next reads it again, bringing in what the last one landed.
+    const landing = () => {
+      const now = loadLedger(project.state);
+      return land(desk, project, now, now.lanes[lane.id] ?? lane, by, args.overGate === true);
+    };
+    const landed = args.land === true ? await ctx.inTurn(`${project.slug}:land`, landing) : { how: `the branch ${lane.branch} is kept for the Human`, note: "" };
     if ("text" in landed) return landed;
     return await retire(desk, project, lane, args, landed);
   } finally {
@@ -164,6 +170,8 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
       if (entry) entry.head = merged;
     });
   }
+  // What lands is the head its gate saw: a lane that moves after the gate lands nothing.
+  const tested = await headSha(project.root, lane.branch);
   const gate = await laneGate(ctx, project, lane);
   // A red gate stops landing unless the Supervisor passes `overGate`: the verdict is evidence, not a veto.
   if (!gate.ok && !overGate) {
@@ -172,7 +180,7 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
   const check = await checkLanding(desk, project, lane, gate, overGate, approved);
   if (check.held) return ok(check.held);
   const how = { as: loadConfig(project.state).landAs, message: landMessage(ledger, lane), keep: landedRef(lane.id) };
-  const result = lane.onBranch ? { landed: true, how: `the work stays on ${lane.branch}, the branch it carried on; nothing was merged anywhere` } : await landLane(project.root, lane.base, lane.branch, how);
+  const result = lane.onBranch ? { landed: true, how: `the work stays on ${lane.branch}, the branch it carried on; nothing was merged anywhere` } : await landLane(project.root, lane.base, lane.branch, tested ?? "", how);
   if (!result.landed) return { ...no(`Lane ${lane.id} was not closed: it could not land, because ${result.how}. land_lane it again once that is cleared, or drop_lane it.`), blocked: result.how };
   if (!gate.ok) ctx.event(project, { kind: "gate.overridden", lane: lane.id, by });
   return { how: `${result.how}${gate.ok ? "" : ", over a red gate"}`, note: check.note };

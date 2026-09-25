@@ -54,6 +54,7 @@ export class DeskContext {
   readonly projects = new Map<string, Project>();
   readonly seating = new Set<string>();
   readonly closing = new Set<string>();
+  private readonly lines = new Map<string, Promise<unknown>>();
   /** What each seat's last status said: one that asks again with nothing changed is polling. */
   readonly statusSeen = new Map<string, string>();
   private readonly deps: DeskDeps;
@@ -81,6 +82,13 @@ export class DeskContext {
   }
 
   /** The one way the ledger changes: read, decided on and saved with nothing awaited in between, so no other change can land in the middle. */
+  /** Runs `work` once every earlier one queued under `key` has settled, whatever became of it. */
+  inTurn<T>(key: string, work: () => Promise<T>): Promise<T> {
+    const run = (this.lines.get(key) ?? Promise.resolve()).then(work);
+    this.lines.set(key, run.catch(() => undefined));
+    return run;
+  }
+
   transact<T>(project: Project, decide: (ledger: Ledger) => Sync<T>): T {
     this.projects.set(project.slug, project);
     const fault = ledgerFault(project.state);

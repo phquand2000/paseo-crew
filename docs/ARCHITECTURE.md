@@ -170,6 +170,10 @@ treated as empty.
 4. Land it on the base the project's way (`landAs`): one squashed commit by default, with the lane's
    own commits kept at `refs/seatworks/lanes/<id>`, a merge commit, or a fast-forward.
 
+Landings in one project run one at a time, so the next one merges in what the last one landed. The base
+moves only from the commit read at the start, and what lands is the head its gate saw: a landing never
+writes over another, and a lane that moved after its gate lands nothing.
+
 A seat mid-turn, a conflict or a red gate refuses the call and leaves the lane open. Only a red gate
 can be overridden, with `overGate`, and the override is written to `events.log`. Everything else the
 desk reads of the lane (deleted or weakened tests, files outside the write set, open incidents, what

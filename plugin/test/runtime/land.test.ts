@@ -303,3 +303,25 @@ test("a lane that reaches a risk rule is rehearsed with its gate, and a red rehe
   assert.equal(over.ok, true, over.text);
   assert.ok(onMain("src/db/001.sql"));
 });
+
+test("two lanes landed at once each stay on the base: a landing never erases another", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { gate: "true" });
+  for (const [title, file] of [["Cart", "cart.txt"], ["Order", "order.txt"]] as const) {
+    const opened = await h.call(sup, "supervisor", "open_lane", { title, outcome: title, acceptance: ["a"], outOfScope: ["the rest"], writeSet: [file], isolate: true });
+    assert.equal(opened.ok, true, opened.text);
+    const lane = Object.values(h.ledger().lanes).find((entry) => entry.title === title)!;
+    writeFileSync(join(lane.worktree!, file), `${title}\n`);
+    h.git(lane.worktree!, "add", "-A");
+    h.git(lane.worktree!, "commit", "-qm", title);
+    await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+    h.agents.get(lane.lead!)!.status = "idle";
+  }
+  // The Human works on a branch of their own, so the base is checked out nowhere and moves by its ref alone.
+  h.git(h.root, "switch", "-qc", "human-work");
+  const replies = await Promise.all(["L1", "L2"].map((lane) => h.call(sup, "supervisor", "land_lane", { lane })));
+  const onMain = h.git(h.root, "ls-tree", "--name-only", "-r", "main").split("\n");
+  assert.deepEqual(replies.map((reply) => reply.ok), [true, true], "the second waits for the first, then brings in what it landed: " + replies.map((reply) => reply.text).join("\n"));
+  assert.deepEqual(["cart.txt", "order.txt"].filter((file) => onMain.includes(file)), ["cart.txt", "order.txt"], "and main has the work of both");
+});

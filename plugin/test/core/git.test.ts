@@ -4,7 +4,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileKinds } from "../../server/catalog/kit.ts";
-import { contains, countNumstat, diffCounts, headSha, kindOf, landLane, mergeBranch, outsideOwned } from "../../server/core/git.ts";
+import { contains, countNumstat, diffCounts, headSha, kindOf, mergeBranch, outsideOwned } from "../../server/core/git.ts";
+import { advanceBase, landLane } from "../../server/core/land.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -32,7 +33,7 @@ test("a task branch merges into the lane and main fast-forwards to it", async ()
   const merged = await mergeBranch(root, "task/l1-t1", "Merge L1-T1");
   assert.equal(merged.ok, true);
   run("checkout", "-q", "main");
-  const landed = await landLane(root, "main", "lane/l1", { as: "ff", message: "", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "ff", message: "", keep: "refs/seatworks/lanes/L1" });
   assert.equal(landed.landed, true);
   assert.equal(await headSha(root, "main"), await headSha(root, "lane/l1"));
 });
@@ -50,7 +51,7 @@ async function laneOfTwo(onMain: boolean) {
 test("a lane lands squashed as one commit on main, the tree the gate saw, with its steps kept under a hidden ref", async () => {
   for (const onMain of [true, false]) {
     const { root, run, main, tip } = await laneOfTwo(onMain);
-    const landed = await landLane(root, "main", "lane/l1", { as: "squash", message: "Cart (L1)\n\nTotals add up", keep: "refs/seatworks/lanes/L1" });
+    const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "squash", message: "Cart (L1)\n\nTotals add up", keep: "refs/seatworks/lanes/L1" });
     assert.equal(landed.landed, true, landed.how);
     assert.equal(run("rev-parse", "main^").trim(), main, "one commit, straight on the main it was gated against");
     assert.equal(run("rev-parse", "main^{tree}").trim(), run("rev-parse", "lane/l1^{tree}").trim());
@@ -62,7 +63,7 @@ test("a lane lands squashed as one commit on main, the tree the gate saw, with i
 
 test("a lane lands as a merge commit whose second parent is the lane", async () => {
   const { root, run, main, tip } = await laneOfTwo(true);
-  const landed = await landLane(root, "main", "lane/l1", { as: "merge", message: "Cart (L1)", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "merge", message: "Cart (L1)", keep: "refs/seatworks/lanes/L1" });
   assert.equal(landed.landed, true, landed.how);
   assert.deepEqual(run("log", "-1", "--format=%P", "main").trim().split(" "), [main, tip]);
   assert.equal(run("status", "--porcelain").trim(), "", "the main copy follows its branch");
@@ -75,7 +76,7 @@ test("a lane that changes nothing lands without an empty commit", async () => {
   commit("a.txt", "one\n", "undo");
   run("checkout", "-q", "main");
   const before = await headSha(root, "main");
-  const landed = await landLane(root, "main", "lane/l1", { as: "squash", message: "Nothing (L1)", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "squash", message: "Nothing (L1)", keep: "refs/seatworks/lanes/L1" });
   assert.equal(landed.landed, true, landed.how);
   assert.equal(await headSha(root, "main"), before);
   assert.equal(await contains(root, "refs/seatworks/lanes/L1", "lane/l1"), true, "its commits are kept all the same, so its branch can go");
@@ -88,7 +89,7 @@ test("a lane that does not contain main is not landed: that merge would be one n
   run("checkout", "-q", "main");
   commit("d.txt", "main\n", "main moved");
   const before = await headSha(root, "main");
-  const landed = await landLane(root, "main", "lane/l2", { as: "squash", message: "x", keep: "refs/seatworks/lanes/L2" });
+  const landed = await landLane(root, "main", "lane/l2", (await headSha(root, "lane/l2"))!, { as: "squash", message: "x", keep: "refs/seatworks/lanes/L2" });
   assert.equal(landed.landed, false);
   assert.match(landed.how, /does not contain main/);
   assert.equal(await headSha(root, "main"), before);
@@ -170,4 +171,36 @@ test("whether a branch is already in another is answered from the branches, not 
   assert.equal(await contains(root, "lane/l1", "task/l1-t1"), true, "everything on the task branch is in the lane branch");
   assert.equal(await contains(root, "main", "task/l1-t1"), false);
   assert.equal(await contains(root, "lane/l1", "task/gone"), undefined, "a branch that is not there is not an answer to delete on");
+});
+
+test("a lane that moved after its gate ran lands nothing: what would land is not what was tested", async () => {
+  const { root, run, commit } = repo();
+  run("checkout", "-qb", "lane/l1");
+  commit("b.txt", "gated\n", "what the gate saw");
+  const tested = (await headSha(root, "lane/l1"))!;
+  commit("b.txt", "after\n", "a commit after the gate");
+  run("checkout", "-q", "main");
+  const before = await headSha(root, "main");
+  const landed = await landLane(root, "main", "lane/l1", tested, { as: "squash", message: "x", keep: "refs/seatworks/lanes/L1" });
+  assert.equal(landed.landed, false);
+  assert.match(landed.how, /moved after its gate ran/);
+  assert.equal(await headSha(root, "main"), before);
+});
+
+test("base moves only from the commit it was read as, checked out or not: a landing in between is never written over", async () => {
+  for (const onMain of [true, false]) {
+    const { root, run, commit } = repo();
+    const read = (await headSha(root, "main"))!;
+    run("checkout", "-qb", "lane/l1");
+    commit("b.txt", "lane\n", "lane work");
+    const tip = (await headSha(root, "lane/l1"))!;
+    run("checkout", "-q", "main");
+    commit("c.txt", "landed first\n", "another lane landed meanwhile");
+    const landedFirst = await headSha(root, "main");
+    if (!onMain) run("checkout", "-q", "lane/l1");
+    const moved = await advanceBase(root, "main", read, tip);
+    assert.equal(moved.landed, false, `on main: ${onMain}`);
+    assert.match(moved.how, /main moved while this lane was landing/);
+    assert.equal(await headSha(root, "main"), landedFirst);
+  }
 });
