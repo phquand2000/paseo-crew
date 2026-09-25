@@ -12,7 +12,7 @@ import { type Project, serialOnlyOf } from "../project.ts";
 import { defineTool } from "../services.ts";
 import { startWaiting } from "../waiting.ts";
 
-const Asked = z.strictObject({ key: z.string(), title: z.string().max(60), goal: z.string(), acceptance: z.array(z.string()), owned: z.array(z.string()), outOfScope: z.array(z.string()), context: z.string().optional(), skills: z.array(z.string()).optional(), parallel: z.boolean().optional(), fresh: z.boolean().optional(), after: z.array(z.string()).optional(), role: z.string().optional() });
+const Asked = z.strictObject({ key: z.string(), title: z.string().max(60), goal: z.string(), acceptance: z.array(z.string()), owned: z.array(z.string()), outOfScope: z.array(z.string()), context: z.string().optional(), skills: z.array(z.string()).optional(), parallel: z.boolean().optional(), after: z.array(z.string()).optional(), role: z.string().optional() });
 
 /** The role that takes a task, or why none can: a skill it lacks is refused here, since the Lead's context does not list them. */
 function workRoleFor(ctx: DeskContext, project: Project, args: Args): RoleSpec | string {
@@ -49,7 +49,7 @@ function recordTask(ledger: Ledger, lane: Lane, args: Args, parallel: boolean, w
     status: "waiting",
     after: waits.after,
     // Who takes it, kept for when it starts: the call that asked for it is long gone by then.
-    opening: { role: waits.role, ...(args.fresh === true ? { fresh: true } : {}) },
+    opening: { role: waits.role },
     openedAt: now,
     updatedAt: now,
     silent: 0,
@@ -69,7 +69,6 @@ export const addTasks = defineTool({
     const roles = new Map<string, string>();
     for (const task of args.tasks) {
       const key = task.key.trim().toUpperCase();
-      if (task.fresh && task.parallel) return no(`${key}: fresh is for a task in the lane's working copy: a parallel task always starts a Peer of its own.`);
       const role = workRoleFor(ctx, project, task);
       if (typeof role === "string") return no(`${key}: ${role}`);
       roles.set(key, role.role);

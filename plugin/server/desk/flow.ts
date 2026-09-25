@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SeatView } from "../core/paseo.ts";
 import { AT_WORK, SETTLED } from "../domain/task.ts";
-import { keptCopy, keptPeer } from "./kept.ts";
+import { keptCopy, keptPeers } from "./kept.ts";
 import type { Lane, Ledger } from "./ledger.ts";
 import type { FlowAsk, FlowLane, FlowQuestion, FlowSeat, FlowTask, FlowView } from "../../shared/views.ts";
 import type { Project } from "./project.ts";
@@ -60,7 +60,7 @@ function tasksByLane(ledger: Ledger, seats: Map<string, SeatView>, now: number, 
 function laneOf(lane: Lane, ledger: Ledger, seats: Map<string, SeatView>, now: number, count: Counted, tasks: FlowTask[], open: boolean): FlowLane {
   const land = lane.landApproval;
   const closed = lane.status === "closed";
-  const idle = closed ? undefined : keptPeer(ledger, lane.id);
+  const idle = closed ? [] : keptPeers(ledger, lane.id).filter((peer) => seats.has(peer.id));
   return {
     id: lane.id,
     title: lane.title,
@@ -69,7 +69,7 @@ function laneOf(lane: Lane, ledger: Ledger, seats: Map<string, SeatView>, now: n
     ...(lane.onBranch ? {} : { base: lane.base }),
     copy: (closed ? keptCopy(ledger, lane) : lane.slot) ?? null,
     lead: seatOf(seats, lane.lead, ledger.agents[lane.lead ?? ""]?.role ?? "lead", now),
-    kept: idle && seats.has(idle.id) ? seatOf(seats, idle.id, idle.role, now) : null,
+    kept: idle.map((peer) => ({ ...seatOf(seats, peer.id, peer.role, now)!, task: peer.task! })),
     ...(closed ? { landed: Boolean(lane.landed) } : {}),
     tasks,
     taskCount: count.total,

@@ -151,9 +151,8 @@ treated as empty.
 **Two task modes.**
 
 - **Lane mode**, the default. The task shares the lane's copy and branch. `accept` marks it merged
-  in place, and its Peer stays in the copy for the lane's next task there. That task goes to it
-  unless the Lead adds it `fresh`, it needs another role, or the team now starts the role otherwise;
-  the Lead `release`s a Peer it no longer needs.
+  in place, and its Peer stays until the Lead `release`s it. A seat has one duty for life: every
+  task starts a Peer of its own, and a kept Peer never takes another.
 - **Parallel mode.** The task gets its own slot and `task/…` branch. `accept` queues it, and one merge
   queue per project merges branches into their lane, one at a time. The queue is the tasks' status in
   the ledger, so a restart picks it up: a merge cut off midway is undone and run again, and one git had

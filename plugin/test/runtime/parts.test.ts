@@ -73,9 +73,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent carries none of the 
   const late = [letters.later(call, { ok: true, text: "done" }), letters.later(call, { ok: false, text: "no" }), letters.unanswered(call)];
   const worker = [
     taskBrief(task, lane, []),
-    taskBrief(task, lane, [], true),
     taskBrief({ ...task, mode: "parallel" }, lane, [{ ...task, id: "L1-T3", owned: ["src/other.js"] }]),
-    taskBrief(task, lane, [{ ...task, id: "L1-T3", mode: "parallel", owned: [] }], true),
+    taskBrief(task, lane, [{ ...task, id: "L1-T3", mode: "parallel", owned: [] }]),
     reviewBrief({ ...task, id: "L1-R2", kind: "review" }, task, "Is rounding right?", lane.branch),
     ...[letters.rework(task, "fix it"), letters.nudge(task, "done"), letters.message("your lead", "hi", sending), letters.amended(task, amendment, "worker")],
     ...[letters.onHold(lane, "the migration drops a table", task), letters.resumed(lane, "go on", task), askLetters.answered(ask), ...late],

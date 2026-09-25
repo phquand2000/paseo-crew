@@ -141,7 +141,7 @@ function KeptLead({ lane, theme, navigation }: LaneProps) {
   );
 }
 
-/** An open lane's seats below its Lead: each task's, then the Peer kept idle in the lane's copy. */
+/** An open lane's seats below its Lead: each task's, then each Peer kept idle after its task until released. */
 function Peers({ lane, theme, navigation }: LaneProps) {
   const styles = useStyles(theme);
   return (
@@ -162,12 +162,12 @@ function Peers({ lane, theme, navigation }: LaneProps) {
             />
           </View>
         ))}
-        {lane.kept ? (
-          <View style={styles.stub}>
+        {lane.kept.map((seat) => (
+          <View key={seat.id} style={styles.stub}>
             <View style={styles.link} />
-            <Node theme={theme} title="Peer · kept" hint="takes the next task in the lane's copy" state={seatText(lane.kept)} alive={false} onChat={chatOf(navigation, lane.kept)} />
+            <Node theme={theme} title={`Peer · kept · ${seat.task}`} hint="stays until its Lead releases it" state={seatText(seat)} alive={false} onChat={chatOf(navigation, seat)} />
           </View>
-        ) : null}
+        ))}
       </View>
     </>
   );
@@ -183,7 +183,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen, navigation }: LaneProps &
       </View>
     );
   }
-  const opens = lane.taskCount > 0 || lane.kept !== null;
+  const opens = lane.taskCount > 0 || lane.kept.length > 0;
   return (
     <View style={styles.lane}>
       <View style={{ gap: 8 }}>
@@ -199,7 +199,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen, navigation }: LaneProps &
         />
         {navigation && lane.workspaceId && lane.open ? <Button label={`Open ${lane.id}'s diff`} theme={theme} onPress={() => navigation.openWorkspace({ workspaceId: lane.workspaceId! })} /> : null}
       </View>
-      {lane.open && (lane.tasks.length > 0 || lane.kept) ? <Peers lane={lane} theme={theme} navigation={navigation} /> : null}
+      {lane.open && (lane.tasks.length > 0 || lane.kept.length > 0) ? <Peers lane={lane} theme={theme} navigation={navigation} /> : null}
     </View>
   );
 });
@@ -227,7 +227,7 @@ export function FlowSection({ following, flow, error, live, theme, disabled, onL
   const empty = flow !== null && flow.lanes.length === 0 && flow.supervisors.length === 0;
 
   return (
-    <SettingsSection title="Flow" info="Only what the team is holding right now, seats kept for more work included. Open a lane to see its Peers.">
+    <SettingsSection title="Flow" info="Only what the team is holding right now, seats kept until their superior releases them included. Open a lane to see its Peers.">
       <SettingsCard>
         <SettingsSwitch
           label="Follow the team live"

@@ -21,12 +21,10 @@ export const releasePeer = defineTool({
     if (task.status === "cut") return no(`${task.id} was cut, and its Peer stopped with it.`);
     if (task.status !== "merged") return no(`${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`);
     const peer = task.peer!;
-    const bound = ledger.agents[peer]?.task;
-    if (bound && bound !== task.id) return no(`Its Peer went on to ${bound}; release it from there once ${bound} is accepted.`);
     if (!(await roster.seated(peer))) return no(`The Peer kept from ${task.id} is gone already.`);
     await letGo(ctx, roster, project, peer);
     ctx.event(project, { kind: "seat.released", seat: peer, of: task.id });
-    return ok(`The Peer kept from ${task.id} is released; the next task in the lane's working copy starts a new one.`);
+    return ok(`The Peer kept from ${task.id} is released.`);
   },
 });
 

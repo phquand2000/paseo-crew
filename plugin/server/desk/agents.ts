@@ -34,12 +34,6 @@ export class Agents {
     return { role, config };
   }
 
-  /** What a seat of the role starts as now, its provider, model and thinking: a kept seat started otherwise is not what the team asks for any more. */
-  startsAs(project: Project, roleName: string): string {
-    const { config } = this.seatConfig(project, roleName);
-    return [config.provider, config.thinkingOptionId].filter(Boolean).join(" ");
-  }
-
   /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
   private marks(role: RoleSpec, project: Project): Record<string, string> {
     return { "seatworks.project": project.slug, "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) };

@@ -37,7 +37,6 @@ export type DeskEvent =
   | { kind: "task.waiting"; task: string; after: string[] }
   | { kind: "task.held"; task: string; reason: string }
   | { kind: "task.started"; task: string; peer: string; mode: Task["mode"]; slot: string }
-  | { kind: "task.handed"; task: string; peer: string; from: string }
   | { kind: "seat.released"; seat: string; of: string }
   | { kind: "task.halfStarted"; task: string; now: TaskStatus }
   | { kind: "task.amended"; task: string; fields: string[]; by: string }

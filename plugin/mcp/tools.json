@@ -641,10 +641,6 @@
                   "type": "boolean",
                   "description": "Run beside the lane's writer in a separate working copy. Only for an independent write set."
                 },
-                "fresh": {
-                  "type": "boolean",
-                  "description": "Start it on a new Peer rather than the one kept in the lane's working copy, when what that one learned would mislead it. Not with parallel."
-                },
                 "after": {
                   "type": "array",
                   "items": {
@@ -742,7 +738,7 @@
     },
     {
       "name": "accept",
-      "description": "Accept a handed-back task. One in the lane's copy is already on the lane branch, and its Peer stays for the next task there; a parallel task merges in once the lane's copy is clean, and MERGED, MERGE WAITS or MERGE FAILED comes as mail. The gate runs on the whole lane at ready, unless your directive says per task.",
+      "description": "Accept a handed-back task. One in the lane's copy is already on the lane branch, and its Peer stays until you release it; a parallel task merges in once the lane's copy is clean, and MERGED, MERGE WAITS or MERGE FAILED comes as mail. The gate runs on the whole lane at ready, unless your directive says per task.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -841,7 +837,7 @@
     },
     {
       "name": "release",
-      "description": "Let go of the Peer kept from a task you accepted in the lane's working copy, once what it learned will not help the next task there: it is archived, and the next task starts a new Peer. The lane's Peers all go when it closes.",
+      "description": "Let go of the Peer kept from a task you accepted in the lane's working copy, once that task needs nothing more from it: it is archived. A task never goes to a Peer that worked another, and the lane's Peers all go when it closes.",
       "inputSchema": {
         "type": "object",
         "properties": {

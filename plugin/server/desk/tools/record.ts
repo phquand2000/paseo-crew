@@ -27,10 +27,7 @@ function whose(ledger: Ledger, caller: Caller, of: string): Whose | string {
     return supervises ? `There is no lane or task ${of} in this project.` : `${of} is not a task in your lane.`;
   }
   if (!task.peer) return `Nobody has worked ${task.id} yet: it is ${task.status}.`;
-  // A Peer kept on in the lane's copy carries its next task in the same record.
-  const now = ledger.agents[task.peer]?.task;
-  const moved = now && now !== task.id ? `, now on ${now}` : "";
-  return { seat: task.peer, name: `${task.id} ${task.title}'s ${task.kind === "review" ? "reviewer" : "Peer"}${moved}`, lane: ledger.lanes[task.lane]!, task };
+  return { seat: task.peer, name: `${task.id} ${task.title}'s ${task.kind === "review" ? "reviewer" : "Peer"}`, lane: ledger.lanes[task.lane]!, task };
 }
 
 function endOf(status: string, exit: number | undefined): string {

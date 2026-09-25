@@ -20,15 +20,15 @@ export function besideOf(ledger: Ledger, task: Task): Task[] {
   );
 }
 
-/** Who writes beside a task and what they own; a kept Peer is told when nobody does, so a list its last brief gave does not stand. */
-function besideLine(task: Task, beside: Task[], kept: boolean): string {
-  if (beside.length === 0) return kept ? "Beside you: nobody now." : "";
+/** Who writes beside a task and what they own. */
+function besideLine(task: Task, beside: Task[]): string {
+  if (beside.length === 0) return "";
   const where = task.mode === "parallel" ? "in copies of their own or the lane's" : "in copies of their own and merged into this one as each is accepted";
   const who = beside.map((other) => `${other.id} (${other.title})${other.owned.length > 0 ? ` owns ${other.owned.join(", ")}` : ""}`).join("; ");
   return `Beside you, ${where}: ${who}. What they own may be missing or half-done ${task.mode === "parallel" ? "in your copy" : "here"}: leave it to them, and ask if you need it first.`;
 }
 
-export function taskBrief(task: Task, lane: Lane, beside: Task[], kept = false): string {
+export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
   return [
     `TASK ${task.id}: ${task.title}`,
     "",
@@ -46,7 +46,7 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[], kept = false):
     `Context: ${task.context?.trim() || "none"}`,
     task.skills && task.skills.length > 0 ? `\nSkills to open: ${task.skills.join(", ")}` : "",
     "",
-    besideLine(task, beside, kept),
+    besideLine(task, beside),
     "",
     task.mode === "parallel"
       ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit your work on this branch, then call done.`

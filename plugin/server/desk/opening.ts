@@ -200,7 +200,7 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
       entry.peer = peer;
     });
     ctx.transact(project, (current) => {
-      current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id, startedAs: agents.startsAs(project, how.role) };
+      current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id };
     });
     ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
     return { peer, where: parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${lane.branch}` };

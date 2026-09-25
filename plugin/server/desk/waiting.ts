@@ -1,9 +1,7 @@
 import { branchExists, currentBranch, headSha } from "../core/git.ts";
 import { LANE } from "../domain/lane.ts";
 import { TASK } from "../domain/task.ts";
-import { letGo } from "./gone.ts";
 import { fetchIssue } from "./issue.ts";
-import { handOver, keptPeer, keptTaker } from "./kept.ts";
 import { type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { letters } from "./letters.ts";
 import { type Refusal, forgetPlace, leadSeatOf, openedReply, placement, seatingKey, serialIn, startLead, startPeer, taskPlacement } from "./opening.ts";
@@ -89,17 +87,11 @@ export async function startWaiting(desk: DeskServices, project: Project, retryHe
   }
 }
 
-/**
- * As `release`, for a task: placed and claimed in one transaction, and back to waiting if its Peer cannot start. In the
- * lane's copy it goes to the Peer kept there, bound in that same transaction, so no round sees it running with nobody on it.
- */
+/** As `release`, for a task: placed and claimed in one transaction, and back to waiting if its Peer cannot start. Every task gets a Peer of its own. */
 async function releaseTask(desk: DeskServices, project: Project, lane: Lane, task: Task, told: boolean): Promise<Holding | undefined> {
   const parallel = task.mode === "parallel";
   const serial = parallel ? await serialIn(desk.ctx.kit, project, lane.worktree!) : [];
   const startSha = parallel ? undefined : await headSha(lane.worktree!);
-  const kept = parallel ? undefined : keptPeer(loadLedger(project.state), lane.id);
-  const taker = await keptTaker(desk, project, kept, task);
-  let from: string | undefined;
   const claimed = desk.ctx.transact(project, (ledger): Task | Refusal | undefined => {
     const entry = ledger.tasks[task.id];
     const now = ledger.lanes[lane.id];
@@ -108,26 +100,11 @@ async function releaseTask(desk: DeskServices, project: Project, lane: Lane, tas
     if (problem) return problem;
     TASK.move(entry, "start");
     Object.assign(entry, { startSha, updatedAt: Date.now() });
-    const bound = taker && keptPeer(ledger, lane.id)?.id === taker ? ledger.agents[taker] : undefined;
-    if (bound) {
-      from = bound.task;
-      bound.task = entry.id;
-      entry.peer = taker;
-    } else desk.ctx.seating.add(seatingKey(project, entry.id));
+    desk.ctx.seating.add(seatingKey(project, entry.id));
     return { ...entry };
   });
   if (!claimed) return undefined;
   if ("why" in claimed) return { why: claimed.why, next: "It starts by itself once that clears; amend it, or cut it to drop it." };
-  if (from) {
-    await handOver(desk, project, lane, claimed, from);
-    desk.ctx.setTask(project, task.id, (entry) => {
-      delete entry.held;
-    });
-    if (told) await desk.ctx.post(lane.lead, letters.started(claimed, `Started ${task.id} in the lane's working copy on ${lane.branch}, with its Peer ${claimed.peer}, kept from ${from}.`));
-    return undefined;
-  }
-  // One writer in the copy: the kept Peer goes before a new one starts there.
-  if (kept) await letGo(desk.ctx, desk.roster, project, kept.id, true);
   const started = await startPeer(desk, project, lane, claimed, { role: claimed.opening!.role, parent: lane.lead, failed: "wait" });
   if (typeof started === "string") return { why: started, next: "It is tried again when a task is accepted or cut; cut it to drop it.", tried: true };
   desk.ctx.setTask(project, task.id, (entry) => {

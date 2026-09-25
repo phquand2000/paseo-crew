@@ -62,7 +62,7 @@ export const accept = defineTool({
     await startWaiting(desk, project, true);
     const where = counts && counts.files.length === 0 ? `it changed nothing, so ${lane.branch} stands where it did` : `its commits are already on ${lane.branch}`;
     return ok(
-      `${task.id} is accepted; ${where}. The working copy is free for the next task. Its Peer stays in the copy with what it learned: the next task there goes to it unless you add that one fresh, and release lets it go.`,
+      `${task.id} is accepted; ${where}. The working copy is free for the next task. Its Peer stays until you release it.`,
     );
   },
 });

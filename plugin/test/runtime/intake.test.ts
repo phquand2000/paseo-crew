@@ -431,7 +431,7 @@ test("a task that waits for another starts by itself once that one is accepted, 
   assert.equal(started.status, "running");
   assert.equal(h.agents.get(started.peer!)!.cwd, lane.worktree, "in the lane's working copy, now that L1-T1 has left it");
   assert.equal(started.startSha, h.git(lane.worktree!, "rev-parse", "HEAD").trim(), "and it starts from the lane as L1-T1 left it");
-  assert.match(h.heard(started.peer!).join("\n"), /TASK L1-T2: Receipt[^]*show the total with tax/, "its brief as amended reaches the Peer kept in the copy");
+  assert.match(h.agents.get(started.peer!)!.prompt ?? "", /TASK L1-T2: Receipt[^]*show the total with tax/, "its brief as amended is its own Peer's first prompt");
   await h.idle(lead);
   assert.match(h.agents.get(lead)!.sent.join("\n"), /WAITING L1-T2 \(Receipt\), the task you started to wait for L1-T1: Started L1-T2 in the lane's working copy/);
 });

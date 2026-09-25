@@ -162,7 +162,9 @@ const FlowTask = z.object({
   handback: z.number().nullable(),
 });
 export type FlowTask = z.infer<typeof FlowTask>;
-/** `copy` is the lane's own working copy, none for the Human's checkout; `kept` the Peer idle in it; `landed` how a lane whose Lead is kept closed. */
+/** A Peer kept idle after its task was accepted, until its Lead releases it. */
+const FlowKept = FlowSeat.extend({ task: z.string() });
+/** `copy` is the lane's own working copy, none for the Human's checkout; `kept` its Peers idle after their tasks; `landed` how a lane whose Lead is kept closed. */
 const FlowLane = z.object({
   id: z.string(),
   title: z.string(),
@@ -171,7 +173,7 @@ const FlowLane = z.object({
   base: z.string().optional(),
   copy: z.string().nullable(),
   lead: FlowSeat.nullable(),
-  kept: FlowSeat.nullable(),
+  kept: z.array(FlowKept),
   landed: z.boolean().optional(),
   tasks: z.array(FlowTask),
   taskCount: z.number(),

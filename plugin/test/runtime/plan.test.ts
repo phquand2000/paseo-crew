@@ -108,6 +108,7 @@ test("a task's brief names what is written beside it and who owns what, and one 
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   await h.idle(peer);
   await h.call(lead, "lead", "accept", { task: "L1-T1" });
-  assert.equal(h.ledger().tasks["L1-T2"]!.peer, peer, "the Peer kept in the lane's copy takes the task waiting there");
-  assert.match(h.heard(peer).at(-1)!, /\n\nBeside you, in copies of their own and merged into this one as each is accepted: L1-T3 \(Task b\) owns b\.txt; L1-T4 \(Task c\) owns c\.txt\. What they own may be missing or half-done here: leave it to them, and ask if you need it first\.\n\nYou work on branch/);
+  const next = h.ledger().tasks["L1-T2"]!.peer!;
+  assert.notEqual(next, peer, "the task waiting in the lane's copy gets a Peer of its own");
+  assert.match(h.agents.get(next)!.prompt ?? "", /\n\nBeside you, in copies of their own and merged into this one as each is accepted: L1-T3 \(Task b\) owns b\.txt; L1-T4 \(Task c\) owns c\.txt\. What they own may be missing or half-done here: leave it to them, and ask if you need it first\.\n\nYou work on branch/);
 });
