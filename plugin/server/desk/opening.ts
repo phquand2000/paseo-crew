@@ -110,7 +110,7 @@ async function seatLead(desk: DeskServices, project: Project, lane: Lane, how: S
   };
   let slot: { id?: string; path: string; workspaceId?: string };
   try {
-    slot = lane.onBranch ? await slots.carryOn(project, lane.branch, how.from) : how.ownCopy ? await slots.acquire(project, lane.branch, lane.base, { lane: lane.id }) : await slots.inPlace(project, lane.branch, lane.base);
+    slot = lane.onBranch ? await slots.carryOn(project, lane.branch, how.from) : how.ownCopy ? await slots.acquire(project, lane.branch, lane.base, { lane: lane.id }, `${lane.id} ${lane.title}`) : await slots.inPlace(project, lane.branch, lane.base);
   } catch (error) {
     return `The lane could not get a working copy: ${errorText(error)}`;
   }
@@ -186,7 +186,7 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
   try {
     let slot: { id?: string; path: string; workspaceId?: string };
     if (parallel) {
-      slot = await slots.acquire(project, task.branch!, lane.branch, { task: task.id });
+      slot = await slots.acquire(project, task.branch!, lane.branch, { task: task.id }, `${task.id} ${task.title}`);
       ctx.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
     } else {
       slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree!, workspaceId: lane.workspaceId };

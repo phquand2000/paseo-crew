@@ -51,6 +51,7 @@ export type Workspaces = {
   named(name: string): Promise<Workspace | undefined>;
   owned(prefix: string): Promise<{ id: string; name: string }[]>;
   make(title: string, path: string, project?: string): Promise<Workspace>;
+  retitle(workspace: string, title: string): Promise<void>;
   seat(workspace: string, spec: SeatSpec): Promise<SeatLook>;
   archive(workspace: string): Promise<void>;
 };

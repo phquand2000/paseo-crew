@@ -5,7 +5,8 @@ import type { Workspace, Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
 import { closeIndexes, openIndexes } from "./indexes.ts";
-import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
+import { sweepCopies } from "./sweep.ts";
+import { type Slot, loadLedger, nextSlotId } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import { errorText } from "../core/errors.ts";
 
@@ -24,11 +25,12 @@ export class Slots {
     this.workspaces = workspaces;
   }
 
-  async acquire(project: Project, branch: string, base: string, holder: Holder): Promise<Slot> {
+  /** `work` is what the copy is taken for, as its workspace is named: a lane or a task, its id and title. */
+  async acquire(project: Project, branch: string, base: string, holder: Holder, work: string): Promise<Slot> {
     const picked = this.reserve(project, holder);
     try {
       const reused = await this.checkOut(project, picked, branch, base);
-      const workspaceId = picked.workspaceId ?? (await this.createWorkspace(project, picked));
+      const workspaceId = await this.workspaceFor(project, picked, work);
       this.ctx.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
       openIndexes(this.ctx, project, picked, reused);
       return { ...picked, workspaceId };
@@ -279,11 +281,19 @@ export class Slots {
     return false;
   }
 
-  /** Files the copy under its project: given a bare directory Paseo makes a new project, and the plugin API cannot remove one. */
-  private async createWorkspace(project: Project, slot: Slot): Promise<string> {
+  /**
+   * The copy's workspace, named after the project and then the work it holds now: the sweep knows the desk's copies by that
+   * first word. A new one is filed under its project, since given a bare directory Paseo makes a project the plugin cannot remove.
+   */
+  private async workspaceFor(project: Project, slot: Slot, work: string): Promise<string> {
+    const title = `${project.slug} ${slot.id} · ${work}`;
+    if (slot.workspaceId) {
+      await this.workspaces.retitle(slot.workspaceId, title).catch((error) => this.ctx.log(project, `workspace ${slot.workspaceId} kept its old name: ${errorText(error)}`));
+      return slot.workspaceId;
+    }
     const home = await this.projectWorkspace(project);
     if (!home.project) throw new Error(`the project's workspace in Paseo names no Paseo project, so its working copy was not made: Paseo would have made it a project of its own`);
-    const { id: workspaceId } = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path, home.project);
+    const { id: workspaceId } = await this.workspaces.make(title, slot.path, home.project);
     this.ctx.transact(project, (ledger) => {
       const entry = ledger.slots[slot.id];
       if (entry) entry.workspaceId = workspaceId;
@@ -291,46 +301,9 @@ export class Slots {
     return workspaceId;
   }
 
-  /** What the desk opened and nothing holds any more. Liveness is read under the ledger lock when used: `reserve` writes its row before `git worktree add`. */
-  async sweep(project: Project, busy = false): Promise<void> {
-    const heldIds = (ledger: Ledger): Set<string> => {
-      const held = new Set<string>();
-      for (const slot of Object.values(ledger.slots)) if (slot.workspaceId) held.add(slot.workspaceId);
-      for (const lane of Object.values(ledger.lanes)) if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
-      return held;
-    };
-    for (const workspace of await this.workspaces.owned(project.slug)) {
-      if (busy && workspace.name === project.slug) continue;
-      if (this.ctx.read(project, (current) => heldIds(current).has(workspace.id))) continue;
-      try {
-        await this.workspaces.archive(workspace.id);
-        this.ctx.event(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });
-      } catch (error) {
-        this.ctx.log(project, `workspace ${workspace.name} could not be swept: ${errorText(error)}`);
-      }
-    }
-    const root = join(worktreeRoot(), project.slug);
-    if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
-    // Read and listed inside the lock; removal outside it is safe because a slot id is never handed out twice.
-    const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => slot.path));
-    const strays = this.ctx.read(project, (current) => {
-      const held = live(current);
-      return readdirSync(root)
-        .map((name) => join(root, name))
-        .filter((path) => !held.has(path));
-    });
-    for (const path of strays) {
-      // Asked again just before, for a row reserved for a path from before ids stopped being reused.
-      if (this.ctx.read(project, (current) => live(current).has(path))) continue;
-      await removeWorktree(project.root, path);
-      try {
-        rmSync(path, { recursive: true, force: true });
-      } catch {}
-      this.ctx.event(project, { kind: "worktree.swept", path });
-    }
-    try {
-      if (readdirSync(root).length === 0) rmdirSync(root);
-    } catch {}
+  /** What the desk opened and nothing holds any more. */
+  sweep(project: Project, busy = false): Promise<void> {
+    return sweepCopies(this.ctx, this.workspaces, project, busy);
   }
 
   /** Removes a path the desk made under its own worktree root, and the project's folder once empty. */

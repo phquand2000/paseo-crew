@@ -225,6 +225,10 @@ Labels carry `seatworks.project`, `seatworks.role`, `seatworks.team`, and the la
 started for. Letters name a seat by its name and by what it works on now, for example
 `Team 1 · Peer 2 on L1-T3 (Cart total)`.
 
+A copy of its own is a Paseo workspace named `<project> <copy> · <work>`, for example
+`shop S2 · L2 Filter results`, and renamed when it takes other work. The round's sweep knows the
+desk's copies by the project's name leading theirs, and archives one that nothing in the ledger holds.
+
 ## Seat directories
 
 One per role, agent and project: `<profileRoot>/sw2-<role>-<agent>-<slug>`. It is rebuilt when the
