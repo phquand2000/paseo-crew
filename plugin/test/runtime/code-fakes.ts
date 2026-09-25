@@ -95,12 +95,14 @@ export function repo(): string {
   return realpathSync(dir);
 }
 
-/** A code search server over stdio; `listMs` holds its tool list back that long after a quick handshake. */
+/** A code search server over stdio that writes its pid beside itself; `listMs` holds its tool list back that long after a quick handshake. */
 export function fakeSemble(listMs = 0): string {
   const file = join(tempDir("sw2-semble-"), "semble.mjs");
   writeFileSync(
     file,
-    `import { createInterface } from "node:readline";
+    `import { writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
+writeFileSync(process.argv[1] + ".pid", String(process.pid));
 const tools = [
   { name: "search", description: "semble search", inputSchema: { type: "object", properties: { query: { type: "string" }, repo: { type: "string" } }, required: ["query", "repo"] } },
   { name: "find_related", description: "related", inputSchema: { type: "object", properties: {} } },
@@ -136,12 +138,23 @@ export const opening = (config: object) => ({ ...config, open: OPENING });
 /** A harness with the proxy for `config` started in `cwd`, as an SDK client over its stdio. */
 export async function proxy(cwd: string, config: object, changed?: () => void, env: Record<string, string> = {}) {
   const client = new Client({ name: "probe", version: "0" }, changed ? { listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: changed } } } : {});
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [PROXY, JSON.stringify(config)], cwd, env: { PATH: process.env.PATH ?? "", ...env }, stderr: "inherit" }));
+  const transport = new StdioClientTransport({ command: process.execPath, args: [PROXY, JSON.stringify(config)], cwd, env: { PATH: process.env.PATH ?? "", ...env }, stderr: "inherit" });
+  await client.connect(transport);
   const call = async (name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
-  return { client, call, stop: () => client.close() };
+  return { client, call, pid: transport.pid!, stop: () => client.close() };
 }
 
 export const work = (calls: Call[]) => calls.filter((call) => !["ide_sync_files", "ide_index_status"].includes(call.name)).map((call) => call.name);
+
+/** Whether no process has this id any more. */
+export function gone(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch {
+    return true;
+  }
+}
 
 export const within = async (ms: number, check: () => boolean) => {
   for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20))) if (Date.now() > end) return false;

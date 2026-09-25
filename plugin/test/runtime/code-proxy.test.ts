@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { codeIndex } from "../../server/runtime/code-index.ts";
-import { entry, fakeIde, fakeSemble, ideConfig, opening, proxy, repo, work } from "./code-fakes.ts";
+import { tempDir } from "../tempdir.ts";
+import { entry, fakeIde, fakeSemble, gone, ideConfig, opening, proxy, repo, within, work } from "./code-fakes.ts";
 
 test("the IDE server carries the navigation rule, lists only the role's tools and hides the project argument", async () => {
   const ide = await fakeIde({ openEnabled: true });
@@ -172,15 +173,16 @@ test("the desk opens a copy it takes with the shipped entry, routed through an o
   }
 });
 
-test("a server that is slow to start does not hold the tool list for the whole call budget", async () => {
+test("a server that is slow to start does not hold the tool list for the whole call budget, and is not left running", async () => {
   // Never answers, like a cold start still fetching its package; the list once waited out init's budget, then its own.
+  const pidFile = join(tempDir("sw2-slow-"), "pid");
   const code = await proxy(repo(), {
     name: "code-search",
     label: "Code search",
     tools: ["search"],
     descriptions: { search: "Search the code." },
     listSeconds: 1,
-    backend: { type: "stdio", command: [process.execPath, "-e", "setInterval(() => {}, 1000)"] },
+    backend: { type: "stdio", command: [process.execPath, "-e", "require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000)", pidFile] },
   });
   try {
     const started = Date.now();
@@ -192,6 +194,14 @@ test("a server that is slow to start does not hold the tool list for the whole c
     assert.match(only.description, /not reachable/, "and the seat is told the server is not there, which a configured description used to hide");
     assert.equal(only.inputSchema.additionalProperties, true, "with a schema that does not refuse the arguments it would be called with");
   } finally {
+    // As a harness that signals its servers rather than closing their input: the proxy may not go before its backend.
+    process.kill(code.pid, "SIGTERM");
+  }
+  const backend = Number(readFileSync(pidFile, "utf-8"));
+  try {
+    assert.ok(await within(5000, () => gone(backend)), "a backend that ignores its input closing is stopped with its proxy, not left running for good");
+  } finally {
+    if (!gone(backend)) process.kill(backend);
     await code.stop();
   }
 });

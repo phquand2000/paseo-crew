@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { reaches, toolNames } from "../../server/core/mcp-client.ts";
 import { codeIndex } from "../../server/runtime/code-index.ts";
-import { entry, fakeIde, fakeSemble, ideConfig, proxy, repo, within } from "./code-fakes.ts";
+import { entry, fakeIde, fakeSemble, gone, ideConfig, proxy, repo, within } from "./code-fakes.ts";
 
 test("a backend's own title and hints reach the harness, and an answer it streams after a progress note is read, the note passed on", async () => {
   const ide = await fakeIde({ openEnabled: true, streamed: true });
@@ -147,5 +147,32 @@ test("a backend whose handshake is quick but whose list comes after the wait gav
     assert.deepEqual((await code.client.listTools()).tools[0]!.inputSchema.required, ["query"]);
   } finally {
     await code.stop();
+  }
+});
+
+test("a proxy stops as soon as its harness closes its input, and closes the backend it started", async () => {
+  const ide = await fakeIde({ openEnabled: true });
+  const cwd = repo();
+  ide.open.add(cwd);
+  const semble = fakeSemble();
+  const { label, instructions, proxy: spec } = entry("code-search");
+  const configs = [ideConfig(ide.url, ["ide_find_references"]), { name: "code-search", label, instructions, tools: ["search"], ...spec, backend: { type: "stdio", command: [process.execPath, semble] } }];
+  try {
+    for (const config of configs) {
+      const code = await proxy(cwd, config);
+      let took = Infinity;
+      try {
+        assert.ok(!(await code.call(config.tools[0]!, { query: "a" })).isError);
+      } finally {
+        const started = Date.now();
+        await code.stop();
+        took = Date.now() - started;
+      }
+      // A harness gives a server two seconds to go by itself before it signals it.
+      assert.ok(took < 1500, `${config.name} stayed until its harness forced it`);
+    }
+    assert.ok(gone(Number(readFileSync(`${semble}.pid`, "utf-8"))), "its backend went with it");
+  } finally {
+    ide.close();
   }
 });

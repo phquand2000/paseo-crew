@@ -270,7 +270,9 @@ replace tool descriptions. It speaks to its backend with the official MCP client
 keeps a session or streams its answers works, and shows each tool with the backend's own title and
 hints. A backend that answers only after the session started has its tools shown once it does, as a
 changed list. Progress passes through to a harness that asks for it, a stopped call is stopped at the
-backend too, and changed files are synced one call at a time, before the call that follows.
+backend too, and changed files are synced one call at a time, before the call that follows. Stopped by its
+harness, closing its input or with a signal, it closes its backend first, a stdio one sent the end of its input
+and then a signal if it stays, so no backend is left running.
 
 A desk call can take minutes (a gate), and the desk answers within 240 s, "arrives as mail" past that.
 A seat must wait longer than that, or the answer comes back to nobody: omp gives up after 30 s and Pi's

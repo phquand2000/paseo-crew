@@ -62,6 +62,8 @@ function excludeFromGit() {
 class Backend {
   #client;
   #connecting;
+  // The client made last, connected or still starting: what closing the backend closes.
+  #latest;
   connected = () => {};
 
   connect() {
@@ -79,6 +81,7 @@ class Backend {
     client.onclose = () => {
       if (this.#client === client) this.#client = undefined;
     };
+    this.#latest = client;
     await client.connect(transport, { timeout: CALL_MS });
     this.#client = client;
     this.connected(client);
@@ -89,6 +92,11 @@ class Backend {
   async call(name, args, timeoutMs, ctx, progress) {
     const client = await within(this.connect(), timeoutMs);
     return client.callTool({ name, arguments: args }, { timeout: timeoutMs, resetTimeoutOnProgress: true, signal: ctx?.mcpReq.signal, onprogress: progress?.forward });
+  }
+
+  /** A stdio backend is sent the end of its input, then a signal if it stays: MCP's own way to stop a server. */
+  close() {
+    return this.#latest?.close() ?? Promise.resolve();
   }
 }
 
@@ -249,3 +257,9 @@ serveStdio(async () => {
   listing.then(() => upstream.connect()).then(refresh, () => {});
   return mcp;
 });
+
+// Its harness stops it by closing its input, or with a signal: the backend is closed first, so none is left running.
+let stopping;
+const stop = () => (stopping ??= upstream.close().catch(() => {}).finally(() => process.exit(0)));
+process.stdin.once("end", stop).once("close", stop);
+for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, stop);
