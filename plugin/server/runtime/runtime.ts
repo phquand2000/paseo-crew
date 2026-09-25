@@ -1,7 +1,6 @@
 import { mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { renderPrompt } from "../catalog/content.ts";
-import { type Kit, SEAT_KEY, type SensorSpec, TEAM_SERVER, seatOf, watchPatterns } from "../catalog/kit.ts";
+import { type Kit, SEAT_KEY, type SensorSpec, seatOf } from "../catalog/kit.ts";
 import { type ModelCache, applyModels, fetchModels, listingProviders } from "../catalog/models.ts";
 import { applyRole, seatBin, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";
@@ -12,13 +11,13 @@ import { deskSocket, guidesDir, home, nodeBin, outboxPath, stateRoot } from "../
 import type { AgentConfig, HookAgent, Host, HostHooks, Judge, PermissionRequested, Seats, SessionOpen, TurnEnded, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { laneOfLead, laneOnHold, loadLedger, openAsksTo, taskOfPeer } from "../desk/ledger.ts";
+import { laneOnHold, loadLedger, openAsksTo } from "../desk/ledger.ts";
 import { TOOLS } from "../desk/tools/registry.ts";
 import { letters } from "../desk/letters.ts";
 import { appendRecord } from "../desk/records.ts";
-import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
+import { type Project, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
-import { type Trouble, watchView } from "./watch-view.ts";
+import { watchView } from "./watch-view.ts";
 import { codeIndex } from "./code-index.ts";
 import { type Letter, Outbox, type Rules } from "./outbox.ts";
 import { Patrol } from "./patrol.ts";
@@ -26,14 +25,10 @@ import { SeatKeys } from "./keys.ts";
 import { Seating } from "./seating.ts";
 import { TeamSocket } from "./team-socket.ts";
 import { TeamSource } from "./team-source.ts";
+import { Watching } from "./watching.ts";
 import { TurnRules } from "./turns.ts";
-import { type Fact, callsTo } from "./watch/facts.ts";
-import { decide } from "./watch/findings.ts";
-import { type SeatContext, type SeatWatch, type WatchedSeat, Watches } from "./watch/watches.ts";
-import { malformed } from "./timeline.ts";
+import { Watches } from "./watch/watches.ts";
 import { errorText } from "../core/errors.ts";
-
-const TROUBLES = 10;
 
 type RuntimeOptions = { outboxFile?: string; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean>; sensor?: (spec: SensorSpec, key: string) => Judge };
 
@@ -51,7 +46,7 @@ export class Runtime implements HostHooks {
   private readonly turns: TurnRules;
   private readonly patrol: Patrol;
   private readonly watches: Watches;
-  private readonly troubles = new Map<string, Trouble[]>();
+  private readonly watching: Watching;
   private readonly offline = new Set<string>();
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
   private readonly reload: () => Promise<boolean>;
@@ -68,12 +63,7 @@ export class Runtime implements HostHooks {
     this.workspaces = host.workspaces;
     this.source = new TeamSource(kit);
     this.seating = new Seating(kit, this.source, { node: nodeBin(), socket: deskSocket() });
-    this.outbox = new Outbox(
-      options.outboxFile ?? outboxPath(),
-      (to, list) => this.compose(to, list),
-      this.seats,
-      this.outboxRules(kit),
-    );
+    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list), this.seats, this.outboxRules(kit));
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
     this.desk = new Desk({
@@ -88,12 +78,13 @@ export class Runtime implements HostHooks {
       sensor: options.sensor,
     });
     this.socket = this.teamSocket();
-    this.turns = new TurnRules({ kit, desk: this.desk, seats: this.seats, remember, log: (project, line) => this.log(project, line) });
+    this.turns = new TurnRules({ kit, desk: this.desk, seats: this.seats, remember, log });
+    this.watching = new Watching({ kit, source: this.source, desk: this.desk, watches: () => this.watches });
     this.watches = new Watches({
       kit,
       seats: this.seats,
-      context: (seat) => this.watchContext(seat),
-      found: (watch, facts) => this.watchFound(watch, facts),
+      context: (seat) => this.watching.context(seat),
+      found: (watch, facts) => this.watching.found(watch, facts),
       spoke: (seat, text) => void this.turns.spoke(seat, text).catch((error: unknown) => console.error("seatworks-v2: a word the Human wrote to a seat could not be passed on:", error)),
     });
     this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, remember });
@@ -105,7 +96,7 @@ export class Runtime implements HostHooks {
       models: () => this.refreshModels(),
       seats: this.seats,
       held: () => this.outbox.letters(),
-      watch: (project) => watchView(project, this.troubles.get(project.slug) ?? [], this.source.teamFor(project), kit),
+      watch: (project) => watchView(project, this.watching.troublesOf(project), this.source.teamFor(project), kit),
       human: this.desk.human,
     });
   }
@@ -124,75 +115,6 @@ export class Runtime implements HostHooks {
   private teamChanged(): void {
     this.seating.forget();
     this.socket.refresh();
-  }
-
-  private watchContext(seat: WatchedSeat): SeatContext | undefined {
-    const found = seatOf(this.kit, seat.provider);
-    if (!found) return undefined;
-    const project = projectOf(seat.cwd);
-    const attention = this.source.teamFor(project).attention;
-    let scope: string[] | undefined;
-    let placed = false;
-    try {
-      const ledger = loadLedger(project.state);
-      const task = taskOfPeer(ledger, seat.id);
-      scope = task?.kind !== "code" ? undefined : task.mode === "parallel" ? task.holds : ledger.lanes[task.lane]?.writeSet;
-      placed = Boolean(task ?? laneOfLead(ledger, seat.id));
-    } catch (error) {
-      this.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: errorText(error) });
-    }
-    return {
-      placed,
-      rules: {
-        ...watchPatterns(this.kit, attention),
-        desk: callsTo(found.harness.mcpCall, found.harness.mcpServerField, TEAM_SERVER),
-        gates: gateCommands(seat.cwd, loadConfig(project.state).gate, this.kit.ecosystem),
-        cwd: seat.cwd,
-        temp: tmpdir(),
-        scope,
-        repeatsAt: attention.repeatsAt,
-        recoverWithin: 10,
-      },
-      handedBack: (at) => {
-        try {
-          const handback = taskOfPeer(loadLedger(project.state), seat.id)?.handback;
-          return handback && handback.at >= at && !handback.gate ? handback.outcome : undefined;
-        } catch {
-          return undefined;
-        }
-      },
-    };
-  }
-
-  private noticed(watch: SeatWatch, facts: Fact[]): void {
-    if (this.watches.get(watch.seat.id) !== watch) return;
-    const moment = { facts, instruction: watch.window.instruction(), turn: watch.turnId };
-    this.desk.notice(projectOf(watch.seat.cwd), watch.seat, decide(facts), moment).catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
-  }
-
-  /** Trouble nobody is mailed about, kept where a screen can show it rather than only in the log. */
-  private troubled(project: Project, kind: string, detail: string): void {
-    const list = this.troubles.get(project.slug) ?? [];
-    list.push({ kind, at: Date.now(), detail });
-    if (list.length > TROUBLES) list.splice(0, list.length - TROUBLES);
-    this.troubles.set(project.slug, list);
-  }
-
-  /** A call the harness refused because its input was not JSON; it never reaches the desk, so only this reports it. */
-  private malformedCalls(event: TurnEnded): void {
-    const seat = seatOf(this.kit, event.agent.provider);
-    if (!seat?.role.tools) return;
-    const project = projectOf(event.agent.cwd);
-    for (const call of malformed(event.timeline, seat.harness.timeline?.unparsed)) {
-      this.desk.event(project, { kind: "call.malformed", agent: event.agent.id, role: seat.role.role, tool: call.tool, error: call.quote });
-      this.troubled(project, "call.malformed", `the ${seat.role.label}'s ${call.tool} was written with an input that is not JSON, and never reached the desk`);
-    }
-  }
-
-  private watchFound(watch: SeatWatch, facts: Fact[]): void {
-    const project = projectOf(watch.seat.cwd);
-    for (const fact of facts) this.desk.event(project, { kind: "watch.fact", agent: watch.seat.id, fact: fact.kind, level: fact.level, quote: fact.quote });
-    this.noticed(watch, facts);
   }
 
   prepare(): void {
@@ -292,7 +214,7 @@ export class Runtime implements HostHooks {
 
   async turnEnded(event: TurnEnded): Promise<void> {
     this.outbox.turnEnded(event.agent.id);
-    this.malformedCalls(event);
+    this.watching.malformedCalls(event);
     // Wrapped: a throw here left the seat's mail waiting until some unrelated event pumped it.
     try {
       const archiving = this.desk.archiving(event.agent.id);
