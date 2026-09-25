@@ -94,11 +94,15 @@ export async function removeWorktree(root: string, path: string | undefined): Pr
 
 type MergeResult = { ok: true; before: string; after: string } | { ok: false; conflicts: string[]; message: string };
 
-/** `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit, since no seat may run git merge; anything else that stops it is undone. */
+/**
+ * `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit, since no seat may run git merge; anything
+ * else that stops it is undone. The Human's rerere would settle conflicts unseen, and their signer can wait on them: neither applies.
+ */
 export async function mergeBranch(cwd: string, branch: string, message: string, leave = false): Promise<MergeResult> {
   const before = await headSha(cwd);
   if (!before) return { ok: false, conflicts: [], message: "the lane working copy has no HEAD" };
-  const run = await git(cwd, ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "merge", "--no-ff", "-m", message, branch], 120_000);
+  const own = ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "-c", "rerere.enabled=false", "-c", "commit.gpgSign=false"];
+  const run = await git(cwd, [...own, "merge", "--no-ff", "-m", message, branch], 120_000);
   if (run.code === 0) return { ok: true, before, after: (await headSha(cwd)) ?? before };
   const unmerged = await git(cwd, ["diff", "--name-only", "--diff-filter=U"]);
   const conflicts = unmerged.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -135,8 +139,10 @@ export function kindOf(path: string, kinds: FileKinds): "src" | "test" | "docs" 
   return kinds.docs.test(path) ? "docs" : "src";
 }
 
-/** Uses `-z` so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no path a write set or hold names. */
-/** Lines of an `uncounted` path are left out of the counts; the path is still listed. */
+/**
+ * Reads `-z` output, so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no path a write set
+ * or hold names. Lines of an `uncounted` path are left out of the counts; the path is still listed.
+ */
 export function countNumstat(numstat: string, kinds: FileKinds, uncounted: (path: string) => boolean = () => false): Counts {
   const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
   const fields = numstat.split("\0");

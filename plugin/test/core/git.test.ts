@@ -205,3 +205,27 @@ test("base moves only from the commit it was read as, checked out or not: a land
     assert.equal(await headSha(root, "main"), landedFirst);
   }
 });
+
+test("a desk merge reads conflicts as git leaves them and makes its commit unsigned, whatever the Human set for rerere and signing", async () => {
+  const { root, run, commit } = repo();
+  run("config", "rerere.enabled", "true");
+  run("config", "rerere.autoUpdate", "true");
+  run("checkout", "-qb", "task/l1-t2");
+  commit("a.txt", "task side\n", "task edit");
+  run("checkout", "-q", "main");
+  commit("a.txt", "lane side\n", "lane edit");
+  // Settled once by hand: rerere records it and would settle it again by itself, leaving nothing unmerged to name.
+  assert.throws(() => run("merge", "-q", "task/l1-t2"), (error: { stdout?: string }) => /CONFLICT/.test(error.stdout ?? ""));
+  writeFileSync(join(root, "a.txt"), "both\n");
+  run("commit", "-qam", "settled");
+  run("reset", "-q", "--hard", "HEAD~1");
+  const merged = await mergeBranch(root, "task/l1-t2", "Merge L1-T2");
+  assert.deepEqual(merged.ok ? [] : merged.conflicts, ["a.txt"]);
+
+  run("checkout", "-qb", "task/l1-t3");
+  commit("c.txt", "c\n", "task three");
+  run("checkout", "-q", "main");
+  run("config", "commit.gpgSign", "true");
+  run("config", "gpg.program", "false");
+  assert.equal((await mergeBranch(root, "task/l1-t3", "Merge L1-T3")).ok, true, "a signer that needs the Human cannot stop a merge only the desk makes");
+});
