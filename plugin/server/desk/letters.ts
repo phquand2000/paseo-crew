@@ -17,7 +17,7 @@ export const ended = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim()
 type Kind =
   | "answer" | "answeredFor" | "ask" | "amended" | "baseconflict" | "beside" | "brief" | "canland" | "case" | "closed" | "detour" | "done" | "escalate" | "failed" | "gone"
   | "halfopen" | "held" | "hold" | "humananswered" | "humanwrote" | "idle" | "incident" | "land" | "landback" | "landheld" | "later" | "leadgone" | "merge" | "message" | "moment"
-  | "notstarted" | "nudge" | "opened" | "permission" | "reconcile" | "remind" | "report" | "resumed" | "rework" | "silent" | "started" | "unanswered";
+  | "notstarted" | "nudge" | "opened" | "permission" | "reconcile" | "remind" | "report" | "resumed" | "rework" | "settling" | "silent" | "started" | "unanswered";
 
 /** A letter the desk mails a seat: its text, the key under which a second one to that seat is the same letter, and `wakes` false for word that asks nothing of its reader now, which rides along with the next letter that does. */
 export type Letter = { key: string; text: string; wakes?: false };
@@ -258,6 +258,12 @@ export const letters = {
 
   moment(heading: Moment, task: Task, what: string): Letter {
     return mail("moment", [heading, task.id, hash(what)], `${heading} ${task.id} (${task.title}) in ${task.lane}: ${what}`, MOMENT_NEXT[heading]);
+  },
+
+  /** A task beside others whose lane stopped on conflicts as it was brought in at hand-back: its Peer settles them, and nothing waits on its Lead. */
+  settling(task: Task, lane: string, conflicts: string[], by: string[]): Letter {
+    const text = `SETTLING ${task.id} (${task.title}): bringing ${lane} into its branch conflicts in ${conflicts.join(", ")}${by.length > 0 ? `, changed there by ${by.join(", ")}` : ""}. Its Peer settles it in its own copy before it hands back.`;
+    return fyi(mail("settling", [task.id, Date.now()], text, "Nothing now: its hand-back arrives as mail."));
   },
 
   /** A task started beside the one at work in the lane's copy after that one's brief was written: what it holds is no longer the Peer's to write. */

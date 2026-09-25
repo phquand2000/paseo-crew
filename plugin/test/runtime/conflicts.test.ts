@@ -63,7 +63,7 @@ test("a lane dropped with a base merge left unsettled in the Human's own copy gi
   assert.equal(h.git(h.root, "show", "lane/l1-cart:a.txt"), "one\nlane side\nthree\n", "and the lane's own work is kept on its branch");
 });
 
-test("a parallel task that conflicts with its lane has the lane brought into its own copy for its Peer to settle, then merges", async () => {
+test("a parallel task that conflicts with its lane at merge has the lane brought into its own copy for its Peer to settle, then merges", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Two", ...scope, writeSet: ["a.txt", "b.txt"] });
@@ -71,8 +71,9 @@ test("a parallel task that conflicts with its lane has the lane brought into its
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "b", title: "B", goal: "g", acceptance: ["a"], outOfScope: ["the rest"], holds: ["b.txt"], parallel: true }] });
   const task = h.ledger().tasks["L1-T1"]!;
   h.commit(task.worktree!, "b.txt", "task side\n");
-  h.commit(lane.worktree!, "b.txt", "lane side\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "b" });
+  // The lane moves on between its hand-back and its merge.
+  h.commit(lane.worktree!, "b.txt", "lane side\n");
   h.agents.get(task.peer!)!.status = "idle";
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   await h.runtime.desk.settled(h.project);

@@ -13,25 +13,39 @@ import { type Lane, type Ledger, type Task, loadLedger, taskOfPeer } from "../le
 import { letters } from "../letters.ts";
 import { type Project, serialIn } from "../project.ts";
 import { reachNotes } from "../reach.ts";
+import { type Synced, bringLaneIn } from "../sync.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 
 const SHOWN_CHANGED = 20;
 
-type Work = { commit?: string; uncommitted: boolean; changed?: string[]; notes: string[] };
+type Work = { commit?: string; uncommitted: boolean; synced?: string; changed?: string[]; notes: string[] };
+
+/** A task beside others hands back what its lane would become: the lane comes into its copy first. */
+async function syncOf(task: Task, lane: Lane | undefined): Promise<Synced | undefined> {
+  return task.kind === "code" && task.mode === "parallel" && lane && task.worktree && task.branch ? bringLaneIn({ ...task, worktree: task.worktree, branch: task.branch }, lane) : undefined;
+}
+
+/** Bringing the lane in stopped on conflicts: the Peer settles them before it hands back, and its Lead is told in passing. */
+async function settling(services: DeskServices, task: Task, lane: Lane, synced: { conflicts: string[]; by: string[] }): Promise<ToolReply> {
+  await services.ctx.post(lane.lead, letters.settling(task, lane.branch, synced.conflicts, synced.by));
+  const by = synced.by.length > 0 ? `, changed there by ${synced.by.join(", ")}` : "";
+  return no(`Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in ${synced.conflicts.join(", ")}${by}. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`);
+}
 
 /** What a code task's copy holds as it hands back, as git says: its commit, work left uncommitted, the files it changed, and what of those its Lead should weigh. */
-async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task): Promise<Work> {
+async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task, synced?: Synced): Promise<Work> {
   if (task.kind === "review" || !task.worktree) return { uncommitted: false, notes: [] };
   const lane = ledger.lanes[task.lane];
+  const line = !synced || !lane ? undefined : "at" in synced ? `Brought up to date with ${lane.branch} at ${synced.at.slice(0, 7)}.` : "not" in synced ? `Not brought up to date with ${lane.branch}: ${synced.not}.` : undefined;
   const parallel = task.mode === "parallel";
   // A task in the lane's copy counts its own commits only: a task beside it may have been merged into that copy meanwhile.
   const changed = parallel ? (lane ? await changedFiles(task.worktree, `${lane.branch}...HEAD`) : undefined) : task.startSha ? await ownChangedFiles(task.worktree, task.startSha) : undefined;
   const notes = lane && changed ? reachNotes(ledger, task, lane, changed, parallel ? await serialIn(kit, project, task.worktree) : []) : [];
   // Only what git actually said: a copy it could not read is not a copy with work left in it.
-  return { commit: await headSha(task.worktree), uncommitted: (await pristineState(task.worktree)) === "dirty", changed, notes };
+  return { commit: await headSha(task.worktree), uncommitted: (await pristineState(task.worktree)) === "dirty", synced: line, changed, notes };
 }
 
-function handbackBody(task: Task, args: Args, { commit, uncommitted, changed, notes }: Work): { outcome: string; body: string } {
+function handbackBody(task: Task, args: Args, { commit, uncommitted, synced, changed, notes }: Work): { outcome: string; body: string } {
   if (task.kind === "review") {
     const outcome = str(args.verdict);
     const findings = ((args.findings ?? []) as Finding[]).map((found) => `- ${found.severity} ${found.where}: ${found.failure} Fix: ${found.fix}${found.confirmedBy ? ` Confirmed by: ${found.confirmedBy}` : ""}`);
@@ -44,6 +58,7 @@ function handbackBody(task: Task, args: Args, { commit, uncommitted, changed, no
   const lines = [
     `Outcome: ${outcome}`,
     `Commit: ${commit ?? "none"}${uncommitted ? " (the working copy still has uncommitted changes)" : ""}`,
+    ...(synced ? [synced] : []),
     "",
     str(args.summary) || "No summary given.",
     "",
@@ -102,7 +117,9 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   if (review && asked.some((_, index) => !args.answers?.[index]?.trim())) {
     return no(`The project's risk rules ask this review ${asked.length === 1 ? "a question" : `${asked.length} questions`}; give answers, one per question, in this order:\n${asked.map((question, index) => `${index + 1}. ${question}`).join("\n")}`);
   }
-  const work = await workOf(ctx.kit, project, ledger, task);
+  const synced = await syncOf(task, ledger.lanes[task.lane]);
+  if (synced && "conflicts" in synced) return settling(services, task, ledger.lanes[task.lane]!, synced);
+  const work = await workOf(ctx.kit, project, ledger, task, synced);
   const { commit } = work;
   const handed = handbackBody(task, args, work);
   const { outcome } = handed;
@@ -120,7 +137,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
     if (!entry) return "gone";
     if (!TASK.move(entry, "handBack")) return entry.status;
     entry.silent = 0;
-    entry.handback = { file, outcome, commit, summary: clip(str(review ? args.answer : args.summary), 400), at: Date.now(), ...(run ? { gate: { ok: run.ok, note: run.note } } : {}) };
+    entry.handback = { file, outcome, commit, summary: clip(str(review ? args.answer : args.summary), 400), at: Date.now(), ...(run ? { gate: { ok: run.ok, note: run.note, sha: commit } } : {}) };
     return undefined;
   });
   if (already) {

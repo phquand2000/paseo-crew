@@ -163,6 +163,8 @@ treated as empty.
   already made is only recorded. A merge never runs into a lane copy with work uncommitted: the task
   stays queued, its Lead is told once, and the merge is tried again as each turn ends and before the
   lane lands. A task in the lane's copy is read by its own commits, never by the merges beside it.
+  At hand-back a parallel task has its lane brought into its own copy, so its gate runs on what the lane
+  would become; conflicts there go back to its Peer before anything is handed back.
   What a task changed is read at hand-back and at merge, not declared: a file in what another task
   holds, outside the lane's write set, or outside what a parallel task holds is a note to its Lead.
 

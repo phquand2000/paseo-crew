@@ -54,7 +54,7 @@ export type Lane = {
   reviews?: number;
 };
 
-type Handback = { file: string; outcome: string; commit?: string; summary: string; at: number; gate?: { ok: boolean; note: string } };
+type Handback = { file: string; outcome: string; commit?: string; summary: string; at: number; gate?: { ok: boolean; note: string; sha?: string } };
 
 export type Task = {
   id: string;
