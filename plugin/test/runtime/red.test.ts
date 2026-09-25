@@ -108,7 +108,7 @@ test("a merge waits while the task's own copy cannot take its lane in, and names
   assert.match(letters(h, lane.lead!), new RegExp(`MERGE CONFLICT L1-T3 \\(Quotes\\) with ${lane.branch}\\.\\nFiles: c\\.txt, changed there by L1-T2\\n`));
 });
 
-test("a commit made in the lane's copy while a merge's gate ran fails that merge rather than take a tree nobody gated, and the next accept brings it in", async () => {
+test("a commit made in the lane's copy while a merge's gate ran holds that merge rather than take a tree nobody gated, and it goes round again with that commit brought in", async () => {
   const marker = join(tempDir("sw2-race-"), "armed");
   const { h, sup, lane } = await laneWithPeer();
   const race = `if [ -f ${marker} ]; then rm ${marker}; cd ${lane.worktree} && printf 'lane\\n' > c.txt && git add c.txt && git -c user.name=t -c user.email=t@x commit -qm race; fi`;
@@ -123,11 +123,10 @@ test("a commit made in the lane's copy while a merge's gate ran fails that merge
   writeFileSync(marker, "");
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "failed");
-  assert.equal(h.git(lane.worktree!, "status", "--porcelain").trim(), "", "the merge is undone");
-  await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!), /MERGE FAILED L1-T2 \(Side\): the lane's copy took a commit while it was gated, which conflicts with it in c\.txt; accepting it again brings that in first/);
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "queued");
+  assert.equal(h.ledger().tasks["L1-T2"]!.held?.why, `${lane.branch} moved while it was gated, so it goes round again with that brought in`);
+  assert.equal(h.git(lane.worktree!, "log", "-1", "--format=%s").trim(), "race", "the lane took nothing of the task");
+  await h.runtime.desk.resumeMerges(h.project);
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "rework", "the commit came into its copy, conflicts and all, for its Peer");
 });
@@ -197,4 +196,25 @@ test("a red gate stays red whatever the rehearsals after it would say, and they 
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "m" });
   const gate = h.ledger().tasks["L1-T2"]!.handback!.gate!;
   assert.deepEqual([gate.ok, gate.note], [false, "false: the gate failed with exit 1"]);
+});
+
+test("a lane's copy left with work uncommitted while a merge's gate ran holds that merge until it is clean", async () => {
+  const marker = join(tempDir("sw2-dirt-"), "armed");
+  const { h, sup, lane } = await laneWithPeer();
+  await h.call(sup, "supervisor", "set_project", { gate: `if [ -f ${marker} ]; then rm ${marker}; printf 'half\\n' >> ${join(lane.worktree!, "a.txt")}; fi`, gateOn: "task" });
+  await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
+  const side = h.ledger().tasks["L1-T2"]!;
+  h.commit(side.worktree!, "c.txt", "side\n");
+  await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
+  h.agents.get(side.peer!)!.status = "idle";
+  h.commit(lane.worktree!, "shared.txt", "moved\n");
+  writeFileSync(marker, "");
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "queued");
+  assert.match(h.ledger().tasks["L1-T2"]!.held?.why ?? "", /^the lane's working copy has uncommitted changes/);
+  h.git(lane.worktree!, "checkout", "--", "a.txt");
+  await h.runtime.desk.resumeMerges(h.project);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
 });

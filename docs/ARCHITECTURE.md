@@ -160,11 +160,12 @@ treated as empty.
   one-writer path, and a Peer at work in the lane's copy is told. `accept` queues it once handed back,
   and each lane's merge queue merges its branches one at a time, beside the other lanes': the lane is brought
   into the task's copy again if it moved, the gate runs there unless it already ran on that commit, and
-  the lane takes a red tree only when the Lead accepted it over the gate with a reason. The queue is the tasks' status in
-  the ledger, so a restart picks it up: a merge cut off midway is undone and run again, and one git had
-  already made is only recorded. A merge never runs into a lane copy with work uncommitted: the task
-  stays queued, its Lead is told once, and the merge is tried again as each turn ends and before the
-  lane lands. A task in the lane's copy is read by its own commits, never by the merges beside it.
+  the lane takes a red tree only when the Lead accepted it over the gate with a reason. The merge commit
+  is made from that very tree, and the lane branch moves to it only from the tip the task was gated with:
+  a lane that moved meanwhile sends it round again. The queue is the tasks' status in the ledger, so a
+  restart picks it up: a merge cut off before the lane moved is run again, and one that moved it is only
+  recorded. A lane copy with work uncommitted holds the merge: the task stays queued, its Lead is told
+  once, and the merge is tried again as each turn ends and before the lane lands. A task in the lane's copy is read by its own commits, never by the merges beside it.
   At hand-back a parallel task has its lane brought into its own copy, so its gate runs on what the lane
   would become; conflicts there go back to its Peer before anything is handed back.
   What a task changed is read at hand-back and at merge, not declared: a file in what another task

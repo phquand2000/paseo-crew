@@ -115,13 +115,13 @@ export async function mergeUnderWay(cwd: string): Promise<boolean> {
   return (await git(cwd, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])).code === 0;
 }
 
-/** HEAD as the merge that brought `branch` in, if it is one: a merge a stop cut off after git made it. */
-export async function mergeOf(cwd: string, branch: string): Promise<{ before: string; after: string } | undefined> {
+/** `into` as the merge that brought `branch` in, if it is one: a merge a stop cut off after git made it. */
+export async function mergeOf(cwd: string, into: string, branch: string): Promise<{ before: string; after: string } | undefined> {
   const sha = async (ref: string) => {
     const run = await git(cwd, ["rev-parse", "--verify", "-q", ref]);
     return run.code === 0 ? run.stdout.trim() : undefined;
   };
-  const [after, before, merged, tip] = await Promise.all(["HEAD", "HEAD^1", "HEAD^2", branch].map(sha));
+  const [after, before, merged, tip] = await Promise.all([into, `${into}^1`, `${into}^2`, branch].map(sha));
   return after && before && merged && merged === tip ? { before, after } : undefined;
 }
 

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { fileKinds } from "../../server/catalog/kit.ts";
 import { contains, countNumstat, diffCounts, headSha, kindOf, mergeBranch } from "../../server/core/git.ts";
 import { uncovered } from "../../server/core/scope.ts";
-import { advanceBase, landLane } from "../../server/core/land.ts";
+import { advance, landLane, mergeCommit } from "../../server/core/land.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -199,9 +199,7 @@ test("base moves only from the commit it was read as, checked out or not: a land
     commit("c.txt", "landed first\n", "another lane landed meanwhile");
     const landedFirst = await headSha(root, "main");
     if (!onMain) run("checkout", "-q", "lane/l1");
-    const moved = await advanceBase(root, "main", read, tip);
-    assert.equal(moved.landed, false, `on main: ${onMain}`);
-    assert.match(moved.how, /main moved while this lane was landing/);
+    assert.deepEqual(await advance(root, "main", read, tip), { why: "moved" }, `on main: ${onMain}`);
     assert.equal(await headSha(root, "main"), landedFirst);
   }
 });
@@ -228,4 +226,16 @@ test("a desk merge reads conflicts as git leaves them and makes its commit unsig
   run("config", "commit.gpgSign", "true");
   run("config", "gpg.program", "false");
   assert.equal((await mergeBranch(root, "task/l1-t3", "Merge L1-T3")).ok, true, "a signer that needs the Human cannot stop a merge only the desk makes");
+});
+
+test("a merge made without a checkout has the branch's own tree and both tips for parents, and moves nothing", async () => {
+  const { root, run, commit } = repo();
+  const onto = (await headSha(root, "main"))!;
+  run("checkout", "-qb", "task/l1-t1");
+  commit("b.txt", "two\n", "task work");
+  run("checkout", "-q", "main");
+  const made = (await mergeCommit(root, onto, "task/l1-t1", "Merge L1-T1: Two"))!;
+  assert.equal(run("rev-parse", `${made}^{tree}`).trim(), run("rev-parse", "task/l1-t1^{tree}").trim());
+  assert.deepEqual(run("log", "-1", "--format=%P %an %s", made).trim(), `${onto} ${run("rev-parse", "task/l1-t1").trim()} seatworks Merge L1-T1: Two`);
+  assert.equal(await headSha(root, "main"), onto, "main is where it was until something advances it");
 });

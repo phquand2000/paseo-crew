@@ -1,4 +1,5 @@
-import { changedFiles, commitsAhead, diffCounts, git, headSha, mergeBranch, mergeOf, pristineState, uncommittedIn } from "../core/git.ts";
+import { changedFiles, commitsAhead, diffCounts, headSha, mergeOf, pristineState, uncommittedIn } from "../core/git.ts";
+import { advance, mergeCommit } from "../core/land.ts";
 import { fileKinds } from "../catalog/kit.ts";
 import { type DeskContext } from "./context.ts";
 import { errorText } from "../core/errors.ts";
@@ -73,16 +74,14 @@ export class MergeQueue {
     }
   }
 
-  /** A merge a stop cut off: finished if git had made it, else undone and queued again; true when nothing is left to do. */
+  /** A merge a stop cut off: finished if the lane branch had moved to it, else queued again; true when nothing is left to do. */
   private async cutOff(project: Project, task: Task, lane: Lane): Promise<boolean> {
     const cwd = lane.worktree;
-    const made = cwd && task.branch ? await mergeOf(cwd, task.branch) : undefined;
+    const made = cwd && task.branch ? await mergeOf(cwd, lane.branch, task.branch) : undefined;
     if (cwd && made) {
       await this.landed(project, task, lane, cwd, made);
       return true;
     }
-    // Undone rather than finished: git stopped halfway leaves the copy dirty, and merging reads that as another writer there.
-    if (cwd) await git(cwd, ["merge", "--abort"]);
     this.ctx.moveTask(project, task.id, "requeue");
     return false;
   }
@@ -106,44 +105,43 @@ export class MergeQueue {
       return finish("fail", mergeLetters.mergeFailed(task, `git could not read the lane's working copy at ${cwd}`, ""));
     }
     if (!task.branch || !task.worktree) return finish("fail", mergeLetters.mergeFailed(task, "the task's branch or copy is not on record", ""));
-    if (!(await this.cleared(project, { ...task, branch: task.branch, worktree: task.worktree }, lane))) return;
-    const ahead = await commitsAhead(cwd, "HEAD", task.branch);
+    const at = await this.cleared(project, { ...task, branch: task.branch, worktree: task.worktree }, lane);
+    if (!at) return;
+    const ahead = await commitsAhead(cwd, at, task.branch);
     if (ahead === undefined) return finish("fail", mergeLetters.mergeFailed(task, `git could not count what ${task.branch} carries beyond the lane branch`, ""));
-    // Nothing committed is a task that changed nothing, as in the lane's own copy: the Lead's accept stands.
-    if (ahead === 0) {
-      const head = await headSha(cwd);
-      return head ? this.landed(project, task, lane, cwd, { before: head, after: head }) : finish("fail", mergeLetters.mergeFailed(task, `git could not read the lane branch in ${cwd}`, ""));
-    }
-    // It carries the lane's tip, so this merge conflicts only with a commit made in the lane's copy since it was gated.
-    const merged = await mergeBranch(cwd, task.branch, `Merge ${task.id}: ${task.title}`);
-    if (!merged.ok) {
-      const why = merged.conflicts.length > 0 ? `the lane's copy took a commit while it was gated, which conflicts with it in ${merged.conflicts.join(", ")}; accepting it again brings that in first` : "git merge failed";
-      return finish("fail", mergeLetters.mergeFailed(task, why, merged.message));
-    }
-    await this.landed(project, task, lane, cwd, merged);
+    // Nothing committed beyond the lane is a task that changed nothing: the Lead's accept stands.
+    if (ahead === 0) return this.landed(project, task, lane, cwd, { before: at, after: at });
+    // Its branch carries the lane's tip it was gated with, so the lane takes that very tree, moved only from that tip.
+    const made = await mergeCommit(cwd, at, task.branch, `Merge ${task.id}: ${task.title}`);
+    if (!made) return finish("fail", mergeLetters.mergeFailed(task, "git could not make the merge commit", ""));
+    const stopped = await advance(cwd, lane.branch, at, made);
+    if (stopped?.why === "moved") return this.hold(project, task, lane, `${lane.branch} moved while it was gated, so it goes round again with that brought in`);
+    if (stopped?.why === "dirty") return this.waitFor(project, task, lane, cwd);
+    if (stopped) return finish("fail", mergeLetters.mergeFailed(task, stopped.why === "elsewhere" ? `${lane.branch} is checked out in another working copy` : (stopped.detail ?? `git could not read the lane's working copy at ${cwd}`), ""));
+    await this.landed(project, task, lane, cwd, { before: at, after: made });
   }
 
   /**
-   * Whether the task may merge now: its lane brought into its own copy, and a green gate on that tree or its Lead's word over a
-   * red one. What stops it is settled here: conflicts left for its Peer, a copy that cannot take the lane, a red gate.
+   * The lane tip the task may merge onto now: its lane brought into its own copy, and a green gate on that tree or its Lead's
+   * word over a red one. What stops it is settled here: conflicts left for its Peer, a copy that cannot take the lane, a red gate.
    */
-  private async cleared(project: Project, task: Task & { branch: string; worktree: string }, lane: Lane): Promise<boolean> {
+  private async cleared(project: Project, task: Task & { branch: string; worktree: string }, lane: Lane): Promise<string | undefined> {
     const synced = await bringLaneIn(task, lane);
     if ("conflicts" in synced) {
       await this.finish(project, task, lane, "conflict", mergeLetters.conflict(task, synced.conflicts, lane.branch, "left", synced.by));
-      return false;
+      return undefined;
     }
     if ("not" in synced) {
       await this.hold(project, task, lane, `its own copy cannot take ${lane.branch} in: ${synced.not}`);
-      return false;
+      return undefined;
     }
     const verdict = await this.verdict(project, task, lane);
     if (verdict?.ok === false && verdict.over === undefined) {
       await this.finish(project, task, lane, "red", mergeLetters.red(task, lane.branch, verdict.note, verdict.run));
-      return false;
+      return undefined;
     }
     if (verdict?.over !== undefined) this.ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: lane.lead ?? "", task: task.id, reason: verdict.over });
-    return true;
+    return synced.at;
   }
 
   /** The gate's verdict on the task's head: its hand-back's when that ran on the same commit, else one run now and kept on the task. */

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { Desk } from "../../server/desk/desk.ts";
@@ -50,16 +50,14 @@ test("a merge the queue held when the plugin stopped goes through on its first r
 });
 
 test("a merge the plugin stopped in the middle of is run again from the start, and one that had landed is only finished", async () => {
-  const { h, lane, task, stopped } = await handedBack();
+  const { h, lane, stopped } = await handedBack();
   const copy = lane.worktree!;
-  // Stopped with git's merge begun in the lane's copy and not committed.
-  h.git(copy, "merge", "-q", "--no-ff", "--no-commit", task.branch!);
+  // Stopped before the lane branch moved: nothing of the merge is in the lane.
   stopped("merging");
   h.restart();
   await h.tick();
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(existsSync(join(copy, ".git", "MERGE_HEAD")), false);
   assert.equal(merges(h, copy), "1", "merged once");
 
   // Stopped after git merged it, before the record said so.
