@@ -49,7 +49,7 @@ test("a settings save that changes what a seat's fields take reaches its line as
 });
 
 test("a call its harness stopped before the answer came is answered by mail, saying it was stopped", async (t) => {
-  const { h, lead, seat, say } = await leadOnTheLine(t, "sleep 1");
+  const { h, lead, seat, say } = await leadOnTheLine(t, "sleep 0.4");
   say({ type: "call", id: "1", tool: "report", args: { summary: "done", ready: true } });
   await new Promise((resolve) => setTimeout(resolve, 100));
   say({ type: "cancel", id: "1" });

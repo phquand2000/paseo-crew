@@ -181,7 +181,7 @@ test("a server that is slow to start does not hold the tool list for the whole c
     label: "Code search",
     tools: ["search"],
     descriptions: { search: "Search the code." },
-    listSeconds: 1,
+    listSeconds: 0.3,
     backend: { type: "stdio", command: [process.execPath, "-e", "require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000)", pidFile] },
   });
   try {

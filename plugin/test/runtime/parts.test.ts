@@ -170,12 +170,12 @@ test("the gate reports exit, output tail and timeouts", async () => {
 
   // A passing suite that leaves something running: the verdict is the command's own exit, not the output's end.
   const started = Date.now();
-  const leftBehind = await runGate("echo 'ok 1 - everything passes'; (sleep 2; echo late $((6*7)) >> g4.log) & exit 0", dir, join(dir, "g4.log"), 3_000);
+  const leftBehind = await runGate("echo 'ok 1 - everything passes'; (sleep 1; echo late $((6*7)) >> g4.log) & exit 0", dir, join(dir, "g4.log"), 3_000);
   assert.deepEqual([leftBehind.ok, leftBehind.code, leftBehind.timedOut], [true, 0, false]);
-  assert.equal(Date.now() - started < 2_000, true, "and it answers when the command does, not when the limit runs out");
+  assert.equal(Date.now() - started < 1_000, true, "and it answers when the command does, not when the limit runs out");
   assert.match(leftBehind.tail, /everything passes/);
   // What it left running is stopped with the verdict; nothing else would stop it writing into the log.
-  await new Promise((resolve) => setTimeout(resolve, 2_500));
+  await new Promise((resolve) => setTimeout(resolve, 1_400));
   assert.doesNotMatch(readFileSync(join(dir, "g4.log"), "utf-8"), /late 42/, "the log line the command itself echoes is not a leftover writing");
 
   // The tail is read from the end, since reading the whole log back throws past half a gigabyte.

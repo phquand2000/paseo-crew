@@ -95,7 +95,7 @@ export function repo(): string {
   return realpathSync(dir);
 }
 
-/** A code search server over stdio that writes its pid beside itself; `listMs` holds its tool list back that long after a quick handshake. */
+/** A code search server over stdio that writes its pid beside itself; `listMs` holds its first tool list back that long after a quick handshake. */
 export function fakeSemble(listMs = 0): string {
   const file = join(tempDir("sw2-semble-"), "semble.mjs");
   writeFileSync(
@@ -107,14 +107,16 @@ const tools = [
   { name: "search", description: "semble search", inputSchema: { type: "object", properties: { query: { type: "string" }, repo: { type: "string" } }, required: ["query", "repo"] } },
   { name: "find_related", description: "related", inputSchema: { type: "object", properties: {} } },
 ];
+let first = true;
 createInterface({ input: process.stdin }).on("line", (line) => {
   const m = JSON.parse(line);
   if (m.id === undefined) return;
   const hello = { protocolVersion: m.params?.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "fake-semble", version: "0" } };
   const result = m.method === "tools/call" ? { content: [{ type: "text", text: JSON.stringify(m.params.arguments) }] } : m.method === "tools/list" ? { tools } : m.method === "initialize" ? hello : {};
   const answer = () => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: m.id, result }) + "\\n");
-  if (m.method === "tools/list") setTimeout(answer, ${listMs});
+  if (m.method === "tools/list" && first) setTimeout(answer, ${listMs});
   else answer();
+  if (m.method === "tools/list") first = false;
 });
 `,
   );

@@ -139,7 +139,7 @@ test("the desk reads a backend's refusal as a failed call, and its health check 
 test("a backend whose handshake is quick but whose list comes after the wait gave up is shown as it is once the list comes", async () => {
   const { label, instructions, proxy: spec } = entry("code-search");
   let changed = 0;
-  const config = { name: "code-search", label, instructions, tools: ["search"], ...spec, listSeconds: 1, backend: { type: "stdio", command: [process.execPath, fakeSemble(1500)] } };
+  const config = { name: "code-search", label, instructions, tools: ["search"], ...spec, listSeconds: 0.5, backend: { type: "stdio", command: [process.execPath, fakeSemble(1000)] } };
   const code = await proxy(repo(), config, () => changed++);
   try {
     assert.match((await code.client.listTools()).tools[0]!.description ?? "", /not reachable/);

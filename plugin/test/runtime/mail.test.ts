@@ -72,7 +72,7 @@ test("a working Peer past the first page of agents is not read as gone", async (
 test("a call that runs longer than a seat can wait is answered by mail, and calling it again does not run it twice", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "sleep 1" });
+  await h.call(sup, "supervisor", "set_project", { gate: "sleep 0.4" });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   const request = { id: "r1", agent: lane.lead!, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() };
@@ -95,7 +95,7 @@ test("a call that runs longer than a seat can wait is answered by mail, and call
 test("a hand-back whose gate outlasts the call is not read as a silent turn", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "sleep 1", gateOn: "task" });
+  await h.call(sup, "supervisor", "set_project", { gate: "sleep 0.4", gateOn: "task" });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Work", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
@@ -114,7 +114,7 @@ test("a hand-back whose gate outlasts the call is not read as a silent turn", as
   await Promise.all([...(h.runtime.desk as unknown as { running: Map<string, { reply: Promise<unknown> }> }).running.values()].map((entry) => entry.reply));
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "done");
   await h.idle(lane.lead!);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /Gate: sleep 1 passed/);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /Gate: sleep 0\.4 passed/);
 });
 
 test("a task stalled because its Peer is gone holds no copy, and an ask to a gone reader goes to whoever supervises now", async () => {

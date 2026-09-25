@@ -129,7 +129,7 @@ const finished = (desk: Desk) => Promise.all([...(desk as unknown as { running: 
 test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "sleep 1" });
+  await h.call(sup, "supervisor", "set_project", { gate: "sleep 0.4" });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lead = h.ledger().lanes.L1!.lead!;
   const report = (id: string) => h.runtime.desk.answer({ id, agent: lead, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() }, { within: 100 });
