@@ -329,11 +329,11 @@ test("a suppression in prose is not one, and the one quoted is the one added", (
   assert.deepEqual(facts.map((fact) => [fact.kind, fact.quote]), [["suppressed", "src/b.ts: adds @ts-ignore"]]);
 });
 
-test("a write to the temp directory or into an owned directory is in scope, while one elsewhere outside the copy is not", () => {
+test("a write to the temp directory or into an owned directory is in scope, one elsewhere outside the copy is not, and a copy in the temp directory is still read by its scope", () => {
   const edit = editCall();
-  const temp = again(edit, "m", 2, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/msg" })), owned = again(edit, "o", 4, (detail) => Object.assign(detail, { filePath: "/work/src/pricing/rates.ts" }));
-  const ssh = again(edit, "k", 3, (detail) => Object.assign(detail, { filePath: "/Users/me/.ssh/config" }));
-  assert.deepEqual(play([...opening(), temp, ssh, owned], rules({ cwd: "/work", temp: "/var/folders/xy/T", owned: ["src/pricing"] })).map((fact) => [fact.kind, fact.quote]), [["outside-scope", "/Users/me/.ssh/config"]]);
+  const temp = again(edit, "m", 2, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/msg" })), owned = again(edit, "o", 4, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/work/src/pricing/rates.ts" }));
+  const ssh = again(edit, "k", 3, (detail) => Object.assign(detail, { filePath: "/Users/me/.ssh/config" })), stray = again(edit, "s", 5, (detail) => Object.assign(detail, { filePath: "/var/folders/xy/T/work/lib/x.ts" }));
+  assert.deepEqual(play([...opening(), temp, ssh, owned, stray], rules({ cwd: "/var/folders/xy/T/work", temp: "/var/folders/xy/T", owned: ["src/pricing"] })).map((fact) => [fact.kind, fact.quote]), [["outside-scope", "/Users/me/.ssh/config"], ["outside-scope", "/var/folders/xy/T/work/lib/x.ts"]]);
 });
 
 test("the gate named in an unverified fact is masked like any other quote", () => {

@@ -127,9 +127,9 @@ function escapes(path: string, rules: Rules): boolean {
 
 function outside(path: string, rules: Rules): boolean {
   if (!path || /\s/.test(path) || !rules.cwd) return false;
-  if (rules.temp && isAbsolute(path) && !relative(rules.temp, path).startsWith("..")) return false;
   const rel = isAbsolute(path) ? relative(rules.cwd, path) : normalize(path);
-  if (rel.startsWith("..")) return true;
+  // The temp directory is scratch only outside the copy: a copy that lies in it is still read by its scope.
+  if (rel.startsWith("..")) return !(rules.temp && isAbsolute(path) && !relative(rules.temp, path).startsWith(".."));
   if (!rules.owned || rules.owned.length === 0) return false;
   // Read as git reads them: a bare directory owns what is under it.
   return !rules.owned.some((path) => coverOf(path).test(rel));
