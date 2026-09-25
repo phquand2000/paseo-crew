@@ -158,7 +158,7 @@ treated as empty.
 - **Parallel mode.** The task gets its own slot and `task/…` branch, and `holds` what it writes, as
   coarsely as the work allows: no task that may run at once holds any of it, nor is any of it a
   one-writer path, and a Peer at work in the lane's copy is told. `accept` queues it once handed back,
-  and one merge queue per project merges branches into their lane, one at a time: the lane is brought
+  and each lane's merge queue merges its branches one at a time, beside the other lanes': the lane is brought
   into the task's copy again if it moved, the gate runs there unless it already ran on that commit, and
   the lane takes a red tree only when the Lead accepted it over the gate with a reason. The queue is the tasks' status in
   the ledger, so a restart picks it up: a merge cut off midway is undone and run again, and one git had

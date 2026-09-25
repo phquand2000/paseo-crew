@@ -18,6 +18,7 @@ type Outcome = "merged" | "conflict" | "red" | "fail";
 /** A gate verdict on a task's branch, with the failing run's tail when this merge ran it. */
 type Verdict = { ok: boolean; note: string; over?: string; run?: { tail: string; logFile: string } };
 
+/** One queue per lane: a lane's merges go one at a time, each after the one before, and a gate running on one holds no other lane's. */
 export class MergeQueue {
   private readonly ctx: DeskContext;
   private readonly queues = new Map<string, Promise<unknown>>();
@@ -27,11 +28,11 @@ export class MergeQueue {
   }
 
   settled(project: Project): Promise<unknown> {
-    return this.queues.get(project.slug) ?? Promise.resolve();
+    return Promise.all([...this.queues].filter(([key]) => key.startsWith(`${project.slug}\n`)).map(([, queue]) => queue));
   }
 
   enqueue(project: Project, taskId: string): void {
-    void this.after(project, () =>
+    void this.after(project, loadLedger(project.state).tasks[taskId]?.lane ?? "", () =>
       this.merge(project, taskId).catch(async (error) => {
         this.ctx.log(project, `merge ${taskId} crashed: ${errorText(error)}`);
         this.ctx.moveTask(project, taskId, "fail");
@@ -40,11 +41,12 @@ export class MergeQueue {
   }
 
   /**
-   * What a stop left accepted and unmerged goes through again, in the order it was accepted. It waits its turn in the
-   * queue, so a task it finds merging was cut off by the stop and is not one this run is merging.
+   * What a stop left accepted and unmerged goes through again, in the order it was accepted. Each lane's waits its turn in
+   * that lane's queue, so a task it finds merging was cut off by the stop and is not one this run is merging.
    */
-  resume(project: Project): Promise<void> {
-    return this.after(project, () => this.takeUp(project));
+  async resume(project: Project): Promise<void> {
+    const lanes = new Set(Object.values(loadLedger(project.state).tasks).filter((task) => IN_QUEUE.includes(task.status)).map((task) => task.lane));
+    await Promise.all([...lanes].map((lane) => this.after(project, lane, () => this.takeUp(project, lane))));
   }
 
   /** What waits for a lane's copy to be clean goes through again: at a turn's end, when a writer there may have committed. */
@@ -53,16 +55,17 @@ export class MergeQueue {
     return waiting ? this.resume(project) : Promise.resolve();
   }
 
-  /** One merge at a time per project, each after the one before whatever became of it. */
-  private after(project: Project, run: () => Promise<void>): Promise<void> {
-    const next = (this.queues.get(project.slug) ?? Promise.resolve()).then(run);
-    this.queues.set(project.slug, next.catch(() => undefined));
+  /** One merge at a time per lane, each after the one before whatever became of it. */
+  private after(project: Project, lane: string, run: () => Promise<void>): Promise<void> {
+    const key = `${project.slug}\n${lane}`;
+    const next = (this.queues.get(key) ?? Promise.resolve()).then(run);
+    this.queues.set(key, next.catch(() => undefined));
     return next;
   }
 
-  private async takeUp(project: Project): Promise<void> {
+  private async takeUp(project: Project, laneId: string): Promise<void> {
     const ledger = loadLedger(project.state);
-    const left = Object.values(ledger.tasks).filter((task) => IN_QUEUE.includes(task.status)).sort((a, b) => (a.acceptedAt ?? 0) - (b.acceptedAt ?? 0));
+    const left = Object.values(ledger.tasks).filter((task) => task.lane === laneId && IN_QUEUE.includes(task.status)).sort((a, b) => (a.acceptedAt ?? 0) - (b.acceptedAt ?? 0));
     for (const task of left) {
       const lane = ledger.lanes[task.lane];
       if (task.status === "merging" && lane && (await this.cutOff(project, task, lane))) continue;
