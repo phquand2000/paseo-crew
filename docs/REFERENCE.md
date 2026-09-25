@@ -266,6 +266,11 @@ role with desk tools. `mcp/code.mjs` can pin calls to the seat's git root, sync
 changed files, open and close the working copy in the backend, wait out indexing, rewrite errors and
 replace tool descriptions.
 
+A desk call can take minutes (a gate), and the desk answers within 240 s, "arrives as mail" past that;
+`team.mjs` waits 300 s. A seat must wait longer than that, or the answer comes back to nobody: omp gives
+up after 30 s and Pi's adapter after 60 s unless told, so omp seats get `OMP_MCP_TIMEOUT_MS=600000` and
+Pi's `team` server `requestTimeoutMs: 600000`. Claude Code waits hours and Codex 300 s by default.
+
 ## Facts
 
 **From a seat's turn**, in code:

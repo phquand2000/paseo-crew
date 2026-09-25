@@ -17,7 +17,8 @@
     ],
     "desk": {
       "lifecycle": "keep-alive",
-      "directTools": true
+      "directTools": true,
+      "requestTimeoutMs": 600000
     }
   },
   "mcpServerField": "output.details.server",
