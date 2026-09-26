@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { given, no, ok, str } from "../context.ts";
 import { repeatsIncident } from "../incidents.ts";
@@ -19,7 +20,7 @@ export const amendLane = defineTool({
     writeSet: z.array(z.string()).optional(),
     contracts: z.array(z.string()).optional(),
   }),
-  async handle({ ctx }, caller, args) {
+  async handle({ kit, ledgers, mail }, caller, args) {
     const { project } = caller;
     const changes = given(args, ["outcome"], ["acceptance", "outOfScope", "writeSet", "contracts"]);
     if (changes.outcome === "" || changes.acceptance?.length === 0)
@@ -29,9 +30,9 @@ export const amendLane = defineTool({
     const refused = repeatsIncident(project.state, lane.lead, str(args.why), ...Object.values(changes).flat());
     if (refused) return no(refused);
     const scoped = Boolean(changes.writeSet || changes.contracts);
-    const serial = scoped ? await serialIn(ctx.kit, project, project.root) : [];
+    const serial = scoped ? await serialIn(kit, project, project.root) : [];
     // Checked where it is written: a lane opened meanwhile may already hold the paths this one would take.
-    const done = ctx.transact(project, (current) => {
+    const done = ledgers.transact(project, (current) => {
       const entry = current.lanes[lane.id];
       if (!entry || entry.status === "closed")
         return `Lane ${lane.id} is closed; ask for the work again with open_lane.`;
@@ -52,9 +53,14 @@ export const amendLane = defineTool({
       return { lane: { ...entry }, amendment };
     });
     if (typeof done === "string") return no(done);
-    ctx.event(project, { kind: "lane.amended", lane: lane.id, fields: Object.keys(done.amendment.was), by: caller.id });
+    recordEvent(project, {
+      kind: "lane.amended",
+      lane: lane.id,
+      fields: Object.keys(done.amendment.was),
+      by: caller.id,
+    });
     if (done.lane.status === "waiting") return ok(`Lane ${lane.id} is amended; it opens as it is now.`);
-    const posted = await ctx.post(done.lane.lead, letters.amended(done.lane, done.amendment, "lead"));
+    const posted = await mail.post(done.lane.lead, letters.amended(done.lane, done.amendment, "lead"));
     return ok(
       `Lane ${lane.id} is amended${posted === "nobody" ? ", and it has no Lead to tell" : " and its Lead has the change"}; a READY it reported before no longer stands.`,
     );

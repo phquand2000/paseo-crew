@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { close } from "../../domain/incident.ts";
 import { no, ok, str } from "../context.ts";
@@ -14,7 +15,7 @@ export const markIncident = defineTool({
     verdict: z.enum(["useful", "noise", "unknown"]),
     note: z.string().optional(),
   }),
-  async handle({ ctx }, caller, args) {
+  async handle({ incidents }, caller, args) {
     const id = str(args.id);
     // One of the three: the desk holds every call to the schema before it gets here.
     const verdict = str(args.verdict) as NonNullable<Incident["label"]>;
@@ -22,7 +23,7 @@ export const markIncident = defineTool({
     const now = Date.now();
     const allowed = mine(caller);
     if (typeof allowed === "string") return no(allowed);
-    const done = ctx.incidents(caller.project, (held) => {
+    const done = incidents.transact(caller.project, (held) => {
       const item = held.items[id];
       if (!item || !allowed(item)) return undefined;
       item.label = verdict;
@@ -31,7 +32,7 @@ export const markIncident = defineTool({
       return { ...item };
     });
     if (!done) return no(`There is no incident ${id} here for you to mark. incidents lists the ones there are.`);
-    ctx.event(caller.project, {
+    recordEvent(caller.project, {
       kind: "incident.ack",
       id,
       agent: caller.id,

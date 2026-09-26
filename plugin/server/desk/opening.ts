@@ -1,3 +1,5 @@
+import { workKey } from "./claims.ts";
+import { recordEvent } from "./store/event-log.ts";
 import { namedOrNot, roleNamed, roleThatCan } from "../catalog/kit.ts";
 import { dropMerged, headSha, switchTo } from "../core/git.ts";
 import type { SeatView } from "../core/paseo.ts";
@@ -40,8 +42,6 @@ export function scopeProblem(serial: string[], open: Lane[], writeSet: string[],
   }
   return undefined;
 }
-
-export const seatingKey = (project: Project, lane: string) => `${project.slug}:${lane}`;
 
 /** A seat Paseo holds as this lane's Lead, by the labels it was started with; a Peer's and a reviewer's also name a task. */
 export function leadSeatOf(seats: SeatView[], project: Project, lane: string): SeatView | undefined {
@@ -87,40 +87,40 @@ type Seated = { slot: { id?: string; path: string; workspaceId?: string }; lead:
 
 /** Seats the Lead of a lane marked seating; a failure puts back what it took, moves the lane by `failed`, and comes back as the reason. */
 export async function startLead(desk: DeskServices, project: Project, lane: Lane, how: Seating & { failed: "close" | "wait" }): Promise<Seated | string> {
-  const { ctx } = desk;
+  const { ledgers, seating } = desk;
   try {
     const started = await seatLead(desk, project, lane, how);
-    if (typeof started === "string") ctx.moveLane(project, lane.id, how.failed);
-    if (typeof started === "string" && how.failed === "close") ctx.event(project, { kind: "lane.closed", lane: lane.id, land: false, landing: "its Lead could not start", reason: started, writers: [] });
+    if (typeof started === "string") ledgers.moveLane(project, lane.id, how.failed);
+    if (typeof started === "string" && how.failed === "close") recordEvent(project, { kind: "lane.closed", lane: lane.id, land: false, landing: "its Lead could not start", reason: started, writers: [] });
     return started;
   } finally {
-    ctx.seating.delete(seatingKey(project, lane.id));
+    seating.release(workKey(project, lane.id));
   }
 }
 
 async function seatLead(desk: DeskServices, project: Project, lane: Lane, how: Seating): Promise<Seated | string> {
-  const { ctx, slots, agents } = desk;
+  const { kit, ledgers, slots, ownCopy, agents } = desk;
   const giveBack = async (taken: { id?: string }) => {
     if (taken.id) await slots.release(project, taken.id, lane.branch, lane.base);
-    else if (how.from) await slots.unstart(project, how.from, lane.branch);
-    else if (!lane.onBranch) await slots.giveBack(project, lane.base, lane.branch);
+    else if (how.from) await ownCopy.unstart(project, how.from, lane.branch);
+    else if (!lane.onBranch) await ownCopy.giveBack(project, lane.base, lane.branch);
   };
   let slot: { id?: string; path: string; workspaceId?: string };
   try {
-    slot = lane.onBranch ? await slots.carryOn(project, lane.branch, how.from) : how.ownCopy ? await slots.acquire(project, lane.branch, lane.base, { lane: lane.id }, `${lane.id} ${lane.title}`) : await slots.inPlace(project, lane.branch, lane.base);
+    slot = lane.onBranch ? await ownCopy.carryOn(project, lane.branch, how.from) : how.ownCopy ? await slots.acquire(project, lane.branch, lane.base, { lane: lane.id }, `${lane.id} ${lane.title}`) : await ownCopy.inPlace(project, lane.branch, lane.base);
   } catch (error) {
     return `The lane could not get a working copy: ${errorText(error)}`;
   }
   try {
-    const leadRole = roleThatCan(ctx.kit, "lead", how.role || undefined);
+    const leadRole = roleThatCan(kit, "lead", how.role || undefined);
     if (!leadRole) {
       await giveBack(slot);
-      return namedOrNot(ctx.kit, "lead", how.role ?? "", "lead a lane");
+      return namedOrNot(kit, "lead", how.role ?? "", "lead a lane");
     }
-    const directed = await directiveFor(ctx.kit, project, lane, slot.path, how.issue);
+    const directed = await directiveFor(kit, project, lane, slot.path, how.issue);
     const startSha = lane.onBranch ? await headSha(slot.path) : undefined;
     // Where the Lead works goes on record before it starts, so a lane a stop leaves without its Lead still knows.
-    ctx.transact(project, (ledger) => {
+    ledgers.transact(project, (ledger) => {
       Object.assign(ledger.lanes[lane.id] ?? {}, { worktree: slot.path, slot: slot.id, workspaceId: slot.workspaceId, startSha });
     });
     const lead = await agents.start(project, slot, leadRole.role, {
@@ -129,16 +129,16 @@ async function seatLead(desk: DeskServices, project: Project, lane: Lane, how: S
       prompt: directed.text,
       labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
-    ctx.transact(project, (ledger) => {
+    ledgers.transact(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
       if (entry) entry.lead = lead;
       ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
     });
-    ctx.event(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot: slot.id ?? "in place" });
+    recordEvent(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot: slot.id ?? "in place" });
     return { slot, lead, elsewhere: directed.elsewhere };
   } catch (error) {
     await giveBack(slot);
-    ctx.transact(project, (ledger) => forgetPlace(ledger.lanes[lane.id]));
+    ledgers.transact(project, (ledger) => forgetPlace(ledger.lanes[lane.id]));
     return `The Lead could not start: ${errorText(error)}`;
   }
 }
@@ -181,13 +181,13 @@ export function parallelProblem(ledger: Ledger, lane: Lane, holds: string[], ser
 
 /** Seats the Peer of a task recorded running; a failure gives back its copy, sets it waiting again, and comes back as the reason. */
 export async function startPeer(desk: DeskServices, project: Project, lane: Lane, task: Task, how: { role: string; parent?: string }): Promise<{ peer: string; where: string } | string> {
-  const { ctx, slots, agents } = desk;
+  const { kit, ledgers, seating, slots, agents } = desk;
   const parallel = task.mode === "parallel";
   try {
     let slot: { id?: string; path: string; workspaceId?: string };
     if (parallel) {
       slot = await slots.acquire(project, task.branch!, lane.branch, { task: task.id }, `${task.id} ${task.title}`);
-      ctx.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
+      ledgers.setTask(project, task.id, (entry) => Object.assign(entry, { slot: slot.id, worktree: slot.path }));
     } else {
       slot = lane.slot ? loadLedger(project.state).slots[lane.slot]! : { path: lane.worktree!, workspaceId: lane.workspaceId };
       // The lane's copy takes the task's own branch, made from the lane as it stands; the lane branch moves only by merges.
@@ -196,21 +196,21 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
     }
     const peer = await agents.start(project, slot, how.role, {
       parent: how.parent,
-      title: seatTitle.of(task, roleNamed(ctx.kit, how.role)!),
+      title: seatTitle.of(task, roleNamed(kit, how.role)!),
       prompt: taskBrief(task, lane, besideOf(loadLedger(project.state), task)),
       labels: { "seatworks.lane": lane.id, "seatworks.task": task.id, "seatworks.role": how.role },
     });
-    ctx.setTask(project, task.id, (entry) => {
+    ledgers.setTask(project, task.id, (entry) => {
       entry.peer = peer;
     });
-    ctx.transact(project, (current) => {
+    ledgers.transact(project, (current) => {
       current.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id };
     });
-    ctx.event(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
+    recordEvent(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: slot.id ?? "in place" });
     return { peer, where: parallel ? `in its own working copy ${slot.id} on ${task.branch}` : `in the lane's working copy on ${task.branch}` };
   } catch (error) {
     const taken = loadLedger(project.state).tasks[task.id]?.slot;
-    ctx.setTask(project, task.id, (entry) => {
+    ledgers.setTask(project, task.id, (entry) => {
       TASK.move(entry, "wait");
       if (parallel) {
         delete entry.slot;
@@ -221,6 +221,6 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
     else if (!(await backOnLane(lane))) await dropMerged(lane.worktree!, task.branch!, lane.branch);
     return `The Peer could not start: ${errorText(error)}`;
   } finally {
-    ctx.seating.delete(seatingKey(project, task.id));
+    seating.release(workKey(project, task.id));
   }
 }

@@ -1,3 +1,4 @@
+import { recordEvent } from "./store/event-log.ts";
 import type { Attention } from "../../shared/views.ts";
 import { seatOf } from "../catalog/kit.ts";
 import { type Finding, type Held, deliveryOf, hold, tell, unheard } from "../domain/incident.ts";
@@ -37,15 +38,15 @@ function placeOf(project: Project, seat: Noticed): Placed {
 
 /** What the watch saw of a seat: the findings that open incidents, and the moment they came from, which the watch's questions read. */
 export async function notice(services: DeskServices, project: Project, seat: Noticed, findings: Finding[], moment?: Moment, now = Date.now()): Promise<{ opened: Incident[]; sent: string[]; place: Placed }> {
-  const { ctx } = services;
+  const { kit, incidents, teamFor } = services;
   const place = placeOf(project, seat);
-  for (const found of moment ? momentCases(ctx.kit, place, moment) : []) void judge(services, project, found);
+  for (const found of moment ? momentCases(kit, place, moment) : []) void judge(services, project, found);
   if (findings.length === 0) return { opened: [], sent: [], place };
-  const attention = ctx.team(project).attention;
+  const attention = teamFor(project).attention;
   for (const finding of findings) {
-    ctx.event(project, { kind: "watch.finding", agent: seat.id, finding: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts });
+    recordEvent(project, { kind: "watch.finding", agent: seat.id, finding: finding.kind, level: finding.level, quote: finding.quote, facts: finding.facts });
   }
-  const { opened, sending } = ctx.incidents(project, (incidents) => {
+  const { opened, sending } = incidents.transact(project, (incidents) => {
     const opened: Incident[] = [];
     const sending: Incident[] = [];
     for (const finding of findings) {
@@ -57,7 +58,7 @@ export async function notice(services: DeskServices, project: Project, seat: Not
       if (held) hold(incident, held);
       else if (tell(incident, now)) sending.push({ ...incident });
       if (isNew) {
-        ctx.event(project, { kind: "incident.open", id: incident.id, agent: seat.id, finding: incident.kind, level: incident.level, held: incident.held ?? null });
+        recordEvent(project, { kind: "incident.open", id: incident.id, agent: seat.id, finding: incident.kind, level: incident.level, held: incident.held ?? null });
         opened.push({ ...incident });
       }
     }
@@ -81,8 +82,8 @@ async function recipientFor(services: DeskServices, project: Project, seat: Noti
 }
 
 async function deliver(services: DeskServices, project: Project, seat: Noticed, place: Placed, sending: Incident[], now: number): Promise<string[]> {
-  const { ctx } = services;
-  const harness = seatOf(ctx.kit, seat.provider)?.harness;
+  const { kit, incidents, mail } = services;
+  const harness = seatOf(kit, seat.provider)?.harness;
   const steers = harness?.steers === true;
   const told: string[] = [];
   for (const level of ["page", "attend"] as const) {
@@ -92,20 +93,20 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
     try {
       reader = await recipientFor(services, project, seat, place, level);
     } catch (error) {
-      ctx.event(project, { kind: "incident.lookup-failed", error: errorText(error) });
+      recordEvent(project, { kind: "incident.lookup-failed", error: errorText(error) });
     }
     const { to, as } = reader;
     if (!to) {
-      ctx.incidents(project, (incidents) => {
+      incidents.transact(project, (incidents) => {
         for (const sent of batch) {
           const incident = incidents.items[sent.id];
           if (incident?.told === now) unheard(incident);
         }
       });
-      for (const sent of batch) ctx.event(project, { kind: "incident.held", id: sent.id, held: "nobody" });
+      for (const sent of batch) recordEvent(project, { kind: "incident.held", id: sent.id, held: "nobody" });
       continue;
     }
-    ctx.incidents(project, (incidents) => {
+    incidents.transact(project, (incidents) => {
       for (const sent of batch) {
         const incident = incidents.items[sent.id];
         if (incident?.told === now) incident.toldTo = as;
@@ -113,22 +114,22 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
     });
     for (const incident of batch) {
       try {
-        await ctx.post(to, letters.incident(incident, place, steers, as));
+        await mail.post(to, letters.incident(incident, place, steers, as));
       } catch (error) {
-        ctx.event(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
+        recordEvent(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
       }
     }
-    ctx.event(project, { kind: "incident.told", ids: batch.map((incident) => incident.id), to });
+    recordEvent(project, { kind: "incident.told", ids: batch.map((incident) => incident.id), to });
     told.push(...batch.map((incident) => incident.id));
   }
   return told;
 }
 
 export async function retell(services: DeskServices, project: Project, now = Date.now()): Promise<string[]> {
-  const { ctx } = services;
-  const { watch } = ctx.team(project).attention;
+  const { incidents, teamFor } = services;
+  const { watch } = teamFor(project).attention;
   const told: string[] = [];
-  const nobody = ctx.incidents(project, (incidents) => Object.values(incidents.items).filter((item) => item.open && item.held === "nobody" && item.told === undefined && (watch || item.level === "page")).map((item) => ({ ...item })));
+  const nobody = incidents.transact(project, (incidents) => Object.values(incidents.items).filter((item) => item.open && item.held === "nobody" && item.told === undefined && (watch || item.level === "page")).map((item) => ({ ...item })));
   for (const seat of [...new Set(nobody.map((item) => item.seat))]) {
     const noticed = { id: seat, provider: nobody.find((item) => item.seat === seat)!.provider ?? "" };
     const place = placeOf(project, noticed);
@@ -142,7 +143,7 @@ export async function retell(services: DeskServices, project: Project, now = Dat
       } catch {}
     }
     if (mine.length === 0) continue;
-    const sending = ctx.incidents(project, (incidents) => {
+    const sending = incidents.transact(project, (incidents) => {
       const taken: Incident[] = [];
       for (const item of mine) {
         const incident = incidents.items[item.id];
@@ -156,5 +157,5 @@ export async function retell(services: DeskServices, project: Project, now = Dat
 }
 
 export function closeIncidentsOf(services: DeskServices, project: Project, seat: string, now = Date.now()): string[] {
-  return services.ctx.incidents(project, (incidents) => closeSeat(incidents, seat, now));
+  return services.incidents.transact(project, (incidents) => closeSeat(incidents, seat, now));
 }

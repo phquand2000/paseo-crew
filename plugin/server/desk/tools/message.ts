@@ -8,8 +8,8 @@ import { type Sending, letters } from "../letters.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 
 /** Gives `text` to a seat as mail it reads once it can; one stopped on a permission reads nothing until the Human decides it. */
-async function handTo({ ctx, roster }: DeskServices, to: { target: string; from: string; who: string }, sending: Sending, text: string): Promise<string> {
-  const posted = await ctx.post(to.target, letters.message(to.from, text, sending));
+async function handTo({ mail, roster }: DeskServices, to: { target: string; from: string; who: string }, sending: Sending, text: string): Promise<string> {
+  const posted = await mail.post(to.target, letters.message(to.from, text, sending));
   if (posted === "sent") return `Delivered to ${to.who}.`;
   const seat = await roster.look(to.target).catch(() => undefined);
   if ((seat?.pendingPermissions?.length ?? 0) > 0) return `Queued for ${to.who}, which is stopped on a permission only the Human can give; it reads this once that is decided.`;
@@ -28,7 +28,7 @@ const settled = (task: Task) =>
 
 /** Whoever supervises reaches a lane's Lead, or a task's Peer with its Lead told first. */
 async function fromOwner(desk: DeskServices, caller: Caller, ledger: Ledger, sending: Sending, text: string): Promise<ToolReply> {
-  const { ctx, roster } = desk;
+  const { mail, roster } = desk;
   const lane = findLane(ledger, sending.to);
   if (lane) {
     // A Lead kept after its lane closed is still there to ask about it.
@@ -53,7 +53,7 @@ async function fromOwner(desk: DeskServices, caller: Caller, ledger: Ledger, sen
   const refused = repeatsIncident(caller.project.state, task.peer, text);
   if (refused) return no(refused);
   // The Lead is told first, so it is never the last to know what reached its own Peer.
-  await ctx.post(lead, letters.reconciled(laneOf, task, task.peer, text, sending));
+  await mail.post(lead, letters.reconciled(laneOf, task, task.peer, text, sending));
   return ok(`${await handTo(desk, { target: task.peer, from: "the project owner", who: `the Peer on ${task.id}` }, sending, text)} Its Lead has been told what reached it and what is still its own.`);
 }
 

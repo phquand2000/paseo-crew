@@ -10,7 +10,7 @@ import { laneTask } from "./lane-task.ts";
 
 /** A task goes into its lane's merge queue once handed back, and over a red gate on its tree only with its Lead's reason. */
 async function queueTask(desk: DeskServices, project: Project, task: Task, args: Args): Promise<ToolReply> {
-  const { ctx, merges } = desk;
+  const { ledgers, merges } = desk;
   if (AT_WORK.includes(task.status) || !task.handback)
     return no(`${task.id} is not handed back: accept it once its Peer hands it back, or cut it.`);
   // A copy off its branch (mid-bisect) has commits on no branch; clean and detached is not work the merge would take.
@@ -37,7 +37,7 @@ async function queueTask(desk: DeskServices, project: Project, task: Task, args:
       `${task.id}'s gate is red on the tree the lane would become: send it back with rework, or accept it with overGate and a reason to merge it over the gate.`,
     );
   }
-  const queued = ctx.moveTask(project, task.id, "queue", (entry) => {
+  const queued = ledgers.moveTask(project, task.id, "queue", (entry) => {
     entry.acceptedAt = Date.now();
     if (over && entry.handback?.gate?.ok === false) entry.handback.gate.over = str(args.reason);
   });

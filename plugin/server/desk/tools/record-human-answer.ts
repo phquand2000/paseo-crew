@@ -18,7 +18,8 @@ const flat = (text: string) =>
 export const recordHumanAnswer = defineTool({
   name: "record_human_answer",
   input: z.strictObject({ question: z.string(), choice: z.string(), quote: z.string(), text: z.string().optional() }),
-  async handle({ ctx, roster }, caller, args) {
+  async handle(desk, caller, args) {
+    const { roster } = desk;
     const { project } = caller;
     const id = args.question.trim().toUpperCase();
     const quote = flat(args.quote);
@@ -33,7 +34,7 @@ export const recordHumanAnswer = defineTool({
       );
     }
     const choice = args.choice.trim();
-    const recorded = settleQuestion(ctx, project, id, choice, {
+    const recorded = settleQuestion(desk, project, id, choice, {
       text: str(args.text) || undefined,
       by: "chat",
       quote: str(args.quote),

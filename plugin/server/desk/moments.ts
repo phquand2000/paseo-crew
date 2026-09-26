@@ -12,5 +12,5 @@ export async function tellMoment(
   what: string,
 ): Promise<void> {
   const opener = loadLedger(project.state).lanes[task.lane]?.opener;
-  await desk.ctx.post(await desk.roster.supervisorFor(project, opener), letters.moment(moment, task, what));
+  await desk.mail.post(await desk.roster.supervisorFor(project, opener), letters.moment(moment, task, what));
 }

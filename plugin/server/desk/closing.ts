@@ -1,3 +1,5 @@
+import { workKey } from "./claims.ts";
+import { recordEvent } from "./store/event-log.ts";
 import { currentBranch, headSha, isAncestor, landedRef, mergeBranch, mergeUnderWay } from "../core/git.ts";
 import { landLane } from "../core/land.ts";
 import { midTurn } from "../core/paseo.ts";
@@ -14,7 +16,6 @@ import { landLetters } from "./land-letters.ts";
 import { closeIncidentsOf } from "./notice.ts";
 import { type Project, loadConfig } from "./project.ts";
 import type { DeskServices } from "./services.ts";
-import { seatingKey } from "./opening.ts";
 import { stowCopy } from "./stow.ts";
 import { openWaiting } from "./waiting.ts";
 import { midTurnAmong } from "./writing.ts";
@@ -28,7 +29,7 @@ type Closing = { lane: string; land: boolean; reason?: string; overGate?: boolea
  * stops on conflicts is left in the copy, and its Lead told to have it settled. `why` is what stops landing; `then`, what can be done.
  */
 async function bringBaseIn(desk: DeskServices, project: Project, ledger: Ledger, lane: Lane): Promise<{ why: string; then: string; writers?: string[] } | undefined> {
-  const { ctx, roster } = desk;
+  const { ledgers, mail, roster } = desk;
   if (!lane.worktree) return { why: `it has no working copy on record to merge ${lane.base} into`, then: "Drop it with drop_lane." };
   // A task's branch there is work the lane has not taken: neither base nor the gate would meet the lane's own tree.
   const on = await currentBranch(lane.worktree);
@@ -50,11 +51,11 @@ async function bringBaseIn(desk: DeskServices, project: Project, ledger: Ledger,
   if (merged.ok) return undefined;
   if (merged.conflicts.length === 0) return { why: `${lane.base} has moved on and does not merge into ${lane.branch}: ${merged.message}`, then: "Nothing was changed. Message its Lead, or drop_lane it." };
   // What it was reported ready as is not what it holds now.
-  ctx.transact(project, (current) => {
+  ledgers.transact(project, (current) => {
     const entry = current.lanes[lane.id];
     if (entry) delete entry.ready;
   });
-  await ctx.post(lane.lead, landLetters.baseConflict(lane, merged.conflicts));
+  await mail.post(lane.lead, landLetters.baseConflict(lane, merged.conflicts));
   return { why: `${lane.base} has moved on and conflicts with ${lane.branch} in ${merged.conflicts.join(", ")}`, then: `The merge is left in the lane's copy, and its Lead has a letter to have it settled; ${settle}` };
 }
 
@@ -73,40 +74,40 @@ const NOT_READY = "Its Lead has not reported it ready as it now stands: never, o
  * evidence. An approval stands for what it was given: a path they are newly asked about holds it again.
  */
 async function checkLanding(desk: DeskServices, project: Project, lane: Lane, gate: { ok: boolean; ran: boolean }, over: { overGate: boolean; reason: string }, approved?: Held): Promise<{ held?: string; note: string }> {
-  const { ctx } = desk;
+  const { kit, ledgers, mail } = desk;
   const change = await changeOf(project, lane);
   const asks = askFirstHits(project, change);
-  const evidence = [...(lane.ready ? [] : [NOT_READY]), ...(await landFacts(ctx.kit, project, loadLedger(project.state), lane, change, { set: gate.ran, ok: gate.ok }))];
+  const evidence = [...(lane.ready ? [] : [NOT_READY]), ...(await landFacts(kit, project, loadLedger(project.state), lane, change, { set: gate.ran, ok: gate.ok }))];
   const fresh = approved ? asks.filter((ask) => !approved.signals.includes(ask)) : asks;
   if (fresh.length === 0) return { note: `\n\n${approved ? "The Human approved it.\n" : ""}Evidence: ${evidence.join(" ")}` };
   const head = (await headSha(project.root, lane.branch)) ?? "";
-  ctx.transact(project, (current) => {
+  ledgers.transact(project, (current) => {
     const entry = current.lanes[lane.id];
     if (entry) entry.landApproval = { since: Date.now(), head, signals: asks, evidence, overGate: over.overGate, ...(over.reason ? { reason: over.reason } : {}), ready: Boolean(lane.ready) };
   });
-  ctx.event(project, { kind: "land.held", lane: lane.id, signals: asks.length });
-  await ctx.post(lane.lead, landLetters.landHeld(lane, asks.join(" "), head));
+  recordEvent(project, { kind: "land.held", lane: lane.id, signals: asks.length });
+  await mail.post(lane.lead, landLetters.landHeld(lane, asks.join(" "), head));
   return { held: `Lane ${lane.id} was not landed: it waits for the Human's approval, on the Flow tab of the panel. ${asks.join(" ")}\n\nEvidence: ${evidence.join(" ")}\n\nYou cannot approve it; tell them it waits, and why. LANDED or SENT BACK comes as mail.`, note: "" };
 }
 
 /** Closes a lane for `by`: the Supervisor that called, or the one the Human's approval lands it for. `blocked` is what kept a landing from happening. */
 export async function close(desk: DeskServices, project: Project, by: string, args: Closing): Promise<Closed> {
-  const { ctx, merges } = desk;
+  const { ledgers, closing, landings, merges } = desk;
   const ledger = loadLedger(project.state);
   const lane = findLane(ledger, str(args.lane));
   if (!lane) return no(`There is no lane ${str(args.lane)}.`);
   if (lane.status === "waiting") {
     if (args.land === true) return no(`Lane ${lane.id} never opened, so there is nothing to land; drop_lane drops it.`);
-    ctx.moveLane(project, lane.id, "drop");
-    ctx.event(project, { kind: "lane.closed", lane: lane.id, land: false, landing: "dropped while waiting", reason: str(args.reason), writers: [] });
+    ledgers.moveLane(project, lane.id, "drop");
+    recordEvent(project, { kind: "lane.closed", lane: lane.id, land: false, landing: "dropped while waiting", reason: str(args.reason), writers: [] });
     return ok(`Lane ${lane.id} was waiting and is dropped; nothing had started for it.`);
   }
   if (lane.status !== "open") return no(`Lane ${lane.id} is already closed.`);
   if (args.land === true && lane.onHold) return no(`Lane ${lane.id} is on hold: ${lane.onHold.reason}. Resume it with resume_lane before landing it.`);
   // One close of a lane at a time: a second landed it and retired it again, and both were told it closed.
-  const key = seatingKey(project, lane.id);
-  if (ctx.closing.has(key)) return no(`Lane ${lane.id} is already being closed by another call; read status once that call has answered.`);
-  ctx.closing.add(key);
+  const key = workKey(project, lane.id);
+  if (closing.has(key)) return no(`Lane ${lane.id} is already being closed by another call; read status once that call has answered.`);
+  closing.take(key);
   try {
     // Wait for queued merges, one more try included for those waiting on a clean copy: they run in the copy closing gates, lands and removes.
     await merges.retry(project);
@@ -116,11 +117,11 @@ export async function close(desk: DeskServices, project: Project, by: string, ar
       const now = loadLedger(project.state);
       return land(desk, project, now, now.lanes[lane.id] ?? lane, by, { overGate: args.overGate === true, reason: str(args.reason) });
     };
-    const landed = args.land === true ? await ctx.inTurn(`${project.slug}:land`, landing) : { how: `the branch ${lane.branch} is kept for the Human`, note: "" };
+    const landed = args.land === true ? await landings.run(`${project.slug}:land`, landing) : { how: `the branch ${lane.branch} is kept for the Human`, note: "" };
     if ("text" in landed) return landed;
     return await retire(desk, project, lane, args, landed);
   } finally {
-    ctx.closing.delete(key);
+    closing.release(key);
   }
 }
 
@@ -128,7 +129,7 @@ export async function close(desk: DeskServices, project: Project, by: string, ar
 async function stillHeld(desk: DeskServices, project: Project, lane: Lane, held: Held): Promise<Closed | undefined> {
   const asks = askFirstHits(project, await changeOf(project, lane));
   if (asks.length === 0) return undefined;
-  desk.ctx.transact(project, (current) => {
+  desk.ledgers.transact(project, (current) => {
     const entry = current.lanes[lane.id]?.landApproval;
     if (entry && !entry.approved) entry.signals = asks;
   });
@@ -137,7 +138,7 @@ async function stillHeld(desk: DeskServices, project: Project, lane: Lane, held:
 
 /** Lands an open lane for `by`, or says what kept it from landing: a hold for the Human, base that will not merge, a red gate. */
 async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: Lane, by: string, over: { overGate: boolean; reason: string }): Promise<Closed | { how: string; note: string }> {
-  const { ctx } = desk;
+  const { ledgers } = desk;
   const held = lane.landApproval;
   const tip = await headSha(project.root, lane.branch);
   // A commit after the hold makes it a lane nobody has looked at: it is checked again from the start.
@@ -153,7 +154,7 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
   // Land before closing: a closed lane cannot be closed again, so a landing that cannot happen is refused while open.
   const synced = await bringBaseIn(desk, project, ledger, lane);
   if (synced?.writers) {
-    ctx.transact(project, (current) => {
+    ledgers.transact(project, (current) => {
       const entry = current.lanes[lane.id];
       if (entry) entry.landing = { by, writers: synced.writers! };
     });
@@ -162,14 +163,14 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
   const merged = approved ? await headSha(project.root, lane.branch) : tip;
   // Base merged in by the desk itself is not the lane changing under an approval.
   if (approved && merged && merged !== tip) {
-    ctx.transact(project, (current) => {
+    ledgers.transact(project, (current) => {
       const entry = current.lanes[lane.id]?.landApproval;
       if (entry) entry.head = merged;
     });
   }
   // What lands is the head its gate saw: a lane that moves after the gate lands nothing.
   const tested = await headSha(project.root, lane.branch);
-  const gate = await laneGate(ctx, project, lane);
+  const gate = await laneGate(desk, project, lane);
   // A red gate stops landing unless the Supervisor passes `overGate`: the verdict is evidence, not a veto.
   if (!gate.ok && !over.overGate) {
     return { ...no(`Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, drop_lane it, or land_lane it over the gate with overGate true and your reason: that is your call.`), blocked: gate.text.split("\n")[0]!.replace(/\.$/, "") };
@@ -179,7 +180,7 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
   const how = { as: loadConfig(project.state).landAs, message: landMessage(ledger, lane), keep: landedRef(lane.id) };
   const result = lane.onBranch ? { landed: true, how: `the work stays on ${lane.branch}, the branch it carried on; nothing was merged anywhere` } : await landLane(project.root, lane.base, lane.branch, tested ?? "", how);
   if (!result.landed) return { ...no(`Lane ${lane.id} was not closed: it could not land, because ${result.how}. land_lane it again once that is cleared, or drop_lane it.`), blocked: result.how };
-  if (!gate.ok) ctx.event(project, { kind: "gate.overridden", lane: lane.id, by });
+  if (!gate.ok) recordEvent(project, { kind: "gate.overridden", lane: lane.id, by });
   return { how: `${result.how}${gate.ok ? "" : ", over a red gate"}`, note: check.note };
 }
 
@@ -207,15 +208,15 @@ function settleLeftovers(ledger: Ledger, lane: Lane): { tasks: Task[]; cut: stri
 
 /** Closes the lane on record and cuts what it still had going: its Peers go, and its Lead stays with any copy of its own until released. */
 async function retire(desk: DeskServices, project: Project, lane: Lane, args: Closing, landed: { how: string; note: string }): Promise<Closed> {
-  const { ctx, roster, agents } = desk;
-  const { tasks: retired, cut, canceled } = ctx.transact(project, (current) => {
+  const { ledgers, mail, roster, agents } = desk;
+  const { tasks: retired, cut, canceled } = ledgers.transact(project, (current) => {
     const entry = current.lanes[lane.id];
     if (entry && LANE.move(entry, "close")) Object.assign(entry, { landed: args.land === true || undefined, closedAt: Date.now() });
     delete entry?.landApproval;
     delete entry?.onHold;
     return settleLeftovers(current, lane);
   });
-  for (const id of canceled) ctx.event(project, { kind: "question.answered", question: id, status: "canceled", by: "desk" });
+  for (const id of canceled) recordEvent(project, { kind: "question.answered", question: id, status: "canceled", by: "desk" });
   const branches: string[] = [];
   for (const task of retired) {
     const branch = await agents.retire(project, task, args.land === true ? landedRef(lane.id) : lane.branch);
@@ -229,12 +230,12 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
   const writers = [...new Set([...(look && !look.archivedAt && midTurn(look.status) ? [lane.lead!] : []), ...peers])];
   const stowed = await stowCopy(desk, project, lane, retired, { land: args.land === true, kept, writers });
   if (lane.lead) closeIncidentsOf(desk, project, lane.lead);
-  if (kept) await ctx.post(lane.lead, keptLetters.closed(lane, args.land === true, landed.how));
+  if (kept) await mail.post(lane.lead, keptLetters.closed(lane, args.land === true, landed.how));
   if (lane.detourOf) {
     const waiting = loadLedger(project.state).lanes[lane.detourOf];
-    if (waiting?.status === "open" && waiting.lead) await ctx.post(waiting.lead, landLetters.detourClosed(lane, waiting, landed.how, args.land === true));
+    if (waiting?.status === "open" && waiting.lead) await mail.post(waiting.lead, landLetters.detourClosed(lane, waiting, landed.how, args.land === true));
   }
-  ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing: landed.how, reason: str(args.reason), writers });
+  recordEvent(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing: landed.how, reason: str(args.reason), writers });
   const seats = kept ? `Its Peers are archived, and its Lead ${lane.lead} stays until you release it.` : "Its Peers are archived, and its Lead is gone.";
   const left = `${cut.length > 0 ? ` It cut ${cut.join(", ")}, which ${cut.length === 1 ? "was" : "were"} not finished.` : ""}${
     canceled.length > 0 ? ` Its open question${canceled.length === 1 ? "" : "s"} for the Human, ${canceled.join(", ")}, ${canceled.length === 1 ? "is" : "are"} canceled.` : ""
@@ -250,13 +251,13 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
  * a dirty copy) leaves the approval standing for the next `land_lane`. Sent back, the lane stays open with their note.
  */
 export async function decideLand(desk: DeskServices, project: Project, laneId: string, approve: boolean, note: string): Promise<ToolReply> {
-  const { ctx } = desk;
+  const { ledgers, mail } = desk;
   const lane = loadLedger(project.state).lanes[laneId];
   const none = no(`Lane ${laneId} has no landing waiting for your approval.`);
   if (lane?.status !== "open" || !lane.landApproval || lane.landApproval.approved) return none;
   const tip = await headSha(project.root, lane.branch);
   // Decided where it is written: two decisions at once both acted on one hold, and it landed twice.
-  const decided = ctx.transact(project, (current) => {
+  const decided = ledgers.transact(project, (current) => {
     const entry = current.lanes[laneId];
     const held = entry?.status === "open" ? entry.landApproval : undefined;
     if (!entry || !held || held.approved) return undefined;
@@ -270,14 +271,14 @@ export async function decideLand(desk: DeskServices, project: Project, laneId: s
   if (!decided) return none;
   const { held } = decided;
   const supervisor = await desk.roster.supervisorFor(project, lane.opener);
-  const tell = (how: Parameters<typeof landLetters.landDecided>[1], text: string) => ctx.post(supervisor, landLetters.landDecided(lane, how, text));
+  const tell = (how: Parameters<typeof landLetters.landDecided>[1], text: string) => mail.post(supervisor, landLetters.landDecided(lane, how, text));
   if (decided.changed) {
     await tell("changed", "");
     return ok(`Lane ${laneId} changed after it was held, so this approval is not for what it holds now. It is checked again when the Supervisor lands it.`);
   }
-  ctx.event(project, { kind: approve ? "land.approved" : "land.sentBack", lane: laneId });
+  recordEvent(project, { kind: approve ? "land.approved" : "land.sentBack", lane: laneId });
   if (!approve) {
-    await ctx.post(lane.lead, landLetters.landSentBack(lane, note, held.head));
+    await mail.post(lane.lead, landLetters.landSentBack(lane, note, held.head));
     await tell("sent back", note);
     return ok(`Lane ${laneId} is sent back to its Lead with your note; it stays open.`);
   }

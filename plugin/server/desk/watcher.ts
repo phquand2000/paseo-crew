@@ -1,10 +1,11 @@
+import { recordEvent } from "./store/event-log.ts";
 import { can, roleNamed, seatOf } from "../catalog/kit.ts";
 import { KeyedQueue } from "../core/keyed-queue.ts";
 import { midTurn } from "../core/paseo.ts";
 import type { Answer, Judge, Judgement, Question, SeatView } from "../core/ports.ts";
 import type { Agents } from "./agents.ts";
 import { caseLetters } from "./case-letters.ts";
-import type { DeskContext } from "./context.ts";
+import type { DeskBase } from "./base.ts";
 import { loadLedger } from "./ledger.ts";
 import type { Letter } from "./letters.ts";
 import { type Project, projectOf } from "./project.ts";
@@ -42,7 +43,7 @@ function answerOf(question: Question, says: string): Answer {
  * with no parent has its first reply pushed to the Human's phone), mailed each case, and let go once no case can come.
  */
 export class Watcher {
-  private readonly ctx: DeskContext;
+  private readonly desk: Pick<DeskBase, "kit" | "teamFor" | "mail">;
   private readonly roster: Roster;
   private readonly agents: Agents;
   private readonly waiting = new Map<string, Waiting>();
@@ -50,8 +51,8 @@ export class Watcher {
   private readonly stamp = Date.now().toString(36).slice(-4);
   private count = 0;
 
-  constructor(ctx: DeskContext, roster: Roster, agents: Agents) {
-    this.ctx = ctx;
+  constructor(desk: Pick<DeskBase, "kit" | "teamFor" | "mail">, roster: Roster, agents: Agents) {
+    this.desk = desk;
     this.roster = roster;
     this.agents = agents;
   }
@@ -93,7 +94,7 @@ export class Watcher {
   private async deliverOne(project: Project, role: string, letter: Letter): Promise<string> {
     const seated = await this.roster.holderOf(project, "judge");
     if (!seated) return this.start(project, role, letter.text);
-    await this.ctx.post(seated, letter);
+    await this.desk.mail.post(seated, letter);
     return seated;
   }
 
@@ -102,11 +103,11 @@ export class Watcher {
     if (!parent) throw new Error("no Supervisor is seated, and a Watcher is seated under one");
     const seat = await this.agents.startResident(project, role, {
       parent,
-      title: roleNamed(this.ctx.kit, role)!.label,
+      title: roleNamed(this.desk.kit, role)!.label,
       prompt,
       labels: {},
     });
-    this.ctx.event(project, { kind: "watcher.seated", agent: seat, parent });
+    recordEvent(project, { kind: "watcher.seated", agent: seat, parent });
     return seat;
   }
 
@@ -157,11 +158,11 @@ export class Watcher {
         new Error(gone ? "the Watcher it was sent to is gone" : `no answer within ${ANSWER_WITHIN_MINUTES} minutes`),
       );
     }
-    const judged = "role" in (this.ctx.team(project).judge ?? {});
+    const judged = "role" in (this.desk.teamFor(project).judge ?? {});
     if (judged && Object.values(loadLedger(project.state).lanes).some((lane) => lane.status === "open")) return;
     for (const seat of open.values()) {
       const idle = !midTurn(seat.status) && ![...this.waiting.values()].some((entry) => entry.sent?.seat === seat.id);
-      if (idle && can(seatOf(this.ctx.kit, seat.provider)?.role, "judge") && projectOf(seat.cwd).slug === project.slug)
+      if (idle && can(seatOf(this.desk.kit, seat.provider)?.role, "judge") && projectOf(seat.cwd).slug === project.slug)
         await this.roster.archive(seat.id);
     }
   }

@@ -1,3 +1,5 @@
+import { workKey } from "../claims.ts";
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { configFault } from "../../core/config-file.ts";
 import { branchExists, currentBranch, uncommittedPaths } from "../../core/git.ts";
@@ -7,7 +9,7 @@ import { type Lane, type Ledger, loadLedger, nextLaneId, ownCopyHolder } from ".
 import { clip, slugify } from "../../core/text.ts";
 import { type LaneHome, type Project, type ProjectConfig, configFile, detectGate, laneHomeFor, loadConfig, saveConfig, serialIn } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
-import { type Refusal, openedReply, placement, seatingKey, startLead } from "../opening.ts";
+import { type Refusal, openedReply, placement, startLead } from "../opening.ts";
 import { waitsFor } from "../waiting.ts";
 
 /** An unreadable issue ref is a note on the lane, never a reason to refuse opening it. */
@@ -50,7 +52,7 @@ function laneOf(ledger: Ledger, caller: Caller, args: Args, place: Place, issue:
 }
 
 function recordWaiting(desk: DeskServices, caller: Caller, args: Args, place: Place, issue: Issue | undefined, after: string[]): Lane {
-  return desk.ctx.transact(caller.project, (ledger) => {
+  return desk.ledgers.transact(caller.project, (ledger) => {
     const lane = laneOf(ledger, caller, args, place, issue, after);
     ledger.lanes[lane.id] = lane;
     return { ...lane };
@@ -59,12 +61,12 @@ function recordWaiting(desk: DeskServices, caller: Caller, args: Args, place: Pl
 
 /** Placed where it is recorded: two lanes opened at once would otherwise both find the project's own copy free. */
 function recordOpen(desk: DeskServices, caller: Caller, args: Args, place: Place, issue: Issue | undefined, serial: string[]): { lane: Lane; ownCopy: boolean } | Refusal {
-  return desk.ctx.transact(caller.project, (ledger) => {
+  return desk.ledgers.transact(caller.project, (ledger) => {
     const lane = laneOf(ledger, caller, args, place, issue);
     const placed = placement(ledger, lane, args.isolate === true, serial);
     if ("why" in placed) return placed;
     ledger.lanes[lane.id] = lane;
-    desk.ctx.seating.add(seatingKey(caller.project, lane.id));
+    desk.seating.take(workKey(caller.project, lane.id));
     return { lane: { ...lane }, ownCopy: placed.ownCopy };
   });
 }
@@ -108,16 +110,16 @@ export const openLane = defineTool({
     if (!config.base || config.gate === undefined) {
       const fault = configFault(configFile(project.state));
       if (fault) return no(`${fault}\nOnly the Human can repair it or move it aside — no seat may write the desk's own files — so tell them; the desk will not write its own defaults over a file it could not read.`);
-      saveConfig(project.state, { ...config, base: config.base ?? (onBranch ? undefined : base), gate: config.gate ?? detectGate(project.root, desk.ctx.kit.ecosystem) });
+      saveConfig(project.state, { ...config, base: config.base ?? (onBranch ? undefined : base), gate: config.gate ?? detectGate(project.root, desk.kit.ecosystem) });
     }
     const place = { base, onBranch, branch: onBranch ? base : undefined };
     if (pending.length > 0) {
       const { issue } = await readIssue(args, project);
       const lane = recordWaiting(desk, caller, args, place, issue, after);
-      desk.ctx.event(project, { kind: "lane.waiting", lane: lane.id, after });
+      recordEvent(project, { kind: "lane.waiting", lane: lane.id, after });
       return ok(`Lane ${lane.id} waits for ${pending.map((entry) => `${entry.id} (${entry.status})`).join(", ")}. It opens by itself once they have all landed, checked again against the lanes open then; if it cannot, or one closes without landing, you get a letter. Close it to drop it.`);
     }
-    const serial = await serialIn(desk.ctx.kit, project, project.root);
+    const serial = await serialIn(desk.kit, project, project.root);
     // Asked before the issue is fetched, which a refusal would waste; recording the lane asks again.
     const early = placement(loadLedger(project.state), { onBranch, writeSet: strs(args.writeSet), contracts: strs(args.contracts), detourOf: str(args.detourOf).trim().toUpperCase() || undefined }, args.isolate === true, serial);
     if ("why" in early) return no(`${early.why} ${early.instead}`.trim());

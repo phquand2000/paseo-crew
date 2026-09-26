@@ -24,14 +24,14 @@ export class Human {
 
   /** Their choice among a question's options, or decline, and whoever asked is told: cancelling one is the Supervisor's. */
   async answer(project: Project, id: string, choice: string, note: string): Promise<Said> {
-    const { ctx, roster } = this.services;
+    const { mail, roster } = this.services;
     if (choice.toLowerCase() === "cancel")
       return { ok: false, text: "Only the Supervisor cancels a question; choose one of its options, or decline it." };
-    const settled = settleQuestion(ctx, project, id, choice, { text: note || undefined, by: "panel" });
+    const settled = settleQuestion(this.services, project, id, choice, { text: note || undefined, by: "panel" });
     if (typeof settled === "string") return { ok: false, text: settled };
     const lane = settled.lane ? loadLedger(project.state).lanes[settled.lane] : undefined;
     const to = (await roster.seated(settled.from)) ? settled.from : await roster.supervisorFor(project, lane?.opener);
-    const posted = await ctx.post(to, askLetters.humanAnswered(settled, lane));
+    const posted = await mail.post(to, askLetters.humanAnswered(settled, lane));
     const told =
       posted === "nobody"
         ? "Nobody supervising is seated to be told; it is on the record for whoever comes back."
@@ -43,10 +43,10 @@ export class Human {
   }
 
   orders(project: Project): OrdersView {
-    return ordersView(this.services.ctx.kit, project);
+    return ordersView(this.services.kit, project);
   }
 
   report(project: Project): ReportView {
-    return reportView(project, this.services.ctx.team(project).attention.questionsPerDay);
+    return reportView(project, this.services.teamFor(project).attention.questionsPerDay);
   }
 }

@@ -1,34 +1,43 @@
 import { type RoleSpec, providerId } from "../catalog/kit.ts";
 import { contains, dropMerged } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
-import type { DeskContext } from "./context.ts";
+import type { DeskBase } from "./base.ts";
 import { letGo } from "./gone.ts";
 import { type Slot, type Task, loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import type { Roster } from "./roster.ts";
 import type { Slots } from "./slots.ts";
+import type { Teardowns } from "./teardown.ts";
 
 type StartOptions = { parent?: string; title: string; prompt: string; labels: Record<string, string> };
 
 export class Agents {
-  private readonly ctx: DeskContext;
+  private readonly desk: Pick<DeskBase, "kit" | "teamFor" | "ledgers">;
   private readonly roster: Roster;
   private readonly slots: Slots;
+  private readonly teardowns: Teardowns;
   private readonly workspaces: Workspaces;
 
-  constructor(ctx: DeskContext, roster: Roster, slots: Slots, workspaces: Workspaces) {
-    this.ctx = ctx;
+  constructor(
+    desk: Pick<DeskBase, "kit" | "teamFor" | "ledgers">,
+    roster: Roster,
+    slots: Slots,
+    teardowns: Teardowns,
+    workspaces: Workspaces,
+  ) {
+    this.desk = desk;
     this.roster = roster;
     this.slots = slots;
+    this.teardowns = teardowns;
     this.workspaces = workspaces;
   }
 
   private seatConfig(project: Project, roleName: string): { role: RoleSpec; config: Record<string, unknown> } {
-    const role = this.ctx.kit.roles.find((entry) => entry.role === roleName);
+    const role = this.desk.kit.roles.find((entry) => entry.role === roleName);
     if (!role) throw new Error(`roles.json has no role called ${roleName}`);
-    const seat = this.ctx.team(project).roles[role.role];
+    const seat = this.desk.teamFor(project).roles[role.role];
     if (!seat) throw new Error(`the team settings leave the ${role.label} without a harness`);
-    const provider = providerId(this.ctx.kit, role.role, seat.harness.id);
+    const provider = providerId(this.desk.kit, role.role, seat.harness.id);
     const config: Record<string, unknown> = { provider: seat.model ? `${provider}/${seat.model.id}` : provider };
     if (seat.harness.provider.profileModeId) config.modeId = seat.harness.provider.profileModeId;
     if (seat.thinking) config.thinkingOptionId = seat.thinking;
@@ -83,7 +92,7 @@ export class Agents {
 
   /** `into` is the branch the task's work was to land in: its own branch goes only once it is in there. */
   async retire(project: Project, task: Task, into?: string): Promise<string | undefined> {
-    await letGo(this.ctx, this.roster, project, task.peer);
+    await letGo(this.desk, this.roster, project, task.peer);
     if (task.kind !== "code") return undefined;
     // A task in the lane's copy leaves only its branch: dropped once `into` holds all of it, kept and named while it holds more.
     if (task.mode !== "parallel")
@@ -99,10 +108,10 @@ export class Agents {
           (other) => other.id !== task.id && other.slot === task.slot && other.status === "running",
         )
       : [];
-    for (const other of sharing) await letGo(this.ctx, this.roster, project, other.peer);
+    for (const other of sharing) await letGo(this.desk, this.roster, project, other.peer);
     const writing = [task.peer, ...sharing.map((other) => other.peer)].filter(
       (id): id is string => typeof id === "string" && this.roster.archiving(id),
     );
-    return this.slots.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
+    return this.teardowns.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
   }
 }

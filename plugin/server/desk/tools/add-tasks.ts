@@ -1,9 +1,11 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { skillSources } from "../../catalog/content.ts";
 import { type RoleSpec, namedOrNot, roleThatCan } from "../../catalog/kit.ts";
 import { skillDirsFor } from "../../catalog/team.ts";
 import { clip, slugify } from "../../core/text.ts";
-import { type Args, type DeskContext, no, ok, str, strs } from "../context.ts";
+import type { DeskBase } from "../base.ts";
+import { type Args, no, ok, str, strs } from "../context.ts";
 import { holdRefusal } from "../hold.ts";
 import { type Lane, type Ledger, laneOfLead, loadLedger, nextTaskId } from "../ledger.ts";
 import { layoutProblems, readPlan } from "../plan.ts";
@@ -14,12 +16,12 @@ import { startWaiting } from "../waiting.ts";
 const Asked = z.strictObject({ key: z.string(), title: z.string().max(60), goal: z.string(), acceptance: z.array(z.string()), hints: z.array(z.string()).optional(), holds: z.array(z.string()).optional(), outOfScope: z.array(z.string()), context: z.string().optional(), skills: z.array(z.string()).optional(), parallel: z.boolean().optional(), after: z.array(z.string()).optional(), role: z.string().optional() });
 
 /** The role that takes a task, or why none can: a skill it lacks is refused here, since the Lead's context does not list them. */
-function workRoleFor(ctx: DeskContext, project: Project, args: Args): RoleSpec | string {
+function workRoleFor({ kit, teamFor }: Pick<DeskBase, "kit" | "teamFor">, project: Project, args: Args): RoleSpec | string {
   // Writing, not `work`: a reviewing role holds `work` too, and would be offered as a Peer that cannot write.
   const asked = str(args.role);
-  const workRole = roleThatCan(ctx.kit, "write", asked || undefined);
-  if (!workRole) return namedOrNot(ctx.kit, "write", asked, "take a task");
-  const held = [...skillSources(ctx.kit, workRole, skillDirsFor(ctx.team(project), workRole.role)).keys()];
+  const workRole = roleThatCan(kit, "write", asked || undefined);
+  if (!workRole) return namedOrNot(kit, "write", asked, "take a task");
+  const held = [...skillSources(kit, workRole, skillDirsFor(teamFor(project), workRole.role)).keys()];
   const unknown = strs(args.skills).filter((name) => !held.includes(name));
   if (unknown.length === 0) return workRole;
   return held.length === 0 ? `This kit gives ${workRole.label}s no skills, so ${unknown.join(", ")} cannot be opened.` : `${workRole.label}s have no skill called ${unknown.join(", ")}. They have: ${held.sort().join(", ")}.`;
@@ -63,20 +65,20 @@ export const addTasks = defineTool({
   name: "add_tasks",
   input: z.strictObject({ tasks: z.array(Asked) }),
   async handle(desk, caller, args) {
-    const { ctx } = desk;
+    const { kit, ledgers } = desk;
     const { project } = caller;
     const lane = laneOfLead(loadLedger(project.state), caller.id);
     if (!lane?.worktree) return no("You have no open lane.");
     const roles = new Map<string, string>();
     for (const task of args.tasks) {
       const key = task.key.trim().toUpperCase();
-      const role = workRoleFor(ctx, project, task);
+      const role = workRoleFor(desk, project, task);
       if (typeof role === "string") return no(`${key}: ${role}`);
       roles.set(key, role.role);
     }
-    const serial = await serialIn(ctx.kit, project, lane.worktree);
+    const serial = await serialIn(kit, project, lane.worktree);
     // Checked and recorded in one transaction: a layout read before another call recorded its tasks could put two writers on a path.
-    const added = ctx.transact(project, (ledger) => {
+    const added = ledgers.transact(project, (ledger) => {
       const now = laneOfLead(ledger, caller.id);
       if (!now) return "You have no open lane.";
       const held = holdRefusal(now);
@@ -93,7 +95,7 @@ export const addTasks = defineTool({
     });
     if (typeof added === "string") return no(added);
     const { plan, ids } = added;
-    ctx.event(project, { kind: "tasks.added", lane: lane.id, tasks: [...ids.values()] });
+    recordEvent(project, { kind: "tasks.added", lane: lane.id, tasks: [...ids.values()] });
     await startWaiting(desk, project, true, new Set(ids.values()));
     const now = loadLedger(project.state).tasks;
     const lines = plan.map((task) => {

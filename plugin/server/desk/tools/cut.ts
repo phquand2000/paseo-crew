@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { no, ok, str } from "../context.ts";
 import { letGo } from "../gone.ts";
@@ -11,20 +12,20 @@ export const cut = defineTool({
   name: "cut",
   input: z.strictObject({ task: z.string(), reason: z.string() }),
   async handle(desk, caller, args) {
-    const { ctx, roster, slots } = desk;
+    const { ledgers, roster, slots } = desk;
     const { project } = caller;
     const ledger = loadLedger(project.state);
     const found = laneTask(ledger, caller, str(args.task));
     if (typeof found === "string") return no(found);
     const { lane, task } = found;
-    const updated = ctx.moveTask(project, task.id, "cut");
+    const updated = ledgers.moveTask(project, task.id, "cut");
     if (updated === undefined) return no(`${task.id} is gone.`);
     if (updated === "merging")
       return no(
         `${task.id} is being merged, and a cut would not stop its work landing. How the merge went arrives as mail.`,
       );
     if (typeof updated === "string") return no(`${task.id} is already ${updated}.`);
-    await letGo(ctx, roster, project, task.peer, true);
+    await letGo(desk, roster, project, task.peer, true);
     const left =
       task.kind !== "code"
         ? undefined
@@ -32,7 +33,7 @@ export const cut = defineTool({
           ? { kept: await slots.release(project, task.slot, task.branch, lane.branch) }
           : await leaveCopy(lane, task);
     const kept = left?.kept;
-    ctx.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason), kept });
+    recordEvent(project, { kind: "task.cut", task: task.id, reason: str(args.reason), kept });
     const copy =
       task.mode === "parallel" || !left
         ? ""

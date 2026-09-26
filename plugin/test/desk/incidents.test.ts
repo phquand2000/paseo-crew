@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
 import { tempDir } from "../tempdir.ts";
-import { DeskContext } from "../../server/desk/context.ts";
+import { IncidentStore } from "../../server/desk/store/incident-store.ts";
+import { LedgerStore } from "../../server/desk/store/ledger-store.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadIncidents } from "../../server/desk/incidents.ts";
 import { emptyLedger, saveLedger } from "../../server/desk/ledger.ts";
@@ -24,15 +25,19 @@ function desk(mailing = false) {
   const project = { root, slug: "p", state: join(root, "state") };
   const posted: { to: string; key: string; text: string }[] = [];
   const seated = { supervisor: undefined as string | undefined };
-  const ctx = new DeskContext({
+  const roster = { supervisorFor: async () => seated.supervisor };
+  const services = {
     kit,
-    outbox: { post: async (letter) => (posted.push(letter), "sent") },
+    ledgers: new LedgerStore(() => {}),
+    incidents: new IncidentStore(() => {}),
+    mail: {
+      post: async (to: string | undefined, letter: { key: string; text: string }) =>
+        to ? (posted.push({ to, ...letter }), "sent") : "nobody",
+    },
     log: () => {},
     teamFor: () => resolveTeam(kit, machine),
-    indexesFor: () => [],
-  });
-  const roster = { supervisorFor: async () => seated.supervisor };
-  const services = { ctx, roster } as unknown as DeskServices;
+    roster,
+  } as unknown as DeskServices;
   const supervisor = { id: "sup", role: kit.roles.find((role) => role.role === "supervisor")!, title: "sup", project };
   return { project, services, supervisor, posted, seated, machine };
 }

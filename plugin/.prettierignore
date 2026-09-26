@@ -30,7 +30,6 @@ server/desk/letters.ts
 server/desk/merge.ts
 server/desk/notice.ts
 server/desk/opening.ts
-server/desk/slots.ts
 server/desk/status.ts
 server/desk/tools/add-tasks.ts
 server/desk/tools/amend-task.ts

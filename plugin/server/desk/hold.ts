@@ -1,3 +1,4 @@
+import { recordEvent } from "./store/event-log.ts";
 import { type Lane, findLane, laneSeats } from "./ledger.ts";
 import { letters } from "./letters.ts";
 import type { Project } from "./project.ts";
@@ -21,8 +22,8 @@ export async function putOnHold(
   by: string,
   reason: string,
 ): Promise<{ lane: Lane; stopped: string[]; calledOff: boolean } | string> {
-  const { ctx, roster } = desk;
-  const held = ctx.transact(project, (ledger) => {
+  const { ledgers, roster } = desk;
+  const held = ledgers.transact(project, (ledger) => {
     const lane = findLane(ledger, laneId);
     if (!lane) return `There is no lane ${laneId}.`;
     if (lane.status === "closed") return `Lane ${lane.id} is closed; there is nothing to hold.`;
@@ -39,6 +40,6 @@ export async function putOnHold(
   const stopped: string[] = [];
   for (const { seat, task } of held.seats)
     if (await roster.interrupt(seat, letters.onHold(held.lane, reason, task))) stopped.push(seat);
-  ctx.event(project, { kind: "lane.onHold", lane: held.lane.id, by, reason, stopped });
+  recordEvent(project, { kind: "lane.onHold", lane: held.lane.id, by, reason, stopped });
   return { lane: held.lane, stopped, calledOff: held.calledOff };
 }

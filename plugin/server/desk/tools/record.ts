@@ -99,13 +99,13 @@ function lineOf(item: Record<string, unknown>, quirks: Quirks): string | undefin
 
 /** The seat's last history entries and how its harness writes them, or nothing once it is gone: Paseo would start it again to read them. */
 async function historyOf(
-  { ctx, roster }: DeskServices,
+  { kit, roster }: DeskServices,
   seat: string,
   limit: number,
 ): Promise<{ rows: StreamRow[]; quirks: Quirks } | undefined> {
   const look = await roster.look(seat);
   if (look.archivedAt) return undefined;
-  return { rows: await roster.history(seat, limit), quirks: seatOf(ctx.kit, look.provider)?.harness.timeline ?? {} };
+  return { rows: await roster.history(seat, limit), quirks: seatOf(kit, look.provider)?.harness.timeline ?? {} };
 }
 
 /** What the desk kept of a seat that is gone. */

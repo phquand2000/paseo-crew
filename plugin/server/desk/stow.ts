@@ -25,12 +25,12 @@ export async function stowCopy(
   const kept: string[] = [];
   // A branch carried on is the Human's, back on it from a task's, and a copy of the lane's own stays with a kept Lead, off a task's branch if nobody is in it.
   if (lane.onBranch && holder)
-    await desk.slots.putAway({ project, restore: lane.branch, lane: lane.id, ...off }, how.writers);
+    await desk.teardowns.putAway({ project, restore: lane.branch, lane: lane.id, ...off }, how.writers);
   const back = lane.slot && how.kept && holder && how.writers.length === 0 ? await leaveCopy(lane, holder) : undefined;
   if (back?.kept) kept.push(back.kept);
   if (!lane.onBranch && (!lane.slot || !how.kept)) {
     const drop = how.land ? { dropBranch: lane.branch, into: landedRef(lane.id) } : {};
-    const branch = await desk.slots.putAway(
+    const branch = await desk.teardowns.putAway(
       { project, slot: lane.slot, restore: lane.base, lane: lane.id, ...off, ...drop },
       how.writers,
     );

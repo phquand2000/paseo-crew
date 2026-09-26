@@ -1,22 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { resolveTeam } from "../../server/catalog/team.ts";
-import { DeskContext } from "../../server/desk/context.ts";
 import { type Task, emptyLedger, loadLedger, saveLedger } from "../../server/desk/ledger.ts";
 import type { Project } from "../../server/desk/project.ts";
-import { makeKit } from "../kit.ts";
+import { LedgerStore } from "../../server/desk/store/ledger-store.ts";
 import { tempDir } from "../tempdir.ts";
 
-const kit = makeKit();
-
 test("of two moves on one task the first goes through, and the second changes nothing and hears the status that stopped it", () => {
-  const ctx = new DeskContext({
-    kit,
-    outbox: { post: async () => "sent" },
-    log: () => {},
-    teamFor: () => resolveTeam(kit, {}),
-    indexesFor: () => [],
-  });
+  const ctx = new LedgerStore(() => {});
   const project: Project = { root: tempDir("sw2-context-"), slug: "p", state: tempDir("sw2-context-state-") };
   const ledger = emptyLedger();
   const task = {

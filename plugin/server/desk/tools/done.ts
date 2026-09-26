@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
@@ -27,7 +28,7 @@ async function syncOf(task: Task, lane: Lane | undefined): Promise<Synced | unde
 
 /** Bringing the lane in stopped on conflicts: the Peer settles them before it hands back, and its Lead is told in passing. */
 async function settling(services: DeskServices, task: Task, lane: Lane, synced: { conflicts: string[]; by: string[] }): Promise<ToolReply> {
-  await services.ctx.post(lane.lead, letters.settling(task, lane.branch, synced.conflicts, synced.by));
+  await services.mail.post(lane.lead, letters.settling(task, lane.branch, synced.conflicts, synced.by));
   const by = synced.by.length > 0 ? `, changed there by ${synced.by.join(", ")}` : "";
   return no(`Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in ${synced.conflicts.join(", ")}${by}. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`);
 }
@@ -87,18 +88,18 @@ async function reminderOf(task: Task, uncommitted: boolean): Promise<string> {
 
 /** Whoever reads the hand-back is told and it goes on record; the watch's questions about it are asked, and not waited for. */
 async function tell(services: DeskServices, caller: Caller, task: Task, lane: Lane | undefined, handed: { file: string; outcome: string; body: string; summary: string; commit?: string }): Promise<void> {
-  const { ctx, roster } = services;
+  const { kit, mail, roster } = services;
   const heading = task.kind === "review" ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
   const reader = await roster.readerOf(caller.project, lane);
-  await ctx.post(reader.to, letters.handback(heading, handed.file, handed.body, caller.id, reader.as));
-  ctx.event(caller.project, { kind: task.kind === "review" ? "review.done" : "task.done", task: task.id, outcome: handed.outcome, commit: handed.commit });
-  const judged = handbackCase(ctx.kit, caller.project, task, handed);
+  await mail.post(reader.to, letters.handback(heading, handed.file, handed.body, caller.id, reader.as));
+  recordEvent(caller.project, { kind: task.kind === "review" ? "review.done" : "task.done", task: task.id, outcome: handed.outcome, commit: handed.commit });
+  const judged = handbackCase(kit, caller.project, task, handed);
   if (judged) void judge(services, caller.project, judged);
 }
 
 /** One hand-back for tasks and reviews: the task's kind says which of the two a seat sent. */
 async function handBack(services: DeskServices, caller: Caller, args: Partial<z.infer<typeof HandBack> & z.infer<typeof Verdict>>): Promise<ToolReply> {
-  const { ctx } = services;
+  const { kit, ledgers } = services;
   const { project } = caller;
   const ledger = loadLedger(project.state);
   const task = taskOfPeer(ledger, caller.id);
@@ -112,12 +113,12 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   }
   const synced = await syncOf(task, ledger.lanes[task.lane]);
   if (synced && "conflicts" in synced) return settling(services, task, ledger.lanes[task.lane]!, synced);
-  const work = await workOf(ctx.kit, project, ledger, task, synced);
+  const work = await workOf(kit, project, ledger, task, synced);
   const { commit } = work;
   const handed = handbackBody(task, args, work);
   const { outcome } = handed;
   // Gated at hand-back so the Lead has the verdict in time; gating after accept undid a merge already chosen.
-  const run = !review && task.worktree ? await taskGate(ctx.kit, project, task.id, task.worktree, work.changed) : undefined;
+  const run = !review && task.worktree ? await taskGate(kit, project, task.id, task.worktree, work.changed) : undefined;
   const body = run
     ? `${handed.body}\n\nGate: ${run.ok ? run.note : `${run.note}. The lane takes it red only if you accept it over the gate with a reason.\n\n${run.tail}\n\nFull log: ${run.logFile}`}`
     : handed.body;
@@ -125,7 +126,7 @@ async function handBack(services: DeskServices, caller: Caller, args: Partial<z.
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
   writeFileSync(file, `# ${task.id} ${task.title}\n\n${body}\n`);
   // Decided under the lock: an accept or cut can land during the gate, and `done` over `queued` made the merge queue skip it.
-  const already = ctx.transact(project, (current) => {
+  const already = ledgers.transact(project, (current) => {
     const entry = current.tasks[task.id];
     if (!entry) return "gone";
     if (!TASK.move(entry, "handBack")) return entry.status;

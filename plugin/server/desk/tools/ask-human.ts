@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import type { Question, QuestionClass } from "../../domain/question.ts";
 import { coverGlob, firstOverlap } from "../../core/scope.ts";
@@ -40,14 +41,14 @@ export const askHuman = defineTool({
     class: z.enum(["reversible", "costly", "irreversible"]),
   }),
   async handle(desk, caller, args) {
-    const { ctx } = desk;
+    const { ledgers, teamFor } = desk;
     const { project } = caller;
     const labels = args.options.map((option) => option.label.trim());
     if (new Set(labels.map((label) => label.toLowerCase())).size < labels.length || labels.some((label) => ["decline", "cancel"].includes(label.toLowerCase()))) {
       return no("Give each option a label of its own, and none called decline or cancel: those are the Human's to say without an option.");
     }
     if (!labels.includes(args.recommend.trim())) return no(`recommend names none of the options: give one of ${labels.join(", ")}.`);
-    const budget = ctx.team(project).attention.questionsPerDay;
+    const budget = teamFor(project).attention.questionsPerDay;
     const asked = askedSince(project.state, Date.now() - DAY_MS);
     if (asked.length >= budget) {
       return no(`The Human has had ${asked.length} questions in the last day (${asked.map((question) => question.id).join(", ")}), and ${budget} is what they allow: decide this yourself if it is yours to, fold it into one still open, or ask it once the day turns.`);
@@ -56,7 +57,7 @@ export const askHuman = defineTool({
     // The Supervisor may only raise a question's class above what the Human's standing orders make it.
     const floor = named && named.status !== "closed" && args.class === "reversible" ? await askFirstOf(project, named) : undefined;
     const kind: QuestionClass = floor ? "costly" : args.class;
-    const opened = ctx.transact(project, (ledger) => {
+    const opened = ledgers.transact(project, (ledger) => {
       const lane = args.lane ? findLane(ledger, args.lane) : undefined;
       if (args.lane && (!lane || lane.status === "closed")) return `There is no open or waiting lane ${str(args.lane)}.`;
       const question: Question = {
@@ -79,7 +80,7 @@ export const askHuman = defineTool({
       return question;
     });
     if (typeof opened === "string") return no(opened);
-    ctx.event(project, { kind: "question.asked", question: opened.id, lane: opened.lane ?? null, class: opened.class });
+    recordEvent(project, { kind: "question.asked", question: opened.id, lane: opened.lane ?? null, class: opened.class });
     const parked = opened.parked ? await putOnHold(desk, project, opened.lane!, caller.id, `it waits for the Human's answer to ${opened.id}: ${clip(opened.question, 200)}`) : undefined;
     const held = parked === undefined ? "" : typeof parked === "string" ? ` Its lane was not put on hold: ${parked}` : ` Lane ${opened.lane} is on hold for it.`;
     const raised = floor ? ` It is costly, not reversible. ${floor}` : "";

@@ -1,7 +1,8 @@
+import { recordEvent } from "./store/event-log.ts";
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type Question, QUESTION } from "../domain/question.ts";
-import type { DeskContext } from "./context.ts";
+import type { DeskBase } from "./base.ts";
 import { loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 
@@ -19,14 +20,14 @@ export function askedSince(state: string, since: number): Question[] {
 
 /** The Human's word on question `id`, from the chat or the panel: one of its options, or decline, or cancel. What the record holds now, or why not. */
 export function settleQuestion(
-  ctx: DeskContext,
+  { ledgers }: Pick<DeskBase, "ledgers">,
   project: Project,
   id: string,
   choice: string,
   given: { text?: string; by: "panel" | "chat"; quote?: string },
 ): Question | string {
   const move = choice.toLowerCase() === "decline" ? "decline" : choice.toLowerCase() === "cancel" ? "cancel" : "answer";
-  const recorded = ctx.transact(project, (ledger) => {
+  const recorded = ledgers.transact(project, (ledger) => {
     const question = ledger.questions[id];
     if (!question) return `There is no question ${id}.`;
     if (move === "answer" && !question.options.some((option) => option.label === choice))
@@ -36,6 +37,6 @@ export function settleQuestion(
     return { ...question };
   });
   if (typeof recorded !== "string")
-    ctx.event(project, { kind: "question.answered", question: id, status: recorded.status, by: given.by });
+    recordEvent(project, { kind: "question.answered", question: id, status: recorded.status, by: given.by });
   return recorded;
 }

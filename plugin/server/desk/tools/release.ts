@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { IN_QUEUE } from "../../domain/task.ts";
 import { no, ok, str } from "../context.ts";
@@ -11,7 +12,8 @@ import { laneTask } from "./lane-task.ts";
 export const releasePeer = defineTool({
   name: "release",
   input: z.strictObject({ task: z.string() }),
-  async handle({ ctx, roster, agents }, caller, args) {
+  async handle(desk, caller, args) {
+    const { roster, agents } = desk;
     const { project } = caller;
     const ledger = loadLedger(project.state);
     const found = laneTask(ledger, caller, str(args.task));
@@ -32,8 +34,8 @@ export const releasePeer = defineTool({
     if (task.mode === "parallel" && reading)
       return no(`${reading.id} still reviews ${task.id} in its copy: cut it first.`);
     if (task.mode === "parallel") await agents.retire(project, task, lane.branch);
-    else await letGo(ctx, roster, project, peer);
-    ctx.event(project, { kind: "seat.released", seat: peer, of: task.id });
+    else await letGo(desk, roster, project, peer);
+    recordEvent(project, { kind: "seat.released", seat: peer, of: task.id });
     return ok(
       `The Peer kept from ${task.id} is released${task.mode === "parallel" ? `, and its copy ${task.slot} is put away with it` : ""}.`,
     );

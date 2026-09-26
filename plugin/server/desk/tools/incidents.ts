@@ -1,3 +1,4 @@
+import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import { can } from "../../catalog/kit.ts";
 import type { Held } from "../../domain/incident.ts";
@@ -67,7 +68,7 @@ export function mine(caller: Caller): ((item: Incident) => boolean) | string {
 export const incidents = defineTool({
   name: "incidents",
   input: z.strictObject({ closed: z.boolean().optional() }),
-  async handle({ ctx }, caller, args) {
+  async handle(_desk, caller, args) {
     const read = readIncidentsFile(caller.project.state);
     if ("fault" in read) return no(`${read.fault}. Only the Human can repair it or move it aside.`);
     const allowed = mine(caller);
@@ -92,7 +93,7 @@ export const incidents = defineTool({
         "",
         "Each is a signal to look at, not a verdict. Mark each one with mark_incident once you have looked at the agent's record, so the thresholds can be tuned.",
       );
-    ctx.event(caller.project, { kind: "incident.read", agent: caller.id, waiting: waiting.length });
+    recordEvent(caller.project, { kind: "incident.read", agent: caller.id, waiting: waiting.length });
     return ok(lines.join("\n"));
   },
 });

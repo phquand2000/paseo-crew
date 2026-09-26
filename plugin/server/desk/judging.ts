@@ -1,3 +1,4 @@
+import { recordEvent } from "./store/event-log.ts";
 import type { CheckSpec } from "../catalog/kit.ts";
 import { errorText } from "../core/errors.ts";
 import type { Answer, Judge, Question } from "../core/ports.ts";
@@ -18,14 +19,14 @@ export type Case = {
 
 /** Who answers for `project` now, if anyone can: a sensor needs its key and the host a way to ask it; a seat is the project's Watcher. */
 function judgeFor(
-  { ctx, watcher }: DeskServices,
+  { teamFor, sensorFor, watcher }: DeskServices,
   project: Project,
   subject: string,
 ): { id: string; judge: Judge } | undefined {
-  const choice = ctx.team(project).judge;
+  const choice = teamFor(project).judge;
   if (!choice) return undefined;
   if ("role" in choice) return { id: choice.id, judge: watcher.judge(project, choice.role, subject) };
-  const judge = choice.key ? ctx.sensor(choice.sensor, choice.key) : undefined;
+  const judge = choice.key ? sensorFor(choice.sensor, choice.key) : undefined;
   return judge && { id: choice.id, judge };
 }
 
@@ -53,8 +54,8 @@ function verdictOf(check: CheckSpec, answer: Answer): string {
  * in shadow that record is all an answer does. Nothing the desk does waits on it, so it never throws.
  */
 export async function judge(services: DeskServices, project: Project, found: Case): Promise<void> {
-  const { ctx } = services;
-  const asked = Object.entries(found.asked).filter(([, { check }]) => ctx.kit.checks[check]?.mode === "shadow");
+  const { kit } = services;
+  const asked = Object.entries(found.asked).filter(([, { check }]) => kit.checks[check]?.mode === "shadow");
   const chosen = asked.length > 0 ? judgeFor(services, project, found.subject) : undefined;
   if (!chosen) return;
   const kept = {
@@ -67,11 +68,11 @@ export async function judge(services: DeskServices, project: Project, found: Cas
   };
   try {
     const questions = Object.fromEntries(
-      asked.map(([name, { check, fill }]) => [name, questionOf(ctx.kit.checks[check]!, fill)]),
+      asked.map(([name, { check, fill }]) => [name, questionOf(kit.checks[check]!, fill)]),
     );
     const judged = await chosen.judge.ask(found.state, questions);
     const verdicts = Object.fromEntries(
-      asked.map(([name, { check }]) => [name, verdictOf(ctx.kit.checks[check]!, judged.answers[name]!)]),
+      asked.map(([name, { check }]) => [name, verdictOf(kit.checks[check]!, judged.answers[name]!)]),
     );
     appendRecord(
       project.state,
@@ -80,6 +81,6 @@ export async function judge(services: DeskServices, project: Project, found: Cas
     );
   } catch (error) {
     appendRecord(project.state, "assessments", `${JSON.stringify({ ...kept, unasked: errorText(error) })}\n`);
-    ctx.event(project, { kind: "watch.unasked", subject: found.subject, by: chosen.id, error: errorText(error) });
+    recordEvent(project, { kind: "watch.unasked", subject: found.subject, by: chosen.id, error: errorText(error) });
   }
 }

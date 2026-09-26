@@ -1,3 +1,4 @@
+import { recordEvent } from "./store/event-log.ts";
 import { basename } from "node:path";
 import { roleThatCan } from "../catalog/kit.ts";
 import { errorText } from "../core/errors.ts";
@@ -9,7 +10,7 @@ import type { DeskServices } from "./services.ts";
 
 /** Paseo pushes an agent's reply to the Human's phone only as it finishes its first turn, so a pager is started for each page. */
 async function page(desk: DeskServices, project: Project, text: string): Promise<void> {
-  const role = roleThatCan(desk.ctx.kit, "page");
+  const role = roleThatCan(desk.kit, "page");
   if (!role) return;
   try {
     const workspace = await desk.slots.projectWorkspace(project);
@@ -18,9 +19,9 @@ async function page(desk: DeskServices, project: Project, text: string): Promise
       prompt: text,
       labels: {},
     });
-    desk.ctx.event(project, { kind: "page.sent", agent });
+    recordEvent(project, { kind: "page.sent", agent });
   } catch (error) {
-    desk.ctx.event(project, { kind: "page.failed", error: errorText(error) });
+    recordEvent(project, { kind: "page.failed", error: errorText(error) });
   }
 }
 

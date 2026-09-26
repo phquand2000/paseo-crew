@@ -1,3 +1,5 @@
+import { workKey } from "../claims.ts";
+import { recordEvent } from "../store/event-log.ts";
 import { existsSync } from "node:fs";
 import { z } from "zod";
 import { namedOrNot, roleThatCan } from "../../catalog/kit.ts";
@@ -8,18 +10,18 @@ import { type Lane, findLane, loadLedger } from "../ledger.ts";
 import { seatTitle } from "../names.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 import { takeoverFor } from "../directive.ts";
-import { leadSeatOf, seatingKey } from "../opening.ts";
+import { leadSeatOf } from "../opening.ts";
 
 /** Starts a Lead in the lane's copy, told it takes over where the lane stands; or says why none can start. */
-async function takeOver({ ctx, agents }: DeskServices, caller: Caller, lane: Lane, asked: string): Promise<{ lead: string; role: string } | string> {
-  const leadRole = roleThatCan(ctx.kit, "lead", asked || undefined);
-  if (!leadRole) return namedOrNot(ctx.kit, "lead", asked, "lead a lane");
+async function takeOver({ kit, agents }: DeskServices, caller: Caller, lane: Lane, asked: string): Promise<{ lead: string; role: string } | string> {
+  const leadRole = roleThatCan(kit, "lead", asked || undefined);
+  if (!leadRole) return namedOrNot(kit, "lead", asked, "lead a lane");
   if (!lane.worktree || !existsSync(lane.worktree)) return `Lane ${lane.id} has no working copy left${lane.worktree ? ` at ${lane.worktree}` : ""}; close it and open the work again.`;
   try {
     const lead = await agents.start(caller.project, { path: lane.worktree, workspaceId: lane.workspaceId }, leadRole.role, {
       parent: caller.id,
       title: seatTitle.of(lane, leadRole),
-      prompt: await takeoverFor(ctx.kit, caller.project, lane, lane.worktree),
+      prompt: await takeoverFor(kit, caller.project, lane, lane.worktree),
       labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
     });
     return { lead, role: leadRole.role };
@@ -33,7 +35,7 @@ export const replaceLead = defineTool({
   name: "replace_lead",
   input: z.strictObject({ lane: z.string(), role: z.string().optional() }),
   async handle(desk, caller, args) {
-    const { ctx, roster } = desk;
+    const { ledgers, seating, roster } = desk;
     const { project } = caller;
     const lane = findLane(loadLedger(project.state), str(args.lane));
     if (!lane) return no(`There is no lane ${str(args.lane)}.`);
@@ -42,11 +44,11 @@ export const replaceLead = defineTool({
     if (held) return no(held);
     const seats = await roster.open();
     if (seats.some((seat) => seat.id === lane.lead)) return no(`Lane ${lane.id}'s Lead ${lane.lead} is still seated; message it instead.`);
-    const key = seatingKey(project, lane.id);
-    const claimed = ctx.transact(project, (ledger) => {
+    const key = workKey(project, lane.id);
+    const claimed = ledgers.transact(project, (ledger) => {
       const entry = ledger.lanes[lane.id];
-      if (entry?.status !== "open" || entry.lead !== lane.lead || ctx.seating.has(key)) return false;
-      ctx.seating.add(key);
+      if (entry?.status !== "open" || entry.lead !== lane.lead || seating.has(key)) return false;
+      seating.take(key);
       return true;
     });
     if (!claimed) return no(`Lane ${lane.id} changed while this was asked; read status and ask again if its Lead is still gone.`);
@@ -55,19 +57,19 @@ export const replaceLead = defineTool({
       const seated = started ? { lead: started.id, role: started.labels?.["seatworks.role"] ?? "lead" } : await takeOver(desk, caller, lane, str(args.role));
       if (typeof seated === "string") return no(seated);
       const { lead, role } = seated;
-      const moved = ctx.transact(project, (ledger) => {
+      const moved = ledgers.transact(project, (ledger) => {
         ledger.lanes[lane.id]!.lead = lead;
         ledger.agents[lead] = { id: lead, role, lane: lane.id };
         const asks = Object.values(ledger.asks).filter((ask) => ask.status === "open" && ask.to === lane.lead);
         for (const ask of asks) ask.to = lead;
         return asks.length;
       });
-      ctx.event(project, { kind: "lead.replaced", lane: lane.id, was: lane.lead ?? null, lead, adopted: Boolean(started) });
+      recordEvent(project, { kind: "lead.replaced", lane: lane.id, was: lane.lead ?? null, lead, adopted: Boolean(started) });
       const how = started ? `the Lead ${lead} that Paseo already had seated for it` : `a new Lead ${lead}, told it takes over where the lane stands`;
       const asks = moved > 0 ? ` The ${moved} open ask${moved === 1 ? "" : "s"} to the Lead that left now wait on it.` : "";
       return ok(`Lane ${lane.id} has ${how}.${asks}`);
     } finally {
-      ctx.seating.delete(key);
+      seating.release(key);
     }
   },
 });

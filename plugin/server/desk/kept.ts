@@ -1,3 +1,4 @@
+import { recordEvent } from "./store/event-log.ts";
 import { landedRef } from "../core/git.ts";
 import { letGo } from "./gone.ts";
 import { type AgentRef, type Lane, type Ledger, loadLedger, tasksOf } from "./ledger.ts";
@@ -44,17 +45,17 @@ function stillWriting(desk: DeskServices, ledger: Ledger, lane: Lane): string[] 
 
 /** Lets a closed lane's kept Lead go, and its copy once nobody is writing in it; what that did, or nothing if neither was left. */
 export async function releaseKept(desk: DeskServices, project: Project, lane: Lane): Promise<string | undefined> {
-  const { ctx, roster, slots } = desk;
+  const { roster, teardowns } = desk;
   const lead = lane.lead && (await roster.seated(lane.lead)) ? lane.lead : undefined;
   const ledger = loadLedger(project.state);
   const copy = keptCopy(ledger, lane);
   if (!lead && !copy) return undefined;
   if (lead) {
-    await letGo(ctx, roster, project, lead);
-    ctx.event(project, { kind: "seat.released", seat: lead, of: lane.id });
+    await letGo(desk, roster, project, lead);
+    recordEvent(project, { kind: "seat.released", seat: lead, of: lane.id });
   }
   const writing = stillWriting(desk, ledger, lane);
-  if (copy) await slots.putAway(stowOf(project, lane), writing);
+  if (copy) await teardowns.putAway(stowOf(project, lane), writing);
   const put = copy
     ? `its working copy ${copy} is put away${writing.length > 0 ? ` once ${writing.join(" and ")} finish the turn they are in` : ""}`
     : "";
@@ -71,11 +72,11 @@ const mergedInto = (lane: Lane) => (lane.landed ? landedRef(lane.id) : lane.bran
  * Human or with its superior: a kept Lead's, and a merged parallel task's kept by its Peer.
  */
 export async function reapKept(desk: DeskServices, project: Project, live: Set<string>): Promise<void> {
-  await desk.slots.reap(project, live);
+  await desk.teardowns.reap(project, live);
   const ledger = loadLedger(project.state);
   for (const lane of Object.values(ledger.lanes)) {
     if (keptCopy(ledger, lane) && !(lane.lead && live.has(lane.lead)))
-      await desk.slots.putAway(stowOf(project, lane), stillWriting(desk, ledger, lane));
+      await desk.teardowns.putAway(stowOf(project, lane), stillWriting(desk, ledger, lane));
   }
   for (const task of Object.values(ledger.tasks)) {
     const slot = task.slot ? ledger.slots[task.slot] : undefined;
@@ -89,6 +90,6 @@ export async function reapKept(desk: DeskServices, project: Project, live: Set<s
       (task.peer && live.has(task.peer))
     )
       continue;
-    await desk.slots.putAway({ project, slot: slot.id, dropBranch: task.branch, into: mergedInto(lane) });
+    await desk.teardowns.putAway({ project, slot: slot.id, dropBranch: task.branch, into: mergedInto(lane) });
   }
 }

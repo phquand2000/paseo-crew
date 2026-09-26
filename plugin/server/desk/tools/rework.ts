@@ -26,7 +26,7 @@ export const rework = defineTool({
   name: "rework",
   input: z.strictObject({ task: z.string(), text: z.string() }),
   async handle(desk, caller, args) {
-    const { ctx, roster } = desk;
+    const { ledgers, mail, roster } = desk;
     const text = str(args.text);
     const asked = laneTask(loadLedger(caller.project.state), caller, str(args.task));
     if (typeof asked === "string") return no(asked);
@@ -38,7 +38,7 @@ export const rework = defineTool({
     // Sent back after its merge, a task in the lane's copy takes that copy onto its branch again: nothing may be left in it.
     const inLaneCopy = asked.task.status === "merged" && asked.task.mode !== "parallel" && !holderOf(loadLedger(caller.project.state), asked.lane, asked.task.id) && asked.lane.worktree;
     if (inLaneCopy && (await pristineState(inLaneCopy)) !== "clean") return no(`The lane's working copy has work uncommitted (${await uncommittedIn(inLaneCopy)}), so ${asked.task.id} cannot go back onto its branch there. Clear it, then send it back.`);
-    const result = ctx.transact(caller.project, (ledger): Task | string => {
+    const result = ledgers.transact(caller.project, (ledger): Task | string => {
       const found = laneTask(ledger, caller, str(args.task));
       if (typeof found === "string") return found;
       const { lane, task } = found;
@@ -64,7 +64,7 @@ export const rework = defineTool({
       if (!refused) await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane);
     }
     // Keyed by the rework's count, each letter is its own: none is dropped as a repeat.
-    await ctx.post(result.peer, letters.rework(result, text));
+    await mail.post(result.peer, letters.rework(result, text));
     if (result.reworks === 2) await tellMoment(desk, caller.project, result, "STRUGGLING", `its Lead sent it back a second time: ${oneLine(text)}`);
     return ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
   },

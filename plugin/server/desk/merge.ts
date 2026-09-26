@@ -1,8 +1,9 @@
+import { recordEvent } from "./store/event-log.ts";
 import { KeyedQueue } from "../core/keyed-queue.ts";
 import { changedFiles, commitsAhead, currentBranch, diffCounts, headSha, mergeOf, uncommittedIn } from "../core/git.ts";
 import { advance, mergeCommit } from "../core/land.ts";
 import { fileKinds } from "../catalog/kit.ts";
-import { type DeskContext } from "./context.ts";
+import type { DeskBase } from "./base.ts";
 import { errorText } from "../core/errors.ts";
 import { IN_QUEUE, TASK } from "../domain/task.ts";
 import { gateNote, taskGate } from "./gates.ts";
@@ -21,13 +22,13 @@ type Verdict = { ok: boolean; note: string; over?: string; run?: { tail: string;
 
 /** One queue per lane: a lane's merges go one at a time, each after the one before, and a gate running on one holds no other lane's. */
 export class MergeQueue {
-  private readonly ctx: DeskContext;
+  private readonly desk: Pick<DeskBase, "kit" | "ledgers" | "incidents" | "mail" | "log">;
   private readonly queues = new KeyedQueue();
   /** What a merge lets go on: the tasks that waited for it start. */
   private readonly merged: (project: Project) => Promise<void>;
 
-  constructor(ctx: DeskContext, merged: (project: Project) => Promise<void>) {
-    this.ctx = ctx;
+  constructor(desk: Pick<DeskBase, "kit" | "ledgers" | "incidents" | "mail" | "log">, merged: (project: Project) => Promise<void>) {
+    this.desk = desk;
     this.merged = merged;
   }
 
@@ -38,12 +39,12 @@ export class MergeQueue {
   enqueue(project: Project, taskId: string): void {
     void this.after(project, loadLedger(project.state).tasks[taskId]?.lane ?? "", () =>
       this.merge(project, taskId).catch(async (error) => {
-        this.ctx.log(project, `merge ${taskId} crashed: ${errorText(error)}`);
+        this.desk.log(project, `merge ${taskId} crashed: ${errorText(error)}`);
         const ledger = loadLedger(project.state);
         const task = ledger.tasks[taskId];
         const lane = task ? ledger.lanes[task.lane] : undefined;
         if (task && lane) await this.finish(project, task, lane, "fail", mergeLetters.mergeFailed(task, `the merge stopped on an error: ${errorText(error)}.`, ""));
-        else this.ctx.moveTask(project, taskId, "fail");
+        else this.desk.ledgers.moveTask(project, taskId, "fail");
       }),
     );
   }
@@ -85,12 +86,12 @@ export class MergeQueue {
       await this.landed(project, task, lane, cwd, made);
       return true;
     }
-    this.ctx.moveTask(project, task.id, "requeue");
+    this.desk.ledgers.moveTask(project, task.id, "requeue");
     return false;
   }
 
   private async merge(project: Project, taskId: string): Promise<void> {
-    const picked = this.ctx.transact(project, (ledger) => {
+    const picked = this.desk.ledgers.transact(project, (ledger) => {
       const task = ledger.tasks[taskId];
       const lane = task ? ledger.lanes[task.lane] : undefined;
       if (!task || !lane) return undefined;
@@ -143,7 +144,7 @@ export class MergeQueue {
       await this.finish(project, task, lane, "red", mergeLetters.red(task, lane.branch, verdict.note, verdict.run));
       return undefined;
     }
-    if (verdict?.over !== undefined) this.ctx.event(project, { kind: "gate.overridden", lane: lane.id, by: lane.lead ?? "", task: task.id, reason: verdict.over });
+    if (verdict?.over !== undefined) recordEvent(project, { kind: "gate.overridden", lane: lane.id, by: lane.lead ?? "", task: task.id, reason: verdict.over });
     return synced.at;
   }
 
@@ -152,9 +153,9 @@ export class MergeQueue {
     const head = await headSha(task.worktree);
     const last = task.handback?.gate;
     if (last && last.sha === head) return last;
-    const run = await taskGate(this.ctx.kit, project, task.id, task.worktree, await changedFiles(task.worktree, `${lane.branch}...HEAD`));
+    const run = await taskGate(this.desk.kit, project, task.id, task.worktree, await changedFiles(task.worktree, `${lane.branch}...HEAD`));
     if (!run) return undefined;
-    this.ctx.setTask(project, task.id, (entry) => {
+    this.desk.ledgers.setTask(project, task.id, (entry) => {
       if (entry.handback) entry.handback.gate = { ok: run.ok, note: run.note, sha: head };
     });
     return { ok: run.ok, note: run.note, run: { tail: run.tail, logFile: run.logFile } };
@@ -171,23 +172,23 @@ export class MergeQueue {
    */
   private async hold(project: Project, task: Task, lane: Lane, why: string, clears = true): Promise<void> {
     let told = false;
-    this.ctx.moveTask(project, task.id, "requeue", (entry) => {
+    this.desk.ledgers.moveTask(project, task.id, "requeue", (entry) => {
       told = entry.held?.why === why;
       entry.held = { why };
     });
-    if (!told) await this.ctx.post(lane.lead, mergeLetters.waits(task, why, clears));
+    if (!told) await this.desk.mail.post(lane.lead, mergeLetters.waits(task, why, clears));
   }
 
   /** A merge git made, recorded and told with what it changed. */
   private async landed(project: Project, task: Task, lane: Lane, cwd: string, merged: { before: string; after: string }): Promise<void> {
-    const counts = await diffCounts(cwd, merged.before, merged.after, fileKinds(this.ctx.kit));
-    const serial = await serialIn(this.ctx.kit, project, cwd);
-    this.ctx.setTask(project, task.id, (entry) => {
+    const counts = await diffCounts(cwd, merged.before, merged.after, fileKinds(this.desk.kit));
+    const serial = await serialIn(this.desk.kit, project, cwd);
+    this.desk.ledgers.setTask(project, task.id, (entry) => {
       entry.mergeSha = merged.after;
     });
     // The lane branch moved: what its Lead reported ready is not what it holds now.
     if (merged.after !== merged.before) {
-      this.ctx.transact(project, (ledger) => {
+      this.desk.ledgers.transact(project, (ledger) => {
         delete ledger.lanes[lane.id]?.ready;
       });
     }
@@ -201,12 +202,12 @@ export class MergeQueue {
 
   /** The record follows what the merge did, and its Lead is told. */
   private async finish(project: Project, task: Task, lane: Lane, move: Outcome, letter: Letter): Promise<void> {
-    const moved = this.ctx.moveTask(project, task.id, move, (entry) => delete entry.held);
+    const moved = this.desk.ledgers.moveTask(project, task.id, move, (entry) => delete entry.held);
     if (typeof moved !== "object") return;
-    await this.ctx.post(lane.lead, letter);
-    this.ctx.event(project, { kind: `merge.${moved.status}`, task: task.id });
+    await this.desk.mail.post(lane.lead, letter);
+    recordEvent(project, { kind: `merge.${moved.status}`, task: task.id });
     // Its task is settled, so what the watch told about it is too; its Peer stays with its copy until its Lead releases it.
-    if (moved.status === "merged" && task.peer) this.ctx.incidents(project, (incidents) => closeSeat(incidents, task.peer!, Date.now()));
+    if (moved.status === "merged" && task.peer) this.desk.incidents.transact(project, (incidents) => closeSeat(incidents, task.peer!, Date.now()));
     if (moved.status === "merged") await this.merged(project);
   }
 }

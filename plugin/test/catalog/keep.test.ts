@@ -126,7 +126,7 @@ const KEEP: Keep[] = [
     structure: ["permissions.deny no longer lists every one of Workflow, SendMessage, ListAgents, TaskOutput and TaskStop", (text) => ["Workflow", "SendMessage", "ListAgents", "TaskOutput", "TaskStop"].every((tool) => denies(text, tool))],
   },
   { id: "refuted-1", title: "one writer at a time in a shared working copy", file: "server/desk/opening.ts", check: "contains", anchor: "is still writing in the lane's working copy, and it holds one writer at a time." },
-  { id: "refuted-2", title: "a lane never takes over a dirty working copy", file: "server/desk/slots.ts", check: "contains", anchor: "the project's own working copy has uncommitted changes, so a lane cannot take it over" },
+  { id: "refuted-2", title: "a lane never takes over a dirty working copy", file: "server/desk/own-copy.ts", check: "contains", anchor: "the project's own working copy has uncommitted changes, so a lane cannot take it over" },
   { id: "refuted-3", title: "serialOnly per project, with a default", file: "server/desk/project.ts", check: "contains", anchor: "serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String)" },
   {
     id: "refuted-4a",

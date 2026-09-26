@@ -1,3 +1,4 @@
+import { recordEvent } from "./store/event-log.ts";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
@@ -177,7 +178,7 @@ export function fileRecords(state: string, ledger: Ledger, keepBytes = ARCHIVE_K
 /** Checked on a plain read first, so a round with nothing to archive does not rewrite the ledger; records follow once it is saved. */
 export function archiveFinished(services: DeskServices, project: Project, gone: (agentId: string) => boolean): void {
   const taken = takeFinished(loadLedger(project.state), gone)
-    ? services.ctx.transact(project, (ledger) => {
+    ? services.ledgers.transact(project, (ledger) => {
         const found = takeFinished(ledger, gone);
         if (found) keepArchived(project.state, found);
         return found;
@@ -185,6 +186,6 @@ export function archiveFinished(services: DeskServices, project: Project, gone: 
     : undefined;
   const filed = fileRecords(project.state, loadLedger(project.state));
   if (taken || filed.length > 0) {
-    services.ctx.event(project, { kind: "ledger.archived", lanes: taken?.lanes.map((entry) => entry.lane!.id) ?? [], agents: taken?.agents.length ?? 0, asks: taken?.asks.length ?? 0, records: filed.length });
+    recordEvent(project, { kind: "ledger.archived", lanes: taken?.lanes.map((entry) => entry.lane!.id) ?? [], agents: taken?.agents.length ?? 0, asks: taken?.asks.length ?? 0, records: filed.length });
   }
 }
