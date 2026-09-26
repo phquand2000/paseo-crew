@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { saveLedger } from "../../server/desk/ledger.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { harness, laneWithPeer } from "./harness.ts";
 
 test("a lane that waits for another opens by itself once that one lands, off a base that has its work, and its Supervisor is told", async () => {

@@ -2,14 +2,14 @@ import { roleNamed } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { dropMerged, switchTo } from "../../core/git.ts";
 import { TASK } from "../../domain/task.ts";
-import { besideOf, taskBrief } from "../briefs.ts";
+import { besideOf, taskBrief } from "../letters/briefs.ts";
 import { workKey } from "../claims.ts";
-import { type Lane, type Task, loadLedger } from "../ledger.ts";
-import { seatTitle } from "../names.ts";
+import { type Lane, type Task, loadLedger } from "../store/ledger.ts";
+import { seatTitle } from "../seats/names.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { backOnLane } from "../sync.ts";
+import { backOnLane } from "../copies/sync.ts";
 
 type Copy = { id?: string; path: string; workspaceId?: string };
 

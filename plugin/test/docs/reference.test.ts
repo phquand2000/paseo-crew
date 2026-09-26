@@ -100,14 +100,14 @@ test("every hand-written table in the reference names exactly what the code has:
   const ticked = (text: string) => [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1]!);
   const desk = join(PLUGIN, "server", "desk");
   const letters = new Set<string>();
-  for (const file of [...readdirSync(desk).filter((name) => name.endsWith("letters.ts")), "briefs.ts", "directive.ts"])
-    for (const match of readFileSync(join(desk, file), "utf-8").matchAll(
+  for (const file of readdirSync(join(desk, "letters")))
+    for (const match of readFileSync(join(desk, "letters", file), "utf-8").matchAll(
       /[`"]([A-Z]{2,}(?: [A-Z]{2,})*)(?=[ :]|\$|`|")/g,
     ))
       letters.add(match[1]!);
   const heading = /^[A-Z]{2,}(?: [A-Z]{2,})*/;
   const kinds = [
-    ...readFileSync(join(desk, "events.ts"), "utf-8").matchAll(
+    ...readFileSync(join(desk, "store", "events.ts"), "utf-8").matchAll(
       /kind: "((?:watch|watcher|incident|page)\.[A-Za-z-]+)"/g,
     ),
   ].map((match) => match[1]!);

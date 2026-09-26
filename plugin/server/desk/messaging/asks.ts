@@ -1,10 +1,10 @@
 import { can, roleNamed } from "../../catalog/kit/roles.ts";
 import { ASK } from "../../domain/ask.ts";
 import { SETTLED } from "../../domain/task.ts";
-import { askLetters } from "../ask-letters.ts";
+import { askLetters } from "../letters/ask-letters.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
-import { repeatsIncident } from "../incidents.ts";
-import { type Ask, type Ledger, laneOfLead, loadLedger, nextAskId, taskOfPeer } from "../ledger.ts";
+import { repeatsIncident } from "../store/incidents.ts";
+import { type Ask, type Ledger, laneOfLead, loadLedger, nextAskId, taskOfPeer } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

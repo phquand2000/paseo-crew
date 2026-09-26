@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { saveLedger } from "../../server/desk/ledger.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { tempDir } from "../tempdir.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer, nobodySeated } from "./harness.ts";

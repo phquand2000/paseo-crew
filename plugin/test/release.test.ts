@@ -25,9 +25,7 @@ const SEAT_FACING = [
   "harness",
   "mcp",
   "roles.json",
-  "server/desk/*letters.ts",
-  "server/desk/briefs.ts",
-  "server/desk/directive.ts",
+  "server/desk/letters",
   "bin/git-shim.mjs",
   "catalog/refused.json",
 ];

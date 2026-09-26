@@ -1,4 +1,4 @@
-import type { Ledger, Task } from "../../desk/ledger.ts";
+import type { Ledger, Task } from "../../desk/store/ledger.ts";
 import { SETTLED } from "../../domain/task.ts";
 import { type Fact, type FactKind, fact } from "./facts.ts";
 

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { contentRoot, stateRoot, worktreeRoot } from "../../server/core/paths.ts";
 import { writeJson } from "../../server/core/store.ts";
-import { emptyLedger } from "../../server/desk/ledger.ts";
+import { emptyLedger } from "../../server/desk/store/ledger.ts";
 import { removeGarbage, scanGarbage } from "../../server/upkeep/clean.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";

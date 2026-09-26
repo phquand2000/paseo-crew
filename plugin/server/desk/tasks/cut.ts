@@ -1,10 +1,10 @@
-import { letGo } from "../gone.ts";
+import { letGo } from "../seats/gone.ts";
 import { laneTask } from "../access.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { loadLedger } from "../ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { leaveCopy } from "../sync.ts";
+import { leaveCopy } from "../copies/sync.ts";
 import { startWaiting } from "../waiting/tasks.ts";
 
 /** A Lead cuts a task: its Peer stops, its copy goes back, and a branch holding work nothing else has is kept. */

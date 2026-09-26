@@ -6,7 +6,7 @@ import type { Team } from "../catalog/team/team.ts";
 import { git, pristineState } from "../core/git.ts";
 import { contentRoot, expandHome, guidesDir, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { errorText } from "../core/errors.ts";
-import { readLedger } from "../desk/ledger.ts";
+import { readLedger } from "../desk/store/ledger.ts";
 import type { Project } from "../desk/project.ts";
 import { BACKUP } from "./migrate.ts";
 

@@ -1,10 +1,10 @@
 import { DECIDED } from "../../domain/task.ts";
 import { laneTask } from "../access.ts";
 import { type Args, type Caller, type ToolReply, given, no, ok, str } from "../context.ts";
-import { repeatsIncident } from "../incidents.ts";
-import { type Amendment, type Task, amend, loadLedger } from "../ledger.ts";
-import { letters } from "../letters.ts";
-import { tellMoment } from "../moments.ts";
+import { repeatsIncident } from "../store/incidents.ts";
+import { type Amendment, type Task, amend, loadLedger } from "../store/ledger.ts";
+import { letters } from "../letters/letters.ts";
+import { tellMoment } from "../watch/moments.ts";
 import { serialIn } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

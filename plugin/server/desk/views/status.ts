@@ -4,8 +4,8 @@ import type { SeatView } from "../../core/paseo.ts";
 import { plural } from "../../core/text.ts";
 import { DAY_MS, HOUR_MS, minutesSince } from "../../core/time.ts";
 import { AT_WORK } from "../../domain/task.ts";
-import { keptCopy, keptPeers } from "../kept.ts";
-import { type Lane, type Ledger, type Task, loadLedger, ownCopyHolder } from "../ledger.ts";
+import { keptCopy, keptPeers } from "../seats/kept.ts";
+import { type Lane, type Ledger, type Task, loadLedger, ownCopyHolder } from "../store/ledger.ts";
 import { type LaneHome, type Project, type ProjectConfig, laneHomeFor, loadConfig, projectOf } from "../project.ts";
 
 /** What the status tool read from the project's own checkout; `work` is undefined when git could not say. */

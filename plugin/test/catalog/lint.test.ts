@@ -202,14 +202,11 @@ test("seat text names only what that seat can reach and what exists: its own too
     }
   }
   const letters = new Set<string>();
-  for (const file of readdirSync(join(PLUGIN, "server", "desk")).filter((name) =>
-    /letters\.ts$|^briefs\.ts$|^directive\.ts$/.test(name),
-  )) {
-    for (const match of readFileSync(join(PLUGIN, "server", "desk", file), "utf-8").matchAll(
+  for (const file of readdirSync(join(PLUGIN, "server", "desk", "letters")))
+    for (const match of readFileSync(join(PLUGIN, "server", "desk", "letters", file), "utf-8").matchAll(
       /[`"]([A-Z]{2,}(?: [A-Z]{2,})*)(?=[ :]|\$|`|")/g,
     ))
       letters.add(match[1]!);
-  }
   for (const role of kit.roles) {
     const text = readFileSync(join(PLUGIN, "content", role.prompt), "utf-8");
     for (const [, guide] of text.matchAll(/\{\{guides\}\}\/([\w.-]+)/g))

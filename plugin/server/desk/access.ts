@@ -1,5 +1,5 @@
 import type { Caller } from "./context.ts";
-import { type Lane, type Ledger, type Task, findTask, laneOfLead } from "./ledger.ts";
+import { type Lane, type Ledger, type Task, findTask, laneOfLead } from "./store/ledger.ts";
 
 /** The caller's own lane and one task of it, or why the Lead cannot act on it. */
 export function laneTask(ledger: Ledger, caller: Caller, id: string): { lane: Lane; task: Task } | string {

@@ -1,7 +1,7 @@
 import { headSha } from "../../core/git.ts";
 import { type ToolReply, no, ok } from "../context.ts";
-import { landLetters } from "../land-letters.ts";
-import { type Lane, loadLedger } from "../ledger.ts";
+import { landLetters } from "../letters/land-letters.ts";
+import { type Lane, loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

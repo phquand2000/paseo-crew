@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { RiskRule } from "../../catalog/kit/schema/ecosystem.ts";
-import { setProject as set } from "../project-settings.ts";
+import { setProject as set } from "../project/settings.ts";
 import { LANE_HOMES } from "../project.ts";
 import { defineTool } from "../services.ts";
 

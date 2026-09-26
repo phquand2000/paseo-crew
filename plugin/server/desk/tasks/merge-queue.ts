@@ -2,7 +2,7 @@ import { errorText } from "../../core/errors.ts";
 import { mergeOf } from "../../core/git.ts";
 import { KeyedQueue } from "../../core/keyed-queue.ts";
 import { IN_QUEUE } from "../../domain/task.ts";
-import { type Lane, type Task, loadLedger } from "../ledger.ts";
+import { type Lane, type Task, loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project.ts";
 import { type MergeDesk, TaskMerge } from "./task-merge.ts";
 

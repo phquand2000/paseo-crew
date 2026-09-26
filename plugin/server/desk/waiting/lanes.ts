@@ -1,9 +1,9 @@
 import { branchExists, currentBranch } from "../../core/git.ts";
 import { LANE } from "../../domain/lane.ts";
 import { workKey } from "../claims.ts";
-import { fetchIssue } from "../issue.ts";
-import { type Lane, type Ledger, loadLedger } from "../ledger.ts";
-import { letters } from "../letters.ts";
+import { fetchIssue } from "../../core/github.ts";
+import { type Lane, type Ledger, loadLedger } from "../store/ledger.ts";
+import { letters } from "../letters/letters.ts";
 import { forgetPlace, leadSeatOf, openedReply, startLead } from "../lanes/lead-seat.ts";
 import { placement } from "../lanes/placement.ts";
 import { type Project, serialIn } from "../project.ts";

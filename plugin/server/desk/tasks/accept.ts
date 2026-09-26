@@ -2,8 +2,8 @@ import { currentBranch, headSha, pristineState, uncommittedIn } from "../../core
 import { AT_WORK, IN_QUEUE, TASK } from "../../domain/task.ts";
 import { laneTask } from "../access.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { holdRefusal } from "../hold.ts";
-import { type Task, loadLedger } from "../ledger.ts";
+import { holdRefusal } from "../lanes/hold.ts";
+import { type Task, loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 

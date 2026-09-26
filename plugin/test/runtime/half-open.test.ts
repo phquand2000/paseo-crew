@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { mock, test } from "node:test";
-import { saveLedger } from "../../server/desk/ledger.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer } from "./harness.ts";
 

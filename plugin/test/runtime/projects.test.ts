@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
-import { KEEP_CLOSED_LANES } from "../../server/desk/archive.ts";
-import { saveLedger } from "../../server/desk/ledger.ts";
+import { KEEP_CLOSED_LANES } from "../../server/desk/store/archive.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { projectOf } from "../../server/desk/project.ts";
 import { harness, repo } from "./harness.ts";
 

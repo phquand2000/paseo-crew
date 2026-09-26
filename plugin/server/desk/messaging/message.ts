@@ -1,9 +1,9 @@
 import { can } from "../../catalog/kit/roles.ts";
 import { SETTLED } from "../../domain/task.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
-import { repeatsIncident } from "../incidents.ts";
-import { type Lane, type Ledger, type Task, findLane, findTask, laneOfLead, loadLedger } from "../ledger.ts";
-import { type Sending, letters } from "../letters.ts";
+import { repeatsIncident } from "../store/incidents.ts";
+import { type Lane, type Ledger, type Task, findLane, findTask, laneOfLead, loadLedger } from "../store/ledger.ts";
+import { type Sending, letters } from "../letters/letters.ts";
 import type { DeskServices } from "../services.ts";
 
 /** Gives `text` to a seat as mail it reads once it can; one stopped on a permission reads nothing until the Human decides it. */

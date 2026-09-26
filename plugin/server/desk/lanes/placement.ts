@@ -1,6 +1,6 @@
 import { capped } from "../../core/text.ts";
 import { firstOverlap, serialReach } from "../../core/scope.ts";
-import { type Lane, type Ledger, ownCopyHolder } from "../ledger.ts";
+import { type Lane, type Ledger, ownCopyHolder } from "../store/ledger.ts";
 import type { Refusal } from "../refusal.ts";
 
 /** Why a lane with this write set may not open beside the open lanes: a path only one lane at a time may write, or an overlap. */

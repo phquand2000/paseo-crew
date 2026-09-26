@@ -1,6 +1,6 @@
 import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { type Args, str, strs } from "../context.ts";
-import { type Lane, type Ledger, activeTasks } from "../ledger.ts";
+import { type Lane, type Ledger, activeTasks } from "../store/ledger.ts";
 import { taskWaitsFor } from "../waiting/rules.ts";
 
 /** One task of a layout: its fields as `add_tasks` takes them, what it holds if it runs beside others, and what it waits for, its keys and task ids alike. */

@@ -3,7 +3,7 @@ import { can } from "../../catalog/kit/roles.ts";
 import { currentBranch, headSha, uncommittedPaths } from "../../core/git.ts";
 import { hash } from "../../core/text.ts";
 import { ok } from "../context.ts";
-import { leadLaneOf, loadLedger } from "../ledger.ts";
+import { leadLaneOf, loadLedger } from "../store/ledger.ts";
 import { loadConfig } from "../project.ts";
 import { defineTool } from "../services.ts";
 import { type OwnCheckout, statusText } from "../views/status.ts";

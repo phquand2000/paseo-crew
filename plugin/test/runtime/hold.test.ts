@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { saveLedger } from "../../server/desk/ledger.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { laneWithPeer } from "./harness.ts";
 
 const task = {

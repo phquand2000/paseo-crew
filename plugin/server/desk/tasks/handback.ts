@@ -4,17 +4,17 @@ import type { Kit } from "../../catalog/kit/kit.ts";
 import { changedFiles, currentBranch, headSha, pristineState } from "../../core/git.ts";
 import { capped, clip, plural } from "../../core/text.ts";
 import { IN_QUEUE, SETTLED, TASK, type TaskStatus } from "../../domain/task.ts";
-import { handbackCase } from "../checks.ts";
+import { handbackCase } from "../watch/checks.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
-import { taskGate } from "../gates.ts";
-import { judge } from "../judging.ts";
-import { type Lane, type Ledger, type Task, loadLedger, taskOfPeer } from "../ledger.ts";
-import { letters } from "../letters.ts";
+import { taskGate } from "../project/gates.ts";
+import { judge } from "../watch/judging.ts";
+import { type Lane, type Ledger, type Task, loadLedger, taskOfPeer } from "../store/ledger.ts";
+import { letters } from "../letters/letters.ts";
 import { type Project, serialIn } from "../project.ts";
-import { reachNotes } from "../reach.ts";
+import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { type Synced, bringLaneIn } from "../sync.ts";
+import { type Synced, bringLaneIn } from "../copies/sync.ts";
 
 type Finding = { severity: string; where: string; failure: string; fix: string; confirmedBy?: string };
 

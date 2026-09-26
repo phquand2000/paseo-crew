@@ -1,4 +1,4 @@
-import { type Incidents, loadIncidents, readIncidentsFile, saveIncidents } from "../incidents.ts";
+import { type Incidents, loadIncidents, readIncidentsFile, saveIncidents } from "./incidents.ts";
 import type { Project } from "../project.ts";
 import type { Sync } from "./ledger-store.ts";
 

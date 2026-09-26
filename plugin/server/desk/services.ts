@@ -1,14 +1,14 @@
 import { z } from "zod";
 import type { ArgSchema } from "../catalog/kit/kit.ts";
-import type { Agents } from "./agents.ts";
+import type { Agents } from "./seats/agents.ts";
 import type { DeskBase } from "./base.ts";
 import type { Caller, ToolReply } from "./context.ts";
 import type { MergeQueue } from "./tasks/merge-queue.ts";
-import type { OwnCopy } from "./own-copy.ts";
-import type { Roster } from "./roster.ts";
-import type { Slots } from "./slots.ts";
-import type { Teardowns } from "./teardown.ts";
-import type { Watcher } from "./watcher.ts";
+import type { OwnCopy } from "./copies/own-copy.ts";
+import type { Roster } from "./seats/roster.ts";
+import type { Slots } from "./copies/slots.ts";
+import type { Teardowns } from "./seats/teardown.ts";
+import type { Watcher } from "./watch/watcher.ts";
 
 /** The desk's services; a function takes only those it uses. */
 export type DeskServices = DeskBase & {

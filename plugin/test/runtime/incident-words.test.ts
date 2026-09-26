@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { saveIncidents } from "../../server/desk/incidents.ts";
+import { saveIncidents } from "../../server/desk/store/incidents.ts";
 import { laneWithPeer } from "./harness.ts";
 
 const quote = "the same action failing 3 times: Bash: npm test";

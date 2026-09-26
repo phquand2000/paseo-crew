@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { releaseKeptLead, releaseKeptPeer } from "../kept.ts";
+import { releaseKeptLead, releaseKeptPeer } from "../seats/kept.ts";
 import { defineTool } from "../services.ts";
 
 /** A Lead lets go of the Peer kept from a task it accepted; the lane's Peers all go when it closes. */

@@ -1,6 +1,6 @@
 import { LANE, type LaneMove } from "../../domain/lane.ts";
 import { TASK, type TaskMove, type TaskStatus } from "../../domain/task.ts";
-import { type Lane, type Ledger, type Task, loadLedger, readLedgerFile, saveLedger } from "../ledger.ts";
+import { type Lane, type Ledger, type Task, loadLedger, readLedgerFile, saveLedger } from "./ledger.ts";
 import type { Project } from "../project.ts";
 
 /** What a transaction returns: never a promise, since awaiting inside one lets another change in between read and write. */

@@ -4,9 +4,9 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { makeKit } from "../kit.ts";
-import { saveIncidents } from "../../server/desk/incidents.ts";
-import { type Lane, type Task, emptyLedger } from "../../server/desk/ledger.ts";
-import { askFirstHits, changeOf, landFacts } from "../../server/desk/landing.ts";
+import { saveIncidents } from "../../server/desk/store/incidents.ts";
+import { type Lane, type Task, emptyLedger } from "../../server/desk/store/ledger.ts";
+import { askFirstHits, changeOf, landFacts } from "../../server/desk/lanes/land-facts.ts";
 import { type Project, configFile, loadConfig, saveConfig } from "../../server/desk/project.ts";
 import { tempDir } from "../tempdir.ts";
 

@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { contracts } from "../../shared/rpc.ts";
-import { emptyLedger, saveLedger } from "../../server/desk/ledger.ts";
+import { emptyLedger, saveLedger } from "../../server/desk/store/ledger.ts";
 import { configFile } from "../../server/desk/project.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer } from "./harness.ts";

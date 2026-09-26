@@ -1,7 +1,7 @@
 import type { ToolReply, ToolRequest } from "./context.ts";
 import { ok } from "./context.ts";
-import type { Intents } from "./intents.ts";
-import { type Letter, letters } from "./letters.ts";
+import type { Intents } from "./store/intents.ts";
+import { type Letter, letters } from "./letters/letters.ts";
 
 /** When the run began, how long this caller waits from its own call, and whether it joined a run already going. */
 type Window = { started: number; within: number; again: boolean; cancelled?: AbortSignal };

@@ -4,8 +4,8 @@ import { branchExists, currentBranch, uncommittedPaths } from "../../core/git.ts
 import { clip, slugify } from "../../core/text.ts";
 import { workKey } from "../claims.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
-import { type Issue, fetchIssue } from "../issue.ts";
-import { type Lane, type Ledger, loadLedger, nextLaneId, ownCopyHolder } from "../ledger.ts";
+import { type Issue, fetchIssue } from "../../core/github.ts";
+import { type Lane, type Ledger, loadLedger, nextLaneId, ownCopyHolder } from "../store/ledger.ts";
 import {
   type LaneHome,
   type Project,

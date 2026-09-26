@@ -3,14 +3,14 @@ import { oneLine } from "../../core/text.ts";
 import { TASK } from "../../domain/task.ts";
 import { laneTask } from "../access.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { holdRefusal } from "../hold.ts";
-import { holderOf } from "../holder.ts";
-import { repeatsIncident } from "../incidents.ts";
-import { type Lane, type Ledger, type Task, loadLedger } from "../ledger.ts";
-import { letters } from "../letters.ts";
-import { tellMoment } from "../moments.ts";
+import { holdRefusal } from "../lanes/hold.ts";
+import { holderOf } from "../copies/holder.ts";
+import { repeatsIncident } from "../store/incidents.ts";
+import { type Lane, type Ledger, type Task, loadLedger } from "../store/ledger.ts";
+import { letters } from "../letters/letters.ts";
+import { tellMoment } from "../watch/moments.ts";
 import type { DeskServices } from "../services.ts";
-import { bringLaneIn } from "../sync.ts";
+import { bringLaneIn } from "../copies/sync.ts";
 
 /** A rework call as the tool takes it. */
 type ReworkCall = { task: string; text: string };

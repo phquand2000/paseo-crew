@@ -1,9 +1,9 @@
 import { headSha } from "../../core/git.ts";
 import { AT_WORK, TASK } from "../../domain/task.ts";
 import { workKey } from "../claims.ts";
-import { holderOf } from "../holder.ts";
-import { type Lane, type Ledger, type Task, loadLedger } from "../ledger.ts";
-import { fyi, letters } from "../letters.ts";
+import { holderOf } from "../copies/holder.ts";
+import { type Lane, type Ledger, type Task, loadLedger } from "../store/ledger.ts";
+import { fyi, letters } from "../letters/letters.ts";
 import { type Project, serialIn } from "../project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";

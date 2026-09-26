@@ -1,14 +1,14 @@
 import { currentBranch, headSha, isAncestor, landedRef, mergeBranch, mergeUnderWay } from "../../core/git.ts";
 import { landLane as landOnBase } from "../../core/land.ts";
 import { no, ok } from "../context.ts";
-import { laneGate } from "../gates.ts";
-import { type Lane, type Ledger, tasksOf } from "../ledger.ts";
-import { landLetters } from "../land-letters.ts";
+import { laneGate } from "../project/gates.ts";
+import { type Lane, type Ledger, tasksOf } from "../store/ledger.ts";
+import { landLetters } from "../letters/land-letters.ts";
 import { type Project, loadConfig } from "../project.ts";
-import type { Roster } from "../roster.ts";
+import type { Roster } from "../seats/roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { midTurnAmong } from "../writing.ts";
+import { midTurnAmong } from "../seats/writing.ts";
 import { type Closed, type Held, type OverGate, checkLanding, waitsForHuman } from "./land-hold.ts";
 
 /** How a lane landed, as its CLOSED reply and letters say; `note` is the evidence that went with it. */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Lane, type Ledger, type Task, emptyLedger } from "../../server/desk/ledger.ts";
+import { type Lane, type Ledger, type Task, emptyLedger } from "../../server/desk/store/ledger.ts";
 import { deskFacts, prewritten } from "../../server/runtime/watch/history.ts";
 
 const READING = { reworksAt: 3, reviewsAt: 3 };

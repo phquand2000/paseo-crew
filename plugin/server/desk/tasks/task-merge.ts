@@ -3,15 +3,15 @@ import { changedFiles, commitsAhead, currentBranch, diffCounts, headSha, uncommi
 import { advance, mergeCommit } from "../../core/land.ts";
 import { TASK } from "../../domain/task.ts";
 import type { DeskBase } from "../base.ts";
-import { gateNote, taskGate } from "../gates.ts";
-import { closeSeat } from "../incidents.ts";
-import { type Lane, type Task, loadLedger, othersLeft } from "../ledger.ts";
-import type { Letter } from "../letters.ts";
-import { mergeLetters } from "../merge-letters.ts";
+import { gateNote, taskGate } from "../project/gates.ts";
+import { closeSeat } from "../store/incidents.ts";
+import { type Lane, type Task, loadLedger, othersLeft } from "../store/ledger.ts";
+import type { Letter } from "../letters/letters.ts";
+import { mergeLetters } from "../letters/merge-letters.ts";
 import { type Project, serialIn } from "../project.ts";
-import { reachNotes } from "../reach.ts";
+import { reachNotes } from "./reach.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { backOnLane, bringLaneIn } from "../sync.ts";
+import { backOnLane, bringLaneIn } from "../copies/sync.ts";
 
 type Outcome = "merged" | "conflict" | "red" | "fail";
 

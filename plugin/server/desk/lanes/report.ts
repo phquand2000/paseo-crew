@@ -1,15 +1,15 @@
 import { currentBranch } from "../../core/git.ts";
 import { plural } from "../../core/text.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
-import { laneGate } from "../gates.ts";
-import { holdRefusal, putOnHold } from "../hold.ts";
-import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "../landing.ts";
-import { type Lane, laneOfLead, loadLedger, tasksOf } from "../ledger.ts";
-import { letters } from "../letters.ts";
+import { laneGate } from "../project/gates.ts";
+import { holdRefusal, putOnHold } from "./hold.ts";
+import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "./land-facts.ts";
+import { type Lane, laneOfLead, loadLedger, tasksOf } from "../store/ledger.ts";
+import { letters } from "../letters/letters.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { midTurnAmong } from "../writing.ts";
+import { midTurnAmong } from "../seats/writing.ts";
 
 /** A report call as the tool takes it. */
 type ReportCall = { summary: string; ready: boolean; carried?: string[] };

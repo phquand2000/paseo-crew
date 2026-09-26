@@ -13,14 +13,14 @@ test/fixtures
 # Not yet formatted: formatted, each would break the size limits in test/architecture.test.ts until it is split.
 # The list only shrinks.
 server/core/git.ts
-server/desk/archive.ts
-server/desk/away.ts
 server/desk/desk.ts
-server/desk/directive.ts
-server/desk/landing.ts
-server/desk/ledger.ts
-server/desk/letters.ts
-server/desk/notice.ts
+server/desk/lanes/land-facts.ts
+server/desk/letters/directive.ts
+server/desk/letters/letters.ts
+server/desk/store/archive.ts
+server/desk/store/ledger.ts
+server/desk/views/report.ts
+server/desk/watch/notice.ts
 server/runtime/control.ts
 server/runtime/doctor.ts
 server/runtime/patrol.ts

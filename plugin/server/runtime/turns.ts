@@ -3,8 +3,8 @@ import { can, seatOf, toolsOf, worksTasks } from "../catalog/kit/roles.ts";
 import type { PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
 import { DECIDED, TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, laneOfLead, laneOnHold, leadLaneOf, loadLedger, taskOfPeer } from "../desk/ledger.ts";
-import { letters } from "../desk/letters.ts";
+import { type Ledger, laneOfLead, laneOnHold, leadLaneOf, loadLedger, taskOfPeer } from "../desk/store/ledger.ts";
+import { letters } from "../desk/letters/letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 

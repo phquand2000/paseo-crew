@@ -3,14 +3,14 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { hiddenWordsIn } from "../../server/catalog/kit/hidden-words.ts";
 import { loadKit } from "../../server/catalog/kit/kit.ts";
-import { askLetters } from "../../server/desk/ask-letters.ts";
-import { reviewBrief, taskBrief } from "../../server/desk/briefs.ts";
-import { directive } from "../../server/desk/directive.ts";
-import { issueArgs } from "../../server/desk/issue.ts";
-import { landLetters } from "../../server/desk/land-letters.ts";
-import type { Ask, Lane, Task } from "../../server/desk/ledger.ts";
-import { type Letter, letters } from "../../server/desk/letters.ts";
-import { mergeLetters } from "../../server/desk/merge-letters.ts";
+import { askLetters } from "../../server/desk/letters/ask-letters.ts";
+import { reviewBrief, taskBrief } from "../../server/desk/letters/briefs.ts";
+import { directive } from "../../server/desk/letters/directive.ts";
+import { issueArgs } from "../../server/core/github.ts";
+import { landLetters } from "../../server/desk/letters/land-letters.ts";
+import type { Ask, Lane, Task } from "../../server/desk/store/ledger.ts";
+import { type Letter, letters } from "../../server/desk/letters/letters.ts";
+import { mergeLetters } from "../../server/desk/letters/merge-letters.ts";
 import type { Question } from "../../server/domain/question.ts";
 
 const lane: Lane = {

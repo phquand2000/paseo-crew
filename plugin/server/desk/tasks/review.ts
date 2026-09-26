@@ -3,13 +3,22 @@ import { namedOrNot, roleThatCan } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { branchExists, changedFiles, currentBranch } from "../../core/git.ts";
 import { clip } from "../../core/text.ts";
-import { reviewBrief } from "../briefs.ts";
+import { reviewBrief } from "../letters/briefs.ts";
 import { workKey } from "../claims.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { holdRefusal } from "../hold.ts";
-import { changeOf } from "../landing.ts";
-import { type Lane, type Ledger, type Task, findTask, laneOfLead, loadLedger, nextTaskId, tasksOf } from "../ledger.ts";
-import { seatTitle } from "../names.ts";
+import { holdRefusal } from "../lanes/hold.ts";
+import { changeOf } from "../lanes/land-facts.ts";
+import {
+  type Lane,
+  type Ledger,
+  type Task,
+  findTask,
+  laneOfLead,
+  loadLedger,
+  nextTaskId,
+  tasksOf,
+} from "../store/ledger.ts";
+import { seatTitle } from "../seats/names.ts";
 import { type Project, riskRulesOf, rulesFor } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

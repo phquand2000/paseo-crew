@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { str } from "../context.ts";
-import { resumeLane as resume } from "../hold.ts";
+import { resumeLane as resume } from "../lanes/hold.ts";
 import { defineTool } from "../services.ts";
 
 /** Lifts a hold: each seat of the lane is told to carry on, with the mail held for it, and what waited may start. */

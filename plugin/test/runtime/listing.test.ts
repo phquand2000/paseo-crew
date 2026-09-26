@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { KEEP_CLOSED_LANES } from "../../server/desk/archive.ts";
-import { saveLedger } from "../../server/desk/ledger.ts";
+import { KEEP_CLOSED_LANES } from "../../server/desk/store/archive.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { harness, heldRound, laneWithPeer, nobodySeated } from "./harness.ts";
 
 test("a round the daemon cannot answer moves nothing: the copy is not put back under its seats, and the project's workspace stays", async (t) => {
