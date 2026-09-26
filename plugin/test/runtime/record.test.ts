@@ -56,6 +56,29 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
     ],
   );
 
+  h.timelineOf(lead).add({ type: "assistant_message", text: "Splitting the build into one task." });
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Other",
+    outcome: "b changes",
+    ...scope,
+    isolate: true,
+    writeSet: ["b.txt"],
+  });
+  const other = h.ledger().lanes.L2!.lead!;
+  assert.match(
+    await say(sup, "supervisor", "record", { of: "L1" }),
+    /^Lane L1's Lead, its last 1 steps[^]*\n#1 said: Splitting the build into one task\.$/,
+    "whoever supervises reads a lane's Lead",
+  );
+  assert.match(
+    await say(sup, "supervisor", "record", { of: "L1-T1" }),
+    /^L1-T1 Clean build's Peer has done nothing yet\.$/,
+    "and any task",
+  );
+  assert.match(await say(sup, "supervisor", "record", { of: "L9" }), /There is no lane or task L9 in this project\./);
+  assert.match(await say(other, "lead", "record", { of: "L1-T1" }), /L1-T1 is not a task in your lane\./);
+  assert.match(await say(lead, "lead", "record", { of: "L1" }), /L1 is a lane; name a task of yours\./);
+
   const letter = timeline.add({
     type: "user_message",
     text: "HANDBACK L1-T1 wanted\nthe rest",
@@ -105,25 +128,6 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   assert.match(two, new RegExp(`\\n#${human} the Human wrote: Name it total\\n#${said} said:`));
   assert.match(await say(lead, "lead", "record", { of: "L1-T1", limit: 0 }), /limit must be at least 1/);
   assert.match(await say(lead, "lead", "record", { of: "L1-T1", limit: 2.5 }), /limit must be a whole number/);
-
-  h.timelineOf(lead).add({ type: "assistant_message", text: "Splitting the build into one task." });
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Other",
-    outcome: "b changes",
-    ...scope,
-    isolate: true,
-    writeSet: ["b.txt"],
-  });
-  const other = h.ledger().lanes.L2!.lead!;
-  assert.match(
-    await say(sup, "supervisor", "record", { of: "L1" }),
-    /^Lane L1's Lead, its last 1 steps[^]*\n#1 said: Splitting the build into one task\.$/,
-    "whoever supervises reads a lane's Lead",
-  );
-  assert.equal((await h.call(sup, "supervisor", "record", { of: "L1-T1" })).ok, true, "and any task");
-  assert.match(await say(sup, "supervisor", "record", { of: "L9" }), /There is no lane or task L9 in this project\./);
-  assert.match(await say(other, "lead", "record", { of: "L1-T1" }), /L1-T1 is not a task in your lane\./);
-  assert.match(await say(lead, "lead", "record", { of: "L1" }), /L1 is a lane; name a task of yours\./);
 
   h.commit(lane.worktree!, "a.txt", "changed\n");
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a.txt now says changed." });

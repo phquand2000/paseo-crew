@@ -262,11 +262,18 @@ test("a review reads a task where its work is: in the task's own copy until it m
   const task = await beside("A", "a.txt");
   h.commit(task.worktree!, "a.txt", "A\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
-  await h.idle(task.peer!);
-
+  assert.equal((await h.call(lead, "lead", "rework", { task: "L1-T1", text: "Say more." })).ok, true);
   assert.equal((await h.call(lead, "lead", "start_review", { task: "L1-T1", focus: "Is this right?" })).ok, true);
   const first = reviews(h).at(-1)!;
   assert.equal(first.slot, task.slot, "the reviewer reads the task's commits in that task's own copy");
+  assert.match(
+    h.agents.get(first.peer!)!.prompt ?? "",
+    new RegExp(`see it with git diff ${lane.branch}\\.\\.\\.HEAD\\.`),
+    "sent back, it is read as far as its Peer has committed, not at the hand-back it replaces",
+  );
+  h.commit(task.worktree!, "a.txt", "A\nmore\n");
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a, and more" });
+  await h.idle(task.peer!);
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");

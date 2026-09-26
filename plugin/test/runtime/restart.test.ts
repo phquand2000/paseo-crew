@@ -44,29 +44,30 @@ test("merges a stop left go through once each, in turn, when the plugin starts a
     await h.runtime.desk.settled(h.project);
   };
 
-  const first = await handedBack("One", "c.txt");
+  // First, while nothing has merged into the lane yet, so its tip is no merge at all.
+  const cut = await handedBack("One", "c.txt");
+  stopped(cut.id, "merging");
+  await started();
+  assert.deepEqual(
+    [status(cut.id), merges()],
+    ["merged", 1],
+    "stopped before the lane moved, it runs again from the start",
+  );
+
+  const first = await handedBack("Two", "d.txt");
   h.restart();
   // Accepted before the first round, so its merge is under way when the queue is taken up.
   assert.equal((await h.call(lead, "lead", "accept", { task: first.id })).ok, true);
   await h.runtime.desk.resumeMerges(h.project);
   await h.runtime.desk.settled(h.project);
-  assert.deepEqual([status(first.id), merges()], ["merged", 1], "the merges a stop left wait behind it");
+  assert.deepEqual([status(first.id), merges()], ["merged", 2], "the merges a stop left wait behind it");
 
-  const queued = await handedBack("Two", "d.txt");
+  const queued = await handedBack("Three", "e.txt");
   stopped(queued.id, "queued");
   await started();
   assert.equal(status(queued.id), "merged");
-  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:d.txt`), "Two\n");
+  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:e.txt`), "Three\n");
   assert.match(h.heard(lead).join("\n"), new RegExp(`MERGED ${queued.id}`));
-
-  const cut = await handedBack("Three", "e.txt");
-  stopped(cut.id, "merging");
-  await started();
-  assert.deepEqual(
-    [status(cut.id), merges()],
-    ["merged", 3],
-    "stopped before the lane moved, it runs again from the start",
-  );
 
   const landed = await handedBack("Four", "f.txt");
   const before = h.git(lane.worktree!, "rev-parse", lane.branch).trim();
@@ -135,6 +136,13 @@ test("what waited on a turn when the plugin stopped goes on at its first round",
   assert.equal(h.agents.get(lane.lead!)!.archivedAt, null, "the Lead stays until it is released");
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "and the copy they wrote in is put back");
   assert.match(h.heard(sup).join("\n"), /CAN LAND L2/, "the landing that waited on a turn can go");
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L2" })).ok, true);
+  await h.tick();
+  assert.equal(
+    h.agents.get(lane.lead!)!.archivedAt,
+    null,
+    "with no lane open, the project's own copy is still not swept from under the seats it keeps",
+  );
 });
 
 test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async (t) => {
