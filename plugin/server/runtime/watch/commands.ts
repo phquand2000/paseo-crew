@@ -1,6 +1,7 @@
 import { isAbsolute, relative } from "node:path";
 import { oneLine, within } from "../../core/text.ts";
-import { type Fact, type Rules, fact } from "./facts.ts";
+import { type Fact, fact } from "./fact-kinds.ts";
+import { type Rules } from "./facts.ts";
 import type { Call } from "./window.ts";
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -16,7 +17,12 @@ function madeBy(parts: string[]): { variables: Set<string>; paths: string[] } {
   const variables = new Set([...parts.join("\n").matchAll(MKTEMP)].map((match) => match[1]!));
   const paths = parts.flatMap((part) => {
     const words = part.trim().split(/\s+/);
-    return words[0] === "mkdir" || words[0] === "touch" ? words.slice(1).filter((word) => !word.startsWith("-")).map(unquoted) : [];
+    return words[0] === "mkdir" || words[0] === "touch"
+      ? words
+          .slice(1)
+          .filter((word) => !word.startsWith("-"))
+          .map(unquoted)
+      : [];
   });
   return { variables, paths };
 }
@@ -25,7 +31,10 @@ function madeBy(parts: string[]): { variables: Set<string>; paths: string[] } {
 function scratchOnly(part: string, made: ReturnType<typeof madeBy>, temp?: string): boolean {
   const words = part.trim().split(/\s+/);
   if (words[0] !== "rm") return false;
-  const targets = words.slice(1).filter((word) => !word.startsWith("-")).map(unquoted);
+  const targets = words
+    .slice(1)
+    .filter((word) => !word.startsWith("-"))
+    .map(unquoted);
   const scratch = (target: string) =>
     SCRATCH.test(target) ||
     Boolean(temp && isAbsolute(target) && !relative(temp, target).startsWith("..")) ||
@@ -47,7 +56,10 @@ export function onDetail(call: Call, rules: Rules): Fact[] {
 function around(text: string, pattern: RegExp | undefined, limit: number): string {
   if (text.length <= limit) return text;
   const found = pattern ? new RegExp(pattern.source, pattern.flags.replace("g", "")).exec(text) : null;
-  const start = found && found.index + found[0].length > limit ? Math.max(0, Math.min(found.index - Math.floor(limit / 4), text.length - limit)) : 0;
+  const start =
+    found && found.index + found[0].length > limit
+      ? Math.max(0, Math.min(found.index - Math.floor(limit / 4), text.length - limit))
+      : 0;
   const body = within(text.slice(start).replace(/^[\uDC00-\uDFFF]/, ""), limit);
   return `${start > 0 ? "…" : ""}${body}${start + body.length < text.length ? "…" : ""}`;
 }

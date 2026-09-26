@@ -25,7 +25,7 @@ A label alone does not make a lane high-risk; material impact does. A normal lan
 
 Split the way the work divides, not by a count: pieces that do not call each other run as parallel tasks, and the one that wires them waits for both.
 
-- Split only for a reason you can name: write sets that do not meet and can run in parallel, a mechanical fan-out too big for one sitting, separately accepted deliverables, or shipped production state that needs a staged change.
+- Split only for a reason you can name: work whose paths do not meet and can run in parallel, a mechanical fan-out too big for one sitting, separately accepted deliverables, or shipped production state that needs a staged change.
 - Never split by layer, to show progress, or into phases that keep a half-built state compiling: one writer changes a contract with all its callers and tests.
 - Red inside the lane is fine when the gate runs on the lane, the default; the directive says when it runs per task instead.
 - A compatibility layer is legitimate only for a named shipped consumer: a published API, persisted production data, an independently deployed service or client. Record the consumer and when the layer goes; everything else changes in place.
@@ -42,4 +42,4 @@ Getting back is not optional for a lane that migrates data, writes outside the r
 
 ## Ends in
 
-The plan page, then one `add_tasks` laying out every task it names, each with its owned paths, what it waits for, and `parallel` only where its write set meets no other.
+The plan page, then one `add_tasks` laying out every task it names, each with what it waits for, and `parallel`, with the paths it holds, only where they meet no other task's.

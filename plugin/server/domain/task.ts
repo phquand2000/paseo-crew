@@ -1,6 +1,8 @@
+import type { Amendment } from "./amendment.ts";
 import { Lifecycle, type Moves } from "./lifecycle.ts";
 
-export type TaskStatus = "waiting" | "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
+export type TaskStatus =
+  "waiting" | "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
 
 const IN_HAND: TaskStatus[] = ["running", "rework", "done", "failed", "stalled"];
 
@@ -8,13 +10,16 @@ const MOVES = {
   start: { from: ["waiting"], to: "running" },
   wait: { from: ["running"], to: "waiting" },
   handBack: { from: IN_HAND, to: "done" },
-  rework: { from: IN_HAND, to: "rework" },
-  accept: { from: IN_HAND, to: "merged" },
+  // An accepted task goes back to the Peer kept on it: it is that Peer's ticket until its Lead releases it.
+  rework: { from: [...IN_HAND, "merged"], to: "rework" },
   queue: { from: IN_HAND, to: "queued" },
   merge: { from: ["queued"], to: "merging" },
   requeue: { from: ["merging"], to: "queued" },
   merged: { from: ["merging"], to: "merged" },
-  conflict: { from: ["merging"], to: "rework" },
+  // Stopped on conflicts left in its copy: like a red one, its Lead's to send back to its Peer to settle, or to cut.
+  conflict: { from: ["merging"], to: "done" },
+  // Red with its lane brought in: the lane branch stays as it was, and the task is its Lead's to send back or accept over the gate.
+  red: { from: ["merging"], to: "done" },
   fail: { from: ["queued", "merging"], to: "failed" },
   stall: { from: ["running", "rework", "failed"], to: "stalled" },
   lose: { from: ["running", "rework"], to: "stalled" },
@@ -30,5 +35,60 @@ export const DECIDED: readonly TaskStatus[] = ["queued", "merging", "merged", "c
 export const SETTLED: readonly TaskStatus[] = ["merged", "cut"];
 export const IN_QUEUE: readonly TaskStatus[] = ["queued", "merging"];
 export const AT_WORK: readonly TaskStatus[] = ["running", "rework"];
-export const HOLDS_COPY: readonly TaskStatus[] = ["running", "rework", "done", "stalled"];
+// A task in the lane's copy has it on its own branch from its start until it is merged or cut, a failed merge included.
+export const HOLDS_COPY: readonly TaskStatus[] = [
+  "running",
+  "rework",
+  "done",
+  "failed",
+  "stalled",
+  "queued",
+  "merging",
+];
 export const ACTIVE: readonly TaskStatus[] = ["running", "rework", "queued", "merging"];
+
+type Handback = {
+  file: string;
+  outcome: string;
+  commit?: string;
+  summary: string;
+  at: number;
+  gate?: { ok: boolean; note: string; sha?: string; over?: string };
+};
+
+/** A task on the record: its brief, where its Peer works, and how far it has got. */
+export type Task = {
+  id: string;
+  lane: string;
+  kind: "code" | "review";
+  mode: "lane" | "parallel";
+  of?: string;
+  /** A review's questions from the risk rules its change reaches: its verdict answers each, in order. */
+  asked?: string[];
+  title: string;
+  goal: string;
+  acceptance: string[];
+  hints: string[];
+  holds: string[];
+  outOfScope: string[];
+  context?: string;
+  skills?: string[];
+  peer?: string;
+  branch?: string;
+  worktree?: string;
+  slot?: string;
+  startSha?: string;
+  mergeSha?: string;
+  status: TaskStatus;
+  openedAt: number;
+  updatedAt: number;
+  handback?: Handback;
+  after?: string[];
+  opening?: { role: string };
+  held?: { why: string; tried?: boolean };
+  amended?: Amendment[];
+  reworks?: number;
+  acceptedAt?: number;
+  silent: number;
+  peerGone?: boolean;
+};

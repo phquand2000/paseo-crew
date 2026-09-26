@@ -1,17 +1,25 @@
 import { execFile, execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { coverOf } from "./scope.ts";
 
 type Run = { code: number; stdout: string; stderr: string };
 
 export function git(cwd: string, args: string[], timeout = 60_000): Promise<Run> {
   return new Promise((resolve) => {
-    // core.quotePath=false: otherwise non-ASCII paths come back quoted and octal-escaped and match no owned path.
-    execFile("git", ["-C", cwd, "-c", "core.quotePath=false", ...args], { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
-      const code = error ? (typeof (error as { code?: unknown }).code === "number" ? ((error as { code: number }).code) : 1) : 0;
-      resolve({ code, stdout: String(stdout), stderr: String(stderr) });
-    });
+    // core.quotePath=false: otherwise non-ASCII paths come back quoted and octal-escaped and match no path a write set or hold names.
+    execFile(
+      "git",
+      ["-C", cwd, "-c", "core.quotePath=false", ...args],
+      { timeout, maxBuffer: 16 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        const code = error
+          ? typeof (error as { code?: unknown }).code === "number"
+            ? (error as { code: number }).code
+            : 1
+          : 0;
+        resolve({ code, stdout: String(stdout), stderr: String(stderr) });
+      },
+    );
   });
 }
 
@@ -40,11 +48,15 @@ export function cleanState(cwd: string): Promise<Cleanliness> {
 }
 
 /** Uncommitted and untracked paths, or undefined when git cannot say; `besides` excuses a change that is nobody's work. */
-export async function uncommittedPaths(cwd: string, besides: (path: string) => Promise<boolean> = async () => false): Promise<string[] | undefined> {
+export async function uncommittedPaths(
+  cwd: string,
+  besides: (path: string) => Promise<boolean> = async () => false,
+): Promise<string[] | undefined> {
   const run = await git(cwd, ["status", "--porcelain"]);
   if (run.code !== 0) return undefined;
   const found: string[] = [];
-  for (const line of run.stdout.split("\n").filter(Boolean)) if (!(await besides(line.slice(3)))) found.push(line.slice(3));
+  for (const line of run.stdout.split("\n").filter(Boolean))
+    if (!(await besides(line.slice(3)))) found.push(line.slice(3));
   return found;
 }
 
@@ -63,6 +75,28 @@ export async function branchExists(cwd: string, branch: string): Promise<boolean
   return (await git(cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;
 }
 
+/** Deletes `branch` once everything on it is in `into`; false when it holds commits `into` lacks, or git could not tell, and is kept. */
+export async function dropMerged(cwd: string, branch: string, into: string): Promise<boolean> {
+  return (await contains(cwd, into, branch)) === true && (await git(cwd, ["branch", "-D", branch])).code === 0;
+}
+
+/** Puts `cwd` on `branch`, made from `start` when it is not there yet; git's reason when it cannot. `discard` drops work uncommitted there. */
+export async function switchTo(
+  cwd: string,
+  branch: string,
+  start: string,
+  discard = false,
+): Promise<string | undefined> {
+  const exists = await branchExists(cwd, branch);
+  const run = await git(cwd, [
+    "switch",
+    ...(discard ? ["--discard-changes"] : []),
+    ...(exists ? [branch] : ["-c", branch, start]),
+  ]);
+  if (run.code === 0 && discard) await git(cwd, ["clean", "-fd"]);
+  return run.code === 0 ? undefined : run.stderr.trim() || `git switch exited ${run.code}`;
+}
+
 /** Undefined when git could not answer: zero read as "no commits beyond the lane branch", which is a claim. */
 export async function commitsAhead(cwd: string, base: string, branch: string): Promise<number | undefined> {
   const run = await git(cwd, ["rev-list", "--count", `${base}..${branch}`]);
@@ -79,12 +113,20 @@ export async function contains(cwd: string, into: string, branch: string): Promi
   return run.code === 0 && Number.isInteger(count) ? count === 0 : undefined;
 }
 
-export async function addWorktree(root: string, path: string, branch: string, base: string): Promise<{ ok: boolean; message: string }> {
+export async function addWorktree(
+  root: string,
+  path: string,
+  branch: string,
+  base: string,
+): Promise<{ ok: boolean; message: string }> {
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
   const run = await git(root, ["worktree", "add", "--no-track", "-b", branch, path, base], 120_000);
   // git can fail with no output at all (timeout, missing binary); never report an empty reason.
-  return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say` };
+  return {
+    ok: run.code === 0,
+    message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say`,
+  };
 }
 
 export async function removeWorktree(root: string, path: string | undefined): Promise<void> {
@@ -95,14 +137,30 @@ export async function removeWorktree(root: string, path: string | undefined): Pr
 
 type MergeResult = { ok: true; before: string; after: string } | { ok: false; conflicts: string[]; message: string };
 
-/** `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit, since no seat may run git merge; anything else that stops it is undone. */
+/**
+ * `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit, since no seat may run git merge; anything
+ * else that stops it is undone. The Human's rerere would settle conflicts unseen, and their signer can wait on them: neither applies.
+ */
 export async function mergeBranch(cwd: string, branch: string, message: string, leave = false): Promise<MergeResult> {
   const before = await headSha(cwd);
   if (!before) return { ok: false, conflicts: [], message: "the lane working copy has no HEAD" };
-  const run = await git(cwd, ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "merge", "--no-ff", "-m", message, branch], 120_000);
+  const own = [
+    "-c",
+    "user.name=seatworks",
+    "-c",
+    "user.email=seatworks@localhost",
+    "-c",
+    "rerere.enabled=false",
+    "-c",
+    "commit.gpgSign=false",
+  ];
+  const run = await git(cwd, [...own, "merge", "--no-ff", "-m", message, branch], 120_000);
   if (run.code === 0) return { ok: true, before, after: (await headSha(cwd)) ?? before };
   const unmerged = await git(cwd, ["diff", "--name-only", "--diff-filter=U"]);
-  const conflicts = unmerged.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  const conflicts = unmerged.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   if (!leave || conflicts.length === 0) await git(cwd, ["merge", "--abort"]);
   return { ok: false, conflicts, message: (run.stdout + run.stderr).trim().slice(-1500) };
 }
@@ -112,113 +170,32 @@ export async function mergeUnderWay(cwd: string): Promise<boolean> {
   return (await git(cwd, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])).code === 0;
 }
 
-/** HEAD as the merge that brought `branch` in, if it is one: a merge a stop cut off after git made it. */
-export async function mergeOf(cwd: string, branch: string): Promise<{ before: string; after: string } | undefined> {
+/** `into` as the merge that brought `branch` in, if it is one: a merge a stop cut off after git made it. */
+export async function mergeOf(
+  cwd: string,
+  into: string,
+  branch: string,
+): Promise<{ before: string; after: string } | undefined> {
   const sha = async (ref: string) => {
     const run = await git(cwd, ["rev-parse", "--verify", "-q", ref]);
     return run.code === 0 ? run.stdout.trim() : undefined;
   };
-  const [after, before, merged, tip] = await Promise.all(["HEAD", "HEAD^1", "HEAD^2", branch].map(sha));
+  const [after, before, merged, tip] = await Promise.all([into, `${into}^1`, `${into}^2`, branch].map(sha));
   return after && before && merged && merged === tip ? { before, after } : undefined;
-}
-
-export async function resetHard(cwd: string, sha: string): Promise<boolean> {
-  return (await git(cwd, ["reset", "--hard", sha])).code === 0;
-}
-
-export type Counts = { src: number; test: number; docs: number; files: string[] };
-
-/** Which paths are tests and which are docs, as the ecosystem the kit holds names them. */
-export type FileKinds = { test: RegExp; docs: RegExp };
-
-export function kindOf(path: string, kinds: FileKinds): "src" | "test" | "docs" {
-  if (kinds.test.test(path)) return "test";
-  return kinds.docs.test(path) ? "docs" : "src";
-}
-
-/** Uses `-z` so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no owned path. */
-/** Lines of an `uncounted` path are left out of the counts; the path is still listed. */
-export function countNumstat(numstat: string, kinds: FileKinds, uncounted: (path: string) => boolean = () => false): Counts {
-  const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
-  const fields = numstat.split("\0");
-  for (let index = 0; index < fields.length; index++) {
-    const row = fields[index];
-    if (!row?.trim()) continue;
-    const [added, removed, inline] = row.split("\t");
-    const lines = (Number(added) || 0) + (Number(removed) || 0);
-    const paths: string[] = [];
-    if (inline?.trim()) paths.push(inline.trim());
-    else {
-      // A rename or a copy: the two paths follow as their own fields.
-      const from = fields[index + 1];
-      const to = fields[index + 2];
-      if (from) paths.push(from);
-      if (to) paths.push(to);
-      index += 2;
-    }
-    for (const path of paths) {
-      if (!uncounted(path)) counts[kindOf(path, kinds)] += lines;
-      counts.files.push(path);
-    }
-  }
-  return counts;
-}
-
-/** Undefined when git could not answer: zeroed counts read as "nothing changed", which is a claim. */
-export async function diffCounts(cwd: string, from: string, to: string, kinds: FileKinds, uncounted?: (path: string) => boolean): Promise<Counts | undefined> {
-  const run = await git(cwd, ["diff", "-z", "--numstat", `${from}..${to}`]);
-  return run.code === 0 ? countNumstat(run.stdout, kinds, uncounted) : undefined;
-}
-
-/** The files changed across `range`, as git diff reads it, or undefined when git cannot say. */
-export async function changedFiles(cwd: string, range: string): Promise<string[] | undefined> {
-  const run = await git(cwd, ["diff", "-z", "--name-only", range]);
-  return run.code === 0 ? run.stdout.split("\0").filter(Boolean) : undefined;
-}
-
-/** Every path the commits on a copy's first-parent line touched from `from` to `to`, a rename's both ends apart; merges left out. */
-async function ownPaths(cwd: string, from: string, to: string): Promise<Set<string> | undefined> {
-  const run = await git(cwd, ["log", "-z", "--first-parent", "--no-merges", "--no-renames", "--name-only", "--format=", `${from}..${to}`]);
-  return run.code === 0 ? new Set(run.stdout.split("\0").filter(Boolean)) : undefined;
-}
-
-/**
- * The files a copy's own writer changed from `from` to `to`, as git diff reads them, leaving out what merges brought in: the desk
- * merges with --no-ff and no seat may merge, so the copy's first-parent line is its writer's own work. Undefined when git cannot say.
- */
-export async function ownChangedFiles(cwd: string, from: string, to = "HEAD"): Promise<string[] | undefined> {
-  const [net, own] = await Promise.all([changedFiles(cwd, `${from}..${to}`), ownPaths(cwd, from, to)]);
-  return net && own && net.filter((path) => own.has(path));
-}
-
-/** What `diffCounts` says of a copy's own writer's work since `from`: the lines and files merges brought in are left out. */
-export async function ownCounts(cwd: string, from: string, kinds: FileKinds): Promise<Counts | undefined> {
-  const own = await ownPaths(cwd, from, "HEAD");
-  const counts = own && (await diffCounts(cwd, from, "HEAD", kinds, (path) => !own.has(path)));
-  return counts && { ...counts, files: counts.files.filter((path) => own!.has(path)) };
 }
 
 /** What is uncommitted in `cwd`, named: a stray message file reads as unfinished work otherwise. */
 export async function uncommittedIn(cwd: string): Promise<string> {
   const run = await git(cwd, ["status", "--porcelain"]);
   const lines = run.stdout.split("\n").filter((line) => line.trim());
-  const shown = lines.slice(0, 6).map((line) => line.trim()).join(", ");
-  return lines.length > 6 ? `${shown} and ${lines.length - 6} more` : shown || "something git reports but does not name";
+  const shown = lines
+    .slice(0, 6)
+    .map((line) => line.trim())
+    .join(", ");
+  return lines.length > 6
+    ? `${shown} and ${lines.length - 6} more`
+    : shown || "something git reports but does not name";
 }
-
-/** Whether the desk merged anything into the copy's line between `from` and `to`: a diff across them then shows others' work too. */
-export async function mergesIn(cwd: string, from: string, to: string): Promise<boolean> {
-  const run = await git(cwd, ["rev-list", "--first-parent", "--merges", "--count", `${from}..${to}`]);
-  return run.code === 0 && Number(run.stdout.trim()) > 0;
-}
-
-export function outsideOwned(files: string[], owned: string[]): string[] {
-  if (owned.length === 0) return [];
-  const rules = owned.map(coverOf);
-  return files.filter((file) => !rules.some((rule) => rule.test(file)));
-}
-
-type LandResult = { landed: boolean; how: string };
 
 /** Where `branch` left `base`: what a lane changed is read from here, however far `base` has moved since. */
 export async function mergeBase(cwd: string, base: string, branch: string): Promise<string | undefined> {
@@ -238,48 +215,13 @@ export const LAND_AS: LandAs[] = ["squash", "merge", "ff"];
 /** Where a landed lane's own commits stay reachable once its branch is gone: squashed, base never carries them. */
 export const landedRef = (lane: string) => `refs/seatworks/lanes/${lane}`;
 
-/**
- * Lands `branch` on `base` as one commit, a merge commit or a fast-forward. The tree is always the one the gate saw on
- * the lane branch, which already contains `base`; the commit is made without checking anything out.
- */
-export async function landLane(root: string, base: string, branch: string, how: { as: LandAs; message: string; keep: string }): Promise<LandResult> {
-  if (!(await isAncestor(root, base, branch))) return { landed: false, how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated` };
-  // Undefined when the lane changes nothing on base: there is nothing to commit and base stays where it is.
-  let tip: string | undefined = branch;
-  if (how.as !== "ff") {
-    const trees = await git(root, ["rev-parse", `${base}^{tree}`, `${branch}^{tree}`]);
-    const [from, to] = trees.stdout.trim().split("\n");
-    if (trees.code === 0 && from === to) tip = undefined;
-    else {
-      const parents = how.as === "merge" ? [base, branch] : [base];
-      const made = await git(root, ["commit-tree", `${branch}^{tree}`, ...parents.flatMap((parent) => ["-p", parent]), "-m", how.message]);
-      if (made.code !== 0) return { landed: false, how: made.stderr.trim() || "git could not make the commit to land" };
-      tip = made.stdout.trim();
-    }
-  }
-  if (tip && (await currentBranch(root)) === base) {
-    const state = await cleanState(root);
-    if (state === "dirty") return { landed: false, how: `the main working copy on ${base} has uncommitted changes` };
-    if (state === "unknown") return { landed: false, how: `git could not read the main working copy at ${root}` };
-    const run = await git(root, ["merge", "--ff-only", tip]);
-    if (run.code !== 0) return { landed: false, how: run.stderr.trim() || "fast-forward failed" };
-  } else if (tip) {
-    const used = await git(root, ["worktree", "list", "--porcelain"]);
-    if (used.stdout.split("\n").some((line) => line.trim() === `branch refs/heads/${base}`)) {
-      return { landed: false, how: `${base} is checked out in another working copy` };
-    }
-    const run = await git(root, ["branch", "-f", base, tip]);
-    if (run.code !== 0) return { landed: false, how: run.stderr.trim() || "branch update failed" };
-  }
-  // Should this fail, the branch is kept rather than lost: dropping it checks it against this ref.
-  await git(root, ["update-ref", how.keep, branch]);
-  if (!tip) return { landed: true, how: `${branch} changes nothing on ${base}, so nothing was committed` };
-  return { landed: true, how: how.as === "squash" ? `squashed ${branch} into one commit on ${base}, its own commits kept at ${how.keep}` : how.as === "merge" ? `merged ${branch} into ${base}` : `fast-forwarded ${base} to ${branch}` };
-}
-
 export function gitCommonDir(cwd: string): string | undefined {
   try {
-    const out = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf-8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const out = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     return out || undefined;
   } catch {
     return undefined;
@@ -295,5 +237,7 @@ export function excludeFromGit(repo: string, pattern: string): void {
     if (current.split(/\r?\n/).includes(pattern)) return;
     mkdirSync(join(common, "info"), { recursive: true });
     appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}${pattern}\n`);
-  } catch {}
+  } catch {
+    // Left out of the exclude list, the path shows as untracked: noise, never lost work.
+  }
 }

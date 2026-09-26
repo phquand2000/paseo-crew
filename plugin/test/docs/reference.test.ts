@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { ASK } from "../../server/domain/ask.ts";
 import { LANE } from "../../server/domain/lane.ts";
 import { QUESTION } from "../../server/domain/question.ts";
 import type { Lifecycle } from "../../server/domain/lifecycle.ts";
 import { TASK } from "../../server/domain/task.ts";
-import { FACTS } from "../../server/runtime/watch/facts.ts";
+import { FACTS } from "../../server/runtime/watch/fact-kinds.ts";
 
 const PLUGIN = join(import.meta.dirname, "..", "..");
 const REFERENCE = join(PLUGIN, "..", "docs", "REFERENCE.md");
@@ -17,7 +17,10 @@ const kit = loadKit(PLUGIN);
 const code = (names: string[]) => names.map((name) => `\`${name}\``).join(" ");
 
 /** A lifecycle's statuses in the order its table first reaches them. */
-const statuses = (life: Lifecycle<string, string>) => [...new Set(Object.values(life.moves).flatMap((step) => [...step.from, step.to]))].map((status) => `\`${status}\``).join(", ");
+const statuses = (life: Lifecycle<string, string>) =>
+  [...new Set(Object.values(life.moves).flatMap((step) => [...step.from, step.to]))]
+    .map((status) => `\`${status}\``)
+    .join(", ");
 
 /** The reference's tables that the code already holds, each as the code has it now. */
 const DRAWN: Record<string, () => string[]> = {
@@ -29,7 +32,11 @@ const DRAWN: Record<string, () => string[]> = {
       row.labels.push(role.label);
       rows.set(tools.join(" "), row);
     }
-    return ["| Role | Tools |", "|---|---|", ...[...rows.values()].map((row) => `| ${row.labels.join(", ")} | ${code(row.tools)} |`)];
+    return [
+      "| Role | Tools |",
+      "|---|---|",
+      ...[...rows.values()].map((row) => `| ${row.labels.join(", ")} | ${code(row.tools)} |`),
+    ];
   },
   records: () => [
     "| Record | States | Ids |",
@@ -44,7 +51,10 @@ const DRAWN: Record<string, () => string[]> = {
   attention: () => [
     "| Attention value | Default |",
     "|---|---|",
-    ...Object.entries(kit.attention).map(([name, value]) => `| \`${name}\` | ${name in kit.ecosystem.watch ? "a pattern in `catalog/ecosystem.json`" : typeof value === "string" ? `\`${value}\`` : String(value)} |`),
+    ...Object.entries(kit.attention).map(
+      ([name, value]) =>
+        `| \`${name}\` | ${name in kit.ecosystem.watch ? "a pattern in `catalog/ecosystem.json`" : typeof value === "string" ? `\`${value}\`` : String(value)} |`,
+    ),
   ],
 };
 
@@ -61,7 +71,8 @@ test("each table the reference draws from the code is the code as it stands", ()
     assert.ok(start >= 0 && end > start, `docs/REFERENCE.md has no ${open} … ${close} section`);
     const drawn = `${open}\n${draw().join("\n")}\n`;
     if (process.env.UPDATE_REFERENCE) text = text.slice(0, start) + drawn + text.slice(end);
-    else assert.equal(text.slice(start, end), drawn, `the ${name} table in docs/REFERENCE.md is not the code's: ${HOW}`);
+    else
+      assert.equal(text.slice(start, end), drawn, `the ${name} table in docs/REFERENCE.md is not the code's: ${HOW}`);
   }
   if (process.env.UPDATE_REFERENCE) writeFileSync(REFERENCE, text);
 });
@@ -71,32 +82,59 @@ function rows(header: string): string[][] {
   const text = readFileSync(REFERENCE, "utf-8");
   assert.ok(text.includes(header), `docs/REFERENCE.md has no table headed ${header}`);
   const lines = text.slice(text.indexOf(header)).split("\n").slice(2);
-  return lines.slice(0, lines.findIndex((line) => !line.startsWith("|"))).map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+  return lines
+    .slice(
+      0,
+      lines.findIndex((line) => !line.startsWith("|")),
+    )
+    .map((line) =>
+      line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim()),
+    );
 }
 
-test("every verb a seat can be shown has one row saying what it does, and no row names a verb that is not", () => {
-  const shown = [...new Set(Object.values(kit.toolSets).flatMap((set) => Object.keys(set)))].sort();
-  assert.deepEqual(rows("| Verb | Effect |").map(([verb]) => verb!.replaceAll("`", "")).sort(), shown);
-});
-
-test("every heading a letter or brief starts with is in the letters table, and the table names none that is not", () => {
-  const heading = /^[A-Z]{2,}(?: [A-Z]{2,})*/;
-  const written = new Set<string>();
+test("every hand-written table in the reference names exactly what the code has: verbs, letters, facts and the kinds the watch logs", () => {
+  const cells = (header: string, column: number) => rows(header).map((row) => row[column]!);
+  const ticked = (text: string) => [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1]!);
   const desk = join(PLUGIN, "server", "desk");
-  for (const file of [...readdirSync(desk).filter((name) => name.endsWith("letters.ts")), "briefs.ts", "directive.ts"]) {
-    for (const match of readFileSync(join(desk, file), "utf-8").matchAll(/[`"]([A-Z]{2,}(?: [A-Z]{2,})*)(?=[ :]|\$|`|")/g)) written.add(match[1]!);
-  }
-  const listed = rows("| Kind | Letters |").flatMap(([, letters]) => letters!.split(",").flatMap((entry) => entry.trim().match(heading) ?? []));
-  assert.deepEqual([...new Set(listed)].sort(), [...written].sort());
-});
-
-test("every fact the watch raises has a row saying when, and no row names one it does not", () => {
-  const named = [...rows("| Fact | Level | Fires when |"), ...rows("| Fact | Fires when |")].flatMap(([facts]) => [...facts!.matchAll(/`([^`]+)`/g)].map((match) => match[1]!));
-  assert.deepEqual(named.sort(), Object.keys(FACTS).sort());
-});
-
-test("every kind the watch writes to events.log is in its table, and the table names none it does not", () => {
-  const declared = [...readFileSync(join(PLUGIN, "server", "desk", "events.ts"), "utf-8").matchAll(/kind: "((?:watch|watcher|incident|page)\.[A-Za-z-]+)"/g)].map((match) => match[1]!);
-  const listed = rows("| Group | Kinds |").flatMap(([, kinds]) => [...kinds!.matchAll(/`([^`]+)`/g)].map((match) => match[1]!));
-  assert.deepEqual(listed.sort(), declared.sort());
+  const letters = new Set<string>();
+  for (const file of readdirSync(join(desk, "letters")))
+    for (const match of readFileSync(join(desk, "letters", file), "utf-8").matchAll(
+      /[`"]([A-Z]{2,}(?: [A-Z]{2,})*)(?=[ :]|\$|`|")/g,
+    ))
+      letters.add(match[1]!);
+  const heading = /^[A-Z]{2,}(?: [A-Z]{2,})*/;
+  const kinds = [
+    ...readFileSync(join(desk, "store", "events.ts"), "utf-8").matchAll(
+      /kind: "((?:watch|watcher|incident|page)\.[A-Za-z-]+)"/g,
+    ),
+  ].map((match) => match[1]!);
+  const tables: [string, string[], string[]][] = [
+    [
+      "every verb a seat can be shown has one row saying what it does",
+      cells("| Verb | Effect |", 0).map((verb) => verb.replaceAll("`", "")),
+      [...new Set(Object.values(kit.toolSets).flatMap((set) => Object.keys(set)))],
+    ],
+    [
+      "every heading a letter or brief starts with is in the letters table",
+      [
+        ...new Set(
+          cells("| Kind | Letters |", 1).flatMap((cell) =>
+            cell.split(",").flatMap((entry) => entry.trim().match(heading) ?? []),
+          ),
+        ),
+      ],
+      [...letters],
+    ],
+    [
+      "every fact the watch raises has a row saying when",
+      [...cells("| Fact | Level | Fires when |", 0), ...cells("| Fact | Fires when |", 0)].flatMap(ticked),
+      Object.keys(FACTS),
+    ],
+    ["every kind the watch writes to events.log is in its table", cells("| Group | Kinds |", 1).flatMap(ticked), kinds],
+  ];
+  for (const [what, listed, held] of tables)
+    assert.deepEqual(listed.sort(), held.sort(), `${what}, and no row names one that is not`);
 });

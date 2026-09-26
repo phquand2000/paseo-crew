@@ -1,12 +1,13 @@
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Kit } from "../catalog/kit.ts";
-import { layerValues, readLayer } from "../catalog/settings.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import { layerValues, readLayer } from "../catalog/team/settings.ts";
 import type { Layer } from "../../shared/settings.ts";
-import { type Team, resolveTeam, servingProject } from "../catalog/team.ts";
+import { type Team, resolveTeam, servingProject } from "../catalog/team/team.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import type { Project } from "../desk/project.ts";
+import type { Project } from "../desk/project/project.ts";
+import { daemonLog } from "../core/logger.ts";
 
 export class TeamSource {
   private readonly kit: Kit;
@@ -30,12 +31,21 @@ export class TeamSource {
 
   teamFor(project?: Project): Team {
     const machine = readLayer(this.machineFile());
-    const local = project ? readLayer(this.projectFile(project)) : { status: "ready" as const, values: {}, revision: "" };
+    const local = project
+      ? readLayer(this.projectFile(project))
+      : { status: "ready" as const, values: {}, revision: "" };
     const unread = [
       ...(machine.status === "ready" ? [] : [`The machine settings are not being used: ${machine.error}`]),
-      ...(local.status === "ready" ? [] : [`The project settings are not being used: ${"error" in local ? local.error : "they could not be read"}`]),
+      ...(local.status === "ready"
+        ? []
+        : [`The project settings are not being used: ${"error" in local ? local.error : "they could not be read"}`]),
     ];
-    const team = resolveTeam(this.kit, machine.status === "ready" ? machine.values : {}, local.status === "ready" ? local.values : {}, unread);
+    const team = resolveTeam(
+      this.kit,
+      machine.status === "ready" ? machine.values : {},
+      local.status === "ready" ? local.values : {},
+      unread,
+    );
     return project ? servingProject(team, project.root) : team;
   }
 
@@ -53,7 +63,7 @@ export class TeamSource {
       writeJson(join(project.state, "meta.json"), { root: project.root, slug: project.slug });
       this.recorded.add(project.slug);
     } catch (error) {
-      console.error("seatworks-v2: could not record the project:", error);
+      daemonLog.error("could not record the project:", error);
     }
   }
 
@@ -73,7 +83,8 @@ export class TeamSource {
     const found: Project[] = [];
     for (const slug of readdirSync(root)) {
       const meta = readJson<{ root?: string; slug?: string }>(join(root, slug, "meta.json"), {});
-      if (typeof meta.root === "string" && meta.slug === slug) found.push({ root: meta.root, slug, state: join(root, slug) });
+      if (typeof meta.root === "string" && meta.slug === slug)
+        found.push({ root: meta.root, slug, state: join(root, slug) });
     }
     return found.sort((a, b) => a.slug.localeCompare(b.slug));
   }

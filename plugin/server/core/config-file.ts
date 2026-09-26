@@ -19,7 +19,7 @@ export function configFault(path: string): string | undefined {
   if (!existsSync(path)) return undefined;
   try {
     const text = readFileSync(path, "utf-8");
-    const held = isToml(path) ? parse(text) : JSON.parse(text);
+    const held = (isToml(path) ? parse(text) : JSON.parse(text)) as unknown;
     return !held || typeof held !== "object" ? `${path} does not hold a config object` : undefined;
   } catch (error) {
     return `${path} is there but could not be read: ${errorText(error)}`;
@@ -40,5 +40,5 @@ export function writeConfigAtomic(path: string, text: string, mode = 0o600): voi
 }
 
 export function formatConfig(path: string, value: unknown): string {
-  return isToml(path) ? `${stringify(value as Record<string, unknown>).trimEnd()}\n` : `${JSON.stringify(value, null, 2)}\n`;
+  return isToml(path) ? `${stringify(value).trimEnd()}\n` : `${JSON.stringify(value, null, 2)}\n`;
 }

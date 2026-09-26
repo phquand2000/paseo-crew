@@ -1,5 +1,5 @@
 import type { PluginClientContext } from "@getpaseo/plugin/client";
-import { SeatworksSurface } from "./client/surface.tsx";
+import { SeatworksSurface } from "./client/ui/surface.tsx";
 
 export default function contribute(client: PluginClientContext) {
   const surface = client.addSurface("seatworks", SeatworksSurface);

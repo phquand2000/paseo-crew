@@ -1,15 +1,22 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { createInterface } from "node:readline";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client, SdkErrorCode, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
 
 const config = JSON.parse(process.argv[2] ?? "{}");
 const label = config.label ?? config.name ?? "The code server";
-const allowed = new Set(config.tools ?? []);
+const allowed = [...new Set(config.tools ?? [])];
 const backend = config.backend ?? {};
 const pin = config.pin;
 const CALL_MS = (config.timeoutSeconds ?? 180) * 1000;
 const LIST_MS = (config.listSeconds ?? (backend.type === "stdio" ? 20 : 3)) * 1000;
+// A harness that asked for progress hears that often that a call, or the opening or indexing it waits on, still runs.
+const PROGRESS_MS = Number(process.env.SEATWORKS_PROGRESS_MS ?? 20_000);
+const { version } = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf-8"));
 
 function gitOut(args, cwd = process.cwd()) {
   try {
@@ -20,12 +27,14 @@ function gitOut(args, cwd = process.cwd()) {
 }
 
 const root = gitOut(["rev-parse", "--show-toplevel"])?.trim() || process.cwd();
-const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const text = (value, isError = false) => ({ content: [{ type: "text", text: value }], isError });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const replyText = (result) => (result?.content ?? []).map((part) => part.text ?? "").join("\n");
 const failed = (pattern, result) => Boolean(pattern && result?.isError) && new RegExp(pattern, "i").test(replyText(result));
 const pinned = (args = {}, path = root) => (pin ? { ...args, [pin]: path } : { ...args });
+// The model is shown each schema as the backend writes it; the backend checks what it is sent.
+const unchecked = { getValidator: () => (input) => ({ valid: true, data: input, errorMessage: undefined }) };
+const within = (promise, ms) => Promise.race([promise, sleep(ms).then(() => Promise.reject(Object.assign(new Error("no answer in time"), { name: "TimeoutError" })))]);
 
 function withRoot(value, path) {
   if (typeof value === "string") return value.replaceAll("{root}", path);
@@ -49,101 +58,49 @@ function excludeFromGit() {
   } catch {}
 }
 
-function backendError(error) {
-  const problem = new Error(error?.message ?? "server error");
-  if (error?.timeout) problem.name = "TimeoutError";
-  return problem;
-}
+/** The backend as an MCP client, over its own stdio or HTTP: connected when first needed, and again once it drops. */
+class Backend {
+  #client;
+  #connecting;
+  // The client made last, connected or still starting: what closing the backend closes.
+  #latest;
+  connected = () => {};
 
-function httpBackend(url) {
-  let id = 0;
-  return async (method, params, timeoutMs) => {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const body = await response.text();
-    const parsed = JSON.parse(body.slice(body.indexOf("{"), body.lastIndexOf("}") + 1));
-    if (parsed.error) throw backendError(parsed.error);
-    return parsed.result;
-  };
-}
+  connect() {
+    if (this.#client) return Promise.resolve(this.#client);
+    this.#connecting ??= this.#open().finally(() => (this.#connecting = undefined));
+    return this.#connecting;
+  }
 
-function stdioBackend(command = []) {
-  let client;
-  const start = () => {
-    const [bin, ...args] = command;
-    const child = spawn(bin, args, { cwd: root, stdio: ["pipe", "pipe", "ignore"] });
-    const waiting = new Map();
-    let next = 0;
-    createInterface({ input: child.stdout }).on("line", (line) => {
-      try {
-        const message = JSON.parse(line);
-        const done = waiting.get(message.id);
-        if (done) {
-          waiting.delete(message.id);
-          done(message);
-        }
-      } catch {}
-    });
-    const stop = (error) => {
-      for (const done of waiting.values()) done({ error });
-      waiting.clear();
-      client = undefined;
+  async #open() {
+    const [command, ...args] = backend.command ?? [];
+    if (backend.type === "stdio" && !command) throw new Error("no command is set");
+    // Kept quiet: a harness may not read a server's stderr, and a full pipe can stall the backend.
+    const transport = backend.type === "stdio" ? new StdioClientTransport({ command, args, cwd: root, stderr: "ignore" }) : new StreamableHTTPClientTransport(new URL(backend.url));
+    const client = new Client({ name: "seatworks-code", version });
+    client.onclose = () => {
+      if (this.#client === client) this.#client = undefined;
     };
-    child.on("exit", () => stop({ message: "stopped" }));
-    child.on("error", (error) => stop({ message: error.message }));
-    const request = (method, params, timeoutMs) =>
-      new Promise((resolve) => {
-        const id = ++next;
-        const timer = setTimeout(() => {
-          waiting.delete(id);
-          resolve({ error: { message: "no answer in time", timeout: true } });
-        }, timeoutMs);
-        waiting.set(id, (message) => {
-          clearTimeout(timer);
-          resolve(message);
-        });
-        child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
-      });
-    const ready = request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-code", version: "2.0.0" } }, CALL_MS).then((reply) => {
-      if (!reply.error) child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
-      return reply;
-    });
-    return { request, ready };
-  };
-  // Bounds a leg of the call that has its own promise, so the caller's budget covers the whole of it.
-  const within = (promise, timeoutMs) =>
-    new Promise((resolve) => {
-      const timer = setTimeout(() => resolve({ error: { message: "no answer in time", timeout: true } }), timeoutMs);
-      timer.unref?.();
-      promise.then(
-        (value) => {
-          clearTimeout(timer);
-          resolve(value);
-        },
-        (error) => {
-          clearTimeout(timer);
-          resolve({ error: { message: error?.message ?? String(error) } });
-        },
-      );
-    });
-  return async (method, params, timeoutMs) => {
-    if (!command[0]) throw new Error("no command is set");
-    client ??= start();
-    // Bounds the whole call: starting the server is the slow part, and the harness gave up before "not reachable" was sent.
-    const started = await within(client.ready, timeoutMs);
-    if (started.error) throw backendError(started.error);
-    const reply = await client.request(method, params, timeoutMs);
-    if (reply.error) throw backendError(reply.error);
-    return reply.result;
-  };
+    this.#latest = client;
+    await client.connect(transport, { timeout: CALL_MS });
+    this.#client = client;
+    this.connected(client);
+    return client;
+  }
+
+  /** Bounded as a whole: starting the backend is the slow part, and a harness gave up before "not reachable" was said. */
+  async call(name, args, timeoutMs, ctx, progress) {
+    const client = await within(this.connect(), timeoutMs);
+    return client.callTool({ name, arguments: args }, { timeout: timeoutMs, resetTimeoutOnProgress: true, signal: ctx?.mcpReq.signal, onprogress: progress?.forward });
+  }
+
+  /** A stdio backend is sent the end of its input, then a signal if it stays: MCP's own way to stop a server. */
+  close() {
+    return this.#latest?.close() ?? Promise.resolve();
+  }
 }
 
-const rpc = backend.type === "stdio" ? stdioBackend(backend.command) : httpBackend(backend.url);
-const tool = (name, args, timeoutMs = CALL_MS) => rpc("tools/call", { name, arguments: args }, timeoutMs);
+const upstream = new Backend();
 
 function withoutKey(schema, key) {
   if (!key) return schema;
@@ -156,30 +113,16 @@ function withoutKey(schema, key) {
   return next;
 }
 
-async function listTools() {
-  const wanted = [...allowed];
-  if (wanted.length === 0) return [];
-  const describe = (name, fallback) => config.descriptions?.[name] ?? fallback;
+/** What the harness is shown of an allowed tool: the backend's own, its pinned argument hidden, the catalog's description first. */
+function shownOf(name, listed) {
+  const own = config.descriptions?.[name];
+  const found = listed?.tools?.find((tool) => tool.name === name);
   // Appended, never replaced: a preset description alone hid the note, and a seat kept calling a server that never answered.
-  const unreachable = (name, note) => `${describe(name, "")}\n\n${note}`.trim();
-  try {
-    const listed = await rpc("tools/list", {}, LIST_MS);
-    const byName = new Map((listed?.tools ?? []).map((entry) => [entry.name, entry]));
-    return wanted.map((name) => {
-      const found = byName.get(name);
-      if (!found) {
-        return {
-          name,
-          description: unreachable(name, `Switched off in ${label} right now; calls fail until it is switched on.`),
-          inputSchema: { type: "object", properties: {}, additionalProperties: true },
-        };
-      }
-      return { name, description: describe(name, found.description), inputSchema: withoutKey(found.inputSchema, pin) };
-    });
-  } catch {
-    const note = `${label} was not reachable when this session started; calls fail until it runs.`;
-    return wanted.map((name) => ({ name, description: unreachable(name, note), inputSchema: { type: "object", properties: {}, additionalProperties: true } }));
-  }
+  const noted = (note) => ({ description: `${own ?? ""}\n\n${note}`.trim(), inputSchema: fromJsonSchema({ type: "object", properties: {}, additionalProperties: true }, unchecked) });
+  if (!listed) return noted(`${label} was not reachable when this session started; calls fail until it runs.`);
+  if (!found) return noted(`Switched off in ${label} right now; calls fail until it is switched on.`);
+  // Its output schema stays behind: shown one, Claude and Codex give the model the JSON in place of the text.
+  return { title: found.title, description: own ?? found.description, annotations: found.annotations, inputSchema: fromJsonSchema(withoutKey(found.inputSchema, pin), unchecked) };
 }
 
 function explain(result, name) {
@@ -198,24 +141,34 @@ function routeOf(result, route) {
   }
 }
 
-async function openHere() {
+/** Progress for a harness that asked: ticks of its own while a call runs, and what the backend says of its work. */
+function progressOf(ctx, name) {
+  const token = ctx?.mcpReq._meta?.progressToken;
+  if (token === undefined) return { stop: () => {} };
+  let beat = 0;
+  const say = (message) => void ctx.mcpReq.notify({ method: "notifications/progress", params: { progressToken: token, progress: ++beat, message } }).catch(() => {});
+  const timer = setInterval(() => say(`${label} is still working on ${name}.`), PROGRESS_MS);
+  return { forward: (update) => say(update.message ?? `${label} is working on ${name}.`), stop: () => clearInterval(timer) };
+}
+
+async function openHere(ctx, progress) {
   const hook = config.open;
   excludeFromGit();
   const args = withRoot(hook.args ?? pinned(), root);
   const timeoutMs = (hook.timeoutSeconds ?? 330) * 1000;
-  let opened = await tool(hook.tool, args, timeoutMs);
+  let opened = await upstream.call(hook.tool, args, timeoutMs, ctx, progress);
   const route = routeOf(opened, hook.route);
-  if (route) opened = await tool(hook.tool, pinned(args, route), timeoutMs);
+  if (route) opened = await upstream.call(hook.tool, pinned(args, route), timeoutMs, ctx, progress);
   if (!opened?.isError) return undefined;
   return explain(opened, hook.tool) ?? text(`${label} could not open this working copy (${root}): ${replyText(opened)} Use the other tools and the shell instead.`, true);
 }
 
-async function waitReady() {
+async function waitReady(ctx) {
   const hook = config.wait;
   const until = Date.now() + (hook.seconds ?? 180) * 1000;
-  while (Date.now() < until) {
+  while (Date.now() < until && !ctx?.mcpReq.signal.aborted) {
     await sleep((hook.pollSeconds ?? 5) * 1000);
-    const status = await tool(hook.tool, withRoot(hook.args ?? pinned(), root)).catch(() => undefined);
+    const status = await upstream.call(hook.tool, withRoot(hook.args ?? pinned(), root), CALL_MS).catch(() => undefined);
     if (status && !status.isError && !(hook.busy && new RegExp(hook.busy, "i").test(replyText(status)))) return true;
   }
   return false;
@@ -247,62 +200,66 @@ async function syncChanges() {
   seenHead = head;
   seenStatus = status;
   if (!whole && changed.size === 0) return;
-  const result = await tool(hook.tool, whole ? pinned() : pinned({ [hook.paths]: [...changed] })).catch(() => undefined);
-  if (!whole && result?.isError) await tool(hook.tool, pinned()).catch(() => undefined);
+  const result = await upstream.call(hook.tool, whole ? pinned() : pinned({ [hook.paths]: [...changed] }), CALL_MS).catch(() => undefined);
+  if (!whole && result?.isError) await upstream.call(hook.tool, pinned(), CALL_MS).catch(() => undefined);
 }
 
-async function callTool(name, args) {
+// One sync at a time: two calls at once read the same changes, and one synced what the other had already seen.
+let syncing = Promise.resolve();
+
+async function callTool(name, args, ctx) {
   const request = pinned(args ?? {});
+  const progress = progressOf(ctx, name);
   try {
-    await syncChanges();
-    let result = await tool(name, request);
+    await (syncing = syncing.then(syncChanges, syncChanges));
+    let result = await upstream.call(name, request, CALL_MS, ctx, progress);
     if (config.open && failed(config.open.when, result)) {
-      const problem = await openHere();
+      const problem = await openHere(ctx, progress);
       if (problem) return problem;
-      result = await tool(name, request);
+      result = await upstream.call(name, request, CALL_MS, ctx, progress);
     }
     if (config.wait && failed(config.wait.when, result)) {
-      if (!(await waitReady())) return text(`${label} is still preparing this working copy. Use the other tools and the shell meanwhile, and try again in a few minutes.`, true);
-      result = await tool(name, request);
+      if (!(await waitReady(ctx))) return text(`${label} is still preparing this working copy. Use the other tools and the shell meanwhile, and try again in a few minutes.`, true);
+      result = await upstream.call(name, request, CALL_MS, ctx, progress);
     }
     return explain(result, name) ?? result;
   } catch (error) {
-    const reason = error?.name === "TimeoutError" ? "did not answer in time" : "is not reachable";
-    return text(`${label} ${reason}. Use the other tools and the shell instead.`, true);
+    const late = error?.name === "TimeoutError" || error?.code === SdkErrorCode.RequestTimeout;
+    return text(`${label} ${late ? "did not answer in time" : "is not reachable"}. Use the other tools and the shell instead.`, true);
+  } finally {
+    progress.stop();
   }
 }
 
-createInterface({ input: process.stdin }).on("line", async (line) => {
-  let message;
-  try {
-    message = JSON.parse(line);
-  } catch {
-    return;
-  }
-  const { id, method, params } = message;
-  if (method === "initialize") {
-    send({
-      jsonrpc: "2.0",
-      id,
-      result: {
-        protocolVersion: params?.protocolVersion ?? "2025-06-18",
-        capabilities: { tools: {} },
-        serverInfo: { name: config.name ?? "code", version: "2.0.0" },
-        instructions: config.instructions ?? "",
-      },
-    });
-  } else if (method === "tools/list") {
-    send({ jsonrpc: "2.0", id, result: { tools: await listTools() } });
-  } else if (method === "tools/call") {
-    const name = params?.name;
-    if (!allowed.has(name)) {
-      send({ jsonrpc: "2.0", id, result: text(`Unknown tool ${name}.`, true) });
-      return;
+// Asked at once and kept going past the wait below: a backend slow to start still gives its tools once it answers.
+const listing = upstream.connect().then((client) => client.listTools());
+// Handled now, before the harness asks anything: a backend that cannot be reached must not end this server.
+listing.catch(() => {});
+
+serveStdio(async () => {
+  const listed = await within(listing, LIST_MS).catch(() => undefined);
+  const mcp = new McpServer({ name: config.name ?? "code", version }, { capabilities: { tools: { listChanged: true } }, instructions: config.instructions || undefined });
+  const entries = new Map(allowed.map((name) => [name, mcp.registerTool(name, shownOf(name, listed), (args, ctx) => callTool(name, args, ctx))]));
+  if (listed) return mcp;
+  // Shown as unreachable: once the backend answers, each tool is shown as it is, and the harness is told the list changed.
+  let shown = false;
+  const refresh = async (client) => {
+    const late = await client.listTools().catch(() => undefined);
+    if (!late || shown) return;
+    shown = true;
+    for (const [name, entry] of entries) {
+      const { inputSchema, ...rest } = shownOf(name, late);
+      entry.update({ ...rest, paramsSchema: inputSchema });
     }
-    send({ jsonrpc: "2.0", id, result: await callTool(name, params?.arguments) });
-  } else if (method === "ping") {
-    send({ jsonrpc: "2.0", id, result: {} });
-  } else if (id !== undefined && id !== null) {
-    send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
-  }
+  };
+  upstream.connected = refresh;
+  // Its first answer may have come in the moment after the wait gave up.
+  listing.then(() => upstream.connect()).then(refresh, () => {});
+  return mcp;
 });
+
+// Its harness stops it by closing its input, or with a signal: the backend is closed first, so none is left running.
+let stopping;
+const stop = () => (stopping ??= upstream.close().catch(() => {}).finally(() => process.exit(0)));
+process.stdin.once("end", stop).once("close", stop);
+for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, stop);

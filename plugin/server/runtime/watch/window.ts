@@ -1,4 +1,4 @@
-import { type Quirks, exitOf, pseudo } from "../../catalog/timeline.ts";
+import { type Quirks, exitOf, pseudo } from "../../catalog/kit/timeline.ts";
 import type { StreamRow } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 
@@ -63,8 +63,8 @@ export class Window {
     if (type === "user_message") {
       this.push({ kind: "user", text: text(item.text), from: sentBy(item) });
       this.instructionAt = this.pushed - 1;
-    }
-    else if (type === "assistant_message") this.join("said", text(item.text), restated, text(item.messageId) || undefined);
+    } else if (type === "assistant_message")
+      this.join("said", text(item.text), restated, text(item.messageId) || undefined);
     else if (type === "reasoning") this.join("thought", text(item.text), restated);
     else if (type === "compaction") this.push({ kind: "compaction" });
     else if (type === "error") this.push({ kind: "error", text: text(item.message) || text(item.text) });

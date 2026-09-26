@@ -21,7 +21,7 @@ export type Question = {
   openedAt: number;
   /** Its lane was put on hold for it, and stays so until whoever supervises resumes it. */
   parked?: boolean;
-  answer?: { choice: string; text?: string; by: "panel" | "chat"; quote?: string; at: number };
+  answer?: { choice: string; text?: string; by: "panel" | "chat" | "desk"; quote?: string; at: number };
 };
 
 export const QUESTION = new Lifecycle<QuestionStatus, "answer" | "decline" | "cancel">({

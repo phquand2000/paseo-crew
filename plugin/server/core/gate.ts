@@ -12,6 +12,16 @@ function tailOf(text: string): string {
   return kept.length > TAIL_CHARS ? kept.slice(-TAIL_CHARS) : kept;
 }
 
+/** Kills the gate's whole process group: a leftover watcher, dev server or `&` job would keep writing into the lane's copy and the log. */
+function killGroup(pid: number | undefined): void {
+  if (pid === undefined) return;
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    // Nothing of the group was left to kill.
+  }
+}
+
 /** Reads only the tail: a gate log can grow past what a whole-file read survives. Drops a partial first line. */
 export function lastBytes(file: string, limit = 64 * 1024): string {
   try {
@@ -38,27 +48,35 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
   writeSync(fd, `$ ${command}\n`);
   return new Promise((resolve) => {
     // Straight to the log fd: a pipe would be inherited by leftover processes and hold "close" open indefinitely.
-    const child = spawn("/bin/sh", ["-c", command], { cwd, env: { ...process.env, CI: "1" }, detached: true, stdio: ["ignore", fd, fd] });
+    const child = spawn("/bin/sh", ["-c", command], {
+      cwd,
+      env: { ...process.env, CI: "1" },
+      detached: true,
+      stdio: ["ignore", fd, fd],
+    });
     let timedOut = false;
     let answered = false;
     const timer = setTimeout(() => {
       timedOut = true;
-      try {
-        process.kill(-child.pid!, "SIGKILL");
-      } catch {}
+      killGroup(child.pid);
     }, timeoutMs);
     const finish = (code: number | null) => {
       if (answered) return;
       answered = true;
       clearTimeout(timer);
-      // Kill the group: a leftover watcher, dev server or `&` job would keep writing into the lane's copy and this log.
-      try {
-        process.kill(-child.pid!, "SIGKILL");
-      } catch {}
+      killGroup(child.pid);
       try {
         closeSync(fd);
-      } catch {}
-      resolve({ ok: code === 0 && !timedOut, code, timedOut, seconds: Math.round((Date.now() - started) / 1000), tail: tailOf(lastBytes(logFile)) });
+      } catch {
+        // Closed already: the log holds what was written.
+      }
+      resolve({
+        ok: code === 0 && !timedOut,
+        code,
+        timedOut,
+        seconds: Math.round((Date.now() - started) / 1000),
+        tail: tailOf(lastBytes(logFile)),
+      });
     };
     child.on("error", () => finish(127));
     // exit, not close: the command's own answer, whatever it left running behind it.

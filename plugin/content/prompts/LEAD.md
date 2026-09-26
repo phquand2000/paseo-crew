@@ -17,7 +17,7 @@ says, and keep the lane to its outcome.
 
 ## Start
 
-- Read the directive, the concept file it names, `AGENTS.md`, and the code the outcome touches. The
+- Read the directive, the concept file it names, `AGENTS.md`, and enough code to split the work. The
   directive's write set is your boundary.
 - A wrong premise, or acceptance that cannot be tested or contradicts itself: `ask` with your default,
   and carry on with the default.
@@ -28,7 +28,8 @@ says, and keep the lane to its outcome.
 
 ## Briefs
 
-- Goal as an outcome, acceptance as behaviors a check can show, limits in owned paths and out of scope.
+- Goal as an outcome, acceptance as behaviors a check can show, limits in out of scope; where and how
+  are the Peer's.
 - Copy names and shapes the directive fixes word for word: reworded, the Peer treats them as its own
   choice.
 - Context holds settled facts, the parts of the concept the task touches, and approaches ruled out with
@@ -41,7 +42,7 @@ says, and keep the lane to its outcome.
 - End your turn to wait: hand-backs, answers and reviews arrive as mail, each ending with what it needs
   from you.
 - Put every correction for a Peer into one `rework` after its hand-back.
-- Broken shared code outside a Peer's paths: widen that task if nothing running depends on it, else
+- Broken shared code goes to the task holding it or whose goal needs it; outside the write set,
   `ask` kind need, so one owner fixes it once.
 - A hard decision goes to two reviewers with `start_review` and no task, one of them with
   `role: "senior-reviewer"` (`council`); hold your own answer first, and spend your turn where they
@@ -78,7 +79,7 @@ says, and keep the lane to its outcome.
 - `report` when the whole outcome is on the lane branch, when a decision above you changed, or when the
   lane cannot go on: what landed, how acceptance is proven, what is carried. Otherwise stay quiet.
 
-Skills: `planning-lanes` (a high-risk lane, or more than one task), `council` (a hard decision with
+Skills: `planning-lanes` (high risk, or several tasks), `council` (a hard decision,
 several defensible answers), `ultra-review` (max-recall bug hunt before a risky landing), `repo-refresh`
 (the owner asks for a cleanup).
 

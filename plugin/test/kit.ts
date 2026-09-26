@@ -1,8 +1,8 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tempDir } from "./tempdir.ts";
-import { type Kit, loadKit } from "../server/catalog/kit.ts";
-import { type ModelCache, applyModels } from "../server/catalog/models.ts";
+import { type Kit, type ModelSpec, loadKit } from "../server/catalog/kit/kit.ts";
+import { type ModelCache, applyModels } from "../server/catalog/paseo/models.ts";
 
 function put(root: string, path: string, value: unknown): void {
   const file = join(root, path);
@@ -68,21 +68,40 @@ export function makeKit(): Kit {
     skillsDir: "skills",
     stateWrites: { path: "settings.sandbox.filesystem.allowWrite", delivery: "launch" },
     projectContextOption: "additionalDirectories",
-    projectInstructions: { reads: ["CLAUDE.md", ".claude/CLAUDE.md"], otherwise: ["AGENTS.md", ".claude/AGENTS.md"], importAs: "@{path}" },
+    projectInstructions: {
+      reads: ["CLAUDE.md", ".claude/CLAUDE.md"],
+      otherwise: ["AGENTS.md", ".claude/AGENTS.md"],
+      importAs: "@{path}",
+    },
     settings: { file: "settings.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "projects", target: "HOME/.claude/projects" }],
     models: [
-      { id: "opus", label: "Opus", thinkingOptions: [{ id: "medium", label: "M" }, { id: "high", label: "H" }] },
+      {
+        id: "opus",
+        label: "Opus",
+        thinkingOptions: [
+          { id: "medium", label: "M" },
+          { id: "high", label: "H" },
+        ],
+      },
       { id: "haiku", label: "Haiku" },
     ],
     mcp: {
       file: ".claude.json",
       delivery: "launch",
       seed: { hasCompletedOnboarding: true },
-      clear: { set: { mcpServers: {}, enabledMcpjsonServers: [] }, remove: ["enableAllProjectMcpServers"], setInEach: { projects: { mcpServers: {} } } },
+      clear: {
+        set: { mcpServers: {}, enabledMcpjsonServers: [] },
+        remove: ["enableAllProjectMcpServers"],
+        setInEach: { projects: { mcpServers: {} } },
+      },
       transports: ["stdio", "http"],
     },
-    provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
+    provider: {
+      env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" },
+      profileModeId: "bypassPermissions",
+      command: ["KIT/bin/seat-room"],
+    },
   });
   put(dir, "harness/claude/settings.json", { autoMemoryEnabled: false, permissions: { deny: ["WebSearch"] } });
   put(dir, "harness/claude/settings/supervisor.settings.json", { askUserQuestionTimeout: "never" });
@@ -103,7 +122,10 @@ export function makeKit(): Kit {
     provider: { env: { SEATWORKS_HARNESS: "omp", SEATWORKS_AGENT_BIN: "omp" }, profileModeId: "full" },
     checks: [{ path: "HOME/.omp/agent/agent.db", help: "Log in with omp once, outside any seat." }],
   });
-  put(dir, "harness/omp/settings.json", { ask: { enabled: false }, bash: { patterns: [{ match: "git push*", approval: "deny" }] } });
+  put(dir, "harness/omp/settings.json", {
+    ask: { enabled: false },
+    bash: { patterns: [{ match: "git push*", approval: "deny" }] },
+  });
   put(dir, "harness/omp/settings/lead.settings.json", {});
   put(dir, "harness/omp/settings/peer.settings.json", {});
   put(dir, "harness/omp/settings/scribe.settings.json", { tools: { approval: { bash: "deny" } } });
@@ -143,7 +165,8 @@ export function makeKit(): Kit {
   put(dir, "catalog/mcp/docs/rule.md", "Look library APIs up in the docs.\n");
   // The fixture carries tool sets like the real kit, because a role names one and the kit is asked for it.
   // The shipped ecosystem, Paseo's tools, the watch's questions and what a seat's PATH refuses are the world's, not this fixture's to make up.
-  for (const name of ["ecosystem.json", "paseo.json", "checks.json", "refused.json"]) put(dir, `catalog/${name}`, readFileSync(new URL(`../catalog/${name}`, import.meta.url), "utf-8"));
+  for (const name of ["ecosystem.json", "paseo.json", "checks.json", "refused.json"])
+    put(dir, `catalog/${name}`, readFileSync(new URL(`../catalog/${name}`, import.meta.url), "utf-8"));
   put(dir, "mcp/tools.json", {
     supervisor: [{ name: "open_lane" }, { name: "answer" }, { name: "status" }],
     lead: [{ name: "add_tasks" }, { name: "report" }, { name: "ask" }, { name: "status" }],
@@ -160,7 +183,10 @@ export function makeKit(): Kit {
   const cache: ModelCache = {};
   for (const id of readdirSync(join(dir, "harness"))) {
     const file = join(dir, "harness", id, "harness.json");
-    const { models, ...rest } = JSON.parse(readFileSync(file, "utf-8"));
+    const { models, ...rest } = JSON.parse(readFileSync(file, "utf-8")) as { models?: ModelSpec[] } & Record<
+      string,
+      unknown
+    >;
     if (models) cache[id] = { at: "2026-01-01T00:00:00.000Z", models, error: null };
     writeFileSync(file, JSON.stringify(rest));
   }

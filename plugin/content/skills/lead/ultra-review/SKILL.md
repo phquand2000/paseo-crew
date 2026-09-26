@@ -53,5 +53,5 @@ It packs the reviewable files with the change's diff, turns each rule group into
 
 ## Ends in
 
-- **hunt:** the report. Fill its Rulings table: a confirmed finding becomes a task in `add_tasks` whose context names the finding IDs, whose owned paths are its scope, and whose acceptance includes its disconfirming check; a rejected one keeps its row with your reason.
+- **hunt:** the report. Fill its Rulings table: a confirmed finding becomes a task in `add_tasks` whose context names the finding IDs, whose hints point where it was found, and whose acceptance includes its disconfirming check; a rejected one keeps its row with your reason.
 - **pack:** the file and its prompt, named to the owner in `report`, who decides where they go.

@@ -4,14 +4,15 @@ import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, symlink
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
-import { loadKit, providerId } from "../../server/catalog/kit.ts";
-import { applyRole } from "../../server/catalog/launch.ts";
-import { materialize, seatDir } from "../../server/catalog/seats.ts";
-import { resolveTeam, withHarness } from "../../server/catalog/team.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
+import { providerId } from "../../server/catalog/kit/roles.ts";
+import { applyRole } from "../../server/catalog/seat/launch.ts";
+import { materialize, seatDir } from "../../server/catalog/seat/seats.ts";
+import { resolveTeam, withHarness } from "../../server/catalog/team/team.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
-import { DeskContext } from "../../server/desk/context.ts";
-import { placeLinks } from "../../server/desk/links.ts";
-import { loadConfig, pathProblem, projectWrites, saveConfig, seatWrites } from "../../server/desk/project.ts";
+import { placeLinks } from "../../server/desk/copies/links.ts";
+import { loadConfig, saveConfig } from "../../server/desk/project/project.ts";
+import { pathProblem, projectWrites, seatWrites } from "../../server/desk/project/writes.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -56,7 +57,6 @@ test("a role that commits also writes the repository's git directory, where a la
 });
 
 test("a lane copy gets a link to each ignored path the Human named, and a skip is logged for any other", async () => {
-  const kit = makeKit();
   const root = repo();
   writeFileSync(join(root, ".gitignore"), "AGENTS.md\ndocs/plans\n");
   writeFileSync(join(root, "AGENTS.md"), "rules\n");
@@ -68,30 +68,60 @@ test("a lane copy gets a link to each ignored path the Human named, and a skip i
   const project = { root, slug: "x", state: tempDir("sw2-links-state-") };
   saveConfig(project.state, { ...loadConfig(project.state), links: ["AGENTS.md", "docs/plans", "tracked.md", "../x"] });
   const lines: string[] = [];
-  const ctx = new DeskContext({ kit, outbox: { post: async () => "sent" }, log: (_project, line) => lines.push(line), teamFor: () => resolveTeam(kit, {}), indexesFor: () => [] });
-  await placeLinks(ctx, project, copy);
+  const log = (_project: unknown, line: string) => lines.push(line);
+  await placeLinks(log, project, copy);
   assert.equal(readlinkSync(join(copy.path, "AGENTS.md")), join(root, "AGENTS.md"));
   assert.equal(readlinkSync(join(copy.path, "docs", "plans")), join(root, "docs", "plans"));
   assert.throws(() => lstatSync(join(copy.path, "tracked.md")));
   assert.equal(lines.length, 2);
   assert.match(lines[0]!, /tracked\.md was not linked into working copy s1: it is not ignored by git/);
   assert.match(lines[1]!, /\.\.\/x was not linked .* leaves the project/);
-  const events = readFileSync(join(project.state, "events.log"), "utf-8").trim().split("\n").map((line) => JSON.parse(line));
-  assert.deepEqual(events.map((event) => [event.kind, event.path]), [["link.skipped", "tracked.md"], ["link.skipped", "../x"]]);
-  await placeLinks(ctx, project, copy);
+  const events = readFileSync(join(project.state, "events.log"), "utf-8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as { kind: string; path: string });
+  assert.deepEqual(
+    events.map((event) => [event.kind, event.path]),
+    [
+      ["link.skipped", "tracked.md"],
+      ["link.skipped", "../x"],
+    ],
+  );
+  await placeLinks(log, project, copy);
   assert.equal(lines.length, 4, "a path already in the copy is left as it is");
 });
 
 test("a seat's extra writes reach its sandbox at launch and in its own settings file", () => {
   const kit = makeKit();
   const team = resolveTeam(kit);
-  const config = { provider: providerId(kit, "peer", "claude"), cwd: "/repo", providerOptions: { settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } } } as unknown as AgentConfig;
-  const granted = (writes?: string[]) => (applyRole(kit, team, config, () => "", "/state/repo", {}, writes) as unknown as { providerOptions: any }).providerOptions.settings.sandbox.filesystem.allowWrite;
+  const config = {
+    provider: providerId(kit, "peer", "claude"),
+    cwd: "/repo",
+    providerOptions: { settings: { sandbox: { filesystem: { allowWrite: ["/tmp"] } } } },
+  } as unknown as AgentConfig;
+  const granted = (writes?: string[]) =>
+    (
+      applyRole(kit, team, config, () => "", "/state/repo", {}, writes) as unknown as {
+        providerOptions: { settings: { sandbox: { filesystem: { allowWrite: string[] } } } };
+      }
+    ).providerOptions.settings.sandbox.filesystem.allowWrite;
   assert.ok(!granted().includes("/repo/.git"));
   assert.ok(granted(["/repo/.git", "/repo/docs/plans"]).includes("/repo/docs/plans"));
 
   const files: Record<string, string> = {
-    "harness.json": JSON.stringify({ id: "cx", label: "Cx", baseProvider: "codex", configDirEnv: "CODEX_HOME", profileRoot: "HOME/.cx", contextFile: "AGENTS.md", skillsDir: "skills", settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml" }, stateWrites: { path: "sandbox_workspace_write.writable_roots", delivery: "file" }, mcp: { file: "config.toml", delivery: "launch", transports: ["stdio", "http"] }, provider: {} }),
+    "harness.json": JSON.stringify({
+      id: "cx",
+      label: "Cx",
+      baseProvider: "codex",
+      configDirEnv: "CODEX_HOME",
+      profileRoot: "HOME/.cx",
+      contextFile: "AGENTS.md",
+      skillsDir: "skills",
+      settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml" },
+      stateWrites: { path: "sandbox_workspace_write.writable_roots", delivery: "file" },
+      mcp: { file: "config.toml", delivery: "launch", transports: ["stdio", "http"] },
+      provider: {},
+    }),
     "settings.toml": "",
     "settings/lead.settings.toml": 'sandbox_mode = "workspace-write"\n',
   };
@@ -104,6 +134,8 @@ test("a seat's extra writes reach its sandbox at launch and in its own settings 
   const home = tempDir("sw2-links-home-");
   const where = { root: "/work/shop", slug: "shop-abc123", state: "/state/shop", writes: ["/work/shop/docs/plans"] };
   materialize(cx, lead, "lead", home, where, {});
-  const toml = parse(readFileSync(join(seatDir(cx, lead.roles.lead!.role, cx.harnesses.cx!, home, where), "config.toml"), "utf-8")) as Record<string, any>;
+  const toml = parse(
+    readFileSync(join(seatDir(cx, lead.roles.lead!.role, cx.harnesses.cx!, home, where), "config.toml"), "utf-8"),
+  ) as { sandbox_workspace_write: { writable_roots: string[] } };
   assert.deepEqual(toml.sandbox_workspace_write.writable_roots, ["/state/shop/plans", "/work/shop/docs/plans"]);
 });

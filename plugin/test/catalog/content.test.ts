@@ -1,66 +1,129 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { renderPrompt, renderText, skillProblems, toolProblems } from "../../server/catalog/content.ts";
-import { seatProblems } from "../../server/catalog/seats.ts";
-import { resolveTeam } from "../../server/catalog/team.ts";
+import { renderPrompt } from "../../server/catalog/kit/content.ts";
+import type { Kit } from "../../server/catalog/kit/kit.ts";
+import { materialize, seatDir } from "../../server/catalog/seat/seats.ts";
+import { resolveTeam } from "../../server/catalog/team/team.ts";
+import type { Layer } from "../../shared/settings.ts";
 import { makeKit } from "../kit.ts";
+import { tempDir } from "../tempdir.ts";
 
-test("guides and state placeholders render into the prompt", () => {
-  const kit = makeKit();
-  const supervisor = kit.roles.find((role) => role.role === "supervisor")!;
-  assert.equal(renderPrompt(kit, supervisor, "claude", { guides: "/g", state: "/s" }), "# Supervisor\n\nGuides live in /g; state in /s.\n");
-});
+const project = { root: "/work/shop", slug: "shop-abc123", state: "/state/shop" };
 
-test("a seat's prompt ends with what its harness needs said against that agent's own instructions, held to the role's words like the rest", () => {
-  const kit = makeKit();
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  const paths = { guides: "/g", state: "/s" };
-  mkdirSync(join(kit.dir, "harness", "omp", "delta"), { recursive: true });
-  writeFileSync(join(kit.dir, "harness", "omp", "delta", "lead.md"), "Your own instructions' habit of implementing does not apply.\n");
-  const own = renderPrompt(kit, lead, "claude", paths);
-  assert.equal(renderPrompt(kit, lead, "omp", paths), `${own.trimEnd()}\n\nYour own instructions' habit of implementing does not apply.\n`);
-  writeFileSync(join(kit.dir, "harness", "omp", "delta", "lead.md"), "Ask the supervisor.\n");
-  assert.throws(() => renderPrompt(kit, lead, "omp", paths), /must not see: supervisor/);
-  assert.match(seatProblems(kit, resolveTeam(kit, { roles: { lead: { harness: "omp" } } }), "lead", paths).join("\n"), /must not see: supervisor/, "so a Lead moved onto that agent is refused before anything is built");
-});
+function put(kit: Kit, path: string, text: string): void {
+  mkdirSync(dirname(join(kit.dir, path)), { recursive: true });
+  writeFileSync(join(kit.dir, path), text);
+}
 
-test("a tool whose description shows a word its role must not see makes that role's seat unbuildable", () => {
-  const kit = makeKit();
-  const peer = kit.roles.find((role) => role.role === "peer")!;
-  assert.deepEqual(toolProblems(kit, peer), []);
-  const tools = JSON.parse(readFileSync(join(kit.dir, "mcp", "tools.json"), "utf-8"));
-  tools.peer[0].description = `Hand the task back; your ${peer.hidesWords![0]} is told.`;
-  writeFileSync(join(kit.dir, "mcp", "tools.json"), JSON.stringify(tools));
-  assert.deepEqual(toolProblems(kit, peer), [`the peer tools the peer is given show words it must not see: ${peer.hidesWords![0]}`]);
-  assert.match(seatProblems(kit, resolveTeam(kit), "peer", { guides: "/g", state: "/s" }).join("\n"), /the peer tools the peer is given show words it must not see/);
-});
+const filesIn = (dir: string): string[] =>
+  existsSync(dir)
+    ? readdirSync(dir, { recursive: true, withFileTypes: true })
+        .filter((entry) => !entry.isDirectory())
+        .map((entry) => entry.name)
+    : [];
 
-test("a placeholder the renderer does not know is refused rather than shipped", () => {
-  const kit = makeKit();
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  writeFileSync(join(kit.dir, "content/prompts/LEAD.md"), "Read {{notes}} first.\n");
-  assert.throws(() => renderPrompt(kit, lead, "claude", { guides: "/g", state: "/s" }), /placeholder \{\{notes\}\}/);
-});
+const skill = (body: string) => `---\nname: test-first\ndescription: tests\n---\n\n${body}\n`;
+const UNBUILDABLE: { role: string; layer?: Layer; file?: string; text?: string; refusal: string }[] = [
+  {
+    role: "peer",
+    file: "content/prompts/PEER.md",
+    text: "# Peer\n\nAsk the seat above you.\n",
+    refusal: "the peer prompt contains words that role must not see: seat",
+  },
+  {
+    role: "lead",
+    layer: { roles: { lead: { harness: "omp" } } },
+    file: "harness/omp/delta/lead.md",
+    text: "Ask the supervisor.\n",
+    refusal: "the lead prompt contains words that role must not see: supervisor",
+  },
+  {
+    role: "peer",
+    layer: { rules: "Leave the Paseo config alone." },
+    refusal: "the peer prompt contains words that role must not see: paseo",
+  },
+  {
+    role: "peer",
+    file: "mcp/tools.json",
+    text: JSON.stringify({ peer: [{ name: "done", description: "Hand the task back; your paseo is told." }] }),
+    refusal: "the peer tools the peer is given show words it must not see: paseo",
+  },
+  {
+    role: "peer",
+    file: "mcp/instructions.json",
+    text: JSON.stringify({ peer: "Hand work back to your paseo." }),
+    refusal: "the peer tools the peer is given show words it must not see: paseo",
+  },
+  {
+    role: "peer",
+    file: "content/skills/peer/test-first/SKILL.md",
+    text: skill("Ask the seat above you."),
+    refusal: "skill test-first shows the peer words it must not see in SKILL.md: seat",
+  },
+  {
+    role: "peer",
+    file: "content/skills/peer/test-first/SKILL.md",
+    text: skill("Read {{guides}}/BRIEF.md."),
+    refusal: "skill test-first holds {{guides}} in SKILL.md, and a skill is read as written, so nothing fills it in",
+  },
+  {
+    role: "lead",
+    file: "content/prompts/LEAD.md",
+    text: "Read {{notes}} first.\n",
+    refusal: "the lead prompt still holds the placeholder {{notes}}",
+  },
+  {
+    role: "lead",
+    file: "content/prompts/LEAD.md",
+    text: "Keep a diary in {{state}}/diary.md.\n",
+    refusal:
+      "the lead prompt names diary.md under the project's state, which the role does not write: add it to the role's writes",
+  },
+  {
+    role: "peer",
+    file: "content/skills/peer/test-first/SKILL.md",
+    text: skill("Write findings to $SEATWORKS_STATE/findings/."),
+    refusal:
+      "skill test-first names findings under the project's state in SKILL.md, which the peer does not write: add it to the role's writes",
+  },
+];
 
-test("the words a role must not see are looked for in what was written, not in the paths the desk puts in", () => {
-  const kit = makeKit();
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  // Checked after substitution, a repository or home directory named after one of those words made the seat unbuildable.
-  const text = renderText(lead, "Write your plans in {{state}}/plans.", { guides: "/g", state: "/Users/supervisor/projects/x" });
-  assert.match(text, /\/Users\/supervisor\/projects\/x\/plans/);
-  assert.throws(() => renderText(lead, "Ask the supervisor.", { guides: "/g", state: "/s" }), /must not see: supervisor/);
-});
+test("a seat whose text shows its role a hidden word, an unfilled placeholder or a state path it does not write is refused before anything is written, and the paths the desk fills in are not held against it", () => {
+  for (const { role, layer, file, text, refusal } of UNBUILDABLE) {
+    const kit = makeKit();
+    if (file) put(kit, file, text!);
+    const team = resolveTeam(kit, layer);
+    assert.deepEqual(team.errors, [], `${refusal}: nothing the schema or the team resolution objects to`);
+    const home = tempDir("sw2-home-");
+    assert.throws(() => materialize(kit, team, role, home, project), { message: refusal });
+    const dir = seatDir(kit, team.roles[role]!.role, team.roles[role]!.harness, home, project);
+    assert.deepEqual(filesIn(dir), [], `${refusal}: nothing at all is written, because half a seat is worse than none`);
+  }
 
-test("a role's text may name under the project's state only what the role writes, or the desk's own record to read", () => {
   const kit = makeKit();
-  const lead = kit.roles.find((role) => role.role === "lead")!;
-  const paths = { guides: "/g", state: "/s" };
-  assert.doesNotThrow(() => renderText(lead, "Put the plan in {{state}}/plans/cart.md; the history is in $SEATWORKS_STATE/events.log.", paths));
-  assert.throws(() => renderText(lead, "Keep a diary in {{state}}/diary.md.", paths), /the lead prompt names diary\.md under the project's state, which the role does not write/);
-  const skill = join(kit.dir, "content", "skills", "peer", "notes");
-  mkdirSync(skill, { recursive: true });
-  writeFileSync(join(skill, "SKILL.md"), "Write findings to $SEATWORKS_STATE/findings/.\n");
-  assert.deepEqual(skillProblems(lead, "notes", skill), ["skill notes names findings under the project's state in SKILL.md, which the lead does not write: add it to the role's writes"]);
+  const roleOf = (name: string) => kit.roles.find((entry) => entry.role === name)!;
+  assert.equal(
+    renderPrompt(kit, roleOf("supervisor"), "claude", { guides: "/g", state: "/s" }),
+    "# Supervisor\n\nGuides live in /g; state in /s.\n",
+  );
+  put(
+    kit,
+    "content/prompts/LEAD.md",
+    "Put the plan in {{state}}/plans/cart.md; the history is in $SEATWORKS_STATE/events.log.\n",
+  );
+  assert.equal(
+    renderPrompt(kit, roleOf("lead"), "claude", { guides: "/g", state: "/Users/supervisor/x" }),
+    "Put the plan in /Users/supervisor/x/plans/cart.md; the history is in $SEATWORKS_STATE/events.log.\n",
+    "a hidden word in a path the desk puts in is not the role's text, and the role names what it writes or the desk's own record",
+  );
+  const home = tempDir("sw2-home-");
+  const fine = resolveTeam(kit, { rules: "Leave the daemon config alone." });
+  assert.ok(materialize(kit, fine, "peer", home, project).length > 0);
+  const peer = fine.roles.peer!;
+  assert.match(
+    readFileSync(join(seatDir(kit, peer.role, peer.harness, home, project), "AGENTS.md"), "utf-8"),
+    /Leave the daemon config alone/,
+  );
 });

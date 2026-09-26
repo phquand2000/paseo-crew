@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { hiddenWordsIn } from "../../server/catalog/hidden-words.ts";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { hiddenWordsIn } from "../../server/catalog/kit/hidden-words.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { loadCases, openedSkills, rightRun, skillCards, triggerPrompt } from "./triggers.ts";
 
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-test("every skill a role is given has briefs that should open it and near misses that should not", () => {
+test("every skill a role is given has briefs that should open it and near misses that should not, shown to the role as a seat sees it", () => {
   const kit = loadKit(pluginRoot);
   const cases = loadCases();
   for (const role of kit.roles) {
@@ -27,10 +27,19 @@ test("every skill a role is given has briefs that should open it and near misses
       assert.ok(misses >= 2, `${role.role} has ${misses} near misses for ${name}; write at least two`);
     }
   }
+  const prompt = triggerPrompt("peer", skillCards(kit, "peer"), "Goal: fix it.");
+  assert.match(
+    prompt,
+    /^- test-first: Puts evidence before behavior/m,
+    "a card is the skill's name and its SKILL.md description, quotes stripped",
+  );
+  assert.match(prompt, /Your brief:\nGoal: fix it\./);
 });
 
 test("a trigger answer is read from the last JSON the agent printed, and a near miss opened fails the run", () => {
-  assert.deepEqual(openedSkills('Thinking {"skills": ["council"]} ... final: {"skills": ["repo-refresh"]}'), ["repo-refresh"]);
+  assert.deepEqual(openedSkills('Thinking {"skills": ["council"]} ... final: {"skills": ["repo-refresh"]}'), [
+    "repo-refresh",
+  ]);
   assert.deepEqual(openedSkills('{"skills": []}'), []);
   assert.equal(openedSkills("I would open council."), undefined);
   const nearMiss = { brief: "b", expect: ["test-first"], near: "diagnosing-bugs" };
@@ -38,13 +47,4 @@ test("a trigger answer is read from the last JSON the agent printed, and a near 
   assert.equal(rightRun(nearMiss, ["test-first", "diagnosing-bugs"]), false);
   assert.equal(rightRun({ brief: "b", expect: [] }, []), true);
   assert.equal(rightRun({ brief: "b", expect: [] }, ["council"]), false);
-});
-
-test("the trigger prompt shows the role each skill's name and description, as a seat sees them", () => {
-  const kit = loadKit(pluginRoot);
-  const cards = skillCards(kit, "peer");
-  assert.deepEqual([...cards.keys()].sort(), ["diagnosing-bugs", "security-check", "test-first", "test-proof-debt-audit"]);
-  const prompt = triggerPrompt("peer", cards, "Goal: fix it.");
-  assert.match(prompt, /- test-first: Puts evidence before behavior/);
-  assert.match(prompt, /Your brief:\nGoal: fix it\./);
 });

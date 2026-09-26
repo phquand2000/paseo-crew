@@ -1,7 +1,13 @@
 import type { Page, StreamMessage, TimelineHandle } from "../../server/core/stream.ts";
 
 type Row = { item: Record<string, unknown>; seq: number; turnId: string | null };
-type Entry = { item: Record<string, unknown>; seqStart: number; seqEnd: number; sources: number[]; turnId: string | null };
+type Entry = {
+  item: Record<string, unknown>;
+  seqStart: number;
+  seqEnd: number;
+  sources: number[];
+  turnId: string | null;
+};
 
 const ENDS = new Set(["turn_completed", "turn_failed", "turn_canceled"]);
 
@@ -15,15 +21,32 @@ function project(rows: Row[]): Entry[] {
     const { item } = row;
     const call = item.type === "tool_call" ? calls.get(String(item.callId)) : undefined;
     if (call && call.turnId === row.turnId) {
-      const detail = item.detail === undefined || (!known(item.detail) && known(call.item.detail)) ? call.item.detail : item.detail;
-      Object.assign(call, { item: { ...call.item, ...item, detail }, seqEnd: Math.max(call.seqEnd, row.seq), sources: [...call.sources, row.seq] });
+      const detail =
+        item.detail === undefined || (!known(item.detail) && known(call.item.detail)) ? call.item.detail : item.detail;
+      Object.assign(call, {
+        item: { ...call.item, ...item, detail },
+        seqEnd: Math.max(call.seqEnd, row.seq),
+        sources: [...call.sources, row.seq],
+      });
       continue;
     }
     const previous = entries.at(-1);
     const text = item.type === "assistant_message" || item.type === "reasoning";
-    const sameMessage = item.type !== "assistant_message" || item.messageId === undefined || item.messageId === previous?.item.messageId;
-    if (text && previous && previous.item.type === item.type && previous.seqEnd + 1 === row.seq && previous.turnId === row.turnId && sameMessage) {
-      Object.assign(previous, { item: { ...previous.item, text: `${previous.item.text}${item.text}` }, seqEnd: row.seq, sources: [...previous.sources, row.seq] });
+    const sameMessage =
+      item.type !== "assistant_message" || item.messageId === undefined || item.messageId === previous?.item.messageId;
+    if (
+      text &&
+      previous &&
+      previous.item.type === item.type &&
+      previous.seqEnd + 1 === row.seq &&
+      previous.turnId === row.turnId &&
+      sameMessage
+    ) {
+      Object.assign(previous, {
+        item: { ...previous.item, text: `${String(previous.item.text)}${String(item.text)}` },
+        seqEnd: row.seq,
+        sources: [...previous.sources, row.seq],
+      });
       continue;
     }
     const entry = { item, seqStart: row.seq, seqEnd: row.seq, sources: [row.seq], turnId: row.turnId };
@@ -36,7 +59,8 @@ function project(rows: Row[]): Entry[] {
 /** The tail keeps earlier entries whose updates land inside it, as `selectProjectedEntriesTail` does; no limit is everything. */
 function tail(entries: Entry[], limit: number): Entry[] {
   let start = limit === 0 ? 0 : Math.max(0, entries.length - limit);
-  for (let index = start - 1; index >= 0; index--) if (entries[index]!.seqEnd >= entries[start]!.seqStart) start = index;
+  for (let index = start - 1; index >= 0; index--)
+    if (entries[index]!.seqEnd >= entries[start]!.seqStart) start = index;
   return entries.slice(start);
 }
 
@@ -60,12 +84,19 @@ export class FakeTimeline implements TimelineHandle {
   }
 
   /** A stale cursor gets the tail, and an `after` page every entry with a source row past the cursor, whole. */
-  async refetch(options: { direction: "tail" | "after"; cursor?: { epoch: string; seq: number }; limit?: number }): Promise<Page> {
+  async refetch(options: {
+    direction: "tail" | "after";
+    cursor?: { epoch: string; seq: number };
+    limit?: number;
+  }): Promise<Page> {
     this.fetches.push({ direction: options.direction, from: options.cursor?.seq });
     const stale = options.cursor !== undefined && options.cursor.epoch !== this.epoch;
     const entries = project(this.rows);
     const from = options.cursor?.seq ?? 0;
-    const page = options.direction === "tail" || stale ? tail(entries, options.limit ?? 200) : entries.filter((entry) => entry.sources.some((seq) => seq > from));
+    const page =
+      options.direction === "tail" || stale
+        ? tail(entries, options.limit ?? 200)
+        : entries.filter((entry) => entry.sources.some((seq) => seq > from));
     return {
       epoch: this.epoch,
       entries: page.map(({ item, seqStart, seqEnd, turnId }) => ({ item, seqStart, seqEnd, turnId })),

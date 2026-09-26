@@ -16,6 +16,14 @@ export function midTurn(status: string | null | undefined): boolean {
   return status === "running" || status === "initializing";
 }
 
-export type PendingPermission = { id?: string; kind?: string; name?: string; title?: string; description?: string; input?: Record<string, unknown> };
+export type PendingPermission = {
+  id?: string;
+  kind?: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  input?: Record<string, unknown>;
+};
 
-export type PermissionResponse = { behavior: "allow"; updatedInput?: Record<string, unknown> } | { behavior: "deny"; message?: string };
+export type PermissionResponse =
+  { behavior: "allow"; updatedInput?: Record<string, unknown> } | { behavior: "deny"; message?: string };

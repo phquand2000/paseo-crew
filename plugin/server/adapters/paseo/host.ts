@@ -1,8 +1,10 @@
 import type { PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import type { Host, HostHooks, Models } from "../../core/ports.ts";
 import { type PaseoApi, seatsOn, workspacesOn } from "./agents.ts";
+import { daemonLog } from "../../core/logger.ts";
 
-type Answer = (input: any) => unknown;
+/** Answers one contract's calls; Paseo has read each input with the contract's schema before the answer sees it. */
+type Answering = <I>(contract: { name: string }, answer: (input: I) => unknown) => void;
 type Handle = (contract: { name: string }, handler: (input: unknown, context: { paseo: PaseoApi }) => unknown) => void;
 
 /** Paseo hands the plugin its API only with a hook or a panel call, so each one binds it before the plugin acts. */
@@ -11,9 +13,11 @@ export class PaseoHost implements Host {
   readonly workspaces;
   readonly models: Models;
   private api: PaseoApi | undefined;
+  private arrived = () => {};
+  private readonly arrival = new Promise<void>((resolve) => (this.arrived = resolve));
 
   constructor(api?: PaseoApi) {
-    this.api = api;
+    if (api) this.bind(api);
     this.seats = seatsOn(() => this.api);
     this.workspaces = workspacesOn(() => this.api);
     this.models = {
@@ -28,14 +32,19 @@ export class PaseoHost implements Host {
     return this.api !== undefined;
   }
 
+  reached(): Promise<void> {
+    return this.arrival;
+  }
+
   connect(server: PluginServerContext, hooks: HostHooks): void {
     server.before("agent.create", ({ request }, context) => {
-      this.api = context.paseo;
+      this.bind(context.paseo);
+      const made = hooks.create(request.config, request.env ?? {});
       // The plugin's config type is narrower than Paseo's, and the daemon checks what a hook returns.
-      return { ...request, config: hooks.create(request.config) as typeof request.config };
+      return { ...request, config: made.config as typeof request.config, env: made.env };
     });
     server.before("agent.session_open", ({ request }, context) => {
-      this.api = context.paseo;
+      this.bind(context.paseo);
       return { ...request, ...hooks.sessionOpen(request) };
     });
     this.on(server, "agent.turn_started", ({ agent }) => hooks.turnStarted(agent));
@@ -46,25 +55,34 @@ export class PaseoHost implements Host {
   }
 
   /** Panel calls carry the live daemon handle: after a reload with no seat hooks yet, it is the desk's only way to get one. */
-  answering(server: Pick<PluginServerContext, "handle">): (contract: { name: string }, answer: Answer) => void {
+  answering(server: Pick<PluginServerContext, "handle">): Answering {
     const handle = server.handle.bind(server) as unknown as Handle;
-    return (contract, answer) =>
+    return <I>(contract: { name: string }, answer: (input: I) => unknown) =>
       handle(contract, (input, context) => {
-        this.api = context.paseo;
-        return answer(input);
+        this.bind(context.paseo);
+        return answer(input as I);
       });
   }
 
   /** A hook that throws is logged here and goes no further, as Paseo would only log it too. */
-  private on<N extends keyof PluginLifecycleEvents>(server: PluginServerContext, name: N, handler: (event: PluginLifecycleEvents[N]) => Promise<void>): void {
+  private on<N extends keyof PluginLifecycleEvents>(
+    server: PluginServerContext,
+    name: N,
+    handler: (event: PluginLifecycleEvents[N]) => Promise<void>,
+  ): void {
     server.on(name, async (event, context) => {
-      this.api = context.paseo;
+      this.bind(context.paseo);
       try {
         await handler(event);
       } catch (error) {
-        console.error(`seatworks-v2: ${name} handler failed:`, error);
+        daemonLog.error(`${name} handler failed:`, error);
       }
     });
+  }
+
+  private bind(api: PaseoApi): void {
+    this.api = api;
+    this.arrived();
   }
 
   private reach(): PaseoApi {

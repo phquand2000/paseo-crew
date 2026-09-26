@@ -43,7 +43,8 @@
   "provider": {
     "env": {
       "SEATWORKS_HARNESS": "omp",
-      "SEATWORKS_AGENT_BIN": "omp"
+      "SEATWORKS_AGENT_BIN": "omp",
+      "OMP_MCP_TIMEOUT_MS": "600000"
     },
     "profileModeId": "full"
   }

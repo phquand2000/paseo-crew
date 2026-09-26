@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { skillSources } from "../../server/catalog/content.ts";
-import type { Kit } from "../../server/catalog/kit.ts";
+import { skillSources } from "../../server/catalog/kit/content.ts";
+import type { Kit } from "../../server/catalog/kit/kit.ts";
 
 export type TriggerCase = { brief: string; expect: string[]; near?: string };
 
@@ -18,7 +18,11 @@ export function skillCards(kit: Kit, role: string): Map<string, string> {
   const cards = new Map<string, string>();
   for (const [name, dir] of skillSources(kit, spec)) {
     const head = readFileSync(join(dir, "SKILL.md"), "utf-8").match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
-    const description = head.match(/^description:\s*(.*)$/m)?.[1]?.trim().replace(/^"(.*)"$/, "$1").replaceAll('\\"', '"');
+    const description = head
+      .match(/^description:\s*(.*)$/m)?.[1]
+      ?.trim()
+      .replace(/^"(.*)"$/, "$1")
+      .replaceAll('\\"', '"');
     if (!description) throw new Error(`skill ${name} has no description`);
     cards.set(name, description);
   }

@@ -18,6 +18,12 @@ export function coverGlob(path: string): string {
 
 export const coverOf = (path: string): RegExp => globToRegex(coverGlob(path));
 
+/** Whether one of `paths` covers `file`, read as git reads a path: a bare directory holds what is under it. */
+export const covers = (paths: string[], file: string): boolean => paths.some((path) => coverOf(path).test(file));
+
+/** The files none of `paths` covers. */
+export const uncovered = (files: string[], paths: string[]): string[] => files.filter((file) => !covers(paths, file));
+
 export function globToRegex(pattern: string): RegExp {
   return new RegExp(`^(?:${alternatives(normalize(pattern)).map(regexBody).join("|")})$`);
 }
@@ -80,7 +86,9 @@ function meet(a: string[], b: string[]): boolean {
 }
 
 function patternsOverlap(a: string, b: string): boolean {
-  return alternatives(normalize(a)).some((left) => alternatives(normalize(b)).some((right) => meet(left.split("/"), right.split("/"))));
+  return alternatives(normalize(a)).some((left) =>
+    alternatives(normalize(b)).some((right) => meet(left.split("/"), right.split("/"))),
+  );
 }
 
 export function firstOverlap(left: string[], right: string[]): string | undefined {

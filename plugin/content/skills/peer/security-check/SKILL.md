@@ -5,7 +5,7 @@ description: "Checks a change at code level for harm untrusted input or a carele
 
 # Security check
 
-You look for ways the change lets untrusted input or a careless caller cause harm, and turn each abuse case into a test. The scope is the change and the paths it touches; infrastructure and dependency audits only when the brief asks. With no owned paths, report findings and describe each test instead of writing it.
+You look for ways the change lets untrusted input or a careless caller cause harm, and turn each abuse case into a test. The scope is the change and the paths it touches; infrastructure and dependency audits only when the brief asks. When the brief asks only for findings, report them and describe each test instead of writing it.
 
 ## What to check
 
@@ -15,11 +15,11 @@ You look for ways the change lets untrusted input or a careless caller cause har
 4. **Secrets.** Search the diff for credentials. Secrets come from the environment or a secret store, stay out of logs and errors, and are compared in constant time. A real secret already committed goes to `ask` at once: rotating it is not your decision, and deleting the line doesn't take it back.
 5. **Edge values.** For every new parameter, option or flag, write down what 0, negative, empty, null or missing, maximum and very long input mean: `timeout=0` could mean never or immediately, and an empty allowlist could allow everything. The default is the safe choice, a parse error denies, no two settings combine into a bypass, and a caller can't ignore a failed check.
 6. **Failure.** A failed check denies, and messages to a caller carry no stack traces, internal paths, queries, secrets or other users' data.
-7. **Tests.** Turn each abuse case in your owned paths into a failing test at its seam with the test-first loop ("another user's record returns 403", "`../../etc/passwd` is rejected"), then fix it.
+7. **Tests.** Turn each abuse case the change reaches into a failing test at its seam with the test-first loop ("another user's record returns 403", "`../../etc/passwd` is rejected"), then fix it.
 
 ## Ends in
 
-`done`. Working a task, fixed issues are commits with their abuse-case tests in `checks`; a decision that isn't yours (the auth model, accepting a risk, rotating a secret, CORS or rate-limit policy) goes in `leftUndone` with the consequence of each option, or to `ask` when it blocks the task, and a problem outside your owned paths goes in `discovered`. Reviewing, each finding goes in `done`'s findings with its test described, not written. Write each finding as:
+`done`. Working a task, fixed issues are commits with their abuse-case tests in `checks`; a decision that isn't yours (the auth model, accepting a risk, rotating a secret, CORS or rate-limit policy) goes in `leftUndone` with the consequence of each option, or to `ask` when it blocks the task, and a problem outside what your goal reaches goes in `discovered`. Reviewing, each finding goes in `done`'s findings with its test described, not written. Write each finding as:
 
 ```text
 S1          P0-P3, confidence high | medium | low

@@ -1,34 +1,45 @@
-import type { Team } from "../catalog/team.ts";
-import { type Kit, type SensorSpec, schemaOf, seatOf } from "../catalog/kit.ts";
+import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
+import type { Team } from "../catalog/team/team.ts";
+import { KeyedQueue } from "../core/keyed-queue.ts";
+import { midTurn } from "../core/paseo.ts";
+import { intentsPath } from "../core/paths.ts";
+import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import type { Finding } from "../domain/incident.ts";
 import type { TaskMove, TaskStatus } from "../domain/task.ts";
-import { intentsPath } from "../core/paths.ts";
-import { midTurn } from "../core/paseo.ts";
-import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
-import { Agents } from "./agents.ts";
-import type { Moment } from "./checks.ts";
-import { argsProblems, shapeOf, typedArgs, withoutNulls } from "./args.ts";
-import { sortKeys } from "../core/store.ts";
-import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type Sync, type ToolReply, type ToolRequest, no, ok } from "./context.ts";
-import { errorText } from "../core/errors.ts";
-import type { DeskEvent } from "./events.ts";
-import { Human } from "./human.ts";
-import { type Ledger, type Task, loadLedger } from "./ledger.ts";
-import { clip } from "../core/text.ts";
-import { landLetters } from "./land-letters.ts";
-import { type Letter, letters } from "./letters.ts";
-import { Intents } from "./intents.ts";
-import { tidyRecords } from "./records.ts";
-import { archiveFinished } from "./archive.ts";
-import { reapKept } from "./kept.ts";
-import { MergeQueue } from "./merge.ts";
-import { type Project, projectOf } from "./project.ts";
-import { Roster } from "./roster.ts";
-import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
-import { Slots } from "./slots.ts";
-import { type Noticed, closeIncidentsOf, notice, retell } from "./notice.ts";
-import { openWaiting, startWaiting } from "./waiting.ts";
-import { Watcher } from "./watcher.ts";
+import type { DeskBase } from "./base.ts";
+import { ToolCalls } from "./calls/tool-calls.ts";
+import { Claims } from "./claims.ts";
+import type { CodeIndex, Mailer, Posted, ToolReply, ToolRequest } from "./context.ts";
+import { OwnCopy } from "./copies/own-copy.ts";
+import { Slots } from "./copies/slots.ts";
+import { Human } from "./human/human.ts";
+import { type Letter } from "./letters/envelope.ts";
+import { messageLetters } from "./letters/message-letters.ts";
+import type { Project } from "./project/project.ts";
+import { Agents } from "./seats/agents.ts";
+import { markGone } from "./seats/gone.ts";
+import { reapKept } from "./seats/kept.ts";
+import { Roster } from "./seats/roster.ts";
+import { Teardowns } from "./seats/teardown.ts";
+import { turnsEnded } from "./seats/turn-ends.ts";
+import type { DeskServices, ToolDef } from "./services.ts";
+import { archiveFinished } from "./store/archive.ts";
+import { recordEvent } from "./store/event-log.ts";
+import type { DeskEvent } from "./store/events.ts";
+import { IncidentStore } from "./store/incident-store.ts";
+import { Intents } from "./store/intents.ts";
+import type { Lane } from "../domain/lane.ts";
+import type { Ledger } from "../domain/ledger.ts";
+import type { Task } from "../domain/task.ts";
+import { loadLedger } from "./store/ledger.ts";
+import { LedgerStore, type Sync } from "./store/ledger-store.ts";
+import { tidyRecords } from "./store/records.ts";
+import { MergeQueue } from "./tasks/merge-queue.ts";
+import { openWaiting } from "./waiting/lanes.ts";
+import { startWaiting } from "./waiting/tasks.ts";
+import type { Moment } from "./watch/checks.ts";
+import { type Noticed, closeIncidentsOf, notice, retell } from "./watch/notice.ts";
+import { Watcher } from "./watch/watcher.ts";
 
 type DeskOptions = {
   kit: Kit;
@@ -42,46 +53,52 @@ type DeskOptions = {
   sensor?: (spec: SensorSpec, key: string) => Judge;
 };
 
-const SPEAKS = ["done", "ask", "answer", "message", "report"];
-
-const ANSWER_WITHIN_MS = 240_000;
-
+/** The desk: it builds the services every tool and flow shares, and is what the runtime, its hooks and the panel call. */
 export class Desk {
   readonly projects: Map<string, Project>;
   readonly human: Human;
   readonly watcher: Watcher;
   private readonly services: DeskServices;
   private readonly intents: Intents;
-  private readonly tools: ToolDef[];
-  /** Whether a call from this seat is still being worked on — which is not silence. */
-  inFlight(agentId: string): boolean {
-    return [...this.running.keys()].some((key) => key.startsWith(`${agentId}\n`));
-  }
-
-  private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
+  private readonly calls: ToolCalls;
 
   constructor(options: DeskOptions) {
-    const ctx = new DeskContext({
+    const projects = new Map<string, Project>();
+    const touched = (project: Project) => {
+      projects.set(project.slug, project);
+    };
+    const base: DeskBase = {
       kit: options.kit,
-      outbox: options.outbox,
+      projects,
+      ledgers: new LedgerStore(touched),
+      incidents: new IncidentStore(touched),
+      mail: { post: async (to, letter) => (to ? options.outbox.post({ to, ...letter }) : "nobody") },
       log: options.log,
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
-      sensor: options.sensor,
-    });
+      sensorFor: (spec, key) => options.sensor?.(spec, key),
+      seating: new Claims(),
+      closing: new Claims(),
+      landings: new KeyedQueue(),
+      lastStatus: new Map(),
+    };
     this.intents = new Intents(intentsPath());
     const roster = new Roster(options.kit, options.seats, this.intents);
-    const slots = new Slots(ctx, options.workspaces);
-    const agents = new Agents(ctx, roster, slots, options.workspaces);
-    this.watcher = new Watcher(ctx, roster, agents);
-    this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx, agents), watcher: this.watcher };
-    this.tools = options.tools;
-    this.projects = ctx.projects;
+    const slots = new Slots(base, options.workspaces);
+    const ownCopy = new OwnCopy(base, slots);
+    const teardowns = new Teardowns(base, slots, ownCopy);
+    const agents = new Agents(base, roster, slots, teardowns, options.workspaces);
+    this.watcher = new Watcher(base, roster, agents);
+    const merges = new MergeQueue(base, (project) => startWaiting(this.services, project, true));
+    this.services = { ...base, roster, slots, ownCopy, teardowns, agents, merges, watcher: this.watcher };
+    const mail = { intents: this.intents, post: (to: string, letter: Letter) => base.mail.post(to, letter) };
+    this.calls = new ToolCalls(this.services, options.tools, mail);
+    this.projects = projects;
     this.human = new Human(this.services);
   }
 
   transact<T>(project: Project, decide: (ledger: Ledger) => Sync<T>): T {
-    return this.services.ctx.transact(project, decide);
+    return this.services.ledgers.transact(project, decide);
   }
 
   settled(project: Project): Promise<unknown> {
@@ -89,7 +106,7 @@ export class Desk {
   }
 
   event(project: Project, data: DeskEvent): void {
-    this.services.ctx.event(project, data);
+    recordEvent(project, data);
   }
 
   notice(project: Project, seat: Noticed, findings: Finding[], moment?: Moment): ReturnType<typeof notice> {
@@ -100,16 +117,23 @@ export class Desk {
     return retell(this.services, project);
   }
 
-  closeIncidents(project: Project, seat: string): string[] {
-    return closeIncidentsOf(this.services, project, seat);
+  /** Paseo archived a seat: its binding is let go, and a watched seat's incidents close with it. */
+  archived(project: Project, seat: string, watched: boolean): void {
+    markGone(this.services, project, seat);
+    this.services.lastStatus.delete(seat);
+    if (watched) closeIncidentsOf(this.services, project, seat);
   }
 
   post(to: string | undefined, letter: Letter): Promise<Posted | "nobody"> {
-    return this.services.ctx.post(to, letter);
+    return this.services.mail.post(to, letter);
   }
 
   supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
     return this.services.roster.supervisorFor(project, preferred);
+  }
+
+  readerOf(project: Project, lane: Lane | undefined): ReturnType<Roster["readerOf"]> {
+    return this.services.roster.readerOf(project, lane);
   }
 
   archive(agentId: string | undefined, force = false): Promise<void> {
@@ -122,7 +146,7 @@ export class Desk {
 
   /** A seat's turn ended: finish the teardown its own writing was holding up. */
   stopped(agentId: string): Promise<void> {
-    return this.turnsEnded((id) => id === agentId);
+    return turnsEnded(this.services, (id) => id === agentId);
   }
 
   /**
@@ -131,9 +155,10 @@ export class Desk {
    */
   async resume(listed: Map<string, SeatView>): Promise<void> {
     await this.services.roster.archiveWaiting(listed);
-    await this.turnsEnded((id) => !midTurn(listed.get(id)?.status));
+    await turnsEnded(this.services, (id) => !midTurn(listed.get(id)?.status));
     for (const promised of this.intents.promised()) {
-      if (listed.has(promised.agent)) await this.services.ctx.post(promised.agent, letters.unanswered(promised));
+      if (listed.has(promised.agent))
+        await this.services.mail.post(promised.agent, messageLetters.unanswered(promised));
       this.intents.kept(promised);
     }
   }
@@ -143,39 +168,22 @@ export class Desk {
     return this.services.merges.resume(project);
   }
 
-  private async turnsEnded(ended: (agentId: string) => boolean): Promise<void> {
-    await this.services.slots.stopped(ended);
-    const { ctx } = this.services;
-    for (const project of ctx.projects.values()) {
-      this.services.merges.retry(project).catch((error) => ctx.log(project, `merge retry failed: ${errorText(error)}`));
-      const waiting = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open" && lane.landing?.writers.some(ended));
-      for (const lane of waiting) {
-        // Who is left is worked out where it is written: a turn that ended meanwhile must not be written back as still in the way.
-        const by = ctx.transact(project, (ledger) => {
-          const entry = ledger.lanes[lane.id];
-          if (!entry?.landing) return undefined;
-          entry.landing.writers = entry.landing.writers.filter((id) => !ended(id));
-          if (entry.landing.writers.length > 0) return undefined;
-          const { by } = entry.landing;
-          delete entry.landing;
-          return by;
-        });
-        if (by) await ctx.post(by, landLetters.canLand(lane));
-      }
-    }
-  }
-
   /** In the round: finish a teardown whose writers are not seats any more, and put away a copy kept for a Lead that is gone. */
   reapSlots(project: Project, live: Set<string>): Promise<void> {
     return reapKept(this.services, project, live);
   }
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Task | undefined {
-    return this.services.ctx.setTask(project, taskId, change);
+    return this.services.ledgers.setTask(project, taskId, change);
   }
 
-  moveTask(project: Project, taskId: string, move: TaskMove, change?: (task: Task) => void): Task | TaskStatus | undefined {
-    return this.services.ctx.moveTask(project, taskId, move, change);
+  moveTask(
+    project: Project,
+    taskId: string,
+    move: TaskMove,
+    change?: (task: Task) => void,
+  ): Task | TaskStatus | undefined {
+    return this.services.ledgers.moveTask(project, taskId, move, change);
   }
 
   /** The patrol's net under a close or an acceptance that never got to start what waited on it; one whose start failed waits for the next. */
@@ -191,101 +199,23 @@ export class Desk {
   async sweep(project: Project, busy = false): Promise<void> {
     await this.services.slots.sweep(project, busy);
     const dropped = tidyRecords(project.state, loadLedger(project.state));
-    if (dropped.length > 0) this.services.ctx.event(project, { kind: "records.tidied", files: dropped.length });
+    if (dropped.length > 0) recordEvent(project, { kind: "records.tidied", files: dropped.length });
   }
 
-  /**
-   * The seat's bridge (`mcp/team.mjs`) waits five minutes but a gate may run thirty: a call that runs long is
-   * answered with what is happening and its result mailed, and the same call again while it runs joins it.
-   */
-  answer(request: ToolRequest, within = ANSWER_WITHIN_MS): Promise<ToolReply> {
-    const key = `${request.agent}\n${request.tool}\n${JSON.stringify(sortKeys(request.args ?? {}))}`;
-    const running = this.running.get(key);
-    if (running) return this.inTime(request, running.reply, running.started, within, true);
-    const started = Date.now();
-    // A throw is answered too: only a resolved reply posts the letter the seat was promised.
-    const reply = this.handle(request)
-      .catch((error: unknown) => no(`The desk failed: ${errorText(error)}`))
-      .finally(() => {
-        if (this.running.get(key)?.started === started) this.running.delete(key);
-      });
-    this.running.set(key, { reply, started });
-    return this.inTime(request, reply, started, within, false);
+  /** Whether a call from this seat is still being worked on — which is not silence. */
+  inFlight(agentId: string): boolean {
+    return this.calls.inFlight(agentId);
   }
 
-  private inTime(request: ToolRequest, reply: Promise<ToolReply>, started: number, within: number, again: boolean): Promise<ToolReply> {
-    return new Promise((resolve) => {
-      let answered = false;
-      const timer = setTimeout(() => {
-        if (answered) return;
-        answered = true;
-        resolve(
-          ok(
-            again
-              ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`
-              : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail. End your turn now; do not call ${request.tool} again.`,
-          ),
-        );
-        // One letter for one run, whichever of its callers gave up waiting first; kept on disk until it is posted.
-        const promised = { agent: request.agent, tool: request.tool, started };
-        this.intents.promise(promised);
-        void reply.then(async (done) => {
-          await this.services.ctx.post(request.agent, letters.later(promised, done));
-          this.intents.kept(promised);
-        });
-      }, within);
-      timer.unref?.();
-      void reply.then((done) => {
-        if (answered) return;
-        answered = true;
-        clearTimeout(timer);
-        resolve(done);
-      });
-    });
+  answer(request: ToolRequest, options?: Parameters<ToolCalls["answer"]>[1]): Promise<ToolReply> {
+    return this.calls.answer(request, options);
   }
 
-  async handle(request: ToolRequest): Promise<ToolReply> {
-    const caller = await this.caller(request);
-    if ("error" in caller) return no(caller.error);
-    const { ctx } = this.services;
-    const shown = schemaOf(ctx.kit, caller.role, request.tool);
-    const tool = shown ? servedBy(this.tools, request.tool, shown) : undefined;
-    const args = (shown ? typedArgs(shown, request.args ?? {}) : (request.args ?? {})) as Args;
-    const problems = shown ? argsProblems(shown, args) : [];
-    let reply: ToolReply;
-    try {
-      reply = !tool
-        ? no(`Unknown tool ${request.tool}.`)
-        : problems.length > 0
-          ? no(`${request.tool} was not carried out: it ${problems.join("; ")}. ${shapeOf(shown!)}`)
-          : await tool.handle(this.services, caller, tool.input.parse(withoutNulls(args)));
-    } catch (error) {
-      ctx.log(caller.project, `${caller.role.role} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
-      reply = no(`${request.tool} failed: ${errorText(error)}`);
-    }
-    ctx.event(caller.project, { kind: "tool", agent: caller.id, role: caller.role.role, tool: request.tool, ok: reply.ok, reply: clip(reply.text, 300) });
-    if (reply.ok) {
-      // Noting that the seat was heard from must not turn a reply it has earned into a crash.
-      try {
-        ctx.transact(caller.project, (ledger) => {
-          const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
-          ref.recordedAt = Date.now();
-          if (SPEAKS.includes(request.tool)) ref.spokeAt = ref.recordedAt;
-          ledger.agents[caller.id] = ref;
-        });
-      } catch (error) {
-        ctx.log(caller.project, `could not record that ${caller.id} was heard from: ${errorText(error)}`);
-      }
-    }
-    return reply;
+  mailLost(request: ToolRequest, reply: ToolReply): Promise<unknown> {
+    return this.calls.mailLost(request, reply);
   }
 
-  private async caller(request: ToolRequest): Promise<Caller | { error: string }> {
-    if (!request.agent) return { error: "This tool works only inside a team agent." };
-    const seat = await this.services.roster.look(request.agent);
-    const role = seatOf(this.services.ctx.kit, seat.provider)?.role;
-    if (!role?.tools) return { error: "This agent is not part of the team." };
-    if (role.role !== request.role) return { error: `This agent is a ${role.label}, so ${request.role} tools are not available to it.` };
-    return { id: request.agent, role, title: seat.title ?? request.agent, project: projectOf(seat.cwd ?? request.cwd) };
+  handle(request: ToolRequest): Promise<ToolReply> {
+    return this.calls.handle(request);
   }
 }

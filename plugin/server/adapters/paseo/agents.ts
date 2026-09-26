@@ -47,7 +47,10 @@ async function openSeats(bound: Bound): Promise<SeatView[]> {
   const found: SeatView[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 20; page++) {
-    const result = await paseo.agents.list({ filter: { includeArchived: false }, page: cursor ? { limit: 200, cursor } : { limit: 200 } });
+    const result = await paseo.agents.list({
+      filter: { includeArchived: false },
+      page: cursor ? { limit: 200, cursor } : { limit: 200 },
+    });
     for (const entry of result.entries) {
       const seat = entry.agent as unknown as SeatView;
       if (!seat.archivedAt) found.push(seat);
@@ -73,7 +76,14 @@ export function seatsOn(bound: Bound): Seats {
     },
     async history(id: string, limit: number) {
       const page = await ref(id).timeline.refetch({ direction: "tail", limit });
-      return page.entries.map(({ item, seqStart, seqEnd, turnId }) => ({ item, seqStart, seq: seqEnd, epoch: page.epoch, turnId: turnId ?? null, replay: true }));
+      return page.entries.map(({ item, seqStart, seqEnd, turnId }) => ({
+        item,
+        seqStart,
+        seq: seqEnd,
+        epoch: page.epoch,
+        turnId: turnId ?? null,
+        replay: true,
+      }));
     },
     async respond(id: string, requestId: string, response: PermissionResponse): Promise<void> {
       await ref(id).respondToPermission({ requestId, response });
@@ -98,40 +108,41 @@ export function seatsOn(bound: Bound): Seats {
   };
 }
 
+/** Every workspace the daemon lists that is not being archived, page by page: an unpaged read is capped by the daemon. */
+async function liveWorkspaces(bound: Bound): Promise<{ id: string; name: string; project: string }[]> {
+  const paseo = reach(bound);
+  const found: { id: string; name: string; project: string }[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
+    for (const entry of result.entries)
+      if (!entry.archivingAt) found.push({ id: entry.id, name: entry.name ?? "", project: entry.projectId });
+    if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) break;
+    cursor = result.pageInfo.nextCursor;
+  }
+  return found;
+}
+
 export function workspacesOn(bound: Bound): Workspaces {
   return {
     async named(name: string): Promise<Workspace | undefined> {
-      const paseo = reach(bound);
-      let cursor: string | undefined;
-      for (let page = 0; page < 20; page++) {
-        const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
-        for (const entry of result.entries) {
-          if (entry.name === name && !entry.archivingAt) return { id: entry.id, project: entry.projectId };
-        }
-        if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) return undefined;
-        cursor = result.pageInfo.nextCursor;
-      }
-      return undefined;
+      const found = (await liveWorkspaces(bound)).find((entry) => entry.name === name);
+      return found && { id: found.id, project: found.project };
     },
     async owned(prefix: string): Promise<{ id: string; name: string }[]> {
-      const paseo = reach(bound);
-      const found: { id: string; name: string }[] = [];
-      let cursor: string | undefined;
-      for (let page = 0; page < 20; page++) {
-        const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
-        for (const entry of result.entries) {
-          const name = entry.name ?? "";
-          if (!entry.archivingAt && (name === prefix || name.startsWith(`${prefix} `))) found.push({ id: entry.id, name });
-        }
-        if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) break;
-        cursor = result.pageInfo.nextCursor;
-      }
-      return found;
+      return (await liveWorkspaces(bound))
+        .filter(({ name }) => name === prefix || name.startsWith(`${prefix} `))
+        .map(({ id, name }) => ({ id, name }));
     },
     async make(title: string, path: string, project?: string): Promise<Workspace> {
-      const source = project ? { kind: "directory" as const, path, projectId: project } : { kind: "directory" as const, path };
+      const source = project
+        ? { kind: "directory" as const, path, projectId: project }
+        : { kind: "directory" as const, path };
       const workspace = await reach(bound).workspaces.create({ title, source });
       return { id: workspace.id, project: workspace.projectId ?? "" };
+    },
+    async retitle(workspace: string, title: string): Promise<void> {
+      await reach(bound).workspaces.ref(workspace).setTitle(title);
     },
     async archive(workspace: string): Promise<void> {
       // The daemon reports a refusal as `error` in the payload, not as a throw.

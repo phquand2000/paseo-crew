@@ -13,7 +13,11 @@ function tracked() {
 }
 
 const upstream = (h: ReturnType<typeof harness>, branch: string) =>
-  h.git(h.root, "config", "--list").split("\n").filter((line) => line.startsWith(`branch.${branch}.`)).join(" ");
+  h
+    .git(h.root, "config", "--list")
+    .split("\n")
+    .filter((line) => line.startsWith(`branch.${branch}.`))
+    .join(" ");
 
 test("no branch the desk starts tracks its base's upstream, so a first push cannot land on main", async () => {
   const h = tracked();
@@ -21,13 +25,19 @@ test("no branch the desk starts tracks its base's upstream, so a first push cann
   await h.call(sup, "supervisor", "set_project", { base: "main" });
   assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Away", ...scope, isolate: true })).ok, true);
   assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Here", ...scope })).ok, true);
-  for (const lane of Object.values(h.ledger().lanes)) assert.equal(upstream(h, lane.branch), "", `${lane.id} on ${lane.branch}`);
+  for (const lane of Object.values(h.ledger().lanes))
+    assert.equal(upstream(h, lane.branch), "", `${lane.id} on ${lane.branch}`);
   h.runtime.dispose();
 
   const n = tracked();
   const nsup = n.add("sw2-supervisor-claude/claude-opus-5", n.root, "sup");
   await n.call(nsup, "supervisor", "set_project", { base: "main" });
-  const opened = await n.call(nsup, "supervisor", "open_lane", { title: "Split off", ...scope, onBranch: true, newBranch: "fix/split" });
+  const opened = await n.call(nsup, "supervisor", "open_lane", {
+    title: "Split off",
+    ...scope,
+    onBranch: true,
+    newBranch: "fix/split",
+  });
   assert.equal(opened.ok, true, opened.text);
   assert.equal(upstream(n, "fix/split"), "");
   n.runtime.dispose();

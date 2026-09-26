@@ -14,24 +14,31 @@ examples are only on the rules that cannot be stated in one sentence.
 | **desk** | In the ledger, across tasks, rounds or lanes, and nothing reads it for this yet. |
 | **outside** | This plugin cannot see it, and saying why is the useful part. |
 
-Of the thirty-five rules below, **five are caught**, one more in part and one in half its cases.
-Twelve are desk-shaped: in the ledger, with nothing reading them for this. Sixteen are outside what
-the code can observe, and for those the entry says why, because that is the part worth knowing. Six
-of those need a model to read the turn, and nothing does now.
+Of the thirty-five rules below, **five are caught**, two more in part and one in half its cases.
+Twelve are desk-shaped: in the ledger, with nothing reading them for this. Fifteen are outside what
+the code can observe, and for those the entry says why, because that is the part worth knowing. Five
+of those need a model to read the turn. The watch can ask a model, but only in shadow, and only one
+of its questions touches these five.
 
 The thirty-five come from one list. Section 8 holds one that does not, kept here because the watch
 now catches it and everything the watch catches belongs in this file.
 
 The watch reads two things, both in code. From a seat's timeline: a destructive command, a seat
-repeating itself, a weakened test, an unverified success claim. In code, from the lane's own record
-— the ledger the patrol already holds — the shapes no window can hold, because a letter restarts the
-window: a task sent back again and again, a lane patching several tasks at once, reviews piling up
-with nothing accepted, a review told to report only what it is certain of, a brief that writes the
-work out instead of setting an outcome, and a task taken in although its Peer never said it was
-finished.
+repeating itself or not recovering from a failure, a weakened test or a silenced check, a hand-back
+after edits the gate never ran on or called complete over a failed check, and a turn running far
+longer than usual. In code, from the lane's own record — the ledger the patrol already holds — the
+shapes no window can hold, because a letter restarts the window: a task sent back again and again, a
+lane patching several tasks at once, reviews piling up with nothing accepted, a review told to report
+only what it is certain of, a brief that writes the work out instead of setting an outcome, and a
+task taken in although its Peer never said it was finished.
 
-Both go through one incident book, so the Supervisor reads and marks them the one way, and none of
-them ever reaches the seat it is about.
+Both go through one incident book and are read and marked the one way: an attention-level one about
+a Peer goes to its Lead, the rest to the Supervisor, and none of them ever reaches the seat it is
+about.
+
+The watch can also put a question to a model, when `attention.judge` names a sensor or the Watcher:
+one condition at a time, at a hand-back or at a moment a fact marks. Every question ships in shadow:
+its answer goes to `assessments.log` and acts on nothing.
 
 One thing is worth knowing before trusting it: a condition read from the ledger stands still — a task sent
 back three times stays sent back three times — so it is raised once and then only when the record
@@ -126,17 +133,18 @@ The Peer did not check; it deferred. This is why the Supervisor's prompt forbids
 carries its own answer, and why "Are you sure?" is banned outright.
 **Signs.** "you're right", "good catch", "I'll change it" with no command or read between the
 challenge and the change.
-**Here.** *outside* — the order of reads and edits after a challenge is in the window, but no fact
-reads it yet, and whether the instruction doubted the work or ordered a change takes a model: a
-rework or a message from the seat above is an order, and following one is not deferring.
+**Here.** *outside* — `edit-before-look` notes a turn that changed a file after an instruction before
+it read, searched or ran anything, but a note opens no incident. Whether the instruction doubted the
+work or ordered a change takes a model: `instruction_kind` asks one, in shadow, after a rework, a
+message, an answer, an amendment, a landing sent back or the Human's own words.
 
 ### Reflexive contrarianism
 **Rule.** The opposite failure. A reviewer that never approves is as useless as one that always
 does.
 **Signs.** every verdict is "changes requested"; findings that are restatements of taste; "I would
 have done this differently" as a blocking reason.
-**Here.** *desk* — a Reviewer has no `watched` capability, so no reviewer timeline is ever read.
-What exists is every verdict, in the handback files and on `Task.handback.outcome`.
+**Here.** *desk* — a Reviewer has no `watched` capability, so the watch never reads a reviewer's
+timeline. What exists is every verdict, in the handback files and on `Task.handback.outcome`.
 
 ### Scout-as-Judge
 **Rule.** A cheap search finds candidates. It does not decide. Whoever decides must read the
@@ -163,8 +171,11 @@ interface widened so a test can reach it, a check relaxed so a run goes green �
 product to serve the evidence.
 **Signs.** "so the test can see it", "exporting for testability", "temporarily disable", a non-test
 file edited in the same breath as a failing check.
-**Here.** *outside* — telling a check loosened to go green from one fixed properly takes a model, and
-loosening a check inside the task's own paths raises no `outside-scope` fact.
+**Here.** *caught in part* — `suppressed` fires when an edit adds a suppression such as `@ts-ignore`
+or `eslint-disable`, and `test-weakened` when a test loses assertions or gains a skip; `asked_for`
+asks a model, in shadow, whether the work asked for either. Logging added for a demo or an interface
+widened for a test takes a model to tell from the work, and loosening a check inside the task's own
+paths raises no `outside-scope` fact.
 
 ### Flaky false-red
 **Rule.** A red that two runs disagree about is not a defect in the code. Find the contention before
@@ -172,16 +183,17 @@ changing anything.
 **Signs.** the same command passing and failing with no edit between; "retry", "flaky", "timing", a
 port or a fixture path in the failure.
 **Here.** *desk* — one lane-mode task holds the working copy at a time and parallel tasks get their
-own, which removes most of the cause; what remains is two gates contending, recorded across the gate
-logs and the gate events.
+own, which removes most of the cause; what remains is two gates contending, recorded in the gate
+logs, each named for when it began.
 
 ### Test/proof debt
 **Rule.** A proof too expensive to run is not a proof. A test that no longer protects the current
 contract is a liability that reads as an asset.
 **Signs.** gate seconds climbing run over run; "only run this in CI"; a suite nobody ran before
 handing back.
-**Here.** *desk* — every gate run records its seconds and no code reads them back. The other half
-has a skill (`test-proof-debt-audit`) and no detection.
+**Here.** *desk* — a lane's gate run logs its seconds as an event, a task's notes them on its
+hand-back when it passes, and no code reads either back. The other half has a skill
+(`test-proof-debt-audit`) and no detection.
 
 ---
 
@@ -194,7 +206,7 @@ clears what the watch noted and restarts its window.
 **Rule.** After the second round, stop fixing findings and ask what one mechanism produced them.
 **Signs.** round three; each fix local and in a new file; the diff growing every round while the
 finding count stays flat.
-**Here.** *caught* — `rework-loop`, when one task passes `attention.reworksAt` (3) sendings-back.
+**Here.** *caught* — `rework-loop`, when one task reaches `attention.reworksAt` (3) sendings-back.
 Reported once, and again only when the count moves: the condition stands where an episode would end.
 
 ### Non-converging findings
@@ -203,7 +215,7 @@ fixing.
 **Signs.** several reviews on one task, each with its own vocabulary; findings fixed in the order
 received.
 **Here.** *caught* — `reviews-unconverged`, when `attention.reviewsAt` (3) reviews name one target
-that is still neither accepted nor cut. Converging is still the Lead's job, and the `council` skill
+that is still neither merged nor cut. Converging is still the Lead's job, and the `council` skill
 is where the plugin says how.
 
 ### Overengineering edge case
@@ -211,10 +223,10 @@ is where the plugin says how.
 does not earn an abstraction.
 **Signs.** "to be safe", "in case", "future-proof", a new interface with one implementation, an
 option nobody asked for.
-**Here.** *desk* — every edit row carries `+N -M` and the goal is in the same state, so proportion
-is judgable. `Lane.appetite` — "what the outcome is worth, as a budget" — is
-recorded, printed once and read by no code, and that is the number that would make this a judgement
-rather than a guess.
+**Here.** *desk* — each merged task's MERGED letter gives its source, test and doc line counts, and
+its goal is in the ledger, so proportion is judgable. `Lane.appetite` — "what the outcome is worth,
+as a budget" — is recorded, printed once and read by no code, and that is the number that would make
+this a judgement rather than a guess.
 
 ### False-positive intolerance
 **Rule.** Telling a reviewer to report only what it is certain of buys precision with recall, and
@@ -236,9 +248,11 @@ framing from each other.
 
 ### Reviewer bias
 **Rule.** Judge a verdict by the checks behind it, not by how sharply it is written.
-**Signs.** a handback whose checks line says "not given", followed by a sending-back.
-**Here.** *desk* — the handback records `Checks:` on every review, and the Lead's response is
-counted as a rework. No reviewer timeline is ever read.
+**Signs.** a review hand-back whose `Ran:` line says "nothing", followed by a sending-back.
+**Here.** *desk* — every review hand-back records what it read and what it ran, and the Lead's
+response is counted as a rework. A model is asked, in shadow, only whether a review that accepts a
+change under a risk rule ran that rule's invariant. The watch never reads a reviewer's timeline; a
+Lead or the Supervisor can, with `record`.
 
 ### Naive chat-room debate
 **Rule.** Two models arguing freely is not a council. A council needs sealed positions, a rubric and
@@ -264,15 +278,18 @@ lane nothing caps the count. The desk knows what is running; the reconciler is a
 **Rule.** Ask to be woken; do not spin. A worker that says it is done and a supervisor that waits
 for idle will wait forever.
 **Signs.** repeated status reads with nothing between them; a turn that ends without speaking.
-**Here.** *caught, in half its cases* — a status read is deliberately not counted as speaking, so a
-seat that only polls is counted silent and after two such turns is reported. But that machinery runs
-only for seats that work tasks: a Lead or a Supervisor that polls is not counted at all. This is the
-one rule in this document the watch acts on today, and it acts on half of it.
+**Here.** *caught, in half its cases* — a turn that ends with no desk call is counted silent, so a
+Peer or Reviewer that only polls is nudged, and after two such turns its task stalls and is reported.
+But that machinery runs only for seats that work tasks: a Lead or a Supervisor that polls is not
+counted at all. It is turned away instead: `sleep` is denied to it wherever its agent can deny it,
+and a `status` asked again with nothing changed says only that, and to end the turn.
 
 ### Nested protocol confusion
 **Rule.** One orchestrator owns lifecycle and authority. Two is neither.
 **Here.** *outside* for the nested case — a second framework inside a seat's own harness has its own
-lifecycle, for which this plugin has no event. The in-plugin case is prevented instead: a Supervisor
+lifecycle, for which this plugin has no event. What the kit can refuse, it does: Claude, Codex,
+OpenCode and Oh My Pi seats have their subagents off and refuse to start, from their shell, any agent
+the kit can seat; Pi has no command rules. The in-plugin case is prevented instead: a Supervisor
 reaching past a Lead must emit the letter that tells that Lead.
 
 ---
@@ -285,8 +302,8 @@ writes the code in Markdown has removed the worker's judgement and still not tes
 **Signs.** a brief with numbered implementation steps, function signatures, or file trees; "then
 create", "then add a method".
 **Here.** *caught* — `brief-prewritten`, on a code task whose goal and context carry a code fence,
-or numbered steps together with a file and a member name. The tool description states the intent;
-this is what notices when a brief ignored it.
+or numbered build steps together with a file and a member name, or with a "then create". The tool
+description states the intent; this is what notices when a brief ignored it.
 
 ### Vague long goal
 **Rule.** A goal names something observable. If nobody can say what would show it was met, no agent
@@ -300,35 +317,42 @@ can do, so it waits.
 ### Ceremony attention dilution
 **Rule.** Every step in a checklist spends attention that the problem needed. Count what the process
 asks before adding to it.
-**Here.** *outside* — nothing at runtime reads how many steps a seat was told to follow. The only
-automated checks over shipped content are the forbidden-word lint and the skill-trigger evaluation.
+**Here.** *outside* — nothing at runtime reads how many steps a seat was told to follow. At build
+time, `test/catalog/lint.test.ts` holds each role prompt to a budget of words and rule lines, and
+each skill, tool description and harness delta to a budget of words.
 
 ### Conflicting instruction debt
 **Rule.** One rule, one home. A rule in a prompt and again in a tool description will drift, and the
 agent will follow whichever it read last.
 **Signs.** the same rule in two files; a skill that repeats its prompt; a doc that contradicts a
 refusal message.
-**Here.** *outside* at runtime, but two build-time checks exist: the forbidden-word lint on role
-prompts, and the trigger evaluation that asks a real agent whether each skill opens on the briefs it
-should.
+**Here.** *outside* at runtime, but build-time checks exist: the forbidden-word lint on everything a
+role reads; `test/catalog/lint.test.ts`, which fails a skill or delta that names a tool its role
+cannot call or a file that is not there, a prompt that names a letter the desk never sends, and seat
+text that says mail waits for a turn to end or makes one task a lane's norm; the reference's test,
+which holds its tables to the code; and the trigger evaluation that asks a real agent whether each
+skill opens on the briefs it should.
 
 ### Domain overfitting
 **Rule.** A harness built for one domain is a set of assumptions about that domain. Say which,
 before using it on another.
 **Signs.** a web-shaped gate on an embedded project; a test command that cannot run here; roles
 named for a pipeline this project does not have.
-**Here.** *outside* — the two places domain enters are data (the detected gate command, the paths a
-project keeps to one writer) and nothing compares either to the project it is used on.
+**Here.** *outside* — the places domain enters are data: the kit's `catalog/ecosystem.json` (how a
+gate is found, the paths kept to one writer, the risk rules and their rehearsals, what counts as a
+test or a doc, the watch's patterns) and a project's own gate, one-writer paths and risk rules.
+Nothing compares any of it to the project it is used on.
 
 ### Black-box workflow
 **Rule.** If a bundle changes what an agent does, the person running it must be able to read what it
 changed.
 **Here.** *outside*, answered by transparency rather than detection: the status page, the event log,
-the handbacks and the gate logs are all files on disk. The gap worth naming: the prompt a seat was created with is not among them.
+the handbacks, the gate logs and every question put to a model with its answer are all files on
+disk. The gap worth naming: the prompt a seat was created with is not among them.
 
 ### Teaching discovery
 **Rule.** Do not spend a prompt teaching a model to grep. Spend it on what to decide.
-**Here.** *outside* and clean — a grep across all four role prompts for search instructions returns
+**Here.** *outside* and clean — a grep across all six role prompts for search instructions returns
 nothing.
 
 ### Harness-amplified overengineering
@@ -370,20 +394,20 @@ be someone else's, or not worth it. What is not right is that the acceptance and
 recorded in two different places, only one of which anyone reads again.
 **Signs.** a hand-back whose first line is `Outcome: partial` or `Outcome: blocked` followed by an
 `accept` with no task opened and no note; "we'll come back to it"; "good enough for now"; a lane
-reported ready whose tasks each left something; an acceptance of a task that never handed back.
+reported ready whose tasks each left something.
 **Example.** A Peer ends with `Outcome: partial`, and in `leftUndone`: "the retry path has no test —
 the only seam that reaches it is private". The Lead accepts, the task merges, the MERGED letter says
 the line counts and the gate. The untested retry path now exists only in
 `handbacks/L1-T3-1758·.md`, which nothing reads until someone runs the `retrospective` skill — if
 anyone ever does.
 **Here.** *caught* — `accepted-unfinished`, when a merged task's hand-back says `partial` or
-`blocked`, or when it was merged having never handed back at all (`accept` refuses only a task
-already merged, queued, merging or cut). An outcome word the schema does not offer reads as
-finished, so a stray one is silence, not noise. `leftUndone` and `discovered` are deliberately
-**not** read: what a follow-up would have to establish — that nothing afterwards carried the raised
-thing forward — cannot be told from the ledger without a model reading prose, and `Task.of` is the
-only record-about-record handle the ledger has. The outcome word is the part that is structured, so
-the outcome word is the part that is read.
+`blocked`. `accept` takes only a task handed back, and the desk refuses an outcome that is not
+`complete`, `partial` or `blocked`, so every merged task carries one of the three. `leftUndone` and
+`discovered` are deliberately **not** read: what a follow-up would have to establish — that nothing
+afterwards carried the raised thing forward — cannot be told from the ledger without a model reading
+prose, and no record says it carries on what another left: `Task.of` names only a review's target,
+and `Lane.detourOf` only the lane a detour clears the way for. The outcome word is the part that is
+structured, so the outcome word is the part that is read.
 
 ---
 
@@ -396,5 +420,5 @@ proofs pile up locally → review patches further → the debt grows while the d
 So the question to ask before letting an agent fix a list of findings is the one this list was
 compiled around: **do these findings share one missing mechanism?**
 
-For what the watch does detect today, and how to tune it, see [Watching Leads and
-Peers](ARCHITECTURE.md#the-watch).
+For what the watch does detect today, see [The watch](ARCHITECTURE.md#the-watch); to tune it, see
+[the reference's settings](REFERENCE.md#settings).
