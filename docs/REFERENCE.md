@@ -383,9 +383,9 @@ What the Supervisor is told:
   tell the Human it waits for them.
 
 Open questions also show in the Supervisor's `status` and in `status.md`, under "Questions for the Human". The Report
-tab lists an open question under "Needs you" once it has stopped its lane (an `irreversible` one with a lane, or a
-`costly` one at the ready report), even after `resume_lane`, and every other under "Went ahead on its recommendation",
-with the project's count of the last 24 h. `events.log` has `question.asked` and `question.answered`.
+tab lists an open question under "Needs you" when nothing it decides goes ahead (an `irreversible` one, or a `costly`
+one that stopped its lane at the ready report), even after `resume_lane`, and every other under "Went ahead on its
+recommendation", with the count of the last 24 h across every project, the one `questionsPerDay` limits. `events.log` has `question.asked` and `question.answered`.
 
 ## Facts
 

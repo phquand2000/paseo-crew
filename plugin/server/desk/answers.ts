@@ -1,6 +1,21 @@
+import { readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { type Question, QUESTION } from "../domain/question.ts";
 import type { DeskContext } from "./context.ts";
+import { loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
+
+/** The questions put to the Human since `since` across every project on this machine: the Human has one attention for them all. */
+export function askedSince(state: string, since: number): Question[] {
+  const projects = dirname(state);
+  return readdirSync(projects).flatMap((slug) => {
+    try {
+      return Object.values(loadLedger(join(projects, slug)).questions).filter((question) => question.openedAt >= since);
+    } catch {
+      return [];
+    }
+  });
+}
 
 /** The Human's word on question `id`, from the chat or the panel: one of its options, or decline, or cancel. What the record holds now, or why not. */
 export function settleQuestion(ctx: DeskContext, project: Project, id: string, choice: string, given: { text?: string; by: "panel" | "chat"; quote?: string }): Question | string {

@@ -1,9 +1,8 @@
-import { readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { z } from "zod";
 import type { Question, QuestionClass } from "../../domain/question.ts";
 import { coverGlob, firstOverlap } from "../../core/scope.ts";
 import { clip } from "../../core/text.ts";
+import { askedSince } from "../answers.ts";
 import { no, ok, str } from "../context.ts";
 import { putOnHold } from "../hold.ts";
 import { askFirstHits, changeOf } from "../landing.ts";
@@ -18,18 +17,6 @@ const WHILE_SILENT: Record<QuestionClass, string> = {
   costly: "The lane goes on as you said it would if they are silent, and stops at its next report of ready if they have not answered by then.",
   irreversible: "Nothing it decides goes ahead until they answer.",
 };
-
-/** The questions put to the Human since `since` across every project on this machine: the Human has one attention for them all. */
-function askedSince(state: string, since: number): Question[] {
-  const projects = dirname(state);
-  return readdirSync(projects).flatMap((slug) => {
-    try {
-      return Object.values(loadLedger(join(projects, slug)).questions).filter((question) => question.openedAt >= since);
-    } catch {
-      return [];
-    }
-  });
-}
 
 /** Why a question about `lane` stops it at its ready report at least: it writes where the Human asked to be asked first, by its write set or its work. */
 async function askFirstOf(project: Project, lane: Lane): Promise<string | undefined> {

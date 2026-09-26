@@ -1,5 +1,6 @@
 import type { Question } from "../domain/question.ts";
 import type { ReportItem, ReportView } from "../../shared/views.ts";
+import { askedSince } from "./answers.ts";
 import { loadIncidents } from "./incidents.ts";
 import { loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
@@ -8,8 +9,8 @@ const DAY_MS = 24 * 3_600_000;
 
 const minutes = (now: number, at: number) => Math.max(0, Math.round((now - at) / 60_000));
 
-/** A question stops something now when its lane was put on hold for it; the rest let the lane go on as recommended. */
-const stops = (question: Question) => question.parked === true;
+/** A question stops something now when its lane was put on hold for it, or it is irreversible: nothing it decides goes ahead. */
+const stops = (question: Question) => question.parked === true || question.class === "irreversible";
 
 /**
  * What happened in a project over the last day, built from its record with no agent's words in it: what needs the Human,
@@ -36,7 +37,7 @@ export function reportView(project: Project, questionsPerDay: number, now = Date
       .filter((incident) => incident.level === "page")
       .map((incident) => ({ title: `${incident.id} · ${incident.quote}`, detail: [incident.where, incident.label ? `marked ${incident.label}` : "not marked"].join(" · "), minutes: minutes(now, incident.opened) })),
     numbers: [
-      { title: "Questions today", value: `${questions.filter((question) => question.openedAt >= since).length} of ${questionsPerDay}`, detail: "in this project" },
+      { title: "Questions today", value: `${askedSince(project.state, since).length} of ${questionsPerDay}`, detail: "across every project" },
       { title: "Landings", value: `${landed.length} landed`, detail: waiting.length > 0 ? `${waiting.length} waiting for you` : "none waiting for you" },
       {
         title: "Incidents",

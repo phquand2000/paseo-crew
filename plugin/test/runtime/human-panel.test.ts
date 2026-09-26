@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { contracts } from "../../shared/rpc.ts";
+import { emptyLedger, saveLedger } from "../../server/desk/ledger.ts";
 import { configFile } from "../../server/desk/project.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer } from "./harness.ts";
@@ -63,6 +64,20 @@ test("Orders reads back the Human's standing orders and the project's concept, a
   assert.ok("askFirst" in broken);
   assert.match(broken.fault ?? "", /project\.json is there but could not be read/);
   assert.deepEqual(await h.rpc(contracts.orders, { project: "nope" }), { error: "No project named nope has been seen on this machine." });
+});
+
+test("the Report puts an irreversible question about no lane under what needs the Human, and counts the day's questions across every project", async () => {
+  const { h, sup } = await laneWithPeer();
+  await h.call(sup, "supervisor", "ask_human", packet({ question: "Rename the product?", class: "irreversible" }));
+  const elsewhere = join(dirname(h.project.state), "other-3f9a1c");
+  const theirs = emptyLedger();
+  theirs.questions.H1 = { id: "H1", from: "sup-2", question: "?", why: "", options: [], recommend: "", reason: "", ifSilent: "", class: "reversible", status: "answered", openedAt: Date.now() };
+  saveLedger(elsewhere, theirs);
+  const report = await h.rpc(contracts.report, { project: h.project.slug });
+  assert.ok("needs" in report);
+  assert.deepEqual(report.needs.map((item) => item.title), ["H1 · Rename the product?"], "nothing of it goes ahead while the Human is silent");
+  assert.deepEqual(report.ahead, []);
+  assert.deepEqual(report.numbers[0], { title: "Questions today", value: "2 of 3", detail: "across every project" }, "the limit is the Human's, for every project at once");
 });
 
 test("the Report tells the last day from the record: what needs the Human, what went ahead, what landed, and what could not be undone", async () => {

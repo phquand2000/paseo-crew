@@ -409,10 +409,10 @@ The Human is asked what only they can decide and told what they cannot take back
   watch's switch, budget or marks say, and the desk starts a Pager in the project's workspace, with no tools
   and no parent, whose one reply is the page the desk wrote, cut at 220 characters: the repository, the seat
   and its command, whether a Supervisor is told, what is held. No verb sends a page.
-- **The Report tab** (`desk/away.ts`, read once as the tab opens): Needs you (questions holding a lane,
-  landings held), Went ahead on its recommendation (every other open question), Landed in 24 h, Beyond a lane
-  (page-level incidents of 24 h), and counts, among them this project's questions today against
-  `questionsPerDay`. Flow shows questions and held landings only while "Follow the team live" is on.
+- **The Report tab** (`desk/away.ts`, read once as the tab opens): Needs you (questions holding a lane or
+  irreversible, landings held), Went ahead on its recommendation (every other open question), Landed in 24 h,
+  Beyond a lane (page-level incidents of 24 h), and counts, among them the questions of the last 24 h across
+  every project, against `questionsPerDay`. Flow shows questions and held landings only while "Follow the team live" is on.
 - **Writing in a seat's chat.** A live message a person sent into a Lead's or Peer's chat, its id not starting
   `sw2-` as the desk's do, reaches the Supervisor as HUMAN WROTE, fenced as data; for a Peer, saying its Lead
   was not told.
