@@ -1,7 +1,8 @@
 import type { ToolReply, ToolRequest } from "./context.ts";
 import { ok } from "./context.ts";
 import type { Intents } from "./store/intents.ts";
-import { type Letter, letters } from "./letters/letters.ts";
+import { type Letter } from "./letters/envelope.ts";
+import { messageLetters } from "./letters/message-letters.ts";
 
 /** When the run began, how long this caller waits from its own call, and whether it joined a run already going. */
 type Window = { started: number; within: number; again: boolean; cancelled?: AbortSignal };
@@ -26,7 +27,7 @@ export function inTime(
       const promised = { agent: request.agent, tool: request.tool, started: how.started };
       mail.intents.promise(promised);
       void reply.then(async (done) => {
-        await mail.post(request.agent, letters.later(promised, done, cut));
+        await mail.post(request.agent, messageLetters.later(promised, done, cut));
         mail.intents.kept(promised);
       });
     };

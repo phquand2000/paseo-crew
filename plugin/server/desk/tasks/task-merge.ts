@@ -9,7 +9,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { othersLeft } from "../../domain/ledger.ts";
-import type { Letter } from "../letters/letters.ts";
+import type { Letter } from "../letters/envelope.ts";
 import { mergeLetters } from "../letters/merge-letters.ts";
 import { type Project, serialIn } from "../project.ts";
 import { reachNotes } from "./reach.ts";

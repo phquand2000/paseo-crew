@@ -10,7 +10,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import { tellMoment } from "../watch/moments.ts";
 import type { DeskServices } from "../services.ts";
 import { bringLaneIn } from "../copies/sync.ts";
@@ -47,7 +47,7 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
     if (!switched) await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane);
   }
   // Keyed by the rework's count, each letter is its own: none is dropped as a repeat.
-  await desk.mail.post(result.peer, letters.rework(result, text));
+  await desk.mail.post(result.peer, workLetters.rework(result, text));
   if (result.reworks === 2)
     await tellMoment(
       desk,

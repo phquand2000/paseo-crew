@@ -10,7 +10,7 @@ import type { Task } from "../../domain/task.ts";
 import { laneOfLead, taskOfPeer } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { errorText } from "../../core/errors.ts";
-import { letters } from "../letters/letters.ts";
+import { watchLetters } from "../letters/watch-letters.ts";
 import { pageIncident } from "./pager.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
@@ -117,7 +117,7 @@ async function deliver(services: DeskServices, project: Project, seat: Noticed, 
     });
     for (const incident of batch) {
       try {
-        await mail.post(to, letters.incident(incident, place, steers, as));
+        await mail.post(to, watchLetters.incident(incident, place, steers, as));
       } catch (error) {
         recordEvent(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
       }

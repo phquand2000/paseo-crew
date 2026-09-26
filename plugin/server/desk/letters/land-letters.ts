@@ -1,5 +1,5 @@
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, ended, fyi, mail } from "./letters.ts";
+import { type Letter, ended, fyi, mail } from "./envelope.ts";
 
 /** The letters a landing sends: that it may go ahead, that it waits on the Human, and what the Human decided. */
 export const landLetters = {

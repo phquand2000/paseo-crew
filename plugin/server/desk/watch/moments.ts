@@ -1,6 +1,7 @@
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { type Moment, letters } from "../letters/letters.ts";
+import type { Moment } from "../letters/watch-letters.ts";
+import { watchLetters } from "../letters/watch-letters.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 
@@ -13,5 +14,5 @@ export async function tellMoment(
   what: string,
 ): Promise<void> {
   const opener = loadLedger(project.state).lanes[task.lane]?.opener;
-  await desk.mail.post(await desk.roster.supervisorFor(project, opener), letters.moment(moment, task, what));
+  await desk.mail.post(await desk.roster.supervisorFor(project, opener), watchLetters.moment(moment, task, what));
 }

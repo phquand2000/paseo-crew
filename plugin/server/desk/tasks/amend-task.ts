@@ -5,7 +5,7 @@ import { repeatsIncident } from "../store/incidents.ts";
 import { type Amendment, amend } from "../../domain/amendment.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import { tellMoment } from "../watch/moments.ts";
 import { serialIn } from "../project.ts";
 import type { DeskServices } from "../services.ts";
@@ -31,7 +31,7 @@ export async function amendTask(desk: DeskServices, caller: Caller, args: Args):
   });
   await tellMoments(desk, caller, str(args.why), done);
   if (done.task.status === "waiting") return ok(`${done.task.id} is amended; it starts as it is now.`);
-  const posted = await desk.mail.post(done.task.peer, letters.amended(done.task, done.amendment, "worker"));
+  const posted = await desk.mail.post(done.task.peer, workLetters.amended(done.task, done.amendment, "worker"));
   const told = posted === "nobody" ? ", and it has no Peer to tell" : "; its Peer has it at its next turn";
   return ok(`${done.task.id} is amended${told}.`);
 }

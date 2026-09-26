@@ -18,7 +18,7 @@ import { Desk } from "../desk/desk.ts";
 import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
 import { openAsksTo } from "../domain/ledger.ts";
 import { TOOLS } from "../desk/tools/registry.ts";
-import { letters } from "../desk/letters/letters.ts";
+import { mailbox } from "../desk/letters/envelope.ts";
 import { appendRecord } from "../desk/store/records.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
@@ -280,10 +280,10 @@ export class Runtime implements HostHooks {
     const items = list.map((letter) => letter.text);
     try {
       const seat = await this.seats.look(to);
-      if (!seat.cwd) return letters.mailbox(items, []);
-      return letters.mailbox(items, openAsksTo(loadLedger(projectOf(seat.cwd).state), to));
+      if (!seat.cwd) return mailbox(items, []);
+      return mailbox(items, openAsksTo(loadLedger(projectOf(seat.cwd).state), to));
     } catch {
-      return letters.mailbox(items, []);
+      return mailbox(items, []);
     }
   }
 

@@ -1,5 +1,5 @@
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, fyi, mail } from "./letters.ts";
+import { type Letter, fyi, mail } from "./envelope.ts";
 
 /** What the desk mails a seat kept on after its work: a Lead whose lane closed. */
 export const keptLetters = {

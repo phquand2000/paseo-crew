@@ -6,7 +6,9 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { fyi, letters } from "../letters/letters.ts";
+import { fyi } from "../letters/envelope.ts";
+import { workLetters } from "../letters/work-letters.ts";
+import { seatLetters } from "../letters/seat-letters.ts";
 import { type Project, serialIn } from "../project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
@@ -79,14 +81,14 @@ async function tryStart(
   if (told)
     await mail.post(
       lane.lead,
-      letters.started(claimed, `Started ${task.id} ${started.where} with Peer ${started.peer}.`),
+      workLetters.started(claimed, `Started ${task.id} ${started.where} with Peer ${started.peer}.`),
     );
   // The lane's copy has one writer, briefed before this task held anything: what it holds is news to that Peer, now if at work.
   const writer = parallel ? holderOf(loadLedger(project.state), lane) : undefined;
   if (writer?.peer)
     await mail.post(
       writer.peer,
-      AT_WORK.includes(writer.status) ? letters.beside(claimed) : fyi(letters.beside(claimed)),
+      AT_WORK.includes(writer.status) ? workLetters.beside(claimed) : fyi(workLetters.beside(claimed)),
     );
   return undefined;
 }
@@ -130,6 +132,6 @@ async function putBackHalfStarted(desk: DeskServices, project: Project): Promise
     if (slot) await slots.release(project, slot, task.branch, into);
     recordEvent(project, { kind: "task.halfStarted", task: task.id, now: task.status });
     if (task.status === "cut")
-      await mail.post(loadLedger(project.state).lanes[task.lane]?.lead, letters.notStarted(task));
+      await mail.post(loadLedger(project.state).lanes[task.lane]?.lead, seatLetters.notStarted(task));
   }
 }

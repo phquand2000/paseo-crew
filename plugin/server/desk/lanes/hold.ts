@@ -1,7 +1,7 @@
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { findLane, laneSeats } from "../../domain/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -43,7 +43,7 @@ export async function putOnHold(
   if (typeof held === "string") return held;
   const stopped: string[] = [];
   for (const { seat, task } of held.seats)
-    if (await roster.interrupt(seat, letters.onHold(held.lane, reason, task))) stopped.push(seat);
+    if (await roster.interrupt(seat, workLetters.onHold(held.lane, reason, task))) stopped.push(seat);
   recordEvent(project, { kind: "lane.onHold", lane: held.lane.id, by, reason, stopped });
   return { lane: held.lane, stopped, calledOff: held.calledOff };
 }
@@ -68,7 +68,7 @@ export async function resumeLane(desk: DeskServices, caller: Caller, laneId: str
     return { lane: { ...lane }, seats: laneSeats(ledger, lane) };
   });
   if (typeof lifted === "string") return no(lifted);
-  for (const { seat, task } of lifted.seats) await desk.mail.post(seat, letters.resumed(lifted.lane, note, task));
+  for (const { seat, task } of lifted.seats) await desk.mail.post(seat, workLetters.resumed(lifted.lane, note, task));
   recordEvent(project, { kind: "lane.resumed", lane: lifted.lane.id, by: caller.id });
   await openWaiting(desk, project, true);
   await startWaiting(desk, project, true);

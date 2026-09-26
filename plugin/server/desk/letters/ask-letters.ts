@@ -1,7 +1,7 @@
 import type { Question } from "../../domain/question.ts";
 import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, firstLine, mail } from "./letters.ts";
+import { type Letter, firstLine, mail } from "./envelope.ts";
 
 const theirDefault = (ask: Ask): string[] => (ask.default ? ["", `Their default: ${ask.default}`] : []);
 

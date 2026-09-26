@@ -12,7 +12,7 @@ import { type Ledger, activeTasks, openAsksFrom } from "../domain/ledger.ts";
 import type { Task } from "../domain/task.ts";
 import { loadLedger } from "../desk/store/ledger.ts";
 import { askLetters } from "../desk/letters/ask-letters.ts";
-import { letters } from "../desk/letters/letters.ts";
+import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { statusPage } from "../desk/views/status.ts";
 import type { Outbox } from "./outbox.ts";
@@ -159,7 +159,7 @@ export class Patrol {
       if (idle < leadIdleMinutes * 60_000 || this.idleFlag.get(lead.id) === lead.updatedAt) continue;
       if (activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, lead.id).length > 0) continue;
       const to = await desk.supervisorFor(project, lane.opener);
-      const posted = await desk.post(to, letters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? "", lead.updatedAt));
+      const posted = await desk.post(to, seatLetters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? "", lead.updatedAt));
       // Noted as told only when somebody was: set first, a notice to nobody was never tried again.
       if (posted !== "nobody") this.idleFlag.set(lead.id, lead.updatedAt);
     }
@@ -186,7 +186,7 @@ export class Patrol {
         entry.peerGone = true;
       });
       if (typeof lost !== "object") continue;
-      await desk.post(ledger.lanes[task.lane]?.lead, letters.gone(task));
+      await desk.post(ledger.lanes[task.lane]?.lead, seatLetters.gone(task));
     }
   }
 
@@ -198,7 +198,7 @@ export class Patrol {
     const unlisted = Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead && !seats.has(entry.lead) && !this.goneFlag.has(key(entry)));
     const missing = await this.missing(unlisted.map((lane) => lane.lead!));
     for (const lane of unlisted.filter((entry) => missing.has(entry.lead!))) {
-      const posted = await desk.post(await desk.supervisorFor(project, lane.opener), letters.leadGone(lane));
+      const posted = await desk.post(await desk.supervisorFor(project, lane.opener), seatLetters.leadGone(lane));
       if (posted !== "nobody") this.goneFlag.add(key(lane));
     }
   }

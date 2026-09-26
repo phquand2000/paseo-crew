@@ -3,7 +3,7 @@ import { repeatsIncident } from "../store/incidents.ts";
 import { amend } from "../../domain/amendment.ts";
 import { findLane } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import { serialIn } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -53,7 +53,7 @@ export async function amendLane(
     by: caller.id,
   });
   if (done.lane.status === "waiting") return ok(`Lane ${lane.id} is amended; it opens as it is now.`);
-  const posted = await mail.post(done.lane.lead, letters.amended(done.lane, done.amendment, "lead"));
+  const posted = await mail.post(done.lane.lead, workLetters.amended(done.lane, done.amendment, "lead"));
   return ok(
     `Lane ${lane.id} is amended${posted === "nobody" ? ", and it has no Lead to tell" : " and its Lead has the change"}; a READY it reported before no longer stands.`,
   );

@@ -5,7 +5,7 @@ import { clip } from "../core/text.ts";
 import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
 import { type Args, type Caller, type ToolReply, type ToolRequest, no } from "./context.ts";
 import { inTime } from "./in-time.ts";
-import { letters } from "./letters/letters.ts";
+import { messageLetters } from "./letters/message-letters.ts";
 import { projectOf } from "./project.ts";
 import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
 import { recordEvent } from "./store/event-log.ts";
@@ -62,7 +62,7 @@ export class ToolCalls {
   /** A reply that went out but never reached its seat, whose call was stopped or whose line dropped: mailed instead. */
   mailLost(request: ToolRequest, reply: ToolReply): Promise<unknown> {
     const call = { agent: request.agent, tool: request.tool, started: request.at };
-    return this.desk.mail.post(request.agent, letters.later(call, reply, true));
+    return this.desk.mail.post(request.agent, messageLetters.later(call, reply, true));
   }
 
   async handle(request: ToolRequest): Promise<ToolReply> {

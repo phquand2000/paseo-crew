@@ -2,7 +2,7 @@ import { SETTLED } from "../../domain/task.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
-import { list } from "./letters.ts";
+import { list } from "./envelope.ts";
 
 /** Whether `task` waits on the task `on` through `after`, however far down: it comes after it, not beside it. */
 function waitsOn(ledger: Ledger, task: Task, on: string, seen = new Set<string>()): boolean {

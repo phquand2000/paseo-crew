@@ -7,7 +7,7 @@ import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from 
 import type { Lane } from "../../domain/lane.ts";
 import { laneOfLead, tasksOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -78,7 +78,7 @@ async function tell(
   const to = await desk.roster.supervisorFor(project, lane.opener);
   const parked = ready ? await parkAtCheckpoint(desk, project, lane.id) : undefined;
   const ahead = ready ? await readAhead(desk, project, lane) : { asks: [], facts: [], changes: false };
-  const letter = letters.report(lane, str(args.summary), ready, strs(args.carried), { gate, parked, ...ahead });
+  const letter = workLetters.report(lane, str(args.summary), ready, strs(args.carried), { gate, parked, ...ahead });
   const posted = await desk.mail.post(to, letter);
   const text = posted === "nobody" ? letter.text : undefined;
   recordEvent(project, { kind: "lane.report", lane: lane.id, ready, gate: gate?.ok, to: to ?? null, text });

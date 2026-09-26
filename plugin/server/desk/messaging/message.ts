@@ -6,7 +6,8 @@ import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, findLane, findTask, laneOfLead } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { type Sending, letters } from "../letters/letters.ts";
+import { type Sending } from "../letters/message-letters.ts";
+import { messageLetters } from "../letters/message-letters.ts";
 import type { DeskServices } from "../services.ts";
 
 /** Gives `text` to a seat as mail it reads once it can; one stopped on a permission reads nothing until the Human decides it. */
@@ -16,7 +17,7 @@ async function handTo(
   sending: Sending,
   text: string,
 ): Promise<string> {
-  const posted = await mail.post(to.target, letters.message(to.from, text, sending));
+  const posted = await mail.post(to.target, messageLetters.message(to.from, text, sending));
   if (posted === "sent") return `Delivered to ${to.who}.`;
   const seat = await roster.look(to.target).catch(() => undefined);
   if ((seat?.pendingPermissions?.length ?? 0) > 0)
@@ -90,7 +91,7 @@ async function toPeer(
     );
   const refused = repeatsIncident(caller.project.state, peer, text);
   if (refused) return no(refused);
-  await mail.post(lead, letters.reconciled(lane, task, peer, text, sending));
+  await mail.post(lead, messageLetters.reconciled(lane, task, peer, text, sending));
   const handed = await handTo(
     desk,
     { target: peer, from: "the project owner", who: `the Peer on ${task.id}` },

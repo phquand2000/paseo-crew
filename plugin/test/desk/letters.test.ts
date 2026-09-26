@@ -11,7 +11,11 @@ import { landLetters } from "../../server/desk/letters/land-letters.ts";
 import type { Ask } from "../../server/domain/ask.ts";
 import type { Lane } from "../../server/domain/lane.ts";
 import type { Task } from "../../server/domain/task.ts";
-import { type Letter, letters } from "../../server/desk/letters/letters.ts";
+import { type Letter } from "../../server/desk/letters/envelope.ts";
+import { messageLetters } from "../../server/desk/letters/message-letters.ts";
+import { workLetters } from "../../server/desk/letters/work-letters.ts";
+import { seatLetters } from "../../server/desk/letters/seat-letters.ts";
+import { watchLetters } from "../../server/desk/letters/watch-letters.ts";
 import { mergeLetters } from "../../server/desk/letters/merge-letters.ts";
 import type { Question } from "../../server/domain/question.ts";
 
@@ -84,9 +88,9 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   };
   const amendment = { at: 0, by: "agent-1", why: "the Human wants an upsert", was: { goal: "insert" } };
   const late = [
-    letters.later(call, { ok: true, text: "done" }),
-    letters.later(call, { ok: false, text: "no" }),
-    letters.unanswered(call),
+    messageLetters.later(call, { ok: true, text: "done" }),
+    messageLetters.later(call, { ok: false, text: "no" }),
+    messageLetters.unanswered(call),
   ];
   const beside = { ...task, id: "L1-T3", hints: ["src/other.js"] };
   const worker = [
@@ -100,12 +104,12 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     reviewBrief({ ...task, id: "L1-R3", kind: "review" }, undefined, "Is the lane sound?", {
       where: `Your working copy is on ${lane.branch}.`,
     }),
-    letters.rework(task, "fix it"),
-    letters.nudge(task, "done"),
-    letters.message("your lead", "hi", sending),
-    letters.amended(task, amendment, "worker"),
-    letters.onHold(lane, "the migration drops a table", task),
-    letters.resumed(lane, "go on", task),
+    workLetters.rework(task, "fix it"),
+    seatLetters.nudge(task, "done"),
+    messageLetters.message("your lead", "hi", sending),
+    workLetters.amended(task, amendment, "worker"),
+    workLetters.onHold(lane, "the migration drops a table", task),
+    workLetters.resumed(lane, "go on", task),
     askLetters.answered(ask),
     ...late,
   ];
@@ -129,8 +133,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
       { ...lane, writeSet: ["src/discounts/**"], contracts: ["src/orders.ts"] },
       { gate, serial: ["package-lock.json"], concept: "/state/CONTEXT.md" },
     ),
-    letters.handback(task, "/h.md", "Outcome: complete", "agent-3", "lead"),
-    letters.handback({ ...task, kind: "review" }, "/h.md", "Verdict: accept", "agent-4", "lead"),
+    workLetters.handback(task, "/h.md", "Outcome: complete", "agent-3", "lead"),
+    workLetters.handback({ ...task, kind: "review" }, "/h.md", "Verdict: accept", "agent-4", "lead"),
     ...[true, false].flatMap((last) => [
       mergeLetters.merged(task, counts, outside, "passed", last),
       mergeLetters.merged(task, undefined, [], "passed", last),
@@ -141,17 +145,17 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     mergeLetters.waits(task, "the lane's working copy has uncommitted changes (M a.js)", true),
     mergeLetters.waits(task, "lane/l1 moved while it was gated, so it goes round again with that brought in", false),
     mergeLetters.mergeFailed(task, "git merge failed", "CONFLICT"),
-    letters.stalled(task, "bye", 2, { what: "Bash: npm test", refused: true }),
-    letters.gone(task),
-    letters.failed("agent-3", 1, "Peer agent-3", "overloaded", "lead"),
-    letters.permission("agent-3", "Peer agent-3", { id: "p1", name: "Bash", title: "npm install" }, "lead"),
-    letters.incident(incident, { lane, task }, true, "lead"),
-    letters.amended(lane, amendment, "lead"),
-    letters.notStarted(task),
-    letters.held(task, "L1-T1 is not accepted yet.", "It starts by itself."),
-    letters.started(task, "Started."),
-    letters.reconciled(lane, task, "agent-9", "stop using the old client", sending),
-    letters.message("the owner", "hi", sending),
+    seatLetters.stalled(task, "bye", 2, { what: "Bash: npm test", refused: true }),
+    seatLetters.gone(task),
+    seatLetters.failed("agent-3", 1, "Peer agent-3", "overloaded", "lead"),
+    seatLetters.permission("agent-3", "Peer agent-3", { id: "p1", name: "Bash", title: "npm install" }, "lead"),
+    watchLetters.incident(incident, { lane, task }, true, "lead"),
+    workLetters.amended(lane, amendment, "lead"),
+    seatLetters.notStarted(task),
+    workLetters.held(task, "L1-T1 is not accepted yet.", "It starts by itself."),
+    workLetters.started(task, "Started."),
+    messageLetters.reconciled(lane, task, "agent-9", "stop using the old client", sending),
+    messageLetters.message("the owner", "hi", sending),
     askLetters.answered({ ...ask, fromRole: "lead" }),
     askLetters.answeredFor(ask, "the owner"),
     askLetters.askTo({ ...ask, status: "open" }, "the Peer on L1-T1", "lead"),
@@ -160,8 +164,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     landLetters.landSentBack(lane, "put it behind a flag", "abc"),
     landLetters.baseConflict(lane, ["a.js"]),
     ...[true, false].map((landed) => landLetters.detourClosed({ ...lane, id: "L2" }, lane, "landed", landed)),
-    letters.onHold(lane, "the Human asked"),
-    letters.resumed(lane, "go on"),
+    workLetters.onHold(lane, "the Human asked"),
+    workLetters.resumed(lane, "go on"),
     ...late,
   ];
   const text = (items: (string | Letter)[]) =>
@@ -181,8 +185,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   for (const letter of [...worker, ...lead]) if (typeof letter !== "string") nextOf(letter);
 
   const found = { asks: [] as string[], facts: [] as string[] };
-  const report = (ready: boolean, more: Partial<Parameters<typeof letters.report>[4]> = {}) =>
-    next(letters.report(lane, "done", ready, [], { ...found, ...more }));
+  const report = (ready: boolean, more: Partial<Parameters<typeof workLetters.report>[4]> = {}) =>
+    next(workLetters.report(lane, "done", ready, [], { ...found, ...more }));
   assert.match(report(false), /^Reply only if it needs a decision of yours/);
   assert.match(
     report(true, { gate: { ok: true, text: "passed" } }),
@@ -247,15 +251,15 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   );
 
   assert.match(
-    next(letters.handback(task, "/h.md", "Outcome: complete", "agent-7", "lead")),
+    next(workLetters.handback(task, "/h.md", "Outcome: complete", "agent-7", "lead")),
     /^Judge it by what the work did/,
   );
   assert.match(
-    next(letters.handback({ ...task, kind: "review" }, "/h.md", "Verdict: accept", "agent-7", "lead")),
+    next(workLetters.handback({ ...task, kind: "review" }, "/h.md", "Verdict: accept", "agent-7", "lead")),
     /^Weigh its findings, then cut it/,
   );
   assert.match(
-    next(letters.handback(task, "/h.md", "Outcome: complete", "agent-7", "supervisor")),
+    next(workLetters.handback(task, "/h.md", "Outcome: complete", "agent-7", "supervisor")),
     /^Its Lead is gone: replace_lead/,
   );
 
@@ -270,7 +274,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   );
   const noted = mergeLetters.merged(task, changed, ["src/other.js"], "passed", false);
   assert.deepEqual([noted.wakes, next(noted)], [undefined, "Act on a note only if it matters to the lane."]);
-  const started = letters.started(
+  const started = workLetters.started(
     { ...task, after: ["L1-T0"] },
     "Started L1-T1 in the lane's working copy with Peer agent-4.",
   );

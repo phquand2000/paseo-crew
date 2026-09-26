@@ -1,5 +1,5 @@
 import type { Question } from "../../core/ports.ts";
-import { type Letter, list, mail } from "./letters.ts";
+import { type Letter, list, mail } from "./envelope.ts";
 
 /** A field as the Watcher reads it: a list as a list, text as it was written, anything else as JSON. */
 function shown(value: unknown): string {

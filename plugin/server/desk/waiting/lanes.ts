@@ -5,7 +5,8 @@ import { fetchIssue } from "../../core/github.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
+import { seatLetters } from "../letters/seat-letters.ts";
 import { forgetPlace, leadSeatOf, openedReply, startLead } from "../lanes/lead-seat.ts";
 import { placement } from "../lanes/placement.ts";
 import { type Project, serialIn } from "../project.ts";
@@ -66,7 +67,7 @@ async function tryOpen(desk: DeskServices, project: Project, lane: Lane): Promis
     delete entry.held;
   });
   const reply = openedReply(project, claimed, started.slot, started.lead, issue, started.elsewhere);
-  await mail.post(await roster.supervisorFor(project, claimed.opener), letters.opened(claimed, reply));
+  await mail.post(await roster.supervisorFor(project, claimed.opener), workLetters.opened(claimed, reply));
   return undefined;
 }
 
@@ -113,6 +114,6 @@ async function putBackHalfOpen(desk: DeskServices, project: Project): Promise<vo
       await ownCopy.giveBack(project, lane.base, lane.branch);
     recordEvent(project, { kind: "lane.halfOpen", lane: lane.id, status: lane.status, lead: lane.lead ?? null });
     if (lane.status !== "waiting")
-      await mail.post(await roster.supervisorFor(project, lane.opener), letters.halfOpen(lane));
+      await mail.post(await roster.supervisorFor(project, lane.opener), seatLetters.halfOpen(lane));
   }
 }

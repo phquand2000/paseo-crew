@@ -1,6 +1,6 @@
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import type { Project } from "../project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
@@ -32,5 +32,5 @@ export async function noteHeld(
   );
   if (!tell) return;
   const to = task ? ledgers.read(project).lanes[entry.lane]?.lead : await roster.supervisorFor(project, entry.opener);
-  await mail.post(to, letters.held(entry, holding.why, holding.next));
+  await mail.post(to, workLetters.held(entry, holding.why, holding.next));
 }

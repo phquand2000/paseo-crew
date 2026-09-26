@@ -4,7 +4,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { capped, outside } from "../../core/text.ts";
-import { list } from "./letters.ts";
+import { list } from "./envelope.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { type Project, conceptFile, loadConfig, serialIn } from "../project.ts";
 

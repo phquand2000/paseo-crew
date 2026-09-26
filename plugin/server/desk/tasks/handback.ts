@@ -12,7 +12,7 @@ import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, taskOfPeer } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { letters } from "../letters/letters.ts";
+import { workLetters } from "../letters/work-letters.ts";
 import { type Project, serialIn } from "../project.ts";
 import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
@@ -98,7 +98,7 @@ async function settling(
   lane: Lane,
   synced: { conflicts: string[]; by: string[] },
 ): Promise<ToolReply> {
-  await mail.post(lane.lead, letters.settling(task, lane.branch, synced.conflicts, synced.by));
+  await mail.post(lane.lead, workLetters.settling(task, lane.branch, synced.conflicts, synced.by));
   const by = synced.by.length > 0 ? `, changed there by ${synced.by.join(", ")}` : "";
   return no(
     `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in ${synced.conflicts.join(", ")}${by}. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`,
@@ -229,7 +229,7 @@ async function tell(
   const heading =
     task.kind === "review" ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
   const reader = await roster.readerOf(caller.project, lane);
-  await mail.post(reader.to, letters.handback(heading, handed.file, handed.body, caller.id, reader.as));
+  await mail.post(reader.to, workLetters.handback(heading, handed.file, handed.body, caller.id, reader.as));
   const kind = task.kind === "review" ? "review.done" : "task.done";
   recordEvent(caller.project, { kind, task: task.id, outcome: handed.outcome, commit: handed.commit });
   const judged = handbackCase(kit, caller.project, task, handed);
