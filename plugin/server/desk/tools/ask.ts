@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { askOwner as askAbove, askUp } from "../asks/asks.ts";
+import { askOwner as askAbove, askUp } from "../messaging/asks.ts";
 import { str } from "../context.ts";
 import { defineTool } from "../services.ts";
 

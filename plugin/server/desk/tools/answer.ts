@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { answerAsk } from "../asks/asks.ts";
+import { answerAsk } from "../messaging/asks.ts";
 import { str } from "../context.ts";
 import { defineTool } from "../services.ts";
 
