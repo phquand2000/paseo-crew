@@ -24,7 +24,11 @@ import { appendRecord } from "../desk/store/records.ts";
 import { TOOLS } from "../desk/tools/registry.ts";
 import { stampKit } from "../upkeep/migrate.ts";
 import { codeIndex } from "./code-index.ts";
-import { SettingsControl } from "./control.ts";
+import { HumanPanel } from "./panel/human.ts";
+import { ProjectsPanel } from "./panel/projects.ts";
+import type { Panel } from "./panel/rpc.ts";
+import { SettingsPanel } from "./panel/settings.ts";
+import { UpkeepPanel } from "./panel/upkeep.ts";
 import { SeatKeys } from "./keys.ts";
 import { composeMail, mailRules } from "./mail-rules.ts";
 import { Outbox } from "./outbox.ts";
@@ -37,7 +41,7 @@ import { TeamSocket } from "./team-socket.ts";
 import { TeamSource } from "./team-source.ts";
 import { TurnRules } from "./turns.ts";
 import { Watches } from "./watch/watches.ts";
-import { watchView } from "./watch-view.ts";
+import { watchView } from "./panel/watch-view.ts";
 import { Watching } from "./watching.ts";
 
 type RuntimeOptions = {
@@ -51,7 +55,7 @@ export class Runtime implements HostHooks {
   readonly kit: Kit;
   readonly outbox: Outbox;
   readonly desk: Desk;
-  readonly control: SettingsControl;
+  readonly panel: Panel;
   private readonly keys = new SeatKeys();
   private readonly socket: TeamSocket;
   private readonly source: TeamSource;
@@ -112,7 +116,7 @@ export class Runtime implements HostHooks {
       modelsChanged: () => this.seating.forget(),
     });
     this.launch = new SeatLaunch(kit, this.seating, this.keys, remember);
-    this.control = this.controlOf(kit);
+    this.panel = this.panelOf(kit);
   }
 
   private watchesOf(kit: Kit): Watches {
@@ -130,18 +134,19 @@ export class Runtime implements HostHooks {
     });
   }
 
-  private controlOf(kit: Kit): SettingsControl {
-    return new SettingsControl({
-      kit,
-      source: this.source,
-      changed: () => this.teamChanged(),
-      reconcile: () => this.sync.reconcile(),
-      models: () => this.refreshModels(),
-      seats: this.host.seats,
-      held: () => this.outbox.held(),
-      watch: (project) => watchView(project, this.watching.troublesOf(project), this.source.teamFor(project), kit),
-      human: this.desk.human,
-    });
+  private panelOf(kit: Kit): Panel {
+    const { source } = this;
+    const changed = () => this.teamChanged();
+    const reconcile = () => this.sync.reconcile();
+    const seats = this.host.seats;
+    const watch = (project: Project) =>
+      watchView(project, this.watching.troublesOf(project), source.teamFor(project), kit);
+    return {
+      settings: new SettingsPanel({ kit, source, changed, reconcile, models: () => this.refreshModels() }),
+      projects: new ProjectsPanel({ kit, source, seats, held: () => this.outbox.held(), watch, changed }),
+      upkeep: new UpkeepPanel({ kit, source, seats, reconcile, changed }),
+      human: new HumanPanel(source, this.desk.human),
+    };
   }
 
   /** Where seats' team servers reach the desk: known by their keys, shown their roles' choices, their calls answered. */

@@ -1,9 +1,9 @@
-import type { Kit } from "../catalog/kit/kit.ts";
-import { providerId } from "../catalog/kit/roles.ts";
-import { type Team, rulesFor, skillDirsFor } from "../catalog/team/team.ts";
-import { transportOf } from "../catalog/team/mcp-states.ts";
-import type { Project } from "../desk/project/project.ts";
-import type { TeamView } from "../../shared/views.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
+import { providerId } from "../../catalog/kit/roles.ts";
+import { type Team, rulesFor, skillDirsFor } from "../../catalog/team/team.ts";
+import { transportOf } from "../../catalog/team/mcp-states.ts";
+import type { Project } from "../../desk/project/project.ts";
+import type { TeamView } from "../../../shared/views.ts";
 
 /** The team as the panel reads it: each role's agent, model, servers, skills and rules, and each server's state. */
 export function describeTeam(kit: Kit, team: Team, project?: Project): TeamView {

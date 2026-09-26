@@ -4,7 +4,7 @@ import { PaseoHost } from "./server/adapters/paseo/host.ts";
 import { loadKit } from "./server/catalog/kit/kit.ts";
 import { applyModels, readModels } from "./server/catalog/paseo/models.ts";
 import { PLUGIN_ID, pluginDir, stateRoot } from "./server/core/paths.ts";
-import { registerRpc } from "./server/runtime/rpc.ts";
+import { registerRpc } from "./server/runtime/panel/rpc.ts";
 import { Runtime } from "./server/runtime/runtime.ts";
 
 export default function contribute(server: PluginServerContext) {
@@ -24,7 +24,7 @@ export default function contribute(server: PluginServerContext) {
     return () => {};
   }
   runtime.prepare();
-  registerRpc(host.answering(server), runtime.control, runtime.control.human, () => runtime.panelCalled());
+  registerRpc(host.answering(server), runtime.panel, () => runtime.panelCalled());
   host.connect(server, runtime);
   runtime.start();
   return () => runtime.dispose();

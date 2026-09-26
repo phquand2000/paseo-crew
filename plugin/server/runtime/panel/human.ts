@@ -1,8 +1,8 @@
-import type { Human } from "../desk/human/human.ts";
-import type { Project } from "../desk/project/project.ts";
-import type { LandDecided, OrdersRead, QuestionAnswered, ReportRead } from "../../shared/views.ts";
+import type { Human } from "../../desk/human/human.ts";
+import type { Project } from "../../desk/project/project.ts";
+import type { LandDecided, OrdersRead, QuestionAnswered, ReportRead } from "../../../shared/views.ts";
 import type { HumanRpc } from "./rpc.ts";
-import type { TeamSource } from "./team-source.ts";
+import type { TeamSource } from "../team-source.ts";
 
 type Refused = { error: string };
 

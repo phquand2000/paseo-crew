@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { applyModels } from "../../server/catalog/paseo/models.ts";
 import { serversFor } from "../../server/catalog/seat/servers.ts";
 import { resolveTeam, rulesFor, servingProject, skillDirsFor, withHarness } from "../../server/catalog/team/team.ts";
-import { describeCatalog } from "../../server/runtime/catalog-view.ts";
+import { describeCatalog } from "../../server/runtime/panel/catalog-view.ts";
 import { harnessInForce, modelInForce } from "../../client/model/layer.ts";
 import type { Layer } from "../../shared/settings.ts";
 import { makeKit } from "../kit.ts";

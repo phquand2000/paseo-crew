@@ -19,7 +19,7 @@ import { readConfig } from "../../server/core/config-file.ts";
 import { git } from "../../server/core/git.ts";
 import { guidesDir, paseoConfigPath } from "../../server/core/paths.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
-import { realProbes } from "../../server/runtime/doctor.ts";
+import { realProbes } from "../../server/runtime/panel/doctor.ts";
 import { tempDir } from "../tempdir.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");

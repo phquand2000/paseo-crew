@@ -1,14 +1,14 @@
-import { minutesSince } from "../core/time.ts";
+import { minutesSince } from "../../core/time.ts";
 import { join } from "node:path";
-import type { WatchJudge, WatchView } from "../../shared/views.ts";
-import type { Kit } from "../catalog/kit/kit.ts";
-import type { Team } from "../catalog/team/team.ts";
-import { lastBytes } from "../core/gate.ts";
-import { loadIncidents } from "../desk/store/incidents.ts";
-import { type Ledger, laneOfLead, taskOfPeer } from "../domain/ledger.ts";
-import { loadLedger } from "../desk/store/ledger.ts";
-import type { Project } from "../desk/project/project.ts";
-import { factTitle } from "./watch/facts.ts";
+import type { WatchJudge, WatchView } from "../../../shared/views.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
+import type { Team } from "../../catalog/team/team.ts";
+import { lastBytes } from "../../core/gate.ts";
+import { loadIncidents } from "../../desk/store/incidents.ts";
+import { type Ledger, laneOfLead, taskOfPeer } from "../../domain/ledger.ts";
+import { loadLedger } from "../../desk/store/ledger.ts";
+import type { Project } from "../../desk/project/project.ts";
+import { factTitle } from "../watch/facts.ts";
 
 const INCIDENTS_SHOWN = 200;
 
@@ -30,8 +30,10 @@ function judgeLine(project: Project, team: Team, kit: Kit, now: number): WatchJu
         .trim()
         .split("\n")
         .at(-1) ?? "",
-    );
-  } catch {}
+    ) as typeof last;
+  } catch {
+    // No assessment yet, or a last line cut mid-write: nothing has answered.
+  }
   if (!last?.at || last.by !== choice.id) return { label, state: "waiting", minutes: null, detail: null };
   const minutes = minutesSince(now, last.at);
   return last.unasked
@@ -45,7 +47,9 @@ export function watchView(project: Project, troubles: Trouble[], team: Team, kit
   let ledger: Ledger | undefined;
   try {
     ledger = loadLedger(project.state);
-  } catch {}
+  } catch {
+    // A ledger that cannot be read leaves each seat named by what Paseo calls it.
+  }
   const nameOf = (id: string, fallback: string) => {
     const task = ledger ? taskOfPeer(ledger, id) : undefined;
     if (task) return `${task.kind === "review" ? "Reviewer" : "Peer"} · ${task.id} ${task.title}`;

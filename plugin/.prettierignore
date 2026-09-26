@@ -13,8 +13,7 @@ test/fixtures
 # Not yet formatted: formatted, each would break the size limits in test/architecture.test.ts until it is split.
 # The list only shrinks.
 server/core/git.ts
-server/runtime/control.ts
-server/runtime/doctor.ts
+server/runtime/panel/doctor.ts
 server/runtime/patrol.ts
 server/runtime/turns.ts
 server/runtime/watch/facts.ts

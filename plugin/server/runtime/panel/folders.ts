@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { gitCommonDir } from "../core/git.ts";
-import { gitRoot } from "../desk/project/project.ts";
-import type { Paths } from "../../shared/views.ts";
+import { gitCommonDir } from "../../core/git.ts";
+import { gitRoot } from "../../desk/project/project.ts";
+import type { Paths } from "../../../shared/views.ts";
 
 /** A folder and the folders in it, for the panel's picker: which are repositories, and the project a subfolder is in. */
 export function listFolders(path?: string): Paths {

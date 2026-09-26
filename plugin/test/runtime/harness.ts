@@ -12,7 +12,7 @@ import type { HookAgent, Judge, TimelineItem } from "../../server/core/ports.ts"
 import type { DeskEvent } from "../../server/desk/store/events.ts";
 import { loadLedger } from "../../server/desk/store/ledger.ts";
 import { type Project, projectOf } from "../../server/desk/project/project.ts";
-import { registerRpc } from "../../server/runtime/rpc.ts";
+import { registerRpc } from "../../server/runtime/panel/rpc.ts";
 import { Runtime } from "../../server/runtime/runtime.ts";
 import type { z } from "zod";
 import { tempDir } from "../tempdir.ts";
@@ -272,7 +272,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   // A panel call as the panel makes it: through its contract, and its answer, as sent, read by the schema the panel checks it with.
   const rpc = async <C extends Contract>(contract: C, input: z.input<C["input"]>): Promise<z.output<C["output"]>> => {
     let answer: (input: unknown) => unknown = () => assert.fail(`nothing serves ${contract.name}`);
-    registerRpc((served, handler) => void (served.name === contract.name && (answer = handler as (input: unknown) => unknown)), runtime.control, runtime.control.human, () => {});
+    registerRpc((served, handler) => void (served.name === contract.name && (answer = handler as (input: unknown) => unknown)), runtime.panel, () => {});
     const raw = await answer(contract.input.parse(input));
     const sent = JSON.parse(JSON.stringify(raw)) as unknown;
     assert.deepStrictEqual(sent, raw, `${contract.name} answered with what JSON does not carry`);

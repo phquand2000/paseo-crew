@@ -11,7 +11,7 @@ import { loadLedger } from "../desk/store/ledger.ts";
 import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { malformed } from "./timeline.ts";
-import type { Trouble } from "./watch-view.ts";
+import type { Trouble } from "./panel/watch-view.ts";
 import { type Fact, callsTo } from "./watch/facts.ts";
 import { decide } from "./watch/findings.ts";
 import type { SeatContext, SeatWatch, WatchedSeat, Watches } from "./watch/watches.ts";

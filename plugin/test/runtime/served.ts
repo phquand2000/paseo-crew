@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 import type { z } from "zod";
 import { PaseoHost } from "../../server/adapters/paseo/host.ts";
 import { paseoConfigPath } from "../../server/core/paths.ts";
-import { registerRpc } from "../../server/runtime/rpc.ts";
+import { registerRpc } from "../../server/runtime/panel/rpc.ts";
 import { Runtime } from "../../server/runtime/runtime.ts";
 import { makeKit } from "../kit.ts";
 
@@ -27,7 +27,7 @@ export function served(paseo: unknown = nobodySeated) {
   const runtime = new Runtime(makeKit(), host, { reloadDaemon: async () => true });
   const handlers = new Map<string, Handler>();
   const server = { handle: (contract: Contract, handler: Handler) => void handlers.set(contract.name, handler) };
-  registerRpc(host.answering(server as never), runtime.control, runtime.control.human, () => {});
+  registerRpc(host.answering(server as never), runtime.panel, () => {});
   const call = async <C extends Contract>(contract: C, input: z.input<C["input"]>): Promise<z.output<C["output"]>> => {
     const handler = handlers.get(contract.name);
     assert.ok(handler, `nothing serves ${contract.name}`);

@@ -17,7 +17,7 @@ import { resolveTeam, withHarness } from "../../server/catalog/team/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";
 import { paseoConfigPath, stateRoot } from "../../server/core/paths.ts";
 import { ANSWER_WITHIN_MS } from "../../server/desk/calls.ts";
-import { realProbes } from "../../server/runtime/doctor.ts";
+import { realProbes } from "../../server/runtime/panel/doctor.ts";
 import { tempDir } from "../tempdir.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
