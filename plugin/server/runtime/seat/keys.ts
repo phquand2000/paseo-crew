@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
-import { stateRoot } from "../core/paths.ts";
-import { readJson, writeJson } from "../core/store.ts";
+import { stateRoot } from "../../core/paths.ts";
+import { readJson, writeJson } from "../../core/store.ts";
 
 /**
  * Which agent each seat's key belongs to. A key is made as the seat is created, before Paseo names the agent, and bound

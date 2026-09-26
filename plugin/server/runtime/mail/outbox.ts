@@ -1,7 +1,7 @@
-import { KeyedQueue } from "../core/keyed-queue.ts";
-import { midTurn } from "../core/paseo.ts";
-import type { SeatLook, Seats } from "../core/ports.ts";
-import { readJson, writeJson } from "../core/store.ts";
+import { KeyedQueue } from "../../core/keyed-queue.ts";
+import { midTurn } from "../../core/paseo.ts";
+import type { SeatLook, Seats } from "../../core/ports.ts";
+import { readJson, writeJson } from "../../core/store.ts";
 
 export type Letter = { id: string; to: string; key: string; text: string; at: number; wakes?: false };
 type Posted = "sent" | "held" | "duplicate";

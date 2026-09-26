@@ -1,12 +1,12 @@
-import type { Kit } from "../catalog/kit/kit.ts";
-import { seatOf } from "../catalog/kit/roles.ts";
-import { daemonLog } from "../core/logger.ts";
-import type { Seats } from "../core/ports.ts";
-import { HOUR_MS } from "../core/time.ts";
-import { mailbox } from "../desk/letters/envelope.ts";
-import { projectOf } from "../desk/project/project.ts";
-import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
-import { openAsksTo } from "../domain/ledger.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
+import { seatOf } from "../../catalog/kit/roles.ts";
+import { daemonLog } from "../../core/logger.ts";
+import type { Seats } from "../../core/ports.ts";
+import { HOUR_MS } from "../../core/time.ts";
+import { mailbox } from "../../desk/letters/envelope.ts";
+import { projectOf } from "../../desk/project/project.ts";
+import { laneOnHold, loadLedger } from "../../desk/store/ledger.ts";
+import { openAsksTo } from "../../domain/ledger.ts";
 import type { Letter, Rules } from "./outbox.ts";
 
 /** What a seat is sent at once: its letters, and the asks still waiting on it where its project can be read. */

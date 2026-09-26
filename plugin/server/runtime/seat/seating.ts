@@ -1,15 +1,15 @@
-import type { HarnessSpec, Kit, McpServers } from "../catalog/kit/kit.ts";
+import type { HarnessSpec, Kit, McpServers } from "../../catalog/kit/kit.ts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { projectImports } from "../catalog/seat/launch.ts";
-import { materialize, seatDir } from "../catalog/seat/seats.ts";
-import { serversFor } from "../catalog/seat/servers.ts";
-import { type Team, withHarness } from "../catalog/team/team.ts";
-import { expandHome, home } from "../core/paths.ts";
-import type { Project } from "../desk/project/project.ts";
-import type { TeamSource } from "./team-source.ts";
-import { errorText } from "../core/errors.ts";
-import { daemonLog } from "../core/logger.ts";
+import { projectImports } from "../../catalog/seat/launch.ts";
+import { materialize, seatDir } from "../../catalog/seat/seats.ts";
+import { serversFor } from "../../catalog/seat/servers.ts";
+import { type Team, withHarness } from "../../catalog/team/team.ts";
+import { expandHome, home } from "../../core/paths.ts";
+import type { Project } from "../../desk/project/project.ts";
+import type { TeamSource } from "../team-source.ts";
+import { errorText } from "../../core/errors.ts";
+import { daemonLog } from "../../core/logger.ts";
 
 type SeatContext = { node: string; socket: string };
 

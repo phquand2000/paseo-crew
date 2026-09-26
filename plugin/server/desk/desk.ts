@@ -7,7 +7,7 @@ import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import type { Finding } from "../domain/incident.ts";
 import type { TaskMove, TaskStatus } from "../domain/task.ts";
 import type { DeskBase } from "./base.ts";
-import { ToolCalls } from "./calls.ts";
+import { ToolCalls } from "./calls/tool-calls.ts";
 import { Claims } from "./claims.ts";
 import type { CodeIndex, Mailer, Posted, ToolReply, ToolRequest } from "./context.ts";
 import { OwnCopy } from "./copies/own-copy.ts";

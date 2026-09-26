@@ -1,6 +1,6 @@
-import type { IndexedProxy } from "../catalog/seat/servers.ts";
-import { callTool } from "../core/mcp-client.ts";
-import type { CodeIndex } from "../desk/context.ts";
+import type { IndexedProxy } from "../../catalog/seat/servers.ts";
+import { callTool } from "../../core/mcp-client.ts";
+import type { CodeIndex } from "../../desk/context.ts";
 
 type Route = NonNullable<NonNullable<IndexedProxy["open"]>["route"]>;
 

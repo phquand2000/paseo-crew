@@ -9,7 +9,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import type { z } from "zod";
 import { deskSocket } from "../../server/core/paths.ts";
-import type { TeamSocket } from "../../server/runtime/team-socket.ts";
+import type { TeamSocket } from "../../server/runtime/seat/team-socket.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { harness } from "../runtime/harness.ts";
 import { tempDir } from "../tempdir.ts";

@@ -1,13 +1,13 @@
-import type { Kit } from "../catalog/kit/kit.ts";
-import { can, roleNamed } from "../catalog/kit/roles.ts";
-import type { SeatView } from "../core/ports.ts";
-import type { Desk } from "../desk/desk.ts";
-import { askLetters } from "../desk/letters/ask-letters.ts";
-import type { Project } from "../desk/project/project.ts";
-import type { Ask } from "../domain/ask.ts";
-import type { Lane } from "../domain/lane.ts";
-import type { Ledger } from "../domain/ledger.ts";
-import type { TeamSource } from "./team-source.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
+import { can, roleNamed } from "../../catalog/kit/roles.ts";
+import type { SeatView } from "../../core/ports.ts";
+import type { Desk } from "../../desk/desk.ts";
+import { askLetters } from "../../desk/letters/ask-letters.ts";
+import type { Project } from "../../desk/project/project.ts";
+import type { Ask } from "../../domain/ask.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Ledger } from "../../domain/ledger.ts";
+import type { TeamSource } from "../team-source.ts";
 
 type AskDeps = { kit: Kit; desk: Desk; source: TeamSource };
 

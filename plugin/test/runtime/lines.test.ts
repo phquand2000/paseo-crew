@@ -6,7 +6,7 @@ import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { PaseoHost } from "../../server/adapters/paseo/host.ts";
 import { deskSocket } from "../../server/core/paths.ts";
-import type { TeamSocket } from "../../server/runtime/team-socket.ts";
+import type { TeamSocket } from "../../server/runtime/seat/team-socket.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";

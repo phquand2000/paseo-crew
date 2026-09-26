@@ -1,13 +1,13 @@
-import { renderPrompt } from "../catalog/kit/content.ts";
-import { type Kit, type RoleSpec, SEAT_KEY } from "../catalog/kit/kit.ts";
-import { seatOf } from "../catalog/kit/roles.ts";
-import { applyRole, seatBin, seatEnv } from "../catalog/seat/launch.ts";
-import { seedRecords } from "../catalog/seat/seat-files.ts";
-import { seatDir } from "../catalog/seat/seats.ts";
-import { daemonLog } from "../core/logger.ts";
-import { guidesDir, home } from "../core/paths.ts";
-import type { AgentConfig, SessionOpen } from "../core/ports.ts";
-import { type Project, projectOf } from "../desk/project/project.ts";
+import { renderPrompt } from "../../catalog/kit/content.ts";
+import { type Kit, type RoleSpec, SEAT_KEY } from "../../catalog/kit/kit.ts";
+import { seatOf } from "../../catalog/kit/roles.ts";
+import { applyRole, seatBin, seatEnv } from "../../catalog/seat/launch.ts";
+import { seedRecords } from "../../catalog/seat/seat-files.ts";
+import { seatDir } from "../../catalog/seat/seats.ts";
+import { daemonLog } from "../../core/logger.ts";
+import { guidesDir, home } from "../../core/paths.ts";
+import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
+import { type Project, projectOf } from "../../desk/project/project.ts";
 import type { SeatKeys } from "./keys.ts";
 import type { Seating } from "./seating.ts";
 

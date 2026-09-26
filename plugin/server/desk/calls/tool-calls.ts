@@ -1,14 +1,14 @@
-import { schemaOf, seatOf } from "../catalog/kit/roles.ts";
-import { errorText } from "../core/errors.ts";
-import { sortKeys } from "../core/json.ts";
-import { clip } from "../core/text.ts";
+import { schemaOf, seatOf } from "../../catalog/kit/roles.ts";
+import { errorText } from "../../core/errors.ts";
+import { sortKeys } from "../../core/json.ts";
+import { clip } from "../../core/text.ts";
 import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
-import { type Args, type Caller, type ToolReply, type ToolRequest, no } from "./context.ts";
+import { type Args, type Caller, type ToolReply, type ToolRequest, no } from "../context.ts";
 import { inTime } from "./in-time.ts";
-import { messageLetters } from "./letters/message-letters.ts";
-import { projectOf } from "./project/project.ts";
-import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
-import { recordEvent } from "./store/event-log.ts";
+import { messageLetters } from "../letters/message-letters.ts";
+import { projectOf } from "../project/project.ts";
+import { type DeskServices, type ToolDef, servedBy } from "../services.ts";
+import { recordEvent } from "../store/event-log.ts";
 
 /** How long a harness waits on one call before it gives up; the desk answers first. */
 export const ANSWER_WITHIN_MS = 240_000;

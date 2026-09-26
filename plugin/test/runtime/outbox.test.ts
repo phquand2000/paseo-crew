@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { Seats } from "../../server/core/ports.ts";
-import { Outbox } from "../../server/runtime/outbox.ts";
+import { Outbox } from "../../server/runtime/mail/outbox.ts";
 import { tempDir } from "../tempdir.ts";
 
 type FakeAgent = {

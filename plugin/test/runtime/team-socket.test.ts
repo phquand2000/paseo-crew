@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import type { ToolReply } from "../../server/desk/context.ts";
-import { TeamSocket } from "../../server/runtime/team-socket.ts";
+import { TeamSocket } from "../../server/runtime/seat/team-socket.ts";
 import { tempDir } from "../tempdir.ts";
 
 const TEAM = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "team.mjs");

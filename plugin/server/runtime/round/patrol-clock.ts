@@ -1,9 +1,9 @@
-import { daemonLog } from "../core/logger.ts";
-import { errorText } from "../core/errors.ts";
-import type { Host } from "../core/ports.ts";
-import type { Desk } from "../desk/desk.ts";
+import { daemonLog } from "../../core/logger.ts";
+import { errorText } from "../../core/errors.ts";
+import type { Host } from "../../core/ports.ts";
+import type { Desk } from "../../desk/desk.ts";
 import type { Patrol } from "./patrol.ts";
-import type { TeamSource } from "./team-source.ts";
+import type { TeamSource } from "../team-source.ts";
 
 /** Runs a patrol round each tick while Paseo is connected; the cadence is read every time, so a change takes hold without a reload. */
 export class PatrolClock {

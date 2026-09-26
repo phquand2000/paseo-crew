@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { IndexedProxy } from "../../server/catalog/seat/servers.ts";
-import { codeIndex } from "../../server/runtime/code-index.ts";
+import { codeIndex } from "../../server/runtime/seat/code-index.ts";
 import { tempDir } from "../tempdir.ts";
 import { entry, fakeIde, fakeSemble, gone, ideConfig, proxy, repo, searchConfig, within } from "./code-fakes.ts";
 
