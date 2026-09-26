@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { type Kit, can, rolesThatCan, seatOf } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit.ts";
+import { can, rolesThatCan, seatOf } from "../catalog/roles.ts";
 import { layerValues, readShown, withKeys, withoutKeys, writeLayer } from "../catalog/settings.ts";
 import type { Layer } from "../../shared/settings.ts";
 import { type Team, resolveTeam } from "../catalog/team.ts";

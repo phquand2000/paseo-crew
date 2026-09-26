@@ -1,4 +1,5 @@
-import { type Kit, can, seatOf } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit.ts";
+import { can, seatOf } from "../catalog/roles.ts";
 import { midTurn } from "../core/paseo.ts";
 import type { SeatLook, SeatView, Seats, StreamRow } from "../core/ports.ts";
 import type { Intents } from "./intents.ts";

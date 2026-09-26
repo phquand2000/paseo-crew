@@ -1,5 +1,6 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type SensorSpec, schemaOf, seatOf } from "../catalog/kit.ts";
+import type { Kit, SensorSpec } from "../catalog/kit.ts";
+import { schemaOf, seatOf } from "../catalog/roles.ts";
 import type { Finding } from "../domain/incident.ts";
 import type { TaskMove, TaskStatus } from "../domain/task.ts";
 import { intentsPath } from "../core/paths.ts";

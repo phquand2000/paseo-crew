@@ -1,4 +1,5 @@
-import { type Kit, can, seatOf } from "../../catalog/kit.ts";
+import type { Kit } from "../../catalog/kit.ts";
+import { can, seatOf } from "../../catalog/roles.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";

@@ -12,7 +12,6 @@ test/fixtures
 
 # Not yet formatted: formatted, each would break the size limits in test/architecture.test.ts until it is split.
 # The list only shrinks.
-server/catalog/kit.ts
 server/catalog/launch.ts
 server/catalog/providers.ts
 server/catalog/schema.ts

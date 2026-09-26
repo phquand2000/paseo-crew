@@ -1,4 +1,4 @@
-import { can, seatOf } from "../../catalog/kit.ts";
+import { can, seatOf } from "../../catalog/roles.ts";
 import { type Quirks, exitOf, pseudo } from "../../catalog/timeline.ts";
 import { errorText } from "../../core/errors.ts";
 import type { StreamRow } from "../../core/ports.ts";

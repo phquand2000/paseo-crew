@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Kit, can, roleNamed, seatOf } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit.ts";
+import { can, roleNamed, seatOf } from "../catalog/roles.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";

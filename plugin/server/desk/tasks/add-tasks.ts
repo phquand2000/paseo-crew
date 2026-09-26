@@ -1,5 +1,6 @@
 import { skillSources } from "../../catalog/content.ts";
-import { type Kit, type RoleSpec, namedOrNot, roleThatCan } from "../../catalog/kit.ts";
+import type { Kit, RoleSpec } from "../../catalog/kit.ts";
+import { namedOrNot, roleThatCan } from "../../catalog/roles.ts";
 import { type Team, skillDirsFor } from "../../catalog/team.ts";
 import { clip, plural, slugify } from "../../core/text.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";

@@ -3,7 +3,8 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { renderPrompt } from "../../server/catalog/content.ts";
-import { can, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
+import { can, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/roles.ts";
+import { loadKit } from "../../server/catalog/kit.ts";
 import { tempDir } from "../tempdir.ts";
 
 const shipped = (name: string): unknown =>

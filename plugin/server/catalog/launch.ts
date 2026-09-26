@@ -3,7 +3,9 @@ import { delimiter, join } from "node:path";
 import { writeConfigAtomic } from "../core/config-file.ts";
 import { nodeBin, stateRoot } from "../core/paths.ts";
 import type { AgentConfig, SessionOpen } from "../core/ports.ts";
-import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, agentDefault, seatOf } from "./kit.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
+import { agentDefault } from "./roles.ts";
+import { seatOf } from "./roles.ts";
 import { preapprovedFor } from "./servers.ts";
 import type { Team } from "./team.ts";
 

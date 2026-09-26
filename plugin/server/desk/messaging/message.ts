@@ -1,4 +1,4 @@
-import { can } from "../../catalog/kit.ts";
+import { can } from "../../catalog/roles.ts";
 import { SETTLED } from "../../domain/task.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
 import { repeatsIncident } from "../incidents.ts";

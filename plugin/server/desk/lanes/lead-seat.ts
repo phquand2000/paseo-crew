@@ -1,4 +1,5 @@
-import { type RoleSpec, namedOrNot, roleThatCan } from "../../catalog/kit.ts";
+import type { RoleSpec } from "../../catalog/kit.ts";
+import { namedOrNot, roleThatCan } from "../../catalog/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { headSha } from "../../core/git.ts";
 import type { SeatView } from "../../core/paseo.ts";

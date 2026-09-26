@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 import { DESK_OWNED } from "../core/paths.ts";
 import { hiddenWordsIn } from "./hidden-words.ts";
-import { type Kit, type RoleSpec, ownOr } from "./kit.ts";
+import type { Kit, RoleSpec } from "./kit.ts";
 
 export type PromptPaths = { guides: string; state: string };
 
@@ -114,4 +114,13 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
   }
   for (const [name, dir] of extra) found.set(name, dir);
   return found;
+}
+
+function shippedOrOwn(dir: string, own: string | undefined, path: string): string {
+  const mine = own ? join(own, path) : undefined;
+  return mine && existsSync(mine) ? mine : join(dir, "content", path);
+}
+
+function ownOr(kit: Kit, path: string): string {
+  return shippedOrOwn(kit.dir, kit.own, path);
 }

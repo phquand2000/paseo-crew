@@ -1,6 +1,9 @@
 import { execFile } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
-import { type HarnessSpec, type Kit, type ModelSpec, type RoleSpec, agentDefault, paseoToolsPolicy, providerId, supportsRole } from "./kit.ts";
+import type { HarnessSpec, Kit, ModelSpec, RoleSpec } from "./kit.ts";
+import { agentDefault } from "./roles.ts";
+import { paseoToolsPolicy, supportsRole } from "./harness-files.ts";
+import { providerId } from "./roles.ts";
 import { writeConfigAtomic } from "../core/config-file.ts";
 import { paseoConfigPath } from "../core/paths.ts";
 import { sameJson } from "../core/json.ts";

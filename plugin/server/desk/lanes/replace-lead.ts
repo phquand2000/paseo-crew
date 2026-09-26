@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { namedOrNot, roleThatCan } from "../../catalog/kit.ts";
+import { namedOrNot, roleThatCan } from "../../catalog/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { plural } from "../../core/text.ts";
 import { workKey } from "../claims.ts";

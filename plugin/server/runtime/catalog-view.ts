@@ -1,4 +1,5 @@
-import { type Kit, supportsRole } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit.ts";
+import { supportsRole } from "../catalog/harness-files.ts";
 import { templateRoles } from "../catalog/team.ts";
 import type { CatalogView } from "../../shared/views.ts";
 

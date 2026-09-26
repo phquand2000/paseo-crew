@@ -8,14 +8,8 @@ import { type Json, getPath, isRecord, layered, sameJson, setPath } from "../cor
 import { daemonLog } from "../core/logger.ts";
 import { expandHome } from "../core/paths.ts";
 import { type PromptPaths, renderText, skillProblems, skillSources } from "./content.ts";
-import {
-  type HarnessSpec,
-  type Kit,
-  type McpServers,
-  type RoleSpec,
-  harnessFileSources,
-  roleSettingsFile,
-} from "./kit.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
+import { harnessFileSources, roleSettingsFile } from "./harness-files.ts";
 import { projectImports, stateWrites } from "./launch.ts";
 import { snapshot } from "./snapshots.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";

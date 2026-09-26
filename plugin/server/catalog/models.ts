@@ -3,7 +3,8 @@ import { sameJson } from "../core/json.ts";
 import { readJson, writeJson } from "../core/store.ts";
 import { errorText } from "../core/errors.ts";
 import type { ModelList } from "../core/ports.ts";
-import { type Kit, type ModelSpec, providerId } from "./kit.ts";
+import type { Kit, ModelSpec } from "./kit.ts";
+import { providerId } from "./roles.ts";
 import { seatPairs } from "./providers.ts";
 
 export type ModelCache = Record<string, { at: string; models: ModelSpec[]; error: string | null }>;

@@ -1,20 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Attention } from "../../shared/views.ts";
-import {
-  type HarnessSpec,
-  type Kit,
-  type McpEntry,
-  type McpTransport,
-  type ModelSpec,
-  type RoleSpec,
-  type SensorSpec,
-  PASEO_SERVER,
-  TEAM_SERVER,
-  can,
-  supportsRole,
-  agentDefault,
-} from "./kit.ts";
+import type { HarnessSpec, Kit, McpEntry, McpTransport, ModelSpec, RoleSpec, SensorSpec } from "./kit.ts";
+import { PASEO_SERVER, TEAM_SERVER } from "./kit.ts";
+import { can } from "./roles.ts";
+import { supportsRole } from "./harness-files.ts";
+import { agentDefault } from "./roles.ts";
 import type { Connect, Layer, McpChoice } from "../../shared/settings.ts";
 
 type SettingValue = string | number | boolean;

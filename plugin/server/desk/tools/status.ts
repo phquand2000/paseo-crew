@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { can } from "../../catalog/kit.ts";
+import { can } from "../../catalog/roles.ts";
 import { currentBranch, headSha, uncommittedPaths } from "../../core/git.ts";
 import { hash } from "../../core/text.ts";
 import { ok } from "../context.ts";

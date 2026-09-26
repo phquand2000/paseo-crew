@@ -4,14 +4,14 @@ import { skillSources } from "./content.ts";
 import {
   type Kit,
   type McpServers,
-  type ProxySpec,
   PASEO_SERVER,
+  type ProxySpec,
+  type RoleSpec,
+  SEAT_KEY,
   TEAM_SERVER,
-  can,
-  paseoToolsPolicy,
-  teamServer,
-  toolsOf,
 } from "./kit.ts";
+import { can, toolsOf } from "./roles.ts";
+import { paseoToolsPolicy } from "./harness-files.ts";
 import { type Team, skillDirsFor } from "./team.ts";
 
 type McpState = Team["mcp"][string];
@@ -136,4 +136,23 @@ export function preapprovedFor(
     if (state.entry?.kind === "proxy") approved.push(...refs(id, (state.tools ?? state.entry.tools)?.[roleName] ?? []));
   }
   return approved;
+}
+
+/** A seat's own team server, reaching the desk at `socket`; `key` goes in its env where the harness keeps one per seat. */
+function teamServer(kit: Kit, role: RoleSpec, socket: string, node: string, key?: string): McpServers {
+  if (!role.tools) return {};
+  return {
+    [TEAM_SERVER]: {
+      type: "stdio",
+      command: node,
+      args: [join(kit.dir, "mcp", "team.mjs"), role.role, role.tools, socket],
+      ...(key ? { env: { [SEAT_KEY]: key } } : {}),
+    },
+  };
+}
+
+export function hookTools(proxy: ProxySpec | undefined): string[] {
+  return [proxy?.open?.tool, proxy?.close?.tool, proxy?.wait?.tool, proxy?.sync?.tool].filter((name): name is string =>
+    Boolean(name),
+  );
 }

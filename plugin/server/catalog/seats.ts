@@ -4,7 +4,8 @@ import { errorText } from "../core/errors.ts";
 import { type Json, layered } from "../core/json.ts";
 import { expandHome, guidesDir, home } from "../core/paths.ts";
 import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources, toolProblems } from "./content.ts";
-import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, harnessFileSources } from "./kit.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
+import { harnessFileSources } from "./harness-files.ts";
 import {
   linkShared,
   linkSkills,

@@ -1,4 +1,4 @@
-import { roleNamed } from "../../catalog/kit.ts";
+import { roleNamed } from "../../catalog/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { dropMerged, switchTo } from "../../core/git.ts";
 import { TASK } from "../../domain/task.ts";

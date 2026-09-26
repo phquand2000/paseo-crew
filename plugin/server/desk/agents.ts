@@ -1,4 +1,5 @@
-import { type RoleSpec, providerId } from "../catalog/kit.ts";
+import type { RoleSpec } from "../catalog/kit.ts";
+import { providerId } from "../catalog/roles.ts";
 import { contains, dropMerged } from "../core/git.ts";
 import type { Workspaces } from "../core/ports.ts";
 import type { DeskBase } from "./base.ts";

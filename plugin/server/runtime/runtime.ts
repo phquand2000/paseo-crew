@@ -1,6 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { renderPrompt } from "../catalog/content.ts";
-import { type Kit, SEAT_KEY, type SensorSpec, seatOf } from "../catalog/kit.ts";
+import type { Kit, SensorSpec } from "../catalog/kit.ts";
+import { SEAT_KEY } from "../catalog/kit.ts";
+import { seatOf } from "../catalog/roles.ts";
 import { type ModelCache, applyModels, fetchModels, listingProviders } from "../catalog/models.ts";
 import { applyRole, seatBin, seatEnv } from "../catalog/launch.ts";
 import { applyReconcile, reloadDaemon } from "../catalog/providers.ts";

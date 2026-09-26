@@ -1,4 +1,5 @@
-import { type Kit, type RoleSpec, can, seatOf, toolsOf, worksTasks } from "../catalog/kit.ts";
+import type { Kit, RoleSpec } from "../catalog/kit.ts";
+import { can, seatOf, toolsOf, worksTasks } from "../catalog/roles.ts";
 import type { PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
 import { DECIDED, TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
