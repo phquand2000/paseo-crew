@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -52,5 +52,39 @@ test("a seat is shown the choices the desk named for its tools as enums, whereve
     assert.equal(tools.find((tool) => tool.name === "start_review")!.inputSchema.properties.role.enum, undefined, "a field the desk named nothing for is left open");
   } finally {
     server.kill();
+  }
+});
+
+test("a seat started before a tool was added is told the list changed and then sees it", async () => {
+  const dir = join(tempDir("sw2-mcp-"), "mcp");
+  mkdirSync(dir);
+  copyFileSync(teamServer, join(dir, "team.mjs"));
+  const tool = (name: string) => ({ name, description: name, inputSchema: { type: "object", properties: {} } });
+  writeFileSync(join(dir, "tools.json"), JSON.stringify({ supervisor: [tool("status")] }));
+  const server = spawn(process.execPath, [join(dir, "team.mjs"), "supervisor", "supervisor", ""], { env: { PATH: process.env.PATH, SEATWORKS_TOOLS_POLL_MS: "20" }, stdio: ["pipe", "pipe", "inherit"] });
+  const lines: Record<string, unknown>[] = [];
+  let rest = "";
+  server.stdout.on("data", (chunk: Buffer) => {
+    const parts = (rest + chunk.toString()).split("\n");
+    rest = parts.pop()!;
+    lines.push(...parts.filter(Boolean).map((line) => JSON.parse(line)));
+  });
+  const until = async (found: () => unknown) => {
+    const deadline = Date.now() + 5000;
+    while (!found() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    return found();
+  };
+  const ask = (id: number, method: string) => server.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params: {} })}\n`);
+  try {
+    ask(1, "initialize");
+    const init = await until(() => lines.find((line) => line.id === 1)) as { result: { capabilities: { tools: { listChanged: boolean } } } };
+    assert.equal(init.result.capabilities.tools.listChanged, true);
+    writeFileSync(join(dir, "tools.json"), JSON.stringify({ supervisor: [tool("status"), tool("amend_lane")] }));
+    assert.ok(await until(() => lines.find((line) => line.method === "notifications/tools/list_changed")), "the seat was told");
+    ask(2, "tools/list");
+    const listed = await until(() => lines.find((line) => line.id === 2)) as { result: { tools: { name: string }[] } };
+    assert.deepEqual(listed.result.tools.map((t) => t.name), ["status", "amend_lane"]);
+  } finally {
+    server.kill("SIGKILL");
   }
 });

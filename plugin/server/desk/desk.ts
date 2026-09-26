@@ -7,7 +7,7 @@ import { midTurn } from "../core/paseo.ts";
 import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import type { Moment } from "./checks.ts";
-import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
+import { argsProblems, shapeOf, typedArgs, withoutNulls } from "./args.ts";
 import { sortKeys } from "../core/store.ts";
 import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type Sync, type ToolReply, type ToolRequest, no, ok } from "./context.ts";
 import { errorText } from "../core/errors.ts";
@@ -250,7 +250,7 @@ export class Desk {
     const { ctx } = this.services;
     const shown = schemaOf(ctx.kit, caller.role, request.tool);
     const tool = shown ? servedBy(this.tools, request.tool, shown) : undefined;
-    const args = (request.args ?? {}) as Args;
+    const args = (shown ? typedArgs(shown, request.args ?? {}) : (request.args ?? {})) as Args;
     const problems = shown ? argsProblems(shown, args) : [];
     let reply: ToolReply;
     try {
