@@ -642,8 +642,8 @@ test("each project gets the agent and model its own settings choose, and the mac
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Default peer", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
   const onDefaults = h.agents.get(h.ledger().tasks["L1-T1"]!.peer!)!.provider;
-  assert.equal(onDefaults, "sw2-peer-claude/claude-opus-5");
-  assert.equal(h.agents.get(lane.lead!)!.provider, "sw2-lead-claude/claude-opus-5");
+  assert.equal(onDefaults, "sw2-peer-claude/claude-opus-5-5");
+  assert.equal(h.agents.get(lane.lead!)!.provider, "sw2-lead-claude/claude-opus-5-5");
 
   writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ roles: { peer: { harness: "pi", model: "glm-5" } } }));
   await h.call(h.ledger().tasks["L1-T1"]!.peer!, "peer", "done", { outcome: "complete", summary: "done" });
@@ -652,7 +652,7 @@ test("each project gets the agent and model its own settings choose, and the mac
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Pi peer", goal: "g", acceptance: ["a"], owned: ["b.txt"], outOfScope: ["the rest of the repository"] }] });
   const switched = h.agents.get(h.ledger().tasks["L1-T2"]!.peer!)!.provider;
   assert.equal(switched, "sw2-peer-pi/glm-5");
-  assert.equal(h.agents.get(lane.lead!)!.provider, "sw2-lead-claude/claude-opus-5");
+  assert.equal(h.agents.get(lane.lead!)!.provider, "sw2-lead-claude/claude-opus-5-5");
 });
 
 test("what the desk opened and nothing holds any more is swept away without being asked", async () => {

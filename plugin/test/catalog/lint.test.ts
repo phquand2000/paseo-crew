@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { skillSources } from "../../server/catalog/content.ts";
@@ -9,7 +9,7 @@ import { loadKit } from "../../server/catalog/kit.ts";
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const kit = loadKit(PLUGIN);
 
-// The budgets are the prompt research's (E §4.2, §7): words and rule lines per role prompt, words per skill body.
+// The budgets are the prompt research's (E §4.2, §7): words and rule lines per prompt file, words per skill body.
 const PROMPT_BUDGET: Record<string, [number, number]> = { supervisor: [700, 25], lead: [750, 28], peer: [400, 12], reviewer: [300, 8], watcher: [300, 8], pager: [60, 0] };
 const SKILL_BUDGET: Record<string, number> = {
   grilling: 600, "pre-mortem": 700, "architecture-premise-audit": 800, retrospective: 650, council: 900, "ultra-review": 800,
@@ -29,8 +29,8 @@ const deskTools = new Set(Object.values(tools).flatMap((set) => set.map((tool) =
 
 test("every role prompt keeps within its budget of words and rule lines", () => {
   for (const role of kit.roles) {
-    const budget = PROMPT_BUDGET[role.role];
-    assert.ok(budget, `${role.role} has no budget here: give it one`);
+    const budget = PROMPT_BUDGET[basename(role.prompt, ".md").toLowerCase()];
+    assert.ok(budget, `${role.prompt} has no budget here: give it one`);
     const text = readFileSync(join(PLUGIN, "content", role.prompt), "utf-8");
     assert.ok(words(text) <= budget[0] && ruleLines(text) <= budget[1], `${role.role}: ${words(text)} words and ${ruleLines(text)} rule lines, over ${budget[0]} and ${budget[1]}`);
   }

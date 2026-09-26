@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(~/.local/share/seatworks-v3/projects/*/CONTEXT.md)"
+    ]
+  },
+  "sandbox": {
+    "network": {
+      "allowLocalBinding": true
+    }
+  }
+}

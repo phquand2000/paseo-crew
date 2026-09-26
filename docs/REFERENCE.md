@@ -21,7 +21,7 @@ pages in), the seat's bridge shows that set as the field's choices.
 |---|---|
 | Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` |
 | Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `amend_task` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
-| Peer, Reviewer | `done` `ask` |
+| Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` |
 | Watcher | `judge` `record` |
 <!-- end -->
 
@@ -379,7 +379,7 @@ shell is kept off only the machine's settings file itself; its file tools still 
 | `longTurnMinutes` | 30 |
 | `incidentsPerLane` | 2 |
 | `questionsPerDay` | 3 |
-| `judge` | `jev` |
+| `judge` | `off` |
 | `destructive` | a pattern in `catalog/ecosystem.json` |
 | `testPath` | a pattern in `catalog/ecosystem.json` |
 | `suppressed` | a pattern in `catalog/ecosystem.json` |

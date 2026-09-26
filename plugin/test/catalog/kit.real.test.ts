@@ -27,7 +27,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
   assert.deepEqual(Object.values(off.mcp).filter((state) => state.enabled), [], "the kit ships no server switched on");
   const team = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["lead", "pager", "peer", "reviewer", "supervisor", "watcher"]);
+  assert.deepEqual(kit.roles.map((role) => role.role).sort(), ["backup-peer", "lead", "pager", "peer", "reviewer", "senior-reviewer", "supervisor", "watcher"]);
   assert.deepEqual(Object.keys(kit.mcp).sort(), ["code-search", "context7", "intellij-index"]);
   const every = kit.roles.flatMap((role) => ["claude", "codex", "omp", "opencode", "pi"].map((harness) => `${role.role}-${harness}`)).sort();
   assert.deepEqual(seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(), every, "every role can sit on every agent the kit ships");
@@ -63,6 +63,9 @@ const DESK_GIT = ["push", "pull", "merge", "checkout", "switch", "reset", "rebas
 /** Who looks things up on the web: a Reviewer judges what is in front of it, and the Watcher and the Pager touch nothing. */
 const SEARCHES = ["supervisor", "lead", "peer"];
 
+/** A role that does another's work on another model is held to that role's terms. */
+const TWIN: Record<string, string> = { "backup-peer": "peer", "senior-reviewer": "reviewer" };
+
 /** Each agent's built-in tools by its own names, every one denied a seat that touches nothing; Codex cannot take its shell away. */
 const BUILT_INS: Record<string, string[]> = {
   claude: ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit", "Read", "Glob", "Grep", "LSP", "WebFetch", "WebSearch", "Skill", "TodoWrite", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate", "AskUserQuestion"],
@@ -85,12 +88,13 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     const dir = seatDir(kit, role, harness, home, project);
     const settings = readConfig<Record<string, any>>(join(dir, harness.settings.file), {});
     const where = `${role.role} on ${harness.id}`;
+    const kind = TWIN[role.role] ?? role.role;
     // The Lead coordinates and keeps its pages with note, and the Pager only speaks; only Codex has no way to take file tools away.
-    const edits = !["reviewer", "lead", "pager", "watcher"].includes(role.role);
+    const edits = !["reviewer", "lead", "pager", "watcher"].includes(kind);
     // Mail wakes a coordinating seat; one that sleeps in its turn only holds the turn open.
-    const waits = !["lead", "supervisor"].includes(role.role);
-    const searches = SEARCHES.includes(role.role);
-    const bare = ["watcher", "pager"].includes(role.role);
+    const waits = !["lead", "supervisor"].includes(kind);
+    const searches = SEARCHES.includes(kind);
+    const bare = ["watcher", "pager"].includes(kind);
     if (harness.id === "claude") {
       for (const command of DESK_GIT) assert.ok([`Bash(git ${command} *)`, `Bash(git -C * ${command} *)`].every((rule) => settings.permissions.deny.includes(rule)), `${where}: a seat does not git ${command}, with -C or without`);
       for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit"]) assert.equal(settings.permissions.deny.includes(tool), !edits, `${where}: ${tool} only where the role edits files`);
@@ -102,14 +106,14 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.deepEqual(settings.features, { multi_agent: false, multi_agent_v2: false }, `${where}: Paseo is the only control plane`);
       assert.equal(settings.approval_policy, "never", `${where}: nobody is there to approve`);
       assert.equal(settings.skills.bundled.enabled, false, `${where}: only the role's skills, as on every other agent`);
-      assert.equal(settings.sandbox_mode, ["reviewer", "pager", "watcher"].includes(role.role) ? "read-only" : "workspace-write", where);
+      assert.equal(settings.sandbox_mode, ["reviewer", "pager", "watcher"].includes(kind) ? "read-only" : "workspace-write", where);
       assert.equal(settings.web_search === "disabled", !searches, `${where}: searches the web only where the role may`);
       const catalog = JSON.parse(readFileSync(settings.model_catalog_json, "utf-8"));
       assert.ok(catalog.models.length > 0 && catalog.models.every((model: Record<string, unknown>) => model.multi_agent_version === null), `${where}: no model offers native agents`);
       assert.ok(settings.sandbox_workspace_write.writable_roots.every((path: string) => path.startsWith("/state/demo/")), `${where}: writes into the state only where its content says`);
       const rules = readFileSync(join(dir, "rules", "seatworks.rules"), "utf-8");
       for (const command of DESK_GIT) assert.match(rules, new RegExp(`\\["git", (\\[[^\\]]*)?"${command}"`), `${where}: a seat does not git ${command}`);
-      assert.equal(/"git", "commit"/.test(rules), ["supervisor", "lead"].includes(role.role), `${where}: commits only where the role commits`);
+      assert.equal(/"git", "commit"/.test(rules), ["supervisor", "lead"].includes(kind), `${where}: commits only where the role commits`);
       assert.equal(/pattern = \["sleep"\]/.test(rules), !waits, `${where}: sleeps only where the role may`);
     }
     if (harness.id === "omp") {
@@ -117,7 +121,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const refuses = (command: string) => [`git ${command}`, `git ${command} *`, `git -C * ${command}`, `git -C * ${command} *`].every((rule) => denied.includes(rule));
       for (const command of DESK_GIT) assert.ok(refuses(command), `${where}: a seat does not git ${command}, with -C or without`);
       assert.ok(!denied.some((rule: string) => /^git (-C \* )?[a-z-]+\*$/.test(rule)), `${where}: no pattern takes in a longer command, as git merge* took git merge-base`);
-      assert.equal(refuses("commit"), ["supervisor", "lead", "reviewer"].includes(role.role), `${where}: commits only where the role may`);
+      assert.equal(refuses("commit"), ["supervisor", "lead", "reviewer"].includes(kind), `${where}: commits only where the role may`);
       assert.equal(denied.includes("sleep *"), !waits, `${where}: sleeps only where the role may`);
       assert.equal(settings.ask?.enabled, false, `${where}: nobody is there to answer a question that stops the turn`);
       assert.equal(settings.tools?.approval?.task, "deny", `${where}: Paseo is the only control plane`);
@@ -142,7 +146,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const { bash, task, question, external_directory: outside } = settings.permission ?? {};
       assert.equal(Object.keys(bash)[0], "*", `${where}: the allow comes first, since the last rule that matches wins`);
       for (const command of DESK_GIT) assert.ok(bash[`git ${command} *`] === "deny" && bash[`git -C * ${command} *`] === "deny", `${where}: a seat does not git ${command}, with -C or without`);
-      assert.equal(bash["git commit *"] === "deny", ["supervisor", "lead", "reviewer"].includes(role.role), `${where}: commits only where the role may`);
+      assert.equal(bash["git commit *"] === "deny", ["supervisor", "lead", "reviewer"].includes(kind), `${where}: commits only where the role may`);
       assert.equal(bash["sleep *"] === "deny", !waits, `${where}: sleeps only where the role may`);
       assert.deepEqual([task, question, outside], ["deny", "deny", "allow"], `${where}: no subagents, no question that stops the turn, and nothing waiting on a person`);
       assert.equal(settings.permission?.edit === "deny", !edits, `${where}: edits files only where the role may`);
@@ -152,7 +156,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     if (harness.id === "pi") {
       assert.deepEqual(settings.packages, ["npm:pi-mcp-adapter"], `${where}: the desk's tools reach Pi only through the adapter`);
       assert.equal(settings.defaultProjectTrust, "never", `${where}: the repository's own .pi does not load in a seat`);
-      const tools = { reviewer: ["read", "bash", "grep", "find", "ls"], lead: ["read", "bash", "grep", "find", "ls"], pager: [], watcher: [] }[role.role as "reviewer"];
+      const tools = { reviewer: ["read", "bash", "grep", "find", "ls"], lead: ["read", "bash", "grep", "find", "ls"], pager: [], watcher: [] }[kind as "reviewer"];
       assert.deepEqual(settings.defaultTools, tools, where);
       // The adapter lists an unconnected server with no tools until first called, so a fresh Peer could not find `done`.
       const desk = readConfig<Record<string, any>>(join(dir, harness.mcp.file), {}).mcpServers?.team;
@@ -377,7 +381,7 @@ test("a pasted server that names no roles is given to every role that works with
   const given = (team: ReturnType<typeof resolveTeam>) => Object.entries(team.roles).filter(([, seat]) => seat.mcp.includes("pasted")).map(([name]) => name).sort();
   const team = resolveTeam(kit, { mcp: { pasted } });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(given(team), ["lead", "peer", "reviewer", "supervisor"]);
+  assert.deepEqual(given(team), ["backup-peer", "lead", "peer", "reviewer", "senior-reviewer", "supervisor"]);
   assert.deepEqual(given(resolveTeam(kit, { mcp: { pasted: { ...pasted, roles: ["watcher"] } } })), ["watcher"]);
 });
 
@@ -386,7 +390,7 @@ test("the desk names each seat's fixed choices from the kit: who writes and with
   const team = resolveTeam(kit);
   const choices = (role: string) => JSON.parse((serversFor(kit, team, role, { node: "/bin/node", spool: "/spool" }).team as { args: string[] }).args[4]!);
   const skills = readdirSync(join(pluginRoot, "content", "skills", "peer")).sort();
-  assert.deepEqual(choices("lead"), { add_tasks: { role: ["peer"], skills }, start_review: { role: ["reviewer"] }, note: { kind: ["plans", "council", "ultra-review", "repo-refresh"] } });
+  assert.deepEqual(choices("lead"), { add_tasks: { role: ["peer", "backup-peer"], skills }, start_review: { role: ["reviewer", "senior-reviewer"] }, note: { kind: ["plans", "council", "ultra-review", "repo-refresh"] } });
   assert.deepEqual(choices("supervisor"), { open_lane: { role: ["lead"] } });
   assert.deepEqual(choices("peer"), {}, "a seat is named choices only for tools it has");
 });

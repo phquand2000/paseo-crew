@@ -5,7 +5,7 @@
     "leadIdleMinutes": 12,
     "askRemindMinutes": 15,
     "maxReminders": 2,
-    "judge": "jev"
+    "judge": "off"
   },
   "roles": [
     {
@@ -14,7 +14,7 @@
       "description": "Works with the Human, decides everything short of the concept, opens lanes and answers Leads",
       "defaults": {
         "harness": "claude",
-        "model": "claude-opus-5",
+        "model": "claude-opus-5-5",
         "thinking": "high"
       },
       "can": [
@@ -40,8 +40,8 @@
       "description": "Owns a lane: splits it into tasks, starts Peers, accepts and integrates; stays on after it closes until released",
       "defaults": {
         "harness": "claude",
-        "model": "claude-opus-5",
-        "thinking": "medium"
+        "model": "claude-opus-5-5",
+        "thinking": "high"
       },
       "can": [
         "lead",
@@ -69,8 +69,35 @@
       "description": "Does its Lead's tasks one at a time and hands each back",
       "defaults": {
         "harness": "claude",
-        "model": "claude-opus-5",
-        "thinking": "medium"
+        "model": "claude-opus-5-5",
+        "thinking": "high"
+      },
+      "can": [
+        "work",
+        "write",
+        "watched"
+      ],
+      "tools": "peer",
+      "prompt": "prompts/PEER.md",
+      "skills": "peer",
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "seat",
+        "seats"
+      ]
+    },
+    {
+      "role": "backup-peer",
+      "label": "Backup Peer",
+      "description": "Does a Peer's task on another agent, for when the Peer's is out of quota",
+      "defaults": {
+        "harness": "codex",
+        "model": "gpt-5.6-luna",
+        "thinking": "max"
       },
       "can": [
         "work",
@@ -96,8 +123,39 @@
       "description": "Read-only Peer that reviews a task branch with clean context",
       "defaults": {
         "harness": "claude",
-        "model": "claude-opus-5",
-        "thinking": "medium"
+        "model": "claude-opus-5-5",
+        "thinking": "high"
+      },
+      "can": [
+        "work",
+        "review"
+      ],
+      "tools": "reviewer",
+      "concern": "review",
+      "prompt": "prompts/REVIEWER.md",
+      "skills": null,
+      "extraSkills": [
+        "peer:test-proof-debt-audit",
+        "peer:security-check"
+      ],
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "paseo",
+        "supervisor",
+        "seat",
+        "seats"
+      ]
+    },
+    {
+      "role": "senior-reviewer",
+      "label": "Senior Reviewer",
+      "description": "Read-only Peer that reviews complex changes and a lane before it closes, on a stronger model",
+      "defaults": {
+        "harness": "codex",
+        "model": "gpt-6-astra",
+        "thinking": "xhigh"
       },
       "can": [
         "work",
@@ -144,7 +202,7 @@
       "description": "Carries a page to the Human: says back the lines the desk gives it, and Paseo pushes them to their phone",
       "defaults": {
         "harness": "claude",
-        "model": "claude-opus-5",
+        "model": "claude-opus-5-5",
         "thinking": "low"
       },
       "can": [
