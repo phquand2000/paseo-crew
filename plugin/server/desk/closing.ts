@@ -243,6 +243,8 @@ export async function decideLand(desk: DeskServices, project: Project, laneId: s
     const changed = held.head !== tip;
     if (approve && !changed) held.approved = { at: Date.now(), note };
     else delete entry.landApproval;
+    // Sent back, it is no longer what its Lead reported ready: the note asks for more.
+    if (!approve && !changed) delete entry.ready;
     return { held: { ...held }, changed };
   });
   if (!decided) return none;

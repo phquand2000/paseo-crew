@@ -52,6 +52,13 @@ test("a landing the Human sends back leaves the lane open with their note for it
   assert.match((await land()).text, /waits for the Human's approval/);
 });
 
+test("a landing the Human sends back takes its READY away, so it lands again only once its Lead reports it ready", async () => {
+  const { h, land } = await laneWith(risky, ["src/auth"]);
+  await land();
+  await decide(h, false, "rename the session file first");
+  assert.equal(h.ledger().lanes.L1!.ready, undefined);
+});
+
 test("an approval is for the lane as it was held: a commit after it means the lane is looked at again", async () => {
   const { h, land, work, onMain } = await laneWith(risky, ["src/auth"]);
   await land();

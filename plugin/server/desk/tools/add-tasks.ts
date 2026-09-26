@@ -87,6 +87,8 @@ export const addTasks = defineTool({
       if (problems.length > 0) return `No task was added, since ${problems.length === 1 ? "this" : "these"} would have two tasks hold one path or hold one the lane does not write:\n${problems.map((problem) => `- ${problem}`).join("\n")}`;
       const ids = new Map<string, string>();
       for (const task of plan) ids.set(task.key, recordTask(ledger, now, task.args, task.parallel, { after: task.after.map((id) => ids.get(id) ?? id), role: roles.get(task.key)! }));
+      // New work: what the lane was reported ready as is not what it will hold.
+      delete now.ready;
       return { plan, ids };
     });
     if (typeof added === "string") return no(added);

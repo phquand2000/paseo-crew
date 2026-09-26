@@ -381,7 +381,7 @@ The Human is asked what only they can decide and told what they cannot take back
 - **Questions.** `ask_human` carries 2–4 options with their effects, the one recommended and why, what happens
   if the Human is silent, and a class. Nothing times out; the class says what goes ahead meanwhile:
   `reversible`, everything; `costly`, the lane, until it reports ready, when the desk parks the question and
-  holds the lane; `irreversible`, nothing, its lane held at once. A `reversible` question about a lane whose
+  holds the lane (at once, if it already stands ready); `irreversible`, nothing, its lane held at once. A `reversible` question about a lane whose
   write set or change reaches `askFirst` becomes `costly`. At most `questionsPerDay` (3, set by hand in a
   settings layer) go out in 24 h across every project on the machine. The Human answers on the Flow tab, an
   option or Decline with a note, and HUMAN ANSWERED tells the Supervisor what that turns round; or in its

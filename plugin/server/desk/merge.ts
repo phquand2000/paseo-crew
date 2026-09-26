@@ -184,6 +184,12 @@ export class MergeQueue {
     this.ctx.setTask(project, task.id, (entry) => {
       entry.mergeSha = merged.after;
     });
+    // The lane branch moved: what its Lead reported ready is not what it holds now.
+    if (merged.after !== merged.before) {
+      this.ctx.transact(project, (ledger) => {
+        delete ledger.lanes[lane.id]?.ready;
+      });
+    }
     // A task in the lane's copy gives it back to the lane branch: the same tree, so nothing in it changes.
     if (task.mode !== "parallel" && (await currentBranch(cwd)) === task.branch) await backOnLane(lane);
     const now = loadLedger(project.state);

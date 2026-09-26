@@ -42,7 +42,7 @@ never on its role's name.
 | `open_lane` | Records a lane, takes it a working copy and seats a Lead, whose directive is the lane's fields and names `CONTEXT.md` once the Supervisor has written one. It can read a GitHub issue into the directive; one it cannot read never refuses the lane. See [where a lane works](#where-a-lane-works) |
 | `amend_lane` | Changes what an open or waiting lane is asked, keeping what it was asked before, and why. Its Lead gets AMENDED, and the lane counts as not reported ready. For an open lane, a write set or `contracts` that would meet another open lane's, or reach a one-writer path it may write, is refused |
 | `replace_lead` | Seats another Lead on an open lane whose Lead is gone, where the lane stands, and moves to it the asks that waited on the gone one. A Lead Paseo already started for the lane is taken on instead |
-| `add_tasks` | Records tasks in the caller's lane in one call, and starts what can start. Each task gets a Peer and a branch of its own. See [laying out tasks](#laying-out-tasks) |
+| `add_tasks` | Records tasks in the caller's lane in one call, and starts what can start. Each task gets a Peer and a branch of its own, and the lane counts as not reported ready. See [laying out tasks](#laying-out-tasks) |
 | `amend_task` | Changes what a task asks until it is accepted or cut (goal, acceptance, out of scope, context, hints), keeping what it asked before, and why; the Peer reads it at its next turn. A parallel task's `holds` change too, never to none, checked as a start checks them. A changed goal sends TURNING, and widened `holds` ARCHITECTURE, to whoever supervises |
 | `done` | A Peer hands its task back: an outcome (`complete`, `partial` or `blocked`), a summary and its checks. A Reviewer hands back its verdict. Refused once the task is in the merge queue, merged or cut. See [a hand-back](#a-hand-back) |
 | `accept` | Queues a handed-back task for merging, the only way the lane branch takes work: see [a merge](#a-merge). Its Peer stays until the Lead releases it or the lane closes, and never takes another task. Refused while the lane is on hold, for a review or a task not handed back, while the task's copy is off its branch or has work uncommitted, and over a red gate on the same commit without `overGate` and a `reason` |
@@ -177,8 +177,10 @@ before landing, where review changes stand that nothing on record answers; land.
    one whose base has uncommitted changes where it is checked out, or is checked out in another copy. A lane carried on
    the Human's own branch merges nowhere, and its work stays there.
 
-A lane not reported ready as it stands lands all the same, with that and the review facts as evidence; a landing the
-Human approved waits for that report.
+A lane not reported ready as it stands lands all the same, with that and the review facts as evidence. A ready report
+stands until the lane changes under it: an amendment, new tasks, a task merged or sent back after it, a base conflict
+while landing, or a landing the Human sends back. A landing the Human approved while the lane stood ready waits for
+the next report if the lane lost it since; one they approved before it was reported ready lands.
 
 ### Closing a lane
 
@@ -345,8 +347,8 @@ Supervisor puts it on their queue with `ask_human`, and its turn goes on; no sea
 - A `reversible` question about a lane whose write set, or whose change so far, reaches a path in `askFirst` is recorded
   as `costly`, and the reply says why. A question with no lane holds nothing, whatever its class.
 - A lane on hold for a question stays on hold until the Supervisor calls `resume_lane`: an answer does not lift it.
-- A `costly` question stops its lane only at a ready report made while it is open. A lane reported ready before it was
-  put is not stopped, and `land_lane` does not look at questions.
+- A `costly` question stops its lane at the ready report made while it is open, or at once when the lane already stands
+  reported ready. `land_lane` does not look at questions.
 - Nothing times a question out. It stays `open` until it is settled, even after its lane closes, and settles once.
 - `ask_human` is refused once `questionsPerDay` questions (3 by default) were put in the last 24 h across every project
   on the machine. The refusal names them, and tells the Supervisor to decide it itself if it is its to decide, fold it

@@ -85,7 +85,8 @@ export const askHuman = defineTool({
         class: kind,
         status: "open",
         openedAt: Date.now(),
-        parked: (kind === "irreversible" && lane !== undefined) || undefined,
+        // A costly question stops its lane at the ready report; asked once the lane has reported ready, that is now.
+        parked: (lane !== undefined && (kind === "irreversible" || (kind === "costly" && lane.ready !== undefined))) || undefined,
       };
       ledger.questions[question.id] = question;
       return question;
@@ -95,6 +96,7 @@ export const askHuman = defineTool({
     const parked = opened.parked ? await putOnHold(desk, project, opened.lane!, caller.id, `it waits for the Human's answer to ${opened.id}: ${clip(opened.question, 200)}`) : undefined;
     const held = parked === undefined ? "" : typeof parked === "string" ? ` Its lane was not put on hold: ${parked}` : ` Lane ${opened.lane} is on hold for it.`;
     const raised = floor ? ` It is costly, not reversible. ${floor}` : "";
-    return ok(`Asked the Human as ${opened.id}; it waits in their question queue.${raised} ${WHILE_SILENT[opened.class]}${held} An answer they give you here goes on record with record_human_answer.`);
+    const silent = opened.class === "costly" && opened.parked ? "Its lane has already reported ready, so it stops now until they answer." : WHILE_SILENT[opened.class];
+    return ok(`Asked the Human as ${opened.id}; it waits in their question queue.${raised} ${silent}${held} An answer they give you here goes on record with record_human_answer.`);
   },
 });

@@ -63,6 +63,14 @@ test("a lane that went on without the Human's answer to a costly question stops 
   assert.match((await h.call(sup, "supervisor", "record_human_answer", { question: "H1", choice: "decline", quote: "no" })).text, /^H1 is declined: decline\. Lane L1 is still on hold for it/);
 });
 
+test("a costly question about a lane already reported ready stops it now, since its checkpoint has passed", async () => {
+  const { h, sup, lane } = await laneWithPeer(undefined, undefined, { holds: ["a.txt"], parallel: true });
+  await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+  const asked = await h.call(sup, "supervisor", "ask_human", packet({ lane: "L1", class: "costly" }));
+  assert.match(asked.text, /Its lane has already reported ready, so it stops now until they answer\. Lane L1 is on hold for it\./);
+  assert.match(h.ledger().lanes.L1!.onHold?.reason ?? "", /waits for the Human's answer to H1/);
+});
+
 test("a question about a lane that writes where the Human asked to be asked first is costly at least, whatever it is called", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

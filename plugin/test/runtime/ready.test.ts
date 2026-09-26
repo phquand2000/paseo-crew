@@ -55,3 +55,22 @@ test("a seat in the lane's copy the desk cannot look at counts as mid-turn: it m
   const refused = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   assert.match(refused.text, new RegExp(`^${peer} is mid-turn in the lane's working copy`));
 });
+
+test("a lane's READY goes when it takes on new tasks, and when a task merges into it after the report", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", { title: "Beside only", outcome: "c", acceptance: ["c"], outOfScope: ["the rest"] });
+  const lead = h.ledger().lanes.L1!.lead!;
+  assert.equal((await h.call(lead, "lead", "report", { summary: "nothing to do yet", ready: true })).ok, true);
+  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "s", title: "Side", goal: "g", acceptance: ["c"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  assert.equal(h.ledger().lanes.L1!.ready, undefined, "what it reported ready is not what it will hold");
+  assert.equal((await h.call(lead, "lead", "report", { summary: "the rest waits on L1-T1", ready: true })).ok, true);
+  const side = h.ledger().tasks["L1-T1"]!;
+  h.commit(side.worktree!, "c.txt", "C\n");
+  await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
+  h.agents.get(side.peer!)!.status = "idle";
+  await h.call(lead, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  assert.equal(h.ledger().lanes.L1!.ready, undefined, "its branch moved after the report");
+});
