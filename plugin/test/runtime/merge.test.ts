@@ -87,12 +87,11 @@ test("a task beside others hands back what its lane would become: the lane broug
   assert.equal((await h.call(quotes!.peer!, "peer", "done", { outcome: "complete", summary: "settled" })).ok, true);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "done");
 
-  // Sent back before its merge, it is left as its Peer had it: a conflict with its lane is met at its next hand-back.
   h.commitTo(lane.branch, "c.txt", "lane\n");
   assert.equal((await h.call(lead, "lead", "rework", { task: "L1-T3", text: "Shorter, please." })).ok, true);
   assert.throws(
     () => h.git(quotes!.worktree!, "rev-parse", "-q", "--verify", "MERGE_HEAD"),
-    "no merge is begun under it",
+    "sent back before its merge, it is left as its Peer had it",
   );
 
   await h.call(lead, "lead", "add_tasks", beside("l", "Loose", ["f.txt"]));

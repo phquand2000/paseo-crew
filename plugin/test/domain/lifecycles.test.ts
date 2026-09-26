@@ -40,7 +40,6 @@ function reached<S extends string>(life: Lifecycle<S, string>, recorded: S[]): S
 }
 
 test("a task, a lane and an incident move only as their tables allow, and a move refused where it is written changes nothing", () => {
-  // Only the Lead's accept puts a task in its lane: the desk merges what the Lead queued and nothing else.
   const into = (status: TaskStatus) =>
     steps(TASK)
       .filter((step) => step.to === status && !step.from.includes(status))
@@ -48,7 +47,7 @@ test("a task, a lane and an incident move only as their tables allow, and a move
   assert.deepEqual(
     [into("merged"), into("queued"), into("merging")],
     [["merged"], ["queue", "requeue"], ["merge"]],
-    "every task, one in the lane's copy too, is merged by the queue",
+    "only the Lead's accept queues a task, and only the queue merges one, in the lane's copy too",
   );
   assert.deepEqual(
     [TASK.moves.merge.from, TASK.moves.requeue.from, TASK.moves.merged.from],
@@ -69,12 +68,11 @@ test("a task, a lane and an incident move only as their tables allow, and a move
     ["rework"],
     "a merged task only goes back to its Peer, sent by its Lead",
   );
-  // Once the Lead has decided a task, its Peer can no longer hand it back and its silence is no stall.
   for (const move of ["handBack", "stall"] as const)
     assert.deepEqual(
       TASK.moves[move].from.filter((status) => DECIDED.includes(status)),
       [],
-      move,
+      `${move}: once the Lead has decided a task, its Peer can no longer move it`,
     );
   assert.deepEqual(
     TASK.moves.rework.from.filter((status) => DECIDED.includes(status)),
@@ -93,7 +91,6 @@ test("a task, a lane and an incident move only as their tables allow, and a move
   assert.equal(LANE.move(lane, "close"), true);
   assert.equal(lane.status, "closed");
 
-  // Of two moves on one task the first goes through, and the second changes nothing and hears the status that stopped it.
   const kit = makeKit();
   const ctx = new DeskContext({
     kit,
@@ -127,6 +124,7 @@ test("a task, a lane and an incident move only as their tables allow, and a move
   assert.equal(
     ctx.moveTask(project, task.id, "start", (entry) => (entry.silent = 9)),
     "done",
+    "of two moves on one task the second hears the status that stopped it",
   );
   assert.deepEqual(
     [loadLedger(project.state).tasks[task.id]!.status, loadLedger(project.state).tasks[task.id]!.silent],
@@ -135,7 +133,6 @@ test("a task, a lane and an incident move only as their tables allow, and a move
   );
   assert.equal(ctx.moveTask(project, "L1-T9", "cut"), undefined);
 
-  // An incident is told once, which clears why it was held; a told one is not held back, and it closes once.
   const incident: { open: boolean; told?: number; held?: Held; closed?: number } = { open: true };
   assert.equal(deliveryOf(incident), "unsent");
   assert.equal(unheard(incident), false, "nothing was sent to go unread");

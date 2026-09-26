@@ -118,7 +118,6 @@ test("a lane's budget for the day holds back what is only worth attention, howev
     2,
   );
 
-  // Seen again once the owner turns mail off, it is held again, for the reason it is held now.
   const read = await h.rpc(contracts.settingsRead, { project: h.project.slug });
   const saved = await h.rpc(contracts.settingsWrite, {
     project: h.project.slug,
@@ -133,5 +132,6 @@ test("a lane's budget for the day holds back what is only worth attention, howev
       .filter((item) => item.kind === again!.kind && item.seat === again!.seat)
       .map((item) => item.held),
     ["shadow"],
+    "seen again once mail is off, it is held again, for the reason that holds now",
   );
 });
