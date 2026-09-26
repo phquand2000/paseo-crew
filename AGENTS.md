@@ -42,7 +42,9 @@ paseo plugin reload seatworks-v2   # after a client change, to see it in the pan
 ```
 
 No build step; tests are `node --test` over `test/**/*.test.ts`, loaded after `test/setup.ts`: every test
-runs in a HOME of its own, and a `console.error` the test did not ask for fails it.
+runs in a HOME of its own, git's own binary comes first on PATH, Node keeps compiled code between runs,
+and a `console.error` the test did not ask for fails it. Run one file the same way:
+`node --test --import ./test/setup.ts <file>`.
 
 ## Working here
 
@@ -50,7 +52,8 @@ runs in a HOME of its own, and a `console.error` the test did not ask for fails 
 - **Never start the daemon or launch seats to test.** Seats are real agents with broad permissions
   and they cost money. The suite, your reading and `~/.paseo/daemon.log` are the evidence.
 - **Never print or cat a file that can hold a key:** `settings.json` under
-  `~/.local/share/seatworks-v3/`, any project `settings.json`, `~/.paseo/config.json`. Fake keys in
+  `~/.local/share/seatworks-v3/`, any project `settings.json`, the `settings.json.bak-*` copies
+  Migrate keeps beside them, `~/.paseo/config.json`. Fake keys in
   tests never start with OpenRouter's real key prefix, so a scan for it before a push finds only a
   real key.
 - **Before touching a file the KEEP list names** (prompts, skills, harness settings, some code), read
@@ -64,10 +67,12 @@ runs in a HOME of its own, and a `console.error` the test did not ask for fails 
   legacy parser, read-time upgrade or fallback. Fail closed. Change every producer and consumer
   together, and audit tests rather than syncing them.
 - **Kept files have no format number before 3.0.0.** Until then a file the plugin keeps and cannot
-  rebuild (ledger, incidents, project, meta, settings, outbox, content.json) changes shape with no
-  step: v3 keeps its state in a root of its own and nothing has shipped. 3.0.0 locks the format as
-  state 1 and brings back the steps, fixtures and shape test (`../v3/DECISIONS.md`, Q9). Logs are
-  only appended to and never migrated. A change to `content/` raises the version in `package.json`.
+  rebuild (ledger, incidents, project, meta, settings, outbox, intents, keys, content.json) changes
+  shape with no step: v3 keeps its state in a root of its own and nothing has shipped. 3.0.0 locks
+  the format as state 1 and brings back the steps, fixtures and shape test (`../v3/DECISIONS.md`,
+  1.3). Logs are only appended to and never migrated. A change to what a seat reads or is held to
+  (`content/`, `harness/`, `mcp/`, `roles.json`, the desk's letters, briefs and directive, the git
+  shim, `catalog/refused.json`) raises the version in `package.json`: `test/release.test.ts` checks it.
 - **Tests protect a settled contract.** Unit tests only for money, state changes, permissions,
   migrations or concurrency; everything else gets one focused check at the level a user sees it.
 - **A test that invents an API before its contract exists is a defect:** the next agent will bend
@@ -93,9 +98,10 @@ runs in a HOME of its own, and a `console.error` the test did not ask for fails 
 
 ## Paseo 0.9 facts that are easy to get wrong
 
-- A plugin gives an agent tools via `mcpServers` in `before('agent.create')`, and cannot change them
-  later. Afterwards only the model, mode, thinking option and feature values change, and the name
-  and labels through `update_agent`.
+- A plugin gives an agent tools via `mcpServers` in `before('agent.create')`, and cannot change which
+  servers it has later; a server can still change the tools it lists (`list_changed`), as both of the
+  plugin's do. Afterwards only the model, mode, thinking option and feature values change, and the
+  name and labels through `update_agent`.
 - `toolPolicy` is `{preapproved}` only (suppresses prompts). `mcpServers` adds tools;
   `providers.<id>.paseoTools.disabledTools` removes built-ins.
 - `before('agent.create')` can't see `labels` (payload is `.pick({config, env}).strict()`): a seat's
@@ -111,7 +117,9 @@ runs in a HOME of its own, and a `console.error` the test did not ask for fails 
 - `timeline.subscribe()` delivers live events only, prose and reasoning included. After a reconnect
   it sends `subscription_restored` and none of what was missed; a failed one sends `error` and is
   released. `timeline.append` writes a durable item into an agent's own timeline.
-- The plugin's own client reconnects by itself, and its socket holds no lease.
+- The plugin's own client reconnects by itself, and its socket holds no lease. A plugin gets that
+  client only with a hook or a panel call: after a reload, a seat's desk call waits for one, and its
+  answer window starts then.
 - SDK settings are host-scoped only (runtime throw), hence the plugin's own revision-checked store.
 - Only `before` hooks (`agent.create`, `agent.session_open`, `workspace.create`) can refuse, by
   throwing. Every hook call times out at 30 s, and on those three the timeout fails the user's
@@ -124,7 +132,7 @@ runs in a HOME of its own, and a `console.error` the test did not ask for fails 
 ## SLP is the preset, not the plugin
 
 - **Roles are data** in `roles.json`: `can` (capabilities: supervise, lead, work, write, review,
-  watched), `tools` (a set in `mcp/tools.json`), prompt, skills, defaults, `writes`, `follows`.
+  watched, judge, page), `tools` (a set in `mcp/tools.json`), prompt, skills, defaults, `writes`, `follows`.
   Nothing in `server/` compares a role to a name; capabilities decide routing, acceptance and
   watching.
 - **A roles file in the state root replaces the shipped one**, and may point at its own prompts and

@@ -32,7 +32,7 @@
 <rect class="node" x="300" y="136" width="316" height="70" rx="10" style="fill:var(--violet-fill);stroke:var(--violet)"/>
 <text class="title" x="458" y="159" text-anchor="middle" style="fill:var(--violet-ink)">plugin start</text>
 <text class="sub" x="458" y="178" text-anchor="middle">one Paseo provider and profile per role</text>
-<text class="sub" x="458" y="195" text-anchor="middle">and agent: twenty-five of each in the kit</text>
+<text class="sub" x="458" y="195" text-anchor="middle">and agent: thirty of each in the kit</text>
 <rect class="node" x="300" y="246" width="316" height="70" rx="10" style="fill:var(--violet-fill);stroke:var(--violet)"/>
 <text class="title" x="458" y="269" text-anchor="middle" style="fill:var(--violet-ink)">before agent.create</text>
 <text class="sub" x="458" y="288" text-anchor="middle">build the seat directory, then shape</text>
@@ -56,12 +56,12 @@
 <text class="sub mono" x="684" y="195" text-anchor="start">daemon.agentProfiles</text>
 <rect class="node" x="668" y="246" width="252" height="70" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
 <text class="title" x="684" y="269" text-anchor="start" style="fill:var(--slate-ink)">the seat directory</text>
-<text class="sub" x="684" y="288" text-anchor="start">settings, MCP, skills, logins, prompt;</text>
+<text class="sub" x="684" y="288" text-anchor="start">settings, MCP, skills, logins, rules;</text>
 <text class="sub" x="684" y="305" text-anchor="start">written only if the whole seat builds</text>
 <rect class="node" x="668" y="356" width="252" height="70" rx="10" style="fill:var(--slate-fill);stroke:var(--slate)"/>
 <text class="title" x="684" y="379" text-anchor="start" style="fill:var(--slate-ink)">the seat's environment</text>
 <text class="sub" x="684" y="398" text-anchor="start">config dir → the seat directory,</text>
-<text class="sub" x="684" y="415" text-anchor="start">and three SEATWORKS_ variables</text>
+<text class="sub" x="684" y="415" text-anchor="start">and SEATWORKS_ variables, its key</text>
 <path class="edge" d="M616,171 L668,171" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <path class="edge" d="M616,281 L668,281" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <path class="edge" d="M616,391 L668,391" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>

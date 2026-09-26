@@ -15,9 +15,9 @@ call, or yours.
 
 | It does | It enforces | It never does |
 |---|---|---|
-| Configures and starts one agent per seat | Lanes may not overlap in what they write | Judge the work |
+| Configures and starts one agent per seat | Lanes may not overlap in what they declare they write | Judge the work |
 | Keeps a shared desk of lanes, tasks and questions | One writer per working copy | Pass on to a seat what the watch concluded about it |
-| Carries messages, each ending with what it asks of its reader, and holds them until a seat can take them | A red gate (your test command) stops a lane from landing, unless the Supervisor lands over it with a reason | Write your project's concept for you |
+| Carries messages, each ending with what it asks of its reader, and holds each for up to 7 days until its reader can take it | A red gate (your test command) stops a task from merging into its lane and a lane from landing, unless its Lead or the Supervisor goes over it with a reason | Write your project's concept for you |
 | Keeps a durable record outside your repo | A landing that touches a path you asked about first waits for you | Write into your project's files |
 | Watches Leads and Peers, tells whoever answers for them, and pages you for what cannot be undone | Each role's permissions, where the agent allows it, and git commands only the desk runs | |
 
@@ -69,8 +69,11 @@ thinking level where the agent offers them.
 | OpenCode | `opencode auth login` once, outside any seat | no | yes |
 
 Every seat reads your project's own instructions: Claude reads `CLAUDE.md`, or `AGENTS.md` when
-the project has no `CLAUDE.md`, and the others read `AGENTS.md`. Claude Code, Codex, Oh My Pi and OpenCode seats are denied `git push`, `gh`, `paseo`
-and starting other agents. A Pi seat is held only by the tools it is given. The shipped Claude settings answer in
+the project has no `CLAUDE.md`, and the others read `AGENTS.md`. Every seat's `PATH` refuses the
+desk's git commands, `gh` and `paseo`. Claude Code, Codex, Oh My Pi and OpenCode seats are also
+denied `git push`, `gh`, `paseo` and starting other agents by their own rules. Pi has no command
+rules, so a Pi seat can start another agent: its `PATH` cannot refuse one, since its own agent
+starts through that same `PATH`. The shipped Claude settings answer in
 Vietnamese: change `language` in `plugin/harness/claude/settings.json` for another language. The details are under
 [seat directories](docs/REFERENCE.md#seat-directories) and
 [known limits](docs/REFERENCE.md#known-limits).
@@ -95,8 +98,9 @@ Paseo remembers where the clone is. If you move it, install it again.
 
 **Keeping it current.** The **Plugin** tab shows the version that runs and, once checked, the one
 the clone's branch has. **Update** moves forward only, runs `npm install` when the packages changed,
-and reloads the plugin. It waits until no seat runs in any project, because every project moves to
-the new version at once. Below the version, one row for each thing that needs you:
+and reloads the plugin. It is offered only once no seat is left in any project, idle ones included,
+because every project moves to the new version at once. Below the version, one row for each thing
+that needs you:
 
 - A changed **prompt** or **skill**: **Use new**, or **Keep mine** to go on with the
   version you had. Yours is copied to `~/.local/share/seatworks-v3/own/` for you to edit by hand, and
@@ -115,8 +119,11 @@ what you pick.
 4. Start an agent in that project with the provider **Supervisor · Claude Code (sw2)**, and tell it
    what you want.
 
-The desk seats everyone else as the work needs them. The first lane works in your checkout, and each
-later one in a working copy of its own.
+The desk seats everyone else as the work needs them. A lane works in your checkout on a new branch,
+unless the Supervisor or your standing choice (`laneHome`) keeps it on the branch you are on or
+gives it a working copy of its own. Your checkout holds one lane at a time, so a lane opened
+meanwhile takes a copy of its own or waits its turn. When neither has said and your checkout has
+uncommitted work or is on a branch other than the base, you are asked first.
 
 **Your project's `AGENTS.md` stays yours.** The plugin writes nothing into your project's files: the
 team's shared rules are in each role's own prompt.

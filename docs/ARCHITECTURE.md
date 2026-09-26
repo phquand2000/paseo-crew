@@ -28,13 +28,14 @@ is always a seat's call.
 |---|---|
 | Paseo daemon | `plugin/server/**`, entered through `index.server.ts` |
 | Paseo app | `plugin/client/**`, the panel, entered through `index.client.tsx` |
-| A seat: an agent started from a `sw2-<role>-<agent>` provider | Only `bin/seat-room`, the launcher for Claude seats |
+| A seat: an agent started from a `sw2-<role>-<agent>` provider | `bin/git-shim.mjs`, which the seat's `git` runs, and `bin/seat-room`, the launcher for Claude seats |
 | A seat's MCP servers | `mcp/team.mjs` (the desk tools), and `mcp/code.mjs` for proxied servers |
 
-The daemon and the seats share no memory. There are two one-way channels:
+The daemon and the seats share no memory. There are two channels:
 
 - **Seats reach the plugin through a socket**, `desk.sock` in the state root, open to this user alone:
-  each seat's `team` server keeps a line to it and shows the key the seat was created with.
+  each seat's `team` server keeps a line to it, shows the key the seat was created with, and hears
+  each answer on the same line.
 - **The plugin reaches seats through Paseo**, with `agents.ref(id).send`.
 
 ## Invariants
@@ -42,20 +43,25 @@ The daemon and the seats share no memory. There are two one-way channels:
 These are mostly absences, so the code won't show them to you.
 
 - **The plugin never judges the work.** A gate result is evidence the Lead weighs. The only verdict
-  the desk acts on is a red gate when a lane lands, and the Supervisor can override it. A landing that
-  touches a path the Human asked about first waits for them: that is their standing order, not a verdict.
+  the desk acts on is a red gate, and `overGate` with a reason overrides it: a task's by its Lead at
+  `accept`, a lane's by the Supervisor at `land_lane`. A landing that touches a path the Human asked
+  about first waits for them: that is their standing order, not a verdict.
 - **Capabilities, not names.** No code under `server/` compares a role to a name. What a role can do
   (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `judge`, `page`) decides routing,
   acceptance, watching, judging and paging.
-- **One door to Paseo.** Only `server/adapters/paseo/` imports Paseo's SDK: it registers the hooks,
-  binds the daemon's API from each hook and panel call, and calls the agent, workspace and model API.
-  Everything else depends on the ports in `core/ports.ts`, in the plugin's own types, so the tests
-  use fakes.
-- **One place checks arguments.** `desk/args.ts` checks every call against the schema its seat was
-  shown, before any verb runs. Each tool's zod input, which a test holds equal to that schema, types
-  what its handler reads; a tool set picks among tools of one name by the schema it shows.
-- **One table per lifecycle.** A task, lane, ask or incident changes status only through its table
-  in `server/domain/`, checked inside the ledger transaction against the status it has then.
+- **One door to Paseo.** In `server/`, only `adapters/paseo/` imports Paseo's SDK: it registers the
+  hooks, binds the daemon's API from each hook and panel call, and calls the agent, workspace and
+  model API. Everything else depends on the ports in `core/ports.ts`, in the plugin's own types, so
+  the tests use fakes. Outside `server/`, the entry point takes Paseo's context type, and
+  `shared/rpc.ts` makes the panel's RPC contracts with Paseo's `defineRpc`.
+- **One place checks arguments.** `desk/args.ts` checks every call against its tool's schema in
+  `mcp/tools.json`, before any verb runs. Each tool's zod input, which a test holds equal to that
+  schema, types what its handler reads; a tool set picks among tools of one name by the schema it
+  shows. A seat is also shown the desk's choices for some fields, such as the roles it may seat, and
+  the verb checks those.
+- **One table per lifecycle.** A task, lane, ask, question or incident changes status only through
+  its table in `server/domain/`, checked inside the transaction on its file (`ledger.json`, or
+  `incidents.json` for an incident) against the status it has then.
 - **One place writes letters.** Everything the desk mails a seat is in `desk/letters.ts` and, for
   asks, merges, landings and the Watcher's cases, the `*-letters.ts` beside it: each letter is keyed by its kind and ids, and
   ends with one `Next:` line, what it asks of whoever reads it. What a Peer or Reviewer starts from
@@ -64,12 +70,14 @@ These are mostly absences, so the code won't show them to you.
 - **One writer per working copy.** A lane-mode task holds the lane's copy, on its own branch, from
   start until it is merged or cut, a failed merge included.
 - **No hidden command chain.** When the Supervisor messages a Peer, the Peer's Lead is told first.
-- **The desk writes nothing of the Human's.** No file in the project is written by the plugin; what
-  every role shares is in its own prompt.
+  When you write in a Lead's or Peer's own chat, whoever supervises is told.
+- **The desk writes nothing of the Human's.** The plugin puts no file of its own in the project; an
+  enabled code index may add its patterns to the repository's `.git/info/exclude`. What every role
+  shares is in its own prompt.
 - **The watched seat never hears what the watch concluded about it.** No incident is ever addressed
   to it.
-- **Nothing a seat reads resolves into a repository.** Skills and guides are copies under
-  `content/`, because some agents load the `AGENTS.md` above every file they read.
+- **Nothing a seat reads resolves into a repository.** Skills and guides are copies under the state
+  root's `content/`, because some agents load the `AGENTS.md` above every file they read.
 - **All or nothing.** A seat directory is written only when the whole seat can be built. A kit that
   fails to load leaves the plugin inert, with the problem named.
 
@@ -77,8 +85,8 @@ These are mostly absences, so the code won't show them to you.
 
 | Path | What it does |
 |---|---|
-| `server/core/` | The ports, the timeline stream reader, atomic stores, `git`, the gate runner |
-| `server/domain/` | Each kind's lifecycle as one transition table: tasks, lanes, asks, incidents. Imports nothing |
+| `server/core/` | The ports, the timeline stream reader, atomic stores, `git`, the gate runner, the ref moves that merge a task and land a lane (`land.ts`), and an MCP client (`mcp-client.ts`) |
+| `server/domain/` | Each kind's lifecycle as one transition table: tasks, lanes, asks, the Human's questions, incidents. Imports nothing |
 | `server/adapters/paseo/` | Paseo itself: its hooks and panel calls in the plugin's own types, and its agent, workspace and model API behind the ports |
 | `server/adapters/decisions.ts` | A sensor asked over HTTP, behind the `Judge` port |
 | `server/catalog/` | Data to seats: the kit loader, team resolution, providers, seat directories, launch config, content, the project files |
@@ -86,10 +94,11 @@ These are mostly absences, so the code won't show them to you.
 | `server/desk/tools/` | One module per tool the seats call, each a zod input and a handler; `registry.ts` lists them for the desk |
 | `server/runtime/` | The composition root and the loops: hooks, seat keys, the desk's socket, outbox, patrol, turn reading, RPC, health |
 | `server/runtime/watch/` | The watch: the window over a timeline, the facts read from it and from each lane's record, and the findings they make |
+| `server/upkeep/` | The plugin's own upkeep, behind the panel's Plugin tab: updating its checkout, clearing what nothing uses, migrating settings, and settling content the kit changed |
 | `client/` | The Seatworks panel: `state/` holds the hooks that read and save through RPC, `model/` edits the settings layer, `format/` decides what a card says of an answer, `ui/` draws the cards |
 | `shared/` | What the panel and server share, as zod schemas both take their types from: the RPC contracts (`rpc.ts`), each answer's shape (`views.ts`, which the panel checks every answer against) and the settings layer (`settings.ts`) |
 | `mcp/` | `team.mjs`, `code.mjs`, `tools.json` (the tool sets: titles, hints, schemas) and `instructions.json` (what each set's server is for) |
-| `bin/` | `seat-room`, the launcher that refuses a seat the plugin did not configure |
+| `bin/` | `seat-room`, the launcher that refuses a seat the plugin did not configure, and `git-shim.mjs`, the `git` every seat runs, which refuses what only the desk does |
 | `roles.json` | The SLP preset: roles, capabilities, tool sets, prompts, skills, defaults, attention values |
 | `harness/<agent>/` | How each agent is set up: `harness.json`, base and per-role settings, and per-role deltas: what a role's prompt needs said against that agent's own instructions |
 | `catalog/` | Optional MCP servers; `ecosystem.json`: gates, one-writer paths, test and docs names, the watch's patterns; `paseo.json`: the tools Paseo gives every agent; `refused.json`: the commands a seat's `PATH` refuses, and why; `sensor/`: where and how each sensor is asked; `checks.json`: the watch's questions |
@@ -97,24 +106,31 @@ These are mostly absences, so the code won't show them to you.
 
 All paths are under `plugin/`.
 
+`test/architecture.test.ts` holds each folder to what it may import: `core/` and `domain/` import no
+other folder, `desk/` never imports `runtime/`, only `runtime/` imports `upkeep/`, and `mcp/` and
+`bin/` import none of the plugin's code. It also refuses import cycles and unused exports, and holds
+files to 300 lines and functions to 50, bar a list of known breaches that only shrinks.
+
 ## From data to a running seat
 
 ![From data to a running seat](images/seat-build.svg)
 
 1. **Plugin start.** `loadKit` reads `roles.json`, each `harness.json`, the MCP catalog and the tool
    sets. Then the plugin writes one Paseo provider and one agent profile per role and
-   agent. The shipped kit makes twenty-five: five roles on five agents. It reloads the daemon only when
+   agent. The shipped kit makes thirty: six roles on five agents. It reloads the daemon only when
    something changed.
 2. **Before `agent.create`.** `Seating.ensure` builds the seat directory. This covers settings, deny
    rules, the sandbox, MCP servers, skills linked to copies outside any repository, and the working
    rules. `applyRole` then sets the model, thinking level, mode, prompt and MCP servers. The prompt
    is the role's, then its agent's delta for that role, if the agent's own instructions need one.
 3. **Before `agent.session_open`.** The plugin points the agent's config directory at the seat
-   directory and sets `SEATWORKS_ROLE`, `SEATWORKS_PROJECT` and `SEATWORKS_STATE`, with a `git` first
-   on its `PATH` that refuses the commands only the desk runs (push, merge, checkout and the like),
-   however they are spelled, and beside it a `gh` and a `paseo` that only refuse, since the desk
-   talks to the forge and starts agents. It also seeds the project's records, such as `notebook.md`,
-   and writes nothing into the project's own files.
+   directory, sets `SEATWORKS_ROLE`, `SEATWORKS_PROJECT` and `SEATWORKS_STATE`, and passes the seat
+   its key in `SEATWORKS_DESK_KEY`. A `git` goes first on its `PATH` that refuses the commands only
+   the desk runs (push, merge, checkout and the like), however they are spelled, and beside it a `gh`
+   and a `paseo` that only refuse, since the desk talks to the forge and starts agents. Each agent's
+   own rules also refuse the commands that start agents, on every agent but Pi, which has no command
+   rules. It also seeds the project's records, such as `notebook.md`, and writes nothing into the
+   project's own files.
 4. **`bin/seat-room`** checks the launch and then `exec`s Claude. Codex, Pi, Oh My Pi and OpenCode seats start
    through Paseo's own providers.
 
@@ -138,16 +154,22 @@ What each agent's seat directory holds is in [the reference](REFERENCE.md#seat-d
 
 ![A lane, end to end](images/lane-lifecycle.svg)
 
-The **ledger** (`ledger.json`, one per project) holds lanes, tasks, asks, agents and slots. Every
-change is one synchronous transaction: the ledger is read, decided on and saved with nothing awaited
-in between, so no other change can land in the middle. A ledger it can't read is refused, never
-treated as empty.
+The **ledger** (`ledger.json`, one per project) holds lanes, tasks, asks, the Human's questions,
+agents and slots. Every change is one synchronous transaction: the ledger is read, decided on and
+saved with nothing awaited in between, so no other change can land in the middle. A ledger it can't
+read is refused, never treated as empty.
 
 **Where a lane works.**
 
-- The first lane works in your own checkout, on a branch `lane/<id>-<title>`. The checkout must be
-  clean.
-- A later lane, or one that asks to be isolated, gets a git worktree slot of its own.
+- In your own checkout while no other lane holds it: on a new branch `lane/<id>-<title>` from a
+  clean checkout, or on the branch you are on, or a new one started from it, with your uncommitted
+  work along (`onBranch`); landing such a lane leaves the work on that branch. When your checkout has
+  uncommitted work or is off base, you are asked which, unless the call or your `laneHome` says.
+- In a git worktree slot of its own when it asks to be isolated, or is a detour while your checkout
+  is taken. Any other lane opened while another holds your checkout is refused; with `after`, it
+  waits for that lane to land and then opens, in your checkout if it is free.
+- The desk opens each copy it takes in the project's code indexes, over MCP, and closes a slot there
+  as it goes.
 
 **Two task modes.** Every task works on a `task/…` branch of its own, and the lane branch takes work
 only by the desk's merge.
@@ -173,7 +195,8 @@ recorded. A copy with work uncommitted, the lane's or the task's, holds the merg
 queued, its Lead is told once, and the merge is tried again as each turn ends and before the lane lands.
 A task is read from where its branch meets the lane's, never with what came in with the lane. What a
 task changed is read at hand-back and at merge, not declared: a file in what another task holds,
-outside the lane's write set, or outside what a parallel task holds is a note to its Lead.
+outside the lane's write set, or outside what a parallel task holds is a note to its Lead. A project
+that gates only its lanes (`gateOn`) runs no gate at hand-back or merge, and MERGED says so.
 
 **Landing.** `land_lane` does four things in a fixed order:
 
@@ -189,8 +212,8 @@ Landings in one project run one at a time, so the next one merges in what the la
 moves only from the commit read at the start, and what lands is the head its gate saw: a landing never
 writes over another, and a lane that moved after its gate lands nothing.
 
-A task still on its branch in the lane's copy, a seat mid-turn, a conflict or a red gate refuses the
-call and leaves the lane open. Only a red gate
+A task still on its branch in the lane's copy, a seat mid-turn there when base must be merged in, a
+conflict or a red gate refuses the call and leaves the lane open. Only a red gate
 can be overridden, with `overGate`, and the override is written to `events.log`. Everything else the
 desk reads of the lane (deleted or weakened tests, files outside the write set, open incidents, what
 its reviews leave standing) goes with the REPORT letter and the reply as evidence. A review whose range
@@ -201,10 +224,10 @@ their questions, and its verdict is refused until it answers them.
 releases it; the next round puts away the copy of one archived in Paseo. Closing a lane lets its Peers go.
 Its Lead stays, with the lane's copy of its own if it had one, until whoever supervises releases it or
 it is archived in Paseo, which archives a Supervisor's Leads with it; the next round then puts that
-copy away. Your checkout goes back to base at close. A task still in the lane's copy left it on its own
-branch: the copy comes off it once no seat is mid-turn there, onto the Human's own branch with their
-uncommitted work along when the lane carried theirs, and the task's branch goes unless it holds commits
-nothing else has.
+copy away. Your checkout goes back to base at close, or stays on your branch when the lane carried it
+on. A task still in the lane's copy left it on its own branch: the copy comes off it once no seat is
+mid-turn there, onto the Human's own branch with their uncommitted work along when the lane carried
+theirs, and the task's branch goes unless it holds commits nothing else has.
 
 **Teardown** waits for seats that are still mid-turn. The pending release is recorded in the ledger,
 and a seat waiting to be archived in `intents.json`, so a daemon restart loses neither: the first
@@ -223,7 +246,9 @@ on its line to the desk's socket. The desk knows the seat by the key it showed w
 made as the seat is created, bound to the agent when Paseo opens its session, and given back each time
 it opens again. The desk checks the arguments, runs the verb and answers on the line. A call still
 running after 240 s is answered with "the answer arrives as mail", and so is one the seat's harness
-stops or whose line drops. That promise is kept in `intents.json` until the letter is posted; if the
+stops or whose line drops. After the plugin starts or reloads, a call waits until Paseo reaches the
+plugin through a hook or a panel call; its 240 s count from then, and one stopped while it waits is
+answered as mail too. That promise is kept in `intents.json` until the letter is posted; if the
 plugin stops first, the seat is told NO ANSWER when it starts again. A harness that asked for progress
 hears every 20 s that a call still runs, and the desk's choices for a role's fields reach its seats as
 a changed tool list when the team's settings change.
@@ -234,11 +259,14 @@ a single message.
 
 - **Steered** into a running turn only when its agent can take a steer and the turn has run at
   least 60 s.
-- **Held** while the seat waits on a permission, is busy, had mail in the last 10 minutes, or its lane
-  is on hold.
+- **Held** while the seat waits on a permission, is busy or its lane is on hold, and for up to 10
+  minutes after it is sent mail, until it ends a turn.
 - **Kept** while every letter for it asks nothing now: a lane that opened, a task that started, a
   landing held or done. Such a letter goes out with the next one that asks something.
 - **Sent** otherwise.
+
+A letter nobody takes in 7 days is given up on. Mail for a seat that is gone goes to no other seat:
+`status.md` lists it, with when it is given up on.
 
 Each letter's `Next:` line is picked by the desk from what it knows, so a seat's prompt needs no table
 of letters: a red gate, an ask's kind, whether its reader is the Lead or whoever supervises because
@@ -246,7 +274,8 @@ the Lead is gone, a review's hand-back, the lane's last task merged.
 
 **Reading turns.** At every turn end, `TurnRules` reads the turn in code, with no model call:
 
-- A failed turn is reported to the seat's owner.
+- A failed turn is reported to the seat's owner: a Peer's Lead, or whoever supervises once that Lead
+  is gone. A wait for permission is reported the same way.
 - A Peer or Reviewer whose turn ends without a desk call is nudged. On the second such turn, its task
   is marked `stalled` and the Lead is told.
 
@@ -261,6 +290,8 @@ goes ahead.
   lane reports ready, where the lane is put on hold; an irreversible one holds the lane now. They answer
   on the Flow tab, or in chat for `record_human_answer`, and HUMAN ANSWERED tells the Supervisor what
   that turns round. At most `questionsPerDay` a day.
+- **No question stops a turn.** A seat's question that would stop its turn is refused, and it is told
+  to use `ask_human` or `ask`, whichever it holds, or else to settle it from what it has.
 - **Standing orders.** What they settle once for every lane: the paths no landing touches before they
   look (`askFirst`), and where lanes work when their copy makes that a question (`laneHome`). The
   Orders tab shows them with the project's `CONTEXT.md`.
@@ -276,9 +307,9 @@ goes ahead.
 
 **What is watched.** Every live seat whose role can be `watched`: Leads and Peers in the preset,
 never a Reviewer. `core/stream.ts` joins Paseo's live timeline with its paged history, reading back
-what a join, a gap or a reconnect missed, and folds it into a window of at most 80 entries per seat:
-calls, words, thoughts, instructions and errors. A seat whose subscription fails is followed again on
-the next round.
+what a join, a gap or a reconnect missed, and the watch folds it into a window of at most 80 entries
+per seat (`runtime/watch/window.ts`): calls, words, thoughts, instructions and errors. A seat whose
+subscription fails is followed again on the next round.
 
 **Facts, in code.** Every turn is read for facts, and every lane's record for shapes that span
 turns. Each fact has a level:
@@ -336,9 +367,12 @@ on its own, so one broken project doesn't stop the round. For each project, in o
 3. Mark tasks whose Peer is gone, and tell the Supervisor of a lane whose Lead is gone.
 4. Remind open asks, re-address ones whose reader is gone, and escalate ones nobody answered.
 5. Read each lane's record for facts.
-6. Sweep stray workspaces and worktrees, and finish held teardowns.
+6. Sweep stray workspaces and worktrees.
 7. Open waiting lanes whose turn has come, and archive finished ones.
-8. Write `status.md`.
+8. Finish held teardowns, and put away copies kept for seats that are gone.
+9. Give up on cases a Watcher has not answered in 15 minutes or whose Watcher is gone, and let an
+   idle Watcher go once no lane is open.
+10. Write `status.md`.
 
 Then it pumps every seat that has mail.
 

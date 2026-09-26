@@ -45,12 +45,12 @@
 <path class="edge" d="M498,346 L454,346" style="stroke:var(--green)" marker-end="url(#a-green)"/>
 <rect class="node" x="270" y="392" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke:var(--blue)"/>
 <text class="title" x="362" y="409" text-anchor="middle" style="fill:var(--blue-ink)">accept · rework · cut</text>
-<text class="sub" x="362" y="428" text-anchor="middle">merged in place, or queued;</text>
+<text class="sub" x="362" y="428" text-anchor="middle">accept queues it to merge;</text>
 <text class="sub" x="362" y="445" text-anchor="middle">rework wakes the same Peer</text>
 <rect class="node" x="730" y="392" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke:var(--teal)"/>
 <text class="title" x="822" y="409" text-anchor="middle" style="fill:var(--teal-ink)">merge queue</text>
-<text class="sub" x="822" y="428" text-anchor="middle">parallel tasks, one at a</text>
-<text class="sub" x="822" y="445" text-anchor="middle">time: merged, or rework</text>
+<text class="sub" x="822" y="428" text-anchor="middle">per lane, one at a time:</text>
+<text class="sub" x="822" y="445" text-anchor="middle">merged, or sent back</text>
 <path class="edge" d="M454,421 L730,421" style="stroke:var(--blue)" marker-end="url(#a-blue)"/>
 <rect class="node" x="270" y="476" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke:var(--blue)"/>
 <text class="title" x="362" y="493" text-anchor="middle" style="fill:var(--blue-ink)">report ready</text>
@@ -78,8 +78,8 @@
 <path class="edge" d="M226,589 L730,589" style="stroke:var(--violet)" marker-end="url(#a-violet)"/>
 <rect class="node" x="730" y="683" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke:var(--teal)"/>
 <text class="title" x="822" y="700" text-anchor="middle" style="fill:var(--teal-ink)">put away</text>
-<text class="sub" x="822" y="719" text-anchor="middle">tasks cut, seats archived,</text>
-<text class="sub" x="822" y="736" text-anchor="middle">the copy goes back</text>
+<text class="sub" x="822" y="719" text-anchor="middle">tasks cut, Peers archived;</text>
+<text class="sub" x="822" y="736" text-anchor="middle">the Lead stays till released</text>
 <path class="edge" d="M822,661 L822,683" style="stroke:var(--teal)" marker-end="url(#a-teal)"/>
 <rect class="node" x="498" y="666" width="184" height="58" rx="10" style="fill:var(--amber-fill);stroke:var(--amber)"/>
 <text class="title" x="590" y="683" text-anchor="middle" style="fill:var(--amber-ink)">refused</text>
@@ -106,7 +106,7 @@
 <circle cx="270" cy="392" r="11" style="fill:var(--blue)"/>
 <text class="badge-text" x="270" y="396" text-anchor="middle">4</text>
 <rect x="563.645" y="411" width="52.71000000000001" height="20" rx="6" style="fill:var(--bg)"/>
-<text class="pill-text" x="590" y="425" text-anchor="middle" style="fill:var(--blue-ink)">parallel</text>
+<text class="pill-text" x="590" y="425" text-anchor="middle" style="fill:var(--blue-ink)">queued</text>
 <circle cx="270" cy="476" r="11" style="fill:var(--blue)"/>
 <text class="badge-text" x="270" y="480" text-anchor="middle">5</text>
 <rect x="571.58" y="495" width="36.84" height="20" rx="6" style="fill:var(--bg)"/>
