@@ -1,6 +1,7 @@
 import { isAbsolute, relative } from "node:path";
 import { oneLine, within } from "../../core/text.ts";
-import { type Fact, type Rules, fact } from "./facts.ts";
+import { type Fact, fact } from "./fact-kinds.ts";
+import { type Rules } from "./facts.ts";
 import type { Call } from "./window.ts";
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");

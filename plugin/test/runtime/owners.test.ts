@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Pending, harness } from "./harness.ts";
+import { type Pending } from "./fake-paseo.ts";
+import { harness } from "./harness.ts";
 
 type Harness = ReturnType<typeof harness>;
 

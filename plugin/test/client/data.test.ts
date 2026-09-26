@@ -4,7 +4,7 @@ import { KEPT, type Layer } from "../../shared/settings.ts";
 import { countsInstead } from "../../client/format/flow.ts";
 import { incidentState, judgeWords } from "../../client/format/watch.ts";
 import { dropMcp, foldRoles, keptRoles, modelRow, setAttention, setRole, withKey } from "../../client/model/layer.ts";
-import type { WatchIncident, WatchJudge } from "../../shared/views.ts";
+import type { WatchIncident, WatchJudge } from "../../shared/flow-views.ts";
 
 const docs = {
   enabled: true,

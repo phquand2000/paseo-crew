@@ -1,7 +1,7 @@
 import { useRpc } from "@getpaseo/plugin/client";
 import { useEffect, useRef, useState } from "react";
 import { flowRpc } from "../../shared/rpc.ts";
-import type { FlowView } from "../../shared/views.ts";
+import type { FlowView } from "../../shared/flow-views.ts";
 import { message } from "../format/error.ts";
 
 export function useFlow(project: string | undefined, everyMs = 5000, openKey = ""): { flow: FlowView | null; error: string | null } {

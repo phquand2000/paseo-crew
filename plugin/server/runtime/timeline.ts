@@ -55,10 +55,12 @@ export function deniedCall(timeline: Timeline, refused: string): LastCall | unde
   const detail = (call.detail ?? {}) as Record<string, unknown>;
   const what =
     typeof detail.command === "string" ? detail.command : typeof detail.filePath === "string" ? detail.filePath : "";
-  return { what: [String(call.name ?? "tool"), what].filter(Boolean).join(": "), refused: denied };
+  return { what: [toolName(call), what].filter(Boolean).join(": "), refused: denied };
 }
 
 const QUOTE_CHARS = 300;
+
+const toolName = (item: TimelineItem): string => (typeof item.name === "string" ? item.name : "tool");
 
 type Malformed = { tool: string; quote: string };
 
@@ -73,6 +75,6 @@ export function malformed(timeline: Timeline, unparsed: { input: string; error: 
     const sent = JSON.stringify((item.detail as { input?: unknown } | undefined)?.input ?? null);
     const said = JSON.stringify(item.error ?? null).replace(/\\[nrt]/g, " ");
     if (!sent.includes(unparsed.input) && !notJson.test(said)) return [];
-    return [{ tool: String(item.name ?? "tool"), quote: (notJson.test(said) ? said : sent).slice(0, QUOTE_CHARS) }];
+    return [{ tool: toolName(item), quote: (notJson.test(said) ? said : sent).slice(0, QUOTE_CHARS) }];
   });
 }

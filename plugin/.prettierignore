@@ -9,13 +9,3 @@ test/fixtures
 /index.client.tsx
 /mcp
 /bin
-
-# Not yet formatted: formatted, each would break the size limits in test/architecture.test.ts until it is split.
-# The list only shrinks.
-server/core/git.ts
-server/runtime/turns.ts
-server/runtime/watch/facts.ts
-server/runtime/watch/history.ts
-server/upkeep/update.ts
-shared/views.ts
-test/runtime/harness.ts

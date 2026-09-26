@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { MigrateStep, MigrateView } from "../../shared/views.ts";
+import type { MigrateStep, MigrateView } from "../../shared/upkeep-views.ts";
 import type { Kit } from "../catalog/kit/kit.ts";
 import { digest } from "../core/fs.ts";
 import { LayerSchema } from "../../shared/settings.ts";
@@ -81,7 +81,7 @@ function repairLayer(raw: unknown): { values: unknown; dropped: string[] } | und
 
 const unreadable = (file: string) => {
   try {
-    const held = JSON.parse(readFileSync(file, "utf-8"));
+    const held = JSON.parse(readFileSync(file, "utf-8")) as unknown;
     return !held || typeof held !== "object" || Array.isArray(held);
   } catch {
     return true;

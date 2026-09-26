@@ -55,7 +55,6 @@ const LONG_FUNCTIONS: Record<string, number> = {
   "client/ui/surface.tsx SeatworksSurface": 172,
   "client/ui/team.tsx roleRows": 56,
   "client/ui/upkeep.tsx UpkeepSection": 163,
-  "server/runtime/watch/history.ts deskFacts": 54,
 };
 
 const ENTRIES = ["index.server.ts", "index.client.tsx", "eslint.config.js"];

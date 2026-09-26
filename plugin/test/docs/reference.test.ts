@@ -8,7 +8,7 @@ import { LANE } from "../../server/domain/lane.ts";
 import { QUESTION } from "../../server/domain/question.ts";
 import type { Lifecycle } from "../../server/domain/lifecycle.ts";
 import { TASK } from "../../server/domain/task.ts";
-import { FACTS } from "../../server/runtime/watch/facts.ts";
+import { FACTS } from "../../server/runtime/watch/fact-kinds.ts";
 
 const PLUGIN = join(import.meta.dirname, "..", "..");
 const REFERENCE = join(PLUGIN, "..", "docs", "REFERENCE.md");

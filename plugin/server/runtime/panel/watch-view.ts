@@ -1,6 +1,6 @@
 import { minutesSince } from "../../core/time.ts";
 import { join } from "node:path";
-import type { WatchJudge, WatchView } from "../../../shared/views.ts";
+import type { WatchJudge, WatchView } from "../../../shared/flow-views.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import type { Team } from "../../catalog/team/team.ts";
 import { lastBytes } from "../../core/gate.ts";
@@ -8,7 +8,7 @@ import { loadIncidents } from "../../desk/store/incidents.ts";
 import { type Ledger, laneOfLead, taskOfPeer } from "../../domain/ledger.ts";
 import { loadLedger } from "../../desk/store/ledger.ts";
 import type { Project } from "../../desk/project/project.ts";
-import { factTitle } from "../watch/facts.ts";
+import { factTitle } from "../watch/fact-kinds.ts";
 
 const INCIDENTS_SHOWN = 200;
 

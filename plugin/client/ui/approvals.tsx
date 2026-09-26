@@ -4,7 +4,8 @@ import { SettingsAction, SettingsCard, SettingsInput, type SettingsInputHandle, 
 import { useRef, useState } from "react";
 import { Text } from "react-native";
 import { landDecideRpc } from "../../shared/rpc.ts";
-import type { FlowLane, LandDecided } from "../../shared/views.ts";
+import type { FlowLane } from "../../shared/flow-views.ts";
+import type { LandDecided } from "../../shared/views.ts";
 
 type Decide = (input: RpcInput<typeof landDecideRpc>) => Promise<LandDecided>;
 

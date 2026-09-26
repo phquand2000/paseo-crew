@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tempDir } from "./tempdir.ts";
-import { type Kit, loadKit } from "../server/catalog/kit/kit.ts";
+import { type Kit, type ModelSpec, loadKit } from "../server/catalog/kit/kit.ts";
 import { type ModelCache, applyModels } from "../server/catalog/paseo/models.ts";
 
 function put(root: string, path: string, value: unknown): void {
@@ -183,7 +183,10 @@ export function makeKit(): Kit {
   const cache: ModelCache = {};
   for (const id of readdirSync(join(dir, "harness"))) {
     const file = join(dir, "harness", id, "harness.json");
-    const { models, ...rest } = JSON.parse(readFileSync(file, "utf-8"));
+    const { models, ...rest } = JSON.parse(readFileSync(file, "utf-8")) as { models?: ModelSpec[] } & Record<
+      string,
+      unknown
+    >;
     if (models) cache[id] = { at: "2026-01-01T00:00:00.000Z", models, error: null };
     writeFileSync(file, JSON.stringify(rest));
   }

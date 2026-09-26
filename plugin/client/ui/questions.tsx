@@ -4,7 +4,8 @@ import { SettingsAction, SettingsCard, SettingsInput, type SettingsInputHandle, 
 import { useRef, useState } from "react";
 import { Text } from "react-native";
 import { questionAnswerRpc } from "../../shared/rpc.ts";
-import type { FlowQuestion, QuestionAnswered } from "../../shared/views.ts";
+import type { FlowQuestion } from "../../shared/flow-views.ts";
+import type { QuestionAnswered } from "../../shared/views.ts";
 import { message } from "../format/error.ts";
 
 type Answer = (input: RpcInput<typeof questionAnswerRpc>) => Promise<QuestionAnswered>;

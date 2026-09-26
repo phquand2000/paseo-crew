@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Lane } from "../../server/domain/lane.ts";
 import { type Ledger, emptyLedger } from "../../server/domain/ledger.ts";
 import type { Task } from "../../server/domain/task.ts";
-import type { FactKind } from "../../server/runtime/watch/facts.ts";
+import type { FactKind } from "../../server/runtime/watch/fact-kinds.ts";
 import { deskFacts } from "../../server/runtime/watch/history.ts";
 
 const READING = { reworksAt: 3, reviewsAt: 3 };

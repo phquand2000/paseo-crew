@@ -1,5 +1,6 @@
 import { configFault } from "../../core/config-file.ts";
-import { changedFiles, commitsAhead, diffCounts, git, kindOf, mergeBase } from "../../core/git.ts";
+import { changedFiles, diffCounts, kindOf } from "../../core/git-diff.ts";
+import { commitsAhead, git, mergeBase } from "../../core/git.ts";
 import { coverOf, globToRegex, uncovered } from "../../core/scope.ts";
 import { capped } from "../../core/text.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";

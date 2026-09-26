@@ -3,17 +3,9 @@ import { can, seatOf } from "../../catalog/kit/roles.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
-import {
-  type Fact,
-  Recovery,
-  type Rules,
-  contradicted,
-  editBeforeLook,
-  fact,
-  onSettle,
-  stuck,
-  unverified,
-} from "./facts.ts";
+import { type Fact, fact } from "./fact-kinds.ts";
+import { Recovery, type Rules, onSettle, stuck } from "./facts.ts";
+import { contradicted, editBeforeLook, unverified } from "./turn-facts.ts";
 import type { Quirks } from "../../catalog/kit/timeline.ts";
 import { Window } from "./window.ts";
 

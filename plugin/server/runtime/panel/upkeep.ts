@@ -4,7 +4,7 @@ import { seatOf } from "../../catalog/kit/roles.ts";
 import { home, stateRoot } from "../../core/paths.ts";
 import type { Seats } from "../../core/ports.ts";
 import { type Project, projectOf } from "../../desk/project/project.ts";
-import type { CleanView, MigrateView, UpdateView } from "../../../shared/views.ts";
+import type { CleanView, MigrateView, UpdateView } from "../../../shared/upkeep-views.ts";
 import { removeGarbage, scanGarbage } from "../../upkeep/clean.ts";
 import { contentChanges, decide } from "../../upkeep/content.ts";
 import { type LiveSeat, migrate, migrationPlan } from "../../upkeep/migrate.ts";

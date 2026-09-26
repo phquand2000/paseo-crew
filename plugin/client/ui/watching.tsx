@@ -3,7 +3,7 @@ import { SettingsCard } from "@getpaseo/plugin/client/ui";
 import { type ReactNode, useMemo } from "react";
 import { Text, View } from "react-native";
 import { Dot, Rule } from "./bits.tsx";
-import type { WatchJudge, WatchView } from "../../shared/views.ts";
+import type { WatchJudge, WatchView } from "../../shared/flow-views.ts";
 import { incidentState } from "../format/watch.ts";
 import { judgeWords } from "../format/watch.ts";
 

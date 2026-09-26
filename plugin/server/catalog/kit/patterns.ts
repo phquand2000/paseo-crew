@@ -1,5 +1,5 @@
 import type { Attention } from "../../../shared/views.ts";
-import type { FileKinds } from "../../core/git.ts";
+import type { FileKinds } from "../../core/git-diff.ts";
 import type { Kit } from "./kit.ts";
 
 /** What a test file's change is read for: a skip marker it adds, or assertions it loses; global, since they are counted. */

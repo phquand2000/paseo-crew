@@ -5,7 +5,7 @@ import { SettingsAction, SettingsCard, SettingsSection, SettingsSwitch } from "@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { cleanRpc, decideRpc, migrateRpc, updateRpc } from "../../shared/rpc.ts";
-import type { CleanItem, CleanView, ContentChange, MigrateView, UpdateView } from "../../shared/views.ts";
+import type { CleanItem, CleanView, ContentChange, MigrateView, UpdateView } from "../../shared/upkeep-views.ts";
 import { Button } from "./bits.tsx";
 import { message } from "../format/error.ts";
 

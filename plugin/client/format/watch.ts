@@ -1,4 +1,4 @@
-import type { WatchIncident, WatchJudge } from "../../shared/views.ts";
+import type { WatchIncident, WatchJudge } from "../../shared/flow-views.ts";
 
 const HELD: Record<string, string> = { budget: "held · the lane's limit for today is reached", probation: "held · most of this kind's last ten were marked noise", nobody: "held · nobody is seated to tell", shadow: "recorded · mail is off" };
 

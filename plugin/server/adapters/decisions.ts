@@ -1,4 +1,4 @@
-import { errorText } from "../core/errors.ts";
+import { asError, errorText } from "../core/errors.ts";
 import { mask } from "../core/mask.ts";
 import type { Answer, Judge, Judgement, Question } from "../core/ports.ts";
 
@@ -16,9 +16,9 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A body that stalls is as late as a response that never comes, so the one signal cuts both. */
 function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) return Promise.reject(signal.reason);
+  if (signal.aborted) return Promise.reject(asError(signal.reason));
   return new Promise((resolve, reject) => {
-    const stop = () => reject(signal.reason);
+    const stop = () => reject(asError(signal.reason));
     signal.addEventListener("abort", stop, { once: true });
     work.then(
       (value) => {
@@ -27,7 +27,7 @@ function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
       },
       (error: unknown) => {
         signal.removeEventListener("abort", stop);
-        reject(error);
+        reject(asError(error));
       },
     );
   });
@@ -92,7 +92,7 @@ async function decide(spec: Decisions, key: string, body: string): Promise<unkno
         await pause(500 * 2 ** attempt);
         continue;
       }
-      throw new Error(signal.aborted ? late : `unreachable: ${errorText(error)}`);
+      throw new Error(signal.aborted ? late : `unreachable: ${errorText(error)}`, { cause: error });
     }
     if (response.ok) {
       return bounded(response.json(), signal).catch((error: unknown) => {

@@ -12,7 +12,8 @@ import { type Project, gateCommands, loadConfig, projectOf } from "../desk/proje
 import type { TeamSource } from "./team-source.ts";
 import { malformed } from "./timeline.ts";
 import type { Trouble } from "./panel/watch-view.ts";
-import { type Fact, callsTo } from "./watch/facts.ts";
+import { type Fact } from "./watch/fact-kinds.ts";
+import { callsTo } from "./watch/facts.ts";
 import { decide } from "./watch/findings.ts";
 import type { SeatContext, SeatWatch, WatchedSeat, Watches } from "./watch/watches.ts";
 

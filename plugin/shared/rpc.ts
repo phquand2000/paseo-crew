@@ -4,10 +4,7 @@ import {
   Added,
   CatalogView,
   Check,
-  CleanView,
-  FlowRead,
   LandDecided,
-  MigrateView,
   ModelsRefreshed,
   OrdersRead,
   Parsed,
@@ -19,9 +16,10 @@ import {
   SettingsRead,
   StatusView,
   TeamRead,
-  UpdateView,
   WriteResult,
 } from "./views.ts";
+import { CleanView, MigrateView, UpdateView } from "./upkeep-views.ts";
+import { FlowRead } from "./flow-views.ts";
 
 const project = z.string().min(1).optional();
 

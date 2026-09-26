@@ -43,7 +43,7 @@ function project(rows: Row[]): Entry[] {
       sameMessage
     ) {
       Object.assign(previous, {
-        item: { ...previous.item, text: `${previous.item.text}${item.text}` },
+        item: { ...previous.item, text: `${String(previous.item.text)}${String(item.text)}` },
         seqEnd: row.seq,
         sources: [...previous.sources, row.seq],
       });

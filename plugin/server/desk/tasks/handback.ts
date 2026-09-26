@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Kit } from "../../catalog/kit/kit.ts";
-import { changedFiles, currentBranch, headSha, pristineState } from "../../core/git.ts";
+import { changedFiles } from "../../core/git-diff.ts";
+import { currentBranch, headSha, pristineState } from "../../core/git.ts";
 import { capped, clip, plural } from "../../core/text.ts";
 import { IN_QUEUE, SETTLED, TASK, type TaskStatus } from "../../domain/task.ts";
 import { handbackCase } from "../watch/checks.ts";

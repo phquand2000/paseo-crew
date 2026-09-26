@@ -7,10 +7,19 @@ type Run = { code: number; stdout: string; stderr: string };
 export function git(cwd: string, args: string[], timeout = 60_000): Promise<Run> {
   return new Promise((resolve) => {
     // core.quotePath=false: otherwise non-ASCII paths come back quoted and octal-escaped and match no path a write set or hold names.
-    execFile("git", ["-C", cwd, "-c", "core.quotePath=false", ...args], { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
-      const code = error ? (typeof (error as { code?: unknown }).code === "number" ? ((error as { code: number }).code) : 1) : 0;
-      resolve({ code, stdout: String(stdout), stderr: String(stderr) });
-    });
+    execFile(
+      "git",
+      ["-C", cwd, "-c", "core.quotePath=false", ...args],
+      { timeout, maxBuffer: 16 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        const code = error
+          ? typeof (error as { code?: unknown }).code === "number"
+            ? (error as { code: number }).code
+            : 1
+          : 0;
+        resolve({ code, stdout: String(stdout), stderr: String(stderr) });
+      },
+    );
   });
 }
 
@@ -39,11 +48,15 @@ export function cleanState(cwd: string): Promise<Cleanliness> {
 }
 
 /** Uncommitted and untracked paths, or undefined when git cannot say; `besides` excuses a change that is nobody's work. */
-export async function uncommittedPaths(cwd: string, besides: (path: string) => Promise<boolean> = async () => false): Promise<string[] | undefined> {
+export async function uncommittedPaths(
+  cwd: string,
+  besides: (path: string) => Promise<boolean> = async () => false,
+): Promise<string[] | undefined> {
   const run = await git(cwd, ["status", "--porcelain"]);
   if (run.code !== 0) return undefined;
   const found: string[] = [];
-  for (const line of run.stdout.split("\n").filter(Boolean)) if (!(await besides(line.slice(3)))) found.push(line.slice(3));
+  for (const line of run.stdout.split("\n").filter(Boolean))
+    if (!(await besides(line.slice(3)))) found.push(line.slice(3));
   return found;
 }
 
@@ -68,9 +81,18 @@ export async function dropMerged(cwd: string, branch: string, into: string): Pro
 }
 
 /** Puts `cwd` on `branch`, made from `start` when it is not there yet; git's reason when it cannot. `discard` drops work uncommitted there. */
-export async function switchTo(cwd: string, branch: string, start: string, discard = false): Promise<string | undefined> {
+export async function switchTo(
+  cwd: string,
+  branch: string,
+  start: string,
+  discard = false,
+): Promise<string | undefined> {
   const exists = await branchExists(cwd, branch);
-  const run = await git(cwd, ["switch", ...(discard ? ["--discard-changes"] : []), ...(exists ? [branch] : ["-c", branch, start])]);
+  const run = await git(cwd, [
+    "switch",
+    ...(discard ? ["--discard-changes"] : []),
+    ...(exists ? [branch] : ["-c", branch, start]),
+  ]);
   if (run.code === 0 && discard) await git(cwd, ["clean", "-fd"]);
   return run.code === 0 ? undefined : run.stderr.trim() || `git switch exited ${run.code}`;
 }
@@ -91,12 +113,20 @@ export async function contains(cwd: string, into: string, branch: string): Promi
   return run.code === 0 && Number.isInteger(count) ? count === 0 : undefined;
 }
 
-export async function addWorktree(root: string, path: string, branch: string, base: string): Promise<{ ok: boolean; message: string }> {
+export async function addWorktree(
+  root: string,
+  path: string,
+  branch: string,
+  base: string,
+): Promise<{ ok: boolean; message: string }> {
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
   const run = await git(root, ["worktree", "add", "-b", branch, path, base], 120_000);
   // git can fail with no output at all (timeout, missing binary); never report an empty reason.
-  return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say` };
+  return {
+    ok: run.code === 0,
+    message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say`,
+  };
 }
 
 export async function removeWorktree(root: string, path: string | undefined): Promise<void> {
@@ -114,11 +144,23 @@ type MergeResult = { ok: true; before: string; after: string } | { ok: false; co
 export async function mergeBranch(cwd: string, branch: string, message: string, leave = false): Promise<MergeResult> {
   const before = await headSha(cwd);
   if (!before) return { ok: false, conflicts: [], message: "the lane working copy has no HEAD" };
-  const own = ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "-c", "rerere.enabled=false", "-c", "commit.gpgSign=false"];
+  const own = [
+    "-c",
+    "user.name=seatworks",
+    "-c",
+    "user.email=seatworks@localhost",
+    "-c",
+    "rerere.enabled=false",
+    "-c",
+    "commit.gpgSign=false",
+  ];
   const run = await git(cwd, [...own, "merge", "--no-ff", "-m", message, branch], 120_000);
   if (run.code === 0) return { ok: true, before, after: (await headSha(cwd)) ?? before };
   const unmerged = await git(cwd, ["diff", "--name-only", "--diff-filter=U"]);
-  const conflicts = unmerged.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  const conflicts = unmerged.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   if (!leave || conflicts.length === 0) await git(cwd, ["merge", "--abort"]);
   return { ok: false, conflicts, message: (run.stdout + run.stderr).trim().slice(-1500) };
 }
@@ -129,7 +171,11 @@ export async function mergeUnderWay(cwd: string): Promise<boolean> {
 }
 
 /** `into` as the merge that brought `branch` in, if it is one: a merge a stop cut off after git made it. */
-export async function mergeOf(cwd: string, into: string, branch: string): Promise<{ before: string; after: string } | undefined> {
+export async function mergeOf(
+  cwd: string,
+  into: string,
+  branch: string,
+): Promise<{ before: string; after: string } | undefined> {
   const sha = async (ref: string) => {
     const run = await git(cwd, ["rev-parse", "--verify", "-q", ref]);
     return run.code === 0 ? run.stdout.trim() : undefined;
@@ -138,64 +184,17 @@ export async function mergeOf(cwd: string, into: string, branch: string): Promis
   return after && before && merged && merged === tip ? { before, after } : undefined;
 }
 
-export type Counts = { src: number; test: number; docs: number; files: string[] };
-
-/** Which paths are tests and which are docs, as the ecosystem the kit holds names them. */
-export type FileKinds = { test: RegExp; docs: RegExp };
-
-export function kindOf(path: string, kinds: FileKinds): "src" | "test" | "docs" {
-  if (kinds.test.test(path)) return "test";
-  return kinds.docs.test(path) ? "docs" : "src";
-}
-
-/**
- * Reads `-z` output, so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no path a write set
- * or hold names. Lines of an `uncounted` path are left out of the counts; the path is still listed.
- */
-function countNumstat(numstat: string, kinds: FileKinds, uncounted: (path: string) => boolean = () => false): Counts {
-  const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
-  const fields = numstat.split("\0");
-  for (let index = 0; index < fields.length; index++) {
-    const row = fields[index];
-    if (!row?.trim()) continue;
-    const [added, removed, inline] = row.split("\t");
-    const lines = (Number(added) || 0) + (Number(removed) || 0);
-    const paths: string[] = [];
-    if (inline?.trim()) paths.push(inline.trim());
-    else {
-      // A rename or a copy: the two paths follow as their own fields.
-      const from = fields[index + 1];
-      const to = fields[index + 2];
-      if (from) paths.push(from);
-      if (to) paths.push(to);
-      index += 2;
-    }
-    for (const path of paths) {
-      if (!uncounted(path)) counts[kindOf(path, kinds)] += lines;
-      counts.files.push(path);
-    }
-  }
-  return counts;
-}
-
-/** Undefined when git could not answer: zeroed counts read as "nothing changed", which is a claim. */
-export async function diffCounts(cwd: string, from: string, to: string, kinds: FileKinds, uncounted?: (path: string) => boolean): Promise<Counts | undefined> {
-  const run = await git(cwd, ["diff", "-z", "--numstat", `${from}..${to}`]);
-  return run.code === 0 ? countNumstat(run.stdout, kinds, uncounted) : undefined;
-}
-
-/** The files changed across `range`, as git diff reads it, or undefined when git cannot say. */
-export async function changedFiles(cwd: string, range: string): Promise<string[] | undefined> {
-  const run = await git(cwd, ["diff", "-z", "--name-only", range]);
-  return run.code === 0 ? run.stdout.split("\0").filter(Boolean) : undefined;
-}
-
 /** What is uncommitted in `cwd`, named: a stray message file reads as unfinished work otherwise. */
 export async function uncommittedIn(cwd: string): Promise<string> {
   const run = await git(cwd, ["status", "--porcelain"]);
   const lines = run.stdout.split("\n").filter((line) => line.trim());
-  const shown = lines.slice(0, 6).map((line) => line.trim()).join(", ");
-  return lines.length > 6 ? `${shown} and ${lines.length - 6} more` : shown || "something git reports but does not name";
+  const shown = lines
+    .slice(0, 6)
+    .map((line) => line.trim())
+    .join(", ");
+  return lines.length > 6
+    ? `${shown} and ${lines.length - 6} more`
+    : shown || "something git reports but does not name";
 }
 
 /** Where `branch` left `base`: what a lane changed is read from here, however far `base` has moved since. */
@@ -218,7 +217,11 @@ export const landedRef = (lane: string) => `refs/seatworks/lanes/${lane}`;
 
 export function gitCommonDir(cwd: string): string | undefined {
   try {
-    const out = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf-8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const out = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     return out || undefined;
   } catch {
     return undefined;
@@ -234,5 +237,7 @@ export function excludeFromGit(repo: string, pattern: string): void {
     if (current.split(/\r?\n/).includes(pattern)) return;
     mkdirSync(join(common, "info"), { recursive: true });
     appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}${pattern}\n`);
-  } catch {}
+  } catch {
+    // Left out of the exclude list, the path shows as untracked: noise, never lost work.
+  }
 }

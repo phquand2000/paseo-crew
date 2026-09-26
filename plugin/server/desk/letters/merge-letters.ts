@@ -1,4 +1,4 @@
-import type { Counts } from "../../core/git.ts";
+import type { Counts } from "../../core/git-diff.ts";
 import type { Task } from "../../domain/task.ts";
 import { type Letter, fyi, mail } from "./envelope.ts";
 

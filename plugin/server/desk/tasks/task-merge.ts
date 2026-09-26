@@ -1,5 +1,6 @@
 import { fileKinds } from "../../catalog/kit/patterns.ts";
-import { changedFiles, commitsAhead, currentBranch, diffCounts, headSha, uncommittedIn } from "../../core/git.ts";
+import { changedFiles, diffCounts } from "../../core/git-diff.ts";
+import { commitsAhead, currentBranch, headSha, uncommittedIn } from "../../core/git.ts";
 import { advance, mergeCommit } from "../../core/land.ts";
 import { TASK } from "../../domain/task.ts";
 import type { DeskBase } from "../base.ts";

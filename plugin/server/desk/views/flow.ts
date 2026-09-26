@@ -5,7 +5,7 @@ import { AT_WORK, SETTLED } from "../../domain/task.ts";
 import { keptCopy, keptPeers } from "../seats/kept.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
-import type { FlowAsk, FlowLane, FlowQuestion, FlowSeat, FlowTask, FlowView } from "../../../shared/views.ts";
+import type { FlowAsk, FlowLane, FlowQuestion, FlowSeat, FlowTask, FlowView } from "../../../shared/flow-views.ts";
 import type { Project } from "../project/project.ts";
 
 const LANE_CAP = 50;

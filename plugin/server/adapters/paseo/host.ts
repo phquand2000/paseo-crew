@@ -2,7 +2,8 @@ import type { PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugi
 import type { Host, HostHooks, Models } from "../../core/ports.ts";
 import { type PaseoApi, seatsOn, workspacesOn } from "./agents.ts";
 
-type Answer = (input: any) => unknown;
+/** Answers one contract's calls; Paseo has read each input with the contract's schema before the answer sees it. */
+type Answering = <I>(contract: { name: string }, answer: (input: I) => unknown) => void;
 type Handle = (contract: { name: string }, handler: (input: unknown, context: { paseo: PaseoApi }) => unknown) => void;
 
 /** Paseo hands the plugin its API only with a hook or a panel call, so each one binds it before the plugin acts. */
@@ -53,12 +54,12 @@ export class PaseoHost implements Host {
   }
 
   /** Panel calls carry the live daemon handle: after a reload with no seat hooks yet, it is the desk's only way to get one. */
-  answering(server: Pick<PluginServerContext, "handle">): (contract: { name: string }, answer: Answer) => void {
+  answering(server: Pick<PluginServerContext, "handle">): Answering {
     const handle = server.handle.bind(server) as unknown as Handle;
-    return (contract, answer) =>
+    return <I>(contract: { name: string }, answer: (input: I) => unknown) =>
       handle(contract, (input, context) => {
         this.bind(context.paseo);
-        return answer(input);
+        return answer(input as I);
       });
   }
 
