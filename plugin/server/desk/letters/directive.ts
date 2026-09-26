@@ -6,7 +6,7 @@ import { loadLedger } from "../store/ledger.ts";
 import { capped, outside } from "../../core/text.ts";
 import { list } from "./envelope.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
-import { type Project, conceptFile, loadConfig, serialIn } from "../project.ts";
+import { type Project, conceptFile, loadConfig, serialIn } from "../project/project.ts";
 
 const SHOWN_SERIAL = 8;
 

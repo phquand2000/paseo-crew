@@ -15,7 +15,7 @@ import { type Ledger, findLane } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { closeIncidentsOf } from "../watch/notice.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Roster } from "../seats/roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

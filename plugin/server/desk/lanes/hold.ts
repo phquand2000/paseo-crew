@@ -2,7 +2,7 @@ import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { findLane, laneSeats } from "../../domain/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { openWaiting } from "../waiting/lanes.ts";

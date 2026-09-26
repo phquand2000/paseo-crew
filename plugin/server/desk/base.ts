@@ -5,7 +5,7 @@ import type { Judge } from "../core/ports.ts";
 import type { Claims } from "./claims.ts";
 import type { CodeIndex, Posted } from "./context.ts";
 import type { Letter } from "./letters/envelope.ts";
-import type { Project } from "./project.ts";
+import type { Project } from "./project/project.ts";
 import type { IncidentStore } from "./store/incident-store.ts";
 import type { LedgerStore } from "./store/ledger-store.ts";
 

@@ -12,7 +12,7 @@ import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "./ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import { laneRecords } from "./records.ts";
 import type { DeskServices } from "../services.ts";
 

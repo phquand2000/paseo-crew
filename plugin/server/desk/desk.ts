@@ -15,7 +15,7 @@ import { Slots } from "./copies/slots.ts";
 import { Human } from "./human/human.ts";
 import { type Letter } from "./letters/envelope.ts";
 import { messageLetters } from "./letters/message-letters.ts";
-import type { Project } from "./project.ts";
+import type { Project } from "./project/project.ts";
 import { Agents } from "./seats/agents.ts";
 import { markGone } from "./seats/gone.ts";
 import { reapKept } from "./seats/kept.ts";

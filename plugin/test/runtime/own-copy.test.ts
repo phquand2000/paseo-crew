@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadConfig } from "../../server/desk/project.ts";
+import { loadConfig } from "../../server/desk/project/project.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { harness, ideCalls } from "./harness.ts";
 

@@ -211,7 +211,7 @@ const KEEP: Keep[] = [
   {
     id: "refuted-3",
     title: "serialOnly per project, with a default",
-    file: "server/desk/project.ts",
+    file: "server/desk/project/project.ts",
     check: "contains",
     anchor: "serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String)",
   },

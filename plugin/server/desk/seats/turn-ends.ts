@@ -1,6 +1,6 @@
 import { errorText } from "../../core/errors.ts";
 import { landLetters } from "../letters/land-letters.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { loadLedger } from "../store/ledger.ts";
 

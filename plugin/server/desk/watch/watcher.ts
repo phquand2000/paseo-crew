@@ -8,7 +8,7 @@ import { caseLetters } from "../letters/case-letters.ts";
 import type { DeskBase } from "../base.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { Letter } from "../letters/envelope.ts";
-import { type Project, projectOf } from "../project.ts";
+import { type Project, projectOf } from "../project/project.ts";
 import type { Roster } from "../seats/roster.ts";
 
 const ANSWER_WITHIN_MINUTES = 15;

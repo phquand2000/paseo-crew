@@ -13,7 +13,7 @@ import { type Ledger, taskOfPeer } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
-import { type Project, serialIn } from "../project.ts";
+import { type Project, serialIn } from "../project/project.ts";
 import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { SeatView } from "../../server/core/paseo.ts";
 import { flowView } from "../../server/desk/views/flow.ts";
 import { emptyLedger } from "../../server/domain/ledger.ts";
-import type { Project } from "../../server/desk/project.ts";
+import type { Project } from "../../server/desk/project/project.ts";
 
 const now = Date.parse("2026-09-16T04:00:00.000Z");
 const project: Project = { root: "/work/shop", slug: "shop-abc123", state: "/state/shop-abc123" };

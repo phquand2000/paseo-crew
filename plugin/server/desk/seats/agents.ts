@@ -7,7 +7,7 @@ import { letGo } from "./gone.ts";
 import type { Slot } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Roster } from "./roster.ts";
 import type { Slots } from "../copies/slots.ts";
 import type { Teardowns } from "./teardown.ts";

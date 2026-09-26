@@ -9,7 +9,7 @@ import {
 } from "../../core/git.ts";
 import type { DeskBase } from "../base.ts";
 import { openIndexes } from "./indexes.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Slots } from "./slots.ts";
 import { recordEvent } from "../store/event-log.ts";
 

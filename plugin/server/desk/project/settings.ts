@@ -2,7 +2,7 @@ import type { RiskRule } from "../../catalog/kit/schema/ecosystem.ts";
 import { configFault } from "../../core/config-file.ts";
 import { LAND_AS, branchExists } from "../../core/git.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
-import { type LaneHome, type ProjectConfig, configFile, loadConfig, saveConfig } from "../project.ts";
+import { type LaneHome, type ProjectConfig, configFile, loadConfig, saveConfig } from "./project.ts";
 
 /** A set_project call as the tool takes it: each field left out keeps what the project has. */
 type Settings = {

@@ -6,7 +6,7 @@ import type { Layer } from "../../shared/settings.ts";
 import { type Team, resolveTeam, servingProject } from "../catalog/team/team.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import type { Project } from "../desk/project.ts";
+import type { Project } from "../desk/project/project.ts";
 
 export class TeamSource {
   private readonly kit: Kit;

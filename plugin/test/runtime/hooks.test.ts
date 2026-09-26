@@ -8,7 +8,7 @@ import { SEAT_KEY } from "../../server/catalog/kit/kit.ts";
 import { seatDir } from "../../server/catalog/seat/seats.ts";
 import { home } from "../../server/core/paths.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
-import { projectOf } from "../../server/desk/project.ts";
+import { projectOf } from "../../server/desk/project/project.ts";
 import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
 

@@ -6,7 +6,7 @@ import { materialize, seatDir } from "../catalog/seat/seats.ts";
 import { serversFor } from "../catalog/seat/servers.ts";
 import { type Team, withHarness } from "../catalog/team/team.ts";
 import { expandHome, home } from "../core/paths.ts";
-import type { Project } from "../desk/project.ts";
+import type { Project } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { errorText } from "../core/errors.ts";
 

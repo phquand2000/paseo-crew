@@ -18,7 +18,7 @@ import { type LiveSeat, migrate, migrationPlan } from "../upkeep/migrate.ts";
 import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../upkeep/update.ts";
 import { contentChanges, decide } from "../upkeep/content.ts";
 import { loadLedger, readLedger } from "../desk/store/ledger.ts";
-import { type Project, projectOf } from "../desk/project.ts";
+import { type Project, projectOf } from "../desk/project/project.ts";
 import { statusPage } from "../desk/views/status.ts";
 import { describeCatalog } from "./catalog-view.ts";
 import { listFolders } from "./folders.ts";

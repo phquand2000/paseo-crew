@@ -5,7 +5,7 @@ import { reportView } from "../views/report.ts";
 import { decideLand } from "../lanes/land-decision.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { ordersView } from "../views/orders.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
 type Said = { ok: boolean; text: string };

@@ -1,5 +1,5 @@
 import { type Incidents, loadIncidents, readIncidentsFile, saveIncidents } from "./incidents.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Sync } from "./ledger-store.ts";
 
 /** Every project's book of incidents, changed as the ledger is: read, decided and saved with nothing awaited between. */

@@ -4,7 +4,7 @@ import { midTurn } from "../../core/paseo.ts";
 import type { SeatLook, SeatView, Seats, StreamRow } from "../../core/ports.ts";
 import type { Intents } from "../store/intents.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Project, projectOf } from "../project.ts";
+import { type Project, projectOf } from "../project/project.ts";
 
 export class Roster {
   private readonly kit: Kit;
@@ -61,7 +61,9 @@ export class Roster {
         const seat = await this.seats.look(preferred);
         if (!seat.archivedAt) return preferred;
         gone = true;
-      } catch {}
+      } catch {
+        // Paseo could not say: the preferred seat is not taken for gone.
+      }
     }
     // Not the preferred id: it may be the seat just read as archived, and every letter to it would be held forever.
     return (await this.holderOf(project, "supervise")) ?? (gone ? undefined : preferred);

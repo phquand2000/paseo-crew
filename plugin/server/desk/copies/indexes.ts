@@ -4,7 +4,7 @@ import { excludeFromGit } from "../../core/git.ts";
 import { clip } from "../../core/text.ts";
 import type { DeskBase } from "../base.ts";
 import type { Slot } from "../../domain/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 
 type Copy = Pick<Slot, "id" | "path">;
 

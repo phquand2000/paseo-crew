@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { LAND_AS, type LandAs, gitCommonDir, trackedFiles } from "../core/git.ts";
-import { stateRoot } from "../core/paths.ts";
-import { readJson, writeJson } from "../core/store.ts";
-import type { Ecosystem, Kit } from "../catalog/kit/kit.ts";
-import { RiskRule } from "../catalog/kit/schema/ecosystem.ts";
-import { coverOf, serialPaths } from "../core/scope.ts";
+import { LAND_AS, type LandAs, gitCommonDir, trackedFiles } from "../../core/git.ts";
+import { getPath } from "../../core/json.ts";
+import { stateRoot } from "../../core/paths.ts";
+import { readJson, writeJson } from "../../core/store.ts";
+import type { Ecosystem, Kit } from "../../catalog/kit/kit.ts";
+import { RiskRule } from "../../catalog/kit/schema/ecosystem.ts";
+import { coverOf, serialPaths } from "../../core/scope.ts";
 
 export type Project = { root: string; slug: string; state: string };
 
@@ -60,14 +61,20 @@ export function projectOf(cwd: string, base = stateRoot(), rootOf: (cwd: string)
   return project;
 }
 
+/** What a script a package file names runs, or undefined where the file or the script cannot be read. */
+function scriptBody(file: string, name: string): string | undefined {
+  try {
+    const body = getPath(JSON.parse(readFileSync(file, "utf-8")) as unknown, ["scripts", name]);
+    return typeof body === "string" ? body : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** A script a package file names, unless it is the placeholder its tool writes when there is none. */
 function scriptIn(file: string, name: string, unset: string): boolean {
-  try {
-    const body = JSON.parse(readFileSync(file, "utf-8"))?.scripts?.[name];
-    return typeof body === "string" && !body.includes(unset);
-  } catch {
-    return false;
-  }
+  const body = scriptBody(file, name);
+  return body !== undefined && !body.includes(unset);
 }
 
 /** The first of the ecosystem's gates whose files the project holds; one that runs a package script needs that script. */
@@ -85,11 +92,8 @@ export function detectGate(root: string, ecosystem: Ecosystem): string | undefin
 export function gateCommands(root: string, gate: string | undefined, ecosystem: Ecosystem): string[] {
   if (!gate?.trim()) return [];
   const script = new RegExp(`^(?:${ecosystem.scriptRunners.join("|")})(?: run)? ([\\w:.-]+)$`).exec(gate.trim())?.[1];
-  let body: unknown;
-  try {
-    body = script ? JSON.parse(readFileSync(join(root, "package.json"), "utf-8"))?.scripts?.[script] : undefined;
-  } catch {}
-  if (typeof body !== "string") return [gate];
+  const body = script ? scriptBody(join(root, "package.json"), script) : undefined;
+  if (body === undefined) return [gate];
   // The script's last command runs the tests; its runner is the program plus at most one word, never a path.
   const words = body
     .split(/&&|\|\||;/)

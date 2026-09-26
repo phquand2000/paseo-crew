@@ -4,7 +4,7 @@ import type { ReportItem, ReportView } from "../../../shared/views.ts";
 import { askedSince } from "../human/questions.ts";
 import { type Incident, loadIncidents } from "../store/incidents.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 
 /** A question stops something now when its lane was put on hold for it, or it is irreversible: nothing it decides goes ahead. */
 const stops = (question: Question) => question.parked === true || question.class === "irreversible";

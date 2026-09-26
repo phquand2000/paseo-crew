@@ -4,7 +4,7 @@ import { amend } from "../../domain/amendment.ts";
 import { findLane } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
-import { serialIn } from "../project.ts";
+import { serialIn } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { scopeProblem } from "./placement.ts";

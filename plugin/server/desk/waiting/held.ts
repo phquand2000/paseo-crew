@@ -1,7 +1,7 @@
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { workLetters } from "../letters/work-letters.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

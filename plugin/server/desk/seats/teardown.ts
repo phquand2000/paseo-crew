@@ -2,7 +2,7 @@ import { dropMerged } from "../../core/git.ts";
 import type { DeskBase } from "../base.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { OwnCopy } from "../copies/own-copy.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Slots } from "../copies/slots.ts";
 import { recordEvent } from "../store/event-log.ts";
 

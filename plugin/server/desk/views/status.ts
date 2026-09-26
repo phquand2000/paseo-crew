@@ -3,13 +3,19 @@ import { can, seatOf } from "../../catalog/kit/roles.ts";
 import type { SeatView } from "../../core/paseo.ts";
 import { plural } from "../../core/text.ts";
 import { DAY_MS, HOUR_MS, minutesSince } from "../../core/time.ts";
-import { AT_WORK } from "../../domain/task.ts";
-import { keptCopy, keptPeers } from "../seats/kept.ts";
+import { keptCopy } from "../seats/kept.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, ownCopyHolder } from "../../domain/ledger.ts";
-import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { type LaneHome, type Project, type ProjectConfig, laneHomeFor, loadConfig, projectOf } from "../project.ts";
+import { openLaneLines, seatLine, waitingLaneLines } from "./status-lanes.ts";
+import {
+  type LaneHome,
+  type Project,
+  type ProjectConfig,
+  laneHomeFor,
+  loadConfig,
+  projectOf,
+} from "../project/project.ts";
 
 /** What the status tool read from the project's own checkout; `work` is undefined when git could not say. */
 export type OwnCheckout = { branch?: string; head?: string; work?: string[] };
@@ -20,7 +26,6 @@ type Held = { to: string; text: string; at: number; until: number };
 type Seats = Map<string, SeatView>;
 
 const SHOWN_FILES = 10;
-const SHOWN_OUTCOME = 300;
 
 const HOMES: Record<LaneHome, string> = {
   onBranch: "carrying on the branch this copy is on",
@@ -70,8 +75,8 @@ export function statusText(
     ...waitingOnHuman(waiting),
     ...(open.length === 0
       ? ["No open lanes.", ""]
-      : open.flatMap((lane) => openLaneLines(ledger, lane, seats, now, copy))),
-    ...waitingLaneLines(ledger, pending, copy),
+      : open.flatMap((lane) => openLaneLines(ledger, lane, seats, now, copy !== undefined))),
+    ...waitingLaneLines(ledger, pending, copy !== undefined),
     ...(laneId ? [] : [...keptLines(ledger, seats, now), ...copyLines(ledger)]),
     ...askLines(ledger, now, laneId),
     ...(laneId ? [] : [...questionLines(ledger, now), ...closedLines(lanes)]),
@@ -160,89 +165,6 @@ function waitingOnHuman(waiting: SeatView[]): string[] {
     ...waiting.map((seat) => `- ${seat.title ?? seat.id} (${seat.id}): ${asked(seat)}`),
     "",
   ];
-}
-
-function openLaneLines(ledger: Ledger, lane: Lane, seats: Seats, now: number, copy: OwnCheckout | undefined): string[] {
-  const detour = lane.detourOf ? ` Clearing the way for ${lane.detourOf}.` : "";
-  const on = lane.onBranch ? ", carried on in the project's own copy" : ` off ${lane.base}`;
-  const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
-  const taskLines = tasks.map(
-    (task) => `- ${task.id} ${task.title}: ${task.status}${taskDetail(ledger, task, seats, now)}`,
-  );
-  return [
-    `## ${lane.id} ${lane.title}`,
-    "",
-    `Branch ${lane.branch}${on}. Lead ${seatLine(seats, lane.lead, now)}.${detour}`,
-    ...laneNotes(lane, now),
-    ...(copy ? laneAim(lane) : []),
-    "",
-    ...(tasks.length === 0 ? ["- no tasks yet"] : taskLines),
-    "",
-  ];
-}
-
-function waitingLaneLines(ledger: Ledger, pending: Lane[], copy: OwnCheckout | undefined): string[] {
-  if (pending.length === 0) return [];
-  const lines = ["## Waiting lanes", ""];
-  for (const lane of pending) {
-    const after = (lane.after ?? []).map((id) => {
-      const other = ledger.lanes[id];
-      const closed = other?.landed ? "landed" : "closed without landing";
-      return `${id} ${other?.status === "closed" ? closed : (other?.status ?? "gone")}`;
-    });
-    const why = lane.onHold ? `. On hold: ${lane.onHold.reason}` : lane.held ? `. Not open: ${lane.held.why}` : "";
-    lines.push(`- ${lane.id} ${lane.title}: after ${after.join(", ")}${why}`);
-    if (copy) lines.push(...laneAim(lane).map((line) => `  ${line}`));
-  }
-  return [...lines, ""];
-}
-
-/** Where an open lane stands beyond its seats: on hold, reported ready, and a landing held for the Human. */
-function laneNotes(lane: Lane, now: number): string[] {
-  const land = lane.landApproval;
-  const notes: string[] = [];
-  if (lane.onHold)
-    notes.push(`On hold for ${minutesSince(now, lane.onHold.at)} min: ${lane.onHold.reason} resume_lane lifts it.`);
-  if (lane.ready) notes.push(`Reported ready ${minutesSince(now, lane.ready.at)} min ago.`);
-  if (land?.approved)
-    notes.push(`Landing approved by the Human ${minutesSince(now, land.approved.at)} min ago; land_lane lands it.`);
-  else if (land) {
-    const why = land.signals.join(" ") || "every landing here is approved first.";
-    notes.push(`Landing waits ${minutesSince(now, land.since)} min for the Human's approval: ${why}`);
-  }
-  return notes;
-}
-
-function laneAim(lane: Lane): string[] {
-  const outcome = lane.outcome.replace(/\s+/g, " ").trim();
-  const shown = outcome.length > SHOWN_OUTCOME ? `${outcome.slice(0, SHOWN_OUTCOME).trimEnd()}…` : outcome;
-  const writes =
-    lane.writeSet.join(", ") || "not declared, so taken to reach every path this project keeps to one writer";
-  return [
-    `Outcome: ${shown}`,
-    `Writes: ${writes}`,
-    ...(lane.contracts.length > 0 ? [`Depends on: ${lane.contracts.join(", ")}`] : []),
-  ];
-}
-
-function seatLine(seats: Seats, id: string | undefined, now: number): string {
-  if (!id) return "none";
-  const seat = seats.get(id);
-  if (!seat) return `${id} gone`;
-  return seat.status === "idle" ? `${id} idle ${minutesSince(now, seat.updatedAt)} min` : `${id} ${seat.status}`;
-}
-
-/** How a task stands on its line: who works it, what it waits for, its hand-back, and its Peer while kept after it. */
-function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number): string {
-  if (AT_WORK.includes(task.status)) return `, Peer ${seatLine(seats, task.peer, now)}`;
-  if (task.status === "waiting") {
-    const after = task.after?.length ? `, after ${task.after.join(", ")}` : "";
-    return `${after}${task.held ? `. Not started: ${task.held.why}` : ""}`;
-  }
-  const kept = keptPeers(ledger, task.lane).find((peer) => peer.task === task.id);
-  const keeps =
-    kept && seats.has(kept.id) ? `; its Peer ${seatLine(seats, kept.id, now)} is kept until you release it` : "";
-  return `${task.handback ? `, hand-back ${minutesSince(now, task.handback.at)} min ago` : ""}${keeps}`;
 }
 
 /** Leads kept after their lane closed, for whoever supervises to release: how long each has sat idle, and the copy it holds. */

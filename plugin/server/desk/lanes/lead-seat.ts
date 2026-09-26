@@ -9,7 +9,7 @@ import { type Elsewhere, directiveFor, elsewhereText } from "../letters/directiv
 import type { Issue } from "../../core/github.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { seatTitle } from "../seats/names.ts";
-import { type Project, loadConfig } from "../project.ts";
+import { type Project, loadConfig } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

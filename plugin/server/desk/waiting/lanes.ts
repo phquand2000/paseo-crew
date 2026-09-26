@@ -9,7 +9,7 @@ import { workLetters } from "../letters/work-letters.ts";
 import { seatLetters } from "../letters/seat-letters.ts";
 import { forgetPlace, leadSeatOf, openedReply, startLead } from "../lanes/lead-seat.ts";
 import { placement } from "../lanes/placement.ts";
-import { type Project, serialIn } from "../project.ts";
+import { type Project, serialIn } from "../project/project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

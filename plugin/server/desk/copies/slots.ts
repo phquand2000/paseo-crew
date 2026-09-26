@@ -17,7 +17,7 @@ import { closeIndexes, openIndexes } from "./indexes.ts";
 import { sweepCopies } from "./sweep.ts";
 import { type Slot, nextSlotId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import { errorText } from "../../core/errors.ts";
 
 type Holder = { lane?: string; task?: string };
@@ -165,7 +165,9 @@ export class Slots {
     try {
       rmSync(path, { recursive: true, force: true });
       if (readdirSync(root).length === 0) rmdirSync(root);
-    } catch {}
+    } catch {
+      // Gone already, or still in use: the next sweep tries again.
+    }
   }
 
   private free(project: Project, slotId: string): void {

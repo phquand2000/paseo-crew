@@ -20,7 +20,7 @@ import { openAsksTo } from "../domain/ledger.ts";
 import { TOOLS } from "../desk/tools/registry.ts";
 import { mailbox } from "../desk/letters/envelope.ts";
 import { appendRecord } from "../desk/store/records.ts";
-import { type Project, projectOf } from "../desk/project.ts";
+import { type Project, projectOf } from "../desk/project/project.ts";
 import { SettingsControl } from "./control.ts";
 import { watchView } from "./watch-view.ts";
 import { codeIndex } from "./code-index.ts";

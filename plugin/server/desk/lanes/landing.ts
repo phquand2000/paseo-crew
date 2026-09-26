@@ -5,7 +5,7 @@ import { laneGate } from "../project/gates.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import { landLetters } from "../letters/land-letters.ts";
-import { type Project, loadConfig } from "../project.ts";
+import { type Project, loadConfig } from "../project/project.ts";
 import type { Roster } from "../seats/roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

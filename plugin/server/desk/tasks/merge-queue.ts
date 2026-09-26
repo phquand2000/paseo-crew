@@ -5,7 +5,7 @@ import { IN_QUEUE } from "../../domain/task.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import { type MergeDesk, TaskMerge } from "./task-merge.ts";
 
 /** One queue per lane: a lane's merges go one at a time, and a gate running on one holds no other lane's. */

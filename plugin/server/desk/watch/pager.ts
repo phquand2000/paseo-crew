@@ -5,7 +5,7 @@ import { errorText } from "../../core/errors.ts";
 import { clip } from "../../core/text.ts";
 import type { Incident } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
 /** Paseo pushes an agent's reply to the Human's phone only as it finishes its first turn, so a pager is started for each page. */

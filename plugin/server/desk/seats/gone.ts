@@ -1,5 +1,5 @@
 import type { DeskBase } from "../base.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { Roster } from "./roster.ts";
 
 /** Marks a seat's binding gone: from here on nothing hands it work or counts it as kept, whatever Paseo lists meanwhile. */

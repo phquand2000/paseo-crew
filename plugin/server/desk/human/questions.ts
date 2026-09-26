@@ -12,7 +12,7 @@ import { askFirstHits, changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { findLane, nextQuestionId } from "../../domain/ledger.ts";
 import { loadLedger, readLedger } from "../store/ledger.ts";
-import { type Project, loadConfig } from "../project.ts";
+import { type Project, loadConfig } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

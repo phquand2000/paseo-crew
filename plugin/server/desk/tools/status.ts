@@ -5,7 +5,7 @@ import { hash } from "../../core/text.ts";
 import { ok } from "../context.ts";
 import { leadLaneOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { loadConfig } from "../project.ts";
+import { loadConfig } from "../project/project.ts";
 import { defineTool } from "../services.ts";
 import { type OwnCheckout, statusText } from "../views/status.ts";
 

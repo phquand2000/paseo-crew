@@ -7,7 +7,7 @@ import type { Workspaces } from "../../core/ports.ts";
 import { worktreeRoot } from "../../core/paths.ts";
 import type { DeskBase } from "../base.ts";
 import type { Ledger } from "../../domain/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 
 /** What the desk opened and nothing holds any more. Liveness is read under the ledger lock when used: `reserve` writes its row before `git worktree add`. */
 export async function sweepCopies(
@@ -47,10 +47,14 @@ export async function sweepCopies(
     await removeWorktree(project.root, path);
     try {
       rmSync(path, { recursive: true, force: true });
-    } catch {}
+    } catch {
+      // Left for the next sweep, which asks again whether anything holds it.
+    }
     recordEvent(project, { kind: "worktree.swept", path });
   }
   try {
     if (readdirSync(root).length === 0) rmdirSync(root);
-  } catch {}
+  } catch {
+    // Not empty yet, or gone already.
+  }
 }

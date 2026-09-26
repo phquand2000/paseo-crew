@@ -13,7 +13,7 @@ import { type Ledger, findTask, laneOfLead, nextTaskId, tasksOf } from "../../do
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { seatTitle } from "../seats/names.ts";
-import { type Project, riskRulesOf, rulesFor } from "../project.ts";
+import { type Project, riskRulesOf, rulesFor } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

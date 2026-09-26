@@ -6,7 +6,7 @@ import type { Kit } from "../../catalog/kit/kit.ts";
 import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Project, loadConfig, riskRulesOf, rulesFor } from "../project.ts";
+import { type Project, loadConfig, riskRulesOf, rulesFor } from "./project.ts";
 
 /** `ran` is whether anything ran: a lane with no gate and nothing to rehearse passes with nothing run. */
 type GateVerdict = { ok: boolean; text: string; ran: boolean };

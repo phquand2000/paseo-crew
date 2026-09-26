@@ -8,7 +8,7 @@ import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
 import { watchLetters } from "../desk/letters/watch-letters.ts";
-import { type Project, projectOf } from "../desk/project.ts";
+import { type Project, projectOf } from "../desk/project/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 
 type TurnDeps = {

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
 import { KEEP_CLOSED_LANES } from "../../server/desk/store/archive.ts";
-import { projectOf } from "../../server/desk/project.ts";
+import { projectOf } from "../../server/desk/project/project.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { harness, repo } from "./harness.ts";
 

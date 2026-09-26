@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { configFile } from "../../server/desk/project.ts";
+import { configFile } from "../../server/desk/project/project.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { heldLook } from "./lane-gates.ts";
 import { asked, decide, laneWith, risky } from "./landable.ts";

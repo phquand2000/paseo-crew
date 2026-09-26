@@ -8,7 +8,7 @@ import { holdRefusal } from "../lanes/hold.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, laneOfLead, nextTaskId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { serialIn } from "../project.ts";
+import { serialIn } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { startWaiting } from "../waiting/tasks.ts";

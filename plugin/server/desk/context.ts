@@ -1,5 +1,5 @@
 import type { RoleSpec } from "../catalog/kit/kit.ts";
-import type { Project } from "./project.ts";
+import type { Project } from "./project/project.ts";
 
 export type ToolRequest = {
   id: string;
@@ -22,13 +22,13 @@ export const strs = (value: unknown): string[] =>
       ? [value.trim()]
       : [];
 /** Only the fields the call names, read as text or as a list: an amendment changes what it is given and nothing else. */
-export const given = (args: Args, texts: string[], lists: string[]): Record<string, string | string[]> =>
-  Object.fromEntries(
-    [
-      ...texts.map((key) => [key, str(args[key])] as const),
-      ...lists.map((key) => [key, strs(args[key])] as const),
-    ].filter(([key]) => args[key] !== undefined),
-  );
+export const given = (args: Args, texts: string[], lists: string[]): Record<string, string | string[]> => {
+  const fields: [string, string | string[]][] = [
+    ...texts.map((key): [string, string] => [key, str(args[key])]),
+    ...lists.map((key): [string, string[]] => [key, strs(args[key])]),
+  ];
+  return Object.fromEntries(fields.filter(([key]) => args[key] !== undefined));
+};
 export const ok = (text: string): ToolReply => ({ ok: true, text });
 export const no = (text: string): ToolReply => ({ ok: false, text });
 

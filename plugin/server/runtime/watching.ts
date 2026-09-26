@@ -8,7 +8,7 @@ import type { TurnEnded } from "../core/ports.ts";
 import type { Desk } from "../desk/desk.ts";
 import { laneOfLead, taskOfPeer } from "../domain/ledger.ts";
 import { loadLedger } from "../desk/store/ledger.ts";
-import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
+import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { malformed } from "./timeline.ts";
 import type { Trouble } from "./watch-view.ts";

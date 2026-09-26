@@ -11,7 +11,7 @@ import { stateRoot } from "../../server/core/paths.ts";
 import type { HookAgent, Judge, TimelineItem } from "../../server/core/ports.ts";
 import type { DeskEvent } from "../../server/desk/store/events.ts";
 import { loadLedger } from "../../server/desk/store/ledger.ts";
-import { type Project, projectOf } from "../../server/desk/project.ts";
+import { type Project, projectOf } from "../../server/desk/project/project.ts";
 import { registerRpc } from "../../server/runtime/rpc.ts";
 import { Runtime } from "../../server/runtime/runtime.ts";
 import type { z } from "zod";

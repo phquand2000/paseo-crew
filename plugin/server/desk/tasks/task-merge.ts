@@ -11,7 +11,7 @@ import { loadLedger } from "../store/ledger.ts";
 import { othersLeft } from "../../domain/ledger.ts";
 import type { Letter } from "../letters/envelope.ts";
 import { mergeLetters } from "../letters/merge-letters.ts";
-import { type Project, serialIn } from "../project.ts";
+import { type Project, serialIn } from "../project/project.ts";
 import { reachNotes } from "./reach.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { backOnLane, bringLaneIn } from "../copies/sync.ts";

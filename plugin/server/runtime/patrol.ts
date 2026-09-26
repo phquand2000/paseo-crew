@@ -13,7 +13,7 @@ import type { Task } from "../domain/task.ts";
 import { loadLedger } from "../desk/store/ledger.ts";
 import { askLetters } from "../desk/letters/ask-letters.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
-import { type Project, projectOf } from "../desk/project.ts";
+import { type Project, projectOf } from "../desk/project/project.ts";
 import { statusPage } from "../desk/views/status.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";

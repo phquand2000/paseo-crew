@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { saveIncidents } from "../../server/desk/store/incidents.ts";
-import { projectOf } from "../../server/desk/project.ts";
+import { projectOf } from "../../server/desk/project/project.ts";
 import { laneWithPeer, repo } from "./harness.ts";
 import { book, notice } from "./noticed.ts";
 

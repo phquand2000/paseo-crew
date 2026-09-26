@@ -1,4 +1,4 @@
-import type { Project } from "./project.ts";
+import type { Project } from "./project/project.ts";
 
 /** The key a lane or task is claimed under in its project. */
 export const workKey = (project: Project, id: string): string => `${project.slug}:${id}`;

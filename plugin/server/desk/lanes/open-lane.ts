@@ -18,7 +18,7 @@ import {
   loadConfig,
   saveConfig,
   serialIn,
-} from "../project.ts";
+} from "../project/project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";

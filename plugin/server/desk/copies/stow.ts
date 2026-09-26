@@ -1,7 +1,7 @@
 import { currentBranch, landedRef } from "../../core/git.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { leaveCopy } from "./sync.ts";
 

@@ -9,7 +9,7 @@ import { loadIncidents } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
-import { type Project, configFile, loadConfig, serialOnlyOf } from "../project.ts";
+import { type Project, configFile, loadConfig, serialOnlyOf } from "../project/project.ts";
 
 type LandGate = { set: boolean; ok: boolean };
 

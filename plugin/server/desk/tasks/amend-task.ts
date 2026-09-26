@@ -7,7 +7,7 @@ import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { tellMoment } from "../watch/moments.ts";
-import { serialIn } from "../project.ts";
+import { serialIn } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { parallelProblem } from "./placement.ts";

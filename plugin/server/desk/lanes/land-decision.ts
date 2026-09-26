@@ -3,7 +3,7 @@ import { type ToolReply, no, ok } from "../context.ts";
 import { landLetters } from "../letters/land-letters.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { closeLane } from "./closing.ts";

@@ -5,7 +5,7 @@ import { clip } from "../../core/text.ts";
 import type { Case } from "./judging.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
-import { type Project, riskRulesOf } from "../project.ts";
+import { type Project, riskRulesOf } from "../project/project.ts";
 
 const SAID = 3000;
 
@@ -81,7 +81,7 @@ export function momentCases(kit: Kit, place: { lane?: Lane; task?: Task }, momen
   const acts = check?.type === "noul" ? (check.acts ?? {}) : {};
   const opened = moment.facts.filter((found) => Object.hasOwn(acts, found.kind));
   if (instruction && opened.length > 0) {
-    const fills = opened.map((found, index) => [
+    const fills = opened.map((found, index): [string, Case["asked"][string]] => [
       `asked_for__${index + 1}`,
       { check: "asked_for", fill: { act: acts[found.kind]!.replaceAll("{quote}", () => found.quote) } },
     ]);

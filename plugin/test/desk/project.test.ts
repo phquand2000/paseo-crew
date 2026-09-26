@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { detectGate, gateCommands, projectOf } from "../../server/desk/project.ts";
+import { detectGate, gateCommands, projectOf } from "../../server/desk/project/project.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 

@@ -7,7 +7,7 @@ import { git, pristineState } from "../core/git.ts";
 import { contentRoot, expandHome, guidesDir, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { errorText } from "../core/errors.ts";
 import { readLedger } from "../desk/store/ledger.ts";
-import type { Project } from "../desk/project.ts";
+import type { Project } from "../desk/project/project.ts";
 import { BACKUP } from "./migrate.ts";
 
 type CleanContext = {

@@ -5,7 +5,7 @@ import { type Args, type Caller, type ToolReply, no, ok, str } from "../context.
 import { holdRefusal } from "../lanes/hold.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
 /** A Lead accepts a handed-back task into its lane's merge queue. */

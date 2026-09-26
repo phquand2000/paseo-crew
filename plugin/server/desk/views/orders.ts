@@ -2,7 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { configFault } from "../../core/config-file.ts";
 import type { OrdersView } from "../../../shared/views.ts";
-import { type Project, conceptFile, configFile, loadConfig } from "../project.ts";
+import { type Project, conceptFile, configFile, loadConfig } from "../project/project.ts";
 
 const SHOWN = 4000;
 

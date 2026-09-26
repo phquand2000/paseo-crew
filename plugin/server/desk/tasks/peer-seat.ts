@@ -8,7 +8,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { seatTitle } from "../seats/names.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { backOnLane } from "../copies/sync.ts";

@@ -21,7 +21,7 @@ import { loadLedger } from "../store/ledger.ts";
 import { errorText } from "../../core/errors.ts";
 import { watchLetters } from "../letters/watch-letters.ts";
 import { pageIncident } from "./pager.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
 export type Noticed = { id: string; provider: string; title?: string | null };

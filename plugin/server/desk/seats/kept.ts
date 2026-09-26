@@ -6,7 +6,7 @@ import { letGo } from "./gone.ts";
 import { type AgentRef, type Ledger, findLane, tasksOf } from "../../domain/ledger.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project.ts";
+import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

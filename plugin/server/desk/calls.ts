@@ -6,7 +6,7 @@ import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
 import { type Args, type Caller, type ToolReply, type ToolRequest, no } from "./context.ts";
 import { inTime } from "./in-time.ts";
 import { messageLetters } from "./letters/message-letters.ts";
-import { projectOf } from "./project.ts";
+import { projectOf } from "./project/project.ts";
 import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
 import { recordEvent } from "./store/event-log.ts";
 

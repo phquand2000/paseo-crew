@@ -6,7 +6,7 @@ import { digest } from "../core/fs.ts";
 import { LayerSchema } from "../../shared/settings.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import type { Project } from "../desk/project.ts";
+import type { Project } from "../desk/project/project.ts";
 
 export const BACKUP = /^settings\.json\.bak-\d{8}-\d{6}$/;
 
