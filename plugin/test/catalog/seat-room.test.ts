@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
 
-const SEAT_ROOM = new URL("../../bin/seat-room", import.meta.url).pathname;
+const SEAT_ROOM = fileURLToPath(new URL("../../bin/seat-room", import.meta.url));
 
 function seat() {
   const dir = tempDir("sw2-seat-room-");

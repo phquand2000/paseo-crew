@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { can, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
 import { renderPrompt } from "../../server/catalog/content.ts";
@@ -131,7 +132,7 @@ test("a sensor or a question the watch could not ask by is refused as the kit lo
 });
 
 test("the shipped harnesses satisfy their own contract", () => {
-  const root = new URL("../../harness", import.meta.url).pathname;
+  const root = fileURLToPath(new URL("../../harness", import.meta.url));
   for (const id of readdirSync(root)) assert.deepEqual(wrong(JSON.parse(readFileSync(join(root, id, "harness.json"), "utf-8"))), [], `harness ${id}`);
 });
 
