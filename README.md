@@ -6,6 +6,24 @@ A [Paseo](https://paseo.sh) plugin that runs a team of coding agents the **SLP**
 
 > **Pre-release.** Nothing has shipped: no releases, no compatibility promises.
 
+## This fork
+
+This branch of Paseo Crew is Seatworks `v3` taken whole at
+[`8216651`](https://github.com/sting9k/seatworks/commit/8216651), keeping its names (plugin id
+`seatworks-v2`, state `~/.local/share/seatworks-v3`, `SEATWORKS_*`, prefix `sw2-`), with these
+changes on top. It is not affiliated with or endorsed by the Seatworks author; the
+[MIT license](LICENSE) is unchanged.
+
+- Every role defaults to Claude Opus 5.5; a **Backup Peer** runs a Peer's task on Codex
+  `gpt-5.6-luna` when the Peer's agent is out of quota, and a **Senior Reviewer** reads complex or
+  high-stakes design on Codex `gpt-6-astra`. The Lead never cuts a Peer stopped on a usage limit.
+- The Watcher's judge is off by default.
+- `project.json` takes `links` (git-ignored files symlinked into a lane's copy) and `writable`
+  (extra paths a seat may write); roles that commit may also write the repository's git directory.
+- Codex seats turn off the owner's own `~/.agents/skills`.
+- Tool values a harness sends as text are read as the type the tool asks for, and a running seat
+  is told when its team tools change.
+
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
 ## What it does, and what it doesn't
