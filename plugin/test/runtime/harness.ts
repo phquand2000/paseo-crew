@@ -198,6 +198,9 @@ const ide = {
 };
 
 /** `sensor` stands in for the HTTP one the host gives the desk, so no test asks a real model. */
+/** The events of kind `K`, a kind made from a template (merge.<status>) included. */
+type EventOf<K, E = DeskEvent> = E extends { kind: infer T } ? (K extends T ? E : never) : never;
+
 export function harness(options: { sensor?: (spec: SensorSpec, key: string) => Judge } = {}) {
   // One harness is one machine: a test that builds two gets two, since a daemon never shares its state.
   process.env.HOME = tempDir("sw2-home-");
@@ -246,10 +249,10 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   };
   const ledger = (of: Project = project) => loadLedger(of.state);
   // What the desk recorded of one kind, each line read as the event it is rather than matched as text.
-  const events = <K extends DeskEvent["kind"]>(kind: K, of: Project = project): Extract<DeskEvent, { kind: K }>[] => {
+  const events = <K extends DeskEvent["kind"]>(kind: K, of: Project = project): EventOf<K>[] => {
     const file = join(of.state, "events.log");
     if (!existsSync(file)) return [];
-    return readFileSync(file, "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line) as DeskEvent).filter((event): event is Extract<DeskEvent, { kind: K }> => event.kind === kind);
+    return readFileSync(file, "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line) as DeskEvent).filter((event): event is EventOf<K> => event.kind === kind);
   };
   // What a seat has been sent and what waits for it: word that asks nothing rides along with its next letter.
   const heard = (id: string) => [...agents.get(id)!.sent, ...runtime.outbox.pending(id).map((letter) => letter.text)];

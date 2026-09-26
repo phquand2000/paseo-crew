@@ -77,7 +77,8 @@ test("a parallel task that conflicts with its lane at merge has the lane brought
   h.agents.get(task.peer!)!.status = "idle";
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "rework");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "done", "back with its Lead to send to its Peer or cut: nobody has told the Peer yet");
+  assert.doesNotMatch(h.heard(task.peer!).join("\n"), /MERGE CONFLICT|REWORK/);
   assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "lane side\n", "the lane branch is unchanged");
   assert.ok(underWay(h, task.worktree!), "the conflicts wait in the task's own copy");
   await h.idle(lane.lead!);
@@ -174,4 +175,17 @@ test("landing a lane while an accepted task waits on its copy tries that merge o
   assert.equal(landed.ok, true, landed.text);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "no turn ended since the copy came clean, and landing does not cut what was accepted");
   assert.equal(h.git(h.root, "show", "main:c.txt"), "C\n");
+});
+
+test("a merge that stops on an error fails the task and tells its Lead, on the record too", async () => {
+  const { h, lane } = await besideOnly();
+  const queue = (h.runtime.desk as unknown as { services: { merges: { merge: () => Promise<void> } } }).services.merges;
+  queue.merge = async () => {
+    throw new Error("the disk is full");
+  };
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "failed");
+  assert.match(h.heard(lane.lead!).join("\n"), /MERGE FAILED L1-T1 \(Side\): the merge stopped on an error: the disk is full\.\nThe lane branch is unchanged\./);
+  assert.deepEqual(h.events("merge.failed").map((event) => event.task), ["L1-T1"]);
 });

@@ -38,7 +38,11 @@ export class MergeQueue {
     void this.after(project, loadLedger(project.state).tasks[taskId]?.lane ?? "", () =>
       this.merge(project, taskId).catch(async (error) => {
         this.ctx.log(project, `merge ${taskId} crashed: ${errorText(error)}`);
-        this.ctx.moveTask(project, taskId, "fail");
+        const ledger = loadLedger(project.state);
+        const task = ledger.tasks[taskId];
+        const lane = task ? ledger.lanes[task.lane] : undefined;
+        if (task && lane) await this.finish(project, task, lane, "fail", mergeLetters.mergeFailed(task, `the merge stopped on an error: ${errorText(error)}.`, ""));
+        else this.ctx.moveTask(project, taskId, "fail");
       }),
     );
   }

@@ -138,7 +138,8 @@ task on record, or waits on others in a loop.
 ### A merge
 
 A lane's merges run one at a time. Each brings the lane into the task's copy again if it moved. Conflicts are left in
-that copy and the task goes to `rework`; the Lead gets MERGE CONFLICT, to send its Peer back to settle them. When the
+that copy and the task goes back to `done`, its Lead's like a red one; the Lead gets MERGE CONFLICT, to send its Peer
+back to settle them or cut the task. When the
 project gates tasks, the gate and its rehearsals run there as at a hand-back, unless they already ran on that commit,
 and a red task goes back to its Lead as MERGE RED unless the Lead accepted that very run with `overGate`. The lane
 branch then moves to a merge commit of the tree the gate saw, and only from the tip it saw. A task in the lane's copy
@@ -147,7 +148,7 @@ leaves it back on the lane branch.
 The task stays queued, and its Lead gets MERGE WAITS once per reason, when its copy cannot take the lane in (work
 uncommitted there, or git fails), when the lane's copy is on the lane branch with work uncommitted, or, asking nothing of
 the Lead, when the lane moved under the gate. It is tried again as each turn ends, and before a ready report or a
-landing. Other failures are MERGE FAILED.
+landing. Other failures, a merge that stops on an error included, are MERGE FAILED.
 
 ### Ready and landing
 

@@ -102,7 +102,7 @@ test("a merge waits while the task's own copy cannot take its lane in, and names
   rmSync(join(second!.worktree!, "scratch.txt"));
   await h.runtime.desk.resumeMerges(h.project);
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T3"]!.status, "rework");
+  assert.equal(h.ledger().tasks["L1-T3"]!.status, "done");
   await h.idle(lane.lead!);
   assert.match(letters(h, lane.lead!), new RegExp(`MERGE CONFLICT L1-T3 \\(Quotes\\) with ${lane.branch}\\.\\nFiles: c\\.txt, changed there by L1-T2\\n`));
 });

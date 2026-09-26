@@ -295,8 +295,8 @@ holds or that lie outside what it may write.
 a red gate on that commit without `overGate` and a reason. Each lane's queue merges one task at a time, beside
 the other lanes':
 
-1. The lane comes into the task's copy again if it moved: conflicts send the task to `rework`, with MERGE
-   CONFLICT to the Lead; a copy that cannot take the lane leaves it `queued`, with MERGE WAITS.
+1. The lane comes into the task's copy again if it moved: conflicts send the task back to `done`, with MERGE
+   CONFLICT to the Lead, whose it is to send back or cut; a copy that cannot take the lane leaves it `queued`, with MERGE WAITS.
 2. The gate's verdict on that commit is reused, or the gate runs: red sends the task back to `done` with MERGE
    RED, unless the Lead accepted that verdict over the gate.
 3. The merge commit is made from that tree with no checkout, and the lane branch moves to it only from the tip
