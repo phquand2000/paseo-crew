@@ -1,3 +1,5 @@
+// First, so this file has a HOME of its own even run alone: what it writes under HOME would otherwise land in the owner's.
+import "../setup.ts";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

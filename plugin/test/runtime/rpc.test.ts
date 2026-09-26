@@ -1,3 +1,5 @@
+// First, so this file has a HOME of its own even run alone: what it writes under HOME would otherwise land in the owner's.
+import "../setup.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
