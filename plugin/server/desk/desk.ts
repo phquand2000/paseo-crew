@@ -1,45 +1,40 @@
-import type { Team } from "../catalog/team/team.ts";
 import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
-import { schemaOf, seatOf } from "../catalog/kit/roles.ts";
+import type { Team } from "../catalog/team/team.ts";
+import { KeyedQueue } from "../core/keyed-queue.ts";
+import { midTurn } from "../core/paseo.ts";
+import { intentsPath } from "../core/paths.ts";
+import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import type { Finding } from "../domain/incident.ts";
 import type { TaskMove, TaskStatus } from "../domain/task.ts";
-import { intentsPath } from "../core/paths.ts";
-import { midTurn } from "../core/paseo.ts";
-import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
-import { Agents } from "./seats/agents.ts";
-import type { Moment } from "./watch/checks.ts";
-import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
-import { sortKeys } from "../core/json.ts";
 import type { DeskBase } from "./base.ts";
+import { ToolCalls } from "./calls.ts";
 import { Claims } from "./claims.ts";
-import { type Args, type Caller, type CodeIndex, type Mailer, type Posted, type ToolReply, type ToolRequest, no } from "./context.ts";
-import { recordEvent } from "./store/event-log.ts";
-import { IncidentStore } from "./store/incident-store.ts";
-import { LedgerStore, type Sync } from "./store/ledger-store.ts";
-import { KeyedQueue } from "../core/keyed-queue.ts";
-import { errorText } from "../core/errors.ts";
-import type { DeskEvent } from "./store/events.ts";
-import { Human } from "./human/human.ts";
-import { type Lane, type Ledger, type Task, loadLedger } from "./store/ledger.ts";
-import { clip } from "../core/text.ts";
-import { landLetters } from "./letters/land-letters.ts";
-import { type Letter, letters } from "./letters/letters.ts";
-import { inTime } from "./in-time.ts";
-import { Intents } from "./store/intents.ts";
-import { tidyRecords } from "./store/records.ts";
-import { archiveFinished } from "./store/archive.ts";
-import { reapKept } from "./seats/kept.ts";
-import { MergeQueue } from "./tasks/merge-queue.ts";
-import { type Project, projectOf } from "./project.ts";
-import { Roster } from "./seats/roster.ts";
-import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
+import type { CodeIndex, Mailer, Posted, ToolReply, ToolRequest } from "./context.ts";
 import { OwnCopy } from "./copies/own-copy.ts";
 import { Slots } from "./copies/slots.ts";
-import { Teardowns } from "./seats/teardown.ts";
+import { Human } from "./human/human.ts";
+import { type Letter, letters } from "./letters/letters.ts";
+import type { Project } from "./project.ts";
+import { Agents } from "./seats/agents.ts";
 import { markGone } from "./seats/gone.ts";
-import { type Noticed, closeIncidentsOf, notice, retell } from "./watch/notice.ts";
+import { reapKept } from "./seats/kept.ts";
+import { Roster } from "./seats/roster.ts";
+import { Teardowns } from "./seats/teardown.ts";
+import { turnsEnded } from "./seats/turn-ends.ts";
+import type { DeskServices, ToolDef } from "./services.ts";
+import { archiveFinished } from "./store/archive.ts";
+import { recordEvent } from "./store/event-log.ts";
+import type { DeskEvent } from "./store/events.ts";
+import { IncidentStore } from "./store/incident-store.ts";
+import { Intents } from "./store/intents.ts";
+import { type Lane, type Ledger, type Task, loadLedger } from "./store/ledger.ts";
+import { LedgerStore, type Sync } from "./store/ledger-store.ts";
+import { tidyRecords } from "./store/records.ts";
+import { MergeQueue } from "./tasks/merge-queue.ts";
 import { openWaiting } from "./waiting/lanes.ts";
 import { startWaiting } from "./waiting/tasks.ts";
+import type { Moment } from "./watch/checks.ts";
+import { type Noticed, closeIncidentsOf, notice, retell } from "./watch/notice.ts";
 import { Watcher } from "./watch/watcher.ts";
 
 type DeskOptions = {
@@ -54,24 +49,14 @@ type DeskOptions = {
   sensor?: (spec: SensorSpec, key: string) => Judge;
 };
 
-const SPEAKS = ["done", "ask", "answer", "message", "report"];
-
-export const ANSWER_WITHIN_MS = 240_000;
-
+/** The desk: it builds the services every tool and flow shares, and is what the runtime, its hooks and the panel call. */
 export class Desk {
   readonly projects: Map<string, Project>;
   readonly human: Human;
   readonly watcher: Watcher;
   private readonly services: DeskServices;
   private readonly intents: Intents;
-  private readonly mail: Parameters<typeof inTime>[3];
-  private readonly tools: ToolDef[];
-  /** Whether a call from this seat is still being worked on — which is not silence. */
-  inFlight(agentId: string): boolean {
-    return [...this.running.keys()].some((key) => key.startsWith(`${agentId}\n`));
-  }
-
-  private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
+  private readonly calls: ToolCalls;
 
   constructor(options: DeskOptions) {
     const projects = new Map<string, Project>();
@@ -94,7 +79,6 @@ export class Desk {
       lastStatus: new Map(),
     };
     this.intents = new Intents(intentsPath());
-    this.mail = { intents: this.intents, post: (to, letter) => base.mail.post(to, letter) };
     const roster = new Roster(options.kit, options.seats, this.intents);
     const slots = new Slots(base, options.workspaces);
     const ownCopy = new OwnCopy(base, slots);
@@ -103,7 +87,8 @@ export class Desk {
     this.watcher = new Watcher(base, roster, agents);
     const merges = new MergeQueue(base, (project) => startWaiting(this.services, project, true));
     this.services = { ...base, roster, slots, ownCopy, teardowns, agents, merges, watcher: this.watcher };
-    this.tools = options.tools;
+    const mail = { intents: this.intents, post: (to: string, letter: Letter) => base.mail.post(to, letter) };
+    this.calls = new ToolCalls(this.services, options.tools, mail);
     this.projects = projects;
     this.human = new Human(this.services);
   }
@@ -156,7 +141,7 @@ export class Desk {
 
   /** A seat's turn ended: finish the teardown its own writing was holding up. */
   stopped(agentId: string): Promise<void> {
-    return this.turnsEnded((id) => id === agentId);
+    return turnsEnded(this.services, (id) => id === agentId);
   }
 
   /**
@@ -165,7 +150,7 @@ export class Desk {
    */
   async resume(listed: Map<string, SeatView>): Promise<void> {
     await this.services.roster.archiveWaiting(listed);
-    await this.turnsEnded((id) => !midTurn(listed.get(id)?.status));
+    await turnsEnded(this.services, (id) => !midTurn(listed.get(id)?.status));
     for (const promised of this.intents.promised()) {
       if (listed.has(promised.agent)) await this.services.mail.post(promised.agent, letters.unanswered(promised));
       this.intents.kept(promised);
@@ -177,28 +162,6 @@ export class Desk {
     return this.services.merges.resume(project);
   }
 
-  private async turnsEnded(ended: (agentId: string) => boolean): Promise<void> {
-    await this.services.teardowns.stopped(ended);
-    const { projects, ledgers, mail, log, merges } = this.services;
-    for (const project of projects.values()) {
-      merges.retry(project).catch((error) => log(project, `merge retry failed: ${errorText(error)}`));
-      const waiting = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open" && lane.landing?.writers.some(ended));
-      for (const lane of waiting) {
-        // Who is left is worked out where it is written: a turn that ended meanwhile must not be written back as still in the way.
-        const by = ledgers.transact(project, (ledger) => {
-          const entry = ledger.lanes[lane.id];
-          if (!entry?.landing) return undefined;
-          entry.landing.writers = entry.landing.writers.filter((id) => !ended(id));
-          if (entry.landing.writers.length > 0) return undefined;
-          const { by } = entry.landing;
-          delete entry.landing;
-          return by;
-        });
-        if (by) await mail.post(by, landLetters.canLand(lane));
-      }
-    }
-  }
-
   /** In the round: finish a teardown whose writers are not seats any more, and put away a copy kept for a Lead that is gone. */
   reapSlots(project: Project, live: Set<string>): Promise<void> {
     return reapKept(this.services, project, live);
@@ -208,7 +171,12 @@ export class Desk {
     return this.services.ledgers.setTask(project, taskId, change);
   }
 
-  moveTask(project: Project, taskId: string, move: TaskMove, change?: (task: Task) => void): Task | TaskStatus | undefined {
+  moveTask(
+    project: Project,
+    taskId: string,
+    move: TaskMove,
+    change?: (task: Task) => void,
+  ): Task | TaskStatus | undefined {
     return this.services.ledgers.moveTask(project, taskId, move, change);
   }
 
@@ -228,72 +196,20 @@ export class Desk {
     if (dropped.length > 0) recordEvent(project, { kind: "records.tidied", files: dropped.length });
   }
 
-  /**
-   * A harness waits minutes for a call but a gate may run thirty: a call that runs long is answered with what is happening
-   * and its result mailed, and the same call again while it runs joins it. One its caller gives up on is mailed too.
-   */
-  answer(request: ToolRequest, { within = ANSWER_WITHIN_MS, cancelled }: { within?: number; cancelled?: AbortSignal } = {}): Promise<ToolReply> {
-    const key = `${request.agent}\n${request.tool}\n${JSON.stringify(sortKeys(request.args ?? {}))}`;
-    const running = this.running.get(key);
-    if (running) return inTime(request, running.reply, { started: running.started, within, again: true, cancelled }, this.mail);
-    const started = Date.now();
-    // A throw is answered too: only a resolved reply posts the letter the seat was promised.
-    const reply = this.handle(request)
-      .catch((error: unknown) => no(`The desk failed: ${errorText(error)}`))
-      .finally(() => {
-        if (this.running.get(key)?.started === started) this.running.delete(key);
-      });
-    this.running.set(key, { reply, started });
-    return inTime(request, reply, { started, within, again: false, cancelled }, this.mail);
+  /** Whether a call from this seat is still being worked on — which is not silence. */
+  inFlight(agentId: string): boolean {
+    return this.calls.inFlight(agentId);
   }
 
-  /** A reply that went out but never reached its seat, whose call was stopped or whose line dropped: mailed instead. */
+  answer(request: ToolRequest, options?: Parameters<ToolCalls["answer"]>[1]): Promise<ToolReply> {
+    return this.calls.answer(request, options);
+  }
+
   mailLost(request: ToolRequest, reply: ToolReply): Promise<unknown> {
-    return this.services.mail.post(request.agent, letters.later({ agent: request.agent, tool: request.tool, started: request.at }, reply, true));
+    return this.calls.mailLost(request, reply);
   }
 
-  async handle(request: ToolRequest): Promise<ToolReply> {
-    const caller = await this.caller(request);
-    if ("error" in caller) return no(caller.error);
-    const { kit, log, ledgers } = this.services;
-    const shown = schemaOf(kit, caller.role, request.tool);
-    const tool = shown ? servedBy(this.tools, request.tool, shown) : undefined;
-    const args = (request.args ?? {}) as Args;
-    const problems = shown ? argsProblems(shown, args) : [];
-    let reply: ToolReply;
-    try {
-      reply = !tool
-        ? no(`Unknown tool ${request.tool}.`)
-        : problems.length > 0
-          ? no(`${request.tool} was not carried out: it ${problems.join("; ")}. ${shapeOf(shown!)}`)
-          : await tool.handle(this.services, caller, tool.input.parse(withoutNulls(args)));
-    } catch (error) {
-      log(caller.project, `${caller.role.role} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
-      reply = no(`${request.tool} failed: ${errorText(error)}`);
-    }
-    recordEvent(caller.project, { kind: "tool", agent: caller.id, role: caller.role.role, tool: request.tool, ok: reply.ok, reply: clip(reply.text, 300) });
-    if (reply.ok) {
-      // Noting that the seat was heard from must not turn a reply it has earned into a crash.
-      try {
-        ledgers.transact(caller.project, (ledger) => {
-          const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
-          ref.recordedAt = Date.now();
-          if (SPEAKS.includes(request.tool)) ref.spokeAt = ref.recordedAt;
-          ledger.agents[caller.id] = ref;
-        });
-      } catch (error) {
-        log(caller.project, `could not record that ${caller.id} was heard from: ${errorText(error)}`);
-      }
-    }
-    return reply;
-  }
-
-  private async caller(request: ToolRequest): Promise<Caller | { error: string }> {
-    if (!request.agent) return { error: "This tool works only inside a team agent." };
-    const seat = await this.services.roster.look(request.agent);
-    const role = seatOf(this.services.kit, seat.provider)?.role;
-    if (!role?.tools) return { error: "This agent is not part of the team." };
-    if (role.role !== request.role) return { error: `This agent is a ${role.label}, so ${request.role} tools are not available to it.` };
-    return { id: request.agent, role, title: seat.title ?? request.agent, project: projectOf(seat.cwd ?? request.cwd) };
+  handle(request: ToolRequest): Promise<ToolReply> {
+    return this.calls.handle(request);
   }
 }
