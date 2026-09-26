@@ -51,3 +51,17 @@ test("a lane told to work in the Human's copy, or to carry on their branch, does
   assert.equal(carried.ok, true, carried.text);
   assert.deepEqual([h.ledger().lanes.L2!.onBranch, h.ledger().lanes.L2!.branch], [true, "fix/login"]);
 });
+
+test("a lane waiting only on lanes that have landed opens now, so it waits for the Human's word on their copy like any other", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { base: "main", gate: "true" });
+  assert.equal((await h.call(sup, "supervisor", "open_lane", lane("First", { isolate: true }))).ok, true);
+  h.commit(h.ledger().lanes.L1!.worktree!, "a.txt", "first\n");
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  assert.equal(landed.ok, true, landed.text);
+  h.git(h.root, "switch", "-qc", "fix/login");
+  const then = await h.call(sup, "supervisor", "open_lane", lane("Then", { after: ["L1"] }));
+  assert.match(then.text, /^The Human decides where this lane works, and has not said: carry on fix\/login here/);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login", "the Human's checkout is not switched off their branch unasked");
+});

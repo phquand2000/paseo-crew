@@ -100,8 +100,9 @@ cleared.
 Before a lane takes the checkout while that holds uncommitted work or sits on a branch other than the base, the Human
 decides where it works. The call says so (`onBranch`, `isolate` true or false, or a `base`), or the project's
 `laneHome` does; else the call is refused with the choices. Over uncommitted work only `onBranch` or `isolate` settles
-it. A lane opened with `after` is not asked: when it opens into a free checkout, anything uncommitted or untracked
-there stops it, and it waits again until a lane closes.
+it. A lane that waits with `after` is not asked: when it opens into a free checkout, anything uncommitted or untracked
+there stops it, and it waits again until a lane closes. One whose `after` has all landed opens at once, and is asked
+like any other.
 
 `open_lane` is refused when its write set meets an open lane's write set or `contracts`, or its `contracts` meet an open
 lane's write set. It is refused when its write set reaches a one-writer path an open lane may write; an open lane with

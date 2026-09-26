@@ -90,7 +90,9 @@ export const openLane = defineTool({
     const newBranch = str(asked.newBranch).trim();
     if (newBranch && asked.onBranch !== true && config.laneHome !== "onBranch") return no("newBranch goes with onBranch: it starts the branch the lane then carries on.");
     if (asked.onBranch === true && (asked.isolate !== undefined || str(asked.base))) return no("onBranch carries on the branch the project's own copy is on, in that copy, so it takes no base and no isolate.");
-    const home = await homeOf(project, config, asked, after.length === 0, here);
+    // A lane whose `after` has all landed opens now, in whatever the copy is now: it is asked about like any other.
+    const waits = after.length > 0 ? waitsFor(loadLedger(project.state), after, true) : [];
+    const home = await homeOf(project, config, asked, Array.isArray(waits) && waits.length === 0, here);
     if (typeof home === "object") return no(home.refused);
     const args = { ...asked, onBranch: home === "onBranch" || undefined, isolate: home === "isolate" || undefined };
     const onBranch = args.onBranch === true;
