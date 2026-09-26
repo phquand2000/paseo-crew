@@ -11,17 +11,6 @@ type Decisions = {
   retries: number;
 };
 
-type Fetch = (
-  url: string,
-  init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal },
-) => Promise<{
-  ok: boolean;
-  status: number;
-  headers: { get(name: string): string | null };
-  json(): Promise<unknown>;
-  text(): Promise<string>;
-}>;
-
 /** Between retries. It holds the process open: a script left with nothing else to wait on exited mid-retry. */
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -83,14 +72,14 @@ function readJudgement(body: unknown, questions: Record<string, Question>): Judg
 }
 
 /** One request, tried again only where trying again can help: no reply, a 429 or a server error. */
-async function decide(spec: Decisions, key: string, body: string, fetcher: Fetch): Promise<unknown> {
+async function decide(spec: Decisions, key: string, body: string): Promise<unknown> {
   for (let attempt = 0; ; attempt++) {
     const signal = AbortSignal.timeout(spec.timeoutSeconds * 1000);
     const late = `no answer within ${spec.timeoutSeconds} s`;
-    let response: Awaited<ReturnType<Fetch>>;
+    let response: Response;
     try {
       response = await bounded(
-        fetcher(spec.url, {
+        fetch(spec.url, {
           method: "POST",
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
           body,
@@ -119,11 +108,11 @@ async function decide(spec: Decisions, key: string, body: string, fetcher: Fetch
 }
 
 /** A sensor answering over HTTP. What goes with every request goes first, so it never replaces what is asked. */
-export function decisionsJudge(spec: Decisions, key: string, fetcher: Fetch = fetch): Judge {
+export function decisionsJudge(spec: Decisions, key: string): Judge {
   return {
     async ask(state, questions) {
       const body = JSON.stringify({ ...spec.body, model: spec.model, state, questions });
-      return readJudgement(await decide(spec, key, body, fetcher), questions);
+      return readJudgement(await decide(spec, key, body), questions);
     },
   };
 }

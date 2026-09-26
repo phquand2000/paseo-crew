@@ -29,7 +29,6 @@ const NOT_YET_CLEAN = [
   "server/runtime/turns.ts",
   "server/runtime/watch-view.ts",
   "server/upkeep/migrate.ts",
-  "test/adapters/decisions.test.ts",
   "test/catalog/content.test.ts",
   "test/catalog/kit.real.test.ts",
   "test/catalog/kit.test.ts",
@@ -44,7 +43,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/code-proxy.test.ts",
   "test/runtime/fake-timeline.ts",
   "test/runtime/half-open.test.ts",
-  "test/runtime/judging.test.ts",
   "test/runtime/kept-lead.test.ts",
   "test/runtime/keys.test.ts",
   "test/runtime/lines.test.ts",
@@ -60,7 +58,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/status.test.ts",
   "test/runtime/steer.test.ts",
   "test/runtime/team-socket.test.ts",
-  "test/runtime/watcher.test.ts",
 ];
 
 export default defineConfig(
