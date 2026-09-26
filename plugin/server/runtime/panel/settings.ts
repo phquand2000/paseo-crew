@@ -1,6 +1,7 @@
 import type { Layer } from "../../../shared/settings.ts";
 import type {
   CatalogView,
+  Check,
   ModelsRefreshed,
   Parsed,
   SettingsRead,
@@ -15,7 +16,7 @@ import { guidesDir } from "../../core/paths.ts";
 import type { Project } from "../../desk/project/project.ts";
 import type { TeamSource } from "../team-source.ts";
 import { describeCatalog } from "./catalog-view.ts";
-import { type Check, doctor } from "./doctor.ts";
+import { doctor } from "./doctor.ts";
 import { parseMcp } from "./mcp-paste.ts";
 import { unknownProject } from "./projects.ts";
 import type { SettingsRpc } from "./rpc.ts";
