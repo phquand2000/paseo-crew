@@ -76,7 +76,7 @@ the Supervisor); and a permission prompt (WAITING FOR PERMISSION to the seat's o
 | Who | Verb or event | On record | Mailed |
 |---|---|---|---|
 | Lead | `report` with `ready` | queued merges settle; the lane gate and its rehearsals run; `ready` is set, red gate or not; open `costly` questions about the lane are parked and the lane held | REPORT to the Supervisor, with the gate's verdict, the `askFirst` hits and what the desk read of the lane |
-| Supervisor | `land_lane` | base merged in, the gate run, the change read against `askFirst`, then landed on the local base: the lane `closed` and `landed`, its unsettled tasks cut, its Peers let go | BASE CONFLICT or LAND HELD to the Lead; CAN LAND to the Supervisor; LANE CLOSED to the Lead, which stays; CLEARED to the lane a detour served |
+| Supervisor | `land_lane` | base merged in, the gate run, the change read against `askFirst`, then landed on the local base: the lane `closed` and `landed`, its open questions canceled, its unsettled tasks cut and named, its Peers let go | BASE CONFLICT or LAND HELD to the Lead; CAN LAND to the Supervisor; LANE CLOSED to the Lead, which stays; CLEARED to the lane a detour served |
 | The Human | Approve or Send back, on the Flow tab | approved, the desk tries to land the lane at once; sent back, the hold is dropped and the lane stays open | LANDED, HELD AGAIN, APPROVED, CHANGED or SENT BACK to the Supervisor; LAND SENT BACK to the Lead |
 | Supervisor | `drop_lane`, `release` | the lane `closed` without landing, its branch kept; a kept Lead archived, its copy put away | LANE CLOSED to the Lead; CLEARED, as on landing |
 

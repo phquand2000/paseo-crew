@@ -184,8 +184,9 @@ the next report if the lane lost it since; one they approved before it was repor
 
 ### Closing a lane
 
-Landed or dropped, a lane first waits for its queued merges. Closing answers its open asks as closed, cuts its leftover
-tasks, and archives every Peer of it, kept ones too. Its Lead stays, with any copy of its own, until `release`, and gets
+Landed or dropped, a lane first waits for its queued merges. Closing answers its open asks as closed, cancels its open
+questions for the Human, cuts its leftover tasks and names them in its reply, and archives every Peer of it, kept ones
+too. A ready report and a landing's evidence name each task that is not settled yet, since landing cuts it. Its Lead stays, with any copy of its own, until `release`, and gets
 LANE CLOSED. A lane in the project's own copy puts it back on base once no seat is mid-turn there. A copy a task still
 held comes off that task's branch once no seat is mid-turn there (a copy kept with its Lead, only if none is at the
 close), the Human's own branch taking their uncommitted work along; the task's branch goes unless it holds commits
@@ -349,7 +350,9 @@ Supervisor puts it on their queue with `ask_human`, and its turn goes on; no sea
 - A lane on hold for a question stays on hold until the Supervisor calls `resume_lane`: an answer does not lift it.
 - A `costly` question stops its lane at the ready report made while it is open, or at once when the lane already stands
   reported ready. `land_lane` does not look at questions.
-- Nothing times a question out. It stays `open` until it is settled, even after its lane closes, and settles once.
+- Nothing times a question out. It stays `open` until it is settled, or until its lane closes, which cancels it
+  (`question.answered` by `desk`); it settles once. A lane stays on record while any of its questions is under a day
+  old, since the daily count reads the ledger.
 - `ask_human` is refused once `questionsPerDay` questions (3 by default) were put in the last 24 h across every project
   on the machine. The refusal names them, and tells the Supervisor to decide it itself if it is its to decide, fold it
   into a question still open, or ask once the day turns.

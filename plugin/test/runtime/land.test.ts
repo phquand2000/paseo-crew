@@ -151,3 +151,17 @@ test("two lanes landed at once each stay on the base: a landing never erases ano
   assert.deepEqual(replies.map((reply) => reply.ok), [true, true], "the second waits for the first, then brings in what it landed: " + replies.map((reply) => reply.text).join("\n"));
   assert.deepEqual(["cart.txt", "order.txt"].filter((file) => onMain.includes(file)), ["cart.txt", "order.txt"], "and main has the work of both");
 });
+
+test("landing a lane names the unfinished tasks it would cut before it lands, and the ones it cut, but not a review that gave its verdict", async () => {
+  const { h, sup, lane } = await laneWithPeer(undefined, undefined, { holds: ["a.txt"], parallel: true });
+  await h.call(lane.lead!, "lead", "start_review", { focus: "the lane as a whole" });
+  const review = Object.values(h.ledger().tasks).find((task) => task.kind === "review")!;
+  await h.call(review.peer!, "reviewer", "done", { verdict: "accept", answer: "Right." });
+  await h.call(lane.lead!, "lead", "report", { summary: "the rest can wait", ready: true });
+  await h.idle(sup);
+  assert.match(h.heard(sup).join("\n"), /L1-T1 is running: landing cuts it\./);
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  assert.equal(landed.ok, true, landed.text);
+  assert.match(landed.text, /It cut L1-T1, which was not finished\./);
+  assert.doesNotMatch(h.heard(sup).join("\n"), /L1-R1 is/, "a review that gave its verdict is done");
+});

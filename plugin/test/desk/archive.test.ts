@@ -49,6 +49,19 @@ test("closed lanes past the newest few leave the ledger whole once nothing of th
   assert.equal(takeFinished(ledger, (id) => !live.has(id)), undefined, "a second look finds nothing more");
 });
 
+test("a closed lane whose question was asked within the day stays on record, since the daily count of questions reads it", () => {
+  const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
+  ledger.questions.H1 = { id: "H1", from: "sup", lane: "L1", question: "?", why: "", options: [], recommend: "", reason: "", ifSilent: "", class: "reversible", status: "answered", openedAt: Date.now() - 3_600_000 };
+  assert.equal(takeFinished(ledger, () => true), undefined);
+  ledger.questions.H1!.openedAt = Date.now() - 25 * 3_600_000;
+  assert.deepEqual(takeFinished(ledger, () => true)?.lanes.map((entry) => entry.lane!.id), ["L1"]);
+
+  ledger.questions.H2 = { id: "H2", from: "sup", question: "?", why: "", options: [], recommend: "", reason: "", ifSilent: "", class: "reversible", status: "declined", openedAt: Date.now() - 3_600_000 };
+  assert.equal(takeFinished(ledger, () => true), undefined, "one about no lane, its asker gone, stays as long");
+  ledger.questions.H2!.openedAt = Date.now() - 25 * 3_600_000;
+  assert.deepEqual(takeFinished(ledger, () => true)?.questions.map((question) => question.id), ["H2"]);
+});
+
 test("a closed lane a waiting lane waits for stays on record, however old", () => {
   const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
   ledger.lanes.L99 = { ...lane(99, "waiting"), after: ["L1"] };

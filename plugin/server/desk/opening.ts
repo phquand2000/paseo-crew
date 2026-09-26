@@ -91,6 +91,7 @@ export async function startLead(desk: DeskServices, project: Project, lane: Lane
   try {
     const started = await seatLead(desk, project, lane, how);
     if (typeof started === "string") ctx.moveLane(project, lane.id, how.failed);
+    if (typeof started === "string" && how.failed === "close") ctx.event(project, { kind: "lane.closed", lane: lane.id, land: false, landing: "its Lead could not start", reason: started, writers: [] });
     return started;
   } finally {
     ctx.seating.delete(seatingKey(project, lane.id));

@@ -3,6 +3,7 @@ import { changedFiles, commitsAhead, diffCounts, git, kindOf, mergeBase } from "
 import { coverOf, globToRegex, uncovered } from "../core/scope.ts";
 import { capped } from "../core/text.ts";
 import { type Kit, fileKinds, testMarkers, weakened } from "../catalog/kit.ts";
+import { SETTLED } from "../domain/task.ts";
 import { loadIncidents } from "./incidents.ts";
 import { type Lane, type Ledger, type Task, tasksOf } from "./ledger.ts";
 import { type Project, configFile, loadConfig, serialOnlyOf } from "./project.ts";
@@ -84,6 +85,11 @@ export function askFirstHits(project: Project, change: Change): string[] {
   });
 }
 
+/** Work closing a lane would lose: a code task not merged, or a review still reading. A review that handed back its verdict is done. */
+export function unfinished(task: Task): boolean {
+  return !SETTLED.includes(task.status) && !(task.kind === "review" && task.status === "done");
+}
+
 async function changed(root: string, range: string, filter: "D" | "M"): Promise<string[]> {
   const run = await git(root, ["diff", "-z", "--name-only", `--diff-filter=${filter}`, range]);
   return run.stdout.split("\0").filter(Boolean);
@@ -122,6 +128,7 @@ export async function landFacts(kit: Kit, project: Project, ledger: Ledger, lane
     ...weaker,
     ...(lane.writeSet.length > 0 ? uncovered(files, lane.writeSet).map((path) => `${path} is outside the lane's write set, ${lane.writeSet.join(", ")}.`) : []),
     ...tasks.filter((task) => task.status === "merged" && task.handback?.gate?.ok === false).map((task) => `${task.id} was accepted over its red gate: ${task.handback!.gate!.note}.`),
+    ...tasks.filter(unfinished).map((task) => `${task.id} is ${task.status}: landing cuts it.`),
     ...open.map((incident) => `Incident ${incident.id} on this lane is still open: ${incident.kind}.`),
     ...tasks.filter((task) => task.kind === "review" && task.handback).map((task) => `${task.id} review: ${task.handback!.outcome}.`),
     ...reviewFacts(ledger, lane),

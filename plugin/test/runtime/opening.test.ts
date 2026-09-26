@@ -37,6 +37,7 @@ test("a lane whose Lead cannot start keeps no copy on record: the one it took is
   assert.match(opened.text, /The Lead could not start: no seat today/);
   const lane = h.ledger().lanes.L1!;
   assert.deepEqual([lane.status, lane.slot, lane.worktree, lane.workspaceId, Object.keys(h.ledger().slots)], ["closed", undefined, undefined, undefined, []]);
+  assert.deepEqual(h.events("lane.closed").map((event) => [event.lane, event.landing]), [["L1", "its Lead could not start"]], "the record says how it closed");
 });
 
 test("a Lead is told how its project gates: per task, any task joins the lane red only over the gate with a reason", async () => {

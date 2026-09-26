@@ -3,10 +3,11 @@ import { landLane } from "../core/land.ts";
 import { midTurn } from "../core/paseo.ts";
 import { ASK } from "../domain/ask.ts";
 import { LANE } from "../domain/lane.ts";
+import { QUESTION } from "../domain/question.ts";
 import { TASK } from "../domain/task.ts";
 import { type ToolReply, no, ok, str } from "./context.ts";
 import { laneGate } from "./gates.ts";
-import { askFirstHits, changeOf, landFacts } from "./landing.ts";
+import { askFirstHits, changeOf, landFacts, unfinished } from "./landing.ts";
 import { type Lane, type Ledger, type Task, findLane, loadLedger, tasksOf } from "./ledger.ts";
 import { keptLetters } from "./kept-letters.ts";
 import { landLetters } from "./land-letters.ts";
@@ -182,23 +183,39 @@ async function land(desk: DeskServices, project: Project, ledger: Ledger, lane: 
   return { how: `${result.how}${gate.ok ? "" : ", over a red gate"}`, note: check.note };
 }
 
+/**
+ * What a closing lane leaves that nobody can act on any more: its open asks answered, its open questions for the Human called
+ * off, its unsettled tasks cut. Every task comes back, for its Peer to go; `cut` and `canceled` name what this changed.
+ */
+function settleLeftovers(ledger: Ledger, lane: Lane): { tasks: Task[]; cut: string[]; canceled: string[] } {
+  for (const ask of Object.values(ledger.asks)) if (ask.lane === lane.id && ASK.move(ask, "answer")) ask.answer = `Lane ${lane.id} closed before this was answered.`;
+  const canceled: string[] = [];
+  for (const question of Object.values(ledger.questions)) {
+    if (question.lane !== lane.id || !QUESTION.move(question, "cancel")) continue;
+    question.answer = { choice: "cancel", text: `Lane ${lane.id} closed before the Human answered.`, by: "desk", at: Date.now() };
+    canceled.push(question.id);
+  }
+  const tasks: Task[] = [];
+  const cut: string[] = [];
+  for (const task of Object.values(ledger.tasks).filter((item) => item.lane === lane.id)) {
+    const lost = unfinished(task);
+    if (TASK.move(task, "cut") && lost) cut.push(task.id);
+    tasks.push({ ...task });
+  }
+  return { tasks, cut, canceled };
+}
+
 /** Closes the lane on record and cuts what it still had going: its Peers go, and its Lead stays with any copy of its own until released. */
 async function retire(desk: DeskServices, project: Project, lane: Lane, args: Closing, landed: { how: string; note: string }): Promise<Closed> {
   const { ctx, roster, agents } = desk;
-  const retired = ctx.transact(project, (current) => {
+  const { tasks: retired, cut, canceled } = ctx.transact(project, (current) => {
     const entry = current.lanes[lane.id];
     if (entry && LANE.move(entry, "close")) Object.assign(entry, { landed: args.land === true || undefined, closedAt: Date.now() });
     delete entry?.landApproval;
     delete entry?.onHold;
-    // Nobody in the lane is left to answer them, and a kept Lead would be reminded of them for nothing.
-    for (const ask of Object.values(current.asks)) if (ask.lane === lane.id && ASK.move(ask, "answer")) ask.answer = `Lane ${lane.id} closed before this was answered.`;
-    const tasks: Task[] = [];
-    for (const task of Object.values(current.tasks).filter((item) => item.lane === lane.id)) {
-      TASK.move(task, "cut");
-      tasks.push({ ...task });
-    }
-    return tasks;
+    return settleLeftovers(current, lane);
   });
+  for (const id of canceled) ctx.event(project, { kind: "question.answered", question: id, status: "canceled", by: "desk" });
   const branches: string[] = [];
   for (const task of retired) {
     const branch = await agents.retire(project, task, args.land === true ? landedRef(lane.id) : lane.branch);
@@ -219,10 +236,13 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
   }
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing: landed.how, reason: str(args.reason), writers });
   const seats = kept ? `Its Peers are archived, and its Lead ${lane.lead} stays until you release it.` : "Its Peers are archived, and its Lead is gone.";
+  const left = `${cut.length > 0 ? ` It cut ${cut.join(", ")}, which ${cut.length === 1 ? "was" : "were"} not finished.` : ""}${
+    canceled.length > 0 ? ` Its open question${canceled.length === 1 ? "" : "s"} for the Human, ${canceled.join(", ")}, ${canceled.length === 1 ? "is" : "are"} canceled.` : ""
+  }`;
   const named = [...new Set([...branches, ...stowed.kept])];
   const held = named.length > 0 ? ` ${named.join(" and ")} ${named.length === 1 ? "holds commits" : "hold commits"} nothing else has and ${named.length === 1 ? "is" : "are"} kept.` : "";
   await openWaiting(desk, project, true);
-  return ok(`Lane ${lane.id} closed; ${landed.how}. ${seats} ${stowed.note}${held}${landed.note}`);
+  return ok(`Lane ${lane.id} closed; ${landed.how}. ${seats}${left} ${stowed.note}${held}${landed.note}`);
 }
 
 /**

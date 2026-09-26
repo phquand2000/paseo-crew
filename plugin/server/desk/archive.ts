@@ -26,6 +26,8 @@ export function archiveDir(state: string): string {
 
 const laneNumber = (id: string) => Number(id.slice(1));
 
+const DAY_MS = 24 * 3_600_000;
+
 /** Lane ids the open work names, a hand-back or a `lane/l7-…` branch included; naming one too many only keeps it longer. */
 function carriedOn(ledger: Ledger): Set<string> {
   const open = new Set(Object.values(ledger.lanes).filter((lane) => lane.status !== "closed").map((lane) => lane.id));
@@ -37,11 +39,31 @@ function carriedOn(ledger: Ledger): Set<string> {
   return new Set((text.match(/\bL\d+\b/gi) ?? []).map((id) => id.toUpperCase()));
 }
 
+type Entries = { tasks: Task[]; asks: Ask[]; questions: Question[]; agents: AgentRef[] };
+
+/**
+ * Whether a closed lane still has something pending: open work naming it, a copy or merge not settled, an open ask or
+ * question, a question asked within the day (the Human's daily count reads the ledger), or a seat still there.
+ */
+function stillPending(ledger: Ledger, lane: Lane, of: Entries, carried: Set<string>, gone: (agentId: string) => boolean, now: number): boolean {
+  const taskIds = new Set(of.tasks.map((task) => task.id));
+  const seats = new Set([lane.lead, ...of.tasks.map((task) => task.peer), ...of.agents.map((agent) => agent.id)].filter((id): id is string => Boolean(id)));
+  return (
+    carried.has(lane.id) ||
+    lane.restoring !== undefined ||
+    Object.values(ledger.slots).some((slot) => slot.lane === lane.id || (slot.task !== undefined && taskIds.has(slot.task)) || slot.id === lane.slot) ||
+    of.tasks.some((task) => IN_QUEUE.includes(task.status)) ||
+    of.asks.some((ask) => ask.status === "open") ||
+    of.questions.some((question) => question.status === "open" || question.openedAt > now - DAY_MS) ||
+    [...seats].some((id) => !gone(id))
+  );
+}
+
 /**
  * Takes out what nothing reads again: closed lanes past the newest few once nothing of theirs is pending or named by open
  * work, gone seats with no lane but each role's newest, and answered asks and settled questions with no lane whose asker left.
  */
-export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean): Taken | undefined {
+export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean, now = Date.now()): Taken | undefined {
   const carried = carriedOn(ledger);
   const closed = Object.values(ledger.lanes)
     .filter((lane) => lane.status === "closed")
@@ -49,21 +71,14 @@ export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean)
     .slice(KEEP_CLOSED_LANES);
   const taken: Taken = { lanes: [], agents: [], asks: [], questions: [] };
   for (const lane of closed) {
-    const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
-    const asks = Object.values(ledger.asks).filter((ask) => ask.lane === lane.id);
-    const questions = Object.values(ledger.questions).filter((question) => question.lane === lane.id);
-    const agents = Object.values(ledger.agents).filter((agent) => agent.lane === lane.id);
-    const taskIds = new Set(tasks.map((task) => task.id));
-    const seats = new Set([lane.lead, ...tasks.map((task) => task.peer), ...agents.map((agent) => agent.id)].filter((id): id is string => Boolean(id)));
-    const pending =
-      carried.has(lane.id) ||
-      lane.restoring !== undefined ||
-      Object.values(ledger.slots).some((slot) => slot.lane === lane.id || (slot.task !== undefined && taskIds.has(slot.task)) || slot.id === lane.slot) ||
-      tasks.some((task) => IN_QUEUE.includes(task.status)) ||
-      asks.some((ask) => ask.status === "open") ||
-      questions.some((question) => question.status === "open") ||
-      [...seats].some((id) => !gone(id));
-    if (pending) continue;
+    const of: Entries = {
+      tasks: Object.values(ledger.tasks).filter((task) => task.lane === lane.id),
+      asks: Object.values(ledger.asks).filter((ask) => ask.lane === lane.id),
+      questions: Object.values(ledger.questions).filter((question) => question.lane === lane.id),
+      agents: Object.values(ledger.agents).filter((agent) => agent.lane === lane.id),
+    };
+    if (stillPending(ledger, lane, of, carried, gone, now)) continue;
+    const { tasks, asks, questions, agents } = of;
     delete ledger.lanes[lane.id];
     for (const task of tasks) delete ledger.tasks[task.id];
     for (const ask of asks) delete ledger.asks[ask.id];
@@ -85,7 +100,7 @@ export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean)
     taken.asks.push(ask);
   }
   for (const question of Object.values(ledger.questions)) {
-    if (question.lane || question.status === "open" || ledger.agents[question.from] || !gone(question.from)) continue;
+    if (question.lane || question.status === "open" || question.openedAt > now - DAY_MS || ledger.agents[question.from] || !gone(question.from)) continue;
     delete ledger.questions[question.id];
     taken.questions.push(question);
   }
