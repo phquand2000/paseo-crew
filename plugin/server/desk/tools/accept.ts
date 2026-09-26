@@ -6,7 +6,7 @@ import { holdRefusal } from "../hold.ts";
 import { type Task, loadLedger } from "../ledger.ts";
 import type { Project } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
-import { laneTask } from "./lane-task.ts";
+import { laneTask } from "../access.ts";
 
 /** A task goes into its lane's merge queue once handed back, and over a red gate on its tree only with its Lead's reason. */
 async function queueTask(desk: DeskServices, project: Project, task: Task, args: Args): Promise<ToolReply> {

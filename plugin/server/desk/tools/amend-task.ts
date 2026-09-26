@@ -9,7 +9,7 @@ import { tellMoment } from "../moments.ts";
 import { parallelProblem } from "../tasks/placement.ts";
 import { serialIn } from "../project.ts";
 import { defineTool } from "../services.ts";
-import { laneTask } from "./lane-task.ts";
+import { laneTask } from "../access.ts";
 
 /** Changes what a task asks while its Peer works, keeping what it asked before; the Peer is told at its next turn, not cut off. */
 export const amendTask = defineTool({

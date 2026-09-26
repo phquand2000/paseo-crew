@@ -6,7 +6,7 @@ import { letGo } from "../gone.ts";
 import { releaseKept } from "../kept.ts";
 import { findLane, loadLedger } from "../ledger.ts";
 import { defineTool } from "../services.ts";
-import { laneTask } from "./lane-task.ts";
+import { laneTask } from "../access.ts";
 
 /** A Lead lets go of the Peer kept from a task it accepted, and of a copy of its own with it; the lane's Peers all go when it closes. */
 export const releasePeer = defineTool({

@@ -6,7 +6,7 @@ import { loadLedger } from "../ledger.ts";
 import { defineTool } from "../services.ts";
 import { leaveCopy } from "../sync.ts";
 import { startWaiting } from "../waiting/tasks.ts";
-import { laneTask } from "./lane-task.ts";
+import { laneTask } from "../access.ts";
 
 export const cut = defineTool({
   name: "cut",

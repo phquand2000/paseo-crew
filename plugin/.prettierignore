@@ -31,8 +31,6 @@ server/desk/tools/add-tasks.ts
 server/desk/tools/amend-task.ts
 server/desk/tools/message.ts
 server/desk/tools/replace-lead.ts
-server/desk/tools/report.ts
-server/desk/tools/rework.ts
 server/desk/tools/start-review.ts
 server/runtime/control.ts
 server/runtime/doctor.ts
