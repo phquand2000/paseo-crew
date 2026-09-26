@@ -1,4 +1,5 @@
 import { existsSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
 import { isAbsolute, join, normalize, sep } from "node:path";
 import { can } from "../../catalog/kit/roles.ts";
 import type { RoleSpec } from "../../catalog/kit/kit.ts";
@@ -18,6 +19,16 @@ export function pathProblem(root: string, rel: string): string | undefined {
   return undefined;
 }
 
+/** Why `path` cannot be granted outside the project: it must be absolute, exist, and not hold the whole disk or home. */
+export function outsideProblem(path: string, home = homedir()): string | undefined {
+  if (!path || !isAbsolute(path)) return "is not an absolute path";
+  if (!existsSync(path)) return "does not exist";
+  const real = realpathSync(path);
+  const within = (dir: string): boolean => dir === real || dir.startsWith(real.endsWith(sep) ? real : real + sep);
+  if (within(existsSync(home) ? realpathSync(home) : home)) return "holds the home directory";
+  return undefined;
+}
+
 /** The Human's `writable` paths, resolved: a sandbox checks the real path, not a lane copy's link to it. */
 export function projectWrites(project: Project): string[] {
   return loadConfig(project.state)
@@ -25,8 +36,16 @@ export function projectWrites(project: Project): string[] {
     .map((rel) => realpathSync(join(project.root, normalize(rel))));
 }
 
-/** What a seat writes beyond state: the Human's `writable`, and for a role that commits, the git directory a lane copy keeps its index in. */
+/** The Human's `writableOutside` paths a role that writes code may also write, resolved. */
+function outsideWrites(role: RoleSpec, project: Project): string[] {
+  if (!can(role, "write")) return [];
+  return loadConfig(project.state)
+    .writableOutside.filter((path) => !outsideProblem(path))
+    .map((path) => realpathSync(path));
+}
+
+/** What a seat writes beyond state: the Human's `writable`, for a role that writes code the Human's `writableOutside`, and for a role that commits the git directory a lane copy keeps its index in. */
 export function seatWrites(role: RoleSpec, project: Project): string[] {
   const common = can(role, "work") || can(role, "write") ? gitCommonDir(project.root) : undefined;
-  return [...projectWrites(project), ...(common ? [common] : [])];
+  return [...projectWrites(project), ...outsideWrites(role, project), ...(common ? [common] : [])];
 }

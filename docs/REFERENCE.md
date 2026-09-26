@@ -95,6 +95,7 @@ set by hand. `set_project` keeps them and cannot change them: they widen what se
 |---|---|---|
 | `links` | `[]` | Paths, relative to the project root, that each copy of its own a lane or task works in gets as a symlink to the project's copy. A path is linked only if it exists in the project, stays inside it, is not already in the copy, and git ignores it. A path git would see as a change is skipped, since it would leave the copy dirty and fail the gate. Each skip is logged and written to `events.log` as `link.skipped` |
 | `writable` | `[]` | Paths, relative to the project root, that seats may write through their agent's sandbox (`writable_roots` for Codex, `sandbox.filesystem.allowWrite` for Claude Code). They are granted as real paths, which is what a write through a link in a copy resolves to |
+| `writableOutside` | `[]` | Absolute paths outside the project, such as a shared build cache, that a role that writes code (`can` holds `write`) may also write through its sandbox. A path is granted as its real path only if it exists and neither is nor holds the home directory, so `/` and `~` are never granted |
 
 A role that can `work` or `write` is also granted the repository's git directory: a copy keeps its index and refs there,
 and a sandboxed agent could not commit without it.

@@ -12,7 +12,7 @@ import { resolveTeam, withHarness } from "../../server/catalog/team/team.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
 import { placeLinks } from "../../server/desk/copies/links.ts";
 import { loadConfig, saveConfig } from "../../server/desk/project/project.ts";
-import { pathProblem, projectWrites, seatWrites } from "../../server/desk/project/writes.ts";
+import { outsideProblem, pathProblem, projectWrites, seatWrites } from "../../server/desk/project/writes.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -25,7 +25,7 @@ const repo = (): string => {
 test("the Human's links and writable paths default to none, and set_project's save keeps them", () => {
   const state = tempDir("sw2-links-state-");
   const config = loadConfig(state);
-  assert.deepEqual([config.links, config.writable], [[], []]);
+  assert.deepEqual([config.links, config.writable, config.writableOutside], [[], [], []]);
   saveConfig(state, { ...config, links: ["AGENTS.md"], writable: ["docs/plans"] });
   assert.deepEqual([loadConfig(state).links, loadConfig(state).writable], [["AGENTS.md"], ["docs/plans"]]);
 });
@@ -53,6 +53,28 @@ test("a role that commits also writes the repository's git directory, where a la
   const project = { root, slug: "x", state: tempDir("sw2-links-state-") };
   const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
   assert.deepEqual(seatWrites(role("peer"), project), [join(root, ".git")]);
+  assert.deepEqual(seatWrites(role("lead"), project), []);
+});
+
+test("a path the Human grants outside the project is absolute, real, never home or above it, and only for a role that writes code", () => {
+  const kit = makeKit();
+  const root = repo();
+  const home = realpathSync(tempDir("sw2-links-home-"));
+  const cache = realpathSync(tempDir("sw2-links-cache-"));
+  symlinkSync(cache, join(home, "cache"));
+  assert.equal(outsideProblem(join(home, "cache"), home), undefined);
+  assert.match(outsideProblem("cache", home) ?? "", /not an absolute path/);
+  assert.match(outsideProblem(join(cache, "missing"), home) ?? "", /does not exist/);
+  assert.match(outsideProblem(home, home) ?? "", /holds the home/);
+  assert.match(outsideProblem(dirname(home), home) ?? "", /holds the home/);
+  assert.match(outsideProblem("/", home) ?? "", /holds the home/);
+  const state = tempDir("sw2-links-state-");
+  saveConfig(state, { ...loadConfig(state), writableOutside: [join(home, "cache"), "relative", "/"] });
+  const project = { root, slug: "x", state };
+  const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
+  const peer = role("peer");
+  assert.deepEqual(seatWrites({ ...peer, can: ["work", "write"] }, project), [cache, join(root, ".git")]);
+  assert.deepEqual(seatWrites({ ...peer, can: ["work", "review"] }, project), [join(root, ".git")]);
   assert.deepEqual(seatWrites(role("lead"), project), []);
 });
 
