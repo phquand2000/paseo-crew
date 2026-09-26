@@ -30,7 +30,6 @@ const NOT_YET_CLEAN = [
   "server/runtime/watch-view.ts",
   "server/upkeep/migrate.ts",
   "test/adapters/decisions.test.ts",
-  "test/catalog/kit.real.test.ts",
   "test/catalog/providers.test.ts",
   "test/core/stream.test.ts",
   "test/desk/incidents.test.ts",
