@@ -180,7 +180,6 @@ type WatchDeps = {
   found: (watch: SeatWatch, facts: Fact[]) => void;
   /** A person wrote in the seat's own chat, past the desk. */
   spoke: (seat: WatchedSeat, text: string) => void;
-  log?: (line: string, error?: unknown) => void;
 };
 
 export class Watches {
@@ -275,6 +274,6 @@ export class Watches {
   }
 
   private log(line: string, error?: unknown): void {
-    (this.deps.log ?? ((text, cause) => console.error(`seatworks-v2: ${text}`, cause ?? "")))(line, error);
+    console.error(`seatworks-v2: ${line}`, error ?? "");
   }
 }
