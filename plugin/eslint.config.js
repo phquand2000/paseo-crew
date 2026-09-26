@@ -53,7 +53,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/keys.test.ts",
   "test/runtime/lines.test.ts",
   "test/runtime/listing.test.ts",
-  "test/runtime/mail.test.ts",
   "test/runtime/moments.test.ts",
   "test/runtime/opening.test.ts",
   "test/runtime/own-branch.test.ts",

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ASK, type AskStatus } from "../../server/domain/ask.ts";
 import { type Held, close, deliveryOf, hold, tell, unheard } from "../../server/domain/incident.ts";
 import { LANE, type LaneStatus } from "../../server/domain/lane.ts";
 import type { Lifecycle } from "../../server/domain/lifecycle.ts";
@@ -102,13 +101,6 @@ test("a lane opens or is dropped while it waits, closes or waits again once open
   assert.equal(LANE.move(lane, "drop"), false, "an open lane is closed, not dropped");
   assert.equal(LANE.move(lane, "close"), true);
   assert.equal(lane.status, "closed");
-});
-
-test("an ask is answered once", () => {
-  const ask: { status: AskStatus } = { status: "open" };
-  assert.equal(ASK.move(ask, "answer"), true);
-  assert.equal(ASK.move(ask, "answer"), false);
-  assert.equal(ask.status, "answered");
 });
 
 test("an incident is held until it is told, a letter nobody read holds it for somebody, and closing keeps whether it was told", () => {

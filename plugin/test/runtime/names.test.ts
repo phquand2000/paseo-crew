@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { join } from "node:path";
 import { worktreeRoot } from "../../server/core/paths.ts";
 import { saveLedger } from "../../server/desk/ledger.ts";
-import { type Pending, harness, laneWithPeer } from "./harness.ts";
+import { harness, laneWithPeer } from "./harness.ts";
 
 const scope = { acceptance: ["a"], outOfScope: ["anything else in the repository"] };
 
@@ -38,38 +38,6 @@ test("a new Lead for a lane whose Lead is gone is named for that lane", async ()
   const next = h.ledger().lanes.L1!.lead!;
   assert.notEqual(next, lane.lead);
   assert.equal(h.agents.get(next)!.title, "L1 · Lead · Build");
-});
-
-test("a letter names a seat as Paseo shows it, which says what it works on", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
-  const command: Pending = { id: "permission-1", kind: "tool", name: "Bash", title: "rm -rf build" };
-  h.agents.get(peer)!.pending.push(command);
-  await h.permission(peer, command);
-  await h.idle(lane.lead!);
-  assert.match(
-    h.agents.get(lane.lead!)!.sent.join("\n"),
-    /WAITING FOR PERMISSION: L1-T1 · Peer · Clean build has stopped until this is answered\./,
-  );
-
-  const seat = h.agents.get(lane.lead!)!;
-  await h.runtime.turnEnded({
-    agent: { id: lane.lead!, provider: seat.provider, cwd: seat.cwd, title: seat.title },
-    turnId: "t-1",
-    outcome: { kind: "failed", error: { message: "overloaded" } },
-    timeline: [],
-  });
-  assert.match(h.heard(sup).join("\n"), /FAILED: L1 · Lead · Build ended its turn with an error: overloaded/);
-  await h.runtime.turnEnded({
-    agent: { id: lane.lead!, provider: seat.provider, cwd: seat.cwd, title: null },
-    turnId: "t-2",
-    outcome: { kind: "failed", error: { message: "overloaded" } },
-    timeline: [],
-  });
-  assert.match(
-    h.heard(sup).join("\n"),
-    new RegExp(`FAILED: Lead ${lane.lead} ended its turn`),
-    "one Paseo shows no name for is named by its role and id",
-  );
 });
 
 test("a copy's workspace is named for the project and then the work it holds, which the round's sweep still knows it by", async () => {

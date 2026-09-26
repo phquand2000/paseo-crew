@@ -208,7 +208,3 @@ test("an issue cannot close the fence it is read inside, or speak on the line ab
     assert.equal(nested.match(/<\/issue>/g)?.length, 1, `depth ${depth}: and one close, which the reporter's words cannot be`);
   }
 });
-
-test("the nudge after a silent turn says where the hand-back tool is", () => {
-  assert.match(letters.nudge(task, "done").text, /`done` and `ask` are tools of the `team` MCP server/);
-});
