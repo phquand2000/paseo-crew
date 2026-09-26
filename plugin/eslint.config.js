@@ -37,7 +37,6 @@ const NOT_YET_CLEAN = [
   "test/catalog/seats.test.ts",
   "test/catalog/team.test.ts",
   "test/kit.ts",
-  "test/mcp/team.test.ts",
   "test/runtime/code-backend.test.ts",
   "test/runtime/code-fakes.ts",
   "test/runtime/code-proxy.test.ts",
@@ -54,7 +53,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/rpc.test.ts",
   "test/runtime/status.test.ts",
   "test/runtime/steer.test.ts",
-  "test/runtime/team-socket.test.ts",
 ];
 
 export default defineConfig(

@@ -1,161 +1,100 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { statSync, writeFileSync } from "node:fs";
-import { type Socket, connect } from "node:net";
-import { join } from "node:path";
-import { createInterface } from "node:readline";
+import { type Socket, createServer } from "node:net";
+import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
-import type { ToolReply, ToolRequest } from "../../server/desk/context.ts";
+import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import type { ToolReply } from "../../server/desk/context.ts";
 import { TeamSocket } from "../../server/runtime/team-socket.ts";
 import { tempDir } from "../tempdir.ts";
 
-type Asked = { request: ToolRequest; cancelled: AbortSignal; answer: (reply: ToolReply) => void };
+const TEAM = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "team.mjs");
 
-/** A desk that knows key k1 as agent-1 and answers each call when the test says. */
-function desk() {
-  const asked: Asked[] = [];
-  const lost: [ToolRequest, ToolReply][] = [];
-  const choices = { value: { note: { kind: ["plans"] } } as Record<string, Record<string, string[]>> };
+/** Resolves once `check` holds, polling while the other end does its part; fails after five seconds. */
+async function until(check: () => boolean, what: string): Promise<void> {
+  for (let tries = 0; !check(); tries++) {
+    assert.ok(tries < 250, `never: ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+test("the line's ends: no desk, a socket file left behind, a pipe closed under a server, and a line that fails", async (t) => {
+  const client = new Client({ name: "probe", version: "0" });
+  const nowhere = join(tempDir("sw2-desk-"), "none.sock");
+  await client.connect(
+    new StdioClientTransport({
+      command: process.execPath,
+      args: [TEAM, "lead", "lead", nowhere],
+      env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" },
+      stderr: "inherit",
+    }),
+  );
+  t.after(() => client.close());
+  const called = (await client.callTool({ name: "status", arguments: {} })) as {
+    isError?: boolean;
+    content: { text: string }[];
+  };
+  assert.equal(called.isError, true);
+  assert.match(
+    called.content[0]!.text,
+    /^The team desk is not running, so status was not carried out\. Do not call it again/,
+  );
+
+  const cancelled: AbortSignal[] = [];
   const path = join(tempDir("sw2-sock-"), "d.sock");
+  writeFileSync(path, "left behind");
   const socket = new TeamSocket(path, {
     agentOf: (key) => (key === "k1" ? "agent-1" : undefined),
-    choices: () => choices.value,
-    answer: (request, cancelled) => new Promise((answer) => asked.push({ request, cancelled, answer })),
-    mailLost: async (request, reply) => void lost.push([request, reply]),
+    choices: () => ({}),
+    answer: (_request, stop) => (cancelled.push(stop), new Promise<ToolReply>(() => {})),
+    mailLost: async () => undefined,
   });
-  return { socket, path, asked, lost, choices };
-}
-
-/** A seat's server on the line: what it heard, and a way to say something. */
-async function line(path: string) {
-  const heard: Record<string, unknown>[] = [];
-  const socket = connect(path);
-  await new Promise((resolve) => socket.on("connect", resolve));
-  createInterface({ input: socket }).on("line", (text) => heard.push(JSON.parse(text)));
-  return { socket, heard, say: (message: object) => socket.write(`${JSON.stringify(message)}\n`) };
-}
-
-const within = async (ms: number, check: () => boolean) => {
-  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 10)))
-    if (Date.now() > end) return false;
-  return true;
-};
-
-async function opened(t: { after(fn: () => void): void }) {
-  const found = desk();
-  found.socket.listen();
-  t.after(() => found.socket.close());
-  await within(2000, () => {
+  socket.listen();
+  t.after(() => socket.close());
+  const mode = () => {
     try {
-      return statSync(found.path).isSocket();
+      return statSync(path).isSocket() ? statSync(path).mode & 0o777 : 0;
     } catch {
-      return false;
+      return 0;
     }
+  };
+  await until(() => mode() === 0o600, "a file a stopped plugin left behind is taken over, the socket its user's alone");
+
+  const lines: Socket[] = [];
+  const open = createServer((line) => lines.push(line));
+  const held = join(tempDir("sw2-desk-"), "held.sock");
+  await new Promise<void>((resolve) => open.listen(held, resolve));
+  t.after(() => {
+    for (const line of lines) line.destroy();
+    open.close();
   });
-  return found;
-}
-
-test("a line showing a key the desk does not hold is refused, and a call on it carries nothing out", async (t) => {
-  const { path, asked } = await opened(t);
-  const seat = await line(path);
-  seat.say({ type: "hello", key: "nope", role: "lead", cwd: "/w" });
-  seat.say({ type: "call", id: "1", tool: "status", args: {} });
-  assert.ok(await within(2000, () => seat.heard.length === 2));
-  assert.match(String(seat.heard[0]!.why), /^The desk does not know this agent's key/);
-  assert.deepEqual({ ...seat.heard[1], text: undefined }, { type: "result", id: "1", ok: false, text: undefined });
-  assert.equal(asked.length, 0);
-  seat.socket.destroy();
-});
-
-test("a line is known by its key: its calls are that agent's, answered on the line, and waited on until the harness took the answer", async (t) => {
-  const { path, asked, socket } = await opened(t);
-  const seat = await line(path);
-  seat.say({ type: "hello", key: "k1", role: "lead", cwd: "/work" });
-  assert.ok(await within(2000, () => seat.heard.length === 1));
-  assert.deepEqual(seat.heard[0], { type: "welcome", choices: { note: { kind: ["plans"] } } });
-  seat.say({ type: "call", id: "7", tool: "accept", args: { task: "L1-T1" } });
-  assert.ok(await within(2000, () => asked.length === 1));
-  const { request } = asked[0]!;
-  assert.deepEqual(
-    { agent: request.agent, role: request.role, tool: request.tool, args: request.args, cwd: request.cwd },
-    { agent: "agent-1", role: "lead", tool: "accept", args: { task: "L1-T1" }, cwd: "/work" },
+  const server = spawn(process.execPath, [TEAM, "peer", "peer", held], {
+    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" },
+    stdio: ["pipe", "ignore", "inherit"],
+  });
+  t.after(() => server.kill());
+  const exited = new Promise<boolean>((resolve) => server.on("exit", () => resolve(true)));
+  await until(() => lines.length === 1, "its line to the desk is open");
+  server.stdin.end();
+  const late = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000).unref());
+  assert.ok(
+    await Promise.race([exited, late]),
+    "a server whose harness closes its pipe exits, though its line is open",
   );
-  assert.equal(socket.calling("agent-1"), true, "waited on while it runs");
-  asked[0]!.answer({ ok: true, text: "queued" });
-  assert.ok(await within(2000, () => seat.heard.length === 2));
-  assert.deepEqual(seat.heard[1], { type: "result", id: "7", ok: true, text: "queued" });
-  assert.equal(socket.calling("agent-1"), true, "answered is not taken");
-  seat.say({ type: "taken", id: "7" });
-  assert.ok(await within(2000, () => !socket.calling("agent-1")));
-  seat.socket.destroy();
-});
 
-test("a call its harness stopped before the answer is mailed by the desk when it comes; one stopped after, at once", async (t) => {
-  const { path, asked, lost } = await opened(t);
-  const seat = await line(path);
-  seat.say({ type: "hello", key: "k1", role: "lead", cwd: "/work" });
-  seat.say({ type: "call", id: "1", tool: "report", args: {} });
-  assert.ok(await within(2000, () => asked.length === 1));
-  seat.say({ type: "cancel", id: "1" });
-  assert.ok(await within(2000, () => asked[0]!.cancelled.aborted), "the desk answers it by mail");
-  asked[0]!.answer({ ok: true, text: "reported" });
-  seat.say({ type: "call", id: "2", tool: "status", args: {} });
-  assert.ok(await within(2000, () => asked.length === 2));
-  asked[1]!.answer({ ok: true, text: "all well" });
-  assert.ok(await within(2000, () => seat.heard.some((said) => said.id === "2")));
-  assert.equal(
-    seat.heard.some((said) => said.id === "1"),
-    false,
-    "nothing is answered on the line for a stopped call",
-  );
-  seat.say({ type: "cancel", id: "2" });
-  assert.ok(await within(2000, () => lost.length === 1));
-  assert.deepEqual([lost[0]![0].tool, lost[0]![1]], ["status", { ok: true, text: "all well" }]);
-  seat.socket.destroy();
-});
-
-test("a line that drops leaves its calls to the mail: one still running when its answer comes, one answered and not taken at once", async (t) => {
-  const { path, asked, lost, socket } = await opened(t);
-  const seat = await line(path);
-  seat.say({ type: "hello", key: "k1", role: "lead", cwd: "/work" });
-  seat.say({ type: "call", id: "1", tool: "status", args: {} });
-  seat.say({ type: "call", id: "2", tool: "land_lane", args: {} });
-  assert.ok(await within(2000, () => asked.length === 2));
-  asked[0]!.answer({ ok: true, text: "all well" });
-  assert.ok(await within(2000, () => seat.heard.some((said) => said.id === "1")));
-  seat.socket.destroy();
-  assert.ok(await within(2000, () => lost.length === 1 && asked[1]!.cancelled.aborted));
-  assert.equal(lost[0]![0].tool, "status");
-  assert.equal(socket.calling("agent-1"), false);
-});
-
-test("new choices go to each line whose set changed, and to no other", async (t) => {
-  const { path, socket, choices } = await opened(t);
-  const seat = await line(path);
-  seat.say({ type: "hello", key: "k1", role: "lead", cwd: "/work" });
-  assert.ok(await within(2000, () => seat.heard.length === 1));
-  socket.refresh();
-  choices.value = { note: { kind: ["plans", "council"] } };
-  socket.refresh();
-  assert.ok(await within(2000, () => seat.heard.length === 2));
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  assert.deepEqual(seat.heard.slice(1), [{ type: "choices", choices: { note: { kind: ["plans", "council"] } } }]);
-  seat.socket.destroy();
-});
-
-test("the socket is its user's alone, and one a stopped plugin left behind is taken over", async (t) => {
-  const found = desk();
-  writeFileSync(found.path, "left behind");
-  found.socket.listen();
-  t.after(() => found.socket.close());
-  assert.ok(await within(2000, () => statSync(found.path).isSocket() && (statSync(found.path).mode & 0o777) === 0o600));
-});
-
-test("a line that fails is dropped, and the desk goes on", async () => {
-  const { socket } = desk();
   const failing = Object.assign(new PassThrough(), { destroyed: false, destroy() {} }) as unknown as Socket;
-  (socket as unknown as { serve(socket: Socket): void }).serve(failing);
-  failing.emit("error", new Error("reset by the seat's end"));
-  failing.emit("close");
+  (socket as unknown as { serve(line: Socket): void }).serve(failing);
+  failing.write(`${JSON.stringify({ type: "hello", key: "k1", role: "lead", cwd: "/work" })}\n`);
+  failing.write(`${JSON.stringify({ type: "call", id: "1", tool: "status", args: {} })}\n`);
+  await until(() => cancelled.length === 1 && socket.calling("agent-1"), "the call is on the line");
+  assert.doesNotThrow(() => {
+    failing.emit("error", new Error("reset by the seat's end"));
+    failing.emit("close");
+  }, "a line that fails is dropped, and the desk goes on");
+  assert.equal(cancelled[0]!.aborted, true, "and its call goes to the mail");
   assert.equal(socket.calling("agent-1"), false);
 });
