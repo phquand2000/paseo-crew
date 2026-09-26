@@ -69,12 +69,10 @@ test/catalog/waits.test.ts
 test/client/data.test.ts
 test/client/judging.test.ts
 test/desk/flow.test.ts
-test/runtime/copies.test.ts
 test/runtime/facts.test.ts
 test/runtime/harness.ts
 test/runtime/judging.test.ts
 test/runtime/mail.test.ts
-test/runtime/own-copy.test.ts
 test/runtime/parts.test.ts
 test/runtime/review.test.ts
 test/runtime/roles.test.ts
