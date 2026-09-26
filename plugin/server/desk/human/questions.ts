@@ -1,6 +1,7 @@
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { coverGlob, firstOverlap } from "../../core/scope.ts";
+import { sentBy } from "../../core/sent-by.ts";
 import { clip } from "../../core/text.ts";
 import { DAY_MS } from "../../core/time.ts";
 import { QUESTION, type Question, type QuestionClass } from "../../domain/question.ts";
@@ -155,4 +156,46 @@ export function settleQuestion(
   if (typeof recorded !== "string")
     recordEvent(project, { kind: "question.answered", question: id, status: recorded.status, by: given.by });
   return recorded;
+}
+
+/** Words as a quote is checked: spacing, a closing stop and case do not count. */
+const flat = (text: string) =>
+  text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/, "")
+    .toLowerCase();
+
+/** Puts an answer the Human gave in the Supervisor's chat on record, once their own words are found there. */
+export async function recordHumanAnswer(
+  desk: DeskServices,
+  caller: Caller,
+  args: { question: string; choice: string; quote: string; text?: string },
+): Promise<ToolReply> {
+  const { roster } = desk;
+  const { project } = caller;
+  const id = args.question.trim().toUpperCase();
+  const quote = flat(args.quote);
+  const said = (await roster.history(caller.id, 200)).flatMap(({ item }) =>
+    item.type === "user_message" && sentBy(item)[0] === "person" && typeof item.text === "string"
+      ? [flat(item.text)]
+      : [],
+  );
+  if (!quote || !said.some((text) => text.includes(quote))) {
+    return no(
+      `The Human's own words "${clip(str(args.quote), 200)}" are not in this chat as far back as the desk reads: quote what they wrote exactly, or put it to them with ask_human.`,
+    );
+  }
+  const choice = args.choice.trim();
+  const recorded = settleQuestion(desk, project, id, choice, {
+    text: str(args.text) || undefined,
+    by: "chat",
+    quote: str(args.quote),
+  });
+  if (typeof recorded === "string") return no(recorded);
+  const lane = recorded.parked && recorded.lane ? loadLedger(project.state).lanes[recorded.lane] : undefined;
+  const held = lane?.onHold
+    ? ` Lane ${lane.id} is still on hold for it: resume_lane it once the answer is carried into the lane.`
+    : "";
+  return ok(`${id} is ${recorded.status}: ${choice}.${held}`);
 }

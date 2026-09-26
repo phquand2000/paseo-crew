@@ -1,9 +1,12 @@
-import { recordEvent } from "./store/event-log.ts";
 import { landedRef } from "../core/git.ts";
+import { IN_QUEUE } from "../domain/task.ts";
+import { laneTask } from "./access.ts";
+import { type Args, type Caller, type ToolReply, no, ok, str } from "./context.ts";
 import { letGo } from "./gone.ts";
-import { type AgentRef, type Lane, type Ledger, loadLedger, tasksOf } from "./ledger.ts";
+import { type AgentRef, type Lane, type Ledger, findLane, loadLedger, tasksOf } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import type { DeskServices } from "./services.ts";
+import { recordEvent } from "./store/event-log.ts";
 
 /** The Peers kept idle in a lane after their tasks were accepted: each bound to its own task and not gone, until its Lead releases it. */
 export function keptPeers(ledger: Ledger, laneId: string): AgentRef[] {
@@ -44,7 +47,7 @@ function stillWriting(desk: DeskServices, ledger: Ledger, lane: Lane): string[] 
 }
 
 /** Lets a closed lane's kept Lead go, and its copy once nobody is writing in it; what that did, or nothing if neither was left. */
-export async function releaseKept(desk: DeskServices, project: Project, lane: Lane): Promise<string | undefined> {
+async function releaseKept(desk: DeskServices, project: Project, lane: Lane): Promise<string | undefined> {
   const { roster, teardowns } = desk;
   const lead = lane.lead && (await roster.seated(lane.lead)) ? lane.lead : undefined;
   const ledger = loadLedger(project.state);
@@ -92,4 +95,46 @@ export async function reapKept(desk: DeskServices, project: Project, live: Set<s
       continue;
     await desk.teardowns.putAway({ project, slot: slot.id, dropBranch: task.branch, into: mergedInto(lane) });
   }
+}
+
+/** A Lead lets go of the Peer kept from a task it accepted, and of a copy of its own with it. */
+export async function releaseKeptPeer(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
+  const { roster, agents } = desk;
+  const { project } = caller;
+  const ledger = loadLedger(project.state);
+  const found = laneTask(ledger, caller, str(args.task));
+  if (typeof found === "string") return no(found);
+  const { lane, task } = found;
+  if (task.kind === "review") return no(`${task.id} is a review: its reviewer goes when you cut it.`);
+  if (task.status === "cut") return no(`${task.id} was cut, and its Peer stopped with it.`);
+  if (IN_QUEUE.includes(task.status))
+    return no(`${task.id} is in the merge queue: release its Peer once MERGED arrives.`);
+  if (task.status !== "merged")
+    return no(`${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`);
+  const peer = task.peer!;
+  if (!(await roster.seated(peer))) return no(`The Peer kept from ${task.id} is gone already.`);
+  const reading = Object.values(ledger.tasks).find(
+    (other) =>
+      other.kind === "review" && other.of === task.id && other.slot === task.slot && other.status === "running",
+  );
+  if (task.mode === "parallel" && reading)
+    return no(`${reading.id} still reviews ${task.id} in its copy: cut it first.`);
+  if (task.mode === "parallel") await agents.retire(project, task, lane.branch);
+  else await letGo(desk, roster, project, peer);
+  recordEvent(project, { kind: "seat.released", seat: peer, of: task.id });
+  return ok(
+    `The Peer kept from ${task.id} is released${task.mode === "parallel" ? `, and its copy ${task.slot} is put away with it` : ""}.`,
+  );
+}
+
+/** Whoever supervises lets go of the Lead kept from a closed lane, and of the copy it kept. */
+export async function releaseKeptLead(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
+  const lane = findLane(loadLedger(caller.project.state), str(args.lane));
+  if (!lane) return no(`There is no lane ${str(args.lane)}.`);
+  if (lane.status !== "closed")
+    return no(
+      `Lane ${lane.id} is ${lane.status}: land_lane or drop_lane it first. replace_lead swaps a Lead that is gone.`,
+    );
+  const released = await releaseKept(desk, caller.project, lane);
+  return released ? ok(released) : no(`Lane ${lane.id}'s Lead is gone already, and nothing of it is kept.`);
 }
