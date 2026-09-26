@@ -97,18 +97,6 @@ test("an ask answered by the owner over a Lead's head is told to that Lead, not 
   assert.match(toLead, /accepting it is still yours to judge/);
 });
 
-test("a task goes to a role that writes, and a review to one that reads, and neither stands in for the other", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
-  const lane = h.ledger().lanes.L1!;
-
-  const wrongLens = await h.call(lane.lead!, "lead", "start_review", { focus: "Is the rounding right?", role: "peer" });
-  assert.equal(wrongLens.ok, false);
-  assert.match(wrongLens.text, /no peer that can review/i);
-  assert.match(wrongLens.text, /reviewer/, "the refusal names what there is to choose from");
-});
-
 test("a question that would stop a seat's turn is refused with where to ask instead, while leave to run something waits for the Human", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

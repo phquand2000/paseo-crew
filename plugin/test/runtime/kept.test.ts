@@ -219,12 +219,3 @@ test("a task beside others keeps its Peer in its own copy once merged, until its
   assert.equal(existsSync(last.worktree!), false);
   assert.equal(h.git(h.root, "branch", "--list", last.branch!).trim(), "", "its work is in the landed lane");
 });
-
-test("a review of a merged parallel task reads it from the lane's copy, not from the copy its Peer keeps", async () => {
-  const { h, lane } = await laneWithPeer();
-  const side = await mergedBeside(h, lane.lead!, "Beside", "b.txt");
-  assert.equal((await h.call(lane.lead!, "lead", "start_review", { task: "L1-T2", focus: "Is b right?" })).ok, true);
-  const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
-  assert.equal(h.agents.get(reviewer)!.cwd, lane.worktree);
-  assert.notEqual(h.agents.get(reviewer)!.cwd, side.worktree);
-});

@@ -78,6 +78,5 @@ test/runtime/mail.test.ts
 test/runtime/own-branch.test.ts
 test/runtime/own-copy.test.ts
 test/runtime/parts.test.ts
-test/runtime/review.test.ts
 test/runtime/roles.test.ts
 test/runtime/rpc.test.ts
