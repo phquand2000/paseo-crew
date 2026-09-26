@@ -16,7 +16,7 @@ function seatsWith(timelines: Map<string, FakeTimeline>): Seats {
     watch: (id, see) => {
       const timeline = timelines.get(id) ?? new FakeTimeline();
       timelines.set(id, timeline);
-      return follow(timeline, see, { log: () => {} });
+      return follow(timeline, see);
     },
   } as Seats;
 }
