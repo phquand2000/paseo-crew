@@ -93,10 +93,11 @@ test("the round keeps only what the desk still holds: an orphan copy goes, the p
   assert.ok(existsSync(join(h.project.state, "status.md")));
 
   await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "done" });
+  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
   assert.deepEqual(await h.rpc(contracts.projectsRemove, { project: h.project.slug }), {
-    error: `${h.project.slug} stays: 2 seats are still working in it (${sup}, ${lane.lead}): archive them first, since a working seat puts the project back on record.`,
+    error: `${h.project.slug} stays: 1 seat is still working in it (${sup}): archive it first, since a working seat puts the project back on record.`,
   });
-  for (const seat of [lane.lead!, sup]) h.agents.get(seat)!.archivedAt = new Date().toISOString();
+  h.agents.get(sup)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());
   assert.equal(h.archivedWorkspaces.has(own), true);
   rmSync(h.project.state, { recursive: true, force: true });
