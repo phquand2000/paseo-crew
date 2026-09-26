@@ -71,7 +71,9 @@ export class TeamSocket {
     const line: Line = { socket, role: "", cwd: "", calls: new Map() };
     this.lines.add(line);
     // readline passes on the socket's errors: a line that fails is closed, and `dropped` sees to its calls.
-    createInterface({ input: socket }).on("line", (text) => this.heard(line, text)).on("error", () => {});
+    createInterface({ input: socket })
+      .on("line", (text) => this.heard(line, text))
+      .on("error", () => {});
     socket.on("error", () => {});
     socket.on("close", () => this.dropped(line));
   }
@@ -108,7 +110,18 @@ export class TeamSocket {
 
   private call(line: Line, said: { id: string; tool: string; args: Record<string, unknown> }): void {
     if (!line.agent) return this.send(line, { type: "result", id: said.id, ok: false, text: UNKNOWN });
-    const call: Call = { request: { id: randomUUID(), agent: line.agent, role: line.role, tool: said.tool, args: said.args, cwd: line.cwd, at: Date.now() }, stop: new AbortController() };
+    const call: Call = {
+      request: {
+        id: randomUUID(),
+        agent: line.agent,
+        role: line.role,
+        tool: said.tool,
+        args: said.args,
+        cwd: line.cwd,
+        at: Date.now(),
+      },
+      stop: new AbortController(),
+    };
     line.calls.set(said.id, call);
     void this.desk.answer(call.request, call.stop.signal).then((reply) => {
       // Stopped, or its line gone: that answer goes as a letter instead.

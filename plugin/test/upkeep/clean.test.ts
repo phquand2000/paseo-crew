@@ -24,11 +24,18 @@ function world() {
   };
   const live: { provider: string; slug: string }[] = [];
   let lead = "claude";
-  const ctx = { kit, home, known: [shop], live, teamFor: () => resolveTeam(kit, {}, { roles: { lead: { harness: lead } } }) };
+  const ctx = {
+    kit,
+    home,
+    known: [shop],
+    live,
+    teamFor: () => resolveTeam(kit, {}, { roles: { lead: { harness: lead } } }),
+  };
   return { kit, home, shop, seat, live, ctx, moveLead: (to: string) => (lead = to) };
 }
 
-const paths = async (ctx: Parameters<typeof scanGarbage>[0]) => (await scanGarbage(ctx)).map((item) => item.path).sort();
+const paths = async (ctx: Parameters<typeof scanGarbage>[0]) =>
+  (await scanGarbage(ctx)).map((item) => item.path).sort();
 
 test("clean up finds seat folders nothing will sit in again, and never one a seat is running in", async () => {
   const { seat, live, ctx, moveLead } = world();
@@ -55,13 +62,19 @@ test("clean up takes a working copy the desk holds no slot for, and keeps one wi
   for (const dir of [held, free, dirty]) mkdirSync(dir, { recursive: true });
   execFileSync("git", ["init", "-q", dirty]);
   writeFileSync(join(dirty, "work.txt"), "unsaved");
-  writeJson(join(shop.state, "ledger.json"), { ...emptyLedger(), slots: { S1: { id: "S1", path: held, lane: "L1", createdAt: 1 } } });
+  writeJson(join(shop.state, "ledger.json"), {
+    ...emptyLedger(),
+    slots: { S1: { id: "S1", path: held, lane: "L1", createdAt: 1 } },
+  });
 
   const found = await scanGarbage(ctx);
-  assert.deepEqual(found.filter((item) => item.kind === "copy").map((item) => [item.path, item.held]), [
-    [free, null],
-    [dirty, "it has uncommitted changes"],
-  ]);
+  assert.deepEqual(
+    found.filter((item) => item.kind === "copy").map((item) => [item.path, item.held]),
+    [
+      [free, null],
+      [dirty, "it has uncommitted changes"],
+    ],
+  );
 
   const result = await removeGarbage(ctx, [free, dirty]);
   assert.deepEqual(result.removed, [free]);
@@ -76,7 +89,10 @@ test("clean up leaves a detached project's records unpicked when they hold its C
   mkdirSync(old, { recursive: true });
   writeFileSync(join(old, "CONTEXT.md"), "# Old");
   const records = (await scanGarbage(ctx)).filter((item) => item.kind === "records");
-  assert.deepEqual(records.map((item) => [item.path, item.careful]), [[old, true]]);
+  assert.deepEqual(
+    records.map((item) => [item.path, item.careful]),
+    [[old, true]],
+  );
 });
 
 test("clean up takes a copy of the guides nothing links to, not the one in use", async () => {
@@ -98,7 +114,10 @@ test("remove takes only what a fresh scan still finds, and leaves a folder a sea
 
   const result = await removeGarbage(ctx, scanned);
   assert.deepEqual(result.removed, [one]);
-  assert.deepEqual(result.failed.map((fail) => fail.path), [two]);
+  assert.deepEqual(
+    result.failed.map((fail) => fail.path),
+    [two],
+  );
   assert.equal(existsSync(one), false);
   assert.equal(existsSync(two), true);
 });

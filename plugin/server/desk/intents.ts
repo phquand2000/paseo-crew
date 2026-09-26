@@ -43,11 +43,13 @@ export class Intents {
 
   promise(promised: Promised): void {
     const kept = this.read();
-    if (!kept.promised.some((entry) => same(entry, promised))) this.save({ ...kept, promised: [...kept.promised, promised] });
+    if (!kept.promised.some((entry) => same(entry, promised)))
+      this.save({ ...kept, promised: [...kept.promised, promised] });
   }
 
   kept(promised: Promised): void {
     const kept = this.read();
-    if (kept.promised.some((entry) => same(entry, promised))) this.save({ ...kept, promised: kept.promised.filter((entry) => !same(entry, promised)) });
+    if (kept.promised.some((entry) => same(entry, promised)))
+      this.save({ ...kept, promised: kept.promised.filter((entry) => !same(entry, promised)) });
   }
 }

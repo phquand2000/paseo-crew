@@ -41,7 +41,12 @@ test("a directory outside git is its own project", () => {
 test("a gate that names a package script is also run by the runner that script starts", () => {
   // Briefs tell a Peer to run `node --test ...` directly; the watch once knew only `npm test`.
   const root = tempDir("sw2-gates-");
-  writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: 'node --test "test/**/*.test.js"', check: "tsc --noEmit && vitest run --reporter dot" } }));
+  writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify({
+      scripts: { test: 'node --test "test/**/*.test.js"', check: "tsc --noEmit && vitest run --reporter dot" },
+    }),
+  );
   assert.deepEqual(gateCommands(root, "npm test", ecosystem), ["npm test", "node --test"]);
   assert.deepEqual(gateCommands(root, "npm run check", ecosystem), ["npm run check", "vitest run"]);
   assert.deepEqual(gateCommands(root, "cargo test", ecosystem), ["cargo test"]);
@@ -52,9 +57,16 @@ test("a gate that names a package script is also run by the runner that script s
 test("a gate is found from the files a project holds, its package manager by the lockfile, and a placeholder script is none", () => {
   const root = tempDir("sw2-detect-");
   assert.equal(detectGate(root, ecosystem), undefined);
-  writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: 'echo "Error: no test specified" && exit 1' } }));
+  writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify({ scripts: { test: 'echo "Error: no test specified" && exit 1' } }),
+  );
   writeFileSync(join(root, "Cargo.toml"), "");
-  assert.equal(detectGate(root, ecosystem), "cargo test", "the placeholder npm writes is no test script, so the next rule answers");
+  assert.equal(
+    detectGate(root, ecosystem),
+    "cargo test",
+    "the placeholder npm writes is no test script, so the next rule answers",
+  );
   writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: "vitest run" } }));
   assert.equal(detectGate(root, ecosystem), "npm test");
   writeFileSync(join(root, "pnpm-lock.yaml"), "");

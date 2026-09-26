@@ -35,12 +35,16 @@ export class Seating {
     const seat = team.roles[roleName];
     const dir = seat ? seatDir(this.kit, seat.role, harness, home(), project) : undefined;
     // And a login made after the seat was built is a link the seat does not have yet.
-    const linked = (link: { link: string; target: string }) => !existsSync(expandHome(link.target)) || existsSync(join(dir!, link.link));
+    const linked = (link: { link: string; target: string }) =>
+      !existsSync(expandHome(link.target)) || existsSync(join(dir!, link.link));
     const built = dir ? existsSync(join(dir, harness.settings.file)) && (harness.links ?? []).every(linked) : false;
     if (this.built.has(key) && built) return team;
     try {
       const changes = materialize(this.kit, team, roleName, home(), project, this.servers(team, roleName));
-      if (changes.length > 0) console.log(`seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
+      if (changes.length > 0)
+        console.log(
+          `seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`,
+        );
       this.built.add(key);
     } catch (error) {
       // Not swallowed: refusing the launch names the reason; letting it through runs a full-access agent with no brief.

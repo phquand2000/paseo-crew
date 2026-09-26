@@ -10,7 +10,11 @@ export const holdLane = defineTool({
   async handle(desk, caller, args) {
     const held = await putOnHold(desk, caller.project, str(args.lane), caller.id, str(args.reason));
     if (typeof held === "string") return no(held);
-    const landing = held.calledOff ? " The landing it was waiting on is called off: land it again once it resumes." : "";
-    return ok(`Lane ${held.lane.id} is on hold. ${held.stopped.length} of its seats were told to stop: where their agent allows it the running turn was cut short, else they stop when it ends. Nothing reaches them, no task starts and nothing lands until resume_lane.${landing}`);
+    const landing = held.calledOff
+      ? " The landing it was waiting on is called off: land it again once it resumes."
+      : "";
+    return ok(
+      `Lane ${held.lane.id} is on hold. ${held.stopped.length} of its seats were told to stop: where their agent allows it the running turn was cut short, else they stop when it ends. Nothing reaches them, no task starts and nothing lands until resume_lane.${landing}`,
+    );
   },
 });

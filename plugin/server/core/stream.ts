@@ -24,9 +24,17 @@ export type TimelineHandle = {
   refetch(options: { direction: "tail" | "after"; cursor?: Cursor; limit?: number }): Promise<Page>;
 };
 
-type FollowOptions = { readyMs?: number; log?: (line: string, error?: unknown) => void; archived?: () => Promise<boolean> };
+type FollowOptions = {
+  readyMs?: number;
+  log?: (line: string, error?: unknown) => void;
+  archived?: () => Promise<boolean>;
+};
 
-const ENDED: Record<string, "completed" | "failed" | "canceled"> = { turn_completed: "completed", turn_failed: "failed", turn_canceled: "canceled" };
+const ENDED: Record<string, "completed" | "failed" | "canceled"> = {
+  turn_completed: "completed",
+  turn_failed: "failed",
+  turn_canceled: "canceled",
+};
 
 const SEED_ROWS = 200;
 
@@ -55,7 +63,11 @@ class Follower implements Stream {
   private chain: Promise<void> = Promise.resolve();
 
   constructor(timeline: TimelineHandle, see: (seen: Seen) => void, options: FollowOptions) {
-    const { readyMs = 10_000, log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? ""), archived = async () => false } = options;
+    const {
+      readyMs = 10_000,
+      log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? ""),
+      archived = async () => false,
+    } = options;
     this.timeline = timeline;
     this.see = see;
     this.log = log;
@@ -82,7 +94,9 @@ class Follower implements Stream {
   }
 
   private queue(message: StreamMessage): void {
-    this.chain = this.chain.then(() => this.handle(message)).catch((error) => this.log("a watched timeline could not be followed:", error));
+    this.chain = this.chain
+      .then(() => this.handle(message))
+      .catch((error) => this.log("a watched timeline could not be followed:", error));
   }
 
   private tell(seen: Seen): void {
@@ -96,7 +110,14 @@ class Follower implements Stream {
 
   private take(entry: Entry, replay: boolean): void {
     if (!this.epoch || entry.item.type === "plugin") return;
-    const row: StreamRow = { item: entry.item, seqStart: entry.seqStart, seq: entry.seqEnd, epoch: this.epoch, turnId: entry.turnId ?? null, replay };
+    const row: StreamRow = {
+      item: entry.item,
+      seqStart: entry.seqStart,
+      seq: entry.seqEnd,
+      epoch: this.epoch,
+      turnId: entry.turnId ?? null,
+      replay,
+    };
     this.tell({ kind: "row", row });
   }
 
@@ -108,7 +129,12 @@ class Follower implements Stream {
     const active = page.agent.activeTurn;
     if (!active) return this.tell({ kind: "idle" });
     const at = Date.parse(active.startedAt ?? "");
-    this.tell({ kind: "turn", phase: "started", turnId: active.turnId ?? null, ...(Number.isFinite(at) ? { at } : {}) });
+    this.tell({
+      kind: "turn",
+      phase: "started",
+      turnId: active.turnId ?? null,
+      ...(Number.isFinite(at) ? { at } : {}),
+    });
   }
 
   /** Stops once archived: Paseo resumes an archived agent to serve its history and never closes it again. */
@@ -123,7 +149,13 @@ class Follower implements Stream {
     if (page.error) throw new Error(page.error);
     this.epoch = page.epoch;
     this.last = 0;
-    const live = new Set(this.early.flatMap((message) => (message.event.type === "timeline" && message.epoch === page.epoch && typeof message.seq === "number" ? [message.seq] : [])));
+    const live = new Set(
+      this.early.flatMap((message) =>
+        message.event.type === "timeline" && message.epoch === page.epoch && typeof message.seq === "number"
+          ? [message.seq]
+          : [],
+      ),
+    );
     this.read(page, (entry) => !entry.turnId || !live.has(entry.seqEnd));
   }
 
@@ -156,9 +188,16 @@ class Follower implements Stream {
       this.stop();
       return;
     }
-    if (event.type === "turn_started") return this.tell({ kind: "turn", phase: "started", turnId: event.turnId ?? null });
+    if (event.type === "turn_started")
+      return this.tell({ kind: "turn", phase: "started", turnId: event.turnId ?? null });
     const ended = ENDED[event.type];
-    if (ended) return this.tell({ kind: "turn", phase: ended, turnId: event.turnId ?? null, ...(event.error ? { error: event.error } : {}) });
+    if (ended)
+      return this.tell({
+        kind: "turn",
+        phase: ended,
+        turnId: event.turnId ?? null,
+        ...(event.error ? { error: event.error } : {}),
+      });
     if (event.type === "timeline") await this.row(message);
   }
 

@@ -30,12 +30,21 @@ export class TeamSource {
 
   teamFor(project?: Project): Team {
     const machine = readLayer(this.machineFile());
-    const local = project ? readLayer(this.projectFile(project)) : { status: "ready" as const, values: {}, revision: "" };
+    const local = project
+      ? readLayer(this.projectFile(project))
+      : { status: "ready" as const, values: {}, revision: "" };
     const unread = [
       ...(machine.status === "ready" ? [] : [`The machine settings are not being used: ${machine.error}`]),
-      ...(local.status === "ready" ? [] : [`The project settings are not being used: ${"error" in local ? local.error : "they could not be read"}`]),
+      ...(local.status === "ready"
+        ? []
+        : [`The project settings are not being used: ${"error" in local ? local.error : "they could not be read"}`]),
     ];
-    const team = resolveTeam(this.kit, machine.status === "ready" ? machine.values : {}, local.status === "ready" ? local.values : {}, unread);
+    const team = resolveTeam(
+      this.kit,
+      machine.status === "ready" ? machine.values : {},
+      local.status === "ready" ? local.values : {},
+      unread,
+    );
     return project ? servingProject(team, project.root) : team;
   }
 
@@ -73,7 +82,8 @@ export class TeamSource {
     const found: Project[] = [];
     for (const slug of readdirSync(root)) {
       const meta = readJson<{ root?: string; slug?: string }>(join(root, slug, "meta.json"), {});
-      if (typeof meta.root === "string" && meta.slug === slug) found.push({ root: meta.root, slug, state: join(root, slug) });
+      if (typeof meta.root === "string" && meta.slug === slug)
+        found.push({ root: meta.root, slug, state: join(root, slug) });
     }
     return found.sort((a, b) => a.slug.localeCompare(b.slug));
   }

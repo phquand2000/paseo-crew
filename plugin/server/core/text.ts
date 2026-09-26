@@ -9,7 +9,8 @@ export function outside(tag: string, text: string, limit: number): string {
   const kept: string[] = [];
   const ends = (token: string) => {
     if (kept.length < token.length) return false;
-    for (let at = 0; at < token.length; at++) if (kept[kept.length - token.length + at]!.toLowerCase() !== token[at]) return false;
+    for (let at = 0; at < token.length; at++)
+      if (kept[kept.length - token.length + at]!.toLowerCase() !== token[at]) return false;
     return true;
   };
   for (let at = 0; at < text.length; at++) {
@@ -20,14 +21,16 @@ export function outside(tag: string, text: string, limit: number): string {
   return clip(kept.join(""), limit);
 }
 
-export const hash = (...parts: string[]): string => createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
+export const hash = (...parts: string[]): string =>
+  createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
 
 export function clip(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit).trimEnd()}\n[… ${text.length - limit} more characters]`;
 }
 
 /** The first `limit` of a list, and how many more there are. */
-export const capped = (items: string[], limit: number): string => (items.length > limit ? `${items.slice(0, limit).join(", ")} and ${items.length - limit} more` : items.join(", "));
+export const capped = (items: string[], limit: number): string =>
+  items.length > limit ? `${items.slice(0, limit).join(", ")} and ${items.length - limit} more` : items.join(", ");
 
 /** At most `limit` characters, never cutting a character in two. */
 export function within(text: string, limit: number): string {

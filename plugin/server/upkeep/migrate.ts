@@ -40,7 +40,8 @@ type Path = (string | number)[];
 
 function at(root: unknown, path: Path): unknown {
   let node = root;
-  for (const key of path) node = node && typeof node === "object" ? (node as Record<string | number, unknown>)[key] : undefined;
+  for (const key of path)
+    node = node && typeof node === "object" ? (node as Record<string | number, unknown>)[key] : undefined;
   return node;
 }
 
@@ -90,11 +91,29 @@ const unreadable = (file: string) => {
 function settingsSteps(ctx: MigrateContext): Step[] {
   return ctx.settings.flatMap<Step>(({ where, file }) => {
     if (!existsSync(file)) return [];
-    if (unreadable(file)) return [{ kind: "settings", where, what: `${file} is not a settings object`, detail: ["Repair it by hand; Migrate does not guess at what it held."], auto: false }];
+    if (unreadable(file))
+      return [
+        {
+          kind: "settings",
+          where,
+          what: `${file} is not a settings object`,
+          detail: ["Repair it by hand; Migrate does not guess at what it held."],
+          auto: false,
+        },
+      ];
     const raw = readJson<unknown>(file, {});
     if (LayerSchema.safeParse(raw).success) return [];
     const repaired = repairLayer(raw);
-    if (!repaired) return [{ kind: "settings", where, what: `${file} does not fit this version`, detail: ["Repair it by hand."], auto: false }];
+    if (!repaired)
+      return [
+        {
+          kind: "settings",
+          where,
+          what: `${file} does not fit this version`,
+          detail: ["Repair it by hand."],
+          auto: false,
+        },
+      ];
     const stamp = new Date(ctx.now).toISOString().replace(/\D/g, "").slice(0, 14);
     const backup = `${file}.bak-${stamp.slice(0, 8)}-${stamp.slice(8)}`;
     return [
@@ -114,14 +133,19 @@ function settingsSteps(ctx: MigrateContext): Step[] {
 }
 
 function seatSteps(ctx: MigrateContext, since: string): MigrateStep[] {
-  const old = ctx.live.filter((seat) => seat.provider.startsWith(ctx.kit.prefix) && seat.createdAt && seat.createdAt < since);
+  const old = ctx.live.filter(
+    (seat) => seat.provider.startsWith(ctx.kit.prefix) && seat.createdAt && seat.createdAt < since,
+  );
   const bySlug = new Map<string, LiveSeat[]>();
   for (const seat of old) bySlug.set(seat.slug, [...(bySlug.get(seat.slug) ?? []), seat]);
   return [...bySlug].map(([slug, seats]) => ({
     kind: "seat" as const,
     where: slug,
     what: `${seats.length} seat${seats.length === 1 ? "" : "s"} started before this version`,
-    detail: [...seats.map((seat) => seat.name), "They keep the old prompts and tools until they are started again. Let each finish its work; the next seat started runs this version."],
+    detail: [
+      ...seats.map((seat) => seat.name),
+      "They keep the old prompts and tools until they are started again. Let each finish its work; the next seat started runs this version.",
+    ],
     auto: false,
   }));
 }

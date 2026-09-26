@@ -33,5 +33,11 @@ export function listFolders(path?: string): Paths {
     .map((child) => ({ name: child.slice(here.length + 1), path: child, repository: looksLikeRepo(child) }));
   // True in subdirectories too; the root is named so browsing `/repo/src` shows `/repo` is already a project.
   const root = gitRoot(here);
-  return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), root: root === here ? null : root, folders };
+  return {
+    path: here,
+    parent: parent === here ? null : parent,
+    repository: Boolean(gitCommonDir(here)),
+    root: root === here ? null : root,
+    folders,
+  };
 }

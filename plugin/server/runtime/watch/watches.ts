@@ -2,7 +2,17 @@ import { type Kit, can, seatOf } from "../../catalog/kit.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
-import { type Fact, Recovery, type Rules, contradicted, editBeforeLook, fact, onSettle, stuck, unverified } from "./facts.ts";
+import {
+  type Fact,
+  Recovery,
+  type Rules,
+  contradicted,
+  editBeforeLook,
+  fact,
+  onSettle,
+  stuck,
+  unverified,
+} from "./facts.ts";
 import type { Quirks } from "../../catalog/timeline.ts";
 import { Window } from "./window.ts";
 
@@ -62,7 +72,13 @@ export class SeatWatch {
     const rules = this.rules();
     if (!rules) return [];
     const call = change.call;
-    const facts = !call || call.pseudo ? [] : [...(change.detailed ? onDetail(call, rules) : []), ...(change.settled ? onSettle(call, rules, (path) => this.lastRead(path, call.id)) : [])];
+    const facts =
+      !call || call.pseudo
+        ? []
+        : [
+            ...(change.detailed ? onDetail(call, rules) : []),
+            ...(change.settled ? onSettle(call, rules, (path) => this.lastRead(path, call.id)) : []),
+          ];
     if (change.settled && change.call && !change.call.pseudo) {
       facts.push(...this.recovery.step(change.call, rules));
       const pattern = stuck(this.window.sinceInstruction(), rules);
@@ -78,7 +94,12 @@ export class SeatWatch {
     const limit = this.durations.length >= 5 ? Math.max(floor, 3 * median(this.durations)) : floor;
     const took = now - this.startedAt;
     if (took < limit) return [];
-    return this.fresh([fact("long-turn", `running for ${Math.round(took / 60_000)} minutes, past the ${Math.round(limit / 60_000)} this seat's turns take`)]);
+    return this.fresh([
+      fact(
+        "long-turn",
+        `running for ${Math.round(took / 60_000)} minutes, past the ${Math.round(limit / 60_000)} this seat's turns take`,
+      ),
+    ]);
   }
 
   private started(turnId: string | null, at: number): Fact[] {
@@ -110,7 +131,11 @@ export class SeatWatch {
     const context = this.placed();
     if (phase !== "completed" || !context) return [];
     const handed = since ? context.handedBack(since) : undefined;
-    const facts = [...unverified(this.window, context.rules, handed !== undefined), ...contradicted(this.window, context.rules, handed), ...editBeforeLook(this.window, context.rules)];
+    const facts = [
+      ...unverified(this.window, context.rules, handed !== undefined),
+      ...contradicted(this.window, context.rules, handed),
+      ...editBeforeLook(this.window, context.rules),
+    ];
     const pattern = stuck(this.window.sinceInstruction(), context.rules);
     if (pattern) facts.push(fact("stuck", pattern));
     return this.fresh(facts);
@@ -120,8 +145,10 @@ export class SeatWatch {
     for (let index = this.window.units.length - 1; index >= 0; index--) {
       const unit = this.window.units[index]!;
       if (unit.kind !== "call" || unit.call.id === skip || unit.call.detail.filePath !== path) continue;
-      if (unit.call.detail.type === "read" && typeof unit.call.detail.content === "string") return unit.call.detail.content;
-      if (unit.call.detail.type === "write" && unit.call.ended && typeof unit.call.detail.content === "string") return unit.call.detail.content;
+      if (unit.call.detail.type === "read" && typeof unit.call.detail.content === "string")
+        return unit.call.detail.content;
+      if (unit.call.detail.type === "write" && unit.call.ended && typeof unit.call.detail.content === "string")
+        return unit.call.detail.content;
     }
     return undefined;
   }
@@ -134,7 +161,10 @@ export class SeatWatch {
 
   private fresh(facts: Fact[], call?: string): Fact[] {
     const kept = facts.filter((fact) => {
-      const key = fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "unverified" ? fact.kind : `${fact.kind}\n${call ?? fact.quote}`;
+      const key =
+        fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "unverified"
+          ? fact.kind
+          : `${fact.kind}\n${call ?? fact.quote}`;
       if (this.told.has(key)) return false;
       this.told.add(key);
       return true;
@@ -175,7 +205,11 @@ export class Watches {
 
   follow(seat: WatchedSeat): void {
     if (this.followed.has(seat.id) || !this.watched(seat.provider)) return;
-    const watch = new SeatWatch(seat, () => this.deps.context(seat), seatOf(this.deps.kit, seat.provider)?.harness.timeline);
+    const watch = new SeatWatch(
+      seat,
+      () => this.deps.context(seat),
+      seatOf(this.deps.kit, seat.provider)?.harness.timeline,
+    );
     let stream: Stream;
     try {
       stream = this.deps.seats.watch(seat.id, (seen) => this.seen(watch, seen));
@@ -218,7 +252,12 @@ export class Watches {
 
   /** A lost stream leaves the seat unfollowed, so the next round follows it again. */
   private seen(watch: SeatWatch, seen: Seen): void {
-    if (seen.kind === "row" && !seen.row.replay && seen.row.item.type === "user_message" && sentBy(seen.row.item)[0] === "person") {
+    if (
+      seen.kind === "row" &&
+      !seen.row.replay &&
+      seen.row.item.type === "user_message" &&
+      sentBy(seen.row.item)[0] === "person"
+    ) {
       this.deps.spoke(watch.seat, typeof seen.row.item.text === "string" ? seen.row.item.text : "");
     }
     if (seen.kind !== "lost") return this.found(watch, watch.see(seen));

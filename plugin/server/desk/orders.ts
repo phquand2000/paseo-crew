@@ -14,9 +14,20 @@ export function ordersView(kit: Kit, project: Project, now = Date.now()): Orders
   return {
     fault: configFault(configFile(project.state)) ?? null,
     askFirst: config.askFirst,
-    riskRules: (config.riskRules ?? kit.ecosystem.riskRules).map(({ paths, invariant, reviewQuestion, rehearse }) => ({ paths, invariant, reviewQuestion, rehearse: rehearse ?? null })),
+    riskRules: (config.riskRules ?? kit.ecosystem.riskRules).map(({ paths, invariant, reviewQuestion, rehearse }) => ({
+      paths,
+      invariant,
+      reviewQuestion,
+      rehearse: rehearse ?? null,
+    })),
     ownRules: config.riskRules !== undefined,
     laneHome: config.laneHome ?? null,
-    concept: file ? { text: text.slice(0, SHOWN), minutes: Math.max(0, Math.round((now - statSync(file).mtimeMs) / 60_000)), more: text.length > SHOWN } : null,
+    concept: file
+      ? {
+          text: text.slice(0, SHOWN),
+          minutes: Math.max(0, Math.round((now - statSync(file).mtimeMs) / 60_000)),
+          more: text.length > SHOWN,
+        }
+      : null,
   };
 }

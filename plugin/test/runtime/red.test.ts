@@ -6,7 +6,9 @@ import { tempDir } from "../tempdir.ts";
 import { harness, laneWithPeer } from "./harness.ts";
 
 const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
-const beside = (key: string, title: string, holds: string[]) => ({ tasks: [{ key, title, goal: "g", ...scope, holds, parallel: true }] });
+const beside = (key: string, title: string, holds: string[]) => ({
+  tasks: [{ key, title, goal: "g", ...scope, holds, parallel: true }],
+});
 const letters = (h: ReturnType<typeof harness>, id: string) => h.agents.get(id)!.sent.join("\n");
 
 /** Two tasks beside each other, each green alone and red together, both handed back before either merges. */
@@ -15,7 +17,10 @@ async function twoThatBreakTogether() {
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f x.txt || test ! -f y.txt", gateOn: "task" });
   await h.call(lane.lead!, "lead", "add_tasks", beside("x", "Ex", ["x.txt"]));
   await h.call(lane.lead!, "lead", "add_tasks", beside("y", "Why", ["y.txt"]));
-  for (const [id, file] of [["L1-T2", "x.txt"], ["L1-T3", "y.txt"]] as const) {
+  for (const [id, file] of [
+    ["L1-T2", "x.txt"],
+    ["L1-T3", "y.txt"],
+  ] as const) {
     const task = h.ledger().tasks[id]!;
     h.commit(task.worktree!, file, `${file}\n`);
     assert.equal((await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: file })).ok, true);
@@ -34,9 +39,18 @@ test("a task whose gate goes red once its lane is brought in again at merge leav
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "done", "back with its Lead, not merged");
   assert.throws(() => h.git(lane.worktree!, "show", `${lane.branch}:y.txt`), "the lane branch never took the red tree");
   const copy = h.ledger().tasks["L1-T3"]!.worktree!;
-  assert.equal(h.git(copy, "show", "HEAD:x.txt"), "x.txt\n", "its own copy holds the tree the lane would have become, for its Peer to see");
+  assert.equal(
+    h.git(copy, "show", "HEAD:x.txt"),
+    "x.txt\n",
+    "its own copy holds the tree the lane would have become, for its Peer to see",
+  );
   await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!), new RegExp(`MERGE RED L1-T3 \\(Why\\): the gate failed on its branch with ${lane.branch} brought in, the tree the lane would become\\. The lane branch is unchanged\\.\\n[^]*Next: Send rework to its Peer with what must change, or accept it again with overGate and a reason to merge it over the gate\\.`));
+  assert.match(
+    letters(h, lane.lead!),
+    new RegExp(
+      `MERGE RED L1-T3 \\(Why\\): the gate failed on its branch with ${lane.branch} brought in, the tree the lane would become\\. The lane branch is unchanged\\.\\n[^]*Next: Send rework to its Peer with what must change, or accept it again with overGate and a reason to merge it over the gate\\.`,
+    ),
+  );
 });
 
 test("a red task is accepted again only over its gate, with a reason, and then merges saying so", async () => {
@@ -45,15 +59,30 @@ test("a red task is accepted again only over its gate, with a reason, and then m
   await h.runtime.desk.settled(h.project);
   const refused = await h.call(lane.lead!, "lead", "accept", { task: "L1-T3" });
   assert.equal(refused.ok, false);
-  assert.match(refused.text, /^L1-T3's gate is red on the tree the lane would become: send it back with rework, or accept it with overGate and a reason to merge it over the gate\./);
-  assert.match((await h.call(lane.lead!, "lead", "accept", { task: "L1-T3", overGate: true })).text, /Say why in reason/);
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T3", overGate: true, reason: "y replaces x next task" })).ok, true);
+  assert.match(
+    refused.text,
+    /^L1-T3's gate is red on the tree the lane would become: send it back with rework, or accept it with overGate and a reason to merge it over the gate\./,
+  );
+  assert.match(
+    (await h.call(lane.lead!, "lead", "accept", { task: "L1-T3", overGate: true })).text,
+    /Say why in reason/,
+  );
+  assert.equal(
+    (await h.call(lane.lead!, "lead", "accept", { task: "L1-T3", overGate: true, reason: "y replaces x next task" }))
+      .ok,
+    true,
+  );
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "merged");
   assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:y.txt`), "y.txt\n");
   await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!).split("MERGED L1-T3")[1] ?? "", /Gate: ran on this task: test ! -f x\.txt \|\| test ! -f y\.txt: the gate failed with exit 1 — merged over it: y replaces x next task/);
-  assert.ok(h.events("gate.overridden").some((event) => event.task === "L1-T3" && event.reason === "y replaces x next task"));
+  assert.match(
+    letters(h, lane.lead!).split("MERGED L1-T3")[1] ?? "",
+    /Gate: ran on this task: test ! -f x\.txt \|\| test ! -f y\.txt: the gate failed with exit 1 — merged over it: y replaces x next task/,
+  );
+  assert.ok(
+    h.events("gate.overridden").some((event) => event.task === "L1-T3" && event.reason === "y replaces x next task"),
+  );
 });
 
 test("a task whose lane has not moved since its hand-back merges on that verdict, and the gate does not run again", async () => {
@@ -97,21 +126,30 @@ test("a merge waits while the task's own copy cannot take its lane in, and names
   writeFileSync(join(second!.worktree!, "scratch.txt"), "left behind\n");
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "queued");
-  assert.match(h.ledger().tasks["L1-T3"]!.held?.why ?? "", new RegExp(`^its own copy cannot take ${lane.branch} in: its copy has work uncommitted$`));
+  assert.match(
+    h.ledger().tasks["L1-T3"]!.held?.why ?? "",
+    new RegExp(`^its own copy cannot take ${lane.branch} in: its copy has work uncommitted$`),
+  );
 
   rmSync(join(second!.worktree!, "scratch.txt"));
   await h.runtime.desk.resumeMerges(h.project);
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "done");
   await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!), new RegExp(`MERGE CONFLICT L1-T3 \\(Quotes\\) with ${lane.branch}\\.\\nFiles: c\\.txt, changed there by L1-T2\\n`));
+  assert.match(
+    letters(h, lane.lead!),
+    new RegExp(`MERGE CONFLICT L1-T3 \\(Quotes\\) with ${lane.branch}\\.\\nFiles: c\\.txt, changed there by L1-T2\\n`),
+  );
 });
 
 test("a lane branch that moves while a merge's gate runs holds that merge rather than take a tree nobody gated, and it goes round again with that brought in", async () => {
   const marker = join(tempDir("sw2-race-"), "armed");
   const { h, sup, lane } = await laneWithPeer();
   const move = `git update-ref refs/heads/${lane.branch} $(git -c user.name=t -c user.email=t@x commit-tree ${lane.branch}^{tree} -p ${lane.branch} -m race)`;
-  await h.call(sup, "supervisor", "set_project", { gate: `if [ -f ${marker} ]; then rm ${marker}; cd ${lane.worktree} && ${move}; fi`, gateOn: "task" });
+  await h.call(sup, "supervisor", "set_project", {
+    gate: `if [ -f ${marker} ]; then rm ${marker}; cd ${lane.worktree} && ${move}; fi`,
+    gateOn: "task",
+  });
   await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
   const side = h.ledger().tasks["L1-T2"]!;
   h.commit(side.worktree!, "c.txt", "side\n");
@@ -123,8 +161,15 @@ test("a lane branch that moves while a merge's gate runs holds that merge rather
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "queued");
-  assert.equal(h.ledger().tasks["L1-T2"]!.held?.why, `${lane.branch} moved while it was gated, so it goes round again with that brought in`);
-  assert.equal(h.git(lane.worktree!, "log", "-1", "--format=%s", lane.branch).trim(), "race", "the lane took nothing of the task");
+  assert.equal(
+    h.ledger().tasks["L1-T2"]!.held?.why,
+    `${lane.branch} moved while it was gated, so it goes round again with that brought in`,
+  );
+  assert.equal(
+    h.git(lane.worktree!, "log", "-1", "--format=%s", lane.branch).trim(),
+    "race",
+    "the lane took nothing of the task",
+  );
   await h.runtime.desk.resumeMerges(h.project);
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
@@ -142,12 +187,20 @@ test("a project that gates only its lanes is told plainly with each merge that m
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" });
   await h.runtime.desk.settled(h.project);
   await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!).split("MERGED L1-T2")[1] ?? "", /Gate: not run on merges, so the lane branch can break between reports; it runs on the whole lane when you report it ready/);
+  assert.match(
+    letters(h, lane.lead!).split("MERGED L1-T2")[1] ?? "",
+    /Gate: not run on merges, so the lane branch can break between reports; it runs on the whole lane when you report it ready/,
+  );
 });
 
 test("a task whose change reaches a risk rule is rehearsed with its gate, and a red rehearsal keeps it out of the lane as a red gate does", async () => {
   const { h, sup, lane } = await laneWithPeer();
-  const rule = { paths: ["db/**"], invariant: "running it twice changes nothing", reviewQuestion: "What does a second run do?", rehearse: "false" };
+  const rule = {
+    paths: ["db/**"],
+    invariant: "running it twice changes nothing",
+    reviewQuestion: "What does a second run do?",
+    rehearse: "false",
+  };
   await h.call(sup, "supervisor", "set_project", { gate: "true", riskRules: [rule] });
   await h.call(lane.lead!, "lead", "add_tasks", beside("m", "Migrate", ["db/"]));
   await h.call(lane.lead!, "lead", "add_tasks", beside("c", "Copy", ["c.txt"]));
@@ -155,21 +208,45 @@ test("a task whose change reaches a risk rule is rehearsed with its gate, and a 
   mkdirSync(join(migrate!.worktree!, "db"), { recursive: true });
   h.commit(migrate!.worktree!, "db/001.sql", "create table t;\n");
   h.commit(copy!.worktree!, "c.txt", "C\n");
-  for (const task of [migrate!, copy!]) await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "done" });
+  for (const task of [migrate!, copy!])
+    await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "done" });
   await h.idle(lane.lead!);
   const said = letters(h, lane.lead!);
-  assert.match(said.split("HANDBACK L1-T2")[1] ?? "", /Gate: true passed in \d+s; false, rehearsing that running it twice changes nothing, failed with exit 1/);
-  assert.doesNotMatch(said.split("HANDBACK L1-T3")[1] ?? "", /rehearsing/, "a change the rule does not reach is not rehearsed");
-  assert.match((await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" })).text, /^L1-T2's gate is red on the tree the lane would become/);
+  assert.match(
+    said.split("HANDBACK L1-T2")[1] ?? "",
+    /Gate: true passed in \d+s; false, rehearsing that running it twice changes nothing, failed with exit 1/,
+  );
+  assert.doesNotMatch(
+    said.split("HANDBACK L1-T3")[1] ?? "",
+    /rehearsing/,
+    "a change the rule does not reach is not rehearsed",
+  );
+  assert.match(
+    (await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" })).text,
+    /^L1-T2's gate is red on the tree the lane would become/,
+  );
 });
 
 test("two migrations numbered alike, each green alone, are rehearsed together at merge, and the second is kept out", async () => {
   const { h, sup, lane } = await laneWithPeer();
-  const unique = "test -z \"$(ls db | cut -c1-3 | sort | uniq -d)\"";
-  await h.call(sup, "supervisor", "set_project", { gate: "true", riskRules: [{ paths: ["db/**"], invariant: "no two migrations share a number", reviewQuestion: "Is its number free?", rehearse: unique }] });
+  const unique = 'test -z "$(ls db | cut -c1-3 | sort | uniq -d)"';
+  await h.call(sup, "supervisor", "set_project", {
+    gate: "true",
+    riskRules: [
+      {
+        paths: ["db/**"],
+        invariant: "no two migrations share a number",
+        reviewQuestion: "Is its number free?",
+        rehearse: unique,
+      },
+    ],
+  });
   await h.call(lane.lead!, "lead", "add_tasks", beside("a", "Add a", ["db/001-a.sql"]));
   await h.call(lane.lead!, "lead", "add_tasks", beside("b", "Add b", ["db/001-b.sql"]));
-  for (const [id, file] of [["L1-T2", "db/001-a.sql"], ["L1-T3", "db/001-b.sql"]] as const) {
+  for (const [id, file] of [
+    ["L1-T2", "db/001-a.sql"],
+    ["L1-T3", "db/001-b.sql"],
+  ] as const) {
     const task = h.ledger().tasks[id]!;
     mkdirSync(join(task.worktree!, "db"), { recursive: true });
     h.commit(task.worktree!, file, "select 1;\n");
@@ -183,12 +260,18 @@ test("two migrations numbered alike, each green alone, are rehearsed together at
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "done");
   await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!), /MERGE RED L1-T3 \(Add b\)[^]*rehearsing that no two migrations share a number, failed with exit 1/);
+  assert.match(
+    letters(h, lane.lead!),
+    /MERGE RED L1-T3 \(Add b\)[^]*rehearsing that no two migrations share a number, failed with exit 1/,
+  );
 });
 
 test("a red gate stays red whatever the rehearsals after it would say, and they do not run", async () => {
   const { h, sup, lane } = await laneWithPeer();
-  await h.call(sup, "supervisor", "set_project", { gate: "false", riskRules: [{ paths: ["db/**"], invariant: "it runs twice", reviewQuestion: "Twice?", rehearse: "true" }] });
+  await h.call(sup, "supervisor", "set_project", {
+    gate: "false",
+    riskRules: [{ paths: ["db/**"], invariant: "it runs twice", reviewQuestion: "Twice?", rehearse: "true" }],
+  });
   await h.call(lane.lead!, "lead", "add_tasks", beside("m", "Migrate", ["db/"]));
   const task = h.ledger().tasks["L1-T2"]!;
   mkdirSync(join(task.worktree!, "db"), { recursive: true });
@@ -204,7 +287,10 @@ test("a lane's copy on its branch left with work uncommitted while a merge's gat
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Beside only", outcome: "c", ...scope });
   const lane = h.ledger().lanes.L1!;
-  await h.call(sup, "supervisor", "set_project", { gate: `if [ -f ${marker} ]; then rm ${marker}; printf 'half\\n' >> ${join(lane.worktree!, "a.txt")}; fi`, gateOn: "task" });
+  await h.call(sup, "supervisor", "set_project", {
+    gate: `if [ -f ${marker} ]; then rm ${marker}; printf 'half\\n' >> ${join(lane.worktree!, "a.txt")}; fi`,
+    gateOn: "task",
+  });
   await h.call(lane.lead!, "lead", "add_tasks", beside("s", "Side", ["c.txt"]));
   const side = h.ledger().tasks["L1-T1"]!;
   h.commit(side.worktree!, "c.txt", "side\n");
@@ -228,10 +314,17 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "task" });
   const scope = { outOfScope: ["the rest of the repository"] };
-  await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Numbers",
+    outcome: "a.txt gains words",
+    acceptance: ["four"],
+    outOfScope: ["anything else"],
+  });
   const lane = h.ledger().lanes.L1!;
 
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Add four", goal: "g", acceptance: ["a"], hints: ["a.txt"], ...scope }] });
+  await h.call(lane.lead!, "lead", "add_tasks", {
+    tasks: [{ key: "t", title: "Add four", goal: "g", acceptance: ["a"], hints: ["a.txt"], ...scope }],
+  });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   h.commit(lane.worktree!, "a.txt", "one\ntwo\nthree\nfour\n");
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "four" });
@@ -243,7 +336,11 @@ test("with gateOn task, the gate really runs on a lane-mode task and the Lead is
   await h.idle(lane.lead!);
   const letter = h.agents.get(lane.lead!)!.sent.join("\n");
   assert.match(letter, /MERGED L1-T1/);
-  assert.match(letter, /Gate: test ! -f BROKEN passed in/, "the Lead has to be told what the gate did, not what it would do later");
+  assert.match(
+    letter,
+    /Gate: test ! -f BROKEN passed in/,
+    "the Lead has to be told what the gate did, not what it would do later",
+  );
   assert.doesNotMatch(letter, /Gate: runs on the whole lane/, "gateOn task means the lane note is a lie for this task");
 });
 
@@ -251,9 +348,27 @@ test("a red task gate reaches the Lead with the hand-back, and the lane takes it
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "echo red; exit 1", gateOn: "task" });
-  await h.call(sup, "supervisor", "open_lane", { title: "Bee", outcome: "b.txt changes", acceptance: ["b"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Bee",
+    outcome: "b.txt changes",
+    acceptance: ["b"],
+    outOfScope: ["anything else in the repository"],
+    writeSet: ["b.txt"],
+  });
   const lane = h.ledger().lanes.L1!;
-  const started = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], holds: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true }] });
+  const started = await h.call(lane.lead!, "lead", "add_tasks", {
+    tasks: [
+      {
+        key: "t",
+        title: "B",
+        goal: "g",
+        acceptance: ["b"],
+        holds: ["b.txt"],
+        outOfScope: ["the rest of the repository"],
+        parallel: true,
+      },
+    ],
+  });
   assert.equal(started.ok, true, started.text);
   const task = h.ledger().tasks["L1-T1"]!;
   h.commit(task.worktree!, "b.txt", "B\n");
@@ -262,11 +377,23 @@ test("a red task gate reaches the Lead with the hand-back, and the lane takes it
   // The directive promises the per-task verdict with the hand-back; beside others, red keeps it out of the lane until its Lead says why not.
   await h.idle(lane.lead!);
   const handback = h.agents.get(lane.lead!)!.sent.join("\n");
-  assert.match(handback, /Gate: echo red; exit 1: the gate failed with exit 1\. The lane takes it red only if you accept it over the gate with a reason\./);
+  assert.match(
+    handback,
+    /Gate: echo red; exit 1: the gate failed with exit 1\. The lane takes it red only if you accept it over the gate with a reason\./,
+  );
 
   h.agents.get(task.peer!)!.status = "idle";
   assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, false);
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1", overGate: true, reason: "the gate is broken, not the task" })).ok, true);
+  assert.equal(
+    (
+      await h.call(lane.lead!, "lead", "accept", {
+        task: "L1-T1",
+        overGate: true,
+        reason: "the gate is broken, not the task",
+      })
+    ).ok,
+    true,
+  );
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "accepted over the gate with a reason, it lands");
   assert.match(h.git(lane.worktree!, "log", "-1", "--format=%s"), /^Merge L1-T1/);

@@ -16,15 +16,25 @@ export type Trouble = { kind: string; at: number; detail: string };
 function judgeLine(project: Project, team: Team, kit: Kit, now: number): WatchJudge {
   const choice = team.judge;
   if (!choice) return { label: "", state: "off", minutes: null, detail: null };
-  const label = "role" in choice ? `The ${kit.roles.find((role) => role.role === choice.role)?.label ?? choice.role}` : choice.sensor.label;
+  const label =
+    "role" in choice
+      ? `The ${kit.roles.find((role) => role.role === choice.role)?.label ?? choice.role}`
+      : choice.sensor.label;
   if ("sensor" in choice && !choice.key) return { label, state: "nokey", minutes: null, detail: choice.sensor.key };
   let last: { at?: string; by?: string; unasked?: string } | undefined;
   try {
-    last = JSON.parse(lastBytes(join(project.state, "assessments.log"), 16 * 1024).trim().split("\n").at(-1) ?? "");
+    last = JSON.parse(
+      lastBytes(join(project.state, "assessments.log"), 16 * 1024)
+        .trim()
+        .split("\n")
+        .at(-1) ?? "",
+    );
   } catch {}
   if (!last?.at || last.by !== choice.id) return { label, state: "waiting", minutes: null, detail: null };
   const minutes = Math.max(0, Math.round((now - Date.parse(last.at)) / 60_000));
-  return last.unasked ? { label, state: "failing", minutes, detail: last.unasked } : { label, state: "answering", minutes, detail: null };
+  return last.unasked
+    ? { label, state: "failing", minutes, detail: last.unasked }
+    : { label, state: "answering", minutes, detail: null };
 }
 
 /** What the panel shows of a project's watch: open incidents, pages first, each named by its seat's place, and trouble nobody is mailed about. */
@@ -55,5 +65,9 @@ export function watchView(project: Project, troubles: Trouble[], team: Team, kit
       lane: item.lane ?? null,
       held: item.told === undefined ? (item.held ?? null) : null,
     }));
-  return { incidents, trouble: troubles.map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(), judge: judgeLine(project, team, kit, now) };
+  return {
+    incidents,
+    trouble: troubles.map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(),
+    judge: judgeLine(project, team, kit, now),
+  };
 }

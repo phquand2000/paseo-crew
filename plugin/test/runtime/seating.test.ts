@@ -32,11 +32,28 @@ test("a Claude seat takes in a project's AGENTS.md while the project has no CLAU
   const root = tempDir("sw2-supervisor-project-");
   const project = { root, slug: "shop-abc123", state: join(root, ".state") };
   writeFileSync(join(root, "AGENTS.md"), "Use pnpm.\n");
-  const file = join(seatDir(kit, kit.roles.find((role) => role.role === "lead")!, claude, home(), project), "CLAUDE.md");
+  const file = join(
+    seatDir(
+      kit,
+      kit.roles.find((role) => role.role === "lead")!,
+      claude,
+      home(),
+      project,
+    ),
+    "CLAUDE.md",
+  );
   const rules = () => (existsSync(file) ? readFileSync(file, "utf-8") : "");
   seating.ensure("lead", claude, project);
-  assert.match(rules(), new RegExp(`^@${join(root, "AGENTS.md")}$`, "m"), "though the project's path holds a word the Lead must not see");
+  assert.match(
+    rules(),
+    new RegExp(`^@${join(root, "AGENTS.md")}$`, "m"),
+    "though the project's path holds a word the Lead must not see",
+  );
   writeFileSync(join(root, "CLAUDE.md"), "Use npm.\n");
   seating.ensure("lead", claude, project);
-  assert.doesNotMatch(rules(), /AGENTS\.md/, "Claude reads the project's CLAUDE.md in its place, as it would outside a seat");
+  assert.doesNotMatch(
+    rules(),
+    /AGENTS\.md/,
+    "Claude reads the project's CLAUDE.md in its place, as it would outside a seat",
+  );
 });

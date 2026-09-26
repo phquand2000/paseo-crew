@@ -6,13 +6,25 @@ import { LANE, type LaneStatus } from "../../server/domain/lane.ts";
 import type { Lifecycle } from "../../server/domain/lifecycle.ts";
 import { DECIDED, SETTLED, TASK, type TaskStatus } from "../../server/domain/task.ts";
 
-const TASK_STATUSES: TaskStatus[] = ["waiting", "running", "done", "rework", "queued", "merging", "merged", "failed", "cut", "stalled"];
+const TASK_STATUSES: TaskStatus[] = [
+  "waiting",
+  "running",
+  "done",
+  "rework",
+  "queued",
+  "merging",
+  "merged",
+  "failed",
+  "cut",
+  "stalled",
+];
 
-const steps = <S extends string>(life: Lifecycle<S, string>) => Object.entries(life.moves).map(([move, step]) => ({ move, ...step }));
+const steps = <S extends string>(life: Lifecycle<S, string>) =>
+  Object.entries(life.moves).map(([move, step]) => ({ move, ...step }));
 
 function reached<S extends string>(life: Lifecycle<S, string>, recorded: S[]): Set<S> {
   const seen = new Set<S>(recorded);
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
     for (const step of steps(life)) {
       if (seen.has(step.to) || !step.from.some((status) => seen.has(status))) continue;
@@ -24,25 +36,50 @@ function reached<S extends string>(life: Lifecycle<S, string>, recorded: S[]): S
 }
 
 test("only the Lead's accept puts a task in its lane: the desk merges what the Lead queued and nothing else", () => {
-  const into = (status: TaskStatus) => steps(TASK).filter((step) => step.to === status && !step.from.includes(status)).map((step) => step.move);
+  const into = (status: TaskStatus) =>
+    steps(TASK)
+      .filter((step) => step.to === status && !step.from.includes(status))
+      .map((step) => step.move);
   assert.deepEqual(into("merged"), ["merged"], "every task, one in the lane's copy too, is merged by the queue");
   assert.deepEqual(into("queued"), ["queue", "requeue"]);
   assert.deepEqual(into("merging"), ["merge"]);
   assert.deepEqual(TASK.moves.merge.from, ["queued"]);
-  assert.deepEqual(TASK.moves.requeue.from, ["merging"], "a merge a stop cut off goes back to where the Lead's accept put it");
+  assert.deepEqual(
+    TASK.moves.requeue.from,
+    ["merging"],
+    "a merge a stop cut off goes back to where the Lead's accept put it",
+  );
   assert.deepEqual(TASK.moves.merged.from, ["merging"]);
 });
 
 test("every task status is reached from how a task is recorded, and all but a settled one has a way on", () => {
   assert.deepEqual([...reached(TASK, ["waiting", "running"])].sort(), [...TASK_STATUSES].sort());
-  const stuck = TASK_STATUSES.filter((status) => !SETTLED.includes(status) && !steps(TASK).some((step) => step.from.includes(status) && step.to !== status));
+  const stuck = TASK_STATUSES.filter(
+    (status) =>
+      !SETTLED.includes(status) && !steps(TASK).some((step) => step.from.includes(status) && step.to !== status),
+  );
   assert.deepEqual(stuck, []);
-  assert.deepEqual(steps(TASK).filter((step) => step.from.includes("merged")).map((step) => step.move), ["rework"], "a merged task only goes back to its Peer, sent by its Lead");
+  assert.deepEqual(
+    steps(TASK)
+      .filter((step) => step.from.includes("merged"))
+      .map((step) => step.move),
+    ["rework"],
+    "a merged task only goes back to its Peer, sent by its Lead",
+  );
 });
 
 test("once the Lead has decided a task, its Peer can no longer hand it back, and its silence is not a stall; only an accepted one goes back to it", () => {
-  for (const move of ["handBack", "stall"] as const) assert.deepEqual(TASK.moves[move].from.filter((status) => DECIDED.includes(status)), [], move);
-  assert.deepEqual(TASK.moves.rework.from.filter((status) => DECIDED.includes(status)), ["merged"], "not while it is queued, merging or cut");
+  for (const move of ["handBack", "stall"] as const)
+    assert.deepEqual(
+      TASK.moves[move].from.filter((status) => DECIDED.includes(status)),
+      [],
+      move,
+    );
+  assert.deepEqual(
+    TASK.moves.rework.from.filter((status) => DECIDED.includes(status)),
+    ["merged"],
+    "not while it is queued, merging or cut",
+  );
 });
 
 test("a move the table does not allow from the status an entry has leaves the entry as it was", () => {
@@ -57,7 +94,10 @@ test("a move the table does not allow from the status an entry has leaves the en
 
 test("a lane opens or is dropped while it waits, closes or waits again once open, and stays closed", () => {
   assert.deepEqual([...reached(LANE, ["waiting", "open"])].sort(), ["closed", "open", "waiting"]);
-  assert.deepEqual(steps(LANE).filter((step) => step.from.includes("closed")), []);
+  assert.deepEqual(
+    steps(LANE).filter((step) => step.from.includes("closed")),
+    [],
+  );
   const lane: { status: LaneStatus } = { status: "open" };
   assert.equal(LANE.move(lane, "drop"), false, "an open lane is closed, not dropped");
   assert.equal(LANE.move(lane, "close"), true);

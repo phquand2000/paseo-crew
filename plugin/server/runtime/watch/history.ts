@@ -79,7 +79,7 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
 
     const reviews = new Map<string, Task[]>();
     for (const task of here) if (task.kind === "review" && task.of) reviews.set(task.of, [...(reviews.get(task.of) ?? []), task]);
-    const unconverged = [...reviews].filter(([target, rounds]) => rounds.length >= reading.reviewsAt && !(ledger.tasks[target] && settled(ledger.tasks[target]!)));
+    const unconverged = [...reviews].filter(([target, rounds]) => rounds.length >= reading.reviewsAt && !(ledger.tasks[target] && settled(ledger.tasks[target])));
     if (unconverged.length > 0) {
       at("reviews-unconverged", unconverged.map(([target, rounds]) => `${rounds.length} reviews of ${target} (${ledger.tasks[target]?.title ?? "gone"}), which is ${ledger.tasks[target]?.status ?? "gone"}: ${rounds.map((task) => task.handback?.outcome ?? task.status).join(", ")}`).join("; "));
     }

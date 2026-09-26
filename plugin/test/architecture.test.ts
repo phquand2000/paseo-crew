@@ -10,6 +10,7 @@ const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MAY_IMPORT: Record<string, string[]> = {
   "index.server.ts": ["server/core", "server/catalog", "server/runtime", "server/adapters", "@getpaseo/plugin/server"],
   "index.client.tsx": ["client", "@getpaseo/plugin/client"],
+  "eslint.config.js": [],
   shared: ["@getpaseo/plugin"],
   client: ["shared", "@getpaseo/plugin", "@getpaseo/plugin/client"],
   "server/core": [],
@@ -19,7 +20,16 @@ const MAY_IMPORT: Record<string, string[]> = {
   "server/desk/tools": ["server/core", "server/domain", "server/catalog", "server/desk"],
   "server/runtime/watch": ["server/core", "server/domain", "server/catalog", "server/desk"],
   "server/upkeep": ["server/core", "server/catalog", "server/desk", "shared"],
-  "server/runtime": ["server/core", "server/domain", "server/catalog", "server/desk", "server/desk/tools", "server/runtime/watch", "server/upkeep", "shared"],
+  "server/runtime": [
+    "server/core",
+    "server/domain",
+    "server/catalog",
+    "server/desk",
+    "server/desk/tools",
+    "server/runtime/watch",
+    "server/upkeep",
+    "shared",
+  ],
   "server/adapters": ["server/core", "@getpaseo/plugin/server"],
   mcp: [],
   bin: [],
@@ -54,10 +64,16 @@ const LONG_FUNCTIONS: Record<string, number> = {
   "server/runtime/watch/history.ts deskFacts": 54,
 };
 
-const ENTRIES = ["index.server.ts", "index.client.tsx"];
+const ENTRIES = ["index.server.ts", "index.client.tsx", "eslint.config.js"];
 
 type Import = { to: string; names: Set<string> | "all" };
-type Source = { lines: number; imports: Import[]; exports: Map<string, number>; functions: Map<string, number>; words: string[] };
+type Source = {
+  lines: number;
+  imports: Import[];
+  exports: Map<string, number>;
+  functions: Map<string, number>;
+  words: string[];
+};
 
 /** The code files under `dir`, leaving out what the plugin does not run: `content/` is for the seats to read, and a fixture is data. */
 function codeIn(dir: string): string[] {
@@ -67,15 +83,18 @@ function codeIn(dir: string): string[] {
     .flatMap((name) => codeIn(join(dir, name)));
 }
 
-const isFunction = (node: ts.Node): node is ts.FunctionLikeDeclaration => ts.isFunctionLike(node) && "body" in node && node.body !== undefined;
+const isFunction = (node: ts.Node): node is ts.FunctionLikeDeclaration =>
+  ts.isFunctionLike(node) && "body" in node && node.body !== undefined;
 
 /** A function's own name, or else what holds it: the variable or property it is assigned to, or the call it is passed to. */
 function nameOf(node: ts.Node): string {
   if ((ts.isFunctionLike(node) || ts.isClassLike(node)) && node.name) return node.name.getText();
   if (ts.isConstructorDeclaration(node)) return "constructor";
   const parent = node.parent;
-  if (ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent)) return parent.name.getText();
-  if (ts.isCallExpression(parent)) return ts.isPropertyAccessExpression(parent.expression) ? parent.expression.name.text : parent.expression.getText();
+  if (ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent))
+    return parent.name.getText();
+  if (ts.isCallExpression(parent))
+    return ts.isPropertyAccessExpression(parent.expression) ? parent.expression.name.text : parent.expression.getText();
   return "(anonymous)";
 }
 
@@ -85,7 +104,8 @@ function qualified(node: ts.Node): string {
   for (let at: ts.Node | undefined = node; at; at = at.parent) {
     if (isFunction(at) || ts.isClassLike(at)) names.unshift(nameOf(at));
     // A variable holding a function already names it; one holding a call's result names what is inside the call.
-    else if (ts.isVariableDeclaration(at) && at.initializer && !ts.isFunctionLike(at.initializer)) names.unshift(at.name.getText());
+    else if (ts.isVariableDeclaration(at) && at.initializer && !ts.isFunctionLike(at.initializer))
+      names.unshift(at.name.getText());
   }
   return names.join(".");
 }
@@ -99,7 +119,8 @@ function exported(statement: ts.Statement): string[] {
   const modifiers = ts.canHaveModifiers(statement) ? (ts.getModifiers(statement) ?? []) : [];
   if (!modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) return [];
   if (modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)) return ["default"];
-  if (ts.isVariableStatement(statement)) return statement.declarationList.declarations.flatMap((declaration) => bound(declaration.name));
+  if (ts.isVariableStatement(statement))
+    return statement.declarationList.declarations.flatMap((declaration) => bound(declaration.name));
   return [ts.getNameOfDeclaration(statement as ts.DeclarationStatement)!.getText()];
 }
 
@@ -113,7 +134,13 @@ function read(path: string): Source {
     const named = (spec as ts.StringLiteral).text;
     return named.startsWith(".") ? relative(PLUGIN, resolve(PLUGIN, dirname(path), named)) : named;
   };
-  const source: Source = { lines: text.split("\n").length - (text.endsWith("\n") ? 1 : 0), imports: [], exports: new Map(), functions: new Map(), words: [] };
+  const source: Source = {
+    lines: text.split("\n").length - (text.endsWith("\n") ? 1 : 0),
+    imports: [],
+    exports: new Map(),
+    functions: new Map(),
+    words: [],
+  };
   const namespaces = new Map<string, Import>();
   for (const statement of file.statements) {
     if (ts.isImportDeclaration(statement)) {
@@ -122,13 +149,18 @@ function read(path: string): Source {
       const clause = statement.importClause;
       if (clause?.name) names.add("default");
       const bindings = clause?.namedBindings;
-      if (bindings && ts.isNamedImports(bindings)) for (const element of bindings.elements) names.add((element.propertyName ?? element.name).text);
+      if (bindings && ts.isNamedImports(bindings))
+        for (const element of bindings.elements) names.add((element.propertyName ?? element.name).text);
       if (bindings && ts.isNamespaceImport(bindings)) namespaces.set(bindings.name.text, entry);
       source.imports.push(entry);
     } else if (ts.isExportDeclaration(statement)) {
       const clause = statement.exportClause;
       const named = clause && ts.isNamedExports(clause) ? clause.elements : undefined;
-      if (statement.moduleSpecifier) source.imports.push({ to: target(statement.moduleSpecifier), names: named ? new Set(named.map((element) => (element.propertyName ?? element.name).text)) : "all" });
+      if (statement.moduleSpecifier)
+        source.imports.push({
+          to: target(statement.moduleSpecifier),
+          names: named ? new Set(named.map((element) => (element.propertyName ?? element.name).text)) : "all",
+        });
       for (const element of named ?? []) source.exports.set(element.name.text, line(element));
       if (clause && ts.isNamespaceExport(clause)) source.exports.set(clause.name.text, line(statement));
     } else if (ts.isExportAssignment(statement)) {
@@ -142,13 +174,24 @@ function read(path: string): Source {
       const length = file.getLineAndCharacterOfPosition(node.getEnd()).line + 2 - line(node);
       source.functions.set(key, Math.max(length, source.functions.get(key) ?? 0));
     }
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments[0] &&
+      ts.isStringLiteral(node.arguments[0])
+    ) {
       source.imports.push({ to: target(node.arguments[0]), names: "all" });
     }
-    if (ts.isIdentifier(node) || ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node) || ts.isJsxText(node)) source.words.push(node.text);
+    if (ts.isIdentifier(node) || ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node) || ts.isJsxText(node))
+      source.words.push(node.text);
     const parent = node.parent;
     const entry = ts.isIdentifier(node) ? namespaces.get(node.text) : undefined;
-    if (entry && entry.names !== "all" && !ts.isNamespaceImport(parent) && !((ts.isPropertyAssignment(parent) || ts.isPropertyAccessExpression(parent)) && parent.name === node)) {
+    if (
+      entry &&
+      entry.names !== "all" &&
+      !ts.isNamespaceImport(parent) &&
+      !((ts.isPropertyAssignment(parent) || ts.isPropertyAccessExpression(parent)) && parent.name === node)
+    ) {
       if (ts.isPropertyAccessExpression(parent) && parent.expression === node) entry.names.add(parent.name.text);
       else entry.names = "all";
     }
@@ -167,10 +210,15 @@ const areaOf = (path: string): string | undefined =>
     .filter((area) => path === area || path.startsWith(`${area}/`))
     .sort((a, b) => b.length - a.length)[0];
 
-const packageOf = (spec: string): string | undefined => PACKAGES.find((name) => spec === name || spec.startsWith(`${name}/`));
+const packageOf = (spec: string): string | undefined =>
+  PACKAGES.find((name) => spec === name || spec.startsWith(`${name}/`));
 
 test("every file of the plugin is in an area that MAY_IMPORT names", () => {
-  assert.deepEqual(product.filter((path) => !areaOf(path)), [], "Add its area to MAY_IMPORT, with the areas it may import.");
+  assert.deepEqual(
+    product.filter((path) => !areaOf(path)),
+    [],
+    "Add its area to MAY_IMPORT, with the areas it may import.",
+  );
 });
 
 test("an area imports only what MAY_IMPORT allows it", () => {
@@ -194,7 +242,10 @@ function cycles(): string[][] {
   const low = new Map<string, number>();
   const stack: string[] = [];
   const found: string[][] = [];
-  const next = (path: string) => [...new Set(sources.get(path)!.imports.map((entry) => entry.to))].filter((to) => sources.has(to) && !to.startsWith("test/"));
+  const next = (path: string) =>
+    [...new Set(sources.get(path)!.imports.map((entry) => entry.to))].filter(
+      (to) => sources.has(to) && !to.startsWith("test/"),
+    );
   const visit = (path: string) => {
     index.set(path, index.size);
     low.set(path, index.get(path)!);
@@ -212,7 +263,11 @@ function cycles(): string[][] {
 }
 
 test("no module of the plugin imports itself back through others", () => {
-  assert.deepEqual(cycles(), [], "Each group imports itself round a cycle: move what both sides need to a module neither imports.");
+  assert.deepEqual(
+    cycles(),
+    [],
+    "Each group imports itself round a cycle: move what both sides need to a module neither imports.",
+  );
 });
 
 test("files keep within their size, and one listed in LONG_FILES only grows shorter", () => {
@@ -220,7 +275,9 @@ test("files keep within their size, and one listed in LONG_FILES only grows shor
   const problems = [
     ...files
       .filter((path) => sources.get(path)!.lines > Math.max(limit(path), LONG_FILES[path] ?? 0))
-      .map((path) => `${path} has ${sources.get(path)!.lines} lines, over ${LONG_FILES[path] ?? limit(path)}: split it.`),
+      .map(
+        (path) => `${path} has ${sources.get(path)!.lines} lines, over ${LONG_FILES[path] ?? limit(path)}: split it.`,
+      ),
     ...Object.keys(LONG_FILES)
       .filter((path) => (sources.get(path)?.lines ?? 0) <= limit(path))
       .map((path) => `${path} is within ${limit(path)} lines now: take it off LONG_FILES.`),
@@ -229,7 +286,11 @@ test("files keep within their size, and one listed in LONG_FILES only grows shor
 });
 
 test("the plugin's functions keep within their size, and one listed in LONG_FUNCTIONS only grows shorter", () => {
-  const measured = new Map<string, number>(product.flatMap((path) => [...sources.get(path)!.functions].map(([name, lines]) => [`${path} ${name}`, lines] as const)));
+  const measured = new Map<string, number>(
+    product.flatMap((path) =>
+      [...sources.get(path)!.functions].map(([name, lines]) => [`${path} ${name}`, lines] as const),
+    ),
+  );
   const problems = [
     ...[...measured]
       .filter(([key, lines]) => lines > Math.max(LIMITS.function, LONG_FUNCTIONS[key] ?? 0))
@@ -264,10 +325,17 @@ test("the plugin's code names no agent, MCP server or sensor its catalog describ
   const names = [...readdirSync(join(PLUGIN, "harness")), ...readdirSync(join(PLUGIN, "catalog", "mcp")), ...sensors];
   const found = new Set<string>();
   for (const path of product) {
-    for (const name of names) if (sources.get(path)!.words.some((word) => new RegExp(`\\b${name}\\b`, "i").test(word))) found.add(`${path} > ${name}`);
+    for (const name of names)
+      if (sources.get(path)!.words.some((word) => new RegExp(`\\b${name}\\b`, "i").test(word)))
+        found.add(`${path} > ${name}`);
   }
   const problems = [
-    ...[...found].filter((entry) => !NAMED.includes(entry)).map((entry) => `${entry}: an agent, a server or a sensor is data; say what the code needs of it in its catalog file instead. NAMED only ever shrinks.`),
+    ...[...found]
+      .filter((entry) => !NAMED.includes(entry))
+      .map(
+        (entry) =>
+          `${entry}: an agent, a server or a sensor is data; say what the code needs of it in its catalog file instead. NAMED only ever shrinks.`,
+      ),
     ...NAMED.filter((entry) => !found.has(entry)).map((entry) => `${entry} is gone: take it off NAMED.`),
   ];
   assert.deepEqual(problems, []);

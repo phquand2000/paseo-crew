@@ -19,7 +19,7 @@ test("a lane that waits for another opens by itself once that one lands, off a b
   const waiting = h.ledger().lanes.L2!;
   assert.deepEqual([waiting.status, waiting.lead, waiting.after], ["waiting", undefined, ["L1"]], "recorded, with nothing started for it");
   assert.equal(h.git(h.root, "branch", "--list", waiting.branch).trim(), "", "and no branch made yet");
-  assert.match((await h.call(sup, "supervisor", "status", {})).text, /## Waiting lanes\n\n- L2 Order: after L1 open\n  Outcome: orders from the cart/);
+  assert.match((await h.call(sup, "supervisor", "status", {})).text, /## Waiting lanes\n\n- L2 Order: after L1 open\n {2}Outcome: orders from the cart/);
 
   h.commit(h.root, "a.txt", "cart\n");
   h.agents.get(cart.lead!)!.status = "idle";

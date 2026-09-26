@@ -157,7 +157,7 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
       errors.push(`${model!.label} on ${harness.label} has no thinking option ${choice.thinking} for the ${role.label}`);
     }
     thinking = options.some((option) => option.id === choice.thinking) ? choice.thinking : (options.find((option) => option.isDefault) ?? options[0])!.id;
-  } else if (choice.thinking && model && !models.some((entry) => entry.id === model!.id)) {
+  } else if (choice.thinking && model && !models.some((entry) => entry.id === model.id)) {
     // No thinking options listed is not a list of none: the owner's choice is kept.
     thinking = choice.thinking;
   }

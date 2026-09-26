@@ -19,7 +19,8 @@ const DELIVERY = new Lifecycle<Delivery, "hold" | "tell" | "unheard">({
 });
 
 /** Where an incident stands on being told, read from what it keeps: when it was told, and why it was not. */
-export const deliveryOf = (incident: Delivered): Delivery => (incident.told !== undefined ? "told" : incident.held ? "held" : "unsent");
+export const deliveryOf = (incident: Delivered): Delivery =>
+  incident.told !== undefined ? "told" : incident.held ? "held" : "unsent";
 
 export function hold(incident: Delivered, why: Held): boolean {
   if (!DELIVERY.may(deliveryOf(incident), "hold")) return false;

@@ -87,7 +87,7 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
     for (const name of skillDirs(own)) found.set(name, isAbsolute(role.skills) ? join(own, name) : ownOr(kit, `skills/${role.skills}/${name}`));
   }
   for (const extra of role.extraSkills ?? []) {
-    const [set, name] = extra.split(":");
+    const [set, name] = extra.split(":") as [string, string];
     const dir = ownOr(kit, `skills/${set}/${name}`);
     if (!existsSync(join(dir, "SKILL.md"))) throw new Error(`role ${role.role} names extra skill ${extra}, but ${dir}/SKILL.md is missing`);
     found.set(name, dir);

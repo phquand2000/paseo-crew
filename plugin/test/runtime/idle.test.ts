@@ -7,7 +7,13 @@ test("an idle Lead with nothing running, asked or reported ready wakes whoever s
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["the rest"] };
   await h.call(sup, "supervisor", "set_project", { askFirst: ["b.txt"] });
-  for (const [title, isolate] of [["Quiet", false], ["Held", true], ["Ready", true], ["Parked", true]] as const) await h.call(sup, "supervisor", "open_lane", { title, ...scope, isolate });
+  for (const [title, isolate] of [
+    ["Quiet", false],
+    ["Held", true],
+    ["Ready", true],
+    ["Parked", true],
+  ] as const)
+    await h.call(sup, "supervisor", "open_lane", { title, ...scope, isolate });
   const lanes = h.ledger().lanes;
   await h.call(sup, "supervisor", "hold_lane", { lane: "L2", reason: "the Human is reading it" });
   await h.call(lanes.L3!.lead!, "lead", "report", { summary: "done", ready: true });
@@ -19,6 +25,13 @@ test("an idle Lead with nothing running, asked or reported ready wakes whoever s
   for (const lane of Object.values(lanes)) h.agents.get(lane.lead!)!.status = "idle";
   await h.tick(Date.now() + 20 * 60_000);
   const said = h.heard(sup).join("\n");
-  assert.match(said, /LANE IDLE L1 \(Quiet\): its Lead has been idle \d+ minutes with no running task, no open ask and no report of it ready\./);
-  assert.doesNotMatch(said, /LANE IDLE L[234]/, "a Lead told to wait, or waiting on whoever lands it or on the Human, is not idle");
+  assert.match(
+    said,
+    /LANE IDLE L1 \(Quiet\): its Lead has been idle \d+ minutes with no running task, no open ask and no report of it ready\./,
+  );
+  assert.doesNotMatch(
+    said,
+    /LANE IDLE L[234]/,
+    "a Lead told to wait, or waiting on whoever lands it or on the Human, is not idle",
+  );
 });

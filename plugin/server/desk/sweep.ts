@@ -9,11 +9,17 @@ import type { Ledger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 
 /** What the desk opened and nothing holds any more. Liveness is read under the ledger lock when used: `reserve` writes its row before `git worktree add`. */
-export async function sweepCopies(ctx: DeskContext, workspaces: Workspaces, project: Project, busy: boolean): Promise<void> {
+export async function sweepCopies(
+  ctx: DeskContext,
+  workspaces: Workspaces,
+  project: Project,
+  busy: boolean,
+): Promise<void> {
   const heldIds = (ledger: Ledger): Set<string> => {
     const held = new Set<string>();
     for (const slot of Object.values(ledger.slots)) if (slot.workspaceId) held.add(slot.workspaceId);
-    for (const lane of Object.values(ledger.lanes)) if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
+    for (const lane of Object.values(ledger.lanes))
+      if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
     return held;
   };
   for (const workspace of await workspaces.owned(project.slug)) {

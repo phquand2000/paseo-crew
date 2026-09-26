@@ -10,7 +10,12 @@ type Window = { started: number; within: number; again: boolean; cancelled?: Abo
  * The reply if it comes within the window, else word that it arrives as mail: one letter for one run, whichever of its
  * callers stopped waiting first, kept on disk until it is posted.
  */
-export function inTime(request: ToolRequest, reply: Promise<ToolReply>, how: Window, mail: { intents: Intents; post(to: string, letter: Letter): Promise<unknown> }): Promise<ToolReply> {
+export function inTime(
+  request: ToolRequest,
+  reply: Promise<ToolReply>,
+  how: Window,
+  mail: { intents: Intents; post(to: string, letter: Letter): Promise<unknown> },
+): Promise<ToolReply> {
   return new Promise((resolve) => {
     let answered = false;
     const mailed = (said: string, cut: boolean) => {

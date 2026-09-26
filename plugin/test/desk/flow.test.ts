@@ -207,9 +207,9 @@ test("a Lead kept after its lane closed is drawn until it goes, with the copy it
   ledger.lanes.L5 = { ...lane("L5", "closed", "seat-dropped"), landed: false };
   ledger.tasks["L1-T0"] = { ...ledger.tasks["L1-T0"]!, peer: "seat-idle" };
   ledger.agents["seat-idle"] = { id: "seat-idle", role: "peer", lane: "L1", task: "L1-T0" };
-  ledger.tasks["L1-T9"] = { ...ledger.tasks["L1-T0"]!, id: "L1-T9", peer: "seat-idle-2" };
+  ledger.tasks["L1-T9"] = { ...ledger.tasks["L1-T0"], id: "L1-T9", peer: "seat-idle-2" };
   ledger.agents["seat-idle-2"] = { id: "seat-idle-2", role: "peer", lane: "L1", task: "L1-T9" };
-  ledger.tasks["L1-T8"] = { ...ledger.tasks["L1-T0"]!, id: "L1-T8", peer: "seat-released" };
+  ledger.tasks["L1-T8"] = { ...ledger.tasks["L1-T0"], id: "L1-T8", peer: "seat-released" };
   ledger.agents["seat-released"] = { id: "seat-released", role: "peer", lane: "L1", task: "L1-T8", gone: true };
   const kept = new Map(seats);
   for (const id of ["seat-kept", "seat-dropped", "seat-idle", "seat-idle-2", "seat-released"]) kept.set(id, { id, provider: "sw2-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });

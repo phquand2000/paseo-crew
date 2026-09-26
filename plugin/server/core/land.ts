@@ -18,15 +18,23 @@ export async function advance(cwd: string, branch: string, from: string, tip: st
     return run.code === 0 ? undefined : { why: "refused", detail: run.stderr.trim() || "fast-forward failed" };
   }
   const used = await git(cwd, ["worktree", "list", "--porcelain"]);
-  if (used.stdout.split("\n").some((line) => line.trim() === `branch refs/heads/${branch}`)) return { why: "elsewhere" };
+  if (used.stdout.split("\n").some((line) => line.trim() === `branch refs/heads/${branch}`))
+    return { why: "elsewhere" };
   return (await git(cwd, ["update-ref", `refs/heads/${branch}`, tip, from])).code === 0 ? undefined : { why: "moved" };
 }
 
 /** A merge of `branch` onto `onto` whose tree is `branch`'s own, made without checking anything out: `branch` already contains `onto`. */
-export async function mergeCommit(cwd: string, onto: string, branch: string, message: string): Promise<string | undefined> {
+export async function mergeCommit(
+  cwd: string,
+  onto: string,
+  branch: string,
+  message: string,
+): Promise<string | undefined> {
   const tip = await headSha(cwd, branch);
   const own = ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "-c", "commit.gpgSign=false"];
-  const made = tip ? await git(cwd, [...own, "commit-tree", `${tip}^{tree}`, "-p", onto, "-p", tip, "-m", message]) : undefined;
+  const made = tip
+    ? await git(cwd, [...own, "commit-tree", `${tip}^{tree}`, "-p", onto, "-p", tip, "-m", message])
+    : undefined;
   return made?.code === 0 ? made.stdout.trim() : undefined;
 }
 
@@ -35,18 +43,31 @@ function unlanded(base: string, root: string, stopped: Unmoved): string {
   if (stopped.why === "dirty") return `the main working copy on ${base} has uncommitted changes`;
   if (stopped.why === "unknown") return `git could not read the main working copy at ${root}`;
   if (stopped.why === "elsewhere") return `${base} is checked out in another working copy`;
-  return stopped.why === "moved" ? `${base} moved while this lane was landing; land it again` : (stopped.detail ?? "fast-forward failed");
+  return stopped.why === "moved"
+    ? `${base} moved while this lane was landing; land it again`
+    : (stopped.detail ?? "fast-forward failed");
 }
 
 /**
  * Lands `tested`, the head of `branch` its gate saw, on `base` as one commit, a merge commit or a fast-forward, made without
  * checking anything out. A lane that moved since its gate lands nothing: what would land is not what was tested.
  */
-export async function landLane(root: string, base: string, branch: string, tested: string, how: { as: LandAs; message: string; keep: string }): Promise<LandResult> {
+export async function landLane(
+  root: string,
+  base: string,
+  branch: string,
+  tested: string,
+  how: { as: LandAs; message: string; keep: string },
+): Promise<LandResult> {
   const from = await headSha(root, base);
   if (!from) return { landed: false, how: `git could not read ${base}` };
-  if ((await headSha(root, branch)) !== tested) return { landed: false, how: `${branch} moved after its gate ran, so what would land is not what was tested` };
-  if (!(await isAncestor(root, from, tested))) return { landed: false, how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated` };
+  if ((await headSha(root, branch)) !== tested)
+    return { landed: false, how: `${branch} moved after its gate ran, so what would land is not what was tested` };
+  if (!(await isAncestor(root, from, tested)))
+    return {
+      landed: false,
+      how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated`,
+    };
   // Undefined when the lane changes nothing on base: there is nothing to commit and base stays where it is.
   let tip: string | undefined = tested;
   if (how.as !== "ff") {
@@ -55,7 +76,13 @@ export async function landLane(root: string, base: string, branch: string, teste
     if (trees.code === 0 && was === now) tip = undefined;
     else {
       const parents = how.as === "merge" ? [from, tested] : [from];
-      const made = await git(root, ["commit-tree", `${tested}^{tree}`, ...parents.flatMap((parent) => ["-p", parent]), "-m", how.message]);
+      const made = await git(root, [
+        "commit-tree",
+        `${tested}^{tree}`,
+        ...parents.flatMap((parent) => ["-p", parent]),
+        "-m",
+        how.message,
+      ]);
       if (made.code !== 0) return { landed: false, how: made.stderr.trim() || "git could not make the commit to land" };
       tip = made.stdout.trim();
     }
@@ -65,5 +92,13 @@ export async function landLane(root: string, base: string, branch: string, teste
   // Should this fail, the branch is kept rather than lost: dropping it checks it against this ref.
   await git(root, ["update-ref", how.keep, tested]);
   if (!tip) return { landed: true, how: `${branch} changes nothing on ${base}, so nothing was committed` };
-  return { landed: true, how: how.as === "squash" ? `squashed ${branch} into one commit on ${base}, its own commits kept at ${how.keep}` : how.as === "merge" ? `merged ${branch} into ${base}` : `fast-forwarded ${base} to ${branch}` };
+  return {
+    landed: true,
+    how:
+      how.as === "squash"
+        ? `squashed ${branch} into one commit on ${base}, its own commits kept at ${how.keep}`
+        : how.as === "merge"
+          ? `merged ${branch} into ${base}`
+          : `fast-forwarded ${base} to ${branch}`,
+  };
 }

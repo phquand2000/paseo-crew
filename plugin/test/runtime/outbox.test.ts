@@ -5,7 +5,14 @@ import type { Seats } from "../../server/core/ports.ts";
 import { Outbox } from "../../server/runtime/outbox.ts";
 import { tempDir } from "../tempdir.ts";
 
-type FakeAgent = { status: string; pendingPermissions: { title?: string; name?: string }[]; archivedAt: string | null; sent: string[]; steered: string[]; kinds: string[][] };
+type FakeAgent = {
+  status: string;
+  pendingPermissions: { title?: string; name?: string }[];
+  archivedAt: string | null;
+  sent: string[];
+  steered: string[];
+  kinds: string[][];
+};
 
 function fakeSeats(agents: Record<string, FakeAgent>): Pick<Seats, "look" | "send"> {
   return {
@@ -21,10 +28,20 @@ function fakeSeats(agents: Record<string, FakeAgent>): Pick<Seats, "look" | "sen
   };
 }
 
-const agent = (status: string): FakeAgent => ({ status, pendingPermissions: [], archivedAt: null, sent: [], steered: [], kinds: [] });
+const agent = (status: string): FakeAgent => ({
+  status,
+  pendingPermissions: [],
+  archivedAt: null,
+  sent: [],
+  steered: [],
+  kinds: [],
+});
 
-const outboxOn = (agents: Record<string, FakeAgent>, compose: (to: string, list: { text: string }[]) => string, steers = false) =>
-  new Outbox(join(tempDir(), "outbox.json"), compose, fakeSeats(agents), { steers: () => steers });
+const outboxOn = (
+  agents: Record<string, FakeAgent>,
+  compose: (to: string, list: { text: string }[]) => string,
+  steers = false,
+) => new Outbox(join(tempDir(), "outbox.json"), compose, fakeSeats(agents), { steers: () => steers });
 
 test("a letter to an idle seat is sent at once and the same key is not sent twice", async () => {
   const agents = { sup: agent("idle") };
@@ -60,7 +77,10 @@ test("after sending, a seat is left alone until its turn ends", async () => {
 });
 
 test("a seat with a pending permission or an archived seat receives nothing, and neither one's mail is thrown away", async () => {
-  const agents = { a: { ...agent("idle"), pendingPermissions: [{}] }, b: { ...agent("idle"), archivedAt: "2026-01-01" } };
+  const agents = {
+    a: { ...agent("idle"), pendingPermissions: [{}] },
+    b: { ...agent("idle"), archivedAt: "2026-01-01" },
+  };
   const outbox = outboxOn(agents, (_to, list) => list[0]!.text);
   assert.equal(await outbox.post({ to: "a", key: "x", text: "t" }), "held");
   assert.equal(await outbox.post({ to: "b", key: "y", text: "t" }), "held");
@@ -71,7 +91,11 @@ test("a seat with a pending permission or an archived seat receives nothing, and
 test("mail for a seat Paseo cannot answer for is held, and the round goes on to the next seat", async () => {
   const agents = { real: agent("idle") };
   const outbox = outboxOn(agents, (_to, list) => list[0]!.text);
-  assert.equal(await outbox.post({ to: "gone", key: "x", text: "a report nobody can read yet" }), "held", "a tool that did its work is not failed by an address");
+  assert.equal(
+    await outbox.post({ to: "gone", key: "x", text: "a report nobody can read yet" }),
+    "held",
+    "a tool that did its work is not failed by an address",
+  );
   assert.equal(outbox.pending("gone").length, 1);
   assert.equal(await outbox.post({ to: "real", key: "y", text: "and this still goes out" }), "sent");
   assert.deepEqual(agents.real.sent, ["and this still goes out"]);
@@ -98,7 +122,11 @@ test("a harness that cannot take mail mid-turn, or a seat stopped on a permissio
   assert.equal(await plain.post({ to: "peer", key: "a", text: "t" }), "held");
   const steering = outboxOn(agents, (_to, list) => list[0]!.text, true);
   steering.turnStarted("asking", Date.now() - 2 * 60_000);
-  assert.equal(await steering.post({ to: "asking", key: "a", text: "t" }), "held", "it has stopped until the permission is decided");
+  assert.equal(
+    await steering.post({ to: "asking", key: "a", text: "t" }),
+    "held",
+    "it has stopped until the permission is decided",
+  );
   assert.deepEqual([...agents.peer.sent, ...agents.asking.sent], []);
 });
 

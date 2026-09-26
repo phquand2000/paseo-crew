@@ -40,5 +40,5 @@ export function writeConfigAtomic(path: string, text: string, mode = 0o600): voi
 }
 
 export function formatConfig(path: string, value: unknown): string {
-  return isToml(path) ? `${stringify(value as Record<string, unknown>).trimEnd()}\n` : `${JSON.stringify(value, null, 2)}\n`;
+  return isToml(path) ? `${stringify(value).trimEnd()}\n` : `${JSON.stringify(value, null, 2)}\n`;
 }

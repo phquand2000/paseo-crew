@@ -34,7 +34,10 @@ export class Roster {
   }
 
   /** Who reads what is meant for a lane's Lead: the Lead while it is seated, else whoever supervises, who can seat one. */
-  async readerOf(project: Project, lane: Lane | undefined): Promise<{ to: string | undefined; as: "lead" | "supervisor" }> {
+  async readerOf(
+    project: Project,
+    lane: Lane | undefined,
+  ): Promise<{ to: string | undefined; as: "lead" | "supervisor" }> {
     if (lane?.lead && (await this.seated(lane.lead))) return { to: lane.lead, as: "lead" };
     return { to: await this.supervisorFor(project, lane?.opener), as: "supervisor" };
   }
@@ -65,7 +68,9 @@ export class Roster {
 
   /** The project's open seat, the one heard from last, whose role can `capability`. */
   async holderOf(project: Project, capability: string): Promise<string | undefined> {
-    const found = (await this.seats.open()).filter((seat) => this.holds(seat, capability, project)).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+    const found = (await this.seats.open())
+      .filter((seat) => this.holds(seat, capability, project))
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
     return found[0]?.id;
   }
 

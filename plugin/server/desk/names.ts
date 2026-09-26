@@ -5,6 +5,7 @@ import type { RoleSpec } from "../catalog/kit.ts";
  * starts says that duty: the lane or task, the seat's role, and its title.
  */
 export const seatTitle = {
-  of: (work: { id: string; title: string }, role: Pick<RoleSpec, "label">) => `${work.id} · ${role.label} · ${work.title}`,
+  of: (work: { id: string; title: string }, role: Pick<RoleSpec, "label">) =>
+    `${work.id} · ${role.label} · ${work.title}`,
   review: (review: string, of: string) => `${review} · Review ${of}`,
 };

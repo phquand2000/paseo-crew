@@ -11,7 +11,8 @@ export function lastToolCall(timeline: Timeline): Record<string, unknown> | unde
   for (let index = timeline.length - 1; index >= 0; index--) {
     const item = timeline[index];
     if (item?.type === "user_message") return undefined;
-    if (item?.type === "tool_call") return { name: item.name, status: item.status, error: item.error, detail: item.detail };
+    if (item?.type === "tool_call")
+      return { name: item.name, status: item.status, error: item.error, detail: item.detail };
   }
   return undefined;
 }
@@ -42,7 +43,8 @@ export function deniedCall(timeline: Timeline, refused: string): LastCall | unde
   const call = turn[lastTool];
   if (!call) return undefined;
   const denied = call.status === "failed" && new RegExp(refused, "i").test(JSON.stringify(call.error ?? ""));
-  const unanswered = call.status !== "completed" && turn.slice(lastTool + 1).every((item) => item.type !== "assistant_message");
+  const unanswered =
+    call.status !== "completed" && turn.slice(lastTool + 1).every((item) => item.type !== "assistant_message");
   if (!denied && !unanswered) return undefined;
   const after = turn
     .slice(lastTool + 1)
@@ -51,7 +53,8 @@ export function deniedCall(timeline: Timeline, refused: string): LastCall | unde
     .join("");
   if (after.trim().length > QUIET_CHARS) return undefined;
   const detail = (call.detail ?? {}) as Record<string, unknown>;
-  const what = typeof detail.command === "string" ? detail.command : typeof detail.filePath === "string" ? detail.filePath : "";
+  const what =
+    typeof detail.command === "string" ? detail.command : typeof detail.filePath === "string" ? detail.filePath : "";
   return { what: [String(call.name ?? "tool"), what].filter(Boolean).join(": "), refused: denied };
 }
 

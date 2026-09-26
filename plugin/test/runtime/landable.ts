@@ -9,7 +9,14 @@ export async function laneWith(files: Record<string, string>, askFirst: string[]
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "true", askFirst });
-  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a cart", acceptance: ["a"], outOfScope: ["the rest"], writeSet: ["a.txt", "src/**"], isolate });
+  const opened = await h.call(sup, "supervisor", "open_lane", {
+    title: "Cart",
+    outcome: "a cart",
+    acceptance: ["a"],
+    outOfScope: ["the rest"],
+    writeSet: ["a.txt", "src/**"],
+    isolate,
+  });
   assert.equal(opened.ok, true, opened.text);
   const lane = h.ledger().lanes.L1!;
   const work = (more: Record<string, string>) => {
@@ -25,7 +32,14 @@ export async function laneWith(files: Record<string, string>, askFirst: string[]
   await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   h.agents.get(lane.lead!)!.status = "idle";
   const land = () => h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  return { h, sup, lane, work, land, onMain: (path: string) => h.git(h.root, "ls-tree", "--name-only", "-r", "main").split("\n").includes(path) };
+  return {
+    h,
+    sup,
+    lane,
+    work,
+    land,
+    onMain: (path: string) => h.git(h.root, "ls-tree", "--name-only", "-r", "main").split("\n").includes(path),
+  };
 }
 
 export const risky = { "src/auth/login.ts": "export const login = 1;\n" };

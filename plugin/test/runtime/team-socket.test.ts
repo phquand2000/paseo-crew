@@ -36,7 +36,8 @@ async function line(path: string) {
 }
 
 const within = async (ms: number, check: () => boolean) => {
-  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 10))) if (Date.now() > end) return false;
+  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 10)))
+    if (Date.now() > end) return false;
   return true;
 };
 
@@ -75,7 +76,10 @@ test("a line is known by its key: its calls are that agent's, answered on the li
   seat.say({ type: "call", id: "7", tool: "accept", args: { task: "L1-T1" } });
   assert.ok(await within(2000, () => asked.length === 1));
   const { request } = asked[0]!;
-  assert.deepEqual({ agent: request.agent, role: request.role, tool: request.tool, args: request.args, cwd: request.cwd }, { agent: "agent-1", role: "lead", tool: "accept", args: { task: "L1-T1" }, cwd: "/work" });
+  assert.deepEqual(
+    { agent: request.agent, role: request.role, tool: request.tool, args: request.args, cwd: request.cwd },
+    { agent: "agent-1", role: "lead", tool: "accept", args: { task: "L1-T1" }, cwd: "/work" },
+  );
   assert.equal(socket.calling("agent-1"), true, "waited on while it runs");
   asked[0]!.answer({ ok: true, text: "queued" });
   assert.ok(await within(2000, () => seat.heard.length === 2));
@@ -99,7 +103,11 @@ test("a call its harness stopped before the answer is mailed by the desk when it
   assert.ok(await within(2000, () => asked.length === 2));
   asked[1]!.answer({ ok: true, text: "all well" });
   assert.ok(await within(2000, () => seat.heard.some((said) => said.id === "2")));
-  assert.equal(seat.heard.some((said) => said.id === "1"), false, "nothing is answered on the line for a stopped call");
+  assert.equal(
+    seat.heard.some((said) => said.id === "1"),
+    false,
+    "nothing is answered on the line for a stopped call",
+  );
   seat.say({ type: "cancel", id: "2" });
   assert.ok(await within(2000, () => lost.length === 1));
   assert.deepEqual([lost[0]![0].tool, lost[0]![1]], ["status", { ok: true, text: "all well" }]);

@@ -17,7 +17,7 @@ type Keep = { id: string; title: string; file: string } & (
 );
 
 function neverList(text: string): string {
-  return (text.split("\n## Never\n")[1] ?? "").split("\n## ")[0];
+  return (text.split("\n## Never\n")[1] ?? "").split("\n## ")[0] ?? "";
 }
 
 function denies(text: string, tool: string): boolean {

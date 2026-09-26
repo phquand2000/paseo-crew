@@ -11,7 +11,13 @@ export function markGone(ctx: DeskContext, project: Project, agentId: string): v
 }
 
 /** Lets a seat of the team go: its binding says so before Paseo archives it, which waits for a turn under way unless forced. */
-export async function letGo(ctx: DeskContext, roster: Roster, project: Project, agentId: string | undefined, force = false): Promise<void> {
+export async function letGo(
+  ctx: DeskContext,
+  roster: Roster,
+  project: Project,
+  agentId: string | undefined,
+  force = false,
+): Promise<void> {
   if (!agentId) return;
   markGone(ctx, project, agentId);
   await roster.archive(agentId, force);

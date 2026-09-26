@@ -86,7 +86,9 @@ function meet(a: string[], b: string[]): boolean {
 }
 
 function patternsOverlap(a: string, b: string): boolean {
-  return alternatives(normalize(a)).some((left) => alternatives(normalize(b)).some((right) => meet(left.split("/"), right.split("/"))));
+  return alternatives(normalize(a)).some((left) =>
+    alternatives(normalize(b)).some((right) => meet(left.split("/"), right.split("/"))),
+  );
 }
 
 export function firstOverlap(left: string[], right: string[]): string | undefined {

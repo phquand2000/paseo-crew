@@ -16,7 +16,8 @@ const kit = makeKit();
 /** A repository whose main holds a test with two assertions, and a lane branch the test writes on. */
 function shop() {
   const root = tempDir("sw2-landing-");
-  const git = (...args: string[]) => execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   const write = (path: string, text: string) => {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), text);
@@ -34,15 +35,45 @@ function shop() {
     git("commit", "-qm", "work");
   };
   const project: Project = { root, slug: "shop-abc123", state: tempDir("sw2-landing-state-") };
-  const lane = { id: "L1", title: "Cart", outcome: "a cart", acceptance: [], outOfScope: [], base: "main", branch: "lane/l1", writeSet: ["src/**", "test/**"], contracts: [], opener: "sup", status: "open", openedAt: 0, tasks: 0, ready: { at: 0 } } as unknown as Lane;
+  const lane = {
+    id: "L1",
+    title: "Cart",
+    outcome: "a cart",
+    acceptance: [],
+    outOfScope: [],
+    base: "main",
+    branch: "lane/l1",
+    writeSet: ["src/**", "test/**"],
+    contracts: [],
+    opener: "sup",
+    status: "open",
+    openedAt: 0,
+    tasks: 0,
+    ready: { at: 0 },
+  } as unknown as Lane;
   const ledger = emptyLedger();
   ledger.lanes.L1 = lane;
   const asksFirst = (paths: string[]) => saveConfig(project.state, { ...loadConfig(project.state), askFirst: paths });
   return { root, git, write, commit, project, lane, ledger, asksFirst };
 }
 
-const task = (id: string, extra: Partial<Task>): Task =>
-  ({ id, lane: "L1", kind: "code", mode: "lane", title: `Task ${id}`, goal: "", acceptance: [], hints: [], holds: [], outOfScope: [], status: "merged", openedAt: 0, updatedAt: 0, silent: 0, ...extra }) as Task;
+const task = (id: string, extra: Partial<Task>): Task => ({
+  id,
+  lane: "L1",
+  kind: "code",
+  mode: "lane",
+  title: `Task ${id}`,
+  goal: "",
+  acceptance: [],
+  hints: [],
+  holds: [],
+  outOfScope: [],
+  status: "merged",
+  openedAt: 0,
+  updatedAt: 0,
+  silent: 0,
+  ...extra,
+});
 
 test("a lane brings what it changed since it left its base, however far the base has moved since, and the gate", async () => {
   const { git, write, commit, project, lane, ledger } = shop();
@@ -55,8 +86,18 @@ test("a lane brings what it changed since it left its base, however far the base
   git("checkout", "-q", "lane/l1");
   const change = await changeOf(project, lane);
   assert.deepEqual(change.files, ["src/cart.ts", "test/cart.test.ts"], "main's own change since is not the lane's");
-  assert.deepEqual(await landFacts(kit, project, ledger, lane, change, passed), ["1 commit; 2 files, 5 lines changed.", "Gate: passed on the lane.", "Tests changed: test/cart.test.ts.", "No review of the whole lane is on record."]);
-  assert.deepEqual(await landFacts(kit, project, ledger, lane, change, { set: false, ok: true }), ["1 commit; 2 files, 5 lines changed.", "Gate: none set, so nothing ran the lane's checks.", "Tests changed: test/cart.test.ts.", "No review of the whole lane is on record."]);
+  assert.deepEqual(await landFacts(kit, project, ledger, lane, change, passed), [
+    "1 commit; 2 files, 5 lines changed.",
+    "Gate: passed on the lane.",
+    "Tests changed: test/cart.test.ts.",
+    "No review of the whole lane is on record.",
+  ]);
+  assert.deepEqual(await landFacts(kit, project, ledger, lane, change, { set: false, ok: true }), [
+    "1 commit; 2 files, 5 lines changed.",
+    "Gate: none set, so nothing ran the lane's checks.",
+    "Tests changed: test/cart.test.ts.",
+    "No review of the whole lane is on record.",
+  ]);
 });
 
 test("everything the desk reads of a lane goes with it as evidence, and none of it holds the landing", async () => {
@@ -67,17 +108,60 @@ test("everything the desk reads of a lane goes with it as evidence, and none of 
   write("docs/notes.md", "x\n".repeat(600));
   write("package-lock.json", `${"{}\n".repeat(900)}`);
   commit();
-  ledger.tasks["L1-T1"] = task("L1-T1", { handback: { file: "", outcome: "complete", summary: "", at: 0, gate: { ok: false, note: "npm test: the gate failed with exit 1" } } });
-  ledger.tasks["L1-R1"] = task("L1-R1", { kind: "review", status: "done", handback: { file: "", outcome: "changes", summary: "", at: 0 } });
+  ledger.tasks["L1-T1"] = task("L1-T1", {
+    handback: {
+      file: "",
+      outcome: "complete",
+      summary: "",
+      at: 0,
+      gate: { ok: false, note: "npm test: the gate failed with exit 1" },
+    },
+  });
+  ledger.tasks["L1-R1"] = task("L1-R1", {
+    kind: "review",
+    status: "done",
+    handback: { file: "", outcome: "changes", summary: "", at: 0 },
+  });
   saveIncidents(project.state, {
     next: 3,
     items: {
-      I1: { id: "I1", seat: "peer-1", where: "w", lane: "L1", task: "L1-T1", kind: "test-weakened", level: "attend", quote: "q", facts: [], opened: 0, last: 0, count: 1, open: true },
-      I2: { id: "I2", seat: "peer-2", where: "w", lane: "L2", kind: "destructive", level: "page", quote: "q", facts: [], opened: 0, last: 0, count: 1, open: true },
+      I1: {
+        id: "I1",
+        seat: "peer-1",
+        where: "w",
+        lane: "L1",
+        task: "L1-T1",
+        kind: "test-weakened",
+        level: "attend",
+        quote: "q",
+        facts: [],
+        opened: 0,
+        last: 0,
+        count: 1,
+        open: true,
+      },
+      I2: {
+        id: "I2",
+        seat: "peer-2",
+        where: "w",
+        lane: "L2",
+        kind: "destructive",
+        level: "page",
+        quote: "q",
+        facts: [],
+        opened: 0,
+        last: 0,
+        count: 1,
+        open: true,
+      },
     },
   });
   const change = await changeOf(project, lane);
-  assert.deepEqual(askFirstHits(project, change), [], "a project whose Human asked to be asked about nothing lands everything the Supervisor lands");
+  assert.deepEqual(
+    askFirstHits(project, change),
+    [],
+    "a project whose Human asked to be asked about nothing lands everything the Supervisor lands",
+  );
   assert.deepEqual(await landFacts(kit, project, ledger, lane, change, { set: true, ok: false }), [
     "1 commit; 5 files, 604 lines changed.",
     "Gate: failed on the lane.",
@@ -100,10 +184,14 @@ test("a landing waits for the Human only where it changes a path they asked to b
   write("db/001.sql", "create table t (id int);\n");
   commit();
   asksFirst(["src/auth", "**/*.sql", "infra/"]);
-  assert.deepEqual(askFirstHits(project, await changeOf(project, lane)), [
-    "It changes src/auth/login.ts, under src/auth, which the Human asked to be asked about first.",
-    "It changes db/001.sql, under **/*.sql, which the Human asked to be asked about first.",
-  ], "a plain path covers what is under it, and only on a path boundary");
+  assert.deepEqual(
+    askFirstHits(project, await changeOf(project, lane)),
+    [
+      "It changes src/auth/login.ts, under src/auth, which the Human asked to be asked about first.",
+      "It changes db/001.sql, under **/*.sql, which the Human asked to be asked about first.",
+    ],
+    "a plain path covers what is under it, and only on a path boundary",
+  );
 });
 
 test("standing orders the desk cannot read hold every landing for the Human rather than letting it through", async () => {
@@ -112,7 +200,10 @@ test("standing orders the desk cannot read hold every landing for the Human rath
   commit();
   mkdirSync(project.state, { recursive: true });
   writeFileSync(configFile(project.state), "{ not json");
-  assert.match(askFirstHits(project, await changeOf(project, lane)).join("\n"), /^The Human's standing orders cannot be read \(.*project\.json is there but could not be read.*\), so no landing goes ahead without them\.$/);
+  assert.match(
+    askFirstHits(project, await changeOf(project, lane)).join("\n"),
+    /^The Human's standing orders cannot be read \(.*project\.json is there but could not be read.*\), so no landing goes ahead without them\.$/,
+  );
 });
 
 test("a lane carried on a branch with history of its own brings only what it did there", async () => {
@@ -124,6 +215,10 @@ test("a lane carried on a branch with history of its own brings only what it did
   commit();
   asksFirst(["src/auth"]);
   const change = await changeOf(project, onBranch);
-  assert.deepEqual(change.files, ["src/cart.ts"], "the branch's commits from before the lane are the Human's, not the lane's");
+  assert.deepEqual(
+    change.files,
+    ["src/cart.ts"],
+    "the branch's commits from before the lane are the Human's, not the lane's",
+  );
   assert.deepEqual(askFirstHits(project, change), []);
 });

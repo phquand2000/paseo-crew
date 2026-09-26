@@ -19,13 +19,26 @@ export const cut = defineTool({
     const { lane, task } = found;
     const updated = ctx.moveTask(project, task.id, "cut");
     if (updated === undefined) return no(`${task.id} is gone.`);
-    if (updated === "merging") return no(`${task.id} is being merged, and a cut would not stop its work landing. How the merge went arrives as mail.`);
+    if (updated === "merging")
+      return no(
+        `${task.id} is being merged, and a cut would not stop its work landing. How the merge went arrives as mail.`,
+      );
     if (typeof updated === "string") return no(`${task.id} is already ${updated}.`);
     await letGo(ctx, roster, project, task.peer, true);
-    const left = task.kind !== "code" ? undefined : task.mode === "parallel" ? { kept: await slots.release(project, task.slot, task.branch, lane.branch) } : await leaveCopy(lane, task);
+    const left =
+      task.kind !== "code"
+        ? undefined
+        : task.mode === "parallel"
+          ? { kept: await slots.release(project, task.slot, task.branch, lane.branch) }
+          : await leaveCopy(lane, task);
     const kept = left?.kept;
     ctx.event(project, { kind: "task.cut", task: task.id, reason: str(args.reason), kept });
-    const copy = task.mode === "parallel" || !left ? "" : left.refused ? ` The lane's working copy could not go back on ${lane.branch}: ${left.refused}.` : ` The lane's working copy is back on ${lane.branch}.`;
+    const copy =
+      task.mode === "parallel" || !left
+        ? ""
+        : left.refused
+          ? ` The lane's working copy could not go back on ${lane.branch}: ${left.refused}.`
+          : ` The lane's working copy is back on ${lane.branch}.`;
     const branch = kept ? ` Its branch ${kept} holds commits nothing else has and is kept.` : "";
     await startWaiting(desk, project, true);
     return ok(`${task.id} is cut and its agent stopped.${copy}${branch}`);

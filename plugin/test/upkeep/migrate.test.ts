@@ -32,17 +32,31 @@ function world(): MigrateContext & { file: string } {
 
 test("migrate drops only the settings this version refuses, names them by path, and keeps a copy", () => {
   const ctx = world();
-  const held = { roles: { lead: { harness: "claude", colour: "red" } }, shelf: { docs: true }, attention: { by: "nobody", tickSeconds: 60 }, critic: { key: "a-fake-key-dropped" } };
+  const held = {
+    roles: { lead: { harness: "claude", colour: "red" } },
+    shelf: { docs: true },
+    attention: { by: "nobody", tickSeconds: 60 },
+    critic: { key: "a-fake-key-dropped" },
+  };
   writeFileSync(ctx.file, JSON.stringify(held));
 
   const plan = migrationPlan(ctx);
-  assert.deepEqual(plan.steps.map((step) => [step.where, step.detail.slice().sort()]), [["machine", ["attention.by", "critic", "roles.lead.colour", "shelf"]]]);
+  assert.deepEqual(
+    plan.steps.map((step) => [step.where, step.detail.slice().sort()]),
+    [["machine", ["attention.by", "critic", "roles.lead.colour", "shelf"]]],
+  );
   assert.ok(!JSON.stringify(plan).includes("a-fake-key-dropped"), "a key it drops is named by its path, never shown");
 
   const after = migrate(ctx);
   assert.deepEqual(after.steps, []);
-  assert.deepEqual(JSON.parse(readFileSync(ctx.file, "utf-8")), { roles: { lead: { harness: "claude" } }, attention: { tickSeconds: 60 } });
-  assert.deepEqual(readdirSync(stateRoot(ctx.home)).filter((name) => name.includes(".bak-")), ["settings.json.bak-20260922-071230"]);
+  assert.deepEqual(JSON.parse(readFileSync(ctx.file, "utf-8")), {
+    roles: { lead: { harness: "claude" } },
+    attention: { tickSeconds: 60 },
+  });
+  assert.deepEqual(
+    readdirSync(stateRoot(ctx.home)).filter((name) => name.includes(".bak-")),
+    ["settings.json.bak-20260922-071230"],
+  );
   assert.deepEqual(JSON.parse(readFileSync(`${ctx.file}.bak-20260922-071230`, "utf-8")), held);
 });
 
@@ -50,7 +64,10 @@ test("migrate leaves a settings file that is not JSON for the owner to repair", 
   const ctx = world();
   writeFileSync(ctx.file, "{ roles: ");
   const plan = migrate(ctx);
-  assert.deepEqual(plan.steps.map((step) => [step.kind, step.auto]), [["settings", false]]);
+  assert.deepEqual(
+    plan.steps.map((step) => [step.kind, step.auto]),
+    [["settings", false]],
+  );
   assert.equal(readFileSync(ctx.file, "utf-8"), "{ roles: ");
 });
 
@@ -61,10 +78,23 @@ test("migrate names the seats started before this kit was loaded, and changes no
   const next = stampKit(ctx.kit, ctx.home, NOW + 60_000);
   assert.ok(next.since > since);
   ctx.live.push(
-    { provider: "sw2-lead-claude", slug: "shop-abc123", createdAt: new Date(NOW).toISOString(), name: "Lead · Claude Code" },
-    { provider: "sw2-peer-omp", slug: "shop-abc123", createdAt: new Date(NOW + 120_000).toISOString(), name: "Peer · Oh My Pi" },
+    {
+      provider: "sw2-lead-claude",
+      slug: "shop-abc123",
+      createdAt: new Date(NOW).toISOString(),
+      name: "Lead · Claude Code",
+    },
+    {
+      provider: "sw2-peer-omp",
+      slug: "shop-abc123",
+      createdAt: new Date(NOW + 120_000).toISOString(),
+      name: "Peer · Oh My Pi",
+    },
   );
   const plan = migrate(ctx);
-  assert.deepEqual(plan.steps.map((step) => [step.kind, step.auto, step.detail.slice(0, -1)]), [["seat", false, ["Lead · Claude Code"]]]);
+  assert.deepEqual(
+    plan.steps.map((step) => [step.kind, step.auto, step.detail.slice(0, -1)]),
+    [["seat", false, ["Lead · Claude Code"]]],
+  );
   assert.deepEqual(plan.done, []);
 });

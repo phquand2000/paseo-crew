@@ -54,7 +54,7 @@ export function serversFor(kit: Kit, team: Team, roleName: string, context: { no
   const seat = team.roles[roleName];
   if (!seat) return {};
   const desk = teamServer(kit, seat.role, context.socket, context.node, key);
-  const servers: McpServers = desk[TEAM_SERVER] && seat.harness.mcp.desk ? { [TEAM_SERVER]: { ...(desk[TEAM_SERVER] as object), ...seat.harness.mcp.desk } } : { ...desk };
+  const servers: McpServers = desk[TEAM_SERVER] && seat.harness.mcp.desk ? { [TEAM_SERVER]: { ...(desk[TEAM_SERVER]), ...seat.harness.mcp.desk } } : { ...desk };
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;
     const { entry } = state;

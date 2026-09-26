@@ -185,7 +185,7 @@ test("a lane closed in the project's own copy keeps that copy until its Lead sto
   h.agents.get(first.lead!)!.status = "idle";
   await h.endTurn(first.lead!, "stopping");
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "once it stops, the project's copy is back on its base");
-  const copy = h.ledger().slots[second.slot!]!.path;
+  const copy = h.ledger().slots[second.slot]!.path;
   h.commit(copy, "a.txt", "L2 work\n");
   assert.equal(h.git(h.root, "log", "-1", "--format=%s", second.branch).trim(), "edit a.txt", "and L2's commits are on L2's branch");
 

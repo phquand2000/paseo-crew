@@ -51,7 +51,8 @@ const outcomes: Outcome[] = jobs.map((job) => ({ job, answers: [] }));
 const queue = outcomes.flatMap((outcome) => Array.from({ length: runs }, () => outcome));
 await Promise.all(
   Array.from({ length: Number(values.jobs) }, async () => {
-    for (let next = queue.shift(); next; next = queue.shift()) next.answers.push(openedSkills(await ask(next.job.prompt)));
+    for (let next = queue.shift(); next; next = queue.shift())
+      next.answers.push(openedSkills(await ask(next.job.prompt)));
   }),
 );
 
@@ -62,7 +63,9 @@ for (const { job, answers } of outcomes) {
   if (!ok) failed++;
   const seen = answers.map((opened) => (opened === undefined ? "?" : `[${opened.join(",")}]`)).join(" ");
   const want = job.test.expect.length ? job.test.expect.join("|") : "none";
-  console.log(`${ok ? "ok  " : "FAIL"} ${job.role.padEnd(10)} ${right}/${runs} want ${want}${job.test.near ? ` not ${job.test.near}` : ""}  got ${seen}\n     ${job.test.brief}`);
+  console.log(
+    `${ok ? "ok  " : "FAIL"} ${job.role.padEnd(10)} ${right}/${runs} want ${want}${job.test.near ? ` not ${job.test.near}` : ""}  got ${seen}\n     ${job.test.brief}`,
+  );
 }
 console.log(`\n${outcomes.length - failed}/${outcomes.length} briefs right in at least half their runs`);
 process.exit(failed ? 1 : 0);

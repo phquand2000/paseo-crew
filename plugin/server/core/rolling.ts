@@ -68,7 +68,9 @@ function prune(roll: Rolling): void {
   let total = 0;
   for (const stamp of rolledStamps(names, roll).reverse()) {
     const plain = rolledName(roll, stamp);
-    const files = [plain, `${plain}.gz`, `${plain}.gz.part`].filter((name) => names.includes(name)).map((name) => join(roll.dir, name));
+    const files = [plain, `${plain}.gz`, `${plain}.gz.part`]
+      .filter((name) => names.includes(name))
+      .map((name) => join(roll.dir, name));
     for (const file of files) total += sizeOf(file);
     if (total > roll.keepBytes) for (const file of files) rmSync(file, { force: true });
   }
@@ -96,5 +98,11 @@ export function appendRolling(roll: Rolling, line: string): Promise<void> {
   const names = readdirSync(roll.dir);
   const loose = rolledStamps(names, roll).filter((stamp) => names.includes(rolledName(roll, stamp)));
   // Pruned once packed, so a roll still plain is not charged at its unpacked size.
-  return Promise.all(loose.slice(0, Math.max(0, loose.length - roll.plain)).map((stamp) => pack(join(roll.dir, rolledName(roll, stamp))))).finally(() => prune(roll)).then(() => undefined);
+  return Promise.all(
+    loose
+      .slice(0, Math.max(0, loose.length - roll.plain))
+      .map((stamp) => pack(join(roll.dir, rolledName(roll, stamp)))),
+  )
+    .finally(() => prune(roll))
+    .then(() => undefined);
 }

@@ -16,7 +16,14 @@ export type DeskEvent =
   | { kind: "lane.opened"; lane: string; lead: string; branch: string; base: string; slot: string }
   | { kind: "lane.halfOpen"; lane: string; status: LaneStatus; lead: string | null }
   | { kind: "lane.amended"; lane: string; fields: string[]; by: string }
-  | { kind: "lane.report"; lane: string; ready: boolean; gate: boolean | undefined; to: string | null; text: string | undefined }
+  | {
+      kind: "lane.report";
+      lane: string;
+      ready: boolean;
+      gate: boolean | undefined;
+      to: string | null;
+      text: string | undefined;
+    }
   | { kind: "lane.closed"; lane: string; land: boolean; landing: string; reason: string; writers: string[] }
   | { kind: "lane.inPlace"; branch: string; base: string }
   | { kind: "lane.onBranch"; branch: string; from?: string }
@@ -66,7 +73,17 @@ export type DeskEvent =
   | { kind: "incident.held"; id: string; held: Held }
   | { kind: "incident.told"; ids: string[]; to: string }
   | { kind: "incident.read"; agent: string; waiting: number }
-  | { kind: "incident.ack"; id: string; agent: string; verdict: NonNullable<Incident["label"]>; note: string | null; seat: string; finding: string; opened: number; last: number }
+  | {
+      kind: "incident.ack";
+      id: string;
+      agent: string;
+      verdict: NonNullable<Incident["label"]>;
+      note: string | null;
+      seat: string;
+      finding: string;
+      opened: number;
+      last: number;
+    }
   | { kind: "incident.lookup-failed"; error: string }
   | { kind: "incident.post-failed"; id: string; error: string }
   | { kind: "ledger.archived"; lanes: string[]; agents: number; asks: number; records: number }

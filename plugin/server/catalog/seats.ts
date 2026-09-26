@@ -173,7 +173,7 @@ function mcpState(harness: HarnessSpec, current: Json, servers: McpServers): Jso
   const next = clearMcp(harness, current);
   const { delivery, key } = harness.mcp;
   if (delivery !== "file" || !key) return next;
-  setPath(next, key.split("."), servers as Json);
+  setPath(next, key.split("."), servers);
   return next;
 }
 

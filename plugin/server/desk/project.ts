@@ -20,7 +20,17 @@ export type LaneHome = (typeof LANE_HOMES)[number];
  * `serialOnly` and `riskRules` are the project's own when it set them; without, the kit's hold, so a change to the kit reaches it.
  * `askFirst` is the Human's standing order: a landing that touches one of these paths waits for them.
  */
-export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly?: string[]; landAs: LandAs; laneHome?: LaneHome; askFirst: string[]; riskRules?: RiskRule[] };
+export type ProjectConfig = {
+  base?: string;
+  gate?: string;
+  gateTimeoutMinutes: number;
+  gateOn: GateOn;
+  serialOnly?: string[];
+  landAs: LandAs;
+  laneHome?: LaneHome;
+  askFirst: string[];
+  riskRules?: RiskRule[];
+};
 
 const cache = new Map<string, Project>();
 
@@ -85,7 +95,12 @@ export function gateCommands(root: string, gate: string | undefined, ecosystem: 
   } catch {}
   if (typeof body !== "string") return [gate];
   // The script's last command runs the tests; its runner is the program plus at most one word, never a path.
-  const words = body.split(/&&|\|\||;/).at(-1)!.trim().split(/\s+/).slice(0, 2);
+  const words = body
+    .split(/&&|\|\||;/)
+    .at(-1)!
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2);
   const runner = words.slice(0, words.findIndex((word) => !/^[\w@.:-]+$/.test(word)) >>> 0).join(" ");
   return runner && runner !== gate ? [gate, runner] : [gate];
 }
@@ -122,14 +137,24 @@ export function loadConfig(state: string): ProjectConfig {
  * Where the next lane works in a project whose own copy is free: as its call or the Human's standing choice says, or else the
  * question the Human answers first, which is real only over uncommitted work or a branch that is not the base.
  */
-export function laneHomeFor(asked: LaneHome | undefined, config: ProjectConfig, branch: string | undefined, work: string[] | undefined): LaneHome | { question: string } {
+export function laneHomeFor(
+  asked: LaneHome | undefined,
+  config: ProjectConfig,
+  branch: string | undefined,
+  work: string[] | undefined,
+): LaneHome | { question: string } {
   const chosen = asked ?? config.laneHome;
   if (chosen === "onBranch" || chosen === "isolate") return chosen;
   // A new branch here would be switched to over the Human's uncommitted work, so that choice cannot hold while there is some.
   if (!branch || !work || (chosen === "newBranch" && work.length === 0)) return "newBranch";
-  if (work.length > 0) return { question: `carry on ${branch} here (onBranch), a new branch that takes the uncommitted work along (onBranch with newBranch), or a copy of its own that leaves it where it is (isolate)` };
+  if (work.length > 0)
+    return {
+      question: `carry on ${branch} here (onBranch), a new branch that takes the uncommitted work along (onBranch with newBranch), or a copy of its own that leaves it where it is (isolate)`,
+    };
   if (!config.base || branch === config.base) return "newBranch";
-  return { question: `carry on ${branch} here (onBranch), a new branch off ${config.base} here (isolate false), or a copy of its own (isolate)` };
+  return {
+    question: `carry on ${branch} here (onBranch), a new branch off ${config.base} here (isolate false), or a copy of its own (isolate)`,
+  };
 }
 
 /** The paths only one writer at a time may write in this project. */

@@ -6,9 +6,16 @@ import { test } from "node:test";
 import { type UpdateContext, applyUpdate, checkUpdate } from "../../server/upkeep/update.ts";
 import { tempDir } from "../tempdir.ts";
 
-const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+const env = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+};
 // Piped: git warns on stderr when it clones the empty origin, and a failure still carries what it said.
-const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { env, encoding: "utf-8", stdio: "pipe" }).trim();
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], { env, encoding: "utf-8", stdio: "pipe" }).trim();
 
 function commit(dir: string, files: Record<string, string>, subject: string): void {
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
@@ -23,7 +30,11 @@ function world() {
   const upstream = tempDir("sw2-up-");
   git(upstream, "clone", "-q", origin, ".");
   git(upstream, "checkout", "-q", "-b", "main");
-  commit(upstream, { "paseo-plugin.json": '{"requirements":{"paseo":">=0.8.0 <0.9.0"}}', "package.json": '{"version":"2.0.0"}' }, "Start");
+  commit(
+    upstream,
+    { "paseo-plugin.json": '{"requirements":{"paseo":">=0.8.0 <0.9.0"}}', "package.json": '{"version":"2.0.0"}' },
+    "Start",
+  );
   git(upstream, "push", "-q", "origin", "main");
   const dir = tempDir("sw2-plugin-");
   git(dir, "clone", "-q", origin, ".");
@@ -50,11 +61,17 @@ test("check lists what is new upstream and what the update will need, and moves 
   const { dir, ctx, publish } = world();
   const before = git(dir, "rev-parse", "HEAD");
   publish({ "a.txt": "a" }, "Add a");
-  publish({ "package.json": '{"dependencies":{"zod":"4"}}', "paseo-plugin.json": '{"requirements":{"paseo":">=0.9.0"}}' }, "Need zod and a newer Paseo");
+  publish(
+    { "package.json": '{"dependencies":{"zod":"4"}}', "paseo-plugin.json": '{"requirements":{"paseo":">=0.9.0"}}' },
+    "Need zod and a newer Paseo",
+  );
 
   const view = await checkUpdate(ctx);
   assert.deepEqual([view.behind, view.ahead, view.blocked], [2, 0, null]);
-  assert.deepEqual(view.commits.map((entry) => entry.subject), ["Need zod and a newer Paseo", "Add a"]);
+  assert.deepEqual(
+    view.commits.map((entry) => entry.subject),
+    ["Need zod and a newer Paseo", "Add a"],
+  );
   assert.deepEqual([view.installs, view.paseo], [true, ">=0.9.0"]);
   assert.equal(git(dir, "rev-parse", "HEAD"), before);
 });
@@ -116,6 +133,13 @@ test("an install that fails puts the checkout back where it was", async () => {
 
 test("a copy Paseo installed from Git is left to Paseo's own update", async () => {
   const { ctx } = world();
-  const view = await checkUpdate({ ...ctx, dir: "/home/me/.paseo/plugins/seatworks-v2/abc/checkout/plugin", managedRoot: "/home/me/.paseo/plugins" });
-  assert.equal(view.blocked, "Paseo installed this copy from Git: run `paseo plugin update seatworks-v2 --ref <branch>`, naming the branch it came from, since without --ref Paseo takes the remote's default branch.");
+  const view = await checkUpdate({
+    ...ctx,
+    dir: "/home/me/.paseo/plugins/seatworks-v2/abc/checkout/plugin",
+    managedRoot: "/home/me/.paseo/plugins",
+  });
+  assert.equal(
+    view.blocked,
+    "Paseo installed this copy from Git: run `paseo plugin update seatworks-v2 --ref <branch>`, naming the branch it came from, since without --ref Paseo takes the remote's default branch.",
+  );
 });

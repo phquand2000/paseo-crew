@@ -37,7 +37,11 @@ export class Agents {
 
   /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
   private marks(role: RoleSpec, project: Project): Record<string, string> {
-    return { "seatworks.project": project.slug, "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) };
+    return {
+      "seatworks.project": project.slug,
+      "seatworks.role": role.role,
+      ...(role.concern ? { "seatworks.concern": role.concern } : {}),
+    };
   }
 
   /** A seat that belongs to the project rather than to a lane: it sits in the project's own workspace. */
@@ -54,7 +58,12 @@ export class Agents {
     return started.id;
   }
 
-  async start(project: Project, slot: Pick<Slot, "path" | "workspaceId">, roleName: string, options: StartOptions): Promise<string> {
+  async start(
+    project: Project,
+    slot: Pick<Slot, "path" | "workspaceId">,
+    roleName: string,
+    options: StartOptions,
+  ): Promise<string> {
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
     const { role, config } = this.seatConfig(project, roleName);
     const started = await this.workspaces.seat(slot.workspaceId, {
@@ -77,13 +86,23 @@ export class Agents {
     await letGo(this.ctx, this.roster, project, task.peer);
     if (task.kind !== "code") return undefined;
     // A task in the lane's copy leaves only its branch: dropped once `into` holds all of it, kept and named while it holds more.
-    if (task.mode !== "parallel") return task.branch && into && !(await dropMerged(project.root, task.branch, into)) && (await contains(project.root, into, task.branch)) === false ? task.branch : undefined;
+    if (task.mode !== "parallel")
+      return task.branch &&
+        into &&
+        !(await dropMerged(project.root, task.branch, into)) &&
+        (await contains(project.root, into, task.branch)) === false
+        ? task.branch
+        : undefined;
     // Everyone sharing the copy, not only this Peer: a reviewer reads from it too, and removing it loses the verdict.
     const sharing = task.slot
-      ? Object.values(loadLedger(project.state).tasks).filter((other) => other.id !== task.id && other.slot === task.slot && other.status === "running")
+      ? Object.values(loadLedger(project.state).tasks).filter(
+          (other) => other.id !== task.id && other.slot === task.slot && other.status === "running",
+        )
       : [];
     for (const other of sharing) await letGo(this.ctx, this.roster, project, other.peer);
-    const writing = [task.peer, ...sharing.map((other) => other.peer)].filter((id): id is string => typeof id === "string" && this.roster.archiving(id));
+    const writing = [task.peer, ...sharing.map((other) => other.peer)].filter(
+      (id): id is string => typeof id === "string" && this.roster.archiving(id),
+    );
     return this.slots.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
   }
 }

@@ -11,20 +11,40 @@ test("a seat asking for status again with nothing changed is told to end its tur
   t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
   const status = (seat: string, role: string) => h.call(seat, role, "status", {});
   assert.match((await status(lane.lead!, "lead")).text, /L1-T1/);
-  assert.equal((await status(lane.lead!, "lead")).text, "Nothing has changed since you last asked: end your turn, and mail wakes you when something does.");
+  assert.equal(
+    (await status(lane.lead!, "lead")).text,
+    "Nothing has changed since you last asked: end your turn, and mail wakes you when something does.",
+  );
   assert.match((await status(sup, "supervisor")).text, /Lane L1/, "each seat is judged by what it was shown itself");
 
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Receipt", goal: "g", acceptance: ["a"], holds: ["b.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lead!, "lead", "add_tasks", {
+    tasks: [
+      {
+        key: "t",
+        title: "Receipt",
+        goal: "g",
+        acceptance: ["a"],
+        holds: ["b.txt"],
+        outOfScope: ["the rest"],
+        parallel: true,
+      },
+    ],
+  });
   assert.match((await status(lane.lead!, "lead")).text, /L1-T2/, "a new task is a change");
 });
 
 test("mail left for a seat that is gone is shown with when it is given up on, as no other seat is sent it", async () => {
   const { h, peer } = await laneWithPeer();
   h.agents.get(peer)!.status = "running";
-  await h.runtime.desk.post(peer, { key: "message:gone", text: "Stop: the premise is wrong.\n\nNext: say so with ask." });
+  await h.runtime.desk.post(peer, {
+    key: "message:gone",
+    text: "Stop: the premise is wrong.\n\nNext: say so with ask.",
+  });
   Object.assign(h.agents.get(peer)!, { archivedAt: new Date().toISOString(), status: "closed" });
   await h.tick();
-  const section = new RegExp(`## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Stop: the premise is wrong\.`);
+  const section = new RegExp(
+    `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Stop: the premise is wrong\.`,
+  );
   assert.match(readFileSync(join(h.project.state, "status.md"), "utf-8"), section, "in the page the round writes");
   assert.match((await h.rpc(contracts.status, { project: h.project.slug })).text, section, "and on the panel");
 });

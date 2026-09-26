@@ -7,7 +7,12 @@ import { loadLedger } from "../ledger.ts";
 import { defineTool } from "../services.ts";
 
 /** Words as a quote is checked: spacing, a closing stop and case do not count. */
-const flat = (text: string) => text.replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "").toLowerCase();
+const flat = (text: string) =>
+  text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/, "")
+    .toLowerCase();
 
 /** Puts an answer the Human gave in this chat on record, once their own words are found there. */
 export const recordHumanAnswer = defineTool({
@@ -17,15 +22,27 @@ export const recordHumanAnswer = defineTool({
     const { project } = caller;
     const id = args.question.trim().toUpperCase();
     const quote = flat(args.quote);
-    const said = (await roster.history(caller.id, 200)).flatMap(({ item }) => (item.type === "user_message" && sentBy(item)[0] === "person" && typeof item.text === "string" ? [flat(item.text)] : []));
+    const said = (await roster.history(caller.id, 200)).flatMap(({ item }) =>
+      item.type === "user_message" && sentBy(item)[0] === "person" && typeof item.text === "string"
+        ? [flat(item.text)]
+        : [],
+    );
     if (!quote || !said.some((text) => text.includes(quote))) {
-      return no(`The Human's own words "${clip(str(args.quote), 200)}" are not in this chat as far back as the desk reads: quote what they wrote exactly, or put it to them with ask_human.`);
+      return no(
+        `The Human's own words "${clip(str(args.quote), 200)}" are not in this chat as far back as the desk reads: quote what they wrote exactly, or put it to them with ask_human.`,
+      );
     }
     const choice = args.choice.trim();
-    const recorded = settleQuestion(ctx, project, id, choice, { text: str(args.text) || undefined, by: "chat", quote: str(args.quote) });
+    const recorded = settleQuestion(ctx, project, id, choice, {
+      text: str(args.text) || undefined,
+      by: "chat",
+      quote: str(args.quote),
+    });
     if (typeof recorded === "string") return no(recorded);
     const lane = recorded.parked && recorded.lane ? loadLedger(project.state).lanes[recorded.lane] : undefined;
-    const held = lane?.onHold ? ` Lane ${lane.id} is still on hold for it: resume_lane it once the answer is carried into the lane.` : "";
+    const held = lane?.onHold
+      ? ` Lane ${lane.id} is still on hold for it: resume_lane it once the answer is carried into the lane.`
+      : "";
     return ok(`${id} is ${recorded.status}: ${choice}.${held}`);
   },
 });

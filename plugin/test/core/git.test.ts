@@ -12,9 +12,14 @@ import { tempDir } from "../tempdir.ts";
 
 const kinds = fileKinds(makeKit());
 
-function repo(): { root: string; run: (...args: string[]) => string; commit: (file: string, text: string, message: string) => void } {
+function repo(): {
+  root: string;
+  run: (...args: string[]) => string;
+  commit: (file: string, text: string, message: string) => void;
+} {
   const root = tempDir("sw2-git-");
-  const run = (...args: string[]) => execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
+  const run = (...args: string[]) =>
+    execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   const commit = (file: string, text: string, message: string) => {
     writeFileSync(join(root, file), text);
     run("add", file);
@@ -34,7 +39,11 @@ test("a task branch merges into the lane and main fast-forwards to it", async ()
   const merged = await mergeBranch(root, "task/l1-t1", "Merge L1-T1");
   assert.equal(merged.ok, true);
   run("checkout", "-q", "main");
-  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "ff", message: "", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, {
+    as: "ff",
+    message: "",
+    keep: "refs/seatworks/lanes/L1",
+  });
   assert.equal(landed.landed, true);
   assert.equal(await headSha(root, "main"), await headSha(root, "lane/l1"));
 });
@@ -52,7 +61,11 @@ async function laneOfTwo(onMain: boolean) {
 test("a lane lands squashed as one commit on main, the tree the gate saw, with its steps kept under a hidden ref", async () => {
   for (const onMain of [true, false]) {
     const { root, run, main, tip } = await laneOfTwo(onMain);
-    const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "squash", message: "Cart (L1)\n\nTotals add up", keep: "refs/seatworks/lanes/L1" });
+    const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, {
+      as: "squash",
+      message: "Cart (L1)\n\nTotals add up",
+      keep: "refs/seatworks/lanes/L1",
+    });
     assert.equal(landed.landed, true, landed.how);
     assert.equal(run("rev-parse", "main^").trim(), main, "one commit, straight on the main it was gated against");
     assert.equal(run("rev-parse", "main^{tree}").trim(), run("rev-parse", "lane/l1^{tree}").trim());
@@ -64,7 +77,11 @@ test("a lane lands squashed as one commit on main, the tree the gate saw, with i
 
 test("a lane lands as a merge commit whose second parent is the lane", async () => {
   const { root, run, main, tip } = await laneOfTwo(true);
-  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "merge", message: "Cart (L1)", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, {
+    as: "merge",
+    message: "Cart (L1)",
+    keep: "refs/seatworks/lanes/L1",
+  });
   assert.equal(landed.landed, true, landed.how);
   assert.deepEqual(run("log", "-1", "--format=%P", "main").trim().split(" "), [main, tip]);
   assert.equal(run("status", "--porcelain").trim(), "", "the main copy follows its branch");
@@ -77,10 +94,18 @@ test("a lane that changes nothing lands without an empty commit", async () => {
   commit("a.txt", "one\n", "undo");
   run("checkout", "-q", "main");
   const before = await headSha(root, "main");
-  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, { as: "squash", message: "Nothing (L1)", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", (await headSha(root, "lane/l1"))!, {
+    as: "squash",
+    message: "Nothing (L1)",
+    keep: "refs/seatworks/lanes/L1",
+  });
   assert.equal(landed.landed, true, landed.how);
   assert.equal(await headSha(root, "main"), before);
-  assert.equal(await contains(root, "refs/seatworks/lanes/L1", "lane/l1"), true, "its commits are kept all the same, so its branch can go");
+  assert.equal(
+    await contains(root, "refs/seatworks/lanes/L1", "lane/l1"),
+    true,
+    "its commits are kept all the same, so its branch can go",
+  );
 });
 
 test("a lane that does not contain main is not landed: that merge would be one no gate saw", async () => {
@@ -90,7 +115,11 @@ test("a lane that does not contain main is not landed: that merge would be one n
   run("checkout", "-q", "main");
   commit("d.txt", "main\n", "main moved");
   const before = await headSha(root, "main");
-  const landed = await landLane(root, "main", "lane/l2", (await headSha(root, "lane/l2"))!, { as: "squash", message: "x", keep: "refs/seatworks/lanes/L2" });
+  const landed = await landLane(root, "main", "lane/l2", (await headSha(root, "lane/l2"))!, {
+    as: "squash",
+    message: "x",
+    keep: "refs/seatworks/lanes/L2",
+  });
   assert.equal(landed.landed, false);
   assert.match(landed.how, /does not contain main/);
   assert.equal(await headSha(root, "main"), before);
@@ -117,14 +146,24 @@ test("lines are counted as source, tests or docs, and the files a list of paths 
   assert.equal(kindOf("src/main/java/OrderServiceTest.java", kinds), "test");
   assert.equal(kindOf("docs/design.md", kinds), "docs");
   assert.equal(kindOf("pkg/cart_test.go", kinds), "test");
-  assert.equal(kindOf("pkg/cart_TEST.go", kinds), "src", "a Go or Python test file's name is matched as its tools match it, case and all");
+  assert.equal(
+    kindOf("pkg/cart_TEST.go", kinds),
+    "src",
+    "a Go or Python test file's name is matched as its tools match it, case and all",
+  );
   assert.equal(kindOf("src/main/java/OrderServicetest.java", kinds), "src");
   const counts = countNumstat(["10\t2\tsrc/a.js", "5\t0\ttest/a.test.js", "3\t3\tREADME.md", ""].join("\0"), kinds);
   assert.deepEqual({ src: counts.src, test: counts.test, docs: counts.docs }, { src: 12, test: 5, docs: 6 });
   assert.deepEqual(uncovered(["src/a.js", "src/b/c.js", "lib/x.js"], ["src/a.js", "src/b/"]), ["lib/x.js"]);
-  assert.deepEqual(uncovered(["src/apparel/secret.ts"], ["src/app"]), ["src/apparel/secret.ts"], "src/app covers nothing of src/apparel");
+  assert.deepEqual(
+    uncovered(["src/apparel/secret.ts"], ["src/app"]),
+    ["src/apparel/secret.ts"],
+    "src/app covers nothing of src/apparel",
+  );
   // A write set as a Supervisor writes it: a glob from the front, and a choice of extensions.
-  assert.deepEqual(uncovered(["test/cart.test.js", "src/cart.ts", "src/cart.md"], ["**/test*/**", "**/*.{js,ts}"]), ["src/cart.md"]);
+  assert.deepEqual(uncovered(["test/cart.test.js", "src/cart.ts", "src/cart.md"], ["**/test*/**", "**/*.{js,ts}"]), [
+    "src/cart.md",
+  ]);
 });
 
 test("a rename is counted as the two real paths it moved between, not as git's display form", async () => {
@@ -136,14 +175,19 @@ test("a rename is counted as the two real paths it moved between, not as git's d
   run("commit", "-qm", "rename it");
 
   const counts = (await diffCounts(root, before, "HEAD", kinds))!;
-  assert.deepEqual(counts.files.sort(), ["src/price.ts", "src/pricing.ts"], "both sides are real paths a seat can open");
+  assert.deepEqual(
+    counts.files.sort(),
+    ["src/price.ts", "src/pricing.ts"],
+    "both sides are real paths a seat can open",
+  );
   // A task beside others holding both sides of this rename wrote nowhere else, so its Lead must not be told it did.
   assert.deepEqual(uncovered(counts.files, ["src/pricing.ts", "src/price.ts"]), []);
 });
 
 test("a path with a character outside ASCII is read back as itself, not as git's escaped form", async () => {
   const root = tempDir("sw2-quotepath-");
-  const run = (...args: string[]) => execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
+  const run = (...args: string[]) =>
+    execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   run("init", "-q", "-b", "main");
   run("commit", "-q", "--allow-empty", "-m", "seed");
   mkdirSync(join(root, "src"), { recursive: true });
@@ -152,7 +196,11 @@ test("a path with a character outside ASCII is read back as itself, not as git's
   run("commit", "-qm", "add");
 
   const counts = (await diffCounts(root, "HEAD~1", "HEAD", kinds))!;
-  assert.deepEqual(counts.files, ["src/giá-trị.ts"], "the Lead is shown the file that changed, not an octal escape of it");
+  assert.deepEqual(
+    counts.files,
+    ["src/giá-trị.ts"],
+    "the Lead is shown the file that changed, not an octal escape of it",
+  );
   assert.equal(counts.src, 1);
   // And it is inside the paths a task holds, which the escaped form would not have been.
   assert.deepEqual(uncovered(counts.files, ["src/**"]), []);
@@ -169,9 +217,17 @@ test("whether a branch is already in another is answered from the branches, not 
   // main is what a plain `branch -d` would read here, and the task's work is not in main at all.
   run("checkout", "-q", "main");
 
-  assert.equal(await contains(root, "lane/l1", "task/l1-t1"), true, "everything on the task branch is in the lane branch");
+  assert.equal(
+    await contains(root, "lane/l1", "task/l1-t1"),
+    true,
+    "everything on the task branch is in the lane branch",
+  );
   assert.equal(await contains(root, "main", "task/l1-t1"), false);
-  assert.equal(await contains(root, "lane/l1", "task/gone"), undefined, "a branch that is not there is not an answer to delete on");
+  assert.equal(
+    await contains(root, "lane/l1", "task/gone"),
+    undefined,
+    "a branch that is not there is not an answer to delete on",
+  );
 });
 
 test("a lane that moved after its gate ran lands nothing: what would land is not what was tested", async () => {
@@ -182,7 +238,11 @@ test("a lane that moved after its gate ran lands nothing: what would land is not
   commit("b.txt", "after\n", "a commit after the gate");
   run("checkout", "-q", "main");
   const before = await headSha(root, "main");
-  const landed = await landLane(root, "main", "lane/l1", tested, { as: "squash", message: "x", keep: "refs/seatworks/lanes/L1" });
+  const landed = await landLane(root, "main", "lane/l1", tested, {
+    as: "squash",
+    message: "x",
+    keep: "refs/seatworks/lanes/L1",
+  });
   assert.equal(landed.landed, false);
   assert.match(landed.how, /moved after its gate ran/);
   assert.equal(await headSha(root, "main"), before);
@@ -213,7 +273,10 @@ test("a desk merge reads conflicts as git leaves them and makes its commit unsig
   run("checkout", "-q", "main");
   commit("a.txt", "lane side\n", "lane edit");
   // Settled once by hand: rerere records it and would settle it again by itself, leaving nothing unmerged to name.
-  assert.throws(() => run("merge", "-q", "task/l1-t2"), (error: { stdout?: string }) => /CONFLICT/.test(error.stdout ?? ""));
+  assert.throws(
+    () => run("merge", "-q", "task/l1-t2"),
+    (error: { stdout?: string }) => /CONFLICT/.test(error.stdout ?? ""),
+  );
   writeFileSync(join(root, "a.txt"), "both\n");
   run("commit", "-qam", "settled");
   run("reset", "-q", "--hard", "HEAD~1");
@@ -225,7 +288,11 @@ test("a desk merge reads conflicts as git leaves them and makes its commit unsig
   run("checkout", "-q", "main");
   run("config", "commit.gpgSign", "true");
   run("config", "gpg.program", "false");
-  assert.equal((await mergeBranch(root, "task/l1-t3", "Merge L1-T3")).ok, true, "a signer that needs the Human cannot stop a merge only the desk makes");
+  assert.equal(
+    (await mergeBranch(root, "task/l1-t3", "Merge L1-T3")).ok,
+    true,
+    "a signer that needs the Human cannot stop a merge only the desk makes",
+  );
 });
 
 test("a merge made without a checkout has the branch's own tree and both tips for parents, and moves nothing", async () => {
@@ -236,6 +303,9 @@ test("a merge made without a checkout has the branch's own tree and both tips fo
   run("checkout", "-q", "main");
   const made = (await mergeCommit(root, onto, "task/l1-t1", "Merge L1-T1: Two"))!;
   assert.equal(run("rev-parse", `${made}^{tree}`).trim(), run("rev-parse", "task/l1-t1^{tree}").trim());
-  assert.deepEqual(run("log", "-1", "--format=%P %an %s", made).trim(), `${onto} ${run("rev-parse", "task/l1-t1").trim()} seatworks Merge L1-T1: Two`);
+  assert.deepEqual(
+    run("log", "-1", "--format=%P %an %s", made).trim(),
+    `${onto} ${run("rev-parse", "task/l1-t1").trim()} seatworks Merge L1-T1: Two`,
+  );
   assert.equal(await headSha(root, "main"), onto, "main is where it was until something advances it");
 });

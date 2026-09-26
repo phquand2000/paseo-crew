@@ -3,9 +3,18 @@ import { mask } from "../core/mask.ts";
 import type { Answer, Judge, Judgement, Question } from "../core/ports.ts";
 
 /** Where and how a sensor is asked, as its catalog file says; `body` holds what goes with every request, such as data rules. */
-type Decisions = { url: string; model: string; body?: Record<string, unknown>; timeoutSeconds: number; retries: number };
+type Decisions = {
+  url: string;
+  model: string;
+  body?: Record<string, unknown>;
+  timeoutSeconds: number;
+  retries: number;
+};
 
-type Fetch = (url: string, init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal }) => Promise<{
+type Fetch = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal },
+) => Promise<{
   ok: boolean;
   status: number;
   headers: { get(name: string): string | null };
@@ -35,22 +44,33 @@ function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-const unit = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+const unit = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 
 /** A noul's probability, or a choice among the question's own criteria; a choice with no confidence is not sure of itself. */
-function answerOf(name: string, question: Question, answer: { noul?: unknown; choice?: unknown; confidence?: unknown }): Answer {
+function answerOf(
+  name: string,
+  question: Question,
+  answer: { noul?: unknown; choice?: unknown; confidence?: unknown },
+): Answer {
   if (question.type === "noul") {
     if (!unit(answer.noul)) throw new Error(`the answer to ${name} is not a probability`);
     return { noul: answer.noul };
   }
-  if (typeof answer.choice !== "string" || !Object.hasOwn(question.criteria, answer.choice)) throw new Error(`the answer to ${name} is not one of its choices`);
-  if (answer.confidence !== undefined && !unit(answer.confidence)) throw new Error(`the answer to ${name} has a confidence outside 0 to 1`);
+  if (typeof answer.choice !== "string" || !Object.hasOwn(question.criteria, answer.choice))
+    throw new Error(`the answer to ${name} is not one of its choices`);
+  if (answer.confidence !== undefined && !unit(answer.confidence))
+    throw new Error(`the answer to ${name} has a confidence outside 0 to 1`);
   return { choice: answer.choice, confidence: answer.confidence ?? 0 };
 }
 
 /** Every question answered as it was asked, or none: an answer with a question missing is not what was asked. */
 function readJudgement(body: unknown, questions: Record<string, Question>): Judgement {
-  const held = (body ?? {}) as { answers?: Record<string, { noul?: unknown; choice?: unknown; confidence?: unknown }>; model?: unknown; usage?: { input_tokens?: unknown } };
+  const held = (body ?? {}) as {
+    answers?: Record<string, { noul?: unknown; choice?: unknown; confidence?: unknown }>;
+    model?: unknown;
+    usage?: { input_tokens?: unknown };
+  };
   const answers: Record<string, Answer> = {};
   for (const [name, question] of Object.entries(questions)) {
     const answer = held.answers?.[name];
@@ -69,7 +89,15 @@ async function decide(spec: Decisions, key: string, body: string, fetcher: Fetch
     const late = `no answer within ${spec.timeoutSeconds} s`;
     let response: Awaited<ReturnType<Fetch>>;
     try {
-      response = await bounded(fetcher(spec.url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body, signal }), signal);
+      response = await bounded(
+        fetcher(spec.url, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body,
+          signal,
+        }),
+        signal,
+      );
     } catch (error) {
       if (attempt < spec.retries) {
         await pause(500 * 2 ** attempt);
@@ -84,13 +112,14 @@ async function decide(spec: Decisions, key: string, body: string, fetcher: Fetch
     }
     const after = Number(response.headers.get("retry-after"));
     const said = await bounded(response.text(), signal).catch(() => "");
-    if ((response.status !== 429 && response.status < 500) || attempt >= spec.retries) throw new Error(`${response.status}: ${mask(said.replace(/\s+/g, " ")).slice(0, 200)}`);
+    if ((response.status !== 429 && response.status < 500) || attempt >= spec.retries)
+      throw new Error(`${response.status}: ${mask(said.replace(/\s+/g, " ")).slice(0, 200)}`);
     await pause(Number.isFinite(after) && after > 0 ? Math.min(after, 10) * 1000 : 500 * 2 ** attempt);
   }
 }
 
 /** A sensor answering over HTTP. What goes with every request goes first, so it never replaces what is asked. */
-export function decisionsJudge(spec: Decisions, key: string, fetcher: Fetch = fetch as unknown as Fetch): Judge {
+export function decisionsJudge(spec: Decisions, key: string, fetcher: Fetch = fetch): Judge {
   return {
     async ask(state, questions) {
       const body = JSON.stringify({ ...spec.body, model: spec.model, state, questions });

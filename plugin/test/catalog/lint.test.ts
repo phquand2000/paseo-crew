@@ -47,7 +47,7 @@ test("every skill keeps within its budget, and its description says what it does
     const [, head = "", body = ""] = readFileSync(join(dir, "SKILL.md"), "utf-8").match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/) ?? [];
     const description = head.match(/^description:\s*"?(.*?)"?$/m)?.[1] ?? "";
     assert.ok(SKILL_BUDGET[name], `skill ${name} has no budget here: give it one`);
-    assert.ok(words(body) <= SKILL_BUDGET[name]!, `skill ${name}: ${words(body)} words, over ${SKILL_BUDGET[name]}`);
+    assert.ok(words(body) <= SKILL_BUDGET[name], `skill ${name}: ${words(body)} words, over ${SKILL_BUDGET[name]}`);
     assert.ok(description.length <= 450 && /Use when/.test(description) && /not for/i.test(description), `skill ${name}'s description: ${description.length} characters, and it needs "Use when" and "not for"`);
   }
 });

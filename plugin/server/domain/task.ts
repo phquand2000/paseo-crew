@@ -1,6 +1,7 @@
 import { Lifecycle, type Moves } from "./lifecycle.ts";
 
-export type TaskStatus = "waiting" | "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
+export type TaskStatus =
+  "waiting" | "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
 
 const IN_HAND: TaskStatus[] = ["running", "rework", "done", "failed", "stalled"];
 
@@ -34,5 +35,13 @@ export const SETTLED: readonly TaskStatus[] = ["merged", "cut"];
 export const IN_QUEUE: readonly TaskStatus[] = ["queued", "merging"];
 export const AT_WORK: readonly TaskStatus[] = ["running", "rework"];
 // A task in the lane's copy has it on its own branch from its start until it is merged or cut, a failed merge included.
-export const HOLDS_COPY: readonly TaskStatus[] = ["running", "rework", "done", "failed", "stalled", "queued", "merging"];
+export const HOLDS_COPY: readonly TaskStatus[] = [
+  "running",
+  "rework",
+  "done",
+  "failed",
+  "stalled",
+  "queued",
+  "merging",
+];
 export const ACTIVE: readonly TaskStatus[] = ["running", "rework", "queued", "merging"];

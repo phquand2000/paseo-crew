@@ -8,7 +8,13 @@ import { contentChanges, decide } from "../../server/upkeep/content.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
-const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+const env = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+};
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { env, encoding: "utf-8" });
 
 /** A kit in a repository, with the owner's state beside it, taken in once as it ships. */
@@ -29,7 +35,8 @@ async function world() {
   return { kit, state, ship };
 }
 
-const role = (kit: Awaited<ReturnType<typeof world>>["kit"], name: string) => kit.roles.find((entry) => entry.role === name)!;
+const role = (kit: Awaited<ReturnType<typeof world>>["kit"], name: string) =>
+  kit.roles.find((entry) => entry.role === name)!;
 const paths = { guides: "/g", state: "/s" };
 
 test("a changed prompt or skill is asked about; a changed guide or record is only told", async () => {
@@ -38,11 +45,14 @@ test("a changed prompt or skill is asked about; a changed guide or record is onl
   ship("skills/supervisor/plan-check/SKILL.md", "---\nname: plan-check\ndescription: checks a plan, better\n---\n");
   ship("guides/PLANS.md", "# Plans, rewritten\n");
   const changes = await contentChanges(kit, state);
-  assert.deepEqual(changes.map((change) => [change.unit, change.kind, change.keepable]), [
-    ["guides/PLANS.md", "guide", false],
-    ["prompts/LEAD.md", "prompt", true],
-    ["skills/supervisor/plan-check", "skill", true],
-  ]);
+  assert.deepEqual(
+    changes.map((change) => [change.unit, change.kind, change.keepable]),
+    [
+      ["guides/PLANS.md", "guide", false],
+      ["prompts/LEAD.md", "prompt", true],
+      ["skills/supervisor/plan-check", "skill", true],
+    ],
+  );
 });
 
 test("keep mine puts the version the owner had back in use, and the original changing again is still told", async () => {
@@ -54,12 +64,21 @@ test("keep mine puts the version the owner had back in use, and the original cha
   await decide(kit, state, "prompts/LEAD.md", "mine");
   await decide(kit, state, "skills/supervisor/plan-check", "mine");
   assert.equal(readFileSync(join(state, "own", "prompts", "LEAD.md"), "utf-8"), before);
-  assert.match(renderPrompt(kit, role(kit, "lead"), "claude", paths), new RegExp(before.split("\n")[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.equal(skillSources(kit, role(kit, "supervisor")).get("plan-check"), join(state, "own", "skills", "supervisor", "plan-check"));
+  assert.match(
+    renderPrompt(kit, role(kit, "lead"), "claude", paths),
+    new RegExp(before.split("\n")[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
+  assert.equal(
+    skillSources(kit, role(kit, "supervisor")).get("plan-check"),
+    join(state, "own", "skills", "supervisor", "plan-check"),
+  );
   assert.deepEqual(await contentChanges(kit, state), []);
 
   ship("prompts/LEAD.md", "A newer brief.");
-  assert.deepEqual((await contentChanges(kit, state)).map((change) => [change.unit, change.kept]), [["prompts/LEAD.md", true]]);
+  assert.deepEqual(
+    (await contentChanges(kit, state)).map((change) => [change.unit, change.kept]),
+    [["prompts/LEAD.md", true]],
+  );
 });
 
 test("use new sets the owner's copy aside instead of deleting it, and the shipped one is used again", async () => {

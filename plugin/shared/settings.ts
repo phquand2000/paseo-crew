@@ -33,17 +33,20 @@ export type RoleChoice = z.infer<typeof RoleChoice>;
 export type Connect = z.infer<typeof Connect>;
 export type McpChoice = z.infer<typeof McpChoice>;
 
-const Pattern = z.string().min(1).refine(
-  (value) => {
-    try {
-      new RegExp(value, "i");
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  { message: "that is not a pattern this machine can read" },
-);
+const Pattern = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      try {
+        new RegExp(value, "i");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "that is not a pattern this machine can read" },
+  );
 
 export const AttentionChoice = z.strictObject({
   tickSeconds: z.number().int().min(5).optional(),

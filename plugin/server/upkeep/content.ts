@@ -21,15 +21,20 @@ function kindOf(unit: string): Kind | undefined {
   return undefined;
 }
 
-const files = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((name) => statSync(join(dir, name)).isFile()) : []);
-const dirs = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((name) => statSync(join(dir, name)).isDirectory()) : []);
+const files = (dir: string) =>
+  existsSync(dir) ? readdirSync(dir).filter((name) => statSync(join(dir, name)).isFile()) : [];
+const dirs = (dir: string) =>
+  existsSync(dir) ? readdirSync(dir).filter((name) => statSync(join(dir, name)).isDirectory()) : [];
 
 /** Every unit the kit ships now, with a hash of what it holds. A skill is one unit, its folder whole. */
 function shippedUnits(kit: Kit): Record<string, string> {
   const content = join(kit.dir, "content");
   const units: Record<string, string> = {};
-  for (const group of ["guides", "records", "prompts"]) for (const name of files(join(content, group))) units[`${group}/${name}`] = digest([join(content, group, name)]);
-  for (const set of dirs(join(content, "skills"))) for (const name of dirs(join(content, "skills", set))) units[`skills/${set}/${name}`] = digest([join(content, "skills", set, name)]);
+  for (const group of ["guides", "records", "prompts"])
+    for (const name of files(join(content, group))) units[`${group}/${name}`] = digest([join(content, group, name)]);
+  for (const set of dirs(join(content, "skills")))
+    for (const name of dirs(join(content, "skills", set)))
+      units[`skills/${set}/${name}`] = digest([join(content, "skills", set, name)]);
   return units;
 }
 
@@ -44,7 +49,9 @@ export async function contentChanges(kit: Kit, stateDir: string): Promise<Conten
   const held = readJson<Taken | null>(takenFile(stateDir), null);
   if (!held) {
     const commit = await headOf(kit);
-    writeJson(takenFile(stateDir), { units: Object.fromEntries(Object.entries(now).map(([unit, hash]) => [unit, { hash, commit }])) });
+    writeJson(takenFile(stateDir), {
+      units: Object.fromEntries(Object.entries(now).map(([unit, hash]) => [unit, { hash, commit }])),
+    });
     return [];
   }
   const changes: ContentChange[] = [];
@@ -66,7 +73,8 @@ export async function contentChanges(kit: Kit, stateDir: string): Promise<Conten
 /** The unit as it was at `commit`, written under `into`: one file, or a skill's whole folder. */
 async function restore(kit: Kit, unit: string, commit: string, into: string): Promise<void> {
   const listed = await git(kit.dir, ["ls-tree", "-r", "--name-only", commit, "--", `./content/${unit}`]);
-  if (listed.code !== 0) throw new Error(`git could not list ${unit} at ${commit.slice(0, 7)}: ${listed.stderr.trim()}`);
+  if (listed.code !== 0)
+    throw new Error(`git could not list ${unit} at ${commit.slice(0, 7)}: ${listed.stderr.trim()}`);
   const paths = listed.stdout.split("\n").filter(Boolean);
   if (paths.length === 0) throw new Error(`${unit} is not in ${commit.slice(0, 7)}`);
   for (const path of paths) {
@@ -79,7 +87,13 @@ async function restore(kit: Kit, unit: string, commit: string, into: string): Pr
 }
 
 /** `new` sets the owner's copy aside rather than deleting it; `mine` copies their version out of git for them to edit. */
-export async function decide(kit: Kit, stateDir: string, unit: string, choice: "new" | "mine" | "seen", now = Date.now()): Promise<void> {
+export async function decide(
+  kit: Kit,
+  stateDir: string,
+  unit: string,
+  choice: "new" | "mine" | "seen",
+  now = Date.now(),
+): Promise<void> {
   const held = readJson<Taken>(takenFile(stateDir), { units: {} });
   const shipped = shippedUnits(kit)[unit];
   const mine = kit.own ? join(kit.own, unit) : undefined;

@@ -21,7 +21,18 @@ export function paseoConfigPath(homeDir = home()): string {
 
 export const RECORDS = ["events", "attention", "assessments"] as const;
 
-export const DESK_OWNED = new Set(["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json", "status.md", ...RECORDS.map((name) => `${name}.log`), "handbacks", "gates", "archive"]);
+export const DESK_OWNED = new Set([
+  "ledger.json",
+  "incidents.json",
+  "project.json",
+  "meta.json",
+  "settings.json",
+  "status.md",
+  ...RECORDS.map((name) => `${name}.log`),
+  "handbacks",
+  "gates",
+  "archive",
+]);
 
 export function stateRoot(homeDir = home()): string {
   return join(homeDir, ".local", "share", "seatworks-v3");

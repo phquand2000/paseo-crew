@@ -18,9 +18,12 @@ const HELD: Record<Held, string> = {
 
 function line(item: Incident): string {
   const sent = item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${HELD[item.held]}` : "";
-  const state = item.open ? sent || "open" : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
+  const state = item.open
+    ? sent || "open"
+    : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
   const seen = item.count > 1 ? ` (seen ${item.count} times, last ${at(item.last)})` : "";
-  const later = item.later !== undefined ? `; seen after you were told: ${clip(item.later.replace(/\s+/g, " "), 200)}` : "";
+  const later =
+    item.later !== undefined ? `; seen after you were told: ${clip(item.later.replace(/\s+/g, " "), 200)}` : "";
   return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}${later}`;
 }
 
@@ -35,11 +38,17 @@ function briefs(state: string, shown: Incident[]): string[] {
   const out: string[] = [];
   for (const id of [...new Set(shown.flatMap((item) => (item.task ? [item.task] : [])))]) {
     const task = ledger.tasks[id];
-    if (task) out.push(`- ${task.id} ${text(task.title, 120)}: goal ${text(task.goal, 300)}; acceptance ${text(task.acceptance.join("; "), 300)}; ${task.holds.length > 0 ? `holds ${text(task.holds.join(", "), 200)}` : `hints ${text(task.hints.join(", ") || "none", 200)}`}; out of scope ${text(task.outOfScope.join("; ") || "nothing named", 200)}`);
+    if (task)
+      out.push(
+        `- ${task.id} ${text(task.title, 120)}: goal ${text(task.goal, 300)}; acceptance ${text(task.acceptance.join("; "), 300)}; ${task.holds.length > 0 ? `holds ${text(task.holds.join(", "), 200)}` : `hints ${text(task.hints.join(", ") || "none", 200)}`}; out of scope ${text(task.outOfScope.join("; ") || "nothing named", 200)}`,
+      );
   }
   for (const id of [...new Set(shown.flatMap((item) => (item.lane && !item.task ? [item.lane] : [])))]) {
     const lane = ledger.lanes[id];
-    if (lane) out.push(`- ${lane.id} ${text(lane.title, 120)}: outcome ${text(lane.outcome, 300)}; acceptance ${text(lane.acceptance.join("; "), 300)}; out of scope ${text(lane.outOfScope.join("; ") || "nothing named", 200)}`);
+    if (lane)
+      out.push(
+        `- ${lane.id} ${text(lane.title, 120)}: outcome ${text(lane.outcome, 300)}; acceptance ${text(lane.acceptance.join("; "), 300)}; out of scope ${text(lane.outOfScope.join("; ") || "nothing named", 200)}`,
+      );
   }
   return out.length > 0 ? ["", "What they were asked:", ...out] : [];
 }
@@ -72,10 +81,17 @@ export const incidents = defineTool({
     if (waiting.length > shown.length) lines.push(`… and ${waiting.length - shown.length} older ones not shown.`);
     lines.push(...briefs(caller.project.state, shown));
     if (args.closed === true) {
-      const marked = all.filter((item) => item.label).sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last)).slice(0, 20);
+      const marked = all
+        .filter((item) => item.label)
+        .sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last))
+        .slice(0, 20);
       lines.push("", marked.length > 0 ? "Recently marked:" : "Nothing marked yet.", ...marked.map(line));
     }
-    if (waiting.length > 0) lines.push("", "Each is a signal to look at, not a verdict. Mark each one with mark_incident once you have looked at the agent's record, so the thresholds can be tuned.");
+    if (waiting.length > 0)
+      lines.push(
+        "",
+        "Each is a signal to look at, not a verdict. Mark each one with mark_incident once you have looked at the agent's record, so the thresholds can be tuned.",
+      );
     ctx.event(caller.project, { kind: "incident.read", agent: caller.id, waiting: waiting.length });
     return ok(lines.join("\n"));
   },

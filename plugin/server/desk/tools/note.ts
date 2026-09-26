@@ -9,11 +9,19 @@ export const note = defineTool({
   name: "note",
   input: z.strictObject({ kind: z.string(), name: z.string(), text: z.string() }),
   async handle({ ctx }, caller, args) {
-    const folders = (caller.role.writes ?? []).filter((entry) => entry.endsWith("/")).map((entry) => entry.slice(0, -1));
+    const folders = (caller.role.writes ?? [])
+      .filter((entry) => entry.endsWith("/"))
+      .map((entry) => entry.slice(0, -1));
     const kind = args.kind.trim().replace(/\/$/, "");
-    if (!folders.includes(kind)) return no(folders.length > 0 ? `${kind} is no folder you keep pages in: ${folders.join(", ")}.` : "Your role keeps no pages.");
+    if (!folders.includes(kind))
+      return no(
+        folders.length > 0
+          ? `${kind} is no folder you keep pages in: ${folders.join(", ")}.`
+          : "Your role keeps no pages.",
+      );
     const name = args.name.trim();
-    if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) return no(`${name} is not one file name: no folders in it, like cart-plan.md.`);
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name))
+      return no(`${name} is not one file name: no folders in it, like cart-plan.md.`);
     const file = join(caller.project.state, kind, name);
     const replaced = existsSync(file);
     mkdirSync(join(caller.project.state, kind), { recursive: true });

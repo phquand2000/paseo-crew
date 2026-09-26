@@ -10,7 +10,12 @@ type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
  * the seat's harness takes a text into a running turn rather than replacing the turn; `calling`, whether the seat waits on a
  * call to the desk, where a text steered in reads as the call cut short; `holding`, whether its mail waits for a hold to lift.
  */
-export type Rules = { dropped?: (letter: Letter, now: number) => void; steers?: (seat: SeatLook) => boolean; calling?: (agentId: string) => boolean; holding?: (seat: SeatLook) => boolean };
+export type Rules = {
+  dropped?: (letter: Letter, now: number) => void;
+  steers?: (seat: SeatLook) => boolean;
+  calling?: (agentId: string) => boolean;
+  holding?: (seat: SeatLook) => boolean;
+};
 
 const KEEP_MS = 7 * 24 * 3_600_000;
 const DUPLICATE_MS = 30 * 60_000;
@@ -43,7 +48,9 @@ export class Outbox {
   /** Aged-out letters included: both writers rebuild the file from this read, so filtering here deletes. */
   letters(): Letter[] {
     const stored = readJson<Letter[]>(this.file, []);
-    return Array.isArray(stored) ? stored.filter((letter) => Boolean(letter) && typeof letter.to === "string" && typeof letter.at === "number") : [];
+    return Array.isArray(stored)
+      ? stored.filter((letter) => Boolean(letter) && typeof letter.to === "string" && typeof letter.at === "number")
+      : [];
   }
 
   /** The one place a letter is given up on, and it says so. */
@@ -62,7 +69,10 @@ export class Outbox {
 
   private lane<T>(key: string, run: () => Promise<T>): Promise<T> {
     const next = (this.lanes.get(key) ?? Promise.resolve()).then(run, run);
-    this.lanes.set(key, next.catch(() => undefined));
+    this.lanes.set(
+      key,
+      next.catch(() => undefined),
+    );
     return next;
   }
 
@@ -70,7 +80,10 @@ export class Outbox {
     const now = Date.now();
     const sentAt = this.sentKeys.get(Outbox.held(letter));
     // An expired letter is not a pending duplicate; counted as one, it blocked a fresh post.
-    if ((sentAt !== undefined && now - sentAt < DUPLICATE_MS) || this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to && now - entry.at < KEEP_MS)) {
+    if (
+      (sentAt !== undefined && now - sentAt < DUPLICATE_MS) ||
+      this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to && now - entry.at < KEEP_MS)
+    ) {
       return "duplicate";
     }
     const stored: Letter = { ...letter, id: `${now}-${process.pid}-${++this.counter}`, at: now };
@@ -119,12 +132,22 @@ export class Outbox {
       const waiting = since !== undefined && Date.now() - since < GRACE_MS;
       // A turn this desk never saw start — one running across a restart — is not known to be settled.
       const began = this.started.get(to);
-      const steer = seat.status === "running" && began !== undefined && Date.now() - began >= SETTLE_MS && this.rules.steers?.(seat) === true && this.rules.calling?.(to) !== true;
+      const steer =
+        seat.status === "running" &&
+        began !== undefined &&
+        Date.now() - began >= SETTLE_MS &&
+        this.rules.steers?.(seat) === true &&
+        this.rules.calling?.(to) !== true;
       if (!steer && (midTurn(seat.status) || waiting)) return new Set<string>();
       // Word that asks nothing of an idle seat now waits for a letter that does, or for a turn it is already in.
       if (!steer && mine.every((letter) => letter.wakes === false)) return new Set<string>();
       const text = await this.compose(to, mine);
-      await this.seats.send(to, text, [...new Set(mine.map((letter) => letter.key.split(":")[0]!))], steer ? "steer" : undefined);
+      await this.seats.send(
+        to,
+        text,
+        [...new Set(mine.map((letter) => letter.key.split(":")[0]!))],
+        steer ? "steer" : undefined,
+      );
       const now = Date.now();
       this.awaiting.set(to, now);
       const ids = new Set(mine.map((letter) => letter.id));

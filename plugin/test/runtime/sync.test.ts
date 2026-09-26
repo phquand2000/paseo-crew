@@ -5,7 +5,9 @@ import { test } from "node:test";
 import { harness, laneWithPeer } from "./harness.ts";
 
 const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
-const beside = (key: string, title: string, holds: string[]) => ({ tasks: [{ key, title, goal: "g", ...scope, holds, parallel: true }] });
+const beside = (key: string, title: string, holds: string[]) => ({
+  tasks: [{ key, title, goal: "g", ...scope, holds, parallel: true }],
+});
 const letters = (h: ReturnType<typeof harness>, id: string) => h.agents.get(id)!.sent.join("\n");
 
 test("a task beside others is brought up to date with its lane as it hands back, and its gate runs on what the lane would become", async () => {
@@ -23,7 +25,11 @@ test("a task beside others is brought up to date with its lane as it hands back,
   assert.match(handback, /\nChanged: c\.txt\n/, "only what the task changed, not what came in with the lane");
   assert.match(handback, /Gate: test -f shared\.txt passed/);
   assert.equal(h.git(side.worktree!, "merge-base", "--is-ancestor", lane.branch, "HEAD").trim(), "");
-  assert.equal(h.ledger().tasks["L1-T2"]!.handback!.gate!.sha, h.git(side.worktree!, "rev-parse", "HEAD").trim(), "the commit the gate ran on is on record");
+  assert.equal(
+    h.ledger().tasks["L1-T2"]!.handback!.gate!.sha,
+    h.git(side.worktree!, "rev-parse", "HEAD").trim(),
+    "the commit the gate ran on is on record",
+  );
 });
 
 test("a hand-back whose lane conflicts with it goes back to its Peer, naming the task that wrote the lane's side, and its Lead is told in passing", async () => {
@@ -44,14 +50,25 @@ test("a hand-back whose lane conflicts with it goes back to its Peer, naming the
   h.commit(second!.worktree!, "c.txt", "quotes\n");
   const refused = await h.call(second!.peer!, "peer", "done", { outcome: "complete", summary: "d, and c" });
   assert.equal(refused.ok, false);
-  assert.equal(refused.text, `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in c.txt, changed there by L1-T2. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`);
+  assert.equal(
+    refused.text,
+    `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in c.txt, changed there by L1-T2. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`,
+  );
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "running", "nothing is handed back");
-  assert.match(h.heard(lane.lead!).join("\n"), new RegExp(`SETTLING L1-T3 \\(Quotes\\): bringing ${lane.branch} into its branch conflicts in c\\.txt, changed there by L1-T2\\. Its Peer settles it in its own copy before it hands back\\.`));
+  assert.match(
+    h.heard(lane.lead!).join("\n"),
+    new RegExp(
+      `SETTLING L1-T3 \\(Quotes\\): bringing ${lane.branch} into its branch conflicts in c\\.txt, changed there by L1-T2\\. Its Peer settles it in its own copy before it hands back\\.`,
+    ),
+  );
 
   writeFileSync(join(second!.worktree!, "c.txt"), "prices and quotes\n");
   h.git(second!.worktree!, "add", "c.txt");
   h.git(second!.worktree!, "commit", "-q", "--no-edit");
-  assert.equal((await h.call(second!.peer!, "peer", "done", { outcome: "complete", summary: "d, and c settled" })).ok, true);
+  assert.equal(
+    (await h.call(second!.peer!, "peer", "done", { outcome: "complete", summary: "d, and c settled" })).ok,
+    true,
+  );
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "done");
 });
 
@@ -63,14 +80,20 @@ test("a task whose copy has work uncommitted hands back as it stands, and says i
   writeFileSync(join(side.worktree!, "c.txt"), "not committed\n");
   assert.equal((await h.call(side.peer!, "peer", "done", { outcome: "partial", summary: "c" })).ok, true);
   await h.idle(lane.lead!);
-  assert.match(letters(h, lane.lead!), new RegExp(`\\nNot brought up to date with ${lane.branch}: its copy has work uncommitted\\.\\n`));
+  assert.match(
+    letters(h, lane.lead!),
+    new RegExp(`\\nNot brought up to date with ${lane.branch}: its copy has work uncommitted\\.\\n`),
+  );
 });
 
 test("a task beside others sent back after its merge takes up the lane as it stands now, not the branch it merged from", async () => {
   const { h, lane } = await laneWithPeer();
   await h.call(lane.lead!, "lead", "add_tasks", beside("p", "Prices", ["c.txt"]));
   await h.call(lane.lead!, "lead", "add_tasks", beside("q", "Quotes", ["d.txt"]));
-  for (const [id, file] of [["L1-T2", "c.txt"], ["L1-T3", "d.txt"]] as const) {
+  for (const [id, file] of [
+    ["L1-T2", "c.txt"],
+    ["L1-T3", "d.txt"],
+  ] as const) {
     const task = h.ledger().tasks[id]!;
     h.commit(task.worktree!, file, `${file}\n`);
     await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: file });
@@ -80,7 +103,11 @@ test("a task beside others sent back after its merge takes up the lane as it sta
   }
   assert.equal((await h.call(lane.lead!, "lead", "rework", { task: "L1-T2", text: "Round the prices." })).ok, true);
   const copy = h.ledger().tasks["L1-T2"]!.worktree!;
-  assert.equal(h.git(copy, "show", "HEAD:d.txt"), "d.txt\n", "what merged after it is in its copy before it reads the letter");
+  assert.equal(
+    h.git(copy, "show", "HEAD:d.txt"),
+    "d.txt\n",
+    "what merged after it is in its copy before it reads the letter",
+  );
 });
 
 test("a task beside others sent back before its merge is left as its Peer had it: a conflict with its lane is met at its next hand-back, with the reason", async () => {

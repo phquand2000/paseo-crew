@@ -30,7 +30,10 @@ export type Incident = {
 
 export type Incidents = { next: number; items: Record<string, Incident> };
 
-type Sighting = Omit<Incident, "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "closed" | "later">;
+type Sighting = Omit<
+  Incident,
+  "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "closed" | "later"
+>;
 
 const DAY_MS = 24 * 3_600_000;
 
@@ -48,7 +51,15 @@ export function incidentsFault(state: string): string | undefined {
     return `${file} is there but could not be read: ${errorText(error)}`;
   }
   const items = (stored as { items?: unknown } | null)?.items;
-  if (!stored || typeof stored !== "object" || Array.isArray(stored) || !items || typeof items !== "object" || Array.isArray(items)) return `${file} does not hold a record of incidents`;
+  if (
+    !stored ||
+    typeof stored !== "object" ||
+    Array.isArray(stored) ||
+    !items ||
+    typeof items !== "object" ||
+    Array.isArray(items)
+  )
+    return `${file} does not hold a record of incidents`;
   return undefined;
 }
 
@@ -70,7 +81,9 @@ export function openFor(incidents: Incidents, seat: string, kind: string): Incid
 
 /** Whether this exact sentence was already recorded for this seat and kind, open or closed: the book, not the process, survives a restart. */
 export function saidBefore(incidents: Incidents, seat: string, kind: string, quote: string): boolean {
-  return Object.values(incidents.items).some((item) => item.seat === seat && item.kind === kind && (item.quote === quote || item.later === quote));
+  return Object.values(incidents.items).some(
+    (item) => item.seat === seat && item.kind === kind && (item.quote === quote || item.later === quote),
+  );
 }
 
 /**
@@ -80,7 +93,12 @@ export function saidBefore(incidents: Incidents, seat: string, kind: string, quo
 export function settledAsNoise(incidents: Incidents, sighting: Sighting, now: number): boolean {
   if (sighting.level === "page") return false;
   const marked = Object.values(incidents.items).find(
-    (item) => !item.open && item.label === "noise" && item.seat === sighting.seat && item.kind === sighting.kind && item.quote === sighting.quote,
+    (item) =>
+      !item.open &&
+      item.label === "noise" &&
+      item.seat === sighting.seat &&
+      item.kind === sighting.kind &&
+      item.quote === sighting.quote,
   );
   if (!marked) return false;
   marked.count += 1;
@@ -104,7 +122,9 @@ export function sight(incidents: Incidents, sighting: Sighting, now: number): { 
 
 /** Attention-level incidents about `lane` told in the last day: each lane has a budget of its own, and those about no lane share one. */
 export function spentToday(incidents: Incidents, lane: string | undefined, now: number): number {
-  return Object.values(incidents.items).filter((item) => item.level === "attend" && item.lane === lane && item.told !== undefined && now - item.told < DAY_MS).length;
+  return Object.values(incidents.items).filter(
+    (item) => item.level === "attend" && item.lane === lane && item.told !== undefined && now - item.told < DAY_MS,
+  ).length;
 }
 
 const JUDGED = 10;
@@ -141,7 +161,14 @@ export function repeatsIncident(state: string, seat: string | undefined, ...text
   const said = flat(texts.join("\n"));
   // A short quote is a path or a word the sender would use anyway; a long one is the desk's own wording.
   const hit = Object.values(loadIncidents(state).items).find(
-    (incident) => incident.open && incident.seat === seat && (new RegExp(`\\b${incident.id}\\b`, "i").test(said) || (incident.quote.length >= 20 && said.includes(flat(incident.quote)))),
+    (incident) =>
+      incident.open &&
+      incident.seat === seat &&
+      (new RegExp(`\\b${incident.id}\\b`, "i").test(said) ||
+        (incident.quote.length >= 20 && said.includes(flat(incident.quote)))),
   );
-  return hit && `That repeats incident ${hit.id} about the seat it goes to. Say what you read in its record, in your own words: a seat told of the watch works to the watch.`;
+  return (
+    hit &&
+    `That repeats incident ${hit.id} about the seat it goes to. Say what you read in its record, in your own words: a seat told of the watch works to the watch.`
+  );
 }

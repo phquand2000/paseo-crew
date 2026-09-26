@@ -18,7 +18,8 @@ export function reachNotes(ledger: Ledger, task: Task, lane: Lane, files: string
     if (into.length > 0) notes.push(`in what ${other.id} holds (${other.holds.join(", ")}): ${capped(into, SHOWN)}`);
   }
   const beyond = lane.writeSet.length > 0 ? uncovered(files, lane.writeSet).filter((file) => !taken.has(file)) : [];
-  if (beyond.length > 0) notes.push(`outside the lane's write set (${lane.writeSet.join(", ")}): ${capped(beyond, SHOWN)}`);
+  if (beyond.length > 0)
+    notes.push(`outside the lane's write set (${lane.writeSet.join(", ")}): ${capped(beyond, SHOWN)}`);
   if (task.mode !== "parallel") return notes;
   const loose = uncovered(files, task.holds).filter((file) => !taken.has(file) && !beyond.includes(file));
   const oneWriter = new Set(serialHits(loose, serial));

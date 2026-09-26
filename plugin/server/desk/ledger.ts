@@ -8,7 +8,7 @@ import type { LaneStatus } from "../domain/lane.ts";
 import { ACTIVE, SETTLED, type TaskStatus } from "../domain/task.ts";
 
 /** Free-form: the ledger carries whatever it is told, because nothing routes on it. */
-export type AskKind = string;
+type AskKind = string;
 /** What a change replaced, kept so the record says what the work was asked before it was asked again. */
 export type Amendment = { at: number; by: string; why: string; was: Record<string, string | string[]> };
 

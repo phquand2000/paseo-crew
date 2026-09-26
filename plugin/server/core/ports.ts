@@ -21,12 +21,25 @@ export type SeatSpec = {
 };
 
 /** One timeline entry, whole: `seqStart` is its first source row and `seq` its last, so one read back after a gap can restate rows already told. */
-export type StreamRow = { item: Record<string, unknown>; seqStart: number; seq: number; epoch: string; turnId: string | null; replay: boolean };
+export type StreamRow = {
+  item: Record<string, unknown>;
+  seqStart: number;
+  seq: number;
+  epoch: string;
+  turnId: string | null;
+  replay: boolean;
+};
 
 /** `idle`: when the seat was last read it was in no turn, so a turn whose end went unseen is over; `lost`: the stream failed and stopped. */
 export type Seen =
   | { kind: "row"; row: StreamRow }
-  | { kind: "turn"; phase: "started" | "completed" | "failed" | "canceled"; turnId: string | null; error?: string; at?: number }
+  | {
+      kind: "turn";
+      phase: "started" | "completed" | "failed" | "canceled";
+      turnId: string | null;
+      error?: string;
+      at?: number;
+    }
   | { kind: "idle" }
   | { kind: "reset" }
   | { kind: "lost"; error: string };
@@ -60,7 +73,15 @@ export type Workspaces = {
 export type HookAgent = { id: string; provider: string; cwd: string; title?: string | null };
 
 /** A timeline item as the plugin reads it: its kind, and fields that are checked before they are trusted. */
-export type TimelineItem = { readonly type: string; readonly text?: unknown; readonly status?: unknown; readonly error?: unknown; readonly name?: unknown; readonly detail?: unknown; readonly callId?: unknown };
+export type TimelineItem = {
+  readonly type: string;
+  readonly text?: unknown;
+  readonly status?: unknown;
+  readonly error?: unknown;
+  readonly name?: unknown;
+  readonly detail?: unknown;
+  readonly callId?: unknown;
+};
 
 export type TurnEnded = {
   agent: HookAgent;
@@ -84,7 +105,13 @@ export type AgentConfig = {
   providerOptions?: Record<string, unknown>;
 };
 
-export type SessionOpen = { agentId: string; reason: "create" | "resume" | "refresh" | "import"; provider: string; cwd: string; env: Record<string, string> };
+export type SessionOpen = {
+  agentId: string;
+  reason: "create" | "resume" | "refresh" | "import";
+  provider: string;
+  cwd: string;
+  env: Record<string, string>;
+};
 
 /** What the plugin does on each Paseo hook. */
 export type HostHooks = {
@@ -99,7 +126,13 @@ export type HostHooks = {
 
 /** An agent's models as Paseo lists them. */
 export type ModelList = {
-  models?: { id: string; label: string; isSelectable?: boolean; thinkingOptions?: { id: string; label: string }[]; defaultThinkingOptionId?: string }[];
+  models?: {
+    id: string;
+    label: string;
+    isSelectable?: boolean;
+    thinkingOptions?: { id: string; label: string }[];
+    defaultThinkingOptionId?: string;
+  }[];
   error?: string | null;
 };
 
@@ -109,16 +142,31 @@ export type Models = {
 };
 
 /** Paseo as the plugin reaches it; `connected` is false, and `reached` unsettled, until a hook or a panel call has handed over its API. */
-export type Host = { connected(): boolean; reached(): Promise<void>; seats: Seats; workspaces: Workspaces; models: Models };
+export type Host = {
+  connected(): boolean;
+  reached(): Promise<void>;
+  seats: Seats;
+  workspaces: Workspaces;
+  models: Models;
+};
 
 /** A question as the watch's catalog words it, the fields the code fills filled: a noul is one condition, a choice picks one of its criteria. */
-export type Question = { type: "noul" | "choice"; instructions: string | Record<string, string>; criteria: Record<string, string> };
+export type Question = {
+  type: "noul" | "choice";
+  instructions: string | Record<string, string>;
+  criteria: Record<string, string>;
+};
 
 /** A noul's answer is how likely its condition holds, from 0 to 1; a choice's, the pick and how sure of it. */
 export type Answer = { noul: number } | { choice: string; confidence: number };
 
 /** Each question's answer; the model that answered, the input it read where it says, and a seat's reason for each answer. */
-export type Judgement = { answers: Record<string, Answer>; model: string; tokens?: number; why?: Record<string, string> };
+export type Judgement = {
+  answers: Record<string, Answer>;
+  model: string;
+  tokens?: number;
+  why?: Record<string, string>;
+};
 
 /** Whatever answers the watch's questions about one moment of the record. */
 export type Judge = { ask(state: Record<string, unknown>, questions: Record<string, Question>): Promise<Judgement> };

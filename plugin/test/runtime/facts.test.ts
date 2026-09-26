@@ -36,7 +36,7 @@ test("an irreversible command is caught the moment its command is known, before 
   assert.equal(facts[0]!.level, "page");
   assert.equal(facts[0]!.seq, 3, "Claude's first row for the call has no command; the second has it, and the call is still running");
   const settledAt = rewritten.find((message) => message.event.item?.status === "completed" && JSON.stringify(message).includes("rm -rf build"))!.seq!;
-  assert.ok(facts[0]!.seq! < settledAt);
+  assert.ok(facts[0]!.seq < settledAt);
 });
 
 test("the same action failing three times is stuck", () => {

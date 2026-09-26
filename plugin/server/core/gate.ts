@@ -38,7 +38,12 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
   writeSync(fd, `$ ${command}\n`);
   return new Promise((resolve) => {
     // Straight to the log fd: a pipe would be inherited by leftover processes and hold "close" open indefinitely.
-    const child = spawn("/bin/sh", ["-c", command], { cwd, env: { ...process.env, CI: "1" }, detached: true, stdio: ["ignore", fd, fd] });
+    const child = spawn("/bin/sh", ["-c", command], {
+      cwd,
+      env: { ...process.env, CI: "1" },
+      detached: true,
+      stdio: ["ignore", fd, fd],
+    });
     let timedOut = false;
     let answered = false;
     const timer = setTimeout(() => {
@@ -58,7 +63,13 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
       try {
         closeSync(fd);
       } catch {}
-      resolve({ ok: code === 0 && !timedOut, code, timedOut, seconds: Math.round((Date.now() - started) / 1000), tail: tailOf(lastBytes(logFile)) });
+      resolve({
+        ok: code === 0 && !timedOut,
+        code,
+        timedOut,
+        seconds: Math.round((Date.now() - started) / 1000),
+        tail: tailOf(lastBytes(logFile)),
+      });
     };
     child.on("error", () => finish(127));
     // exit, not close: the command's own answer, whatever it left running behind it.

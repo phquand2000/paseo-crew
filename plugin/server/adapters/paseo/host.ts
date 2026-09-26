@@ -63,7 +63,11 @@ export class PaseoHost implements Host {
   }
 
   /** A hook that throws is logged here and goes no further, as Paseo would only log it too. */
-  private on<N extends keyof PluginLifecycleEvents>(server: PluginServerContext, name: N, handler: (event: PluginLifecycleEvents[N]) => Promise<void>): void {
+  private on<N extends keyof PluginLifecycleEvents>(
+    server: PluginServerContext,
+    name: N,
+    handler: (event: PluginLifecycleEvents[N]) => Promise<void>,
+  ): void {
     server.on(name, async (event, context) => {
       this.bind(context.paseo);
       try {

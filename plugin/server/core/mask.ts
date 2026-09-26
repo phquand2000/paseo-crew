@@ -7,7 +7,10 @@ const SECRETS: [RegExp, string][] = [
   [/\bxox[abpr]-[\w-]{10,}/g, "[token]"],
   [/(\bbearer|authorization\W{1,8}basic)\s+[\w.~+/=-]{8,}/gi, "$1 [redacted]"],
   [/(\/\/[^\s:/@]+:)[^\s@/]+@/g, "$1[redacted]@"],
-  [/((?:api[_-]?key|token|secret|passw(?:or)?d|authorization|credentials?)(?:[_-]?(?:access[_-]?)?key)?\\?["']?\s*[:=]\s*\\?["']?)[^\s"'\\,;]{8,}/gi, "$1[redacted]"],
+  [
+    /((?:api[_-]?key|token|secret|passw(?:or)?d|authorization|credentials?)(?:[_-]?(?:access[_-]?)?key)?\\?["']?\s*[:=]\s*\\?["']?)[^\s"'\\,;]{8,}/gi,
+    "$1[redacted]",
+  ],
 ];
 
 export function mask(text: string): string {

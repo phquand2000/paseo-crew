@@ -34,7 +34,9 @@ export function describeTeam(kit: Kit, team: Team, project?: Project): TeamView 
           model: seat.model?.id ?? null,
           thinking: seat.thinking ?? null,
           mcp: seat.mcp,
-          tools: Object.fromEntries(seat.mcp.map((id) => [id, (team.mcp[id]!.tools ?? team.mcp[id]!.entry?.tools)?.[name] ?? []])),
+          tools: Object.fromEntries(
+            seat.mcp.map((id) => [id, (team.mcp[id]!.tools ?? team.mcp[id]!.entry?.tools)?.[name] ?? []]),
+          ),
           skills: [...skillDirsFor(team, name).keys()],
           rules: rulesFor(team, name),
         },

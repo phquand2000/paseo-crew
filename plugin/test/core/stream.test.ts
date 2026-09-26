@@ -6,12 +6,23 @@ import { SeatWatch } from "../../server/runtime/watch/watches.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 import { FakeTimeline, settle } from "../runtime/fake-timeline.ts";
 
-const call = (callId: string, status: string, command?: string) => ({ type: "tool_call", callId, name: "Bash", status, detail: command ? { type: "shell", command } : { type: "unknown" } });
+const call = (callId: string, status: string, command?: string) => ({
+  type: "tool_call",
+  callId,
+  name: "Bash",
+  status,
+  detail: command ? { type: "shell", command } : { type: "unknown" },
+});
 
 function watching(timeline: FakeTimeline) {
   const seen: Seen[] = [];
   const stream = follow(timeline, (entry) => seen.push(entry), { log: () => {} });
-  const rows = () => seen.flatMap((entry) => (entry.kind === "row" ? [{ from: entry.row.seqStart, seq: entry.row.seq, replay: entry.row.replay, epoch: entry.row.epoch }] : []));
+  const rows = () =>
+    seen.flatMap((entry) =>
+      entry.kind === "row"
+        ? [{ from: entry.row.seqStart, seq: entry.row.seq, replay: entry.row.replay, epoch: entry.row.epoch }]
+        : [],
+    );
   return { seen, stream, rows };
 }
 
@@ -24,11 +35,15 @@ test("a seat joined mid-turn is told what it already did as replay, and what it 
   await stream.ready;
   timeline.add({ type: "assistant_message", text: "done" });
   await settle();
-  assert.deepEqual(rows(), [
-    { from: 1, seq: 1, replay: true, epoch: "epoch-1" },
-    { from: 2, seq: 3, replay: false, epoch: "epoch-1" },
-    { from: 4, seq: 4, replay: false, epoch: "epoch-1" },
-  ], "a call that finished while the stream was being joined is one row, and live, not history");
+  assert.deepEqual(
+    rows(),
+    [
+      { from: 1, seq: 1, replay: true, epoch: "epoch-1" },
+      { from: 2, seq: 3, replay: false, epoch: "epoch-1" },
+      { from: 4, seq: 4, replay: false, epoch: "epoch-1" },
+    ],
+    "a call that finished while the stream was being joined is one row, and live, not history",
+  );
 });
 
 test("rows sent while the client was not listening are read back from where the sequence broke, in order", async () => {
@@ -40,8 +55,20 @@ test("rows sent while the client was not listening are read back from where the 
   timeline.add(call("c2", "running", "b"), "turn-1", true);
   timeline.add(call("c2", "completed", "b"));
   await settle();
-  assert.deepEqual(rows().map((row) => [row.from, row.seq]), [[1, 1], [1, 2], [3, 4]], "each call read back whole, the one already told included");
-  assert.deepEqual(rows().map((row) => row.replay), [false, false, false], "what was missed happened just now, not in history");
+  assert.deepEqual(
+    rows().map((row) => [row.from, row.seq]),
+    [
+      [1, 1],
+      [1, 2],
+      [3, 4],
+    ],
+    "each call read back whole, the one already told included",
+  );
+  assert.deepEqual(
+    rows().map((row) => row.replay),
+    [false, false, false],
+    "what was missed happened just now, not in history",
+  );
   assert.deepEqual(timeline.fetches.at(-1), { direction: "after", from: 1 });
 });
 
@@ -93,7 +120,10 @@ test("a seat already mid-turn when it is joined is told the turn it is in, from 
   timeline.activeTurn = { turnId: "turn-1", startedAt: new Date(started).toISOString() };
   const { seen, stream } = watching(timeline);
   await stream.ready;
-  assert.deepEqual(seen.find((entry) => entry.kind === "turn"), { kind: "turn", phase: "started", turnId: "turn-1", at: started });
+  assert.deepEqual(
+    seen.find((entry) => entry.kind === "turn"),
+    { kind: "turn", phase: "started", turnId: "turn-1", at: started },
+  );
 });
 
 test("a seat reloaded while nobody listened is read again from its tail rather than told as a gap", async () => {
@@ -123,7 +153,13 @@ test("turn beats pass through, and the plugin's own items are not the seat's doi
   timeline.beat("turn_failed", "turn-1", "boom");
   await settle();
   assert.deepEqual(
-    seen.map((entry) => (entry.kind === "row" ? `row ${entry.row.seq}` : entry.kind === "turn" ? `turn ${entry.phase}${entry.error ? ` ${entry.error}` : ""}` : entry.kind)),
+    seen.map((entry) =>
+      entry.kind === "row"
+        ? `row ${entry.row.seq}`
+        : entry.kind === "turn"
+          ? `turn ${entry.phase}${entry.error ? ` ${entry.error}` : ""}`
+          : entry.kind,
+    ),
     ["idle", "turn started", "row 2", "turn failed boom"],
     "the join says the seat was in no turn then",
   );
@@ -140,8 +176,17 @@ test("calls run side by side are each told whole on joining, though a later one 
   timeline.add({ type: "assistant_message", text: " world" });
   const { seen, stream } = watching(timeline);
   await stream.ready;
-  const told = seen.flatMap((entry) => (entry.kind === "row" ? [`${entry.row.item.type} ${entry.row.item.callId ?? entry.row.item.text} ${entry.row.item.status ?? ""}`.trim()] : []));
-  assert.deepEqual(told, ["user_message go", "tool_call a completed", "tool_call b completed", "assistant_message Hello world"]);
+  const told = seen.flatMap((entry) =>
+    entry.kind === "row"
+      ? [`${entry.row.item.type} ${entry.row.item.callId ?? entry.row.item.text} ${entry.row.item.status ?? ""}`.trim()]
+      : [],
+  );
+  assert.deepEqual(told, [
+    "user_message go",
+    "tool_call a completed",
+    "tool_call b completed",
+    "assistant_message Hello world",
+  ]);
 });
 
 test("text read back after a break replaces what was told of it, and is not said twice", async () => {
@@ -153,7 +198,10 @@ test("text read back after a break replaces what was told of it, and is not said
   timeline.add({ type: "assistant_message", text: " world" }, "turn-1", true);
   timeline.add(call("c1", "running", "ls"));
   await settle();
-  assert.deepEqual(window.units.map((unit) => (unit.kind === "said" ? unit.text : unit.kind)), ["Hello world", "call"]);
+  assert.deepEqual(
+    window.units.map((unit) => (unit.kind === "said" ? unit.text : unit.kind)),
+    ["Hello world", "call"],
+  );
 });
 
 test("after a reconnect what the seat did meanwhile is read back, and a turn that ended unseen is over", async () => {
@@ -170,7 +218,12 @@ test("after a reconnect what the seat did meanwhile is read back, and a turn tha
   assert.equal(watch.running, true);
   timeline.restore();
   await settle();
-  assert.deepEqual(watch.window.units.map((unit) => (unit.kind === "call" ? unit.call.status : unit.kind === "said" ? unit.text : unit.kind)), ["completed", "done"]);
+  assert.deepEqual(
+    watch.window.units.map((unit) =>
+      unit.kind === "call" ? unit.call.status : unit.kind === "said" ? unit.text : unit.kind,
+    ),
+    ["completed", "done"],
+  );
   assert.equal(watch.running, false, "a turn left running would read as a long turn for ever");
 });
 

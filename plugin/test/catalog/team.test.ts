@@ -164,7 +164,7 @@ test("a harness with no models and none chosen is refused where the owner can se
     roles: kit.roles.map((role) => (role.role === "peer" ? { ...role, defaults: { harness: "omp" } } : role)),
   };
   // Paseo starts an agent only as provider/model, so a bare provider failed later at every open_lane.
-  const team = resolveTeam(bare as typeof kit);
+  const team = resolveTeam(bare);
   assert.ok(team.errors.some((error) => /listed no models for .* yet and none is chosen for the Peer/.test(error)), team.errors.join("\n"));
   assert.deepEqual(resolveTeam(bare as typeof kit, { roles: { peer: { model: "glm-6" } } }).errors, [], "and choosing one is enough");
 });

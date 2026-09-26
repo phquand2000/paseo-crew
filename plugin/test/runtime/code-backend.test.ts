@@ -13,9 +13,15 @@ test("a backend's own title and hints reach the harness, and an answer it stream
   const code = await proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
   try {
     const [tool] = (await code.client.listTools()).tools;
-    assert.deepEqual({ title: tool!.title, annotations: tool!.annotations }, { title: "Find references", annotations: { readOnlyHint: true, openWorldHint: false } });
+    assert.deepEqual(
+      { title: tool!.title, annotations: tool!.annotations },
+      { title: "Find references", annotations: { readOnlyHint: true, openWorldHint: false } },
+    );
     const heard: string[] = [];
-    const reply = await code.client.callTool({ name: "ide_find_references", arguments: {} }, { onprogress: (progress) => heard.push(progress.message ?? "") });
+    const reply = await code.client.callTool(
+      { name: "ide_find_references", arguments: {} },
+      { onprogress: (progress) => heard.push(progress.message ?? "") },
+    );
     assert.deepEqual(reply.content, [{ type: "text", text: `references in ${cwd}` }]);
     assert.deepEqual(heard, ["indexing"]);
   } finally {
@@ -33,7 +39,10 @@ test("a backend that keeps a session is spoken to within it, by the seat's proxy
     const reply = await code.call("ide_find_references", {});
     assert.equal(reply.isError, false, reply.content[0]!.text);
     const { label, proxy: spec } = entry("intellij-index");
-    assert.equal((await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).sync(cwd)).ok, true);
+    assert.equal(
+      (await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).sync(cwd)).ok,
+      true,
+    );
   } finally {
     await code.stop();
     ide.close();
@@ -45,7 +54,11 @@ test("a backend that starts after the session is shown as it is once it answers,
   const probe = await fakeIde({ openEnabled: true });
   probe.close();
   let changed = 0;
-  const code = await proxy(cwd, ideConfig(`http://127.0.0.1:${probe.port}/mcp`, ["ide_find_references"]), () => changed++);
+  const code = await proxy(
+    cwd,
+    ideConfig(`http://127.0.0.1:${probe.port}/mcp`, ["ide_find_references"]),
+    () => changed++,
+  );
   const ide = await fakeIde({ openEnabled: true, port: probe.port });
   ide.open.add(cwd);
   try {
@@ -54,7 +67,11 @@ test("a backend that starts after the session is shown as it is once it answers,
     assert.ok(await within(2000, () => changed > 0));
     const [tool] = (await code.client.listTools()).tools;
     assert.equal(tool!.title, "Find references");
-    assert.equal((tool!.inputSchema.properties as Record<string, unknown>).project_path, undefined, "the pinned argument is hidden here too");
+    assert.equal(
+      (tool!.inputSchema.properties as Record<string, unknown>).project_path,
+      undefined,
+      "the pinned argument is hidden here too",
+    );
   } finally {
     await code.stop();
     ide.close();
@@ -99,12 +116,18 @@ test("a harness that asked for progress hears that a call waiting on the index s
   const ide = await fakeIde({ openEnabled: true, dumbCalls: 1000 });
   const cwd = repo();
   ide.open.add(cwd);
-  const config = { ...ideConfig(ide.url, ["ide_find_references"]), wait: { ...ideConfig(ide.url, []).wait, seconds: 30, pollSeconds: 0.02 } };
+  const config = {
+    ...ideConfig(ide.url, ["ide_find_references"]),
+    wait: { ...ideConfig(ide.url, []).wait, seconds: 30, pollSeconds: 0.02 },
+  };
   const code = await proxy(cwd, config, undefined, { SEATWORKS_PROGRESS_MS: "50" });
   try {
     const heard: string[] = [];
     const stopping = new AbortController();
-    const calling = code.client.callTool({ name: "ide_find_references", arguments: {} }, { signal: stopping.signal, onprogress: (progress) => heard.push(progress.message ?? "") });
+    const calling = code.client.callTool(
+      { name: "ide_find_references", arguments: {} },
+      { signal: stopping.signal, onprogress: (progress) => heard.push(progress.message ?? "") },
+    );
     assert.ok(await within(3000, () => heard.length > 0));
     assert.match(heard[0]!, /is still working on ide_find_references\./);
     stopping.abort();
@@ -124,7 +147,12 @@ test("the desk reads a backend's refusal as a failed call, and its health check 
   const ide = await fakeIde({ openEnabled: false });
   try {
     const { label, proxy: spec } = entry("intellij-index");
-    const opened = await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).open("/slots/S1");
+    const opened = await codeIndex({
+      ...spec,
+      id: "intellij-index",
+      label,
+      backend: { type: "http", url: ide.url },
+    }).open("/slots/S1");
     assert.deepEqual([opened.ok, opened.text], [false, "Tool ide_open_project not found"]);
     assert.deepEqual(await toolNames(ide.url, 3000), { names: ["ide_find_references"] });
     assert.deepEqual(await reaches(ide.url, 3000), { ok: true });
@@ -139,7 +167,15 @@ test("the desk reads a backend's refusal as a failed call, and its health check 
 test("a backend whose handshake is quick but whose list comes after the wait gave up is shown as it is once the list comes", async () => {
   const { label, instructions, proxy: spec } = entry("code-search");
   let changed = 0;
-  const config = { name: "code-search", label, instructions, tools: ["search"], ...spec, listSeconds: 0.5, backend: { type: "stdio", command: [process.execPath, fakeSemble(1000)] } };
+  const config = {
+    name: "code-search",
+    label,
+    instructions,
+    tools: ["search"],
+    ...spec,
+    listSeconds: 0.5,
+    backend: { type: "stdio", command: [process.execPath, fakeSemble(1000)] },
+  };
   const code = await proxy(repo(), config, () => changed++);
   try {
     assert.match((await code.client.listTools()).tools[0]!.description ?? "", /not reachable/);
@@ -156,13 +192,23 @@ test("a proxy stops as soon as its harness closes its input, and closes the back
   ide.open.add(cwd);
   const semble = fakeSemble();
   const { label, instructions, proxy: spec } = entry("code-search");
-  const configs = [ideConfig(ide.url, ["ide_find_references"]), { name: "code-search", label, instructions, tools: ["search"], ...spec, backend: { type: "stdio", command: [process.execPath, semble] } }];
+  const configs = [
+    ideConfig(ide.url, ["ide_find_references"]),
+    {
+      name: "code-search",
+      label,
+      instructions,
+      tools: ["search"],
+      ...spec,
+      backend: { type: "stdio", command: [process.execPath, semble] },
+    },
+  ];
   try {
     for (const config of configs) {
       const code = await proxy(cwd, config);
       let took = Infinity;
       try {
-        assert.ok(!(await code.call(config.tools[0]!, { query: "a" })).isError);
+        assert.ok(!(await code.call(config.tools[0], { query: "a" })).isError);
       } finally {
         const started = Date.now();
         await code.stop();

@@ -9,7 +9,11 @@ import { at, mine } from "./incidents.ts";
 
 export const markIncident = defineTool({
   name: "mark_incident",
-  input: z.strictObject({ id: z.string(), verdict: z.enum(["useful", "noise", "unknown"]), note: z.string().optional() }),
+  input: z.strictObject({
+    id: z.string(),
+    verdict: z.enum(["useful", "noise", "unknown"]),
+    note: z.string().optional(),
+  }),
   async handle({ ctx }, caller, args) {
     const id = str(args.id);
     // One of the three: the desk holds every call to the schema before it gets here.
@@ -27,8 +31,21 @@ export const markIncident = defineTool({
       return { ...item };
     });
     if (!done) return no(`There is no incident ${id} here for you to mark. incidents lists the ones there are.`);
-    ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last });
-    const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
+    ctx.event(caller.project, {
+      kind: "incident.ack",
+      id,
+      agent: caller.id,
+      verdict,
+      note: note || null,
+      seat: done.seat,
+      finding: done.kind,
+      opened: done.opened,
+      last: done.last,
+    });
+    const later =
+      done.later !== undefined
+        ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}`
+        : "";
     return ok(`${id} marked ${verdict} and closed.${later}`);
   },
 });

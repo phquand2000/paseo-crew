@@ -13,7 +13,16 @@ export const entry = (id: string) => JSON.parse(readFileSync(join(PLUGIN, "catal
 
 export type Call = { name: string; args: Record<string, unknown> };
 
-export type IdeOptions = { openEnabled: boolean; dumbCalls?: number; routeRequired?: boolean; session?: boolean; streamed?: boolean; slowMs?: number; syncMs?: number; port?: number };
+export type IdeOptions = {
+  openEnabled: boolean;
+  dumbCalls?: number;
+  routeRequired?: boolean;
+  session?: boolean;
+  streamed?: boolean;
+  slowMs?: number;
+  syncMs?: number;
+  port?: number;
+};
 
 /**
  * An IDE's MCP server over HTTP, plain JSON by default: the least a Streamable HTTP server may be. `session` asks for its
@@ -31,7 +40,8 @@ export async function fakeIde(options: IdeOptions) {
     request.on("data", (chunk) => (body += chunk));
     request.on("end", () => {
       const message = JSON.parse(body);
-      if (options.session && message.method !== "initialize" && request.headers["mcp-session-id"] !== "s1") return void response.writeHead(400).end("no session");
+      if (options.session && message.method !== "initialize" && request.headers["mcp-session-id"] !== "s1")
+        return void response.writeHead(400).end("no session");
       if (message.id === undefined) {
         notified.push(message.method);
         return void response.writeHead(202).end();
@@ -39,24 +49,52 @@ export async function fakeIde(options: IdeOptions) {
       const reply = (result: unknown) => {
         const answer = JSON.stringify({ jsonrpc: "2.0", id: message.id, result });
         const headers = { ...(options.session ? { "Mcp-Session-Id": "s1" } : {}) };
-        if (!options.streamed || message.method !== "tools/call") return void response.writeHead(200, { "Content-Type": "application/json", ...headers }).end(answer);
+        if (!options.streamed || message.method !== "tools/call")
+          return void response.writeHead(200, { "Content-Type": "application/json", ...headers }).end(answer);
         const token = message.params?._meta?.progressToken;
-        const note = token === undefined ? "" : `event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "notifications/progress", params: { progressToken: token, progress: 1, message: "indexing" } })}\n\n`;
+        const note =
+          token === undefined
+            ? ""
+            : `event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "notifications/progress", params: { progressToken: token, progress: 1, message: "indexing" } })}\n\n`;
         // The note while the work goes on, the answer a moment later, as a call that takes a while streams them.
         response.writeHead(200, { "Content-Type": "text/event-stream", ...headers }).write(note);
         setTimeout(() => response.end(`event: message\ndata: ${answer}\n\n`), 200);
       };
-      if (message.method === "initialize") return reply({ protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "fake-ide", version: "0" } });
+      if (message.method === "initialize")
+        return reply({
+          protocolVersion: message.params.protocolVersion,
+          capabilities: { tools: {} },
+          serverInfo: { name: "fake-ide", version: "0" },
+        });
       if (message.method === "tools/list") {
-        const refs = { name: "ide_find_references", title: "Find references", annotations: { readOnlyHint: true, openWorldHint: false }, description: "refs" };
-        reply({ tools: [{ ...refs, inputSchema: { type: "object", properties: { project_path: { type: "string" }, file: { type: "string" } }, required: ["project_path"] } }] });
+        const refs = {
+          name: "ide_find_references",
+          title: "Find references",
+          annotations: { readOnlyHint: true, openWorldHint: false },
+          description: "refs",
+        };
+        reply({
+          tools: [
+            {
+              ...refs,
+              inputSchema: {
+                type: "object",
+                properties: { project_path: { type: "string" }, file: { type: "string" } },
+                required: ["project_path"],
+              },
+            },
+          ],
+        });
         return;
       }
       if (options.slowMs) return void setTimeout(() => answerCall(message, reply), options.slowMs);
       answerCall(message, reply);
     });
   });
-  const answerCall = (message: { params: { name: string; arguments: Record<string, unknown> } }, reply: (result: unknown) => void) => {
+  const answerCall = (
+    message: { params: { name: string; arguments: Record<string, unknown> } },
+    reply: (result: unknown) => void,
+  ) => {
     const { name, arguments: args } = message.params;
     calls.push({ name, args });
     order.push(name);
@@ -64,7 +102,14 @@ export async function fakeIde(options: IdeOptions) {
     if (name === "ide_open_project") {
       if (!options.openEnabled) return text(`Tool ${name} not found`, true);
       if (options.routeRequired && !args.project_path) {
-        return text(JSON.stringify({ error: "multiple_projects_open", message: "Multiple projects are open.", available_projects: [{ name: "main", path: "/already/open" }] }), true);
+        return text(
+          JSON.stringify({
+            error: "multiple_projects_open",
+            message: "Multiple projects are open.",
+            available_projects: [{ name: "main", path: "/already/open" }],
+          }),
+          true,
+        );
       }
       open.add(String(args.path));
       return text("opened");
@@ -73,11 +118,17 @@ export async function fakeIde(options: IdeOptions) {
       open.delete(String(args.project_path));
       return text("closed");
     }
-    if (name === "ide_sync_files") return void setTimeout(() => (order.push("synced"), text("synced")), options.syncMs ?? 0);
+    if (name === "ide_sync_files")
+      return void setTimeout(() => (order.push("synced"), text("synced")), options.syncMs ?? 0);
     if (name === "ide_index_status") return text(JSON.stringify({ isDumbMode: dumb > 0 }));
     if (name === "ide_find_symbol") return text(`Tool ${name} not found`, true);
-    if (name === "ide_diagnostics") return text("java.util.concurrent.ExecutionException: com.redhat.devtools.lsp4ij.server.CannotStartProcessException: harper-ls", true);
-    if (!open.has(String(args.project_path))) return text('{"error":"project_not_found","message":"No open project matches"}', true);
+    if (name === "ide_diagnostics")
+      return text(
+        "java.util.concurrent.ExecutionException: com.redhat.devtools.lsp4ij.server.CannotStartProcessException: harper-ls",
+        true,
+      );
+    if (!open.has(String(args.project_path)))
+      return text('{"error":"project_not_found","message":"No open project matches"}', true);
     if (dumb > 0) {
       dumb--;
       return text("IDE index is not ready (dumb mode) — IntelliJ is indexing in the background.", true);
@@ -125,7 +176,15 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 
 export function ideConfig(url: string, tools: string[]) {
   const { label, instructions, proxy } = entry("intellij-index");
-  return { name: "intellij-index", label, instructions, tools, ...proxy, backend: { type: "http", url }, wait: { ...proxy.wait, seconds: 2, pollSeconds: 0.01 } };
+  return {
+    name: "intellij-index",
+    label,
+    instructions,
+    tools,
+    ...proxy,
+    backend: { type: "http", url },
+    wait: { ...proxy.wait, seconds: 2, pollSeconds: 0.01 },
+  };
 }
 
 const OPENING = {
@@ -139,14 +198,25 @@ export const opening = (config: object) => ({ ...config, open: OPENING });
 
 /** A harness with the proxy for `config` started in `cwd`, as an SDK client over its stdio. */
 export async function proxy(cwd: string, config: object, changed?: () => void, env: Record<string, string> = {}) {
-  const client = new Client({ name: "probe", version: "0" }, changed ? { listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: changed } } } : {});
-  const transport = new StdioClientTransport({ command: process.execPath, args: [PROXY, JSON.stringify(config)], cwd, env: { PATH: process.env.PATH ?? "", ...env }, stderr: "inherit" });
+  const client = new Client(
+    { name: "probe", version: "0" },
+    changed ? { listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: changed } } } : {},
+  );
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [PROXY, JSON.stringify(config)],
+    cwd,
+    env: { PATH: process.env.PATH ?? "", ...env },
+    stderr: "inherit",
+  });
   await client.connect(transport);
-  const call = async (name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+  const call = async (name: string, args: Record<string, unknown> = {}) =>
+    (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
   return { client, call, pid: transport.pid!, stop: () => client.close() };
 }
 
-export const work = (calls: Call[]) => calls.filter((call) => !["ide_sync_files", "ide_index_status"].includes(call.name)).map((call) => call.name);
+export const work = (calls: Call[]) =>
+  calls.filter((call) => !["ide_sync_files", "ide_index_status"].includes(call.name)).map((call) => call.name);
 
 /** Whether no process has this id any more. */
 export function gone(pid: number): boolean {
@@ -159,6 +229,7 @@ export function gone(pid: number): boolean {
 }
 
 export const within = async (ms: number, check: () => boolean) => {
-  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20))) if (Date.now() > end) return false;
+  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20)))
+    if (Date.now() > end) return false;
   return true;
 };

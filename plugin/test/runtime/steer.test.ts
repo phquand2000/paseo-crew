@@ -9,9 +9,25 @@ import { harness } from "./harness.ts";
 test("mail a call brings about is not steered into the caller's turn until the caller has taken the call's answer", async (t) => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Build",
+    outcome: "a.txt changes",
+    acceptance: ["a"],
+    outOfScope: ["anything else in the repository"],
+  });
   const { lead, worktree } = h.ledger().lanes.L1!;
-  await h.call(lead!, "lead", "add_tasks", { tasks: [{ key: "build", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
+  await h.call(lead!, "lead", "add_tasks", {
+    tasks: [
+      {
+        key: "build",
+        title: "Clean build",
+        goal: "g",
+        acceptance: ["a"],
+        hints: ["a.txt"],
+        outOfScope: ["the rest of the repository"],
+      },
+    ],
+  });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   h.commit(worktree!, "a.txt", "A\n");
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
@@ -21,7 +37,13 @@ test("mail a call brings about is not steered into the caller's turn until the c
   seat.status = "running";
   h.runtime.outbox.turnStarted(lead!, Date.now() - 2 * 60_000);
   // The Lead's key, as Paseo opens its session; then its team server's line to the desk.
-  h.runtime.sessionOpen({ agentId: lead!, reason: "create", provider: seat.provider, cwd: h.root, env: { SEATWORKS_DESK_KEY: "k-lead" } });
+  h.runtime.sessionOpen({
+    agentId: lead!,
+    reason: "create",
+    provider: seat.provider,
+    cwd: h.root,
+    env: { SEATWORKS_DESK_KEY: "k-lead" },
+  });
   const socket = (h.runtime as unknown as { socket: TeamSocket }).socket;
   socket.listen();
   t.after(() => socket.close());
@@ -32,7 +54,8 @@ test("mail a call brings about is not steered into the caller's turn until the c
   const say = (message: object) => line.write(`${JSON.stringify(message)}\n`);
   say({ type: "hello", key: "k-lead", role: "lead", cwd: h.root });
   say({ type: "call", id: "1", tool: "accept", args: { task: "L1-T1" } });
-  for (let i = 0; i < 100 && !heard.some((said) => said.type === "result"); i++) await new Promise((resolve) => setTimeout(resolve, 20));
+  for (let i = 0; i < 100 && !heard.some((said) => said.type === "result"); i++)
+    await new Promise((resolve) => setTimeout(resolve, 20));
   assert.match(heard.find((said) => said.type === "result")?.text ?? "", /L1-T1 is in the merge queue/);
   await h.runtime.desk.settled(h.project);
   const merged = () => [...seat.steered, ...seat.sent].filter((text) => /MERGED L1-T1/.test(text));

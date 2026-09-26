@@ -30,7 +30,9 @@ test("every skill a role is given has briefs that should open it and near misses
 });
 
 test("a trigger answer is read from the last JSON the agent printed, and a near miss opened fails the run", () => {
-  assert.deepEqual(openedSkills('Thinking {"skills": ["council"]} ... final: {"skills": ["repo-refresh"]}'), ["repo-refresh"]);
+  assert.deepEqual(openedSkills('Thinking {"skills": ["council"]} ... final: {"skills": ["repo-refresh"]}'), [
+    "repo-refresh",
+  ]);
   assert.deepEqual(openedSkills('{"skills": []}'), []);
   assert.equal(openedSkills("I would open council."), undefined);
   const nearMiss = { brief: "b", expect: ["test-first"], near: "diagnosing-bugs" };
@@ -43,7 +45,12 @@ test("a trigger answer is read from the last JSON the agent printed, and a near 
 test("the trigger prompt shows the role each skill's name and description, as a seat sees them", () => {
   const kit = loadKit(pluginRoot);
   const cards = skillCards(kit, "peer");
-  assert.deepEqual([...cards.keys()].sort(), ["diagnosing-bugs", "security-check", "test-first", "test-proof-debt-audit"]);
+  assert.deepEqual([...cards.keys()].sort(), [
+    "diagnosing-bugs",
+    "security-check",
+    "test-first",
+    "test-proof-debt-audit",
+  ]);
   const prompt = triggerPrompt("peer", cards, "Goal: fix it.");
   assert.match(prompt, /- test-first: Puts evidence before behavior/);
   assert.match(prompt, /Your brief:\nGoal: fix it\./);

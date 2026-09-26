@@ -1,29 +1,52 @@
 import type { ArgSchema } from "../catalog/kit.ts";
 
-const TYPE_WORDS: Record<string, string> = { string: "text", boolean: "true or false", number: "a number", integer: "a whole number", array: "a list", object: "an object" };
+const TYPE_WORDS: Record<string, string> = {
+  string: "text",
+  boolean: "true or false",
+  number: "a number",
+  integer: "a whole number",
+  array: "a list",
+  object: "an object",
+};
 
 const typeOf = (value: unknown): string => (Array.isArray(value) ? "array" : value === null ? "null" : typeof value);
 
-const isType = (value: unknown, type: string): boolean => (type === "integer" ? Number.isInteger(value) : typeOf(value) === type);
+const isType = (value: unknown, type: string): boolean =>
+  type === "integer" ? Number.isInteger(value) : typeOf(value) === type;
 
-const blank = (value: unknown): boolean => value === undefined || value === null || (typeof value === "string" && value.trim() === "") || (Array.isArray(value) && value.every(blank));
+const blank = (value: unknown): boolean =>
+  value === undefined ||
+  value === null ||
+  (typeof value === "string" && value.trim() === "") ||
+  (Array.isArray(value) && value.every(blank));
 
 const absent = (value: unknown): boolean => value === undefined || value === null;
 
 function fits(name: string, schema: ArgSchema, value: unknown): string[] {
   if (schema.type && !isType(value, schema.type)) return [`${name} must be ${TYPE_WORDS[schema.type] ?? schema.type}`];
   if (schema.enum && !schema.enum.includes(value)) return [`${name} must be one of ${schema.enum.join(", ")}`];
-  if (typeof value === "number" && schema.minimum !== undefined && value < schema.minimum) return [`${name} must be at least ${schema.minimum}`];
-  if (typeof value === "number" && schema.maximum !== undefined && value > schema.maximum) return [`${name} must be at most ${schema.maximum}`];
-  if (typeof value === "string" && schema.maxLength !== undefined && value.length > schema.maxLength) return [`${name} takes at most ${schema.maxLength} characters, and has ${value.length}`];
-  if (typeof value === "string" && schema.minLength !== undefined && value.length < schema.minLength) return [`${name} must not be empty`];
+  if (typeof value === "number" && schema.minimum !== undefined && value < schema.minimum)
+    return [`${name} must be at least ${schema.minimum}`];
+  if (typeof value === "number" && schema.maximum !== undefined && value > schema.maximum)
+    return [`${name} must be at most ${schema.maximum}`];
+  if (typeof value === "string" && schema.maxLength !== undefined && value.length > schema.maxLength)
+    return [`${name} takes at most ${schema.maxLength} characters, and has ${value.length}`];
+  if (typeof value === "string" && schema.minLength !== undefined && value.length < schema.minLength)
+    return [`${name} must not be empty`];
   if (!Array.isArray(value) || !schema.items) return [];
-  if (schema.minItems !== undefined && value.length < schema.minItems) return [`${name} takes at least ${schema.minItems}`];
-  if (schema.maxItems !== undefined && value.length > schema.maxItems) return [`${name} takes at most ${schema.maxItems}`];
+  if (schema.minItems !== undefined && value.length < schema.minItems)
+    return [`${name} takes at least ${schema.minItems}`];
+  if (schema.maxItems !== undefined && value.length > schema.maxItems)
+    return [`${name} takes at most ${schema.maxItems}`];
   for (const item of value) {
     const wrong = fits(`each of ${name}`, schema.items, item);
     // Inside a list's items only what the handler cannot take is refused: a blank there was never held against a call.
-    const inner = wrong.length === 0 && schema.items.properties ? problems(schema.items, item as Record<string, unknown>, absent).map((problem) => `${problem} in each of ${name}`) : [];
+    const inner =
+      wrong.length === 0 && schema.items.properties
+        ? problems(schema.items, item as Record<string, unknown>, absent).map(
+            (problem) => `${problem} in each of ${name}`,
+          )
+        : [];
     if (wrong.length + inner.length > 0) return [...wrong, ...inner];
   }
   return [];
@@ -52,8 +75,16 @@ export function argsProblems(schema: ArgSchema, args: Record<string, unknown>): 
 /** A call as its tool takes it: a field sent as null was read as left out, so it is left out. */
 export function withoutNulls(args: Record<string, unknown>): Record<string, unknown> {
   const kept = (value: unknown): unknown =>
-    Array.isArray(value) ? value.map(kept) : value && typeof value === "object" ? withoutNulls(value as Record<string, unknown>) : value;
-  return Object.fromEntries(Object.entries(args).filter(([, value]) => value !== null).map(([name, value]) => [name, kept(value)]));
+    Array.isArray(value)
+      ? value.map(kept)
+      : value && typeof value === "object"
+        ? withoutNulls(value as Record<string, unknown>)
+        : value;
+  return Object.fromEntries(
+    Object.entries(args)
+      .filter(([, value]) => value !== null)
+      .map(([name, value]) => [name, kept(value)]),
+  );
 }
 
 /** What a tool takes, as a seat reads it back: its required fields, then the rest. */

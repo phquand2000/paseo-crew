@@ -40,7 +40,8 @@ export class Watching {
     try {
       const ledger = loadLedger(project.state);
       const task = taskOfPeer(ledger, seat.id);
-      scope = task?.kind !== "code" ? undefined : task.mode === "parallel" ? task.holds : ledger.lanes[task.lane]?.writeSet;
+      scope =
+        task?.kind !== "code" ? undefined : task.mode === "parallel" ? task.holds : ledger.lanes[task.lane]?.writeSet;
       placed = Boolean(task ?? laneOfLead(ledger, seat.id));
     } catch (error) {
       this.deps.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: errorText(error) });
@@ -71,7 +72,9 @@ export class Watching {
   private noticed(watch: SeatWatch, facts: Fact[]): void {
     if (this.deps.watches().get(watch.seat.id) !== watch) return;
     const moment = { facts, instruction: watch.window.instruction(), turn: watch.turnId };
-    this.deps.desk.notice(projectOf(watch.seat.cwd), watch.seat, decide(facts), moment).catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
+    this.deps.desk
+      .notice(projectOf(watch.seat.cwd), watch.seat, decide(facts), moment)
+      .catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
   }
 
   /** Trouble nobody is mailed about, kept where a screen can show it rather than only in the log. */
@@ -88,15 +91,32 @@ export class Watching {
     if (!seat?.role.tools) return;
     const project = projectOf(event.agent.cwd);
     for (const call of malformed(event.timeline, seat.harness.timeline?.unparsed)) {
-      this.deps.desk.event(project, { kind: "call.malformed", agent: event.agent.id, role: seat.role.role, tool: call.tool, error: call.quote });
-      this.troubled(project, "call.malformed", `the ${seat.role.label}'s ${call.tool} was written with an input that is not JSON, and never reached the desk`);
+      this.deps.desk.event(project, {
+        kind: "call.malformed",
+        agent: event.agent.id,
+        role: seat.role.role,
+        tool: call.tool,
+        error: call.quote,
+      });
+      this.troubled(
+        project,
+        "call.malformed",
+        `the ${seat.role.label}'s ${call.tool} was written with an input that is not JSON, and never reached the desk`,
+      );
     }
   }
 
   /** Each fact goes on record, and what they add up to may open an incident. */
   found(watch: SeatWatch, facts: Fact[]): void {
     const project = projectOf(watch.seat.cwd);
-    for (const fact of facts) this.deps.desk.event(project, { kind: "watch.fact", agent: watch.seat.id, fact: fact.kind, level: fact.level, quote: fact.quote });
+    for (const fact of facts)
+      this.deps.desk.event(project, {
+        kind: "watch.fact",
+        agent: watch.seat.id,
+        fact: fact.kind,
+        level: fact.level,
+        quote: fact.quote,
+      });
     this.noticed(watch, facts);
   }
 }

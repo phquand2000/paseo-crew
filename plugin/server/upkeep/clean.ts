@@ -39,7 +39,15 @@ function entries(dir: string): string[] {
   }
 }
 
-const item = (path: string, kind: CleanItem["kind"], why: string, extra: Partial<CleanItem> = {}): CleanItem => ({ path, kind, why, bytes: bytesOf(path), careful: false, held: null, ...extra });
+const item = (path: string, kind: CleanItem["kind"], why: string, extra: Partial<CleanItem> = {}): CleanItem => ({
+  path,
+  kind,
+  why,
+  bytes: bytesOf(path),
+  careful: false,
+  held: null,
+  ...extra,
+});
 
 /** Nothing else removes a seat directory, but one an open seat runs in is never garbage: its harness is reading it. */
 function seats(ctx: CleanContext): CleanItem[] {
@@ -47,8 +55,12 @@ function seats(ctx: CleanContext): CleanItem[] {
   const attached = new Map(ctx.known.map((project) => [project.slug, project]));
   const running = new Set(ctx.live.map((seat) => `${seat.provider}|${seat.slug}`));
   const roots = new Set(Object.values(kit.harnesses).map((harness) => expandHome(harness.profileRoot, ctx.home)));
-  const agents = Object.keys(kit.harnesses).map((id) => id.replace(/[^a-z0-9]/gi, "\\$&")).join("|");
-  const named = new RegExp(`^${kit.prefix.replace(/[^a-z0-9]/gi, "\\$&")}([a-z]+)-(${agents})-([a-z0-9-]+-[0-9a-f]{6})$`);
+  const agents = Object.keys(kit.harnesses)
+    .map((id) => id.replace(/[^a-z0-9]/gi, "\\$&"))
+    .join("|");
+  const named = new RegExp(
+    `^${kit.prefix.replace(/[^a-z0-9]/gi, "\\$&")}([a-z]+)-(${agents})-([a-z0-9-]+-[0-9a-f]{6})$`,
+  );
   const found: CleanItem[] = [];
   for (const root of roots) {
     for (const name of entries(root)) {
@@ -87,7 +99,14 @@ async function copies(ctx: CleanContext): Promise<CleanItem[]> {
       const why = project ? "the desk holds no slot for it" : `${slug} is not attached`;
       // Work in a copy no slot names is likely a crashed seat's and in no commit, so it is shown, not taken.
       const state = existsSync(join(path, ".git")) ? await pristineState(path) : "clean";
-      found.push(item(path, "copy", why, state === "clean" ? {} : { held: state === "dirty" ? "it has uncommitted changes" : "git could not read it" }));
+      found.push(
+        item(
+          path,
+          "copy",
+          why,
+          state === "clean" ? {} : { held: state === "dirty" ? "it has uncommitted changes" : "git could not read it" },
+        ),
+      );
     }
   }
   return found;
@@ -104,7 +123,11 @@ function records(ctx: CleanContext): CleanItem[] {
     if (project && existsSync(project.root)) continue;
     const concept = existsSync(join(path, "CONTEXT.md"));
     const why = project ? `attached, but ${project.root} is gone` : "detached; attaching it again would find its lanes";
-    found.push(item(path, "records", concept ? `${why}. It holds the project's CONTEXT.md` : why, { careful: concept || !project }));
+    found.push(
+      item(path, "records", concept ? `${why}. It holds the project's CONTEXT.md` : why, {
+        careful: concept || !project,
+      }),
+    );
   }
   return found;
 }
@@ -133,7 +156,8 @@ function snapshots(ctx: CleanContext): CleanItem[] {
   linksInto(dirname(guidesDir(ctx.home)), root, 0, linked);
   for (const harness of Object.values(ctx.kit.harnesses)) {
     const seatRoot = expandHome(harness.profileRoot, ctx.home);
-    for (const name of entries(seatRoot)) if (name.startsWith(ctx.kit.prefix)) linksInto(join(seatRoot, name), root, 3, linked);
+    for (const name of entries(seatRoot))
+      if (name.startsWith(ctx.kit.prefix)) linksInto(join(seatRoot, name), root, 3, linked);
   }
   return entries(root)
     .filter((name) => !linked.has(name) && !/\.\d+\.building$/.test(name))
@@ -146,7 +170,15 @@ function backups(ctx: CleanContext): CleanItem[] {
   const dirs = [root, ...entries(join(root, "projects")).map((slug) => join(root, "projects", slug))];
   return dirs.flatMap((dir) =>
     entries(dir).flatMap((name) =>
-      BACKUP.test(name) ? [item(join(dir, name), "backup", "a copy Migrate kept of settings it repaired; it can hold a pasted server's token")] : [],
+      BACKUP.test(name)
+        ? [
+            item(
+              join(dir, name),
+              "backup",
+              "a copy Migrate kept of settings it repaired; it can hold a pasted server's token",
+            ),
+          ]
+        : [],
     ),
   );
 }

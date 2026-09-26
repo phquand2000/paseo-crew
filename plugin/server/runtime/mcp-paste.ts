@@ -2,11 +2,16 @@ import type { Connect } from "../../shared/settings.ts";
 import type { Parsed } from "../../shared/views.ts";
 import { errorText } from "../core/errors.ts";
 
-const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 /** Pasted snippets write ports and flags as numbers; a value with no text form is named back, not dropped. */
 const scalar = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : undefined;
+  typeof value === "string"
+    ? value
+    : typeof value === "number" || typeof value === "boolean"
+      ? String(value)
+      : undefined;
 
 /** The words, or — as a string — the one that is not a word. */
 const words = (value: unknown): string[] | string | undefined => {
@@ -42,7 +47,18 @@ function connectFrom(value: unknown): Connect | string {
   if (typeof rest === "string") return `The server's args have ${rest} in them, which is not text.`;
   const command = [...(run ?? []), ...(rest ?? [])];
   const url = typeof value.url === "string" ? value.url : undefined;
-  const type = raw === "local" || raw === "stdio" ? "stdio" : raw === "sse" ? "sse" : raw === "remote" || raw === "http" ? "http" : command.length > 0 ? "stdio" : url ? "http" : undefined;
+  const type =
+    raw === "local" || raw === "stdio"
+      ? "stdio"
+      : raw === "sse"
+        ? "sse"
+        : raw === "remote" || raw === "http"
+          ? "http"
+          : command.length > 0
+            ? "stdio"
+            : url
+              ? "http"
+              : undefined;
   if (!type) return "Give the server a command to run or a url to reach.";
   if (type === "stdio") {
     if (command.length === 0) return "A local server needs a command to run.";

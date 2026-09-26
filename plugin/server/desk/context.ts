@@ -10,17 +10,34 @@ import type { Project } from "./project.ts";
 import { appendRecord } from "./records.ts";
 import { type Incidents, incidentsFault, loadIncidents, saveIncidents } from "./incidents.ts";
 
-export type ToolRequest = { id: string; agent: string; role: string; tool: string; args: Record<string, unknown>; cwd: string; at: number };
+export type ToolRequest = {
+  id: string;
+  agent: string;
+  role: string;
+  tool: string;
+  args: Record<string, unknown>;
+  cwd: string;
+  at: number;
+};
 export type ToolReply = { ok: boolean; text: string };
 export type Args = Record<string, unknown>;
 export type Caller = { id: string; role: RoleSpec; title: string; project: Project };
 
 export const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 export const strs = (value: unknown): string[] =>
-  Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : typeof value === "string" && value.trim() ? [value.trim()] : [];
+  Array.isArray(value)
+    ? value.map((item) => String(item).trim()).filter(Boolean)
+    : typeof value === "string" && value.trim()
+      ? [value.trim()]
+      : [];
 /** Only the fields the call names, read as text or as a list: an amendment changes what it is given and nothing else. */
 export const given = (args: Args, texts: string[], lists: string[]): Record<string, string | string[]> =>
-  Object.fromEntries([...texts.map((key) => [key, str(args[key])] as const), ...lists.map((key) => [key, strs(args[key])] as const)].filter(([key]) => args[key] !== undefined));
+  Object.fromEntries(
+    [
+      ...texts.map((key) => [key, str(args[key])] as const),
+      ...lists.map((key) => [key, strs(args[key])] as const),
+    ].filter(([key]) => args[key] !== undefined),
+  );
 export const ok = (text: string): ToolReply => ({ ok: true, text });
 export const no = (text: string): ToolReply => ({ ok: false, text });
 
@@ -85,14 +102,20 @@ export class DeskContext {
   /** Runs `work` once every earlier one queued under `key` has settled, whatever became of it. */
   inTurn<T>(key: string, work: () => Promise<T>): Promise<T> {
     const run = (this.lines.get(key) ?? Promise.resolve()).then(work);
-    this.lines.set(key, run.catch(() => undefined));
+    this.lines.set(
+      key,
+      run.catch(() => undefined),
+    );
     return run;
   }
 
   transact<T>(project: Project, decide: (ledger: Ledger) => Sync<T>): T {
     this.projects.set(project.slug, project);
     const fault = ledgerFault(project.state);
-    if (fault) throw new Error(`${fault}. Nothing was written over it. Only the Human can repair it or move it aside — no seat may write the desk's own files — and what the desk has on record is in that file.`);
+    if (fault)
+      throw new Error(
+        `${fault}. Nothing was written over it. Only the Human can repair it or move it aside — no seat may write the desk's own files — and what the desk has on record is in that file.`,
+      );
     const ledger = loadLedger(project.state);
     const result = decide(ledger);
     saveLedger(project.state, ledger);
@@ -136,7 +159,12 @@ export class DeskContext {
   }
 
   /** Moves a task by its lifecycle under the lock, `change` alongside; a move the table refuses changes nothing and comes back as the status that stopped it. */
-  moveTask(project: Project, taskId: string, move: TaskMove, change?: (task: Task) => void): Task | TaskStatus | undefined {
+  moveTask(
+    project: Project,
+    taskId: string,
+    move: TaskMove,
+    change?: (task: Task) => void,
+  ): Task | TaskStatus | undefined {
     return this.transact(project, (ledger) => {
       const task = ledger.tasks[taskId];
       if (!task) return undefined;

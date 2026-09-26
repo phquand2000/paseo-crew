@@ -13,7 +13,12 @@ async function withServer<T>(url: string, timeoutMs: number, use: (client: Clien
 }
 
 /** A tool's answer as text, and whether it went through; a server that cannot be reached is a failed call that says why. */
-export async function callTool(url: string, name: string, args: Record<string, unknown>, timeoutMs: number): Promise<{ ok: boolean; text: string }> {
+export async function callTool(
+  url: string,
+  name: string,
+  args: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<{ ok: boolean; text: string }> {
   try {
     return await withServer(url, timeoutMs, async (client) => {
       const result = await client.callTool({ name, arguments: args }, { timeout: timeoutMs });
@@ -28,7 +33,11 @@ export async function callTool(url: string, name: string, args: Record<string, u
 /** The names of the tools a server offers, or why it could not say. */
 export async function toolNames(url: string, timeoutMs: number): Promise<{ names?: string[]; error?: string }> {
   try {
-    return { names: await withServer(url, timeoutMs, async (client) => (await client.listTools(undefined, { timeout: timeoutMs })).tools.map((tool) => tool.name)) };
+    return {
+      names: await withServer(url, timeoutMs, async (client) =>
+        (await client.listTools(undefined, { timeout: timeoutMs })).tools.map((tool) => tool.name),
+      ),
+    };
   } catch (error) {
     return { error: errorText(error) };
   }

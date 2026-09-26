@@ -32,12 +32,31 @@ function toSeen(message: StreamMessage, epochs: Map<string, number>): Exclude<Se
   if (event.type !== "timeline" || typeof message.seq !== "number") return undefined;
   if (!epochs.has(message.epoch!)) epochs.set(message.epoch!, epochs.size);
   const replay = epochs.get(message.epoch!)! > 0;
-  return { kind: "row", row: { item: event.item!, seqStart: message.seq, seq: message.seq, epoch: message.epoch!, turnId: event.turnId ?? null, replay } };
+  return {
+    kind: "row",
+    row: {
+      item: event.item!,
+      seqStart: message.seq,
+      seq: message.seq,
+      epoch: message.epoch!,
+      turnId: event.turnId ?? null,
+      replay,
+    },
+  };
 }
 
 /** `handed` is the outcome of a hand-back the turn made, if it made one; `quirks` are the harness's way of writing its timeline. */
-export function play(messages: StreamMessage[], given: Rules, handed?: string, quirks?: ConstructorParameters<typeof SeatWatch>[2]) {
-  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({ rules: given, handedBack: () => handed, placed: true }), quirks);
+export function play(
+  messages: StreamMessage[],
+  given: Rules,
+  handed?: string,
+  quirks?: ConstructorParameters<typeof SeatWatch>[2],
+) {
+  const watch = new SeatWatch(
+    { id: "s1", provider: "sw2-peer-claude", cwd: "/work" },
+    () => ({ rules: given, handedBack: () => handed, placed: true }),
+    quirks,
+  );
   const facts: (Fact & { seq?: number })[] = [];
   const epochs = new Map<string, number>();
   let now = 1_000;
@@ -55,11 +74,20 @@ export function play(messages: StreamMessage[], given: Rules, handed?: string, q
 export const kinds = (facts: Fact[]) => facts.map((fact) => fact.kind);
 
 /** A completed edit to borrow the shape of: each test sets the path and text it needs. */
-export const editCall = () => fixture("codex").find((message) => message.event.item?.name === "apply_patch" && message.event.item?.status === "completed")!;
+export const editCall = () =>
+  fixture("codex").find(
+    (message) => message.event.item?.name === "apply_patch" && message.event.item?.status === "completed",
+  )!;
 
-export const piRow = (seq: number) => fixture("pi").find((message) => message.seq === seq && message.epoch === fixture("pi")[1]!.epoch)!;
+export const piRow = (seq: number) =>
+  fixture("pi").find((message) => message.seq === seq && message.epoch === fixture("pi")[1]!.epoch)!;
 
-export function again(message: StreamMessage, callId: string, seq: number, change: (detail: Record<string, unknown>) => void = () => {}): StreamMessage {
+export function again(
+  message: StreamMessage,
+  callId: string,
+  seq: number,
+  change: (detail: Record<string, unknown>) => void = () => {},
+): StreamMessage {
   const copy = JSON.parse(JSON.stringify(message)) as StreamMessage;
   copy.event.item!.callId = callId;
   change(copy.event.item!.detail as Record<string, unknown>);
@@ -73,9 +101,13 @@ export const opening = (): StreamMessage[] => [fixture("pi")[0]!, fixture("pi")[
 export const claudeTurn2 = () =>
   fixture("claude")
     .filter((message) => message.epoch === fixture("claude")[1]!.epoch || !message.epoch)
-    .map((message) => JSON.parse(JSON.stringify(message).replace(/sleep 5; echo (alpha|beta|gamma)/g, "npm test")) as StreamMessage)
+    .map(
+      (message) =>
+        JSON.parse(JSON.stringify(message).replace(/sleep 5; echo (alpha|beta|gamma)/g, "npm test")) as StreamMessage,
+    )
     .map((message) => {
       const item = message.event.item;
-      if (item?.type === "tool_call" && item.name === "Bash" && item.status === "completed") Object.assign(item, { status: "failed", error: { content: "1 failing" } });
+      if (item?.type === "tool_call" && item.name === "Bash" && item.status === "completed")
+        Object.assign(item, { status: "failed", error: { content: "1 failing" } });
       return message;
     });

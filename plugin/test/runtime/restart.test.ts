@@ -11,7 +11,19 @@ import { harness, laneWithPeer, nobodySeated } from "./harness.ts";
 async function handedBack() {
   const lane = await laneWithPeer();
   const { h } = lane;
-  await h.call(lane.lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Beside", goal: "g", acceptance: ["a"], holds: ["c.txt"], outOfScope: ["the rest"], parallel: true }] });
+  await h.call(lane.lane.lead!, "lead", "add_tasks", {
+    tasks: [
+      {
+        key: "t",
+        title: "Beside",
+        goal: "g",
+        acceptance: ["a"],
+        holds: ["c.txt"],
+        outOfScope: ["the rest"],
+        parallel: true,
+      },
+    ],
+  });
   const task = h.ledger().tasks["L1-T2"]!;
   h.commit(task.worktree!, "c.txt", "beside\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "c" });
@@ -24,7 +36,8 @@ async function handedBack() {
 }
 
 /** The merges on the lane branch: another task in the lane's copy has that copy on its own branch meanwhile. */
-const merges = (h: Awaited<ReturnType<typeof laneWithPeer>>["h"], copy: string) => h.git(copy, "rev-list", "--merges", "--count", h.ledger().lanes.L1!.branch).trim();
+const merges = (h: Awaited<ReturnType<typeof laneWithPeer>>["h"], copy: string) =>
+  h.git(copy, "rev-list", "--merges", "--count", h.ledger().lanes.L1!.branch).trim();
 
 test("a merge the queue held when the plugin stopped goes through once it starts again", async () => {
   const { h, lane, stopped } = await handedBack();
@@ -77,7 +90,19 @@ test("a merge the plugin stopped in the middle of is run again from the start, a
   const again = await handedBack();
   const second = again.lane.worktree!;
   const before = again.h.git(second, "rev-parse", again.lane.branch).trim();
-  const made = again.h.git(second, "commit-tree", `${again.task.branch}^{tree}`, "-p", before, "-p", again.task.branch!, "-m", "Merge L1-T2").trim();
+  const made = again.h
+    .git(
+      second,
+      "commit-tree",
+      `${again.task.branch}^{tree}`,
+      "-p",
+      before,
+      "-p",
+      again.task.branch!,
+      "-m",
+      "Merge L1-T2",
+    )
+    .trim();
   again.h.git(second, "update-ref", `refs/heads/${again.lane.branch}`, made, before);
   again.stopped("merging");
   again.h.restart();
@@ -118,7 +143,12 @@ test("a seat waiting for its turn to end to be archived when the plugin stopped 
 test("a landing waiting on a turn when the plugin stopped can go once that turn is over", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else"] });
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Numbers",
+    outcome: "a.txt gains words",
+    acceptance: ["four"],
+    outOfScope: ["anything else"],
+  });
   const lead = h.ledger().lanes.L1!.lead!;
   h.commit(h.root, "a.txt", "one\ntwo\nthree\nfour\n");
   // main moves on, so landing starts with merging it into the lane's copy, where the Lead is mid-turn.
@@ -137,15 +167,37 @@ test("a landing waiting on a turn when the plugin stopped can go once that turn 
 });
 
 /** Every slow call a desk is still working on, finished. */
-const finished = (desk: Desk) => Promise.all([...(desk as unknown as { running: Map<string, { reply: Promise<unknown> }> }).running.values()].map((entry) => entry.reply));
+const finished = (desk: Desk) =>
+  Promise.all(
+    [...(desk as unknown as { running: Map<string, { reply: Promise<unknown> }> }).running.values()].map(
+      (entry) => entry.reply,
+    ),
+  );
 
 test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "sleep 0.4" });
-  await h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Slow",
+    outcome: "x",
+    acceptance: ["a"],
+    outOfScope: ["anything else in the repository"],
+  });
   const lead = h.ledger().lanes.L1!.lead!;
-  const report = (id: string) => h.runtime.desk.answer({ id, agent: lead, role: "lead", tool: "report", args: { summary: "ready to land", ready: true }, cwd: h.root, at: Date.now() }, { within: 100 });
+  const report = (id: string) =>
+    h.runtime.desk.answer(
+      {
+        id,
+        agent: lead,
+        role: "lead",
+        tool: "report",
+        args: { summary: "ready to land", ready: true },
+        cwd: h.root,
+        at: Date.now(),
+      },
+      { within: 100 },
+    );
   const told = () => h.agents.get(lead)!.sent.join("\n").split("NO ANSWER to your report call").length - 1;
 
   // Told to end its turn and wait for the answer as mail, and the plugin stopped before its gate did.
@@ -171,7 +223,9 @@ test("an answer promised as mail that a stop lost is owned up to once the plugin
 async function stoppedOpening(where: Record<string, unknown>) {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const paseo = h.paseo as unknown as { workspaces: { ref(id: string): { agents: { create(options: unknown): Promise<unknown> } } } };
+  const paseo = h.paseo as unknown as {
+    workspaces: { ref(id: string): { agents: { create(options: unknown): Promise<unknown> } } };
+  };
   const ref = paseo.workspaces.ref;
   paseo.workspaces.ref = (id) => {
     const workspace = ref(id);
@@ -180,7 +234,13 @@ async function stoppedOpening(where: Record<string, unknown>) {
     return workspace;
   };
   const head = h.git(h.root, "rev-parse", "HEAD").trim();
-  void h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["the rest"], ...where });
+  void h.call(sup, "supervisor", "open_lane", {
+    title: "Cart",
+    outcome: "a.txt changes",
+    acceptance: ["a"],
+    outOfScope: ["the rest"],
+    ...where,
+  });
   const seated = () => [...h.agents.values()].find((agent) => agent.title.startsWith("L1 · Lead"));
   for (let i = 0; i < 200 && !seated(); i++) await settle();
   paseo.workspaces.ref = ref;
@@ -192,7 +252,9 @@ async function stoppedOpening(where: Record<string, unknown>) {
 test("a Lead seated in the Human's copy before a stop is taken on where it works, so its lane's tasks start", async () => {
   const { h, lead } = await stoppedOpening({});
   assert.equal(h.ledger().lanes.L1!.lead, lead);
-  await h.call(lead, "lead", "add_tasks", { tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
+  await h.call(lead, "lead", "add_tasks", {
+    tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }],
+  });
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", String(h.ledger().tasks["L1-T1"]!.held?.why));
 });
 

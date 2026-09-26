@@ -12,7 +12,16 @@ export function openIndexes(ctx: DeskContext, project: Project, copy: Copy, reus
   for (const index of ctx.indexes(project)) {
     for (const pattern of index.gitExclude) excludeFromGit(project.root, pattern);
     const work = index.open(copy.path).then((opened) => (opened.ok && reused ? index.sync(copy.path) : opened));
-    void work.then((result) => ctx.event(project, { kind: "index.opened", server: index.id, slot: copy.id, reused, ok: result.ok, detail: clip(result.text, 200) }));
+    void work.then((result) =>
+      ctx.event(project, {
+        kind: "index.opened",
+        server: index.id,
+        slot: copy.id,
+        reused,
+        ok: result.ok,
+        detail: clip(result.text, 200),
+      }),
+    );
   }
 }
 
@@ -20,8 +29,22 @@ export function openIndexes(ctx: DeskContext, project: Project, copy: Copy, reus
 export function closeIndexes(ctx: DeskContext, project: Project, copy: Copy): void {
   for (const index of ctx.indexes(project)) {
     void index.close(copy.path).then(
-      (result) => ctx.event(project, { kind: "index.closed", server: index.id, slot: copy.id, ok: result.ok, detail: clip(result.text, 200) }),
-      (error) => ctx.event(project, { kind: "index.closed", server: index.id, slot: copy.id, ok: false, detail: clip(errorText(error), 200) }),
+      (result) =>
+        ctx.event(project, {
+          kind: "index.closed",
+          server: index.id,
+          slot: copy.id,
+          ok: result.ok,
+          detail: clip(result.text, 200),
+        }),
+      (error) =>
+        ctx.event(project, {
+          kind: "index.closed",
+          server: index.id,
+          slot: copy.id,
+          ok: false,
+          detail: clip(errorText(error), 200),
+        }),
     );
   }
 }

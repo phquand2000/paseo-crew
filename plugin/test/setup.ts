@@ -30,7 +30,10 @@ console.error = (...args: unknown[]) => {
 /** A test that expects an error says so by mocking `console.error`; anything else it prints fails it. */
 afterEach(() => {
   const found = said.splice(0);
-  if (found.length > 0) throw new Error(`console.error was called and the test did not expect it (one that does reads it with reported(t) from test/console.ts):\n${found.join("\n")}`);
+  if (found.length > 0)
+    throw new Error(
+      `console.error was called and the test did not expect it (one that does reads it with reported(t) from test/console.ts):\n${found.join("\n")}`,
+    );
 });
 
 process.on("exit", () => {

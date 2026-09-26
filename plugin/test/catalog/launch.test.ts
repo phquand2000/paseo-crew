@@ -44,7 +44,7 @@ test("a Peer whose model lists no thinking options is given none, and still its 
 });
 
 test("a Lead opened on another harness follows that harness, whatever the settings choose", () => {
-  const next = applyRole(kit, team, { provider: "sw2-lead-omp", cwd: "/repo", model: "opus" } as AgentConfig, render);
+  const next = applyRole(kit, team, { provider: "sw2-lead-omp", cwd: "/repo", model: "opus" }, render);
   assert.equal(next.model, "glm");
   assert.equal(next.modeId, "full");
 });
@@ -84,7 +84,7 @@ test("a seat's shell may write under state only what its role declares, and a ro
   }
   assert.ok(deny.includes(`Read(${stateRoot("~")}/settings.json)`), "the machine's settings are also named without a glob, the only kind Claude's sandbox keeps on Linux");
 
-  const peer = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" } as AgentConfig, render, "/state/repo");
+  const peer = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" }, render, "/state/repo");
   assert.equal(peer.providerOptions, undefined, "a harness that declares no write list is untouched");
 });
 
@@ -115,9 +115,9 @@ test("a seat is handed its own working directory where its harness reads a proje
   const config = { provider: "sw2-lead-claude", cwd: "/repo", providerOptions: { additionalDirectories: ["/elsewhere"] } } as unknown as AgentConfig;
   const next = applyRole(kit, team, config, render) as unknown as { providerOptions: { additionalDirectories: string[] } };
   assert.deepEqual(next.providerOptions.additionalDirectories, ["/elsewhere", "/repo"]);
-  const again = applyRole(kit, team, { ...config, providerOptions: next.providerOptions } as unknown as AgentConfig, render) as unknown as { providerOptions: { additionalDirectories: string[] } };
+  const again = applyRole(kit, team, { ...config, providerOptions: next.providerOptions }, render) as unknown as { providerOptions: { additionalDirectories: string[] } };
   assert.deepEqual(again.providerOptions.additionalDirectories, ["/elsewhere", "/repo"], "a seat opened again is not handed its directory twice");
-  const peer = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" } as AgentConfig, render);
+  const peer = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" }, render);
   assert.equal(peer.providerOptions, undefined, "a harness that reads the project on its own is left alone");
 });
 
@@ -126,14 +126,14 @@ test("a harness that takes MCP servers at launch gets them in the launch config;
   const servers = { team: { type: "stdio", command: "node", args: ["team.mjs", "lead", "/spool"] } };
   const next = applyRole(kit, team, config, render, undefined, servers) as unknown as { mcpServers: Record<string, unknown> };
   assert.deepEqual(Object.keys(next.mcpServers).sort(), ["other", "team"]);
-  const peer = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" } as AgentConfig, render, undefined, servers);
+  const peer = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" }, render, undefined, servers);
   assert.equal(peer.mcpServers, undefined);
 });
 
 test("providers outside the kit are left untouched", () => {
   const config = { provider: "claude", cwd: "/repo", model: "x" } as AgentConfig;
   assert.equal(applyRole(kit, team, config, render), config);
-  assert.equal(applyRole(kit, team, { provider: "sw2-lead", cwd: "/repo" } as AgentConfig, render).model, undefined);
+  assert.equal(applyRole(kit, team, { provider: "sw2-lead", cwd: "/repo" }, render).model, undefined);
 });
 
 test("a seat's session gets its harness's environment, its config directory, project variables and the git launcher first on its PATH", () => {
@@ -155,10 +155,10 @@ test("a seat's session gets its harness's environment, its config directory, pro
 test("a seat keeps its own harness's model and thinking when the settings put that role on another harness", () => {
   const onOmp = resolveTeam(kit, { roles: { lead: { harness: "omp", model: "glm" } } });
   assert.equal(onOmp.roles.lead!.harness.id, "omp");
-  const ompSeat = applyRole(kit, onOmp, { provider: "sw2-lead-omp", cwd: "/repo" } as AgentConfig, render);
+  const ompSeat = applyRole(kit, onOmp, { provider: "sw2-lead-omp", cwd: "/repo" }, render);
   assert.equal(ompSeat.model, "glm");
-  const claudeSeat = applyRole(kit, onOmp, { provider: "sw2-lead-claude", cwd: "/repo" } as AgentConfig, render);
+  const claudeSeat = applyRole(kit, onOmp, { provider: "sw2-lead-claude", cwd: "/repo" }, render);
   assert.equal(claudeSeat.model, "opus");
   assert.equal(claudeSeat.thinkingOptionId, "medium");
-  assert.equal(applyRole(kit, onOmp, { provider: "sw2-lead-claude", cwd: "/repo", model: "haiku" } as AgentConfig, render).model, "haiku");
+  assert.equal(applyRole(kit, onOmp, { provider: "sw2-lead-claude", cwd: "/repo", model: "haiku" }, render).model, "haiku");
 });

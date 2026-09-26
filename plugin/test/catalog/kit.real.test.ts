@@ -242,7 +242,7 @@ test("a Codex seat has every desk and proxy tool it is given approved ahead, and
   const supervising = applyRole(own, supervisor, asked, () => "PROMPT", "/state/demo", serversFor(own, supervisor, "supervisor", context)) as unknown as { toolPolicy?: { preapproved: { server: string; tool: string }[] } };
   const paseo = supervising.toolPolicy?.preapproved.filter((ref) => ref.server === "paseo").map((ref) => ref.tool);
   assert.deepEqual(paseo, ["list_schedules"], "a roles file of one's own may give a seat some of Paseo's tools");
-  const claude = applyRole(kit, all, { provider: providerId(kit, "lead", "claude"), cwd: "/work/repo" } as AgentConfig, () => "PROMPT", "/state/demo", serversFor(kit, all, "lead", context)) as unknown as { toolPolicy?: unknown };
+  const claude = applyRole(kit, all, { provider: providerId(kit, "lead", "claude"), cwd: "/work/repo" }, () => "PROMPT", "/state/demo", serversFor(kit, all, "lead", context)) as unknown as { toolPolicy?: unknown };
   assert.equal(claude.toolPolicy, undefined);
 });
 
