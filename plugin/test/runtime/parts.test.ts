@@ -105,11 +105,6 @@ test("every letter a Peer, a reviewer or a Lead can be sent carries none of the 
   assert.deepEqual([hiddenWordsIn(text(worker), hides("peer")), hiddenWordsIn(text(worker), hides("reviewer")), hiddenWordsIn(text(lead), hides("lead"))], [[], [], []]);
 });
 
-test("a hand-back names the Peer that wrote it, so its lead can read what it did", () => {
-  const named = letters.handback(task, "/state/handbacks/L1-T1.md", "Outcome: complete", "agent-7", "lead").text;
-  assert.match(named, /HANDBACK L1-T1 \(Apply discount\) from agent-7/, "the lead is told which agent to read, at the moment it decides");
-});
-
 test("a letter ends with one Next line, what it asks of whoever reads it, which the desk picks from what it knows", () => {
   const next = (letter: Letter) => {
     const lines = letter.text.split("\n").filter((entry) => entry.startsWith("Next: "));

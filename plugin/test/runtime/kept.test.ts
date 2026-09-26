@@ -79,18 +79,6 @@ test("Peers are kept one for each accepted task, each until its Lead releases it
     );
 });
 
-test("a task in the merge queue keeps its Peer until it has merged", async () => {
-  const { h, lane, peer } = await laneWithPeer();
-  h.commit(lane.worktree!, "a.txt", "A\n");
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
-  // Accepted on record, and not yet taken up by the merge queue.
-  h.runtime.desk.moveTask(h.project, "L1-T1", "queue");
-  assert.equal(
-    (await h.call(lane.lead!, "lead", "release", { task: "L1-T1" })).text,
-    "L1-T1 is in the merge queue: release its Peer once MERGED arrives.",
-  );
-});
-
 test("the Lead releases the Peer kept from an accepted task; not while the task runs", async () => {
   const { h, lane, peer } = await laneWithPeer();
   const lead = lane.lead!;

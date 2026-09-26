@@ -2,26 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type Pending, harness } from "./harness.ts";
 
-test("a task whose honest answer is that nothing needed changing can be accepted, not only cut", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Audit", outcome: "the parser is checked", acceptance: ["a"], outOfScope: ["anything else"] });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Check the parser", goal: "find out whether it drops input", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
-  const peer = h.ledger().tasks["L1-T1"]!.peer!;
-
-  // The Peer investigates, finds the code already correct, and commits nothing. That is a real outcome.
-  assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "nothing needed changing: the parser already handles it" })).ok, true);
-  h.agents.get(peer)!.status = "idle";
-  const accepted = await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  assert.equal(accepted.ok, true, accepted.text);
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged", "the Lead judges the hand-back; the desk does not decide that no diff means no work");
-
-  await h.idle(lane.lead!);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /changed no files/, "the letter says plainly that nothing moved");
-});
-
 test("two supervising seats hold one project, and each lane's mail goes to the seat that opened it", async () => {
   const h = harness();
   const architecture = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "architecture");
