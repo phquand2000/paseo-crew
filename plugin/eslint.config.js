@@ -31,7 +31,6 @@ const NOT_YET_CLEAN = [
   "server/upkeep/migrate.ts",
   "test/adapters/decisions.test.ts",
   "test/catalog/kit.real.test.ts",
-  "test/catalog/launch.test.ts",
   "test/catalog/providers.test.ts",
   "test/catalog/team.test.ts",
   "test/core/stream.test.ts",
