@@ -1,124 +1,355 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
 
-test("a Lead is told what its lane writes, what it depends on, and what only one writer at a time may write", async () => {
+const lane = (title: string, extra: Record<string, unknown> = {}) => ({
+  title,
+  outcome: "x",
+  acceptance: ["a"],
+  outOfScope: ["anything else in the repository"],
+  ...extra,
+});
+
+test("where a lane works is the Human's call: asked when their copy is off its base or dirty, carried by open_lane or laneHome, and shown on status", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Build",
-    outcome: "a.txt changes",
-    acceptance: ["a"],
-    outOfScope: ["z"],
-    writeSet: ["a.txt", "package-lock.json"],
+  const status = async () => (await h.call(sup, "supervisor", "status", {})).text;
+  const branch = () => h.git(h.root, "branch", "--show-current").trim();
+  const open = (title: string, extra: Record<string, unknown> = {}) =>
+    h.call(sup, "supervisor", "open_lane", lane(title, extra));
+  const choice = /The Human decides where the next lane works/;
+  await h.call(sup, "supervisor", "set_project", { base: "main", gate: "true" });
+  const fresh = await status();
+  assert.match(
+    fresh,
+    /Base main\.[^\n]*\n\n## The project's own copy\n\n[^\n]* is on main, clean\.\nNo lane is working in it\./,
+  );
+  assert.doesNotMatch(fresh, choice);
+
+  h.git(h.root, "switch", "-qc", "fix/login");
+  const offBase = await status();
+  assert.match(offBase, /is on fix\/login, clean\./);
+  assert.match(offBase, choice);
+  assert.match(
+    offBase,
+    /carry on fix\/login here \(onBranch\), a new branch off main here \(isolate false\), or a copy of its own \(isolate\)\./,
+  );
+  assert.match(
+    (await open("First")).text,
+    /^The Human decides where this lane works, and has not said: carry on fix\/login here \(onBranch\), a new branch off main here \(isolate false\), or a copy of its own \(isolate\)\. Ask them/,
+  );
+  assert.deepEqual([branch(), Object.keys(h.ledger().lanes)], ["fix/login", []]);
+
+  assert.equal((await open("First", { isolate: true })).ok, true);
+  h.commit(h.ledger().lanes.L1!.worktree!, "a.txt", "first\n");
+  assert.match((await open("Then", { after: ["L1"] })).text, /Lane L2 waits for L1/);
+  for (let n = 1; n <= 12; n++) writeFileSync(join(h.root, `wip-${String(n).padStart(2, "0")}.txt`), "half done\n");
+  writeFileSync(join(h.root, "a.txt"), "edited\n");
+  h.agents.get(h.ledger().lanes.L1!.lead!)!.status = "idle";
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
+  const held = h.ledger().lanes.L2!;
+  assert.equal(held.status, "waiting");
+  assert.match(
+    held.held?.why ?? "",
+    /the project's own working copy has uncommitted changes, so a lane cannot take it over/,
+  );
+  assert.equal(branch(), "fix/login");
+  assert.equal(readFileSync(join(h.root, "a.txt"), "utf-8"), "edited\n");
+  assert.equal(h.git(h.root, "status", "--porcelain").trim().split("\n").length, 13);
+  assert.match(
+    (await open("Now", { after: ["L1"] })).text,
+    /^The Human decides where this lane works, and has not said: carry on fix\/login here/,
+  );
+  assert.equal(branch(), "fix/login");
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "not now" })).ok, true);
+  const dirty = await status();
+  assert.match(dirty, /with 13 uncommitted files: a\.txt, wip-01\.txt, [^\n]*wip-09\.txt, and 3 more\./);
+  assert.match(dirty, /takes the uncommitted work along/);
+  h.git(h.root, "stash", "-u", "-q");
+
+  const here = await open("Numbers", {
+    outcome: "a.txt gains words",
+    writeSet: ["a.txt"],
     contracts: ["b.txt"],
+    isolate: false,
   });
-  const directive = h.agents.get(h.ledger().lanes.L1!.lead!)!.prompt ?? "";
+  assert.equal(here.ok, true, here.text);
+  const numbers = h.ledger().lanes.L3!;
+  assert.equal(branch(), numbers.branch);
+  const taken = await status();
+  assert.match(taken, /Lane L3 is working in it\./);
+  assert.doesNotMatch(taken, choice);
+  assert.match(taken, /Outcome: a\.txt gains words\nWrites: a\.txt\nDepends on: b\.txt/);
+  assert.doesNotMatch((await h.call(numbers.lead!, "lead", "status", {})).text, /The project's own copy|Outcome:/);
+  await h.call(sup, "supervisor", "drop_lane", { lane: "L3", reason: "done" });
+  h.agents.get(numbers.lead!)!.status = "idle";
+  await h.endTurn(numbers.lead!, "done");
+  h.git(h.root, "switch", "-q", "fix/login");
+
+  await h.call(sup, "supervisor", "set_project", { laneHome: "newBranch" });
+  writeFileSync(join(h.root, "a.txt"), "the Human's own edit\n");
   assert.match(
-    directive,
-    /^Writes: a\.txt, package-lock\.json\. A change outside these is flagged at hand-back and at landing; if the work needs more, ask with kind need\.$/m,
+    (await open("Here", { writeSet: ["b.txt"] })).text,
+    /has not said: carry on fix\/login here \(onBranch\), a new branch that takes the uncommitted work along/,
   );
-  assert.match(directive, /^Depends on: b\.txt, which this lane uses and does not write\.$/m);
-  assert.match(
-    directive,
-    /^One writer at a time: package-lock\.json\. A task that writes any of these works in the lane's working copy, not in parallel\.$/m,
-    "read from the files the lane's copy holds",
-  );
-  assert.match(directive, /^Gate: /m);
+  h.git(h.root, "checkout", "--", "a.txt");
+  assert.equal((await h.call(sup, "supervisor", "set_project", { laneHome: "isolate" })).ok, true);
+  assert.match(await status(), /Lanes open in a copy of their own, as the Human chose for every lane \(laneHome\)\./);
+  assert.equal((await open("Standing")).ok, true);
+  assert.ok(h.ledger().lanes.L4!.slot);
+  assert.equal(branch(), "fix/login");
+  assert.equal((await open("After it", { after: ["L4"] })).ok, true);
+  assert.equal(h.ledger().lanes.L5!.opening?.isolate, true);
+  await h.call(sup, "supervisor", "set_project", { laneHome: "onBranch" });
+  assert.equal((await open("Carry on")).ok, true);
+  assert.deepEqual([h.ledger().lanes.L6!.onBranch, h.ledger().lanes.L6!.branch], [true, "fix/login"]);
 });
 
-test("a lane opened with no write set beside lanes that may write a one-writer path is let open, and its Lead and Supervisor are told which and by whom", async () => {
+test("a lane takes the project's own copy while it is free; one that finds it taken, or still being given back, is told both ways out, and a copy of its own is filed under the project", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { acceptance: ["a"], outOfScope: ["z"], isolate: true };
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Deps",
-    outcome: "a new library",
-    ...scope,
-    writeSet: ["package-lock.json", "a.txt"],
-  });
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Copy",
-    outcome: "b.txt reads well",
-    ...scope,
-    writeSet: ["b.txt"],
-  });
-  const opened = await h.call(sup, "supervisor", "open_lane", {
-    title: "Loose",
-    outcome: "whatever it takes",
-    ...scope,
-  });
-  assert.equal(opened.ok, true, "not declaring is the Supervisor's call, not a refusal");
+  const open = (title: string, extra: Record<string, unknown> = {}) =>
+    h.call(sup, "supervisor", "open_lane", lane(title, extra));
+  assert.equal((await open("Authorization", { outcome: "roles gate the api" })).ok, true);
+  const first = h.ledger().lanes.L1!;
+  const auth = { outcome: "sessions exist", writeSet: ["src/auth/**"] };
   assert.match(
-    opened.text,
-    /It declared no write set, so it opened beside lanes that may be writing what only one lane at a time may write: L1 \(package-lock\.json\)\. Its Lead is told to leave those to them; amend_lane can give it a write set\./,
+    (await open("Authentication", auth)).text,
+    /Lane L1 is working in the project's own copy on lane\/l1-authorization\. Pass isolate to open this lane in a copy of its own now, or open it with after L1/,
   );
-  const directive = h.agents.get(h.ledger().lanes.L3!.lead!)!.prompt ?? "";
+  assert.equal(Object.keys(h.ledger().lanes).length, 1);
+  assert.equal((await open("Authentication", { ...auth, isolate: true })).ok, true);
+  const second = h.ledger().lanes.L2!;
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch);
+  assert.notEqual(h.workspaces.get(second.workspaceId!), h.root);
+  assert.equal(h.workspaceProjects.get(second.workspaceId!), h.workspaceProjects.get(first.workspaceId!));
+  assert.match((await open("Sessions", { writeSet: ["src/auth/session.ts"], isolate: true })).text, /overlaps lane L2/);
+  assert.equal(Object.keys(h.ledger().lanes).length, 2);
+
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "wrong outcome" })).ok, true);
+  assert.deepEqual(h.ledger().lanes.L1!.restoring!.writers, [first.lead!]);
   assert.match(
-    directive,
-    /^Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer\. Lanes already open may be writing what only one lane at a time may write: L1 \(package-lock\.json\)\. Leave those to them until they land, or ask with kind need\.$/m,
+    (await open("Second")).text,
+    /Lane L1 is closed, but its Lead is still ending a turn in the project's own copy, which goes back to main when that turn ends\. Pass isolate/,
   );
-  assert.doesNotMatch(
-    h.agents.get(h.ledger().lanes.L2!.lead!)!.prompt ?? "",
-    /Lanes already open/,
-    "a lane that declared its write set keeps to it",
+  assert.match(
+    (await h.call(sup, "supervisor", "status", {})).text,
+    /Lane L1 is closed, and its Lead is ending a turn in it; it goes back to main after\./,
   );
+  assert.equal((await open("Second", { isolate: true })).ok, true);
+  const third = h.ledger().lanes.L3!;
+  assert.ok(third.slot);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch);
+  h.agents.get(first.lead!)!.status = "idle";
+  await h.endTurn(first.lead!, "stopping");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
+  h.commit(third.worktree!, "a.txt", "L3 work\n");
+  assert.equal(h.git(h.root, "log", "-1", "--format=%s", third.branch).trim(), "edit a.txt");
+
+  const home = [...h.workspaceNames].find(([, name]) => name === h.project.slug)![0];
+  h.workspaceProjects.set(home, "");
+  const made = h.workspaces.size;
+  const bare = await open("Away", { isolate: true });
+  assert.equal(bare.ok, false);
+  assert.match(bare.text, /names no Paseo project/);
+  assert.equal(h.workspaces.size, made);
 });
 
-test("a lane whose Lead cannot start keeps no copy on record: the one it took is given back", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const paseo = h.paseo as unknown as {
-    workspaces: { ref(id: string): { agents: { create(options: unknown): Promise<unknown> } } };
-  };
-  const ref = paseo.workspaces.ref;
-  paseo.workspaces.ref = (id) => ({
-    ...ref(id),
-    agents: { create: async () => Promise.reject(new Error("no seat today")) },
-  });
-  const opened = await h.call(sup, "supervisor", "open_lane", {
-    title: "Build",
-    outcome: "a.txt changes",
-    acceptance: ["a"],
-    outOfScope: ["z"],
-    isolate: true,
-  });
-  assert.match(opened.text, /The Lead could not start: no seat today/);
-  const lane = h.ledger().lanes.L1!;
-  assert.deepEqual(
-    [lane.status, lane.slot, lane.worktree, lane.workspaceId, Object.keys(h.ledger().slots)],
-    ["closed", undefined, undefined, undefined, []],
-  );
-  assert.deepEqual(
-    h.events("lane.closed").map((event) => [event.lane, event.landing]),
-    [["L1", "its Lead could not start"]],
-    "the record says how it closed",
-  );
+type Fault = "seat" | "workspace";
+const failed: { where: string; on?: string; ask: Record<string, unknown>; fault?: Fault; said: RegExp }[] = [
+  {
+    where: "a copy of its own",
+    ask: { isolate: true },
+    fault: "seat",
+    said: /The Lead could not start: no seat today/,
+  },
+  { where: "the project's copy", ask: { role: "peer" }, said: /This kit has no peer that can lead a lane/ },
+  {
+    where: "the project's copy",
+    ask: {},
+    fault: "workspace",
+    said: /could not get a working copy: the daemon made no workspace/,
+  },
+  {
+    where: "the Human's branch",
+    on: "fix/login",
+    ask: { onBranch: true, role: "peer" },
+    said: /no peer that can lead/,
+  },
+  {
+    where: "a new branch off the Human's",
+    on: "fix/login",
+    ask: { onBranch: true, newBranch: "fix/login-2", role: "peer" },
+    said: /no peer that can lead/,
+  },
+  {
+    where: "a new branch off the Human's",
+    on: "fix/login",
+    ask: { onBranch: true, newBranch: "fix/login-2" },
+    fault: "workspace",
+    said: /could not get a working copy/,
+  },
+];
+
+test("an open that fails gives back everything it took, wherever it took it, and keeps the Human's branch and work", async () => {
+  for (const row of failed) {
+    const h = harness();
+    const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+    const paseo = h.paseo as {
+      workspaces: {
+        list: unknown;
+        create: unknown;
+        ref: (id: string) => { agents: { create: (options: unknown) => unknown } };
+      };
+    };
+    const ref = paseo.workspaces.ref;
+    if (row.fault === "seat")
+      paseo.workspaces.ref = (id) => ({
+        ...ref(id),
+        agents: { create: () => Promise.reject(new Error("no seat today")) },
+      });
+    if (row.fault === "workspace")
+      paseo.workspaces.list = paseo.workspaces.create = () => Promise.reject(new Error("the daemon made no workspace"));
+    if (row.on) {
+      h.git(h.root, "switch", "-qc", row.on);
+      writeFileSync(join(h.root, "b.txt"), "bee, half done\n");
+    }
+    const opened = await h.call(sup, "supervisor", "open_lane", lane("Numbers", row.ask));
+    const where = `${row.where}: ${opened.text}`;
+    assert.equal(opened.ok, false, where);
+    assert.match(opened.text, row.said, where);
+    const taken = h.ledger().lanes.L1!;
+    assert.deepEqual(
+      [taken.status, taken.slot, taken.worktree, taken.workspaceId],
+      ["closed", undefined, undefined, undefined],
+      where,
+    );
+    assert.deepEqual(Object.keys(h.ledger().slots), [], where);
+    assert.deepEqual(
+      h.events("lane.closed").map((event) => [event.lane, event.landing]),
+      [["L1", "its Lead could not start"]],
+      where,
+    );
+    assert.equal(h.git(h.root, "branch", "--show-current").trim(), row.on ?? "main", where);
+    const left = row.on ? (row.ask.newBranch as string | undefined) : taken.branch;
+    if (left) assert.equal(h.git(h.root, "branch", "--list", left).trim(), "", where);
+    if (!row.on) continue;
+    assert.match(h.git(h.root, "branch", "--list", row.on), /fix\/login/, where);
+    assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, half done\n", where);
+    assert.deepEqual(h.events("lane.gaveBack"), [], where);
+  }
 });
 
-test("a Lead is told how its project gates: per task, any task joins the lane red only over the gate with a reason", async () => {
+test("a detour gets a Lead and a copy of its own without asking, and the lane it clears hears how it ended", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { acceptance: ["a"], outOfScope: ["z"], isolate: true };
-  // Per task unless the project says otherwise: the lane takes a task only once it is tested with the lane in it.
+  const money = lane("Money type", { outcome: "money is not a float" });
+  await h.call(sup, "supervisor", "open_lane", lane("Checkout", { outcome: "an order can be paid for" }));
+  const waiting = h.ledger().lanes.L1!;
+  assert.match(
+    (await h.call(sup, "supervisor", "open_lane", { ...money, detourOf: "L7" })).text,
+    /There is no open lane L7 for this one to clear the way for/,
+  );
+  const detour = await h.call(sup, "supervisor", "open_lane", { ...money, detourOf: "l1" });
+  assert.equal(detour.ok, true, detour.text);
+  const cleared = h.ledger().lanes.L2!;
+  assert.equal(cleared.detourOf, "L1");
+  assert.notEqual(h.agents.get(cleared.lead!)!.cwd, h.root);
+  assert.match(h.agents.get(cleared.lead!)!.prompt!, /clears the way for L1/);
+  h.commit(cleared.worktree!, "money.ts", "export type Money = bigint;\n");
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L2" })).ok, true);
+  await h.idle(waiting.lead!);
+  assert.match(
+    h.agents.get(waiting.lead!)!.sent.join("\n"),
+    /CLEARED L2[\s\S]*Next: Read what it did before you go on; ask if your work needs it on your branch\./,
+  );
+
+  await h.call(sup, "supervisor", "open_lane", { ...money, detourOf: "L1" });
+  assert.equal(
+    (await h.call(sup, "supervisor", "drop_lane", { lane: "L3", reason: "the float stays for now" })).ok,
+    true,
+  );
+  await h.idle(waiting.lead!);
+  const told = h.agents.get(waiting.lead!)!.sent.join("\n");
+  assert.match(
+    told,
+    /DETOUR DROPPED L3 \(Money type\), the detour your lane L1 was waiting on: it closed without landing, and its branch lane\/l3-money-type is kept\.\n\nNext: Go on without it; ask if your lane still needs what it was for\./,
+  );
+  assert.doesNotMatch(told, /CLEARED L3/);
+});
+
+test("a Lead's directive says what its lane writes, depends on and keeps to one writer, how the project gates, and where the Human's concept is", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const open = (title: string, extra: Record<string, unknown> = {}) =>
+    h.call(sup, "supervisor", "open_lane", lane(title, { isolate: true, ...extra }));
+  const directive = (id: string) => h.agents.get(h.ledger().lanes[id]!.lead!)!.prompt ?? "";
   assert.match(
     (await h.call(sup, "supervisor", "set_project", { gate: "npm test" })).text,
     /gate npm test, run per task/,
   );
-  await h.call(sup, "supervisor", "open_lane", { title: "Per task", outcome: "x", ...scope });
-  const lead = h.agents.get(h.ledger().lanes.L1!.lead!)!.prompt ?? "";
+  await open("Build", { writeSet: ["a.txt", "package-lock.json"], contracts: ["b.txt"] });
+  const build = directive("L1");
   assert.match(
-    lead,
+    build,
+    /^Writes: a\.txt, package-lock\.json\. A change outside these is flagged at hand-back and at landing; if the work needs more, ask with kind need\.$/m,
+  );
+  assert.match(build, /^Depends on: b\.txt, which this lane uses and does not write\.$/m);
+  assert.match(
+    build,
+    /^One writer at a time: package-lock\.json\. A task that writes any of these works in the lane's working copy, not in parallel\.$/m,
+  );
+  assert.match(
+    build,
     /^Gate: npm test runs on every task with the lane brought in, and its verdict reaches the Lead with the hand-back; the lane takes a task red only when its Lead accepts it over the gate with a reason$/m,
   );
   assert.match(
-    lead,
-    /^Lane branch: lane\/l1-per-task, off main\. Your working copy is on it save while a task works there on a branch of its own; tasks merge into it\.$/m,
+    build,
+    /^Lane branch: lane\/l1-build, off main\. Your working copy is on it save while a task works there on a branch of its own; tasks merge into it\.$/m,
   );
+
   await h.call(sup, "supervisor", "set_project", { gateOn: "lane" });
-  await h.call(sup, "supervisor", "open_lane", { title: "Per lane", outcome: "y", ...scope });
+  await open("Copy", { writeSet: ["c.txt"] });
   assert.match(
-    h.agents.get(h.ledger().lanes.L2!.lead!)!.prompt ?? "",
+    directive("L2"),
     /^Gate: npm test runs on the whole lane when you report it ready; merges are not gated, so the lane branch can break between reports$/m,
   );
+  const loose = await open("Loose");
+  assert.equal(loose.ok, true, loose.text);
+  assert.match(
+    loose.text,
+    /It declared no write set, so it opened beside lanes that may be writing what only one lane at a time may write: L1 \(package-lock\.json\)\. Its Lead is told to leave those to them; amend_lane can give it a write set\./,
+  );
+  assert.match(
+    directive("L3"),
+    /^Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer\. Lanes already open may be writing what only one lane at a time may write: L1 \(package-lock\.json\)\. Leave those to them until they land, or ask with kind need\.$/m,
+  );
+  assert.doesNotMatch(directive("L2"), /Lanes already open/);
+
+  const concept = join(h.project.state, "CONTEXT.md");
+  assert.equal(existsSync(concept), false);
+  for (const id of ["L1", "L2", "L3"]) assert.doesNotMatch(directive(id), /CONTEXT\.md/);
+  writeFileSync(concept, "# Shop\n\n## Behavior\n\n- A guest may check out.\n");
+  await open("Guests", { writeSet: ["d.txt"] });
+  const pointed = directive("L4");
+  assert.match(
+    pointed,
+    new RegExp(`is in ${concept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. Read it before you start`),
+  );
+  assert.match(pointed, /ask with kind question, and leave the file as it is/);
+
+  await h.call(sup, "supervisor", "set_project", { serialOnly: ["b.txt"] });
+  await open("Own list", { writeSet: ["e.txt"] });
+  assert.match(
+    directive("L5"),
+    /^One writer at a time: b\.txt\. A task that writes any of these works in the lane's working copy, not in parallel\.$/m,
+  );
+  assert.doesNotMatch(directive("L5"), /package-lock/);
+
+  h.commit(h.root, "package.json", JSON.stringify({ scripts: { test: "echo ran" } }));
+  assert.match((await h.call(sup, "supervisor", "set_project", { gate: "" })).text, /gate none/);
+  assert.match((await open("Off", { writeSet: ["f.txt"] })).text, /Gate: none set, by this project's own choice/);
+  assert.match((await h.call(sup, "supervisor", "set_project", {})).text, /gate none/);
 });

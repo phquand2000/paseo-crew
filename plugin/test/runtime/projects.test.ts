@@ -8,26 +8,6 @@ import { saveLedger } from "../../server/desk/ledger.ts";
 import { projectOf } from "../../server/desk/project.ts";
 import { harness, repo } from "./harness.ts";
 
-test("a gate the owner switched off is still off when the next lane opens", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  writeFileSync(join(h.project.root, "package.json"), JSON.stringify({ scripts: { test: "echo ran" } }));
-  h.git(h.project.root, "add", "-A");
-  h.git(h.project.root, "commit", "-qm", "a package");
-
-  assert.match((await h.call(sup, "supervisor", "set_project", { gate: "" })).text, /gate none/);
-  // "Switched off" and "never set" used to be one stored value, so the next lane re-detected `npm test`.
-  const opened = await h.call(sup, "supervisor", "open_lane", {
-    title: "Numbers",
-    outcome: "a.txt gains words",
-    acceptance: ["four"],
-    outOfScope: ["anything else"],
-  });
-  assert.equal(opened.ok, true, opened.text);
-  assert.match(opened.text, /Gate: none set, by this project's own choice/, opened.text);
-  assert.match((await h.call(sup, "supervisor", "set_project", {})).text, /gate none/);
-});
-
 test("each project gets the agent and model its own settings choose, and the machine layer keeps the rest", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -154,60 +134,6 @@ test("a project removed while the plugin runs is not written back by the round",
   assert.equal(existsSync(h.project.state), false, "the Human removed it, and the round leaves it removed");
 });
 
-test("a lane's own working copy is filed under the project, so closing it leaves no project behind", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["anything else in the repository"] };
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Here",
-    outcome: "a.txt changes",
-    acceptance: ["a"],
-    ...scope,
-  });
-  const away = await h.call(sup, "supervisor", "open_lane", {
-    title: "Away",
-    outcome: "b.txt changes",
-    acceptance: ["a"],
-    isolate: true,
-    ...scope,
-  });
-  assert.equal(away.ok, true, away.text);
-
-  const { L1, L2 } = h.ledger().lanes;
-  assert.notEqual(h.workspaces.get(L2!.workspaceId!), h.root, "the second lane works in a copy of its own");
-  // Nothing the plugin can call removes a Paseo project, so a copy must join the project it came from.
-  assert.equal(
-    h.workspaceProjects.get(L2!.workspaceId!),
-    h.workspaceProjects.get(L1!.workspaceId!),
-    "the copy belongs to the project it was taken from",
-  );
-});
-
-test("a working copy is not handed to Paseo bare when the project's workspace names no project", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["anything else in the repository"] };
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Here",
-    outcome: "a.txt changes",
-    acceptance: ["a"],
-    ...scope,
-  });
-  h.workspaceProjects.set(h.ledger().lanes.L1!.workspaceId!, "");
-  const made = h.workspaces.size;
-
-  const away = await h.call(sup, "supervisor", "open_lane", {
-    title: "Away",
-    outcome: "b.txt changes",
-    acceptance: ["a"],
-    isolate: true,
-    ...scope,
-  });
-  assert.equal(away.ok, false);
-  assert.match(away.text, /names no Paseo project/);
-  assert.equal(h.workspaces.size, made, "no workspace, and so no project, was made for the copy");
-});
-
 test("a ledger the desk cannot read is not written over, and the seat is told why", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -243,49 +169,6 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   assert.equal(status.ok, false);
   assert.match(status.text, /could not be read/);
   assert.doesNotMatch(status.text, /No open lanes/);
-});
-
-test("a Lead is pointed at the project's concept once the Human has settled one, and set_project keeps no pages", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-
-  // Nothing is written for the Supervisor, and a Lead is not sent to read a file that is not there.
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "First",
-    outcome: "x",
-    acceptance: ["y"],
-    outOfScope: ["z"],
-    writeSet: ["a.txt"],
-  });
-  const first = h.ledger().lanes.L1!;
-  assert.equal(existsSync(join(h.project.state, "CONTEXT.md")), false);
-  assert.doesNotMatch(h.agents.get(first.lead!)!.prompt ?? "", /CONTEXT\.md/);
-
-  writeFileSync(join(h.project.state, "CONTEXT.md"), "# Shop\n\n## Behavior\n\n- A guest may check out.\n");
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Second",
-    outcome: "x",
-    acceptance: ["y"],
-    outOfScope: ["z"],
-    writeSet: ["b.txt"],
-    isolate: true,
-  });
-  const second = h.ledger().lanes.L2!;
-  const directive = h.agents.get(second.lead!)!.prompt ?? "";
-  assert.match(
-    directive,
-    new RegExp(
-      `is in ${join(h.project.state, "CONTEXT.md").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. Read it before you start`,
-    ),
-  );
-  assert.match(
-    directive,
-    /ask with kind question, and leave the file as it is/,
-    "it is the Human's word, not the Lead's to edit",
-  );
-
-  const pages = await h.call(sup, "supervisor", "set_project", { docs: ["decision"] });
-  assert.equal(pages.ok, false, "the shelf of pages is gone, and so is the argument that kept them");
 });
 
 test("two projects on one daemon both name their first task L1-T1, and both Leads are told when their Peer is gone", async () => {

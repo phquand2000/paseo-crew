@@ -44,70 +44,6 @@ test("parallel work needs independent write sets and merges back from its own wo
   assert.ok(h.ledger().lanes.L2!.slot, "L1 is writing in the project's own copy, so the next lane is given one instead of switching the branch under it");
 });
 
-test("a lane that declared no write set does not lock the project to one lane, and where the next one works is the Supervisor's call", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["anything else in the repository"] };
-
-  // The first lane is allowed to open with no write set, and takes the project's own copy.
-  const first = await h.call(sup, "supervisor", "open_lane", { title: "Authorization", outcome: "roles gate the api", acceptance: ["a"], ...scope });
-  assert.equal(first.ok, true, first.text);
-
-  // One checkout is one branch: the desk names both ways and takes neither for the Supervisor.
-  const asked = { title: "Authentication", outcome: "sessions exist", acceptance: ["a"], writeSet: ["src/auth/**"], ...scope };
-  const refused = await h.call(sup, "supervisor", "open_lane", asked);
-  assert.match(refused.text, /Lane L1 is working in the project's own copy on lane\/l1-authorization\. Pass isolate to open this lane in a copy of its own now, or open it with after L1/);
-  assert.equal(Object.keys(h.ledger().lanes).length, 1, "nothing is recorded for a lane that did not open");
-  const next = await h.call(sup, "supervisor", "open_lane", { ...asked, isolate: true });
-  assert.equal(next.ok, true, next.text);
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), h.ledger().lanes.L1!.branch, "the project's own copy stays on the lane it is carrying");
-
-  // The DETOUR of the concept: a hole found mid-lane gets its own Lead, and a copy of its own without asking, since it cannot wait.
-  const detour = await h.call(sup, "supervisor", "open_lane", { title: "Sessions", outcome: "sessions last a day", acceptance: ["a"], detourOf: "L1", ...scope });
-  assert.equal(detour.ok, true, detour.text);
-  const lanes = h.ledger().lanes;
-  assert.equal(Object.values(lanes).filter((lane) => lane.status === "open").length, 3);
-  const where = [lanes.L1!, lanes.L2!, lanes.L3!].map((lane) => h.agents.get(lane.lead!)!.cwd);
-  assert.equal(new Set(where).size, 3, "no two Leads are left writing in one checkout");
-});
-
-test("a detour hands back to the lane that was waiting on it, and cannot be opened for a lane that is not", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["anything else in the repository"] };
-  await h.call(sup, "supervisor", "open_lane", { title: "Checkout", outcome: "an order can be paid for", acceptance: ["a"], ...scope });
-  const waiting = h.ledger().lanes.L1!;
-
-  const nowhere = await h.call(sup, "supervisor", "open_lane", { title: "Money type", outcome: "money is not a float", acceptance: ["a"], detourOf: "L7", ...scope });
-  assert.equal(nowhere.ok, false, "a detour for a lane that does not exist is a letter with nowhere to go");
-
-  const detour = await h.call(sup, "supervisor", "open_lane", { title: "Money type", outcome: "money is not a float", acceptance: ["a"], detourOf: "l1", ...scope });
-  assert.equal(detour.ok, true, detour.text);
-  const lane = h.ledger().lanes.L2!;
-  assert.equal(lane.detourOf, "L1");
-  assert.match(h.agents.get(lane.lead!)!.prompt!, /clears the way for L1/, "the detour's Lead is told to do that and no more");
-
-  h.commit(lane.worktree!, "money.ts", "export type Money = bigint;\n");
-  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L2" });
-  assert.equal(landed.ok, true, landed.text);
-  await h.idle(waiting.lead!);
-  assert.match(h.agents.get(waiting.lead!)!.sent.join("\n"), /CLEARED L2[\s\S]*Next: Read what it did before you go on; ask if your work needs it on your branch\./, "the lane that waited cannot see the other one, so it has to be told");
-});
-
-test("a detour dropped without landing tells the lane that waited on it that the way is not cleared", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["anything else in the repository"] };
-  await h.call(sup, "supervisor", "open_lane", { title: "Checkout", outcome: "an order can be paid for", acceptance: ["a"], ...scope });
-  const waiting = h.ledger().lanes.L1!;
-  await h.call(sup, "supervisor", "open_lane", { title: "Money type", outcome: "money is not a float", acceptance: ["a"], detourOf: "L1", ...scope });
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "the float stays for now" })).ok, true);
-  await h.idle(waiting.lead!);
-  const told = h.agents.get(waiting.lead!)!.sent.join("\n");
-  assert.match(told, /DETOUR DROPPED L2 \(Money type\), the detour your lane L1 was waiting on: it closed without landing, and its branch lane\/l2-money-type is kept\.\n\nNext: Go on without it; ask if your lane still needs what it was for\./);
-  assert.doesNotMatch(told, /CLEARED/);
-});
-
 /** Three lanes as a run opens them: the first in the project's own copy, the other two in copies of their own. */
 async function threeLanes(gate: string) {
   const h = harness();
@@ -157,43 +93,6 @@ test("the gate that lets a lane land runs on the lane with main's newer work in 
   const second = await h.call(sup, "supervisor", "land_lane", { lane: "L2" });
   assert.equal(second.ok, true, second.text);
   assert.equal(h.git(h.root, "show", "main:b/b.txt"), "b/b.txt\n");
-});
-
-test("a lane closed in the project's own copy keeps that copy until its Lead stops, and the next lane waits for it or takes a copy of its own", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["anything else in the repository"] };
-  await h.call(sup, "supervisor", "open_lane", { title: "First", outcome: "x", acceptance: ["a"], ...scope });
-  const first = h.ledger().lanes.L1!;
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch);
-
-  // Closed while its Lead is mid-turn, so putting the branch back waits for that Lead.
-  const closed = await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "wrong outcome" });
-  assert.equal(closed.ok, true, closed.text);
-  assert.deepEqual(h.ledger().lanes.L1!.restoring!.writers, [first.lead!], "and the wait is on the record, not in memory");
-
-  // Switched now, the first Lead's next commit would land on the next lane's branch.
-  const asked = { title: "Second", outcome: "y", acceptance: ["a"], ...scope };
-  assert.match((await h.call(sup, "supervisor", "open_lane", asked)).text, /Lane L1 is closed, but its Lead is still ending a turn in the project's own copy, which goes back to main when that turn ends\. Pass isolate/);
-  assert.match((await h.call(sup, "supervisor", "status", {})).text, /Lane L1 is closed, and its Lead is ending a turn in it; it goes back to main after\./);
-  const next = await h.call(sup, "supervisor", "open_lane", { ...asked, isolate: true });
-  assert.equal(next.ok, true, next.text);
-  const second = h.ledger().lanes.L2!;
-  assert.ok(second.slot, "in a copy of its own");
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch, "the copy the first Lead is writing in is not moved under it");
-
-  h.agents.get(first.lead!)!.status = "idle";
-  await h.endTurn(first.lead!, "stopping");
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "once it stops, the project's copy is back on its base");
-  const copy = h.ledger().slots[second.slot]!.path;
-  h.commit(copy, "a.txt", "L2 work\n");
-  assert.equal(h.git(h.root, "log", "-1", "--format=%s", second.branch).trim(), "edit a.txt", "and L2's commits are on L2's branch");
-
-  // And a Lead that never comes back at all: the round finishes what its turn was holding up.
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "done" })).ok, true);
-  h.agents.get(second.lead!)!.archivedAt = new Date().toISOString();
-  await h.tick(Date.now());
-  assert.deepEqual(Object.keys(h.ledger().slots), [], "its copy is put away, not left behind for good");
 });
 
 test("a copy waiting on a seat that never ends its turn is put away in the round, not left for good", async () => {
