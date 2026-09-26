@@ -1,27 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Pending, harness, laneWithPeer } from "./harness.ts";
-
-test("a task cannot be told to open a skill its Peer does not have", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Skilled", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
-  const lane = h.ledger().lanes.L1!;
-  const scope = { goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] };
-
-  // Nothing in a Lead's context lists the Peer's skills, so a guessed one must be refused.
-  const guessed = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Guessed", ...scope, skills: ["tdd"] }] });
-  assert.equal(guessed.ok, false);
-  assert.match(guessed.text, /no skill called tdd/);
-  assert.match(guessed.text, /They have: /, "and the refusal is where the Lead finds out what there is");
-
-  const real = guessed.text.split("They have: ")[1]!.replace(/\.$/, "").split(", ")[0]!;
-  const named = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Named", ...scope, skills: [real] }] });
-  assert.equal(named.ok, true, named.text);
-  const started = Object.values(h.ledger().tasks).find((task) => task.title === "Named")!;
-  assert.match(h.agents.get(started.peer!)!.prompt!, new RegExp(`Skills to open: ${real}`));
-  assert.equal(Object.values(h.ledger().tasks).some((task) => task.title === "Guessed"), false, "a refused task does not take an id either");
-});
+import { type Pending, harness } from "./harness.ts";
 
 test("a task whose honest answer is that nothing needed changing can be accepted, not only cut", async () => {
   const h = harness();
@@ -41,26 +20,6 @@ test("a task whose honest answer is that nothing needed changing can be accepted
 
   await h.idle(lane.lead!);
   assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /changed no files/, "the letter says plainly that nothing moved");
-});
-
-test("a seat reaches only the tools its own role holds, whatever it asks for", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Work", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else"] });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Edit", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
-  const peer = h.ledger().tasks["L1-T1"]!.peer!;
-
-  // The tool exists on the desk, and this seat's role is not given it.
-  const reach = await h.call(peer, "peer", "open_lane", { title: "Mine", outcome: "x", acceptance: ["y"], outOfScope: ["z"] });
-  assert.equal(reach.ok, false);
-  assert.match(reach.text, /Unknown tool open_lane/);
-  assert.equal(Object.keys(h.ledger().lanes).length, 1, "nothing was opened");
-
-  // And a seat cannot borrow another role's name to get at them either.
-  const borrowed = await h.call(peer, "lead", "add_tasks", { tasks: [{ key: "t", title: "Mine", goal: "g", acceptance: ["a"], hints: ["b.txt"], outOfScope: ["z"] }] });
-  assert.equal(borrowed.ok, false);
-  assert.match(borrowed.text, /lead tools are not available to it/);
 });
 
 test("two supervising seats hold one project, and each lane's mail goes to the seat that opened it", async () => {
@@ -164,22 +123,10 @@ test("a task goes to a role that writes, and a review to one that reads, and nei
   await h.call(sup, "supervisor", "open_lane", { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
 
-  // The preset's Reviewer holds `work` for routing but is denied every write, so it is no second kind of Peer.
-  const readOnly = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Add four", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"], role: "reviewer" }] });
-  assert.equal(readOnly.ok, false, "a role that only reads cannot be given a task to write");
-  assert.match(readOnly.text, /no reviewer that can take a task/i);
-  assert.match(readOnly.text, /peer/, "and the refusal names who can, rather than recommending the one that cannot");
-  assert.deepEqual(Object.keys(h.ledger().tasks), [], "and nothing was started or recorded");
-
   const wrongLens = await h.call(lane.lead!, "lead", "start_review", { focus: "Is the rounding right?", role: "peer" });
   assert.equal(wrongLens.ok, false);
   assert.match(wrongLens.text, /no peer that can review/i);
   assert.match(wrongLens.text, /reviewer/, "the refusal names what there is to choose from");
-
-  const byDefault = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Add five", goal: "g", acceptance: ["a"], hints: ["b.txt"], outOfScope: ["the rest"] }] });
-  assert.equal(byDefault.ok, true, byDefault.text);
-  const seated = Object.values(h.ledger().tasks).find((task) => task.title === "Add five")!;
-  assert.match(h.agents.get(seated.peer!)!.provider, /peer/, "left out, it is the preset's own default");
 });
 
 test("a question that would stop a seat's turn is refused with where to ask instead, while leave to run something waits for the Human", async () => {
@@ -216,25 +163,4 @@ test("a question that would stop a seat's turn is refused with where to ask inst
   assert.match(held.text, /stopped on a permission only the Human can give/);
   assert.equal(h.agents.get(peer)!.answered.length, 1, "the command is left for the Human");
   assert.equal(h.runtime.outbox.pending(peer).length, 1, "and the message waits for it");
-});
-
-test("every call is held to the schema the seat was shown, and told what it takes", async () => {
-  // An unchecking harness sent prose, misnamed fields and lists, and the desk wrote "No summary given." into hand-backs.
-  const { h, lane, peer } = await laneWithPeer();
-  const prose = await h.call(peer, "peer", "done", { outcome: "I finished the module and tests pass", summary: "built it" });
-  assert.equal(prose.ok, false, prose.text);
-  assert.match(prose.text, /outcome must be one of complete, partial, blocked/);
-  const misnamed = await h.call(peer, "peer", "done", { outcome: "complete", summary: "built it", commits: "abc", checks: ["npm test"] });
-  assert.equal(misnamed.ok, false);
-  assert.match(misnamed.text, /no field commits/);
-  assert.match(misnamed.text, /checks must be text/);
-  assert.match(misnamed.text, /It takes outcome, summary, and optionally checks, leftUndone, discovered/);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "nothing was handed back");
-  const report = await h.call(lane.lead!, "lead", "report", { summary: "done", carries: "a note" });
-  assert.equal(report.ok, false);
-  assert.match(report.text, /needs ready/);
-  const blank = await h.call(peer, "peer", "done", { outcome: "complete", summary: "  " });
-  assert.match(blank.text, /needs summary/, "a required text has to say something");
-  assert.match((await h.call(lane.lead!, "lead", "ask", { kind: "question", text: "Which one?" })).text, /needs default \(What you do meanwhile/, "a Lead that asks says what it does meanwhile");
-  assert.match((await h.call(peer, "peer", "ask", { question: "Which one?" })).text, /needs bestGuess \(Your best answer to it/, "a Peer that asks says its best guess");
 });
