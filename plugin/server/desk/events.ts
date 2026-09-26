@@ -34,7 +34,6 @@ export type DeskEvent =
   | { kind: "question.asked"; question: string; lane: string | null; class: string }
   | { kind: "question.answered"; question: string; status: string; by: "panel" | "chat" | "desk" }
   | { kind: "note.written"; file: string; by: string; replaced: boolean }
-  | { kind: "task.waiting"; task: string; after: string[] }
   | { kind: "task.held"; task: string; reason: string }
   | { kind: "task.started"; task: string; peer: string; mode: Task["mode"]; slot: string }
   | { kind: "seat.released"; seat: string; of: string }

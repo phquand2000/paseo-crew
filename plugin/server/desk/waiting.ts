@@ -106,7 +106,7 @@ async function releaseTask(desk: DeskServices, project: Project, lane: Lane, tas
   });
   if (!claimed) return undefined;
   if ("why" in claimed) return { why: claimed.why, next: "It starts by itself once that clears; amend it, or cut it to drop it." };
-  const started = await startPeer(desk, project, lane, claimed, { role: claimed.opening!.role, parent: lane.lead, failed: "wait" });
+  const started = await startPeer(desk, project, lane, claimed, { role: claimed.opening!.role, parent: lane.lead });
   if (typeof started === "string") return { why: started, next: "It is tried again when a task is merged or cut; cut it to drop it.", tried: true };
   desk.ctx.setTask(project, task.id, (entry) => {
     delete entry.held;

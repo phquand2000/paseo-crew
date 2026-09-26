@@ -179,8 +179,8 @@ export function parallelProblem(ledger: Ledger, lane: Lane, holds: string[], ser
   return undefined;
 }
 
-/** Seats the Peer of a task recorded running; a failure gives back its copy, moves it by `failed`, and comes back as the reason. */
-export async function startPeer(desk: DeskServices, project: Project, lane: Lane, task: Task, how: { role: string; parent?: string; failed: "cut" | "wait" }): Promise<{ peer: string; where: string } | string> {
+/** Seats the Peer of a task recorded running; a failure gives back its copy, sets it waiting again, and comes back as the reason. */
+export async function startPeer(desk: DeskServices, project: Project, lane: Lane, task: Task, how: { role: string; parent?: string }): Promise<{ peer: string; where: string } | string> {
   const { ctx, slots, agents } = desk;
   const parallel = task.mode === "parallel";
   try {
@@ -211,7 +211,7 @@ export async function startPeer(desk: DeskServices, project: Project, lane: Lane
   } catch (error) {
     const taken = loadLedger(project.state).tasks[task.id]?.slot;
     ctx.setTask(project, task.id, (entry) => {
-      TASK.move(entry, how.failed);
+      TASK.move(entry, "wait");
       if (parallel) {
         delete entry.slot;
         delete entry.worktree;

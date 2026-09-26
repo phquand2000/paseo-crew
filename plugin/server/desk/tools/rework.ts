@@ -63,10 +63,9 @@ export const rework = defineTool({
       const refused = inLaneCopy ? await switchTo(inLaneCopy, result.branch, asked.lane.branch) : undefined;
       if (!refused) await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane);
     }
-    const posted = await ctx.post(result.peer, letters.rework(result, text));
-    if (result.reworks === 2 && posted !== "duplicate") await tellMoment(desk, caller.project, result, "STRUGGLING", `its Lead sent it back a second time: ${oneLine(text)}`);
-    return posted === "duplicate"
-      ? no(`That rework was already sent to the Peer on ${result.id} and it has not ended a turn since, so this would be the same letter twice. Wait for its hand-back, or cut it.`)
-      : ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
+    // Keyed by the rework's count, each letter is its own: none is dropped as a repeat.
+    await ctx.post(result.peer, letters.rework(result, text));
+    if (result.reworks === 2) await tellMoment(desk, caller.project, result, "STRUGGLING", `its Lead sent it back a second time: ${oneLine(text)}`);
+    return ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
   },
 });
