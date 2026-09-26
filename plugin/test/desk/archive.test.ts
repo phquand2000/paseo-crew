@@ -88,6 +88,18 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
   assert.ok(ledger.agents["sup-2"] && ledger.agents["sup-3"] && ledger.agents["watch-1"] && ledger.asks.B1 && ledger.asks.B3);
 });
 
+test("a closed lane's rehearsal logs go with their run: the last run's into its file, and all of them out of gates/", () => {
+  const state = tempDir("sw2-archive-");
+  const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
+  ledger.seq.lane = 30;
+  mkdirSync(join(state, "gates"));
+  for (const path of ["gates/L1-T1-10.log", "gates/L1-T1-10-1.log", "gates/L1-T1-20.log", "gates/L1-T1-20-1.log"]) writeFileSync(join(state, path), `text of ${path}`);
+  keepArchived(state, takeFinished(ledger, () => true)!);
+  assert.deepEqual(fileRecords(state, ledger).sort(), ["gates/L1-T1-10-1.log", "gates/L1-T1-10.log", "gates/L1-T1-20-1.log", "gates/L1-T1-20.log"]);
+  assert.deepEqual(Object.keys(read(state, "L1").records).sort(), ["gates/L1-T1-20-1.log", "gates/L1-T1-20.log"]);
+  assert.deepEqual(readdirSync(join(state, "gates")), []);
+});
+
 test("a lane leaves as one file with its entries, every hand-back and each owner's last gate run, and filing it again changes nothing", () => {
   const state = tempDir("sw2-archive-");
   const ledger = busyLedger(KEEP_CLOSED_LANES + 1);

@@ -59,3 +59,19 @@ test("a lane in the ledger keeps its records but the gate runs a newer run of th
   assert.ok(kept.includes("notes.txt"), "a file the desk did not name is not its to drop");
   assert.equal(readdirSync(handbacks).length, GATE_LOGS_PER_OWNER + 2, "hand-backs are never tidied");
 });
+
+test("a run's rehearsal logs go with it: kept while it is among the newest runs, tidied with it when it is not", () => {
+  const state = tempDir("sw2-tidy-");
+  const gates = join(state, "gates");
+  mkdirSync(gates);
+  const touch = (name: string) => writeFileSync(join(gates, name), "x");
+  for (let run = 0; run < GATE_LOGS_PER_OWNER + 1; run++) for (const tail of ["", "-1", "-2"]) touch(`L1-T1-${1000 - run}${tail}.log`);
+  const ledger = emptyLedger();
+  ledger.lanes = { L1: lane("L1") };
+
+  tidyRecords(state, ledger);
+
+  const kept = readdirSync(gates);
+  assert.deepEqual(kept.filter((name) => name.includes("-995")), [], "the oldest run goes whole, its rehearsals with it");
+  assert.equal(kept.length, GATE_LOGS_PER_OWNER * 3, "each of the newest runs keeps its gate log and every rehearsal's");
+});

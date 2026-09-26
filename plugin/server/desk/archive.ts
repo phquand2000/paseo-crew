@@ -144,12 +144,13 @@ export function fileRecords(state: string, ledger: Ledger, keepBytes = ARCHIVE_K
   const moved: string[] = [];
   for (const lane of new Set(loose.map((record) => record.lane))) {
     const records = loose.filter((record) => record.lane === lane);
-    const last = new Set<string>();
+    const last = new Map<string, number>();
     fileLane(state, lane, (archive) => {
       for (const record of records) {
         const key = `${record.dir}:${record.owner}`;
-        if (record.dir === "gates" && last.has(key)) continue;
-        last.add(key);
+        // Each owner's last gate run, its rehearsals with it: they share the run's `at`.
+        if (record.dir === "gates" && (last.get(key) ?? record.at) !== record.at) continue;
+        last.set(key, record.at);
         const file = join(state, record.dir, record.name);
         // Only the tail: a gate that printed hundreds of megabytes brought the plugin down whole, and its failure is at the end.
         const cut = statSync(file).size > RECORD_TAIL_BYTES ? `[the start of this log was cut; its last ${RECORD_TAIL_BYTES} bytes follow]\n` : "";

@@ -733,10 +733,10 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
 `events.log` is the provenance record: one JSON line per tool call and per lane, task, merge, gate and slot event.
 `attention.log` holds the desk's own notes, a Supervisor waiting on the Human among them, and `assessments.log` the
 watch's questions and their answers. Each of the three `.log` files rolls at 8 MB, rolls older than the last are
-gzipped, and each keeps up to 24 MB of rolls. `gates/` keeps each lane's or task's last five gate runs; a task's
-rehearsal logs are never pruned. Closed lanes past the newest 20 move to `archive/` once nothing open names them: one
-`L<n>.json.gz` each, with the last 1 MB of each hand-back and of each owner's last gate run, up to 64 MB, oldest
-dropped first. Gone seats, answered asks and settled questions that belong to no lane go to `archive/desk.log`.
+gzipped, and each keeps up to 24 MB of rolls. `gates/` keeps each lane's or task's last five gate runs, each run's
+rehearsal logs with it. Closed lanes past the newest 20 move to `archive/` once nothing open names them: one
+`L<n>.json.gz` each, with the last 1 MB of each hand-back and of each log of each owner's last gate run, up to 64 MB,
+oldest dropped first. Gone seats, answered asks and settled questions that belong to no lane go to `archive/desk.log`.
 
 Every kind in `events.log` and its fields are one type, `DeskEvent` in `desk/events.ts`: a kind only gains fields, and a
 field that changes meaning takes a kind of its own. The watch writes these kinds there:

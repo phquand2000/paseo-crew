@@ -23,7 +23,10 @@ export function appendRecord(state: string, name: (typeof RECORDS)[number], line
 
 type Named = { dir: string; name: string; owner: string; lane: string; at: number };
 
-/** Gate logs are `gates/<lane or task>-<ms>.log`, hand-backs `handbacks/<task>-<ms>.md`; a task id starts with its lane's. */
+/**
+ * Gate logs are `gates/<lane or task>-<ms>.log`, a run's rehearsals `-<ms>-<n>.log` beside it, hand-backs
+ * `handbacks/<task>-<ms>.md`; a task id starts with its lane's, and `at` is the run's.
+ */
 export function laneRecords(state: string): Named[] {
   return [
     ["gates", ".log"],
@@ -31,7 +34,7 @@ export function laneRecords(state: string): Named[] {
   ].flatMap(([dir, ext]) => {
     const path = join(state, dir!);
     if (!existsSync(path)) return [];
-    const shape = new RegExp(`^((L\\d+)(?:-[A-Z]\\d+)?)-(\\d+)\\${ext}$`);
+    const shape = new RegExp(`^((L\\d+)(?:-[A-Z]\\d+)?)-(\\d+)(?:-\\d+)?\\${ext}$`);
     return readdirSync(path).flatMap((name) => {
       const match = shape.exec(name);
       return match ? [{ dir: dir!, name, owner: match[1]!, lane: match[2]!, at: Number(match[3]) }] : [];
@@ -39,17 +42,20 @@ export function laneRecords(state: string): Named[] {
   });
 }
 
-/** A lane still in the ledger keeps every record but the gate runs a newer run of the same owner replaced. */
+/** A lane still in the ledger keeps every record but the gate runs a newer run of the same owner replaced, rehearsals with their run. */
 export function tidyRecords(state: string, ledger: Ledger): string[] {
   const logs = laneRecords(state)
     .filter((record) => record.dir === "gates" && ledger.lanes[record.lane])
     .sort((a, b) => b.at - a.at);
-  const seen = new Map<string, number>();
+  const runs = new Map<string, Set<number>>();
   const dropped: string[] = [];
   for (const log of logs) {
-    const rank = (seen.get(log.owner) ?? 0) + 1;
-    seen.set(log.owner, rank);
-    if (rank <= GATE_LOGS_PER_OWNER) continue;
+    const kept = runs.get(log.owner) ?? new Set<number>();
+    runs.set(log.owner, kept);
+    if (kept.has(log.at) || kept.size < GATE_LOGS_PER_OWNER) {
+      kept.add(log.at);
+      continue;
+    }
     unlinkSync(join(state, log.dir, log.name));
     dropped.push(join(log.dir, log.name));
   }
