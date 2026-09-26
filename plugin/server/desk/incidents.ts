@@ -1,7 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { readJson, writeJson } from "../core/store.ts";
-import { errorText } from "../core/errors.ts";
+import { isRecord, readJsonFile, writeJson } from "../core/store.ts";
 import { type Held, close } from "../domain/incident.ts";
 
 export type Incident = {
@@ -41,34 +39,26 @@ function incidentsFile(state: string): string {
   return join(state, "incidents.json");
 }
 
-export function incidentsFault(state: string): string | undefined {
+const normalized = (stored: Partial<Incidents>): Incidents => ({
+  next: Number.isInteger(stored.next) && (stored.next as number) > 0 ? (stored.next as number) : 1,
+  items: stored.items && typeof stored.items === "object" ? stored.items : {},
+});
+
+/** The book from one read, or why it cannot be read: written over, what it holds would be lost. */
+export function readIncidentsFile(state: string): { incidents: Incidents } | { fault: string } {
   const file = incidentsFile(state);
-  if (!existsSync(file)) return undefined;
-  let stored: unknown;
-  try {
-    stored = JSON.parse(readFileSync(file, "utf-8"));
-  } catch (error) {
-    return `${file} is there but could not be read: ${errorText(error)}`;
-  }
-  const items = (stored as { items?: unknown } | null)?.items;
-  if (
-    !stored ||
-    typeof stored !== "object" ||
-    Array.isArray(stored) ||
-    !items ||
-    typeof items !== "object" ||
-    Array.isArray(items)
-  )
-    return `${file} does not hold a record of incidents`;
-  return undefined;
+  const read = readJsonFile(file);
+  if ("fault" in read) return read;
+  if ("absent" in read) return { incidents: normalized({}) };
+  if (!isRecord(read.value) || !isRecord(read.value.items))
+    return { fault: `${file} does not hold a record of incidents` };
+  return { incidents: normalized(read.value) };
 }
 
+/** For a view: a book that cannot be read shows as empty. */
 export function loadIncidents(state: string): Incidents {
-  const stored = readJson<Partial<Incidents>>(incidentsFile(state), {});
-  return {
-    next: Number.isInteger(stored.next) && (stored.next as number) > 0 ? (stored.next as number) : 1,
-    items: stored.items && typeof stored.items === "object" ? stored.items : {},
-  };
+  const read = readJsonFile(incidentsFile(state));
+  return normalized("value" in read && isRecord(read.value) ? read.value : {});
 }
 
 export function saveIncidents(state: string, incidents: Incidents): void {

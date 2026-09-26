@@ -1,14 +1,15 @@
 import type { Team } from "../catalog/team.ts";
 import type { Kit, RoleSpec, SensorSpec } from "../catalog/kit.ts";
+import { KeyedQueue } from "../core/keyed-queue.ts";
 import type { Judge } from "../core/ports.ts";
 import { LANE, type LaneMove } from "../domain/lane.ts";
 import { TASK, type TaskMove, type TaskStatus } from "../domain/task.ts";
 import type { DeskEvent } from "./events.ts";
 import type { Letter } from "./letters.ts";
-import { type Ledger, type Task, ledgerFault, loadLedger, saveLedger } from "./ledger.ts";
+import { type Ledger, type Task, readLedgerFile, saveLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import { appendRecord } from "./records.ts";
-import { type Incidents, incidentsFault, loadIncidents, saveIncidents } from "./incidents.ts";
+import { type Incidents, readIncidentsFile, saveIncidents } from "./incidents.ts";
 
 export type ToolRequest = {
   id: string;
@@ -71,7 +72,7 @@ export class DeskContext {
   readonly projects = new Map<string, Project>();
   readonly seating = new Set<string>();
   readonly closing = new Set<string>();
-  private readonly lines = new Map<string, Promise<unknown>>();
+  private readonly turns = new KeyedQueue();
   /** What each seat's last status said: one that asks again with nothing changed is polling. */
   readonly statusSeen = new Map<string, string>();
   private readonly deps: DeskDeps;
@@ -98,25 +99,20 @@ export class DeskContext {
     this.deps.log(project, line);
   }
 
-  /** The one way the ledger changes: read, decided on and saved with nothing awaited in between, so no other change can land in the middle. */
   /** Runs `work` once every earlier one queued under `key` has settled, whatever became of it. */
   inTurn<T>(key: string, work: () => Promise<T>): Promise<T> {
-    const run = (this.lines.get(key) ?? Promise.resolve()).then(work);
-    this.lines.set(
-      key,
-      run.catch(() => undefined),
-    );
-    return run;
+    return this.turns.run(key, work);
   }
 
+  /** The one way the ledger changes: read, decided and saved with nothing awaited between, so no other change lands in the middle. */
   transact<T>(project: Project, decide: (ledger: Ledger) => Sync<T>): T {
     this.projects.set(project.slug, project);
-    const fault = ledgerFault(project.state);
-    if (fault)
+    const read = readLedgerFile(project.state);
+    if ("fault" in read)
       throw new Error(
-        `${fault}. Nothing was written over it. Only the Human can repair it or move it aside — no seat may write the desk's own files — and what the desk has on record is in that file.`,
+        `${read.fault}. Nothing was written over it. Only the Human can repair it or move it aside — no seat may write the desk's own files — and what the desk has on record is in that file.`,
       );
-    const ledger = loadLedger(project.state);
+    const { ledger } = read;
     const result = decide(ledger);
     saveLedger(project.state, ledger);
     return result;
@@ -124,16 +120,17 @@ export class DeskContext {
 
   /** The ledger as it stands. An unreadable one still refuses: read as empty, every copy would look stray. */
   read<T>(project: Project, look: (ledger: Ledger) => T): T {
-    const fault = ledgerFault(project.state);
-    if (fault) throw new Error(`${fault}. Nothing was read from it as if it were empty.`);
-    return look(loadLedger(project.state));
+    const read = readLedgerFile(project.state);
+    if ("fault" in read) throw new Error(`${read.fault}. Nothing was read from it as if it were empty.`);
+    return look(read.ledger);
   }
 
   incidents<T>(project: Project, change: (incidents: Incidents) => Sync<T>): T {
     this.projects.set(project.slug, project);
-    const fault = incidentsFault(project.state);
-    if (fault) throw new Error(`${fault}. Nothing was written over it. Only the Human can repair it or move it aside.`);
-    const incidents = loadIncidents(project.state);
+    const read = readIncidentsFile(project.state);
+    if ("fault" in read)
+      throw new Error(`${read.fault}. Nothing was written over it. Only the Human can repair it or move it aside.`);
+    const { incidents } = read;
     const result = change(incidents);
     saveIncidents(project.state, incidents);
     return result;

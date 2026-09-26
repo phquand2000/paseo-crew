@@ -2,7 +2,7 @@ import { z } from "zod";
 import { can } from "../../catalog/kit.ts";
 import type { Held } from "../../domain/incident.ts";
 import { type Caller, no, ok } from "../context.ts";
-import { type Incident, incidentsFault, loadIncidents } from "../incidents.ts";
+import { type Incident, readIncidentsFile } from "../incidents.ts";
 import { laneOfLead, loadLedger } from "../ledger.ts";
 import { clip } from "../../core/text.ts";
 import { defineTool } from "../services.ts";
@@ -68,11 +68,11 @@ export const incidents = defineTool({
   name: "incidents",
   input: z.strictObject({ closed: z.boolean().optional() }),
   async handle({ ctx }, caller, args) {
-    const fault = incidentsFault(caller.project.state);
-    if (fault) return no(`${fault}. Only the Human can repair it or move it aside.`);
+    const read = readIncidentsFile(caller.project.state);
+    if ("fault" in read) return no(`${read.fault}. Only the Human can repair it or move it aside.`);
     const allowed = mine(caller);
     if (typeof allowed === "string") return no(allowed);
-    const held = loadIncidents(caller.project.state);
+    const held = read.incidents;
     const all = Object.values(held.items).filter(allowed);
     const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
     const shown = waiting.slice(0, 50);

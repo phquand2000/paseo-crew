@@ -1,3 +1,4 @@
+import { KeyedQueue } from "../core/keyed-queue.ts";
 import { midTurn } from "../core/paseo.ts";
 import type { SeatLook, Seats } from "../core/ports.ts";
 import { readJson, writeJson } from "../core/store.ts";
@@ -35,7 +36,7 @@ export class Outbox {
   private static held(letter: { to: string; key: string }): string {
     return `${letter.to}\n${letter.key}`;
   }
-  private readonly lanes = new Map<string, Promise<unknown>>();
+  private readonly perSeat = new KeyedQueue();
   private counter = 0;
 
   constructor(file: string, compose: Compose, seats: Pick<Seats, "look" | "send">, rules: Rules = {}) {
@@ -67,27 +68,19 @@ export class Outbox {
     writeJson(this.file, letters);
   }
 
-  private lane<T>(key: string, run: () => Promise<T>): Promise<T> {
-    const next = (this.lanes.get(key) ?? Promise.resolve()).then(run, run);
-    this.lanes.set(
-      key,
-      next.catch(() => undefined),
-    );
-    return next;
-  }
-
   async post(letter: Omit<Letter, "id" | "at">): Promise<Posted> {
     const now = Date.now();
     const sentAt = this.sentKeys.get(Outbox.held(letter));
+    const waiting = this.letters();
     // An expired letter is not a pending duplicate; counted as one, it blocked a fresh post.
     if (
       (sentAt !== undefined && now - sentAt < DUPLICATE_MS) ||
-      this.letters().some((entry) => entry.key === letter.key && entry.to === letter.to && now - entry.at < KEEP_MS)
+      waiting.some((entry) => entry.key === letter.key && entry.to === letter.to && now - entry.at < KEEP_MS)
     ) {
       return "duplicate";
     }
     const stored: Letter = { ...letter, id: `${now}-${process.pid}-${++this.counter}`, at: now };
-    this.save([...this.keep(this.letters(), now), stored]);
+    this.save([...this.keep(waiting, now), stored]);
     const sent = await this.pump(letter.to);
     return sent.has(stored.id) ? "sent" : "held";
   }
@@ -97,11 +90,14 @@ export class Outbox {
   }
 
   turnEnded(agentId: string): void {
-    this.awaiting.delete(agentId);
-    this.started.delete(agentId);
+    this.forget(agentId);
   }
 
   archived(agentId: string): void {
+    this.forget(agentId);
+  }
+
+  private forget(agentId: string): void {
     this.awaiting.delete(agentId);
     this.started.delete(agentId);
   }
@@ -116,7 +112,7 @@ export class Outbox {
   }
 
   pump(to: string): Promise<Set<string>> {
-    return this.lane(to, async () => {
+    return this.perSeat.run(to, async () => {
       const mine = this.pending(to);
       if (mine.length === 0) return new Set<string>();
       // Held, not thrown: mail must not be lost, and one unanswerable address must not stop the round.
@@ -151,6 +147,7 @@ export class Outbox {
       const now = Date.now();
       this.awaiting.set(to, now);
       const ids = new Set(mine.map((letter) => letter.id));
+      for (const [key, at] of this.sentKeys) if (now - at >= DUPLICATE_MS) this.sentKeys.delete(key);
       for (const letter of mine) this.sentKeys.set(Outbox.held(letter), now);
       this.save(this.letters().filter((letter) => !ids.has(letter.id)));
       return ids;

@@ -1,3 +1,4 @@
+import { KeyedQueue } from "../core/keyed-queue.ts";
 import { changedFiles, commitsAhead, currentBranch, diffCounts, headSha, mergeOf, uncommittedIn } from "../core/git.ts";
 import { advance, mergeCommit } from "../core/land.ts";
 import { fileKinds } from "../catalog/kit.ts";
@@ -21,7 +22,7 @@ type Verdict = { ok: boolean; note: string; over?: string; run?: { tail: string;
 /** One queue per lane: a lane's merges go one at a time, each after the one before, and a gate running on one holds no other lane's. */
 export class MergeQueue {
   private readonly ctx: DeskContext;
-  private readonly queues = new Map<string, Promise<unknown>>();
+  private readonly queues = new KeyedQueue();
   /** What a merge lets go on: the tasks that waited for it start. */
   private readonly merged: (project: Project) => Promise<void>;
 
@@ -31,7 +32,7 @@ export class MergeQueue {
   }
 
   settled(project: Project): Promise<unknown> {
-    return Promise.all([...this.queues].filter(([key]) => key.startsWith(`${project.slug}\n`)).map(([, queue]) => queue));
+    return this.queues.idle(`${project.slug}\n`);
   }
 
   enqueue(project: Project, taskId: string): void {
@@ -62,12 +63,8 @@ export class MergeQueue {
     return waiting ? this.resume(project) : Promise.resolve();
   }
 
-  /** One merge at a time per lane, each after the one before whatever became of it. */
   private after(project: Project, lane: string, run: () => Promise<void>): Promise<void> {
-    const key = `${project.slug}\n${lane}`;
-    const next = (this.queues.get(key) ?? Promise.resolve()).then(run);
-    this.queues.set(key, next.catch(() => undefined));
-    return next;
+    return this.queues.run(`${project.slug}\n${lane}`, run);
   }
 
   private async takeUp(project: Project, laneId: string): Promise<void> {

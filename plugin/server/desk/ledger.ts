@@ -1,7 +1,6 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { join } from "node:path";
-import { readJson, writeJson } from "../core/store.ts";
-import { errorText } from "../core/errors.ts";
+import { isRecord, readJsonFile, writeJson } from "../core/store.ts";
 import type { AskStatus } from "../domain/ask.ts";
 import type { Question } from "../domain/question.ts";
 import type { LaneStatus } from "../domain/lane.ts";
@@ -137,27 +136,21 @@ function ledgerFile(state: string): string {
   return join(state, "ledger.json");
 }
 
-/** The ledger, or throws why it cannot be read: never an empty one standing in for a file that is there. Absent is empty. */
-export function loadLedger(state: string): Ledger {
-  const fault = ledgerFault(state);
-  if (fault) throw new Error(`${fault}. Nothing was read from it as if the project had no work on record. Only the Human can repair it or move it aside; no seat may write the desk's own files.`);
-  const stored = readJson<Ledger | null>(ledgerFile(state), null);
-  if (!stored) return emptyLedger();
-  return { ...emptyLedger(), ...stored };
+/** The ledger on disk from one read, or why it cannot be read: parsed as nothing, the next write would erase the project. */
+export function readLedgerFile(state: string): { ledger: Ledger } | { fault: string } {
+  const file = ledgerFile(state);
+  const read = readJsonFile(file);
+  if ("fault" in read) return read;
+  if ("absent" in read) return { ledger: emptyLedger() };
+  if (!isRecord(read.value)) return { fault: `${file} does not hold a record` };
+  return { ledger: { ...emptyLedger(), ...(read.value as Partial<Ledger>) } };
 }
 
-/** Why the ledger on disk cannot be read: parsed as nothing, the next write would erase the project. Absent is not a fault. */
-export function ledgerFault(state: string): string | undefined {
-  const file = ledgerFile(state);
-  if (!existsSync(file)) return undefined;
-  let stored: unknown;
-  try {
-    stored = JSON.parse(readFileSync(file, "utf-8"));
-  } catch (error) {
-    return `${file} is there but could not be read: ${errorText(error)}`;
-  }
-  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return `${file} does not hold a record`;
-  return undefined;
+/** The ledger, or throws why it cannot be read: never an empty one standing in for a file that is there. Absent is empty. */
+export function loadLedger(state: string): Ledger {
+  const read = readLedgerFile(state);
+  if ("fault" in read) throw new Error(`${read.fault}. Nothing was read from it as if the project had no work on record. Only the Human can repair it or move it aside; no seat may write the desk's own files.`);
+  return read.ledger;
 }
 
 export function saveLedger(state: string, ledger: Ledger): void {

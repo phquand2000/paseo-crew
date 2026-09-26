@@ -1,4 +1,5 @@
 import { can, roleNamed, seatOf } from "../catalog/kit.ts";
+import { KeyedQueue } from "../core/keyed-queue.ts";
 import { midTurn } from "../core/paseo.ts";
 import type { Answer, Judge, Judgement, Question, SeatView } from "../core/ports.ts";
 import type { Agents } from "./agents.ts";
@@ -45,7 +46,7 @@ export class Watcher {
   private readonly roster: Roster;
   private readonly agents: Agents;
   private readonly waiting = new Map<string, Waiting>();
-  private readonly lines = new Map<string, Promise<unknown>>();
+  private readonly lines = new KeyedQueue();
   private readonly stamp = Date.now().toString(36).slice(-4);
   private count = 0;
 
@@ -85,11 +86,7 @@ export class Watcher {
 
   /** One case after another per project, so two at once seat one Watcher, not two. */
   private deliver(project: Project, role: string, letter: Letter): Promise<string> {
-    const next = (this.lines.get(project.slug) ?? Promise.resolve())
-      .catch(() => undefined)
-      .then(() => this.deliverOne(project, role, letter));
-    this.lines.set(project.slug, next);
-    return next;
+    return this.lines.run(project.slug, () => this.deliverOne(project, role, letter));
   }
 
   /** To the project's Watcher, or as the first word of one seated for it. */
