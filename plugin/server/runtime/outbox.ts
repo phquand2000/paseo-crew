@@ -93,6 +93,11 @@ export class Outbox {
     this.started.delete(agentId);
   }
 
+  /** Every letter not yet sent, with when it is given up on: nothing else is sent a gone seat's mail. */
+  held(): (Letter & { until: number })[] {
+    return this.letters().map((letter) => ({ ...letter, until: letter.at + KEEP_MS }));
+  }
+
   pending(agentId: string): Letter[] {
     return this.letters().filter((letter) => letter.to === agentId);
   }

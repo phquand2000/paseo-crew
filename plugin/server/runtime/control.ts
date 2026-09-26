@@ -41,7 +41,7 @@ type ControlDeps = {
   reconcile: () => void;
   models: () => Promise<Record<string, { at: string; error: string | null; models: unknown[] }>>;
   seats: Seats;
-  held: () => { to: string; text: string; at: number }[];
+  held: () => { to: string; text: string; at: number; until: number }[];
   watch: (project: Project, seats: Iterable<SeatView>) => WatchView;
   human: Human;
 };

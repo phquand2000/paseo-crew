@@ -95,7 +95,7 @@ export class Runtime implements HostHooks {
       reconcile: () => this.reconcileProviders(),
       models: () => this.refreshModels(),
       seats: this.seats,
-      held: () => this.outbox.letters(),
+      held: () => this.outbox.held(),
       watch: (project) => watchView(project, this.watching.troublesOf(project), this.source.teamFor(project), kit),
       human: this.desk.human,
     });
@@ -282,7 +282,7 @@ export class Runtime implements HostHooks {
     }
   }
 
-  /** A call is waited on until the seat's bridge has taken its answer, which it deletes as it reads it. */
+  /** Mail waits on a seat's open call to the desk, its lane's hold and its agent's steering; a letter given up on is logged. */
   private outboxRules(kit: Kit): Rules {
     return {
       dropped: (letter, at) =>

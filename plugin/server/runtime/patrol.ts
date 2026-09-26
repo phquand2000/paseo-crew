@@ -248,7 +248,7 @@ export class Patrol {
       (seat) => can(seatOf(kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
     );
     mkdirSync(project.state, { recursive: true });
-    const held = this.deps.outbox.letters();
+    const held = this.deps.outbox.held();
     writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, { waiting, held }));
   }
 }

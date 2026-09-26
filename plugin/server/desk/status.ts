@@ -5,6 +5,7 @@ import { type Lane, type Ledger, type Task, ownCopyHolder } from "./ledger.ts";
 import { type LaneHome, type Project, type ProjectConfig, laneHomeFor, projectOf } from "./project.ts";
 
 const minutes = (now: number, at: number | string) => Math.max(0, Math.round((now - (typeof at === "string" ? Date.parse(at) : at)) / 60_000));
+const left = (ms: number) => (ms > 86_400_000 ? `${Math.ceil(ms / 86_400_000)} days` : `${Math.max(1, Math.ceil(ms / 3_600_000))} h`);
 
 function seatLine(seats: Map<string, SeatView>, id: string | undefined, now: number): string {
   if (!id) return "none";
@@ -101,7 +102,7 @@ export function statusText(
   config: ProjectConfig,
   seats: Map<string, SeatView>,
   now: number,
-  { laneId, waiting = [], held = [], copy }: { laneId?: string; waiting?: SeatView[]; held?: { to: string; text: string; at: number }[]; copy?: OwnCopy } = {},
+  { laneId, waiting = [], held = [], copy }: { laneId?: string; waiting?: SeatView[]; held?: { to: string; text: string; at: number; until: number }[]; copy?: OwnCopy } = {},
 ): string {
   const lines = heading(project, config, now);
   if (copy) lines.push(...ownCopyLines(project, ledger, config, copy));
@@ -113,10 +114,10 @@ export function statusText(
   const stranded = mine.filter((letter) => !seats.has(letter.to));
   const queued = mine.filter((letter) => seats.has(letter.to));
   if (stranded.length > 0) {
-    lines.push("## Mail with nobody to read it", "", "The seat each of these was addressed to is gone. Nothing is lost; they are held until a seat can take them.", "");
+    lines.push("## Mail with nobody to read it", "", "The seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on.", "");
     for (const letter of stranded) {
       const first = letter.text.split(/\r?\n/).find((line) => line.trim()) ?? "";
-      lines.push(`- to ${letter.to}, waiting ${minutes(now, letter.at)} min: ${first.slice(0, 160)}`);
+      lines.push(`- to ${letter.to}, waiting ${minutes(now, letter.at)} min, given up on in ${left(letter.until - now)}: ${first.slice(0, 160)}`);
     }
     lines.push("");
   }

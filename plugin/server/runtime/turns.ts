@@ -1,4 +1,4 @@
-import { type Kit, type RoleSpec, can, seatOf, worksTasks } from "../catalog/kit.ts";
+import { type Kit, type RoleSpec, can, seatOf, toolsOf, worksTasks } from "../catalog/kit.ts";
 import type { PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
 import { DECIDED, TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
@@ -14,6 +14,13 @@ type TurnDeps = {
   remember: (project: Project) => void;
   log: (project: Project, line: string) => void;
 };
+
+/** Where a seat puts a question instead, by the tools it holds: one that holds no way to ask settles it itself. */
+function askInstead(tools: string[]): string {
+  if (tools.includes("ask_human")) return "put it to the Human with ask_human, or ask them in your reply and end your turn";
+  if (tools.includes("ask")) return "ask it with ask, then end your turn; the answer arrives as a message";
+  return "answer from what you have, saying what you could not settle, then end your turn";
+}
 
 export class TurnRules {
   readonly lastEnding = new Map<string, string>();
@@ -59,8 +66,7 @@ export class TurnRules {
     }
     // A seat stopped on a question reads nothing, and a team waiting on a sleeping Human is stuck: the question goes by the desk.
     if (request.kind === "question" && request.id) {
-      const instead = can(role, "supervise") ? "put it to the Human with ask_human, or ask them in your reply and end your turn" : "ask it with ask, then end your turn; the answer arrives as a message";
-      await this.deps.seats.respond(agent.id, request.id, { behavior: "deny", message: `A question that stops your turn is not taken here: ${instead}.` });
+      await this.deps.seats.respond(agent.id, request.id, { behavior: "deny", message: `A question that stops your turn is not taken here: ${askInstead(toolsOf(this.deps.kit, role))}.` });
       return;
     }
     if (can(role, "supervise")) {

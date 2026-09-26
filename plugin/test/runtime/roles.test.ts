@@ -189,8 +189,15 @@ test("a question that would stop a seat's turn is refused with where to ask inst
   const lane = h.ledger().lanes.L1!;
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Colour", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  // A Watcher has no ask: told to use one, it was pointed at a tool it cannot call.
+  const watcher = h.add("sw2-watcher-claude/claude-opus-5", h.root, "watcher");
   const question: Pending = { id: "permission-1", kind: "question", name: "AskUserQuestion", title: "Which colour should the button be?", input: { questions: [{ question: "Which colour should the button be?", options: [{ label: "Blue" }] }] } };
-  for (const [seat, text] of [[peer, /ask it with ask, then end your turn/], [sup, /put it to the Human with ask_human, or ask them in your reply and end your turn/]] as const) {
+  const ways = [
+    [peer, /ask it with ask, then end your turn/],
+    [sup, /put it to the Human with ask_human, or ask them in your reply and end your turn/],
+    [watcher, /^A question that stops your turn is not taken here: answer from what you have, saying what you could not settle, then end your turn\.$/],
+  ] as const;
+  for (const [seat, text] of ways) {
     h.agents.get(seat)!.pending.push(question);
     await h.permission(seat, question);
     assert.equal(h.agents.get(seat)!.answered.at(-1)!.response.behavior, "deny");
