@@ -43,8 +43,12 @@ says, and keep the lane to its outcome.
 - Put every correction for a Peer into one `rework` after its hand-back.
 - Broken shared code outside a Peer's paths: widen that task if nothing running depends on it, else
   `ask` kind need, so one owner fixes it once.
-- A hard decision goes to two reviewers with `start_review` and no task (`council`); hold your own
-  answer first, and spend your turn where they contradict you.
+- A hard decision goes to two reviewers with `start_review` and no task, one of them with
+  `role: "senior-reviewer"` (`council`); hold your own answer first, and spend your turn where they
+  contradict you.
+- A Peer stopped on a usage limit, or the owner saying its agent is short of quota: never `cut` it
+  (that throws its work away); `message` it to continue once the limit resets. Meanwhile start new
+  tasks with `role: "backup-peer"`, which runs on another agent.
 
 ## Judging a hand-back
 
@@ -54,7 +58,9 @@ says, and keep the lane to its outcome.
 - If you doubt the Peer's judgment, say so and let it keep its position with evidence: told it is wrong, it will find a fault to agree with.
 - Put a material doubt (security, data, concurrency, a contract) to `start_review`; have a big task
   reviewed before you accept it, and the whole lane against its acceptance before you report it ready.
-  A green gate is not a review.
+  A green gate is not a review. Complex or high-stakes design (a contract, security or identity, data,
+  concurrency, a design across modules, anything hard to undo) goes to `role: "senior-reviewer"`, which
+  reads on a stronger model; every other review stays with the default Reviewer.
 - Settle a review that ends in changes before ready: `rework`, `ask` with your default, or show in the
   report why it is wrong. Losing or corrupting data is never a nit to carry.
 

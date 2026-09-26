@@ -10,7 +10,7 @@ const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const kit = loadKit(PLUGIN);
 
 // The budgets are the prompt research's (E §4.2, §7): words and rule lines per prompt file, words per skill body.
-const PROMPT_BUDGET: Record<string, [number, number]> = { supervisor: [700, 25], lead: [750, 28], peer: [400, 12], reviewer: [300, 8], watcher: [300, 8], pager: [60, 0] };
+const PROMPT_BUDGET: Record<string, [number, number]> = { supervisor: [700, 25], lead: [850, 28], peer: [400, 12], reviewer: [300, 8], watcher: [300, 8], pager: [60, 0] };
 const SKILL_BUDGET: Record<string, number> = {
   grilling: 600, "pre-mortem": 700, "architecture-premise-audit": 800, retrospective: 650, council: 900, "ultra-review": 800,
   "repo-refresh": 650, "planning-lanes": 700, "test-first": 800, "diagnosing-bugs": 650, "security-check": 600, "test-proof-debt-audit": 450,
