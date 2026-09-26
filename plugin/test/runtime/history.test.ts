@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type Lane, type Ledger, type Task, emptyLedger } from "../../server/desk/ledger.ts";
-import { deskFacts, prewritten } from "../../server/runtime/watch/history.ts";
+import type { FactKind } from "../../server/runtime/watch/facts.ts";
+import { deskFacts } from "../../server/runtime/watch/history.ts";
 
 const READING = { reworksAt: 3, reviewsAt: 3 };
 
@@ -40,6 +41,8 @@ const task = (over: Partial<Task> & { id: string }): Task => ({
   ...over,
 });
 
+const handback = (outcome: string) => ({ file: "f", outcome, summary: "s", at: 0 });
+
 function ledgerOf(tasks: Task[], over: Partial<Lane> = {}): Ledger {
   const held = emptyLedger();
   held.lanes.L1 = lane(over);
@@ -52,257 +55,160 @@ const kinds = (ledger: Ledger) =>
     .map((seen) => seen.fact.kind)
     .sort();
 
-const finished = { file: "f", outcome: "complete", summary: "s", at: 0 };
+const quote = (ledger: Ledger, kind: FactKind) => deskFacts(ledger, READING).find((seen) => seen.fact.kind === kind)!;
 
-test("a task sent back again and again is a loop, and the lane patching several at once is a missing foundation", () => {
-  const settling = ledgerOf([task({ id: "L1-T1", reworks: 2 })]);
-  assert.deepEqual(kinds(settling), [], "two sendings-back is a correction, not yet a loop");
+test("a lane's record shows loops, patching, unfinished acceptance and unconverged reviews, about its Lead, in words that change only with the evidence", () => {
+  const looping = ledgerOf([task({ id: "L1-T1", reworks: 3, handback: handback("partial") })]);
+  const spread = ledgerOf([1, 2, 3].map((n) => task({ id: `L1-T${n}`, reworks: 1 })));
+  const rounds = [1, 2, 3].map((n) =>
+    task({ id: `L1-R${n}`, kind: "review", of: "L1-T1", title: `review ${n}`, handback: handback("changes") }),
+  );
+  const reviewed = ledgerOf([task({ id: "L1-T1" }), ...rounds]);
+  const partial = ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("partial") })]);
+  const rows: [string, Ledger, FactKind[]][] = [
+    ["two sendings-back is a correction, not yet a loop", ledgerOf([task({ id: "L1-T1", reworks: 2 })]), []],
+    ["a task sent back again and again is a loop", looping, ["rework-loop"]],
+    ["the same three spread over tasks is one hole patched a task at a time", spread, ["patched-not-fixed"]],
+    ["reviews piling up on one unsettled task", reviewed, ["reviews-unconverged"]],
+    [
+      "three rounds that ended in acceptance converged",
+      ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("complete") }), ...rounds]),
+      [],
+    ],
+    ["two reviews is a second opinion", ledgerOf([task({ id: "L1-T1" }), ...rounds.slice(0, 2)]), []],
+    ["a lane with no Lead to be about", ledgerOf([task({ id: "L1-T1", reworks: 5 })], { lead: undefined }), []],
+    ["a lane that is closed", ledgerOf([task({ id: "L1-T1", reworks: 5 })], { status: "closed" }), []],
+    [
+      "a task that was accepted has stopped going round",
+      ledgerOf([task({ id: "L1-T1", reworks: 4, status: "merged", handback: handback("complete") })]),
+      [],
+    ],
+    ["and one that was cut", ledgerOf([task({ id: "L1-T1", reworks: 4, status: "cut" })]), []],
+    [
+      "neither counts toward the lane's total",
+      ledgerOf([
+        task({ id: "L1-T1", reworks: 2, status: "merged", handback: handback("complete") }),
+        task({ id: "L1-T2", reworks: 2 }),
+      ]),
+      [],
+    ],
+    ["a task taken in although its Peer handed it back partial", partial, ["accepted-unfinished"]],
+    [
+      "or blocked",
+      ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("blocked") })]),
+      ["accepted-unfinished"],
+    ],
+    [
+      "a Peer that said it finished raises nothing",
+      ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("complete") })]),
+      [],
+    ],
+    ["a task still running is not taken in", ledgerOf([task({ id: "L1-T1", handback: handback("blocked") })]), []],
+    [
+      "cutting a task its Peer could not finish is the answer, not the fault",
+      ledgerOf([task({ id: "L1-T1", status: "cut", handback: handback("blocked") })]),
+      [],
+    ],
+  ];
+  for (const [why, ledger, expected] of rows) assert.deepEqual(kinds(ledger), expected, why);
 
-  const looping = ledgerOf([
-    task({ id: "L1-T1", reworks: 3, handback: { file: "f", outcome: "partial", summary: "s", at: 0 } }),
-  ]);
-  const [seen] = deskFacts(looping, READING);
-  assert.equal(seen!.fact.kind, "rework-loop");
-  assert.equal(seen!.seat, "lead-1", "the Lead decides to send it back, so the Lead is who this is about");
-  assert.match(seen!.fact.quote, /L1-T1 \(Apply discount\) has been sent back 3 times, last outcome partial/);
-
-  // The same three sendings spread over tasks is one hole patched a task at a time, a different finding.
-  const spread = ledgerOf([
-    task({ id: "L1-T1", reworks: 1 }),
-    task({ id: "L1-T2", reworks: 1 }),
-    task({ id: "L1-T3", reworks: 1 }),
-  ]);
-  assert.deepEqual(kinds(spread), ["patched-not-fixed"]);
+  const loop = quote(looping, "rework-loop");
+  assert.equal(loop.seat, "lead-1", "the Lead decides to send it back, so the Lead is who this is about");
+  assert.match(loop.fact.quote, /L1-T1 \(Apply discount\) has been sent back 3 times, last outcome partial/);
   assert.match(
-    deskFacts(spread, READING)[0]!.fact.quote,
+    quote(spread, "patched-not-fixed").fact.quote,
     /3 sendings-back across 3 tasks .*L1-T1 ×1, L1-T2 ×1, L1-T3 ×1/,
   );
-});
-
-test("reviews piling up on one task are only a finding while that task is unsettled", () => {
-  const rounds = [1, 2, 3].map((n) =>
-    task({
-      id: `L1-R${n}`,
-      kind: "review",
-      of: "L1-T1",
-      title: `review ${n}`,
-      handback: { file: "f", outcome: "changes", summary: "s", at: 0 },
-    }),
-  );
-  const open = ledgerOf([task({ id: "L1-T1" }), ...rounds]);
-  assert.deepEqual(kinds(open), ["reviews-unconverged"]);
   assert.match(
-    deskFacts(open, READING)[0]!.fact.quote,
+    quote(reviewed, "reviews-unconverged").fact.quote,
     /3 reviews of L1-T1 .*which is running: changes, changes, changes/,
   );
+  const unfinished = quote(partial, "accepted-unfinished");
+  assert.match(unfinished.fact.quote, /L1-T1 \(Apply discount\) was accepted after its Peer handed it back partial/);
+  assert.equal(unfinished.seat, "lead-1", "accepting is the Lead's act, so the Lead is who this is about");
 
-  const accepted = ledgerOf([task({ id: "L1-T1", status: "merged", handback: finished }), ...rounds]);
-  assert.deepEqual(kinds(accepted), [], "three rounds that ended in acceptance converged");
-
-  const fewer = ledgerOf([task({ id: "L1-T1" }), ...rounds.slice(0, 2)]);
-  assert.deepEqual(kinds(fewer), [], "two reviews is a second opinion");
-});
-
-test("a review asked for certainty, and a brief that writes the work out, are both on the record", () => {
-  const timid = ledgerOf([
-    task({
-      id: "L1-R1",
-      kind: "review",
-      of: "L1-T1",
-      goal: "Check the pricing change. Report only issues you are certain of.",
-    }),
-  ]);
-  assert.deepEqual(kinds(timid), ["certainty-only"]);
-  assert.deepEqual(
-    kinds(
-      ledgerOf([
-        task({
-          id: "L1-R1",
-          kind: "review",
-          of: "L1-T1",
-          goal: "Check the pricing change for correctness and rounding.",
-        }),
-      ]),
-    ),
-    [],
-  );
-
-  const typed = ledgerOf([
-    task({
-      id: "L1-T1",
-      context: "1. Create src/pricing.ts with a function applyCode\n2. Then add a test\n3. Then wire it in app.ts",
-    }),
-  ]);
-  assert.deepEqual(kinds(typed), ["brief-prewritten"]);
-  assert.deepEqual(
-    kinds(
-      ledgerOf([
-        task({
-          id: "L1-T1",
-          context: "The discount table lives in the pricing service; the Human wants stacking to stop.",
-        }),
-      ]),
-    ),
-    [],
-  );
-});
-
-test("a brief is judged by whether it hands over the answer, not by how long it is", () => {
-  assert.equal(prewritten(""), false);
-  assert.equal(
-    prewritten("Totals must reflect the code. Acceptance: a 10% code lowers the total. You decide where it goes."),
-    false,
-  );
-  assert.equal(
-    prewritten("Here is the shape:\n```ts\nexport function applyCode() {}\n```\nand 1. do this first"),
-    true,
-    "a code fence plus a step list is the answer, typed out",
-  );
-  assert.equal(
-    prewritten("1. edit src/pricing.ts, exporting a const RATES"),
-    true,
-    "one step naming a file and a member is enough",
-  );
-  assert.equal(
-    prewritten("The rounding rule is in RFC 1. Read it before you start."),
-    false,
-    "a reference is not a step",
-  );
-});
-
-test("nothing is read from a lane with no Lead to be about, or from a lane that is closed", () => {
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 5 })], { lead: undefined })), []);
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 5 })], { status: "closed" })), []);
-});
-
-test("the quote is the whole of what was counted, so the book can tell new evidence from the same evidence", () => {
   const held = ledgerOf([task({ id: "L1-T1", reworks: 3 })]);
-  const first = deskFacts(held, READING)[0]!.fact.quote;
-  assert.equal(deskFacts(held, READING)[0]!.fact.quote, first, "reading the same ledger twice says the same words");
+  const first = quote(held, "rework-loop").fact.quote;
+  assert.equal(quote(held, "rework-loop").fact.quote, first, "reading the same ledger twice says the same words");
   held.tasks["L1-T1"]!.reworks = 4;
-  assert.notEqual(deskFacts(held, READING)[0]!.fact.quote, first, "a fourth sending-back is new evidence");
-
+  assert.notEqual(quote(held, "rework-loop").fact.quote, first, "a fourth sending-back is new evidence");
   // The book keys an incident by seat and kind, and the seat is the Lead, so one fact of a kind per lane.
   const two = ledgerOf([task({ id: "L1-T1", reworks: 3 }), task({ id: "L1-T2", reworks: 3 })]);
   const loops = deskFacts(two, READING).filter((seen) => seen.fact.kind === "rework-loop");
   assert.equal(loops.length, 1);
   assert.match(loops[0]!.fact.quote, /L1-T1 .*sent back 3 times.*; L1-T2 .*sent back 3 times/);
-});
 
-test("a task that was accepted or cut has stopped going round, whatever it took to get there", () => {
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "merged", handback: finished })])), []);
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", reworks: 4, status: "cut" })])), []);
-  assert.deepEqual(
-    kinds(
-      ledgerOf([
-        task({ id: "L1-T1", reworks: 2, status: "merged", handback: finished }),
-        task({ id: "L1-T2", reworks: 2 }),
-      ]),
-    ),
-    [],
-    "and does not count toward the lane's total",
-  );
-});
-
-test("a task taken in although its Peer never said it was finished is on the record, and a finished one is not", () => {
-  const partial = ledgerOf([
-    task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "partial", summary: "s", at: 0 } }),
-  ]);
-  assert.deepEqual(kinds(partial), ["accepted-unfinished"]);
-  assert.match(
-    deskFacts(partial, READING)[0]!.fact.quote,
-    /L1-T1 \(Apply discount\) was accepted after its Peer handed it back partial/,
-  );
-  assert.equal(
-    deskFacts(partial, READING)[0]!.seat,
-    "lead-1",
-    "accepting is the Lead's act, so the Lead is who this is about",
-  );
-
-  assert.deepEqual(
-    kinds(
-      ledgerOf([
-        task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } }),
-      ]),
-    ),
-    ["accepted-unfinished"],
-  );
-  assert.deepEqual(
-    kinds(
-      ledgerOf([
-        task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "complete", summary: "s", at: 0 } }),
-      ]),
-    ),
-    [],
-    "a Peer that said it finished raises nothing",
-  );
-
-  // Still running, still being sent back, or cut: none of those is the Lead taking the work in.
-  assert.deepEqual(
-    kinds(ledgerOf([task({ id: "L1-T1", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])),
-    [],
-  );
-  assert.deepEqual(
-    kinds(
-      ledgerOf([
-        task({ id: "L1-T1", status: "cut", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } }),
-      ]),
-    ),
-    [],
-    "cutting a task its Peer could not finish is the answer, not the fault",
-  );
-});
-
-test("a lane names only the first few tasks it took in unfinished", () => {
   const many = ledgerOf(
     Array.from({ length: 7 }, (_, index) =>
-      task({
-        id: `L1-T${index + 1}`,
-        status: "merged",
-        handback: { file: "f", outcome: "partial", summary: "s", at: 0 },
-      }),
+      task({ id: `L1-T${index + 1}`, status: "merged", handback: handback("partial") }),
     ),
   );
-  const quote = deskFacts(many, READING).find((seen) => seen.fact.kind === "accepted-unfinished")!.fact.quote;
-  assert.match(quote, /; and 2 more in this lane$/);
-  assert.ok(!quote.includes("L1-T6"), "a lane's accepted tasks only accumulate, so the quote does not grow with them");
+  const named = quote(many, "accepted-unfinished").fact.quote;
+  assert.match(named, /; and 2 more in this lane$/);
+  assert.ok(!named.includes("L1-T6"), "a lane's accepted tasks only accumulate, so the quote does not grow with them");
 });
 
-test("a brief is not read as prewritten for stating acceptance, narrowing scope or quoting a failure", () => {
-  // Written exactly as LEAD.md asks: acceptance as behaviours, context carrying settled facts.
-  const asked = ledgerOf([
-    task({
-      id: "L1-T1",
-      context:
-        "Acceptance behaviours:\n1. A 10% code lowers the total.\n2. The receipt shows the rate.\nThe rate table is in src/pricing.ts; the export map there is settled, so do not widen it.",
-    }),
-  ]);
-  assert.deepEqual(kinds(asked), []);
-  assert.equal(
-    prewritten("It currently fails with:\n```\nAssertionError: 1 !== 2 at test/pricing.test.ts:14\n```\nFind out why."),
-    false,
-    "a quoted failure is evidence, not an answer",
-  );
-  assert.equal(
-    prewritten("Here is the shape:\n```ts\nexport function applyCode() {}\n```"),
-    true,
-    "code in a brief is the answer, typed out",
-  );
-});
+test("a brief that writes the work out, or a review told to report only certainties, is on the record, and ordinary wording is not", () => {
+  const briefs: [string, FactKind[], string][] = [
+    [
+      "1. Create src/pricing.ts with a function applyCode\n2. Then add a test\n3. Then wire it in app.ts",
+      ["brief-prewritten"],
+      "steps that build the answer",
+    ],
+    ["The discount table lives in the pricing service; the Human wants stacking to stop.", [], "context"],
+    ["", [], "an empty brief"],
+    [
+      "Totals must reflect the code. Acceptance: a 10% code lowers the total. You decide where it goes.",
+      [],
+      "a brief is judged by whether it hands over the answer, not by how long it is",
+    ],
+    [
+      "Here is the shape:\n```ts\nexport function applyCode() {}\n```\nand 1. do this first",
+      ["brief-prewritten"],
+      "a code fence plus a step list is the answer, typed out",
+    ],
+    [
+      "1. edit src/pricing.ts, exporting a const RATES",
+      ["brief-prewritten"],
+      "one step naming a file and a member is enough",
+    ],
+    ["The rounding rule is in RFC 1. Read it before you start.", [], "a reference is not a step"],
+    [
+      "Acceptance behaviours:\n1. A 10% code lowers the total.\n2. The receipt shows the rate.\nThe rate table is in src/pricing.ts; the export map there is settled, so do not widen it.",
+      [],
+      "acceptance and settled context written as LEAD.md asks",
+    ],
+    [
+      "It currently fails with:\n```\nAssertionError: 1 !== 2 at test/pricing.test.ts:14\n```\nFind out why.",
+      [],
+      "a quoted failure is evidence, not an answer",
+    ],
+    [
+      "Here is the shape:\n```ts\nexport function applyCode() {}\n```",
+      ["brief-prewritten"],
+      "code in a brief is the answer, typed out",
+    ],
+  ];
+  for (const [context, expected, why] of briefs)
+    assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", context })])), expected, why);
 
-test("a review focus is not read as timid for narrowing scope or asking for rigour", () => {
-  const focus = (goal: string) => kinds(ledgerOf([task({ id: "L1-R1", kind: "review", of: "L1-T1", goal })]));
-  assert.deepEqual(
-    focus("Review only the merge path, and make sure the lock is released on every branch."),
-    [],
-    "narrowing the scope asks for more rigour, not less",
-  );
-  assert.deepEqual(
-    focus("Read just the new module; I am not sure the rounding is right."),
-    [],
-    "the Lead's own doubt is not an instruction to withhold",
-  );
-  assert.deepEqual(focus("Report only what you can prove."), ["certainty-only"]);
-  assert.deepEqual(focus("Nothing speculative; list only high-confidence findings."), ["certainty-only"]);
-  assert.deepEqual(focus("Do not report anything unless you are certain of it."), ["certainty-only"]);
+  const focuses: [string, FactKind[], string][] = [
+    ["Check the pricing change. Report only issues you are certain of.", ["certainty-only"], "certain"],
+    ["Check the pricing change for correctness and rounding.", [], "an ordinary focus"],
+    [
+      "Review only the merge path, and make sure the lock is released on every branch.",
+      [],
+      "narrowing the scope asks for more rigour, not less",
+    ],
+    [
+      "Read just the new module; I am not sure the rounding is right.",
+      [],
+      "the Lead's own doubt is not an instruction to withhold",
+    ],
+    ["Report only what you can prove.", ["certainty-only"], "prove"],
+    ["Nothing speculative; list only high-confidence findings.", ["certainty-only"], "high-confidence"],
+    ["Do not report anything unless you are certain of it.", ["certainty-only"], "unless certain"],
+  ];
+  for (const [goal, expected, why] of focuses)
+    assert.deepEqual(kinds(ledgerOf([task({ id: "L1-R1", kind: "review", of: "L1-T1", goal })])), expected, why);
 });

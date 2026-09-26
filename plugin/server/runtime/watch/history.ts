@@ -36,7 +36,7 @@ const reworksOf = (task: Task): number => task.reworks ?? 0;
 const settled = (task: Task): boolean => SETTLED.includes(task.status);
 
 /** Whether a brief hands over an answer to be typed in rather than an outcome to be reached. */
-export function prewritten(text: string): boolean {
+function prewritten(text: string): boolean {
   const read = text.slice(0, READ_AT_MOST);
   if (!read.trim()) return false;
   if (CODE_FENCE.test(read)) return true;
