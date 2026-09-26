@@ -1,276 +1,235 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { type Socket, createServer } from "node:net";
+import { readFileSync, writeFileSync } from "node:fs";
+import { connect } from "node:net";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
-import { test } from "node:test";
+import { type TestContext, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import type { z } from "zod";
+import { deskSocket } from "../../server/core/paths.ts";
+import type { TeamSocket } from "../../server/runtime/team-socket.ts";
+import { contracts } from "../../shared/rpc.ts";
+import { harness } from "../runtime/harness.ts";
 import { tempDir } from "../tempdir.ts";
 
-const teamServer = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "team.mjs");
-const data = (file: string, set: string) => JSON.parse(readFileSync(join(dirname(teamServer), file), "utf-8"))[set];
+const TEAM = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "mcp", "team.mjs");
+const data = (file: string, set: string) =>
+  (JSON.parse(readFileSync(join(dirname(TEAM), file), "utf-8")) as Record<string, unknown>)[set];
 
-type Said = { type: string; id?: string; [key: string]: unknown };
+type Harness = ReturnType<typeof harness>;
+type Schema = { properties: Record<string, Schema>; items?: Schema; enum?: string[] };
+type Replied = { isError?: boolean; content: { text: string }[] };
 
-/** A desk on a socket of its own: it hears each line, and `respond` answers what it hears. */
-async function fakeDesk(respond: (line: Socket, said: Said) => void) {
-  const path = join(tempDir("sw2-desk-"), "d.sock");
-  const heard: Said[] = [];
-  const server = createServer((socket) => {
-    socket.on("error", () => {});
-    createInterface({ input: socket })
-      .on("line", (text) => {
-        const said = JSON.parse(text) as Said;
-        heard.push(said);
-        respond(socket, said);
-      })
-      .on("error", () => {});
-  });
-  await new Promise<void>((resolve) => server.listen(path, resolve));
-  const send = (line: Socket, message: object) => line.write(`${JSON.stringify(message)}\n`);
-  return { path, heard, send, close: () => new Promise((resolve) => server.close(resolve)) };
+/** Resolves once `check` holds, polling while the processes on either end do their part; fails after five seconds. */
+async function until(check: () => boolean | Promise<boolean>, what: string): Promise<void> {
+  for (let tries = 0; !(await check()); tries++) {
+    assert.ok(tries < 250, `never: ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 }
 
-/** A harness with the team server of `set` for the seat holding key k1, reaching the desk at `path`. */
-async function harness(path: string, set = "lead", env: Record<string, string> = {}, changed?: () => void) {
+/** A lane with its Lead, the desk's socket listening as the plugin's start opens it, and the Lead's key bound as Paseo opens it. */
+async function lineUp(t: TestContext) {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Build",
+    outcome: "a.txt changes",
+    acceptance: ["a"],
+    outOfScope: ["anything else in the repository"],
+  });
+  const lead = h.ledger().lanes.L1!.lead!;
+  const socket = (h.runtime as unknown as { socket: TeamSocket }).socket;
+  socket.listen();
+  t.after(() => socket.close());
+  bind(h, lead, "k-lead");
+  return { h, sup, lead, socket };
+}
+
+function bind(h: Harness, agent: string, key: string): void {
+  const { provider } = h.agents.get(agent)!;
+  h.runtime.sessionOpen({ agentId: agent, reason: "create", provider, cwd: h.root, env: { SEATWORKS_DESK_KEY: key } });
+}
+
+/** The seat's team server as its harness starts it in the project, with the key it was given; `changed` hears list_changed. */
+async function served(t: TestContext, h: Harness, set: string, key: string, env = {}, changed?: () => void) {
   const client = new Client(
     { name: "probe", version: "0" },
     changed ? { listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: changed } } } : {},
   );
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [teamServer, set, set, path],
-    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1", ...env },
+    args: [TEAM, set, set, deskSocket()],
+    cwd: h.root,
+    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: key, ...env },
     stderr: "inherit",
   });
   await client.connect(transport);
-  return client;
+  t.after(() => client.close());
+  const call = async (name: string, args: Record<string, unknown> = {}, options = {}) =>
+    (await client.callTool({ name, arguments: args }, options)) as Replied;
+  const schema = async (tool: string) =>
+    (await client.listTools()).tools.find((entry) => entry.name === tool)!.inputSchema as unknown as Schema;
+  return { client, call, schema };
 }
 
-const welcoming = (choices: object) => (line: Socket, said: Said) => {
-  if (said.type === "hello") line.write(`${JSON.stringify({ type: "welcome", choices })}\n`);
+/** A line to the desk spoken on directly, as a seat's server speaks: what it heard, and a way to say something. */
+async function line(t: TestContext, h: Harness, key: string, role: string) {
+  const socket = connect(deskSocket());
+  await new Promise((resolve) => socket.on("connect", resolve));
+  t.after(() => socket.destroy());
+  const heard: { type: string }[] = [];
+  createInterface({ input: socket }).on("line", (text) => heard.push(JSON.parse(text) as { type: string }));
+  const say = (message: object) => socket.write(`${JSON.stringify(message)}\n`);
+  say({ type: "hello", key, role, cwd: h.root });
+  await until(() => heard.length > 0, "the desk answers the hello");
+  return { socket, heard, say, types: () => heard.map((said) => said.type) };
+}
+
+/** A gate that holds until `release` is called, so a call it runs is stopped or dropped while the desk is still at it. */
+function heldGate(t: TestContext) {
+  const go = join(tempDir("sw2-gate-"), "go");
+  const release = () => writeFileSync(go, "");
+  t.after(release);
+  return { command: `until [ -f '${go}' ]; do sleep 0.02; done`, release };
+}
+
+const task = {
+  key: "t",
+  title: "Clean build",
+  goal: "g",
+  acceptance: ["a"],
+  hints: ["a.txt"],
+  outOfScope: ["the rest"],
 };
 
-const within = async (ms: number, check: () => boolean) => {
-  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20)))
-    if (Date.now() > end) return false;
-  return true;
-};
+test("a seat's harness is shown its tools with the desk's choices, and its calls are carried out as the keyed seat's, or refused for an unknown key", async (t) => {
+  const { h, lead, socket } = await lineUp(t);
+  const stranger = await served(t, h, "lead", "k-nope");
+  const recorded = h.events("tool").length;
+  for (const tool of ["status", "add_tasks"])
+    assert.match((await stranger.call(tool)).content[0]!.text, /^The desk does not know this agent's key/, tool);
+  assert.equal(h.events("tool").length, recorded, "nothing is carried out from a key the desk does not hold");
 
-test("a seat's harness is told what the server is for, each tool's title and what it changes, and the desk's choices as enums", async () => {
-  const choices = {
-    add_tasks: { role: ["peer"], skills: ["test-first", "diagnosing-bugs"] },
-    note: { kind: ["plans", "council"] },
+  const seat = await served(t, h, "lead", "k-lead");
+  assert.equal(seat.client.getInstructions(), data("instructions.json", "lead"), "told what the server is for");
+  const shown = (list: { name: string; title?: string; annotations?: object }[]) =>
+    list.map(({ name, title, annotations }) => ({ name, title, annotations }));
+  assert.deepEqual(
+    shown((await seat.client.listTools()).tools),
+    shown(data("tools.json", "lead") as { name: string }[]),
+    "each tool's title and what it changes",
+  );
+  // The desk's choices come with the first list, or as a changed list soon after when the desk is slow to say them.
+  await until(async () => ((await seat.schema("note")).properties.kind!.enum ?? []).length > 0, "choices shown");
+  const fields = (await seat.schema("add_tasks")).properties.tasks!.items!.properties;
+  assert.deepEqual(fields.role!.enum, ["peer"], "the desk's choices as enums");
+  assert.ok(fields.skills!.items!.enum!.includes("test-first"), "a list takes the set for its items");
+  assert.ok((await seat.schema("note")).properties.kind!.enum!.includes("plans"));
+  assert.equal(fields.title!.enum, undefined, "a field the desk names nothing for is left open");
+
+  const added = await seat.call("add_tasks", { tasks: [task] });
+  assert.equal(added.isError, false, added.content[0]!.text);
+  assert.ok(h.ledger().tasks["L1-T1"]!.peer, "carried out as the Lead the key belongs to");
+  await until(() => !socket.calling(lead), "the harness took the answer, so no mail waits on the call");
+  assert.equal((await seat.call("accept", { task: "L9-T9" })).isError, true, "a refusal is marked an error");
+  await assert.rejects(seat.client.callTool({ name: "no_such_tool", arguments: {} }), "the protocol's own error");
+});
+
+test("a call its harness stops, or whose line drops, is answered by mail, and the next call finds the desk again", async (t) => {
+  const { h, sup, lead, socket } = await lineUp(t);
+  const letters = () => h.heard(lead).join("\n");
+  const gated = async () => {
+    const gate = heldGate(t);
+    await h.call(sup, "supervisor", "set_project", { gate: gate.command, gateOn: "lane" });
+    return gate;
   };
-  const desk = await fakeDesk(welcoming(choices));
-  const client = await harness(desk.path);
-  try {
-    // The server answers its harness without waiting long for the desk, so its hello may arrive after the handshake.
-    assert.ok(await within(5000, () => desk.heard.length > 0), "it says hello");
-    assert.deepEqual(desk.heard[0], { type: "hello", key: "k1", role: "lead", cwd: process.cwd() });
-    assert.equal(client.getInstructions(), data("instructions.json", "lead"));
-    // The desk's choices come with the first list, or as a changed list soon after when the desk is slow to say them.
-    let tools: Awaited<ReturnType<typeof client.listTools>>["tools"] = [];
-    const offered = () =>
-      ((tools.find((tool) => tool.name === "note")?.inputSchema as any)?.properties.kind.enum ?? []).length > 0;
-    for (
-      const end = Date.now() + 5000;
-      !offered() && Date.now() < end;
-      await new Promise((resolve) => setTimeout(resolve, 50))
-    )
-      tools = (await client.listTools()).tools;
-    const shown = (list: { name: string; title?: string; annotations?: object }[]) =>
-      list.map(({ name, title, annotations }) => ({ name, title, annotations }));
-    assert.deepEqual(shown(tools), shown(data("tools.json", "lead")));
-    const schema = (name: string) => tools.find((tool) => tool.name === name)!.inputSchema as any;
-    const task = schema("add_tasks").properties.tasks.items.properties;
-    assert.deepEqual(task.role.enum, ["peer"]);
-    assert.deepEqual(task.skills.items.enum, ["test-first", "diagnosing-bugs"], "a list takes the set for its items");
-    assert.deepEqual(schema("note").properties.kind.enum, ["plans", "council"]);
-    assert.equal(
-      schema("start_review").properties.role.enum,
-      undefined,
-      "a field the desk named nothing for is left open",
-    );
-  } finally {
-    await client.close();
-    await desk.close();
-  }
-});
+  const seat = await served(t, h, "lead", "k-lead", { SEATWORKS_PROGRESS_MS: "50" });
+  const ready = { summary: "done", ready: true };
 
-test("a call reaches the desk from the seat holding the key, and its answer is the tool's text, a refusal marked an error", async () => {
-  const desk = await fakeDesk((line, said) => {
-    welcoming({})(line, said);
-    if (said.type === "call")
-      line.write(
-        `${JSON.stringify({ type: "result", id: said.id, ok: said.tool === "status", text: `answered ${said.tool}` })}\n`,
-      );
+  let gate = await gated();
+  const notes: string[] = [];
+  const long = seat.call("report", ready, {
+    onprogress: (note: { message?: string }) => notes.push(note.message ?? ""),
   });
-  const client = await harness(desk.path);
-  try {
-    const status = await client.callTool({ name: "status", arguments: {} });
-    assert.deepEqual(status.content, [{ type: "text", text: "answered status" }]);
-    assert.equal(status.isError, false);
-    const call = desk.heard.find((said) => said.type === "call")!;
-    assert.deepEqual({ tool: call.tool, args: call.args }, { tool: "status", args: {} });
-    assert.ok(
-      await within(2000, () => desk.heard.some((said) => said.type === "taken" && said.id === call.id)),
-      "the harness took the answer, and the desk is told so",
-    );
-    const refused = await client.callTool({ name: "accept", arguments: { task: "L1-T1" } });
-    assert.equal(refused.isError, true);
-    await assert.rejects(
-      client.callTool({ name: "no_such_tool", arguments: {} }),
-      "a tool the set does not have is the protocol's own error",
-    );
-  } finally {
-    await client.close();
-    await desk.close();
-  }
+  await until(() => notes.length > 1, "a harness that asked for progress hears that a long call still runs");
+  gate.release();
+  await long;
+  assert.ok(
+    notes.every((note) => note === "The desk is still working on report."),
+    notes.join(" | "),
+  );
+
+  gate = await gated();
+  const stopping = new AbortController();
+  const stopped = seat.call("report", ready, { signal: stopping.signal });
+  await until(() => socket.calling(lead), "the call reaches the desk");
+  stopping.abort();
+  await assert.rejects(stopped);
+  await until(() => !socket.calling(lead), "the desk hears it was stopped");
+  gate.release();
+  await until(() => /ANSWER to your report call/.test(letters()), "the answer is mailed once it comes");
+  assert.match(letters(), /ANSWER to your report call, which was stopped on your side before its answer reached you\./);
+
+  gate = await gated();
+  const dropping = seat.call("report", { summary: "done again", ready: true });
+  await until(() => socket.calling(lead), "the call reaches the desk");
+  socket.close();
+  const dropped = await dropping;
+  assert.equal(dropped.isError, true);
+  assert.equal(
+    dropped.content[0]!.text,
+    "The line to the team desk dropped while report ran, so its answer did not come back here. If the desk took the call, its answer comes as mail: look before calling report again, since a second call may do it twice.",
+  );
+  assert.equal(socket.calling(lead), false);
+  gate.release();
+  await until(
+    () => letters().match(/ANSWER to your report call/g)?.length === 2,
+    "the dropped call's answer is mailed",
+  );
+  socket.listen();
+  assert.equal((await seat.call("status")).isError, false, "the next call finds the desk again");
+
+  const raw = await line(t, h, "k-lead", "lead");
+  raw.say({ type: "call", id: "1", tool: "status", args: {} });
+  await until(() => raw.types().includes("result"), "answered on the line");
+  raw.socket.destroy();
+  await until(
+    () => /ANSWER to your status call/.test(letters()),
+    "answered and never taken, it is mailed once the line drops",
+  );
 });
 
-test("a key the desk refuses carries nothing out, and each call says why", async () => {
-  const desk = await fakeDesk((line, said) => {
-    if (said.type === "hello")
-      line.write(`${JSON.stringify({ type: "refused", why: "The desk does not know this agent's key." })}\n`);
-  });
-  const client = await harness(desk.path);
-  try {
-    const called = await client.callTool({ name: "status", arguments: {} });
-    assert.deepEqual(
-      [called.isError, called.content],
-      [true, [{ type: "text", text: "The desk does not know this agent's key." }]],
-    );
-    assert.equal(desk.heard.filter((said) => said.type === "call").length, 0);
-  } finally {
-    await client.close();
-    await desk.close();
-  }
-});
+test("new choices reach a harness as a changed tool list, only where its set changed", async (t) => {
+  const { h, lead } = await lineUp(t);
+  await h.call(lead, "lead", "add_tasks", { tasks: [task] });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  bind(h, peer, "k-peer");
+  let told = 0;
+  const seat = await served(t, h, "lead", "k-lead", {}, () => told++);
+  const skills = async () =>
+    (await seat.schema("add_tasks")).properties.tasks!.items!.properties.skills!.items!.enum ?? [];
+  await until(
+    async () => (await skills()).includes("ide-index-mcp"),
+    "Peers have the IDE server, so its skill is a choice",
+  );
+  const leadLine = await line(t, h, "k-lead", "lead");
+  const peerLine = await line(t, h, "k-peer", "peer");
 
-test("with no desk running a call is not carried out, and says what to do", async () => {
-  const client = await harness(join(tempDir("sw2-desk-"), "none.sock"));
-  try {
-    const called = await client.callTool({ name: "status", arguments: {} });
-    assert.equal(called.isError, true);
-    assert.match(
-      (called.content as { text: string }[])[0]!.text,
-      /^The team desk is not running, so status was not carried out\. Do not call it again/,
-    );
-  } finally {
-    await client.close();
-  }
-});
-
-test("a call its harness stops tells the desk, which answers it by mail", async () => {
-  const desk = await fakeDesk(welcoming({}));
-  const client = await harness(desk.path);
-  try {
-    const stopping = new AbortController();
-    const calling = client.callTool({ name: "status", arguments: {} }, { signal: stopping.signal });
-    assert.ok(await within(2000, () => desk.heard.some((said) => said.type === "call")));
-    stopping.abort();
-    await assert.rejects(calling);
-    const call = desk.heard.find((said) => said.type === "call")!;
-    assert.ok(await within(2000, () => desk.heard.some((said) => said.type === "cancel" && said.id === call.id)));
-  } finally {
-    await client.close();
-    await desk.close();
-  }
-});
-
-test("a harness that asked for progress hears that a long call still runs", async () => {
-  const desk = await fakeDesk((line, said) => {
-    welcoming({})(line, said);
-    if (said.type === "call")
-      setTimeout(() => line.write(`${JSON.stringify({ type: "result", id: said.id, ok: true, text: "done" })}\n`), 300);
-  });
-  const client = await harness(desk.path, "lead", { SEATWORKS_PROGRESS_MS: "50" });
-  try {
-    const heard: string[] = [];
-    const called = await client.callTool(
-      { name: "status", arguments: {} },
-      { onprogress: (progress) => heard.push(progress.message ?? "") },
-    );
-    assert.deepEqual(called.content, [{ type: "text", text: "done" }]);
-    assert.ok(
-      heard.length > 0 && heard.every((message) => message === "The desk is still working on status."),
-      `${heard.length} progress notes`,
-    );
-  } finally {
-    await client.close();
-    await desk.close();
-  }
-});
-
-test("new choices from the desk reach the harness as a changed list of tools", async () => {
-  let line: Socket | undefined;
-  const desk = await fakeDesk((socket, said) => {
-    line = socket;
-    welcoming({ note: { kind: ["plans"] } })(socket, said);
-  });
-  let changed = 0;
-  const client = await harness(desk.path, "lead", {}, () => changed++);
-  try {
-    const kind = async () =>
-      ((await client.listTools()).tools.find((tool) => tool.name === "note")!.inputSchema as any).properties.kind.enum;
-    assert.deepEqual(await kind(), ["plans"]);
-    desk.send(line!, { type: "choices", choices: { note: { kind: ["plans", "council"] } } });
-    assert.ok(await within(2000, () => changed > 0), "told the list changed");
-    assert.deepEqual(await kind(), ["plans", "council"]);
-  } finally {
-    await client.close();
-    await desk.close();
-  }
-});
-
-test("a desk that drops the line mid-call leaves that call with what happened, and the next call finds the desk again", async () => {
-  let calls = 0;
-  const desk = await fakeDesk((line, said) => {
-    welcoming({})(line, said);
-    if (said.type !== "call") return;
-    if (++calls === 1) line.destroy();
-    else line.write(`${JSON.stringify({ type: "result", id: said.id, ok: true, text: "answered" })}\n`);
-  });
-  const client = await harness(desk.path);
-  try {
-    const lost = await client.callTool({ name: "accept", arguments: { task: "L1-T1" } });
-    assert.equal(lost.isError, true);
-    assert.match(
-      (lost.content as { text: string }[])[0]!.text,
-      /^The line to the team desk dropped while accept ran, so its answer did not come back here\. If the desk took the call, its answer comes as mail: look before calling accept again, since a second call may do it twice\./,
-    );
-    const again = await client.callTool({ name: "status", arguments: {} });
-    assert.deepEqual(again.content, [{ type: "text", text: "answered" }]);
-    assert.equal(desk.heard.filter((said) => said.type === "hello").length, 2, "said who it is again on the new line");
-  } finally {
-    await client.close();
-    await desk.close();
-  }
-});
-
-test("a server whose harness closes its pipe exits, though its line to the desk is still open", async () => {
-  const desk = await fakeDesk(welcoming({}));
-  const server = spawn(process.execPath, [teamServer, "peer", "peer", desk.path], {
-    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" },
-    stdio: ["pipe", "ignore", "inherit"],
-  });
-  try {
-    assert.ok(
-      await within(5000, () => desk.heard.some((said) => said.type === "hello")),
-      "its line to the desk is open",
-    );
-    const exited = new Promise<boolean>((resolve) => server.on("exit", () => resolve(true)));
-    server.stdin.end();
-    assert.ok(
-      await Promise.race([exited, new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000))]),
-      "left running, it would hold its line for good",
-    );
-  } finally {
-    server.kill();
-    await desk.close();
-  }
+  const save = async (values: z.input<typeof contracts.settingsWrite.input>["values"]) => {
+    const read = await h.rpc(contracts.settingsRead, { project: h.project.slug });
+    const saved = await h.rpc(contracts.settingsWrite, { project: h.project.slug, revision: read.revision, values });
+    assert.equal(saved.status, "saved", JSON.stringify(saved));
+  };
+  await save({ attention: { watch: true } });
+  await save({ mcp: { "intellij-index": { enabled: false } } });
+  await until(() => leadLine.heard.length > 1, "the change reaches the Lead's line");
+  assert.deepEqual(leadLine.types(), ["welcome", "choices"], "a save that changes no choice sends nothing");
+  await until(() => told > 0, "the Lead's harness is told the list changed");
+  assert.equal((await skills()).includes("ide-index-mcp"), false, "without the server, its skill is no choice");
+  peerLine.say({ type: "call", id: "1", tool: "ask", args: {} });
+  await until(() => peerLine.types().includes("result"), "the Peer's line answers");
+  assert.deepEqual(peerLine.types(), ["welcome", "result"], "a line whose set did not change is sent nothing");
 });

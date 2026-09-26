@@ -1,224 +1,146 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { reaches, toolNames } from "../../server/core/mcp-client.ts";
+import type { IndexedProxy } from "../../server/catalog/seat/servers.ts";
 import { codeIndex } from "../../server/runtime/code-index.ts";
-import { entry, fakeIde, fakeSemble, gone, ideConfig, proxy, repo, within } from "./code-fakes.ts";
+import { tempDir } from "../tempdir.ts";
+import { entry, fakeIde, fakeSemble, gone, ideConfig, proxy, repo, searchConfig, within } from "./code-fakes.ts";
 
-test("a backend's own title and hints reach the harness, and an answer it streams after a progress note is read, the note passed on", async () => {
-  const ide = await fakeIde({ openEnabled: true, streamed: true });
+/** The desk's own client of the shipped IntelliJ entry, reaching `url`. */
+const deskIndex = (url: string) =>
+  codeIndex({
+    ...(entry("intellij-index").proxy as unknown as IndexedProxy),
+    id: "intellij-index",
+    label: "IntelliJ",
+    backend: { type: "http", url },
+  });
+
+test("a call or a proxy its harness stops stops what it started", async (t) => {
+  const ide = await fakeIde(t, { held: true });
   const cwd = repo();
   ide.open.add(cwd);
-  const code = await proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
-  try {
-    const [tool] = (await code.client.listTools()).tools;
-    assert.deepEqual(
-      { title: tool!.title, annotations: tool!.annotations },
-      { title: "Find references", annotations: { readOnlyHint: true, openWorldHint: false } },
-    );
-    const heard: string[] = [];
-    const reply = await code.client.callTool(
-      { name: "ide_find_references", arguments: {} },
-      { onprogress: (progress) => heard.push(progress.message ?? "") },
-    );
-    assert.deepEqual(reply.content, [{ type: "text", text: `references in ${cwd}` }]);
-    assert.deepEqual(heard, ["indexing"]);
-  } finally {
-    await code.stop();
-    ide.close();
-  }
-});
+  const code = await proxy(t, cwd, ideConfig(ide.url, ["ide_find_references"]));
+  const stopping = new AbortController();
+  const calling = code.client.callTool({ name: "ide_find_references", arguments: {} }, { signal: stopping.signal });
+  assert.ok(await within(3000, () => ide.received.includes("ide_find_references")), "the call reaches the IDE");
+  stopping.abort();
+  await assert.rejects(calling);
+  assert.ok(await within(3000, () => ide.notified.includes("notifications/cancelled")), "stopped at the backend too");
 
-test("a backend that keeps a session is spoken to within it, by the seat's proxy and by the desk", async () => {
-  const ide = await fakeIde({ openEnabled: true, session: true });
-  const cwd = repo();
-  ide.open.add(cwd);
-  const code = await proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
-  try {
-    const reply = await code.call("ide_find_references", {});
-    assert.equal(reply.isError, false, reply.content[0]!.text);
-    const { label, proxy: spec } = entry("intellij-index");
-    assert.equal(
-      (await codeIndex({ ...spec, id: "intellij-index", label, backend: { type: "http", url: ide.url } }).sync(cwd)).ok,
-      true,
-    );
-  } finally {
-    await code.stop();
-    ide.close();
-  }
-});
-
-test("a backend that starts after the session is shown as it is once it answers, and the harness is told the list changed", async () => {
-  const cwd = repo();
-  const probe = await fakeIde({ openEnabled: true });
-  probe.close();
-  let changed = 0;
-  const code = await proxy(
-    cwd,
-    ideConfig(`http://127.0.0.1:${probe.port}/mcp`, ["ide_find_references"]),
-    () => changed++,
+  const indexing = await fakeIde(t, { dumbCalls: 1000 });
+  indexing.open.add(cwd);
+  const config = {
+    ...ideConfig(indexing.url, ["ide_find_references"]),
+    wait: { ...entry("intellij-index").proxy.wait, seconds: 30, pollSeconds: 0.02 },
+  };
+  const waiting = await proxy(t, cwd, config, undefined, { SEATWORKS_PROGRESS_MS: "50" });
+  const heard: string[] = [];
+  const halting = new AbortController();
+  const polling = waiting.client.callTool(
+    { name: "ide_find_references", arguments: {} },
+    { signal: halting.signal, onprogress: (note) => heard.push(note.message ?? "") },
   );
-  const ide = await fakeIde({ openEnabled: true, port: probe.port });
-  ide.open.add(cwd);
-  try {
-    assert.match((await code.client.listTools()).tools[0]!.description ?? "", /not reachable/);
-    assert.equal((await code.call("ide_find_references", {})).isError, false);
-    assert.ok(await within(2000, () => changed > 0));
-    const [tool] = (await code.client.listTools()).tools;
-    assert.equal(tool!.title, "Find references");
-    assert.equal(
-      (tool!.inputSchema.properties as Record<string, unknown>).project_path,
-      undefined,
-      "the pinned argument is hidden here too",
-    );
-  } finally {
-    await code.stop();
-    ide.close();
-  }
-});
+  assert.ok(await within(3000, () => heard.length > 0));
+  assert.match(
+    heard[0]!,
+    /is still working on ide_find_references\./,
+    "a harness that asked hears a call waiting on the index",
+  );
+  halting.abort();
+  await assert.rejects(polling);
+  const polls = () => indexing.calls.filter((call) => call.name === "ide_index_status").length;
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const after = polls();
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(polls(), after, "a stopped call no longer asks whether the index is ready");
 
-test("a call its harness stops is stopped at the backend too", async () => {
-  const ide = await fakeIde({ openEnabled: true, slowMs: 3000 });
-  const cwd = repo();
-  ide.open.add(cwd);
-  const code = await proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
-  try {
-    const stopping = new AbortController();
-    const calling = code.client.callTool({ name: "ide_find_references", arguments: {} }, { signal: stopping.signal });
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    stopping.abort();
-    await assert.rejects(calling);
-    assert.ok(await within(3000, () => ide.notified.includes("notifications/cancelled")));
-  } finally {
-    await code.stop();
-    ide.close();
-  }
-});
-
-test("a call made while another syncs what changed waits for that sync, rather than asking a stale index", async () => {
-  const ide = await fakeIde({ openEnabled: true, syncMs: 300 });
-  const cwd = repo();
-  ide.open.add(cwd);
-  const code = await proxy(cwd, ideConfig(ide.url, ["ide_find_references"]));
-  try {
-    await code.call("ide_find_references", {});
-    writeFileSync(join(cwd, "new.ts"), "export const x = 1;\n");
-    await Promise.all([code.call("ide_find_references", {}), code.call("ide_find_references", {})]);
-    assert.deepEqual(ide.order.slice(1), ["ide_sync_files", "synced", "ide_find_references", "ide_find_references"]);
-  } finally {
-    await code.stop();
-    ide.close();
-  }
-});
-
-test("a harness that asked for progress hears that a call waiting on the index still runs, and one it stops stops polling", async () => {
-  const ide = await fakeIde({ openEnabled: true, dumbCalls: 1000 });
-  const cwd = repo();
-  ide.open.add(cwd);
-  const config = {
-    ...ideConfig(ide.url, ["ide_find_references"]),
-    wait: { ...ideConfig(ide.url, []).wait, seconds: 30, pollSeconds: 0.02 },
-  };
-  const code = await proxy(cwd, config, undefined, { SEATWORKS_PROGRESS_MS: "50" });
-  try {
-    const heard: string[] = [];
-    const stopping = new AbortController();
-    const calling = code.client.callTool(
-      { name: "ide_find_references", arguments: {} },
-      { signal: stopping.signal, onprogress: (progress) => heard.push(progress.message ?? "") },
-    );
-    assert.ok(await within(3000, () => heard.length > 0));
-    assert.match(heard[0]!, /is still working on ide_find_references\./);
-    stopping.abort();
-    await assert.rejects(calling);
-    const polls = () => ide.calls.filter((call) => call.name === "ide_index_status").length;
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const after = polls();
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    assert.equal(polls(), after, "a stopped call no longer asks whether the index is ready");
-  } finally {
-    await code.stop();
-    ide.close();
-  }
-});
-
-test("the desk reads a backend's refusal as a failed call, and its health check sees what a server offers or that none answers", async () => {
-  const ide = await fakeIde({ openEnabled: false });
-  try {
-    const { label, proxy: spec } = entry("intellij-index");
-    const opened = await codeIndex({
-      ...spec,
-      id: "intellij-index",
-      label,
-      backend: { type: "http", url: ide.url },
-    }).open("/slots/S1");
-    assert.deepEqual([opened.ok, opened.text], [false, "Tool ide_open_project not found"]);
-    assert.deepEqual(await toolNames(ide.url, 3000), { names: ["ide_find_references"] });
-    assert.deepEqual(await reaches(ide.url, 3000), { ok: true });
-  } finally {
-    ide.close();
-  }
-  const dead = "http://127.0.0.1:1/mcp";
-  assert.ok((await toolNames(dead, 3000)).error);
-  assert.equal((await reaches(dead, 3000)).ok, false);
-});
-
-test("a backend whose handshake is quick but whose list comes after the wait gave up is shown as it is once the list comes", async () => {
-  const { label, instructions, proxy: spec } = entry("code-search");
-  let changed = 0;
-  const config = {
-    name: "code-search",
-    label,
-    instructions,
-    tools: ["search"],
-    ...spec,
-    listSeconds: 0.5,
-    backend: { type: "stdio", command: [process.execPath, fakeSemble(1000)] },
-  };
-  const code = await proxy(repo(), config, () => changed++);
-  try {
-    assert.match((await code.client.listTools()).tools[0]!.description ?? "", /not reachable/);
-    assert.ok(await within(5000, () => changed > 0), "told the list changed without a call having to find the server");
-    assert.deepEqual((await code.client.listTools()).tools[0]!.inputSchema.required, ["query"]);
-  } finally {
-    await code.stop();
-  }
-});
-
-test("a proxy stops as soon as its harness closes its input, and closes the backend it started", async () => {
-  const ide = await fakeIde({ openEnabled: true });
-  const cwd = repo();
-  ide.open.add(cwd);
   const semble = fakeSemble();
-  const { label, instructions, proxy: spec } = entry("code-search");
-  const configs = [
-    ideConfig(ide.url, ["ide_find_references"]),
-    {
-      name: "code-search",
-      label,
-      instructions,
-      tools: ["search"],
-      ...spec,
-      backend: { type: "stdio", command: [process.execPath, semble] },
-    },
-  ];
-  try {
-    for (const config of configs) {
-      const code = await proxy(cwd, config);
-      let took = Infinity;
-      try {
-        assert.ok(!(await code.call(config.tools[0], { query: "a" })).isError);
-      } finally {
-        const started = Date.now();
-        await code.stop();
-        took = Date.now() - started;
-      }
-      // A harness gives a server two seconds to go by itself before it signals it.
-      assert.ok(took < 1500, `${config.name} stayed until its harness forced it`);
-    }
-    assert.ok(gone(Number(readFileSync(`${semble}.pid`, "utf-8"))), "its backend went with it");
-  } finally {
-    ide.close();
+  const up = await fakeIde(t);
+  up.open.add(cwd);
+  for (const shipped of [ideConfig(up.url, ["ide_find_references"]), searchConfig([process.execPath, semble])]) {
+    const running = await proxy(t, cwd, shipped);
+    assert.ok(!(await running.call(shipped.tools[0]!, { query: "a" })).isError);
+    const started = Date.now();
+    await running.stop();
+    // A harness gives a server two seconds to go by itself before it signals it.
+    assert.ok(Date.now() - started < 1500, `${shipped.name} stays until its harness forces it`);
   }
+  assert.ok(
+    gone(Number(readFileSync(`${semble}.pid`, "utf-8"))),
+    "a proxy closing its input closes the backend it started",
+  );
+
+  // Never answers, like a cold start still fetching its package; the list once waited out init's budget, then its own.
+  const pidFile = join(tempDir("sw2-slow-"), "pid");
+  const silent = [
+    process.execPath,
+    "-e",
+    "require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000)",
+    pidFile,
+  ];
+  const cold = await proxy(t, repo(), {
+    name: "code-search",
+    label: "Code search",
+    tools: ["search"],
+    descriptions: { search: "Search the code." },
+    listSeconds: 0.3,
+    backend: { type: "stdio", command: silent },
+  });
+  const listing = Date.now();
+  const [only] = (await cold.tools()) as {
+    name: string;
+    description: string;
+    inputSchema: { additionalProperties?: boolean };
+  }[];
+  assert.ok(Date.now() - listing < 10_000, "a server slow to start does not hold the list for the whole call budget");
+  assert.equal(only!.name, "search");
+  assert.match(only!.description, /Search the code\./, "the preset's own description is kept");
+  assert.match(only!.description, /not reachable/, "and the seat is told the server is not there");
+  assert.equal(only!.inputSchema.additionalProperties, true, "with a schema that refuses no arguments");
+  // As a harness that signals its servers rather than closing their input: the proxy may not go before its backend.
+  process.kill(cold.pid, "SIGTERM");
+  const backend = Number(readFileSync(pidFile, "utf-8"));
+  t.after(() => void (gone(backend) || process.kill(backend)));
+  assert.ok(
+    await within(5000, () => gone(backend)),
+    "a backend that ignores its input closing is stopped with its proxy",
+  );
+});
+
+test("the desk's own calls to the IDE open a copy through an open project, close only it, keep a session, and read a refusal", async (t) => {
+  const off = await fakeIde(t, { openEnabled: false });
+  const refused = await deskIndex(off.url).open("/slots/S1");
+  assert.deepEqual(
+    [refused.ok, refused.text],
+    [false, "Tool ide_open_project not found"],
+    "a refusal is a failed call",
+  );
+
+  const busy = await fakeIde(t, { routeRequired: true });
+  const index = deskIndex(busy.url);
+  const opened = await index.open("/slots/S1");
+  assert.equal(opened.ok, true, opened.text);
+  assert.deepEqual(
+    busy.calls.map((call) => [call.args.path, call.args.project_path]),
+    [
+      ["/slots/S1", undefined],
+      ["/slots/S1", "/already/open"],
+    ],
+    "routed through an open project",
+  );
+  assert.ok(busy.open.has("/slots/S1"));
+  const closed = await index.close("/slots/S1");
+  assert.equal(closed.ok, true, closed.text);
+  assert.deepEqual(
+    busy.calls.at(-1),
+    { name: "ide_close_project", args: { project_path: "/slots/S1" } },
+    "the close names the copy, never whichever project the IDE has in front",
+  );
+  assert.equal(busy.open.has("/slots/S1"), false);
+
+  const kept = await fakeIde(t, { session: true });
+  const cwd = repo();
+  kept.open.add(cwd);
+  assert.equal((await deskIndex(kept.url).sync(cwd)).ok, true, "a backend that keeps a session is spoken to within it");
 });

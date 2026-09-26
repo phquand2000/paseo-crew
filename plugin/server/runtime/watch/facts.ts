@@ -26,7 +26,7 @@ export const FACTS = {
   "gate-failed": { level: "note" },
   "outside-scope": { level: "note" },
   "edit-before-look": { level: "note" },
-} as const satisfies Record<string, { level: Level; title?: string }>;
+} as const satisfies Record<string, { level: "note" } | { level: Exclude<Level, "note">; title: string }>;
 
 export type FactKind = keyof typeof FACTS;
 

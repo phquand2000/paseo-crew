@@ -1,182 +1,119 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { saveIncidents } from "../../server/desk/store/incidents.ts";
 import { projectOf } from "../../server/desk/project.ts";
-import { settle } from "./fake-timeline.ts";
 import { laneWithPeer, repo } from "./harness.ts";
+import { book, notice } from "./noticed.ts";
 
-test("an incident about a Peer whose Lead is gone goes to whoever supervises, and a Lead reads and marks only its own lane's", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 3 } });
-  const lead = lane.lead!;
-  const about = (seat: string, kind: string, level: "attend" | "page" = "attend") =>
-    h.runtime.desk.notice(h.project, { id: seat, provider: h.agents.get(seat)!.provider, title: seat }, [
-      { kind, level, quote: `${kind} seen`, facts: [kind] },
-    ]);
-  await about(peer, "test-weakened");
-  await about(lead, "long-turn");
-  await h.idle(lead);
-  await h.idle(sup);
-  assert.match(h.agents.get(lead)!.sent.join("\n"), /INCIDENT I1 \(test-weakened, attend\)/);
-  assert.match(
-    h.agents.get(sup)!.sent.join("\n"),
-    /INCIDENT I2 \(long-turn, attend\) on the Lead/,
-    "one about the Lead goes above it",
-  );
-
-  const listed = await h.call(lead, "lead", "incidents", {});
-  assert.equal(listed.ok, true, listed.text);
-  assert.match(listed.text, /I1 \[attend/);
-  assert.doesNotMatch(listed.text, /I2/, "never one about itself");
-  const own = await h.call(lead, "lead", "mark_incident", { id: "I2", verdict: "noise", note: "expected" });
-  assert.equal(own.ok, false, "nor may it mark one");
-  assert.match(own.text, /no incident I2 here for you/);
-  const marked = await h.call(lead, "lead", "mark_incident", {
-    id: "I1",
-    verdict: "useful",
-    note: "it was going round",
-  });
-  assert.equal(marked.ok, true, marked.text);
-  assert.match(
-    (await h.call(sup, "supervisor", "incidents", { closed: true })).text,
-    /I1 \[attend, closed, told [^\]]*, marked useful\]/,
-    "whoever supervises sees what the Lead marked",
-  );
-
-  h.agents.get(lead)!.archivedAt = new Date().toISOString();
-  await about(peer, "suppressed");
-  await h.idle(sup);
-  assert.match(
-    h.agents.get(sup)!.sent.join("\n"),
-    /INCIDENT I3 \(suppressed, attend\) on the Peer/,
-    "with its Lead gone, it goes above",
-  );
-});
-
-const incidentsOf = (state: string) =>
-  JSON.parse(readFileSync(join(state, "incidents.json"), "utf-8")).items as Record<
-    string,
-    { kind: string; held?: string; told?: number; level: string }
-  >;
-
-test("an irreversible command a Peer starts reaches the Supervisor before the call finishes, and nothing of it reaches the Peer", async () => {
-  const { h, sup, peer, timeline } = await laneWithPeer({ attention: { watch: true } });
-  timeline.beat("turn_started", "t1");
-  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
-  timeline.add(
-    {
-      type: "tool_call",
-      callId: "c1",
-      name: "Bash",
-      status: "running",
-      detail: { type: "unknown", input: {}, output: null },
-    },
-    "t1",
-  );
-  timeline.add(
-    {
-      type: "tool_call",
-      callId: "c1",
-      name: "Bash",
-      status: "running",
-      detail: { type: "shell", command: "rm -rf build" },
-    },
-    "t1",
-  );
-  await settle();
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  await h.idle(sup);
-  const told = h.agents.get(sup)!.sent.join("\n");
-  assert.match(told, /INCIDENT I1 \(destructive, page\) on the Peer on L1-T1 \(Clean build\)/);
-  assert.match(told, /What was seen: rm -rf build/);
-  assert.match(told, /not a verdict/);
-  assert.ok(!timeline.rows.some((row) => row.item.status === "completed"), "the call it warns about is still running");
-  assert.deepEqual(
-    h.runtime.outbox.letters().filter((letter) => letter.to === peer),
-    [],
-    "nothing the watch concluded is even queued for the seat it watches",
-  );
-  await h.idle(peer);
-  const watched = h.agents.get(peer)!;
-  assert.deepEqual(
-    [...watched.sent, ...watched.steered].filter((text) => /INCIDENT|destructive|rm -rf|incident/i.test(text)),
-    [],
-    "nor reaches it when its turn ends",
-  );
-});
-
-test("a turn that runs long is told to the Peer's Lead", async () => {
-  const { h, sup, lane, timeline } = await laneWithPeer({ attention: { watch: true } });
-  timeline.beat("turn_started", "t1");
-  timeline.add({ type: "user_message", text: "Make the build pass" }, "t1");
-  await settle();
-  await h.tick(Date.now() + 31 * 60_000);
-  await h.idle(sup);
-  await h.idle(lane.lead!);
-  assert.match(
-    h.agents.get(lane.lead!)!.sent.join("\n"),
-    /INCIDENT I1 \(long-turn, attend\)/,
-    "one about a Peer goes to its Lead",
-  );
-  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1/);
-});
-
-test("two projects each hear about their own seats, though their incidents carry the same number", async () => {
-  const { h, sup } = await laneWithPeer({ attention: { watch: true } });
+test("what was held because nobody could read it is told once somebody can, and never to the seat it is about", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer({ attention: { watch: true } });
+  const seated = (yes: boolean) => void (h.agents.get(sup)!.archivedAt = yes ? null : new Date().toISOString());
+  const told = (id: string) => h.heard(sup).filter((text) => text.includes(`INCIDENT ${id} `));
   const second = repo();
   const other = projectOf(second.root);
   mkdirSync(other.state, { recursive: true });
   writeFileSync(join(other.state, "settings.json"), JSON.stringify({ attention: { watch: true } }));
   const supB = h.add("sw2-supervisor-claude/claude-opus-5", second.root, "sup-b");
-  const page = [{ kind: "destructive", level: "page" as const, quote: "rm -rf build", facts: ["destructive"] }];
-  await h.runtime.desk.notice(h.project, { id: "p-a", provider: "sw2-peer-claude/claude-opus-5" }, page);
-  await h.runtime.desk.notice(other, { id: "p-b", provider: "sw2-peer-claude/claude-opus-5" }, page);
-  await h.idle(sup);
-  await h.idle(supB);
-  assert.match(h.agents.get(sup)!.sent.join("\n"), /INCIDENT I1 \(destructive, page\)/);
+
+  seated(false);
+  await notice(h, peer, "destructive", "page", "rm -rf build");
+  assert.equal(book(h).I1!.held, "nobody");
+  seated(true);
+  assert.deepEqual((await notice(h, peer, "destructive", "page", "git push --force origin main")).sent, ["I1"]);
   assert.match(
-    h.agents.get(supB)!.sent.join("\n"),
-    /INCIDENT I1 \(destructive, page\)/,
-    "the second project's owner is told too, not dropped as a repeat of the first",
+    told("I1").join("\n"),
+    /INCIDENT I1 \(destructive, page\)[\s\S]*git push --force origin main/,
+    "on its next sighting, in the latest words",
   );
-});
+  await notice(h, peer, "destructive", "page", "rm -rf dist");
+  assert.equal(told("I1").length, 1, "told once, then quiet");
+  assert.equal(
+    book(h).I1!.quote,
+    "git push --force origin main",
+    "what the Supervisor was told is what stays on record",
+  );
+  assert.equal((await h.call(sup, "supervisor", "mark_incident", { id: "I1", verdict: "useful" })).ok, true);
 
-test("a lane's own record is gone through for what no turn shows", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
-  for (const round of [1, 2, 3]) {
-    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
-    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
-  }
+  seated(false);
+  await notice(h, peer, "destructive", "page", "rm -rf src");
   await h.tick();
-  await h.idle(sup);
-  const book = JSON.parse(readFileSync(join(h.project.state, "incidents.json"), "utf-8")) as {
-    items: Record<string, { kind: string }>;
-  };
+  assert.deepEqual(told("I2"), [], "nobody yet");
+  seated(true);
+  await h.tick();
+  await h.tick();
+  assert.equal(told("I2").length, 1, "the round tells it once somebody sits down, and once only");
+  assert.match(told("I2").join("\n"), /rm -rf src/);
+  await notice(h, peer, "destructive", "page", "git push --force origin main");
+  const acked = await h.call(sup, "supervisor", "mark_incident", { id: "I2", verdict: "useful" });
+  assert.match(
+    acked.text,
+    /after you were told: git push --force origin main/,
+    "a sighting after the letter is kept beside it",
+  );
+  assert.equal(book(h).I2!.quote, "rm -rf src");
+
+  seated(false);
+  await notice(h, lane.lead!, "stuck");
+  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: {} }));
+  await notice(h, peer, "destructive", "page", "rm -rf lib");
+  seated(true);
+  await h.tick();
   assert.deepEqual(
-    Object.values(book.items).map((item) => item.kind),
-    ["rework-loop"],
+    [told("I3").length, told("I4").length],
+    [0, 1],
+    "with mail off, only the page held for nobody is told",
+  );
+
+  const self = await notice(h, sup, "destructive", "page", "rm -rf build");
+  assert.deepEqual(self.sent, [], "an incident is never addressed to the seat it is about");
+  assert.equal(book(h).I5!.held, "nobody");
+
+  await notice(
+    h,
+    { id: "p-b", provider: "sw2-peer-claude/claude-opus-5" },
+    "destructive",
+    "page",
+    "rm -rf build",
+    other,
+  );
+  assert.match(
+    h.heard(supB).join("\n"),
+    /INCIDENT I1 \(destructive, page\)/,
+    "the second project's owner is told of its own I1, not dropped as a repeat of the first's",
   );
 });
 
-test("a task the Lead keeps sending back is an incident about the Lead, raised once and never shown to it", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer({ attention: { watch: true } });
-  for (const round of [1, 2, 3]) {
+test("a lane's own record raises an incident about its Lead once, held while the watch is off, never about a Lead that is gone", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  const rework = async (round: number) => {
     await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
-    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
-  }
+    await h.call(lead, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  };
+  for (const round of [1, 2, 3]) await rework(round);
   assert.equal(h.ledger().tasks["L1-T1"]!.reworks, 3, "three sendings-back are on the record");
-
   await h.tick();
-  await h.idle(sup);
-  const told = h.agents.get(sup)!.sent.join("\n");
+  assert.deepEqual(
+    Object.values(book(h)).map((item) => [item.kind, item.held]),
+    [["rework-loop", "shadow"]],
+    "a lane's record is gone through for what no turn shows, held while the watch is off",
+  );
+  assert.doesNotMatch(h.heard(sup).join("\n"), /INCIDENT/);
+
+  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: { watch: true } }));
+  await h.tick();
+  const told = h.heard(sup).join("\n");
   assert.match(
     told,
     /INCIDENT I1 \(rework-loop, attend\) on the Lead of L1 \(Build\)/,
-    "the seat it is about is the one that decides to send it back",
+    "told once turned on, about the seat that decides to send it back",
   );
   assert.match(told, /What was seen: L1-T1 \(Clean build\) has been sent back 3 times/);
+  assert.deepEqual(Object.keys(book(h)), ["I1"], "the incident already on the book, not a second one");
+  assert.doesNotMatch(h.heard(lead).join("\n"), /INCIDENT/, "never shown to the Lead it is about");
 
-  // Three sendings-back stay three forever, so once marked the unchanged record must not raise again.
   const marked = await h.call(sup, "supervisor", "mark_incident", {
     id: "I1",
     verdict: "noise",
@@ -185,64 +122,84 @@ test("a task the Lead keeps sending back is an incident about the Lead, raised o
   assert.equal(marked.ok, true, marked.text);
   await h.tick();
   await h.tick();
-  assert.deepEqual(
-    Object.keys(incidentsOf(h.project.state)),
-    ["I1"],
-    "the same three sendings-back are not raised again once they have been marked",
-  );
+  assert.deepEqual(Object.keys(book(h)), ["I1"], "the same three sendings-back are not raised again once marked");
+  await rework(4);
+  await h.tick();
+  assert.deepEqual(Object.keys(book(h)), ["I1", "I2"], "a fourth sending-back is something new to say");
 
-  // A fourth is new evidence, and is raised.
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "round 4" });
-  await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "still not" });
+  assert.equal((await h.call(sup, "supervisor", "mark_incident", { id: "I2", verdict: "noise" })).ok, true);
+  await rework(5);
+  h.agents.get(lead)!.archivedAt = new Date().toISOString();
   await h.tick();
   assert.deepEqual(
-    Object.keys(incidentsOf(h.project.state)),
+    Object.keys(book(h)),
     ["I1", "I2"],
-    "a fourth sending-back is something new to say",
+    "an incident about a Lead that has gone is one nobody can close",
   );
 });
 
-test("a standing condition held back while the watch is off is still there to tell when it is turned on", async () => {
-  // A lane's history never changes on its own, so a condition held while off must be told when turned on.
+const quote = "the same action failing 3 times: Bash: npm test";
+
+test("nothing reaches a seat that names or quotes an open incident about it, while its own words about the work do", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
-  for (const round of [1, 2, 3]) {
-    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
-    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
-  }
-  await h.tick();
-  await h.idle(sup);
-  assert.deepEqual(
-    Object.values(incidentsOf(h.project.state)).map((item) => [item.kind, item.held]),
-    [["rework-loop", "shadow"]],
-  );
-  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /INCIDENT/);
+  const now = Date.now();
+  const about = (id: string, seat: string) => ({
+    id,
+    seat,
+    where: "L1",
+    kind: "stuck",
+    level: "attend" as const,
+    quote,
+    facts: ["stuck"],
+    opened: now,
+    last: now,
+    count: 1,
+    open: true,
+  });
+  saveIncidents(h.project.state, { next: 3, items: { I1: about("I1", peer), I2: about("I2", lane.lead!) } });
+  const refusal = /That repeats incident I1 about the seat it goes to/;
 
-  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: { watch: true } }));
-  await h.tick();
-  await h.idle(sup);
   assert.match(
-    h.agents.get(sup)!.sent.join("\n"),
-    /INCIDENT I1 \(rework-loop, attend\)/,
-    "the same unchanged record is told once the owner turns it on",
+    (await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "About i1: why did that happen?" })).text,
+    refusal,
   );
-  assert.deepEqual(
-    Object.keys(incidentsOf(h.project.state)),
-    ["I1"],
-    "and it is the incident already on the book, not a second one",
+  assert.match(
+    (await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: `You hit ${quote.toUpperCase()}.` })).text,
+    refusal,
   );
-});
+  assert.match(
+    (await h.call(lane.lead!, "lead", "amend_task", { task: "L1-T1", why: `because of ${quote}`, goal: "g2" })).text,
+    refusal,
+  );
+  assert.match((await h.call(sup, "supervisor", "message", { to: "L1-T1", text: `See I1.` })).text, refusal);
+  assert.match(
+    (await h.call(sup, "supervisor", "message", { to: "L1", text: `${quote}?` })).text,
+    /That repeats incident I2/,
+  );
+  assert.match(
+    (
+      await h.call(sup, "supervisor", "amend_lane", {
+        lane: "L1",
+        why: "the Human changed it",
+        acceptance: [`no more ${quote}`],
+      })
+    ).text,
+    /That repeats incident I2/,
+  );
+  assert.equal(
+    (
+      await h.call(lane.lead!, "lead", "message", {
+        to: "L1-T1",
+        text: "Your test run keeps failing the same way; what does the first failure say?",
+      })
+    ).ok,
+    true,
+  );
 
-test("a lane whose Lead has gone raises nothing about it, since nothing would ever close it", async () => {
-  const { h, lane, peer } = await laneWithPeer({ attention: { watch: true } });
-  for (const round of [1, 2, 3]) {
-    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
-    await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "not yet" });
-  }
-  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
-  await h.tick();
-  assert.deepEqual(
-    Object.keys(incidentsOf(h.project.state)),
-    [],
-    "an incident about a seat that has gone is one nobody can close",
-  );
+  await h.call(peer, "peer", "ask", { question: "Which rounding?", bestGuess: "half up" });
+  assert.match((await h.call(lane.lead!, "lead", "answer", { ask: "A1", text: "Half up. Also I1." })).text, refusal);
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  assert.match((await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: `Stop: ${quote}.` })).text, refusal);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "done", "a refused rework sends the task nowhere");
 });

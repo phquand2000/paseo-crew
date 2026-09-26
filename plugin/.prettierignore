@@ -32,10 +32,7 @@ server/upkeep/update.ts
 shared/views.ts
 test/desk/flow.test.ts
 test/runtime/copies.test.ts
-test/runtime/facts.test.ts
 test/runtime/harness.ts
 test/runtime/intake.test.ts
-test/runtime/judging.test.ts
 test/runtime/own-branch.test.ts
 test/runtime/own-copy.test.ts
-test/runtime/rpc.test.ts

@@ -30,7 +30,7 @@ const median = (values: number[]): number => {
 export class SeatWatch {
   readonly seat: WatchedSeat;
   readonly window: Window;
-  running = false;
+  private running = false;
   turnId: string | null = null;
   startedAt = 0;
   private readonly durations: number[] = [];
@@ -155,7 +155,7 @@ export class SeatWatch {
   }
 
   /** Re-read until the ledger places the seat: a Peer's first turn starts before the desk writes it onto its task. */
-  placed(): SeatContext | undefined {
+  private placed(): SeatContext | undefined {
     if (!this.current?.placed) this.current = this.context();
     return this.current;
   }
@@ -181,7 +181,6 @@ type WatchDeps = {
   found: (watch: SeatWatch, facts: Fact[]) => void;
   /** A person wrote in the seat's own chat, past the desk. */
   spoke: (seat: WatchedSeat, text: string) => void;
-  log?: (line: string, error?: unknown) => void;
 };
 
 export class Watches {
@@ -276,6 +275,6 @@ export class Watches {
   }
 
   private log(line: string, error?: unknown): void {
-    (this.deps.log ?? ((text, cause) => console.error(`seatworks-v2: ${text}`, cause ?? "")))(line, error);
+    console.error(`seatworks-v2: ${line}`, error ?? "");
   }
 }

@@ -24,11 +24,7 @@ export type TimelineHandle = {
   refetch(options: { direction: "tail" | "after"; cursor?: Cursor; limit?: number }): Promise<Page>;
 };
 
-type FollowOptions = {
-  readyMs?: number;
-  log?: (line: string, error?: unknown) => void;
-  archived?: () => Promise<boolean>;
-};
+type FollowOptions = { archived?: () => Promise<boolean> };
 
 const ENDED: Record<string, "completed" | "failed" | "canceled"> = {
   turn_completed: "completed",
@@ -37,6 +33,8 @@ const ENDED: Record<string, "completed" | "failed" | "canceled"> = {
 };
 
 const SEED_ROWS = 200;
+
+const READY_MS = 10_000;
 
 function within<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -52,7 +50,6 @@ class Follower implements Stream {
   readonly ready: Promise<void>;
   private readonly timeline: TimelineHandle;
   private readonly see: (seen: Seen) => void;
-  private readonly log: (line: string, error?: unknown) => void;
   private readonly archived: () => Promise<boolean>;
   private readonly unsubscribe: ReturnType<TimelineHandle["subscribe"]>;
   private readonly early: StreamMessage[] = [];
@@ -63,21 +60,16 @@ class Follower implements Stream {
   private chain: Promise<void> = Promise.resolve();
 
   constructor(timeline: TimelineHandle, see: (seen: Seen) => void, options: FollowOptions) {
-    const {
-      readyMs = 10_000,
-      log = (line, error) => console.error(`seatworks-v2: ${line}`, error ?? ""),
-      archived = async () => false,
-    } = options;
+    const { archived = async () => false } = options;
     this.timeline = timeline;
     this.see = see;
-    this.log = log;
     this.archived = archived;
     this.unsubscribe = timeline.subscribe((message) => {
       if (this.stopped) return;
       if (this.joined) this.queue(message);
       else this.early.push(message);
     });
-    this.ready = this.join(readyMs);
+    this.ready = this.join();
     this.ready.catch(() => this.stop());
   }
 
@@ -86,11 +78,15 @@ class Follower implements Stream {
     this.unsubscribe();
   }
 
-  private async join(readyMs: number): Promise<void> {
-    await within(this.unsubscribe.ready, readyMs, "joining a seat's timeline");
+  private async join(): Promise<void> {
+    await within(this.unsubscribe.ready, READY_MS, "joining a seat's timeline");
     await this.seed();
     this.joined = true;
     for (const message of this.early.splice(0)) this.queue(message);
+  }
+
+  private log(line: string, error: unknown): void {
+    console.error(`seatworks-v2: ${line}`, error ?? "");
   }
 
   private queue(message: StreamMessage): void {

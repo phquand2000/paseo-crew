@@ -10,8 +10,8 @@ import { readJson, writeJson } from "../core/store.ts";
 export class SeatKeys {
   private readonly file: string;
 
-  constructor(root = stateRoot()) {
-    this.file = join(root, "keys.json");
+  constructor() {
+    this.file = join(stateRoot(), "keys.json");
   }
 
   issue(): string {

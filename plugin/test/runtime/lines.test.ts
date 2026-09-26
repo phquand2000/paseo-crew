@@ -151,7 +151,8 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
   } as never)({ name: "status" }, () => undefined);
   const waited = await reloaded.result("a");
   assert.equal(waited.ok, true, waited.text);
+  assert.ok(await mailed("add_tasks"), "one its harness stopped meanwhile is carried out too, and mailed");
+  // Either call may start the first task, so its Peer is read once both are done.
   const started = Object.values(h.ledger().tasks).find((entry) => entry.title === "Waits")!;
   assert.ok(started.peer, "carried out once Paseo came, its task started with a Peer of its own");
-  assert.ok(await mailed("add_tasks"), "one its harness stopped meanwhile is carried out too, and mailed");
 });
