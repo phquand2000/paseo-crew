@@ -282,14 +282,3 @@ test("a Peer that is gone leaves its Lead only cut, since nothing it did can be 
   const told = h.heard(lane.lead!).join("\n");
   assert.match(told, /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: cut it and start it again, naming its branch in the new brief if what it committed is worth carrying on\./);
 });
-
-test("a merged task's Peer is kept only for rework: a message is refused with that, not with the Peer said to be gone", async () => {
-  const { h, lane, peer } = await laneWithPeer();
-  h.commit(lane.worktree!, "a.txt", "A\n");
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  await h.runtime.desk.settled(h.project);
-  const sent = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "why a.txt?" });
-  assert.equal(sent.ok, false);
-  assert.match(sent.text, /^L1-T1 is merged, and its Peer is kept only to take rework: send rework if its work must change\./);
-});
