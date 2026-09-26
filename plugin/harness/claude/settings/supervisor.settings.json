@@ -1,10 +1,9 @@
 {
   "permissions": {
     "deny": [
-      "Agent",
       "Bash(git commit *)",
-      "Bash(git -C * commit *)"
+      "Bash(git -C * commit *)",
+      "Bash(sleep *)"
     ]
-  },
-  "askUserQuestionTimeout": "never"
+  }
 }

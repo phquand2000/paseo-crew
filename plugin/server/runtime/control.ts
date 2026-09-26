@@ -1,31 +1,34 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { type Kit, can, providerId, reloadTeam, rolesThatCan, seatOf, supportsRole } from "../catalog/kit.ts";
-import { type Connect, type Layer, MachineLayerSchema, ProjectLayerSchema, type SettingsView, type WriteResult, layerValues, readLayer, withKey, withoutKey, writeLayer } from "../catalog/settings.ts";
-import { type Team, resolveTeam, rulesFor, skillDirsFor, templateRoles, transportOf } from "../catalog/team.ts";
+import { type Kit, can, providerId, rolesThatCan, seatOf } from "../catalog/kit.ts";
+import { layerValues, readShown, withKeys, withoutKeys, writeLayer } from "../catalog/settings.ts";
+import type { Connect, Layer } from "../../shared/settings.ts";
+import { type Team, resolveTeam, rulesFor, skillDirsFor, transportOf } from "../catalog/team.ts";
 import { gitCommonDir } from "../core/git.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { seatProblems } from "../catalog/seats.ts";
-import { guidesDir, home, paseoHome, stateRoot, worktreeRoot } from "../core/paths.ts";
+import { guidesDir, home, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { createHash } from "node:crypto";
 import { flowView } from "../desk/flow.ts";
-import type { CleanView, MigrateView, UpdateView, WatchView } from "../../shared/views.ts";
+import type { Human } from "../desk/human.ts";
+import type { Added, CatalogView, CleanView, FlowRead, MigrateView, ModelsRefreshed, Parsed, Paths, ProjectRow, Removed, SettingsRead, StatusView, TeamRead, TeamView, UpdateView, WatchView, WriteResult } from "../../shared/views.ts";
 import { removeGarbage, scanGarbage } from "../upkeep/clean.ts";
 import { type LiveSeat, migrate, migrationPlan } from "../upkeep/migrate.ts";
 import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../upkeep/update.ts";
 import { contentChanges, decide } from "../upkeep/content.ts";
-import type { StateReport } from "../upkeep/state.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
 import { type Project, gitRoot, loadConfig, projectOf } from "../desk/project.ts";
 import { statusText } from "../desk/status.ts";
+import { describeCatalog } from "./catalog-view.ts";
+import { HumanPanel } from "./human.ts";
 import { type Check, doctor } from "./doctor.ts";
 import type { Control } from "./rpc.ts";
 import type { Seating } from "./seating.ts";
 import type { TeamSource } from "./team-source.ts";
 import { errorText } from "../core/errors.ts";
 
-type Target = { file: string; schema: typeof MachineLayerSchema | typeof ProjectLayerSchema; project?: Project };
+type Target = { file: string; project?: Project };
 
 const unknownProject = (slug: string) => `No project named ${slug} has been seen on this machine.`;
 
@@ -83,45 +86,7 @@ function connectFrom(value: unknown): Connect | string {
   return { type, url, ...(headers ? { headers } : {}) };
 }
 
-export function describeCatalog(kit: Kit): unknown {
-  return {
-    roles: kit.roles.map((role) => ({
-      id: role.role,
-      label: role.label,
-      description: role.description ?? "",
-      can: role.can ?? [],
-      concern: role.concern ?? null,
-      defaults: role.defaults,
-      follows: role.follows ?? null,
-      harnesses: Object.values(kit.harnesses)
-        .filter((harness) => supportsRole(kit, harness, role))
-        .map((harness) => harness.id),
-    })),
-    harnesses: Object.values(kit.harnesses).map((harness) => ({
-      id: harness.id,
-      label: harness.label,
-      models: harness.models ?? [],
-      thinking: harness.hasThinking !== false,
-      transports: harness.mcp.transports,
-    })),
-    mcp: Object.values(kit.mcp)
-      .sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
-      .map((entry) => ({
-        id: entry.id,
-        label: entry.label,
-        description: entry.description ?? "",
-        kind: entry.kind,
-        transport: entry.kind === "proxy" ? "stdio" : (entry.server?.type ?? "stdio"),
-        settings: entry.settings,
-        defaults: entry.defaults,
-        roles: templateRoles(entry),
-        template: true,
-      })),
-    sensor: Object.values(kit.sensors)[0] ? { model: Object.values(kit.sensors)[0]!.model } : null,
-  };
-}
-
-export function describeTeam(kit: Kit, team: Team, project?: Project): unknown {
+function describeTeam(kit: Kit, team: Team, project?: Project): TeamView {
   return {
     project: project?.slug ?? null,
     errors: team.errors,
@@ -160,35 +125,36 @@ export function describeTeam(kit: Kit, team: Team, project?: Project): unknown {
   };
 }
 
-export type ControlDeps = {
+type ControlDeps = {
   kit: Kit;
   source: TeamSource;
   seating: Seating;
-  reconcile: (team: Team) => void;
+  reconcile: () => void;
   models: () => Promise<Record<string, { at: string; error: string | null; models: unknown[] }>>;
-  state: () => StateReport;
   seats: Seats;
   held: () => { to: string; text: string; at: number }[];
   watch: (project: Project, seats: Iterable<SeatView>) => WatchView;
+  human: Human;
 };
 
 export class SettingsControl implements Control {
+  readonly human: HumanPanel;
   private readonly deps: ControlDeps;
 
   constructor(deps: ControlDeps) {
     this.deps = deps;
+    this.human = new HumanPanel(deps.source, deps.human);
   }
 
-  catalog(): unknown {
+  catalog(): CatalogView {
     return describeCatalog(this.deps.kit);
   }
 
-  readSettings(slug?: string): SettingsView {
-    const machine = withoutKey(slug ? this.deps.source.machineLayer() : {});
+  readSettings(slug?: string): SettingsRead {
+    const machine = withoutKeys(slug ? this.deps.source.machineLayer() : {});
     const target = this.target(slug);
     if (typeof target === "string") return { status: "invalid", revision: "", error: target, machine };
-    const read = readLayer(target.file, target.schema);
-    return { ...(read.status === "ready" ? { ...read, values: withoutKey(read.values) } : read), machine };
+    return { ...readShown(target.file), machine };
   }
 
   writeSettings(slug: string | undefined, revision: string, values: unknown): WriteResult {
@@ -196,29 +162,28 @@ export class SettingsControl implements Control {
     const target = this.target(slug);
     if (typeof target === "string") return { status: "invalid", error: target };
     const resolve = (layer: Layer) => (target.project ? resolveTeam(kit, source.machineLayer(), layer) : resolveTeam(kit, layer));
-    const paths = { guides: guidesDir(), state: target.project?.state ?? "$PASEO_CREW_STATE" };
+    const paths = { guides: guidesDir(), state: target.project?.state ?? "$SEATWORKS_STATE" };
     const unbuildable = (team: Team) => Object.keys(team.roles).flatMap((role) => seatProblems(kit, team, role, paths));
     const check = (layer: Layer) => {
       const team = resolve(layer);
       if (team.errors.length > 0) return team.errors;
       // Only what this save introduces is refused: a bad rule refuses a seat's whole build, long after the save.
-      const already = new Set(unbuildable(resolve(layerValues(target.file, target.schema))));
+      const already = new Set(unbuildable(resolve(layerValues(target.file))));
       return unbuildable(team).filter((problem) => !already.has(problem));
     };
-    const result = writeLayer(target.file, target.schema, revision, withKey(values, layerValues(target.file, target.schema)), check);
+    const result = writeLayer(target.file, revision, withKeys(values, layerValues(target.file)), check);
     if (result.status === "saved") {
       seating.forget();
-      if (!target.project) reconcile(source.teamFor());
-      return { ...result, values: withoutKey(result.values) };
+      if (!target.project) reconcile();
     }
-    return result;
+    return result.status === "saved" ? { ...result, values: withoutKeys(result.values) } : result;
   }
 
-  projects(): unknown {
+  projects(): ProjectRow[] {
     return this.deps.source.known().map((project) => ({ slug: project.slug, root: project.root }));
   }
 
-  addProject(root: string): unknown {
+  addProject(root: string): Added {
     const path = root.trim();
     if (!path || !existsSync(path) || !statSync(path).isDirectory()) return { error: `${path || "That path"} is not a directory on this machine.` };
     const project = projectOf(path);
@@ -228,7 +193,7 @@ export class SettingsControl implements Control {
     return { slug: project.slug, root: project.root };
   }
 
-  candidateProjects(roots: string[]): unknown {
+  candidateProjects(roots: string[]): string[] {
     const attached = new Set(this.deps.source.known().map((project) => project.root));
     const worktrees = worktreeRoot();
     const keep: string[] = [];
@@ -250,7 +215,7 @@ export class SettingsControl implements Control {
     return keep;
   }
 
-  parseMcp(text: string): unknown {
+  parseMcp(text: string): Parsed {
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
@@ -279,9 +244,17 @@ export class SettingsControl implements Control {
     return { id: "", label: "", connect: direct };
   }
 
-  removeProject(slug: string): unknown {
+  async removeProject(slug: string): Promise<Removed> {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
+    // A seat still working in the project records it again on the next round, so detaching it first would not hold.
+    let live: string[];
+    try {
+      live = (await this.deps.seats.open()).filter((seat) => !seat.archivedAt && seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === slug).map((seat) => seat.id);
+    } catch (error) {
+      return { error: `Paseo did not say which seats are working in ${slug} (${errorText(error)}), so its settings stay.` };
+    }
+    if (live.length > 0) return { error: `${slug} stays: ${live.length} seat${live.length === 1 ? " is" : "s are"} still working in it (${live.join(", ")}): archive ${live.length === 1 ? "it" : "them"} first, since a working seat puts the project back on record.` };
     // Live work only: lanes and tasks are never removed, so counting them made Detach impossible after the first lane.
     const ledger = loadLedger(project.state);
     const open = Object.values(ledger.lanes).filter((lane) => lane.status !== "closed").length;
@@ -306,9 +279,9 @@ export class SettingsControl implements Control {
     return { removed: slug };
   }
 
-  team(slug?: string): unknown {
+  team(slug?: string): TeamRead {
     const project = slug ? this.deps.source.named(slug) : undefined;
-    if (slug && !project) return { errors: [unknownProject(slug)] };
+    if (slug && !project) return { error: unknownProject(slug) };
     return describeTeam(this.deps.kit, this.deps.source.teamFor(project), project);
   }
 
@@ -318,7 +291,7 @@ export class SettingsControl implements Control {
     return doctor(this.deps.kit, this.deps.source.teamFor(project));
   }
 
-  async status(slug: string): Promise<unknown> {
+  async status(slug: string): Promise<StatusView> {
     const project = this.deps.source.named(slug);
     if (!project) return { text: "", error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
@@ -329,7 +302,7 @@ export class SettingsControl implements Control {
     return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now(), { waiting, held: this.deps.held() }) };
   }
 
-  async flow(slug: string, since?: string, open?: string[]): Promise<unknown> {
+  async flow(slug: string, since?: string, open?: string[]): Promise<FlowRead> {
     const project = this.deps.source.named(slug);
     if (!project) return { error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
@@ -346,7 +319,7 @@ export class SettingsControl implements Control {
     return since && since === revision ? { unchanged: true, revision } : { ...view, watch, revision };
   }
 
-  listPaths(path?: string): unknown {
+  listPaths(path?: string): Paths {
     const asked = path && path.trim() ? path.trim() : homedir();
     let here: string;
     try {
@@ -376,7 +349,7 @@ export class SettingsControl implements Control {
     return { path: here, parent: parent === here ? null : parent, repository: Boolean(gitCommonDir(here)), root: root === here ? null : root, folders };
   }
 
-  async refreshModels(): Promise<unknown> {
+  async refreshModels(): Promise<ModelsRefreshed> {
     const cache = await this.deps.models();
     return Object.fromEntries(Object.entries(cache).map(([id, entry]) => [id, { at: entry.at, error: entry.error, count: entry.models.length }]));
   }
@@ -394,7 +367,7 @@ export class SettingsControl implements Control {
     const counts = new Map<string, number>();
     for (const seat of await this.live()) counts.set(seat.slug, (counts.get(seat.slug) ?? 0) + 1);
     const busy = [...counts].map(([slug, count]) => `${slug} ${count} seat${count === 1 ? "" : "s"}`);
-    const ctx = { dir: this.deps.kit.dir, managedRoot: join(paseoHome(), "plugins"), busy, install: npmInstall, reload: reloadSoon };
+    const ctx = { dir: this.deps.kit.dir, managedRoot: join(home(), ".paseo", "plugins"), busy, install: npmInstall, reload: reloadSoon };
     return apply ? applyUpdate(ctx) : checkUpdate(ctx, fetch);
   }
 
@@ -406,24 +379,22 @@ export class SettingsControl implements Control {
       home: home(),
       known,
       settings: [
-        { where: "machine", file: source.machineFile(), schema: MachineLayerSchema },
-        ...known.map((project) => ({ where: project.slug, file: source.projectFile(project), schema: ProjectLayerSchema })),
+        { where: "machine", file: source.machineFile() },
+        ...known.map((project) => ({ where: project.slug, file: source.projectFile(project) })),
       ],
       live: await this.live(),
       now: Date.now(),
     };
     const content = await contentChanges(kit, stateRoot());
-    const state = this.deps.state();
-    if (!apply) return { ...migrationPlan(ctx), content, state };
+    if (!apply) return { ...migrationPlan(ctx), content };
     const done = migrate(ctx);
-    this.deps.reconcile(source.teamFor());
-    return { ...done, content, state };
+    this.deps.reconcile();
+    return { ...done, content };
   }
 
   async decide(unit: string, choice: "new" | "mine" | "seen"): Promise<MigrateView> {
     await decide(this.deps.kit, stateRoot(), unit, choice);
-    // The team block is read once a load, and a seat's skills when it is built: both follow the answer now.
-    reloadTeam(this.deps.kit);
+    // A seat's skills are read when it is built: the next one follows the answer.
     this.deps.seating.forget();
     return this.migrate(false);
   }
@@ -439,9 +410,9 @@ export class SettingsControl implements Control {
   }
 
   private target(slug?: string): Target | string {
-    if (!slug) return { file: this.deps.source.machineFile(), schema: MachineLayerSchema };
+    if (!slug) return { file: this.deps.source.machineFile() };
     const project = this.deps.source.named(slug);
     if (!project) return unknownProject(slug);
-    return { file: this.deps.source.projectFile(project), schema: ProjectLayerSchema, project };
+    return { file: this.deps.source.projectFile(project), project };
   }
 }

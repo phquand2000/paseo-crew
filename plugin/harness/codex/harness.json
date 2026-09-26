@@ -6,14 +6,15 @@
   "configDirEnv": "CODEX_HOME",
   "contextFile": "AGENTS.md",
   "skillsDir": "skills",
-  "steers": true,
-  "systemPrompt": "config",
-  "hideSkills": {
-    "roots": [
-      "HOME/.agents/skills"
-    ],
-    "setting": "skills.config"
+  "timeline": {
+    "pseudoCalls": [
+      {
+        "name": "terminal",
+        "detail": "plain_text"
+      }
+    ]
   },
+  "steers": true,
   "mcp": {
     "file": "config.toml",
     "delivery": "launch",
@@ -40,7 +41,7 @@
     "delivery": "file"
   },
   "files": {
-    "rules/paseo-crew.rules": [
+    "rules/seatworks.rules": [
       "rules/seat.rules",
       "rules/ROLE.rules"
     ]
@@ -73,8 +74,8 @@
   ],
   "provider": {
     "env": {
-      "PASEO_CREW_HARNESS": "codex",
-      "PASEO_CREW_AGENT_BIN": "codex"
+      "SEATWORKS_HARNESS": "codex",
+      "SEATWORKS_AGENT_BIN": "codex"
     }
   }
 }

@@ -6,53 +6,45 @@ something here costs no context and no tokens.
 Each entry is a rule, the words that give it away, and where this plugin stands on it today. The
 examples are only on the rules that cannot be stated in one sentence.
 
-**Where a thing can be caught** — four answers, used throughout:
+**Where a thing can be caught** — three answers, used throughout:
 
 | | Meaning |
 |---|---|
-| **caught** | A code fact or a sensor question fires on it today. |
-| **askable** | A question exists with no threshold, so it collects answers and acts on none. |
+| **caught** | A code fact fires on it today. |
 | **desk** | In the ledger, across tasks, rounds or lanes, and nothing reads it for this yet. |
 | **outside** | This plugin cannot see it, and saying why is the useful part. |
 
-Of the thirty-five rules below, **ten are caught**, one more in part and one in half its cases. One
-is written as a question that is not yet trusted to act on. Twelve are desk-shaped: in the ledger,
-with nothing reading them for this. Ten are outside what this plugin can observe at all, and for
-those the entry says why, because that is the part worth knowing.
+Of the thirty-five rules below, **five are caught**, one more in part and one in half its cases.
+Twelve are desk-shaped: in the ledger, with nothing reading them for this. Sixteen are outside what
+the code can observe, and for those the entry says why, because that is the part worth knowing. Six
+of those need a model to read the turn, and nothing does now.
 
 The thirty-five come from one list. Section 8 holds one that does not, kept here because the watch
 now catches it and everything the watch catches belongs in this file.
 
-The watch reads three things. In code, from a seat's timeline: a destructive command, a seat
+The watch reads two things, both in code. From a seat's timeline: a destructive command, a seat
 repeating itself, a weakened test, an unverified success claim. In code, from the lane's own record
 — the ledger the patrol already holds — the shapes no window can hold, because a letter restarts the
 window: a task sent back again and again, a lane patching several tasks at once, reviews piling up
 with nothing accepted, a review told to report only what it is certain of, a brief that writes the
 work out instead of setting an outcome, and a task taken in although its Peer never said it was
-finished. And, only with a key, by putting the turn to the sensor: a missing mechanism being stood
-in for, a wrapper where the thing itself should have changed, production code edited to make a check
-pass, a test that only proves the old behaviour is gone, and agreement that arrived with no check
-behind it.
+finished.
 
-All three go through one incident book, so the Supervisor reads, marks and calibrates them the one
-way, and none of them ever reaches the seat it is about.
+Both go through one incident book, so the Supervisor reads and marks them the one way, and none of
+them ever reaches the seat it is about.
 
-Two things are worth knowing before trusting any of it. A sensor question costs money on every
-reading and its threshold is a guess until it has been measured against what the Supervisor marked,
-which is what `calibrate` is for. And a condition read from the ledger stands still — a task sent
+One thing is worth knowing before trusting it: a condition read from the ledger stands still — a task sent
 back three times stays sent back three times — so it is raised once and then only when the record
 says something new; the book itself is that memory, so a restart does not raise it again, and a
-day's budget or a watch that is off does not lose it.
+lane's budget for the day, a kind on probation or a watch that is off does not lose it.
 
-Three facts explain most of the blindness, and each is a design choice rather than a defect:
+Two facts explain most of the blindness, and each is a design choice rather than a defect:
 
 - A letter arrives as a `user_message`, which clears what the watch had noted and restarts its
 window (`server/runtime/watch/watches.ts`). No pattern survives a rework round — which is why the
 fourth group below is read from the ledger instead, in `server/runtime/watch/history.ts`.
 - The window is eighty steps from the last instruction. A lane's history is not in it and never will
 be.
-- Four of the fourteen sensor questions carry no threshold on purpose: they collect answers into
-`assessments/` so a question can be measured before it is allowed to open an incident.
 
 ---
 
@@ -66,10 +58,8 @@ the system can actually do.
 hole stops and names it, and does not invent a private stand-in.
 **Signs.** "there is no X here", "I'll add a minimal", "for now I'll", "simple version of",
 "placeholder until", a new file whose name ends in `-stub`, `-mock`, `-simple`.
-**Here.** *caught* — `missing_mechanism` asks whether a step named a prerequisite that is missing
-and later steps built a stand-in for it. Only a model can tell a missing mechanism from ordinary new
-code, so it is a question rather than a fact. The desk already owns the remedy: a detour lane with
-its own Lead.
+**Here.** *outside* — only a model reading the turn can tell a missing mechanism from ordinary new
+code, and nothing does now. The desk already owns the remedy: a detour lane with its own Lead.
 
 ### Brake Pattern
 **Rule.** When several defects share one missing mechanism, build the mechanism. Fixing them one by
@@ -85,17 +75,17 @@ can see whether they share a cause.
 foundation.
 **Signs.** "compat", "adapter", "shim", "legacy path", "fallback", "for backward compatibility", a
 second copy of state, a mutex added to make two copies agree.
-**Here.** *caught* — `wrapped_instead_of_changed`. `PEER.md` forbids it in words, and
-`outside-scope` cannot check it because that fact fires on where a file is, not on what it is for.
+**Here.** *outside* — telling a wrapper from a change takes a model reading the turn. `PEER.md`
+forbids it in words, and `outside-scope` cannot check it because that fact fires on where a file is,
+not on what it is for.
 
 ### Architecture lock-in
 **Rule.** The first design is a proposal. A worker that cannot say what would make it wrong has not
 checked it.
 **Signs.** absence — no push-back at all across a long lane; "as designed", "per the plan",
 "following the existing pattern" as the whole reason.
-**Here.** *desk* — nothing fires on an absence. What bears on it is the ask record (every push-back
-a seat made) and the `changed_direction` and `admits_error` answers, which are collected on every
-reading and deliberately act on nothing until they are calibrated.
+**Here.** *desk* — nothing fires on an absence. What bears on it is the ask record: every push-back
+a seat made.
 
 ### Priority myopia
 **Rule.** Order by what unblocks, not by label. A P2 that is the foundation of a P0 is done first.
@@ -126,8 +116,7 @@ still only in the ledger with nothing reading it.
 **Rule.** A worker may refuse the framing. A bounded task is not a gag.
 **Signs.** "the task says to, so I will", "not in scope to question", shipping something the worker
 said was wrong in the same turn.
-**Here.** *askable* — `guessed_ambiguity` is asked on every reading and carries no threshold yet, so
-it collects into `assessments/` and opens nothing until it has been measured.
+**Here.** *outside* — the words are in the turn, and reading them for this takes a model.
 
 ### Sycophancy
 **Rule.** Agreement that cost nothing is not a check. An answer must name what was read or run.
@@ -137,10 +126,9 @@ The Peer did not check; it deferred. This is why the Supervisor's prompt forbids
 carries its own answer, and why "Are you sure?" is banned outright.
 **Signs.** "you're right", "good catch", "I'll change it" with no command or read between the
 challenge and the change.
-**Here.** *caught* — `agreed_without_checking` asks whether `instruction` doubts or corrects the
-work and the first steps after it change course with no read, command, check or reproducing test
-between. The doubt is the `instruction` rather than one of the `steps` because a delivered letter
-restarts the turn and is what the next instruction is.
+**Here.** *outside* — the order of reads and edits after a challenge is in the window, but no fact
+reads it yet, and whether the instruction doubted the work or ordered a change takes a model: a
+rework or a message from the seat above is an order, and following one is not deferring.
 
 ### Reflexive contrarianism
 **Rule.** The opposite failure. A reviewer that never approves is as useless as one that always
@@ -156,7 +144,7 @@ evidence.
 **Signs.** "the scan found", "flagged by", a verdict quoting a tool's output and no source.
 **Here.** *desk* — a review's verdict followed by the Lead's accept with nothing between is the
 record. Note the plugin's own shape is the opposite of the anti-pattern and worth keeping straight:
-the regex fact is the scout, the model is the adjudicator, and the Supervisor still decides.
+the regex fact is the scout, whoever marks it reads the record before judging, and the Supervisor still decides.
 
 ---
 
@@ -166,7 +154,8 @@ the regex fact is the scout, the model is the adjudicator, and the Supervisor st
 **Rule.** Test the contract that holds now. A test whose purpose is to prove an old behaviour is
 gone pins history and outlives its reason.
 **Signs.** "should no longer", "must not still", "removed in", a test named after a bug number.
-**Here.** *caught* — `proves_the_old_is_gone`, read off the diff of a test file in the window.
+**Here.** *outside* — the diff of a test file is in the window, but what a test is for takes a model
+to read.
 
 ### Proof distorts product
 **Rule.** A proof observes the system. It does not reshape it. Logging added to make a demo work, an
@@ -174,9 +163,8 @@ interface widened so a test can reach it, a check relaxed so a run goes green �
 product to serve the evidence.
 **Signs.** "so the test can see it", "exporting for testability", "temporarily disable", a non-test
 file edited in the same breath as a failing check.
-**Here.** *caught* — `proof_changes_product`. `goal_drift` cannot cover it: that one is dropped
-unless an `outside-scope` fact agrees, and loosening a check inside the task's own paths raises no
-such fact.
+**Here.** *outside* — telling a check loosened to go green from one fixed properly takes a model, and
+loosening a check inside the task's own paths raises no `outside-scope` fact.
 
 ### Flaky false-red
 **Rule.** A red that two runs disagree about is not a defect in the code. Find the contention before
@@ -224,8 +212,7 @@ does not earn an abstraction.
 **Signs.** "to be safe", "in case", "future-proof", a new interface with one implementation, an
 option nobody asked for.
 **Here.** *desk* — every edit row carries `+N -M` and the goal is in the same state, so proportion
-is judgable; but a question for it asks what `goal_drift` already asks, and would open a second
-incident for the same edits. `Lane.appetite` — "what the outcome is worth, as a budget" — is
+is judgable. `Lane.appetite` — "what the outcome is worth, as a budget" — is
 recorded, printed once and read by no code, and that is the number that would make this a judgement
 rather than a guess.
 
@@ -306,10 +293,9 @@ this is what notices when a brief ignored it.
 can either, and it will burn a budget producing plausible work.
 **Signs.** "improve", "clean up", "make it better", "handle edge cases", a goal with no noun a test
 could name.
-**Here.** *desk* — a goal is fixed for the task's whole life, so a sensor question about it is a
-standing condition on a path that has no way to say a standing thing once: marked, the next reading
-would open it again. It belongs where the other standing conditions are read, in the ledger, and
-judging "observable" is not something a regular expression can do — so it waits.
+**Here.** *desk* — a goal is fixed for the task's whole life, so it belongs where the other standing
+conditions are read, in the ledger; and judging "observable" is not something a regular expression
+can do, so it waits.
 
 ### Ceremony attention dilution
 **Rule.** Every step in a checklist spends attention that the problem needed. Count what the process
@@ -338,8 +324,7 @@ project keeps to one writer) and nothing compares either to the project it is us
 **Rule.** If a bundle changes what an agent does, the person running it must be able to read what it
 changed.
 **Here.** *outside*, answered by transparency rather than detection: the status page, the event log,
-every sensor reading with its state and answers, the handbacks and the gate logs are all files on
-disk. The gap worth naming: the prompt a seat was created with is not among them.
+the handbacks and the gate logs are all files on disk. The gap worth naming: the prompt a seat was created with is not among them.
 
 ### Teaching discovery
 **Rule.** Do not spend a prompt teaching a model to grep. Spend it on what to decide.

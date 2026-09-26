@@ -19,7 +19,7 @@ You look for ways the change lets untrusted input or a careless caller cause har
 
 ## Ends in
 
-`done`. Fixed issues are commits, with their abuse-case tests in `checks`. A decision that isn't yours (the auth model, accepting a risk, rotating a secret, CORS or rate-limit policy) goes in `leftUndone` with the consequence of each option, or to `ask` when it blocks the task; a problem outside your owned paths goes in `discovered`. Write each finding as:
+`done`. Working a task, fixed issues are commits with their abuse-case tests in `checks`; a decision that isn't yours (the auth model, accepting a risk, rotating a secret, CORS or rate-limit policy) goes in `leftUndone` with the consequence of each option, or to `ask` when it blocks the task, and a problem outside your owned paths goes in `discovered`. Reviewing, each finding goes in `done`'s findings with its test described, not written. Write each finding as:
 
 ```text
 S1          P0-P3, confidence high | medium | low

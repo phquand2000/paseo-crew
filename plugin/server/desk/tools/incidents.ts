@@ -1,23 +1,23 @@
+import { z } from "zod";
 import { can } from "../../catalog/kit.ts";
-import { type Caller, no, ok, str } from "../context.ts";
+import type { Held } from "../../domain/incident.ts";
+import { type Caller, no, ok } from "../context.ts";
 import { type Incident, incidentsFault, loadIncidents } from "../incidents.ts";
 import { laneOfLead, loadLedger } from "../ledger.ts";
-import { clip } from "../letters.ts";
-import { mask } from "../../runtime/watch/mask.ts";
-import type { Tool } from "../services.ts";
+import { clip } from "../../core/text.ts";
+import { defineTool } from "../services.ts";
 
-const at = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
+export const at = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
 
-export const HELD: Record<string, string> = {
+const HELD: Record<Held, string> = {
   shadow: "shadow",
-  budget: "the day's budget is spent",
+  probation: "most of its kind's last ten marks were noise",
+  budget: "its lane's limit for today is reached",
   nobody: "nobody was seated to tell",
-  awaiting: "waiting for the sensor",
-  vetoed: "held back",
 };
 
 function line(item: Incident): string {
-  const sent = item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${HELD[item.held] ?? item.held}` : "";
+  const sent = item.told !== undefined ? `told ${at(item.told)}` : item.held ? `not sent: ${HELD[item.held]}` : "";
   const state = item.open ? sent || "open" : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
   const seen = item.count > 1 ? ` (seen ${item.count} times, last ${at(item.last)})` : "";
   const later = item.later !== undefined ? `; seen after you were told: ${clip(item.later.replace(/\s+/g, " "), 200)}` : "";
@@ -45,7 +45,7 @@ function briefs(state: string, shown: Incident[]): string[] {
 }
 
 /** A supervisor sees every incident; a Lead only those about its own open lane's other seats, never itself. */
-function mine(caller: Caller): ((item: Incident) => boolean) | string {
+export function mine(caller: Caller): ((item: Incident) => boolean) | string {
   if (can(caller.role, "supervise")) return () => true;
   let lane: string | undefined;
   try {
@@ -55,49 +55,28 @@ function mine(caller: Caller): ((item: Incident) => boolean) | string {
   return (item) => item.lane === lane && item.seat !== caller.id;
 }
 
-export const incidents: Tool = async ({ ctx }, caller, args) => {
-  const fault = incidentsFault(caller.project.state);
-  if (fault) return no(`${fault}. Only the Human can repair it or move it aside.`);
-  const allowed = mine(caller);
-  if (typeof allowed === "string") return no(allowed);
-  const held = loadIncidents(caller.project.state);
-  const all = Object.values(held.items).filter(allowed);
-  const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
-  const shown = waiting.slice(0, 50);
-  const lines = [waiting.length > 0 ? `${waiting.length} not yet marked:` : "Nothing waiting to be marked."];
-  lines.push(...shown.map(line));
-  if (waiting.length > shown.length) lines.push(`… and ${waiting.length - shown.length} older ones not shown.`);
-  lines.push(...briefs(caller.project.state, shown));
-  if (args.closed === true) {
-    const marked = all.filter((item) => item.label).sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last)).slice(0, 20);
-    lines.push("", marked.length > 0 ? "Recently marked:" : "Nothing marked yet.", ...marked.map(line));
-  }
-  if (waiting.length > 0) lines.push("", "Each is a signal to look at, not a verdict. Mark each one with ack once you have looked at the agent's record, so the thresholds can be tuned.");
-  ctx.event(caller.project, { kind: "incident.read", agent: caller.id, waiting: waiting.length });
-  return ok(lines.join("\n"));
-};
-
-export const ack: Tool = async ({ ctx }, caller, args) => {
-  const id = str(args.id);
-  // One of the three: the desk holds every call to the schema before it gets here.
-  const verdict = str(args.verdict) as NonNullable<Incident["label"]>;
-  const note = mask(str(args.note));
-  const now = Date.now();
-  const allowed = mine(caller);
-  if (typeof allowed === "string") return no(allowed);
-  const done = await ctx.incidents(caller.project, (held) => {
-    const item = held.items[id];
-    if (!item || !allowed(item)) return undefined;
-    item.label = verdict;
-    if (note) item.note = note;
-    if (item.open) {
-      item.open = false;
-      item.closed = now;
+export const incidents = defineTool({
+  name: "incidents",
+  input: z.strictObject({ closed: z.boolean().optional() }),
+  async handle({ ctx }, caller, args) {
+    const fault = incidentsFault(caller.project.state);
+    if (fault) return no(`${fault}. Only the Human can repair it or move it aside.`);
+    const allowed = mine(caller);
+    if (typeof allowed === "string") return no(allowed);
+    const held = loadIncidents(caller.project.state);
+    const all = Object.values(held.items).filter(allowed);
+    const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
+    const shown = waiting.slice(0, 50);
+    const lines = [waiting.length > 0 ? `${waiting.length} not yet marked:` : "Nothing waiting to be marked."];
+    lines.push(...shown.map(line));
+    if (waiting.length > shown.length) lines.push(`… and ${waiting.length - shown.length} older ones not shown.`);
+    lines.push(...briefs(caller.project.state, shown));
+    if (args.closed === true) {
+      const marked = all.filter((item) => item.label).sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last)).slice(0, 20);
+      lines.push("", marked.length > 0 ? "Recently marked:" : "Nothing marked yet.", ...marked.map(line));
     }
-    return { ...item };
-  });
-  if (!done) return no(`There is no incident ${id} here for you to mark. incidents lists the ones there are.`);
-  ctx.event(caller.project, { kind: "incident.ack", id, agent: caller.id, verdict, note: note || null, seat: done.seat, finding: done.kind, opened: done.opened, last: done.last, sensor: done.sensor ?? null, ...(done.by ? { by: done.by } : {}) });
-  const later = done.later !== undefined ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}` : "";
-  return ok(`${id} marked ${verdict} and closed.${later}`);
-};
+    if (waiting.length > 0) lines.push("", "Each is a signal to look at, not a verdict. Mark each one with mark_incident once you have looked at the agent's record, so the thresholds can be tuned.");
+    ctx.event(caller.project, { kind: "incident.read", agent: caller.id, waiting: waiting.length });
+    return ok(lines.join("\n"));
+  },
+});

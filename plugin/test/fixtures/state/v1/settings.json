@@ -1,1 +1,0 @@
-{ "roles": { "lead": { "harness": "claude", "model": "claude-opus-5", "thinking": "medium" } }, "attention": { "by": "seat" } }

@@ -11,9 +11,9 @@ function put(root: string, path: string, value: unknown): void {
 }
 
 export function makeKit(): Kit {
-  const dir = tempDir("crew-kit-");
+  const dir = tempDir("sw2-kit-");
   put(dir, "roles.json", {
-    providerPrefix: "crew-",
+    providerPrefix: "sw2-",
     attention: { leadIdleMinutes: 15 },
     roles: [
       {
@@ -35,13 +35,14 @@ export function makeKit(): Kit {
         prompt: "prompts/LEAD.md",
         skills: null,
         hidesWords: ["supervisor"],
+        writes: ["plans/"],
       },
       {
         role: "peer",
         label: "Peer",
         can: ["work"],
         tools: "peer",
-        defaults: { harness: "agy", model: "swe" },
+        defaults: { harness: "omp", model: "glm" },
         prompt: "prompts/PEER.md",
         skills: "peer",
         extraSkills: ["supervisor:plan-check"],
@@ -63,10 +64,8 @@ export function makeKit(): Kit {
     baseProvider: "claude",
     configDirEnv: "CLAUDE_CONFIG_DIR",
     profileRoot: "HOME/.claude/profiles",
-    promptFile: "CLAUDE.md",
     contextFile: "CLAUDE.md",
     skillsDir: "skills",
-    systemPrompt: "config",
     stateWrites: { path: "settings.sandbox.filesystem.allowWrite", delivery: "launch" },
     projectContextOption: "additionalDirectories",
     projectInstructions: { reads: ["CLAUDE.md", ".claude/CLAUDE.md"], otherwise: ["AGENTS.md", ".claude/AGENTS.md"], importAs: "@{path}" },
@@ -83,33 +82,31 @@ export function makeKit(): Kit {
       clear: { set: { mcpServers: {}, enabledMcpjsonServers: [] }, remove: ["enableAllProjectMcpServers"], setInEach: { projects: { mcpServers: {} } } },
       transports: ["stdio", "http"],
     },
-    provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", PASEO_CREW_HARNESS: "claude", PASEO_CREW_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
+    provider: { env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" }, profileModeId: "bypassPermissions", command: ["KIT/bin/seat-room"] },
   });
   put(dir, "harness/claude/settings.json", { autoMemoryEnabled: false, permissions: { deny: ["WebSearch"] } });
   put(dir, "harness/claude/settings/supervisor.settings.json", { askUserQuestionTimeout: "never" });
   put(dir, "harness/claude/settings/lead.settings.json", { permissions: { deny: ["Agent"] } });
   put(dir, "harness/claude/settings/scribe.settings.json", {});
-  put(dir, "harness/agy/harness.json", {
-    id: "agy",
-    label: "Antigravity",
-    baseProvider: "acp",
-    configDirEnv: "XDG_CONFIG_HOME",
-    profileRoot: "HOME/.agy/seats",
-    promptFile: "agy/AGENTS.md",
-    skillsDir: "agy/skills",
-    hasThinking: false,
-    systemPrompt: "file",
-    settings: { file: "agy/config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json", ownedPaths: ["permissions", "read_config_from"] },
+  put(dir, "harness/omp/harness.json", {
+    id: "omp",
+    label: "Oh My Pi",
+    baseProvider: "omp",
+    configDirEnv: "PI_CODING_AGENT_DIR",
+    profileRoot: "HOME/.omp/seats",
+    contextFile: "AGENTS.md",
+    skillsDir: "skills",
+    settings: { file: "config.yml", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
-    models: [{ id: "swe", label: "SWE" }],
-    mcp: { file: "agy/mcp_config.json", delivery: "file", key: "mcpServers", rule: "List a server's tools once before your first call to it, so you can call them.", transports: ["stdio", "http"] },
-    provider: { env: { PASEO_CREW_HARNESS: "agy", PASEO_CREW_AGENT_BIN: "agy" }, profileModeId: "bypass", command: ["KIT/bin/seat-room", "acp"] },
-    checks: [{ path: "HOME/.agy/credentials.toml", help: "Log in to Agy once, outside any seat." }],
+    models: [{ id: "glm", label: "GLM" }],
+    mcp: { file: "mcp.json", delivery: "file", key: "mcpServers", transports: ["stdio", "http"] },
+    provider: { env: { SEATWORKS_HARNESS: "omp", SEATWORKS_AGENT_BIN: "omp" }, profileModeId: "full" },
+    checks: [{ path: "HOME/.omp/agent/agent.db", help: "Log in with omp once, outside any seat." }],
   });
-  put(dir, "harness/agy/settings.json", { read_config_from: { claude: false }, notify: "never", permissions: { deny: ["Exec(git push)"] } });
-  put(dir, "harness/agy/settings/lead.settings.json", {});
-  put(dir, "harness/agy/settings/peer.settings.json", {});
-  put(dir, "harness/agy/settings/scribe.settings.json", { permissions: { deny: ["exec"] } });
+  put(dir, "harness/omp/settings.json", { ask: { enabled: false }, bash: { patterns: [{ match: "git push*", approval: "deny" }] } });
+  put(dir, "harness/omp/settings/lead.settings.json", {});
+  put(dir, "harness/omp/settings/peer.settings.json", {});
+  put(dir, "harness/omp/settings/scribe.settings.json", { tools: { approval: { bash: "deny" } } });
   put(dir, "catalog/mcp/ide/mcp.json", {
     id: "ide",
     label: "IDE",
@@ -145,27 +142,17 @@ export function makeKit(): Kit {
   });
   put(dir, "catalog/mcp/docs/rule.md", "Look library APIs up in the docs.\n");
   // The fixture carries tool sets like the real kit, because a role names one and the kit is asked for it.
+  // The shipped ecosystem, Paseo's tools, the watch's questions and what a seat's PATH refuses are the world's, not this fixture's to make up.
+  for (const name of ["ecosystem.json", "paseo.json", "checks.json", "refused.json"]) put(dir, `catalog/${name}`, readFileSync(new URL(`../catalog/${name}`, import.meta.url), "utf-8"));
   put(dir, "mcp/tools.json", {
     supervisor: [{ name: "open_lane" }, { name: "answer" }, { name: "status" }],
-    lead: [{ name: "start_task" }, { name: "report" }, { name: "ask" }, { name: "status" }],
+    lead: [{ name: "add_tasks" }, { name: "report" }, { name: "ask" }, { name: "status" }],
     peer: [{ name: "done" }, { name: "ask" }],
   });
   put(dir, "content/prompts/SUPERVISOR.md", "# Supervisor\n\nGuides live in {{guides}}; state in {{state}}.\n");
   put(dir, "content/prompts/LEAD.md", "# Lead\n\nRead {{guides}}/BRIEF.md.\n");
   put(dir, "content/prompts/PEER.md", "# Peer\n\nRead {{guides}}/BRIEF.md.\n");
   put(dir, "content/prompts/SCRIBE.md", "# Scribe\n\nKeep the notes.\n");
-  put(dir, "catalog/sensor/probe/sensor.json", {
-    id: "probe",
-    url: "https://sensor.invalid/decisions",
-    model: "probe-1",
-    timeoutSeconds: 1,
-    retries: 0,
-    stateChars: 2000,
-    debounceSeconds: 1,
-    everySeconds: 5,
-    unclear: 0.2,
-    questions: { stuck: { view: "work", instructions: "Is it stuck?", threshold: 0.8, confirms: ["stuck"] } },
-  });
   put(dir, "content/guides/BRIEF.md", "# Brief\n");
   put(dir, "content/skills/supervisor/plan-check/SKILL.md", "---\nname: plan-check\ndescription: checks a plan\n---\n");
   put(dir, "content/skills/peer/test-first/SKILL.md", "---\nname: test-first\ndescription: tests\n---\n");

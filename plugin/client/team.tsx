@@ -1,18 +1,19 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { useRpc } from "@getpaseo/plugin/client";
-import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSelect } from "@getpaseo/plugin/client/ui";
+import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSelect, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { type ReactElement, useState } from "react";
 import { modelsRpc } from "../shared/rpc.ts";
 import { Text } from "react-native";
 import { sourceLabel } from "./bits.tsx";
-import type { Catalog, Layer, RoleChoice, TeamView } from "./data.ts";
-import { message, modelRow, setRole, sourceOf } from "./data.ts";
+import type { Layer, RoleChoice } from "../shared/settings.ts";
+import type { CatalogView, ModelsRefreshed, TeamView } from "../shared/views.ts";
+import { message, modelRow, setAttention, setRole, sourceOf } from "./data.ts";
+import { JudgeCard } from "./judge.tsx";
 import { ModelPicker } from "./model-picker.tsx";
 import { TabBar } from "./tabs.tsx";
-import { WatcherSettings } from "./watch.tsx";
 
 type Props = {
-  catalog: Catalog;
+  catalog: CatalogView;
   team: TeamView;
   values: Layer;
   machine: Layer;
@@ -25,13 +26,12 @@ type Props = {
   reload(): void;
 };
 
-type Listed = Record<string, { at: string; error: string | null; count: number }>;
 
 /** The models are Paseo's: it asks each agent, and this asks Paseo to do it again. */
 function ModelsCard({ catalog, disabled, reload }: Pick<Props, "catalog" | "disabled" | "reload">) {
-  const refresh = useRpc(modelsRpc) as unknown as (input: object) => Promise<Listed>;
+  const refresh = useRpc(modelsRpc);
   const [busy, setBusy] = useState(false);
-  const [listed, setListed] = useState<Listed | null>(null);
+  const [listed, setListed] = useState<ModelsRefreshed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const label = (id: string) => catalog.harnesses.find((entry) => entry.id === id)?.label ?? id;
   const failed = listed ? Object.entries(listed).filter(([, entry]) => entry.error) : [];
@@ -62,10 +62,10 @@ function ModelsCard({ catalog, disabled, reload }: Pick<Props, "catalog" | "disa
   );
 }
 
-type Role = Catalog["roles"][number];
+type Role = CatalogView["roles"][number];
 
-/** Rows, not a component: the card borders each child it gets, and the Watcher's card wraps its own rows around these. */
-export function roleRows({ catalog, team, values, machine, layer, theme, disabled, save, role }: Omit<Props, "active" | "onActive" | "reload"> & { role: Role }): ReactElement[] {
+/** Rows, not a component: the card borders each child it gets. */
+function roleRows({ catalog, team, values, machine, layer, theme, disabled, save, role }: Omit<Props, "active" | "onActive" | "reload"> & { role: Role }): ReactElement[] {
   const seat = team.roles[role.id];
   const follows = role.follows ? catalog.roles.find((entry) => entry.id === role.follows)?.label : undefined;
   const harness = catalog.harnesses.find((entry) => entry.id === seat?.harness);
@@ -73,7 +73,7 @@ export function roleRows({ catalog, team, values, machine, layer, theme, disable
   const model = seat?.model ?? models[0]?.id ?? "";
   const row = modelRow(model, models);
   const stray = row.stray;
-  const thinking = harness?.thinking === false ? [] : (models.find((entry) => entry.id === model)?.thinkingOptions ?? []);
+  const thinking = models.find((entry) => entry.id === model)?.thinkingOptions ?? [];
   const source = (field: keyof RoleChoice) => sourceOf(values, machine, (entry) => entry.roles?.[role.id]?.[field], layer);
   const rows: ReactElement[] = [
     <SettingsSelect
@@ -122,6 +122,21 @@ export function roleRows({ catalog, team, values, machine, layer, theme, disable
   return rows;
 }
 
+/** On the Supervisor's chip, since what pages and what is about a Lead goes to it: whether what the code notices is mailed at all. */
+function IncidentMailCard({ team, values, machine, layer, disabled, save }: Props) {
+  return (
+    <SettingsCard>
+      <SettingsSwitch
+        label="Mail incidents"
+        hint={`What the code notices about a Lead or a Peer goes to the Lead of its lane, or the Supervisor; never to the seat itself. Pages reach the Supervisor with this off too. ${sourceLabel(sourceOf(values, machine, (entry) => entry.attention?.watch, layer), layer)}.`}
+        value={team.attention.watch}
+        onValueChange={(next) => void save((current) => setAttention(current, { watch: next }))}
+        disabled={disabled}
+      />
+    </SettingsCard>
+  );
+}
+
 export function TeamSection(props: Props) {
   const { catalog, theme, disabled, active, onActive } = props;
   const role = catalog.roles.find((entry) => entry.id === active) ?? catalog.roles[0];
@@ -129,7 +144,8 @@ export function TeamSection(props: Props) {
   return (
     <SettingsSection title="Team" info={role.description}>
       <TabBar theme={theme} active={role.id} disabled={disabled} onPick={onActive} tabs={catalog.roles.map((entry) => ({ id: entry.id, label: entry.label }))} />
-      {role.can.includes("watch") ? <WatcherSettings {...props} role={role} rows={roleRows({ ...props, role })} /> : <SettingsCard>{roleRows({ ...props, role })}</SettingsCard>}
+      {role.can.includes("judge") ? <JudgeCard {...props} role={role} rows={roleRows({ ...props, role })} /> : <SettingsCard>{roleRows({ ...props, role })}</SettingsCard>}
+      {role.can.includes("supervise") ? <IncidentMailCard {...props} /> : null}
       <ModelsCard catalog={props.catalog} disabled={props.disabled} reload={props.reload} />
     </SettingsSection>
   );

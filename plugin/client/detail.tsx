@@ -5,7 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { Button } from "./bits.tsx";
 import { TabBar } from "./tabs.tsx";
 
-export type DetailTab = "team" | "flow" | "mcp" | "health" | "plugin";
+export type DetailTab = "team" | "flow" | "report" | "orders" | "mcp" | "health" | "plugin";
 
 type Props = {
   title: string;
@@ -53,6 +53,8 @@ export function Detail({ title, subtitle, tab, theme, disabled, onBack, onTab, o
         tabs={[
           { id: "team", label: "Team" },
           { id: "flow", label: "Flow" },
+          { id: "report", label: "Report" },
+          { id: "orders", label: "Orders" },
           { id: "mcp", label: "MCP" },
           { id: "health", label: "Health" },
           { id: "plugin", label: "Plugin" },

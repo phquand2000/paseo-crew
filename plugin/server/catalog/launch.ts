@@ -1,13 +1,13 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import type { PluginBeforeRequests } from "@getpaseo/plugin/server";
+import { accessSync, constants, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { delimiter, join } from "node:path";
+import { writeConfigAtomic } from "../core/config-file.ts";
+import { nodeBin, stateRoot } from "../core/paths.ts";
+import type { AgentConfig, SessionOpen } from "../core/ports.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, agentDefault, seatOf } from "./kit.ts";
-import { stateTargets } from "./content.ts";
-import { type Team, preapprovedFor, rulesFor, skillDirsFor } from "./team.ts";
+import { preapprovedFor } from "./servers.ts";
+import type { Team } from "./team.ts";
 
-export type AgentConfig = PluginBeforeRequests["agent.create"]["config"];
-export type SessionOpen = PluginBeforeRequests["agent.session_open"];
-export type RenderPrompt = (role: RoleSpec) => string;
+type RenderPrompt = (role: RoleSpec) => string;
 
 type Json = Record<string, unknown>;
 
@@ -27,12 +27,12 @@ function appendAt(options: unknown, path: string, value: string): Json {
   return root;
 }
 
-/** Only the state paths the seat's content writes: state also holds the desk's record, whose `gate` runs unsandboxed in the daemon. */
-export function stateWrites(kit: Kit, team: Team, role: RoleSpec, state: string): string[] {
-  return stateTargets(kit, role, skillDirsFor(team, role.role), rulesFor(team, role.role)).map((segment) => join(state, segment));
+/** Only what the role declares it writes: state also holds the desk's record, whose `gate` runs unsandboxed in the daemon. */
+export function stateWrites(role: RoleSpec, state: string): string[] {
+  return (role.writes ?? []).map((entry) => join(state, entry.replace(/\/$/, "")));
 }
 
-export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}, writes: string[] = []): AgentConfig {
+export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {
   const seat = seatOf(kit, config.provider);
   if (!seat) return config;
   const { role, harness } = seat;
@@ -46,9 +46,9 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   const next: AgentConfig = { ...config };
   if (model) next.model = model.id;
   if (harness.provider.profileModeId) next.modeId = harness.provider.profileModeId;
-  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  const options = model?.thinkingOptions ?? [];
   if (options.length === 0) {
-    const owned = harness.hasThinking === false ? undefined : sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
+    const owned = sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
     if (owned) next.thinkingOptionId = owned;
     else delete next.thinkingOptionId;
   }
@@ -57,20 +57,18 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
     const valid = (id: string | undefined) => Boolean(id) && options.some((option) => option.id === id);
     next.thinkingOptionId = [config.thinkingOptionId, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
   }
-  if (harness.systemPrompt === "config") {
-    const prompt = render(role);
-    next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
-  }
+  const prompt = render(role);
+  next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
-    next.mcpServers = { ...(config.mcpServers ?? {}), ...servers } as AgentConfig["mcpServers"];
+    next.mcpServers = { ...(config.mcpServers ?? {}), ...servers };
     if (harness.mcp.preapprove) next.toolPolicy = { preapproved: preapprovedFor(kit, team, role.role).filter((ref) => ref.server in servers || ref.server === "paseo") };
   }
-  let providerOptions: unknown = config.providerOptions;
+  let providerOptions = config.providerOptions;
   if (harness.stateWrites?.delivery === "launch" && state) {
-    for (const path of [...stateWrites(kit, team, role, state), ...writes]) providerOptions = appendAt(providerOptions, harness.stateWrites.path, path);
+    for (const path of stateWrites(role, state)) providerOptions = appendAt(providerOptions, harness.stateWrites.path, path);
   }
   if (harness.projectContextOption && config.cwd) providerOptions = appendAt(providerOptions, harness.projectContextOption, config.cwd);
-  if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions as AgentConfig["providerOptions"];
+  if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions;
   return next;
 }
 
@@ -81,17 +79,58 @@ export function projectImports(harness: HarnessSpec, root: string | undefined): 
   return spec.otherwise.filter((file) => existsSync(join(root, file))).map((file) => `${spec.importAs.replace("{path}", join(root, file))}\n`).join("");
 }
 
-export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, project: { root: string; state: string }): SessionOpen {
+/**
+ * The harness's own env goes in too: Paseo may run one agent server for every seat of a harness, built from its built-in provider.
+ * `shim` is the directory `seatBin` writes, which goes first on the seat's PATH.
+ */
+export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, project: { root: string; state: string }, shim?: string): SessionOpen {
   const seat = seatOf(kit, request.provider);
   if (!seat) return request;
   return {
     ...request,
     env: {
       ...request.env,
+      ...seat.harness.provider.env,
       [seat.harness.configDirEnv]: seatPath,
-      PASEO_CREW_ROLE: seat.role.role,
-      PASEO_CREW_PROJECT: project.root,
-      PASEO_CREW_STATE: project.state,
+      ...(seat.harness.settings.overlayEnv ? { [seat.harness.settings.overlayEnv]: join(seatPath, seat.harness.settings.file) } : {}),
+      SEATWORKS_ROLE: seat.role.role,
+      SEATWORKS_PROJECT: project.root,
+      SEATWORKS_STATE: project.state,
+      ...(shim ? { PATH: [shim, request.env.PATH ?? process.env.PATH].filter(Boolean).join(delimiter) } : {}),
     },
   };
+}
+
+const quoted = (text: string) => `'${text.replaceAll("'", `'\\''`)}'`;
+
+/** The git a seat's PATH finds past the shim: the shim's directory is skipped, since what is there is named git too. */
+function realGit(skip: string): string | undefined {
+  for (const dir of (process.env.PATH ?? "").split(delimiter)) {
+    if (!dir || dir === skip) continue;
+    try {
+      accessSync(join(dir, "git"), constants.X_OK);
+      return join(dir, "git");
+    } catch {}
+  }
+  return undefined;
+}
+
+/**
+ * Writes the directory a seat's PATH starts at, and gives it: a git that runs the kit's git shim with node, the shim and the real
+ * git by absolute path, and for each command the kit refuses one that says why and fails. Nothing where this machine has no git.
+ */
+export function seatBin(kit: Kit, root = stateRoot()): string | undefined {
+  const dir = join(root, "bin");
+  const git = realGit(dir);
+  if (!git) return undefined;
+  const wanted: Record<string, string> = { git: `#!/bin/sh\nexec ${quoted(nodeBin())} ${quoted(join(kit.dir, "bin", "git-shim.mjs"))} ${quoted(git)} "$@"\n` };
+  for (const [name, why] of Object.entries(kit.refused)) wanted[name] = `#!/bin/sh\necho ${quoted(`${name}: refused: ${why}. Say what you need to whoever gave you the work.`)} >&2\nexit 1\n`;
+  mkdirSync(dir, { recursive: true });
+  // The directory is the plugin's alone: a command the kit no longer refuses must run again.
+  for (const name of readdirSync(dir)) if (!(name in wanted)) rmSync(join(dir, name), { force: true });
+  for (const [name, text] of Object.entries(wanted)) {
+    const file = join(dir, name);
+    if (!existsSync(file) || readFileSync(file, "utf-8") !== text) writeConfigAtomic(file, text, 0o755);
+  }
+  return dir;
 }

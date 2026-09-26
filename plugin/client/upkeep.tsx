@@ -37,28 +37,27 @@ function unitName(change: ContentChange): string {
   const last = change.unit.split("/").pop() ?? change.unit;
   if (change.kind === "prompt") return `${last.replace(/\.md$/, "").toLowerCase().replace(/^./, (first) => first.toUpperCase())} prompt`;
   if (change.kind === "skill") return `${last} skill`;
-  if (change.kind === "team") return "Team block";
   return last;
 }
 
 /** The version line: what runs, and what the branch it follows has. */
 function versionLine(view: UpdateView | null): { title: string; state: string } {
-  if (!view) return { title: "Paseo Crew", state: "Reading this copy's version." };
+  if (!view) return { title: "Seatworks", state: "Reading this copy's version." };
   const now = view.version || view.head;
-  if (view.updated) return { title: `Paseo Crew ${now}`, state: `Updated from ${view.updated.from}. The plugin is reloading.` };
+  if (view.updated) return { title: `Seatworks ${now}`, state: `Updated from ${view.updated.from}. The plugin is reloading.` };
   if (view.behind > 0) {
-    const title = `Paseo Crew ${now} → ${view.next && view.next !== now ? view.next : plural(view.behind, "commit")}`;
+    const title = `Seatworks ${now} → ${view.next && view.next !== now ? view.next : plural(view.behind, "commit")}`;
     return { title, state: view.busy.length > 0 ? `Stop every seat first: ${view.busy.join(", ")}.` : (view.blocked ?? plural(view.behind, "new commit")) };
   }
-  if (view.blocked) return { title: `Paseo Crew ${now} · ${view.head}`, state: view.blocked };
-  return { title: `Paseo Crew ${now} · ${view.head}`, state: view.fetched ? "Up to date." : `Check asks ${view.upstream ?? "its remote"} for anything newer.` };
+  if (view.blocked) return { title: `Seatworks ${now} · ${view.head}`, state: view.blocked };
+  return { title: `Seatworks ${now} · ${view.head}`, state: view.fetched ? "Up to date." : `Check asks ${view.upstream ?? "its remote"} for anything newer.` };
 }
 
 export function UpkeepSection({ theme }: { theme: PluginTheme }) {
-  const update = useRpc(updateRpc) as unknown as (input: { apply: boolean; fetch?: boolean }) => Promise<UpdateView>;
-  const migrate = useRpc(migrateRpc) as unknown as (input: { apply: boolean }) => Promise<MigrateView>;
-  const decide = useRpc(decideRpc) as unknown as (input: { unit: string; choice: "new" | "mine" | "seen" }) => Promise<MigrateView>;
-  const clean = useRpc(cleanRpc) as unknown as (input: { remove?: string[] }) => Promise<CleanView>;
+  const update = useRpc(updateRpc);
+  const migrate = useRpc(migrateRpc);
+  const decide = useRpc(decideRpc);
+  const clean = useRpc(cleanRpc);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [updated, setUpdated] = useState<UpdateView | null>(null);
@@ -114,7 +113,6 @@ export function UpkeepSection({ theme }: { theme: PluginTheme }) {
         <View style={styles.actions}>{actions}</View>
       </View>,
     );
-  for (const failed of migrated?.state.failed ?? []) row(`state:${failed.where}`, true, `${failed.where}: its records could not be upgraded`, failed.error, null);
   const content = migrated?.content ?? [];
   for (const change of content.filter((entry) => entry.kind !== "guide" && entry.kind !== "record")) {
     const name = unitName(change);

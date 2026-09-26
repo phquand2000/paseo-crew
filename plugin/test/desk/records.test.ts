@@ -10,7 +10,7 @@ import { type Lane, emptyLedger } from "../../server/desk/ledger.ts";
 import { GATE_LOGS_PER_OWNER, tidyRecords } from "../../server/desk/records.ts";
 
 test("a record log rolls over, keeps its newest roll as text for a grep, and packs the older ones and drops what outgrows its bytes", async () => {
-  const dir = tempDir("crew-roll-");
+  const dir = tempDir("sw2-roll-");
   const line = `${"x".repeat(20)}\n`;
   const roll = { dir, current: "events.log", prefix: "events.", ext: ".log", rotateAt: 2 * line.length, keepBytes: 2 * line.length + 2 * gzipSync(line.repeat(2)).length, plain: 1 };
   for (let index = 0; index < 12; index++) await appendRolling(roll, line);
@@ -22,7 +22,7 @@ test("a record log rolls over, keeps its newest roll as text for a grep, and pac
 });
 
 test("two rolls close together pack each file once, so neither packing trips over the other's half-written copy", async () => {
-  const dir = tempDir("crew-roll-race-");
+  const dir = tempDir("sw2-roll-race-");
   const roll = { dir, current: "events.log", prefix: "events.", ext: ".log", rotateAt: 1, keepBytes: 1 << 20, plain: 0 };
   await appendRolling(roll, "a\n");
   await Promise.all(["b\n", "c\n", "d\n"].map((line) => appendRolling(roll, line)));
@@ -36,7 +36,7 @@ const lane = (id: string): Lane =>
   ({ id, title: id, outcome: "", acceptance: [], outOfScope: [], base: "main", branch: `lane/${id}`, writeSet: [], contracts: [], opener: "s", status: "closed", openedAt: 0, tasks: 0 }) as Lane;
 
 test("a lane in the ledger keeps its records but the gate runs a newer run of the same owner replaced", () => {
-  const state = tempDir("crew-tidy-");
+  const state = tempDir("sw2-tidy-");
   const gates = join(state, "gates");
   const handbacks = join(state, "handbacks");
   mkdirSync(gates);

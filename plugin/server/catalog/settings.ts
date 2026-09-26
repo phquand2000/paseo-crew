@@ -2,121 +2,16 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
-import { KEPT } from "../../shared/rpc.ts";
 import { readJson, sortKeys, writeJson } from "../core/store.ts";
 import { errorText } from "../core/errors.ts";
-
-const Scalar = z.union([z.string(), z.number(), z.boolean()]);
-
-const RoleChoice = z.strictObject({
-  harness: z.string().min(1).optional(),
-  model: z.string().min(1).optional(),
-  thinking: z.string().min(1).optional(),
-  rules: z.string().optional(),
-});
-
-const Connect = z.strictObject({
-  type: z.enum(["stdio", "http", "sse"]),
-  command: z.array(z.string().min(1)).optional(),
-  env: z.record(z.string(), z.string()).optional(),
-  url: z.string().min(1).optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-});
-
-const McpChoice = z.strictObject({
-  enabled: z.boolean().optional(),
-  removed: z.boolean().optional(),
-  label: z.string().min(1).optional(),
-  connect: Connect.optional(),
-  roles: z.array(z.string()).optional(),
-  tools: z.record(z.string(), z.array(z.string())).optional(),
-  rule: z.string().optional(),
-  settings: z.record(z.string(), Scalar).optional(),
-});
-
-export type Connect = z.infer<typeof Connect>;
-export type McpChoice = z.infer<typeof McpChoice>;
-
-const Pattern = z.string().min(1).refine(
-  (value) => {
-    try {
-      new RegExp(value, "i");
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  { message: "that is not a pattern this machine can read" },
-);
-
-export const AttentionChoice = z.strictObject({
-  tickSeconds: z.number().int().min(5).optional(),
-  leadIdleMinutes: z.number().int().min(1).optional(),
-  askRemindMinutes: z.number().int().min(1).optional(),
-  maxReminders: z.number().int().min(0).optional(),
-  watch: z.boolean().optional(),
-  by: z.enum(["seat", "jev"]).optional(),
-  watcherQuietSeconds: z.number().int().min(5).optional(),
-  watcherEveryMinutes: z.number().int().min(1).optional(),
-  watcherChars: z.number().int().min(2000).optional(),
-  watcherRotateAfter: z.number().int().min(1).optional(),
-  watcherJudgeMinutes: z.number().int().min(1).optional(),
-  destructive: Pattern.optional(),
-  testPath: Pattern.optional(),
-  repeatsAt: z.number().int().min(2).optional(),
-  reworksAt: z.number().int().min(2).optional(),
-  reviewsAt: z.number().int().min(2).optional(),
-  suppressed: Pattern.optional(),
-  longTurnMinutes: z.number().int().min(1).optional(),
-  incidentsPerDay: z.number().int().min(0).optional(),
-});
-
-const FlowChoice = z.strictObject({
-  live: z.boolean().optional(),
-  everySeconds: z.number().int().min(2).max(120).optional(),
-});
-
-const shared = {
-  roles: z.record(z.string(), RoleChoice).optional(),
-  mcp: z.record(z.string(), McpChoice).optional(),
-  rules: z.string().optional(),
-  flow: FlowChoice.optional(),
-};
-
-const SensorChoice = z.strictObject({
-  key: z.string().min(1).optional(),
-});
-
-export const ProjectLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional() });
-export const MachineLayerSchema = z.strictObject({ ...shared, attention: AttentionChoice.optional(), sensor: SensorChoice.optional() });
-
-export type Layer = z.infer<typeof MachineLayerSchema>;
-export type SensorChoice = z.infer<typeof SensorChoice>;
-export type LayerSchema = typeof MachineLayerSchema | typeof ProjectLayerSchema;
-
-/** The key buys paid calls, so the screen never reads it back: it sees KEPT, and a save carrying KEPT keeps the key on disk. */
-export function withoutKey(layer: Layer): Layer {
-  return layer.sensor?.key ? { ...layer, sensor: { ...layer.sensor, key: KEPT } } : layer;
-}
-
-export function withKey(values: unknown, stored: Layer): unknown {
-  if (!values || typeof values !== "object") return values;
-  const asked = values as { sensor?: { key?: unknown } };
-  if (asked.sensor?.key !== KEPT) return values;
-  const { sensor, ...rest } = asked;
-  const key = stored.sensor?.key;
-  return key ? { ...rest, sensor: { ...sensor, key } } : rest;
-}
-
-export type ReadResult = { status: "ready"; revision: string; values: Layer } | { status: "invalid"; revision: string; error: string };
-export type SettingsView = ReadResult & { machine: Layer };
-export type WriteResult = { status: "saved"; revision: string; values: Layer } | { status: "conflict"; error: string } | { status: "invalid"; error: string };
+import { KEPT, type Layer, LayerSchema } from "../../shared/settings.ts";
+import type { LayerRead, WriteResult } from "../../shared/views.ts";
 
 export function revisionOf(values: unknown): string {
   return createHash("sha1").update(JSON.stringify(sortKeys(values ?? {}))).digest("hex").slice(0, 16);
 }
 
-/** Only the position: V8 quotes the file's own text, which holds the sensor key and pasted tokens. */
+/** Only the position: V8 quotes the file's own text, which can hold pasted tokens. */
 function placeOf(error: unknown): string {
   const said = errorText(error);
   const where = /at position \d+(?: \(line \d+ column \d+\))?/.exec(said);
@@ -135,21 +30,45 @@ function faultOf(file: string): string | undefined {
   return !held || typeof held !== "object" || Array.isArray(held) ? `${file} does not hold a settings object` : undefined;
 }
 
-export function readLayer(file: string, schema: LayerSchema): ReadResult {
+export function readLayer(file: string): LayerRead {
   const fault = faultOf(file);
   if (fault) return { status: "invalid", revision: revisionOf(readJson<unknown>(file, {})), error: `${fault}\nRepair the file by hand, then read it again.` };
   const raw = readJson<unknown>(file, {});
   const revision = revisionOf(raw);
-  const parsed = schema.safeParse(raw);
+  const parsed = LayerSchema.safeParse(raw);
   return parsed.success ? { status: "ready", revision, values: parsed.data } : { status: "invalid", revision, error: z.prettifyError(parsed.error) };
 }
 
-export function layerValues(file: string, schema: LayerSchema): Layer {
-  const read = readLayer(file, schema);
+/** A sensor's key buys paid calls, so the screen never reads it back: it sees KEPT in its place. */
+export function withoutKeys(layer: Layer): Layer {
+  if (!layer.sensor) return layer;
+  return { ...layer, sensor: Object.fromEntries(Object.entries(layer.sensor).map(([id, kept]) => [id, kept.key ? { ...kept, key: KEPT } : kept])) };
+}
+
+/** A save carrying KEPT keeps the key on disk; KEPT for a key no longer there saves no key. */
+export function withKeys(values: unknown, stored: Layer): unknown {
+  const asked = values as { sensor?: Record<string, { key?: unknown } | undefined> } | null;
+  if (!asked || typeof asked !== "object" || !asked.sensor || typeof asked.sensor !== "object") return values;
+  const sensor = Object.entries(asked.sensor).map(([id, entry]): [string, unknown] => {
+    if (entry?.key !== KEPT) return [id, entry];
+    const { key: _shown, ...rest } = entry;
+    const key = stored.sensor?.[id]?.key;
+    return [id, key ? { ...rest, key } : rest];
+  });
+  return { ...asked, sensor: Object.fromEntries(sensor) };
+}
+
+export function readShown(file: string): LayerRead {
+  const read = readLayer(file);
+  return read.status === "ready" ? { ...read, values: withoutKeys(read.values) } : read;
+}
+
+export function layerValues(file: string): Layer {
+  const read = readLayer(file);
   return read.status === "ready" ? read.values : {};
 }
 
-export function writeLayer(file: string, schema: LayerSchema, revision: string, values: unknown, check: (values: Layer) => string[]): WriteResult {
+export function writeLayer(file: string, revision: string, values: unknown, check: (values: Layer) => string[]): WriteResult {
   const fault = faultOf(file);
   if (fault) {
     return { status: "invalid", error: `${fault}, and saving over it would throw away what it holds.\nRepair the file by hand, then save again.` };
@@ -158,14 +77,14 @@ export function writeLayer(file: string, schema: LayerSchema, revision: string, 
   if (revisionOf(current) !== revision) {
     return { status: "conflict", error: "The settings changed after they were read; read them again and reapply the change." };
   }
-  const held = schema.safeParse(current);
+  const held = LayerSchema.safeParse(current);
   if (!held.success) {
     return {
       status: "invalid",
       error: `${file} could not be read, and saving over it would throw away what it holds:\n${z.prettifyError(held.error)}\nRepair the file by hand, then save again.`,
     };
   }
-  const parsed = schema.safeParse(values);
+  const parsed = LayerSchema.safeParse(values);
   if (!parsed.success) return { status: "invalid", error: z.prettifyError(parsed.error) };
   const problems = check(parsed.data);
   if (problems.length > 0) return { status: "invalid", error: problems.join("\n") };

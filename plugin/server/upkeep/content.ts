@@ -18,7 +18,6 @@ function kindOf(unit: string): Kind | undefined {
   if (unit.startsWith("records/")) return "record";
   if (unit.startsWith("prompts/")) return "prompt";
   if (unit.startsWith("skills/")) return "skill";
-  if (unit === "project/AGENTS.md") return "team";
   return undefined;
 }
 
@@ -26,12 +25,11 @@ const files = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((name)
 const dirs = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((name) => statSync(join(dir, name)).isDirectory()) : []);
 
 /** Every unit the kit ships now, with a hash of what it holds. A skill is one unit, its folder whole. */
-export function shippedUnits(kit: Kit): Record<string, string> {
+function shippedUnits(kit: Kit): Record<string, string> {
   const content = join(kit.dir, "content");
   const units: Record<string, string> = {};
   for (const group of ["guides", "records", "prompts"]) for (const name of files(join(content, group))) units[`${group}/${name}`] = digest([join(content, group, name)]);
   for (const set of dirs(join(content, "skills"))) for (const name of dirs(join(content, "skills", set))) units[`skills/${set}/${name}`] = digest([join(content, "skills", set, name)]);
-  if (existsSync(join(content, "project", "AGENTS.md"))) units["project/AGENTS.md"] = digest([join(content, "project", "AGENTS.md")]);
   return units;
 }
 

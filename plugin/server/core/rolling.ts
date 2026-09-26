@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import { gzip } from "node:zlib";
 
 /** An append-only log that rolls into numbered files, packs the older ones and drops the oldest past `keepBytes`. */
-export type Rolling = {
+type Rolling = {
   dir: string;
   current: string;
   prefix: string;
@@ -20,7 +20,7 @@ const packing = new Set<string>();
 const gone = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-export function rolledName(roll: Pick<Rolling, "prefix" | "ext">, stamp: string, packedToo = false): string {
+function rolledName(roll: Pick<Rolling, "prefix" | "ext">, stamp: string, packedToo = false): string {
   return `${roll.prefix}${stamp}${roll.ext}${packedToo ? ".gz" : ""}`;
 }
 

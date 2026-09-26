@@ -2,7 +2,7 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
-export type Tab = { id: string; label: string; count?: number };
+type Tab = { id: string; label: string; count?: number };
 
 export function TabBar({ tabs, active, theme, disabled, onPick }: {
   tabs: Tab[];

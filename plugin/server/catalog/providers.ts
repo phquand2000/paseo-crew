@@ -8,7 +8,7 @@ import type { Team } from "./team.ts";
 
 type Json = Record<string, any>;
 
-export function labelFor(kit: Kit, role: RoleSpec, harness: HarnessSpec): string {
+function labelFor(kit: Kit, role: RoleSpec, harness: HarnessSpec): string {
   const tag = kit.prefix.replace(/[-_]+$/, "");
   const base = `${role.label} · ${harness.label}`;
   return tag ? `${base} (${tag})` : base;
@@ -27,9 +27,9 @@ function choiceFor(team: Team, role: RoleSpec, harness: HarnessSpec): { model?: 
   if (seat && seat.harness.id === harness.id) return { model: seat.model?.id, thinking: seat.thinking };
   const preset = harness.id === role.defaults.harness ? role.defaults : undefined;
   const listed = harness.models?.find((entry) => entry.id === preset?.model);
-  if (preset?.model && !listed) return { model: preset.model, thinking: harness.hasThinking === false ? undefined : preset.thinking };
+  if (preset?.model && !listed) return { model: preset.model, thinking: preset.thinking };
   const model = listed ?? agentDefault(Object.values(team.roles).map((seat) => seat.role), harness);
-  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  const options = model?.thinkingOptions ?? [];
   return { model: model?.id, thinking: (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id };
 }
 
@@ -43,14 +43,14 @@ export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: H
   const entry: Json = {
     extends: harness.baseProvider,
     label: labelFor(kit, role, harness),
-    env: { ...(harness.provider.env ?? {}), PASEO_CREW_ROLE: role.role, PASEO_CREW_KIT: kit.dir },
+    env: { ...(harness.provider.env ?? {}), SEATWORKS_ROLE: role.role, SEATWORKS_KIT: kit.dir },
   };
   if (role.description) entry.description = role.description;
   const command = (harness.provider.command ?? []).map((part) => part.replaceAll("KIT", kit.dir));
   if (command.length > 0) entry.command = command;
   const models = defaultModel(harness, choiceFor(team, role, harness));
   if (models.length > 0) entry.additionalModels = models;
-  const tools = paseoToolsPolicy(role);
+  const tools = paseoToolsPolicy(kit, role);
   if (tools) entry.paseoTools = tools;
   return entry;
 }
@@ -101,7 +101,7 @@ export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; c
     const id = providerId(kit, role.role, harness.id);
     const have: Json = next.agents.providers[id] ?? {};
     const want = desiredProvider(kit, team, role, harness);
-    const kept = Object.fromEntries(Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("PASEO_CREW_") && !managed.has(key)));
+    const kept = Object.fromEntries(Object.entries(have.env ?? {}).filter(([key]) => !key.startsWith("SEATWORKS_") && !managed.has(key)));
     const merged: Json = { ...have, ...want, env: { ...kept, ...want.env } };
     for (const key of ["command", "models", "additionalModels", "paseoTools", "description"]) if (!(key in want)) delete merged[key];
     if (!sameJson(merged, have)) {
@@ -135,7 +135,7 @@ export function applyReconcile(kit: Kit, team: Team): string[] {
 export function reloadDaemon(): Promise<boolean> {
   return new Promise((resolve) => {
     execFile("paseo", ["daemon", "reload"], { timeout: 30_000 }, (error, _stdout, stderr) => {
-      if (error) console.error("paseo-crew: paseo daemon reload failed:", stderr || error.message);
+      if (error) console.error("seatworks-v2: paseo daemon reload failed:", stderr || error.message);
       resolve(!error);
     });
   });

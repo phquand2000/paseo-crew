@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
 set -eu
 
-bin=${PASEO_CREW_AGENT_BIN:-}
-manifest=${PASEO_CREW_KIT:-}/harness/${PASEO_CREW_HARNESS:-}/harness.json
+bin=${SEATWORKS_AGENT_BIN:-}
+manifest=${SEATWORKS_KIT:-}/harness/${SEATWORKS_HARNESS:-}/harness.json
 
 fail() {
     echo "Seat room: $1" >&2
     exit 2
 }
 
-[ -n "$bin" ] || fail "env.PASEO_CREW_AGENT_BIN is unset on this seat's provider; reload the paseo-crew plugin."
+[ -n "$bin" ] || fail "env.SEATWORKS_AGENT_BIN is unset on this seat's provider; reload the seatworks-v2 plugin."
 command -v jq >/dev/null 2>&1 || fail "jq is not on PATH, so this seat's launch flags can't be read."
-[ -r "$manifest" ] || fail "$manifest can't be read; set env.PASEO_CREW_KIT and env.PASEO_CREW_HARNESS on this seat's provider and reload the paseo-crew plugin."
+[ -r "$manifest" ] || fail "$manifest can't be read; set env.SEATWORKS_KIT and env.SEATWORKS_HARNESS on this seat's provider and reload the seatworks-v2 plugin."
 
 var=$(jq -r '.configDirEnv // empty' "$manifest")
 if [ -n "$var" ] && [ -z "$(printenv "$var" || true)" ]; then
-    refusal="$var is unset, so this seat would run on your own settings instead of its role's. The paseo-crew plugin did not configure this launch: reload it, or start this agent from a provider it does not own."
-    jq -e '.baseProvider == "acp" and .provider.command[1:] == $ARGS.positional' "$manifest" --args -- ${1+"$@"} >/dev/null || fail "$refusal"
-    command -v node >/dev/null 2>&1 || fail "$refusal"
-    exec node "$(dirname "$0")/acp-catalog.mjs" "Seat room: $refusal" "$bin" ${1+"$@"}
+    [ "$#" = 1 ] && [ "$1" = "--version" ] && exec "$bin" --version
+    fail "$var is unset, so this seat would run on your own settings instead of its role's. The seatworks-v2 plugin did not configure this launch: reload it, or start this agent from a provider it does not own."
 fi
 
 forced=$(jq -r '.provider.forceFlags // {} | to_entries[] | .key + "\t" + (.value | tostring)' "$manifest")

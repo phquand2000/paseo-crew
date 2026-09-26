@@ -1,19 +1,27 @@
 import { existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import type { RECORDS } from "../core/paths.ts";
 import { appendRolling } from "../core/rolling.ts";
 import type { Ledger } from "./ledger.ts";
 
-export const RECORD_ROTATE_BYTES = 8 * 1024 * 1024;
-export const RECORD_KEEP_BYTES = 24 * 1024 * 1024;
+const RECORD_ROTATE_BYTES = 8 * 1024 * 1024;
+const RECORD_KEEP_BYTES = 24 * 1024 * 1024;
 export const GATE_LOGS_PER_OWNER = 5;
 
-/** The newest roll stays text, because the retrospective greps a period that may straddle it. */
-export function appendRecord(state: string, name: "events" | "attention", line: string): void {
+/**
+ * The newest roll stays text, because the retrospective greps a period that may straddle it. A write that fails is
+ * reported, never thrown: nothing waits on a record.
+ */
+export function appendRecord(state: string, name: (typeof RECORDS)[number], line: string): void {
   const roll = { dir: state, current: `${name}.log`, prefix: `${name}.`, ext: ".log", rotateAt: RECORD_ROTATE_BYTES, keepBytes: RECORD_KEEP_BYTES, plain: 1 };
-  appendRolling(roll, line).catch((error: unknown) => console.error(`paseo-crew: packing a rolled ${name}.log failed:`, error));
+  try {
+    appendRolling(roll, line).catch((error: unknown) => console.error(`seatworks-v2: packing a rolled ${name}.log failed:`, error));
+  } catch (error) {
+    console.error(`seatworks-v2: ${name}.log write failed:`, error);
+  }
 }
 
-export type Named = { dir: string; name: string; owner: string; lane: string; at: number };
+type Named = { dir: string; name: string; owner: string; lane: string; at: number };
 
 /** Gate logs are `gates/<lane or task>-<ms>.log`, hand-backs `handbacks/<task>-<ms>.md`; a task id starts with its lane's. */
 export function laneRecords(state: string): Named[] {

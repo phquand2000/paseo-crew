@@ -8,7 +8,8 @@ import { execFileSync } from "node:child_process";
 const role = process.argv[2] ?? "";
 const toolSet = process.argv[3] ?? "";
 const spool = process.argv[4] ?? "";
-const waitMs = Number(process.env.PASEO_CREW_TOOL_WAIT_MS ?? 300000);
+const choices = JSON.parse(process.argv[5] || "{}");
+const waitMs = Number(process.env.SEATWORKS_TOOL_WAIT_MS ?? 300000);
 
 /** Codex filters the server's environment, so the agent id comes from the parent process, the agent's own. */
 function agentId() {
@@ -26,6 +27,17 @@ function agentId() {
 }
 const agent = agentId();
 const tools = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "tools.json"), "utf-8"))[toolSet] ?? [];
+
+/** Each field the desk named a fixed set for takes it as its enum, however deep in the tool's schema the field sits. */
+function offer(schema, fields) {
+  for (const [name, field] of Object.entries(schema?.properties ?? {})) {
+    const values = fields[name];
+    const target = field.type === "array" ? field.items : field;
+    if (values?.length > 0 && target?.type === "string") target.enum = values;
+    offer(field.type === "array" ? field.items : field, fields);
+  }
+}
+for (const tool of tools) offer(tool.inputSchema, choices[tool.name] ?? {});
 
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

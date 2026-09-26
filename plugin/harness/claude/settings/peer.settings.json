@@ -1,7 +1,7 @@
 {
   "permissions": {
     "deny": [
-      "Agent"
+      "Edit(~/.local/share/seatworks-v3/projects/*/CONTEXT.md)"
     ]
   },
   "sandbox": {

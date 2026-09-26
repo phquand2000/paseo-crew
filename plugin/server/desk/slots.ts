@@ -1,19 +1,18 @@
-import { existsSync, lstatSync, mkdirSync, readdirSync, rmSync, rmdirSync, symlinkSync } from "node:fs";
-import { dirname, join, normalize } from "node:path";
-import { addWorktree, branchExists, cleanState, contains, currentBranch, excludeFromGit, git, removeWorktree } from "../core/git.ts";
-import { workState } from "../catalog/project-files.ts";
+import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { addWorktree, branchExists, cleanState, contains, currentBranch, git, landedRef, mergeUnderWay, pristineState, removeWorktree } from "../core/git.ts";
 import type { Workspace, Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
+import { closeIndexes, openIndexes } from "./indexes.ts";
 import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
-import { clip } from "./letters.ts";
-import { type Project, loadConfig, pathProblem } from "./project.ts";
+import type { Project } from "./project.ts";
 import { errorText } from "../core/errors.ts";
 
-export type Holder = { lane?: string; task?: string };
+type Holder = { lane?: string; task?: string };
 
 /** What putting a lane's copy away means: the copy itself if it had one, the project's branch if not. */
-export type Teardown = { project: Project; slot?: string; dropBranch?: string; into?: string; restore?: string; lane?: string; branch?: string };
+type Teardown = { project: Project; slot?: string; dropBranch?: string; into?: string; restore?: string; lane?: string; branch?: string };
 
 export class Slots {
   private readonly ctx: DeskContext;
@@ -26,31 +25,30 @@ export class Slots {
   }
 
   async acquire(project: Project, branch: string, base: string, holder: Holder): Promise<Slot> {
-    const picked = await this.reserve(project, holder);
+    const picked = this.reserve(project, holder);
     try {
       const reused = await this.checkOut(project, picked, branch, base);
-      await this.placeLinks(project, picked);
       const workspaceId = picked.workspaceId ?? (await this.createWorkspace(project, picked));
       this.ctx.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
-      this.index(project, picked, reused);
+      openIndexes(this.ctx, project, picked, reused);
       return { ...picked, workspaceId };
     } catch (error) {
-      await this.free(project, picked.id);
+      this.free(project, picked.id);
       throw error;
     }
   }
 
   async inPlace(project: Project, branch: string, base: string): Promise<{ path: string; workspaceId: string }> {
-    const copy = await workState(project.root);
+    const copy = await pristineState(project.root);
     if (copy !== "clean") {
       throw new Error(
         copy === "dirty"
-          ? "the project's own working copy has uncommitted changes, so a lane cannot take it over; commit or stash them, or open the lane with isolate true"
+          ? "the project's own working copy has uncommitted changes, so a lane cannot take it over; ask the Human to commit or stash them, or open the lane with isolate true"
           : `git could not read the project's own working copy at ${project.root}, so a lane cannot take it over`,
       );
     }
     if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
-    const run = await git(project.root, ["switch", "--no-track", "-c", branch, base]);
+    const run = await git(project.root, ["switch", "-c", branch, base]);
     if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
     try {
       const taken = await this.takeOwnCopy(project);
@@ -65,7 +63,7 @@ export class Slots {
   /** Carries on the branch the project's own copy is on, or first starts `branch` from `from` there with the uncommitted work along. */
   async carryOn(project: Project, branch: string, from?: string): Promise<{ path: string; workspaceId: string }> {
     if (from) {
-      const run = await git(project.root, ["switch", "--no-track", "-c", branch]);
+      const run = await git(project.root, ["switch", "-c", branch]);
       if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
     }
     try {
@@ -92,7 +90,7 @@ export class Slots {
 
   private async takeOwnCopy(project: Project): Promise<{ path: string; workspaceId: string }> {
     const workspaceId = (await this.projectWorkspace(project)).id;
-    this.index(project, { id: "main", path: project.root, createdAt: Date.now() }, true);
+    openIndexes(this.ctx, project, { id: "main", path: project.root }, true);
     return { path: project.root, workspaceId };
   }
 
@@ -104,9 +102,9 @@ export class Slots {
     this.ctx.event(project, { kind: "lane.gaveBack", branch, base });
   }
 
-  /** A landed lane's branch is all in its base by now: the desk's to clear, not the Human's to keep. */
-  private async dropLanded(project: Project, branch: string, base: string): Promise<void> {
-    if ((await contains(project.root, base, branch)) === true) await git(project.root, ["branch", "-D", branch]);
+  /** A landed lane's branch is all under its landed ref by now: the desk's to clear, not the Human's to keep. */
+  private async dropLanded(project: Project, branch: string, into: string): Promise<void> {
+    if ((await contains(project.root, into, branch)) === true) await git(project.root, ["branch", "-D", branch]);
   }
 
   async projectWorkspace(project: Project): Promise<Workspace> {
@@ -120,6 +118,8 @@ export class Slots {
    */
   async restore(project: Project, base: string, left?: string): Promise<boolean> {
     if (left && (await currentBranch(project.root)) !== left) return true;
+    // One under way here is the desk's own, left for the lane to settle: no seat may begin one, and the lane is closing without it.
+    if (await mergeUnderWay(project.root)) await git(project.root, ["merge", "--abort"]);
     const copy = await cleanState(project.root);
     if (copy !== "clean") {
       const why = copy === "dirty" ? "it has uncommitted changes" : "git could not read it";
@@ -141,12 +141,12 @@ export class Slots {
     const waiting = [...new Set(writers)];
     if (waiting.length === 0 || (!teardown.slot && !teardown.restore)) return this.run(teardown);
     if (teardown.slot) {
-      await this.ctx.ledger(teardown.project, (ledger) => {
+      this.ctx.transact(teardown.project, (ledger) => {
         const slot = ledger.slots[teardown.slot!];
         if (slot) slot.releasing = { writers: waiting, dropBranch: teardown.dropBranch, into: teardown.into };
       });
     } else if (teardown.lane) {
-      await this.ctx.ledger(teardown.project, (ledger) => {
+      this.ctx.transact(teardown.project, (ledger) => {
         const lane = ledger.lanes[teardown.lane!];
         if (lane) lane.restoring = { writers: waiting, base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.dropBranch ? { landed: true } : {}) };
       });
@@ -155,11 +155,9 @@ export class Slots {
     return undefined;
   }
 
-  /** Finishes what a seat's own turn was holding up, once nothing else is writing in that copy. */
-  async stopped(agentId: string): Promise<void> {
-    for (const project of this.ctx.projects.values()) {
-      await this.finish(project, (id) => id === agentId);
-    }
+  /** Finishes what the seats' own turns were holding up, once nothing else is writing in that copy. */
+  async stopped(ended: (agentId: string) => boolean): Promise<void> {
+    for (const project of this.ctx.projects.values()) await this.finish(project, ended);
   }
 
   /** A writer that is no longer a seat has stopped for good: after an archive, crash or restart its turn-end never comes. */
@@ -168,40 +166,36 @@ export class Slots {
   }
 
   private async finish(project: Project, stopped: (agentId: string) => boolean): Promise<void> {
-    for (const lane of Object.values(loadLedger(project.state).lanes)) {
-      if (!lane.restoring) continue;
-      const waiting = lane.restoring.writers;
-      const left = waiting.filter((id) => !stopped(id));
-      // A record with nobody left to wait for is a restore that did not happen, retried each time.
-      if (waiting.length > 0 && left.length === waiting.length) continue;
-      if (left.length > 0) {
-        await this.ctx.ledger(project, (ledger) => {
-          const entry = ledger.lanes[lane.id];
-          if (entry?.restoring) entry.restoring.writers = left;
-        });
-        continue;
-      }
+    const ledger = loadLedger(project.state);
+    // A record with nobody left to wait for is a restore that did not happen, retried each time.
+    const due = (writers: string[]) => writers.length === 0 || writers.some(stopped);
+    for (const lane of Object.values(ledger.lanes).filter((entry) => entry.restoring && due(entry.restoring.writers))) {
+      const restoring = this.ctx.transact(project, (current) => {
+        const entry = current.lanes[lane.id]?.restoring;
+        return entry && this.leftToWait(entry, stopped);
+      });
       // The record goes only once the copy is really back: it is the only token a later round can retry from.
-      if (!(await this.restore(project, lane.restoring!.base, lane.restoring!.branch))) continue;
-      if (lane.restoring!.landed) await this.dropLanded(project, lane.restoring!.branch, lane.restoring!.base);
-      await this.ctx.ledger(project, (ledger) => {
-        const entry = ledger.lanes[lane.id];
+      if (!restoring || !(await this.restore(project, restoring.base, restoring.branch))) continue;
+      if (restoring.landed) await this.dropLanded(project, restoring.branch, landedRef(lane.id));
+      this.ctx.transact(project, (current) => {
+        const entry = current.lanes[lane.id];
         if (entry) delete entry.restoring;
       });
     }
-    for (const slot of Object.values(loadLedger(project.state).slots)) {
-      const waiting = slot.releasing?.writers ?? [];
-      const left = waiting.filter((id) => !stopped(id));
-      if (waiting.length === 0 || left.length === waiting.length) continue;
-      if (left.length > 0) {
-        await this.ctx.ledger(project, (ledger) => {
-          const entry = ledger.slots[slot.id];
-          if (entry?.releasing) entry.releasing.writers = left;
-        });
-        continue;
-      }
-      await this.release(project, slot.id, slot.releasing?.dropBranch, slot.releasing?.into);
+    for (const slot of Object.values(ledger.slots).filter((entry) => entry.releasing && entry.releasing.writers.some(stopped))) {
+      const releasing = this.ctx.transact(project, (current) => {
+        const entry = current.slots[slot.id]?.releasing;
+        return entry && entry.writers.length > 0 ? this.leftToWait(entry, stopped) : undefined;
+      });
+      if (releasing) await this.release(project, slot.id, releasing.dropBranch, releasing.into);
     }
+  }
+
+  /** Drops the writers that have stopped from a wait as it stands in the ledger; the wait comes back once nobody is left in it. */
+  private leftToWait<T extends { writers: string[] }>(wait: T, stopped: (agentId: string) => boolean): T | undefined {
+    const left = wait.writers.filter((id) => !stopped(id));
+    wait.writers = left;
+    return left.length === 0 ? { ...wait } : undefined;
   }
 
   private run(teardown: Teardown): Promise<string | undefined> {
@@ -209,9 +203,9 @@ export class Slots {
     if (teardown.restore) {
       // Recorded as a wait for nobody when it fails, so the round retries it and Detach sees it.
       return this.restore(teardown.project, teardown.restore, teardown.branch).then(async (back) => {
-        if (back && teardown.dropBranch) await this.dropLanded(teardown.project, teardown.dropBranch, teardown.restore!);
+        if (back && teardown.dropBranch && teardown.into) await this.dropLanded(teardown.project, teardown.dropBranch, teardown.into);
         if (back || !teardown.lane) return undefined;
-        await this.ctx.ledger(teardown.project, (ledger) => {
+        this.ctx.transact(teardown.project, (ledger) => {
           const lane = ledger.lanes[teardown.lane!];
           if (lane) lane.restoring = { writers: [], base: teardown.restore!, branch: teardown.branch ?? lane.branch, ...(teardown.dropBranch ? { landed: true } : {}) };
         });
@@ -227,7 +221,7 @@ export class Slots {
     const slot = loadLedger(project.state).slots[slotId];
     let kept: string | undefined;
     if (slot) {
-      this.unindex(project, slot);
+      closeIndexes(this.ctx, project, slot);
       if (existsSync(slot.path)) {
         await git(slot.path, ["switch", "--detach"]);
         await removeWorktree(project.root, slot.path);
@@ -248,13 +242,13 @@ export class Slots {
         }
       }
     }
-    await this.drop(project, slotId);
+    this.drop(project, slotId);
     this.ctx.event(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot), kept });
     return kept;
   }
 
-  private reserve(project: Project, holder: Holder): Promise<Slot> {
-    return this.ctx.ledger(project, (ledger) => {
+  private reserve(project: Project, holder: Holder): Slot {
+    return this.ctx.transact(project, (ledger) => {
       const free = Object.values(ledger.slots)
         .filter((slot) => !slot.lane && !slot.task)
         .sort((a, b) => a.createdAt - b.createdAt)[0];
@@ -273,9 +267,9 @@ export class Slots {
     if (!(await branchExists(project.root, base))) throw new Error(`the base branch ${base} does not exist`);
     if (await branchExists(project.root, branch)) throw new Error(`the branch ${branch} already exists`);
     if (existsSync(join(slot.path, ".git"))) {
-      const held = await workState(slot.path);
+      const held = await pristineState(slot.path);
       if (held !== "clean") throw new Error(held === "dirty" ? `working copy ${slot.id} has uncommitted changes` : `git could not read working copy ${slot.id} at ${slot.path}`);
-      const run = await git(slot.path, ["switch", "--no-track", "-c", branch, base]);
+      const run = await git(slot.path, ["switch", "-c", branch, base]);
       if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
       return true;
     }
@@ -285,36 +279,12 @@ export class Slots {
     return false;
   }
 
-  /** Links the Human's uncommitted, git-ignored paths into a copy made from what is committed; anything else would leave it dirty. */
-  private async placeLinks(project: Project, slot: Slot): Promise<void> {
-    for (const rel of loadConfig(project.state).links) {
-      const problem = pathProblem(project.root, rel);
-      const path = problem ? rel : normalize(rel);
-      const target = join(slot.path, path);
-      let skipped = problem;
-      if (!skipped && lstatSync(target, { throwIfNoEntry: false })) continue;
-      // Asked before the link exists, so git judges it as the file a symlink is, never as a directory.
-      if (!skipped && (await git(slot.path, ["check-ignore", "-q", "--", path])).code !== 0) skipped = "is not ignored by git, so the copy would count as changed";
-      if (!skipped) {
-        try {
-          mkdirSync(dirname(target), { recursive: true });
-          symlinkSync(join(project.root, path), target);
-          continue;
-        } catch (error) {
-          skipped = `could not be linked: ${errorText(error)}`;
-        }
-      }
-      this.ctx.log(project, `${rel} was not linked into working copy ${slot.id}: it ${skipped}`);
-      this.ctx.event(project, { kind: "link.skipped", slot: slot.id, path: rel, why: skipped });
-    }
-  }
-
   /** Files the copy under its project: given a bare directory Paseo makes a new project, and the plugin API cannot remove one. */
   private async createWorkspace(project: Project, slot: Slot): Promise<string> {
     const home = await this.projectWorkspace(project);
     if (!home.project) throw new Error(`the project's workspace in Paseo names no Paseo project, so its working copy was not made: Paseo would have made it a project of its own`);
     const { id: workspaceId } = await this.workspaces.make(`${project.slug} ${slot.id}`, slot.path, home.project);
-    await this.ctx.ledger(project, (ledger) => {
+    this.ctx.transact(project, (ledger) => {
       const entry = ledger.slots[slot.id];
       if (entry) entry.workspaceId = workspaceId;
     });
@@ -331,7 +301,7 @@ export class Slots {
     };
     for (const workspace of await this.workspaces.owned(project.slug)) {
       if (busy && workspace.name === project.slug) continue;
-      if (await this.ctx.read(project, (current) => heldIds(current).has(workspace.id))) continue;
+      if (this.ctx.read(project, (current) => heldIds(current).has(workspace.id))) continue;
       try {
         await this.workspaces.archive(workspace.id);
         this.ctx.event(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });
@@ -343,7 +313,7 @@ export class Slots {
     if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
     // Read and listed inside the lock; removal outside it is safe because a slot id is never handed out twice.
     const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => slot.path));
-    const strays = await this.ctx.read(project, (current) => {
+    const strays = this.ctx.read(project, (current) => {
       const held = live(current);
       return readdirSync(root)
         .map((name) => join(root, name))
@@ -351,7 +321,7 @@ export class Slots {
     });
     for (const path of strays) {
       // Asked again just before, for a row reserved for a path from before ids stopped being reused.
-      if (await this.ctx.read(project, (current) => live(current).has(path))) continue;
+      if (this.ctx.read(project, (current) => live(current).has(path))) continue;
       await removeWorktree(project.root, path);
       try {
         rmSync(path, { recursive: true, force: true });
@@ -373,8 +343,8 @@ export class Slots {
     } catch {}
   }
 
-  private free(project: Project, slotId: string): Promise<void> {
-    return this.ctx.ledger(project, (ledger) => {
+  private free(project: Project, slotId: string): void {
+    return this.ctx.transact(project, (ledger) => {
       const entry = ledger.slots[slotId];
       if (entry) {
         delete entry.lane;
@@ -383,27 +353,9 @@ export class Slots {
     });
   }
 
-  private drop(project: Project, slotId: string): Promise<void> {
-    return this.ctx.ledger(project, (ledger) => {
+  private drop(project: Project, slotId: string): void {
+    return this.ctx.transact(project, (ledger) => {
       delete ledger.slots[slotId];
     });
-  }
-
-  /** Each copy `index` opened got a window of its own in the IDE, and nothing closed one. */
-  private unindex(project: Project, slot: Slot): void {
-    for (const index of this.ctx.indexes(project)) {
-      void index.close(slot.path).then(
-        (result) => this.ctx.event(project, { kind: "index.closed", server: index.id, slot: slot.id, ok: result.ok, detail: clip(result.text, 200) }),
-        (error) => this.ctx.event(project, { kind: "index.closed", server: index.id, slot: slot.id, ok: false, detail: clip(errorText(error), 200) }),
-      );
-    }
-  }
-
-  private index(project: Project, slot: Slot, reused: boolean): void {
-    for (const index of this.ctx.indexes(project)) {
-      for (const pattern of index.gitExclude) excludeFromGit(project.root, pattern);
-      const work = index.open(slot.path).then((opened) => (opened.ok && reused ? index.sync(slot.path) : opened));
-      void work.then((result) => this.ctx.event(project, { kind: "index.opened", server: index.id, slot: slot.id, reused, ok: result.ok, detail: clip(result.text, 200) }));
-    }
   }
 }

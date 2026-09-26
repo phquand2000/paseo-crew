@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readSync, statSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
 
-export type GateResult = { ok: boolean; code: number | null; timedOut: boolean; seconds: number; tail: string };
+type GateResult = { ok: boolean; code: number | null; timedOut: boolean; seconds: number; tail: string };
 
 const TAIL_LINES = 40;
 const TAIL_CHARS = 3000;
 
-export function tailOf(text: string): string {
+function tailOf(text: string): string {
   const kept = text.trimEnd().split(/\r?\n/).slice(-TAIL_LINES).join("\n");
   return kept.length > TAIL_CHARS ? kept.slice(-TAIL_CHARS) : kept;
 }

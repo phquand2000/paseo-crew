@@ -3,7 +3,8 @@ import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@get
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Heading } from "./bits.tsx";
-import { type Check, message } from "./data.ts";
+import type { Check } from "../shared/views.ts";
+import { message } from "./data.ts";
 
 type Props = {
   project?: string;

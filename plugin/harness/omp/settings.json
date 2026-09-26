@@ -1,0 +1,376 @@
+{
+  "startup": {
+    "quiet": true,
+    "checkUpdate": false
+  },
+  "disabledProviders": [
+    "claude",
+    "claude-plugins",
+    "claude-md",
+    "codex",
+    "gemini",
+    "opencode",
+    "cursor",
+    "windsurf",
+    "vscode",
+    "cline",
+    "github",
+    "agents",
+    "agent-plugins",
+    "mcp-json",
+    "omp-plugins"
+  ],
+  "mcp": {
+    "enableProjectConfig": false
+  },
+  "skills": {
+    "enableClaudeUser": false,
+    "enableClaudeProject": false,
+    "enableCodexUser": false,
+    "enableAgentsUser": false,
+    "enableAgentsProject": false,
+    "enablePiProject": false
+  },
+  "memory": {
+    "backend": "off"
+  },
+  "autolearn": {
+    "enabled": false
+  },
+  "advisor": {
+    "enabled": false
+  },
+  "ask": {
+    "enabled": false
+  },
+  "github": {
+    "enabled": false
+  },
+  "task": {
+    "maxRecursionDepth": 0
+  },
+  "eval": {
+    "py": false,
+    "js": false
+  },
+  "tools": {
+    "approval": {
+      "task": "deny",
+      "eval": "deny",
+      "learn": "deny",
+      "manage_skill": "deny",
+      "memory_edit": "deny",
+      "retain": "deny"
+    },
+    "xdev": false
+  },
+  "bash": {
+    "autoBackground": {
+      "enabled": false
+    },
+    "patterns": [
+      {
+        "match": "git push",
+        "approval": "deny"
+      },
+      {
+        "match": "git push *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * push",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * push *",
+        "approval": "deny"
+      },
+      {
+        "match": "git pull",
+        "approval": "deny"
+      },
+      {
+        "match": "git pull *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * pull",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * pull *",
+        "approval": "deny"
+      },
+      {
+        "match": "git merge",
+        "approval": "deny"
+      },
+      {
+        "match": "git merge *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * merge",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * merge *",
+        "approval": "deny"
+      },
+      {
+        "match": "git checkout",
+        "approval": "deny"
+      },
+      {
+        "match": "git checkout *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * checkout",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * checkout *",
+        "approval": "deny"
+      },
+      {
+        "match": "git switch",
+        "approval": "deny"
+      },
+      {
+        "match": "git switch *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * switch",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * switch *",
+        "approval": "deny"
+      },
+      {
+        "match": "git reset",
+        "approval": "deny"
+      },
+      {
+        "match": "git reset *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * reset",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * reset *",
+        "approval": "deny"
+      },
+      {
+        "match": "git rebase",
+        "approval": "deny"
+      },
+      {
+        "match": "git rebase *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * rebase",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * rebase *",
+        "approval": "deny"
+      },
+      {
+        "match": "git update-ref",
+        "approval": "deny"
+      },
+      {
+        "match": "git update-ref *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * update-ref",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * update-ref *",
+        "approval": "deny"
+      },
+      {
+        "match": "git cherry-pick",
+        "approval": "deny"
+      },
+      {
+        "match": "git cherry-pick *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * cherry-pick",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * cherry-pick *",
+        "approval": "deny"
+      },
+      {
+        "match": "git stash",
+        "approval": "deny"
+      },
+      {
+        "match": "git stash *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * stash",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * stash *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree *",
+        "approval": "deny"
+      },
+      {
+        "match": "git branch -f*",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * branch -f*",
+        "approval": "deny"
+      },
+      {
+        "match": "git branch -D*",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * branch -D*",
+        "approval": "deny"
+      },
+      {
+        "match": "git branch --force*",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * branch --force*",
+        "approval": "deny"
+      },
+      {
+        "match": "gh",
+        "approval": "deny"
+      },
+      {
+        "match": "gh *",
+        "approval": "deny"
+      },
+      {
+        "match": "paseo",
+        "approval": "deny"
+      },
+      {
+        "match": "paseo *",
+        "approval": "deny"
+      },
+      {
+        "match": "claude",
+        "approval": "deny"
+      },
+      {
+        "match": "claude *",
+        "approval": "deny"
+      },
+      {
+        "match": "codex",
+        "approval": "deny"
+      },
+      {
+        "match": "codex *",
+        "approval": "deny"
+      },
+      {
+        "match": "opencode",
+        "approval": "deny"
+      },
+      {
+        "match": "opencode *",
+        "approval": "deny"
+      },
+      {
+        "match": "omp",
+        "approval": "deny"
+      },
+      {
+        "match": "omp *",
+        "approval": "deny"
+      },
+      {
+        "match": "pi",
+        "approval": "deny"
+      },
+      {
+        "match": "pi *",
+        "approval": "deny"
+      },
+      {
+        "match": "devin",
+        "approval": "deny"
+      },
+      {
+        "match": "devin *",
+        "approval": "deny"
+      },
+      {
+        "match": "npx claude*",
+        "approval": "deny"
+      },
+      {
+        "match": "npx codex*",
+        "approval": "deny"
+      },
+      {
+        "match": "npx opencode*",
+        "approval": "deny"
+      },
+      {
+        "match": "npx omp*",
+        "approval": "deny"
+      },
+      {
+        "match": "bunx claude*",
+        "approval": "deny"
+      },
+      {
+        "match": "bunx codex*",
+        "approval": "deny"
+      },
+      {
+        "match": "bunx opencode*",
+        "approval": "deny"
+      },
+      {
+        "match": "bunx omp*",
+        "approval": "deny"
+      }
+    ]
+  },
+  "launch": {
+    "enabled": false
+  },
+  "ttsr": {
+    "builtinRules": false
+  }
+}

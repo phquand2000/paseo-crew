@@ -1,17 +1,18 @@
-import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
 import { type Kit, type RoleSpec, can, seatOf, worksTasks } from "../catalog/kit.ts";
+import type { PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
+import { DECIDED, TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";
+import { type Ledger, laneOfLead, laneOnHold, leadLaneOf, loadLedger, taskOfPeer } from "../desk/ledger.ts";
 import { letters } from "../desk/letters.ts";
 import { type Project, projectOf } from "../desk/project.ts";
 import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
 
-type TurnEnded = PluginLifecycleEvents["agent.turn_ended"];
-
-export type TurnDeps = {
+type TurnDeps = {
   kit: Kit;
   desk: Desk;
+  seats: Pick<Seats, "respond">;
   remember: (project: Project) => void;
+  log: (project: Project, line: string) => void;
 };
 
 export class TurnRules {
@@ -32,18 +33,55 @@ export class TurnRules {
     this.lastEnding.delete(agentId);
   }
 
-  async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<string | undefined> {
+  private async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<{ to: string | undefined; reader: "lead" | "supervisor" }> {
     // A Lead's owner is whoever supervises; an unreadable ledger must not stop its failures reaching anyone.
     if (can(role, "lead")) {
       let opener: string | undefined;
       try {
         opener = laneOfLead(loadLedger(project.state), agentId)?.opener;
       } catch {}
-      return this.deps.desk.supervisorFor(project, opener);
+      return { to: await this.deps.desk.supervisorFor(project, opener), reader: "supervisor" };
     }
     const ledger = loadLedger(project.state);
     const task = taskOfPeer(ledger, agentId);
-    return task ? ledger.lanes[task.lane]?.lead : undefined;
+    return { to: task ? ledger.lanes[task.lane]?.lead : undefined, reader: "lead" };
+  }
+
+  /** A seat stopped on a permission: refused while its lane is on hold, else its owner is told, for the Human to give it. */
+  async permission({ agent, request }: PermissionRequested): Promise<void> {
+    const role = seatOf(this.deps.kit, agent.provider)?.role;
+    if (!role?.tools) return;
+    const project = projectOf(agent.cwd);
+    const hold = laneOnHold(project.state, agent.id);
+    if (hold && request.id) {
+      await this.deps.seats.respond(agent.id, request.id, { behavior: "deny", message: `Lane ${hold.id} is on hold: ${hold.onHold!.reason}. Do nothing more until you are told it resumes.` });
+      return;
+    }
+    // A seat stopped on a question reads nothing, and a team waiting on a sleeping Human is stuck: the question goes by the desk.
+    if (request.kind === "question" && request.id) {
+      const instead = can(role, "supervise") ? "put it to the Human with ask_human, or ask them in your reply and end your turn" : "ask it with ask, then end your turn; the answer arrives as a message";
+      await this.deps.seats.respond(agent.id, request.id, { behavior: "deny", message: `A question that stops your turn is not taken here: ${instead}.` });
+      return;
+    }
+    if (can(role, "supervise")) {
+      this.deps.log(project, `waiting on the Human: ${agent.id} ${request.title ?? request.name ?? request.kind}`);
+      return;
+    }
+    const owner = await this.ownerOf(project, agent.id, role);
+    await this.deps.desk.post(owner.to, letters.permission(agent.id, `${role.label} ${agent.title ?? agent.id}`, request, owner.reader));
+  }
+
+  /** The Human wrote to a Lead or Peer in its own chat: whoever supervises is told, so nothing reaches a lane past its owner unseen. */
+  async spoke(seat: { id: string; provider: string; cwd: string }, text: string): Promise<void> {
+    const role = seatOf(this.deps.kit, seat.provider)?.role;
+    if (!role || can(role, "supervise")) return;
+    const project = projectOf(seat.cwd);
+    const ledger = loadLedger(project.state);
+    const task = taskOfPeer(ledger, seat.id);
+    const lane = task ? ledger.lanes[task.lane] : leadLaneOf(ledger, seat.id);
+    if (!lane) return;
+    const to = await this.deps.desk.supervisorFor(project, lane.opener);
+    await this.deps.desk.post(to, letters.humanWrote(lane, task, seat.id, text));
   }
 
   async ended(event: TurnEnded): Promise<void> {
@@ -59,7 +97,7 @@ export class TurnRules {
     this.lastEnding.set(agent.id, text);
     if (outcome.kind === "failed") {
       const owner = await this.ownerOf(project, agent.id, role);
-      await this.deps.desk.post(owner, `failed:${agent.id}:${event.turnId ?? Date.now()}`, letters.failed(`${role.label} ${agent.title ?? agent.id}`, outcome.error.message));
+      await this.deps.desk.post(owner.to, letters.failed(agent.id, event.turnId ?? Date.now(), `${role.label} ${agent.title ?? agent.id}`, outcome.error.message, owner.reader));
       return;
     }
     const ledger = loadLedger(project.state);
@@ -74,30 +112,32 @@ export class TurnRules {
     const { agent, timeline } = event;
     const task = taskOfPeer(ledger, agent.id);
     if (!task) return;
-    const settled = ["merged", "cut", "queued", "merging"].includes(task.status);
-    if (settled && !recorded) return;
+    if (DECIDED.includes(task.status) && !recorded) return;
     const lane = ledger.lanes[task.lane];
     if (recorded || task.status === "done") {
       // Heard from, so the quiet count restarts; left standing it was a lifetime tally.
-      if (spoke && task.silent > 0) await desk.setTask(project, task.id, (entry) => { entry.silent = 0; });
+      if (spoke && task.silent > 0) desk.setTask(project, task.id, (entry) => { entry.silent = 0; });
       // Nothing else sets a stalled task back to running once its Peer works again.
-      if (recorded && task.status === "stalled") await desk.setTask(project, task.id, (entry) => { if (entry.status === "stalled") { entry.status = "running"; delete entry.peerGone; } });
+      if (recorded && task.status === "stalled") desk.moveTask(project, task.id, "resume", (entry) => { delete entry.peerGone; });
       return;
     }
     // A call still in flight is not silence: a nudge here started a second gate beside the first.
     if (desk.inFlight(agent.id)) return;
-    const denied = deniedCall(timeline);
+    const denied = deniedCall(timeline, this.deps.kit.ecosystem.watch.refused);
     desk.event(project, { kind: "turn.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false, lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600) });
-    const updated = await desk.setTask(project, task.id, (entry) => {
+    const updated = desk.setTask(project, task.id, (entry) => {
       entry.silent += 1;
-      if (entry.silent >= 2 || denied) entry.status = "stalled";
+      if (entry.silent >= 2 || denied) TASK.move(entry, "stall");
     });
     if (!updated) return;
     if (updated.status !== "stalled") {
-      await desk.post(agent.id, `nudge:${task.id}:${updated.silent}:${Date.now()}`, letters.nudge("done"));
+      await desk.post(agent.id, letters.nudge(updated, "done"));
       return;
     }
-    await desk.post(lane?.lead, `silent:${task.id}:${updated.silent}`, letters.stalled(task, text, updated.silent, denied));
+    await desk.post(lane?.lead, letters.stalled(task, text, updated.silent, denied));
     desk.event(project, { kind: "task.silent", task: task.id, denied: denied?.what ?? null, refused: denied?.refused ?? false });
+    if (task.status === "stalled") return;
+    const why = denied ? `its Peer's last call ${denied.refused ? "was refused" : "did not finish"}: ${denied.what}` : `its Peer ended ${updated.silent} turns without a hand-back or an ask`;
+    await desk.post(await desk.supervisorFor(project, lane?.opener), letters.moment("STRUGGLING", updated, why));
   }
 }

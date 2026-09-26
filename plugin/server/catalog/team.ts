@@ -1,28 +1,24 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Attention } from "../../shared/views.ts";
 import {
-  type Attention,
   type HarnessSpec,
   type Kit,
   type McpEntry,
-  type McpServers,
   type McpTransport,
   type ModelSpec,
-  type ProxySpec,
   type RoleSpec,
   type SensorSpec,
-  PASEO_TOOLS,
+  PASEO_SERVER,
+  TEAM_SERVER,
   can,
   supportsRole,
   agentDefault,
-  paseoToolsPolicy,
-  teamServer,
-  toolsOf,
 } from "./kit.ts";
-import type { Connect, Layer, McpChoice } from "./settings.ts";
+import type { Connect, Layer, McpChoice } from "../../shared/settings.ts";
 
-export type SettingValue = string | number | boolean;
-export type McpState = {
+type SettingValue = string | number | boolean;
+type McpState = {
   id: string;
   label: string;
   entry?: McpEntry;
@@ -33,12 +29,14 @@ export type McpState = {
   roles: string[];
   settings: Record<string, SettingValue>;
 };
-export type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec; thinking?: string; rules: string; mcp: string[] };
+type RoleSeat = { role: RoleSpec; harness: HarnessSpec; model?: ModelSpec; thinking?: string; rules: string; mcp: string[] };
+/** Who answers the watch's questions, as the settings chose: a sensor, and its key where a settings layer keeps one, or a seat of a role that can judge. */
+type JudgeChoice = { id: string; sensor: SensorSpec; key?: string } | { id: string; role: string };
 export type Team = {
   roles: Record<string, RoleSeat>;
   mcp: Record<string, McpState>;
   attention: Attention;
-  sensor?: { spec: SensorSpec; key: string };
+  judge?: JudgeChoice;
   rules: string;
   errors: string[];
 };
@@ -47,38 +45,33 @@ export function templateRoles(entry: McpEntry): string[] {
   return entry.kind === "proxy" ? Object.keys(entry.tools ?? {}) : (entry.roles ?? []);
 }
 
-/** No roles named means every role working with tools, not a watcher: a pasted server's tools can write. */
-export function eligibleRoles(state: McpState, kit: Kit): string[] {
+/** No roles named means every role working with tools. */
+function eligibleRoles(state: McpState, kit: Kit): string[] {
   const entry = state.entry;
   if (entry?.kind === "proxy") return Object.keys(state.tools ?? entry.tools ?? {});
-  const working = () => kit.roles.filter((role) => role.tools && !can(role, "watch")).map((role) => role.role);
-  if (entry) return entry.roles ?? working();
-  return working();
+  return entry?.roles ?? kit.roles.filter((role) => role.tools).map((role) => role.role);
 }
 
 export function transportOf(state: McpState): McpTransport {
   if (state.entry?.kind === "proxy") return "stdio";
-  return state.connect?.type ?? (state.entry?.server?.type as McpTransport | undefined) ?? "stdio";
+  return state.connect?.type ?? state.entry?.server?.type ?? "stdio";
 }
 
-export function connectToServer(connect: Connect): Record<string, unknown> | undefined {
-  if (connect.type === "stdio") {
-    const [command, ...args] = connect.command ?? [];
-    if (!command) return undefined;
-    return { type: "stdio", command, ...(args.length > 0 ? { args } : {}), ...(connect.env ? { env: connect.env } : {}) };
-  }
-  if (!connect.url) return undefined;
-  return { type: connect.type, url: connect.url, ...(connect.headers ? { headers: connect.headers } : {}) };
-}
-
-export function fill(template: string, settings: Record<string, SettingValue>): string {
-  return template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in settings ? String(settings[key]) : whole));
+/** The roles a server goes to: those named, where it can serve them, or else each it can serve but a judge, which answers from its case and the record. */
+function rolesOf(state: McpState, kit: Kit, named: string[] | undefined, errors: string[]): string[] {
+  const eligible = eligibleRoles(state, kit);
+  for (const role of named ?? []) if (!eligible.includes(role)) errors.push(`${state.label} can't be given to the ${role} role: it has nothing for that role`);
+  return (named ?? eligible.filter((role) => !can(kit.roles.find((entry) => entry.role === role), "judge"))).filter((role) => eligible.includes(role));
 }
 
 function resolveMcp(kit: Kit, layers: Layer[], errors: string[]): Record<string, McpState> {
   const states: Record<string, McpState> = {};
   const ids = new Set([...Object.keys(kit.mcp), ...layers.flatMap((layer) => Object.keys(layer.mcp ?? {}))]);
   for (const id of ids) {
+    if (id === TEAM_SERVER || id === PASEO_SERVER) {
+      errors.push(`The MCP server ${id} has the name of a server every seat already has, so it would replace that one; it is left out: paste it again under another name`);
+      continue;
+    }
     const entry = kit.mcp[id];
     const choices = layers.map((layer) => layer.mcp?.[id]).filter((choice): choice is McpChoice => choice !== undefined);
     const settings: Record<string, SettingValue> = {};
@@ -111,11 +104,7 @@ function resolveMcp(kit: Kit, layers: Layer[], errors: string[]): Record<string,
       continue;
     }
     const state: McpState = { id, label, entry, connect, rule, tools, enabled, roles: [], settings };
-    const eligible = eligibleRoles(state, kit);
-    for (const role of roles ?? []) {
-      if (!eligible.includes(role)) errors.push(`${label} can't be given to the ${role} role: it has nothing for that role`);
-    }
-    state.roles = (roles ?? eligible).filter((role) => eligible.includes(role));
+    state.roles = rolesOf(state, kit, roles, errors);
     states[id] = state;
   }
   return states;
@@ -141,7 +130,7 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
       `The ${role.label} is given the tool set ${role.tools}, which this kit does not have. A seat with no tools starts, offers none and can never answer; the sets it can be given are ${Object.keys(kit.toolSets).sort().join(", ") || "none"}.`,
     );
   }
-  const unknownTools = (role.paseoTools?.allow ?? []).filter((tool) => !PASEO_TOOLS.includes(tool));
+  const unknownTools = (role.paseoTools?.allow ?? []).filter((tool) => !kit.paseoTools.includes(tool));
   if (unknownTools.length > 0) {
     errors.push(
       `The ${role.label} is allowed Paseo tools this kit does not know: ${unknownTools.join(", ")}. An allow list is applied by denying everything else, so an unknown name denies the ${role.label} every Paseo tool rather than granting it one.`,
@@ -162,13 +151,13 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
   // Paseo refuses a bare provider before the daemon, which surfaced only as a format error at open_lane.
   if (!model) errors.push(`Paseo has listed no models for ${harness.label} yet and none is chosen for the ${role.label}; Paseo starts an agent only with one, so refresh the models or choose one`);
   let thinking: string | undefined;
-  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  const options = model?.thinkingOptions ?? [];
   if (options.length > 0) {
     if (choice.thinking && !options.some((option) => option.id === choice.thinking)) {
       errors.push(`${model!.label} on ${harness.label} has no thinking option ${choice.thinking} for the ${role.label}`);
     }
     thinking = options.some((option) => option.id === choice.thinking) ? choice.thinking : (options.find((option) => option.isDefault) ?? options[0])!.id;
-  } else if (choice.thinking && harness.hasThinking !== false && model && !models.some((entry) => entry.id === model!.id)) {
+  } else if (choice.thinking && model && !models.some((entry) => entry.id === model!.id)) {
     // No thinking options listed is not a list of none: the owner's choice is kept.
     thinking = choice.thinking;
   }
@@ -183,14 +172,6 @@ function resolveRole(kit: Kit, role: RoleSpec, layers: Layer[], mcp: Record<stri
     }
   }
   return { role, harness, model, thinking, rules: ownRules.join("\n\n"), mcp: enabled };
-}
-
-export function jevOn(team: Pick<Team, "attention" | "sensor">): boolean {
-  return team.attention.by === "jev" && Boolean(team.sensor);
-}
-
-export function watchOn(team: Pick<Team, "attention" | "sensor">): boolean {
-  return team.attention.by === "seat" || jevOn(team);
 }
 
 /** `unread` layers are reported, since resolving to nothing looked like a complete team the owner never wrote. */
@@ -215,17 +196,28 @@ export function resolveTeam(kit: Kit, machine: Layer = {}, project: Layer = {}, 
     const seat = role.follows === undefined ? own[role.role] : resolveRole(kit, role, layers, mcp, errors, origin);
     if (seat) roles[role.role] = seat;
   }
-  const sensors = Object.values(kit.sensors);
-  if (sensors.length > 1) errors.push(`The kit ships ${sensors.length} sensors, and the desk can use one`);
-  const spec = sensors.length === 1 ? sensors[0] : undefined;
+  const attention = { ...kit.attention, ...stripUndefined(machine.attention), ...stripUndefined(project.attention) };
   return {
     roles,
     mcp,
-    ...(spec && machine.sensor?.key ? { sensor: { spec, key: machine.sensor.key } } : {}),
-    attention: { ...kit.attention, ...stripUndefined(machine.attention), ...stripUndefined(project.attention) },
+    attention,
+    judge: judgeOf(kit, attention.judge, layers, errors),
     rules: [machine.rules, project.rules].filter((text) => text && text.trim()).join("\n\n"),
     errors,
   };
+}
+
+function judgeOf(kit: Kit, id: string, layers: Layer[], errors: string[]): JudgeChoice | undefined {
+  if (id === "off") return undefined;
+  const sensor = kit.sensors[id];
+  const judges = kit.roles.filter((role) => can(role, "judge")).map((role) => role.role);
+  if (!sensor) {
+    if (judges.includes(id)) return { id, role: id };
+    errors.push(`The watch is set to be judged by ${id}, which is neither off, a sensor the kit knows nor a role that can judge (${[...Object.keys(kit.sensors), ...judges].join(", ") || "none"})`);
+    return undefined;
+  }
+  const key = layers.map((layer) => layer.sensor?.[id]?.key).filter(Boolean).at(-1);
+  return { id, sensor, ...(key ? { key } : {}) };
 }
 
 function stripUndefined<T extends object>(value: T | undefined): Partial<T> {
@@ -239,9 +231,9 @@ export function withHarness(team: Team, roleName: string, harness: HarnessSpec):
   const preset = harness.id === seat.role.defaults.harness ? seat.role.defaults : undefined;
   // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
   const model = preset?.model ? (models.find((entry) => entry.id === preset.model) ?? { id: preset.model, label: preset.model }) : agentDefault(Object.values(team.roles).map((entry) => entry.role), harness);
-  const options = harness.hasThinking === false ? [] : (model?.thinkingOptions ?? []);
+  const options = model?.thinkingOptions ?? [];
   const offCatalog = Boolean(preset?.model) && !models.some((entry) => entry.id === preset!.model);
-  const thinking = offCatalog && harness.hasThinking !== false ? preset!.thinking : (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id;
+  const thinking = offCatalog ? preset!.thinking : (options.find((option) => option.id === preset?.thinking) ?? options.find((option) => option.isDefault) ?? options[0])?.id;
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 
@@ -254,59 +246,6 @@ export function servingProject(team: Team, root: string): Team {
     mcp: Object.fromEntries(Object.entries(team.mcp).map(([id, state]) => [id, lacking.has(id) ? { ...state, enabled: false } : state])),
     roles: Object.fromEntries(Object.entries(team.roles).map(([name, seat]) => [name, { ...seat, mcp: seat.mcp.filter((id) => !lacking.has(id)) }])),
   };
-}
-
-export type IndexedProxy = ProxySpec & { id: string; label: string; backend: { type: "http"; url: string } };
-
-export function proxyOf(state: McpState): ProxySpec | undefined {
-  return state.entry?.proxy ? (JSON.parse(fill(JSON.stringify(state.entry.proxy), state.settings)) as ProxySpec) : undefined;
-}
-
-export function indexedProxies(team: Team): IndexedProxy[] {
-  const found: IndexedProxy[] = [];
-  for (const state of Object.values(team.mcp)) {
-    const proxy = state.enabled ? proxyOf(state) : undefined;
-    // Keyed on opening alone, a preset without an open tool lost the sync and git exclude, and a Peer could commit `.idea/`.
-    const serves = Boolean(proxy?.open || proxy?.close || proxy?.sync || proxy?.gitExclude?.length);
-    if (proxy && serves && proxy.backend.type === "http") found.push({ ...proxy, backend: proxy.backend, id: state.id, label: state.label });
-  }
-  return found;
-}
-
-export function serversFor(kit: Kit, team: Team, roleName: string, context: { node: string; spool: string }): McpServers {
-  const seat = team.roles[roleName];
-  if (!seat) return {};
-  const desk = teamServer(kit, seat.role, context.spool, context.node);
-  const servers: McpServers = { ...desk };
-  for (const id of seat.mcp) {
-    const state = team.mcp[id]!;
-    const { entry } = state;
-    if (entry?.kind === "proxy") {
-      const tools = (state.tools ?? entry.tools)?.[roleName] ?? [];
-      if (tools.length === 0) continue;
-      const config = { name: id, label: state.label, instructions: entry.instructions ?? "", tools, ...proxyOf(state) };
-      servers[id] = { type: "stdio", command: context.node, args: [join(kit.dir, "mcp", "code.mjs"), JSON.stringify(config)] };
-      continue;
-    }
-    const shaped = state.connect ? connectToServer(state.connect) : entry?.server ? JSON.parse(fill(JSON.stringify(entry.server), state.settings)) : undefined;
-    if (shaped) servers[id] = shaped;
-  }
-  return servers;
-}
-
-export function preapprovedFor(kit: Kit, team: Team, roleName: string): { kind: "mcp"; server: string; tool: string }[] {
-  const seat = team.roles[roleName];
-  if (!seat) return [];
-  const refs = (server: string, tools: string[]) => tools.map((tool) => ({ kind: "mcp" as const, server, tool }));
-  const approved = seat.role.tools ? refs("team", toolsOf(kit, seat.role)) : [];
-  // Paseo adds its own server at launch, named "paseo"; only the tools this role is allowed there.
-  const paseo = paseoToolsPolicy(seat.role);
-  if (paseo?.enabled !== false) approved.push(...refs("paseo", PASEO_TOOLS.filter((tool) => !paseo?.disabledTools?.includes(tool))));
-  for (const id of seat.mcp) {
-    const state = team.mcp[id]!;
-    if (state.entry?.kind === "proxy") approved.push(...refs(id, (state.tools ?? state.entry.tools)?.[roleName] ?? []));
-  }
-  return approved;
 }
 
 export function rulesFor(team: Team, roleName: string): string {
@@ -325,7 +264,6 @@ export function rulesFor(team: Team, roleName: string): string {
     if (note) lines.push(note);
     if (lines.length > 0) parts.push(lines.join("\n\n"));
   }
-  if (seat.harness.mcp.rule && seat.mcp.length > 0) parts.push(seat.harness.mcp.rule);
   if (team.rules) parts.push(`## Rules from the Human\n\n${team.rules.trim()}`);
   if (seat.rules) parts.push(`## Rules from the Human, for the ${seat.role.label}\n\n${seat.rules}`);
   return parts.length > 0 ? `# Working rules\n\n${parts.join("\n\n")}\n` : "";

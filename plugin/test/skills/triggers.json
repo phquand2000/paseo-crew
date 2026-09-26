@@ -41,7 +41,12 @@
     { "brief": "An outside security firm wants to read the auth module without cloning the repository. Prepare what they need.", "expect": ["ultra-review"] },
     { "brief": "Before the release branch is cut, run a maximum-recall bug hunt over the sync engine rewrite.", "expect": ["ultra-review"] },
     { "brief": "Review the one-line change in the last task before accepting it.", "expect": [], "near": "ultra-review" },
-    { "brief": "A task handed back a small fix to the date parser; check it meets its acceptance.", "expect": [], "near": "ultra-review" }
+    { "brief": "A task handed back a small fix to the date parser; check it meets its acceptance.", "expect": [], "near": "ultra-review" },
+    { "brief": "OWNER DIRECTIVE L2: Store every order total as integer cents instead of floats, and backfill the orders already in the database; old rows must stay readable while it runs.", "expect": ["planning-lanes"]},
+    { "brief": "OWNER DIRECTIVE L4: Replace cookie sessions with signed tokens across the API gateway and the three services that read sessions today.", "expect": ["planning-lanes"]},
+    { "brief": "OWNER DIRECTIVE L3: Split the billing module into invoicing and payments. The checkout flow calls both, and the refund job writes to the same ledger table.", "expect": ["planning-lanes"]},
+    { "brief": "OWNER DIRECTIVE L5: Fix the typo in the label of the checkout button.", "expect": [], "near": "planning-lanes" },
+    { "brief": "OWNER DIRECTIVE L6: Add a --verbose flag to the export command that prints each step it takes.", "expect": [], "near": "planning-lanes" }
   ],
   "peer": [
     { "brief": "Goal: checkout sometimes returns 500 since yesterday's deploy. Nobody knows why. Find the cause and fix it.", "expect": ["diagnosing-bugs"] },
@@ -66,26 +71,18 @@
     { "brief": "Goal: the release checklist says the benchmark in bench/parse.ts proves parsing stays under 5 ms. Say whether that proof holds.", "expect": ["test-proof-debt-audit"] },
     { "brief": "Goal: a reviewer suspects the snapshot test for the invoice renderer passes no matter what the renderer does. Audit that one claim.", "expect": ["test-proof-debt-audit"] },
     { "brief": "Goal: coverage of the billing module is 40 percent. Add tests.", "expect": ["test-first"], "near": "test-proof-debt-audit" },
-    { "brief": "Goal: tests/cart.test.ts started failing after the last merge. Make it pass.", "expect": ["diagnosing-bugs"], "near": "test-proof-debt-audit" },
-
-    { "brief": "Goal: refresh docs/ and scripts/ around what production does today: merge or delete stale guides, finished plans and one-off scripts. Owned: docs/, scripts/.", "expect": ["repo-refresh"] },
-    { "brief": "Goal: audit tests/ and tools/ for dead proof machinery, orphaned fixtures and generated reports, and remove what no current contract needs. Acceptance: every live reference still resolves.", "expect": ["repo-refresh"] },
-    { "brief": "Goal: the repository has drifted from production; classify every stale document, plan and fixture and cut the ones that no longer hold. Owned: the whole tree except src/.", "expect": ["repo-refresh"] },
-    { "brief": "Goal: delete the unused helper parseLegacyId in src/ids.ts and its one caller.", "expect": [], "near": "repo-refresh" },
-    { "brief": "Goal: rename the config key retryCount to maxRetries everywhere it is read.", "expect": [], "near": "repo-refresh" }
+    { "brief": "Goal: tests/cart.test.ts started failing after the last merge. Make it pass.", "expect": ["diagnosing-bugs"], "near": "test-proof-debt-audit" }
   ],
   "reviewer": [
     { "brief": "Focus: does tests/refund.test.ts really prove that a refund above the original charge is refused?", "expect": ["test-proof-debt-audit"] },
     { "brief": "Focus: the task cites the schema validator as proof that every event carries a timestamp. Check that proof.", "expect": ["test-proof-debt-audit"] },
     { "brief": "Focus: would the retry test notice if the client stopped retrying?", "expect": ["test-proof-debt-audit"] },
     { "brief": "Focus: review the change to the date parser for correctness.", "expect": [], "near": "test-proof-debt-audit" },
-    { "brief": "Focus: the tests use mocks for the mailer; check the change is otherwise sound.", "expect": [], "near": "test-proof-debt-audit" }
-  ],
-  "hunter": [
-    { "brief": "REVIEW L1-R1: hunt the payments migration\n\nOpen question:\nScope: src/payments/**. Change intent: move ledger writes to the outbox. Directives D01 idempotency, D02 rollback. Hand back every candidate.", "expect": ["ultra-hunt"] },
-    { "brief": "REVIEW L2-R3: ultra review of the sync engine rewrite\n\nOpen question:\nRun a maximum-recall bug hunt across src/sync/** with its units and scout assignment below; keep speculative candidates.", "expect": ["ultra-hunt"] },
-    { "brief": "REVIEW L3-R2: bug hunt before release\n\nOpen question:\nScope: the auth module. Concerns G01 token lifetime, G02 session fixation. Findings F001 onward, grouped by root cause.", "expect": ["ultra-hunt"] },
-    { "brief": "REVIEW L1-R4 of L1-T3: fix date parsing\n\nOpen question:\nDoes this one-line change meet its acceptance?", "expect": [], "near": "ultra-hunt" },
-    { "brief": "REVIEW L2-R1: which module owns retries?\n\nOpen question:\nAnswer in two sentences which file decides the retry count.", "expect": [], "near": "ultra-hunt" }
+    { "brief": "Focus: the tests use mocks for the mailer; check the change is otherwise sound.", "expect": [], "near": "test-proof-debt-audit" },
+    { "brief": "Focus: the task adds an upload endpoint that stores files under a path the user supplies. Check it for traversal and for reaching other users' files.", "expect": ["security-check"]},
+    { "brief": "Focus: review the new password reset flow: how long a token lives, whether it can be used twice, and whether the reset link reaches the logs.", "expect": ["security-check"]},
+    { "brief": "Focus: the change moves the API keys out of the code into environment variables. Check that nothing secret is still committed or printed.", "expect": ["security-check"]},
+    { "brief": "Focus: check that the new pagination returns every row exactly once.", "expect": [], "near": "security-check" },
+    { "brief": "Focus: review the refactor of the invoice totals for any change in behavior.", "expect": [], "near": "security-check" }
   ]
 }

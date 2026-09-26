@@ -1,59 +1,10 @@
-# Paseo Crew
+# Seatworks
 
 A [Paseo](https://paseo.sh) plugin that runs a team of coding agents the **SLP** way. A
 **Supervisor** works with you, a **Lead** owns each line of work, and **Peers** each do one task. A
-**Reviewer** reads the work with clean context, a **Hunter** hunts a whole scope for bugs, and a
-**Watcher** reads how it is being done.
+**Reviewer** reads the work with clean context.
 
 > **Pre-release.** Nothing has shipped: no releases, no compatibility promises.
-
-## Origin
-
-Paseo Crew is a clone of [Seatworks](https://github.com/sting9k/seatworks) by long7400, taken from
-branch `v2` at commit
-[`efd0da0`](https://github.com/sting9k/seatworks/commit/efd0da00e5a7eea08579652a4e110b606e0e8161)
-(version 2.0.3), and customized from there. It is an independent copy, not a GitHub fork, and is not
-affiliated with or endorsed by the Seatworks author. The full upstream history is kept, the
-[MIT license](LICENSE) is unchanged, and [NOTICE.md](NOTICE.md) still describes where the bundled
-skills come from.
-
-Changes from upstream so far:
-
-- Renamed so both can be installed side by side: plugin id `seatworks-v2` → `paseo-crew`, provider
-  prefix `sw2-` → `crew-`, state directory `~/.local/share/seatworks-v2` → `~/.local/share/paseo-crew`,
-  environment variables `SEATWORKS_*` → `PASEO_CREW_*`, RPC and label namespace `seatworks.` →
-  `paseo-crew.`, and the `AGENTS.md` block markers `seatworks:begin`/`seatworks:end` →
-  `paseo-crew:begin`/`paseo-crew:end`.
-- Version raised to 2.1.0. Behaviour is otherwise the same as upstream.
-- 2.1.1: accepts Paseo `>=0.8.0 <0.10.0` and is built and tested against the 0.9.1 SDK; tests
-  resolve their own paths with `fileURLToPath`, so the suite passes in a directory whose path has
-  spaces.
-- 2.2.0: `links`, `writable` and `claudePointer` in a project's `project.json`, for a project that
-  keeps its agent instructions and plans out of git. See
-  [Local files](docs/REFERENCE.md#local-files). State format 2 adds these values to each existing
-  `project.json`, with defaults that keep 2.1 behaviour. An older Paseo Crew refuses state format 2.
-- 2.3.0: a repository that keeps its own workflow in `docs/WORKFLOW.md` (as a Harness install does)
-  owns plans, decisions, rules for code and the Human's word in `docs/product/`; the team keeps
-  lanes, tasks, reviews, mail and landing. Prompts and guides point at the project's own files;
-  nothing from Harness is shipped here. A repository without `docs/WORKFLOW.md` works as before.
-- 3.0.0: Pi and Devin CLI are gone; OpenCode and Antigravity (`agy`) take their place. A project
-  that still names `pi` or `devin` shows "unknown harness" in Health until you pick another agent.
-  Peer and Reviewer default to Codex `gpt-5.5`. A new **Hunter** role runs the Lead's ultra-review
-  hunt: one seat, ten scouts of its own, one hand-back, where the Lead used to start ten Reviewers.
-  Peers get `repo-refresh`. An OpenCode seat loads only its role's skills.
-- 3.1.0: Supervisor, Lead and Peer default to Claude `claude-opus-5-5` at high thinking. A new
-  **Backup Peer** on Codex `gpt-5.6-luna` at max takes tasks the Lead starts with
-  `role: "backup-peer"` when the Peer's agent runs short of quota.
-- 3.1.1: The Lead no longer cuts a Peer stopped on a usage limit, which threw its work away; it
-  messages the Peer to continue once the limit resets.
-- 3.2.0: A **Senior Reviewer** on Codex `gpt-6-astra` at xhigh reads complex or high-stakes design
-  when the Lead starts a review with `role: "senior-reviewer"`. The Reviewer is unchanged.
-- 3.3.0: Seatworks v2 up to 2.0.6 (`50c3a2f`) is ported: the Supervisor sees the Human's own
-  checkout; a lane can carry on the Human's branch (`onBranch`, `newBranch`), wait for other lanes
-  (`after`) or take its own copy (`isolate`), and be amended in flight (`amend_lane`); a lane whose
-  Lead is gone gets a new one (`replace_lead`); a Lead can amend a task (`amend_task`) or start one
-  that waits (`start_task` `after`). State formats 3–5 carry upstream's formats 2–4, shifted by one
-  after this project's format 2. An older Paseo Crew refuses state format 5.
 
 ![SLP: who decides what](docs/images/slp-graph.svg)
 
@@ -66,22 +17,27 @@ call, or yours.
 |---|---|---|
 | Configures and starts one agent per seat | Lanes may not overlap in what they write | Judge the work |
 | Keeps a shared desk of lanes, tasks and questions | One writer per working copy | Pass on to a seat what the watch concluded about it |
-| Carries messages, and holds them until a seat can take them | A red gate (your test command) stops a lane from landing | Write your project's concept for you |
-| Keeps a durable record outside your repo | Each role's permissions, where the agent allows it | |
-| Watches Leads and Peers, and tells whoever answers for them | | |
+| Carries messages, each ending with what it asks of its reader, and holds them until a seat can take them | A red gate (your test command) stops a lane from landing, unless the Supervisor lands over it with a reason | Write your project's concept for you |
+| Keeps a durable record outside your repo | A landing that touches a path you asked about first waits for you | Write into your project's files |
+| Watches Leads and Peers, tells whoever answers for them, and pages you for what cannot be undone | Each role's permissions, where the agent allows it, and git commands only the desk runs | |
 
 ## How a piece of work goes
 
 1. **You talk to the Supervisor.** Before new work starts, it asks you questions in numbered rounds,
    with its recommended answer to each. What you settle about how the project behaves goes into the
-   project's `CONTEXT.md`, outside your repo.
+   project's `CONTEXT.md`, outside your repo, and what you settle for every lane (which paths you want
+   to see before they land, where lanes work) becomes a standing order.
 2. **The Supervisor opens a lane** with an outcome and acceptance criteria. The desk seats a Lead for
    it.
 3. **The Lead splits the lane into tasks.** It starts a Peer on each task, has a Reviewer read each
    big task and then the whole lane, and accepts or sends the work back.
 4. **The Lead reports the lane ready.** The desk runs the gate first.
-5. **The Supervisor closes the lane.** The desk merges in your base branch if it moved, runs the
-   gate on the result, then fast-forwards the base.
+5. **The Supervisor lands the lane.** The desk merges in your base branch if it moved, runs the gate
+   on the result, then lands it on your base as one commit (or as your repository lands work). A lane
+   that touches a path you asked about waits for you on the **Flow** tab.
+
+While you are away, a decision only you can make waits in your queue on the **Flow** tab, with the
+Supervisor's recommendation and what goes ahead meanwhile; the **Report** tab tells your last day.
 
 The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane).
 
@@ -89,36 +45,32 @@ The step-by-step picture is in [A lane, end to end](docs/ARCHITECTURE.md#a-lane)
 
 | Role | Owns | Default agent |
 |---|---|---|
-| Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5-5` · high |
-| Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5-5` · high |
-| Peer | One task, and the engineering judgement inside it | Claude Code · `claude-opus-5-5` · high |
-| Backup Peer | The same, when the Peer's agent runs short of quota: the Lead starts it with `role: "backup-peer"` | Codex · `gpt-5.6-luna` · max |
-| Reviewer | A read-only review of one change | Codex · `gpt-5.5` |
-| Senior Reviewer | The same, for complex or high-stakes design: the Lead starts it with `role: "senior-reviewer"` | Codex · `gpt-6-astra` · xhigh |
-| Hunter | A read-only bug hunt across one scope, with ten scouts of its own | Antigravity · `gemini-3.8-flash-high` |
-| Watcher | Reading Leads and Peers as they work. It cannot touch the work | the Peer's agent |
+| Supervisor | Your intent, across lanes: opens and closes them, answers Leads | Claude Code · `claude-opus-5` · high |
+| Lead | One lane: its tasks, their order, and what is accepted | Claude Code · `claude-opus-5` · medium |
+| Peer | One task, and the engineering judgement inside it | Claude Code · `claude-opus-5` · medium |
+| Reviewer | A read-only review of one change | Claude Code · `claude-opus-5` · medium |
+| Watcher | When the watch is answered by a seat: the watch's questions about one moment of the work at a time | The Peer's, until you set its own |
+| Pager | Says a page back, word for word, so Paseo pushes it to your phone | Claude Code · `claude-opus-5` · low |
 
 Roles are data in `plugin/roles.json`, not code. Each role's tools are in
 [the reference](docs/REFERENCE.md#desk-verbs).
 
 ## Supported agents
 
-Any role can sit on any of these four agents. You pick one per role in the panel, plus its model and
+Any role can sit on any of these five agents. You pick one per role in the panel, plus its model and
 thinking level where the agent offers them.
 
 | Agent | Before its first seat | Sandbox | Mail into a running turn |
 |---|---|---|---|
-| Claude Code | `claude` signed in once, outside any seat; every seat uses that login | yes | yes |
+| Claude Code | `claude` signed in | yes | yes |
 | Codex | `codex login` once. The `codex` CLI must be on the machine that runs the daemon | yes | yes |
-| OpenCode | `opencode auth login` once | no | no, it waits for the turn to end |
-| Antigravity | `agy` signed in once, and `agy-acp` on the `PATH` of the daemon | no | no, it waits for the turn to end |
+| Pi | `pi` signed in, and `pi install npm:pi-mcp-adapter` once. That adapter is how a Pi seat reaches the desk | no | yes |
+| Oh My Pi | `omp` signed in once, outside any seat (`/login`) | no | no, it waits for the turn to end |
+| OpenCode | `opencode auth login` once, outside any seat | no | yes |
 
 Every seat reads your project's own instructions: Claude reads `CLAUDE.md`, or `AGENTS.md` when
-the project has no `CLAUDE.md`, and the others read `AGENTS.md`. Claude Code, Codex and OpenCode seats are denied `git push`, `gh`, `paseo` and starting
-other agents. An Antigravity seat has no sandbox and no path or command rules: it runs with
-`--dangerously-skip-permissions` and is held only by its prompt, so give it roles you would trust
-unsupervised. Only the Hunter may start subagents, on the agents that have them. No seat reads your
-own global instructions (`~/.claude/CLAUDE.md`, `~/.config/opencode`, `~/.gemini/GEMINI.md`). The shipped Claude settings answer in
+the project has no `CLAUDE.md`, and the others read `AGENTS.md`. Claude Code, Codex, Oh My Pi and OpenCode seats are denied `git push`, `gh`, `paseo`
+and starting other agents. A Pi seat is held only by the tools it is given. The shipped Claude settings answer in
 Vietnamese: change `language` in `plugin/harness/claude/settings.json` for another language. The details are under
 [seat directories](docs/REFERENCE.md#seat-directories) and
 [known limits](docs/REFERENCE.md#known-limits).
@@ -127,7 +79,7 @@ Vietnamese: change `language` in `plugin/harness/claude/settings.json` for anoth
 
 You need:
 
-- Paseo `>=0.8.0 <0.10.0`
+- Paseo `>=0.9.1 <0.10.0`
 - Node.js 24 or newer. There is no build step.
 - `git` and `jq`
 - the CLI of each agent you use, signed in
@@ -146,64 +98,70 @@ the clone's branch has. **Update** moves forward only, runs `npm install` when t
 and reloads the plugin. It waits until no seat runs in any project, because every project moves to
 the new version at once. Below the version, one row for each thing that needs you:
 
-- A changed **prompt**, **skill** or **team block**: **Use new**, or **Keep mine** to go on with the
-  version you had. Yours is copied to `~/.local/share/paseo-crew/own/` for you to edit by hand, and
+- A changed **prompt** or **skill**: **Use new**, or **Keep mine** to go on with the
+  version you had. Yours is copied to `~/.local/share/seatworks-v3/own/` for you to edit by hand, and
   you are still told when the original changes.
 - Changed **guides** and **records**: named only, for you to read in git.
-- Settings this version cannot read, a stale `AGENTS.md` block, seats still on an older version.
+- Settings this version cannot read, and seats still on an older version.
 
 **Clean up** lists seat folders, working copies and copies nobody uses any more, and removes only
 what you pick.
 
 ## First run
 
-1. In Paseo, open **Paseo Crew** in the sidebar.
+1. In Paseo, open **Seatworks** in the sidebar.
 2. **Add project**, pick the repository, choose an agent for each role, and attach.
 3. Open **Health** and choose **Run**.
-4. Start an agent in that project with the provider **Supervisor · Claude Code (crew)**, and tell it
+4. Start an agent in that project with the provider **Supervisor · Claude Code (sw2)**, and tell it
    what you want.
 
 The desk seats everyone else as the work needs them. The first lane works in your checkout, and each
 later one in a working copy of its own.
 
-**Your project's `AGENTS.md`.** The first time a seat opens, the plugin writes the team's shared
-rules into your `AGENTS.md`, in a marked `paseo-crew` block. It replaces that block whole and never
-touches your own text. `CLAUDE.md` gets a pointer to `AGENTS.md`. Commit both once, because a lane in
-its own working copy sees only what is committed. To keep them out of git instead, see
-[Local files](docs/REFERENCE.md#local-files).
+**Your project's `AGENTS.md` stays yours.** The plugin writes nothing into your project's files: the
+team's shared rules are in each role's own prompt.
 
-The panel has four tabs: **Team** (agents and the watch), **Flow** (lanes, tasks and questions,
-live), **MCP** (optional servers per role) and **Health**. Everything the desk keeps lives under
-`~/.local/share/paseo-crew/`.
+A project's panel has **Team** (agents and the watch), **Flow** (lanes, tasks, your questions and
+landings, live), **Report** (the last day), **Orders** (your standing orders and the concept), **MCP**
+(optional servers per role) and **Health**, and the **Plugin** tab keeps the plugin current.
+Everything the desk keeps lives under `~/.local/share/seatworks-v3/`.
 
 ## The watch
 
 The desk reads the turns of Leads and Peers in code, catching things like a destructive command, the
 same failure again and again, or a weakened test. It also reads each lane's record, for example a
-task sent back three times. A second reader looks beside the code:
-
-- **A Watcher seat**, the default. It needs no key.
-- **Jev**, a model called through OpenRouter. It needs a key, and each reading costs money.
+task sent back three times.
 
 A finding becomes an **incident**. An ordinary one about a Peer goes to its Lead. One about a Lead,
 an urgent one (a *page*), or one whose Lead is gone goes to the Supervisor. Whoever gets it marks it
-`useful`, `noise` or `unknown`. The watched seat never hears of it.
+`useful`, `noise` or `unknown`. The watched seat never hears of it. Each lane gets two ordinary ones a
+day; a kind whose last ten marks were mostly noise is held back, and goes if seen again once the marks
+turn; a page goes unless nobody is there to tell.
 
-Out of the box the watch only records and lists. To mail incidents, turn on **Mail incidents** on the
-Watcher's chip in the **Team** tab. How it all works is in
+What code cannot read, the watch asks as one question at a time, at the moment it matters: was this
+destructive command asked for, does a complete hand-back's summary admit a gap, did a review that
+accepts a migration say it ran the invariant. You pick who answers on the Watcher's chip in **Team**:
+Jev (a small model asked over OpenRouter, with your key, kept on this machine and never shown
+again), the **Watcher** seat, or nobody. Every question ships in shadow: its answers are kept in the
+project's `assessments.log` for you to label, and no seat is sent them. **Flow** says who is
+answering and how that stands.
+
+Out of the box the watch records and lists ordinary incidents without mailing them, while a page
+still goes to the Supervisor and to your phone. To mail the rest, turn on **Mail incidents** on the
+Supervisor's chip in the **Team** tab. How it all works is in
 [the architecture](docs/ARCHITECTURE.md#the-watch).
 
 ## Known Paseo behaviour
 
 - **Opening an archived seat's history starts its agent again, and leaves it running.** Paseo
   resumes an archived agent to show its history, from the app or `paseo logs`, and never closes it.
-  The plugin never reads an archived seat itself. To be rid of a leftover Antigravity seat:
-  `pkill -f agy-acp`, with no seat of yours running.
+  A Pi seat leaves a `pi` process, an Oh My Pi seat an `omp` one, an OpenCode seat an
+  `opencode serve`. The plugin never reads an archived seat itself. To be rid of them:
+  `pkill -f "pi --mode rpc"`, `pkill -f "omp --mode rpc-ui"` or `pkill -f "opencode serve"`, with no
+  seat of yours running.
 - **An agent gets only the provider keys Paseo's daemon has.** A key set in your shell, such as
-  a provider key for OpenCode, does not reach the daemon, so those models are neither listed nor
-  usable. Put the key where the agent keeps its own (`opencode auth login` for OpenCode).
-- **An Antigravity seat hears mail only between turns.** `agy-acp` runs `agy` in print mode, one
-  prompt per turn with a 45-minute limit, so mail waits for the turn to end.
+  `NVIDIA_API_KEY` for Pi, does not reach the daemon, so those models are neither listed nor usable.
+  Put the key where the agent keeps its own (`~/.pi/agent/auth.json` for Pi).
 - **Paseo keeps a project for a folder you have deleted.** List them with `paseo project ls` and
   remove one with `paseo project delete <id>`.
 

@@ -5,33 +5,26 @@ import type { Seats } from "../../server/core/ports.ts";
 import { Outbox } from "../../server/runtime/outbox.ts";
 import { tempDir } from "../tempdir.ts";
 
-type FakeAgent = { status: string; pendingPermissions: { title?: string; name?: string }[]; archivedAt: string | null; sent: string[]; steered: string[] };
+type FakeAgent = { status: string; pendingPermissions: { title?: string; name?: string }[]; archivedAt: string | null; sent: string[]; steered: string[]; kinds: string[][] };
 
-function fakeSeats(agents: Record<string, FakeAgent>): Seats {
+function fakeSeats(agents: Record<string, FakeAgent>): Pick<Seats, "look" | "send"> {
   return {
-    async open() {
-      return [];
-    },
     async look(id: string) {
       const agent = agents[id]!;
       return { id, status: agent.status, pendingPermissions: agent.pendingPermissions, archivedAt: agent.archivedAt };
     },
-    async send(id: string, text: string, steer?: boolean) {
+    async send(id: string, text: string, kinds: string[], into?: "steer" | "interrupt") {
       agents[id]!.sent.push(text);
-      if (steer) agents[id]!.steered.push(text);
-    },
-    async respond() {},
-    async archive() {},
-    watch() {
-      throw new Error("the outbox watches nobody");
+      agents[id]!.kinds.push(kinds);
+      if (into === "steer") agents[id]!.steered.push(text);
     },
   };
 }
 
-const agent = (status: string): FakeAgent => ({ status, pendingPermissions: [], archivedAt: null, sent: [], steered: [] });
+const agent = (status: string): FakeAgent => ({ status, pendingPermissions: [], archivedAt: null, sent: [], steered: [], kinds: [] });
 
 const outboxOn = (agents: Record<string, FakeAgent>, compose: (to: string, list: { text: string }[]) => string, steers = false) =>
-  new Outbox(join(tempDir(), "outbox.json"), compose, fakeSeats(agents), undefined, () => steers);
+  new Outbox(join(tempDir(), "outbox.json"), compose, fakeSeats(agents), { steers: () => steers });
 
 test("a letter to an idle seat is sent at once and the same key is not sent twice", async () => {
   const agents = { sup: agent("idle") };
@@ -44,13 +37,15 @@ test("a letter to an idle seat is sent at once and the same key is not sent twic
 test("letters to a busy seat are held and go out together when its turn ends", async () => {
   const agents = { sup: agent("running") };
   const outbox = outboxOn(agents, (_to, list) => list.map((letter) => letter.text).join("|"));
-  assert.equal(await outbox.post({ to: "sup", key: "a", text: "first" }), "held");
-  assert.equal(await outbox.post({ to: "sup", key: "b", text: "second" }), "held");
+  assert.equal(await outbox.post({ to: "sup", key: "rework:L1-T1:1", text: "first" }), "held");
+  assert.equal(await outbox.post({ to: "sup", key: "amended:L1-T1:1", text: "second" }), "held");
+  assert.equal(await outbox.post({ to: "sup", key: "rework:L1-T1:2", text: "third" }), "held");
   agents.sup.status = "idle";
   outbox.turnEnded("sup");
   const sent = await outbox.pump("sup");
-  assert.equal(sent.size, 2);
-  assert.deepEqual(agents.sup.sent, ["first|second"]);
+  assert.equal(sent.size, 3);
+  assert.deepEqual(agents.sup.sent, ["first|second|third"]);
+  assert.deepEqual(agents.sup.kinds, [["rework", "amended"]], "each kind of letter in it named once");
   assert.deepEqual(outbox.pending("sup"), []);
 });
 
@@ -105,4 +100,15 @@ test("a harness that cannot take mail mid-turn, or a seat stopped on a permissio
   steering.turnStarted("asking", Date.now() - 2 * 60_000);
   assert.equal(await steering.post({ to: "asking", key: "a", text: "t" }), "held", "it has stopped until the permission is decided");
   assert.deepEqual([...agents.peer.sent, ...agents.asking.sent], []);
+});
+
+test("word that asks nothing does not wake an idle seat: it waits and goes with the next letter that does", async () => {
+  const agents = { sup: agent("idle") };
+  const outbox = outboxOn(agents, (_to, list) => list.map((letter) => letter.text).join("|"));
+  assert.equal(await outbox.post({ to: "sup", key: "opened:L2", text: "lane opened", wakes: false }), "held");
+  outbox.turnEnded("sup");
+  assert.equal((await outbox.pump("sup")).size, 0, "a round does not send it on its own either");
+  assert.deepEqual(agents.sup.sent, []);
+  assert.equal(await outbox.post({ to: "sup", key: "ask:A1", text: "a question" }), "sent");
+  assert.deepEqual(agents.sup.sent, ["lane opened|a question"]);
 });

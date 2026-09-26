@@ -1,16 +1,18 @@
 import { type Kit, can, seatOf } from "../catalog/kit.ts";
-import { answerWith, questionsIn } from "../core/paseo.ts";
-import type { SeatLook, SeatView, Seats } from "../core/ports.ts";
+import { midTurn } from "../core/paseo.ts";
+import type { SeatLook, SeatView, Seats, StreamRow } from "../core/ports.ts";
+import type { Intents } from "./intents.ts";
 import { type Project, projectOf } from "./project.ts";
 
 export class Roster {
-  readonly pendingArchive = new Set<string>();
   private readonly kit: Kit;
   private readonly seats: Seats;
+  private readonly intents: Intents;
 
-  constructor(kit: Kit, seats: Seats) {
+  constructor(kit: Kit, seats: Seats, intents: Intents) {
     this.kit = kit;
     this.seats = seats;
+    this.intents = intents;
   }
 
   open(): Promise<SeatView[]> {
@@ -30,22 +32,15 @@ export class Roster {
     return this.seats.look(agentId);
   }
 
-  /** A seat stopped on a question reads nothing until it is answered, so a message answers it. `waiting`: only the Human can. */
-  async answerQuestion(agentId: string, text: string): Promise<"answered" | "waiting" | undefined> {
-    let pending;
-    try {
-      pending = (await this.seats.look(agentId)).pendingPermissions ?? [];
-    } catch {
-      return undefined;
-    }
-    const question = pending.find((request) => request.kind === "question" && request.id && questionsIn(request).length > 0);
-    if (!question?.id) return pending.length > 0 ? "waiting" : undefined;
-    try {
-      await this.seats.respond(agentId, question.id, answerWith(question, text));
-      return "answered";
-    } catch {
-      return undefined;
-    }
+  /** Sends past the outbox, cutting a running turn short; a seat that is gone is left so, since a send would start it again. */
+  async interrupt(agentId: string, letter: { key: string; text: string }): Promise<boolean> {
+    if (!(await this.seated(agentId))) return false;
+    await this.seats.send(agentId, letter.text, [letter.key.split(":")[0]!], "interrupt");
+    return true;
+  }
+
+  history(agentId: string, limit: number): Promise<StreamRow[]> {
+    return this.seats.history(agentId, limit);
   }
 
   async supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
@@ -57,36 +52,45 @@ export class Roster {
         gone = true;
       } catch {}
     }
-    const found = (await this.seats.open())
-      .filter((seat) => this.holds(seat, "supervise", project))
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
     // Not the preferred id: it may be the seat just read as archived, and every letter to it would be held forever.
-    return found[0]?.id ?? (gone ? undefined : preferred);
+    return (await this.holderOf(project, "supervise")) ?? (gone ? undefined : preferred);
   }
 
-  /** The live seats watching this project, the most recently active first. */
-  watchers(project: Project, seats: Iterable<SeatView>): SeatView[] {
-    return [...seats].filter((seat) => !seat.archivedAt && this.holds(seat, "watch", project)).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  /** The project's open seat, the one heard from last, whose role can `capability`. */
+  async holderOf(project: Project, capability: string): Promise<string | undefined> {
+    const found = (await this.seats.open()).filter((seat) => this.holds(seat, capability, project)).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+    return found[0]?.id;
   }
 
   private holds(seat: SeatView, capability: string, project: Project): boolean {
     return can(seatOf(this.kit, seat.provider)?.role, capability) && projectOf(seat.cwd).slug === project.slug;
   }
 
+  /** Whether the seat is archived once its turn ends. */
+  archiving(agentId: string): boolean {
+    return this.intents.toArchive().includes(agentId);
+  }
+
   async archive(agentId: string | undefined, force = false): Promise<void> {
     if (!agentId) return;
     try {
-      if (!force) {
-        const seat = await this.seats.look(agentId);
-        if (seat.status === "running" || seat.status === "initializing") {
-          this.pendingArchive.add(agentId);
-          return;
-        }
+      if (!force && midTurn((await this.seats.look(agentId)).status)) {
+        this.intents.archiveLater(agentId);
+        return;
       }
-      this.pendingArchive.delete(agentId);
+      this.intents.archived(agentId);
       await this.seats.archive(agentId);
     } catch (error) {
-      console.error(`paseo-crew: archiving ${agentId} failed:`, error);
+      console.error(`seatworks-v2: archiving ${agentId} failed:`, error);
+    }
+  }
+
+  /** After a stop: a seat left to end its turn goes now if the listing shows that turn over, and is forgotten if it is gone. */
+  async archiveWaiting(listed: Map<string, SeatView>): Promise<void> {
+    for (const id of this.intents.toArchive()) {
+      const seat = listed.get(id);
+      if (!seat) this.intents.archived(id);
+      else if (!midTurn(seat.status)) await this.archive(id);
     }
   }
 }

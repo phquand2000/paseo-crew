@@ -2,12 +2,11 @@ import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MigrateStep, MigrateView } from "../../shared/views.ts";
 import type { Kit } from "../catalog/kit.ts";
-import { staleProjectFiles, writeProjectFile } from "../catalog/project-files.ts";
 import { digest } from "../catalog/seats.ts";
-import type { LayerSchema } from "../catalog/settings.ts";
+import { LayerSchema } from "../../shared/settings.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import { type Project, loadConfig } from "../desk/project.ts";
+import type { Project } from "../desk/project.ts";
 
 export const BACKUP = /^settings\.json\.bak-\d{8}-\d{6}$/;
 
@@ -17,7 +16,7 @@ export type MigrateContext = {
   kit: Kit;
   home: string;
   known: Project[];
-  settings: { where: string; file: string; schema: LayerSchema }[];
+  settings: { where: string; file: string }[];
   live: LiveSeat[];
   now: number;
 };
@@ -63,11 +62,11 @@ function drop(root: unknown, path: Path): Path | undefined {
   return undefined;
 }
 
-export function repairLayer(raw: unknown, schema: LayerSchema): { values: unknown; dropped: string[] } | undefined {
+function repairLayer(raw: unknown): { values: unknown; dropped: string[] } | undefined {
   const values = structuredClone(raw);
   const dropped: string[] = [];
   for (let round = 0; round < 50; round++) {
-    const parsed = schema.safeParse(values);
+    const parsed = LayerSchema.safeParse(values);
     if (parsed.success) return { values, dropped };
     // One issue a round: dropping an array element moves every index an issue after it names.
     const issue = parsed.error.issues[0]!;
@@ -89,12 +88,12 @@ const unreadable = (file: string) => {
 };
 
 function settingsSteps(ctx: MigrateContext): Step[] {
-  return ctx.settings.flatMap<Step>(({ where, file, schema }) => {
+  return ctx.settings.flatMap<Step>(({ where, file }) => {
     if (!existsSync(file)) return [];
     if (unreadable(file)) return [{ kind: "settings", where, what: `${file} is not a settings object`, detail: ["Repair it by hand; Migrate does not guess at what it held."], auto: false }];
     const raw = readJson<unknown>(file, {});
-    if (schema.safeParse(raw).success) return [];
-    const repaired = repairLayer(raw, schema);
+    if (LayerSchema.safeParse(raw).success) return [];
+    const repaired = repairLayer(raw);
     if (!repaired) return [{ kind: "settings", where, what: `${file} does not fit this version`, detail: ["Repair it by hand."], auto: false }];
     const stamp = new Date(ctx.now).toISOString().replace(/\D/g, "").slice(0, 14);
     const backup = `${file}.bak-${stamp.slice(0, 8)}-${stamp.slice(8)}`;
@@ -108,29 +107,6 @@ function settingsSteps(ctx: MigrateContext): Step[] {
         apply: () => {
           copyFileSync(file, backup);
           writeJson(file, repaired.values);
-        },
-      },
-    ];
-  });
-}
-
-function blockSteps(ctx: MigrateContext): Step[] {
-  const body = ctx.kit.team;
-  if (!body) return [];
-  return ctx.known.flatMap<Step>((project) => {
-    if (!existsSync(project.root)) return [];
-    const options = loadConfig(project.state);
-    const stale = staleProjectFiles(project.root, body, options);
-    if (stale.length === 0) return [];
-    return [
-      {
-        kind: "block",
-        where: project.slug,
-        what: `Write this version's team block into ${stale.map(({ name }) => name).join(" and ")}`,
-        detail: ["Commit it afterwards: a lane's working copy is made from what is committed."],
-        auto: true,
-        apply: () => {
-          for (const entry of staleProjectFiles(project.root, body, options)) writeProjectFile(entry);
         },
       },
     ];
@@ -152,7 +128,7 @@ function seatSteps(ctx: MigrateContext, since: string): MigrateStep[] {
 
 function plan(ctx: MigrateContext): { stamp: Stamp; steps: Step[] } {
   const stamp = stampKit(ctx.kit, ctx.home, ctx.now);
-  return { stamp, steps: [...settingsSteps(ctx), ...blockSteps(ctx), ...seatSteps(ctx, stamp.since)] };
+  return { stamp, steps: [...settingsSteps(ctx), ...seatSteps(ctx, stamp.since)] };
 }
 
 const view = (stamp: Stamp, steps: MigrateStep[], done: string[]): MigrateView => ({
@@ -160,7 +136,6 @@ const view = (stamp: Stamp, steps: MigrateStep[], done: string[]): MigrateView =
   steps: steps.map(({ kind, where, what, detail, auto }) => ({ kind, where, what, detail, auto })),
   done,
   content: [],
-  state: { upgraded: [], failed: [] },
 });
 
 export function migrationPlan(ctx: MigrateContext): MigrateView {

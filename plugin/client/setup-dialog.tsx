@@ -5,13 +5,15 @@ import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSel
 import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Button } from "./bits.tsx";
-import type { Catalog, Folders, Layer, PaseoProject, ProjectRow } from "./data.ts";
+import type { Layer } from "../shared/settings.ts";
+import type { CatalogView, Folders, ProjectRow } from "../shared/views.ts";
+import type { PaseoProject } from "./data.ts";
 import { harnessInForce, message, modelInForce, modelRow, setRole } from "./data.ts";
 import { TabBar } from "./tabs.tsx";
 
 type Props = {
   open: boolean;
-  catalog: Catalog;
+  catalog: CatalogView;
   available: PaseoProject[];
   projects: ProjectRow[];
   readSettings(slug: string): Promise<{ status: string; values?: Layer; machine?: Layer } | { error: string }>;
@@ -114,7 +116,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
   };
 
   return (
-    <Modal title="Set Paseo Crew up for a project" open={open} onOpenChange={onOpenChange}>
+    <Modal title="Set Seatworks up for a project" open={open} onOpenChange={onOpenChange}>
       <Modal.Content>
         <TabBar theme={theme} active={STEPS[step]!.id} disabled={disabled} onPick={(id) => setStep(Math.max(0, STEPS.findIndex((entry) => entry.id === id)))} tabs={STEPS} />
 
@@ -145,7 +147,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
                           ? `Setting this up sets up ${browsing.root}.`
                           : browsing.repository
                             ? "A git repository."
-                            : "Paseo Crew will register it as its own project."
+                            : "Seatworks will register it as its own project."
                     }
                     actionLabel="Use"
                     disabled={disabled}
@@ -173,7 +175,7 @@ export function SetupDialog({ open, catalog, available, projects, readSettings, 
             ) : null}
 
             {picking ? (
-              <SettingsSection title="Projects Paseo knows" info="These have no Paseo Crew settings yet.">
+              <SettingsSection title="Projects Paseo knows" info="These have no Seatworks settings yet.">
                 <SettingsCard>
                   {available.length === 0 ? (
                     <SettingsRow label="Nothing to pick" hint="Every project Paseo knows is already set up." />

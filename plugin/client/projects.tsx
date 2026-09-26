@@ -2,14 +2,14 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Avatar, Button, Rule } from "./bits.tsx";
-import type { Catalog, ProjectRow, TeamView } from "./data.ts";
+import type { CatalogView, ProjectRow, TeamView } from "../shared/views.ts";
 
 export const MACHINE = "machine";
 
 type Props = {
   projects: ProjectRow[];
   nameOf(slug: string, root: string): string;
-  catalog: Catalog;
+  catalog: CatalogView;
   team: TeamView;
   waiting: number;
   theme: PluginTheme;
@@ -60,7 +60,7 @@ export function ProjectList({ projects, nameOf, catalog, team, waiting, theme, d
     <View style={{ gap: 24 }}>
       <View style={styles.header}>
         <View style={styles.titles}>
-          <Text style={styles.title}>Paseo Crew</Text>
+          <Text style={styles.title}>Seatworks</Text>
           <Text style={styles.sub}>Pick a project, or edit the defaults this machine uses.</Text>
         </View>
         <Button label="Add project" tone="accent" theme={theme} disabled={disabled} onPress={onSetup} />

@@ -2,10 +2,11 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson } from "../core/store.ts";
 import { errorText } from "../core/errors.ts";
-import { STATE_VERSION } from "../core/state.ts";
+import type { AskStatus } from "../domain/ask.ts";
+import type { Question } from "../domain/question.ts";
+import type { LaneStatus } from "../domain/lane.ts";
+import { ACTIVE, SETTLED, type TaskStatus } from "../domain/task.ts";
 
-export type LaneStatus = "waiting" | "open" | "closed";
-export type TaskStatus = "waiting" | "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
 /** Free-form: the ledger carries whatever it is told, because nothing routes on it. */
 export type AskKind = string;
 /** What a change replaced, kept so the record says what the work was asked before it was asked again. */
@@ -24,6 +25,8 @@ export type Lane = {
   branch: string;
   detourOf?: string;
   onBranch?: boolean;
+  /** Where an onBranch lane's own commits begin: the branch it carries on had history before it. */
+  startSha?: string;
   worktree?: string;
   slot?: string;
   writeSet: string[];
@@ -35,15 +38,23 @@ export type Lane = {
   after?: string[];
   opening?: { isolate?: boolean; role?: string };
   held?: { why: string; tried?: boolean };
+  /** Stopped by whoever supervises it: its seats read nothing, and nothing starts or lands, until it is resumed. */
+  onHold?: { at: number; by: string; reason: string };
+  /** When its Lead last reported it ready; an amendment takes it away, since what it was ready against has changed. */
+  ready?: { at: number };
+  /** A landing held for the Human, for the lane branch at `head`; approved, it lands without being asked again while that holds. */
+  landApproval?: { since: number; head: string; signals: string[]; evidence: string[]; overGate: boolean; approved?: { at: number; note: string } };
   landed?: boolean;
+  closedAt?: number;
   amended?: Amendment[];
   restoring?: Restoring;
   landing?: { by: string; writers: string[] };
   openedAt: number;
   tasks: number;
+  reviews?: number;
 };
 
-export type Handback = { file: string; outcome: string; commit?: string; summary: string; at: number; gate?: { ok: boolean; note: string } };
+type Handback = { file: string; outcome: string; commit?: string; summary: string; at: number; gate?: { ok: boolean; note: string } };
 
 export type Task = {
   id: string;
@@ -51,6 +62,8 @@ export type Task = {
   kind: "code" | "review";
   mode: "lane" | "parallel";
   of?: string;
+  /** A review's questions from the risk rules its change reaches: its verdict answers each, in order. */
+  asked?: string[];
   title: string;
   goal: string;
   acceptance: string[];
@@ -69,10 +82,11 @@ export type Task = {
   updatedAt: number;
   handback?: Handback;
   after?: string[];
-  opening?: { role: string };
+  opening?: { role: string; fresh?: boolean };
   held?: { why: string; tried?: boolean };
   amended?: Amendment[];
   reworks?: number;
+  acceptedAt?: number;
   silent: number;
   peerGone?: boolean;
 };
@@ -87,7 +101,7 @@ export type Ask = {
   kind: AskKind;
   text: string;
   default?: string;
-  status: "open" | "answered";
+  status: AskStatus;
   openedAt: number;
   remindedAt?: number;
   reminders: number;
@@ -96,30 +110,30 @@ export type Ask = {
 };
 
 /** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
-export type Releasing = { writers: string[]; dropBranch?: string; into?: string };
+type Releasing = { writers: string[]; dropBranch?: string; into?: string };
 
 /** A lane in the project's own copy waiting to put its branch back; it acts only on a copy still on `branch`, since a later lane may own it. */
-export type Restoring = { writers: string[]; base: string; branch: string; landed?: boolean };
+type Restoring = { writers: string[]; base: string; branch: string; landed?: boolean };
 
 export type Slot = { id: string; path: string; workspaceId?: string; lane?: string; task?: string; createdAt: number; releasing?: Releasing };
 
-export type AgentRef = { id: string; role: string; lane?: string; task?: string; recordedAt?: number; spokeAt?: number };
+export type AgentRef = { id: string; role: string; lane?: string; task?: string; startedAs?: string; recordedAt?: number; spokeAt?: number };
 
 export type Ledger = {
-  version: number;
-  seq: { lane: number; ask: number; slot?: number };
+  seq: { lane: number; ask: number; slot?: number; question?: number };
   lanes: Record<string, Lane>;
   tasks: Record<string, Task>;
   asks: Record<string, Ask>;
+  questions: Record<string, Question>;
   agents: Record<string, AgentRef>;
   slots: Record<string, Slot>;
 };
 
 export function emptyLedger(): Ledger {
-  return { version: STATE_VERSION, seq: { lane: 0, ask: 0 }, lanes: {}, tasks: {}, asks: {}, agents: {}, slots: {} };
+  return { seq: { lane: 0, ask: 0 }, lanes: {}, tasks: {}, asks: {}, questions: {}, agents: {}, slots: {} };
 }
 
-export function ledgerFile(state: string): string {
+function ledgerFile(state: string): string {
   return join(state, "ledger.json");
 }
 
@@ -143,9 +157,6 @@ export function ledgerFault(state: string): string | undefined {
     return `${file} is there but could not be read: ${errorText(error)}`;
   }
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return `${file} does not hold a record`;
-  const version = (stored as { version?: unknown }).version;
-  if (typeof version === "number" && version > STATE_VERSION) return `${file} is at state ${version}, made by a newer Paseo Crew than this one, which reads ${STATE_VERSION}`;
-  if (version !== STATE_VERSION) return `${file} is at state ${JSON.stringify(version)} and this plugin reads ${STATE_VERSION}: its upgrade did not go through; the Plugin tab says why`;
   return undefined;
 }
 
@@ -192,8 +203,12 @@ export function nextLaneId(ledger: Ledger): string {
 }
 
 export function nextTaskId(lane: Lane, kind: Task["kind"]): string {
+  if (kind === "review") {
+    lane.reviews = (lane.reviews ?? 0) + 1;
+    return `${lane.id}-R${lane.reviews}`;
+  }
   lane.tasks += 1;
-  return `${lane.id}-${kind === "review" ? "R" : "T"}${lane.tasks}`;
+  return `${lane.id}-T${lane.tasks}`;
 }
 
 /** Never handed out twice: a reused id gave a copy the sweep was removing the same path as the next one created. */
@@ -211,6 +226,11 @@ export function nextAskId(ledger: Ledger): string {
   return `A${ledger.seq.ask}`;
 }
 
+export function nextQuestionId(ledger: Ledger): string {
+  ledger.seq.question = (ledger.seq.question ?? 0) + 1;
+  return `H${ledger.seq.question}`;
+}
+
 export function findTask(ledger: Ledger, id: string): Task | undefined {
   return ledger.tasks[id.trim().toUpperCase()];
 }
@@ -223,8 +243,34 @@ export function laneOfLead(ledger: Ledger, agentId: string): Lane | undefined {
   return Object.values(ledger.lanes).find((lane) => lane.lead === agentId && lane.status === "open");
 }
 
+/** The lane a seat leads by its binding, closed ones included: a Lead kept after its lane closed still answers for it. */
+export function leadLaneOf(ledger: Ledger, agentId: string): Lane | undefined {
+  const lane = ledger.lanes[ledger.agents[agentId]?.lane ?? ""];
+  return lane?.lead === agentId ? lane : undefined;
+}
+
+/** The seats working in a lane: its Lead, then the Peer or reviewer of each task not yet settled. */
+export function laneSeats(ledger: Ledger, lane: Lane): { seat: string; task?: Task }[] {
+  const working = Object.values(ledger.tasks).filter((task) => task.lane === lane.id && task.peer && !SETTLED.includes(task.status));
+  return [...(lane.lead ? [{ seat: lane.lead }] : []), ...working.map((task) => ({ seat: task.peer!, task }))];
+}
+
+/** The lane on hold that this seat works in, as its Lead, a Peer or a reviewer; none where the ledger cannot be read. */
+export function laneOnHold(state: string, agentId: string): Lane | undefined {
+  let ledger: Ledger;
+  try {
+    ledger = loadLedger(state);
+  } catch {
+    return undefined;
+  }
+  const lane = ledger.lanes[ledger.agents[agentId]?.lane ?? ""];
+  return lane?.onHold && lane.status !== "closed" ? lane : undefined;
+}
+
+/** The task a Peer or reviewer is on now: its binding names it, and one Peer can carry a lane's tasks in turn. */
 export function taskOfPeer(ledger: Ledger, agentId: string): Task | undefined {
-  return Object.values(ledger.tasks).find((task) => task.peer === agentId);
+  const task = ledger.tasks[ledger.agents[agentId]?.task ?? ""];
+  return task?.peer === agentId ? task : undefined;
 }
 
 export function openAsksTo(ledger: Ledger, agentId: string): Ask[] {
@@ -244,32 +290,11 @@ export function tasksOf(ledger: Ledger, laneId: string): Task[] {
   return Object.values(ledger.tasks).filter((task) => task.lane === laneId);
 }
 
-export const ACTIVE: TaskStatus[] = ["running", "rework", "queued", "merging"];
-
-/** A task written beside this one and the paths it owns, so a Peer's goal says a stub is somebody else's work in progress. */
-export type Sibling = { task: string; title: string; owned: string[] };
-
-/** The tasks of `task`'s lane still being written, each in a copy of its own, and what each owns. */
-export function alongside(ledger: Ledger, task: Task): Sibling[] {
-  return tasksOf(ledger, task.lane)
-    .filter((other) => other.id !== task.id && ACTIVE.includes(other.status))
-    .map((other) => ({ task: other.id, title: other.title, owned: other.owned }));
+/** The tasks of `task`'s lane other than it still to be accepted or cut. */
+export function othersLeft(ledger: Ledger, task: Task): Task[] {
+  return tasksOf(ledger, task.lane).filter((entry) => entry.id !== task.id && !SETTLED.includes(entry.status));
 }
 
 export function activeTasks(ledger: Ledger, laneId: string): Task[] {
   return tasksOf(ledger, laneId).filter((task) => ACTIVE.includes(task.status));
-}
-
-export function slugify(text: string, max = 32): string {
-  return (
-    text
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/\p{M}/gu, "")
-      .replace(/đ/g, "d")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, max)
-      .replace(/-+$/g, "") || "work"
-  );
 }

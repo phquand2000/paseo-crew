@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-set -eu
-# agy reads every setting under $HOME, so a seat's home is the seat directory.
-[ -z "${PASEO_CREW_AGY_HOME:-}" ] || export HOME="$PASEO_CREW_AGY_HOME"
-exec "$(dirname "$0")/seat-room" ${1+"$@"}

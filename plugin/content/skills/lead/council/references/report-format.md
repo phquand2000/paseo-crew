@@ -2,6 +2,29 @@
 
 Open this when you write the case output contract and the focuses, and again for the decision model, a verification, a cross-examination or a draft audit. The chosen pattern goes into each reviewer's `focus` and comes back in its `done` findings. Adapt what the case needs; never copy every heading into every focus. Every contract separates direct observation, authority, inference and uncertainty, and shows which action each conclusion changes.
 
+## Neutral brief
+
+```text
+Case ID: <stable URL-safe ID, reused on every title>
+Original request: <the message that asked for the council, verbatim, never your summary>
+Decision question: <may clarify the request, never narrow or replace it>
+Observable outcome: <what is true in the world once the decision is right>
+Authoritative facts: <decisions or verified facts, each with provenance>
+Direct observations: <source-backed observations with exact locations>
+Unverified claims: <every other premise>
+Unknowns: <material gaps no one has resolved>
+Hard constraints: <non-negotiable limits, apart from preferences>
+Preferences: <priority order among soft goals>
+Authorized scope and sources: <what reviewers may inspect>
+Snapshot: <the lane branch commit reviewers read>
+Requested output: <the work product the requester expects>
+Case output contract: <the sections or fields each reviewer returns in done's findings>
+```
+
+A Specialist may get extra domain fields that reveal no view and no preferred answer. The Auditor's focus
+takes the opening text without its ban on reading other work, the closing text, and the ask under
+"Draft-verdict audit" below.
+
 ## Focus opening and closing
 
 Every focus opens with:

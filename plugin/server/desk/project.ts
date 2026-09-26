@@ -1,25 +1,26 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, normalize, sep } from "node:path";
-import { gitCommonDir } from "../core/git.ts";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { LAND_AS, type LandAs, gitCommonDir } from "../core/git.ts";
 import { stateRoot } from "../core/paths.ts";
-import { SERIAL_ONLY } from "../core/scope.ts";
 import { readJson, writeJson } from "../core/store.ts";
+import type { Ecosystem, Kit } from "../catalog/kit.ts";
+import { RiskRule } from "../catalog/schema.ts";
+import { coverOf } from "../core/scope.ts";
 
 export type Project = { root: string; slug: string; state: string };
 
-export type GateOn = "lane" | "task";
+type GateOn = "lane" | "task";
 
-export type ProjectConfig = {
-  base?: string;
-  gate?: string;
-  gateTimeoutMinutes: number;
-  gateOn: GateOn;
-  serialOnly: string[];
-  links: string[];
-  writable: string[];
-  claudePointer: boolean;
-};
+export const LANE_HOMES = ["onBranch", "newBranch", "isolate"] as const;
+/** Where a lane works when the call opening it does not say: the Human's standing answer to the question status asks. */
+export type LaneHome = (typeof LANE_HOMES)[number];
+
+/**
+ * `serialOnly` and `riskRules` are the project's own when it set them; without, the kit's hold, so a change to the kit reaches it.
+ * `askFirst` is the Human's standing order: a landing that touches one of these paths waits for them.
+ */
+export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly?: string[]; landAs: LandAs; laneHome?: LaneHome; askFirst: string[]; riskRules?: RiskRule[] };
 
 const cache = new Map<string, Project>();
 
@@ -53,32 +54,31 @@ export function clearProjects(): void {
   cache.clear();
 }
 
-export function detectGate(root: string): string | undefined {
-  const has = (name: string) => existsSync(join(root, name));
-  if (has("package.json")) {
-    try {
-      const scripts = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"))?.scripts ?? {};
-      if (typeof scripts.test === "string" && !/no test specified/.test(scripts.test)) {
-        if (has("pnpm-lock.yaml")) return "pnpm test";
-        if (has("yarn.lock")) return "yarn test";
-        if (has("bun.lock") || has("bun.lockb")) return "bun run test";
-        return "npm test";
-      }
-    } catch {}
+/** A script a package file names, unless it is the placeholder its tool writes when there is none. */
+function scriptIn(file: string, name: string, unset: string): boolean {
+  try {
+    const body = JSON.parse(readFileSync(file, "utf-8"))?.scripts?.[name];
+    return typeof body === "string" && !body.includes(unset);
+  } catch {
+    return false;
   }
-  if (has("mvnw")) return "./mvnw -q test";
-  if (has("pom.xml")) return "mvn -q test";
-  if (has("gradlew")) return "./gradlew test";
-  if (has("Cargo.toml")) return "cargo test";
-  if (has("go.mod")) return "go test ./...";
-  if (has("pyproject.toml") || has("pytest.ini")) return "pytest -q";
+}
+
+/** The first of the ecosystem's gates whose files the project holds; one that runs a package script needs that script. */
+export function detectGate(root: string, ecosystem: Ecosystem): string | undefined {
+  const has = (name: string) => existsSync(join(root, name));
+  for (const gate of ecosystem.gates) {
+    const file = gate.files.find(has);
+    if (!file || (gate.script && !scriptIn(join(root, file), gate.script, ecosystem.unsetScript))) continue;
+    return Object.entries(gate.lockfiles ?? {}).find(([lockfile]) => has(lockfile))?.[1] ?? gate.run;
+  }
   return undefined;
 }
 
 /** The commands that run `gate`: the gate first, then the test runner its script starts, which is how a seat runs its own module's tests. */
-export function gateCommands(root: string, gate: string | undefined): string[] {
+export function gateCommands(root: string, gate: string | undefined, ecosystem: Ecosystem): string[] {
   if (!gate?.trim()) return [];
-  const script = /^(?:npm|pnpm|yarn|bun)(?: run)? ([\w:.-]+)$/.exec(gate.trim())?.[1];
+  const script = new RegExp(`^(?:${ecosystem.scriptRunners.join("|")})(?: run)? ([\\w:.-]+)$`).exec(gate.trim())?.[1];
   let body: unknown;
   try {
     body = script ? JSON.parse(readFileSync(join(root, "package.json"), "utf-8"))?.scripts?.[script] : undefined;
@@ -109,33 +109,43 @@ export function loadConfig(state: string): ProjectConfig {
     gate: typeof stored.gate === "string" ? stored.gate : undefined,
     gateTimeoutMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : 30,
     gateOn: stored.gateOn === "task" ? "task" : "lane",
-    serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : SERIAL_ONLY,
-    links: Array.isArray(stored.links) ? stored.links.map(String) : [],
-    writable: Array.isArray(stored.writable) ? stored.writable.map(String) : [],
-    claudePointer: stored.claudePointer !== false,
+    serialOnly: Array.isArray(stored.serialOnly) ? stored.serialOnly.map(String) : undefined,
+    landAs: LAND_AS.find((as) => as === stored.landAs) ?? "squash",
+    laneHome: LANE_HOMES.find((home) => home === stored.laneHome),
+    askFirst: Array.isArray(stored.askFirst) ? stored.askFirst.map(String) : [],
+    // A list that does not read as rules falls to the kit's, which ask more rather than less.
+    riskRules: RiskRule.array().safeParse(stored.riskRules).data,
   };
+}
+
+/**
+ * Where the next lane works in a project whose own copy is free: as its call or the Human's standing choice says, or else the
+ * question the Human answers first, which is real only over uncommitted work or a branch that is not the base.
+ */
+export function laneHomeFor(asked: LaneHome | undefined, config: ProjectConfig, branch: string | undefined, work: string[] | undefined): LaneHome | { question: string } {
+  const chosen = asked ?? config.laneHome;
+  if (chosen === "onBranch" || chosen === "isolate") return chosen;
+  // A new branch here would be switched to over the Human's uncommitted work, so that choice cannot hold while there is some.
+  if (!branch || !work || (chosen === "newBranch" && work.length === 0)) return "newBranch";
+  if (work.length > 0) return { question: `carry on ${branch} here (onBranch), a new branch that takes the uncommitted work along (onBranch with newBranch), or a copy of its own that leaves it where it is (isolate)` };
+  if (!config.base || branch === config.base) return "newBranch";
+  return { question: `carry on ${branch} here (onBranch), a new branch off ${config.base} here (isolate false), or a copy of its own (isolate)` };
+}
+
+/** The paths only one writer at a time may write in this project. */
+export function serialOnlyOf(project: Project, kit: Kit): string[] {
+  return loadConfig(project.state).serialOnly ?? kit.ecosystem.serialOnly;
+}
+
+export function riskRulesOf(project: Project, kit: Kit): RiskRule[] {
+  return loadConfig(project.state).riskRules ?? kit.ecosystem.riskRules;
+}
+
+/** The rules whose paths cover any of `files`: what a review of them must answer, and what rehearses them. */
+export function rulesFor(rules: RiskRule[], files: string[]): RiskRule[] {
+  return rules.filter((rule) => rule.paths.map(coverOf).some((cover) => files.some((file) => cover.test(file))));
 }
 
 export function saveConfig(state: string, config: ProjectConfig): void {
   writeJson(configFile(state), config);
-}
-
-/** Why `rel` cannot name a path inside the project's own checkout, or undefined when it can. */
-export function pathProblem(root: string, rel: string): string | undefined {
-  if (!rel || isAbsolute(rel)) return "is not a path relative to the project";
-  const clean = normalize(rel);
-  if (clean === "." || clean.split(/[\\/]/).includes("..")) return "leaves the project";
-  const path = join(root, clean);
-  if (!existsSync(path)) return "does not exist in the project";
-  const home = realpathSync(root);
-  const real = realpathSync(path);
-  if (real !== home && !real.startsWith(home + sep)) return "resolves outside the project";
-  return undefined;
-}
-
-/** The Human's `writable` paths, resolved: a sandbox checks the real path, not a lane copy's link to it. */
-export function projectWrites(project: { root: string; state: string }): string[] {
-  return loadConfig(project.state)
-    .writable.filter((rel) => !pathProblem(project.root, rel))
-    .map((rel) => realpathSync(join(project.root, normalize(rel))));
 }

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { codeIndex } from "../../server/runtime/code-index.ts";
+import { tempDir } from "../tempdir.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PROXY = join(PLUGIN, "mcp", "code.mjs");
@@ -62,13 +62,13 @@ async function fakeIde(options: { openEnabled: boolean; dumbCalls?: number; rout
 }
 
 function repo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "crew-code-"));
+  const dir = tempDir("sw2-code-");
   execFileSync("git", ["init", "-q", dir]);
   return realpathSync(dir);
 }
 
 function fakeSemble(): string {
-  const file = join(mkdtempSync(join(tmpdir(), "crew-semble-")), "semble.mjs");
+  const file = join(tempDir("sw2-semble-"), "semble.mjs");
   writeFileSync(
     file,
     `import { createInterface } from "node:readline";

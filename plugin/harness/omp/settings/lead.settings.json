@@ -1,0 +1,33 @@
+{
+  "tools": {
+    "approval": {
+      "edit": "deny",
+      "write": "deny",
+      "ast_edit": "deny"
+    }
+  },
+  "bash": {
+    "patterns": [
+      {
+        "match": "git commit",
+        "approval": "deny"
+      },
+      {
+        "match": "git commit *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * commit",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * commit *",
+        "approval": "deny"
+      },
+      {
+        "match": "sleep *",
+        "approval": "deny"
+      }
+    ]
+  }
+}

@@ -1,7 +1,16 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export function tempDir(prefix = "crew-test-"): string {
-  return mkdtempSync(join(tmpdir(), prefix));
+const made: string[] = [];
+
+process.on("exit", () => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true });
+});
+
+/** Removed when the test process exits, whatever the tests did with it. */
+export function tempDir(prefix = "sw2-test-"): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  made.push(dir);
+  return dir;
 }

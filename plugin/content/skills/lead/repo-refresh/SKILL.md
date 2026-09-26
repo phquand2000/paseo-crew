@@ -12,7 +12,7 @@ You refresh the named repository around what is true in production now. It is a 
 Take it from the directive's wording, or audit when you start one yourself:
 
 - **audit**, the default for a bare request: inspect and report.
-- **apply**, when the directive says refresh, clean, fix, remove or consolidate: audit, get the cut made, and verify. The audit is yours. If you can open tasks, every change goes through `start_task`, one per coherent group of deletions, with the audit rows as its goal and context, the paths as its owned paths and step 5 as its acceptance; verify from the handback's commit, not its summary, before you `accept`. If you cannot, make each cut yourself, within your owned paths, one commit per coherent group, and verify it before you hand back.
+- **apply**, when the directive says refresh, clean, fix, remove or consolidate: audit, get the cut made, and verify. The audit is yours; every change goes through `add_tasks`, one task per coherent group of deletions, with the audit rows as its goal and context, the paths as its owned paths and step 5 as its acceptance. Verify from the handback's commit, not its summary, before you `accept`.
 - **verify:** check an earlier refresh without widening its scope.
 
 An age threshold marks suspects, never deletion targets. Leave unrelated and pre-existing changes where they are, and don't change production behavior to simplify the cleanup; `ask` about a production defect separately. Git is the history: no archives, backup folders or compatibility copies inside the repository.
@@ -27,4 +27,4 @@ An age threshold marks suspects, never deletion targets. Leave unrelated and pre
 
 ## Ends in
 
-A report at `$PASEO_CREW_STATE/repo-refresh/YYYY-MM-DD.md` of the before and after inventory; what was merged, deleted, rewritten and deliberately kept; the proof machinery removed or demoted and why; the validation actually run; and blocked decisions with remaining debt, summarized in `report` to the owner you answer to, or in `done` when the refresh was your task. It isn't complete while live references point at removed material, two documents own one contract, finished plans still read as active, or a mandatory proof route has no named risk and consumer.
+A report, kept with `note` in repo-refresh as `YYYY-MM-DD.md`, of the before and after inventory; what was merged, deleted, rewritten and deliberately kept; the proof machinery removed or demoted and why; the validation actually run; and blocked decisions with remaining debt, summarized to the owner in `report`. It isn't complete while live references point at removed material, two documents own one contract, finished plans still read as active, or a mandatory proof route has no named risk and consumer.

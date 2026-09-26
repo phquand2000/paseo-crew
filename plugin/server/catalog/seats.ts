@@ -2,19 +2,18 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources } from "./content.ts";
+import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources, toolProblems } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, harnessFileSources, roleSettingsFile } from "./kit.ts";
 import { projectImports, stateWrites } from "./launch.ts";
 import { contentRoot, expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
 import { type Team, rulesFor, skillDirsFor } from "./team.ts";
-import { projectWrites } from "../desk/project.ts";
 import { errorText } from "../core/errors.ts";
 
 type Json = Record<string, unknown>;
 
-export type SeatProject = { slug: string; state: string; root?: string };
+type SeatProject = { root: string; slug: string; state: string };
 
 export function seatDir(kit: Kit, role: RoleSpec, harness: HarnessSpec, homeDir = home(), project?: SeatProject): string {
   const name = `${kit.prefix}${role.role}-${harness.id}${project ? `-${project.slug}` : ""}`;
@@ -38,7 +37,7 @@ function present(path: string): boolean {
   }
 }
 
-export function ensureLink(path: string, target: string): boolean {
+function ensureLink(path: string, target: string): boolean {
   if (isLink(path)) {
     if (readlinkSync(path) === target) return false;
     unlinkSync(path);
@@ -64,7 +63,7 @@ export function digest(sources: string[]): string {
 }
 
 /** Copied under the state root, never linked, so it resolves outside every repo: an agent may load the AGENTS.md above a file's real path. */
-export function snapshot(source: string, name: string, homeDir = home()): string {
+function snapshot(source: string, name: string, homeDir = home()): string {
   const target = join(contentRoot(homeDir), `${name}-${digest([source])}`);
   if (!existsSync(target)) {
     const building = `${target}.${process.pid}.building`;
@@ -96,7 +95,7 @@ export function placeGuides(kit: Kit, homeDir = home()): void {
   ensureLink(guidesDir(homeDir), snapshot(join(kit.dir, "content", "guides"), "guides", homeDir));
 }
 
-export function writeReal(path: string, text: string): boolean {
+function writeReal(path: string, text: string): boolean {
   if (isLink(path)) unlinkSync(path);
   if (present(path) && readFileSync(path, "utf-8") === text) return false;
   mkdirSync(dirname(path), { recursive: true });
@@ -108,14 +107,7 @@ function isPlain(value: unknown): value is Json {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function deepMerge(base: unknown, over: unknown): unknown {
-  if (!isPlain(base) || !isPlain(over)) return over === undefined ? base : over;
-  const out: Json = { ...base };
-  for (const [key, value] of Object.entries(over)) out[key] = deepMerge(base[key], value);
-  return out;
-}
-
-export function layerSettings(base: unknown, over: unknown): unknown {
+function layerSettings(base: unknown, over: unknown): unknown {
   if (Array.isArray(base) && Array.isArray(over)) return [...new Set([...base, ...over])];
   if (!isPlain(base) || !isPlain(over)) return over === undefined ? base : over;
   const out: Json = { ...base };
@@ -139,15 +131,6 @@ function setPath(target: Json, path: string[], value: unknown): void {
   if (last === undefined) return;
   if (value === undefined) delete cursor[last];
   else cursor[last] = value;
-}
-
-export function composeSettings(existing: Json, kitValue: Json, owned: string[]): Json {
-  const merged = deepMerge(existing, kitValue) as Json;
-  for (const dotted of owned) {
-    const path = dotted.split(".");
-    setPath(merged, path, getPath(kitValue, path));
-  }
-  return merged;
 }
 
 function writeConfigIfChanged(path: string, value: unknown): boolean {
@@ -216,14 +199,13 @@ function inherited(harness: HarnessSpec, homeDir: string): Json {
 }
 
 function writeRoleSettings(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, homeDir: string, record: Recorder, extra: Json): void {
-  const { file, source, ownedPaths } = harness.settings;
+  const { file, source } = harness.settings;
   const roleFile = roleSettingsFile(kit, harness, role);
   if (!existsSync(roleFile)) throw new Error(`${role.role}: ${roleFile} is missing`);
   const kitSettings = layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {}));
   const wanted = layerSettings(layerSettings(inherited(harness, homeDir), kitSettings), extra) as Json;
   const settingsFile = join(dir, file);
-  const next = ownedPaths ? composeSettings(isLink(settingsFile) ? {} : readConfig<Json>(settingsFile, {}), wanted, ownedPaths) : wanted;
-  record.note(writeConfigIfChanged(settingsFile, next), file);
+  record.note(writeConfigIfChanged(settingsFile, wanted), file);
 }
 
 const catalogs = new Map<string, string>();
@@ -259,37 +241,11 @@ function writeModelCatalog(harness: HarnessSpec, dir: string, record: Recorder):
   return setting;
 }
 
-function skillPermissionSetting(kit: Kit, team: Team, roleName: string): Json {
-  const { role, harness } = team.roles[roleName]!;
-  if (!harness.skillPermission) return {};
-  const allowed: Json = { "*": "deny" };
-  for (const name of skillSources(kit, role, skillDirsFor(team, roleName)).keys()) allowed[name] = "allow";
-  const setting: Json = {};
-  setPath(setting, harness.skillPermission.split("."), allowed);
-  return setting;
-}
-
-/** Skills the agent would load from the owner's own roots, each turned off by the path it is listed under. */
-function hideSkillsSetting(harness: HarnessSpec, homeDir: string): Json {
-  const spec = harness.hideSkills;
-  if (!spec) return {};
-  const hidden = spec.roots.flatMap((root) => {
-    const dir = expandHome(root, homeDir);
-    if (!existsSync(dir)) return [];
-    return readdirSync(dir).sort().map((name) => join(dir, name, "SKILL.md")).filter((path) => existsSync(path)).map((path) => ({ path, enabled: false }));
-  });
-  if (hidden.length === 0) return {};
-  const setting: Json = {};
-  setPath(setting, spec.setting.split("."), hidden);
-  return setting;
-}
-
-function stateWritesSetting(kit: Kit, team: Team, roleName: string, project?: SeatProject): Json {
+function stateWritesSetting(team: Team, roleName: string, project?: SeatProject): Json {
   const { role, harness } = team.roles[roleName]!;
   if (harness.stateWrites?.delivery !== "file" || !project) return {};
   const setting: Json = {};
-  const writes = project.root ? projectWrites({ root: project.root, state: project.state }) : [];
-  setPath(setting, harness.stateWrites.path.split("."), [...stateWrites(kit, team, role, project.state), ...writes]);
+  setPath(setting, harness.stateWrites.path.split("."), stateWrites(role, project.state));
   return setting;
 }
 
@@ -300,7 +256,7 @@ function writeFiles(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string,
   }
 }
 
-export class LeftAlone extends Error {}
+class LeftAlone extends Error {}
 
 function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: Recorder): void {
   for (const link of harness.links ?? []) {
@@ -311,7 +267,7 @@ function linkShared(harness: HarnessSpec, dir: string, homeDir: string, record: 
         record.note(ensureLink(path, target), link.link);
       } catch (error) {
         if (!(error instanceof LeftAlone)) throw error;
-        console.error(`paseo-crew: ${error.message}`);
+        console.error(`seatworks-v2: ${error.message}`);
       }
     }
     else if (link.optional && isLink(path)) {
@@ -326,10 +282,10 @@ function writeMcpFile(harness: HarnessSpec, dir: string, servers: McpServers, re
   const fault = configFault(file);
   // A launch-delivery harness keeps its own account data in this file; a file-delivery one holds only the seat's two tools here.
   if (fault && harness.mcp.delivery !== "file") {
-    console.error(`paseo-crew: ${fault}, so its MCP servers were left alone`);
+    console.error(`seatworks-v2: ${fault}, so its MCP servers were left alone`);
     return;
   }
-  if (fault) console.error(`paseo-crew: ${fault}, and the plugin owns that file, so it was written again`);
+  if (fault) console.error(`seatworks-v2: ${fault}, and the plugin owns that file, so it was written again`);
   const current = fault ? structuredClone(harness.mcp.seed ?? {}) : readConfig<Json>(file, structuredClone(harness.mcp.seed ?? {}));
   record.note(writeConfigIfChanged(file, mcpState(harness, current, servers)), harness.mcp.file);
 }
@@ -340,20 +296,12 @@ function removeIfPresent(path: string, what: string, record: Recorder): void {
   record.removed(what);
 }
 
-function writeInstructions(kit: Kit, team: Team, roleName: string, dir: string, paths: PromptPaths, record: Recorder, root?: string): void {
+function writeInstructions(team: Team, roleName: string, dir: string, paths: PromptPaths, record: Recorder, root?: string): void {
   const { role, harness } = team.roles[roleName]!;
-  const rules = renderText(role, rulesFor(team, roleName), paths);
-  if (harness.systemPrompt === "file" && harness.promptFile) {
-    const promptPath = join(dir, harness.promptFile);
-    const prompt = renderPrompt(kit, role, paths);
-    record.note(writeReal(promptPath, rules ? `${prompt.trimEnd()}\n\n${rules}` : prompt), harness.promptFile);
-    return;
-  }
+  const rules = [renderText(role, rulesFor(team, roleName), paths), projectImports(harness, root)].filter(Boolean).join("\n");
   if (!harness.contextFile) return;
   const contextPath = join(dir, harness.contextFile);
-  // Added after the lint: the project's path is the Human's, and a hidden word in it must not refuse the seat.
-  const imported = [rules, projectImports(harness, root)].filter(Boolean).join("\n");
-  if (imported) record.note(writeReal(contextPath, imported), harness.contextFile);
+  if (rules) record.note(writeReal(contextPath, rules), harness.contextFile);
   else removeIfPresent(contextPath, harness.contextFile, record);
 }
 
@@ -370,7 +318,7 @@ function linkSkills(kit: Kit, team: Team, roleName: string, dir: string, homeDir
     } catch (error) {
       // Thrown, the launch hook refused the seat for ever, since nothing removes that directory.
       if (!(error instanceof LeftAlone)) throw error;
-      console.error(`paseo-crew: skill ${name} for the ${role.role}: ${error.message}`);
+      console.error(`seatworks-v2: skill ${name} for the ${role.role}: ${error.message}`);
     }
   }
   for (const name of readdirSync(skillsDir)) {
@@ -390,13 +338,12 @@ export function seatProblems(kit: Kit, team: Team, roleName: string, paths: Prom
   const say = (error: unknown) => problems.push(errorText(error));
   try {
     renderText(seat.role, rulesFor(team, roleName), paths);
-    if (seat.harness.systemPrompt === "file" && seat.harness.promptFile) renderPrompt(kit, seat.role, paths);
+    renderPrompt(kit, seat.role, seat.harness.id, paths);
   } catch (error) {
     say(error);
   }
-  for (const [name, source] of skillSources(kit, seat.role, skillDirsFor(team, roleName))) {
-    problems.push(...skillProblems(seat.role, name, source));
-  }
+  for (const [name, source] of skillSources(kit, seat.role, skillDirsFor(team, roleName))) problems.push(...skillProblems(seat.role, name, source));
+  problems.push(...toolProblems(kit, seat.role));
   for (const [path, sources] of Object.entries(harnessFileSources(kit, seat.harness, seat.role))) {
     for (const source of sources) if (!existsSync(source)) problems.push(`${seat.harness.label} lays down ${path} from ${source}, which is missing`);
   }
@@ -407,17 +354,17 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   const seat = team.roles[roleName];
   if (!seat) throw new Error(`the team has no ${roleName} seat`);
   const dir = seatDir(kit, seat.role, seat.harness, homeDir, project);
-  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$PASEO_CREW_STATE" };
+  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" };
   const problems = seatProblems(kit, team, roleName, paths);
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();
   mkdirSync(dir, { recursive: true });
-  const extra = [stateWritesSetting(kit, team, roleName, project), skillPermissionSetting(kit, team, roleName), hideSkillsSetting(seat.harness, homeDir)].reduce<unknown>(layerSettings, writeModelCatalog(seat.harness, dir, record)) as Json;
+  const extra = layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(team, roleName, project)) as Json;
   writeRoleSettings(kit, seat.harness, seat.role, dir, homeDir, record, extra);
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);
   writeMcpFile(seat.harness, dir, servers, record);
-  writeInstructions(kit, team, roleName, dir, paths, record, project?.root);
+  writeInstructions(team, roleName, dir, paths, record, project?.root);
   linkSkills(kit, team, roleName, dir, homeDir, record);
   return record.changes;
 }

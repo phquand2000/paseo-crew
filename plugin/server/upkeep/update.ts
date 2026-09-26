@@ -33,7 +33,7 @@ export async function checkUpdate(ctx: UpdateContext, fetch = true): Promise<Upd
   const version = readJson<{ version?: string }>(join(dir, "package.json"), {}).version ?? "";
   const view: UpdateView = { dir, version, next: null, head: "", date: null, fetched: fetch, branch: null, upstream: null, behind: 0, ahead: 0, commits: [], installs: false, paseo: null, blocked: null, busy: ctx.busy, updated: null };
   const blocked = (why: string) => ({ ...view, blocked: why });
-  if (dir.startsWith(`${ctx.managedRoot}/`)) return blocked(`Paseo installed this copy from Git: run \`paseo plugin update ${PLUGIN_ID}\`.`);
+  if (dir.startsWith(`${ctx.managedRoot}/`)) return blocked(`Paseo installed this copy from Git: run \`paseo plugin update ${PLUGIN_ID} --ref <branch>\`, naming the branch it came from, since without --ref Paseo takes the remote's default branch.`);
   view.head = (await out(dir, ["rev-parse", "--short", "HEAD"])) ?? "";
   if (!view.head) return blocked(`${dir} is not a Git checkout, so there is nothing to update it from.`);
   view.date = (await out(dir, ["log", "-1", "--format=%cs"])) ?? null;

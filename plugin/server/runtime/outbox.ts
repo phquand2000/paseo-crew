@@ -1,29 +1,27 @@
+import { midTurn } from "../core/paseo.ts";
 import type { SeatLook, Seats } from "../core/ports.ts";
 import { readJson, writeJson } from "../core/store.ts";
 
-export type Letter = { id: string; to: string; key: string; text: string; at: number };
-export type Posted = "sent" | "held" | "duplicate";
-export type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
-/** Told when a letter is given up on, so that the one thing the desk must not lose is not lost quietly. */
-export type Dropped = (letter: Letter, now: number) => void;
-/** Whether the seat's harness takes a text into a running turn rather than replacing the turn with it. */
-export type Steers = (seat: SeatLook) => boolean;
+export type Letter = { id: string; to: string; key: string; text: string; at: number; wakes?: false };
+type Posted = "sent" | "held" | "duplicate";
+type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
+/**
+ * What the outbox asks of the desk. `dropped` is told when a letter is given up on, so it is not lost quietly; `steers`, whether
+ * the seat's harness takes a text into a running turn rather than replacing the turn; `calling`, whether the seat waits on a
+ * call to the desk, where a text steered in reads as the call cut short; `holding`, whether its mail waits for a hold to lift.
+ */
+export type Rules = { dropped?: (letter: Letter, now: number) => void; steers?: (seat: SeatLook) => boolean; calling?: (agentId: string) => boolean; holding?: (seat: SeatLook) => boolean };
 
 const KEEP_MS = 7 * 24 * 3_600_000;
 const DUPLICATE_MS = 30 * 60_000;
 const GRACE_MS = 10 * 60_000;
 const SETTLE_MS = 60_000;
 
-export function busy(status: string | null | undefined): boolean {
-  return status === "running" || status === "initializing";
-}
-
 export class Outbox {
   private readonly file: string;
   private readonly compose: Compose;
-  private readonly seats: Seats;
-  private readonly dropped: Dropped | undefined;
-  private readonly steers: Steers;
+  private readonly seats: Pick<Seats, "look" | "send">;
+  private readonly rules: Rules;
   private readonly awaiting = new Map<string, number>();
   private readonly started = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
@@ -35,12 +33,11 @@ export class Outbox {
   private readonly lanes = new Map<string, Promise<unknown>>();
   private counter = 0;
 
-  constructor(file: string, compose: Compose, seats: Seats, dropped?: Dropped, steers: Steers = () => false) {
+  constructor(file: string, compose: Compose, seats: Pick<Seats, "look" | "send">, rules: Rules = {}) {
     this.file = file;
     this.compose = compose;
     this.seats = seats;
-    this.dropped = dropped;
-    this.steers = steers;
+    this.rules = rules;
   }
 
   /** Aged-out letters included: both writers rebuild the file from this read, so filtering here deletes. */
@@ -54,7 +51,7 @@ export class Outbox {
     const kept: Letter[] = [];
     for (const letter of letters) {
       if (now - letter.at < KEEP_MS) kept.push(letter);
-      else this.dropped?.(letter, now);
+      else this.rules.dropped?.(letter, now);
     }
     return kept;
   }
@@ -112,14 +109,17 @@ export class Outbox {
         return new Set<string>();
       }
       if ((seat.pendingPermissions?.length ?? 0) > 0) return new Set<string>();
+      if (this.rules.holding?.(seat)) return new Set<string>();
       const since = this.awaiting.get(to);
       const waiting = since !== undefined && Date.now() - since < GRACE_MS;
       // A turn this desk never saw start — one running across a restart — is not known to be settled.
       const began = this.started.get(to);
-      const steer = seat.status === "running" && began !== undefined && Date.now() - began >= SETTLE_MS && this.steers(seat);
-      if (!steer && (busy(seat.status) || waiting)) return new Set<string>();
+      const steer = seat.status === "running" && began !== undefined && Date.now() - began >= SETTLE_MS && this.rules.steers?.(seat) === true && this.rules.calling?.(to) !== true;
+      if (!steer && (midTurn(seat.status) || waiting)) return new Set<string>();
+      // Word that asks nothing of an idle seat now waits for a letter that does, or for a turn it is already in.
+      if (!steer && mine.every((letter) => letter.wakes === false)) return new Set<string>();
       const text = await this.compose(to, mine);
-      await this.seats.send(to, text, steer);
+      await this.seats.send(to, text, [...new Set(mine.map((letter) => letter.key.split(":")[0]!))], steer ? "steer" : undefined);
       const now = Date.now();
       this.awaiting.set(to, now);
       const ids = new Set(mine.map((letter) => letter.id));

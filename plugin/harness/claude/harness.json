@@ -5,6 +5,12 @@
   "profileRoot": "HOME/.claude/profiles",
   "configDirEnv": "CLAUDE_CONFIG_DIR",
   "skillsDir": "skills",
+  "timeline": {
+    "unparsed": {
+      "input": "__unparsedToolInput",
+      "error": "InputValidationError[^\"]*could not be parsed as JSON"
+    }
+  },
   "steers": true,
   "mcp": {
     "file": ".claude.json",
@@ -32,6 +38,7 @@
       }
     }
   },
+  "mcpCall": "^mcp__{server}__",
   "settings": {
     "file": "settings.json",
     "source": "settings.json",
@@ -48,12 +55,11 @@
       "CLAUDE_CODE_DISABLE_FAST_MODE": "1",
       "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1",
       "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1",
-      "PASEO_CREW_HARNESS": "claude",
-      "PASEO_CREW_AGENT_BIN": "claude",
+      "SEATWORKS_HARNESS": "claude",
+      "SEATWORKS_AGENT_BIN": "claude",
       "ENABLE_TOOL_SEARCH": "false",
       "ENABLE_PROMPT_CACHING_1H": "1",
-      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1",
-      "CLAUDE_SECURESTORAGE_CONFIG_DIR": ""
+      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1"
     },
     "profileModeId": "bypassPermissions",
     "command": [
@@ -75,7 +81,6 @@
     ],
     "importAs": "@{path}"
   },
-  "systemPrompt": "config",
   "stateWrites": {
     "path": "settings.sandbox.filesystem.allowWrite",
     "delivery": "launch"

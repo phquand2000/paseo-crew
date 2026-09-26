@@ -1,4 +1,4 @@
-import type { IndexedProxy } from "../catalog/team.ts";
+import type { IndexedProxy } from "../catalog/servers.ts";
 import { callTool } from "../core/jsonrpc.ts";
 import type { CodeIndex } from "../desk/context.ts";
 

@@ -1,13 +1,14 @@
 import type { Ledger, Task } from "../../desk/ledger.ts";
-import type { Fact } from "./facts.ts";
+import { SETTLED } from "../../domain/task.ts";
+import { type Fact, type FactKind, fact } from "./facts.ts";
 
 /**
  * What a lane's history shows that no turn window can. One fact per kind per lane, naming every task:
  * incidents key on seat and kind, and the exact quote is how a standing condition is not re-raised.
  */
-export type Seen = { seat: string; fact: Fact };
+type Seen = { seat: string; fact: Fact };
 
-export type Reading = {
+type Reading = {
   reworksAt: number;
   reviewsAt: number;
 };
@@ -38,7 +39,7 @@ function took(task: Task): string {
 const MOST_NAMED = 5;
 
 const reworksOf = (task: Task): number => task.reworks ?? 0;
-const settled = (task: Task): boolean => task.status === "merged" || task.status === "cut";
+const settled = (task: Task): boolean => SETTLED.includes(task.status);
 
 /** Whether a brief hands over an answer to be typed in rather than an outcome to be reached. */
 export function prewritten(text: string): boolean {
@@ -56,7 +57,7 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
     if (lane.status !== "open" || !lane.lead) continue;
     const lead = lane.lead;
     const here = tasks.filter((task) => task.lane === lane.id);
-    const at = (kind: string, quote: string) => seen.push({ seat: lead, fact: { kind, level: "attend", quote } });
+    const at = (kind: FactKind, quote: string) => seen.push({ seat: lead, fact: fact(kind, quote) });
 
     // One task going round: each sending-back is a local fix to what the last one did not settle.
     const looping = here.filter((task) => !settled(task) && reworksOf(task) >= reading.reworksAt);

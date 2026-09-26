@@ -1,6 +1,6 @@
 ---
 name: grilling
-description: "Settles with the Human what new work should do before any lane opens: questions in numbered rounds, each with a recommended answer, until nothing about what the project does or how it behaves is left assumed, with every settled answer written into the project's CONTEXT.md. Use when the Human brings new work, or a change to how the project behaves, that CONTEXT.md does not already answer; not for a tiny change, a question CONTEXT.md settles, or work already settled with the Human."
+description: "Settles with the Human what new work should do before any lane opens: numbered rounds of questions, each with a recommended answer, until nothing about what the project does or how it behaves is assumed, and every settled answer is in CONTEXT.md. Use when the Human brings new work or a behavior change CONTEXT.md does not answer; not for a tiny change, a question CONTEXT.md settles, or work already settled with the Human."
 ---
 
 # Grilling
@@ -16,7 +16,7 @@ design, tests, process and sequencing are yours: decide them, list them at the f
 **Assumed**, one line each, so the Human can overturn one, and do not ask.
 
 A fact the repository or the tools can give you is never a question. Read only what settles it, and
-ask the rest of the round meanwhile; only the questions that hang on that fact wait for it.
+ask the rest of the round meanwhile.
 
 ## Rounds
 
@@ -47,10 +47,23 @@ Each answer reshapes the tree: recompute what can be asked now and ask that.
 
 ## Writing it down
 
-Write each answer that settles a behavior or a term into `$PASEO_CREW_STATE/CONTEXT.md` the moment it
-is settled, shaped by `$PASEO_CREW_KIT/content/guides/CONTEXT_FORMAT.md`. An answer that changes an
-earlier one replaces its line. Create the file with the first settled answer, not before. A
-repository that keeps `docs/product/` takes those answers there instead, as that guide says.
+Write each answer that settles a behavior or a term into `$SEATWORKS_STATE/CONTEXT.md` the moment it
+is settled, shaped by `$SEATWORKS_KIT/content/guides/CONTEXT_FORMAT.md`; one that changes an earlier
+answer replaces its line. Create the file with the first settled answer, not before.
+
+## Read-back
+
+Before the first lane opens, give the Human one screen to correct: the lanes you will open, each
+with its outcome and acceptance, what you assumed, and what will bring them back (a question only they
+can answer, an act that cannot be undone). With it, settle what the desk keeps for every lane: where
+lanes work when their copy makes that a question (`set_project` `laneHome`), and which paths no landing
+touches before the Human looks (`set_project` `askFirst`). Offer the ones this work reaches among
+access (auth, login, session, passwords, secrets, credentials, tokens), money (payments, billing) and
+what ships (CI workflows, Docker, `.env`, infra, deploy, terraform, k8s, helm); they keep or drop each,
+and nothing waits for them unless they keep one. Name the risk rules this work reaches (the kit's put a
+question to every review of migrations, schemas and SQL; `set_project` `riskRules` replaces them), and
+ask for a command that rehearses one, such as a migration run twice on a copy, where they have one. A correction is a settled answer like any other; what
+they want to be woken for, in their words, goes in `$SEATWORKS_STATE/notebook.md`.
 
 ## Ends in
 

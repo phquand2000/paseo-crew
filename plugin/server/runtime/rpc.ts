@@ -1,42 +1,46 @@
 import type { z } from "zod";
 import { contracts } from "../../shared/rpc.ts";
-import type { Check } from "./doctor.ts";
-import type { PaseoApi } from "../core/paseo.ts";
-import type { SettingsView, WriteResult } from "../catalog/settings.ts";
-
-export { contracts };
-
-export interface Control {
-  catalog(): unknown;
-  readSettings(project?: string): SettingsView;
-  writeSettings(project: string | undefined, revision: string, values: unknown): WriteResult;
-  projects(): unknown;
-  addProject(root: string): unknown;
-  removeProject(project: string): unknown;
-  candidateProjects(roots: string[]): unknown;
-  parseMcp(text: string): unknown;
-  team(project?: string): unknown;
-  doctor(project?: string): Promise<Check[]>;
-  status(project: string): Promise<unknown>;
-  flow(project: string, since?: string, open?: string[]): Promise<unknown>;
-  listPaths(path?: string): unknown;
-  refreshModels(): Promise<unknown>;
-  decide(unit: string, choice: "new" | "mine" | "seen"): Promise<unknown>;
-  clean(remove?: string[]): Promise<unknown>;
-  update(apply: boolean, fetch?: boolean): Promise<unknown>;
-  migrate(apply: boolean): Promise<unknown>;
-}
 
 type Contract = { name: string; input: z.ZodType; output: z.ZodType };
-type Answer = (input: any) => unknown;
-type Handle = (contract: Contract, handler: (input: any, context: { paseo: PaseoApi }) => unknown) => void;
+type Out<C extends Contract> = z.input<C["output"]> | Promise<z.input<C["output"]>>;
 
-/** Panel calls carry the live daemon handle: after a reload with no seat hooks yet, it is the desk's only way to get one. */
-export function registerRpc(server: { handle: unknown }, control: Control, bind: (paseo: PaseoApi) => void): string[] {
-  const register = (server.handle as Handle).bind(server);
-  const handle = (contract: Contract, answer: Answer) =>
-    register(contract, (input, context) => {
-      if (context?.paseo) bind(context.paseo);
+export interface Control {
+  catalog(): Out<typeof contracts.catalog>;
+  readSettings(project?: string): Out<typeof contracts.settingsRead>;
+  writeSettings(project: string | undefined, revision: string, values: unknown): Out<typeof contracts.settingsWrite>;
+  projects(): Out<typeof contracts.projects>;
+  addProject(root: string): Out<typeof contracts.projectsAdd>;
+  removeProject(project: string): Out<typeof contracts.projectsRemove>;
+  candidateProjects(roots: string[]): Out<typeof contracts.projectsCandidates>;
+  parseMcp(text: string): Out<typeof contracts.mcpParse>;
+  team(project?: string): Out<typeof contracts.team>;
+  doctor(project?: string): Out<typeof contracts.doctor>;
+  status(project: string): Out<typeof contracts.status>;
+  flow(project: string, since?: string, open?: string[]): Out<typeof contracts.flow>;
+  listPaths(path?: string): Out<typeof contracts.paths>;
+  refreshModels(): Out<typeof contracts.models>;
+  decide(unit: string, choice: "new" | "mine" | "seen"): Out<typeof contracts.decide>;
+  clean(remove?: string[]): Out<typeof contracts.clean>;
+  update(apply: boolean, fetch?: boolean): Out<typeof contracts.update>;
+  migrate(apply: boolean): Out<typeof contracts.migrate>;
+}
+
+/** What only the Human decides on the panel, and what they read there. */
+export interface HumanRpc {
+  decideLand(project: string, lane: string, approve: boolean, note: string): Out<typeof contracts.landDecide>;
+  answer(project: string, question: string, choice: string, note: string): Out<typeof contracts.questionAnswer>;
+  orders(project: string): Out<typeof contracts.orders>;
+  report(project: string): Out<typeof contracts.report>;
+}
+
+/** Serves one contract: the handler takes what its input schema reads and gives what its output schema holds. */
+type Serve = <C extends Contract>(contract: C, answer: (input: z.output<C["input"]>) => Out<C>) => void;
+
+/** `called` runs before every answer, since a panel call is how the runtime learns someone is looking. */
+export function registerRpc(serve: Serve, control: Control, human: HumanRpc, called: () => void): string[] {
+  const handle: Serve = (contract, answer) =>
+    serve(contract, (input) => {
+      called();
       return answer(input);
     });
   handle(contracts.catalog, () => control.catalog());
@@ -51,6 +55,10 @@ export function registerRpc(server: { handle: unknown }, control: Control, bind:
   handle(contracts.doctor, (input) => control.doctor(input.project));
   handle(contracts.status, (input) => control.status(input.project));
   handle(contracts.flow, (input) => control.flow(input.project, input.since, input.open));
+  handle(contracts.landDecide, (input) => human.decideLand(input.project, input.lane, input.approve, input.note));
+  handle(contracts.questionAnswer, (input) => human.answer(input.project, input.question, input.choice, input.note));
+  handle(contracts.orders, (input) => human.orders(input.project));
+  handle(contracts.report, (input) => human.report(input.project));
   handle(contracts.paths, (input) => control.listPaths(input.path));
   handle(contracts.models, () => control.refreshModels());
   handle(contracts.decide, (input) => control.decide(input.unit, input.choice));

@@ -9,9 +9,8 @@ import { errorText } from "../core/errors.ts";
 import { readLedger } from "../desk/ledger.ts";
 import type { Project } from "../desk/project.ts";
 import { BACKUP } from "./migrate.ts";
-import { STATE_BACKUP } from "./state.ts";
 
-export type CleanContext = {
+type CleanContext = {
   kit: Kit;
   home: string;
   known: Project[];
@@ -141,17 +140,13 @@ function snapshots(ctx: CleanContext): CleanItem[] {
     .map((name) => item(join(root, name), "snapshot", "no seat links to it"));
 }
 
-/** What Migrate put aside before changing a settings file. They can hold the sensor's key. */
+/** What Migrate put aside before changing a settings file. They can hold a pasted server's token. */
 function backups(ctx: CleanContext): CleanItem[] {
   const root = stateRoot(ctx.home);
   const dirs = [root, ...entries(join(root, "projects")).map((slug) => join(root, "projects", slug))];
   return dirs.flatMap((dir) =>
     entries(dir).flatMap((name) =>
-      BACKUP.test(name)
-        ? [item(join(dir, name), "backup", "a copy Migrate kept of settings it repaired; it can hold the sensor key")]
-        : STATE_BACKUP.test(name)
-          ? [item(join(dir, name), "backup", "the files as they were before an upgrade of their format; it can hold the sensor key")]
-          : [],
+      BACKUP.test(name) ? [item(join(dir, name), "backup", "a copy Migrate kept of settings it repaired; it can hold a pasted server's token")] : [],
     ),
   );
 }

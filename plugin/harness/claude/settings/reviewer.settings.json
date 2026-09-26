@@ -1,10 +1,10 @@
 {
   "permissions": {
     "deny": [
-      "Agent",
       "Edit",
       "Write",
       "MultiEdit",
+      "NotebookEdit",
       "WebSearch",
       "Bash(git commit *)",
       "Bash(git -C * commit *)",
@@ -24,6 +24,7 @@
       "Bash(git -C * revert *)",
       "Bash(git -C * clean *)",
       "Bash(git -C * apply *)",
+      "Bash(git -C * am *)",
       "Bash(git -C * config *)"
     ]
   },

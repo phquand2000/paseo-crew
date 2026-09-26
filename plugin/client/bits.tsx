@@ -154,11 +154,3 @@ export function Rule({ theme }: { theme: PluginTheme }) {
 export function Dot({ color, size = 8 }: { color: string; size?: number }) {
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
 }
-
-export function Tag({ text, color, theme }: { text: string; color: string; theme: PluginTheme }) {
-  return (
-    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: theme.colors.surface2 }}>
-      <Text style={{ color, fontSize: 12, fontWeight: "500" }}>{text}</Text>
-    </View>
-  );
-}

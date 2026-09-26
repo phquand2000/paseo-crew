@@ -1,21 +1,30 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { type TestContext, afterEach } from "node:test";
 import { fileURLToPath } from "node:url";
+import { PaseoHost } from "../../server/adapters/paseo/host.ts";
+import { type SensorSpec, loadKit } from "../../server/catalog/kit.ts";
+import { applyModels } from "../../server/catalog/models.ts";
+import { stateRoot } from "../../server/core/paths.ts";
+import type { HookAgent, Judge, TimelineItem } from "../../server/core/ports.ts";
+import { loadLedger } from "../../server/desk/ledger.ts";
+import { type Project, projectOf } from "../../server/desk/project.ts";
+import { registerRpc } from "../../server/runtime/rpc.ts";
+import { Runtime } from "../../server/runtime/runtime.ts";
+import type { z } from "zod";
+import { tempDir } from "../tempdir.ts";
+import { FakeTimeline } from "./fake-timeline.ts";
 
-export const HOME = mkdtempSync(join(tmpdir(), "crew-flow-home-"));
-process.env.HOME = HOME;
-delete process.env.PASEO_HOME;
-globalThis.fetch = (async () => new Response("{}", { status: 503 })) as typeof fetch;
+const made: Runtime[] = [];
 
-const { loadKit } = await import("../../server/catalog/kit.ts");
-const { applyModels } = await import("../../server/catalog/models.ts");
-const { loadLedger } = await import("../../server/desk/ledger.ts");
-const { projectOf } = await import("../../server/desk/project.ts");
-type Project = ReturnType<typeof projectOf>;
-const { Runtime } = await import("../../server/runtime/runtime.ts");
-const { FakeTimeline } = await import("./fake-timeline.ts");
+type Contract = { name: string; input: z.ZodType; output: z.ZodType };
+
+/** A runtime goes with the test that made it, so nothing it still follows reaches the next test. */
+afterEach(() => {
+  for (const runtime of made.splice(0)) runtime.dispose();
+});
 
 export type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
 type Fake = {
@@ -27,11 +36,15 @@ type Fake = {
   archivedAt: string | null;
   updatedAt: string;
   sent: string[];
+  sentIds: string[];
   steered: string[];
+  interrupted: string[];
   pending: Pending[];
   answered: { requestId: string; response: { behavior: string; updatedInput?: { answers?: Record<string, string> } } }[];
   prompt?: string;
+  promptId?: string;
   labels: Record<string, string>;
+  workspaceId?: string;
 };
 
 function fakePaseo() {
@@ -58,9 +71,11 @@ function fakePaseo() {
       get pendingPermissions() { return agent?.pending ?? []; },
       async refresh() {},
       current() { return agent ? { id: agent.id, provider: agent.provider, cwd: agent.cwd, title: agent.title } : null; },
-      async send(text: string, options?: { activeTurnBehavior?: string }) {
+      async send(text: string, options?: { activeTurnBehavior?: string; messageId?: string }) {
         agent?.sent.push(text);
+        if (options?.messageId) agent?.sentIds.push(options.messageId);
         if (options?.activeTurnBehavior === "steer") agent?.steered.push(text);
+        if (options?.activeTurnBehavior === "interrupt") agent?.interrupted.push(text);
       },
       async respondToPermission({ requestId, response }: Fake["answered"][number]) {
         const at = agent?.pending.findIndex((request) => request.id === requestId) ?? -1;
@@ -68,20 +83,31 @@ function fakePaseo() {
         agent.pending.splice(at, 1);
         agent.answered.push({ requestId, response });
       },
-      async archive() { if (agent) Object.assign(agent, { archivedAt: new Date().toISOString(), status: "closed" }); },
+      async archive() { archiveWithChildren(id); },
     };
+  };
+  // Paseo 0.9.2 archives an agent's children with it, and theirs (live probe, v3 LEDGER D79).
+  const archiveWithChildren = (id: string): void => {
+    const agent = agents.get(id);
+    if (!agent || agent.archivedAt) return;
+    Object.assign(agent, { archivedAt: new Date().toISOString(), status: "closed" });
+    for (const child of agents.values()) if (child.labels["paseo.parent-agent-id"] === id) archiveWithChildren(child.id);
   };
   const add = (provider: string, cwd: string, title: string, status = "idle", prompt?: string, labels: Record<string, string> = {}) => {
     const id = `agent-${++count}`;
-    agents.set(id, { id, provider, cwd, title, status, archivedAt: null, updatedAt: new Date().toISOString(), sent: [], steered: [], pending: [], answered: [], prompt, labels });
+    agents.set(id, { id, provider, cwd, title, status, archivedAt: null, updatedAt: new Date().toISOString(), sent: [], sentIds: [], steered: [], interrupted: [], pending: [], answered: [], prompt, labels });
     return id;
   };
   const workspace = (id: string) => ({
     id,
     projectId: workspaceProjects.get(id) ?? null,
     agents: {
-      async create(options: { config: { provider: string }; title: string; prompt: string; labels?: Record<string, string> }) {
-        return ref(add(options.config.provider, workspaces.get(id)!, options.title, "running", options.prompt, options.labels));
+      async create(options: { config: { provider: string }; parent?: string; title: string; prompt: string; clientMessageId?: string; labels?: Record<string, string> }) {
+        // Paseo keeps an agent's parent as this label, and never pushes an agent that has one.
+        const labels = { ...options.labels, ...(options.parent ? { "paseo.parent-agent-id": options.parent } : {}) };
+        const made = add(options.config.provider, workspaces.get(id)!, options.title, "running", options.prompt, labels);
+        Object.assign(agents.get(made)!, { promptId: options.clientMessageId, workspaceId: id });
+        return ref(made);
       },
     },
   });
@@ -115,8 +141,11 @@ function fakePaseo() {
           pageInfo: { nextCursor: null, prevCursor: null, hasMore: false },
         };
       },
+      // The daemon archives every agent a workspace owns with it (workspace-archive-service.js, archiveWorkspaceContents).
       async archive(id: string) {
-        archivedWorkspaces.add(typeof id === "string" ? id : (id as { id: string }).id);
+        const workspaceId = typeof id === "string" ? id : (id as { id: string }).id;
+        archivedWorkspaces.add(workspaceId);
+        for (const agent of agents.values()) if (agent.workspaceId === workspaceId) archiveWithChildren(agent.id);
         return { archivedAt: new Date().toISOString() };
       },
       ref: workspace,
@@ -126,7 +155,7 @@ function fakePaseo() {
 }
 
 export function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
-  const root = mkdtempSync(join(tmpdir(), "crew-flow-repo-"));
+  const root = tempDir("sw2-flow-repo-");
   const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   writeFileSync(join(root, "a.txt"), "one\ntwo\nthree\n");
   writeFileSync(join(root, "b.txt"), "bee\n");
@@ -144,9 +173,7 @@ export function repo(): { root: string; git: (cwd: string, ...args: string[]) =>
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
 const thinking = ["low", "medium", "high"].map((id) => ({ id, label: id }));
 applyModels(kit, {
-  claude: { at: "", error: null, models: [{ id: "claude-opus-5-5", label: "Opus 5.5", thinkingOptions: thinking }, { id: "claude-opus-5", label: "Opus 5", thinkingOptions: thinking }] },
-  codex: { at: "", error: null, models: [{ id: "gpt-5.5", label: "GPT-5.5" }] },
-  agy: { at: "", error: null, models: [{ id: "gemini-3.8-flash-high", label: "Gemini 3.8 Flash High" }] },
+  claude: { at: "", error: null, models: [{ id: "claude-opus-5", label: "Opus 5", thinkingOptions: thinking }] },
 });
 
 export const ideCalls: { kind: "open" | "sync" | "close"; path: string }[] = [];
@@ -165,21 +192,33 @@ const ide = {
   },
 };
 
-export function harness(outbox: string) {
+/** `sensor` stands in for the HTTP one the host gives the desk, so no test asks a real model. */
+export function harness(options: { sensor?: (spec: SensorSpec, key: string) => Judge } = {}) {
+  // One harness is one machine: a test that builds two gets two, since a daemon never shares its state.
+  process.env.HOME = tempDir("sw2-home-");
   const { root, git } = repo();
-  const state = join(HOME, ".local", "share", "paseo-crew");
+  const state = stateRoot();
   mkdirSync(state, { recursive: true });
-  // By Jev with a key and an unreachable endpoint: the watch on, the sensor silent unless a test asks.
-  writeFileSync(join(state, "settings.json"), JSON.stringify({ sensor: { key: "sk-or-harness" }, attention: { by: "jev" }, mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
+  writeFileSync(join(state, "settings.json"), JSON.stringify({ mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } } }));
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } = fakePaseo();
-  const runtime = new Runtime(kit, { outboxFile: join(HOME, outbox), paseo, codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true });
   const project = projectOf(root);
-  // Paseo seats a project's agents through the create hook, which records the project; the seats added here skip it.
-  (runtime as unknown as { remember(project: Project): void }).remember(project);
+  const start = () => {
+    const next = new Runtime(kit, new PaseoHost(paseo), { codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({ ...ide, id: proxy.id, gitExclude: proxy.gitExclude ?? [] }), reloadDaemon: async () => true, sensor: options.sensor });
+    made.push(next);
+    // Paseo seats a project's agents through the create hook, which records the project; the seats added here skip it.
+    (next as unknown as { remember(project: Project): void }).remember(project);
+    return next;
+  };
+  let runtime = start();
+  // The plugin starting again on the same machine: the daemon, its agents and what is on disk stay, the plugin's memory does not.
+  const restart = () => {
+    runtime.dispose();
+    runtime = start();
+  };
   let n = 0;
   // `where` is the calling working copy, since several desk keys turned out shared between projects.
   const call = async (agent: string, role: string, tool: string, args: Record<string, unknown>, where = root) =>
-    runtime.desk.handle({ id: `${outbox}-${++n}`, agent, role, tool, args, cwd: where, at: Date.now() });
+    runtime.desk.handle({ id: `call-${++n}`, agent, role, tool, args, cwd: where, at: Date.now() });
   const idle = async (id: string) => {
     agents.get(id)!.status = "idle";
     runtime.outbox.turnEnded(id);
@@ -191,41 +230,90 @@ export function harness(outbox: string) {
     git(cwd, "commit", "-qm", `edit ${file}`);
   };
   const ledger = (of: Project = project) => loadLedger(of.state);
+  // What a seat has been sent and what waits for it: word that asks nothing rides along with its next letter.
+  const heard = (id: string) => [...agents.get(id)!.sent, ...runtime.outbox.pending(id).map((letter) => letter.text)];
   const tick = (now?: number) => (runtime as unknown as { patrol: { tick(now?: number): Promise<void> } }).patrol.tick(now);
+  const agentOf = (id: string): HookAgent => ({ id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title });
   // Paseo fires a turn start before a turn end; without one, a turn is measured from half an hour ago.
-  const beginTurn = (id: string) => (runtime as unknown as { turnStarted(agentId: string): void }).turnStarted(id);
+  const beginTurn = (id: string) => runtime.turnStarted(agentOf(id));
   // Paseo hands this hook the seat's whole append-only timeline, not the turn that ended.
-  const told = new Map<string, unknown[]>();
-  const endTurn = (id: string, text: string, ...calls: unknown[]) => {
+  const told = new Map<string, TimelineItem[]>();
+  const endTurn = (id: string, text: string, ...calls: TimelineItem[]) => {
     const timeline = told.get(id) ?? [];
     timeline.push({ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text });
     told.set(id, timeline);
-    return (runtime as unknown as { turnEnded: (event: unknown) => Promise<void> }).turnEnded({
-      agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
-      turnId: `t-${id}-${Date.now()}`,
-      outcome: { kind: "completed" },
-      timeline: [...timeline],
-    });
+    return runtime.turnEnded({ agent: agentOf(id), turnId: `t-${id}-${Date.now()}`, outcome: { kind: "completed" }, timeline: [...timeline] });
   };
-  const permission = (id: string, request: Pending) =>
-    (runtime as unknown as { permissionRequested: (event: unknown) => Promise<void> }).permissionRequested({
-      agent: { id, provider: agents.get(id)!.provider, cwd: agents.get(id)!.cwd, title: agents.get(id)!.title, parentAgentId: null, workspaceId: null },
-      request,
-    });
-  return { root, git, paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, runtime, project, call, idle, commit, ledger, endTurn, tick, beginTurn, permission, timelineOf };
+  const permission = (id: string, request: Pending) => runtime.permissionRequested({ agent: agentOf(id), request });
+  // A panel call as the panel makes it: through its contract, and its answer, as sent, read by the schema the panel checks it with.
+  const rpc = async <C extends Contract>(contract: C, input: z.input<C["input"]>): Promise<z.output<C["output"]>> => {
+    let answer: (input: unknown) => unknown = () => assert.fail(`nothing serves ${contract.name}`);
+    registerRpc((served, handler) => void (served.name === contract.name && (answer = handler as (input: unknown) => unknown)), runtime.control, runtime.control.human, () => {});
+    return contract.output.parse(JSON.parse(JSON.stringify(await answer(contract.input.parse(input))))) as z.output<C["output"]>;
+  };
+  return {
+    root,
+    git,
+    paseo,
+    agents,
+    add,
+    workspaces,
+    workspaceNames,
+    workspaceProjects,
+    archivedWorkspaces,
+    get runtime() {
+      return runtime;
+    },
+    project,
+    call,
+    idle,
+    commit,
+    ledger,
+    heard,
+    endTurn,
+    tick,
+    beginTurn,
+    permission,
+    rpc,
+    timelineOf,
+    restart,
+  };
 }
 
-export async function laneWithPeer(outbox: string, settings?: Record<string, unknown>) {
-  const h = harness(outbox);
+export async function laneWithPeer(settings?: Record<string, unknown>, options?: Parameters<typeof harness>[0]) {
+  const h = harness(options);
   if (settings) {
     mkdirSync(h.project.state, { recursive: true });
     writeFileSync(join(h.project.state, "settings.json"), JSON.stringify(settings));
   }
-  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Build", outcome: "a.txt changes", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
   const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "start_task", { title: "Clean build", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] });
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], owned: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   await h.tick();
   return { h, sup, lane, peer, timeline: h.timelineOf(peer) };
+}
+
+/** Every seat archived, as Paseo lists a machine nobody sits at any more. */
+export function nobodySeated(h: ReturnType<typeof harness>): void {
+  for (const agent of h.agents.values()) Object.assign(agent, { archivedAt: new Date().toISOString(), status: "closed" });
+}
+
+/** A round started and held once it has listed the seats, until `release` lets it go on to its end. */
+export async function heldRound(h: ReturnType<typeof harness>, t: TestContext) {
+  const desk = h.runtime.desk;
+  const retell = desk.retell.bind(desk);
+  let reached = () => {};
+  let release = () => {};
+  const inRound = new Promise<void>((resolve) => (reached = resolve));
+  const held = new Promise<void>((resolve) => (release = resolve));
+  t.mock.method(desk, "retell", async (...args: Parameters<typeof retell>) => {
+    reached();
+    await held;
+    return retell(...args);
+  });
+  const round = h.tick();
+  await inRound;
+  return { round, release };
 }

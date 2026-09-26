@@ -1,8 +1,8 @@
 import { accessSync, constants, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, delimiter, join, resolve } from "node:path";
+import { basename, delimiter, join } from "node:path";
 
-export const PLUGIN_ID = "paseo-crew";
+export const PLUGIN_ID = "seatworks-v2";
 
 export function home(): string {
   return process.env.HOME || homedir();
@@ -15,17 +15,16 @@ export function expandHome(value: string, homeDir = home()): string {
   return value;
 }
 
-export function paseoHome(): string {
-  const raw = process.env.PASEO_HOME;
-  return raw ? resolve(expandHome(raw)) : join(home(), ".paseo");
+export function paseoConfigPath(homeDir = home()): string {
+  return join(homeDir, ".paseo", "config.json");
 }
 
-export function paseoConfigPath(): string {
-  return join(paseoHome(), "config.json");
-}
+export const RECORDS = ["events", "attention", "assessments"] as const;
+
+export const DESK_OWNED = new Set(["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json", "status.md", ...RECORDS.map((name) => `${name}.log`), "handbacks", "gates", "archive"]);
 
 export function stateRoot(homeDir = home()): string {
-  return join(homeDir, ".local", "share", "paseo-crew");
+  return join(homeDir, ".local", "share", "seatworks-v3");
 }
 
 export function guidesDir(homeDir = home()): string {
@@ -61,8 +60,12 @@ export function outboxPath(homeDir = home()): string {
   return join(stateRoot(homeDir), "outbox.json");
 }
 
+export function intentsPath(homeDir = home()): string {
+  return join(stateRoot(homeDir), "intents.json");
+}
+
 export function pluginDir(configPath = paseoConfigPath()): string | undefined {
-  if (process.env.PASEO_CREW_PLUGIN_DIR) return process.env.PASEO_CREW_PLUGIN_DIR;
+  if (process.env.SEATWORKS_PLUGIN_DIR) return process.env.SEATWORKS_PLUGIN_DIR;
   try {
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     const entry = config?.plugins?.[PLUGIN_ID];

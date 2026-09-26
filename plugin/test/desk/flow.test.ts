@@ -41,9 +41,9 @@ function working() {
 }
 
 const seats = new Map<string, SeatView>([
-  ["seat-lead", { id: "seat-lead", provider: "crew-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 180_000).toISOString() }],
-  ["seat-peer", { id: "seat-peer", provider: "crew-peer-agy", cwd: "/w", status: "running", updatedAt: new Date(now - 60_000).toISOString(), pendingPermissions: [{ title: "Write outside the working copy" }] }],
-  ["seat-sup", { id: "seat-sup", provider: "crew-supervisor-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 600_000).toISOString() }],
+  ["seat-lead", { id: "seat-lead", provider: "sw2-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 180_000).toISOString() }],
+  ["seat-peer", { id: "seat-peer", provider: "sw2-peer-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 60_000).toISOString(), pendingPermissions: [{ title: "Write outside the working copy" }] }],
+  ["seat-sup", { id: "seat-sup", provider: "sw2-supervisor-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 600_000).toISOString() }],
 ]);
 
 test("a project with nothing running draws nothing", () => {
@@ -66,7 +66,7 @@ test("the supervisor shown is the one seated now, not the first one the project 
   ledger.agents["seat-sup2"] = { id: "seat-sup2", role: "supervisor" };
   const later = new Map(seats);
   later.delete("seat-sup");
-  later.set("seat-sup2", { id: "seat-sup2", provider: "crew-supervisor-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 30_000).toISOString() });
+  later.set("seat-sup2", { id: "seat-sup2", provider: "sw2-supervisor-claude", cwd: "/w", status: "running", updatedAt: new Date(now - 30_000).toISOString() });
 
   // `ledger.agents` is never pruned and keeps insertion order, so the first Supervisor ever was shown for ever.
   const shown = flowView(project, ledger, later, now, new Set(), new Set(["supervisor"])).supervisors;
@@ -81,7 +81,7 @@ test("several seats supervising a project are all shown, each for its own concer
   ledger.agents["seat-arch"] = { id: "seat-arch", role: "architecture" };
   ledger.agents["seat-safety"] = { id: "seat-safety", role: "safety" };
   const both = new Map(seats);
-  both.set("seat-arch", { id: "seat-arch", provider: "crew-architecture-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
+  both.set("seat-arch", { id: "seat-arch", provider: "sw2-architecture-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
   // The concept has several supervisors by concern, and a concern whose seat has gone still shows, as gone.
   const view = flowView(project, ledger, both, now, new Set(), new Set(["supervisor", "architecture", "safety"]));
   assert.deepEqual(view.supervisors.map((seat) => [seat.role, seat.status]).sort(), [["architecture", "idle"], ["safety", "gone"], ["supervisor", "idle"]]);
@@ -131,7 +131,7 @@ test("an open ask reaches the flow with its first line, and an answered one does
 });
 
 test("the ledger is parsed again only when the file on disk has changed", () => {
-  const state = tempDir("crew-flow-state-");
+  const state = tempDir("sw2-flow-state-");
   const ledger = emptyLedger();
   ledger.lanes.L1 = lane("L1", "open");
   saveLedger(state, ledger);
@@ -179,4 +179,44 @@ test("the view is plain JSON as Paseo checks it, with no field left undefined, w
   ledger.lanes.L3 = { ...lane("L3", "open"), status: "waiting", after: ["L1"] };
   const view = flowView(project, ledger, seats, now);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(view)), view, "Paseo refuses a reply with an undefined field, and the panel shows the flow as unreadable");
+});
+
+
+test("a task says whether it runs beside the others and in which copy, and a waiting one what it waits for or why it is held", () => {
+  const ledger = working();
+  ledger.tasks["L1-T3"] = { ...task("L1-T3", "L1", "running", "seat-peer"), mode: "parallel", branch: "task-l1-t3", slot: "S2", worktree: "/w/shop/S2" };
+  ledger.tasks["L1-T4"] = { ...task("L1-T4", "L1", "waiting"), after: ["L1-T1", "L1-T3"] };
+  ledger.tasks["L1-T5"] = { ...task("L1-T5", "L1", "waiting"), held: { why: "L1-T1 is still writing in the lane's working copy." } };
+  const tasks = Object.fromEntries(flowView(project, ledger, seats, now, new Set(["L1"])).lanes[0]!.tasks.map((entry) => [entry.id, entry]));
+  assert.deepEqual([tasks["L1-T1"]!.mode, tasks["L1-T1"]!.copy, tasks["L1-T1"]!.after, tasks["L1-T1"]!.held], ["lane", null, [], null], "a task in the lane's copy works where its Lead's lane does");
+  assert.deepEqual([tasks["L1-T3"]!.mode, tasks["L1-T3"]!.copy], ["parallel", "S2"]);
+  assert.deepEqual(tasks["L1-T4"]!.after, ["L1-T1", "L1-T3"]);
+  assert.equal(tasks["L1-T5"]!.held, "L1-T1 is still writing in the lane's working copy.");
+});
+
+test("a lane says whether it works in the Human's checkout or a copy of its own", () => {
+  const ledger = working();
+  ledger.lanes.L2 = { ...ledger.lanes.L2!, slot: "S1", worktree: "/w/shop/S1" };
+  assert.deepEqual(flowView(project, ledger, seats, now).lanes.map((entry) => [entry.id, entry.copy]), [["L1", null], ["L2", "S1"]]);
+});
+
+test("a Lead kept after its lane closed is drawn until it goes, with the copy it keeps, and a Peer kept idle in a lane's copy is drawn with that lane", () => {
+  const ledger = working();
+  ledger.lanes.L0 = { ...lane("L0", "closed", "seat-kept"), landed: true, slot: "S3", worktree: "/w/shop/S3" };
+  ledger.slots.S3 = { id: "S3", path: "/w/shop/S3", createdAt: now, lane: "L0" };
+  ledger.lanes.L5 = { ...lane("L5", "closed", "seat-dropped"), landed: false };
+  ledger.tasks["L1-T0"] = { ...ledger.tasks["L1-T0"]!, peer: "seat-idle" };
+  ledger.agents["seat-idle"] = { id: "seat-idle", role: "peer", lane: "L1", task: "L1-T0" };
+  const kept = new Map(seats);
+  for (const id of ["seat-kept", "seat-dropped", "seat-idle"]) kept.set(id, { id, provider: "sw2-lead-claude", cwd: "/w", status: "idle", updatedAt: new Date(now - 60_000).toISOString() });
+  const view = flowView(project, ledger, kept, now);
+  assert.deepEqual(view.lanes.map((entry) => [entry.id, entry.status, entry.landed, entry.copy]), [["L1", "open", undefined, null], ["L2", "open", undefined, null], ["L0", "closed", true, "S3"], ["L5", "closed", false, null]]);
+  assert.equal(view.lanes[0]!.kept?.id, "seat-idle", "the Peer the lane's next task in its copy goes to");
+  assert.equal(view.lanes[1]!.kept, null);
+  kept.delete("seat-kept");
+  kept.delete("seat-idle");
+  const gone = flowView(project, ledger, kept, now);
+  assert.deepEqual(gone.lanes.map((entry) => entry.id), ["L1", "L2", "L5"], "a closed lane whose Lead was released is not live");
+  assert.equal(gone.lanes[0]!.kept, null);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(view)), view);
 });

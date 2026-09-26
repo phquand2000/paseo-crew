@@ -1,1 +1,1 @@
-# The Watcher reads what the desk mails it and changes nothing; its sandbox is read-only.
+prefix_rule(pattern = ["git"], decision = "forbidden", justification = "The Watcher answers from its case and never touches the work.")

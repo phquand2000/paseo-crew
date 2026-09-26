@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { postJsonRpc } from "../core/jsonrpc.ts";
 import { expandHome } from "../core/paths.ts";
 import { type Kit, hookTools } from "../catalog/kit.ts";
-import { type Team, connectToServer, proxyOf } from "../catalog/team.ts";
+import { connectToServer, proxyOf } from "../catalog/servers.ts";
+import type { Team } from "../catalog/team.ts";
 import { errorText } from "../core/errors.ts";
 import type { Check } from "../../shared/views.ts";
 
@@ -40,7 +41,7 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
   for (const seat of Object.values(team.roles)) harnesses.set(seat.harness.id, [...(harnesses.get(seat.harness.id) ?? []), seat.role.label]);
   for (const [id, roles] of harnesses) {
     const harness = kit.harnesses[id]!;
-    const bin = harness.provider.env?.PASEO_CREW_AGENT_BIN;
+    const bin = harness.provider.env?.SEATWORKS_AGENT_BIN;
     if (bin) {
       const ok = probes.has(bin);
       checks.push({ id: `harness:${id}`, ok, detail: ok ? `${harness.label} (${bin}) is installed for ${roles.join(", ")}.` : `${harness.label} needs \`${bin}\` on PATH for ${roles.join(", ")}.` });
@@ -95,7 +96,7 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
         // This probe does not speak SSE; run against it, a working server read as never answering.
         checks.push({ id: `mcp:${state.id}`, ok: true, detail: `${state.label} is an SSE server at ${direct.url}; the desk does not probe that transport, so this is not a check.${help}` });
       } else if (direct?.url) {
-        const answered = await probes.post(direct.url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "paseo-crew-doctor", version: "2" } } }, 8000);
+        const answered = await probes.post(direct.url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "seatworks-doctor", version: "2" } } }, 8000);
         const ok = answered.ok && Boolean(answered.json?.result);
         checks.push({ id: `mcp:${state.id}`, ok, detail: ok ? `${state.label} answered.` : `${state.label} did not answer: ${answered.error ?? "no MCP result"}.` });
       }

@@ -1,3 +1,0 @@
-The files Paseo Crew kept in state format 5, as a machine with one project held them. Never edited:
-a new format gets its own folder, and state.test.ts carries every folder up to the current one.
-Format 5 adds tasks that wait: L1-T2 waited for L1-T1, was held when its Peer could not start, and was cut as L1 closed.

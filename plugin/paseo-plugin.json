@@ -1,6 +1,7 @@
 {
-  "id": "paseo-crew",
+  "id": "seatworks-v2",
+  "description": "A Supervisor, Leads and Peers working in lanes, with a desk that keeps their record.",
   "requirements": {
-    "paseo": ">=0.8.0 <0.10.0"
+    "paseo": ">=0.9.1 <0.10.0"
   }
 }

@@ -1,28 +1,45 @@
 import { join } from "node:path";
 import { runGate } from "../core/gate.ts";
-import { workState } from "../catalog/project-files.ts";
+import { pristineState } from "../core/git.ts";
 import type { DeskContext } from "./context.ts";
+import { changeOf } from "./landing.ts";
 import type { Lane } from "./ledger.ts";
-import { type Project, loadConfig } from "./project.ts";
+import { type Project, loadConfig, riskRulesOf, rulesFor } from "./project.ts";
 
-export type GateVerdict = { ok: boolean; text: string };
+/** `ran` is whether anything ran: a lane with no gate and nothing to rehearse passes with nothing run. */
+type GateVerdict = { ok: boolean; text: string; ran: boolean };
 
-export async function laneGate(ctx: DeskContext, project: Project, lane: Lane): Promise<GateVerdict> {
-  const config = loadConfig(project.state);
-  if (!config.gate || !lane.worktree) return { ok: true, text: "no gate set" };
-  const state = await workState(lane.worktree);
-  if (state !== "clean") {
-    return { ok: false, text: state === "dirty" ? "the lane working copy has uncommitted changes" : `git could not read the lane working copy at ${lane.worktree}` };
-  }
+/** One command on the lane's copy, as whoever lands it reads it: passed, or how it failed with its tail and its log. */
+async function onLane(ctx: DeskContext, project: Project, lane: Lane & { worktree: string }, command: string, rehearsing?: string): Promise<GateVerdict> {
+  const minutes = loadConfig(project.state).gateTimeoutMinutes;
   const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
-  const result = await runGate(config.gate, lane.worktree, logFile, config.gateTimeoutMinutes * 60_000);
-  ctx.event(project, { kind: result.ok ? "gate.passed" : "gate.failed", lane: lane.id, seconds: result.seconds });
-  if (result.ok) return { ok: true, text: `${config.gate} passed on the lane branch in ${result.seconds}s` };
-  const reason = result.timedOut ? `timed out after ${config.gateTimeoutMinutes} minutes` : `failed with exit ${result.code}`;
-  return { ok: false, text: `${config.gate} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}` };
+  const result = await runGate(command, lane.worktree, logFile, minutes * 60_000);
+  ctx.event(project, { kind: result.ok ? "gate.passed" : "gate.failed", lane: lane.id, seconds: result.seconds, command });
+  const what = rehearsing ? `${command}, rehearsing that ${rehearsing},` : command;
+  if (result.ok) return { ok: true, text: `${what} passed on the lane branch in ${result.seconds}s`, ran: true };
+  const reason = result.timedOut ? `timed out after ${minutes} minutes` : `failed with exit ${result.code}`;
+  return { ok: false, text: `${what} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}`, ran: true };
 }
 
-export type GateRun = { ok: boolean; note: string; reason: string; tail: string; logFile: string };
+/** The project's gate on the lane, then a rehearsal for each risk rule its change reaches: red in any is a red gate. */
+export async function laneGate(ctx: DeskContext, project: Project, lane: Lane): Promise<GateVerdict> {
+  const { gate } = loadConfig(project.state);
+  const rules = riskRulesOf(project, ctx.kit).filter((rule) => rule.rehearse);
+  // A change git cannot read is rehearsed against every rule, rather than none.
+  const files = rules.length > 0 ? (await changeOf(project, lane)).files : [];
+  const rehearsals = files ? rulesFor(rules, files) : rules;
+  if ((!gate && rehearsals.length === 0) || !lane.worktree) return { ok: true, text: "no gate set", ran: false };
+  const state = await pristineState(lane.worktree);
+  if (state !== "clean") {
+    return { ok: false, text: state === "dirty" ? "the lane working copy has uncommitted changes" : `git could not read the lane working copy at ${lane.worktree}`, ran: false };
+  }
+  const copy = { ...lane, worktree: lane.worktree };
+  const verdicts: GateVerdict[] = gate ? [await onLane(ctx, project, copy, gate)] : [];
+  for (const rule of rehearsals) verdicts.push(await onLane(ctx, project, copy, rule.rehearse!, rule.invariant));
+  return { ok: verdicts.every((verdict) => verdict.ok), text: verdicts.map((verdict) => verdict.text).join("\n\n"), ran: true };
+}
+
+type GateRun = { ok: boolean; note: string; reason: string; tail: string; logFile: string };
 
 /** The one owner of "run the gate on a task". Returns undefined when this project does not gate tasks. */
 export async function taskGate(project: Project, taskId: string, cwd: string): Promise<GateRun | undefined> {

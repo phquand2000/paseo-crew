@@ -1,5 +1,5 @@
 import { errorText } from "./errors.ts";
-export type RpcAnswer = { ok: boolean; json?: any; error?: string };
+type RpcAnswer = { ok: boolean; json?: any; error?: string };
 
 export async function postJsonRpc(url: string, body: unknown, timeoutMs: number): Promise<RpcAnswer> {
   try {

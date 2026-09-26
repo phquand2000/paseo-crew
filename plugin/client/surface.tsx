@@ -1,21 +1,47 @@
+import type { PluginTheme } from "@getpaseo/plugin";
 import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
 import { ScrollView, useToast } from "@getpaseo/plugin/client/react-native";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection } from "@getpaseo/plugin/client/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Empty } from "./bits.tsx";
-import type { Check } from "./data.ts";
-import { setAttention, setFlow, useFlow, usePaseoCrew } from "./data.ts";
+import type { Check } from "../shared/views.ts";
+import { setFlow, useFlow, useSeatworks } from "./data.ts";
 import { type DetailTab, Detail } from "./detail.tsx";
 import { FlowSection } from "./flow.tsx";
 import { HealthSection } from "./health.tsx";
+import { OrdersSection } from "./orders.tsx";
 import { MACHINE, ProjectList } from "./projects.tsx";
+import { ReportSection } from "./report.tsx";
 import { ServersSection } from "./servers.tsx";
 import { SetupDialog } from "./setup-dialog.tsx";
 import { TeamSection } from "./team.tsx";
 import { UpkeepSection } from "./upkeep.tsx";
 
-export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
+function useSurfaceStyles(theme: PluginTheme, compact: boolean) {
+  return useMemo(
+    () => ({
+      screen: { flex: 1, backgroundColor: theme.colors.surface0 },
+      body: { padding: compact ? 12 : 20, gap: 16 },
+      centered: { flex: 1, padding: 24, gap: 12, backgroundColor: theme.colors.surface0 },
+      muted: { color: theme.colors.foregroundMuted },
+      danger: { color: theme.colors.statusDanger },
+    }),
+    [theme, compact],
+  );
+}
+
+/** A toast once a save has finished and held. */
+function useSavedToast(saving: boolean, saved: boolean | null) {
+  const toast = useToast();
+  const wasSaving = useRef(false);
+  useEffect(() => {
+    if (wasSaving.current && !saving && saved === true) toast.show("Saved", { variant: "success" });
+    wasSaving.current = saving;
+  }, [saving, saved, toast]);
+}
+
+export function SeatworksSurface({ theme, layout, navigation }: PluginSurfaceProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>("team");
   const [chip, setChip] = useState<string | null>(null);
@@ -26,28 +52,13 @@ export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
   const [openLanes, setOpenLanes] = useState<{ of: string; lanes: string[] }>({ of: "", lanes: [] });
   const project = open && open !== MACHINE ? open : undefined;
   const lanesOpen = openLanes.of === (project ?? "") ? openLanes.lanes : [];
-  const { data, save, reload, saving, saved, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = usePaseoCrew(project);
+  const { data, save, reload, saving, saved, saveError, addServer, attach, detach, listFolders, runDoctor, readStatus, readSettings } = useSeatworks(project);
   const settings = data.status === "ready" ? data : null;
   const flowLive = settings ? (settings.values.flow?.live ?? settings.machine.flow?.live ?? true) : true;
   const flowEvery = settings ? (settings.values.flow?.everySeconds ?? settings.machine.flow?.everySeconds ?? 5) : 5;
   const { flow, error: flowError } = useFlow(tab === "flow" && flowLive ? project : undefined, flowEvery * 1000, lanesOpen.slice().sort().join(","));
-  const toast = useToast();
-  const wasSaving = useRef(false);
-  const styles = useMemo(
-    () => ({
-      screen: { flex: 1, backgroundColor: theme.colors.surface0 },
-      body: { padding: layout.compact ? 12 : 20, gap: 16 },
-      centered: { flex: 1, padding: 24, gap: 12, backgroundColor: theme.colors.surface0 },
-      muted: { color: theme.colors.foregroundMuted },
-      danger: { color: theme.colors.statusDanger },
-    }),
-    [theme, layout.compact],
-  );
-
-  useEffect(() => {
-    if (wasSaving.current && !saving && saved === true) toast.show("Saved", { variant: "success" });
-    wasSaving.current = saving;
-  }, [saving, saved, toast]);
+  const styles = useSurfaceStyles(theme, layout.compact);
+  useSavedToast(saving, saved);
 
   if (data.status === "loading") {
     return (
@@ -60,7 +71,7 @@ export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
     return (
       <View style={styles.centered}>
         <Text style={styles.danger}>{data.error}</Text>
-        <SettingsAction label="Paseo Crew" hint="The plugin did not answer." actionLabel="Try again" onPress={reload} />
+        <SettingsAction label="Seatworks" hint="The plugin did not answer." actionLabel="Try again" onPress={reload} />
       </View>
     );
   }
@@ -125,7 +136,7 @@ export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
         />
         {data.projects.length === 0 ? (
           <SettingsCard>
-            <Empty theme={theme} title="No project uses Paseo Crew yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
+            <Empty theme={theme} title="No project uses Seatworks yet" body="Machine defaults hold until a project sets its own. Use Add project to add one." />
           </SettingsCard>
         ) : null}
         {dialogNode}
@@ -158,14 +169,9 @@ export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
             error={flowError}
             live={flowLive}
             theme={theme}
+            navigation={navigation}
             disabled={locked}
             onLive={(next) => void save((values) => setFlow(values, { live: next }))}
-            onAddKey={() => {
-              setOpen(MACHINE);
-              setTab("team");
-              setChip(data.catalog.roles.find((role) => role.can.includes("watch"))?.id ?? null);
-            }}
-            onWatchBySeat={() => void save((values) => setAttention(values, { by: "seat" }))}
             onOpen={(lane) =>
               setOpenLanes((current) => {
                 const lanes = current.of === (project ?? "") ? current.lanes : [];
@@ -174,6 +180,8 @@ export function PaseoCrewSurface({ theme, layout }: PluginSurfaceProps) {
             }
           />
         ) : null}
+        {tab === "report" ? <ReportSection project={project} theme={theme} /> : null}
+        {tab === "orders" ? <OrdersSection project={project} theme={theme} /> : null}
         {tab === "mcp" ? (
           <ServersSection
             catalog={data.catalog}

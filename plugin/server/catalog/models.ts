@@ -1,13 +1,9 @@
 import { join } from "node:path";
 import { readJson, sameJson, writeJson } from "../core/store.ts";
 import { errorText } from "../core/errors.ts";
+import type { ModelList } from "../core/ports.ts";
 import { type Kit, type ModelSpec, providerId } from "./kit.ts";
 import { seatPairs } from "./providers.ts";
-
-export type Listed = {
-  models?: { id: string; label: string; isSelectable?: boolean; thinkingOptions?: { id: string; label: string }[]; defaultThinkingOptionId?: string }[];
-  error?: string | null;
-};
 
 export type ModelCache = Record<string, { at: string; models: ModelSpec[]; error: string | null }>;
 
@@ -26,7 +22,7 @@ export function applyModels(kit: Kit, cache: ModelCache): void {
 }
 
 /** A model's own default is dropped: Paseo marks the one this plugin told it to, so it is our choice read back. */
-function specOf(model: NonNullable<Listed["models"]>[number]): ModelSpec {
+function specOf(model: NonNullable<ModelList["models"]>[number]): ModelSpec {
   const spec: ModelSpec = { id: model.id, label: model.label };
   if (model.thinkingOptions?.length) spec.thinkingOptions = model.thinkingOptions.map((option) => ({ id: option.id, label: option.label, ...(option.id === model.defaultThinkingOptionId ? { isDefault: true } : {}) }));
   return spec;
@@ -38,11 +34,11 @@ export function listingProviders(kit: Kit): Map<string, string> {
   return providers;
 }
 
-export async function fetchModels(kit: Kit, list: (provider: string) => Promise<Listed>, stateDir: string, now = Date.now()): Promise<{ cache: ModelCache; changed: boolean }> {
+export async function fetchModels(kit: Kit, list: (provider: string) => Promise<ModelList>, stateDir: string, now = Date.now()): Promise<{ cache: ModelCache; changed: boolean }> {
   const held = readModels(stateDir);
   const next: ModelCache = {};
   const providers = [...listingProviders(kit)];
-  const answers = await Promise.all(providers.map(([, provider]) => list(provider).catch((error): Listed => ({ error: errorText(error) }))));
+  const answers = await Promise.all(providers.map(([, provider]) => list(provider).catch((error): ModelList => ({ error: errorText(error) }))));
   for (const [index, [harness]] of providers.entries()) {
     const before = held[harness];
     const listed = answers[index]!;

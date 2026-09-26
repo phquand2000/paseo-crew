@@ -1,85 +1,61 @@
 import type { Team } from "../catalog/team.ts";
-import { type Kit, type RoleSpec, can, roleThatCan, schemaOf, seatOf, worksTasks } from "../catalog/kit.ts";
-import type { SeatView, Seats, Workspaces } from "../core/ports.ts";
+import { type Kit, type SensorSpec, schemaOf, seatOf } from "../catalog/kit.ts";
+import type { Finding } from "../domain/incident.ts";
+import type { TaskMove, TaskStatus } from "../domain/task.ts";
+import { intentsPath } from "../core/paths.ts";
+import { midTurn } from "../core/paseo.ts";
+import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
-import { argsProblems, shapeOf } from "./args.ts";
+import type { Moment } from "./checks.ts";
+import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
 import { sortKeys } from "../core/store.ts";
-import { type Args, type Caller, type CodeIndex, DeskContext, type DeskDeps, type Mailer, type Posted, type ToolReply, type ToolRequest, hash, no, ok } from "./context.ts";
+import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type Posted, type Sync, type ToolReply, type ToolRequest, no, ok } from "./context.ts";
 import { errorText } from "../core/errors.ts";
+import type { DeskEvent } from "./events.ts";
+import { Human } from "./human.ts";
 import { type Ledger, type Task, loadLedger } from "./ledger.ts";
-import { clip, letters } from "./letters.ts";
+import { clip } from "../core/text.ts";
+import { landLetters } from "./land-letters.ts";
+import { type Letter, letters } from "./letters.ts";
+import { Intents } from "./intents.ts";
 import { tidyRecords } from "./records.ts";
-import { fileRecords, keepArchived, takeFinished } from "./archive.ts";
+import { archiveFinished } from "./archive.ts";
+import { reapKept } from "./kept.ts";
 import { MergeQueue } from "./merge.ts";
 import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
-import type { DeskServices, Tool } from "./services.ts";
+import { type DeskServices, type ToolDef, servedBy } from "./services.ts";
 import { Slots } from "./slots.ts";
-import type { Finding, Verdict } from "../runtime/watch/findings.ts";
-import { type Noticed, closeIncidentsOf, judge, notice, retell } from "./notice.ts";
-import * as incidents from "./tools/incidents.ts";
-import * as lead from "./tools/lead.ts";
-import * as shared from "./tools/shared.ts";
-import * as supervisor from "./tools/supervisor.ts";
+import { type Noticed, closeIncidentsOf, notice, retell } from "./notice.ts";
 import { openWaiting, startWaiting } from "./waiting.ts";
-import * as watcher from "./tools/watcher.ts";
-import * as worker from "./tools/worker.ts";
+import { Watcher } from "./watcher.ts";
 
-const TOOLS: Record<string, Tool> = {
-  open_lane: supervisor.openLane,
-  close_lane: supervisor.closeLane,
-  amend_lane: supervisor.amendLane,
-  replace_lead: supervisor.replaceLead,
-  set_project: supervisor.setProject,
-  start_task: lead.startTask,
-  start_review: lead.startReview,
-  accept: lead.accept,
-  rework: lead.rework,
-  amend_task: lead.amendTask,
-  cut: lead.cut,
-  report: lead.report,
-  done: worker.done,
-  message: shared.message,
-  answer: shared.answer,
-  status: shared.status,
-  incidents: incidents.incidents,
-  ack: incidents.ack,
-  raise: watcher.raise,
-  judge: watcher.judge,
-};
-
-const ASK: { holds: (role: RoleSpec) => boolean; tool: Tool }[] = [
-  { holds: (role) => can(role, "lead"), tool: lead.ask },
-  { holds: worksTasks, tool: worker.ask },
-];
-
-function toolFor(role: RoleSpec, name: string): Tool | undefined {
-  return name === "ask" ? ASK.find((entry) => entry.holds(role))?.tool : TOOLS[name];
-}
-
-export type DeskOptions = {
+type DeskOptions = {
   kit: Kit;
+  tools: ToolDef[];
   outbox: Mailer;
   seats: Seats;
   workspaces: Workspaces;
   log: (project: Project, line: string) => void;
   teamFor: (project?: Project) => Team;
   indexesFor?: (project: Project) => CodeIndex[];
-  sent?: DeskDeps["sent"];
+  sensor?: (spec: SensorSpec, key: string) => Judge;
 };
 
 const SPEAKS = ["done", "ask", "answer", "message", "report"];
 
-export const ANSWER_WITHIN_MS = 240_000;
+const ANSWER_WITHIN_MS = 240_000;
 
 export class Desk {
   readonly projects: Map<string, Project>;
-  readonly pendingArchive: Set<string>;
+  readonly human: Human;
+  readonly watcher: Watcher;
   private readonly services: DeskServices;
+  private readonly intents: Intents;
+  private readonly tools: ToolDef[];
   /** Whether a call from this seat is still being worked on — which is not silence. */
   inFlight(agentId: string): boolean {
-    for (const key of this.running.keys()) if (key.startsWith(`${agentId}\n`)) return true;
-    return false;
+    return [...this.running.keys()].some((key) => key.startsWith(`${agentId}\n`));
   }
 
   private readonly running = new Map<string, { reply: Promise<ToolReply>; started: number }>();
@@ -91,99 +67,115 @@ export class Desk {
       log: options.log,
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
-      sent: options.sent,
+      sensor: options.sensor,
     });
-    const roster = new Roster(options.kit, options.seats);
+    this.intents = new Intents(intentsPath());
+    const roster = new Roster(options.kit, options.seats, this.intents);
     const slots = new Slots(ctx, options.workspaces);
     const agents = new Agents(ctx, roster, slots, options.workspaces);
-    this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx, agents) };
+    this.watcher = new Watcher(ctx, roster, agents);
+    this.services = { ctx, roster, slots, agents, merges: new MergeQueue(ctx, agents), watcher: this.watcher };
+    this.tools = options.tools;
     this.projects = ctx.projects;
-    this.pendingArchive = roster.pendingArchive;
+    this.human = new Human(this.services);
   }
 
-  ledger<T>(project: Project, change: (ledger: Ledger) => T | Promise<T>): Promise<T> {
-    return this.services.ctx.ledger(project, change);
+  transact<T>(project: Project, decide: (ledger: Ledger) => Sync<T>): T {
+    return this.services.ctx.transact(project, decide);
   }
 
   settled(project: Project): Promise<unknown> {
     return this.services.merges.settled(project);
   }
 
-  event(project: Project, data: Record<string, unknown>): void {
+  event(project: Project, data: DeskEvent): void {
     this.services.ctx.event(project, data);
   }
 
-  notice(project: Project, seat: Noticed, findings: Finding[]): ReturnType<typeof notice> {
-    return notice(this.services, project, seat, findings);
-  }
-
-  judge(project: Project, seat: Noticed, verdicts: Verdict[]): Promise<string[]> {
-    return judge(this.services, project, seat, verdicts);
+  notice(project: Project, seat: Noticed, findings: Finding[], moment?: Moment): ReturnType<typeof notice> {
+    return notice(this.services, project, seat, findings, moment);
   }
 
   retell(project: Project): Promise<string[]> {
     return retell(this.services, project);
   }
 
-  closeIncidents(project: Project, seat: string): Promise<string[]> {
+  closeIncidents(project: Project, seat: string): string[] {
     return closeIncidentsOf(this.services, project, seat);
   }
 
-  post(to: string | undefined, key: string, text: string): Promise<Posted | "nobody"> {
-    return this.services.ctx.post(to, key, text);
+  post(to: string | undefined, letter: Letter): Promise<Posted | "nobody"> {
+    return this.services.ctx.post(to, letter);
   }
 
   supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
     return this.services.roster.supervisorFor(project, preferred);
   }
 
-  watchers(project: Project, seats: Iterable<SeatView>): SeatView[] {
-    return this.services.roster.watchers(project, seats);
-  }
-
-  /** Seats the project's Watcher. The patrol is its only caller, one round at a time, so there is no second create to race. */
-  async seatWatcher(project: Project): Promise<string | undefined> {
-    const role = roleThatCan(this.services.ctx.kit, "watch");
-    if (!role) return undefined;
-    const id = await this.services.agents.startResident(project, role.role, {
-      title: `${role.label} ${project.slug}`,
-      prompt: letters.watcherSeated(role.label, this.services.ctx.kit.watcher),
-      labels: {},
-    });
-    this.services.ctx.event(project, { kind: "watcher.seated", agent: id });
-    return id;
-  }
-
   archive(agentId: string | undefined, force = false): Promise<void> {
     return this.services.roster.archive(agentId, force);
   }
 
+  archiving(agentId: string): boolean {
+    return this.services.roster.archiving(agentId);
+  }
+
   /** A seat's turn ended: finish the teardown its own writing was holding up. */
-  async stopped(agentId: string): Promise<void> {
-    await this.services.slots.stopped(agentId);
+  stopped(agentId: string): Promise<void> {
+    return this.turnsEnded((id) => id === agentId);
+  }
+
+  /**
+   * The first round after a start. The turns that ended while the plugin was down end now, so what waited on them goes
+   * on, and an answer promised as mail that the stop lost is owned up to.
+   */
+  async resume(listed: Map<string, SeatView>): Promise<void> {
+    await this.services.roster.archiveWaiting(listed);
+    await this.turnsEnded((id) => !midTurn(listed.get(id)?.status));
+    for (const promised of this.intents.promised()) {
+      if (listed.has(promised.agent)) await this.services.ctx.post(promised.agent, letters.unanswered(promised));
+      this.intents.kept(promised);
+    }
+  }
+
+  /** The first round after a start: what the merge queue held when the plugin stopped goes through. */
+  resumeMerges(project: Project): Promise<void> {
+    return this.services.merges.resume(project);
+  }
+
+  private async turnsEnded(ended: (agentId: string) => boolean): Promise<void> {
+    await this.services.slots.stopped(ended);
     const { ctx } = this.services;
     for (const project of ctx.projects.values()) {
-      const waiting = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open" && lane.landing?.writers.includes(agentId));
+      this.services.merges.retry(project).catch((error) => ctx.log(project, `merge retry failed: ${errorText(error)}`));
+      const waiting = Object.values(loadLedger(project.state).lanes).filter((lane) => lane.status === "open" && lane.landing?.writers.some(ended));
       for (const lane of waiting) {
-        const left = lane.landing!.writers.filter((id) => id !== agentId);
-        await ctx.ledger(project, (ledger) => {
+        // Who is left is worked out where it is written: a turn that ended meanwhile must not be written back as still in the way.
+        const by = ctx.transact(project, (ledger) => {
           const entry = ledger.lanes[lane.id];
-          if (!entry?.landing) return;
-          if (left.length > 0) entry.landing.writers = left;
-          else delete entry.landing;
+          if (!entry?.landing) return undefined;
+          entry.landing.writers = entry.landing.writers.filter((id) => !ended(id));
+          if (entry.landing.writers.length > 0) return undefined;
+          const { by } = entry.landing;
+          delete entry.landing;
+          return by;
         });
-        if (left.length === 0) await ctx.post(lane.landing!.by, `canland:${lane.id}:${Date.now()}`, letters.canLand(lane));
+        if (by) await ctx.post(by, landLetters.canLand(lane));
       }
     }
   }
 
-  /** In the round: finish a teardown whose writers are not seats any more. */
+  /** In the round: finish a teardown whose writers are not seats any more, and put away a copy kept for a Lead that is gone. */
   reapSlots(project: Project, live: Set<string>): Promise<void> {
-    return this.services.slots.reap(project, live);
+    return reapKept(this.services, project, live);
   }
 
-  setTask(project: Project, taskId: string, change: (task: Task) => void): Promise<Task | undefined> {
+  setTask(project: Project, taskId: string, change: (task: Task) => void): Task | undefined {
     return this.services.ctx.setTask(project, taskId, change);
+  }
+
+  moveTask(project: Project, taskId: string, move: TaskMove, change?: (task: Task) => void): Task | TaskStatus | undefined {
+    return this.services.ctx.moveTask(project, taskId, move, change);
   }
 
   /** The patrol's net under a close or an acceptance that never got to start what waited on it; one whose start failed waits for the next. */
@@ -192,19 +184,8 @@ export class Desk {
     await startWaiting(this.services, project, false);
   }
 
-  /** Checked on a plain read first, so a round with nothing to archive does not rewrite the ledger; records follow once it is saved. */
   async archiveFinished(project: Project, gone: (agentId: string) => boolean): Promise<void> {
-    const taken = takeFinished(loadLedger(project.state), gone)
-      ? await this.services.ctx.ledger(project, (ledger) => {
-          const found = takeFinished(ledger, gone);
-          if (found) keepArchived(project.state, found);
-          return found;
-        })
-      : undefined;
-    const filed = fileRecords(project.state, loadLedger(project.state));
-    if (taken || filed.length > 0) {
-      this.services.ctx.event(project, { kind: "ledger.archived", lanes: taken?.lanes.map((entry) => entry.lane!.id) ?? [], agents: taken?.agents.length ?? 0, asks: taken?.asks.length ?? 0, records: filed.length });
-    }
+    archiveFinished(this.services, project, gone);
   }
 
   async sweep(project: Project, busy = false): Promise<void> {
@@ -245,8 +226,13 @@ export class Desk {
               : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail. End your turn now; do not call ${request.tool} again.`,
           ),
         );
-        // One letter for one run, whichever of its callers gave up waiting first.
-        void reply.then((done) => this.services.ctx.post(request.agent, `later:${hash(request.agent, request.tool, String(started))}`, letters.later(request.tool, done)));
+        // One letter for one run, whichever of its callers gave up waiting first; kept on disk until it is posted.
+        const promised = { agent: request.agent, tool: request.tool, started };
+        this.intents.promise(promised);
+        void reply.then(async (done) => {
+          await this.services.ctx.post(request.agent, letters.later(promised, done));
+          this.intents.kept(promised);
+        });
       }, within);
       timer.unref?.();
       void reply.then((done) => {
@@ -262,17 +248,17 @@ export class Desk {
     const caller = await this.caller(request);
     if ("error" in caller) return no(caller.error);
     const { ctx } = this.services;
-    const schema = schemaOf(ctx.kit, caller.role, request.tool);
-    const tool = schema ? toolFor(caller.role, request.tool) : undefined;
+    const shown = schemaOf(ctx.kit, caller.role, request.tool);
+    const tool = shown ? servedBy(this.tools, request.tool, shown) : undefined;
     const args = (request.args ?? {}) as Args;
-    const problems = schema ? argsProblems(schema, args) : [];
+    const problems = shown ? argsProblems(shown, args) : [];
     let reply: ToolReply;
     try {
       reply = !tool
         ? no(`Unknown tool ${request.tool}.`)
         : problems.length > 0
-          ? no(`${request.tool} was not carried out: it ${problems.join("; ")}. ${shapeOf(schema!)}`)
-          : await tool(this.services, caller, args);
+          ? no(`${request.tool} was not carried out: it ${problems.join("; ")}. ${shapeOf(shown!)}`)
+          : await tool.handle(this.services, caller, tool.input.parse(withoutNulls(args)));
     } catch (error) {
       ctx.log(caller.project, `${caller.role.role} ${caller.id} ${request.tool} crashed: ${errorText(error)}`);
       reply = no(`${request.tool} failed: ${errorText(error)}`);
@@ -281,7 +267,7 @@ export class Desk {
     if (reply.ok) {
       // Noting that the seat was heard from must not turn a reply it has earned into a crash.
       try {
-        await ctx.ledger(caller.project, (ledger) => {
+        ctx.transact(caller.project, (ledger) => {
           const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
           ref.recordedAt = Date.now();
           if (SPEAKS.includes(request.tool)) ref.spokeAt = ref.recordedAt;

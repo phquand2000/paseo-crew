@@ -6,7 +6,7 @@ import type { Project } from "./project.ts";
 import type { Roster } from "./roster.ts";
 import type { Slots } from "./slots.ts";
 
-export type StartOptions = { parent?: string; title: string; prompt: string; labels: Record<string, string> };
+type StartOptions = { parent?: string; title: string; prompt: string; labels: Record<string, string> };
 
 export class Agents {
   private readonly ctx: DeskContext;
@@ -33,9 +33,15 @@ export class Agents {
     return { role, config };
   }
 
+  /** What a seat of the role starts as now, its provider, model and thinking: a kept seat started otherwise is not what the team asks for any more. */
+  startsAs(project: Project, roleName: string): string {
+    const { config } = this.seatConfig(project, roleName);
+    return [config.provider, config.thinkingOptionId].filter(Boolean).join(" ");
+  }
+
   /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
   private marks(role: RoleSpec, project: Project): Record<string, string> {
-    return { "paseo-crew.project": project.slug, "paseo-crew.role": role.role, ...(role.concern ? { "paseo-crew.concern": role.concern } : {}) };
+    return { "seatworks.project": project.slug, "seatworks.role": role.role, ...(role.concern ? { "seatworks.concern": role.concern } : {}) };
   }
 
   /** A seat that belongs to the project rather than to a lane: it sits in the project's own workspace. */
@@ -44,6 +50,7 @@ export class Agents {
     const workspace = await this.slots.projectWorkspace(project);
     const started = await this.workspaces.seat(workspace.id, {
       config,
+      parent: options.parent,
       title: options.title,
       prompt: options.prompt,
       labels: { ...this.marks(role, project), ...options.labels },
@@ -78,7 +85,7 @@ export class Agents {
       ? Object.values(loadLedger(project.state).tasks).filter((other) => other.id !== task.id && other.slot === task.slot && other.status === "running")
       : [];
     for (const other of sharing) await this.roster.archive(other.peer);
-    const writing = [task.peer, ...sharing.map((other) => other.peer)].filter((id): id is string => typeof id === "string" && this.roster.pendingArchive.has(id));
+    const writing = [task.peer, ...sharing.map((other) => other.peer)].filter((id): id is string => typeof id === "string" && this.roster.archiving(id));
     return this.slots.putAway({ project, slot: task.slot, dropBranch: task.branch, into }, writing);
   }
 }

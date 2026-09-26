@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { hiddenWordsIn } from "../../server/catalog/content.ts";
+import { hiddenWordsIn } from "../../server/catalog/hidden-words.ts";
 import { loadKit } from "../../server/catalog/kit.ts";
 import { loadCases, openedSkills, rightRun, skillCards, triggerPrompt } from "./triggers.ts";
 
@@ -13,9 +13,7 @@ test("every skill a role is given has briefs that should open it and near misses
   const cases = loadCases();
   for (const role of kit.roles) {
     const cards = skillCards(kit, role.role);
-    // A role holding exactly another role's skills is briefed by that role's cases.
-    const twin = kit.roles.find((other) => cases[other.role] && [...skillCards(kit, other.role).keys()].sort().join() === [...cards.keys()].sort().join());
-    const own = cases[role.role] ?? (twin ? cases[twin.role]! : []);
+    const own = cases[role.role] ?? [];
     for (const one of own) {
       for (const name of [...one.expect, ...(one.near ? [one.near] : [])]) {
         assert.ok(cards.has(name), `${role.role} brief names ${name}, which that role is not given: ${one.brief}`);
@@ -45,7 +43,7 @@ test("a trigger answer is read from the last JSON the agent printed, and a near 
 test("the trigger prompt shows the role each skill's name and description, as a seat sees them", () => {
   const kit = loadKit(pluginRoot);
   const cards = skillCards(kit, "peer");
-  assert.deepEqual([...cards.keys()].sort(), ["diagnosing-bugs", "repo-refresh", "security-check", "test-first", "test-proof-debt-audit"]);
+  assert.deepEqual([...cards.keys()].sort(), ["diagnosing-bugs", "security-check", "test-first", "test-proof-debt-audit"]);
   const prompt = triggerPrompt("peer", cards, "Goal: fix it.");
   assert.match(prompt, /- test-first: Puts evidence before behavior/);
   assert.match(prompt, /Your brief:\nGoal: fix it\./);

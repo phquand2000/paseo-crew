@@ -38,7 +38,3 @@ _Avoid_: <other words people use for it>
 - **The repository's own comes first.** If it keeps a `CONTEXT.md` or `CONTEXT-MAP.md`, that is the
   Human's too: read it, write here only what it does not say, and when the two disagree ask the Human
   rather than choosing.
-- **A repository with `docs/product/` keeps the Human's word there.** Write what the Human settles
-  into that directory, in the form its files already use, and keep this file only for what does not
-  belong to the repository: which lanes to run, not how the product behaves. The rules above still
-  hold for what you write there.

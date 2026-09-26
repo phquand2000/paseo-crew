@@ -3,18 +3,22 @@ import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { lastBytes } from "../core/gate.ts";
 import { appendRolling } from "../core/rolling.ts";
-import type { AgentRef, Ask, Lane, Ledger, Task } from "./ledger.ts";
+import { IN_QUEUE } from "../domain/task.ts";
+import type { Question } from "../domain/question.ts";
+import { type AgentRef, type Ask, type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
+import type { Project } from "./project.ts";
 import { laneRecords } from "./records.ts";
+import type { DeskServices } from "./services.ts";
 
 export const KEEP_CLOSED_LANES = 20;
-export const ARCHIVE_KEEP_BYTES = 64 * 1024 * 1024;
-export const DESK_ROTATE_BYTES = 8 * 1024 * 1024;
-export const DESK_KEEP_BYTES = 16 * 1024 * 1024;
+const ARCHIVE_KEEP_BYTES = 64 * 1024 * 1024;
+const DESK_ROTATE_BYTES = 8 * 1024 * 1024;
+const DESK_KEEP_BYTES = 16 * 1024 * 1024;
 export const RECORD_TAIL_BYTES = 1024 * 1024;
 
 /** A lane that left the ledger, one file each: its entries and the records it wrote, by path under the state directory. */
-export type LaneArchive = { lane?: Lane; tasks: Task[]; asks: Ask[]; agents: AgentRef[]; records: Record<string, string> };
-export type Taken = { lanes: LaneArchive[]; agents: AgentRef[]; asks: Ask[] };
+export type LaneArchive = { lane?: Lane; tasks: Task[]; asks: Ask[]; questions: Question[]; agents: AgentRef[]; records: Record<string, string> };
+type Taken = { lanes: LaneArchive[]; agents: AgentRef[]; asks: Ask[]; questions: Question[] };
 
 export function archiveDir(state: string): string {
   return join(state, "archive");
@@ -35,7 +39,7 @@ function carriedOn(ledger: Ledger): Set<string> {
 
 /**
  * Takes out what nothing reads again: closed lanes past the newest few once nothing of theirs is pending or named by open
- * work, gone seats with no lane but each role's newest, and answered asks with no lane whose asker left.
+ * work, gone seats with no lane but each role's newest, and answered asks and settled questions with no lane whose asker left.
  */
 export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean): Taken | undefined {
   const carried = carriedOn(ledger);
@@ -43,10 +47,11 @@ export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean)
     .filter((lane) => lane.status === "closed")
     .sort((a, b) => laneNumber(b.id) - laneNumber(a.id))
     .slice(KEEP_CLOSED_LANES);
-  const taken: Taken = { lanes: [], agents: [], asks: [] };
+  const taken: Taken = { lanes: [], agents: [], asks: [], questions: [] };
   for (const lane of closed) {
     const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
     const asks = Object.values(ledger.asks).filter((ask) => ask.lane === lane.id);
+    const questions = Object.values(ledger.questions).filter((question) => question.lane === lane.id);
     const agents = Object.values(ledger.agents).filter((agent) => agent.lane === lane.id);
     const taskIds = new Set(tasks.map((task) => task.id));
     const seats = new Set([lane.lead, ...tasks.map((task) => task.peer), ...agents.map((agent) => agent.id)].filter((id): id is string => Boolean(id)));
@@ -54,15 +59,17 @@ export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean)
       carried.has(lane.id) ||
       lane.restoring !== undefined ||
       Object.values(ledger.slots).some((slot) => slot.lane === lane.id || (slot.task !== undefined && taskIds.has(slot.task)) || slot.id === lane.slot) ||
-      tasks.some((task) => task.status === "queued" || task.status === "merging") ||
+      tasks.some((task) => IN_QUEUE.includes(task.status)) ||
       asks.some((ask) => ask.status === "open") ||
+      questions.some((question) => question.status === "open") ||
       [...seats].some((id) => !gone(id));
     if (pending) continue;
     delete ledger.lanes[lane.id];
     for (const task of tasks) delete ledger.tasks[task.id];
     for (const ask of asks) delete ledger.asks[ask.id];
+    for (const question of questions) delete ledger.questions[question.id];
     for (const agent of agents) delete ledger.agents[agent.id];
-    taken.lanes.push({ lane, tasks, asks, agents, records: {} });
+    taken.lanes.push({ lane, tasks, asks, questions, agents, records: {} });
   }
   const newest = new Map<string, string>();
   for (const agent of Object.values(ledger.agents)) if (!agent.lane) newest.set(agent.role, agent.id);
@@ -77,18 +84,23 @@ export function takeFinished(ledger: Ledger, gone: (agentId: string) => boolean)
     delete ledger.asks[ask.id];
     taken.asks.push(ask);
   }
-  return taken.lanes.length + taken.agents.length + taken.asks.length > 0 ? taken : undefined;
+  for (const question of Object.values(ledger.questions)) {
+    if (question.lane || question.status === "open" || ledger.agents[question.from] || !gone(question.from)) continue;
+    delete ledger.questions[question.id];
+    taken.questions.push(question);
+  }
+  return taken.lanes.length + taken.agents.length + taken.asks.length + taken.questions.length > 0 ? taken : undefined;
 }
 
 /** Keyed by lane, so doing it again after a crash rewrites the same file; an unreadable one is started over, not left to stop every round. */
 function fileLane(state: string, id: string, change: (archive: LaneArchive) => void): void {
   const file = join(archiveDir(state), `${id}.json.gz`);
-  let archive: LaneArchive = { tasks: [], asks: [], agents: [], records: {} };
+  let archive: LaneArchive = { tasks: [], asks: [], questions: [], agents: [], records: {} };
   if (existsSync(file)) {
     try {
       archive = JSON.parse(gunzipSync(readFileSync(file)).toString("utf-8")) as LaneArchive;
     } catch (error) {
-      console.error(`paseo-crew: ${file} could not be read and is started over:`, error);
+      console.error(`seatworks-v2: ${file} could not be read and is started over:`, error);
     }
   }
   change(archive);
@@ -99,11 +111,11 @@ function fileLane(state: string, id: string, change: (archive: LaneArchive) => v
 
 /** Written before the ledger is saved: a crash between the two files a lane again, never loses it. */
 export function keepArchived(state: string, taken: Taken): void {
-  for (const entry of taken.lanes) fileLane(state, entry.lane!.id, (archive) => Object.assign(archive, { lane: entry.lane, tasks: entry.tasks, asks: entry.asks, agents: entry.agents }));
-  if (taken.agents.length + taken.asks.length === 0) return;
+  for (const entry of taken.lanes) fileLane(state, entry.lane!.id, (archive) => Object.assign(archive, { lane: entry.lane, tasks: entry.tasks, asks: entry.asks, questions: entry.questions, agents: entry.agents }));
+  if (taken.agents.length + taken.asks.length + taken.questions.length === 0) return;
   const roll = { dir: archiveDir(state), current: "desk.log", prefix: "desk.", ext: ".log", rotateAt: DESK_ROTATE_BYTES, keepBytes: DESK_KEEP_BYTES, plain: 1 };
-  const line = `${JSON.stringify({ at: new Date().toISOString(), agents: taken.agents, asks: taken.asks })}\n`;
-  appendRolling(roll, line).catch((error: unknown) => console.error("paseo-crew: packing a rolled archive/desk.log failed:", error));
+  const line = `${JSON.stringify({ at: new Date().toISOString(), agents: taken.agents, asks: taken.asks, questions: taken.questions })}\n`;
+  appendRolling(roll, line).catch((error: unknown) => console.error("seatworks-v2: packing a rolled archive/desk.log failed:", error));
 }
 
 /**
@@ -144,4 +156,19 @@ export function fileRecords(state: string, ledger: Ledger, keepBytes = ARCHIVE_K
     if (total > keepBytes) rmSync(join(dir, name), { force: true });
   }
   return moved;
+}
+
+/** Checked on a plain read first, so a round with nothing to archive does not rewrite the ledger; records follow once it is saved. */
+export function archiveFinished(services: DeskServices, project: Project, gone: (agentId: string) => boolean): void {
+  const taken = takeFinished(loadLedger(project.state), gone)
+    ? services.ctx.transact(project, (ledger) => {
+        const found = takeFinished(ledger, gone);
+        if (found) keepArchived(project.state, found);
+        return found;
+      })
+    : undefined;
+  const filed = fileRecords(project.state, loadLedger(project.state));
+  if (taken || filed.length > 0) {
+    services.ctx.event(project, { kind: "ledger.archived", lanes: taken?.lanes.map((entry) => entry.lane!.id) ?? [], agents: taken?.agents.length ?? 0, asks: taken?.asks.length ?? 0, records: filed.length });
+  }
 }
