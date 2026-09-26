@@ -266,8 +266,9 @@ test("landing a lane while an accepted task waits on its copy tries that merge o
 
 test("a merge that stops on an error fails the task and tells its Lead, on the record too", async () => {
   const { h, lane } = await besideOnly();
-  const queue = (h.runtime.desk as unknown as { services: { merges: { merge: () => Promise<void> } } }).services.merges;
-  queue.merge = async () => {
+  const queue = (h.runtime.desk as unknown as { services: { merges: { merge: { run: () => Promise<void> } } } })
+    .services.merges;
+  queue.merge.run = async () => {
     throw new Error("the disk is full");
   };
   await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });

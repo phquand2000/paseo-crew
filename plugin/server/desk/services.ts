@@ -3,7 +3,7 @@ import type { ArgSchema } from "../catalog/kit.ts";
 import type { Agents } from "./agents.ts";
 import type { DeskBase } from "./base.ts";
 import type { Caller, ToolReply } from "./context.ts";
-import type { MergeQueue } from "./merge.ts";
+import type { MergeQueue } from "./tasks/merge-queue.ts";
 import type { OwnCopy } from "./own-copy.ts";
 import type { Roster } from "./roster.ts";
 import type { Slots } from "./slots.ts";

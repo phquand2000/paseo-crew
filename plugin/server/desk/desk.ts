@@ -28,7 +28,7 @@ import { Intents } from "./intents.ts";
 import { tidyRecords } from "./records.ts";
 import { archiveFinished } from "./archive.ts";
 import { reapKept } from "./kept.ts";
-import { MergeQueue } from "./merge.ts";
+import { MergeQueue } from "./tasks/merge-queue.ts";
 import { type Project, projectOf } from "./project.ts";
 import { Roster } from "./roster.ts";
 import { type DeskServices, type ToolDef, servedBy } from "./services.ts";

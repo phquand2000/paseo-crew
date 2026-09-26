@@ -26,7 +26,6 @@ server/desk/directive.ts
 server/desk/landing.ts
 server/desk/ledger.ts
 server/desk/letters.ts
-server/desk/merge.ts
 server/desk/notice.ts
 server/desk/status.ts
 server/desk/tools/add-tasks.ts
