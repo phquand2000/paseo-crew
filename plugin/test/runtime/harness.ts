@@ -270,10 +270,14 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   };
   const permission = (id: string, request: Pending) => runtime.permissionRequested({ agent: agentOf(id), request });
   // A panel call as the panel makes it: through its contract, and its answer, as sent, read by the schema the panel checks it with.
+  // Paseo refuses an answer JSON does not carry whole, a field left undefined included, and the panel shows that tab as unreadable.
   const rpc = async <C extends Contract>(contract: C, input: z.input<C["input"]>): Promise<z.output<C["output"]>> => {
     let answer: (input: unknown) => unknown = () => assert.fail(`nothing serves ${contract.name}`);
     registerRpc((served, handler) => void (served.name === contract.name && (answer = handler as (input: unknown) => unknown)), runtime.control, runtime.control.human, () => {});
-    return contract.output.parse(JSON.parse(JSON.stringify(await answer(contract.input.parse(input))))) as z.output<C["output"]>;
+    const raw = await answer(contract.input.parse(input));
+    const sent = JSON.parse(JSON.stringify(raw)) as unknown;
+    assert.deepStrictEqual(sent, raw, `${contract.name} answered with what JSON does not carry`);
+    return contract.output.parse(sent) as z.output<C["output"]>;
   };
   return {
     root,
@@ -344,3 +348,4 @@ export async function heldRound(h: ReturnType<typeof harness>, t: TestContext) {
   await inRound;
   return { round, release };
 }
+
