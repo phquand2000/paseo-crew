@@ -50,6 +50,7 @@ const found = async (ctx: Parameters<typeof scanGarbage>[0]) =>
 
 test("clean up lists only what nothing will use again: seats nothing will sit in, copies no slot holds, detached records, unlinked copies of the guides and Migrate's backups", async () => {
   const { home, shop, seat, copy, live, ctx, moveLead } = world();
+  assert.deepEqual(await found(ctx), [], "a machine with nothing left over lists nothing");
   const current = seat("sw2-lead-claude-shop-abc123");
   const detached = seat("sw2-peer-omp-gone-def456");
   const removedRole = seat("sw2-scout-omp-shop-abc123");
