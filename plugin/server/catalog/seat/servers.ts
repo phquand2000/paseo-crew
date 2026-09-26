@@ -106,7 +106,7 @@ export function serversFor(
     const shaped = state.connect
       ? connectToServer(state.connect)
       : entry?.server
-        ? JSON.parse(fill(JSON.stringify(entry.server), state.settings))
+        ? (JSON.parse(fill(JSON.stringify(entry.server), state.settings)) as unknown)
         : undefined;
     if (shaped) servers[id] = shaped;
   }

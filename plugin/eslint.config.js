@@ -6,8 +6,6 @@ import tseslint from "typescript-eslint";
 const NOT_YET_CLEAN = [
   "server/adapters/decisions.ts",
   "server/adapters/paseo/host.ts",
-  "server/catalog/seat/seats.ts",
-  "server/catalog/seat/servers.ts",
   "server/core/config-file.ts",
   "server/core/gate.ts",
   "server/core/git.ts",
