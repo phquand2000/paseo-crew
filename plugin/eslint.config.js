@@ -15,7 +15,6 @@ const NOT_YET_CLEAN = [
   "server/desk/project.ts",
   "server/desk/seats/roster.ts",
   "server/desk/watch/checks.ts",
-  "server/desk/watch/notice.ts",
   "server/runtime/control.ts",
   "server/runtime/seating.ts",
   "server/runtime/timeline.ts",

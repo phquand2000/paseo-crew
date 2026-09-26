@@ -18,17 +18,30 @@ function writtenElsewhere(ledger: Ledger, lane: Lane, serial: string[]): Elsewhe
   if (lane.writeSet.length > 0) return [];
   return Object.values(ledger.lanes)
     .filter((other) => other.id !== lane.id && other.status === "open")
-    .map((other) => ({ lane: other.id, paths: other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial) }))
+    .map((other) => ({
+      lane: other.id,
+      paths: other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial),
+    }))
     .filter((entry) => entry.paths.length > 0);
 }
 
-export const elsewhereText = (elsewhere: Elsewhere[]): string => elsewhere.map((entry) => `${entry.lane} (${capped(entry.paths, SHOWN_SERIAL)})`).join(", ");
+export const elsewhereText = (elsewhere: Elsewhere[]): string =>
+  elsewhere.map((entry) => `${entry.lane} (${capped(entry.paths, SHOWN_SERIAL)})`).join(", ");
 
 /** `copy` is the lane's working copy, whose files decide which paths only one writer at a time may write. */
-export async function directiveFor(kit: Kit, project: Project, lane: Lane, copy: string, issue?: Issue): Promise<{ text: string; elsewhere: Elsewhere[] }> {
+export async function directiveFor(
+  kit: Kit,
+  project: Project,
+  lane: Lane,
+  copy: string,
+  issue?: Issue,
+): Promise<{ text: string; elsewhere: Elsewhere[] }> {
   const serial = await serialIn(kit, project, copy);
   const elsewhere = writtenElsewhere(loadLedger(project.state), lane, serial);
-  return { text: directive(lane, { gate: gateRegime(project), serial, elsewhere, concept: conceptFile(project.state), issue }), elsewhere };
+  return {
+    text: directive(lane, { gate: gateRegime(project), serial, elsewhere, concept: conceptFile(project.state), issue }),
+    elsewhere,
+  };
 }
 
 /** Read before the directive by a Lead seated on a lane already under way. */
@@ -56,8 +69,17 @@ function gateRegime(project: Project): string {
 const onLane = "Your working copy is on it save while a task works there on a branch of its own; tasks merge into it.";
 
 /** `serial` holds the paths in the lane's copy that only one writer at a time may write, as the desk will read them. */
-export function directive(lane: Lane, { gate, serial, elsewhere = [], concept, issue }: { gate: string; serial: string[]; elsewhere?: Elsewhere[]; concept?: string; issue?: Issue }): string {
-  const parts = [
+export function directive(
+  lane: Lane,
+  {
+    gate,
+    serial,
+    elsewhere = [],
+    concept,
+    issue,
+  }: { gate: string; serial: string[]; elsewhere?: Elsewhere[]; concept?: string; issue?: Issue },
+): string {
+  return [
     `OWNER DIRECTIVE ${lane.id}: ${lane.title}`,
     "",
     `Outcome: ${lane.outcome}`,
@@ -71,22 +93,55 @@ export function directive(lane: Lane, { gate, serial, elsewhere = [], concept, i
     "Out of scope:",
     list(lane.outOfScope),
     "",
+    ...writes(lane, serial, elsewhere),
+    "",
+    branchLine(lane),
+    `Gate: ${gate}`,
+    ...besides(lane, concept, issue),
+  ].join("\n");
+}
+
+/** What the lane writes, what it uses and does not write, and what only one writer at a time may write. */
+function writes(lane: Lane, serial: string[], elsewhere: Elsewhere[]): string[] {
+  const open =
+    elsewhere.length > 0
+      ? ` Lanes already open may be writing what only one lane at a time may write: ${elsewhereText(elsewhere)}. Leave those to them until they land, or ask with kind need.`
+      : "";
+  return [
     lane.writeSet.length > 0
       ? `Writes: ${lane.writeSet.join(", ")}. A change outside these is flagged at hand-back and at landing; if the work needs more, ask with kind need.`
-      : `Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer.${elsewhere.length > 0 ? ` Lanes already open may be writing what only one lane at a time may write: ${elsewhereText(elsewhere)}. Leave those to them until they land, or ask with kind need.` : ""}`,
-    ...(lane.contracts.length > 0 ? [`Depends on: ${lane.contracts.join(", ")}, which this lane uses and does not write.`] : []),
-    ...(serial.length > 0 ? [`One writer at a time: ${capped(serial, SHOWN_SERIAL)}. A task that writes any of these works in the lane's working copy, not in parallel.`] : []),
-    "",
-    lane.onBranch
-      ? `Lane branch: ${lane.branch}, the Human's own, carried on where it is; closing the lane merges it nowhere. ${onLane} Anything uncommitted there when the lane opened is the Human's work in progress, never to be discarded: have the first task working there commit it as found, in a commit of its own that says so, before it changes anything.`
-      : `Lane branch: ${lane.branch}, off ${lane.base}. ${onLane}`,
-    `Gate: ${gate}`,
+      : `Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer.${open}`,
+    ...(lane.contracts.length > 0
+      ? [`Depends on: ${lane.contracts.join(", ")}, which this lane uses and does not write.`]
+      : []),
+    ...(serial.length > 0
+      ? [
+          `One writer at a time: ${capped(serial, SHOWN_SERIAL)}. A task that writes any of these works in the lane's working copy, not in parallel.`,
+        ]
+      : []),
   ];
+}
+
+function branchLine(lane: Lane): string {
+  return lane.onBranch
+    ? `Lane branch: ${lane.branch}, the Human's own, carried on where it is; closing the lane merges it nowhere. ${onLane} Anything uncommitted there when the lane opened is the Human's work in progress, never to be discarded: have the first task working there commit it as found, in a commit of its own that says so, before it changes anything.`
+    : `Lane branch: ${lane.branch}, off ${lane.base}. ${onLane}`;
+}
+
+/** The concept to read first, the lane this one clears the way for, and the issue it came from, fenced as data. */
+function besides(lane: Lane, concept: string | undefined, issue: Issue | undefined): string[] {
+  const parts: string[] = [];
   if (concept) {
-    parts.push("", `What this project does and how it behaves, as the Human settled it, is in ${concept}. Read it before you start, and carry into each task the parts that task touches. It is the Human's word: where it is silent on a behavior this lane needs, ask with kind question, and leave the file as it is.`);
+    parts.push(
+      "",
+      `What this project does and how it behaves, as the Human settled it, is in ${concept}. Read it before you start, and carry into each task the parts that task touches. It is the Human's word: where it is silent on a behavior this lane needs, ask with kind question, and leave the file as it is.`,
+    );
   }
   if (lane.detourOf) {
-    parts.push("", `This lane clears the way for ${lane.detourOf}, which is waiting on it. Do what that needs and no more, then report; widening this lane is what opening it avoided.`);
+    parts.push(
+      "",
+      `This lane clears the way for ${lane.detourOf}, which is waiting on it. Do what that needs and no more, then report; widening this lane is what opening it avoided.`,
+    );
   }
   if (issue) {
     parts.push(
@@ -98,5 +153,5 @@ export function directive(lane: Lane, { gate, serial, elsewhere = [], concept, i
       "</issue>",
     );
   }
-  return parts.join("\n");
+  return parts;
 }
