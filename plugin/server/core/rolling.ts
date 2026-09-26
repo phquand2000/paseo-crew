@@ -25,7 +25,7 @@ function rolledName(roll: Pick<Rolling, "prefix" | "ext">, stamp: string, packed
 }
 
 /** The numbers of the rolled files, oldest first; `complete` leaves out one whose packing was cut short. */
-export function rolledStamps(names: string[], roll: Pick<Rolling, "prefix" | "ext">, complete = false): string[] {
+function rolledStamps(names: string[], roll: Pick<Rolling, "prefix" | "ext">, complete = false): string[] {
   const shape = new RegExp(`^${escape(roll.prefix)}(\\d{8})${escape(roll.ext)}(\\.gz(\\.part)?)?$`);
   const found = new Set<string>();
   for (const name of names) {

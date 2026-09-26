@@ -23,10 +23,6 @@ const NOT_YET_CLEAN = [
   "server/upkeep/migrate.ts",
   "test/kit.ts",
   "test/runtime/fake-timeline.ts",
-  "test/runtime/half-open.test.ts",
-  "test/runtime/kept-lead.test.ts",
-  "test/runtime/opening.test.ts",
-  "test/runtime/own-branch.test.ts",
 ];
 
 export default defineConfig(

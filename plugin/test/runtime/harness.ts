@@ -273,7 +273,10 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   const rpc = async <C extends Contract>(contract: C, input: z.input<C["input"]>): Promise<z.output<C["output"]>> => {
     let answer: (input: unknown) => unknown = () => assert.fail(`nothing serves ${contract.name}`);
     registerRpc((served, handler) => void (served.name === contract.name && (answer = handler as (input: unknown) => unknown)), runtime.control, runtime.control.human, () => {});
-    return contract.output.parse(JSON.parse(JSON.stringify(await answer(contract.input.parse(input))))) as z.output<C["output"]>;
+    const raw = await answer(contract.input.parse(input));
+    const sent = JSON.parse(JSON.stringify(raw)) as unknown;
+    assert.deepStrictEqual(sent, raw, `${contract.name} answered with what JSON does not carry`);
+    return contract.output.parse(sent) as z.output<C["output"]>;
   };
   return {
     root,
@@ -343,4 +346,50 @@ export async function heldRound(h: ReturnType<typeof harness>, t: TestContext) {
   const round = h.tick();
   await inRound;
   return { round, release };
+}
+
+/** A round held once the daemon has listed its seats, with that listing as it was then, until `release` lets it go on. */
+export async function listedRound(h: ReturnType<typeof harness>) {
+  const agents = h.paseo as { agents: { list: (options?: unknown) => Promise<unknown> } };
+  const list = agents.agents.list;
+  let listed = () => {};
+  let release = () => {};
+  const reached = new Promise<void>((resolve) => (listed = resolve));
+  const held = new Promise<void>((resolve) => (release = resolve));
+  agents.agents.list = async (options?: unknown) => {
+    agents.agents.list = list;
+    const page = await list(options);
+    listed();
+    await held;
+    return page;
+  };
+  const round = h.tick();
+  await reached;
+  return { round, release };
+}
+
+/** The next seat created under a title like `title` is held until `release`, made first when `made`; unreleased, Paseo never answers. */
+export function heldCreate(h: ReturnType<typeof harness>, title: RegExp, made = false) {
+  type Create = (options: { title: string }) => Promise<unknown>;
+  const paseo = h.paseo as { workspaces: { ref: (id: string) => { agents: { create: Create } } } };
+  const ref = paseo.workspaces.ref;
+  let armed = true;
+  let started = () => {};
+  let release = () => {};
+  const reached = new Promise<void>((resolve) => (started = resolve));
+  const held = new Promise<void>((resolve) => (release = resolve));
+  paseo.workspaces.ref = (id) => {
+    const workspace = ref(id);
+    const create = workspace.agents.create;
+    workspace.agents.create = async (options) => {
+      if (!armed || !title.test(options.title)) return create(options);
+      armed = false;
+      const seat = made ? await create(options) : undefined;
+      started();
+      await held;
+      return seat ?? create(options);
+    };
+    return workspace;
+  };
+  return { reached, release };
 }

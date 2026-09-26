@@ -22,9 +22,4 @@ server/runtime/watch/facts.ts
 server/runtime/watch/history.ts
 server/upkeep/update.ts
 shared/views.ts
-test/desk/flow.test.ts
-test/runtime/copies.test.ts
 test/runtime/harness.ts
-test/runtime/intake.test.ts
-test/runtime/own-branch.test.ts
-test/runtime/own-copy.test.ts

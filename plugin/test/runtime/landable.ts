@@ -28,7 +28,6 @@ export async function laneWith(files: Record<string, string>, askFirst: string[]
     h.git(lane.worktree!, "commit", "-qm", "work");
   };
   work(files);
-  // As a lane lands in the flow: after its Lead reports it ready.
   await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   h.agents.get(lane.lead!)!.status = "idle";
   const land = () => h.call(sup, "supervisor", "land_lane", { lane: "L1" });

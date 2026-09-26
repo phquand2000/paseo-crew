@@ -3,12 +3,11 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { rolledStamps } from "../../server/core/rolling.ts";
-import { tempDir } from "../tempdir.ts";
 import { appendRolling } from "../../server/core/rolling.ts";
-import type { Lane } from "../../server/domain/lane.ts";
+import { type Lane } from "../../server/domain/lane.ts";
 import { emptyLedger } from "../../server/domain/ledger.ts";
 import { GATE_LOGS_PER_OWNER, tidyRecords } from "../../server/desk/store/records.ts";
+import { tempDir } from "../tempdir.ts";
 
 test("a record log rolls over, keeps its newest roll as text for a grep, and packs the older ones and drops what outgrows its bytes", async () => {
   const dir = tempDir("sw2-roll-");
@@ -54,11 +53,15 @@ test("two rolls close together pack each file once, so neither packing trips ove
   };
   await appendRolling(roll, "a\n");
   await Promise.all(["b\n", "c\n", "d\n"].map((line) => appendRolling(roll, line)));
-  const names = readdirSync(dir);
-  assert.deepEqual(names.filter((name) => !name.endsWith(".gz")).sort(), ["events.log"], names.join(", "));
-  const packed = rolledStamps(names, roll).map((stamp) =>
-    gunzipSync(readFileSync(join(dir, `events.${stamp}.log.gz`))).toString("utf-8"),
+  const names = readdirSync(dir).sort();
+  assert.deepEqual(
+    names.filter((name) => !name.endsWith(".gz")),
+    ["events.log"],
+    names.join(", "),
   );
+  const packed = names
+    .filter((name) => name.endsWith(".gz"))
+    .map((name) => gunzipSync(readFileSync(join(dir, name))).toString("utf-8"));
   assert.deepEqual(packed, ["a\n", "b\n", "c\n"]);
 });
 
@@ -78,17 +81,18 @@ const lane = (id: string): Lane => ({
   tasks: 0,
 });
 
-test("a lane in the ledger keeps its records but the gate runs a newer run of the same owner replaced", () => {
+test("a lane in the ledger keeps its records but the gate runs a newer run of the same owner replaced, rehearsals with their run", () => {
   const state = tempDir("sw2-tidy-");
   const gates = join(state, "gates");
   const handbacks = join(state, "handbacks");
   mkdirSync(gates);
   mkdirSync(handbacks);
   const touch = (dir: string, name: string) => writeFileSync(join(dir, name), "x");
-  for (let run = 0; run < GATE_LOGS_PER_OWNER + 2; run++) touch(gates, `L1-T1-${1000 - run}.log`);
+  const runs = Array.from({ length: GATE_LOGS_PER_OWNER + 2 }, (_, run) => 1000 - run);
+  for (const at of runs) for (const tail of ["", "-1", "-2"]) touch(gates, `L1-T1-${at}${tail}.log`);
   touch(gates, "L1-1.log");
-  for (let run = 0; run < GATE_LOGS_PER_OWNER + 2; run++) touch(gates, `L9-T1-${1000 - run}.log`);
-  for (let run = 0; run < GATE_LOGS_PER_OWNER + 2; run++) touch(handbacks, `L1-T1-${1000 - run}.md`);
+  for (const at of runs) touch(gates, `L9-T1-${at}.log`);
+  for (const at of runs) touch(handbacks, `L1-T1-${at}.md`);
   touch(gates, "notes.txt");
   const ledger = emptyLedger();
   ledger.lanes = { L1: lane("L1") };
@@ -98,8 +102,11 @@ test("a lane in the ledger keeps its records but the gate runs a newer run of th
   const kept = readdirSync(gates);
   assert.deepEqual(
     kept.filter((name) => name.startsWith("L1-T1-")).sort(),
-    [1000, 996, 997, 998, 999].map((at) => `L1-T1-${at}.log`),
-    "the newest runs of each task",
+    runs
+      .slice(0, GATE_LOGS_PER_OWNER)
+      .flatMap((at) => ["", "-1", "-2"].map((tail) => `L1-T1-${at}${tail}.log`))
+      .sort(),
+    "the newest runs of each task, every rehearsal with its run, and the older runs gone whole",
   );
   assert.ok(kept.includes("L1-1.log"), "the only run of its owner, however old");
   assert.equal(
@@ -109,29 +116,4 @@ test("a lane in the ledger keeps its records but the gate runs a newer run of th
   );
   assert.ok(kept.includes("notes.txt"), "a file the desk did not name is not its to drop");
   assert.equal(readdirSync(handbacks).length, GATE_LOGS_PER_OWNER + 2, "hand-backs are never tidied");
-});
-
-test("a run's rehearsal logs go with it: kept while it is among the newest runs, tidied with it when it is not", () => {
-  const state = tempDir("sw2-tidy-");
-  const gates = join(state, "gates");
-  mkdirSync(gates);
-  const touch = (name: string) => writeFileSync(join(gates, name), "x");
-  for (let run = 0; run < GATE_LOGS_PER_OWNER + 1; run++)
-    for (const tail of ["", "-1", "-2"]) touch(`L1-T1-${1000 - run}${tail}.log`);
-  const ledger = emptyLedger();
-  ledger.lanes = { L1: lane("L1") };
-
-  tidyRecords(state, ledger);
-
-  const kept = readdirSync(gates);
-  assert.deepEqual(
-    kept.filter((name) => name.includes("-995")),
-    [],
-    "the oldest run goes whole, its rehearsals with it",
-  );
-  assert.equal(
-    kept.length,
-    GATE_LOGS_PER_OWNER * 3,
-    "each of the newest runs keeps its gate log and every rehearsal's",
-  );
 });

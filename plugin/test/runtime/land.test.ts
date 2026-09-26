@@ -1,190 +1,59 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { loadConfig } from "../../server/desk/project.ts";
+import { tempDir } from "../tempdir.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer } from "./harness.ts";
+import { heldLook } from "./lane-gates.ts";
 import { laneWith, risky } from "./landable.ts";
 
-test("a lane touching nothing the Human asked to be asked about first lands at once, with what the desk read of it as evidence", async () => {
-  const { land, onMain } = await laneWith(risky);
-  const landed = await land();
-  assert.equal(landed.ok, true, landed.text);
-  assert.ok(onMain("src/auth/login.ts"), "a path v2 counted as risky is no reason to wait unless the Human says so");
-  assert.match(
-    landed.text,
-    /Evidence: 1 commit; 1 file, 1 line changed\. Gate: passed on the lane\. No review of the whole lane is on record\./,
-  );
-});
+type Harness = ReturnType<typeof harness>;
 
-test("an open incident on a lane is evidence for whoever lands it, and never reaches the Lead it may be about", async () => {
-  // Beside others, so the lane can report ready with it handed back and not accepted: a task in the lane's copy could not.
-  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true } }, undefined, {
-    holds: ["a.txt"],
-    parallel: true,
-  });
-  await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
-  const worktree = h.ledger().tasks["L1-T1"]!.worktree!;
-  timeline.beat("turn_started", "t1");
-  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
-  timeline.add(
-    {
-      type: "tool_call",
-      callId: "w1",
-      name: "Edit",
-      status: "completed",
-      detail: { type: "edit", filePath: join(worktree, "a.txt"), oldString: "one", newString: "uno" },
-    },
-    "t1",
-  );
-  timeline.add(
-    {
-      type: "tool_call",
-      callId: "g1",
-      name: "Bash",
-      status: "completed",
-      detail: { type: "shell", command: "npm test", output: "1 failing", exitCode: 1 },
-    },
-    "t1",
-  );
-  await settle();
-  assert.equal(
-    (await h.call(peer, "peer", "done", { outcome: "complete", summary: "done", checks: "npm test passes" })).ok,
-    true,
-  );
-  timeline.beat("turn_completed", "t1");
-  await settle();
-  await new Promise((resolve) => setTimeout(resolve, 30));
-  await h.idle(peer);
-  await h.idle(lane.lead!);
-  assert.match(
-    h.agents.get(lane.lead!)!.sent.join("\n"),
-    /INCIDENT I\d+ \(claim-contradicted, attend\) on the Peer on L1-T1[^]*handed back as complete, but `npm test` failed the last time it ran, after the last edit/,
-  );
-  const reported = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
-  assert.doesNotMatch(
-    reported.text,
-    /Incident|claim-contradicted/,
-    "what reaches the Lead of its lane's record leaves incidents out",
-  );
-  assert.match(
-    h.heard(sup).join("\n"),
-    /REPORT L1 \(Build\): ready to land[^]*- Incident I\d+ on this lane is still open: claim-contradicted\./,
-  );
-  const landed = await h.call(sup, "supervisor", "land_lane", {
-    lane: "L1",
-    overGate: true,
-    reason: "the Supervisor judged the red gate safe",
-  });
-  assert.equal(landed.ok, true, landed.text);
-  assert.match(landed.text, /Incident I\d+ on this lane is still open: claim-contradicted\./);
-});
+const scope = { acceptance: ["done"], outOfScope: ["anything else in the repository"] };
 
-test("a READY stands until the lane is amended: status says so, and the Lead must report again", async () => {
-  const { h, sup, lane } = await laneWith({ "a.txt": "one\nfour\n" });
-  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
-  assert.ok(h.ledger().lanes.L1!.ready);
-  assert.match((await h.call(sup, "supervisor", "status", {})).text, /Reported ready \d+ min ago\./);
-  await h.call(sup, "supervisor", "amend_lane", {
-    lane: "L1",
-    acceptance: ["four", "five"],
-    why: "the Human added five",
-  });
-  assert.equal(h.ledger().lanes.L1!.ready, undefined, "what it was ready against has changed");
-  assert.doesNotMatch((await h.call(sup, "supervisor", "status", {})).text, /Reported ready/);
-});
+/** Writes and commits `files` where `cwd` has its branch checked out. */
+function commitAll(h: Harness, cwd: string, files: Record<string, string>) {
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(cwd, path)), { recursive: true });
+    writeFileSync(join(cwd, path), text);
+  }
+  h.git(cwd, "add", "-A");
+  h.git(cwd, "commit", "-qm", Object.keys(files).join(", "));
+}
 
-test("a lane its Lead has not reported ready as it now stands lands on the Supervisor's word, with that in the evidence", async () => {
-  const { h, sup, land } = await laneWith({ "a.txt": "one\nfour\n" });
-  await h.call(sup, "supervisor", "amend_lane", { lane: "L1", acceptance: ["a", "b"], why: "the Human added b" });
-  const landed = await land();
-  assert.equal(landed.ok, true, landed.text);
-  assert.match(
-    landed.text,
-    /Evidence: Its Lead has not reported it ready as it now stands: never, or the lane was amended since\. 1 commit/,
-  );
-  assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
-});
-
-test("a lane is landed over a red gate only with the Supervisor's reason for it", async () => {
-  const { h, sup } = await laneWith({ "a.txt": "one\nfour\n" });
-  await h.call(sup, "supervisor", "set_project", { gate: "false" });
-  const bare = await h.call(sup, "supervisor", "land_lane", { lane: "L1", overGate: true });
-  assert.equal(bare.ok, false);
-  assert.match(bare.text, /needs its reason/);
-  assert.equal(h.git(h.root, "show", "main:a.txt"), "one\ntwo\nthree\n", "main is as it was");
-  const said = await h.call(sup, "supervisor", "land_lane", {
-    lane: "L1",
-    overGate: true,
-    reason: "the failing test is the flaky one already on main",
-  });
-  assert.equal(said.ok, true, said.text);
-  assert.equal(h.git(h.root, "show", "main:a.txt"), "one\nfour\n");
-});
-
-test("a lane asked to carry on the Human's branch works on it where it is, keeps their uncommitted work, and lands by its gate alone", async () => {
+test("a lane lands after another moved main, gated with main's newer work in it, even while a third holds the project's copy", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN" });
-  h.git(h.root, "switch", "-qc", "fix/login");
-  h.commit(h.root, "a.txt", "one\ntwo\nthree\nhalf a fix\n");
-  writeFileSync(join(h.root, "b.txt"), "bee, still being edited\n");
-  const main = h.git(h.root, "rev-parse", "main").trim();
-  const scope = {
-    outcome: "the login fix is finished",
-    acceptance: ["a"],
-    outOfScope: ["anything else in the repository"],
-  };
-
-  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Finish the fix", ...scope, onBranch: true });
-  assert.equal(opened.ok, true, opened.text);
-  const lane = h.ledger().lanes.L1!;
-  assert.equal(lane.branch, "fix/login", "no lane branch of its own");
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "fix/login");
-  assert.deepEqual(h.git(h.root, "branch", "--format=%(refname:short)").trim().split("\n").sort(), [
-    "fix/login",
-    "main",
-  ]);
-  assert.equal(
-    readFileSync(join(h.root, "b.txt"), "utf-8"),
-    "bee, still being edited\n",
-    "the Human's uncommitted edit is where they left it",
+  await h.call(sup, "supervisor", "set_project", { gate: "test ! -f b/b.txt || test -f c/c.txt" });
+  for (const [title, path] of [
+    ["Part A", "a/**"],
+    ["Part B", "b/**"],
+    ["Part C", "c/**"],
+  ] as const) {
+    const lane = { title, outcome: title, ...scope, writeSet: [path], isolate: title !== "Part A" };
+    assert.equal((await h.call(sup, "supervisor", "open_lane", lane)).ok, true);
+  }
+  const lanes = h.ledger().lanes;
+  for (const lane of Object.values(lanes)) h.agents.get(lane.lead!)!.status = "idle";
+  assert.equal(lanes.L1!.slot, undefined);
+  commitAll(h, lanes.L2!.worktree!, { "b/b.txt": "b/b.txt\n" });
+  commitAll(h, lanes.L3!.worktree!, { "c/c.txt": "c/c.txt\n" });
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L3" })).ok, true);
+  const second = await h.call(sup, "supervisor", "land_lane", { lane: "L2" });
+  assert.equal(second.ok, true, second.text);
+  assert.doesNotMatch(second.text, /not landed/);
+  assert.deepEqual(
+    ["b/b.txt", "c/c.txt"].map((path) => h.git(h.root, "show", `main:${path}`)),
+    ["b/b.txt\n", "c/c.txt\n"],
   );
-  assert.equal(h.agents.get(lane.lead!)!.cwd, h.project.root);
-  assert.match(
-    h.agents.get(lane.lead!)!.prompt ?? "",
-    /fix\/login, the Human's own[\s\S]*have the first task working there commit it as found, in a commit of its own/,
-    "the Human's work in progress stays theirs, apart from the lane's",
-  );
-  assert.notEqual(loadConfig(h.project.state).base, "fix/login", "a branch carried on is not made the project's base");
-
-  const second = await h.call(sup, "supervisor", "open_lane", { title: "Also here", ...scope, onBranch: true });
-  assert.equal(second.ok, false, "one checkout holds one branch, and L1 has it");
-  assert.match(second.text, /L1/);
-
-  h.commit(h.root, "b.txt", "bee, done\n");
-  // What the branch held before the lane is the Human's own, so only the lane's commit is asked about.
-  await h.call(sup, "supervisor", "set_project", { askFirst: ["a.txt", "b.txt"] });
-  const held = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  assert.match(
-    held.text,
-    /waits for the Human's approval, on the Flow tab of the panel\. It changes b\.txt, under b\.txt, which the Human asked to be asked about first\.\n/,
-  );
-  await h.call(sup, "supervisor", "set_project", { askFirst: [] });
-  const closed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  assert.equal(closed.ok, true, closed.text);
-  assert.match(closed.text, /the work stays on fix\/login, the branch it carried on; nothing was merged anywhere/);
-  assert.equal(h.git(h.root, "rev-parse", "main").trim(), main, "nothing was merged into main");
-  assert.equal(
-    h.git(h.root, "branch", "--show-current").trim(),
-    "fix/login",
-    "and the Human's copy was not switched away",
-  );
-  assert.equal(readFileSync(join(h.root, "b.txt"), "utf-8"), "bee, done\n");
+  for (const id of ["L2", "L3"]) assert.equal((await h.call(sup, "supervisor", "release", { lane: id })).ok, true);
+  assert.equal(h.git(h.root, "branch", "--list", lanes.L2!.branch, lanes.L3!.branch).trim(), "");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lanes.L1!.branch);
+  assert.equal(h.ledger().lanes.L1!.status, "open");
 });
 
-test("a lane that reaches a risk rule is rehearsed with its gate, and a red rehearsal is a red gate the Supervisor may land over", async () => {
+test("a red gate or a red rehearsal holds a landing until the Supervisor lands over it with a reason", async () => {
   const { h, sup, lane, land, onMain } = await laneWith({ "src/db/001.sql": "create table t (id int);\n" });
   const rule = (paths: string[]) => ({
     paths,
@@ -201,7 +70,7 @@ test("a lane that reaches a risk rule is rehearsed with its gate, and a red rehe
       .at(-1)!;
   };
   await h.call(sup, "supervisor", "set_project", { riskRules: [rule(["migrations"])] });
-  assert.doesNotMatch(await ready(), /rehearsing/, "a rule the lane's change does not reach is not rehearsed");
+  assert.doesNotMatch(await ready(), /rehearsing/);
   await h.call(sup, "supervisor", "set_project", { riskRules: [rule(["src/db"])] });
   assert.match(
     await ready(),
@@ -213,6 +82,10 @@ test("a lane that reaches a risk rule is rehearsed with its gate, and a red rehe
     refused.text,
     /false, rehearsing that running it twice changes nothing, failed with exit 1[^]*land_lane it over the gate with overGate true and your reason/,
   );
+  const bare = await h.call(sup, "supervisor", "land_lane", { lane: "L1", overGate: true });
+  assert.equal(bare.ok, false);
+  assert.match(bare.text, /needs its reason/);
+  assert.equal(onMain("src/db/001.sql"), false);
   const over = await h.call(sup, "supervisor", "land_lane", {
     lane: "L1",
     overGate: true,
@@ -222,10 +95,140 @@ test("a lane that reaches a risk rule is rehearsed with its gate, and a red rehe
   assert.ok(onMain("src/db/001.sql"));
 });
 
-test("two lanes landed at once each stay on the base: a landing never erases another", async () => {
+test("what git shows of a lane goes with its landing as evidence, and holds nothing back", async () => {
+  const { h, sup, land, onMain } = await laneWith(risky);
+  const landed = await land();
+  assert.equal(landed.ok, true, landed.text);
+  assert.ok(onMain("src/auth/login.ts"));
+  assert.match(
+    landed.text,
+    /Evidence: 1 commit; 1 file, 1 line changed\. Gate: passed on the lane\. No review of the whole lane is on record\./,
+  );
+
+  commitAll(h, h.root, {
+    "test/cart.test.ts": "assert.equal(total, 1);\nassert.ok(total);\n",
+    "test/old.test.ts": "assert.ok(true);\n",
+  });
+  await h.call(sup, "supervisor", "set_project", { gate: "false", gateOn: "task" });
+  const cart = { title: "Cart", outcome: "a cart", ...scope, writeSet: ["src/**", "test/**"], isolate: true };
+  await h.call(sup, "supervisor", "open_lane", cart);
+  const lane = h.ledger().lanes.L2!;
+  const tasks = [{ key: "t", title: "Totals", goal: "g", ...scope, hints: ["src/cart.ts"] }];
+  await h.call(lane.lead!, "lead", "add_tasks", { tasks });
+  const task = h.ledger().tasks["L2-T1"]!;
+  rmSync(join(task.worktree!, "test/old.test.ts"));
+  commitAll(h, task.worktree!, {
+    "src/cart.ts": "export const total = 2;\n",
+    "test/cart.test.ts": "assert.equal(total, 2);\nit.skip('later', () => {});\n",
+    "docs/notes.md": "x\n".repeat(600),
+    "package-lock.json": `${"{}\n".repeat(900)}`,
+  });
+  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "totals" });
+  h.agents.get(task.peer!)!.status = "idle";
+  const accepted = await h.call(lane.lead!, "lead", "accept", {
+    task: "L2-T1",
+    overGate: true,
+    reason: "a known flake",
+  });
+  assert.equal(accepted.ok, true, accepted.text);
+  await h.runtime.desk.settled(h.project);
+  await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+  h.agents.get(lane.lead!)!.status = "idle";
+  const over = await h.call(sup, "supervisor", "land_lane", { lane: "L2", overGate: true, reason: "the flake again" });
+  assert.equal(over.ok, true, over.text);
+  const evidence = over.text.slice(over.text.indexOf("Evidence: "));
+  for (const line of [
+    "Gate: failed on the lane.",
+    "Tests changed: test/cart.test.ts, test/old.test.ts.",
+    "test/old.test.ts is deleted.",
+    "test/cart.test.ts: adds a skip marker.",
+    "docs/notes.md is outside the lane's write set, src/**, test/**.",
+    "package-lock.json is outside the lane's write set, src/**, test/**.",
+    "L2-T1 was accepted over its red gate: false: the gate failed with exit 1.",
+  ])
+    assert.ok(evidence.includes(line), `${line}\n${evidence}`);
+});
+
+test("what the record holds of a lane goes to whoever lands it, and never to the Lead it is about", async () => {
+  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true } }, undefined, {
+    holds: ["a.txt"],
+    parallel: true,
+  });
+  const lead = lane.lead!;
+  await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
+  const worktree = h.ledger().tasks["L1-T1"]!.worktree!;
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Clean the build" }, "t1");
+  const edit = { type: "edit", filePath: join(worktree, "a.txt"), oldString: "one", newString: "uno" };
+  timeline.add({ type: "tool_call", callId: "w1", name: "Edit", status: "completed", detail: edit }, "t1");
+  const run = { type: "shell", command: "npm test", output: "1 failing", exitCode: 1 };
+  timeline.add({ type: "tool_call", callId: "g1", name: "Bash", status: "completed", detail: run }, "t1");
+  await settle();
+  const handed = await h.call(peer, "peer", "done", {
+    outcome: "complete",
+    summary: "done",
+    checks: "npm test passes",
+  });
+  assert.equal(handed.ok, true);
+  timeline.beat("turn_completed", "t1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  await h.idle(peer);
+  await h.idle(lead);
+  assert.match(
+    h.agents.get(lead)!.sent.join("\n"),
+    /INCIDENT I\d+ \(claim-contradicted, attend\) on the Peer on L1-T1[^]*handed back as complete, but `npm test` failed the last time it ran, after the last edit/,
+  );
+
+  const beside = [{ key: "s", title: "Side", goal: "g", ...scope, holds: ["c.txt"], parallel: true }];
+  await h.call(lead, "lead", "add_tasks", { tasks: beside });
+  await h.call(lead, "lead", "start_review", { focus: "the lane as a whole" });
+  const review = Object.values(h.ledger().tasks).find((task) => task.kind === "review")!;
+  await h.call(review.peer!, "reviewer", "done", { verdict: "accept", answer: "Right." });
+  await h.call(sup, "supervisor", "open_lane", { title: "Other", outcome: "x", ...scope, isolate: true });
+  const other = h.ledger().lanes.L2!;
+  await h.call(other.lead!, "lead", "add_tasks", { tasks: [{ key: "o", title: "Push", goal: "g", ...scope }] });
+  await h.tick();
+  const pushing = h.timelineOf(h.ledger().tasks["L2-T1"]!.peer!);
+  pushing.beat("turn_started", "p1");
+  const force = { type: "shell", command: "git push --force origin main" };
+  pushing.add({ type: "tool_call", callId: "c1", name: "Bash", status: "running", detail: force }, "p1");
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(
+    h.events("incident.open").map((event) => [event.id, event.finding]),
+    [
+      ["I1", "claim-contradicted"],
+      ["I2", "destructive"],
+    ],
+  );
+
+  const reported = await h.call(lead, "lead", "report", { summary: "done", ready: true });
+  assert.doesNotMatch(reported.text, /Incident|claim-contradicted/);
+  await h.idle(sup);
+  const report = h
+    .heard(sup)
+    .filter((text) => text.includes("REPORT L1"))
+    .at(-1)!;
+  assert.match(
+    report,
+    /REPORT L1 \(Build\): ready to land[^]*- Incident I\d+ on this lane is still open: claim-contradicted\./,
+  );
+  assert.match(report, /L1-T2 is running: landing cuts it\./);
+  assert.match(report, /L1-R1 review: accept\./);
+  assert.doesNotMatch(report, /L1-R1 is|destructive/);
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1", overGate: true, reason: "judged safe" });
+  assert.equal(landed.ok, true, landed.text);
+  assert.match(landed.text, /Incident I\d+ on this lane is still open: claim-contradicted\./);
+  assert.match(landed.text, /It cut L1-T1, L1-T2, which were not finished\./);
+});
+
+test("two lanes landed at once each stay on the base: the second waits for the first, and a landing never erases another", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "true" });
+  const gate = tempDir("sw2-gate-");
+  const hold = `test ! -f hold || test ! -f ${gate}/armed || { : > ${gate}/reached; until test -f ${gate}/open; do sleep 0.02; done; }`;
+  await h.call(sup, "supervisor", "set_project", { gate: hold });
   for (const [title, file] of [
     ["Cart", "cart.txt"],
     ["Order", "order.txt"],
@@ -233,45 +236,35 @@ test("two lanes landed at once each stay on the base: a landing never erases ano
     const opened = await h.call(sup, "supervisor", "open_lane", {
       title,
       outcome: title,
-      acceptance: ["a"],
-      outOfScope: ["the rest"],
-      writeSet: [file],
+      ...scope,
+      writeSet: title === "Cart" ? [file, "hold"] : [file],
       isolate: true,
     });
     assert.equal(opened.ok, true, opened.text);
     const lane = Object.values(h.ledger().lanes).find((entry) => entry.title === title)!;
-    writeFileSync(join(lane.worktree!, file), `${title}\n`);
-    h.git(lane.worktree!, "add", "-A");
-    h.git(lane.worktree!, "commit", "-qm", title);
-    await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+    commitAll(h, lane.worktree!, title === "Cart" ? { [file]: `${title}\n`, hold: "" } : { [file]: `${title}\n` });
     h.agents.get(lane.lead!)!.status = "idle";
   }
-  // The Human works on a branch of their own, so the base is checked out nowhere and moves by its ref alone.
   h.git(h.root, "switch", "-qc", "human-work");
-  const replies = await Promise.all(["L1", "L2"].map((lane) => h.call(sup, "supervisor", "land_lane", { lane })));
-  const onMain = h.git(h.root, "ls-tree", "--name-only", "-r", "main").split("\n");
+  writeFileSync(join(gate, "armed"), "");
+  const first = h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  for (let i = 0; i < 500 && !existsSync(join(gate, "reached")); i++) await settle();
+  assert.ok(existsSync(join(gate, "reached")), "the first landing is held in its gate");
+  const looked = heldLook(h, sup);
+  const second = h.call(sup, "supervisor", "land_lane", { lane: "L2" });
+  await looked.reached;
+  looked.release();
+  await settle();
+  writeFileSync(join(gate, "open"), "");
+  const replies = await Promise.all([first, second]);
   assert.deepEqual(
     replies.map((reply) => reply.ok),
     [true, true],
-    "the second waits for the first, then brings in what it landed: " + replies.map((reply) => reply.text).join("\n"),
+    replies.map((reply) => reply.text).join("\n"),
   );
+  const onMain = h.git(h.root, "ls-tree", "--name-only", "-r", "main").split("\n");
   assert.deepEqual(
     ["cart.txt", "order.txt"].filter((file) => onMain.includes(file)),
     ["cart.txt", "order.txt"],
-    "and main has the work of both",
   );
-});
-
-test("landing a lane names the unfinished tasks it would cut before it lands, and the ones it cut, but not a review that gave its verdict", async () => {
-  const { h, sup, lane } = await laneWithPeer(undefined, undefined, { holds: ["a.txt"], parallel: true });
-  await h.call(lane.lead!, "lead", "start_review", { focus: "the lane as a whole" });
-  const review = Object.values(h.ledger().tasks).find((task) => task.kind === "review")!;
-  await h.call(review.peer!, "reviewer", "done", { verdict: "accept", answer: "Right." });
-  await h.call(lane.lead!, "lead", "report", { summary: "the rest can wait", ready: true });
-  await h.idle(sup);
-  assert.match(h.heard(sup).join("\n"), /L1-T1 is running: landing cuts it\./);
-  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  assert.equal(landed.ok, true, landed.text);
-  assert.match(landed.text, /It cut L1-T1, which was not finished\./);
-  assert.doesNotMatch(h.heard(sup).join("\n"), /L1-R1 is/, "a review that gave its verdict is done");
 });

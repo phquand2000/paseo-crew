@@ -1,204 +1,246 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { saveLedger } from "../../server/desk/store/ledger.ts";
+import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
-import { harness, laneWithPeer } from "./harness.ts";
+import { settle } from "./fake-timeline.ts";
+import { harness, heldCreate, laneWithPeer } from "./harness.ts";
+import { heldCall, heldLook } from "./lane-gates.ts";
+
+type Harness = ReturnType<typeof harness>;
 
 const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
-const work = (title: string, extra: Record<string, unknown> = {}) => ({
-  tasks: [
-    {
-      key: "t",
-      title,
-      goal: "g",
-      acceptance: ["a"],
-      hints: ["a.txt"],
-      outOfScope: ["the rest of the repository"],
-      ...extra,
-    },
-  ],
+const task = (key: string, extra: Record<string, unknown>) => ({
+  key,
+  title: key,
+  goal: "g",
+  acceptance: ["a"],
+  outOfScope: ["the rest of the repository"],
+  ...extra,
 });
 
-async function openLane() {
+async function opened(isolate = false) {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Build", ...scope });
+  await h.call(sup, "supervisor", "open_lane", { title: "Build", ...scope, isolate });
   return { h, sup, lead: h.ledger().lanes.L1!.lead! };
 }
 
-/** Which of these tasks hold the lane's copy now: started in it and not yet decided. */
-const writing = (h: ReturnType<typeof harness>, ids: string[]) =>
-  ids.filter((id) => h.ledger().tasks[id]?.status === "running");
+const seats = (h: Harness, title: string) =>
+  [...h.agents.values()].filter((agent) => agent.title.startsWith(title)).length;
 
-test("two task calls at once in a lane's copy put one writer there, and the other waits for the copy", async () => {
-  const { h, lead } = await openLane();
-  const [first, second] = await Promise.all([
-    h.call(lead, "lead", "add_tasks", work("One")),
-    h.call(lead, "lead", "add_tasks", work("Two")),
-  ]);
-  assert.deepEqual([first.ok, second.ok], [true, true], `${first.text}\n${second.text}`);
-  assert.equal(writing(h, Object.keys(h.ledger().tasks)).length, 1);
-  assert.match(`${first.text}\n${second.text}`, /held: L1-T\d is still writing in the lane's working copy/);
-});
-
-test("a waiting task released while another is started beside it puts one writer in the lane's copy", async () => {
-  const { h, lead } = await openLane();
-  await h.call(lead, "lead", "add_tasks", work("First"));
-  await h.call(lead, "lead", "add_tasks", work("After", { after: ["L1-T1"] }));
-  // The first is accepted without its acceptance starting what waited, so the round and a new start meet.
-  const ledger = h.ledger();
-  ledger.tasks["L1-T1"]!.status = "merged";
-  saveLedger(h.project.state, ledger);
-  const [, started] = await Promise.all([
-    h.runtime.desk.openWaiting(h.project),
-    h.call(lead, "lead", "add_tasks", work("Beside")),
-  ]);
-  assert.equal(writing(h, ["L1-T2", "L1-T3"]).length, 1, started.text);
+test("two task calls at once put one writer in the lane's copy: the one that finds its task already started leaves it, and the other waits for the copy", async () => {
+  const { h, lead } = await opened();
+  const first = heldCreate(h, /^L1-T1 ·/);
+  const planning = h.call(lead, "lead", "add_tasks", {
+    tasks: [task("P", { holds: ["c.txt"], parallel: true }), task("L", { hints: ["a.txt"] })],
+  });
+  await first.reached;
+  const second = await h.call(lead, "lead", "add_tasks", { tasks: [task("M", { hints: ["b.txt"] })] });
+  assert.match(second.text, /M is L1-T3 M: held: L1-T2 is still writing in the lane's working copy/);
+  first.release();
+  const planned = await planning;
+  assert.match(planned.text, /L is L1-T2 L: running/);
+  const tasks = Object.values(h.ledger().tasks);
+  assert.deepEqual(
+    tasks.filter((entry) => entry.mode === "lane" && entry.status === "running").map((entry) => entry.id),
+    ["L1-T2"],
+  );
+  assert.equal(seats(h, "L1-T2 ·"), 1);
 });
 
 test("two lanes opened at once in the project's own copy open one there, and the other is told the copy is taken", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  // A lane open elsewhere, so each opening reads the project's files before it can decide.
-  await h.call(sup, "supervisor", "open_lane", { title: "Side", ...scope, isolate: true, writeSet: ["b.txt"] });
-  const [first, second] = await Promise.all([
-    h.call(sup, "supervisor", "open_lane", { title: "Cart", ...scope }),
-    h.call(sup, "supervisor", "open_lane", { title: "Order", ...scope }),
-  ]);
-  assert.deepEqual([first.ok, second.ok].sort(), [false, true]);
-  assert.match((first.ok ? second : first).text, /is working in the project's own copy/);
+  const looked = heldLook(h, sup);
+  const cart = h.call(sup, "supervisor", "open_lane", { title: "Cart", ...scope });
+  await looked.reached;
+  assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Order", ...scope })).ok, true);
+  looked.release();
+  const refused = await cart;
+  assert.equal(refused.ok, false);
+  assert.match(refused.text, /Lane L1 is working in the project's own copy/);
   const inOwnCopy = Object.values(h.ledger().lanes).filter((lane) => lane.status === "open" && !lane.slot);
-  assert.equal(inOwnCopy.length, 1);
-  assert.equal(
-    h.git(h.root, "branch", "--show-current").trim(),
-    inOwnCopy[0]!.branch,
-    "and the copy is on the branch of the lane that has it",
+  assert.deepEqual(
+    inOwnCopy.map((lane) => lane.title),
+    ["Order"],
   );
-});
-
-test("a waiting lane released while another is opened beside it puts one lane in the project's own copy", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Side", ...scope, isolate: true, writeSet: ["b.txt"] });
-  await h.call(sup, "supervisor", "open_lane", { title: "Cart", ...scope, isolate: true });
-  await h.call(sup, "supervisor", "open_lane", { title: "Order", ...scope, after: ["L2"] });
-  // The first lands without its close opening what waited, so the round and a new lane meet.
-  const ledger = h.ledger();
-  Object.assign(ledger.lanes.L2!, { status: "closed", landed: true });
-  saveLedger(h.project.state, ledger);
-  const [, pay] = await Promise.all([
-    h.runtime.desk.openWaiting(h.project),
-    h.call(sup, "supervisor", "open_lane", { title: "Pay", ...scope }),
-  ]);
-  // Whichever came second is told the copy is taken, not left to collide with the first in git.
-  assert.match(pay.ok ? (h.ledger().lanes.L3!.held?.why ?? "") : pay.text, /is working in the project's own copy/);
-  const inOwnCopy = Object.values(h.ledger().lanes).filter((lane) => lane.status === "open" && !lane.slot);
-  assert.equal(inOwnCopy.length, 1);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), inOwnCopy[0]!.branch);
 });
 
-test("an amendment and a new task reaching for the same paths at once do not both get them", async () => {
-  const { h, lead } = await openLane();
-  await h.call(lead, "lead", "add_tasks", work("Beside", { holds: ["b.txt"], parallel: true }));
-  const [amended, started] = await Promise.all([
-    h.call(lead, "lead", "amend_task", { task: "L1-T1", why: "it needs c too", holds: ["b.txt", "c.txt"] }),
-    h.call(lead, "lead", "add_tasks", work("Other", { holds: ["c.txt"], parallel: true })),
-  ]);
-  const said = `${amended.text}\n${started.text}`;
-  const holders = Object.values(h.ledger().tasks).filter(
-    (task) => task.holds.includes("c.txt") && task.status === "running",
-  );
-  assert.equal(holders.length, 1, said);
-  // Whichever came second is refused or held, by the task it would have written beside.
-  assert.match(said, /overlaps what L1-T\d holds at c\.txt|holds c\.txt, which L1-T1 holds and is still writing/);
-});
-
-test("two lanes amended at once to write the same path do not both get it", async () => {
+test("a waiting lane opened by a round while a close opens another opens once, and a lane asked for meanwhile finds the project's copy taken", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Cart", ...scope, isolate: true, writeSet: ["a.txt"] });
-  await h.call(sup, "supervisor", "open_lane", { title: "Order", ...scope, isolate: true, writeSet: ["b.txt"] });
-  const [first, second] = await Promise.all([
-    h.call(sup, "supervisor", "amend_lane", { lane: "L1", why: "it needs c too", writeSet: ["a.txt", "c.txt"] }),
-    h.call(sup, "supervisor", "amend_lane", { lane: "L2", why: "it needs c too", writeSet: ["b.txt", "c.txt"] }),
-  ]);
-  assert.deepEqual([first.ok, second.ok].sort(), [false, true], `${first.text}\n${second.text}`);
-  assert.match((first.ok ? second : first).text, /overlaps lane L[12] at c\.txt/);
+  const open = (title: string, extra: Record<string, unknown> = {}) =>
+    h.call(sup, "supervisor", "open_lane", { title, ...scope, ...extra });
+  await open("Cart", { isolate: true });
+  await open("Order", { isolate: true, after: ["L1"] });
+  await open("Receipt", { after: ["L1"] });
+  h.agents.get(h.ledger().lanes.L1!.lead!)!.status = "idle";
+  const order = heldCreate(h, /^L2 · Lead/);
+  const landing = h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  await order.reached;
+  await h.tick(Date.now());
+  const receipt = h.ledger().lanes.L3!;
+  assert.deepEqual([receipt.status, receipt.slot], ["open", undefined]);
+  assert.match((await open("Pay")).text, /Lane L3 is working in the project's own copy/);
+  order.release();
+  assert.equal((await landing).ok, true);
+  assert.deepEqual([seats(h, "L2 · Lead"), seats(h, "L3 · Lead")], [1, 1]);
+  assert.equal(Object.values(h.ledger().slots).filter((slot) => slot.lane === "L2").length, 1);
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), receipt.branch);
+  assert.deepEqual([h.ledger().lanes.L3!.status, h.ledger().lanes.L3!.lead], ["open", receipt.lead]);
 });
 
-test("a copy two seats were writing in is put back once both turns end, however close together they end", async () => {
+test("two calls reaching for the same paths at once do not both get them, whichever of them writes first", async () => {
+  const { h, sup, lead } = await opened();
+  const held = (paths: string[]) =>
+    Object.values(h.ledger().tasks)
+      .filter((entry) => entry.status === "running" && paths.some((path) => entry.holds.includes(path)))
+      .map((entry) => entry.id);
+  await h.call(lead, "lead", "add_tasks", { tasks: [task("Beside", { holds: ["b.txt"], parallel: true })] });
+  const amend = (holds: string[]) =>
+    h.call(lead, "lead", "amend_task", { task: "L1-T1", why: "it needs more", holds: ["b.txt", ...holds] });
+  const add = (key: string, path: string) =>
+    h.call(lead, "lead", "add_tasks", { tasks: [task(key, { holds: [path], parallel: true })] });
+
+  const late = heldLook(h, lead);
+  const amending = amend(["c.txt"]);
+  await late.reached;
+  assert.equal((await add("Other", "c.txt")).ok, true);
+  late.release();
+  assert.match(
+    (await amending).text,
+    /What it holds overlaps what L1-T2 holds at c\.txt\. Leave those paths out of L1-T1\./,
+  );
+  const early = heldLook(h, lead);
+  const adding = add("Third", "d.txt");
+  await early.reached;
+  assert.equal((await amend(["d.txt"])).ok, true);
+  early.release();
+  assert.match((await adding).text, /holds d\.txt, which L1-T1 holds and is still writing, and does not wait for it/);
+  assert.deepEqual([held(["c.txt"]), held(["d.txt"])], [["L1-T2"], ["L1-T1"]]);
+
+  const lane = (title: string, path: string) => ({ title, ...scope, isolate: true, writeSet: [path] });
+  await h.call(sup, "supervisor", "open_lane", lane("Cart", "e.txt"));
+  await h.call(sup, "supervisor", "open_lane", lane("Order", "f.txt"));
+  const widen = (id: string, path: string) =>
+    h.call(sup, "supervisor", "amend_lane", { lane: id, why: "it needs g too", writeSet: [path, "g.txt"] });
+  const looked = heldLook(h, sup);
+  const cart = widen("L2", "e.txt");
+  await looked.reached;
+  assert.equal((await widen("L3", "f.txt")).ok, true);
+  looked.release();
+  assert.match((await cart).text, /overlaps lane L3 at g\.txt/);
+});
+
+test("two seats' turns ending at once tell whoever tried to land once, and put a copy back once, one ending while the other is still being ended", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" })).ok, true);
-  assert.deepEqual(h.ledger().lanes.L1!.restoring?.writers.sort(), [lane.lead!, peer].sort());
-  for (const id of [lane.lead!, peer]) h.agents.get(id)!.status = "idle";
-  await Promise.all([h.endTurn(lane.lead!, "done"), h.endTurn(peer, "done")]);
-  assert.equal(h.ledger().lanes.L1!.restoring, undefined);
+  const lead = lane.lead!;
+  /** Ends `first`'s turn up to `call` on it in Paseo and `second`'s whole, checking what stands before and after, then lets `first` go on. */
+  const endTogether = async (
+    first: string,
+    call: "refresh" | "archive",
+    second: string,
+    stands: (ended: boolean) => void,
+  ) => {
+    const held = heldCall(h, first, call);
+    for (const id of [first, second]) h.agents.get(id)!.status = "idle";
+    const ending = h.endTurn(first, "done");
+    await held.reached;
+    stands(false);
+    await h.endTurn(second, "done");
+    stands(true);
+    held.release();
+    await ending;
+  };
+  const landings = () => h.heard(sup).join("\n").split("CAN LAND L1").length - 1;
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  await h.idle(peer);
+  await h.call(lead, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  await h.call(lead, "lead", "start_review", { task: "L1-T1", focus: "Is a right?" });
+  const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
+  h.commitTo("main", "other.txt", "main moved\n");
+  assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).text, /a seat is mid-turn there/);
+  assert.deepEqual(h.ledger().lanes.L1!.landing?.writers.sort(), [lead, reviewer].sort());
+  await endTogether(reviewer, "refresh", lead, (ended) => {
+    assert.deepEqual(h.ledger().lanes.L1!.landing?.writers, ended ? undefined : [lead]);
+    assert.equal(landings(), ended ? 1 : 0);
+  });
+  await h.idle(sup);
+  assert.equal(landings(), 1);
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
+
+  await h.call(sup, "supervisor", "open_lane", { title: "Again", ...scope });
+  const again = h.ledger().lanes.L2!;
+  await h.call(again.lead!, "lead", "add_tasks", { tasks: [task("Work", { hints: ["a.txt"] })] });
+  const writer = h.ledger().tasks["L2-T1"]!.peer!;
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "no longer wanted" })).ok, true);
+  assert.deepEqual(h.ledger().lanes.L2!.restoring?.writers.sort(), [again.lead!, writer].sort());
+  await endTogether(writer, "archive", again.lead!, (ended) => {
+    assert.deepEqual(h.ledger().lanes.L2!.restoring?.writers.sort(), ended ? [writer] : [again.lead!, writer].sort());
+    assert.equal(h.git(h.root, "branch", "--show-current").trim(), h.ledger().tasks["L2-T1"]!.branch);
+  });
+  assert.equal(h.ledger().lanes.L2!.restoring, undefined);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
 });
 
-test("a landing two seats were in the way of can go once both turns end, however close together they end", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
-  h.commit(lane.worktree!, "a.txt", "A\n");
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
-  h.agents.get(peer)!.status = "idle";
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  await h.runtime.desk.settled(h.project);
-  await h.call(lane.lead!, "lead", "start_review", { task: "L1-T1", focus: "Is a right?" });
-  const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
-  // main moves on, so landing starts with merging it into the lane's copy, where the Lead and the reviewer are mid-turn.
-  const side = join(tempDir("sw2-moved-"), "wt");
-  h.git(h.root, "worktree", "add", "-q", "-b", "side", side, "main");
-  h.git(side, "commit", "-qm", "moved", "--allow-empty");
-  h.git(h.root, "branch", "-f", "main", "side");
-  h.git(h.root, "worktree", "remove", "--force", side);
-  assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).text, /a seat is mid-turn there/);
-  assert.deepEqual(h.ledger().lanes.L1!.landing?.writers.sort(), [lane.lead!, reviewer].sort());
-  for (const id of [lane.lead!, reviewer]) h.agents.get(id)!.status = "idle";
-  await Promise.all([h.endTurn(lane.lead!, "done"), h.endTurn(reviewer, "done")]);
-  await h.idle(sup);
-  assert.equal(h.agents.get(sup)!.sent.join("\n").split("CAN LAND L1").length - 1, 1);
-});
-
 test("a lane closed twice at once is closed once, and the second call is told it is already being closed", async () => {
-  const { h, sup } = await laneWithPeer();
-  const [first, second] = await Promise.all([
-    h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" }),
-    h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" }),
-  ]);
-  assert.deepEqual([first.ok, second.ok].sort(), [false, true], `${first.text}\n${second.text}`);
-  assert.match((first.ok ? second : first).text, /L1 is (already being closed|already closed)/);
+  const { h, sup, lead } = await opened();
+  h.agents.get(lead)!.status = "idle";
+  h.commitTo("main", "other.txt", "main moved\n");
+  const looked = heldLook(h, lead);
+  const landing = h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  await looked.reached;
+  const dropped = await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" });
+  assert.equal(dropped.ok, false);
+  assert.match(dropped.text, /Lane L1 is already being closed by another call/);
+  looked.release();
+  assert.equal((await landing).ok, true);
+  assert.match(
+    (await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "again" })).text,
+    /Lane L1 is already closed\./,
+  );
+  assert.equal(h.events("lane.closed").length, 1);
 });
 
 test("a READY whose gate is still running when its lane closes is not recorded on the closed lane", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "sleep 1" });
+  const gate = tempDir("sw2-gate-");
+  await h.call(sup, "supervisor", "set_project", {
+    gate: `: > ${gate}/reached; until test -f ${gate}/open; do sleep 0.02; done; true`,
+    gateOn: "lane",
+  });
   await h.call(sup, "supervisor", "open_lane", { title: "Slow", ...scope });
-  const lead = h.ledger().lanes.L1!.lead!;
-  const reporting = h.call(lead, "lead", "report", { summary: "ready to land", ready: true });
+  const reporting = h.call(h.ledger().lanes.L1!.lead!, "lead", "report", { summary: "ready to land", ready: true });
+  for (let i = 0; i < 500 && !existsSync(join(gate, "reached")); i++) await settle();
+  assert.ok(existsSync(join(gate, "reached")));
   assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" })).ok, true);
+  writeFileSync(join(gate, "open"), "");
   const reported = await reporting;
   assert.equal(reported.ok, false, reported.text);
   assert.equal(h.ledger().lanes.L1!.ready, undefined);
 });
 
-test("an ask from a Lead whose lane closes as it asks is not opened on the closed lane", async () => {
-  const { h, sup, lane } = await laneWithPeer();
-  const [asked] = await Promise.all([
-    h.call(lane.lead!, "lead", "ask", { kind: "question", text: "Which one?", default: "the first" }),
-    h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" }),
-  ]);
-  assert.equal(asked.ok, false, asked.text);
-  assert.deepEqual(Object.values(h.ledger().asks), []);
-});
+test("an ask whose task is cut, or whose lane closes, while whoever answers is looked up is not opened", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  const toLead = heldLook(h, lead);
+  const asking = h.call(peer, "peer", "ask", { question: "Which one?", bestGuess: "the first" });
+  await toLead.reached;
+  assert.equal((await h.call(lead, "lead", "cut", { task: "L1-T1", reason: "not needed" })).ok, true);
+  toLead.release();
+  assert.match((await asking).text, /L1-T1 was accepted or cut while you asked/);
 
-test("an ask from a Peer whose task is cut as it asks is not opened", async () => {
-  const { h, lane, peer } = await laneWithPeer();
-  const [asked] = await Promise.all([
-    h.call(peer, "peer", "ask", { question: "Which one?", bestGuess: "the first" }),
-    h.call(lane.lead!, "lead", "cut", { task: "L1-T1", reason: "not needed" }),
-  ]);
-  assert.match(asked.text, /L1-T1 was accepted or cut while you asked/);
+  const toSup = heldLook(h, sup);
+  const leading = h.call(lead, "lead", "ask", { kind: "question", text: "Which one?", default: "the first" });
+  await toSup.reached;
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" })).ok, true);
+  toSup.release();
+  const asked = await leading;
+  assert.equal(asked.ok, false, asked.text);
   assert.deepEqual(Object.values(h.ledger().asks), []);
 });

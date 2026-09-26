@@ -71,7 +71,7 @@ const read = (state: string, id: string) =>
   JSON.parse(gunzipSync(readFileSync(join(archiveDir(state), `${id}.json.gz`))).toString("utf-8")) as LaneArchive;
 
 test("closed lanes past the newest few leave the ledger whole once nothing of theirs is pending and no open work names them", () => {
-  const extra = 11;
+  const extra = 12;
   const ledger = busyLedger(KEEP_CLOSED_LANES + extra);
   ledger.lanes.L1!.restoring = { writers: [], base: "main", branch: "lane/l1" };
   ledger.slots.S1 = { id: "S1", path: "/tmp/s1", lane: "L2", createdAt: 0 };
@@ -81,29 +81,30 @@ test("closed lanes past the newest few leave the ledger whole once nothing of th
   ledger.lanes.L99 = { ...lane(99, "open"), outcome: "Carry on from handbacks/L6-T1-1.md", base: "lane/l9-parser" };
   ledger.tasks["L99-T1"] = { ...task(99, "running"), context: "the fix in L7 was half done, see lane/l8-cache" };
   ledger.lanes.L98 = { ...lane(98, "open"), acceptance: ["l10 is gone"] };
+  ledger.lanes.L97 = { ...lane(97, "waiting"), after: ["L11"] };
 
   const taken = takeFinished(ledger, (id) => !live.has(id))!;
 
   assert.deepEqual(
     taken.lanes.map((entry) => entry.lane!.id),
-    ["L11"],
+    ["L12"],
     "only the unpinned lane beyond the newest kept",
   );
   assert.deepEqual(
     taken.lanes[0]!.tasks.map((entry) => entry.id),
-    ["L11-T1"],
+    ["L12-T1"],
   );
   assert.deepEqual(
     taken.lanes[0]!.asks.map((entry) => entry.id),
-    ["A11"],
+    ["A12"],
   );
   assert.deepEqual(
     taken.lanes[0]!.agents.map((entry) => entry.id),
-    ["lead-11"],
+    ["lead-12"],
   );
-  for (const kept of ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L12"])
+  for (const kept of ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11", "L13"])
     assert.ok(ledger.lanes[kept], `${kept} stays`);
-  assert.ok(!ledger.lanes.L11 && !ledger.tasks["L11-T1"] && !ledger.asks.A11 && !ledger.agents["lead-11"]);
+  assert.ok(!ledger.lanes.L12 && !ledger.tasks["L12-T1"] && !ledger.asks.A12 && !ledger.agents["lead-12"]);
   assert.equal(ledger.seq.lane, KEEP_CLOSED_LANES + extra, "ids come from seq, which never moves");
   assert.equal(
     takeFinished(ledger, (id) => !live.has(id)),
@@ -161,16 +162,6 @@ test("a closed lane whose question was asked within the day stays on record, sin
     takeFinished(ledger, () => true)?.questions.map((question) => question.id),
     ["H2"],
   );
-});
-
-test("a closed lane a waiting lane waits for stays on record, however old", () => {
-  const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
-  ledger.lanes.L99 = { ...lane(99, "waiting"), after: ["L1"] };
-  assert.equal(
-    takeFinished(ledger, () => true),
-    undefined,
-  );
-  assert.ok(ledger.lanes.L1);
 });
 
 test("an open lane is never archived; a seat with no lane keeps its role's newest entry and any open ask; an answered ask goes with its asker", () => {
@@ -231,28 +222,7 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
   );
 });
 
-test("a closed lane's rehearsal logs go with their run: the last run's into its file, and all of them out of gates/", () => {
-  const state = tempDir("sw2-archive-");
-  const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
-  ledger.seq.lane = 30;
-  mkdirSync(join(state, "gates"));
-  for (const path of ["gates/L1-T1-10.log", "gates/L1-T1-10-1.log", "gates/L1-T1-20.log", "gates/L1-T1-20-1.log"])
-    writeFileSync(join(state, path), `text of ${path}`);
-  keepArchived(
-    state,
-    takeFinished(ledger, () => true)!,
-  );
-  assert.deepEqual(fileRecords(state, ledger).sort(), [
-    "gates/L1-T1-10-1.log",
-    "gates/L1-T1-10.log",
-    "gates/L1-T1-20-1.log",
-    "gates/L1-T1-20.log",
-  ]);
-  assert.deepEqual(Object.keys(read(state, "L1").records).sort(), ["gates/L1-T1-20-1.log", "gates/L1-T1-20.log"]);
-  assert.deepEqual(readdirSync(join(state, "gates")), []);
-});
-
-test("a lane leaves as one file with its entries, every hand-back and each owner's last gate run, and filing it again changes nothing", () => {
+test("a lane leaves as one file with its entries, every hand-back and each owner's last gate run with its rehearsals, and filing it again changes nothing", () => {
   const state = tempDir("sw2-archive-");
   const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
   ledger.seq.lane = 30;
@@ -261,7 +231,9 @@ test("a lane leaves as one file with its entries, every hand-back and each owner
   const put = (path: string) => writeFileSync(join(state, path), `text of ${path}`);
   for (const path of [
     "gates/L1-T1-10.log",
+    "gates/L1-T1-10-1.log",
     "gates/L1-T1-20.log",
+    "gates/L1-T1-20-1.log",
     "gates/L1-5.log",
     "handbacks/L1-T1-10.md",
     "handbacks/L1-T1-20.md",
@@ -277,7 +249,9 @@ test("a lane leaves as one file with its entries, every hand-back and each owner
 
   assert.deepEqual(moved.sort(), [
     "gates/L1-5.log",
+    "gates/L1-T1-10-1.log",
     "gates/L1-T1-10.log",
+    "gates/L1-T1-20-1.log",
     "gates/L1-T1-20.log",
     "handbacks/L1-T1-10.md",
     "handbacks/L1-T1-20.md",
@@ -290,6 +264,7 @@ test("a lane leaves as one file with its entries, every hand-back and each owner
   );
   assert.deepEqual(Object.keys(archive.records).sort(), [
     "gates/L1-5.log",
+    "gates/L1-T1-20-1.log",
     "gates/L1-T1-20.log",
     "handbacks/L1-T1-10.md",
     "handbacks/L1-T1-20.md",
