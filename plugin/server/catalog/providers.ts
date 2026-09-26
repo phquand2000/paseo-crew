@@ -39,7 +39,7 @@ function defaultModel(harness: HarnessSpec, choice: { model?: string }): ModelSp
   return [{ id: choice.model, label, isDefault: true }];
 }
 
-export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
+function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
   const entry: Json = {
     extends: harness.baseProvider,
     label: labelFor(kit, role, harness),
@@ -55,7 +55,7 @@ export function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: H
   return entry;
 }
 
-export function desiredProfile(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
+function desiredProfile(kit: Kit, team: Team, role: RoleSpec, harness: HarnessSpec): Json {
   const id = providerId(kit, role.role, harness.id);
   const choice = choiceFor(team, role, harness);
   const profile: Json = { id, name: labelFor(kit, role, harness), provider: id };
@@ -74,7 +74,7 @@ function managedEnvKeys(kit: Kit): Set<string> {
   return keys;
 }
 
-export function reconcile(config: Json, kit: Kit, team: Team): { config: Json; changed: string[] } {
+function reconcile(config: Json, kit: Kit, team: Team): { config: Json; changed: string[] } {
   const next: Json = structuredClone(config);
   next.agents ??= {};
   next.agents.providers ??= {};
