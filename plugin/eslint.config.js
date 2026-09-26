@@ -21,7 +21,6 @@ const NOT_YET_CLEAN = [
   "server/desk/roster.ts",
   "server/desk/slots.ts",
   "server/desk/sweep.ts",
-  "server/desk/tools/incidents.ts",
   "server/runtime/control.ts",
   "server/runtime/seating.ts",
   "server/runtime/timeline.ts",
