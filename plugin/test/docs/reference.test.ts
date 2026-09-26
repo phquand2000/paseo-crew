@@ -95,51 +95,46 @@ function rows(header: string): string[][] {
     );
 }
 
-test("every verb a seat can be shown has one row saying what it does, and no row names a verb that is not", () => {
-  const shown = [...new Set(Object.values(kit.toolSets).flatMap((set) => Object.keys(set)))].sort();
-  assert.deepEqual(
-    rows("| Verb | Effect |")
-      .map(([verb]) => verb!.replaceAll("`", ""))
-      .sort(),
-    shown,
-  );
-});
-
-test("every heading a letter or brief starts with is in the letters table, and the table names none that is not", () => {
-  const heading = /^[A-Z]{2,}(?: [A-Z]{2,})*/;
-  const written = new Set<string>();
+test("every hand-written table in the reference names exactly what the code has: verbs, letters, facts and the kinds the watch logs", () => {
+  const cells = (header: string, column: number) => rows(header).map((row) => row[column]!);
+  const ticked = (text: string) => [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1]!);
   const desk = join(PLUGIN, "server", "desk");
-  for (const file of [
-    ...readdirSync(desk).filter((name) => name.endsWith("letters.ts")),
-    "briefs.ts",
-    "directive.ts",
-  ]) {
+  const letters = new Set<string>();
+  for (const file of [...readdirSync(desk).filter((name) => name.endsWith("letters.ts")), "briefs.ts", "directive.ts"])
     for (const match of readFileSync(join(desk, file), "utf-8").matchAll(
       /[`"]([A-Z]{2,}(?: [A-Z]{2,})*)(?=[ :]|\$|`|")/g,
     ))
-      written.add(match[1]!);
-  }
-  const listed = rows("| Kind | Letters |").flatMap(([, letters]) =>
-    letters!.split(",").flatMap((entry) => entry.trim().match(heading) ?? []),
-  );
-  assert.deepEqual([...new Set(listed)].sort(), [...written].sort());
-});
-
-test("every fact the watch raises has a row saying when, and no row names one it does not", () => {
-  const named = [...rows("| Fact | Level | Fires when |"), ...rows("| Fact | Fires when |")].flatMap(([facts]) =>
-    [...facts!.matchAll(/`([^`]+)`/g)].map((match) => match[1]!),
-  );
-  assert.deepEqual(named.sort(), Object.keys(FACTS).sort());
-});
-
-test("every kind the watch writes to events.log is in its table, and the table names none it does not", () => {
-  const declared = [
-    ...readFileSync(join(PLUGIN, "server", "desk", "events.ts"), "utf-8").matchAll(
+      letters.add(match[1]!);
+  const heading = /^[A-Z]{2,}(?: [A-Z]{2,})*/;
+  const kinds = [
+    ...readFileSync(join(desk, "events.ts"), "utf-8").matchAll(
       /kind: "((?:watch|watcher|incident|page)\.[A-Za-z-]+)"/g,
     ),
   ].map((match) => match[1]!);
-  const listed = rows("| Group | Kinds |").flatMap(([, kinds]) =>
-    [...kinds!.matchAll(/`([^`]+)`/g)].map((match) => match[1]!),
-  );
-  assert.deepEqual(listed.sort(), declared.sort());
+  const tables: [string, string[], string[]][] = [
+    [
+      "every verb a seat can be shown has one row saying what it does",
+      cells("| Verb | Effect |", 0).map((verb) => verb.replaceAll("`", "")),
+      [...new Set(Object.values(kit.toolSets).flatMap((set) => Object.keys(set)))],
+    ],
+    [
+      "every heading a letter or brief starts with is in the letters table",
+      [
+        ...new Set(
+          cells("| Kind | Letters |", 1).flatMap((cell) =>
+            cell.split(",").flatMap((entry) => entry.trim().match(heading) ?? []),
+          ),
+        ),
+      ],
+      [...letters],
+    ],
+    [
+      "every fact the watch raises has a row saying when",
+      [...cells("| Fact | Level | Fires when |", 0), ...cells("| Fact | Fires when |", 0)].flatMap(ticked),
+      Object.keys(FACTS),
+    ],
+    ["every kind the watch writes to events.log is in its table", cells("| Group | Kinds |", 1).flatMap(ticked), kinds],
+  ];
+  for (const [what, listed, held] of tables)
+    assert.deepEqual(listed.sort(), held.sort(), `${what}, and no row names one that is not`);
 });
