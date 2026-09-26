@@ -226,6 +226,8 @@ settings revision changes, its settings file is gone, or a login appeared since.
   additional directory. Claude never reads an added directory's `AGENTS.md`, so where the project
   has no `CLAUDE.md` the seat's own `CLAUDE.md` imports the project's `AGENTS.md`, as Claude Code
   reads it outside a seat.
+- **Claude Code** keeps its login per config dir. A seat sets `CLAUDE_SECURESTORAGE_CONFIG_DIR` empty,
+  so it reads the one login made outside any seat, and never needs one of its own.
 - **Codex** needs the `codex` CLI to build a seat, because the build asks it for its models.
 - **Oh My Pi** reads `config.yml` as YAML; the plugin writes it as JSON, which YAML reads too. The
   seat's session also names that file in `PI_CONFIG_FILES`, the overlay omp ranks above a

@@ -267,6 +267,7 @@ test("a Claude seat reads the project's own CLAUDE.md, or its AGENTS.md where it
     assert.equal(harness.provider.forceFlags?.["--setting-sources"], "user", "the seat reads no project settings, which is why it needs the way in below");
     const env = (desiredProvider(kit, team, role, harness) as { env: Record<string, string> }).env;
     assert.equal(env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD, "1", `${role.role}: Claude reads CLAUDE.md from an added directory only with this set`);
+    assert.equal(env.CLAUDE_SECURESTORAGE_CONFIG_DIR, "", `${role.role}: the seat reads the login the owner made`);
     const config = { provider: providerId(kit, role.role, "claude"), cwd: "/work/repo" } as AgentConfig;
     const next = applyRole(kit, team, config, () => "PROMPT", "/state/demo") as unknown as { providerOptions: { additionalDirectories?: string[] } };
     assert.deepEqual(next.providerOptions.additionalDirectories, ["/work/repo"], `${role.role}: the seat's own directory is the one added`);

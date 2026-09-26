@@ -59,7 +59,8 @@
       "SEATWORKS_AGENT_BIN": "claude",
       "ENABLE_TOOL_SEARCH": "false",
       "ENABLE_PROMPT_CACHING_1H": "1",
-      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1"
+      "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1",
+      "CLAUDE_SECURESTORAGE_CONFIG_DIR": ""
     },
     "profileModeId": "bypassPermissions",
     "command": [
