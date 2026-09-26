@@ -1,4 +1,5 @@
 import { headSha } from "../../core/git.ts";
+import { minutesSince } from "../../core/time.ts";
 import { type ToolReply, no, ok } from "../context.ts";
 import { askFirstHits, changeOf, landFacts } from "../landing.ts";
 import { type Lane, loadLedger } from "../ledger.ts";
@@ -44,7 +45,7 @@ export async function waitsForHuman(
   ledgers.setLane(project, lane.id, (entry) => {
     if (entry.landApproval && !entry.landApproval.approved) entry.landApproval.signals = asks;
   });
-  const since = Math.round((Date.now() - held.since) / 60_000);
+  const since = minutesSince(Date.now(), held.since);
   return ok(
     `Lane ${lane.id} still waits for the Human's approval to land, since ${since} min ago. ${asks.join(" ")} LANDED or SENT BACK comes as mail.`,
   );

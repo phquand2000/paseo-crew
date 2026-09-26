@@ -6,9 +6,9 @@ import { ok } from "../context.ts";
 import { leadLaneOf, loadLedger } from "../ledger.ts";
 import { loadConfig } from "../project.ts";
 import { defineTool } from "../services.ts";
-import { type OwnCopy, statusText } from "../status.ts";
+import { type OwnCheckout, statusText } from "../views/status.ts";
 
-async function ownCopy(root: string): Promise<OwnCopy> {
+async function ownCopy(root: string): Promise<OwnCheckout> {
   const branch = await currentBranch(root);
   return { branch, head: branch ? undefined : (await headSha(root))?.slice(0, 7), work: await uncommittedPaths(root) };
 }

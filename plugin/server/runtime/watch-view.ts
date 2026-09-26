@@ -1,3 +1,4 @@
+import { minutesSince } from "../core/time.ts";
 import { join } from "node:path";
 import type { WatchJudge, WatchView } from "../../shared/views.ts";
 import type { Kit } from "../catalog/kit.ts";
@@ -31,7 +32,7 @@ function judgeLine(project: Project, team: Team, kit: Kit, now: number): WatchJu
     );
   } catch {}
   if (!last?.at || last.by !== choice.id) return { label, state: "waiting", minutes: null, detail: null };
-  const minutes = Math.max(0, Math.round((now - Date.parse(last.at)) / 60_000));
+  const minutes = minutesSince(now, last.at);
   return last.unasked
     ? { label, state: "failing", minutes, detail: last.unasked }
     : { label, state: "answering", minutes, detail: null };

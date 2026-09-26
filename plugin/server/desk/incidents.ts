@@ -1,3 +1,4 @@
+import { DAY_MS } from "../core/time.ts";
 import { join } from "node:path";
 import { isRecord, readJsonFile, writeJson } from "../core/store.ts";
 import { type Held, close } from "../domain/incident.ts";
@@ -32,8 +33,6 @@ type Sighting = Omit<
   Incident,
   "id" | "opened" | "last" | "count" | "open" | "told" | "held" | "label" | "note" | "closed" | "later"
 >;
-
-const DAY_MS = 24 * 3_600_000;
 
 function incidentsFile(state: string): string {
   return join(state, "incidents.json");

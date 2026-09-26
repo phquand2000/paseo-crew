@@ -1,3 +1,4 @@
+import { DAY_MS } from "../core/time.ts";
 import { recordEvent } from "./store/event-log.ts";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -27,7 +28,6 @@ export function archiveDir(state: string): string {
 
 const laneNumber = (id: string) => Number(id.slice(1));
 
-const DAY_MS = 24 * 3_600_000;
 
 /** Lane ids the open work names, a hand-back or a `lane/l7-…` branch included; naming one too many only keeps it longer. */
 function carriedOn(ledger: Ledger): Set<string> {

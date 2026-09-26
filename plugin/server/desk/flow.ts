@@ -1,3 +1,4 @@
+import { minutesSince } from "../core/time.ts";
 import { createHash } from "node:crypto";
 import type { SeatView } from "../core/paseo.ts";
 import { AT_WORK, SETTLED } from "../domain/task.ts";
@@ -9,7 +10,7 @@ import type { Project } from "./project.ts";
 const LANE_CAP = 50;
 
 const minutes = (now: number, at: number | string | undefined): number =>
-  at === undefined ? 0 : Math.max(0, Math.round((now - (typeof at === "string" ? Date.parse(at) : at)) / 60_000));
+  at === undefined ? 0 : minutesSince(now, at);
 
 function seatOf(
   seats: Map<string, SeatView>,

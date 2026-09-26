@@ -17,8 +17,8 @@ import { type LiveSeat, migrate, migrationPlan } from "../upkeep/migrate.ts";
 import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../upkeep/update.ts";
 import { contentChanges, decide } from "../upkeep/content.ts";
 import { loadLedger, readLedger } from "../desk/ledger.ts";
-import { type Project, loadConfig, projectOf } from "../desk/project.ts";
-import { statusText } from "../desk/status.ts";
+import { type Project, projectOf } from "../desk/project.ts";
+import { statusPage } from "../desk/views/status.ts";
 import { describeCatalog } from "./catalog-view.ts";
 import { listFolders } from "./folders.ts";
 import { parseMcp } from "./mcp-paste.ts";
@@ -179,11 +179,7 @@ export class SettingsControl implements Control {
     const project = this.deps.source.named(slug);
     if (!project) return { text: "", error: unknownProject(slug) };
     const seats = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
-    // Built with these two, or the owner's copy could never show a seat waiting on them or unclaimed mail.
-    const waiting = [...seats.values()].filter(
-      (seat) => can(seatOf(this.deps.kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
-    );
-    return { text: statusText(project, loadLedger(project.state), loadConfig(project.state), seats, Date.now(), { waiting, held: this.deps.held() }) };
+    return { text: statusPage(this.deps.kit, project, seats, Date.now(), this.deps.held()) };
   }
 
   async flow(slug: string, since?: string, open?: string[]): Promise<FlowRead> {

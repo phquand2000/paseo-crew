@@ -58,7 +58,6 @@ const LONG_FUNCTIONS: Record<string, number> = {
   "client/ui/team.tsx roleRows": 56,
   "client/ui/upkeep.tsx UpkeepSection": 163,
   "server/catalog/team.ts resolveRole": 60,
-  "server/desk/status.ts statusText": 86,
   "server/runtime/doctor.ts doctor": 77,
   "server/runtime/watch/history.ts deskFacts": 54,
 };

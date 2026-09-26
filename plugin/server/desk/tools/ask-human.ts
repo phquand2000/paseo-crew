@@ -1,3 +1,4 @@
+import { DAY_MS } from "../../core/time.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { z } from "zod";
 import type { Question, QuestionClass } from "../../domain/question.ts";
@@ -11,7 +12,6 @@ import { type Lane, findLane, loadLedger, nextQuestionId } from "../ledger.ts";
 import { type Project, loadConfig } from "../project.ts";
 import { defineTool } from "../services.ts";
 
-const DAY_MS = 24 * 3_600_000;
 
 const WHILE_SILENT: Record<QuestionClass, string> = {
   reversible: "Nothing waits for it: the lane goes on as you said it would if they are silent, and they can overturn that.",

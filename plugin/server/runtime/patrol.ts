@@ -8,8 +8,8 @@ import { loadIncidents, openFor, saidBefore } from "../desk/incidents.ts";
 import { type Ask, type Lane, type Ledger, type Task, activeTasks, loadLedger, openAsksFrom } from "../desk/ledger.ts";
 import { askLetters } from "../desk/ask-letters.ts";
 import { letters } from "../desk/letters.ts";
-import { type Project, loadConfig, projectOf } from "../desk/project.ts";
-import { statusText } from "../desk/status.ts";
+import { type Project, projectOf } from "../desk/project.ts";
+import { statusPage } from "../desk/views/status.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
@@ -243,12 +243,7 @@ export class Patrol {
   }
 
   private writeStatus(project: Project, seats: SeatMap, now: number): void {
-    const { kit } = this.deps;
-    const waiting = [...seats.values()].filter(
-      (seat) => can(seatOf(kit, seat.provider)?.role, "supervise") && projectOf(seat.cwd).slug === project.slug && (seat.pendingPermissions?.length ?? 0) > 0,
-    );
     mkdirSync(project.state, { recursive: true });
-    const held = this.deps.outbox.held();
-    writeFileSync(join(project.state, "status.md"), statusText(project, loadLedger(project.state), loadConfig(project.state), seats, now, { waiting, held }));
+    writeFileSync(join(project.state, "status.md"), statusPage(this.deps.kit, project, seats, now, this.deps.outbox.held()));
   }
 }
