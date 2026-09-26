@@ -87,7 +87,7 @@
           },
           "detourOf": {
             "type": "string",
-            "description": "The lane (L1) whose missing prerequisite this one clears: the detour gets a Lead and copy of its own; that lane waits instead of widening."
+            "description": "Lane (L1) whose missing prerequisite this clears; it waits rather than widening. The detour takes its own copy when the checkout is taken."
           },
           "role": {
             "type": "string",

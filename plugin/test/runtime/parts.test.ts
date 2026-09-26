@@ -94,7 +94,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent carries none of the 
     ...[letters.started(task, "Started."), letters.reconciled(lane, task, "agent-9", "stop using the old client", sending), letters.message("the owner", "hi", sending)],
     ...[askLetters.answered({ ...ask, fromRole: "lead" }), askLetters.answeredFor(ask, "the owner"), askLetters.askTo({ ...ask, status: "open" }, "the Peer on L1-T1", "lead"), askLetters.reminder(ask, 30)],
     ...[landLetters.landHeld(lane, "It changes src/auth.", "abc"), landLetters.landSentBack(lane, "put it behind a flag", "abc"), landLetters.baseConflict(lane, ["a.js"])],
-    ...[landLetters.detourLanded({ ...lane, id: "L2" }, lane, "landed"), letters.onHold(lane, "the Human asked"), letters.resumed(lane, "go on"), ...late],
+    ...[true, false].map((landed) => landLetters.detourClosed({ ...lane, id: "L2" }, lane, "landed", landed)),
+    ...[letters.onHold(lane, "the Human asked"), letters.resumed(lane, "go on"), ...late],
   ];
   const text = (items: (string | Letter)[]) => items.map((item) => (typeof item === "string" ? item : item.text)).join("\n");
   // Driven from the kit, not a copy: the copy had lost "seats", which `\bseat\b` does not cover.

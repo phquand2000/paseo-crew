@@ -3,7 +3,7 @@ import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { mock, test } from "node:test";
 import { sentBy } from "../../server/core/sent-by.ts";
-import { harness } from "./harness.ts";
+import { harness, laneWithPeer } from "./harness.ts";
 
 test("what the desk sends a seat carries the kinds of its letters in its id, its first prompt too, so the watch tells it from a person's words", async () => {
   const h = harness();
@@ -47,7 +47,7 @@ test("asks reach the level above, answers come back, and a silent Peer is nudged
   h.agents.get(lane.lead!)!.status = "idle";
   h.runtime.outbox.turnEnded(lane.lead!);
   await h.runtime.outbox.pump(lane.lead!);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /SILENT L1-T1[\s\S]*Still looking/);
+  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or cut it and start again\./, "accept needs a hand-back on record, so it is not offered");
 });
 
 test("a working Peer past the first page of agents is not read as gone", async () => {
@@ -272,4 +272,24 @@ test("mail reaches a running seat inside its turn where its harness can take it 
   } finally {
     mock.timers.reset();
   }
+});
+
+test("a Peer that is gone leaves its Lead only cut, since nothing it did can be accepted without a hand-back", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  Object.assign(h.agents.get(peer)!, { archivedAt: new Date().toISOString(), status: "closed" });
+  await h.tick();
+  await h.idle(lane.lead!);
+  const told = h.heard(lane.lead!).join("\n");
+  assert.match(told, /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: cut it and start it again, naming its branch in the new brief if what it committed is worth carrying on\./);
+});
+
+test("a merged task's Peer is kept only for rework: a message is refused with that, not with the Peer said to be gone", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  const sent = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "why a.txt?" });
+  assert.equal(sent.ok, false);
+  assert.match(sent.text, /^L1-T1 is merged, and its Peer is kept only to take rework: send rework if its work must change\./);
 });

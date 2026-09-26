@@ -7,8 +7,12 @@ export const landLetters = {
     return mail("canland", [lane.id, Date.now()], `CAN LAND ${lane.id} (${lane.title}): the turn that was in the way has ended.`, "land_lane it again.");
   },
 
-  /** The way back out of a DETOUR: the lane that waited is told, since it cannot see the other one. */
-  detourLanded(detour: Lane, waiting: Lane, landing: string): Letter {
+  /** The way back out of a DETOUR: the lane that waited is told, since it cannot see the other one; dropped, the way is not cleared. */
+  detourClosed(detour: Lane, waiting: Lane, landing: string, landed: boolean): Letter {
+    if (!landed) {
+      const text = `DETOUR DROPPED ${detour.id} (${detour.title}), the detour your lane ${waiting.id} was waiting on: it closed without landing, and its branch ${detour.branch} is kept.`;
+      return mail("detour", [detour.id, Date.now()], text, "Go on without it; ask if your lane still needs what it was for.");
+    }
     const text = [`CLEARED ${detour.id} (${detour.title}), the detour your lane ${waiting.id} was waiting on: ${landing}.`, "", `Your lane branch ${waiting.branch} does not have it yet.`].join("\n");
     return mail("detour", [detour.id, Date.now()], text, "Read what it did before you go on; ask if your work needs it on your branch.");
   },

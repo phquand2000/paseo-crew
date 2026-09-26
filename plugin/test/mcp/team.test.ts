@@ -192,7 +192,7 @@ test("a desk that drops the line mid-call leaves that call with what happened, a
   try {
     const lost = await client.callTool({ name: "accept", arguments: { task: "L1-T1" } });
     assert.equal(lost.isError, true);
-    assert.match((lost.content as { text: string }[])[0]!.text, /^The team desk stopped while accept ran, and its answer is lost here\. If accept changes something, look before calling it again/);
+    assert.match((lost.content as { text: string }[])[0]!.text, /^The line to the team desk dropped while accept ran, so its answer did not come back here\. If the desk took the call, its answer comes as mail: look before calling accept again, since a second call may do it twice\./);
     const again = await client.callTool({ name: "status", arguments: {} });
     assert.deepEqual(again.content, [{ type: "text", text: "answered" }]);
     assert.equal(desk.heard.filter((said) => said.type === "hello").length, 2, "said who it is again on the new line");

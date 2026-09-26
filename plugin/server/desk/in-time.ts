@@ -3,7 +3,7 @@ import { ok } from "./context.ts";
 import type { Intents } from "./intents.ts";
 import { type Letter, letters } from "./letters.ts";
 
-/** How long a caller waits, from when the run began, and whether this caller joined a run already going. */
+/** When the run began, how long this caller waits from its own call, and whether it joined a run already going. */
 type Window = { started: number; within: number; again: boolean; cancelled?: AbortSignal };
 
 /**

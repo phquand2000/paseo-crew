@@ -232,7 +232,7 @@ async function retire(desk: DeskServices, project: Project, lane: Lane, args: Cl
   if (kept) await ctx.post(lane.lead, keptLetters.closed(lane, args.land === true, landed.how));
   if (lane.detourOf) {
     const waiting = loadLedger(project.state).lanes[lane.detourOf];
-    if (waiting?.status === "open" && waiting.lead) await ctx.post(waiting.lead, landLetters.detourLanded(lane, waiting, landed.how));
+    if (waiting?.status === "open" && waiting.lead) await ctx.post(waiting.lead, landLetters.detourClosed(lane, waiting, landed.how, args.land === true));
   }
   ctx.event(project, { kind: "lane.closed", lane: lane.id, land: args.land === true, landing: landed.how, reason: str(args.reason), writers });
   const seats = kept ? `Its Peers are archived, and its Lead ${lane.lead} stays until you release it.` : "Its Peers are archived, and its Lead is gone.";

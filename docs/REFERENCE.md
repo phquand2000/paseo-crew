@@ -94,7 +94,8 @@ that takes the uncommitted work along; landing such a lane merges nothing anywhe
 itself once every lane it names has landed, checked again against the lanes open then. A letter says if it cannot, or
 if one of those lanes closes without landing; waiting for an `onBranch` lane takes `onBranch` too. With `detourOf` it
 clears a missing prerequisite of another open lane, and does not wait for the checkout: it takes a copy of its own when
-another lane holds it. When it closes, that lane's Lead gets CLEARED.
+another lane holds it. When it lands, that lane's Lead gets CLEARED; dropped, DETOUR DROPPED, since the way is not
+cleared.
 
 Before a lane takes the checkout while that holds uncommitted work or sits on a branch other than the base, the Human
 decides where it works. The call says so (`onBranch`, `isolate` true or false, or a `base`), or the project's
@@ -228,7 +229,7 @@ first prompt, not mail, and carry neither.
 | Between seats | MESSAGE, RECONCILE, ASK, ANSWER to your ask, ANSWERED FOR YOU, STILL OPEN, UNANSWERED |
 | Work coming back | HANDBACK, REWORK, AMENDED, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
-| Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, LANE CLOSED |
+| Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, DETOUR DROPPED, LANE CLOSED |
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |

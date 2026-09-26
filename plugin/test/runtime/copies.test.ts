@@ -87,9 +87,25 @@ test("a detour hands back to the lane that was waiting on it, and cannot be open
   assert.equal(lane.detourOf, "L1");
   assert.match(h.agents.get(lane.lead!)!.prompt!, /clears the way for L1/, "the detour's Lead is told to do that and no more");
 
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "done" })).ok, true);
+  h.commit(lane.worktree!, "money.ts", "export type Money = bigint;\n");
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L2" });
+  assert.equal(landed.ok, true, landed.text);
   await h.idle(waiting.lead!);
   assert.match(h.agents.get(waiting.lead!)!.sent.join("\n"), /CLEARED L2[\s\S]*Next: Read what it did before you go on; ask if your work needs it on your branch\./, "the lane that waited cannot see the other one, so it has to be told");
+});
+
+test("a detour dropped without landing tells the lane that waited on it that the way is not cleared", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Checkout", outcome: "an order can be paid for", acceptance: ["a"], ...scope });
+  const waiting = h.ledger().lanes.L1!;
+  await h.call(sup, "supervisor", "open_lane", { title: "Money type", outcome: "money is not a float", acceptance: ["a"], detourOf: "L1", ...scope });
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "the float stays for now" })).ok, true);
+  await h.idle(waiting.lead!);
+  const told = h.agents.get(waiting.lead!)!.sent.join("\n");
+  assert.match(told, /DETOUR DROPPED L2 \(Money type\), the detour your lane L1 was waiting on: it closed without landing, and its branch lane\/l2-money-type is kept\.\n\nNext: Go on without it; ask if your lane still needs what it was for\./);
+  assert.doesNotMatch(told, /CLEARED/);
 });
 
 /** Three lanes as a run opens them: the first in the project's own copy, the other two in copies of their own. */

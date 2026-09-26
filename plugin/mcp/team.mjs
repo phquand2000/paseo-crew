@@ -95,7 +95,7 @@ class Desk {
     clearInterval(progress);
     signal.removeEventListener("abort", stop);
     if (reply) this.#write({ type: "taken", id });
-    return reply ?? { ok: false, text: `The team desk stopped while ${tool} ran, and its answer is lost here. If ${tool} changes something, look before calling it again: a second call may do it twice.` };
+    return reply ?? { ok: false, text: `The line to the team desk dropped while ${tool} ran, so its answer did not come back here. If the desk took the call, its answer comes as mail: look before calling ${tool} again, since a second call may do it twice.` };
   }
 
   #heard(text, done) {

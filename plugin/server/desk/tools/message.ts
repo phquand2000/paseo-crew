@@ -18,7 +18,13 @@ async function handTo({ ctx, roster }: DeskServices, to: { target: string; from:
 
 const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;
 
-const settled = (task: Task) => (SETTLED.includes(task.status) ? `${task.id} is ${task.status}, and its Peer has been put away with it.` : undefined);
+/** Why a settled task takes no message: a merged one's Peer is kept only to take rework, which would wake it in a copy it no longer holds. */
+const settled = (task: Task) =>
+  task.status === "merged"
+    ? `${task.id} is merged, and its Peer is kept only to take rework: send rework if its work must change.`
+    : SETTLED.includes(task.status)
+      ? `${task.id} is ${task.status}, and its Peer went with it.`
+      : undefined;
 
 /** Whoever supervises reaches a lane's Lead, or a task's Peer with its Lead told first. */
 async function fromOwner(desk: DeskServices, caller: Caller, ledger: Ledger, sending: Sending, text: string): Promise<ToolReply> {
