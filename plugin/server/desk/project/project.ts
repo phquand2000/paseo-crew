@@ -20,7 +20,7 @@ export type LaneHome = (typeof LANE_HOMES)[number];
 /**
  * `serialOnly` and `riskRules` are the project's own when it set them; without, the kit's hold, so a change to the kit reaches it.
  * `askFirst` is the Human's standing order: a landing that touches one of these paths waits for them.
- * `links`, `writable` and `writableOutside` are the Human's alone, set by hand: they widen what seats may write.
+ * `links`, `writable`, `writableOutside` and `sockets` are the Human's alone, set by hand: they widen what seats may write or reach.
  */
 export type ProjectConfig = {
   base?: string;
@@ -35,6 +35,7 @@ export type ProjectConfig = {
   links: string[];
   writable: string[];
   writableOutside: string[];
+  sockets: string[];
 };
 
 /** Enough for every copy a machine keeps at once: copy paths are never reused, so an unbounded cache grew for good. */
@@ -140,6 +141,7 @@ export function loadConfig(state: string): ProjectConfig {
     links: Array.isArray(stored.links) ? stored.links.map(String) : [],
     writable: Array.isArray(stored.writable) ? stored.writable.map(String) : [],
     writableOutside: Array.isArray(stored.writableOutside) ? stored.writableOutside.map(String) : [],
+    sockets: Array.isArray(stored.sockets) ? stored.sockets.map(String) : [],
   };
 }
 

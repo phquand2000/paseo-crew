@@ -21,7 +21,8 @@ changes on top. It is not affiliated with or endorsed by the Seatworks author; t
 - The Watcher's judge is off by default.
 - `project.json` takes `links` (git-ignored files symlinked into a lane's copy) and `writable`
   (extra paths a seat may write), and `writableOutside` (absolute paths outside the project a Peer
-  may write); roles that commit may also write the repository's git directory.
+  may write) and `sockets` (unix sockets a Peer on Claude Code may connect to); roles that commit
+  may also write the repository's git directory.
 - Codex seats turn off the owner's own `~/.agents/skills`.
 - Claude seats run on the owner's one Claude Code login, never a login of their own.
 - Branches the desk starts track nothing, so a first push cannot land on the base's upstream.

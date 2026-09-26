@@ -86,5 +86,6 @@
     "path": "settings.sandbox.filesystem.allowWrite",
     "delivery": "launch"
   },
-  "projectContextOption": "additionalDirectories"
+  "projectContextOption": "additionalDirectories",
+  "socketsOption": "settings.sandbox.network.allowUnixSockets"
 }

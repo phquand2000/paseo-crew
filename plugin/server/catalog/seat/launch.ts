@@ -32,6 +32,7 @@ export function applyRole(
   state?: string,
   servers: McpServers = {},
   writes: string[] = [],
+  sockets: string[] = [],
 ): AgentConfig {
   const seat = seatOf(kit, config.provider);
   if (!seat) return config;
@@ -54,7 +55,7 @@ export function applyRole(
       };
     }
   }
-  const providerOptions = providerOptionsOf(harness, role, config, state, writes);
+  const providerOptions = providerOptionsOf(harness, role, config, state, writes, sockets);
   if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions;
   return next;
 }
@@ -86,19 +87,21 @@ function thinkingOf(
   return [given, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
 }
 
-/** The paths the role writes under the state, and the project as its context, where the harness takes them at launch. */
+/** The paths the role writes under the state, the project as its context, and the sockets it may reach, where the harness takes them at launch. */
 function providerOptionsOf(
   harness: HarnessSpec,
   role: RoleSpec,
   config: AgentConfig,
   state: string | undefined,
   writes: string[],
+  sockets: string[],
 ): Json | undefined {
   let options = config.providerOptions;
   if (harness.stateWrites?.delivery === "launch" && state)
     for (const path of [...stateWrites(role, state), ...writes])
       options = appendAt(options, harness.stateWrites.path, path);
   if (harness.projectContextOption && config.cwd) options = appendAt(options, harness.projectContextOption, config.cwd);
+  if (harness.socketsOption) for (const socket of sockets) options = appendAt(options, harness.socketsOption, socket);
   return options;
 }
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { parse } from "smol-toml";
@@ -12,7 +13,14 @@ import { resolveTeam, withHarness } from "../../server/catalog/team/team.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
 import { placeLinks } from "../../server/desk/copies/links.ts";
 import { loadConfig, saveConfig } from "../../server/desk/project/project.ts";
-import { outsideProblem, pathProblem, projectWrites, seatWrites } from "../../server/desk/project/writes.ts";
+import {
+  outsideProblem,
+  pathProblem,
+  projectWrites,
+  seatSockets,
+  seatWrites,
+  socketProblem,
+} from "../../server/desk/project/writes.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -25,7 +33,7 @@ const repo = (): string => {
 test("the Human's links and writable paths default to none, and set_project's save keeps them", () => {
   const state = tempDir("sw2-links-state-");
   const config = loadConfig(state);
-  assert.deepEqual([config.links, config.writable, config.writableOutside], [[], [], []]);
+  assert.deepEqual([config.links, config.writable, config.writableOutside, config.sockets], [[], [], [], []]);
   saveConfig(state, { ...config, links: ["AGENTS.md"], writable: ["docs/plans"] });
   assert.deepEqual([loadConfig(state).links, loadConfig(state).writable], [["AGENTS.md"], ["docs/plans"]]);
 });
@@ -76,6 +84,29 @@ test("a path the Human grants outside the project is absolute, real, never home 
   assert.deepEqual(seatWrites({ ...peer, can: ["work", "write"] }, project), [cache, join(root, ".git")]);
   assert.deepEqual(seatWrites({ ...peer, can: ["work", "review"] }, project), [join(root, ".git")]);
   assert.deepEqual(seatWrites(role("lead"), project), []);
+});
+
+test("a socket the Human grants is an absolute path to a unix socket, and only for a role that writes code", async () => {
+  const kit = makeKit();
+  const dir = realpathSync(tempDir("sw2-links-sock-"));
+  const path = join(dir, "d.sock");
+  const server = createServer();
+  await new Promise<void>((done) => server.listen(path, done));
+  try {
+    writeFileSync(join(dir, "file"), "");
+    assert.equal(socketProblem(path), undefined);
+    assert.match(socketProblem("d.sock") ?? "", /not an absolute path/);
+    assert.match(socketProblem(join(dir, "gone.sock")) ?? "", /does not exist/);
+    assert.match(socketProblem(join(dir, "file")) ?? "", /not a unix socket/);
+    const state = tempDir("sw2-links-state-");
+    saveConfig(state, { ...loadConfig(state), sockets: [path, join(dir, "file"), "relative"] });
+    const project = { root: repo(), slug: "x", state };
+    const peer = kit.roles.find((entry) => entry.role === "peer")!;
+    assert.deepEqual(seatSockets({ ...peer, can: ["work", "write"] }, project), [path]);
+    assert.deepEqual(seatSockets({ ...peer, can: ["work", "review"] }, project), []);
+  } finally {
+    server.close();
+  }
 });
 
 test("a lane copy gets a link to each ignored path the Human named, and a skip is logged for any other", async () => {

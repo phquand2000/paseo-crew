@@ -96,6 +96,7 @@ set by hand. `set_project` keeps them and cannot change them: they widen what se
 | `links` | `[]` | Paths, relative to the project root, that each copy of its own a lane or task works in gets as a symlink to the project's copy. A path is linked only if it exists in the project, stays inside it, is not already in the copy, and git ignores it. A path git would see as a change is skipped, since it would leave the copy dirty and fail the gate. Each skip is logged and written to `events.log` as `link.skipped` |
 | `writable` | `[]` | Paths, relative to the project root, that seats may write through their agent's sandbox (`writable_roots` for Codex, `sandbox.filesystem.allowWrite` for Claude Code). They are granted as real paths, which is what a write through a link in a copy resolves to |
 | `writableOutside` | `[]` | Absolute paths outside the project, such as a shared build cache, that a role that writes code (`can` holds `write`) may also write through its sandbox. A path is granted as its real path only if it exists and neither is nor holds the home directory, so `/` and `~` are never granted |
+| `sockets` | `[]` | Absolute paths to unix sockets, such as a container runtime's, that a role that writes code (`can` holds `write`) may connect to through its sandbox. Only an agent whose harness names a `socketsOption` takes them, today Claude Code (`sandbox.network.allowUnixSockets`); Codex's sandbox has no such grant, so a task that needs one goes to a Claude seat |
 
 A role that can `work` or `write` is also granted the repository's git directory: a copy keeps its index and refs there,
 and a sandboxed agent could not commit without it.
@@ -543,6 +544,7 @@ named, except inside the blocks passed to the agent as they are: `mcp.seed`, `mc
 | `stateWrites` | The sandbox setting that lets a role write the paths it keeps under the project's state |
 | `hideSkills` | The Human's own skill folders the agent would load anyway, and the settings path where each skill found there is written as `{ path, enabled: false }` |
 | `projectContextOption` | The provider option that receives the working directory |
+| `socketsOption` | The provider option that receives the unix sockets the project grants a role that writes code |
 | `steers` | Whether mail may be steered into a running turn |
 | `mcpCall`, `mcpServerField` | How the agent names a call to an MCP server, or the field that holds the server's name, so a call to the desk is known as one |
 | `timeline` | Where the agent's timeline differs: where it keeps a command's exit code when not in the call, calls it sends that are not the seat's, and the marks of a call input that was not JSON |

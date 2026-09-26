@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, normalize, sep } from "node:path";
 import { can } from "../../catalog/kit/roles.ts";
@@ -41,6 +41,22 @@ function outsideWrites(role: RoleSpec, project: Project): string[] {
   if (!can(role, "write")) return [];
   return loadConfig(project.state)
     .writableOutside.filter((path) => !outsideProblem(path))
+    .map((path) => realpathSync(path));
+}
+
+/** Why `path` cannot be granted as a socket a seat may connect to: it must be absolute and name a unix socket. */
+export function socketProblem(path: string): string | undefined {
+  if (!path || !isAbsolute(path)) return "is not an absolute path";
+  if (!existsSync(path)) return "does not exist";
+  if (!statSync(path).isSocket()) return "is not a unix socket";
+  return undefined;
+}
+
+/** The Human's `sockets` a role that writes code may connect to through its sandbox, resolved. */
+export function seatSockets(role: RoleSpec, project: Project): string[] {
+  if (!can(role, "write")) return [];
+  return loadConfig(project.state)
+    .sockets.filter((path) => !socketProblem(path))
     .map((path) => realpathSync(path));
 }
 

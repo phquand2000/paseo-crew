@@ -16,6 +16,7 @@ export const HarnessFile = z
     stateWrites: z.strictObject({ path: text, delivery: z.enum(["launch", "file"]) }).optional(),
     hideSkills: z.strictObject({ roots: z.array(text).min(1), setting: text }).optional(),
     projectContextOption: text.optional(),
+    socketsOption: text.optional(),
     projectInstructions: z
       .strictObject({
         reads: z.array(text).min(1),

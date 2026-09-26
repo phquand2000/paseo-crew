@@ -179,6 +179,36 @@ test("a seat is handed its servers where its agent takes them at launch, its own
   assert.deepEqual(granted("peer"), [], "and a role that declares no writes is granted none");
 });
 
+test("a socket the Human grants reaches a Claude seat's sandbox at launch, once, and an agent with no such option is handed none", () => {
+  const real = loadKit(PLUGIN);
+  const shipped = resolveTeam(real);
+  const socket = "/run/docker.sock";
+  const peer = applyRole(
+    real,
+    shipped,
+    { provider: providerId(real, "peer", "claude"), cwd: "/repo" },
+    render,
+    "/state/repo",
+    {},
+    [],
+    [socket],
+  );
+  assert.deepEqual(at(peer.providerOptions, "settings.sandbox.network.allowUnixSockets"), [socket]);
+  const again = applyRole(
+    real,
+    shipped,
+    { ...peer, providerOptions: peer.providerOptions },
+    render,
+    "/state/repo",
+    {},
+    [],
+    [socket],
+  );
+  assert.deepEqual(at(again.providerOptions, "settings.sandbox.network.allowUnixSockets"), [socket]);
+  const omp = applyRole(kit, team, { provider: "sw2-peer-omp", cwd: "/repo" }, render, "/state/repo", {}, [], [socket]);
+  assert.equal(omp.providerOptions, undefined);
+});
+
 test("a Claude seat's file tools are kept off what the desk owns and what sets up the machine's agents and the plugin, and its reads off every key and login", () => {
   const real = loadKit(PLUGIN);
   const deny =
