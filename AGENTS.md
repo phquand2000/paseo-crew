@@ -61,7 +61,8 @@ These eight rules settle most questions about where a behaviour belongs.
 ## Commands
 
 ```bash
-cd plugin && npm run check                                 # typechecks and every test: before every commit
+cd plugin && npm run check                                 # typecheck, lint, format check, every test: before every commit
+cd plugin && npm run format                                # lays the code out as Prettier wants it
 cd plugin && node --test --import ./test/setup.ts <file>   # one test file, set up as the suite is
 paseo plugin reload seatworks-v2                           # after a client change, to see it in the panel
 ```
@@ -84,6 +85,92 @@ the test did not ask for fails it.
   line is SLP's or Paseo's need, not style: change it only when that need changed, and say so in the
   commit.
 - **Don't click settings in the owner's live Paseo** to test the panel: it writes their config.
+
+## How the code is written
+
+What a Java codebase does with packages, interfaces and injected dependencies, this code does as
+below. `test/architecture.test.ts`, `tsc`, ESLint and Prettier hold most of it.
+
+**Layers and folders.** The architecture test holds each folder to what `MAY_IMPORT` lets it import.
+- `server/core/`: helpers that know nothing of Seatworks (git, files, JSON, time, the logger,
+  `KeyedQueue`), and `ports.ts`, the interfaces to Paseo and the judge.
+- `server/domain/`: the model. Each entity's type sits beside its lifecycle table (`lane.ts`,
+  `task.ts`, `ask.ts`, `question.ts`, `incident.ts`); `ledger.ts` holds the ledger and the pure
+  queries over it. It imports nothing.
+- `server/catalog/`: the kit. `kit/` loads and queries it, with a schema per kit file in
+  `kit/schema/`; `team/` resolves the settings layers into a team; `seat/` builds a seat's directory
+  and launch config; `paseo/` keeps Paseo's providers and model lists in step.
+- `server/desk/`: the use cases, a folder per feature (`lanes/`, `tasks/`, `waiting/`, `messaging/`,
+  `human/`, `watch/`, `seats/`, `copies/`, `project/`). `store/` keeps what is on disk, `letters/`
+  every word a seat is sent, `views/` the read models, `calls/` a seat's tool call from its arguments
+  to its reply, and `tools/` one controller per MCP tool.
+- `server/runtime/`: the composition root (`runtime.ts`) and Paseo's hooks, with `seat/`, `round/`,
+  `mail/`, `panel/` and `watch/`. `server/adapters/` implements the ports; `server/upkeep/` holds
+  the maintenance jobs.
+- One module, one concept, in kebab-case and named for what it exports (`merge-queue.ts` exports
+  `MergeQueue`). What two features share goes down to a layer both may import, never sideways into
+  one of them.
+- A tool is a controller: its zod schema and one call into its feature. The rules live in the
+  feature, not the tool.
+
+**Types and abstractions.**
+- Data is a `type`. A contract a class implements (`Host`, `HostHooks`, the panel's `SettingsRpc`)
+  names only what its callers use. No enums, parameter properties or namespaces
+  (`erasableSyntaxOnly`): a union of literals, an `as const` table, fields assigned in the
+  constructor.
+- One algorithm over many types is a generic (`Lifecycle<Status, Move>`, `KeyedQueue`,
+  `LedgerStore.transact<T>`), never a copy per type.
+- An interface is split by who calls it: the panel's contract is `SettingsRpc`, `ProjectsRpc`,
+  `UpkeepRpc` and `HumanRpc`, not one object with every method.
+- An abstraction needs a second implementation or caller today; a port may have one adapter and its
+  test fake. Compose; inherit only where state and behaviour are both shared.
+- New behaviour is a new entry, not a new branch: a tool in the registry, a move in a lifecycle
+  table, a letter in its themed object, a step in the patrol's table, a finder in the lane facts.
+
+**Dependencies.**
+- Only `Runtime` and `Desk` build the object graph; everything else is handed what it needs.
+- A desk function takes `Pick<DeskServices, ...>` of the services it uses, and a class keeps one
+  such `desk` field. Services below `services.ts` take `Pick<DeskBase, ...>`, so nothing imports back
+  up through it.
+- No module-level state that does I/O. A module-level cache is bounded: by a size cap, or by a key
+  there are few of, such as one entry per project.
+
+**Errors and logging.**
+- Throw an `Error` that says what failed, with `{ cause }` when rethrowing; a rejection carries an
+  `Error` (`asError`). A refusal a seat reads is a return value (`no(...)`), never a throw.
+- A `catch` that does nothing says why in one `//` line, and guards only best-effort cleanup or a
+  probe.
+- What the plugin says outside a project goes through `daemonLog` in `core/logger.ts`, the only file
+  that touches `console`; the architecture test checks it.
+- A kept file that cannot be read fails closed: nothing is written over it.
+
+**Performance and memory.**
+- A kept file is read once per operation: the ledger and the incident book through their stores, one
+  read per transaction; a read-only view may use the stat-cached `readLedger`. Nothing a decision
+  rests on is held across an `await`.
+- Index before looping (a `Map` by id, a `Set` for membership), and build a `RegExp` once per call,
+  not once per item.
+- Every long-lived `Map` or `Set` has a removal path: on archive, once what it marks is settled, or a
+  size cap. Every timer, subscription and child process is released in `dispose()`.
+- Every promise is awaited or given a `.catch` that logs. Work that must not overlap per key runs
+  through `KeyedQueue`, which lets idle keys go.
+
+**Formatting.** Prettier at 120 columns, ESLint's type-checked rules, `tsc` with `strict` and
+`noUncheckedIndexedAccess`. A `!` states an invariant the code guarantees. A file stays within 300
+lines (400 for a test) and a function within 50: split by concept, not by line count.
+
+**Tests.**
+- Before writing a test, answer what contract it protects, what regression turns it red, why the
+  existing tests miss it, and whether it needs an export only tests use. No answer, no test; extend
+  the workflow's test or table first.
+- A test is a workflow at the boundary a seat or the Human uses: tools called as a seat calls them
+  through `test/runtime/harness.ts`, the panel's RPC, Paseo's hooks. Set it up once, assert each step.
+- A race is decided by a gate the test holds and releases, never by a count of ticks or a sleep.
+- Never write a test with no assertion, an expected value computed by the code under test, a copied
+  inventory, a source grep other than the KEEP list, a second test of one contract, a mock that does
+  the behaviour itself, or a ledger written by hand where the workflow would produce it.
+- A contract moved to another test is proved there by a mutation that turns it red: mutate a copy of
+  the file, restore from it, and only on a green suite.
 
 ## Conventions that differ from the defaults
 

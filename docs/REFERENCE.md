@@ -214,9 +214,12 @@ landing onto a base keeps the lane's own commits at `refs/seatworks/lanes/<lane>
 
 ## Letters
 
-The desk writes every letter, in `desk/`: `letters.ts`, and for asks and questions, merges, landings, the Watcher's
+The desk writes every letter, in `desk/letters/`: `envelope.ts` holds what every letter goes out in; `work-letters.ts`,
+`seat-letters.ts`, `message-letters.ts` and `watch-letters.ts` hold a task's and a lane's course, what the desk sees of
+a seat, messages and answers by mail, and the watch's; and for asks and questions, merges, landings, the Watcher's
 cases and a kept Lead, `ask-letters.ts`, `merge-letters.ts`, `land-letters.ts`, `case-letters.ts` and `kept-letters.ts`.
-First prompts come from `briefs.ts` (Peer, Reviewer), `directive.ts` (Lead) and `pager.ts` (a Pager's two lines); a
+First prompts come from `briefs.ts` (Peer, Reviewer) and `directive.ts` (Lead) beside them, and `desk/watch/pager.ts`
+(a Pager's two lines); a
 Watcher starts from its first case. A letter mailed carries a key made of its kind and the ids that make it
 that letter, never written by hand where it is posted, and ends with one `Next:` line: what it asks of its reader,
 picked from what the desk knows (a red gate, the kind of an ask, whether the reader is the Lead or whoever supervises
@@ -738,7 +741,7 @@ rehearsal logs with it. Closed lanes past the newest 20 move to `archive/` once 
 `L<n>.json.gz` each, with the last 1 MB of each hand-back and of each log of each owner's last gate run, up to 64 MB,
 oldest dropped first. Gone seats, answered asks and settled questions that belong to no lane go to `archive/desk.log`.
 
-Every kind in `events.log` and its fields are one type, `DeskEvent` in `desk/events.ts`: a kind only gains fields, and a
+Every kind in `events.log` and its fields are one type, `DeskEvent` in `desk/store/events.ts`: a kind only gains fields, and a
 field that changes meaning takes a kind of its own. The watch writes these kinds there:
 
 | Group | Kinds |

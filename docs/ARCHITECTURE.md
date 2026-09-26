@@ -104,14 +104,15 @@ These are mostly absences, so the code will not show them to you.
 - **One door to Paseo.** In `server/`, only `adapters/paseo/` imports Paseo's SDK: it registers the hooks,
   binds the daemon's API from each hook and panel call, and serves it behind `core/ports.ts`, so tests use
   fakes; beyond it, only `index.server.ts`, `shared/rpc.ts` and the panel use the SDK.
-- **One place checks arguments.** `desk/args.ts` checks every call against the schema its role's tool set
+- **One place checks arguments.** `desk/calls/args.ts` checks every call against the schema its role's tool set
   shows in `mcp/tools.json`, before any verb runs; each verb's zod input, held equal to it by a test, types
   the handler, and where verbs share a name (`ask`, `done`, `release`) that schema picks one.
 - **One table per lifecycle.** A lane, task, ask or question changes status only by a move in its table in
   `server/domain/`, inside the transaction on `ledger.json`; an incident's delivery, likewise.
-- **One place writes letters**: `desk/letters.ts` and the `*-letters.ts` beside it, each letter keyed by kind
-  and ids and ending in one `Next:` line. First prompts come from `desk/briefs.ts`, `desk/directive.ts` and
-  `desk/pager.ts`, and a Watcher's from its first CASE.
+- **One place writes letters**: `desk/letters/`, the envelope every letter goes out in and the `*-letters.ts`
+  beside it, each letter keyed by kind and ids and ending in one `Next:` line. First prompts come from
+  `desk/letters/briefs.ts`, `desk/letters/directive.ts` and `desk/watch/pager.ts`, and a Watcher's from its first
+  CASE.
 - **One writer per working copy.** The project's checkout holds one lane at a time; a lane-mode task holds the
   lane's copy on its own branch from its start until it is merged or cut, a failed merge included.
 - **No hidden command chain.** A Peer the Supervisor messages has its Lead told first; when one seat answers
@@ -134,13 +135,13 @@ These are mostly absences, so the code will not show them to you.
 | Path | What it does |
 |---|---|
 | `server/core/` | The ports, the timeline stream reader, atomic stores, `git`, the gate runner, the ref moves that merge a task and land a lane (`land.ts`), an MCP client, the plugin's paths |
-| `server/domain/` | Each kind's lifecycle as one transition table: lanes, tasks, asks, the Human's questions, incidents. Imports nothing |
+| `server/domain/` | Each kind's type and lifecycle as one transition table: lanes, tasks, asks, the Human's questions, incidents; the ledger and the pure queries over it. Imports nothing |
 | `server/adapters/paseo/` | Paseo itself: its hooks and panel calls in the plugin's own types, and its agent, workspace and model API behind the ports |
 | `server/adapters/decisions.ts` | A sensor asked over HTTP, behind the `Judge` port |
-| `server/catalog/` | The kit's data made into seats: the kit loader and its schemas, team resolution from the settings layers, Paseo providers, seat directories, launch config, prompts and skills with their lint, MCP servers |
-| `server/desk/` | The ledger and what the verbs do to it: lanes, tasks, working copies, merges, gates, landing, asks, questions, incidents, letters, and the Human's side of the panel |
+| `server/catalog/` | The kit's data made into seats: `kit/` loads it, with a schema per kit file, `team/` resolves the settings layers, `seat/` builds seat directories, launch config and MCP servers, `paseo/` keeps Paseo's providers and model lists |
+| `server/desk/` | What the verbs do, a folder per feature: `lanes/`, `tasks/`, `waiting/`, `messaging/`, `copies/`, `seats/`, `project/`, `watch/`, `human/`; `store/` keeps the ledger and the other files, `letters/` every word a seat is sent, `views/` the status and Flow pages, `calls/` a seat's call from its arguments to its reply |
 | `server/desk/tools/` | One module per verb, each a zod input and a handler; `registry.ts` lists them |
-| `server/runtime/` | The composition root (`runtime.ts`) and the loops: hooks, seat keys, the desk's socket, the outbox, the patrol, turn reading, RPC, settings, health |
+| `server/runtime/` | The composition root (`runtime.ts`) and Paseo's hooks: `seat/` seat launch, keys and the desk's socket, `round/` the patrol, `mail/` the outbox, `panel/` the RPC, settings and health, and turn reading |
 | `server/runtime/watch/` | The watch: the window over a timeline, the facts read from it and from each lane's record, and the findings they make |
 | `server/upkeep/` | The plugin's own upkeep behind the Plugin tab: updating its clone, clearing what nothing uses, migrating settings, settling content the kit changed |
 | `client/` | The panel: `state/` reads and saves through RPC, `model/` edits a settings layer, `format/` decides what a card says, `ui/` draws the cards |
@@ -203,7 +204,7 @@ A project's records live in `projects/<slug>/` under the state root
 - An unreadable **`incidents.json`** or **`project.json`** is never written over either, and an unreadable
   `project.json` holds every landing for the Human.
 - **`events.log`** is the provenance: a JSON line per tool call and per lane, task, merge, gate, slot and
-  watch event, each kind a case of `DeskEvent` in `desk/events.ts` that only ever gains fields.
+  watch event, each kind a case of `DeskEvent` in `desk/store/events.ts` that only ever gains fields.
 
 The tables in `server/domain/` hold each lifecycle: a lane's (`waiting`, `open`, `closed`), a task's, an ask's
 (`open`, `answered`), a question's (`open`, `answered`, `declined`, `canceled`), an incident's delivery
@@ -409,7 +410,7 @@ The Human is asked what only they can decide and told what they cannot take back
   watch's switch, budget or marks say, and the desk starts a Pager in the project's workspace, with no tools
   and no parent, whose one reply is the page the desk wrote, cut at 220 characters: the repository, the seat
   and its command, whether a Supervisor is told, what is held. No verb sends a page.
-- **The Report tab** (`desk/away.ts`, read once as the tab opens): Needs you (questions holding a lane or
+- **The Report tab** (`desk/views/report.ts`, read once as the tab opens): Needs you (questions holding a lane or
   irreversible, landings held), Went ahead on its recommendation (every other open question), Landed in 24 h,
   Beyond a lane (page-level incidents of 24 h), and counts, among them the questions of the last 24 h across
   every project, against `questionsPerDay`. Flow shows questions and held landings only while "Follow the team live" is on.
@@ -442,10 +443,10 @@ its lane, the Flow tab the open ones. An incident closes when marked, when its s
 merges, and, for a Lead, when its lane closes.
 
 **Questions to a model.** What a fact cannot say, the watch asks at the moment it matters, one condition per
-question, of a small state `desk/checks.ts` builds from the record, never a seat's own reasoning: of a
+question, of a small state `desk/watch/checks.ts` builds from the record, never a seat's own reasoning: of a
 hand-back, of a review that accepts a change a risk rule reaches, of an act a fact names, of a first change
 made before any look ([each](REFERENCE.md#questions-to-a-model)). Wording, thresholds and mode are data in
-`catalog/checks.json`; every mode is `shadow`, which with `off` is all the schema takes. `desk/judging.ts`
+`catalog/checks.json`; every mode is `shadow`, which with `off` is all the schema takes. `desk/watch/judging.ts`
 puts each case to whoever `attention.judge` names, behind the `Judge` port: a sensor over HTTP
 (`adapters/decisions.ts`; the preset's Jev, over OpenRouter, its key in the request header only, the catalog's
 data rules sent with every request, and nothing asked without a key), or the Watcher, one seat per project,
