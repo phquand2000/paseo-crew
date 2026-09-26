@@ -6,11 +6,12 @@ import { applyModels, readModels } from "./server/catalog/paseo/models.ts";
 import { PLUGIN_ID, pluginDir, stateRoot } from "./server/core/paths.ts";
 import { registerRpc } from "./server/runtime/panel/rpc.ts";
 import { Runtime } from "./server/runtime/runtime.ts";
+import { daemonLog } from "./server/core/logger.ts";
 
 export default function contribute(server: PluginServerContext) {
   const dir = pluginDir();
   if (!dir) {
-    console.error(`${PLUGIN_ID}: this plugin's directory is not in ~/.paseo/config.json under plugins.${PLUGIN_ID}`);
+    daemonLog.error(`this plugin's directory is not in ~/.paseo/config.json under plugins.${PLUGIN_ID}`);
     return () => {};
   }
   const host = new PaseoHost();
@@ -20,7 +21,7 @@ export default function contribute(server: PluginServerContext) {
     applyModels(kit, readModels(stateRoot()));
     runtime = new Runtime(kit, host, { sensor: (spec, key) => decisionsJudge(spec, key) });
   } catch (error) {
-    console.error(`${PLUGIN_ID}: the kit in ${dir} failed to load:`, error);
+    daemonLog.error(`the kit in ${dir} failed to load:`, error);
     return () => {};
   }
   runtime.prepare();

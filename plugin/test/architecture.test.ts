@@ -292,6 +292,16 @@ test("the plugin's functions keep within their size, and one listed in LONG_FUNC
   assert.deepEqual(problems, []);
 });
 
+test("only the daemon log writes to the console, so what the plugin says there is in one place with one prefix", () => {
+  const writers = product.filter(
+    (path) =>
+      (path.startsWith("server/") || path === "index.server.ts") &&
+      path !== "server/core/logger.ts" &&
+      /\bconsole\./.test(readFileSync(join(PLUGIN, path), "utf-8")),
+  );
+  assert.deepEqual(writers, [], "Write through daemonLog in server/core/logger.ts.");
+});
+
 test("everything the plugin exports is imported by another file", () => {
   const used = new Map<string, Set<string> | "all">();
   for (const { imports } of sources.values()) {

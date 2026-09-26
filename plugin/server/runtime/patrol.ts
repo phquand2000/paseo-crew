@@ -39,7 +39,8 @@ type PatrolDeps = {
 export class Patrol {
   private readonly deps: PatrolDeps;
   private readonly idleFlag = new Map<string, string>();
-  private readonly goneFlag = new Set<string>();
+  private readonly lostTold = new Set<string>();
+  private readonly leadGoneTold = new Set<string>();
   private resumed = false;
   private round: Promise<void> | undefined;
 
@@ -62,6 +63,8 @@ export class Patrol {
     const { kit, desk, source } = this.deps;
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     this.deps.watches.sync(seats.values());
+    // A Lead no longer listed is gone for good, and its idle mark with it.
+    for (const id of this.idleFlag.keys()) if (!seats.has(id)) this.idleFlag.delete(id);
     this.deps.watches.round(now, (watch) => source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
     for (const seat of seats.values())
       if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
@@ -214,17 +217,18 @@ export class Patrol {
   private async goneTasks(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const { desk } = this.deps;
     const key = (task: Task) => `${project.slug}:${task.id}`;
-    const unlisted = Object.values(ledger.tasks).filter(
-      (entry) =>
-        TASK.may(entry.status, "lose") && entry.peer && !seats.has(entry.peer) && !this.goneFlag.has(key(entry)),
+    const lost = Object.values(ledger.tasks).filter(
+      (entry) => TASK.may(entry.status, "lose") && entry.peer && !seats.has(entry.peer),
     );
+    keepStanding(this.lostTold, `${project.slug}:`, new Set(lost.map(key)));
+    const unlisted = lost.filter((entry) => !this.lostTold.has(key(entry)));
     const missing = await this.missing(unlisted.map((task) => task.peer!));
     for (const task of unlisted.filter((entry) => missing.has(entry.peer!))) {
-      this.goneFlag.add(key(task));
-      const lost = desk.moveTask(project, task.id, "lose", (entry) => {
+      this.lostTold.add(key(task));
+      const moved = desk.moveTask(project, task.id, "lose", (entry) => {
         entry.peerGone = true;
       });
-      if (typeof lost !== "object") continue;
+      if (typeof moved !== "object") continue;
       await desk.post(ledger.lanes[task.lane]?.lead, seatLetters.gone(task));
     }
   }
@@ -234,13 +238,15 @@ export class Patrol {
     const { desk } = this.deps;
     if (seats.size === 0) return;
     const key = (lane: Lane) => `${project.slug}:${lane.id}:${lane.lead}`;
-    const unlisted = Object.values(ledger.lanes).filter(
-      (entry) => entry.status === "open" && entry.lead && !seats.has(entry.lead) && !this.goneFlag.has(key(entry)),
+    const leadless = Object.values(ledger.lanes).filter(
+      (entry) => entry.status === "open" && entry.lead && !seats.has(entry.lead),
     );
+    keepStanding(this.leadGoneTold, `${project.slug}:`, new Set(leadless.map(key)));
+    const unlisted = leadless.filter((entry) => !this.leadGoneTold.has(key(entry)));
     const missing = await this.missing(unlisted.map((lane) => lane.lead!));
     for (const lane of unlisted.filter((entry) => missing.has(entry.lead!))) {
       const posted = await desk.post(await desk.supervisorFor(project, lane.opener), seatLetters.leadGone(lane));
-      if (posted !== "nobody") this.goneFlag.add(key(lane));
+      if (posted !== "nobody") this.leadGoneTold.add(key(lane));
     }
   }
 
@@ -251,4 +257,9 @@ export class Patrol {
       statusPage(this.deps.kit, project, seats, now, this.deps.outbox.held()),
     );
   }
+}
+
+/** Keeps a project's marks only while what they mark still stands, so marks for work long settled do not pile up. */
+function keepStanding(marks: Set<string>, prefix: string, standing: Set<string>): void {
+  for (const mark of marks) if (mark.startsWith(prefix) && !standing.has(mark)) marks.delete(mark);
 }

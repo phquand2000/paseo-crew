@@ -15,6 +15,7 @@ import { loadLedger } from "./ledger.ts";
 import type { Project } from "../project/project.ts";
 import { laneRecords } from "./records.ts";
 import type { DeskServices } from "../services.ts";
+import { daemonLog } from "../../core/logger.ts";
 
 export const KEEP_CLOSED_LANES = 20;
 const ARCHIVE_KEEP_BYTES = 64 * 1024 * 1024;
@@ -173,7 +174,7 @@ function fileLane(state: string, id: string, change: (archive: LaneArchive) => v
     try {
       archive = JSON.parse(gunzipSync(readFileSync(file)).toString("utf-8")) as LaneArchive;
     } catch (error) {
-      console.error(`seatworks-v2: ${file} could not be read and is started over:`, error);
+      daemonLog.error(`${file} could not be read and is started over:`, error);
     }
   }
   change(archive);
@@ -206,7 +207,7 @@ export function keepArchived(state: string, taken: Taken): void {
   };
   const line = `${JSON.stringify({ at: new Date().toISOString(), agents: taken.agents, asks: taken.asks, questions: taken.questions })}\n`;
   appendRolling(roll, line).catch((error: unknown) =>
-    console.error("seatworks-v2: packing a rolled archive/desk.log failed:", error),
+    daemonLog.error("packing a rolled archive/desk.log failed:", error),
   );
 }
 

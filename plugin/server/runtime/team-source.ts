@@ -7,6 +7,7 @@ import { type Team, resolveTeam, servingProject } from "../catalog/team/team.ts"
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
 import type { Project } from "../desk/project/project.ts";
+import { daemonLog } from "../core/logger.ts";
 
 export class TeamSource {
   private readonly kit: Kit;
@@ -62,7 +63,7 @@ export class TeamSource {
       writeJson(join(project.state, "meta.json"), { root: project.root, slug: project.slug });
       this.recorded.add(project.slug);
     } catch (error) {
-      console.error("seatworks-v2: could not record the project:", error);
+      daemonLog.error("could not record the project:", error);
     }
   }
 

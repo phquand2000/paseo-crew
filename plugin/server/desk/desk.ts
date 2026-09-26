@@ -120,6 +120,7 @@ export class Desk {
   /** Paseo archived a seat: its binding is let go, and a watched seat's incidents close with it. */
   archived(project: Project, seat: string, watched: boolean): void {
     markGone(this.services, project, seat);
+    this.services.lastStatus.delete(seat);
     if (watched) closeIncidentsOf(this.services, project, seat);
   }
 

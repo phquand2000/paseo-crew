@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { RECORDS } from "../../core/paths.ts";
 import { appendRolling } from "../../core/rolling.ts";
 import type { Ledger } from "../../domain/ledger.ts";
+import { daemonLog } from "../../core/logger.ts";
 
 const RECORD_ROTATE_BYTES = 8 * 1024 * 1024;
 const RECORD_KEEP_BYTES = 24 * 1024 * 1024;
@@ -23,11 +24,9 @@ export function appendRecord(state: string, name: (typeof RECORDS)[number], line
     plain: 1,
   };
   try {
-    appendRolling(roll, line).catch((error: unknown) =>
-      console.error(`seatworks-v2: packing a rolled ${name}.log failed:`, error),
-    );
+    appendRolling(roll, line).catch((error: unknown) => daemonLog.error(`packing a rolled ${name}.log failed:`, error));
   } catch (error) {
-    console.error(`seatworks-v2: ${name}.log write failed:`, error);
+    daemonLog.error(`${name}.log write failed:`, error);
   }
 }
 

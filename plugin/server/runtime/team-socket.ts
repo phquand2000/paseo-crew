@@ -4,6 +4,7 @@ import { type Server, type Socket, createServer } from "node:net";
 import { createInterface } from "node:readline";
 import { z } from "zod";
 import type { ToolReply, ToolRequest } from "../desk/context.ts";
+import { daemonLog } from "../core/logger.ts";
 
 /** What a seat's team server says on its line, one JSON object a line: who it is, a call, a call its harness stopped, an answer it took. */
 const Heard = z.discriminatedUnion("type", [
@@ -45,7 +46,7 @@ export class TeamSocket {
   listen(): void {
     rmSync(this.path, { force: true });
     const server = createServer((socket) => this.serve(socket));
-    server.on("error", (error) => console.error("seatworks-v2: the desk's socket failed:", error));
+    server.on("error", (error) => daemonLog.error("the desk's socket failed:", error));
     server.listen(this.path, () => chmodSync(this.path, 0o600));
     this.server = server;
   }

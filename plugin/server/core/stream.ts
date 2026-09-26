@@ -1,4 +1,5 @@
 import type { Seen, Stream, StreamRow } from "./ports.ts";
+import { daemonLog } from "./logger.ts";
 
 type Cursor = { epoch: string; seq: number };
 
@@ -86,7 +87,7 @@ class Follower implements Stream {
   }
 
   private log(line: string, error: unknown): void {
-    console.error(`seatworks-v2: ${line}`, error ?? "");
+    daemonLog.error(line, error);
   }
 
   private queue(message: StreamMessage): void {

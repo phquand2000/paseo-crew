@@ -1,6 +1,7 @@
 import type { PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import type { Host, HostHooks, Models } from "../../core/ports.ts";
 import { type PaseoApi, seatsOn, workspacesOn } from "./agents.ts";
+import { daemonLog } from "../../core/logger.ts";
 
 /** Answers one contract's calls; Paseo has read each input with the contract's schema before the answer sees it. */
 type Answering = <I>(contract: { name: string }, answer: (input: I) => unknown) => void;
@@ -74,7 +75,7 @@ export class PaseoHost implements Host {
       try {
         await handler(event);
       } catch (error) {
-        console.error(`seatworks-v2: ${name} handler failed:`, error);
+        daemonLog.error(`${name} handler failed:`, error);
       }
     });
   }

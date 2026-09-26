@@ -16,6 +16,7 @@ import { type Fact } from "./watch/fact-kinds.ts";
 import { callsTo } from "./watch/facts.ts";
 import { decide } from "./watch/findings.ts";
 import type { SeatContext, SeatWatch, WatchedSeat, Watches } from "./watch/watches.ts";
+import { daemonLog } from "../core/logger.ts";
 
 const TROUBLES = 10;
 
@@ -79,7 +80,7 @@ export class Watching {
     const moment = { facts, instruction: watch.window.instruction(), turn: watch.turnId };
     this.deps.desk
       .notice(projectOf(watch.seat.cwd), watch.seat, decide(facts), moment)
-      .catch((error) => console.error("seatworks-v2: what the watch noticed could not be recorded:", error));
+      .catch((error) => daemonLog.error("what the watch noticed could not be recorded:", error));
   }
 
   /** Trouble nobody is mailed about, kept where a screen can show it rather than only in the log. */

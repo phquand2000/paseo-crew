@@ -5,6 +5,7 @@ import type { UpdateView } from "../../shared/upkeep-views.ts";
 import { currentBranch, git } from "../core/git.ts";
 import { readJson } from "../core/store.ts";
 import { PLUGIN_ID, nodeBin } from "../core/paths.ts";
+import { daemonLog } from "../core/logger.ts";
 
 export type UpdateContext = {
   dir: string;
@@ -139,7 +140,7 @@ export function npmInstall(dir: string): Promise<string | undefined> {
 export function reloadSoon(): void {
   setTimeout(() => {
     execFile("paseo", ["plugin", "reload", PLUGIN_ID], { timeout: 60_000 }, (error, _stdout, stderr) => {
-      if (error) console.error(`${PLUGIN_ID}: plugin reload after the update failed:`, String(stderr) || error.message);
+      if (error) daemonLog.error("plugin reload after the update failed:", String(stderr) || error.message);
     });
   }, 1000);
 }

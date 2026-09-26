@@ -8,6 +8,7 @@ import { Recovery, type Rules, onSettle, stuck } from "./facts.ts";
 import { contradicted, editBeforeLook, unverified } from "./turn-facts.ts";
 import type { Quirks } from "../../catalog/kit/timeline.ts";
 import { Window } from "./window.ts";
+import { daemonLog } from "../../core/logger.ts";
 
 export type WatchedSeat = { id: string; provider: string; cwd: string; title?: string | null };
 
@@ -267,6 +268,6 @@ export class Watches {
   }
 
   private log(line: string, error?: unknown): void {
-    console.error(`seatworks-v2: ${line}`, error ?? "");
+    daemonLog.error(line, error);
   }
 }

@@ -5,6 +5,7 @@ import type { SeatLook, SeatView, Seats, StreamRow } from "../../core/ports.ts";
 import type { Intents } from "../store/intents.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Project, projectOf } from "../project/project.ts";
+import { daemonLog } from "../../core/logger.ts";
 
 export class Roster {
   private readonly kit: Kit;
@@ -96,7 +97,7 @@ export class Roster {
       this.intents.archived(agentId);
       await this.seats.archive(agentId);
     } catch (error) {
-      console.error(`seatworks-v2: archiving ${agentId} failed:`, error);
+      daemonLog.error(`archiving ${agentId} failed:`, error);
     }
   }
 

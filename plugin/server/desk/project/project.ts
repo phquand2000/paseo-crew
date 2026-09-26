@@ -33,6 +33,8 @@ export type ProjectConfig = {
   riskRules?: RiskRule[];
 };
 
+/** Enough for every copy a machine keeps at once: copy paths are never reused, so an unbounded cache grew for good. */
+const CACHED_PROJECTS = 512;
 const cache = new Map<string, Project>();
 
 export function gitRoot(cwd: string): string {
@@ -58,6 +60,7 @@ export function projectOf(cwd: string, base = stateRoot(), rootOf: (cwd: string)
   const slug = slugFor(root);
   const project = { root, slug, state: join(base, "projects", slug) };
   cache.set(key, project);
+  if (cache.size > CACHED_PROJECTS) cache.delete(cache.keys().next().value!);
   return project;
 }
 
