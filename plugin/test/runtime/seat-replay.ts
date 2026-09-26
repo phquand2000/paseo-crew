@@ -2,10 +2,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadKit, watchPatterns } from "../../server/catalog/kit.ts";
+import type { Quirks } from "../../server/catalog/timeline.ts";
 import type { Seen } from "../../server/core/ports.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
 import type { Fact, Rules } from "../../server/runtime/watch/facts.ts";
-import { SeatWatch } from "../../server/runtime/watch/watches.ts";
+import { type SeatContext, SeatWatch } from "../../server/runtime/watch/watches.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -15,7 +16,7 @@ export const fixture = (name: string): StreamMessage[] =>
   readFileSync(join(here, "..", "fixtures", "stream", `${name}.jsonl`), "utf-8")
     .split("\n")
     .filter(Boolean)
-    .map((line) => JSON.parse(line));
+    .map((line) => JSON.parse(line) as StreamMessage);
 
 export const rules = (extra: Partial<Rules> = {}): Rules => ({
   ...watchPatterns(kit, kit.attention),
@@ -45,30 +46,28 @@ function toSeen(message: StreamMessage, epochs: Map<string, number>): Exclude<Se
   };
 }
 
-/** `handed` is the outcome of a hand-back the turn made, if it made one; `quirks` are the harness's way of writing its timeline. */
-export function play(
-  messages: StreamMessage[],
-  given: Rules,
-  handed?: string,
-  quirks?: ConstructorParameters<typeof SeatWatch>[2],
-) {
-  const watch = new SeatWatch(
-    { id: "s1", provider: "sw2-peer-claude", cwd: "/work" },
-    () => ({ rules: given, handedBack: () => handed, placed: true }),
-    quirks,
-  );
-  const facts: (Fact & { seq?: number })[] = [];
+/** A seat's watch over `context`, told recorded messages as the follower tells them: each fact carries the seq it came on. */
+export function watchOver(context: () => SeatContext | undefined, quirks?: Quirks) {
+  const watch = new SeatWatch({ id: "s1", provider: "sw2-peer-claude", cwd: "/work" }, context, quirks);
   const epochs = new Map<string, number>();
   let now = 1_000;
-  for (const message of messages) {
-    const fresh = typeof message.epoch === "string" && epochs.size > 0 && !epochs.has(message.epoch);
-    const seen = toSeen(message, epochs);
-    if (!seen) continue;
-    if (fresh) watch.see({ kind: "reset" }, now);
-    now += 1_000;
-    for (const fact of watch.see(seen, now)) facts.push({ ...fact, seq: message.seq });
-  }
-  return facts;
+  return (messages: StreamMessage[]) => {
+    const facts: (Fact & { seq?: number })[] = [];
+    for (const message of messages) {
+      const fresh = typeof message.epoch === "string" && epochs.size > 0 && !epochs.has(message.epoch);
+      const seen = toSeen(message, epochs);
+      if (!seen) continue;
+      if (fresh) watch.see({ kind: "reset" }, now);
+      now += 1_000;
+      for (const fact of watch.see(seen, now)) facts.push({ ...fact, seq: message.seq });
+    }
+    return facts;
+  };
+}
+
+/** `handed` is the outcome of a hand-back the turn made, if it made one; `quirks` are the harness's way of writing its timeline. */
+export function play(messages: StreamMessage[], given: Rules, handed?: string, quirks?: Quirks) {
+  return watchOver(() => ({ rules: given, handedBack: () => handed, placed: true }), quirks)(messages);
 }
 
 export const kinds = (facts: Fact[]) => facts.map((fact) => fact.kind);

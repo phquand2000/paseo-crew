@@ -29,7 +29,7 @@ const median = (values: number[]): number => {
 export class SeatWatch {
   readonly seat: WatchedSeat;
   readonly window: Window;
-  running = false;
+  private running = false;
   turnId: string | null = null;
   startedAt = 0;
   private readonly durations: number[] = [];
@@ -154,7 +154,7 @@ export class SeatWatch {
   }
 
   /** Re-read until the ledger places the seat: a Peer's first turn starts before the desk writes it onto its task. */
-  placed(): SeatContext | undefined {
+  private placed(): SeatContext | undefined {
     if (!this.current?.placed) this.current = this.context();
     return this.current;
   }

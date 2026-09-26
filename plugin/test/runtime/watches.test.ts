@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
 import type { Seats, SeatView } from "../../server/core/ports.ts";
 import { follow } from "../../server/core/stream.ts";
-import { SeatWatch, Watches } from "../../server/runtime/watch/watches.ts";
+import { Watches } from "../../server/runtime/watch/watches.ts";
 import { FakeTimeline, settle } from "./fake-timeline.ts";
 import { laneWithPeer } from "./harness.ts";
 
@@ -120,31 +120,6 @@ test("a seat whose stream failed is followed again the next round", async () => 
   assert.equal(watches.get("p1"), undefined, "a stream Paseo released is not held as followed");
   watches.sync([peer]);
   assert.equal(timelines.get("p1")!.subscriptions, 2);
-});
-
-test("what a seat is watched against is read again until the ledger has placed it", () => {
-  // A Peer's first turn starts before start_task places it, so an empty first read must not be kept.
-  let placed = false;
-  const rules = {
-    destructive: /x^/,
-    testPath: /x^/,
-    suppressed: /x^/,
-    skipped: /x^/g,
-    assertion: /x^/g,
-    runners: new Set<string>(),
-    gates: [],
-    cwd: "/work",
-    repeatsAt: 3,
-    recoverWithin: 10,
-  };
-  const watch = new SeatWatch({ id: "p1", provider: "sw2-peer-claude", cwd: "/work" }, () => ({
-    rules: { ...rules, scope: placed ? ["src/a.ts"] : undefined },
-    handedBack: () => undefined,
-    placed,
-  }));
-  assert.equal(watch.placed()?.rules.scope, undefined);
-  placed = true;
-  assert.deepEqual(watch.placed()?.rules.scope, ["src/a.ts"]);
 });
 
 test("a refusal from the desk reaches no one as a failed call, while a command that failed does", async () => {

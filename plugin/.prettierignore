@@ -70,7 +70,6 @@ test/client/data.test.ts
 test/client/judging.test.ts
 test/desk/flow.test.ts
 test/runtime/copies.test.ts
-test/runtime/facts.test.ts
 test/runtime/harness.ts
 test/runtime/intake.test.ts
 test/runtime/judging.test.ts
