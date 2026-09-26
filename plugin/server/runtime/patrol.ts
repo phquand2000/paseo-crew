@@ -1,20 +1,20 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Kit } from "../catalog/kit/kit.ts";
-import { can, roleNamed, seatOf } from "../catalog/kit/roles.ts";
+import { daemonLog } from "../core/logger.ts";
+import { seatOf } from "../catalog/kit/roles.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
 import { TASK } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
 import { loadIncidents, openFor, saidBefore } from "../desk/store/incidents.ts";
-import type { Ask } from "../domain/ask.ts";
 import type { Lane } from "../domain/lane.ts";
 import { type Ledger, activeTasks, openAsksFrom } from "../domain/ledger.ts";
 import type { Task } from "../domain/task.ts";
 import { loadLedger } from "../desk/store/ledger.ts";
-import { askLetters } from "../desk/letters/ask-letters.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
 import { statusPage } from "../desk/views/status.ts";
+import { dueAsks } from "./due-asks.ts";
 import type { Outbox } from "./outbox.ts";
 import type { TeamSource } from "./team-source.ts";
 import type { TurnRules } from "./turns.ts";
@@ -35,6 +35,7 @@ type PatrolDeps = {
   remember: (project: Project) => void;
 };
 
+/** The patrol round: what no event reports, found by looking — idle Leads, gone seats, due asks, the record's own facts. */
 export class Patrol {
   private readonly deps: PatrolDeps;
   private readonly idleFlag = new Map<string, string>();
@@ -58,40 +59,59 @@ export class Patrol {
   }
 
   private async runRound(now: number): Promise<void> {
-    const { kit, desk, outbox } = this.deps;
+    const { kit, desk, source } = this.deps;
     const seats: SeatMap = new Map((await this.deps.seats.open()).map((seat) => [seat.id, seat]));
     this.deps.watches.sync(seats.values());
-    this.deps.watches.round(now, (watch) => this.deps.source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
-    for (const seat of seats.values()) if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
+    this.deps.watches.round(now, (watch) => source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
+    for (const seat of seats.values())
+      if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
       // Written to, a project removed while the plugin runs would come back as a state directory of its own.
-      if (!this.deps.source.onRecord(project)) {
+      if (!source.onRecord(project)) {
         desk.projects.delete(project.slug);
         continue;
       }
-      await this.step(project, "idle lanes could not be read", () => this.idleLanes(project, loadLedger(project.state), seats, now));
-      await this.step(project, "incidents held for nobody could not be told", async () => void (await desk.retell(project)));
-      await this.step(project, "a task whose Peer is gone could not be recorded", () => this.goneTasks(project, loadLedger(project.state), seats));
-      await this.step(project, "a lane whose Lead is gone could not be told", () => this.goneLeads(project, loadLedger(project.state), seats));
-      await this.step(project, "asks due a reminder could not be sent", () => this.dueAsks(project, loadLedger(project.state), seats, now));
-      await this.step(project, "what a lane's history shows could not be read", () => this.history(project, loadLedger(project.state), seats));
-      await this.step(project, "sweeping failed", () => this.sweep(project, loadLedger(project.state), seats));
-      await this.step(project, "waiting lanes could not be opened", () => desk.openWaiting(project));
-      await this.step(project, "finished lanes could not be archived", () => desk.archiveFinished(project, (id) => !seats.has(id) && outbox.pending(id).length === 0));
-      await this.step(project, "a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys())));
-      await this.step(project, "the Watcher's cases could not be tended", () => desk.watcher.tend(project, seats, now));
-      await this.step(project, "the status page could not be written", async () => this.writeStatus(project, seats, now));
+      for (const [what, run] of this.steps(project, seats, now)) await this.step(project, what, run);
     }
     if (!this.resumed) {
       this.resumed = true;
       await this.resume(seats);
     }
-    const targets = new Set(outbox.letters().map((letter) => letter.to));
-    for (const to of targets) {
+    await this.deliver();
+  }
+
+  /** A project's round in order, each step reading the ledger as the steps before it left it. */
+  private steps(project: Project, seats: SeatMap, now: number): [string, () => Promise<void>][] {
+    const { desk, outbox } = this.deps;
+    const ledger = () => loadLedger(project.state);
+    const gone = (id: string) => !seats.has(id) && outbox.pending(id).length === 0;
+    return [
+      ["idle lanes could not be read", () => this.idleLanes(project, ledger(), seats, now)],
+      ["incidents held for nobody could not be told", async () => void (await desk.retell(project))],
+      ["a task whose Peer is gone could not be recorded", () => this.goneTasks(project, ledger(), seats)],
+      ["a lane whose Lead is gone could not be told", () => this.goneLeads(project, ledger(), seats)],
+      [
+        "asks due a reminder could not be sent",
+        () => dueAsks(this.deps, project, ledger(), seats, now, (ids) => this.missing(ids)),
+      ],
+      ["what a lane's history shows could not be read", () => this.history(project, ledger(), seats)],
+      ["sweeping failed", () => this.sweep(project, ledger(), seats)],
+      ["waiting lanes could not be opened", () => desk.openWaiting(project)],
+      ["finished lanes could not be archived", () => desk.archiveFinished(project, gone)],
+      ["a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys()))],
+      ["the Watcher's cases could not be tended", () => desk.watcher.tend(project, seats, now)],
+      ["the status page could not be written", async () => this.writeStatus(project, seats, now)],
+    ];
+  }
+
+  /** Mail left waiting goes out once a round, to each seat that has any. */
+  private async deliver(): Promise<void> {
+    const { outbox } = this.deps;
+    for (const to of new Set(outbox.letters().map((letter) => letter.to))) {
       try {
         await outbox.pump(to);
       } catch (error) {
-        console.error(`seatworks-v2: mail for ${to} could not be delivered:`, error);
+        daemonLog.error(`mail for ${to} could not be delivered:`, error);
       }
     }
   }
@@ -105,12 +125,17 @@ export class Patrol {
     try {
       await desk.resume(seats);
     } catch (error) {
-      console.error("seatworks-v2: what waited on a turn when the plugin stopped could not be taken up:", error);
+      daemonLog.error("what waited on a turn when the plugin stopped could not be taken up:", error);
     }
     const live = new Set(seats.keys());
     for (const project of this.deps.source.known()) {
-      await this.step(project, "the merges queued when the plugin stopped could not be taken up", () => desk.resumeMerges(project));
-      if (!desk.projects.has(project.slug)) await this.step(project, "a copy left behind by a restart could not be put away", () => desk.reapSlots(project, live));
+      await this.step(project, "the merges queued when the plugin stopped could not be taken up", () =>
+        desk.resumeMerges(project),
+      );
+      if (!desk.projects.has(project.slug))
+        await this.step(project, "a copy left behind by a restart could not be put away", () =>
+          desk.reapSlots(project, live),
+        );
     }
   }
 
@@ -119,14 +144,16 @@ export class Patrol {
     try {
       await run();
     } catch (error) {
-      console.error(`seatworks-v2: ${project.slug}: ${what}:`, error);
+      daemonLog.error(`${project.slug}: ${what}:`, error);
     }
   }
 
   private async sweep(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const busy =
       Object.values(ledger.lanes).some((lane) => lane.status === "open") ||
-      [...seats.values()].some((seat) => seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === project.slug);
+      [...seats.values()].some(
+        (seat) => seatOf(this.deps.kit, seat.provider)?.role.tools && projectOf(seat.cwd).slug === project.slug,
+      );
     await this.deps.desk.sweep(project, busy);
   }
 
@@ -144,7 +171,11 @@ export class Patrol {
       const open = openFor(book, seen.seat, seen.fact.kind);
       if (!open && saidBefore(book, seen.seat, seen.fact.kind, seen.fact.quote)) continue;
       if (open && open.quote === seen.fact.quote && open.told !== undefined) continue;
-      await this.deps.desk.notice(project, { id: seen.seat, provider: seat.provider, title: seat.title }, decide([seen.fact]));
+      await this.deps.desk.notice(
+        project,
+        { id: seen.seat, provider: seat.provider, title: seat.title },
+        decide([seen.fact]),
+      );
     }
   }
 
@@ -152,14 +183,19 @@ export class Patrol {
   private async idleLanes(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
     const { desk, turns } = this.deps;
     const { leadIdleMinutes } = this.deps.source.teamFor(project).attention;
-    for (const lane of Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead && !entry.onHold && !entry.ready && !entry.landApproval)) {
+    for (const lane of Object.values(ledger.lanes).filter(
+      (entry) => entry.status === "open" && entry.lead && !entry.onHold && !entry.ready && !entry.landApproval,
+    )) {
       const lead = seats.get(lane.lead!);
       if (!lead || lead.status !== "idle") continue;
       const idle = now - Date.parse(lead.updatedAt);
       if (idle < leadIdleMinutes * 60_000 || this.idleFlag.get(lead.id) === lead.updatedAt) continue;
       if (activeTasks(ledger, lane.id).length > 0 || openAsksFrom(ledger, lead.id).length > 0) continue;
       const to = await desk.supervisorFor(project, lane.opener);
-      const posted = await desk.post(to, seatLetters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? "", lead.updatedAt));
+      const posted = await desk.post(
+        to,
+        seatLetters.laneIdle(lane, Math.round(idle / 60_000), turns.lastEnding.get(lead.id) ?? "", lead.updatedAt),
+      );
       // Noted as told only when somebody was: set first, a notice to nobody was never tried again.
       if (posted !== "nobody") this.idleFlag.set(lead.id, lead.updatedAt);
     }
@@ -178,7 +214,10 @@ export class Patrol {
   private async goneTasks(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const { desk } = this.deps;
     const key = (task: Task) => `${project.slug}:${task.id}`;
-    const unlisted = Object.values(ledger.tasks).filter((entry) => TASK.may(entry.status, "lose") && entry.peer && !seats.has(entry.peer) && !this.goneFlag.has(key(entry)));
+    const unlisted = Object.values(ledger.tasks).filter(
+      (entry) =>
+        TASK.may(entry.status, "lose") && entry.peer && !seats.has(entry.peer) && !this.goneFlag.has(key(entry)),
+    );
     const missing = await this.missing(unlisted.map((task) => task.peer!));
     for (const task of unlisted.filter((entry) => missing.has(entry.peer!))) {
       this.goneFlag.add(key(task));
@@ -195,7 +234,9 @@ export class Patrol {
     const { desk } = this.deps;
     if (seats.size === 0) return;
     const key = (lane: Lane) => `${project.slug}:${lane.id}:${lane.lead}`;
-    const unlisted = Object.values(ledger.lanes).filter((entry) => entry.status === "open" && entry.lead && !seats.has(entry.lead) && !this.goneFlag.has(key(entry)));
+    const unlisted = Object.values(ledger.lanes).filter(
+      (entry) => entry.status === "open" && entry.lead && !seats.has(entry.lead) && !this.goneFlag.has(key(entry)),
+    );
     const missing = await this.missing(unlisted.map((lane) => lane.lead!));
     for (const lane of unlisted.filter((entry) => missing.has(entry.lead!))) {
       const posted = await desk.post(await desk.supervisorFor(project, lane.opener), seatLetters.leadGone(lane));
@@ -203,52 +244,11 @@ export class Patrol {
     }
   }
 
-  private async dueAsks(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
-    const { desk } = this.deps;
-    const { askRemindMinutes, maxReminders } = this.deps.source.teamFor(project).attention;
-    const waited = (ask: Ask) => now - (ask.remindedAt ?? ask.openedAt) >= askRemindMinutes * 60_000;
-    const open = Object.values(ledger.asks).filter((entry) => entry.status === "open");
-    const missing = await this.missing(open.filter((ask) => !seats.has(ask.to)).map((ask) => ask.to));
-    for (const ask of open) {
-      const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
-      // An ask whose reader has gone goes to whoever supervises now, a Lead's own ask included.
-      if (missing.has(ask.to)) {
-        const to = await desk.supervisorFor(project, lane?.opener);
-        if (!to || to === ask.to) continue;
-        const moved = desk.transact(project, (current) => {
-          const entry = current.asks[ask.id];
-          if (!entry || entry.status !== "open" || entry.to !== ask.to) return undefined;
-          entry.to = to;
-          entry.remindedAt = now;
-          return { ...entry };
-        });
-        if (moved) await desk.post(to, askLetters.askTo(moved, ask.task ? `the Peer on ${ask.task}, whose reader is gone` : `the Lead of ${ask.lane ?? "a lane"}, whose reader is gone`, "supervisor"));
-        continue;
-      }
-      if (seats.get(ask.to)?.status !== "idle" || !waited(ask)) continue;
-      const age = Math.round((now - ask.openedAt) / 60_000);
-      const reminding = ask.reminders < maxReminders;
-      if (reminding) {
-        await desk.post(ask.to, askLetters.reminder(ask, age));
-        // Escalated only from a Lead: an ask already put to the supervisor has nowhere further up.
-      } else if (ask.to === lane?.lead && !can(roleNamed(this.deps.kit, ask.fromRole), "lead") && !ask.escalated) {
-        const to = await desk.supervisorFor(project, lane?.opener);
-        // Marked escalated only once delivered; with nobody seated it is retried next round.
-        if ((await desk.post(to, askLetters.escalated(ask, age, ask.lane ?? "the project"))) === "nobody") continue;
-      } else continue;
-      // Pinned to this round's count so overlapping rounds cannot push it past the owner's maximum.
-      desk.transact(project, (current) => {
-        const entry = current.asks[ask.id];
-        if (!entry || entry.reminders !== ask.reminders) return;
-        if (reminding) entry.reminders += 1;
-        else entry.escalated = true;
-        entry.remindedAt = now;
-      });
-    }
-  }
-
   private writeStatus(project: Project, seats: SeatMap, now: number): void {
     mkdirSync(project.state, { recursive: true });
-    writeFileSync(join(project.state, "status.md"), statusPage(this.deps.kit, project, seats, now, this.deps.outbox.held()));
+    writeFileSync(
+      join(project.state, "status.md"),
+      statusPage(this.deps.kit, project, seats, now, this.deps.outbox.held()),
+    );
   }
 }
