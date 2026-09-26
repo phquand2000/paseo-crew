@@ -180,18 +180,6 @@ test("a costly question about a lane already reported ready stops it now, since 
   assert.match(h.ledger().lanes.L1!.onHold?.reason ?? "", /waits for the Human's answer to H1/);
 });
 
-test("closing a lane cancels the questions still open about it, and says so", async () => {
-  const { h, sup } = await laneWithPeer(undefined, undefined, { holds: ["a.txt"], parallel: true });
-  await h.call(sup, "supervisor", "ask_human", packet({ lane: "L1" }));
-  const dropped = await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "not needed after all" });
-  assert.match(dropped.text, /Its open question for the Human, H1, is canceled\./);
-  assert.deepEqual([h.ledger().questions.H1!.status, h.ledger().questions.H1!.answer?.by], ["canceled", "desk"]);
-  assert.deepEqual(
-    h.events("question.answered").map((event) => [event.question, event.status, event.by]),
-    [["H1", "canceled", "desk"]],
-  );
-});
-
 test("a question about a lane that writes where the Human asked to be asked first is costly at least, whatever it is called", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

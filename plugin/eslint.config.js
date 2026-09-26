@@ -49,7 +49,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/half-open.test.ts",
   "test/runtime/incident-routing.test.ts",
   "test/runtime/judging.test.ts",
-  "test/runtime/kept-lead.test.ts",
   "test/runtime/keys.test.ts",
   "test/runtime/lines.test.ts",
   "test/runtime/listing.test.ts",

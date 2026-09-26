@@ -2,60 +2,113 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { settle } from "./fake-timeline.ts";
-import { harness, laneWithPeer } from "./harness.ts";
+import { harness, ideCalls, laneWithPeer } from "./harness.ts";
 
 type Harness = ReturnType<typeof harness>;
 
-/** A lane in a copy of its own, with one commit on its branch and its Lead idle, ready to land. */
-async function isolatedLane() {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "true" });
+const scope = { acceptance: ["done"], outOfScope: ["anything else in the repository"] };
+
+/** Opens a lane in a copy of its own writing `dir`, with one commit on its branch and its Lead idle. */
+async function isolated(h: Harness, sup: string, title: string, dir: string) {
   const opened = await h.call(sup, "supervisor", "open_lane", {
-    title: "Part B",
-    outcome: "b",
-    acceptance: ["done"],
-    writeSet: ["b/**"],
+    title,
+    outcome: dir,
+    ...scope,
+    writeSet: [`${dir}/**`],
     isolate: true,
-    outOfScope: ["anything else in the repository"],
   });
   assert.equal(opened.ok, true, opened.text);
-  const lane = h.ledger().lanes.L1!;
-  const lead = lane.lead!;
-  h.agents.get(lead)!.status = "idle";
-  mkdirSync(join(lane.worktree!, "b"), { recursive: true });
-  writeFileSync(join(lane.worktree!, "b", "b.txt"), "b\n");
-  h.git(lane.worktree!, "add", "-A");
-  h.git(lane.worktree!, "commit", "-qm", "b");
-  await h.tick();
-  return { h, sup, lane, lead };
+  const lane = Object.values(h.ledger().lanes).find((entry) => entry.title === title)!;
+  h.agents.get(lane.lead!)!.status = "idle";
+  mkdirSync(join(lane.worktree!, dir), { recursive: true });
+  h.commit(lane.worktree!, `${dir}/${dir}.txt`, `${dir}\n`);
+  return lane;
 }
 
-const archiveInPaseo = (h: Harness, id: string) =>
-  (h.paseo as unknown as { agents: { ref(id: string): { archive(): Promise<void> } } }).agents.ref(id).archive();
+const copyCalls = (path: string) => ideCalls.filter((call) => call.path === path).map((call) => call.kind);
 
-test("landing keeps the Lead and the copy it works in until the Supervisor releases it, and the landed branch goes with that copy", async () => {
-  const { h, sup, lane, lead } = await isolatedLane();
+test("a copy waits for every seat writing in it: the last to stop puts it away, and a round puts away one whose writers are gone for good", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const release = (lane: string) => h.call(sup, "supervisor", "release", { lane });
+  await h.tick();
+  await h.call(sup, "supervisor", "open_lane", { title: "Both in here", outcome: "x", ...scope, isolate: true });
+  const lane = h.ledger().lanes.L1!;
+  const lead = lane.lead!;
+  await h.call(lead, "lead", "add_tasks", {
+    tasks: [{ key: "t", title: "In the lane's copy", goal: "g", ...scope, hints: ["a.txt"] }],
+  });
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  assert.equal(h.agents.get(peer)!.cwd, lane.worktree);
+  writeFileSync(join(lane.worktree!, "half-written.txt"), "the Peer is mid-sentence\n");
+  assert.equal(
+    (await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "the outcome was wrong" })).ok,
+    true,
+  );
   assert.match(
-    (await h.call(sup, "supervisor", "release", { lane: "L1" })).text,
+    (await release("L1")).text,
+    new RegExp(`its working copy ${lane.slot} is put away once ${lead} and ${peer} finish the turn they are in\\.`),
+  );
+  h.agents.get(peer)!.status = "idle";
+  await h.endTurn(peer, "stopping");
+  assert.equal(existsSync(join(lane.worktree!, "half-written.txt")), true);
+  assert.ok(h.ledger().slots[lane.slot!]);
+  h.agents.get(lead)!.status = "idle";
+  await h.endTurn(lead, "stopping too");
+  assert.equal(existsSync(lane.worktree!), false);
+  assert.equal(existsSync(dirname(lane.worktree!)), false);
+  assert.deepEqual(Object.keys(h.ledger().slots), []);
+  assert.notEqual(h.git(h.root, "branch", "--list", lane.branch).trim(), "");
+
+  await h.call(sup, "supervisor", "open_lane", { title: "Abandoned", outcome: "x", ...scope, isolate: true });
+  const abandoned = h.ledger().lanes.L2!;
+  await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "the outcome was wrong" });
+  await release("L2");
+  assert.equal(existsSync(abandoned.worktree!), true);
+  assert.deepEqual(h.ledger().slots[abandoned.slot!]!.releasing!.writers, [abandoned.lead!]);
+  h.agents.get(abandoned.lead!)!.archivedAt = new Date().toISOString();
+  await h.tick(Date.now());
+  assert.equal(existsSync(abandoned.worktree!), false);
+  assert.deepEqual(Object.keys(h.ledger().slots), []);
+});
+
+test("a kept Lead keeps its lane's copy until the Supervisor releases it or the round finds it gone, and one failed look is not gone", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const release = (lane: string) => h.call(sup, "supervisor", "release", { lane });
+  await h.call(sup, "supervisor", "set_project", { gate: "true" });
+  const part = await isolated(h, sup, "Part B", "b");
+  const lead = part.lead!;
+  assert.equal(part.slot, "S0");
+  assert.match(
+    (await release("L1")).text,
     /Lane L1 is open: land_lane or drop_lane it first\. replace_lead swaps a Lead that is gone\./,
   );
+  assert.deepEqual(copyCalls(part.worktree!), ["open"]);
+
+  const seats = (h.paseo as { agents: { ref: (id: string) => { refresh: () => Promise<unknown> } } }).agents;
+  const ref = seats.ref;
+  let failed = false;
+  seats.ref = (id) => {
+    const handle = ref(id);
+    if (id !== lead || failed || h.ledger().lanes.L1!.status !== "closed") return handle;
+    failed = true;
+    return Object.assign(Object.create(handle) as typeof handle, {
+      refresh: () => Promise.reject(new Error("the daemon is busy")),
+    });
+  };
   const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
   assert.equal(landed.ok, true, landed.text);
+  assert.equal(failed, true);
+  assert.equal(h.agents.get(lead)!.archivedAt, null);
+  assert.ok(existsSync(part.worktree!));
   assert.match(
     landed.text,
     new RegExp(
-      `Lane L1 closed; squashed ${lane.branch} into one commit on main, its own commits kept at refs/seatworks/lanes/L1\\. Its Peers are archived, and its Lead ${lead} stays until you release it\\. Its working copy ${lane.slot} stays with its Lead\\.`,
+      `Lane L1 closed; squashed ${part.branch} into one commit on main, its own commits kept at refs/seatworks/lanes/L1\\. Its Peers are archived, and its Lead ${lead} stays until you release it\\. Its working copy S0 stays with its Lead\\.`,
     ),
   );
-  assert.equal(h.agents.get(lead)!.archivedAt, null);
-  assert.ok(existsSync(lane.worktree!), "its copy stays with it");
-  assert.notEqual(
-    h.git(h.root, "branch", "--list", lane.branch).trim(),
-    "",
-    "and so does its landed branch, checked out there",
-  );
+  assert.notEqual(h.git(h.root, "branch", "--list", part.branch).trim(), "");
   assert.match(
     h.heard(lead).join("\n"),
     /LANE CLOSED L1 \(Part B\): landed[^]*you stay on with what you know of it until the owner releases you/,
@@ -67,143 +120,60 @@ test("landing keeps the Lead and the copy it works in until the Supervisor relea
   assert.match(
     (await h.call(sup, "supervisor", "status", {})).text,
     new RegExp(
-      `## Kept Leads\\n\\n- L1 Part B, landed: Lead ${lead} idle \\d+ min, in ${lane.slot}\\. release lane L1 once its work is done or the Human asks\\.`,
+      `## Kept Leads\\n\\n- L1 Part B, landed: Lead ${lead} idle \\d+ min, in S0\\. release lane L1 once its work is done or the Human asks\\.`,
     ),
   );
 
-  const released = await h.call(sup, "supervisor", "release", { lane: "L1" });
-  assert.equal(released.text, `Lane L1's Lead ${lead} is released, and its working copy ${lane.slot} is put away.`);
+  const other = await isolated(h, sup, "Part C", "c");
+  assert.equal(other.slot, "S1");
+  assert.equal((await release("L1")).text, `Lane L1's Lead ${lead} is released, and its working copy S0 is put away.`);
   assert.ok(h.agents.get(lead)!.archivedAt);
-  assert.equal(existsSync(lane.worktree!), false);
-  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim(), "", "the landed branch goes with its copy");
-  assert.match(
-    (await h.call(sup, "supervisor", "release", { lane: "L1" })).text,
-    /Lane L1's Lead is gone already, and nothing of it is kept\./,
-  );
-});
+  assert.equal(existsSync(part.worktree!), false);
+  assert.equal(h.git(h.root, "branch", "--list", part.branch).trim(), "");
+  assert.deepEqual(copyCalls(part.worktree!), ["open", "close"]);
+  assert.match((await release("L1")).text, /Lane L1's Lead is gone already, and nothing of it is kept\./);
+  assert.equal((await isolated(h, sup, "Part D", "d")).slot, "S2");
 
-test("a kept Lead released mid-turn keeps its copy until that turn ends, and a dropped lane keeps its branch", async () => {
-  const { h, sup, lane, lead } = await isolatedLane();
-  assert.equal(
-    (await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "the outcome was wrong" })).ok,
-    true,
-  );
-  h.agents.get(lead)!.status = "running";
-  writeFileSync(join(lane.worktree!, "half-written.txt"), "not committed yet\n");
-  assert.match(
-    (await h.call(sup, "supervisor", "release", { lane: "L1" })).text,
-    new RegExp(`its working copy ${lane.slot} is put away once ${lead} finish the turn they are in\\.`),
-  );
-  assert.ok(
-    h.ledger().slots[lane.slot!],
-    "and until then the copy is still the lane's, so nothing else is sent into it",
-  );
-  assert.equal(
-    existsSync(join(lane.worktree!, "half-written.txt")),
-    true,
-    "removing the copy --force would take what the Lead has not committed",
-  );
-
-  h.agents.get(lead)!.status = "idle";
-  await h.endTurn(lead, "stopping");
-  assert.equal(existsSync(lane.worktree!), false, "once the Lead stops, the copy is put away");
-  assert.equal(
-    existsSync(dirname(lane.worktree!)),
-    false,
-    "and the folder the desk made for this project's copies goes with the last of them",
-  );
-  assert.deepEqual(Object.keys(h.ledger().slots), []);
-  assert.notEqual(
-    h.git(h.root, "branch", "--list", lane.branch).trim(),
-    "",
-    "a lane dropped without landing keeps its branch for the Human",
-  );
-});
-
-test("a lane in the Human's own copy puts that copy back on base at close, once the kept Lead ends the turn it is in", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
-  const lead = lane.lead!;
-  h.commit(lane.worktree!, "a.txt", "one\n");
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "one" });
-  await h.idle(peer);
-  assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
-  h.agents.get(lead)!.status = "running";
-  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  assert.match(
-    landed.text,
-    new RegExp(`The project's own copy goes back to main once ${lead} finish the turn they are in\\.`),
-  );
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lane.branch, "not switched under the Lead's turn");
-  assert.ok(h.agents.get(peer)!.archivedAt, "its Peers go with the lane");
-
-  h.agents.get(lead)!.status = "idle";
-  await h.endTurn(lead, "Reported.");
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
-  assert.equal(h.agents.get(lead)!.archivedAt, null, "the Lead itself stays");
-  assert.match(
-    (await h.call(sup, "supervisor", "release", { lane: "L1" })).text,
-    new RegExp(`^Lane L1's Lead ${lead} is released\\.$`),
-    "and holds no copy of its own to put away",
-  );
-});
-
-test("a kept Lead archived in Paseo, here with its Supervisor, leaves its copy to the round, which puts it away", async () => {
-  const { h, sup, lane, lead } = await isolatedLane();
-  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
-  assert.ok(existsSync(lane.worktree!), "kept with its Lead");
-  await archiveInPaseo(h, sup);
-  assert.ok(h.agents.get(lead)!.archivedAt, "Paseo archives a Supervisor's Leads with it");
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L2" })).ok, true);
+  assert.ok(existsSync(other.worktree!));
+  await (h.paseo as { agents: { ref: (id: string) => { archive: () => Promise<void> } } }).agents.ref(sup).archive();
+  assert.ok(h.agents.get(other.lead!)!.archivedAt);
   await h.tick();
-  assert.equal(existsSync(lane.worktree!), false);
-  assert.equal(h.git(h.root, "branch", "--list", lane.branch).trim(), "");
+  assert.equal(existsSync(other.worktree!), false);
+  assert.equal(h.git(h.root, "branch", "--list", other.branch).trim(), "");
 });
 
-test("the Human writing to a kept Lead reaches the Supervisor, and the Supervisor can write to it too", async () => {
-  const { h, sup, lead } = await isolatedLane();
-  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
-  h.timelineOf(lead).add({ type: "user_message", text: "Why squash?", clientMessageId: "app-1" });
-  await settle();
-  await h.idle(sup);
-  assert.match(
-    h.heard(sup).join("\n"),
-    /HUMAN WROTE to the Lead kept from L1 \(Part B\) directly, past you:\n<human>\nWhy squash\?\n<\/human>\n\nNext: Lane L1 is closed: if it asks for more work, open a lane for it; if it settles the concept, write it into CONTEXT\.md\./,
-  );
-
-  const sent = await h.call(sup, "supervisor", "message", { to: "L1", text: "What would you change next time?" });
-  assert.equal(sent.ok, true, sent.text);
-  await h.idle(lead);
-  assert.match(h.heard(lead).join("\n"), /What would you change next time\?/);
-});
-
-test("closing a lane settles the asks still open in it, so its kept Lead is never reminded of them", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
+test("closing a lane settles what it leaves: its asks answered, its questions canceled, its unfinished tasks cut, and its kept Lead never reminded", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer(undefined, undefined, { holds: ["a.txt"], parallel: true });
   assert.equal((await h.call(peer, "peer", "ask", { question: "Round half up?", bestGuess: "half up" })).ok, true);
   const ask = Object.values(h.ledger().asks)[0]!;
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "not wanted" })).ok, true);
+  await h.call(sup, "supervisor", "ask_human", {
+    lane: "L1",
+    question: "Keep old invoices?",
+    why: "They cannot come back.",
+    options: [
+      { label: "Delete", effect: "gone" },
+      { label: "Archive", effect: "kept" },
+    ],
+    recommend: "Archive",
+    reason: "Nothing is lost.",
+    ifSilent: "The lane archives them.",
+    class: "reversible",
+  });
+  const dropped = await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "not needed after all" });
+  assert.match(dropped.text, /It cut L1-T1, which was not finished\./);
+  assert.match(dropped.text, /Its open question for the Human, H1, is canceled\./);
   assert.deepEqual(
     [h.ledger().asks[ask.id]!.status, h.ledger().asks[ask.id]!.answer],
     ["answered", "Lane L1 closed before this was answered."],
   );
+  assert.deepEqual([h.ledger().questions.H1!.status, h.ledger().questions.H1!.answer?.by], ["canceled", "desk"]);
+  assert.deepEqual(
+    h.events("question.answered").map((event) => [event.question, event.status, event.by]),
+    [["H1", "canceled", "desk"]],
+  );
   await h.idle(lane.lead!);
   const before = h.heard(lane.lead!).length;
   await h.tick(Date.now() + 60 * 60_000);
-  assert.equal(h.heard(lane.lead!).length, before, "no reminder about a lane that is closed");
-});
-
-test("a kept Lead Paseo could not read at close keeps its copy: one failed look is not a Lead gone", async () => {
-  const { h, sup, lane, lead } = await isolatedLane();
-  const seats = (h.paseo as unknown as { agents: { ref(id: string): { refresh(): Promise<unknown> } } }).agents;
-  const ref = seats.ref;
-  let failed = false;
-  seats.ref = (id) => {
-    const handle = ref(id);
-    if (id !== lead || failed || h.ledger().lanes.L1!.status !== "closed") return handle;
-    failed = true;
-    return Object.assign(Object.create(handle), { refresh: () => Promise.reject(new Error("the daemon is busy")) });
-  };
-  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  assert.equal(landed.ok, true, landed.text);
-  assert.equal(failed, true, "the close read its Lead while Paseo could not answer");
-  assert.equal(h.agents.get(lead)!.archivedAt, null);
-  assert.ok(existsSync(lane.worktree!), "its copy stays with it; the round puts it away if the Lead really is gone");
+  assert.equal(h.heard(lane.lead!).length, before);
 });

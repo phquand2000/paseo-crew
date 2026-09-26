@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
@@ -53,47 +53,4 @@ test("the gate that lets a lane land runs on the lane with main's newer work in 
   const second = await h.call(sup, "supervisor", "land_lane", { lane: "L2" });
   assert.equal(second.ok, true, second.text);
   assert.equal(h.git(h.root, "show", "main:b/b.txt"), "b/b.txt\n");
-});
-
-test("a copy waiting on a seat that never ends its turn is put away in the round, not left for good", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Abandoned", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "the outcome was wrong" });
-  await h.call(sup, "supervisor", "release", { lane: "L1" });
-  assert.equal(existsSync(lane.worktree!), true, "the Lead is mid-turn, so the copy waits for it");
-  assert.deepEqual(h.ledger().slots[lane.slot!]!.releasing!.writers, [lane.lead!], "and what it is waiting on is on the record, not only in memory");
-
-  // The turn never ends: archived, crashed, or the desk restarted; nothing writes there any more.
-  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
-  await h.tick(Date.now());
-
-  assert.equal(existsSync(lane.worktree!), false, "the round puts it away rather than leaving a copy and a workspace for good");
-  assert.deepEqual(Object.keys(h.ledger().slots), []);
-});
-
-test("a copy two seats are writing in is put away by the last of them to stop, not the first", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Both in here", outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"], isolate: true });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "In the lane's copy", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
-  const task = h.ledger().tasks["L1-T1"]!;
-  assert.equal(h.agents.get(task.peer!)!.cwd, lane.worktree, "a lane-mode Peer writes in the lane's own copy, beside its Lead");
-  writeFileSync(join(lane.worktree!, "half-written.txt"), "the Peer is mid-sentence\n");
-
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "the outcome was wrong" })).ok, true);
-  const released = await h.call(sup, "supervisor", "release", { lane: "L1" });
-  assert.match(released.text, new RegExp(`${lane.lead} and ${task.peer}`), "both are named, because both are still writing there");
-
-  h.agents.get(task.peer!)!.status = "idle";
-  await h.endTurn(task.peer!, "stopping");
-  assert.equal(existsSync(join(lane.worktree!, "half-written.txt")), true, "the Peer stopped, and the Lead is still in there");
-  assert.ok(h.ledger().slots[lane.slot!], "so the copy is still the lane's");
-
-  h.agents.get(lane.lead!)!.status = "idle";
-  await h.endTurn(lane.lead!, "stopping too");
-  assert.equal(existsSync(lane.worktree!), false, "the last one out puts it away");
-  assert.deepEqual(Object.keys(h.ledger().slots), []);
 });

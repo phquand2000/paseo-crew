@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { loadConfig } from "../../server/desk/project.ts";
 import { tempDir } from "../tempdir.ts";
-import { harness, ideCalls } from "./harness.ts";
+import { harness, ideCalls, laneWithPeer } from "./harness.ts";
 
 test("a lane works serially in the project's own copy and hands it back on its base branch", async () => {
   const h = harness();
@@ -274,4 +274,31 @@ test("a project set to land by merge commit keeps the lane's commits on main und
   assert.equal(closed.ok, true, closed.text);
   assert.match(closed.text, /merged lane\/l1-numbers into main/);
   assert.deepEqual(h.git(h.root, "log", "-1", "--format=%P", "main").trim().split(" "), [before, tip]);
+});
+
+test("a lane in the Human's own copy puts that copy back on base at close, once the kept Lead ends the turn it is in", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  h.commit(lane.worktree!, "a.txt", "one\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "one" });
+  await h.idle(peer);
+  assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
+  h.agents.get(lead)!.status = "running";
+  const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  assert.match(
+    landed.text,
+    new RegExp(`The project's own copy goes back to main once ${lead} finish the turn they are in\\.`),
+  );
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), lane.branch, "not switched under the Lead's turn");
+  assert.ok(h.agents.get(peer)!.archivedAt, "its Peers go with the lane");
+
+  h.agents.get(lead)!.status = "idle";
+  await h.endTurn(lead, "Reported.");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
+  assert.equal(h.agents.get(lead)!.archivedAt, null, "the Lead itself stays");
+  assert.match(
+    (await h.call(sup, "supervisor", "release", { lane: "L1" })).text,
+    new RegExp(`^Lane L1's Lead ${lead} is released\\.$`),
+    "and holds no copy of its own to put away",
+  );
 });
