@@ -5,7 +5,10 @@ import { type Finding, type Held, deliveryOf, hold, tell, unheard } from "../../
 import { type Moment, momentCases } from "./checks.ts";
 import { type Incident, type Incidents, closeSeat, forget, onProbation, settledAsNoise, sight, spentToday } from "../store/incidents.ts";
 import { judge } from "./judging.ts";
-import { type Lane, type Task, laneOfLead, loadLedger, taskOfPeer } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Task } from "../../domain/task.ts";
+import { laneOfLead, taskOfPeer } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import { errorText } from "../../core/errors.ts";
 import { letters } from "../letters/letters.ts";
 import { pageIncident } from "./pager.ts";

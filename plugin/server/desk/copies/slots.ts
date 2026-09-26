@@ -15,7 +15,8 @@ import { worktreeRoot } from "../../core/paths.ts";
 import type { DeskBase } from "../base.ts";
 import { closeIndexes, openIndexes } from "./indexes.ts";
 import { sweepCopies } from "./sweep.ts";
-import { type Slot, loadLedger, nextSlotId } from "../store/ledger.ts";
+import { type Slot, nextSlotId } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project.ts";
 import { errorText } from "../../core/errors.ts";
 

@@ -1,6 +1,8 @@
 import { serialReach } from "../../core/scope.ts";
 import { type Issue, fetchIssue } from "../../core/github.ts";
-import { type Lane, type Ledger, loadLedger } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Ledger } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import { capped, outside } from "../../core/text.ts";
 import { list } from "./letters.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";

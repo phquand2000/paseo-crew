@@ -5,7 +5,10 @@ import { plural } from "../../core/text.ts";
 import { DAY_MS, HOUR_MS, minutesSince } from "../../core/time.ts";
 import { AT_WORK } from "../../domain/task.ts";
 import { keptCopy, keptPeers } from "../seats/kept.ts";
-import { type Lane, type Ledger, type Task, loadLedger, ownCopyHolder } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, ownCopyHolder } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
+import { loadLedger } from "../store/ledger.ts";
 import { type LaneHome, type Project, type ProjectConfig, laneHomeFor, loadConfig, projectOf } from "../project.ts";
 
 /** What the status tool read from the project's own checkout; `work` is undefined when git could not say. */

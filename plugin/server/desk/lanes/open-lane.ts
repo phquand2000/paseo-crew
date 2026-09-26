@@ -5,7 +5,9 @@ import { clip, slugify } from "../../core/text.ts";
 import { workKey } from "../claims.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { type Issue, fetchIssue } from "../../core/github.ts";
-import { type Lane, type Ledger, loadLedger, nextLaneId, ownCopyHolder } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, nextLaneId, ownCopyHolder } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import {
   type LaneHome,
   type Project,

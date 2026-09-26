@@ -1,7 +1,9 @@
 import { covers, serialHits, uncovered } from "../../core/scope.ts";
 import { capped } from "../../core/text.ts";
 import { besideOf } from "../letters/briefs.ts";
-import type { Lane, Ledger, Task } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Ledger } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
 
 const SHOWN = 10;
 

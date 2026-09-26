@@ -1,4 +1,5 @@
-import type { Lane, Task } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Task } from "../../domain/task.ts";
 import { letters } from "../letters/letters.ts";
 import type { Project } from "../project.ts";
 import type { Refusal } from "../refusal.ts";

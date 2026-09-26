@@ -3,7 +3,10 @@ import { clip, hash, outside } from "../../core/text.ts";
 import type { PendingPermission } from "../../core/paseo.ts";
 import { IN_QUEUE } from "../../domain/task.ts";
 import type { Incident } from "../store/incidents.ts";
-import type { Amendment, Ask, Lane, Task } from "../store/ledger.ts";
+import type { Amendment } from "../../domain/amendment.ts";
+import type { Ask } from "../../domain/ask.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Task } from "../../domain/task.ts";
 
 export const list = (items: string[] | undefined, empty = "none") => (items && items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : empty);
 export const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim())?.trim() ?? "";

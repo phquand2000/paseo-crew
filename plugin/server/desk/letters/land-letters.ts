@@ -1,4 +1,4 @@
-import type { Lane } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
 import { type Letter, ended, fyi, mail } from "./letters.ts";
 
 /** The letters a landing sends: that it may go ahead, that it waits on the Human, and what the Human decided. */

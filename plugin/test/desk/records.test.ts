@@ -6,7 +6,8 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { rolledStamps } from "../../server/core/rolling.ts";
 import { tempDir } from "../tempdir.ts";
 import { appendRolling } from "../../server/core/rolling.ts";
-import { type Lane, emptyLedger } from "../../server/desk/store/ledger.ts";
+import type { Lane } from "../../server/domain/lane.ts";
+import { emptyLedger } from "../../server/domain/ledger.ts";
 import { GATE_LOGS_PER_OWNER, tidyRecords } from "../../server/desk/store/records.ts";
 
 test("a record log rolls over, keeps its newest roll as text for a grep, and packs the older ones and drops what outgrows its bytes", async () => {

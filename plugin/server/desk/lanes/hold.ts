@@ -1,5 +1,6 @@
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { type Lane, findLane, laneSeats } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { findLane, laneSeats } from "../../domain/ledger.ts";
 import { letters } from "../letters/letters.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";

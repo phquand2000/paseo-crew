@@ -6,7 +6,9 @@ import type { Kit } from "../../catalog/kit/kit.ts";
 import { fileKinds, testMarkers, weakened } from "../../catalog/kit/patterns.ts";
 import { SETTLED } from "../../domain/task.ts";
 import { loadIncidents } from "../store/incidents.ts";
-import { type Lane, type Ledger, type Task, tasksOf } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, tasksOf } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
 import { type Project, configFile, loadConfig, serialOnlyOf } from "../project.ts";
 
 type LandGate = { set: boolean; ok: boolean };

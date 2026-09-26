@@ -1,3 +1,4 @@
+import type { Amendment } from "./amendment.ts";
 import { Lifecycle, type Moves } from "./lifecycle.ts";
 
 export type TaskStatus =
@@ -45,3 +46,49 @@ export const HOLDS_COPY: readonly TaskStatus[] = [
   "merging",
 ];
 export const ACTIVE: readonly TaskStatus[] = ["running", "rework", "queued", "merging"];
+
+type Handback = {
+  file: string;
+  outcome: string;
+  commit?: string;
+  summary: string;
+  at: number;
+  gate?: { ok: boolean; note: string; sha?: string; over?: string };
+};
+
+/** A task on the record: its brief, where its Peer works, and how far it has got. */
+export type Task = {
+  id: string;
+  lane: string;
+  kind: "code" | "review";
+  mode: "lane" | "parallel";
+  of?: string;
+  /** A review's questions from the risk rules its change reaches: its verdict answers each, in order. */
+  asked?: string[];
+  title: string;
+  goal: string;
+  acceptance: string[];
+  hints: string[];
+  holds: string[];
+  outOfScope: string[];
+  context?: string;
+  skills?: string[];
+  peer?: string;
+  branch?: string;
+  worktree?: string;
+  slot?: string;
+  startSha?: string;
+  mergeSha?: string;
+  status: TaskStatus;
+  openedAt: number;
+  updatedAt: number;
+  handback?: Handback;
+  after?: string[];
+  opening?: { role: string };
+  held?: { why: string; tried?: boolean };
+  amended?: Amendment[];
+  reworks?: number;
+  acceptedAt?: number;
+  silent: number;
+  peerGone?: boolean;
+};

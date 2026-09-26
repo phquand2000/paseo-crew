@@ -5,7 +5,8 @@ import type { Kit } from "../catalog/kit/kit.ts";
 import type { Team } from "../catalog/team/team.ts";
 import { lastBytes } from "../core/gate.ts";
 import { loadIncidents } from "../desk/store/incidents.ts";
-import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/store/ledger.ts";
+import { type Ledger, laneOfLead, taskOfPeer } from "../domain/ledger.ts";
+import { loadLedger } from "../desk/store/ledger.ts";
 import type { Project } from "../desk/project.ts";
 import { factTitle } from "./watch/facts.ts";
 

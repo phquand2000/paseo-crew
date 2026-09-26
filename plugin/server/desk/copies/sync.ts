@@ -9,7 +9,8 @@ import {
   pristineState,
   switchTo,
 } from "../../core/git.ts";
-import type { Lane, Task } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Task } from "../../domain/task.ts";
 
 /** The lane's copy back on the lane branch from a task's own, `discard`ing work left there; git's reason when it cannot. */
 export async function backOnLane(lane: Lane, discard = false): Promise<string | undefined> {

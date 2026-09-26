@@ -15,7 +15,8 @@ import { deskSocket, guidesDir, home, nodeBin, outboxPath, stateRoot } from "../
 import type { AgentConfig, HookAgent, Host, HostHooks, Judge, PermissionRequested, Seats, SessionOpen, TurnEnded, Workspaces } from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { laneOnHold, loadLedger, openAsksTo } from "../desk/store/ledger.ts";
+import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
+import { openAsksTo } from "../domain/ledger.ts";
 import { TOOLS } from "../desk/tools/registry.ts";
 import { letters } from "../desk/letters/letters.ts";
 import { appendRecord } from "../desk/store/records.ts";

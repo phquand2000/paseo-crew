@@ -4,7 +4,9 @@ import { SETTLED } from "../../domain/task.ts";
 import { askLetters } from "../letters/ask-letters.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
-import { type Ask, type Ledger, laneOfLead, loadLedger, nextAskId, taskOfPeer } from "../store/ledger.ts";
+import type { Ask } from "../../domain/ask.ts";
+import { type Ledger, laneOfLead, nextAskId, taskOfPeer } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

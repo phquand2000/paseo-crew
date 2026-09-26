@@ -3,7 +3,7 @@ import { can, seatOf } from "../../catalog/kit/roles.ts";
 import { midTurn } from "../../core/paseo.ts";
 import type { SeatLook, SeatView, Seats, StreamRow } from "../../core/ports.ts";
 import type { Intents } from "../store/intents.ts";
-import type { Lane } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
 import { type Project, projectOf } from "../project.ts";
 
 export class Roster {

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { RECORDS } from "../../core/paths.ts";
 import { appendRolling } from "../../core/rolling.ts";
-import type { Ledger } from "./ledger.ts";
+import type { Ledger } from "../../domain/ledger.ts";
 
 const RECORD_ROTATE_BYTES = 8 * 1024 * 1024;
 const RECORD_KEEP_BYTES = 24 * 1024 * 1024;

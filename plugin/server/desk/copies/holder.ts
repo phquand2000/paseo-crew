@@ -1,5 +1,7 @@
 import { HOLDS_COPY } from "../../domain/task.ts";
-import type { Lane, Ledger, Task } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Ledger } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
 
 /** Tasks waiting on their Lead or the merge queue still hold the copy (it is on their branch), unless a stalled Peer's seat is gone. */
 const holds = (task: Task): boolean =>

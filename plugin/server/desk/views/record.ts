@@ -5,7 +5,10 @@ import type { StreamRow } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { oneLine } from "../../core/text.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { type Lane, type Ledger, type Task, laneOfLead, loadLedger } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, laneOfLead } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
+import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 
 const STEPS = 40;

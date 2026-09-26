@@ -4,7 +4,8 @@ import { clip } from "../../core/text.ts";
 import { type Held, close } from "../../domain/incident.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { type Incident, readIncidentsFile } from "../store/incidents.ts";
-import { laneOfLead, loadLedger } from "../store/ledger.ts";
+import { laneOfLead } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 

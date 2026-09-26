@@ -13,7 +13,9 @@ import {
   keepArchived,
   takeFinished,
 } from "../../server/desk/store/archive.ts";
-import { type Lane, type Task, emptyLedger } from "../../server/desk/store/ledger.ts";
+import type { Lane } from "../../server/domain/lane.ts";
+import type { Task } from "../../server/domain/task.ts";
+import { emptyLedger } from "../../server/domain/ledger.ts";
 
 const lane = (n: number, status: Lane["status"] = "closed"): Lane => ({
   id: `L${n}`,

@@ -8,16 +8,10 @@ import { workKey } from "../claims.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { holdRefusal } from "../lanes/hold.ts";
 import { changeOf } from "../lanes/land-facts.ts";
-import {
-  type Lane,
-  type Ledger,
-  type Task,
-  findTask,
-  laneOfLead,
-  loadLedger,
-  nextTaskId,
-  tasksOf,
-} from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, findTask, laneOfLead, nextTaskId, tasksOf } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
+import { loadLedger } from "../store/ledger.ts";
 import { seatTitle } from "../seats/names.ts";
 import { type Project, riskRulesOf, rulesFor } from "../project.ts";
 import type { DeskServices } from "../services.ts";

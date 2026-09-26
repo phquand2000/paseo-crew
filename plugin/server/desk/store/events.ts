@@ -2,7 +2,7 @@ import type { Finding, Held, Level } from "../../domain/incident.ts";
 import type { LaneStatus } from "../../domain/lane.ts";
 import type { TaskStatus } from "../../domain/task.ts";
 import type { Incident } from "./incidents.ts";
-import type { Task } from "./ledger.ts";
+import type { Task } from "../../domain/task.ts";
 
 /**
  * One line of a project's `events.log`, written with the time it happened: the provenance record a retrospective reads.

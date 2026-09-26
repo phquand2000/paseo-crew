@@ -1,7 +1,8 @@
 import { firstOverlap, serialHits } from "../../core/scope.ts";
 import { IN_QUEUE } from "../../domain/task.ts";
 import { holderOf } from "../copies/holder.ts";
-import { type Lane, type Ledger, activeTasks } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, activeTasks } from "../../domain/ledger.ts";
 import type { Refusal } from "../refusal.ts";
 
 /** Where a task may start in its lane, or why not: decided in the transaction that starts it. */

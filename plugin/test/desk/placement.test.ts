@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { emptyLedger } from "../../server/desk/store/ledger.ts";
+import { emptyLedger } from "../../server/domain/ledger.ts";
 import { taskPlacement } from "../../server/desk/tasks/placement.ts";
 
 const lane = {

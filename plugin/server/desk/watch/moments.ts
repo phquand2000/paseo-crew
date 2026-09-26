@@ -1,4 +1,5 @@
-import { type Task, loadLedger } from "../store/ledger.ts";
+import type { Task } from "../../domain/task.ts";
+import { loadLedger } from "../store/ledger.ts";
 import { type Moment, letters } from "../letters/letters.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";

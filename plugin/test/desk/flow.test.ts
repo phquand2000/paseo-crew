@@ -3,7 +3,8 @@ import { test } from "node:test";
 import type { SeatView } from "../../server/core/paseo.ts";
 import { tempDir } from "../tempdir.ts";
 import { flowView } from "../../server/desk/views/flow.ts";
-import { emptyLedger, nextSlotId, readLedger, saveLedger } from "../../server/desk/store/ledger.ts";
+import { emptyLedger, nextSlotId } from "../../server/domain/ledger.ts";
+import { readLedger, saveLedger } from "../../server/desk/store/ledger.ts";
 import type { Project } from "../../server/desk/project.ts";
 
 const now = Date.parse("2026-09-16T04:00:00.000Z");

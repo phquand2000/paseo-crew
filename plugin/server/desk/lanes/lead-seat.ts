@@ -7,7 +7,7 @@ import { outside } from "../../core/text.ts";
 import { workKey } from "../claims.ts";
 import { type Elsewhere, directiveFor, elsewhereText } from "../letters/directive.ts";
 import type { Issue } from "../../core/github.ts";
-import type { Lane } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
 import { seatTitle } from "../seats/names.ts";
 import { type Project, loadConfig } from "../project.ts";
 import type { DeskServices } from "../services.ts";

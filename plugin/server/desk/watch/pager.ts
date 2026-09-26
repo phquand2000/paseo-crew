@@ -4,7 +4,7 @@ import { roleThatCan } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { clip } from "../../core/text.ts";
 import type { Incident } from "../store/incidents.ts";
-import type { Lane } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
 import type { Project } from "../project.ts";
 import type { DeskServices } from "../services.ts";
 

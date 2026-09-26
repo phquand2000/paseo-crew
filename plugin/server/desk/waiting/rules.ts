@@ -1,4 +1,6 @@
-import type { Lane, Ledger, Task } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Ledger } from "../../domain/ledger.ts";
+import type { Task } from "../../domain/task.ts";
 
 /** The one rule for `after`, lanes and tasks alike: each must exist, one done counts, one dropped holds, the rest are waited for. */
 function awaiting<T extends { id: string }>(

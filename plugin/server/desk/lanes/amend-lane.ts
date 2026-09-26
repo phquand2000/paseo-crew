@@ -1,6 +1,8 @@
 import { type Args, type Caller, type ToolReply, given, no, ok, str } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
-import { amend, findLane, loadLedger } from "../store/ledger.ts";
+import { amend } from "../../domain/amendment.ts";
+import { findLane } from "../../domain/ledger.ts";
+import { loadLedger } from "../store/ledger.ts";
 import { letters } from "../letters/letters.ts";
 import { serialIn } from "../project.ts";
 import type { DeskServices } from "../services.ts";

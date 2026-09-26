@@ -6,7 +6,7 @@ import { removeWorktree } from "../../core/git.ts";
 import type { Workspaces } from "../../core/ports.ts";
 import { worktreeRoot } from "../../core/paths.ts";
 import type { DeskBase } from "../base.ts";
-import type { Ledger } from "../store/ledger.ts";
+import type { Ledger } from "../../domain/ledger.ts";
 import type { Project } from "../project.ts";
 
 /** What the desk opened and nothing holds any more. Liveness is read under the ledger lock when used: `reserve` writes its row before `git worktree add`. */

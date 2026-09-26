@@ -17,7 +17,6 @@ server/desk/lanes/land-facts.ts
 server/desk/letters/directive.ts
 server/desk/letters/letters.ts
 server/desk/store/archive.ts
-server/desk/store/ledger.ts
 server/desk/views/report.ts
 server/desk/watch/notice.ts
 server/runtime/control.ts

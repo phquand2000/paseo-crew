@@ -1,5 +1,5 @@
 import type { Counts } from "../../core/git.ts";
-import type { Task } from "../store/ledger.ts";
+import type { Task } from "../../domain/task.ts";
 import { type Letter, fyi, mail } from "./letters.ts";
 
 /** The letters the merge of an accepted task sends its Lead: merged, failed, or stopped on conflicts. */

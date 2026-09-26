@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Lane, type Ledger, type Task, emptyLedger } from "../../server/desk/store/ledger.ts";
+import type { Lane } from "../../server/domain/lane.ts";
+import { type Ledger, emptyLedger } from "../../server/domain/ledger.ts";
+import type { Task } from "../../server/domain/task.ts";
 import type { FactKind } from "../../server/runtime/watch/facts.ts";
 import { deskFacts } from "../../server/runtime/watch/history.ts";
 

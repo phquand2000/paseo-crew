@@ -2,7 +2,8 @@ import { currentBranch, headSha, isAncestor, landedRef, mergeBranch, mergeUnderW
 import { landLane as landOnBase } from "../../core/land.ts";
 import { no, ok } from "../context.ts";
 import { laneGate } from "../project/gates.ts";
-import { type Lane, type Ledger, tasksOf } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import { landLetters } from "../letters/land-letters.ts";
 import { type Project, loadConfig } from "../project.ts";
 import type { Roster } from "../seats/roster.ts";

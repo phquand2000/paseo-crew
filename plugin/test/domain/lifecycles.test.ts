@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Task, emptyLedger, loadLedger, saveLedger } from "../../server/desk/store/ledger.ts";
+import type { Task } from "../../server/domain/task.ts";
+import { emptyLedger } from "../../server/domain/ledger.ts";
+import { loadLedger, saveLedger } from "../../server/desk/store/ledger.ts";
 import { LedgerStore } from "../../server/desk/store/ledger-store.ts";
 import { type Held, close, deliveryOf, hold, tell, unheard } from "../../server/domain/incident.ts";
 import { LANE } from "../../server/domain/lane.ts";

@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import type { SeatView } from "../../core/paseo.ts";
 import { AT_WORK, SETTLED } from "../../domain/task.ts";
 import { keptCopy, keptPeers } from "../seats/kept.ts";
-import type { Lane, Ledger } from "../store/ledger.ts";
+import type { Lane } from "../../domain/lane.ts";
+import type { Ledger } from "../../domain/ledger.ts";
 import type { FlowAsk, FlowLane, FlowQuestion, FlowSeat, FlowTask, FlowView } from "../../../shared/views.ts";
 import type { Project } from "../project.ts";
 
