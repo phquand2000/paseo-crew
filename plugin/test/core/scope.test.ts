@@ -3,11 +3,11 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit.ts";
-import { firstOverlap, serialHits, serialPaths } from "../../server/core/scope.ts";
+import { firstOverlap, serialHits, serialPaths, uncovered } from "../../server/core/scope.ts";
 
 const { serialOnly } = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", "..")).ecosystem;
 
-test("write sets overlap by path prefix and glob, and serial-only paths are caught", () => {
+test("write sets overlap by prefix and glob, serial-only paths are caught, and a list of paths covers only what it names", () => {
   assert.equal(firstOverlap(["src/pages/"], ["src/api/"]), undefined);
   assert.ok(firstOverlap(["src/"], ["src/api/users.ts"]));
   assert.ok(firstOverlap(["src/**/*.ts"], ["src/api/users.ts"]));
@@ -50,4 +50,22 @@ test("write sets overlap by path prefix and glob, and serial-only paths are caug
     "including a migration nobody has written yet",
   );
   assert.deepEqual(serialHits(["Assets/Scenes/Main.unity"], serial), ["Assets/Scenes/Main.unity"]);
+
+  assert.deepEqual(uncovered(["src/a.js", "src/b/c.js", "lib/x.js"], ["src/a.js", "src/b/"]), ["lib/x.js"]);
+  assert.deepEqual(
+    uncovered(["src/apparel/secret.ts"], ["src/app"]),
+    ["src/apparel/secret.ts"],
+    "src/app covers nothing of src/apparel",
+  );
+  // A write set as a Supervisor writes it: a glob from the front, and a choice of extensions.
+  assert.deepEqual(uncovered(["test/cart.test.js", "src/cart.ts", "src/cart.md"], ["**/test*/**", "**/*.{js,ts}"]), [
+    "src/cart.md",
+  ]);
+  // A task beside others holding both sides of a rename wrote nowhere else, so its Lead must not be told it did.
+  assert.deepEqual(uncovered(["src/price.ts", "src/pricing.ts"], ["src/pricing.ts", "src/price.ts"]), []);
+  assert.deepEqual(
+    uncovered(["src/giá-trị.ts"], ["src/**"]),
+    [],
+    "a path outside ASCII is inside the paths a task holds",
+  );
 });

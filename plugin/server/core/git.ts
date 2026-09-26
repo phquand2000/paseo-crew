@@ -152,7 +152,7 @@ export function kindOf(path: string, kinds: FileKinds): "src" | "test" | "docs" 
  * Reads `-z` output, so a rename yields both real paths, not the `src/{old.ts => new.ts}` form that matches no path a write set
  * or hold names. Lines of an `uncounted` path are left out of the counts; the path is still listed.
  */
-export function countNumstat(numstat: string, kinds: FileKinds, uncounted: (path: string) => boolean = () => false): Counts {
+function countNumstat(numstat: string, kinds: FileKinds, uncounted: (path: string) => boolean = () => false): Counts {
   const counts: Counts = { src: 0, test: 0, docs: 0, files: [] };
   const fields = numstat.split("\0");
   for (let index = 0; index < fields.length; index++) {
