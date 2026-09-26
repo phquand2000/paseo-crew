@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="820" viewBox="0 0 960 820" role="img" aria-label="You settle the work with the Supervisor, which writes the concept and your standing orders. The Supervisor opens a lane; its Lead splits it into tasks, one Peer each on its own branch, with the gate at every hand-back; the Lead accepts, reworks or cuts, and accepted work goes through a merge queue. Asks go up to the Supervisor, which puts what only you can decide on your question queue. The Lead reports the lane ready, the Supervisor lands it, and the desk merges your base in, runs the gate and waits for your approval only on paths you asked to see. You read the report and push; the watch pages you for what cannot be undone.">
+<title>You settle the work with the Supervisor, which writes the concept and your standing orders. The Supervisor opens a lane; its Lead splits it into tasks, one Peer each on its own branch, with the gate at every hand-back; the Lead accepts, reworks or cuts, and accepted work goes through a merge queue. Asks go up to the Supervisor, which puts what only you can decide on your question queue. The Lead reports the lane ready, the Supervisor lands it, and the desk merges your base in, runs the gate and waits for your approval only on paths you asked to see. You read the report and push; the watch pages you for what cannot be undone.</title>
+<style>svg{--bg:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--soft:#e6eaef;--ink:#1f2328;--muted:#59636e;--faint:#818b98;--shadow:rgba(31,35,40,0.10);--slate-fill:#f6f8fa;--slate:#8c959f;--slate-ink:#1f2328;--violet-fill:#f7f1ff;--violet:#8250df;--violet-ink:#6639ba;--blue-fill:#eef6ff;--blue:#0969da;--blue-ink:#0550ae;--green-fill:#eefbf1;--green:#1a7f37;--green-ink:#116329;--teal-fill:#ebf9f7;--teal:#0f766e;--teal-ink:#0b5e57;--rose-fill:#fff0f7;--rose:#bf3989;--rose-ink:#99286e;--amber-fill:#fff8e1;--amber:#9a6700;--amber-ink:#7d4e00;--red-fill:#fff1f0;--red:#cf222e;--red-ink:#a40e26;}@media (prefers-color-scheme: dark){svg{--bg:#0d1117;--panel:#151b23;--line:#30363d;--soft:#262c36;--ink:#e6edf3;--muted:#9198a1;--faint:#6e7681;--shadow:rgba(0,0,0,0);--slate-fill:#1c2128;--slate:#6e7681;--slate-ink:#e6edf3;--violet-fill:#231b35;--violet:#a371f7;--violet-ink:#d2a8ff;--blue-fill:#0f2238;--blue:#4493f8;--blue-ink:#79c0ff;--green-fill:#10261a;--green:#3fb950;--green-ink:#7ee787;--teal-fill:#0c2826;--teal:#2bb5a5;--teal-ink:#5eead4;--rose-fill:#2e1424;--rose:#db61a2;--rose-ink:#ff9bce;--amber-fill:#2b2108;--amber:#d29922;--amber-ink:#e3b341;--red-fill:#2d1417;--red:#f85149;--red-ink:#ff7b72;}}text{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;fill:var(--ink)}.mono{font-family:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;white-space:pre}.canvas{fill:var(--bg);stroke:var(--line)}.h1{font-size:21px;font-weight:650;letter-spacing:-0.01em}.lede{font-size:13.5px;fill:var(--muted)}.group{fill:var(--panel);stroke:var(--line)}.group-label{font-size:11px;font-weight:650;letter-spacing:0.08em;fill:var(--muted)}.node{stroke-width:1.4;filter:drop-shadow(0 1px 2px var(--shadow))}.title{font-size:14px;font-weight:620}.sub{font-size:12px;fill:var(--muted)}.note{font-size:12px;fill:var(--muted)}.strong{fill:var(--ink);font-weight:620}.edge{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:5 4}.pill-text{font-size:11.5px;font-weight:620}.chip{stroke-width:1}.chip-text{font-size:11px;font-weight:560}.badge-text{font-size:11px;font-weight:700;fill:var(--bg)}.rule{stroke:var(--line);stroke-width:1}</style>
+<defs><marker id="a-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--slate)"/></marker><marker id="a-violet" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--violet)"/></marker><marker id="a-blue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--blue)"/></marker><marker id="a-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--green)"/></marker><marker id="a-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--teal)"/></marker><marker id="a-rose" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--rose)"/></marker><marker id="a-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--amber)"/></marker><marker id="a-red" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--red)"/></marker></defs>
+<rect class="canvas" x="0.5" y="0.5" width="959" height="819" rx="18"/>
+<text class="h1" x="32" y="46">How a piece of work goes</text>
+<text class="lede" x="32" y="70">Every step is a seat's own call. The desk records it, carries the letter, and brings you in where it must.</text>
+<rect class="group" x="24" y="96" width="220" height="700" rx="14" style="fill:var(--slate-fill);fill-opacity:0.55;stroke:var(--slate);stroke-opacity:0.18"/>
+<text class="group-label" x="40" y="120" style="fill:var(--slate-ink)">YOU</text>
+<rect class="group" x="252" y="96" width="220" height="700" rx="14" style="fill:var(--violet-fill);fill-opacity:0.55;stroke:var(--violet);stroke-opacity:0.18"/>
+<text class="group-label" x="268" y="120" style="fill:var(--violet-ink)">SUPERVISOR</text>
+<rect class="group" x="480" y="96" width="220" height="700" rx="14" style="fill:var(--blue-fill);fill-opacity:0.55;stroke:var(--blue);stroke-opacity:0.18"/>
+<text class="group-label" x="496" y="120" style="fill:var(--blue-ink)">LEAD · PEER · REVIEWER</text>
+<rect class="group" x="708" y="96" width="228" height="700" rx="14" style="fill:var(--teal-fill);fill-opacity:0.55;stroke:var(--teal);stroke-opacity:0.18"/>
+<text class="group-label" x="724" y="120" style="fill:var(--teal-ink)">DESK</text>
+<rect class="node" x="270" y="140" width="184" height="58" rx="10" style="fill:var(--violet-fill);stroke-opacity:0.55;stroke:var(--violet)"/>
+<text class="title" x="362.0" y="156.0" text-anchor="middle" style="fill:var(--violet-ink)">grilling</text>
+<text class="sub" x="362.0" y="175.0" text-anchor="middle">questions in rounds,</text>
+<text class="sub" x="362.0" y="192.0" text-anchor="middle">then the read-back</text>
+<circle cx="270" cy="140" r="11" style="fill:var(--violet)"/>
+<text class="badge-text" x="270" y="144" text-anchor="middle">1</text>
+<rect class="node" x="42" y="140" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="117.0" y="156.0" text-anchor="middle" style="fill:var(--slate-ink)">you settle it</text>
+<text class="sub" x="117.0" y="175.0" text-anchor="middle">the concept and</text>
+<text class="sub" x="117.0" y="192.0" text-anchor="middle">standing orders</text>
+<rect class="node" x="730" y="140" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="156.0" text-anchor="middle" style="fill:var(--teal-ink)">CONTEXT.md · orders</text>
+<text class="sub" x="822.0" y="175.0" text-anchor="middle">kept outside</text>
+<text class="sub" x="822.0" y="192.0" text-anchor="middle">your repo</text>
+<rect class="node" x="270" y="224" width="184" height="58" rx="10" style="fill:var(--violet-fill);stroke-opacity:0.55;stroke:var(--violet)"/>
+<text class="title" x="362.0" y="240.0" text-anchor="middle" style="fill:var(--violet-ink)">open_lane</text>
+<text class="sub" x="362.0" y="259.0" text-anchor="middle">outcome, acceptance,</text>
+<text class="sub" x="362.0" y="276.0" text-anchor="middle">out of scope</text>
+<circle cx="270" cy="224" r="11" style="fill:var(--violet)"/>
+<text class="badge-text" x="270" y="228" text-anchor="middle">2</text>
+<rect x="506" y="232" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke:var(--blue);stroke-opacity:0.35"/>
+<rect x="502" y="228" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke:var(--blue);stroke-opacity:0.35"/>
+<rect class="node" x="498" y="224" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke-opacity:0.55;stroke:var(--blue)"/>
+<text class="title" x="590.0" y="240.0" text-anchor="middle" style="fill:var(--blue-ink)">Leads</text>
+<text class="sub" x="590.0" y="259.0" text-anchor="middle">one per lane; lanes</text>
+<text class="sub" x="590.0" y="276.0" text-anchor="middle">run side by side</text>
+<rect x="738" y="232" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke:var(--teal);stroke-opacity:0.35"/>
+<rect x="734" y="228" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke:var(--teal);stroke-opacity:0.35"/>
+<rect class="node" x="730" y="224" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="240.0" text-anchor="middle" style="fill:var(--teal-ink)">working copies</text>
+<text class="sub" x="822.0" y="259.0" text-anchor="middle">your checkout, or a</text>
+<text class="sub" x="822.0" y="276.0" text-anchor="middle">worktree per lane</text>
+<rect x="506" y="316" width="184" height="58" rx="10" style="fill:var(--green-fill);stroke:var(--green);stroke-opacity:0.35"/>
+<rect x="502" y="312" width="184" height="58" rx="10" style="fill:var(--green-fill);stroke:var(--green);stroke-opacity:0.35"/>
+<rect class="node" x="498" y="308" width="184" height="58" rx="10" style="fill:var(--green-fill);stroke-opacity:0.55;stroke:var(--green)"/>
+<text class="title" x="590.0" y="324.0" text-anchor="middle" style="fill:var(--green-ink)">Peers</text>
+<text class="sub" x="590.0" y="343.0" text-anchor="middle">one per task, many</text>
+<text class="sub" x="590.0" y="360.0" text-anchor="middle">at once, own branches</text>
+<circle cx="498" cy="308" r="11" style="fill:var(--green)"/>
+<text class="badge-text" x="498" y="312" text-anchor="middle">3</text>
+<rect class="node" x="730" y="308" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="324.0" text-anchor="middle" style="fill:var(--teal-ink)">the gate</text>
+<text class="sub" x="822.0" y="343.0" text-anchor="middle">your tests, at</text>
+<text class="sub" x="822.0" y="360.0" text-anchor="middle">every hand-back</text>
+<rect class="node" x="498" y="392" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke-opacity:0.55;stroke:var(--blue)"/>
+<text class="title" x="590.0" y="408.0" text-anchor="middle" style="fill:var(--blue-ink)">each Lead decides</text>
+<text class="sub" x="590.0" y="427.0" text-anchor="middle">accept, rework or cut;</text>
+<text class="sub" x="590.0" y="444.0" text-anchor="middle">Reviewers read it</text>
+<circle cx="498" cy="392" r="11" style="fill:var(--blue)"/>
+<text class="badge-text" x="498" y="396" text-anchor="middle">4</text>
+<rect class="node" x="270" y="392" width="184" height="58" rx="10" style="fill:var(--violet-fill);stroke-opacity:0.55;stroke:var(--violet)"/>
+<text class="title" x="362.0" y="408.0" text-anchor="middle" style="fill:var(--violet-ink)">answers asks</text>
+<text class="sub" x="362.0" y="427.0" text-anchor="middle">or puts it on</text>
+<text class="sub" x="362.0" y="444.0" text-anchor="middle">your queue</text>
+<rect class="node" x="42" y="392" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="117.0" y="408.0" text-anchor="middle" style="fill:var(--slate-ink)">a question</text>
+<text class="sub" x="117.0" y="427.0" text-anchor="middle">answer it on Flow,</text>
+<text class="sub" x="117.0" y="444.0" text-anchor="middle">or in chat</text>
+<rect x="738" y="400" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke:var(--teal);stroke-opacity:0.35"/>
+<rect x="734" y="396" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke:var(--teal);stroke-opacity:0.35"/>
+<rect class="node" x="730" y="392" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="408.0" text-anchor="middle" style="fill:var(--teal-ink)">merge queues</text>
+<text class="sub" x="822.0" y="427.0" text-anchor="middle">one per lane, a task</text>
+<text class="sub" x="822.0" y="444.0" text-anchor="middle">at a time, tested again</text>
+<rect class="node" x="498" y="476" width="184" height="58" rx="10" style="fill:var(--blue-fill);stroke-opacity:0.55;stroke:var(--blue)"/>
+<text class="title" x="590.0" y="492.0" text-anchor="middle" style="fill:var(--blue-ink)">report ready</text>
+<text class="sub" x="590.0" y="511.0" text-anchor="middle">a Lead says its</text>
+<text class="sub" x="590.0" y="528.0" text-anchor="middle">lane is done</text>
+<circle cx="498" cy="476" r="11" style="fill:var(--blue)"/>
+<text class="badge-text" x="498" y="480" text-anchor="middle">5</text>
+<rect class="node" x="730" y="476" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="492.0" text-anchor="middle" style="fill:var(--teal-ink)">lane gate</text>
+<text class="sub" x="822.0" y="511.0" text-anchor="middle">your tests and the</text>
+<text class="sub" x="822.0" y="528.0" text-anchor="middle">risk rules' checks</text>
+<rect class="node" x="270" y="560" width="184" height="58" rx="10" style="fill:var(--violet-fill);stroke-opacity:0.55;stroke:var(--violet)"/>
+<text class="title" x="362.0" y="576.0" text-anchor="middle" style="fill:var(--violet-ink)">land_lane</text>
+<text class="sub" x="362.0" y="595.0" text-anchor="middle">waits for merges,</text>
+<text class="sub" x="362.0" y="612.0" text-anchor="middle">then lands the lane</text>
+<circle cx="270" cy="560" r="11" style="fill:var(--violet)"/>
+<text class="badge-text" x="270" y="564" text-anchor="middle">6</text>
+<rect class="node" x="730" y="560" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="576.0" text-anchor="middle" style="fill:var(--teal-ink)">landing</text>
+<text class="sub" x="822.0" y="595.0" text-anchor="middle">merge your base, gate,</text>
+<text class="sub" x="822.0" y="612.0" text-anchor="middle">then onto your base</text>
+<rect class="node" x="42" y="560" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="117.0" y="576.0" text-anchor="middle" style="fill:var(--slate-ink)">approve</text>
+<text class="sub" x="117.0" y="595.0" text-anchor="middle">only a landing on</text>
+<text class="sub" x="117.0" y="612.0" text-anchor="middle">paths you asked for</text>
+<rect class="node" x="42" y="644" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="117.0" y="660.0" text-anchor="middle" style="fill:var(--slate-ink)">read, then push</text>
+<text class="sub" x="117.0" y="679.0" text-anchor="middle">the Report tab;</text>
+<text class="sub" x="117.0" y="696.0" text-anchor="middle">no seat can push</text>
+<circle cx="42" cy="644" r="11" style="fill:var(--slate)"/>
+<text class="badge-text" x="42" y="648" text-anchor="middle">7</text>
+<rect class="node" x="730" y="644" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="660.0" text-anchor="middle" style="fill:var(--teal-ink)">the report</text>
+<text class="sub" x="822.0" y="679.0" text-anchor="middle">from the record,</text>
+<text class="sub" x="822.0" y="696.0" text-anchor="middle">by no agent</text>
+<rect class="node" x="42" y="728" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="117.0" y="744.0" text-anchor="middle" style="fill:var(--slate-ink)">a page</text>
+<text class="sub" x="117.0" y="763.0" text-anchor="middle">on your phone, for</text>
+<text class="sub" x="117.0" y="780.0" text-anchor="middle">what can't be undone</text>
+<rect class="node" x="730" y="728" width="184" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="822.0" y="744.0" text-anchor="middle" style="fill:var(--teal-ink)">the watch</text>
+<text class="sub" x="822.0" y="763.0" text-anchor="middle">reads every turn;</text>
+<text class="sub" x="822.0" y="780.0" text-anchor="middle">tells who answers</text>
+<path class="edge" d="M192,175 L270,175" style="stroke-opacity:0.75;stroke:var(--violet)" marker-start="url(#a-violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M454,169 L730,169" style="stroke-opacity:0.75;stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M454,253 L498,253" style="stroke-opacity:0.75;stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M690,253 L730,253" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M590,290 L590,308" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M690,337 L730,337" style="stroke-opacity:0.75;stroke:var(--green)" marker-end="url(#a-green)"/>
+<path class="edge" d="M590,374 L590,392" style="stroke-opacity:0.75;stroke:var(--green)" marker-end="url(#a-green)"/>
+<path class="edge" d="M498,421 L454,421" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M270,421 L192,421" style="stroke-opacity:0.75;stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge" d="M682,421 L730,421" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M590,450 L590,476" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M682,505 L730,505" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M498,505 L370.0,505.0 Q362,505 362.0,513.0 L362,560" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M454,589 L730,589" style="stroke-opacity:0.75;stroke:var(--violet)" marker-end="url(#a-violet)"/>
+<path class="edge dash" d="M822,618 L822.0,626.0 Q822,634 814.0,634.0 L125.0,634.0 Q117,634 117.0,626.0 L117,618" style="stroke-opacity:0.75;stroke:var(--teal)" marker-end="url(#a-teal)"/>
+<path class="edge" d="M730,673 L192,673" style="stroke-opacity:0.75;stroke:var(--teal)" marker-end="url(#a-teal)"/>
+<path class="edge" d="M730,757 L192,757" style="stroke-opacity:0.75;stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<rect x="198.6" y="165" width="64.9" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="231" y="179" text-anchor="middle" style="fill:var(--violet-ink)">questions</text>
+<rect x="566.9" y="159" width="46.3" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="590" y="173" text-anchor="middle" style="fill:var(--violet-ink)">writes</text>
+<rect x="455.1" y="243" width="41.7" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="476" y="257" text-anchor="middle" style="fill:var(--violet-ink)">seats</text>
+<rect x="683.6" y="243" width="52.8" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="710" y="257" text-anchor="middle" style="fill:var(--blue-ink)">work in</text>
+<rect x="691.0" y="327" width="38.1" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="710" y="341" text-anchor="middle" style="fill:var(--green-ink)">done</text>
+<rect x="460.2" y="411" width="31.6" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="476" y="425" text-anchor="middle" style="fill:var(--blue-ink)">ask</text>
+<rect x="193.7" y="411" width="74.5" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="231" y="425" text-anchor="middle" style="fill:var(--violet-ink)">ask_human</text>
+<rect x="681.9" y="411" width="48.2" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="706" y="425" text-anchor="middle" style="fill:var(--blue-ink)">accept</text>
+<rect x="688.4" y="495" width="35.2" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="706" y="509" text-anchor="middle" style="fill:var(--blue-ink)">runs</text>
+<rect x="399.4" y="495" width="61.3" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="430" y="509" text-anchor="middle" style="fill:var(--blue-ink)">REPORT</text>
+<rect x="572.4" y="579" width="35.2" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="590" y="593" text-anchor="middle" style="fill:var(--violet-ink)">land</text>
+<rect x="424.5" y="624" width="106.9" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="478" y="638" text-anchor="middle" style="fill:var(--teal-ink)">waits for your OK</text>
+<rect x="444.3" y="663" width="67.3" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="478" y="677" text-anchor="middle" style="fill:var(--teal-ink)">Report tab</text>
+<rect x="459.0" y="747" width="38.1" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="478" y="761" text-anchor="middle" style="fill:var(--rose-ink)">page</text>
+</svg>

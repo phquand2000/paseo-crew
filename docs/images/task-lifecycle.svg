@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500" role="img" aria-label="A task waits until it can start, then its Peer works on it and hands it back with done. The Lead accepts it or sends it back with rework; an accepted task is queued, and the desk merges it into the lane, one at a time. Two silent turns stall a task until its Peer calls again; a merge that fails goes back to the Lead; the Lead can cut a task at any step before its merge.">
+<title>A task waits until it can start, then its Peer works on it and hands it back with done. The Lead accepts it or sends it back with rework; an accepted task is queued, and the desk merges it into the lane, one at a time. Two silent turns stall a task until its Peer calls again; a merge that fails goes back to the Lead; the Lead can cut a task at any step before its merge.</title>
+<style>svg{--bg:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--soft:#e6eaef;--ink:#1f2328;--muted:#59636e;--faint:#818b98;--shadow:rgba(31,35,40,0.10);--slate-fill:#f6f8fa;--slate:#8c959f;--slate-ink:#1f2328;--violet-fill:#f7f1ff;--violet:#8250df;--violet-ink:#6639ba;--blue-fill:#eef6ff;--blue:#0969da;--blue-ink:#0550ae;--green-fill:#eefbf1;--green:#1a7f37;--green-ink:#116329;--teal-fill:#ebf9f7;--teal:#0f766e;--teal-ink:#0b5e57;--rose-fill:#fff0f7;--rose:#bf3989;--rose-ink:#99286e;--amber-fill:#fff8e1;--amber:#9a6700;--amber-ink:#7d4e00;--red-fill:#fff1f0;--red:#cf222e;--red-ink:#a40e26;}@media (prefers-color-scheme: dark){svg{--bg:#0d1117;--panel:#151b23;--line:#30363d;--soft:#262c36;--ink:#e6edf3;--muted:#9198a1;--faint:#6e7681;--shadow:rgba(0,0,0,0);--slate-fill:#1c2128;--slate:#6e7681;--slate-ink:#e6edf3;--violet-fill:#231b35;--violet:#a371f7;--violet-ink:#d2a8ff;--blue-fill:#0f2238;--blue:#4493f8;--blue-ink:#79c0ff;--green-fill:#10261a;--green:#3fb950;--green-ink:#7ee787;--teal-fill:#0c2826;--teal:#2bb5a5;--teal-ink:#5eead4;--rose-fill:#2e1424;--rose:#db61a2;--rose-ink:#ff9bce;--amber-fill:#2b2108;--amber:#d29922;--amber-ink:#e3b341;--red-fill:#2d1417;--red:#f85149;--red-ink:#ff7b72;}}text{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;fill:var(--ink)}.mono{font-family:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;white-space:pre}.canvas{fill:var(--bg);stroke:var(--line)}.h1{font-size:21px;font-weight:650;letter-spacing:-0.01em}.lede{font-size:13.5px;fill:var(--muted)}.group{fill:var(--panel);stroke:var(--line)}.group-label{font-size:11px;font-weight:650;letter-spacing:0.08em;fill:var(--muted)}.node{stroke-width:1.4;filter:drop-shadow(0 1px 2px var(--shadow))}.title{font-size:14px;font-weight:620}.sub{font-size:12px;fill:var(--muted)}.note{font-size:12px;fill:var(--muted)}.strong{fill:var(--ink);font-weight:620}.edge{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:5 4}.pill-text{font-size:11.5px;font-weight:620}.chip{stroke-width:1}.chip-text{font-size:11px;font-weight:560}.badge-text{font-size:11px;font-weight:700;fill:var(--bg)}.rule{stroke:var(--line);stroke-width:1}</style>
+<defs><marker id="a-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--slate)"/></marker><marker id="a-violet" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--violet)"/></marker><marker id="a-blue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--blue)"/></marker><marker id="a-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--green)"/></marker><marker id="a-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--teal)"/></marker><marker id="a-rose" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--rose)"/></marker><marker id="a-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--amber)"/></marker><marker id="a-red" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9 z" style="fill:var(--red)"/></marker></defs>
+<rect class="canvas" x="0.5" y="0.5" width="959" height="499" rx="18"/>
+<text class="h1" x="32" y="46">A task, from brief to merge</text>
+<text class="lede" x="32" y="70">A lane's tasks can run side by side, each with a Peer of its own; the Lead decides; the desk merges.</text>
+<rect class="node" x="34" y="170" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="109.0" y="194.5" text-anchor="middle" style="fill:var(--slate-ink)">waiting</text>
+<text class="sub" x="109.0" y="213.5" text-anchor="middle">until it can start</text>
+<rect class="node" x="218" y="170" width="150" height="58" rx="10" style="fill:var(--green-fill);stroke-opacity:0.55;stroke:var(--green)"/>
+<text class="title" x="293.0" y="194.5" text-anchor="middle" style="fill:var(--green-ink)">running</text>
+<text class="sub" x="293.0" y="213.5" text-anchor="middle">its Peer works</text>
+<rect class="node" x="402" y="170" width="150" height="58" rx="10" style="fill:var(--green-fill);stroke-opacity:0.55;stroke:var(--green)"/>
+<text class="title" x="477.0" y="194.5" text-anchor="middle" style="fill:var(--green-ink)">done</text>
+<text class="sub" x="477.0" y="213.5" text-anchor="middle">handed back</text>
+<rect class="node" x="586" y="170" width="150" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="661.0" y="194.5" text-anchor="middle" style="fill:var(--teal-ink)">queued</text>
+<text class="sub" x="661.0" y="213.5" text-anchor="middle">merged one at a time</text>
+<rect class="node" x="770" y="170" width="150" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
+<text class="title" x="845.0" y="194.5" text-anchor="middle" style="fill:var(--teal-ink)">merged</text>
+<text class="sub" x="845.0" y="213.5" text-anchor="middle">in the lane branch</text>
+<rect class="node" x="218" y="300" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="293.0" y="324.5" text-anchor="middle" style="fill:var(--slate-ink)">stalled</text>
+<text class="sub" x="293.0" y="343.5" text-anchor="middle">two silent turns</text>
+<rect class="node" x="770" y="380" width="150" height="58" rx="10" style="fill:var(--slate-fill);stroke-opacity:0.55;stroke:var(--slate)"/>
+<text class="title" x="845.0" y="404.5" text-anchor="middle" style="fill:var(--slate-ink)">cut</text>
+<text class="sub" x="845.0" y="423.5" text-anchor="middle">by its Lead</text>
+<path class="edge" d="M184,199.0 L218,199.0" style="stroke-opacity:0.75;stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M368,199.0 L402,199.0" style="stroke-opacity:0.75;stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M552,199.0 L586,199.0" style="stroke-opacity:0.75;stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M736,199.0 L770,199.0" style="stroke-opacity:0.75;stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M477,170 L477.0,134.0 Q477,126 469.0,126.0 L301.0,126.0 Q293,126 293.0,134.0 L293,170" style="stroke-opacity:0.75;stroke:var(--blue)" marker-end="url(#a-blue)"/>
+<path class="edge" d="M661,228 L661.0,254.0 Q661,262 653.0,262.0 L508.0,262.0 Q500,262 500.0,254.0 L500,228" style="stroke-opacity:0.75;stroke:var(--rose)" marker-end="url(#a-rose)"/>
+<path class="edge" d="M270,228 L270,300" style="stroke-opacity:0.75;stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<path class="edge" d="M316,300 L316,228" style="stroke-opacity:0.75;stroke:var(--green)" marker-end="url(#a-green)"/>
+<path class="edge dash" d="M109,228 L109.0,401.0 Q109,409 117.0,409.0 L770,409" style="stroke-opacity:0.75;stroke:var(--slate)" marker-end="url(#a-slate)"/>
+<rect x="183.0" y="189.0" width="35.9" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="201.0" y="203.0" text-anchor="middle" style="fill:var(--slate-ink)">start</text>
+<rect x="366.0" y="189.0" width="38.1" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="385.0" y="203.0" text-anchor="middle" style="fill:var(--slate-ink)">done</text>
+<rect x="544.9" y="189.0" width="48.2" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="569.0" y="203.0" text-anchor="middle" style="fill:var(--slate-ink)">accept</text>
+<rect x="730.2" y="189.0" width="45.6" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="753.0" y="203.0" text-anchor="middle" style="fill:var(--slate-ink)">merge</text>
+<rect x="360.4" y="116" width="49.2" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="385" y="130" text-anchor="middle" style="fill:var(--blue-ink)">rework</text>
+<rect x="547.1" y="252" width="65.9" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="580" y="266" text-anchor="middle" style="fill:var(--rose-ink)">merge red</text>
+<rect x="252.0" y="252" width="35.9" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="270" y="266" text-anchor="middle" style="fill:var(--slate-ink)">stall</text>
+<rect x="309.0" y="270" width="52.1" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="335" y="284" text-anchor="middle" style="fill:var(--green-ink)">resume</text>
+<rect x="471.6" y="399" width="176.7" height="20" rx="6" style="fill:var(--bg)"/>
+<text class="pill-text" x="560" y="413" text-anchor="middle" style="fill:var(--slate-ink)">cut: any step before the merge</text>
+</svg>

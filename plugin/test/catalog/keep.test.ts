@@ -156,7 +156,7 @@ const KEEP: Keep[] = [
 ];
 
 function broken(item: Keep, what: string): string {
-  return `${item.id} (${item.title}): ${what}. If the change is intended, edit the KEEP list in ../v3/CONCEPT.md and add a line to ../v3/DECISIONS.md (both from the repo root, not plugin/), then make this test match.`;
+  return `${item.id} (${item.title}): ${what}. If the change is intended, make this test match in the same commit, and say in its message why the line could go.`;
 }
 
 for (const item of KEEP) {
