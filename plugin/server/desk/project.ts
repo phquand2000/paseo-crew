@@ -40,7 +40,7 @@ export function gitRoot(cwd: string): string {
   return basename(common) === ".git" ? dirname(common) : common;
 }
 
-export function slugFor(root: string): string {
+function slugFor(root: string): string {
   const name =
     basename(root)
       .toLowerCase()
@@ -58,10 +58,6 @@ export function projectOf(cwd: string, base = stateRoot(), rootOf: (cwd: string)
   const project = { root, slug, state: join(base, "projects", slug) };
   cache.set(key, project);
   return project;
-}
-
-export function clearProjects(): void {
-  cache.clear();
 }
 
 /** A script a package file names, unless it is the placeholder its tool writes when there is none. */
