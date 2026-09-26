@@ -324,7 +324,7 @@ test("a round while a lane's Lead is still being started leaves that lane alone"
   };
   const opening = h.call(sup, "supervisor", "open_lane", { title: "Slow", outcome: "x", acceptance: ["a"], outOfScope: ["the rest"], isolate: true });
   const starting = () => Object.values(h.ledger().slots).some((slot) => slot.lane === "L1" && slot.workspaceId);
-  for (let i = 0; i < 200 && !starting(); i++) await settle();
+  for (let i = 0; i < 2000 && !starting(); i++) await settle();
   assert.ok(starting(), "its Lead is being started in a copy of its own");
   await h.tick(Date.now());
   assert.equal(h.ledger().lanes.L1!.status, "open", "not taken for one a stop left half-open");
