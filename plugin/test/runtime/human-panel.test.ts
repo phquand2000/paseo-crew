@@ -52,6 +52,7 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
     { label: "cancel", effect: "y" },
   ];
   assert.match((await ask({ options: cancel, recommend: "Delete" })).text, /none called decline or cancel/);
+  assert.match((await ask({ options: cancel.slice(0, 1), recommend: "Delete" })).text, /options takes at least 2/);
 
   assert.match(
     (await ask({ lane: "L1", class: "irreversible" })).text,
@@ -244,6 +245,9 @@ test("the Flow tab draws the machine as the ledger and Paseo have it, and an unc
   );
   assert.deepEqual(tasks["L1-T1"]!.peer?.waiting, ["Write outside the working copy"]);
   assert.equal(tasks["L1-T2"]!.peer?.status, "gone");
+  await h.call(lead, "lead", "start_review", { focus: "the cart as a whole" });
+  const review = (await drawn(h, ["L1"])).lanes[0]!.tasks.find((task) => task.kind === "review");
+  assert.deepEqual([review?.id, review?.mode, review?.after], ["L1-R1", "lane", []]);
 
   await h.call(lead, "lead", "ask", {
     kind: "question",

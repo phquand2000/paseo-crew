@@ -71,7 +71,7 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   assert.doesNotMatch(status.text, /No open lanes/);
 });
 
-test("the round keeps only what the desk still holds: an orphan copy goes, the project's workspace goes once quiet, and a project removed stays removed", async () => {
+test("the round keeps only what the desk still holds: an orphan copy goes, the project's workspace goes once quiet, a project removed stays removed, and none is detached while a seat works in it", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "a.txt changes", ...scope });
@@ -93,6 +93,9 @@ test("the round keeps only what the desk still holds: an orphan copy goes, the p
   assert.ok(existsSync(join(h.project.state, "status.md")));
 
   await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "done" });
+  assert.deepEqual(await h.rpc(contracts.projectsRemove, { project: h.project.slug }), {
+    error: `${h.project.slug} stays: 2 seats are still working in it (${sup}, ${lane.lead}): archive them first, since a working seat puts the project back on record.`,
+  });
   for (const seat of [lane.lead!, sup]) h.agents.get(seat)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());
   assert.equal(h.archivedWorkspaces.has(own), true);
