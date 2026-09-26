@@ -15,7 +15,6 @@ test/fixtures
 server/catalog/launch.ts
 server/catalog/providers.ts
 server/catalog/schema.ts
-server/catalog/team.ts
 server/core/git.ts
 server/desk/archive.ts
 server/desk/away.ts

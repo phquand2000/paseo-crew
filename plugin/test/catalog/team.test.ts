@@ -241,7 +241,7 @@ test("each seat is told and given what its servers, its role and the Human say, 
   );
 
   const machine: Layer = {
-    mcp: { docs: { enabled: true }, ide: { settings: { port: 1234 } } },
+    mcp: { docs: { enabled: true }, ide: { settings: { port: 1234 }, roles: ["lead", "peer"] } },
     rules: "Keep diffs small.",
     attention: { longTurnMinutes: 45, incidentsPerLane: 8 },
   };
@@ -256,7 +256,7 @@ test("each seat is told and given what its servers, its role and the Human say, 
   assert.deepEqual(
     [team.roles.lead!.mcp, team.roles.peer!.mcp],
     [["docs"], ["ide", "docs"]],
-    "a project narrows a server to the roles it names",
+    "a project narrows a server to the roles it names, over those the machine names",
   );
   assert.equal(team.rules, "Keep diffs small.\n\nUse pnpm.");
   assert.deepEqual(

@@ -1,6 +1,7 @@
 import type { Kit } from "../catalog/kit.ts";
 import { providerId } from "../catalog/roles.ts";
-import { type Team, rulesFor, skillDirsFor, transportOf } from "../catalog/team.ts";
+import { type Team, rulesFor, skillDirsFor } from "../catalog/team.ts";
+import { transportOf } from "../catalog/mcp-states.ts";
 import type { Project } from "../desk/project.ts";
 import type { TeamView } from "../../shared/views.ts";
 
