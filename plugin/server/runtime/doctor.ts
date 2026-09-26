@@ -10,7 +10,7 @@ import type { Check } from "../../shared/views.ts";
 
 export type { Check };
 
-export type Probes = {
+type Probes = {
   has(bin: string): boolean;
   exists(path: string): boolean;
   tools(url: string, timeoutMs: number): Promise<{ names?: string[]; error?: string }>;
@@ -31,12 +31,12 @@ export const realProbes: Probes = {
   reaches,
 };
 
-export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes): Promise<Check[]> {
+export async function doctor(kit: Kit, team: Team): Promise<Check[]> {
   const checks: Check[] = [];
   checks.push({ id: "settings", ok: team.errors.length === 0, detail: team.errors.length === 0 ? "The settings resolve to a complete team." : team.errors.join("\n") });
   for (const bin of ["git", "jq"]) {
     // Asked once: `has` spawns a shell and blocks the loop the seats' tool calls are served on.
-    const ok = probes.has(bin);
+    const ok = realProbes.has(bin);
     checks.push({ id: `bin:${bin}`, ok, detail: ok ? `${bin} is on PATH.` : `${bin} is not on PATH; seats need it.` });
   }
   const harnesses = new Map<string, string[]>();
@@ -45,12 +45,12 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
     const harness = kit.harnesses[id]!;
     const bin = harness.provider.env?.SEATWORKS_AGENT_BIN;
     if (bin) {
-      const ok = probes.has(bin);
+      const ok = realProbes.has(bin);
       checks.push({ id: `harness:${id}`, ok, detail: ok ? `${harness.label} (${bin}) is installed for ${roles.join(", ")}.` : `${harness.label} needs \`${bin}\` on PATH for ${roles.join(", ")}.` });
     }
     for (const check of harness.checks ?? []) {
       const path = expandHome(check.path);
-      const ok = probes.exists(path);
+      const ok = realProbes.exists(path);
       checks.push({ id: `harness:${id}:${check.path}`, ok, detail: ok ? `${harness.label} has ${path}.` : `${harness.label} needs ${path} for ${roles.join(", ")}. ${check.help}` });
     }
   }
@@ -65,14 +65,14 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
       const help = entry?.help ? ` ${entry.help}` : "";
       if (proxy?.backend.type === "stdio") {
         const bin = proxy.backend.command[0] ?? "";
-        const ok = Boolean(bin) && probes.has(bin);
+        const ok = Boolean(bin) && realProbes.has(bin);
         checks.push({ id: `mcp:${state.id}`, ok, detail: ok ? `${state.label} starts through ${bin}.` : `${state.label} needs \`${bin}\` on PATH.${help}` });
         // Proxy entries never use `connect`: `serversFor` builds a proxy from its own backend.
         continue;
       }
       if (proxy?.backend.type === "http") {
         const { url } = proxy.backend;
-        const listed = await probes.tools(url, 3000);
+        const listed = await realProbes.tools(url, 3000);
         if (!listed.names) {
           checks.push({ id: `mcp:${state.id}`, ok: false, detail: `No ${state.label} server answered at ${url}.${help}` });
           continue;
@@ -89,13 +89,13 @@ export async function doctor(kit: Kit, team: Team, probes: Probes = realProbes):
       }
       const direct = (shaped ?? (entry?.server ? { ...entry.server } : undefined)) as { type?: string; command?: string; url?: string } | undefined;
       if (direct?.type === "stdio" && direct.command) {
-        const ok = probes.has(direct.command);
+        const ok = realProbes.has(direct.command);
         checks.push({ id: `mcp:${state.id}`, ok, detail: ok ? `${state.label} starts through ${direct.command}.` : `${state.label} needs \`${direct.command}\` on PATH.${help}` });
       } else if (direct?.type === "sse" && direct.url) {
         // This probe does not speak SSE; run against it, a working server read as never answering.
         checks.push({ id: `mcp:${state.id}`, ok: true, detail: `${state.label} is an SSE server at ${direct.url}; the desk does not probe that transport, so this is not a check.${help}` });
       } else if (direct?.url) {
-        const answered = await probes.reaches(direct.url, 8000);
+        const answered = await realProbes.reaches(direct.url, 8000);
         checks.push({ id: `mcp:${state.id}`, ok: answered.ok, detail: answered.ok ? `${state.label} answered.` : `${state.label} did not answer: ${answered.error ?? "no MCP result"}.` });
       }
     } catch (error) {

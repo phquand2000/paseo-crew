@@ -47,7 +47,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/own-branch.test.ts",
   "test/runtime/panel.test.ts",
   "test/runtime/restart.test.ts",
-  "test/runtime/rpc.test.ts",
   "test/runtime/status.test.ts",
   "test/runtime/steer.test.ts",
 ];

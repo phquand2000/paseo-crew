@@ -1,122 +1,94 @@
 // First, so this file has a HOME of its own even run alone: what it writes under HOME would otherwise land in the owner's.
 import "../setup.ts";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
+import type { AddressInfo } from "node:net";
+import { delimiter, join } from "node:path";
 import { test } from "node:test";
-import { type Probes, doctor } from "../../server/runtime/doctor.ts";
-import { resolveTeam } from "../../server/catalog/team.ts";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { TeamSource } from "../../server/runtime/team-source.ts";
-import { home, stateRoot } from "../../server/core/paths.ts";
-import { makeKit } from "../kit.ts";
+import type { z } from "zod";
+import { home } from "../../server/core/paths.ts";
+import { contracts } from "../../shared/rpc.ts";
+import { tempDir } from "../tempdir.ts";
+import { fakeIde } from "./code-fakes.ts";
+import { served, which } from "./served.ts";
 
-const kit = makeKit();
-
-function probes(
-  bins: string[],
-  tools: string[] | null,
-  docsUp = true,
-  paths: string[] = [join(home(), ".omp", "agent", "agent.db")],
-): Probes {
-  return {
-    has: (bin) => bins.includes(bin),
-    exists: (path) => paths.includes(path),
-    tools: async () => (tools ? { names: tools } : { error: "refused" }),
-    reaches: async () => (docsUp ? { ok: true } : { ok: false, error: "timeout" }),
-  };
+/** A port nothing listens on: one this machine gave out and took back. */
+async function closedPort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  await new Promise((resolve) => server.close(resolve));
+  return port;
 }
 
-test("doctor names what a machine is missing for the chosen team", async () => {
-  const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
-  const checks = await doctor(kit, team, probes(["git", "claude"], ["ide_find_references", "ide_open_project"], false));
-  const byId = Object.fromEntries(checks.map((check) => [check.id, check]));
-  assert.equal(byId.settings!.ok, true);
-  assert.equal(byId["bin:jq"]!.ok, false);
-  assert.equal(byId["harness:claude"]!.ok, true);
-  assert.equal(byId["harness:omp"]!.ok, false);
-  assert.equal(byId["mcp:ide"]!.ok, false);
-  assert.match(byId["mcp:ide"]!.detail, /ide_refactor_rename/);
-  assert.equal(byId["mcp:docs"]!.ok, false);
-});
+test("the doctor over the panel names what this machine lacks for the team, a server at a time", async (t) => {
+  const { call } = served();
+  const bins = tempDir("sw2-bin-");
+  const gitHome = execFileSync("git", ["--exec-path"], { encoding: "utf-8" }).trim();
+  const path = process.env.PATH;
+  process.env.PATH = [bins, gitHome].join(delimiter);
+  t.after(() => void (process.env.PATH = path));
+  const install = (...names: string[]) => {
+    for (const name of names) {
+      writeFileSync(join(bins, name), "#!/bin/sh\nexit 0\n");
+      chmodSync(join(bins, name), 0o755);
+    }
+  };
+  const login = join(home(), ".omp", "agent", "agent.db");
+  const loggedIn = (yes: boolean) => {
+    if (!yes) return rmSync(login, { force: true });
+    mkdirSync(join(home(), ".omp", "agent"), { recursive: true });
+    writeFileSync(login, "");
+  };
+  const setUp = async (values: z.input<typeof contracts.settingsWrite.input>["values"]) => {
+    const read = which(await call(contracts.settingsRead, {}), "values");
+    assert.equal((await call(contracts.settingsWrite, { revision: read.revision, values })).status, "saved");
+  };
+  const checked = async () => Object.fromEntries((await call(contracts.doctor, {})).map((check) => [check.id, check]));
+  const partial = await fakeIde(t, { tools: ["ide_find_references", "ide_open_project"] });
+  const full = await fakeIde(t, { tools: ["ide_find_references", "ide_refactor_rename", "ide_open_project"] });
+  const nowhere = await closedPort();
+  const at = (port: number) => ({ type: "http" as const, url: `http://127.0.0.1:${port}/mcp` });
 
-test("doctor passes a machine that has everything, and skips servers nobody uses", async () => {
-  const team = resolveTeam(kit);
-  const checks = await doctor(
-    kit,
-    team,
-    probes(["git", "jq", "claude", "omp"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]),
-  );
+  install("claude");
+  loggedIn(true);
+  await setUp({ mcp: { ide: { settings: { port: partial.port } }, docs: { enabled: true, connect: at(nowhere) } } });
+  const short = await checked();
+  assert.equal(short.settings!.ok, true);
+  assert.equal(short["bin:jq"]!.ok, false, "a tool seats need that is not on PATH");
+  assert.deepEqual([short["harness:claude"]!.ok, short["harness:omp"]!.ok], [true, false], "an agent a role runs on");
+  assert.equal(short["mcp:ide"]!.ok, false);
+  assert.match(short["mcp:ide"]!.detail, /ide_refactor_rename/, "the IDE tool a role uses and the IDE does not offer");
+  assert.equal(short["mcp:docs"]!.ok, false, "a server that does not answer");
+
+  install("jq", "omp");
+  await setUp({ mcp: { ide: { settings: { port: full.port } } } });
+  const whole = await call(contracts.doctor, {});
   assert.ok(
-    checks.every((check) => check.ok),
-    JSON.stringify(checks),
+    whole.every((check) => check.ok),
+    JSON.stringify(whole),
   );
   assert.equal(
-    checks.some((check) => check.id === "mcp:docs"),
+    whole.some((check) => check.id === "mcp:docs"),
     false,
+    "a server nobody uses is skipped",
   );
-  const down = await doctor(kit, team, probes(["git", "jq", "claude", "omp"], null));
-  assert.match(down.find((check) => check.id === "mcp:ide")!.detail, /No IDE server answered/);
-});
+  await setUp({ mcp: { ide: { settings: { port: nowhere } } } });
+  assert.match((await checked())["mcp:ide"]!.detail, /No IDE server answered/);
 
-test("what a harness says its seats need on this machine is checked, and how to get it is said", async () => {
-  const team = resolveTeam(kit);
-  const missing = await doctor(
-    kit,
-    team,
-    probes(
-      ["git", "jq", "claude", "omp"],
-      ["ide_find_references", "ide_refactor_rename", "ide_open_project"],
-      true,
-      [],
-    ),
-  );
-  const check = missing.find((entry) => entry.id === "harness:omp:HOME/.omp/agent/agent.db")!;
-  assert.equal(check.ok, false);
-  assert.match(check.detail, /agent\.db for Peer, Scribe\. Log in with omp once/);
-  const present = await doctor(
-    kit,
-    team,
-    probes(["git", "jq", "claude", "omp"], ["ide_find_references", "ide_refactor_rename", "ide_open_project"]),
-  );
-  assert.equal(present.find((entry) => entry.id === "harness:omp:HOME/.omp/agent/agent.db")!.ok, true);
-});
+  loggedIn(false);
+  const unlogged = (await checked())["harness:omp:HOME/.omp/agent/agent.db"]!;
+  assert.equal(unlogged.ok, false, "what a harness says its seats need on this machine is checked");
+  assert.match(unlogged.detail, /agent\.db for Peer, Scribe\. Log in with omp once/, "and how to get it is said");
+  loggedIn(true);
+  assert.equal((await checked())["harness:omp:HOME/.omp/agent/agent.db"]!.ok, true);
 
-test("a server that cannot be read costs its own check, not the whole report", async () => {
-  const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
   // A null in an outside server's tools list once threw out of the report, taking every check with it.
-  const hostile: Probes = {
-    has: (bin) => ["git", "jq", "claude"].includes(bin),
-    exists: () => true,
-    tools: async () => {
-      throw new Error("the list it gave is not a list of tools");
-    },
-    reaches: async () => ({ ok: true }),
-  };
-  const checks = await doctor(kit, team, hostile);
-  const byId = Object.fromEntries(checks.map((check) => [check.id, check]));
-  assert.equal(byId.settings!.ok, true, "the checks that have nothing to do with that server still arrive");
-  assert.equal(byId["mcp:ide"]!.ok, false);
-  assert.match(byId["mcp:ide"]!.detail, /could not be checked: the list it gave is not a list of tools/);
-  assert.equal(byId["mcp:docs"]!.ok, true);
-});
-
-test("settings that could not be read are not a team the owner wrote, and the doctor says so", () => {
-  const state = stateRoot();
-  mkdirSync(state, { recursive: true });
-  // The commonest hand edit; read as {}, the doctor reported the kit's defaults as the owner's team.
-  writeFileSync(join(state, "settings.json"), '{ "rules": "Keep diffs small.", }');
-  const team = new TeamSource(kit).teamFor();
-  assert.ok(
-    team.errors.some((line) => line.includes("machine settings are not being used")),
-    `the team has to carry it: ${JSON.stringify(team.errors)}`,
-  );
-  assert.equal(team.rules, "", "and nothing the file held is in force");
-});
-
-test("the doctor reports an unreadable layer rather than a complete team", async () => {
-  const broken = resolveTeam(kit, {}, {}, ["The machine settings are not being used: it is not valid JSON"]);
-  const checks = await doctor(kit, broken, probes(["git", "jq"], []));
-  const settings = checks.find((check) => check.id === "settings")!;
-  assert.equal(settings.ok, false, "a team resolved from a file nobody could read is not a complete team");
-  assert.match(settings.detail, /not being used/);
+  const hostile = await fakeIde(t, { malformed: true });
+  await setUp({ mcp: { ide: { settings: { port: hostile.port } }, docs: { enabled: true, connect: at(full.port) } } });
+  const survived = await checked();
+  assert.equal(survived["mcp:ide"]!.ok, false, "a server whose list cannot be read costs its own check");
+  assert.deepEqual([survived.settings!.ok, survived["mcp:docs"]!.ok], [true, true], "and not the rest of the report");
 });

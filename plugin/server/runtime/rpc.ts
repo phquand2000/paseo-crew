@@ -37,7 +37,7 @@ export interface HumanRpc {
 type Serve = <C extends Contract>(contract: C, answer: (input: z.output<C["input"]>) => Out<C>) => void;
 
 /** `called` runs before every answer, since a panel call is how the runtime learns someone is looking. */
-export function registerRpc(serve: Serve, control: Control, human: HumanRpc, called: () => void): string[] {
+export function registerRpc(serve: Serve, control: Control, human: HumanRpc, called: () => void): void {
   const handle: Serve = (contract, answer) =>
     serve(contract, (input) => {
       called();
@@ -65,5 +65,4 @@ export function registerRpc(serve: Serve, control: Control, human: HumanRpc, cal
   handle(contracts.clean, (input) => control.clean(input.remove));
   handle(contracts.update, (input) => control.update(input.apply, input.fetch));
   handle(contracts.migrate, (input) => control.migrate(input.apply));
-  return Object.values(contracts).map((contract) => contract.name);
 }
