@@ -349,3 +349,51 @@ export async function heldRound(h: ReturnType<typeof harness>, t: TestContext) {
   return { round, release };
 }
 
+/** A round held once the daemon has listed its seats, with that listing as it was then, until `release` lets it go on. */
+export async function listedRound(h: ReturnType<typeof harness>) {
+  const agents = h.paseo as { agents: { list: (options?: unknown) => Promise<unknown> } };
+  const list = agents.agents.list;
+  let listed = () => {};
+  let release = () => {};
+  const reached = new Promise<void>((resolve) => (listed = resolve));
+  const held = new Promise<void>((resolve) => (release = resolve));
+  agents.agents.list = async (options?: unknown) => {
+    agents.agents.list = list;
+    const page = await list(options);
+    listed();
+    await held;
+    return page;
+  };
+  const round = h.tick();
+  await reached;
+  return { round, release };
+}
+
+/**
+ * The next agent Paseo is asked to create under a title `title` matches is held until `release`, made first when `made`.
+ * Never released, Paseo never answers that create, as when the plugin stops while a seat is being started.
+ */
+export function heldCreate(h: ReturnType<typeof harness>, title: RegExp, made = false) {
+  type Create = (options: { title: string }) => Promise<unknown>;
+  const paseo = h.paseo as { workspaces: { ref: (id: string) => { agents: { create: Create } } } };
+  const ref = paseo.workspaces.ref;
+  let armed = true;
+  let started = () => {};
+  let release = () => {};
+  const reached = new Promise<void>((resolve) => (started = resolve));
+  const held = new Promise<void>((resolve) => (release = resolve));
+  paseo.workspaces.ref = (id) => {
+    const workspace = ref(id);
+    const create = workspace.agents.create;
+    workspace.agents.create = async (options) => {
+      if (!armed || !title.test(options.title)) return create(options);
+      armed = false;
+      const seat = made ? await create(options) : undefined;
+      started();
+      await held;
+      return seat ?? create(options);
+    };
+    return workspace;
+  };
+  return { reached, release };
+}
