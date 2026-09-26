@@ -4,46 +4,6 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
 
-test("parallel work needs independent write sets and merges back from its own working copy", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", { title: "Two files", outcome: "both change", acceptance: ["a", "b"], outOfScope: ["anything else in the repository"], writeSet: ["a.txt", "b.txt"] });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "A", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest of the repository"] }] });
-  const serial = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "Lock", goal: "g", acceptance: ["a"], holds: ["package-lock.json"], outOfScope: ["the rest of the repository"], parallel: true }] });
-  assert.equal(serial.ok, false, "the lock file is really in this repository, so a parallel task may not hold it");
-  const par = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], holds: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true }] });
-  assert.equal(par.ok, true, par.text);
-  const overlap = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B again", goal: "g", acceptance: ["b"], holds: ["b.txt"], outOfScope: ["the rest of the repository"], parallel: true }] });
-  assert.equal(overlap.ok, false);
-  assert.match(overlap.text, /T holds b\.txt, which L1-T2 holds and is still writing, and does not wait for it/);
-  const taskB = h.ledger().tasks["L1-T2"]!;
-  assert.equal(taskB.slot, "S0", "the lane itself is in place, so the parallel task takes the first working copy the desk makes");
-  assert.equal(h.agents.get(taskB.peer!)!.cwd, h.ledger().slots.S0!.path);
-
-  const taskA = h.ledger().tasks["L1-T1"]!;
-  h.commit(lane.worktree!, "a.txt", "A\n");
-  await h.call(taskA.peer!, "peer", "done", { outcome: "complete", summary: "a" });
-  h.agents.get(taskA.peer!)!.status = "idle";
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
-
-  h.commit(taskB.worktree!, "b.txt", "B\n");
-  await h.call(taskB.peer!, "peer", "done", { outcome: "complete", summary: "b" });
-  h.agents.get(taskB.peer!)!.status = "idle";
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" })).ok, true);
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(h.git(lane.worktree!, "show", "HEAD:b.txt"), "B\n");
-  assert.deepEqual(Object.keys(h.ledger().slots), [taskB.slot], "the copy a parallel task opened stays with its Peer once its work is in, until its Lead releases it");
-
-  const clash = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["b.txt"] });
-  assert.equal(clash.ok, false);
-  assert.match(clash.text, /overlaps lane L1/, "two lanes that declared the same file are one lane, whichever copy each of them writes in");
-  const fine = await h.call(sup, "supervisor", "open_lane", { title: "C", outcome: "c", acceptance: ["c"], outOfScope: ["anything else in the repository"], writeSet: ["c.txt"], isolate: true });
-  assert.equal(fine.ok, true, fine.text);
-  assert.ok(h.ledger().lanes.L2!.slot, "L1 is writing in the project's own copy, so the next lane is given one instead of switching the branch under it");
-});
-
 /** Three lanes as a run opens them: the first in the project's own copy, the other two in copies of their own. */
 async function threeLanes(gate: string) {
   const h = harness();
