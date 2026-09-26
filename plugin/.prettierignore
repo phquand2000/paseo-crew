@@ -29,7 +29,6 @@ server/desk/letters.ts
 server/desk/notice.ts
 server/desk/tools/add-tasks.ts
 server/desk/tools/amend-task.ts
-server/desk/tools/ask-human.ts
 server/desk/tools/message.ts
 server/desk/tools/replace-lead.ts
 server/desk/tools/report.ts

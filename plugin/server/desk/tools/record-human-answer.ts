@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { sentBy } from "../../core/sent-by.ts";
 import { clip } from "../../core/text.ts";
-import { settleQuestion } from "../answers.ts";
+import { settleQuestion } from "../human/questions.ts";
 import { no, ok, str } from "../context.ts";
 import { loadLedger } from "../ledger.ts";
 import { defineTool } from "../services.ts";

@@ -1,7 +1,7 @@
 import { DAY_MS, minutesSince } from "../core/time.ts";
 import type { Question } from "../domain/question.ts";
 import type { ReportItem, ReportView } from "../../shared/views.ts";
-import { askedSince } from "./answers.ts";
+import { askedSince } from "./human/questions.ts";
 import { loadIncidents } from "./incidents.ts";
 import { loadLedger } from "./ledger.ts";
 import type { Project } from "./project.ts";

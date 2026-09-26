@@ -1,5 +1,5 @@
 import type { OrdersView, ReportView } from "../../shared/views.ts";
-import { settleQuestion } from "./answers.ts";
+import { settleQuestion } from "./human/questions.ts";
 import { askLetters } from "./ask-letters.ts";
 import { reportView } from "./away.ts";
 import { decideLand } from "./lanes/land-decision.ts";
