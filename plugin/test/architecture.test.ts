@@ -211,15 +211,12 @@ const areaOf = (path: string): string | undefined =>
 const packageOf = (spec: string): string | undefined =>
   PACKAGES.find((name) => spec === name || spec.startsWith(`${name}/`));
 
-test("every file of the plugin is in an area that MAY_IMPORT names", () => {
+test("every file of the plugin is in an area that MAY_IMPORT names, and an area imports only what MAY_IMPORT allows it", () => {
   assert.deepEqual(
     product.filter((path) => !areaOf(path)),
     [],
     "Add its area to MAY_IMPORT, with the areas it may import.",
   );
-});
-
-test("an area imports only what MAY_IMPORT allows it", () => {
   const found = new Set<string>();
   for (const path of product) {
     const area = areaOf(path)!;

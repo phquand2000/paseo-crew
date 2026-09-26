@@ -1,79 +1,127 @@
 import assert from "node:assert/strict";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { test } from "node:test";
-import { desiredProfile, desiredProvider, reconcile, seatPairs } from "../../server/catalog/providers.ts";
+import { applyModels } from "../../server/catalog/models.ts";
+import { applyReconcile } from "../../server/catalog/providers.ts";
 import { resolveTeam } from "../../server/catalog/team.ts";
+import { paseoConfigPath } from "../../server/core/paths.ts";
 import { makeKit } from "../kit.ts";
 
-const kit = makeKit();
-const team = resolveTeam(kit);
-const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
+type Provider = {
+  extends?: string;
+  label?: string;
+  command?: string[];
+  env?: Record<string, string>;
+  description?: string;
+  models?: unknown;
+  additionalModels?: unknown;
+  paseoTools?: unknown;
+};
+type Config = { agents: { providers: Record<string, Provider> }; daemon: { agentProfiles: { id: string }[] } };
+const written = () => JSON.parse(readFileSync(paseoConfigPath(), "utf-8")) as Config;
+const SEATS = ["lead-claude", "lead-omp", "peer-omp", "scribe-claude", "scribe-omp", "supervisor-claude"];
 
-test("every role gets a provider on each harness that has settings for it", () => {
-  assert.deepEqual(
-    seatPairs(kit).map((pair) => `${pair.role.role}-${pair.harness.id}`).sort(),
-    ["lead-claude", "lead-omp", "peer-omp", "scribe-claude", "scribe-omp", "supervisor-claude"],
-  );
-});
-
-test("a role provider carries its harness base, launcher, env, the model it starts on, and tool limits", () => {
-  const entry = desiredProvider(kit, team, role("lead"), kit.harnesses.claude!);
-  assert.equal(entry.extends, "claude");
-  assert.equal(entry.label, "Lead · Claude Code (sw2)");
-  assert.deepEqual(entry.command, [`${kit.dir}/bin/seat-room`]);
-  assert.equal(entry.env.SEATWORKS_ROLE, "lead");
-  assert.equal(entry.env.SEATWORKS_KIT, kit.dir);
-  // Paseo lists the agent's own models; replacing that list hid every model but the chosen one.
-  assert.equal(entry.models, undefined);
-  assert.deepEqual(entry.additionalModels, [{ id: "opus", label: "Opus", isDefault: true }]);
-  const chosen = desiredProvider(kit, resolveTeam(kit, { roles: { lead: { model: "haiku" } } }), role("lead"), kit.harnesses.claude!);
-  assert.deepEqual(chosen.additionalModels, [{ id: "haiku", label: "Haiku", isDefault: true }]);
-  assert.deepEqual(desiredProvider(kit, team, role("peer"), kit.harnesses.omp!).paseoTools, { enabled: false });
-  assert.deepEqual(desiredProfile(kit, team, role("peer"), kit.harnesses.omp!), { id: "sw2-peer-omp", name: "Peer · Oh My Pi (sw2)", provider: "sw2-peer-omp", model: "glm", modeId: "full" });
-});
-
-test("reconcile adds the role providers and profiles and is idempotent", () => {
-  const config = { agents: { providers: { claude: { env: { TOKEN: "keep" } } } }, daemon: { agentProfiles: [{ id: "mine", provider: "claude" }] } };
-  const first = reconcile(config, kit, team);
-  assert.deepEqual(first.changed.sort(), [
-    "profile sw2-lead-claude",
-    "profile sw2-lead-omp",
-    "profile sw2-peer-omp",
-    "profile sw2-scribe-claude",
-    "profile sw2-scribe-omp",
-    "profile sw2-supervisor-claude",
-    "provider sw2-lead-claude",
-    "provider sw2-lead-omp",
-    "provider sw2-peer-omp",
-    "provider sw2-scribe-claude",
-    "provider sw2-scribe-omp",
-    "provider sw2-supervisor-claude",
-  ]);
-  assert.equal(first.config.agents.providers.claude.env.TOKEN, "keep");
-  assert.equal(first.config.daemon.agentProfiles[0].id, "mine");
-  assert.deepEqual(reconcile(first.config, kit, team).changed, []);
-});
-
-test("reconcile removes providers the kit no longer defines and keeps a user's own env keys", () => {
-  const config = {
+test("the plugin writes one provider and profile per seat into Paseo's config, keeps what is the owner's, drops what the kit no longer defines, and a second pass changes nothing", () => {
+  const kit = makeKit();
+  mkdirSync(dirname(paseoConfigPath()), { recursive: true });
+  const owners: Config = {
     agents: {
       providers: {
-        "sw2-peer": { extends: "acp" },
-        "sw2-peer-omp": { extends: "claude", env: { MY_KEY: "x", CLAUDE_CODE_DISABLE_CRON: "1", CLAUDE_CONFIG_DIR: "/old", SEATWORKS_SLUG: "old" }, description: "stale", models: [{ id: "glm", label: "GLM" }] },
+        claude: { env: { TOKEN: "keep" } },
         peer: { extends: "acp" },
+        "sw2-peer": { extends: "acp" },
+        "sw2-peer-omp": {
+          extends: "claude",
+          env: { MY_KEY: "x", CLAUDE_CODE_DISABLE_CRON: "1", CLAUDE_CONFIG_DIR: "/old", SEATWORKS_SLUG: "old" },
+          description: "stale",
+          models: [{ id: "glm", label: "GLM" }],
+        },
       },
     },
-    daemon: { agentProfiles: [{ id: "sw2-peer", provider: "sw2-peer" }] },
+    daemon: { agentProfiles: [{ id: "mine" }, { id: "sw2-peer" }] },
   };
-  const { config: next, changed } = reconcile(config, kit, team);
-  assert.ok(changed.includes("provider sw2-peer removed"));
-  assert.ok(changed.includes("profile sw2-peer removed"));
-  assert.equal("sw2-peer" in next.agents.providers, false);
-  assert.ok("peer" in next.agents.providers);
-  const peer = next.agents.providers["sw2-peer-omp"];
+  writeFileSync(paseoConfigPath(), JSON.stringify(owners), { mode: 0o600 });
+
+  const changed = applyReconcile(kit, resolveTeam(kit));
+  assert.deepEqual(
+    changed.sort(),
+    [
+      ...SEATS.flatMap((seat) => [`profile sw2-${seat}`, `provider sw2-${seat}`]),
+      "profile sw2-peer removed",
+      "provider sw2-peer removed",
+    ].sort(),
+  );
+  assert.equal(statSync(paseoConfigPath()).mode & 0o777, 0o600, "a private config is not widened");
+  const { agents, daemon } = written();
+  assert.deepEqual(
+    [agents.providers.claude, agents.providers.peer],
+    [{ env: { TOKEN: "keep" } }, { extends: "acp" }],
+    "the owner's own are kept",
+  );
+  assert.equal("sw2-peer" in agents.providers, false);
+  const lead = agents.providers["sw2-lead-claude"]!;
+  assert.deepEqual(
+    [lead.extends, lead.label, lead.command, lead.env?.SEATWORKS_ROLE, lead.env?.SEATWORKS_KIT],
+    ["claude", "Lead · Claude Code (sw2)", [`${kit.dir}/bin/seat-room`], "lead", kit.dir],
+  );
+  assert.equal(
+    lead.models,
+    undefined,
+    "Paseo lists the agent's own models: replacing that list hid every model but the chosen one",
+  );
+  assert.deepEqual(lead.additionalModels, [{ id: "opus", label: "Opus", isDefault: true }]);
+  const peer = agents.providers["sw2-peer-omp"]!;
   assert.equal(peer.extends, "omp");
-  assert.deepEqual(Object.keys(peer.env).sort(), ["MY_KEY", "SEATWORKS_AGENT_BIN", "SEATWORKS_HARNESS", "SEATWORKS_KIT", "SEATWORKS_ROLE"]);
-  assert.equal("description" in peer, false);
-  // A list written over Paseo's own hid every model the agent has but the one chosen.
-  assert.equal("models" in peer, false);
-  assert.deepEqual(peer.additionalModels, [{ id: "glm", label: "GLM", isDefault: true }]);
+  assert.deepEqual(
+    Object.keys(peer.env ?? {}).sort(),
+    ["MY_KEY", "SEATWORKS_AGENT_BIN", "SEATWORKS_HARNESS", "SEATWORKS_KIT", "SEATWORKS_ROLE"],
+    "what the kit manages is its own to drop, and the owner's keys stay",
+  );
+  assert.deepEqual(
+    [peer.description, peer.models, peer.additionalModels],
+    [undefined, undefined, [{ id: "glm", label: "GLM", isDefault: true }]],
+  );
+  assert.deepEqual(peer.paseoTools, { enabled: false });
+  assert.deepEqual(daemon.agentProfiles[0], { id: "mine" });
+  assert.deepEqual(
+    daemon.agentProfiles.find((profile) => profile.id === "sw2-peer-omp"),
+    {
+      id: "sw2-peer-omp",
+      name: "Peer · Oh My Pi (sw2)",
+      provider: "sw2-peer-omp",
+      model: "glm",
+      modeId: "full",
+    },
+  );
+  const held = readFileSync(paseoConfigPath(), "utf-8");
+  assert.deepEqual(applyReconcile(kit, resolveTeam(kit)), []);
+  assert.equal(readFileSync(paseoConfigPath(), "utf-8"), held, "a second pass writes nothing");
+
+  assert.deepEqual(applyReconcile(kit, resolveTeam(kit, { roles: { lead: { model: "haiku" } } })).sort(), [
+    "profile sw2-lead-claude",
+    "provider sw2-lead-claude",
+  ]);
+  assert.deepEqual(
+    written().agents.providers["sw2-lead-claude"]!.additionalModels,
+    [{ id: "haiku", label: "Haiku", isDefault: true }],
+    "the model it starts on is the one chosen",
+  );
+  const listed = makeKit();
+  applyModels(listed, {
+    omp: {
+      at: "",
+      error: null,
+      models: [
+        { id: "claude-in-omp", label: "Claude in omp" },
+        { id: "glm", label: "GLM" },
+      ],
+    },
+  });
+  applyReconcile(listed, resolveTeam(listed));
+  assert.deepEqual(
+    written().agents.providers["sw2-lead-omp"]!.additionalModels,
+    [{ id: "glm", label: "GLM", isDefault: true }],
+    "a role on an agent its preset does not name starts on another role's preset there, not the first listed",
+  );
 });

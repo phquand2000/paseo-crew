@@ -7,7 +7,7 @@ import { errorText } from "../core/errors.ts";
 import { KEPT, type Layer, LayerSchema } from "../../shared/settings.ts";
 import type { LayerRead, WriteResult } from "../../shared/views.ts";
 
-export function revisionOf(values: unknown): string {
+function revisionOf(values: unknown): string {
   return createHash("sha1")
     .update(JSON.stringify(sortKeys(values ?? {})))
     .digest("hex")

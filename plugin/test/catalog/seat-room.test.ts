@@ -3,51 +3,108 @@ import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { tempDir } from "../tempdir.ts";
 
-const SEAT_ROOM = new URL("../../bin/seat-room", import.meta.url).pathname;
-
-function seat() {
-  const dir = tempDir("sw2-seat-room-");
-  mkdirSync(join(dir, "harness", "acme"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify({ configDirEnv: "ACME_HOME", provider: { command: ["KIT/bin/seat-room"] } }));
-  const launched = join(dir, "launched");
-  const agent = join(dir, "agent");
-  // It records how it was started, with the settings directory it was given.
-  writeFileSync(agent, `#!/bin/sh\necho "$ACME_HOME $*" > ${JSON.stringify(launched)}\n`);
-  chmodSync(agent, 0o755);
-  return { launched, env: { PATH: process.env.PATH!, SEATWORKS_KIT: dir, SEATWORKS_HARNESS: "acme", SEATWORKS_AGENT_BIN: agent } };
-}
+const SEAT_ROOM = fileURLToPath(new URL("../../bin/seat-room", import.meta.url));
+const PLUGIN = fileURLToPath(new URL("../..", import.meta.url));
 
 function open(env: Record<string, string>, args: string[]): Promise<{ code: number | null; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn(SEAT_ROOM, args, { env, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
-    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.stderr.on("data", (chunk) => (stderr += String(chunk)));
     child.on("close", (code) => resolve({ code, stderr }));
   });
 }
 
-test("a launch the plugin did not configure is refused outright, and the agent never starts on the owner's own settings", async () => {
-  for (const args of [["--print"], [], ["--version", "--print"]]) {
-    const { launched, env } = seat();
-    const { code, stderr } = await open(env, args);
-    assert.equal(code, 2, args.join(" "));
-    assert.equal(existsSync(launched), false);
-    assert.match(stderr, /^Seat room: ACME_HOME is unset, so this seat would run on your own settings/);
+const acme = tempDir("sw2-seat-room-kit-");
+mkdirSync(join(acme, "harness", "acme"), { recursive: true });
+writeFileSync(
+  join(acme, "harness", "acme", "harness.json"),
+  JSON.stringify({ configDirEnv: "ACME_HOME", provider: { command: ["KIT/bin/seat-room"] } }),
+);
+const ROWS: [string, string, string, string, string | undefined, string[], number, string | null][] = [
+  ["a launch the plugin did not configure", acme, "acme", "ACME_HOME", undefined, ["--print"], 2, null],
+  ["one with no arguments", acme, "acme", "ACME_HOME", undefined, [], 2, null],
+  [
+    "one asking the version among other things",
+    acme,
+    "acme",
+    "ACME_HOME",
+    undefined,
+    ["--version", "--print"],
+    2,
+    null,
+  ],
+  [
+    "Paseo asking the version for its model catalog, which starts no session",
+    acme,
+    "acme",
+    "ACME_HOME",
+    undefined,
+    ["--version"],
+    0,
+    " --version\n",
+  ],
+  [
+    "a seat the plugin configured",
+    acme,
+    "acme",
+    "ACME_HOME",
+    "/seats/acme-peer",
+    ["--print"],
+    0,
+    "/seats/acme-peer --print\n",
+  ],
+  [
+    "a Claude seat, whose settings come from its seat alone",
+    PLUGIN,
+    "claude",
+    "CLAUDE_CONFIG_DIR",
+    "/seats/claude-peer",
+    ["-p"],
+    0,
+    "/seats/claude-peer -p --setting-sources user\n",
+  ],
+  [
+    "whatever setting sources its caller names",
+    PLUGIN,
+    "claude",
+    "CLAUDE_CONFIG_DIR",
+    "/seats/claude-peer",
+    ["--setting-sources", "project,local", "-p"],
+    0,
+    "/seats/claude-peer --setting-sources user -p\n",
+  ],
+  [
+    "and however it names them",
+    PLUGIN,
+    "claude",
+    "CLAUDE_CONFIG_DIR",
+    "/seats/claude-peer",
+    ["--setting-sources=project", "-p"],
+    0,
+    "/seats/claude-peer --setting-sources=user -p\n",
+  ],
+];
+
+test("the seat room starts the agent only on the seat's own settings and with the flags its agent is forced to take, and answers Paseo's version probe unconfigured", async () => {
+  for (const [what, kit, harness, configDirEnv, configured, args, code, started] of ROWS) {
+    const dir = tempDir("sw2-seat-room-");
+    const launched = join(dir, "launched");
+    const agent = join(dir, "agent");
+    writeFileSync(agent, `#!/bin/sh\necho "$${configDirEnv} $*" > ${JSON.stringify(launched)}\n`);
+    chmodSync(agent, 0o755);
+    const env = { PATH: process.env.PATH!, SEATWORKS_KIT: kit, SEATWORKS_HARNESS: harness, SEATWORKS_AGENT_BIN: agent };
+    const ran = await open(configured ? { ...env, [configDirEnv]: configured } : env, args);
+    assert.equal(ran.code, code, `${what}: ${ran.stderr}`);
+    assert.equal(existsSync(launched) ? readFileSync(launched, "utf-8") : null, started, what);
+    if (!started)
+      assert.match(
+        ran.stderr,
+        new RegExp(`^Seat room: ${configDirEnv} is unset, so this seat would run on your own settings`),
+        what,
+      );
   }
-});
-
-test("Paseo asking the agent's version for its model catalog is answered even unconfigured, since that starts no session", async () => {
-  const { launched, env } = seat();
-  const { code } = await open(env, ["--version"]);
-  assert.equal(code, 0);
-  assert.equal(readFileSync(launched, "utf-8"), " --version\n");
-});
-
-test("a seat the plugin configured starts the agent on its own settings", async () => {
-  const { launched, env } = seat();
-  const { code } = await open({ ...env, ACME_HOME: "/seats/acme-peer" }, ["--print"]);
-  assert.equal(code, 0);
-  assert.equal(readFileSync(launched, "utf-8"), "/seats/acme-peer --print\n");
 });
