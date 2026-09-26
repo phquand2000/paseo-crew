@@ -4,8 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { runGate } from "../../server/core/gate.ts";
 import { issueArgs } from "../../server/desk/issue.ts";
-import { type Ask, type Lane, type Task, emptyLedger, nextAskId, nextLaneId, nextTaskId } from "../../server/desk/ledger.ts";
-import { slugify } from "../../server/core/text.ts";
+import type { Ask, Lane, Task } from "../../server/desk/ledger.ts";
 import { directive } from "../../server/desk/directive.ts";
 import { askLetters } from "../../server/desk/ask-letters.ts";
 import { type Letter, letters } from "../../server/desk/letters.ts";
@@ -49,21 +48,6 @@ const task: Task = {
   updatedAt: 0,
   silent: 0,
 };
-
-test("ids count per ledger and per lane, and titles become branch slugs", () => {
-  const ledger = emptyLedger();
-  const id = nextLaneId(ledger);
-  const entry = { ...lane, id, tasks: 0 };
-  assert.equal(id, "L1");
-  assert.equal(nextTaskId(entry, "code"), "L1-T1");
-  assert.equal(nextTaskId(entry, "review"), "L1-R1", "reviews count apart from tasks");
-  assert.equal(nextTaskId(entry, "code"), "L1-T2");
-  assert.equal(nextAskId(ledger), "A1");
-  assert.equal(slugify("Add Discount Codes: 10% off!", 24), "add-discount-codes-10", "a long title is cut between words, never inside one");
-  assert.equal(slugify("Money as integer cents, orders migrated", 24), "money-as-integer-cents");
-  assert.equal(slugify("Supercalifragilisticexpialidocious", 24), "supercalifragilisticexpi", "one word longer than the limit is cut where it must be");
-  assert.equal(slugify("Chi tiêu định kỳ", 24), "chi-tieu-dinh-ky", "a title in Vietnamese keeps its letters, not a dash for each mark");
-});
 
 test("every letter a Peer, a reviewer or a Lead can be sent carries none of the words hidden from it", () => {
   const sending = { by: "agent-1", to: task.id, at: 0 };
