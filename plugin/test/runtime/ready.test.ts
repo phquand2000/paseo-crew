@@ -2,125 +2,76 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { DeskServices } from "../../server/desk/services.ts";
-import { harness, laneWithPeer } from "./harness.ts";
+import { laneWithPeer } from "./harness.ts";
 
-test("a ready report waits for the merges its Lead accepted before it, and gates the lane with them in", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Beside only",
-    outcome: "c",
-    acceptance: ["c"],
-    outOfScope: ["the rest"],
-  });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", {
-    tasks: [
-      {
-        key: "s",
-        title: "Side",
-        goal: "g",
-        acceptance: ["c"],
-        holds: ["c.txt"],
-        outOfScope: ["the rest"],
-        parallel: true,
-      },
-    ],
-  });
-  const side = h.ledger().tasks["L1-T1"]!;
-  h.commit(side.worktree!, "c.txt", "C\n");
-  await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
-  h.agents.get(side.peer!)!.status = "idle";
-  await h.call(sup, "supervisor", "set_project", { gate: "test -f c.txt", gateOn: "lane" });
-  // Work left in the lane's copy, on the lane branch, holds the merge back until it is clean.
-  writeFileSync(join(lane.worktree!, "a.txt"), "being written\n");
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "queued");
-  h.git(lane.worktree!, "checkout", "--", "a.txt");
+test("a READY is what the lane's copy holds with nobody writing there, and whatever changes the lane takes it away", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  const copy = lane.worktree!;
+  const report = (ready = true) => h.call(lead, "lead", "report", { summary: "done", ready });
+  const ready = () => h.ledger().lanes.L1!.ready;
+  /** A task beside the lane's copy holding `file`, handed back with it committed. */
+  const beside = async (key: string, file: string) => {
+    const tasks = [
+      { key, title: key, goal: "g", acceptance: ["c"], holds: [file], outOfScope: ["the rest"], parallel: true },
+    ];
+    await h.call(lead, "lead", "add_tasks", { tasks });
+    const task = Object.values(h.ledger().tasks).find((entry) => entry.title === key)!;
+    h.commit(task.worktree!, file, `${file}\n`);
+    await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: file });
+    h.agents.get(task.peer!)!.status = "idle";
+    return task;
+  };
 
-  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
-  assert.match(h.heard(sup).join("\n"), /test -f c\.txt passed on the lane branch/);
-});
-
-test("a ready report is refused while a seat is mid-turn in the lane's copy, and taken once that turn ends", async () => {
-  const { h, lane, peer } = await laneWithPeer();
-  h.agents.get(peer)!.status = "running";
-  const refused = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+  const writing = new RegExp(
+    `^${peer} is mid-turn in the lane's working copy, so what ready claims could still change under the gate\\. Report ready once that turn ends\\.$`,
+  );
+  const refused = await report();
   assert.equal(refused.ok, false);
+  assert.match(refused.text, writing);
+  assert.equal(ready(), undefined);
+  assert.equal((await report(false)).ok, true);
+  await h.idle(peer);
+  const seats = (h.paseo as { agents: { ref: (id: string) => { refresh: () => Promise<unknown> } } }).agents;
+  const ref = seats.ref;
+  seats.ref = (id) => {
+    const handle = ref(id);
+    if (id !== peer) return handle;
+    seats.ref = ref;
+    return Object.assign(Object.create(handle) as typeof handle, {
+      refresh: () => Promise.reject(new Error("the daemon did not answer")),
+    });
+  };
+  assert.match((await report()).text, new RegExp(`^${peer} is mid-turn in the lane's working copy`));
+  const branch = h.ledger().tasks["L1-T1"]!.branch!;
   assert.match(
-    refused.text,
+    (await report()).text,
     new RegExp(
-      `^${peer} is mid-turn in the lane's working copy, so what ready claims could still change under the gate\\. Report ready once that turn ends\\.$`,
+      `^The lane's working copy is on ${branch}, L1-T1's branch, not ${lane.branch}: the gate would read L1-T1's tree\\. Report ready once it is merged or cut\\.$`,
     ),
   );
-  assert.equal(h.ledger().lanes.L1!.ready, undefined);
-  assert.equal(
-    (await h.call(lane.lead!, "lead", "report", { summary: "not yet", ready: false })).ok,
-    true,
-    "a report that claims nothing is not held back",
-  );
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "nothing to change" });
   await h.idle(peer);
-  // Its turn over, its task still has the copy on its own branch: the lane branch there is not what ready would claim.
-  assert.match(
-    (await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).text,
-    new RegExp(
-      `^The lane's working copy is on ${h.ledger().tasks["L1-T1"]!.branch}, L1-T1's branch, not ${lane.branch}: the gate would read L1-T1's tree\\. Report ready once it is merged or cut\\.$`,
-    ),
-  );
-  assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "nothing to change" })).ok, true);
-  await h.idle(peer);
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
-  assert.ok(h.ledger().lanes.L1!.ready);
-});
-
-test("a seat in the lane's copy the desk cannot look at counts as mid-turn: it may be writing", async (t) => {
-  const { h, lane, peer } = await laneWithPeer();
-  await h.idle(peer);
-  const { roster } = (h.runtime.desk as unknown as { services: DeskServices }).services;
-  const look = roster.look.bind(roster);
-  t.mock.method(roster, "look", (id: string) =>
-    id === peer ? Promise.reject(new Error("the daemon did not answer")) : look(id),
-  );
-  const refused = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
-  assert.match(refused.text, new RegExp(`^${peer} is mid-turn in the lane's working copy`));
-});
-
-test("a lane's READY goes when it takes on new tasks, and when a task merges into it after the report", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "open_lane", {
-    title: "Beside only",
-    outcome: "c",
-    acceptance: ["c"],
-    outOfScope: ["the rest"],
-  });
-  const lead = h.ledger().lanes.L1!.lead!;
-  assert.equal((await h.call(lead, "lead", "report", { summary: "nothing to do yet", ready: true })).ok, true);
-  await h.call(lead, "lead", "add_tasks", {
-    tasks: [
-      {
-        key: "s",
-        title: "Side",
-        goal: "g",
-        acceptance: ["c"],
-        holds: ["c.txt"],
-        outOfScope: ["the rest"],
-        parallel: true,
-      },
-    ],
-  });
-  assert.equal(h.ledger().lanes.L1!.ready, undefined, "what it reported ready is not what it will hold");
-  assert.equal((await h.call(lead, "lead", "report", { summary: "the rest waits on L1-T1", ready: true })).ok, true);
-  const side = h.ledger().tasks["L1-T1"]!;
-  h.commit(side.worktree!, "c.txt", "C\n");
-  await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "c" });
-  h.agents.get(side.peer!)!.status = "idle";
   await h.call(lead, "lead", "accept", { task: "L1-T1" });
+  assert.equal((await report()).ok, true);
+  assert.ok(ready());
+
+  const side = await beside("Side", "c.txt");
+  assert.equal(ready(), undefined);
+  assert.equal((await report()).ok, true);
+  await h.call(lead, "lead", "accept", { task: side.id });
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
-  assert.equal(h.ledger().lanes.L1!.ready, undefined, "its branch moved after the report");
+  assert.equal(h.ledger().tasks[side.id]!.status, "merged");
+  assert.equal(ready(), undefined);
+
+  await h.call(sup, "supervisor", "set_project", { gate: "test -f c.txt", gateOn: "lane" });
+  const late = await beside("Late", "d.txt");
+  writeFileSync(join(copy, "a.txt"), "being written\n");
+  await h.call(lead, "lead", "accept", { task: late.id });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks[late.id]!.status, "queued");
+  h.git(copy, "checkout", "--", "a.txt");
+  assert.equal((await report()).ok, true);
+  assert.equal(h.ledger().tasks[late.id]!.status, "merged");
+  assert.match(h.heard(sup).join("\n"), /test -f c\.txt passed on the lane branch/);
 });
