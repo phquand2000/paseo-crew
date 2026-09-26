@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { switchTo } from "../../server/core/git.ts";
 import { harness } from "./harness.ts";
 
 const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
@@ -41,4 +42,11 @@ test("no branch the desk starts tracks its base's upstream, so a first push cann
   assert.equal(opened.ok, true, opened.text);
   assert.equal(upstream(n, "fix/split"), "");
   n.runtime.dispose();
+});
+
+test("a branch switchTo creates does not track its start's upstream", async () => {
+  const h = tracked();
+  assert.equal(await switchTo(h.root, "task/one", "main"), undefined);
+  assert.equal(upstream(h, "task/one"), "");
+  h.runtime.dispose();
 });

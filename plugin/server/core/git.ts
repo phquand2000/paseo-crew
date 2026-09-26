@@ -91,7 +91,7 @@ export async function switchTo(
   const run = await git(cwd, [
     "switch",
     ...(discard ? ["--discard-changes"] : []),
-    ...(exists ? [branch] : ["-c", branch, start]),
+    ...(exists ? [branch] : ["--no-track", "-c", branch, start]),
   ]);
   if (run.code === 0 && discard) await git(cwd, ["clean", "-fd"]);
   return run.code === 0 ? undefined : run.stderr.trim() || `git switch exited ${run.code}`;

@@ -86,6 +86,29 @@ Every field is optional; one left out keeps its value.
 | `askFirst` | Paths no landing touches before the Human looks. A path covers what is under it. The whole list each time | empty: nothing waits |
 | `riskRules` | Rules that replace the kit's: each has `paths`, an `invariant`, a `reviewQuestion` and an optional `rehearse` command | the kit's one rule, for migrations, schemas and SQL |
 
+### Local files
+
+For a project that keeps its agent instructions and plans out of git, two values in `projects/<slug>/project.json` are
+set by hand. `set_project` keeps them and cannot change them: they widen what seats may write, so they are the Human's.
+
+| Value | Default | What it does |
+|---|---|---|
+| `links` | `[]` | Paths, relative to the project root, that each copy of its own a lane or task works in gets as a symlink to the project's copy. A path is linked only if it exists in the project, stays inside it, is not already in the copy, and git ignores it. A path git would see as a change is skipped, since it would leave the copy dirty and fail the gate. Each skip is logged and written to `events.log` as `link.skipped` |
+| `writable` | `[]` | Paths, relative to the project root, that seats may write through their agent's sandbox (`writable_roots` for Codex, `sandbox.filesystem.allowWrite` for Claude Code). They are granted as real paths, which is what a write through a link in a copy resolves to |
+
+A role that can `work` or `write` is also granted the repository's git directory: a copy keeps its index and refs there,
+and a sandboxed agent could not commit without it.
+
+Git matches a link as a file, so an ignore rule with a trailing slash (`docs/plans/`) does not cover it: write
+`docs/plans`.
+
+```json
+{
+  "links": ["AGENTS.md", "docs/WORKFLOW.md", "docs/plans", "docs/patterns"],
+  "writable": ["docs/plans", "docs/patterns"]
+}
+```
+
 ### Where a lane works
 
 By default a lane works on a lane branch it starts in the project's own checkout; with `isolate`, in a copy of its own.
@@ -517,6 +540,7 @@ named, except inside the blocks passed to the agent as they are: `mcp.seed`, `mc
 | `links`, `files` | Files linked from the Human's own setup (logins, history), and files composed per role |
 | `modelCatalog` | A command whose model list is written as the agent's catalog |
 | `stateWrites` | The sandbox setting that lets a role write the paths it keeps under the project's state |
+| `hideSkills` | The Human's own skill folders the agent would load anyway, and the settings path where each skill found there is written as `{ path, enabled: false }` |
 | `projectContextOption` | The provider option that receives the working directory |
 | `steers` | Whether mail may be steered into a running turn |
 | `mcpCall`, `mcpServerField` | How the agent names a call to an MCP server, or the field that holds the server's name, so a call to the desk is known as one |
@@ -565,7 +589,9 @@ rules, each enabled MCP server's and the Human's, and is written only when there
   and `CLAUDE.md`, which, when the project has no `CLAUDE.md`, imports its `AGENTS.md`. It launches through
   `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out.
   It still reads the project's `CLAUDE.md`, since the working directory is passed as an additional directory; Claude
-  never reads an added directory's `AGENTS.md`, hence the import, as Claude Code reads it outside a seat.
+  never reads an added directory's `AGENTS.md`, hence the import, as Claude Code reads it outside a seat. Claude Code
+  keeps its login per config dir; a seat sets `CLAUDE_SECURESTORAGE_CONFIG_DIR` empty, so it reads the one login made
+  outside any seat and never needs one of its own.
 - **Codex**, under `~/.codex/seats/`: `config.toml` (`model_provider` and `model_providers` from the Human's own
   `~/.codex/config.toml`; `workspace-write`, or `read-only` for the Reviewer, the Watcher and the Pager;
   `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json`
@@ -785,6 +811,10 @@ it never reached the desk; only Claude marks such calls.
   out of reach on Codex.
 - **Codex command rules match argument prefixes**, so `git -C <path> push` gets past them; the seat's own `git` refuses
   it instead.
+- **A Codex seat hides the Human's `~/.agents/skills` only as they were when it was built.** Codex has no key that hides
+  a whole folder, so the seat gets one `[[skills.config]]` entry per `SKILL.md` it finds there, by path; by name would
+  hide the seat's own skill of that name too. A skill added later shows in the seat until it is rebuilt. A repository's
+  own `.agents/skills` stays visible: it belongs to the repository.
 - **A steer Paseo can't hand over replaces the turn.** A Claude seat that is compacting refuses a steer the same way.
 - **A turn running before a daemon restart or a plugin reload** is never steered, and is read as having started 30
   minutes ago.
