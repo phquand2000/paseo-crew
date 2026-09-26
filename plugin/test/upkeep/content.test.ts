@@ -25,7 +25,7 @@ async function world() {
   git(kit.dir, "init", "-q");
   git(kit.dir, "add", ".");
   git(kit.dir, "commit", "-q", "-m", "2.0.1");
-  assert.deepEqual(await contentChanges(kit, state), []);
+  assert.deepEqual(await contentChanges(kit, state), [], "the first reading takes everything in as it ships");
   const ship = (path: string, text: string) => {
     mkdirSync(join(kit.dir, "content", path, ".."), { recursive: true });
     writeFileSync(join(kit.dir, "content", path), text);
@@ -35,8 +35,6 @@ async function world() {
   return { kit, state, ship };
 }
 
-const role = (kit: Awaited<ReturnType<typeof world>>["kit"], name: string) =>
-  kit.roles.find((entry) => entry.role === name)!;
 const paths = { guides: "/g", state: "/s" };
 
 test("a changed prompt or skill is asked about; a changed guide or record is only told", async () => {
@@ -55,21 +53,27 @@ test("a changed prompt or skill is asked about; a changed guide or record is onl
   );
 });
 
-test("keep mine puts the version the owner had back in use, and the original changing again is still told", async () => {
+test("an owner keeping their version of a changed prompt or skill has it in use and is still told of the next change, and taking the new one sets theirs aside", async () => {
   const { kit, state, ship } = await world();
+  const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
   const before = readFileSync(join(kit.dir, "content", "prompts", "LEAD.md"), "utf-8");
   ship("prompts/LEAD.md", "A new brief.");
   ship("skills/supervisor/plan-check/SKILL.md", "---\nname: plan-check\ndescription: checks a plan, better\n---\n");
 
   await decide(kit, state, "prompts/LEAD.md", "mine");
   await decide(kit, state, "skills/supervisor/plan-check", "mine");
-  assert.equal(readFileSync(join(state, "own", "prompts", "LEAD.md"), "utf-8"), before);
+  assert.equal(
+    readFileSync(join(state, "own", "prompts", "LEAD.md"), "utf-8"),
+    before,
+    "the version the owner had, read back out of git",
+  );
   assert.match(
-    renderPrompt(kit, role(kit, "lead"), "claude", paths),
-    new RegExp(before.split("\n")[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    renderPrompt(kit, role("lead"), "claude", paths),
+    /^# Lead\n/,
+    "and it is what the prompt is built from",
   );
   assert.equal(
-    skillSources(kit, role(kit, "supervisor")).get("plan-check"),
+    skillSources(kit, role("supervisor")).get("plan-check"),
     join(state, "own", "skills", "supervisor", "plan-check"),
   );
   assert.deepEqual(await contentChanges(kit, state), []);
@@ -78,20 +82,18 @@ test("keep mine puts the version the owner had back in use, and the original cha
   assert.deepEqual(
     (await contentChanges(kit, state)).map((change) => [change.unit, change.kept]),
     [["prompts/LEAD.md", true]],
+    "the original changing again is still told, as kept",
   );
-});
 
-test("use new sets the owner's copy aside instead of deleting it, and the shipped one is used again", async () => {
-  const { kit, state, ship } = await world();
-  ship("prompts/LEAD.md", "A new brief.");
-  await decide(kit, state, "prompts/LEAD.md", "mine");
   writeFileSync(join(state, "own", "prompts", "LEAD.md"), "My own edit.");
-  ship("prompts/LEAD.md", "A newer brief.");
-
   await decide(kit, state, "prompts/LEAD.md", "new", Date.parse("2026-09-22T07:12:30Z"));
-  assert.match(renderPrompt(kit, role(kit, "lead"), "claude", paths), /A newer brief\./);
+  assert.match(renderPrompt(kit, role("lead"), "claude", paths), /A newer brief\./, "the shipped one is used again");
   assert.deepEqual(readdirSync(join(state, "own", "prompts")), ["LEAD.md.bak-20260922-071230"]);
-  assert.equal(readFileSync(join(state, "own", "prompts", "LEAD.md.bak-20260922-071230"), "utf-8"), "My own edit.");
+  assert.equal(
+    readFileSync(join(state, "own", "prompts", "LEAD.md.bak-20260922-071230"), "utf-8"),
+    "My own edit.",
+    "set aside, not deleted",
+  );
   assert.equal(existsSync(join(state, "own", "prompts", "LEAD.md")), false);
   assert.deepEqual(await contentChanges(kit, state), []);
 });
