@@ -13,7 +13,7 @@ import { type Args, type Caller, type CodeIndex, DeskContext, type Mailer, type 
 import { errorText } from "../core/errors.ts";
 import type { DeskEvent } from "./events.ts";
 import { Human } from "./human.ts";
-import { type Ledger, type Task, loadLedger } from "./ledger.ts";
+import { type Lane, type Ledger, type Task, loadLedger } from "./ledger.ts";
 import { clip } from "../core/text.ts";
 import { landLetters } from "./land-letters.ts";
 import { type Letter, letters } from "./letters.ts";
@@ -116,6 +116,10 @@ export class Desk {
 
   supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {
     return this.services.roster.supervisorFor(project, preferred);
+  }
+
+  readerOf(project: Project, lane: Lane | undefined): ReturnType<Roster["readerOf"]> {
+    return this.services.roster.readerOf(project, lane);
   }
 
   archive(agentId: string | undefined, force = false): Promise<void> {

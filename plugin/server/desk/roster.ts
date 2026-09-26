@@ -2,6 +2,7 @@ import { type Kit, can, seatOf } from "../catalog/kit.ts";
 import { midTurn } from "../core/paseo.ts";
 import type { SeatLook, SeatView, Seats, StreamRow } from "../core/ports.ts";
 import type { Intents } from "./intents.ts";
+import type { Lane } from "./ledger.ts";
 import { type Project, projectOf } from "./project.ts";
 
 export class Roster {
@@ -30,6 +31,12 @@ export class Roster {
 
   look(agentId: string): Promise<SeatLook> {
     return this.seats.look(agentId);
+  }
+
+  /** Who reads what is meant for a lane's Lead: the Lead while it is seated, else whoever supervises, who can seat one. */
+  async readerOf(project: Project, lane: Lane | undefined): Promise<{ to: string | undefined; as: "lead" | "supervisor" }> {
+    if (lane?.lead && (await this.seated(lane.lead))) return { to: lane.lead, as: "lead" };
+    return { to: await this.supervisorFor(project, lane?.opener), as: "supervisor" };
   }
 
   /** Sends past the outbox, cutting a running turn short; a seat that is gone is left so, since a send would start it again. */

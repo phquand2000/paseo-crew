@@ -40,7 +40,7 @@ export class TurnRules {
     this.lastEnding.delete(agentId);
   }
 
-  private async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<{ to: string | undefined; reader: "lead" | "supervisor" }> {
+  private async ownerOf(project: Project, agentId: string, role: RoleSpec): Promise<{ to: string | undefined; reader: "lead" | "supervisor" | "leadGone" }> {
     // A Lead's owner is whoever supervises; an unreadable ledger must not stop its failures reaching anyone.
     if (can(role, "lead")) {
       let opener: string | undefined;
@@ -51,7 +51,10 @@ export class TurnRules {
     }
     const ledger = loadLedger(project.state);
     const task = taskOfPeer(ledger, agentId);
-    return { to: task ? ledger.lanes[task.lane]?.lead : undefined, reader: "lead" };
+    if (!task) return { to: undefined, reader: "lead" };
+    // A Lead no longer seated would never read it: whoever supervises is told, and can seat one.
+    const reader = await this.deps.desk.readerOf(project, ledger.lanes[task.lane]);
+    return { to: reader.to, reader: reader.as === "lead" ? "lead" : "leadGone" };
   }
 
   /** A seat stopped on a permission: refused while its lane is on hold, else its owner is told, for the Human to give it. */

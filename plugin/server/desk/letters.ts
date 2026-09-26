@@ -117,8 +117,13 @@ export const letters = {
   },
 
   /** `reader` is the seat's owner: its Lead, or whoever supervises when the seat is a Lead. */
-  failed(agent: string, turn: string | number, who: string, message: string, reader: "lead" | "supervisor"): Letter {
-    const next = reader === "lead" ? "Nothing restarts it: message it to continue, or cut the task and start it again." : "Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again.";
+  /** `reader` is a Peer's Lead, whoever supervises a Lead, or whoever supervises a Peer whose Lead is gone. */
+  failed(agent: string, turn: string | number, who: string, message: string, reader: "lead" | "supervisor" | "leadGone"): Letter {
+    const next = {
+      lead: "Nothing restarts it: message it to continue, or cut the task and start it again.",
+      supervisor: "Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again.",
+      leadGone: "Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or cut its task.",
+    }[reader];
     return mail("failed", [agent, turn], failedText(who, message), next);
   },
 
@@ -126,7 +131,7 @@ export const letters = {
     return mail("gone", [task.id], failedText(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"), "Nothing restarts it: accept what it committed that you have verified, or cut it and start it again.");
   },
 
-  permission(agent: string, who: string, request: PendingPermission, reader: "lead" | "supervisor"): Letter {
+  permission(agent: string, who: string, request: PendingPermission, reader: "lead" | "supervisor" | "leadGone"): Letter {
     const lines = [`WAITING FOR PERMISSION: ${who} has stopped until this is answered.`, ""];
     lines.push(clip([...new Set([request.name, request.title].filter(Boolean))].join(": ") || request.kind || "a request", 600));
     if (request.description && request.description !== request.title) lines.push(clip(request.description, 600));

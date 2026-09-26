@@ -85,17 +85,11 @@ async function reminderOf(task: Task, uncommitted: boolean): Promise<string> {
   return adrift ? ` Your working copy is not on ${meant} any more, so anything you committed is on no branch and will be collected. After a bisect, git bisect reset takes it back to ${meant}: commit there before your turn ends. If you left it some other way, say so with ask: moving a copy between branches is the desk's.` : "";
 }
 
-/** A Lead no longer seated would never read a hand-back; the level above is told instead and can seat one. */
-async function readerOf(roster: DeskServices["roster"], project: Caller["project"], lane: Lane | undefined): Promise<{ to: string | undefined; as: "lead" | "supervisor" }> {
-  if (lane?.lead && (await roster.seated(lane.lead))) return { to: lane.lead, as: "lead" };
-  return { to: await roster.supervisorFor(project, lane?.opener), as: "supervisor" };
-}
-
 /** Whoever reads the hand-back is told and it goes on record; the watch's questions about it are asked, and not waited for. */
 async function tell(services: DeskServices, caller: Caller, task: Task, lane: Lane | undefined, handed: { file: string; outcome: string; body: string; summary: string; commit?: string }): Promise<void> {
   const { ctx, roster } = services;
   const heading = task.kind === "review" ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
-  const reader = await readerOf(roster, caller.project, lane);
+  const reader = await roster.readerOf(caller.project, lane);
   await ctx.post(reader.to, letters.handback(heading, handed.file, handed.body, caller.id, reader.as));
   ctx.event(caller.project, { kind: task.kind === "review" ? "review.done" : "task.done", task: task.id, outcome: handed.outcome, commit: handed.commit });
   const judged = handbackCase(ctx.kit, caller.project, task, handed);
