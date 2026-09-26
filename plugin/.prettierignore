@@ -1,17 +1,23 @@
 node_modules
-content
-harness
-catalog
+/content
+/harness
+/catalog
 test/fixtures
 *.json
 *.md
-client
-index.client.tsx
-mcp
-bin
+/client
+/index.client.tsx
+/mcp
+/bin
 
 # Not yet formatted: formatted, each would break the size limits in test/architecture.test.ts until it is split.
 # The list only shrinks.
+server/catalog/kit.ts
+server/catalog/launch.ts
+server/catalog/providers.ts
+server/catalog/schema.ts
+server/catalog/seats.ts
+server/catalog/team.ts
 server/core/git.ts
 server/desk/archive.ts
 server/desk/away.ts
@@ -46,6 +52,22 @@ server/runtime/watch/facts.ts
 server/runtime/watch/history.ts
 server/upkeep/update.ts
 shared/views.ts
+test/catalog/content.test.ts
+test/catalog/git-shim.test.ts
+test/catalog/keep.test.ts
+test/catalog/kit.real.test.ts
+test/catalog/kit.test.ts
+test/catalog/launch.test.ts
+test/catalog/lint.test.ts
+test/catalog/models.test.ts
+test/catalog/providers.test.ts
+test/catalog/seat-room.test.ts
+test/catalog/seats.test.ts
+test/catalog/settings.test.ts
+test/catalog/team.test.ts
+test/catalog/waits.test.ts
+test/client/data.test.ts
+test/client/judging.test.ts
 test/desk/flow.test.ts
 test/runtime/copies.test.ts
 test/runtime/facts.test.ts

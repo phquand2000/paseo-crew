@@ -24,27 +24,41 @@ export function applyModels(kit: Kit, cache: ModelCache): void {
 /** A model's own default is dropped: Paseo marks the one this plugin told it to, so it is our choice read back. */
 function specOf(model: NonNullable<ModelList["models"]>[number]): ModelSpec {
   const spec: ModelSpec = { id: model.id, label: model.label };
-  if (model.thinkingOptions?.length) spec.thinkingOptions = model.thinkingOptions.map((option) => ({ id: option.id, label: option.label, ...(option.id === model.defaultThinkingOptionId ? { isDefault: true } : {}) }));
+  if (model.thinkingOptions?.length)
+    spec.thinkingOptions = model.thinkingOptions.map((option) => ({
+      id: option.id,
+      label: option.label,
+      ...(option.id === model.defaultThinkingOptionId ? { isDefault: true } : {}),
+    }));
   return spec;
 }
 
 export function listingProviders(kit: Kit): Map<string, string> {
   const providers = new Map<string, string>();
-  for (const { role, harness } of seatPairs(kit)) if (!providers.has(harness.id)) providers.set(harness.id, providerId(kit, role.role, harness.id));
+  for (const { role, harness } of seatPairs(kit))
+    if (!providers.has(harness.id)) providers.set(harness.id, providerId(kit, role.role, harness.id));
   return providers;
 }
 
-export async function fetchModels(kit: Kit, list: (provider: string) => Promise<ModelList>, stateDir: string, now = Date.now()): Promise<{ cache: ModelCache; changed: boolean }> {
+export async function fetchModels(
+  kit: Kit,
+  list: (provider: string) => Promise<ModelList>,
+  stateDir: string,
+  now = Date.now(),
+): Promise<{ cache: ModelCache; changed: boolean }> {
   const held = readModels(stateDir);
   const next: ModelCache = {};
   const providers = [...listingProviders(kit)];
-  const answers = await Promise.all(providers.map(([, provider]) => list(provider).catch((error): ModelList => ({ error: errorText(error) }))));
+  const answers = await Promise.all(
+    providers.map(([, provider]) => list(provider).catch((error): ModelList => ({ error: errorText(error) }))),
+  );
   for (const [index, [harness]] of providers.entries()) {
     const before = held[harness];
     const listed = answers[index]!;
     const models = (listed.models ?? []).filter((model) => model.isSelectable !== false).map(specOf);
     const error = models.length > 0 ? null : (listed.error ?? "Paseo listed no models");
-    next[harness] = models.length > 0 || !before ? { at: new Date(now).toISOString(), models, error } : { ...before, error };
+    next[harness] =
+      models.length > 0 || !before ? { at: new Date(now).toISOString(), models, error } : { ...before, error };
   }
   const changed = !sameJson(strip(next), strip(held));
   writeJson(cacheFile(stateDir), next);

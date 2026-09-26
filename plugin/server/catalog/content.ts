@@ -9,7 +9,9 @@ export type PromptPaths = { guides: string; state: string };
 /** What under the project's state a text names that the role neither writes nor reads as the desk's own record. */
 function unwritten(role: RoleSpec, text: string): string[] {
   const writes = new Set((role.writes ?? []).map((entry) => entry.replace(/\/$/, "")));
-  const named = [...text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)/g)].map((match) => match[1]!);
+  const named = [...text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)/g)].map(
+    (match) => match[1]!,
+  );
   return [...new Set(named)].filter((segment) => !writes.has(segment) && !DESK_OWNED.has(segment));
 }
 
@@ -23,7 +25,10 @@ export function renderText(role: RoleSpec, source: string, paths: PromptPaths): 
     throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);
   }
   const loose = unwritten(role, source);
-  if (loose.length > 0) throw new Error(`the ${role.role} prompt names ${loose.join(", ")} under the project's state, which the role does not write: add it to the role's writes`);
+  if (loose.length > 0)
+    throw new Error(
+      `the ${role.role} prompt names ${loose.join(", ")} under the project's state, which the role does not write: add it to the role's writes`,
+    );
   return text;
 }
 
@@ -50,9 +55,13 @@ export function toolProblems(kit: Kit, role: RoleSpec): string[] {
   if (!role.tools || !existsSync(file)) return [];
   const tools = (JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown[]>)[role.tools] ?? [];
   const told = join(kit.dir, "mcp", "instructions.json");
-  const instructions = existsSync(told) ? ((JSON.parse(readFileSync(told, "utf-8")) as Record<string, string>)[role.tools] ?? "") : "";
+  const instructions = existsSync(told)
+    ? ((JSON.parse(readFileSync(told, "utf-8")) as Record<string, string>)[role.tools] ?? "")
+    : "";
   const hidden = hiddenWordsIn(`${JSON.stringify(tools)}\n${instructions}`, role.hidesWords ?? []);
-  return hidden.length > 0 ? [`the ${role.tools} tools the ${role.role} is given show words it must not see: ${hidden.join(", ")}`] : [];
+  return hidden.length > 0
+    ? [`the ${role.tools} tools the ${role.role} is given show words it must not see: ${hidden.join(", ")}`]
+    : [];
 }
 
 export function skillProblems(role: RoleSpec, name: string, dir: string): string[] {
@@ -60,11 +69,20 @@ export function skillProblems(role: RoleSpec, name: string, dir: string): string
   for (const file of markdownIn(dir)) {
     const text = readFileSync(file, "utf-8");
     const leftover = text.match(/\{\{[^}]*\}\}/);
-    if (leftover) problems.push(`skill ${name} holds ${leftover[0]} in ${basename(file)}, and a skill is read as written, so nothing fills it in`);
+    if (leftover)
+      problems.push(
+        `skill ${name} holds ${leftover[0]} in ${basename(file)}, and a skill is read as written, so nothing fills it in`,
+      );
     const hidden = hiddenWordsIn(text, role.hidesWords ?? []);
-    if (hidden.length > 0) problems.push(`skill ${name} shows the ${role.role} words it must not see in ${basename(file)}: ${hidden.join(", ")}`);
+    if (hidden.length > 0)
+      problems.push(
+        `skill ${name} shows the ${role.role} words it must not see in ${basename(file)}: ${hidden.join(", ")}`,
+      );
     const loose = unwritten(role, text);
-    if (loose.length > 0) problems.push(`skill ${name} names ${loose.join(", ")} under the project's state in ${basename(file)}, which the ${role.role} does not write: add it to the role's writes`);
+    if (loose.length > 0)
+      problems.push(
+        `skill ${name} names ${loose.join(", ")} under the project's state in ${basename(file)}, which the ${role.role} does not write: add it to the role's writes`,
+      );
   }
   return problems;
 }
@@ -84,12 +102,14 @@ export function skillSources(kit: Kit, role: RoleSpec, extra: Map<string, string
   const found = new Map<string, string>();
   if (role.skills) {
     const own = isAbsolute(role.skills) ? role.skills : join(root, role.skills);
-    for (const name of skillDirs(own)) found.set(name, isAbsolute(role.skills) ? join(own, name) : ownOr(kit, `skills/${role.skills}/${name}`));
+    for (const name of skillDirs(own))
+      found.set(name, isAbsolute(role.skills) ? join(own, name) : ownOr(kit, `skills/${role.skills}/${name}`));
   }
   for (const extra of role.extraSkills ?? []) {
     const [set, name] = extra.split(":") as [string, string];
     const dir = ownOr(kit, `skills/${set}/${name}`);
-    if (!existsSync(join(dir, "SKILL.md"))) throw new Error(`role ${role.role} names extra skill ${extra}, but ${dir}/SKILL.md is missing`);
+    if (!existsSync(join(dir, "SKILL.md")))
+      throw new Error(`role ${role.role} names extra skill ${extra}, but ${dir}/SKILL.md is missing`);
     found.set(name, dir);
   }
   for (const [name, dir] of extra) found.set(name, dir);

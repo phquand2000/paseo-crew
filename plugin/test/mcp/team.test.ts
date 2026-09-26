@@ -36,8 +36,16 @@ async function fakeDesk(respond: (line: Socket, said: Said) => void) {
 
 /** A harness with the team server of `set` for the seat holding key k1, reaching the desk at `path`. */
 async function harness(path: string, set = "lead", env: Record<string, string> = {}, changed?: () => void) {
-  const client = new Client({ name: "probe", version: "0" }, changed ? { listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: changed } } } : {});
-  const transport = new StdioClientTransport({ command: process.execPath, args: [teamServer, set, set, path], env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1", ...env }, stderr: "inherit" });
+  const client = new Client(
+    { name: "probe", version: "0" },
+    changed ? { listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: changed } } } : {},
+  );
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [teamServer, set, set, path],
+    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1", ...env },
+    stderr: "inherit",
+  });
   await client.connect(transport);
   return client;
 }
@@ -47,12 +55,16 @@ const welcoming = (choices: object) => (line: Socket, said: Said) => {
 };
 
 const within = async (ms: number, check: () => boolean) => {
-  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20))) if (Date.now() > end) return false;
+  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20)))
+    if (Date.now() > end) return false;
   return true;
 };
 
 test("a seat's harness is told what the server is for, each tool's title and what it changes, and the desk's choices as enums", async () => {
-  const choices = { add_tasks: { role: ["peer"], skills: ["test-first", "diagnosing-bugs"] }, note: { kind: ["plans", "council"] } };
+  const choices = {
+    add_tasks: { role: ["peer"], skills: ["test-first", "diagnosing-bugs"] },
+    note: { kind: ["plans", "council"] },
+  };
   const desk = await fakeDesk(welcoming(choices));
   const client = await harness(desk.path);
   try {
@@ -62,16 +74,27 @@ test("a seat's harness is told what the server is for, each tool's title and wha
     assert.equal(client.getInstructions(), data("instructions.json", "lead"));
     // The desk's choices come with the first list, or as a changed list soon after when the desk is slow to say them.
     let tools: Awaited<ReturnType<typeof client.listTools>>["tools"] = [];
-    const offered = () => ((tools.find((tool) => tool.name === "note")?.inputSchema as any)?.properties.kind.enum ?? []).length > 0;
-    for (const end = Date.now() + 5000; !offered() && Date.now() < end; await new Promise((resolve) => setTimeout(resolve, 50))) tools = (await client.listTools()).tools;
-    const shown = (list: { name: string; title?: string; annotations?: object }[]) => list.map(({ name, title, annotations }) => ({ name, title, annotations }));
+    const offered = () =>
+      ((tools.find((tool) => tool.name === "note")?.inputSchema as any)?.properties.kind.enum ?? []).length > 0;
+    for (
+      const end = Date.now() + 5000;
+      !offered() && Date.now() < end;
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    )
+      tools = (await client.listTools()).tools;
+    const shown = (list: { name: string; title?: string; annotations?: object }[]) =>
+      list.map(({ name, title, annotations }) => ({ name, title, annotations }));
     assert.deepEqual(shown(tools), shown(data("tools.json", "lead")));
     const schema = (name: string) => tools.find((tool) => tool.name === name)!.inputSchema as any;
     const task = schema("add_tasks").properties.tasks.items.properties;
     assert.deepEqual(task.role.enum, ["peer"]);
     assert.deepEqual(task.skills.items.enum, ["test-first", "diagnosing-bugs"], "a list takes the set for its items");
     assert.deepEqual(schema("note").properties.kind.enum, ["plans", "council"]);
-    assert.equal(schema("start_review").properties.role.enum, undefined, "a field the desk named nothing for is left open");
+    assert.equal(
+      schema("start_review").properties.role.enum,
+      undefined,
+      "a field the desk named nothing for is left open",
+    );
   } finally {
     await client.close();
     await desk.close();
@@ -81,7 +104,10 @@ test("a seat's harness is told what the server is for, each tool's title and wha
 test("a call reaches the desk from the seat holding the key, and its answer is the tool's text, a refusal marked an error", async () => {
   const desk = await fakeDesk((line, said) => {
     welcoming({})(line, said);
-    if (said.type === "call") line.write(`${JSON.stringify({ type: "result", id: said.id, ok: said.tool === "status", text: `answered ${said.tool}` })}\n`);
+    if (said.type === "call")
+      line.write(
+        `${JSON.stringify({ type: "result", id: said.id, ok: said.tool === "status", text: `answered ${said.tool}` })}\n`,
+      );
   });
   const client = await harness(desk.path);
   try {
@@ -90,10 +116,16 @@ test("a call reaches the desk from the seat holding the key, and its answer is t
     assert.equal(status.isError, false);
     const call = desk.heard.find((said) => said.type === "call")!;
     assert.deepEqual({ tool: call.tool, args: call.args }, { tool: "status", args: {} });
-    assert.ok(await within(2000, () => desk.heard.some((said) => said.type === "taken" && said.id === call.id)), "the harness took the answer, and the desk is told so");
+    assert.ok(
+      await within(2000, () => desk.heard.some((said) => said.type === "taken" && said.id === call.id)),
+      "the harness took the answer, and the desk is told so",
+    );
     const refused = await client.callTool({ name: "accept", arguments: { task: "L1-T1" } });
     assert.equal(refused.isError, true);
-    await assert.rejects(client.callTool({ name: "no_such_tool", arguments: {} }), "a tool the set does not have is the protocol's own error");
+    await assert.rejects(
+      client.callTool({ name: "no_such_tool", arguments: {} }),
+      "a tool the set does not have is the protocol's own error",
+    );
   } finally {
     await client.close();
     await desk.close();
@@ -102,12 +134,16 @@ test("a call reaches the desk from the seat holding the key, and its answer is t
 
 test("a key the desk refuses carries nothing out, and each call says why", async () => {
   const desk = await fakeDesk((line, said) => {
-    if (said.type === "hello") line.write(`${JSON.stringify({ type: "refused", why: "The desk does not know this agent's key." })}\n`);
+    if (said.type === "hello")
+      line.write(`${JSON.stringify({ type: "refused", why: "The desk does not know this agent's key." })}\n`);
   });
   const client = await harness(desk.path);
   try {
     const called = await client.callTool({ name: "status", arguments: {} });
-    assert.deepEqual([called.isError, called.content], [true, [{ type: "text", text: "The desk does not know this agent's key." }]]);
+    assert.deepEqual(
+      [called.isError, called.content],
+      [true, [{ type: "text", text: "The desk does not know this agent's key." }]],
+    );
     assert.equal(desk.heard.filter((said) => said.type === "call").length, 0);
   } finally {
     await client.close();
@@ -120,7 +156,10 @@ test("with no desk running a call is not carried out, and says what to do", asyn
   try {
     const called = await client.callTool({ name: "status", arguments: {} });
     assert.equal(called.isError, true);
-    assert.match((called.content as { text: string }[])[0]!.text, /^The team desk is not running, so status was not carried out\. Do not call it again/);
+    assert.match(
+      (called.content as { text: string }[])[0]!.text,
+      /^The team desk is not running, so status was not carried out\. Do not call it again/,
+    );
   } finally {
     await client.close();
   }
@@ -146,14 +185,21 @@ test("a call its harness stops tells the desk, which answers it by mail", async 
 test("a harness that asked for progress hears that a long call still runs", async () => {
   const desk = await fakeDesk((line, said) => {
     welcoming({})(line, said);
-    if (said.type === "call") setTimeout(() => line.write(`${JSON.stringify({ type: "result", id: said.id, ok: true, text: "done" })}\n`), 300);
+    if (said.type === "call")
+      setTimeout(() => line.write(`${JSON.stringify({ type: "result", id: said.id, ok: true, text: "done" })}\n`), 300);
   });
   const client = await harness(desk.path, "lead", { SEATWORKS_PROGRESS_MS: "50" });
   try {
     const heard: string[] = [];
-    const called = await client.callTool({ name: "status", arguments: {} }, { onprogress: (progress) => heard.push(progress.message ?? "") });
+    const called = await client.callTool(
+      { name: "status", arguments: {} },
+      { onprogress: (progress) => heard.push(progress.message ?? "") },
+    );
     assert.deepEqual(called.content, [{ type: "text", text: "done" }]);
-    assert.ok(heard.length > 0 && heard.every((message) => message === "The desk is still working on status."), `${heard.length} progress notes`);
+    assert.ok(
+      heard.length > 0 && heard.every((message) => message === "The desk is still working on status."),
+      `${heard.length} progress notes`,
+    );
   } finally {
     await client.close();
     await desk.close();
@@ -169,7 +215,8 @@ test("new choices from the desk reach the harness as a changed list of tools", a
   let changed = 0;
   const client = await harness(desk.path, "lead", {}, () => changed++);
   try {
-    const kind = async () => ((await client.listTools()).tools.find((tool) => tool.name === "note")!.inputSchema as any).properties.kind.enum;
+    const kind = async () =>
+      ((await client.listTools()).tools.find((tool) => tool.name === "note")!.inputSchema as any).properties.kind.enum;
     assert.deepEqual(await kind(), ["plans"]);
     desk.send(line!, { type: "choices", choices: { note: { kind: ["plans", "council"] } } });
     assert.ok(await within(2000, () => changed > 0), "told the list changed");
@@ -192,7 +239,10 @@ test("a desk that drops the line mid-call leaves that call with what happened, a
   try {
     const lost = await client.callTool({ name: "accept", arguments: { task: "L1-T1" } });
     assert.equal(lost.isError, true);
-    assert.match((lost.content as { text: string }[])[0]!.text, /^The line to the team desk dropped while accept ran, so its answer did not come back here\. If the desk took the call, its answer comes as mail: look before calling accept again, since a second call may do it twice\./);
+    assert.match(
+      (lost.content as { text: string }[])[0]!.text,
+      /^The line to the team desk dropped while accept ran, so its answer did not come back here\. If the desk took the call, its answer comes as mail: look before calling accept again, since a second call may do it twice\./,
+    );
     const again = await client.callTool({ name: "status", arguments: {} });
     assert.deepEqual(again.content, [{ type: "text", text: "answered" }]);
     assert.equal(desk.heard.filter((said) => said.type === "hello").length, 2, "said who it is again on the new line");
@@ -204,12 +254,21 @@ test("a desk that drops the line mid-call leaves that call with what happened, a
 
 test("a server whose harness closes its pipe exits, though its line to the desk is still open", async () => {
   const desk = await fakeDesk(welcoming({}));
-  const server = spawn(process.execPath, [teamServer, "peer", "peer", desk.path], { env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" }, stdio: ["pipe", "ignore", "inherit"] });
+  const server = spawn(process.execPath, [teamServer, "peer", "peer", desk.path], {
+    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" },
+    stdio: ["pipe", "ignore", "inherit"],
+  });
   try {
-    assert.ok(await within(5000, () => desk.heard.some((said) => said.type === "hello")), "its line to the desk is open");
+    assert.ok(
+      await within(5000, () => desk.heard.some((said) => said.type === "hello")),
+      "its line to the desk is open",
+    );
     const exited = new Promise<boolean>((resolve) => server.on("exit", () => resolve(true)));
     server.stdin.end();
-    assert.ok(await Promise.race([exited, new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000))]), "left running, it would hold its line for good");
+    assert.ok(
+      await Promise.race([exited, new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000))]),
+      "left running, it would hold its line for good",
+    );
   } finally {
     server.kill();
     await desk.close();
