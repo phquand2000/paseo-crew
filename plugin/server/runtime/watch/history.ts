@@ -30,12 +30,6 @@ const short = (text: string, limit = 120): string => {
 
 const UNFINISHED = new Set(["partial", "blocked"]);
 
-/** Says how unfinished work came in, so a Supervisor need not rebuild what the desk already counted. */
-function took(task: Task): string {
-  if (task.handback) return `after its Peer handed it back ${task.handback.outcome}`;
-  if (task.silent > 0) return `after its Peer went quiet ${task.silent === 1 ? "once" : `${task.silent} times`} without handing back`;
-  return "though it was never handed back";
-}
 const MOST_NAMED = 5;
 
 const reworksOf = (task: Task): number => task.reworks ?? 0;
@@ -72,14 +66,14 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
       at("patched-not-fixed", `${sendings} sendings-back across ${patched.length} tasks still open in this lane: ${patched.map((task) => `${task.id} ×${reworksOf(task)}`).join(", ")}`);
     }
 
-    // `done` stores a missing outcome as complete, so partial/blocked was said, and nothing else records accepting it.
-    const unfinished = here.filter((task) => task.status === "merged" && (!task.handback || UNFINISHED.has(task.handback.outcome)));
+    // A hand-back that said partial or blocked, accepted all the same: nothing else records the Lead taking it in.
+    const unfinished = here.filter((task) => task.status === "merged" && UNFINISHED.has(task.handback?.outcome ?? ""));
     if (unfinished.length > 0) {
       const named = unfinished.slice(0, MOST_NAMED);
       const rest = unfinished.length - named.length;
       at(
         "accepted-unfinished",
-        `${named.map((task) => `${task.id} (${task.title}) was accepted ${took(task)}`).join("; ")}${rest > 0 ? `; and ${rest} more in this lane` : ""}`,
+        `${named.map((task) => `${task.id} (${task.title}) was accepted after its Peer handed it back ${task.handback?.outcome}`).join("; ")}${rest > 0 ? `; and ${rest} more in this lane` : ""}`,
       );
     }
 

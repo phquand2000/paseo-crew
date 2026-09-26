@@ -56,6 +56,8 @@ test("a seat's harness is told what the server is for, each tool's title and wha
   const desk = await fakeDesk(welcoming(choices));
   const client = await harness(desk.path);
   try {
+    // The server answers its harness without waiting long for the desk, so its hello may arrive after the handshake.
+    assert.ok(await within(5000, () => desk.heard.length > 0), "it says hello");
     assert.deepEqual(desk.heard[0], { type: "hello", key: "k1", role: "lead", cwd: process.cwd() });
     assert.equal(client.getInstructions(), data("instructions.json", "lead"));
     // The desk's choices come with the first list, or as a changed list soon after when the desk is slow to say them.

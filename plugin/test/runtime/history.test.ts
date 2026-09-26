@@ -132,25 +132,12 @@ test("a task taken in although its Peer never said it was finished is on the rec
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), ["accepted-unfinished"]);
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "complete", summary: "s", at: 0 } })])), [], "a Peer that said it finished raises nothing");
 
-  // `accept` refuses only merged, queued, merging or cut tasks, so a task can be taken in never handed back.
-  const never = ledgerOf([task({ id: "L1-T1", status: "merged" })]);
-  assert.deepEqual(kinds(never), ["accepted-unfinished"]);
-  assert.match(deskFacts(never, READING)[0]!.fact.quote, /though it was never handed back/);
-
-  // The desk counted the quiet turns itself, so saying so spares the Supervisor reconstructing it.
-  const quiet = ledgerOf([task({ id: "L1-T1", status: "merged", silent: 3 })]);
-  assert.match(deskFacts(quiet, READING)[0]!.fact.quote, /was accepted after its Peer went quiet 3 times without handing back/);
-  assert.match(deskFacts(ledgerOf([task({ id: "L1-T1", status: "merged", silent: 1 })]), READING)[0]!.fact.quote, /went quiet once without handing back/);
-
   // Still running, still being sent back, or cut: none of those is the Lead taking the work in.
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), []);
   assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "cut", handback: { file: "f", outcome: "blocked", summary: "s", at: 0 } })])), [], "cutting a task its Peer could not finish is the answer, not the fault");
 });
 
-test("an outcome word the schema does not offer reads as finished, and a lane names only its first few", () => {
-  // `done` stores any string unvalidated, so a stray word falls the safe way: silence.
-  assert.deepEqual(kinds(ledgerOf([task({ id: "L1-T1", status: "merged", handback: { file: "f", outcome: "completed", summary: "s", at: 0 } })])), []);
-
+test("a lane names only the first few tasks it took in unfinished", () => {
   const many = ledgerOf(Array.from({ length: 7 }, (_, index) => task({ id: `L1-T${index + 1}`, status: "merged", handback: { file: "f", outcome: "partial", summary: "s", at: 0 } })));
   const quote = deskFacts(many, READING).find((seen) => seen.fact.kind === "accepted-unfinished")!.fact.quote;
   assert.match(quote, /; and 2 more in this lane$/);
