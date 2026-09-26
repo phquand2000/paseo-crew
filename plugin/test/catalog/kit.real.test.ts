@@ -75,6 +75,8 @@ test("every role builds on every agent the kit ships, each in that agent's own t
   const base = resolveTeam(kit, { mcp: Object.fromEntries(Object.keys(kit.mcp).map((id) => [id, { enabled: true }])) });
   const home = tempDir("sw2-every-home-");
   const project = { root: "/work/demo", slug: "demo-000000", state: "/state/demo" };
+  // Every agent the kit can seat, by the command that starts it: one started from a seat's shell runs past Paseo.
+  const agents = Object.values(kit.harnesses).map((harness) => harness.provider.env?.SEATWORKS_AGENT_BIN).filter((bin): bin is string => Boolean(bin));
   for (const { role, harness } of seatPairs(kit)) {
     if (harness.modelCatalog && !realProbes.has(harness.modelCatalog.command[0]!)) {
       t.diagnostic(`${harness.id} is not installed here, so its ${role.role} seat was not built`);
@@ -95,6 +97,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       for (const command of DESK_GIT) assert.ok([`Bash(git ${command} *)`, `Bash(git -C * ${command} *)`].every((rule) => settings.permissions.deny.includes(rule)), `${where}: a seat does not git ${command}, with -C or without`);
       for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit"]) assert.equal(settings.permissions.deny.includes(tool), !edits, `${where}: ${tool} only where the role edits files`);
       assert.equal(settings.permissions.deny.includes("Bash(sleep *)"), !waits, `${where}: sleeps only where the role may`);
+      for (const agent of agents) assert.ok(settings.permissions.deny.includes(`Bash(${agent} *)`), `${where}: a seat does not start ${agent} from its shell`);
       assert.equal(settings.permissions.deny.includes("WebSearch"), !searches, `${where}: searches the web only where the role may`);
       if (bare) for (const tool of BUILT_INS.claude!) assert.ok(settings.permissions.deny.includes(tool), `${where}: has no ${tool}`);
     }
@@ -111,6 +114,8 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       for (const command of DESK_GIT) assert.match(rules, new RegExp(`\\["git", (\\[[^\\]]*)?"${command}"`), `${where}: a seat does not git ${command}`);
       assert.equal(/"git", "commit"/.test(rules), ["supervisor", "lead"].includes(role.role), `${where}: commits only where the role commits`);
       assert.equal(/pattern = \["sleep"\]/.test(rules), !waits, `${where}: sleeps only where the role may`);
+      const forbidden = rules.match(/prefix_rule\(pattern = \[\[([^\]]*)\]\], decision = "forbidden", justification = "Agents are started by the desk/)?.[1] ?? "";
+      for (const agent of agents) assert.ok(forbidden.includes(`"${agent}"`), `${where}: a seat does not start ${agent} from its shell`);
     }
     if (harness.id === "omp") {
       const denied = (settings.bash?.patterns ?? []).filter((rule: { approval: string }) => rule.approval === "deny").map((rule: { match: string }) => rule.match);
@@ -119,6 +124,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.ok(!denied.some((rule: string) => /^git (-C \* )?[a-z-]+\*$/.test(rule)), `${where}: no pattern takes in a longer command, as git merge* took git merge-base`);
       assert.equal(refuses("commit"), ["supervisor", "lead", "reviewer"].includes(role.role), `${where}: commits only where the role may`);
       assert.equal(denied.includes("sleep *"), !waits, `${where}: sleeps only where the role may`);
+      for (const agent of agents) assert.ok([agent, `${agent} *`].every((rule) => denied.includes(rule)), `${where}: a seat does not start ${agent} from its shell`);
       assert.equal(settings.ask?.enabled, false, `${where}: nobody is there to answer a question that stops the turn`);
       assert.equal(settings.tools?.approval?.task, "deny", `${where}: Paseo is the only control plane`);
       assert.equal(settings.tools?.approval?.eval, "deny", `${where}: an eval cell starts agents through agent() and workpool(), past Paseo`);
@@ -144,6 +150,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       for (const command of DESK_GIT) assert.ok(bash[`git ${command} *`] === "deny" && bash[`git -C * ${command} *`] === "deny", `${where}: a seat does not git ${command}, with -C or without`);
       assert.equal(bash["git commit *"] === "deny", ["supervisor", "lead", "reviewer"].includes(role.role), `${where}: commits only where the role may`);
       assert.equal(bash["sleep *"] === "deny", !waits, `${where}: sleeps only where the role may`);
+      for (const agent of agents) assert.ok(bash["*"] === "deny" || (bash[agent] === "deny" && bash[`${agent} *`] === "deny"), `${where}: a seat does not start ${agent} from its shell`);
       assert.deepEqual([task, question, outside], ["deny", "deny", "allow"], `${where}: no subagents, no question that stops the turn, and nothing waiting on a person`);
       assert.equal(settings.permission?.edit === "deny", !edits, `${where}: edits files only where the role may`);
       assert.equal(settings.permission?.websearch === "deny", !searches, `${where}: searches the web only where the role may`);
