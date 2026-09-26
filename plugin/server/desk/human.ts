@@ -2,7 +2,7 @@ import type { OrdersView, ReportView } from "../../shared/views.ts";
 import { settleQuestion } from "./answers.ts";
 import { askLetters } from "./ask-letters.ts";
 import { reportView } from "./away.ts";
-import { decideLand } from "./closing.ts";
+import { decideLand } from "./lanes/land-decision.ts";
 import { loadLedger } from "./ledger.ts";
 import { ordersView } from "./orders.ts";
 import type { Project } from "./project.ts";

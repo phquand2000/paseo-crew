@@ -21,7 +21,6 @@ server/catalog/team.ts
 server/core/git.ts
 server/desk/archive.ts
 server/desk/away.ts
-server/desk/closing.ts
 server/desk/desk.ts
 server/desk/directive.ts
 server/desk/landing.ts

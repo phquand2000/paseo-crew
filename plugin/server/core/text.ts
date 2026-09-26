@@ -28,6 +28,9 @@ export function clip(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit).trimEnd()}\n[… ${text.length - limit} more characters]`;
 }
 
+/** `one` for a count of one, else `many`. */
+export const plural = (count: number, one: string, many: string): string => (count === 1 ? one : many);
+
 /** The first `limit` of a list, and how many more there are. */
 export const capped = (items: string[], limit: number): string =>
   items.length > limit ? `${items.slice(0, limit).join(", ")} and ${items.length - limit} more` : items.join(", ");
