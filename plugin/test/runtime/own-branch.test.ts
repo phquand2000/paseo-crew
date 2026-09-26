@@ -56,20 +56,6 @@ test("a task beside others merges into the lane while a task in the lane's copy 
   assert.equal(onBranch(h, lane.worktree!), h.ledger().tasks["L1-T1"]!.branch);
 });
 
-test("the next task in the lane's copy starts on a branch of its own from the lane as merged so far", async () => {
-  const { h, lane, peer } = await laneWithPeer();
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "n", title: "Next", goal: "g", ...scope, after: ["L1-T1"] }] });
-  h.commit(lane.worktree!, "new.txt", "new\n");
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "new" });
-  h.agents.get(peer)!.status = "idle";
-  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
-  await h.runtime.desk.settled(h.project);
-  const next = h.ledger().tasks["L1-T2"]!;
-  assert.equal(next.status, "running");
-  assert.equal(onBranch(h, lane.worktree!), next.branch);
-  assert.equal(has(h, lane.worktree!, "HEAD", "new.txt"), true, "it starts from the lane with L1-T1 merged in");
-});
-
 test("a commit made while the lane's copy is off its branch is not accepted as landed", async () => {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");

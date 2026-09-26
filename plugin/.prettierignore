@@ -72,7 +72,6 @@ test/desk/flow.test.ts
 test/runtime/copies.test.ts
 test/runtime/facts.test.ts
 test/runtime/harness.ts
-test/runtime/intake.test.ts
 test/runtime/judging.test.ts
 test/runtime/mail.test.ts
 test/runtime/own-branch.test.ts

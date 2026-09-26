@@ -202,3 +202,27 @@ test("an ask from a Peer whose task is cut as it asks is not opened", async () =
   assert.match(asked.text, /L1-T1 was accepted or cut while you asked/);
   assert.deepEqual(Object.values(h.ledger().asks), []);
 });
+
+test("a waiting lane asked to open by a round and a close at once opens once, with one Lead", async () => {
+  const h = harness();
+  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["anything else in the repository"] };
+  await h.call(sup, "supervisor", "open_lane", { title: "Cart", ...scope, isolate: true });
+  await h.call(sup, "supervisor", "open_lane", { title: "Order", ...scope, after: ["L1"], isolate: true });
+  const ledger = h.ledger();
+  Object.assign(ledger.lanes.L1!, { status: "closed", landed: true });
+  saveLedger(h.project.state, ledger);
+
+  await Promise.all([h.runtime.desk.openWaiting(h.project), h.runtime.desk.openWaiting(h.project)]);
+  assert.equal(h.ledger().lanes.L2!.status, "open");
+  assert.equal(
+    [...h.agents.values()].filter((agent) => agent.title.startsWith("L2 · Lead")).length,
+    1,
+    "both passed the checks, and only one claimed it",
+  );
+  assert.equal(
+    Object.values(h.ledger().slots).filter((slot) => slot.lane === "L2").length,
+    1,
+    "and only one copy was taken for it",
+  );
+});

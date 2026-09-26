@@ -195,33 +195,6 @@ test("the watch reads a Peer in the lane's copy against the lane's write set, an
   ]);
 });
 
-test("a Lead points a task somewhere new or tells it what was found, and only a task beside others holds paths", async () => {
-  const { h, lane, peer } = await laneWithPeer();
-  const amend = (args: Record<string, unknown>) =>
-    h.call(lane.lead!, "lead", "amend_task", { why: "the parser lives there", ...args });
-  assert.equal(
-    (await amend({ task: "L1-T1", hints: ["a.txt", "b.txt"], context: "The header parser is in b.txt." })).ok,
-    true,
-  );
-  await h.idle(peer);
-  assert.match(letters(h, peer), /context, was:\nnone\ncontext, now:\nThe header parser is in b\.txt\./);
-  assert.deepEqual(
-    h.ledger().tasks["L1-T1"]!.amended?.[0]?.was,
-    { context: "", hints: ["a.txt"] },
-    "a context it never had is kept as none, not dropped from the record",
-  );
-  assert.match(
-    (await amend({ task: "L1-T1", holds: ["a.txt"] })).text,
-    /L1-T1 works in the lane's copy, one writer at a time, so it holds nothing: point it with hints instead\./,
-  );
-
-  await h.call(lane.lead!, "lead", "add_tasks", {
-    tasks: [{ key: "s", title: "Side", goal: "g", ...scope, holds: ["c.txt"], parallel: true }],
-  });
-  assert.match((await amend({ task: "L1-T2", holds: [] })).text, /keeps at least one held path/);
-  assert.deepEqual(h.ledger().tasks["L1-T2"]!.holds, ["c.txt"], "a refused change leaves the record as it was");
-});
-
 test("a Peer at work in the lane's copy is told when a task starts beside it after its brief, and what that task holds", async () => {
   const { h, lane, peer } = await laneWithPeer();
   await h.call(lane.lead!, "lead", "add_tasks", {

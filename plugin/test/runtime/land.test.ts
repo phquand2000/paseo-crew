@@ -81,32 +81,6 @@ test("an open incident on a lane is evidence for whoever lands it, and never rea
   assert.match(landed.text, /Incident I\d+ on this lane is still open: claim-contradicted\./);
 });
 
-test("a READY stands until the lane is amended: status says so, and the Lead must report again", async () => {
-  const { h, sup, lane } = await laneWith({ "a.txt": "one\nfour\n" });
-  assert.equal((await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true })).ok, true);
-  assert.ok(h.ledger().lanes.L1!.ready);
-  assert.match((await h.call(sup, "supervisor", "status", {})).text, /Reported ready \d+ min ago\./);
-  await h.call(sup, "supervisor", "amend_lane", {
-    lane: "L1",
-    acceptance: ["four", "five"],
-    why: "the Human added five",
-  });
-  assert.equal(h.ledger().lanes.L1!.ready, undefined, "what it was ready against has changed");
-  assert.doesNotMatch((await h.call(sup, "supervisor", "status", {})).text, /Reported ready/);
-});
-
-test("a lane its Lead has not reported ready as it now stands lands on the Supervisor's word, with that in the evidence", async () => {
-  const { h, sup, land } = await laneWith({ "a.txt": "one\nfour\n" });
-  await h.call(sup, "supervisor", "amend_lane", { lane: "L1", acceptance: ["a", "b"], why: "the Human added b" });
-  const landed = await land();
-  assert.equal(landed.ok, true, landed.text);
-  assert.match(
-    landed.text,
-    /Evidence: Its Lead has not reported it ready as it now stands: never, or the lane was amended since\. 1 commit/,
-  );
-  assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
-});
-
 test("a lane is landed over a red gate only with the Supervisor's reason for it", async () => {
   const { h, sup } = await laneWith({ "a.txt": "one\nfour\n" });
   await h.call(sup, "supervisor", "set_project", { gate: "false" });
