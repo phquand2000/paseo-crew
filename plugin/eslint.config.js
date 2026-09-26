@@ -58,7 +58,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/opening.test.ts",
   "test/runtime/own-branch.test.ts",
   "test/runtime/panel.test.ts",
-  "test/runtime/restart.test.ts",
   "test/runtime/rpc.test.ts",
   "test/runtime/seat-prompt.test.ts",
   "test/runtime/seat-replay.ts",

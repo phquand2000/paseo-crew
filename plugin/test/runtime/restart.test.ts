@@ -1,183 +1,149 @@
 import assert from "node:assert/strict";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { Desk } from "../../server/desk/desk.ts";
 import { saveLedger } from "../../server/desk/ledger.ts";
 import { tempDir } from "../tempdir.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer, nobodySeated } from "./harness.ts";
 
-/** A lane whose second task worked in a copy of its own and handed its commit back, ready to be merged. */
-async function handedBack() {
-  const lane = await laneWithPeer();
-  const { h } = lane;
-  await h.call(lane.lane.lead!, "lead", "add_tasks", {
-    tasks: [
-      {
-        key: "t",
-        title: "Beside",
-        goal: "g",
-        acceptance: ["a"],
-        holds: ["c.txt"],
-        outOfScope: ["the rest"],
-        parallel: true,
-      },
-    ],
-  });
-  const task = h.ledger().tasks["L1-T2"]!;
-  h.commit(task.worktree!, "c.txt", "beside\n");
-  await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "c" });
-  const stopped = (status: "queued" | "merging") => {
-    const ledger = h.ledger();
-    Object.assign(ledger.tasks["L1-T2"]!, { status, acceptedAt: Date.now() });
-    saveLedger(h.project.state, ledger);
-  };
-  return { ...lane, task, stopped };
+/** Whether `check` comes true within `ms`, looked at every 20 ms. */
+async function within(ms: number, check: () => boolean): Promise<boolean> {
+  for (const end = Date.now() + ms; !check(); await new Promise((resolve) => setTimeout(resolve, 20)))
+    if (Date.now() > end) return false;
+  return true;
 }
 
-/** The merges on the lane branch: another task in the lane's copy has that copy on its own branch meanwhile. */
-const merges = (h: Awaited<ReturnType<typeof laneWithPeer>>["h"], copy: string) =>
-  h.git(copy, "rev-list", "--merges", "--count", h.ledger().lanes.L1!.branch).trim();
+test("merges a stop left go through once each, in turn, when the plugin starts again", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  const lead = lane.lead!;
+  // Counted on the lane branch: L1-T1 has the lane's copy on its own branch meanwhile.
+  const merges = () => Number(h.git(lane.worktree!, "rev-list", "--merges", "--count", lane.branch).trim());
+  const status = (id: string) => h.ledger().tasks[id]!.status;
+  /** A task beside others, with its file committed in its own copy and handed back, ready to be merged. */
+  const handedBack = async (title: string, file: string) => {
+    await h.call(lead, "lead", "add_tasks", {
+      tasks: [
+        { key: "t", title, goal: "g", acceptance: ["a"], holds: [file], outOfScope: ["the rest"], parallel: true },
+      ],
+    });
+    const task = Object.values(h.ledger().tasks).find((entry) => entry.title === title)!;
+    h.commit(task.worktree!, file, `${title}\n`);
+    assert.equal((await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: title })).ok, true);
+    return task;
+  };
+  /** Accepted, and the plugin stopped with its merge `where` the queue had it: no path in one run stops there. */
+  const stopped = (id: string, where: "queued" | "merging") => {
+    const ledger = h.ledger();
+    Object.assign(ledger.tasks[id]!, { status: where, acceptedAt: Date.now() });
+    saveLedger(h.project.state, ledger);
+  };
+  const started = async () => {
+    h.restart();
+    await h.tick();
+    await h.runtime.desk.settled(h.project);
+  };
 
-test("a merge the queue held when the plugin stopped goes through once it starts again", async () => {
-  const { h, lane, stopped } = await handedBack();
-  // Accepted, and the plugin stopped before its merge ran.
-  stopped("queued");
+  const first = await handedBack("One", "c.txt");
   h.restart();
-  await h.tick();
+  // Accepted before the first round, so its merge is under way when the queue is taken up.
+  assert.equal((await h.call(lead, "lead", "accept", { task: first.id })).ok, true);
+  await h.runtime.desk.resumeMerges(h.project);
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:c.txt`), "beside\n");
-  await h.idle(lane.lead!);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /MERGED L1-T2/);
-});
+  assert.deepEqual([status(first.id), merges()], ["merged", 1], "the merges a stop left wait behind it");
 
-test("a merge the queue held when the plugin stopped goes through on its first round, even with nobody seated", async () => {
-  const { h, stopped } = await handedBack();
-  stopped("queued");
-  nobodySeated(h);
-  h.restart();
-  await h.tick();
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-});
+  const queued = await handedBack("Two", "d.txt");
+  stopped(queued.id, "queued");
+  await started();
+  assert.equal(status(queued.id), "merged");
+  assert.equal(h.git(lane.worktree!, "show", `${lane.branch}:d.txt`), "Two\n");
+  assert.match(h.heard(lead).join("\n"), new RegExp(`MERGED ${queued.id}`));
 
-test("a merge a stop left queued in a lane on hold waits out the hold, and goes through once the lane resumes", async () => {
-  const { h, sup, stopped } = await handedBack();
-  await h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
-  stopped("queued");
-  h.restart();
-  await h.tick();
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "queued", "nothing lands in a lane on hold");
-  await h.call(sup, "supervisor", "resume_lane", { lane: "L1" });
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-});
+  const cut = await handedBack("Three", "e.txt");
+  stopped(cut.id, "merging");
+  await started();
+  assert.deepEqual(
+    [status(cut.id), merges()],
+    ["merged", 3],
+    "stopped before the lane moved, it runs again from the start",
+  );
 
-test("a merge the plugin stopped in the middle of is run again from the start, and one that had landed is only finished", async () => {
-  const { h, lane, stopped } = await handedBack();
-  const copy = lane.worktree!;
-  // Stopped before the lane branch moved: nothing of the merge is in the lane.
-  stopped("merging");
-  h.restart();
-  await h.tick();
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(merges(h, copy), "1", "merged once");
-
-  // Stopped after the lane branch moved to its merge, before the record said so.
-  const again = await handedBack();
-  const second = again.lane.worktree!;
-  const before = again.h.git(second, "rev-parse", again.lane.branch).trim();
-  const made = again.h
+  const landed = await handedBack("Four", "f.txt");
+  const before = h.git(lane.worktree!, "rev-parse", lane.branch).trim();
+  const made = h
     .git(
-      second,
+      lane.worktree!,
       "commit-tree",
-      `${again.task.branch}^{tree}`,
+      `${landed.branch}^{tree}`,
       "-p",
       before,
       "-p",
-      again.task.branch!,
+      landed.branch!,
       "-m",
-      "Merge L1-T2",
+      `Merge ${landed.id}`,
     )
     .trim();
-  again.h.git(second, "update-ref", `refs/heads/${again.lane.branch}`, made, before);
-  again.stopped("merging");
-  again.h.restart();
-  await again.h.tick();
-  await again.h.runtime.desk.settled(again.h.project);
-  assert.equal(again.h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(merges(again.h, second), "1", "not merged a second time");
-  await again.h.idle(again.lane.lead!);
-  assert.match(again.h.agents.get(again.lane.lead!)!.sent.join("\n"), /MERGED L1-T2/);
-});
+  h.git(lane.worktree!, "update-ref", `refs/heads/${lane.branch}`, made, before);
+  stopped(landed.id, "merging");
+  await started();
+  assert.deepEqual([status(landed.id), merges()], ["merged", 4], "stopped after the lane moved, it is only finished");
+  assert.match(h.heard(lead).join("\n"), new RegExp(`MERGED ${landed.id}`));
 
-test("the merges a stop left wait behind one accepted since the start, rather than undoing it halfway", async () => {
-  const { h, lane } = await handedBack();
-  h.restart();
-  // Accepted before the first round, so its merge is under way when the queue is taken up.
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T2" })).ok, true);
-  await h.runtime.desk.resumeMerges(h.project);
+  const held = await handedBack("Five", "g.txt");
+  await h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
+  stopped(held.id, "queued");
+  await started();
+  assert.equal(status(held.id), "queued", "nothing lands in a lane on hold");
+  await h.call(sup, "supervisor", "resume_lane", { lane: "L1" });
   await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
-  assert.equal(merges(h, lane.worktree!), "1");
+  assert.equal(status(held.id), "merged");
+
+  const alone = await handedBack("Six", "h.txt");
+  stopped(alone.id, "queued");
+  nobodySeated(h);
+  await started();
+  assert.equal(status(alone.id), "merged", "the first round takes them up even with nobody seated");
 });
 
-test("a seat waiting for its turn to end to be archived when the plugin stopped is archived once that turn is over", async () => {
+test("what waited on a turn when the plugin stopped goes on at its first round", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
-  // The Lead and its Peer are mid-turn, so closing the lane leaves the Peer, and the copy they write in, until their turns end.
-  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" })).ok, true);
-  assert.ok(!h.agents.get(peer)!.archivedAt, "not while it is mid-turn");
-  h.restart();
-  // Their turns ended while the plugin was down, so no hook will say so.
-  h.agents.get(lane.lead!)!.status = "idle";
-  h.agents.get(peer)!.status = "idle";
-  await h.tick();
-  assert.ok(h.agents.get(peer)!.archivedAt, "the Peer");
-  assert.equal(h.agents.get(lane.lead!)!.archivedAt, null, "the Lead stays until it is released");
-  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "and the copy they wrote in is put back");
-});
-
-test("a landing waiting on a turn when the plugin stopped can go once that turn is over", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
     title: "Numbers",
     outcome: "a.txt gains words",
     acceptance: ["four"],
     outOfScope: ["anything else"],
+    isolate: true,
   });
-  const lead = h.ledger().lanes.L1!.lead!;
-  h.commit(h.root, "a.txt", "one\ntwo\nthree\nfour\n");
-  // main moves on, so landing starts with merging it into the lane's copy, where the Lead is mid-turn.
+  const numbers = h.ledger().lanes.L2!;
+  h.commit(numbers.worktree!, "a.txt", "one\ntwo\nthree\nfour\n");
+  // main moves on, so landing starts with merging it into the lane's copy, where its Lead is mid-turn.
   const side = join(tempDir("sw2-moved-"), "wt");
   h.git(h.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.root, "branch", "-f", "main", "side");
   h.git(h.root, "worktree", "remove", "--force", side);
-  assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).text, /a seat is mid-turn there/);
+  assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L2" })).text, /a seat is mid-turn there/);
+  // L1's Lead and Peer are mid-turn, so closing the lane leaves the Peer, and the copy they write in, until their turns end.
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" })).ok, true);
+  assert.equal(h.agents.get(peer)!.archivedAt, null, "not while it is mid-turn");
+
   h.restart();
-  // The Lead's turn ended while the plugin was down, so no hook will say so.
-  h.agents.get(lead)!.status = "idle";
+  // Their turns ended while the plugin was down, so no hook will say so.
+  for (const id of [lane.lead!, peer, numbers.lead!]) h.agents.get(id)!.status = "idle";
   await h.tick();
-  await h.idle(sup);
-  assert.match(h.agents.get(sup)!.sent.join("\n"), /CAN LAND L1/);
+  assert.ok(h.agents.get(peer)!.archivedAt, "the Peer waiting to be archived");
+  assert.equal(h.agents.get(lane.lead!)!.archivedAt, null, "the Lead stays until it is released");
+  assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main", "and the copy they wrote in is put back");
+  assert.match(h.heard(sup).join("\n"), /CAN LAND L2/, "the landing that waited on a turn can go");
 });
 
-/** Every slow call a desk is still working on, finished. */
-const finished = (desk: Desk) =>
-  Promise.all(
-    [...(desk as unknown as { running: Map<string, { reply: Promise<unknown> }> }).running.values()].map(
-      (entry) => entry.reply,
-    ),
-  );
-
-test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async () => {
+test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async (t) => {
+  const go = join(tempDir("sw2-promise-"), "go");
+  t.after(() => writeFileSync(go, ""));
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  await h.call(sup, "supervisor", "set_project", { gate: "sleep 0.4" });
+  // The gate waits for the test, which decides whether the answer comes before or after the stop.
+  await h.call(sup, "supervisor", "set_project", { gate: `until [ -f ${go} ]; do sleep 0.05; done` });
   await h.call(sup, "supervisor", "open_lane", {
     title: "Slow",
     outcome: "x",
@@ -192,27 +158,31 @@ test("an answer promised as mail that a stop lost is owned up to once the plugin
         agent: lead,
         role: "lead",
         tool: "report",
-        args: { summary: "ready to land", ready: true },
+        args: { summary: "ready", ready: true },
         cwd: h.root,
         at: Date.now(),
       },
       { within: 100 },
     );
   const told = () => h.agents.get(lead)!.sent.join("\n").split("NO ANSWER to your report call").length - 1;
+  const answered = (count: number) =>
+    within(
+      5000,
+      () => h.heard(lead).join("\n").split("ANSWER to your report call, which ran longer").length - 1 === count,
+    );
 
-  // Told to end its turn and wait for the answer as mail, and the plugin stopped before its gate did.
-  assert.match((await report("r1")).text, /answer arrives as mail/);
-  const stopped = h.runtime.desk;
+  assert.match((await report("r1")).text, /answer arrives as mail/, "told to end its turn and wait");
   h.restart();
   await h.tick();
   await h.idle(lead);
-  assert.equal(told(), 1);
-  await finished(stopped);
+  assert.equal(told(), 1, "the stop lost the answer, so the desk owns up to it");
+  writeFileSync(go, "");
+  assert.ok(await answered(1), "the run the stop left behind finishes");
 
+  rmSync(go);
   assert.match((await report("r2")).text, /answer arrives as mail/);
-  await finished(h.runtime.desk);
-  await h.idle(lead);
-  assert.match(h.agents.get(lead)!.sent.join("\n"), /ANSWER to your report call, which ran longer/);
+  writeFileSync(go, "");
+  assert.ok(await answered(2), "the answer comes as mail");
   h.restart();
   await h.tick();
   await h.idle(lead);
@@ -224,7 +194,7 @@ async function stoppedOpening(where: Record<string, unknown>) {
   const h = harness();
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   const paseo = h.paseo as unknown as {
-    workspaces: { ref(id: string): { agents: { create(options: unknown): Promise<unknown> } } };
+    workspaces: { ref: (id: string) => { agents: { create: (options: unknown) => Promise<unknown> } } };
   };
   const ref = paseo.workspaces.ref;
   paseo.workspaces.ref = (id) => {
@@ -249,17 +219,18 @@ async function stoppedOpening(where: Record<string, unknown>) {
   return { h, lead: seated()!.id, head };
 }
 
-test("a Lead seated in the Human's copy before a stop is taken on where it works, so its lane's tasks start", async () => {
-  const { h, lead } = await stoppedOpening({});
-  assert.equal(h.ledger().lanes.L1!.lead, lead);
-  await h.call(lead, "lead", "add_tasks", {
-    tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }],
-  });
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", String(h.ledger().tasks["L1-T1"]!.held?.why));
-});
-
-test("a lane carrying on the Human's branch keeps the commit it started from when its Lead is taken on after a stop", async () => {
-  const { h, lead, head } = await stoppedOpening({ onBranch: true });
-  assert.equal(h.ledger().lanes.L1!.lead, lead);
-  assert.equal(h.ledger().lanes.L1!.startSha, head, "what the lane changed is read from here when it lands");
+test("a Lead seated before a stop is taken on where it works, the commit its lane started from kept, and its tasks start", async () => {
+  for (const [where, from] of [
+    [{}, undefined],
+    [{ onBranch: true }, "head"],
+  ] as const) {
+    const { h, lead, head } = await stoppedOpening(where);
+    const lane = h.ledger().lanes.L1!;
+    assert.equal(lane.lead, lead, JSON.stringify(where));
+    assert.equal(lane.startSha, from && head, "on the Human's branch, what the lane changed is read from here");
+    await h.call(lead, "lead", "add_tasks", {
+      tasks: [{ key: "t", title: "Total", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }],
+    });
+    assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", String(h.ledger().tasks["L1-T1"]!.held?.why));
+  }
 });
