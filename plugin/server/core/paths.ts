@@ -1,6 +1,6 @@
 import { accessSync, constants, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, delimiter, join } from "node:path";
+import { basename, delimiter, join, resolve } from "node:path";
 
 export const PLUGIN_ID = "seatworks-v2";
 
@@ -15,8 +15,14 @@ export function expandHome(value: string, homeDir = home()): string {
   return value;
 }
 
-export function paseoConfigPath(homeDir = home()): string {
-  return join(homeDir, ".paseo", "config.json");
+/** The home of the Paseo the plugin runs in, resolved as Paseo resolves it. */
+export function paseoHome(): string {
+  const raw = process.env.PASEO_HOME;
+  return raw ? resolve(expandHome(raw)) : join(home(), ".paseo");
+}
+
+export function paseoConfigPath(): string {
+  return join(paseoHome(), "config.json");
 }
 
 export const RECORDS = ["events", "attention", "assessments"] as const;

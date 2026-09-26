@@ -82,7 +82,7 @@ export async function contains(cwd: string, into: string, branch: string): Promi
 export async function addWorktree(root: string, path: string, branch: string, base: string): Promise<{ ok: boolean; message: string }> {
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
-  const run = await git(root, ["worktree", "add", "-b", branch, path, base], 120_000);
+  const run = await git(root, ["worktree", "add", "--no-track", "-b", branch, path, base], 120_000);
   // git can fail with no output at all (timeout, missing binary); never report an empty reason.
   return { ok: run.code === 0, message: (run.stderr || run.stdout).trim() || `git worktree add exited ${run.code} with nothing to say` };
 }
