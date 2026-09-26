@@ -1,6 +1,7 @@
 import { accessSync, constants, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, delimiter, join } from "node:path";
+import { getPath, isRecord } from "./json.ts";
 
 export const PLUGIN_ID = "seatworks-v2";
 
@@ -58,14 +59,26 @@ export function deskSocket(homeDir = home()): string {
 
 export function nodeBin(): string {
   if (basename(process.execPath) === "node") return process.execPath;
-  for (const dir of (process.env.PATH ?? "").split(delimiter).concat(["/opt/homebrew/bin", "/usr/local/bin"])) {
-    const candidate = join(dir, "node");
+  return executableIn([...pathDirs(), "/opt/homebrew/bin", "/usr/local/bin"], "node") ?? "node";
+}
+
+/** The directories on this process's PATH, in order; an empty one is the working directory, as the shell reads it. */
+export function pathDirs(): string[] {
+  return (process.env.PATH ?? "").split(delimiter);
+}
+
+/** The first of `dirs` holding a `name` this process may run. */
+export function executableIn(dirs: string[], name: string): string | undefined {
+  for (const dir of dirs) {
+    const file = join(dir, name);
     try {
-      accessSync(candidate, constants.X_OK);
-      return candidate;
-    } catch {}
+      accessSync(file, constants.X_OK);
+      return file;
+    } catch {
+      // Not there, or not ours to run: the next directory may have it.
+    }
   }
-  return "node";
+  return undefined;
 }
 
 export function outboxPath(homeDir = home()): string {
@@ -79,9 +92,8 @@ export function intentsPath(homeDir = home()): string {
 export function pluginDir(configPath = paseoConfigPath()): string | undefined {
   if (process.env.SEATWORKS_PLUGIN_DIR) return process.env.SEATWORKS_PLUGIN_DIR;
   try {
-    const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    const entry = config?.plugins?.[PLUGIN_ID];
-    return entry?.source === "directory" && typeof entry.path === "string" ? entry.path : undefined;
+    const entry = getPath(JSON.parse(readFileSync(configPath, "utf-8")) as unknown, ["plugins", PLUGIN_ID]);
+    return isRecord(entry) && entry.source === "directory" && typeof entry.path === "string" ? entry.path : undefined;
   } catch {
     return undefined;
   }

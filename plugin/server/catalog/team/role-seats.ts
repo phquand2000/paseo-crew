@@ -50,14 +50,26 @@ export function resolveRole(
   return { role, harness, model, thinking, rules, mcp: serversFor(role, harness, mcp, errors) };
 }
 
+/** What a role runs on a harness its seat is not on: its preset where the harness is its own, else that harness's default. */
+export function presetOn(
+  role: RoleSpec,
+  harness: HarnessSpec,
+  roles: RoleSpec[],
+): { model?: ModelSpec; thinking?: string } {
+  const preset = harness.id === role.defaults.harness ? role.defaults : undefined;
+  // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
+  const model = modelFor(harness, preset?.model, roles);
+  return { model, thinking: thinkingFor(harness, model, preset?.thinking) };
+}
+
 /** The model named, listed or not, since which model a seat runs is the owner's choice; else another role's preset or Paseo's first. */
-export function modelFor(harness: HarnessSpec, id: string | undefined, roles: RoleSpec[]): ModelSpec | undefined {
+function modelFor(harness: HarnessSpec, id: string | undefined, roles: RoleSpec[]): ModelSpec | undefined {
   if (!id) return agentDefault(roles, harness);
   return (harness.models ?? []).find((entry) => entry.id === id) ?? { id, label: id };
 }
 
 /** The thinking chosen where the model offers it, else its default; a model the catalog does not list keeps the choice, as no options listed is not a list of none. */
-export function thinkingFor(
+function thinkingFor(
   harness: HarnessSpec,
   model: ModelSpec | undefined,
   chosen: string | undefined,

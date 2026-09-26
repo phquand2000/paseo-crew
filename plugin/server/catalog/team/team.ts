@@ -4,7 +4,7 @@ import type { Layer } from "../../../shared/settings.ts";
 import type { Attention } from "../../../shared/views.ts";
 import type { HarnessSpec, Kit, SensorSpec } from "../kit/kit.ts";
 import { type McpState, resolveMcp } from "./mcp-states.ts";
-import { type RoleSeat, modelFor, resolveRole, thinkingFor } from "./role-seats.ts";
+import { type RoleSeat, presetOn, resolveRole } from "./role-seats.ts";
 import { can } from "../kit/roles.ts";
 
 /** Who answers the watch's questions, as the settings chose: a sensor, and its key where a settings layer keeps one, or a seat of a role that can judge. */
@@ -93,11 +93,8 @@ function stripUndefined<T extends object>(value: T | undefined): Partial<T> {
 export function withHarness(team: Team, roleName: string, harness: HarnessSpec): Team {
   const seat = team.roles[roleName];
   if (!seat || seat.harness.id === harness.id) return team;
-  const preset = harness.id === seat.role.defaults.harness ? seat.role.defaults : undefined;
-  // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
   const roles = Object.values(team.roles).map((entry) => entry.role);
-  const model = modelFor(harness, preset?.model, roles);
-  const thinking = thinkingFor(harness, model, preset?.thinking);
+  const { model, thinking } = presetOn(seat.role, harness, roles);
   return { ...team, roles: { ...team.roles, [roleName]: { ...seat, harness, model, thinking } } };
 }
 

@@ -12,8 +12,6 @@ test/fixtures
 
 # Not yet formatted: formatted, each would break the size limits in test/architecture.test.ts until it is split.
 # The list only shrinks.
-server/catalog/seat/launch.ts
-server/catalog/paseo/providers.ts
 server/core/git.ts
 server/desk/archive.ts
 server/desk/away.ts

@@ -107,6 +107,11 @@ test("the plugin writes one provider and profile per seat into Paseo's config, k
     [{ id: "haiku", label: "Haiku", isDefault: true }],
     "the model it starts on is the one chosen",
   );
+  assert.equal(
+    "thinkingOptionId" in written().daemon.agentProfiles.find((profile) => profile.id === "sw2-lead-claude")!,
+    false,
+    "a thinking option the new model does not offer is taken off its profile",
+  );
   const listed = makeKit();
   applyModels(listed, {
     omp: {

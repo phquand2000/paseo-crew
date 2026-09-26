@@ -1,91 +1,132 @@
-import { accessSync, constants, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { writeConfigAtomic } from "../../core/config-file.ts";
-import { nodeBin, stateRoot } from "../../core/paths.ts";
+import { executableIn, nodeBin, pathDirs, stateRoot } from "../../core/paths.ts";
 import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
-import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
-import { agentDefault } from "../kit/roles.ts";
-import { seatOf } from "../kit/roles.ts";
-import { preapprovedFor } from "./servers.ts";
+import { type Json, layered, setPath } from "../../core/json.ts";
+import {
+  type HarnessSpec,
+  type Kit,
+  type McpServers,
+  type ModelSpec,
+  PASEO_SERVER,
+  type RoleSpec,
+} from "../kit/kit.ts";
+import { agentDefault, seatOf } from "../kit/roles.ts";
 import type { Team } from "../team/team.ts";
+import { preapprovedFor } from "./servers.ts";
 
 type RenderPrompt = (role: RoleSpec) => string;
-
-type Json = Record<string, unknown>;
-
-const isObject = (value: unknown): value is Json => Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-function appendAt(options: unknown, path: string, value: string): Json {
-  const root: Json = isObject(options) ? { ...options } : {};
-  const parts = path.split(".");
-  let cursor = root;
-  for (const part of parts.slice(0, -1)) {
-    cursor[part] = isObject(cursor[part]) ? { ...cursor[part] } : {};
-    cursor = cursor[part] as Json;
-  }
-  const last = parts[parts.length - 1]!;
-  const list = Array.isArray(cursor[last]) ? (cursor[last] as unknown[]) : [];
-  cursor[last] = [...new Set([...list, value])];
-  return root;
-}
 
 /** Only what the role declares it writes: state also holds the desk's record, whose `gate` runs unsandboxed in the daemon. */
 export function stateWrites(role: RoleSpec, state: string): string[] {
   return (role.writes ?? []).map((entry) => join(state, entry.replace(/\/$/, "")));
 }
 
-export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {
+/** A seat's launch config as its role and the team make it: model, thinking, prompt, MCP servers and provider options. */
+export function applyRole(
+  kit: Kit,
+  team: Team,
+  config: AgentConfig,
+  render: RenderPrompt,
+  state?: string,
+  servers: McpServers = {},
+): AgentConfig {
   const seat = seatOf(kit, config.provider);
   if (!seat) return config;
   const { role, harness } = seat;
-  const chosen = team.roles[role.role];
-  const sameHarness = chosen?.harness.id === harness.id;
-  const models = harness.models ?? [];
-  const model =
-    models.find((entry) => entry.id === config.model) ??
-    (sameHarness ? chosen?.model : undefined) ??
-    agentDefault(kit.roles, harness);
   const next: AgentConfig = { ...config };
+  const { model, preferred } = modelOf(kit, team, config, role, harness);
   if (model) next.model = model.id;
   if (harness.provider.profileModeId) next.modeId = harness.provider.profileModeId;
-  const options = model?.thinkingOptions ?? [];
-  if (options.length === 0) {
-    const owned = sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
-    if (owned) next.thinkingOptionId = owned;
-    else delete next.thinkingOptionId;
-  }
-  else {
-    const preferred = sameHarness && chosen?.model?.id === model?.id ? chosen?.thinking : undefined;
-    const valid = (id: string | undefined) => Boolean(id) && options.some((option) => option.id === id);
-    next.thinkingOptionId = [config.thinkingOptionId, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
-  }
+  const thinking = thinkingOf(config.thinkingOptionId, model, preferred);
+  if (thinking !== undefined) next.thinkingOptionId = thinking;
+  else delete next.thinkingOptionId;
   const prompt = render(role);
   next.systemPrompt = config.systemPrompt ? `${prompt}\n\n${config.systemPrompt}` : prompt;
   if (harness.mcp.delivery === "launch" && Object.keys(servers).length > 0) {
     next.mcpServers = { ...(config.mcpServers ?? {}), ...servers };
-    if (harness.mcp.preapprove) next.toolPolicy = { preapproved: preapprovedFor(kit, team, role.role).filter((ref) => ref.server in servers || ref.server === "paseo") };
+    if (harness.mcp.preapprove) {
+      const preapproved = preapprovedFor(kit, team, role.role);
+      next.toolPolicy = {
+        preapproved: preapproved.filter((ref) => ref.server in servers || ref.server === PASEO_SERVER),
+      };
+    }
   }
-  let providerOptions = config.providerOptions;
-  if (harness.stateWrites?.delivery === "launch" && state) {
-    for (const path of stateWrites(role, state)) providerOptions = appendAt(providerOptions, harness.stateWrites.path, path);
-  }
-  if (harness.projectContextOption && config.cwd) providerOptions = appendAt(providerOptions, harness.projectContextOption, config.cwd);
+  const providerOptions = providerOptionsOf(harness, role, config, state);
   if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions;
   return next;
+}
+
+/** Paseo's model where the catalog lists it, else the team's for the role on this harness, else the agent's default; and the thinking the team chose for that model. */
+function modelOf(
+  kit: Kit,
+  team: Team,
+  config: AgentConfig,
+  role: RoleSpec,
+  harness: HarnessSpec,
+): { model?: ModelSpec; preferred?: string } {
+  const chosen = team.roles[role.role];
+  const own = chosen?.harness.id === harness.id ? chosen : undefined;
+  const listed = (harness.models ?? []).find((entry) => entry.id === config.model);
+  const model = listed ?? own?.model ?? agentDefault(kit.roles, harness);
+  return { model, preferred: own && own.model?.id === model?.id ? own.thinking : undefined };
+}
+
+/** Paseo's thinking where the model offers it, else the team's, else the model's default; with no options offered, only the team's. */
+function thinkingOf(
+  given: string | undefined,
+  model: ModelSpec | undefined,
+  preferred: string | undefined,
+): string | undefined {
+  const options = model?.thinkingOptions ?? [];
+  if (options.length === 0) return preferred || undefined;
+  const valid = (id: string | undefined) => Boolean(id) && options.some((option) => option.id === id);
+  return [given, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
+}
+
+/** The paths the role writes under the state, and the project as its context, where the harness takes them at launch. */
+function providerOptionsOf(
+  harness: HarnessSpec,
+  role: RoleSpec,
+  config: AgentConfig,
+  state: string | undefined,
+): Json | undefined {
+  let options = config.providerOptions;
+  if (harness.stateWrites?.delivery === "launch" && state)
+    for (const path of stateWrites(role, state)) options = appendAt(options, harness.stateWrites.path, path);
+  if (harness.projectContextOption && config.cwd) options = appendAt(options, harness.projectContextOption, config.cwd);
+  return options;
+}
+
+/** `options` with `value` added to the list at the dot path `path`, the records on the way copied rather than changed. */
+function appendAt(options: Json | undefined, path: string, value: string): Json {
+  const added: Json = {};
+  setPath(added, path.split("."), [value]);
+  return layered(options, added) as Json;
 }
 
 /** What a seat's rules file takes in of the project's own instructions that its agent reads nowhere else: only while the project has none it reads. */
 export function projectImports(harness: HarnessSpec, root: string | undefined): string {
   const spec = harness.projectInstructions;
   if (!spec || !root || spec.reads.some((file) => existsSync(join(root, file)))) return "";
-  return spec.otherwise.filter((file) => existsSync(join(root, file))).map((file) => `${spec.importAs.replace("{path}", join(root, file))}\n`).join("");
+  return spec.otherwise
+    .filter((file) => existsSync(join(root, file)))
+    .map((file) => `${spec.importAs.replace("{path}", join(root, file))}\n`)
+    .join("");
 }
 
 /**
  * The harness's own env goes in too: Paseo may run one agent server for every seat of a harness, built from its built-in provider.
  * `shim` is the directory `seatBin` writes, which goes first on the seat's PATH.
  */
-export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, project: { root: string; state: string }, shim?: string): SessionOpen {
+export function seatEnv(
+  kit: Kit,
+  request: SessionOpen,
+  seatPath: string,
+  project: { root: string; state: string },
+  shim?: string,
+): SessionOpen {
   const seat = seatOf(kit, request.provider);
   if (!seat) return request;
   return {
@@ -94,7 +135,9 @@ export function seatEnv(kit: Kit, request: SessionOpen, seatPath: string, projec
       ...request.env,
       ...seat.harness.provider.env,
       [seat.harness.configDirEnv]: seatPath,
-      ...(seat.harness.settings.overlayEnv ? { [seat.harness.settings.overlayEnv]: join(seatPath, seat.harness.settings.file) } : {}),
+      ...(seat.harness.settings.overlayEnv
+        ? { [seat.harness.settings.overlayEnv]: join(seatPath, seat.harness.settings.file) }
+        : {}),
       SEATWORKS_ROLE: seat.role.role,
       SEATWORKS_PROJECT: project.root,
       SEATWORKS_STATE: project.state,
@@ -107,14 +150,10 @@ const quoted = (text: string) => `'${text.replaceAll("'", `'\\''`)}'`;
 
 /** The git a seat's PATH finds past the shim: the shim's directory is skipped, since what is there is named git too. */
 function realGit(skip: string): string | undefined {
-  for (const dir of (process.env.PATH ?? "").split(delimiter)) {
-    if (!dir || dir === skip) continue;
-    try {
-      accessSync(join(dir, "git"), constants.X_OK);
-      return join(dir, "git");
-    } catch {}
-  }
-  return undefined;
+  return executableIn(
+    pathDirs().filter((dir) => dir && dir !== skip),
+    "git",
+  );
 }
 
 /**
@@ -125,8 +164,12 @@ export function seatBin(kit: Kit, root = stateRoot()): string | undefined {
   const dir = join(root, "bin");
   const git = realGit(dir);
   if (!git) return undefined;
-  const wanted: Record<string, string> = { git: `#!/bin/sh\nexec ${quoted(nodeBin())} ${quoted(join(kit.dir, "bin", "git-shim.mjs"))} ${quoted(git)} "$@"\n` };
-  for (const [name, why] of Object.entries(kit.refused)) wanted[name] = `#!/bin/sh\necho ${quoted(`${name}: refused: ${why}. Say what you need to whoever gave you the work.`)} >&2\nexit 1\n`;
+  const wanted: Record<string, string> = {
+    git: `#!/bin/sh\nexec ${quoted(nodeBin())} ${quoted(join(kit.dir, "bin", "git-shim.mjs"))} ${quoted(git)} "$@"\n`,
+  };
+  for (const [name, why] of Object.entries(kit.refused))
+    wanted[name] =
+      `#!/bin/sh\necho ${quoted(`${name}: refused: ${why}. Say what you need to whoever gave you the work.`)} >&2\nexit 1\n`;
   mkdirSync(dir, { recursive: true });
   // The directory is the plugin's alone: a command the kit no longer refuses must run again.
   for (const name of readdirSync(dir)) if (!(name in wanted)) rmSync(join(dir, name), { force: true });

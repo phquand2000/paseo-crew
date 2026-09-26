@@ -43,6 +43,24 @@ const LAUNCHED: [string, Layer, Omit<AgentConfig, "cwd">, [string, string, strin
     ["opus", "bypassPermissions", "high", "ROLE PROMPT"],
   ],
   [
+    "a model the settings choose outside the agent's list is kept, with the thinking they choose for it",
+    { roles: { lead: { model: "opus-next", thinking: "max" } } },
+    { provider: "sw2-lead-claude" },
+    ["opus-next", "bypassPermissions", "max", "ROLE PROMPT"],
+  ],
+  [
+    "a Lead asked for a model its agent does not list gets its own settings' model, not another role's",
+    { roles: { lead: { model: "haiku" } } },
+    { provider: "sw2-lead-claude", model: "made-up" },
+    ["haiku", "bypassPermissions", "none", "ROLE PROMPT"],
+  ],
+  [
+    "the thinking chosen for one model is not carried to another the agent asks for",
+    { roles: { lead: { model: "opus-next", thinking: "high" } } },
+    { provider: "sw2-lead-claude", model: "opus" },
+    ["opus", "bypassPermissions", "medium", "ROLE PROMPT"],
+  ],
+  [
     "a valid model and thinking option are kept, and a caller's prompt comes after the role's",
     {},
     { provider: "sw2-supervisor-claude/opus", model: "opus", thinkingOptionId: "medium", systemPrompt: "extra" },
