@@ -22,6 +22,9 @@ changes on top. It is not affiliated with or endorsed by the Seatworks author; t
 - `project.json` takes `links` (git-ignored files symlinked into a lane's copy) and `writable`
   (extra paths a seat may write); roles that commit may also write the repository's git directory.
 - Codex seats turn off the owner's own `~/.agents/skills`.
+- Claude seats run on the owner's one Claude Code login, never a login of their own.
+- Branches the desk starts track nothing, so a first push cannot land on the base's upstream.
+- The Paseo home is `PASEO_HOME` when set, else `~/.paseo`.
 - Tool values a harness sends as text are read as the type the tool asks for, and a running seat
   is told when its team tools change.
 
