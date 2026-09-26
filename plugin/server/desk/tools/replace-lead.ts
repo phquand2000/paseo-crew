@@ -10,7 +10,7 @@ import { type Lane, findLane, loadLedger } from "../ledger.ts";
 import { seatTitle } from "../names.ts";
 import { type DeskServices, defineTool } from "../services.ts";
 import { takeoverFor } from "../directive.ts";
-import { leadSeatOf } from "../opening.ts";
+import { leadSeatOf } from "../lanes/lead-seat.ts";
 
 /** Starts a Lead in the lane's copy, told it takes over where the lane stands; or says why none can start. */
 async function takeOver({ kit, agents }: DeskServices, caller: Caller, lane: Lane, asked: string): Promise<{ lead: string; role: string } | string> {

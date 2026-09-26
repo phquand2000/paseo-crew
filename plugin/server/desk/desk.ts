@@ -37,7 +37,8 @@ import { Slots } from "./slots.ts";
 import { Teardowns } from "./teardown.ts";
 import { markGone } from "./gone.ts";
 import { type Noticed, closeIncidentsOf, notice, retell } from "./notice.ts";
-import { openWaiting, startWaiting } from "./waiting.ts";
+import { openWaiting } from "./waiting/lanes.ts";
+import { startWaiting } from "./waiting/tasks.ts";
 import { Watcher } from "./watcher.ts";
 
 type DeskOptions = {

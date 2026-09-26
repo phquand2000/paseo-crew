@@ -9,8 +9,10 @@ import { type Lane, type Ledger, loadLedger, nextLaneId, ownCopyHolder } from ".
 import { clip, slugify } from "../../core/text.ts";
 import { type LaneHome, type Project, type ProjectConfig, configFile, detectGate, laneHomeFor, loadConfig, saveConfig, serialIn } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
-import { type Refusal, openedReply, placement, startLead } from "../opening.ts";
-import { waitsFor } from "../waiting.ts";
+import { openedReply, startLead } from "../lanes/lead-seat.ts";
+import { placement } from "../lanes/placement.ts";
+import type { Refusal } from "../refusal.ts";
+import { waitsFor } from "../waiting/rules.ts";
 
 /** An unreadable issue ref is a note on the lane, never a reason to refuse opening it. */
 async function readIssue(args: Args, project: Project): Promise<{ issue?: Issue; unread?: string }> {
@@ -122,10 +124,10 @@ export const openLane = defineTool({
     const serial = await serialIn(desk.kit, project, project.root);
     // Asked before the issue is fetched, which a refusal would waste; recording the lane asks again.
     const early = placement(loadLedger(project.state), { onBranch, writeSet: strs(args.writeSet), contracts: strs(args.contracts), detourOf: str(args.detourOf).trim().toUpperCase() || undefined }, args.isolate === true, serial);
-    if ("why" in early) return no(`${early.why} ${early.instead}`.trim());
+    if ("why" in early) return no(`${early.why} ${early.next}`.trim());
     const { issue, unread } = await readIssue(args, project);
     const placed = recordOpen(desk, caller, args, place, issue, serial);
-    if ("why" in placed) return no(`${placed.why} ${placed.instead}`.trim());
+    if ("why" in placed) return no(`${placed.why} ${placed.next}`.trim());
     const { lane } = placed;
     const started = await startLead(desk, project, lane, { ownCopy: placed.ownCopy, failed: "close", from: newBranch ? here : undefined, role: str(args.role), parent: caller.id, issue });
     if (typeof started === "string") return no(started);

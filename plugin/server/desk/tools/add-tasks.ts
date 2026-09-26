@@ -11,7 +11,7 @@ import { type Lane, type Ledger, laneOfLead, loadLedger, nextTaskId } from "../l
 import { layoutProblems, readPlan } from "../plan.ts";
 import { type Project, serialIn } from "../project.ts";
 import { defineTool } from "../services.ts";
-import { startWaiting } from "../waiting.ts";
+import { startWaiting } from "../waiting/tasks.ts";
 
 const Asked = z.strictObject({ key: z.string(), title: z.string().max(60), goal: z.string(), acceptance: z.array(z.string()), hints: z.array(z.string()).optional(), holds: z.array(z.string()).optional(), outOfScope: z.array(z.string()), context: z.string().optional(), skills: z.array(z.string()).optional(), parallel: z.boolean().optional(), after: z.array(z.string()).optional(), role: z.string().optional() });
 

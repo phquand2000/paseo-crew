@@ -17,7 +17,7 @@ import type { Roster } from "../roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { stowCopy } from "../stow.ts";
-import { openWaiting } from "../waiting.ts";
+import { openWaiting } from "../waiting/lanes.ts";
 import type { Closed } from "./land-hold.ts";
 import { type Landed, landLane } from "./landing.ts";
 

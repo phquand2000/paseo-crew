@@ -6,7 +6,7 @@ import { repeatsIncident } from "../incidents.ts";
 import { amend, loadLedger } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { tellMoment } from "../moments.ts";
-import { parallelProblem } from "../opening.ts";
+import { parallelProblem } from "../tasks/placement.ts";
 import { serialIn } from "../project.ts";
 import { defineTool } from "../services.ts";
 import { laneTask } from "./lane-task.ts";

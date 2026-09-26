@@ -4,7 +4,8 @@ import { no, ok, str } from "../context.ts";
 import { findLane, laneSeats } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { defineTool } from "../services.ts";
-import { openWaiting, startWaiting } from "../waiting.ts";
+import { openWaiting } from "../waiting/lanes.ts";
+import { startWaiting } from "../waiting/tasks.ts";
 
 /** Lifts a hold: each seat of the lane is told to carry on, with the mail held for it, and what waited on the lane may start. */
 export const resumeLane = defineTool({
