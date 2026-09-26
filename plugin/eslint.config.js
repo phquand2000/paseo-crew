@@ -55,7 +55,6 @@ const NOT_YET_CLEAN = [
   "test/runtime/listing.test.ts",
   "test/runtime/mail.test.ts",
   "test/runtime/moments.test.ts",
-  "test/runtime/own-branch.test.ts",
   "test/runtime/panel.test.ts",
   "test/runtime/restart.test.ts",
   "test/runtime/rpc.test.ts",

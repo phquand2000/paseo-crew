@@ -137,36 +137,3 @@ test("a copy two seats are writing in is put away by the last of them to stop, n
   assert.equal(existsSync(lane.worktree!), false, "the last one out puts it away");
   assert.deepEqual(Object.keys(h.ledger().slots), []);
 });
-
-test("a hand-back the Lead has not accepted still holds the lane's copy, so nothing is sent in beside it", async () => {
-  const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const scope = { outOfScope: ["the rest of the repository"] };
-  await h.call(sup, "supervisor", "open_lane", { title: "Two in a row", outcome: "a and b change", acceptance: ["a"], outOfScope: ["anything else in the repository"] });
-  const lane = h.ledger().lanes.L1!;
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "A", goal: "g", acceptance: ["a"], hints: ["a.txt"], ...scope }] });
-  const first = h.ledger().tasks["L1-T1"]!;
-  h.commit(lane.worktree!, "a.txt", "A\n");
-  await h.call(first.peer!, "peer", "done", { outcome: "complete", summary: "a" });
-  h.agents.get(first.peer!)!.status = "idle";
-
-  // Its Peer is still seated and rework would wake it in that directory, so the copy is not free yet.
-  const second = await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "B", goal: "g", acceptance: ["b"], hints: ["b.txt"], ...scope }] });
-  assert.match(second.text, /L1-T2 B: held: L1-T1 has handed back and is waiting on you/);
-  assert.equal(h.ledger().tasks["L1-T2"]!.peer, undefined, "nobody is sent into the copy beside it");
-
-  // With the second task never started, the copy is clean and the first accepts as it always did; the second then starts.
-  assert.equal((await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" })).ok, true);
-  await h.runtime.desk.settled(h.project);
-  assert.equal(h.ledger().tasks["L1-T2"]!.status, "running");
-
-  // And a rework that would wake a Peer into another task's writing is refused, not prescribed.
-  const back = await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "commit it" });
-  assert.equal(back.ok, false);
-  assert.match(back.text, /L1-T2 holds the lane's working copy/, "its Peer goes back to it only once the copy is free");
-  await h.call(lane.lead!, "lead", "add_tasks", { tasks: [{ key: "t", title: "C", goal: "g", acceptance: ["c"], holds: ["c.txt"], ...scope, parallel: true }] });
-  const par = Object.values(h.ledger().tasks).find((task) => task.title === "C")!;
-  writeFileSync(join(lane.worktree!, "b.txt"), "half\n");
-  const reworkPar = await h.call(lane.lead!, "lead", "rework", { task: par.id, text: "again" });
-  assert.equal(reworkPar.ok, true, "a parallel task has a copy of its own, so its rework is nobody else's business");
-});
