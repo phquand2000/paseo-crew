@@ -1,6 +1,6 @@
 import { recordEvent } from "./store/event-log.ts";
 import type { Attention } from "../../shared/views.ts";
-import { seatOf } from "../catalog/roles.ts";
+import { seatOf } from "../catalog/kit/roles.ts";
 import { type Finding, type Held, deliveryOf, hold, tell, unheard } from "../domain/incident.ts";
 import { type Moment, momentCases } from "./checks.ts";
 import { type Incident, type Incidents, closeSeat, forget, onProbation, settledAsNoise, sight, spentToday } from "./incidents.ts";

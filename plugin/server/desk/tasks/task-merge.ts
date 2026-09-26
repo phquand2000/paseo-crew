@@ -1,4 +1,4 @@
-import { fileKinds } from "../../catalog/kit.ts";
+import { fileKinds } from "../../catalog/kit/patterns.ts";
 import { changedFiles, commitsAhead, currentBranch, diffCounts, headSha, uncommittedIn } from "../../core/git.ts";
 import { advance, mergeCommit } from "../../core/land.ts";
 import { TASK } from "../../domain/task.ts";

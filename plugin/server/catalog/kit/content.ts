@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
-import { DESK_OWNED } from "../core/paths.ts";
+import { DESK_OWNED } from "../../core/paths.ts";
 import { hiddenWordsIn } from "./hidden-words.ts";
 import type { Kit, RoleSpec } from "./kit.ts";
 

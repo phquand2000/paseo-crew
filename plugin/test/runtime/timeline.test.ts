@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import type { TimelineItem } from "../../server/core/ports.ts";
 import { deniedCall, malformed, outputText } from "../../server/runtime/timeline.ts";
 

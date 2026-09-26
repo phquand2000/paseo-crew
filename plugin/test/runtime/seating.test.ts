@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { seatDir } from "../../server/catalog/seats.ts";
+import { seatDir } from "../../server/catalog/seat/seats.ts";
 import { home } from "../../server/core/paths.ts";
 import { makeKit } from "../kit.ts";
 import { Seating } from "../../server/runtime/seating.ts";

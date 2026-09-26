@@ -1,13 +1,13 @@
 import { accessSync, constants, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { delimiter, join } from "node:path";
-import { writeConfigAtomic } from "../core/config-file.ts";
-import { nodeBin, stateRoot } from "../core/paths.ts";
-import type { AgentConfig, SessionOpen } from "../core/ports.ts";
-import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
-import { agentDefault } from "./roles.ts";
-import { seatOf } from "./roles.ts";
+import { writeConfigAtomic } from "../../core/config-file.ts";
+import { nodeBin, stateRoot } from "../../core/paths.ts";
+import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
+import { agentDefault } from "../kit/roles.ts";
+import { seatOf } from "../kit/roles.ts";
 import { preapprovedFor } from "./servers.ts";
-import type { Team } from "./team.ts";
+import type { Team } from "../team/team.ts";
 
 type RenderPrompt = (role: RoleSpec) => string;
 

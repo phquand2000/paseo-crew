@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { readLayer, writeLayer } from "../../server/catalog/settings.ts";
+import { readLayer, writeLayer } from "../../server/catalog/team/settings.ts";
 import type { Layer } from "../../shared/settings.ts";
-import { seatProblems } from "../../server/catalog/seats.ts";
-import { resolveTeam } from "../../server/catalog/team.ts";
+import { seatProblems } from "../../server/catalog/seat/seats.ts";
+import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 

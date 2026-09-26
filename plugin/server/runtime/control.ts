@@ -1,13 +1,13 @@
 import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { Kit } from "../catalog/kit.ts";
-import { can, rolesThatCan, seatOf } from "../catalog/roles.ts";
-import { layerValues, readShown, withKeys, withoutKeys, writeLayer } from "../catalog/settings.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import { can, rolesThatCan, seatOf } from "../catalog/kit/roles.ts";
+import { layerValues, readShown, withKeys, withoutKeys, writeLayer } from "../catalog/team/settings.ts";
 import type { Layer } from "../../shared/settings.ts";
-import { type Team, resolveTeam } from "../catalog/team.ts";
+import { type Team, resolveTeam } from "../catalog/team/team.ts";
 import { gitCommonDir } from "../core/git.ts";
 import type { SeatView, Seats } from "../core/ports.ts";
-import { seatProblems } from "../catalog/seats.ts";
+import { seatProblems } from "../catalog/seat/seats.ts";
 import { guidesDir, home, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { createHash } from "node:crypto";
 import { flowView } from "../desk/flow.ts";

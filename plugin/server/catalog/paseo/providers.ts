@@ -1,13 +1,13 @@
 import { execFile } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
-import type { HarnessSpec, Kit, ModelSpec, RoleSpec } from "./kit.ts";
-import { agentDefault } from "./roles.ts";
-import { paseoToolsPolicy, supportsRole } from "./harness-files.ts";
-import { providerId } from "./roles.ts";
-import { writeConfigAtomic } from "../core/config-file.ts";
-import { paseoConfigPath } from "../core/paths.ts";
-import { sameJson } from "../core/json.ts";
-import type { Team } from "./team.ts";
+import type { HarnessSpec, Kit, ModelSpec, RoleSpec } from "../kit/kit.ts";
+import { agentDefault } from "../kit/roles.ts";
+import { paseoToolsPolicy, supportsRole } from "../kit/harness-files.ts";
+import { providerId } from "../kit/roles.ts";
+import { writeConfigAtomic } from "../../core/config-file.ts";
+import { paseoConfigPath } from "../../core/paths.ts";
+import { sameJson } from "../../core/json.ts";
+import type { Team } from "../team/team.ts";
 
 type Json = Record<string, any>;
 

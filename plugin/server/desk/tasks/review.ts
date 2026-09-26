@@ -1,5 +1,5 @@
-import type { RoleSpec } from "../../catalog/kit.ts";
-import { namedOrNot, roleThatCan } from "../../catalog/roles.ts";
+import type { RoleSpec } from "../../catalog/kit/kit.ts";
+import { namedOrNot, roleThatCan } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
 import { branchExists, changedFiles, currentBranch } from "../../core/git.ts";
 import { clip } from "../../core/text.ts";

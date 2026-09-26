@@ -1,7 +1,7 @@
-import { skillSources } from "../../catalog/content.ts";
-import type { Kit, RoleSpec } from "../../catalog/kit.ts";
-import { namedOrNot, roleThatCan } from "../../catalog/roles.ts";
-import { type Team, skillDirsFor } from "../../catalog/team.ts";
+import { skillSources } from "../../catalog/kit/content.ts";
+import type { Kit, RoleSpec } from "../../catalog/kit/kit.ts";
+import { namedOrNot, roleThatCan } from "../../catalog/kit/roles.ts";
+import { type Team, skillDirsFor } from "../../catalog/team/team.ts";
 import { clip, plural, slugify } from "../../core/text.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { holdRefusal } from "../hold.ts";

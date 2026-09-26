@@ -2,10 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { reaches, toolNames } from "../core/mcp-client.ts";
 import { expandHome } from "../core/paths.ts";
-import type { Kit } from "../catalog/kit.ts";
-import { hookTools } from "../catalog/servers.ts";
-import { connectToServer, proxyOf } from "../catalog/servers.ts";
-import type { Team } from "../catalog/team.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import { hookTools } from "../catalog/seat/servers.ts";
+import { connectToServer, proxyOf } from "../catalog/seat/servers.ts";
+import type { Team } from "../catalog/team/team.ts";
 import { errorText } from "../core/errors.ts";
 import type { Check } from "../../shared/views.ts";
 

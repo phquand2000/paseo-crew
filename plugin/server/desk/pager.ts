@@ -1,6 +1,6 @@
 import { recordEvent } from "./store/event-log.ts";
 import { basename } from "node:path";
-import { roleThatCan } from "../catalog/roles.ts";
+import { roleThatCan } from "../catalog/kit/roles.ts";
 import { errorText } from "../core/errors.ts";
 import { clip } from "../core/text.ts";
 import type { Incident } from "./incidents.ts";

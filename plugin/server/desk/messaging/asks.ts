@@ -1,4 +1,4 @@
-import { can, roleNamed } from "../../catalog/roles.ts";
+import { can, roleNamed } from "../../catalog/kit/roles.ts";
 import { ASK } from "../../domain/ask.ts";
 import { SETTLED } from "../../domain/task.ts";
 import { askLetters } from "../ask-letters.ts";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { servedBy } from "../../server/desk/services.ts";
 import { TOOLS } from "../../server/desk/tools/registry.ts";
 

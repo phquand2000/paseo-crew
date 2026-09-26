@@ -1,4 +1,4 @@
-import type { IndexedProxy } from "../catalog/servers.ts";
+import type { IndexedProxy } from "../catalog/seat/servers.ts";
 import { callTool } from "../core/mcp-client.ts";
 import type { CodeIndex } from "../desk/context.ts";
 

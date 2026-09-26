@@ -3,7 +3,7 @@ import "../setup.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type Probes, doctor } from "../../server/runtime/doctor.ts";
-import { resolveTeam } from "../../server/catalog/team.ts";
+import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { TeamSource } from "../../server/runtime/team-source.ts";

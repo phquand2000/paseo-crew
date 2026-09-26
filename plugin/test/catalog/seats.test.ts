@@ -11,12 +11,12 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
-import { type Kit, loadKit } from "../../server/catalog/kit.ts";
-import { seatPairs } from "../../server/catalog/providers.ts";
-import { materialize, seatDir } from "../../server/catalog/seats.ts";
-import { sweepSnapshots } from "../../server/catalog/snapshots.ts";
-import { serversFor } from "../../server/catalog/servers.ts";
-import { resolveTeam, withHarness } from "../../server/catalog/team.ts";
+import { type Kit, loadKit } from "../../server/catalog/kit/kit.ts";
+import { seatPairs } from "../../server/catalog/paseo/providers.ts";
+import { materialize, seatDir } from "../../server/catalog/seat/seats.ts";
+import { sweepSnapshots } from "../../server/catalog/seat/snapshots.ts";
+import { serversFor } from "../../server/catalog/seat/servers.ts";
+import { resolveTeam, withHarness } from "../../server/catalog/team/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";
 import { contentRoot } from "../../server/core/paths.ts";
 import { reported } from "../console.ts";

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { test } from "node:test";
-import { applyModels } from "../../server/catalog/models.ts";
-import { applyReconcile } from "../../server/catalog/providers.ts";
-import { resolveTeam } from "../../server/catalog/team.ts";
+import { applyModels } from "../../server/catalog/paseo/models.ts";
+import { applyReconcile } from "../../server/catalog/paseo/providers.ts";
+import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { paseoConfigPath } from "../../server/core/paths.ts";
 import { makeKit } from "../kit.ts";
 

@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "smol-toml";
-import { hiddenWordsIn } from "../../server/catalog/hidden-words.ts";
+import { hiddenWordsIn } from "../../server/catalog/kit/hidden-words.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 

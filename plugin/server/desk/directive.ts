@@ -3,7 +3,7 @@ import { type Issue, fetchIssue } from "./issue.ts";
 import { type Lane, type Ledger, loadLedger } from "./ledger.ts";
 import { capped, outside } from "../core/text.ts";
 import { list } from "./letters.ts";
-import type { Kit } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
 import { type Project, conceptFile, loadConfig, serialIn } from "./project.ts";
 
 const SHOWN_SERIAL = 8;

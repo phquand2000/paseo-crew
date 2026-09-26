@@ -1,4 +1,4 @@
-import type { RiskRule } from "../catalog/schema.ts";
+import type { RiskRule } from "../catalog/kit/schema/ecosystem.ts";
 import { configFault } from "../core/config-file.ts";
 import { LAND_AS, branchExists } from "../core/git.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "./context.ts";

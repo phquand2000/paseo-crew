@@ -1,10 +1,10 @@
-import type { HarnessSpec, Kit, McpServers } from "../catalog/kit.ts";
+import type { HarnessSpec, Kit, McpServers } from "../catalog/kit/kit.ts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { projectImports } from "../catalog/launch.ts";
-import { materialize, seatDir } from "../catalog/seats.ts";
-import { serversFor } from "../catalog/servers.ts";
-import { type Team, withHarness } from "../catalog/team.ts";
+import { projectImports } from "../catalog/seat/launch.ts";
+import { materialize, seatDir } from "../catalog/seat/seats.ts";
+import { serversFor } from "../catalog/seat/servers.ts";
+import { type Team, withHarness } from "../catalog/team/team.ts";
 import { expandHome, home } from "../core/paths.ts";
 import type { Project } from "../desk/project.ts";
 import type { TeamSource } from "./team-source.ts";

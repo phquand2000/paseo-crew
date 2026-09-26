@@ -1,11 +1,18 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { errorText } from "../core/errors.ts";
-import { type Json, layered } from "../core/json.ts";
-import { expandHome, guidesDir, home } from "../core/paths.ts";
-import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources, toolProblems } from "./content.ts";
-import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
-import { harnessFileSources } from "./harness-files.ts";
+import { errorText } from "../../core/errors.ts";
+import { type Json, layered } from "../../core/json.ts";
+import { expandHome, guidesDir, home } from "../../core/paths.ts";
+import {
+  type PromptPaths,
+  renderPrompt,
+  renderText,
+  skillProblems,
+  skillSources,
+  toolProblems,
+} from "../kit/content.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
+import { harnessFileSources } from "../kit/harness-files.ts";
 import {
   linkShared,
   linkSkills,
@@ -17,7 +24,7 @@ import {
   writeModelCatalog,
   writeRoleSettings,
 } from "./seat-files.ts";
-import { type Team, rulesFor, skillDirsFor } from "./team.ts";
+import { type Team, rulesFor, skillDirsFor } from "../team/team.ts";
 
 type SeatProject = { root: string; slug: string; state: string };
 

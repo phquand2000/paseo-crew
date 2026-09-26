@@ -2,11 +2,11 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
-import { sortKeys } from "../core/json.ts";
-import { readJson, writeJson } from "../core/store.ts";
-import { errorText } from "../core/errors.ts";
-import { KEPT, type Layer, LayerSchema } from "../../shared/settings.ts";
-import type { LayerRead, WriteResult } from "../../shared/views.ts";
+import { sortKeys } from "../../core/json.ts";
+import { readJson, writeJson } from "../../core/store.ts";
+import { errorText } from "../../core/errors.ts";
+import { KEPT, type Layer, LayerSchema } from "../../../shared/settings.ts";
+import type { LayerRead, WriteResult } from "../../../shared/views.ts";
 
 function revisionOf(values: unknown): string {
   return createHash("sha1")

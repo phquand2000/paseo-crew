@@ -1,5 +1,5 @@
-import type { Kit, SensorSpec } from "../catalog/kit.ts";
-import type { Team } from "../catalog/team.ts";
+import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
+import type { Team } from "../catalog/team/team.ts";
 import type { KeyedQueue } from "../core/keyed-queue.ts";
 import type { Judge } from "../core/ports.ts";
 import type { Claims } from "./claims.ts";

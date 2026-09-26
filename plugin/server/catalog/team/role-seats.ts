@@ -1,8 +1,8 @@
-import type { Layer } from "../../shared/settings.ts";
-import { supportsRole } from "./harness-files.ts";
-import type { HarnessSpec, Kit, ModelSpec, RoleSpec } from "./kit.ts";
+import type { Layer } from "../../../shared/settings.ts";
+import { supportsRole } from "../kit/harness-files.ts";
+import type { HarnessSpec, Kit, ModelSpec, RoleSpec } from "../kit/kit.ts";
 import { type McpState, transportOf } from "./mcp-states.ts";
-import { agentDefault } from "./roles.ts";
+import { agentDefault } from "../kit/roles.ts";
 
 /** What a role's seats run: a harness, model and thinking, the Human's rules for the role and its MCP servers. */
 export type RoleSeat = {

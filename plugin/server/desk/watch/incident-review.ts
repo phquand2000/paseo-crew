@@ -1,4 +1,4 @@
-import { can } from "../../catalog/roles.ts";
+import { can } from "../../catalog/kit/roles.ts";
 import { mask } from "../../core/mask.ts";
 import { clip } from "../../core/text.ts";
 import { type Held, close } from "../../domain/incident.ts";

@@ -1,4 +1,4 @@
-import type { Kit } from "../../catalog/kit.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
 import { configFault } from "../../core/config-file.ts";
 import { branchExists, currentBranch, uncommittedPaths } from "../../core/git.ts";
 import { clip, slugify } from "../../core/text.ts";

@@ -1,7 +1,8 @@
 import { tmpdir } from "node:os";
-import { type Kit, watchPatterns } from "../catalog/kit.ts";
-import { TEAM_SERVER } from "../catalog/kit.ts";
-import { seatOf } from "../catalog/roles.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import { watchPatterns } from "../catalog/kit/patterns.ts";
+import { TEAM_SERVER } from "../catalog/kit/kit.ts";
+import { seatOf } from "../catalog/kit/roles.ts";
 import { errorText } from "../core/errors.ts";
 import type { TurnEnded } from "../core/ports.ts";
 import type { Desk } from "../desk/desk.ts";

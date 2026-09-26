@@ -4,8 +4,8 @@ import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { loadKit } from "../../server/catalog/kit.ts";
-import { seatBin } from "../../server/catalog/launch.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
+import { seatBin } from "../../server/catalog/seat/launch.ts";
 import { tempDir } from "../tempdir.ts";
 
 const PLUGIN = fileURLToPath(new URL("../..", import.meta.url));

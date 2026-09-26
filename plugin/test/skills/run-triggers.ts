@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { type TriggerCase, loadCases, openedSkills, rightRun, skillCards, triggerPrompt } from "./triggers.ts";
 
 const { values } = parseArgs({

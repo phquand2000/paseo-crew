@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { resolveTeam } from "../../server/catalog/team.ts";
+import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { contentRoot, stateRoot, worktreeRoot } from "../../server/core/paths.ts";
 import { writeJson } from "../../server/core/store.ts";
 import { emptyLedger } from "../../server/desk/ledger.ts";

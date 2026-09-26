@@ -1,6 +1,6 @@
-import type { Kit } from "../catalog/kit.ts";
-import { supportsRole } from "../catalog/harness-files.ts";
-import { templateRoles } from "../catalog/mcp-states.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import { supportsRole } from "../catalog/kit/harness-files.ts";
+import { templateRoles } from "../catalog/team/mcp-states.ts";
 import type { CatalogView } from "../../shared/views.ts";
 
 /** The kit as the panel reads it: roles, agents, servers, and the sensors the watch can be judged by. */

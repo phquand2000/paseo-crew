@@ -1,4 +1,4 @@
-import { type Quirks, exitOf, pseudo } from "../../catalog/timeline.ts";
+import { type Quirks, exitOf, pseudo } from "../../catalog/kit/timeline.ts";
 import type { StreamRow } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 

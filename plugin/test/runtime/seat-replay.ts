@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadKit, watchPatterns } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
+import { watchPatterns } from "../../server/catalog/kit/patterns.ts";
 import type { Seen } from "../../server/core/ports.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
 import type { Fact, Rules } from "../../server/runtime/watch/facts.ts";

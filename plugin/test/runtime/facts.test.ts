@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TEAM_SERVER } from "../../server/catalog/kit.ts";
+import { TEAM_SERVER } from "../../server/catalog/kit/kit.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
 import { FACTS, callsTo, factTitle, stuck } from "../../server/runtime/watch/facts.ts";
 import { SeatWatch } from "../../server/runtime/watch/watches.ts";

@@ -1,5 +1,5 @@
-import type { Kit } from "../../catalog/kit.ts";
-import { can, seatOf } from "../../catalog/roles.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
+import { can, seatOf } from "../../catalog/kit/roles.ts";
 import type { SeatView } from "../../core/paseo.ts";
 import { plural } from "../../core/text.ts";
 import { DAY_MS, HOUR_MS, minutesSince } from "../../core/time.ts";

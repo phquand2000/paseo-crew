@@ -2,7 +2,7 @@ import { recordEvent } from "./store/event-log.ts";
 import { join } from "node:path";
 import { runGate } from "../core/gate.ts";
 import { pristineState } from "../core/git.ts";
-import type { Kit } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
 import type { DeskBase } from "./base.ts";
 import { changeOf } from "./landing.ts";
 import type { Lane } from "./ledger.ts";

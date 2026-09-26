@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { skillSources } from "../../server/catalog/content.ts";
-import type { Kit } from "../../server/catalog/kit.ts";
+import { skillSources } from "../../server/catalog/kit/content.ts";
+import type { Kit } from "../../server/catalog/kit/kit.ts";
 
 export type TriggerCase = { brief: string; expect: string[]; near?: string };
 

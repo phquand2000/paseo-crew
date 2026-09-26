@@ -1,8 +1,8 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, rmSync, rmdirSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { CleanItem, CleanView } from "../../shared/views.ts";
-import type { Kit } from "../catalog/kit.ts";
-import type { Team } from "../catalog/team.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import type { Team } from "../catalog/team/team.ts";
 import { git, pristineState } from "../core/git.ts";
 import { contentRoot, expandHome, guidesDir, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { errorText } from "../core/errors.ts";

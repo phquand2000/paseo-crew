@@ -1,8 +1,8 @@
 import { minutesSince } from "../core/time.ts";
 import { join } from "node:path";
 import type { WatchJudge, WatchView } from "../../shared/views.ts";
-import type { Kit } from "../catalog/kit.ts";
-import type { Team } from "../catalog/team.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import type { Team } from "../catalog/team/team.ts";
 import { lastBytes } from "../core/gate.ts";
 import { loadIncidents } from "../desk/incidents.ts";
 import { type Ledger, laneOfLead, loadLedger, taskOfPeer } from "../desk/ledger.ts";

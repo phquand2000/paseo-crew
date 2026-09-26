@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyModels, fetchModels, readModels } from "../../server/catalog/models.ts";
+import { applyModels, fetchModels, readModels } from "../../server/catalog/paseo/models.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 

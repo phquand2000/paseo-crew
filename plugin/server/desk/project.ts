@@ -4,8 +4,8 @@ import { basename, dirname, join } from "node:path";
 import { LAND_AS, type LandAs, gitCommonDir, trackedFiles } from "../core/git.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import type { Ecosystem, Kit } from "../catalog/kit.ts";
-import { RiskRule } from "../catalog/schema.ts";
+import type { Ecosystem, Kit } from "../catalog/kit/kit.ts";
+import { RiskRule } from "../catalog/kit/schema/ecosystem.ts";
 import { coverOf, serialPaths } from "../core/scope.ts";
 
 export type Project = { root: string; slug: string; state: string };

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { ASK } from "../../server/domain/ask.ts";
 import { LANE } from "../../server/domain/lane.ts";
 import { QUESTION } from "../../server/domain/question.ts";

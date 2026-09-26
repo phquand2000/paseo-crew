@@ -1,5 +1,5 @@
 import { recordEvent } from "./store/event-log.ts";
-import type { CheckSpec } from "../catalog/kit.ts";
+import type { CheckSpec } from "../catalog/kit/kit.ts";
 import { errorText } from "../core/errors.ts";
 import type { Answer, Judge, Question } from "../core/ports.ts";
 import type { Project } from "./project.ts";

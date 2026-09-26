@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { renderPrompt } from "../../server/catalog/content.ts";
-import { can, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/roles.ts";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { renderPrompt } from "../../server/catalog/kit/content.ts";
+import { can, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit/roles.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { tempDir } from "../tempdir.ts";
 
 const shipped = (name: string): unknown =>

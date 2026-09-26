@@ -1,4 +1,4 @@
-import type { ArgSchema } from "../catalog/kit.ts";
+import type { ArgSchema } from "../catalog/kit/kit.ts";
 
 const TYPE_WORDS: Record<string, string> = {
   string: "text",

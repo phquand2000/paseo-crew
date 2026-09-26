@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { renderPrompt, skillSources } from "../../server/catalog/content.ts";
+import { renderPrompt, skillSources } from "../../server/catalog/kit/content.ts";
 import { contentChanges, decide } from "../../server/upkeep/content.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";

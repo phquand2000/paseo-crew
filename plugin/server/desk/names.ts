@@ -1,4 +1,4 @@
-import type { RoleSpec } from "../catalog/kit.ts";
+import type { RoleSpec } from "../catalog/kit/kit.ts";
 
 /**
  * What Paseo shows a seat as. A plugin cannot rename an agent, and a seat has one duty for life, so the name fixed when it

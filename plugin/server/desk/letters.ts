@@ -1,4 +1,4 @@
-import { TEAM_SERVER } from "../catalog/kit.ts";
+import { TEAM_SERVER } from "../catalog/kit/kit.ts";
 import { clip, hash, outside } from "../core/text.ts";
 import type { PendingPermission } from "../core/paseo.ts";
 import { IN_QUEUE } from "../domain/task.ts";

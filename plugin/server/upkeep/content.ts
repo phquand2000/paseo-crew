@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ContentChange } from "../../shared/views.ts";
-import type { Kit } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
 import { digest } from "../core/fs.ts";
 import { git } from "../core/git.ts";
 import { readJson, writeJson } from "../core/store.ts";

@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MigrateStep, MigrateView } from "../../shared/views.ts";
-import type { Kit } from "../catalog/kit.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
 import { digest } from "../core/fs.ts";
 import { LayerSchema } from "../../shared/settings.ts";
 import { stateRoot } from "../core/paths.ts";

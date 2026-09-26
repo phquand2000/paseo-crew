@@ -1,7 +1,7 @@
-import type { Connect, Layer, McpChoice, Scalar } from "../../shared/settings.ts";
-import type { Kit, McpEntry, McpTransport } from "./kit.ts";
-import { PASEO_SERVER, TEAM_SERVER } from "./kit.ts";
-import { can } from "./roles.ts";
+import type { Connect, Layer, McpChoice, Scalar } from "../../../shared/settings.ts";
+import type { Kit, McpEntry, McpTransport } from "../kit/kit.ts";
+import { PASEO_SERVER, TEAM_SERVER } from "../kit/kit.ts";
+import { can } from "../kit/roles.ts";
 
 /** An MCP server as the settings leave it: on or off, for which roles, and how it connects. */
 export type McpState = {

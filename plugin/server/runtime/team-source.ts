@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Kit } from "../catalog/kit.ts";
-import { layerValues, readLayer } from "../catalog/settings.ts";
+import type { Kit } from "../catalog/kit/kit.ts";
+import { layerValues, readLayer } from "../catalog/team/settings.ts";
 import type { Layer } from "../../shared/settings.ts";
-import { type Team, resolveTeam, servingProject } from "../catalog/team.ts";
+import { type Team, resolveTeam, servingProject } from "../catalog/team/team.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
 import type { Project } from "../desk/project.ts";

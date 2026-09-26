@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { Window } from "../../server/runtime/watch/window.ts";
 
 const kit = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));

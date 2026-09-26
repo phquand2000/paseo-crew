@@ -1,9 +1,9 @@
 import { cpSync, existsSync, readdirSync, renameSync, rmSync, statSync, utimesSync } from "node:fs";
 import { join } from "node:path";
-import { digest, ensureLink } from "../core/fs.ts";
-import { contentRoot, guidesDir, home } from "../core/paths.ts";
-import { DAY_MS } from "../core/time.ts";
-import type { Kit } from "./kit.ts";
+import { digest, ensureLink } from "../../core/fs.ts";
+import { contentRoot, guidesDir, home } from "../../core/paths.ts";
+import { DAY_MS } from "../../core/time.ts";
+import type { Kit } from "../kit/kit.ts";
 
 const SNAPSHOT_DAYS = 14;
 

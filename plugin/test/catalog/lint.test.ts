@@ -3,8 +3,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { skillSources } from "../../server/catalog/content.ts";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { skillSources } from "../../server/catalog/kit/content.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const kit = loadKit(PLUGIN);

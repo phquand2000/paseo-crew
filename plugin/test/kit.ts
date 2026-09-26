@@ -1,8 +1,8 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tempDir } from "./tempdir.ts";
-import { type Kit, loadKit } from "../server/catalog/kit.ts";
-import { type ModelCache, applyModels } from "../server/catalog/models.ts";
+import { type Kit, loadKit } from "../server/catalog/kit/kit.ts";
+import { type ModelCache, applyModels } from "../server/catalog/paseo/models.ts";
 
 function put(root: string, path: string, value: unknown): void {
   const file = join(root, path);

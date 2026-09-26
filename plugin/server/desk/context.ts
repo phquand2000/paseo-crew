@@ -1,4 +1,4 @@
-import type { RoleSpec } from "../catalog/kit.ts";
+import type { RoleSpec } from "../catalog/kit/kit.ts";
 import type { Project } from "./project.ts";
 
 export type ToolRequest = {

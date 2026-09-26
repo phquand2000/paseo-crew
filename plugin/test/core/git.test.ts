@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { fileKinds } from "../../server/catalog/kit.ts";
+import { fileKinds } from "../../server/catalog/kit/patterns.ts";
 import { contains, countNumstat, diffCounts, headSha, kindOf, mergeBranch } from "../../server/core/git.ts";
 import { uncovered } from "../../server/core/scope.ts";
 import { advance, landLane, mergeCommit } from "../../server/core/land.ts";

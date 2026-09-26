@@ -1,5 +1,5 @@
-import type { Kit } from "../../catalog/kit.ts";
-import { can, seatOf } from "../../catalog/roles.ts";
+import type { Kit } from "../../catalog/kit/kit.ts";
+import { can, seatOf } from "../../catalog/kit/roles.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
@@ -14,7 +14,7 @@ import {
   stuck,
   unverified,
 } from "./facts.ts";
-import type { Quirks } from "../../catalog/timeline.ts";
+import type { Quirks } from "../../catalog/kit/timeline.ts";
 import { Window } from "./window.ts";
 
 export type WatchedSeat = { id: string; provider: string; cwd: string; title?: string | null };

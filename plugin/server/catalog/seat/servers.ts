@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import type { Connect } from "../../shared/settings.ts";
-import { skillSources } from "./content.ts";
+import type { Connect } from "../../../shared/settings.ts";
+import { skillSources } from "../kit/content.ts";
 import {
   type Kit,
   type McpServers,
@@ -9,10 +9,10 @@ import {
   type RoleSpec,
   SEAT_KEY,
   TEAM_SERVER,
-} from "./kit.ts";
-import { can, toolsOf } from "./roles.ts";
-import { paseoToolsPolicy } from "./harness-files.ts";
-import { type Team, skillDirsFor } from "./team.ts";
+} from "../kit/kit.ts";
+import { can, toolsOf } from "../kit/roles.ts";
+import { paseoToolsPolicy } from "../kit/harness-files.ts";
+import { type Team, skillDirsFor } from "../team/team.ts";
 
 type McpState = Team["mcp"][string];
 

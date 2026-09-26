@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
-import { hiddenWordsIn } from "../../server/catalog/hidden-words.ts";
-import { loadKit } from "../../server/catalog/kit.ts";
+import { hiddenWordsIn } from "../../server/catalog/kit/hidden-words.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
 import { askLetters } from "../../server/desk/ask-letters.ts";
 import { reviewBrief, taskBrief } from "../../server/desk/briefs.ts";
 import { directive } from "../../server/desk/directive.ts";

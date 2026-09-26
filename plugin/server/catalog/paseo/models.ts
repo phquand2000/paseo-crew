@@ -1,10 +1,10 @@
 import { join } from "node:path";
-import { sameJson } from "../core/json.ts";
-import { readJson, writeJson } from "../core/store.ts";
-import { errorText } from "../core/errors.ts";
-import type { ModelList } from "../core/ports.ts";
-import type { Kit, ModelSpec } from "./kit.ts";
-import { providerId } from "./roles.ts";
+import { sameJson } from "../../core/json.ts";
+import { readJson, writeJson } from "../../core/store.ts";
+import { errorText } from "../../core/errors.ts";
+import type { ModelList } from "../../core/ports.ts";
+import type { Kit, ModelSpec } from "../kit/kit.ts";
+import { providerId } from "../kit/roles.ts";
 import { seatPairs } from "./providers.ts";
 
 export type ModelCache = Record<string, { at: string; models: ModelSpec[]; error: string | null }>;

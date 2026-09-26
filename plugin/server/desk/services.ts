@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ArgSchema } from "../catalog/kit.ts";
+import type { ArgSchema } from "../catalog/kit/kit.ts";
 import type { Agents } from "./agents.ts";
 import type { DeskBase } from "./base.ts";
 import type { Caller, ToolReply } from "./context.ts";

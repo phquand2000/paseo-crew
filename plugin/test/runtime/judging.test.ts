@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
-import type { SensorSpec } from "../../server/catalog/kit.ts";
+import type { SensorSpec } from "../../server/catalog/kit/kit.ts";
 import { stateRoot } from "../../server/core/paths.ts";
 import type { Answer, Judge, Question } from "../../server/core/ports.ts";
 import { loadConfig, saveConfig } from "../../server/desk/project.ts";

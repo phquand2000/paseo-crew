@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Layer } from "../../shared/settings.ts";
-import type { Attention } from "../../shared/views.ts";
-import type { HarnessSpec, Kit, SensorSpec } from "./kit.ts";
+import type { Layer } from "../../../shared/settings.ts";
+import type { Attention } from "../../../shared/views.ts";
+import type { HarnessSpec, Kit, SensorSpec } from "../kit/kit.ts";
 import { type McpState, resolveMcp } from "./mcp-states.ts";
 import { type RoleSeat, modelFor, resolveRole, thinkingFor } from "./role-seats.ts";
-import { can } from "./roles.ts";
+import { can } from "../kit/roles.ts";
 
 /** Who answers the watch's questions, as the settings chose: a sensor, and its key where a settings layer keeps one, or a seat of a role that can judge. */
 type JudgeChoice = { id: string; sensor: SensorSpec; key?: string } | { id: string; role: string };

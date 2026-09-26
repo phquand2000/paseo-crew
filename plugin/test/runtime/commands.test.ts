@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { loadKit, watchPatterns } from "../../server/catalog/kit.ts";
+import { loadKit } from "../../server/catalog/kit/kit.ts";
+import { watchPatterns } from "../../server/catalog/kit/patterns.ts";
 import { onDetail } from "../../server/runtime/watch/commands.ts";
 import type { Rules } from "../../server/runtime/watch/facts.ts";
 

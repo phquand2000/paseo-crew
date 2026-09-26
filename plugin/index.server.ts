@@ -1,8 +1,8 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { decisionsJudge } from "./server/adapters/decisions.ts";
 import { PaseoHost } from "./server/adapters/paseo/host.ts";
-import { loadKit } from "./server/catalog/kit.ts";
-import { applyModels, readModels } from "./server/catalog/models.ts";
+import { loadKit } from "./server/catalog/kit/kit.ts";
+import { applyModels, readModels } from "./server/catalog/paseo/models.ts";
 import { PLUGIN_ID, pluginDir, stateRoot } from "./server/core/paths.ts";
 import { registerRpc } from "./server/runtime/rpc.ts";
 import { Runtime } from "./server/runtime/runtime.ts";

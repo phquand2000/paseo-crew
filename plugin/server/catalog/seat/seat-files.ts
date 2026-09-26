@@ -1,18 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
-import { errorText } from "../core/errors.ts";
-import { LeftAlone, ensureLink, isLink, present, writeIfChanged } from "../core/fs.ts";
-import { type Json, getPath, isRecord, layered, sameJson, setPath } from "../core/json.ts";
-import { daemonLog } from "../core/logger.ts";
-import { expandHome } from "../core/paths.ts";
-import { type PromptPaths, renderText, skillProblems, skillSources } from "./content.ts";
-import type { HarnessSpec, Kit, McpServers, RoleSpec } from "./kit.ts";
-import { harnessFileSources, roleSettingsFile } from "./harness-files.ts";
+import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../../core/config-file.ts";
+import { errorText } from "../../core/errors.ts";
+import { LeftAlone, ensureLink, isLink, present, writeIfChanged } from "../../core/fs.ts";
+import { type Json, getPath, isRecord, layered, sameJson, setPath } from "../../core/json.ts";
+import { daemonLog } from "../../core/logger.ts";
+import { expandHome } from "../../core/paths.ts";
+import { type PromptPaths, renderText, skillProblems, skillSources } from "../kit/content.ts";
+import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
+import { harnessFileSources, roleSettingsFile } from "../kit/harness-files.ts";
 import { projectImports, stateWrites } from "./launch.ts";
 import { snapshot } from "./snapshots.ts";
-import { type Team, rulesFor, skillDirsFor } from "./team.ts";
+import { type Team, rulesFor, skillDirsFor } from "../team/team.ts";
 
 /** What a seat's build changed, for the log: each file written, linked or removed. */
 type Recorder = { changes: string[]; note(changed: boolean, what: string): void; removed(what: string): void };
