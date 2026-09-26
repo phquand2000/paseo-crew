@@ -1,0 +1,143 @@
+import { skillSources } from "../../catalog/content.ts";
+import { type Kit, type RoleSpec, namedOrNot, roleThatCan } from "../../catalog/kit.ts";
+import { type Team, skillDirsFor } from "../../catalog/team.ts";
+import { clip, plural, slugify } from "../../core/text.ts";
+import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
+import { holdRefusal } from "../hold.ts";
+import { type Lane, type Ledger, laneOfLead, loadLedger, nextTaskId } from "../ledger.ts";
+import { serialIn } from "../project.ts";
+import type { DeskServices } from "../services.ts";
+import { recordEvent } from "../store/event-log.ts";
+import { startWaiting } from "../waiting/tasks.ts";
+import { layoutProblems, readPlan } from "./layout.ts";
+
+/** One task as add_tasks takes it, in the Lead's own key. */
+type AskedTask = Args & { key: string };
+
+/** Adds tasks to the Lead's lane in one go, each waiting for what it names, and starts what can start. */
+export async function addTasks(desk: DeskServices, caller: Caller, asked: AskedTask[]): Promise<ToolReply> {
+  const { project } = caller;
+  const lane = laneOfLead(loadLedger(project.state), caller.id);
+  if (!lane?.worktree) return no("You have no open lane.");
+  const roles = rolesFor(desk.kit, desk.teamFor(project), asked);
+  if (typeof roles === "string") return no(roles);
+  const serial = await serialIn(desk.kit, project, lane.worktree);
+  const added = record(desk, caller, asked, roles, serial);
+  if (typeof added === "string") return no(added);
+  const { plan, ids } = added;
+  recordEvent(project, { kind: "tasks.added", lane: lane.id, tasks: [...ids.values()] });
+  await startWaiting(desk, project, true, new Set(ids.values()));
+  const now = loadLedger(project.state).tasks;
+  const lines = plan.map((task) => {
+    const entry = now[ids.get(task.key)!]!;
+    const running = `${entry.status}${entry.peer ? `, Peer ${entry.peer}` : ""}`;
+    const state = entry.held
+      ? `held: ${clip(entry.held.why, 200)}`
+      : entry.status === "waiting"
+        ? `waits for ${entry.after!.join(", ")}`
+        : running;
+    return `- ${task.key} is ${entry.id} ${entry.title}: ${state}`;
+  });
+  return ok(
+    `Added; each task starts by itself once what it waits for is merged, and hand-backs arrive as mail.\n${lines.join("\n")}`,
+  );
+}
+
+/** The role taking each task, by key, or why one cannot be taken. */
+function rolesFor(kit: Kit, team: Team, asked: AskedTask[]): Map<string, string> | string {
+  const roles = new Map<string, string>();
+  for (const task of asked) {
+    const key = task.key.trim().toUpperCase();
+    const role = workRoleFor(kit, team, task);
+    if (typeof role === "string") return `${key}: ${role}`;
+    roles.set(key, role.role);
+  }
+  return roles;
+}
+
+/** The role that takes a task, or why none can: a skill it lacks is refused here, since the Lead's context does not list them. */
+function workRoleFor(kit: Kit, team: Team, args: Args): RoleSpec | string {
+  // Writing, not `work`: a reviewing role holds `work` too, and would be offered as a Peer that cannot write.
+  const asked = str(args.role);
+  const workRole = roleThatCan(kit, "write", asked || undefined);
+  if (!workRole) return namedOrNot(kit, "write", asked, "take a task");
+  const held = [...skillSources(kit, workRole, skillDirsFor(team, workRole.role)).keys()];
+  const unknown = strs(args.skills).filter((name) => !held.includes(name));
+  if (unknown.length === 0) return workRole;
+  if (held.length === 0)
+    return `This kit gives ${workRole.label}s no skills, so ${unknown.join(", ")} cannot be opened.`;
+  return `${workRole.label}s have no skill called ${unknown.join(", ")}. They have: ${held.sort().join(", ")}.`;
+}
+
+type Recorded = { plan: Exclude<ReturnType<typeof readPlan>, string>; ids: Map<string, string> };
+
+/** Checked and recorded in one transaction: a layout read before another call recorded its tasks could put two writers on a path. */
+function record(
+  { ledgers }: Pick<DeskServices, "ledgers">,
+  caller: Caller,
+  asked: AskedTask[],
+  roles: Map<string, string>,
+  serial: string[],
+): Recorded | string {
+  return ledgers.transact(caller.project, (ledger) => {
+    const now = laneOfLead(ledger, caller.id);
+    if (!now) return "You have no open lane.";
+    const held = holdRefusal(now);
+    if (held) return held;
+    const plan = readPlan(ledger, now, asked);
+    if (typeof plan === "string") return plan;
+    const problems = layoutProblems(ledger, now, plan, serial);
+    if (problems.length > 0) {
+      const these = plural(problems.length, "this", "these");
+      const list = problems.map((problem) => `- ${problem}`).join("\n");
+      return `No task was added, since ${these} would have two tasks hold one path or hold one the lane does not write:\n${list}`;
+    }
+    const ids = new Map<string, string>();
+    for (const task of plan) {
+      const after = task.after.map((id) => ids.get(id) ?? id);
+      ids.set(task.key, recordTask(ledger, now, task.args, task.parallel, { after, role: roles.get(task.key)! }));
+    }
+    // New work: what the lane was reported ready as is not what it will hold.
+    delete now.ready;
+    return { plan, ids };
+  });
+}
+
+/** Puts the task as asked for on record in `ledger`, waiting for what it names, and gives its id; `startWaiting` starts it. */
+function recordTask(
+  ledger: Ledger,
+  lane: Lane,
+  args: Args,
+  parallel: boolean,
+  waits: { after: string[]; role: string },
+): string {
+  const title = str(args.title);
+  const id = nextTaskId(lane, "code");
+  const now = Date.now();
+  ledger.tasks[id] = {
+    id,
+    lane: lane.id,
+    kind: "code",
+    mode: parallel ? "parallel" : "lane",
+    title,
+    goal: str(args.goal),
+    acceptance: strs(args.acceptance),
+    hints: strs(args.hints),
+    holds: strs(args.holds),
+    outOfScope: strs(args.outOfScope),
+    context: str(args.context) || undefined,
+    skills: strs(args.skills),
+    // Every task writes on a branch of its own, one beside others in a copy of its own too: the lane branch takes only merges.
+    branch: `task/${id.toLowerCase()}-${slugify(title, 24)}`,
+    worktree: parallel ? undefined : lane.worktree,
+    slot: parallel ? undefined : lane.slot,
+    status: "waiting",
+    after: waits.after,
+    // Who takes it, kept for when it starts: the call that asked for it is long gone by then.
+    opening: { role: waits.role },
+    openedAt: now,
+    updatedAt: now,
+    silent: 0,
+  };
+  return id;
+}
