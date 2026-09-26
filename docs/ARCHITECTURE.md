@@ -81,8 +81,9 @@ the Supervisor); and a permission prompt (WAITING FOR PERMISSION to the seat's o
 | Supervisor | `drop_lane`, `release` | the lane `closed` without landing, its branch kept; a kept Lead archived, its copy put away | LANE CLOSED to the Lead; CLEARED, as on landing |
 
 A landing that touches an `askFirst` path waits for the Human's approval on the Flow tab. `ready` is evidence,
-not a condition: a lane never reported ready still lands, saying so in its evidence; only a landing the Human
-approved needs it. [A lane](#a-lane) has the order `land_lane` works in.
+not a condition: a lane never reported ready still lands, saying so in its evidence. A landing the Human
+approved needs it only when the lane was ready as it was held and has been amended since. [A lane](#a-lane)
+has the order `land_lane` works in.
 
 ### Report
 
@@ -399,9 +400,10 @@ The Human is asked what only they can decide and told what they cannot take back
 - **Landings held for the Human** keep the head they were held at, the `askFirst` hits and the evidence, shown
   on the Flow tab with a note, Approve and Send back. A head moved since the hold drops it, whatever the Human
   chose (CHANGED to the Supervisor). Otherwise, approved, the desk tries to land the lane at once for the
-  Supervisor, with the `overGate` it was held with, and tells it LANDED, HELD AGAIN or APPROVED (not landed
+  Supervisor, with the `overGate` and reason it was held with, and tells it LANDED, HELD AGAIN or APPROVED (not landed
   yet, the approval standing while the head does); sent back, the hold drops, the lane stays open with `ready`
-  as it was, and LAND SENT BACK brings the note to the Lead. No verb lets a seat approve.
+  as it was, and LAND SENT BACK brings the note to the Lead. No verb lets a seat approve. A hold calls off a
+  landing still waiting for the Human; one they approved stands.
 - **Pages.** Only `destructive` opens one. As its incident opens, INCIDENT goes to the Supervisor whatever the
   watch's switch, budget or marks say, and the desk starts a Pager in the project's workspace, with no tools
   and no parent, whose one reply is the page the desk wrote, cut at 220 characters: the repository, the seat

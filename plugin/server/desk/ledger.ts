@@ -43,7 +43,7 @@ export type Lane = {
   /** When its Lead last reported it ready; an amendment takes it away, since what it was ready against has changed. */
   ready?: { at: number };
   /** A landing held for the Human, for the lane branch at `head`; approved, it lands without being asked again while that holds. */
-  landApproval?: { since: number; head: string; signals: string[]; evidence: string[]; overGate: boolean; approved?: { at: number; note: string } };
+  landApproval?: { since: number; head: string; signals: string[]; evidence: string[]; overGate: boolean; reason?: string; ready: boolean; approved?: { at: number; note: string } };
   landed?: boolean;
   closedAt?: number;
   amended?: Amendment[];

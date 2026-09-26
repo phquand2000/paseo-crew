@@ -91,6 +91,32 @@ test("a landing held over a red gate lands over it once approved, as the Supervi
   assert.match(await decide(h, true, ""), /Approved: Lane L1 closed[^]*over a red gate/);
   assert.ok(onMain("a.txt"));
   assert.equal(h.git(h.root, "show", "main:a.txt"), "one\nfour\n");
+  assert.equal(h.events("lane.closed").find((event) => event.lane === "L1")?.reason, "the Supervisor judged the red gate safe", "the record keeps why it went over the gate");
+});
+
+test("a landing the Supervisor asked for before its Lead reported ready lands once the Human approves it, the card having said so", async () => {
+  const { h, sup, land, onMain } = await laneWith(risky, ["src/auth"]);
+  await h.call(sup, "supervisor", "amend_lane", { lane: "L1", writeSet: ["a.txt", "src/**", ".gitignore"], why: "the lane ignores its backups" });
+  assert.match((await land()).text, /waits for the Human's approval[^]*Its Lead has not reported it ready as it now stands/);
+  assert.match(await decide(h, true, ""), /^Approved: Lane L1 closed/);
+  assert.ok(onMain("src/auth/login.ts"));
+});
+
+test("an approval the Human gave outlasts a hold on the lane: resumed, it lands without asking them again", async () => {
+  const { h, sup, land, onMain } = await laneWith(risky, ["src/auth"], true);
+  await land();
+  writeFileSync(join(h.root, "b.txt"), "main moved\n");
+  h.git(h.root, "commit", "-qam", "main moved");
+  writeFileSync(join(h.root, "a.txt"), "the Human is editing\n");
+  assert.match(await decide(h, true, ""), /^Approved\. It could not land yet/);
+  const held = await h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
+  assert.doesNotMatch(held.text, /called off/, "what the Human decided is not the Supervisor's to undo");
+  await h.call(sup, "supervisor", "resume_lane", { lane: "L1" });
+  h.git(h.root, "checkout", "--", "a.txt");
+  const landed = await land();
+  assert.equal(landed.ok, true, landed.text);
+  assert.doesNotMatch(landed.text, /waits/);
+  assert.ok(onMain("src/auth/login.ts"));
 });
 
 test("an approval that could not land yet does not cover a commit made after it", async () => {

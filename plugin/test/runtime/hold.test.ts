@@ -53,7 +53,7 @@ test("a waiting lane on hold does not open when its turn comes, but once resumed
   assert.equal(h.ledger().lanes.L2!.status, "open", "resuming lets it open");
 
   const waiting = h.ledger();
-  waiting.lanes.L2!.landApproval = { since: Date.now(), head: "abc", signals: [], evidence: [], overGate: false };
+  waiting.lanes.L2!.landApproval = { since: Date.now(), head: "abc", signals: [], evidence: [], overGate: false, ready: true };
   saveLedger(h.project.state, waiting);
   assert.match((await h.call(sup, "supervisor", "hold_lane", { lane: "L2", reason: "stop" })).text, /The landing it was waiting on is called off: land it again once it resumes\./);
   assert.equal(h.ledger().lanes.L2!.landApproval, undefined, "so nothing lands on the Human's approval while it is on hold");
