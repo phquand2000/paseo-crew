@@ -1,9 +1,7 @@
+import { isRecord } from "../core/json.ts";
 import type { Connect } from "../../shared/settings.ts";
 import type { Parsed } from "../../shared/views.ts";
 import { errorText } from "../core/errors.ts";
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 /** Pasted snippets write ports and flags as numbers; a value with no text form is named back, not dropped. */
 const scalar = (value: unknown): string | undefined =>

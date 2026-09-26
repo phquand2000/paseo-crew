@@ -41,9 +41,7 @@ const NAMED: string[] = [];
 
 const LIMITS = { file: 300, testFile: 400, function: 50 };
 
-const LONG_FILES: Record<string, number> = {
-  "server/catalog/seats.ts": 370,
-};
+const LONG_FILES: Record<string, number> = {};
 
 const LONG_FUNCTIONS: Record<string, number> = {
   "client/state/seatworks.ts useSeatworks": 240,

@@ -1,6 +1,7 @@
 import { DAY_MS } from "../core/time.ts";
 import { join } from "node:path";
-import { isRecord, readJsonFile, writeJson } from "../core/store.ts";
+import { isRecord } from "../core/json.ts";
+import { readJsonFile, writeJson } from "../core/store.ts";
 import { type Held, close } from "../domain/incident.ts";
 
 export type Incident = {

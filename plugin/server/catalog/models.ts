@@ -1,5 +1,6 @@
 import { join } from "node:path";
-import { readJson, sameJson, writeJson } from "../core/store.ts";
+import { sameJson } from "../core/json.ts";
+import { readJson, writeJson } from "../core/store.ts";
 import { errorText } from "../core/errors.ts";
 import type { ModelList } from "../core/ports.ts";
 import { type Kit, type ModelSpec, providerId } from "./kit.ts";

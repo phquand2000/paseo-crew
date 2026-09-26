@@ -9,7 +9,9 @@ import { renderPrompt, skillProblems, skillSources } from "../../server/catalog/
 import { loadKit, providerId, toolsOf } from "../../server/catalog/kit.ts";
 import { applyRole } from "../../server/catalog/launch.ts";
 import { applyReconcile, seatPairs } from "../../server/catalog/providers.ts";
-import { materialize, placeGuides, seatDir, seedRecords } from "../../server/catalog/seats.ts";
+import { seedRecords } from "../../server/catalog/seat-files.ts";
+import { materialize, seatDir } from "../../server/catalog/seats.ts";
+import { placeGuides } from "../../server/catalog/snapshots.ts";
 import { choicesFor, serversFor } from "../../server/catalog/servers.ts";
 import { resolveTeam, withHarness } from "../../server/catalog/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";

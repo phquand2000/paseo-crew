@@ -8,7 +8,7 @@ import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import { Agents } from "./agents.ts";
 import type { Moment } from "./checks.ts";
 import { argsProblems, shapeOf, withoutNulls } from "./args.ts";
-import { sortKeys } from "../core/store.ts";
+import { sortKeys } from "../core/json.ts";
 import type { DeskBase } from "./base.ts";
 import { Claims } from "./claims.ts";
 import { type Args, type Caller, type CodeIndex, type Mailer, type Posted, type ToolReply, type ToolRequest, no } from "./context.ts";

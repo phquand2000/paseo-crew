@@ -16,7 +16,6 @@ server/catalog/kit.ts
 server/catalog/launch.ts
 server/catalog/providers.ts
 server/catalog/schema.ts
-server/catalog/seats.ts
 server/catalog/team.ts
 server/core/git.ts
 server/desk/archive.ts

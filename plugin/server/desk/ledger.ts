@@ -1,6 +1,7 @@
 import { statSync } from "node:fs";
 import { join } from "node:path";
-import { isRecord, readJsonFile, writeJson } from "../core/store.ts";
+import { isRecord } from "../core/json.ts";
+import { readJsonFile, writeJson } from "../core/store.ts";
 import type { AskStatus } from "../domain/ask.ts";
 import type { Question } from "../domain/question.ts";
 import type { LaneStatus } from "../domain/lane.ts";
