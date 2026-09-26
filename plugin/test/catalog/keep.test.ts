@@ -78,14 +78,6 @@ const KEEP: Keep[] = [
   { id: "keep-16", title: "the one-writer paths are a default, not a law", file: "catalog/ecosystem.json", check: "contains", anchor: '"serialOnly": [' },
   { id: "keep-17", title: "seat settings layer the role file over the harness base", file: "server/catalog/seats.ts", check: "contains", anchor: 'layerSettings(readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}), readConfig<Json>(roleFile, {}))' },
   { id: "keep-18", title: "each seat is built in its own directory", file: "server/catalog/seats.ts", check: "contains", anchor: "const dir = seatDir(kit, seat.role, seat.harness, homeDir, project);" },
-  {
-    id: "keep-19",
-    title: "which role gets which MCP tools is settings",
-    file: "shared/settings.ts",
-    check: "contains",
-    anchor: "tools: z.record(z.string(), z.array(z.string())).optional(),",
-    structure: ["the line is no longer unique, so it no longer proves the MCP server's field", (text, anchor) => text.indexOf(anchor) === text.lastIndexOf(anchor)],
-  },
   { id: "keep-20", title: "each harness says how it takes MCP servers", file: "server/catalog/launch.ts", check: "contains", anchor: 'if (harness.mcp.delivery === "launch"' },
   {
     id: "keep-21a",

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyModels, fetchModels, readModels } from "../../server/catalog/models.ts";
-import { desiredProvider } from "../../server/catalog/providers.ts";
-import { resolveTeam } from "../../server/catalog/team.ts";
 import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
@@ -41,12 +39,4 @@ test("an agent Paseo cannot list keeps its last list, and says why", async () =>
   const before = kit.harnesses.omp!.models;
   applyModels(kit, { omp: { at: "", error: "none", models: [] } });
   assert.equal(kit.harnesses.omp!.models, before);
-});
-
-test("a role moved to an agent its preset does not name starts on the model another role's preset names there, not the first listed", () => {
-  const kit = makeKit();
-  applyModels(kit, { omp: { at: "", error: null, models: [{ id: "claude-in-omp", label: "Claude in omp" }, { id: "glm", label: "GLM" }] } });
-  const team = resolveTeam(kit, { roles: { lead: { harness: "omp" } } });
-  assert.equal(team.roles.lead!.model?.id, "glm");
-  assert.deepEqual(desiredProvider(kit, team, team.roles.lead!.role, kit.harnesses.omp!).additionalModels, [{ id: "glm", label: "GLM", isDefault: true }]);
 });

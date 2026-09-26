@@ -32,7 +32,6 @@ const NOT_YET_CLEAN = [
   "test/adapters/decisions.test.ts",
   "test/catalog/kit.real.test.ts",
   "test/catalog/providers.test.ts",
-  "test/catalog/team.test.ts",
   "test/core/stream.test.ts",
   "test/desk/incidents.test.ts",
   "test/kit.ts",

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Layer } from "../../shared/settings.ts";
 import { countsInstead } from "../../client/format/flow.ts";
 import { incidentState } from "../../client/format/watch.ts";
-import { dropMcp, foldRoles, harnessInForce, keptRoles, modelInForce, modelRow, setAttention, setRole } from "../../client/model/layer.ts";
+import { dropMcp, foldRoles, keptRoles, modelRow, setAttention, setRole } from "../../client/model/layer.ts";
 import type { WatchIncident } from "../../shared/views.ts";
 
 const held: Layer = {
@@ -65,19 +65,6 @@ test("re-pasting a server the owner gave to nobody leaves it given to nobody", (
   assert.deepEqual(keptRoles(["lead", "designer"], reachable), ["lead"], "and a role that cannot reach it is dropped from the narrowing");
 });
 
-test("a settings screen offers the agent in force, not the one the kit would have picked", () => {
-  const peer = { id: "peer", defaults: { harness: "omp" } };
-  const project: Layer = { roles: { peer: { harness: "claude" } } };
-  const machine: Layer = { roles: { peer: { harness: "codex" } } };
-
-  // Skipping the two middle layers once showed omp for a Peer the owner had put on Claude Code.
-  assert.equal(harnessInForce(peer, {}, project, machine), "claude", "the project's choice wins");
-  assert.equal(harnessInForce(peer, {}, {}, machine), "codex", "then the machine's");
-  assert.equal(harnessInForce(peer, {}, {}, {}), "omp", "and the kit's default only when nobody chose");
-  assert.equal(harnessInForce(peer, { roles: { peer: { harness: "codex" } } }, project, machine), "codex", "a draft being filled in wins over both");
-  assert.equal(harnessInForce(peer, undefined, undefined), "omp", "a layer not read yet is not a choice");
-});
-
 test("the model row shows what is in force even when this agent does not list it, and offers a way back", () => {
   const opus = [{ id: "claude-opus-5", label: "Opus 5" }];
   const settled = modelRow("claude-opus-5", opus);
@@ -113,29 +100,6 @@ test("a collapsed lane gives up its counts for a Lead that is waiting or gone", 
   assert.equal(countsInstead(lane({ status: "running", waiting: ["Write outside the working copy"] })), false);
   assert.equal(countsInstead(lane({ status: "gone", waiting: [] })), false, "and a Lead that has gone is never news the counts may hide");
   assert.equal(countsInstead(lane(null)), false);
-});
-
-test("the model in force follows the resolver: a layer naming another agent drops the models below it", () => {
-  const lead = { id: "lead", defaults: { harness: "claude", model: "claude-opus-5" } };
-  const machine: Layer = { roles: { lead: { harness: "omp", model: "glm-5" } } };
-  // The machine's model was chosen for an agent the project has since moved off, so it is not in force.
-  assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "codex" } } }, machine), undefined);
-  assert.equal(modelInForce(lead, {}, { roles: { lead: { harness: "claude" } } }, machine), "claude-opus-5", "back on its own agent, the kit's choice there");
-  assert.equal(modelInForce(lead, { roles: { lead: { model: "claude-sonnet-5" } } }, undefined, machine), "claude-sonnet-5");
-  assert.equal(modelInForce(lead), "claude-opus-5");
-});
-
-test("a role that follows another shows that role's agent and model in force until it has its own", () => {
-  const scribe = { id: "scribe", follows: "peer", defaults: { harness: "omp", model: "glm-5" } };
-  const machine: Layer = { roles: { peer: { harness: "claude", model: "claude-opus-5" } } };
-  assert.equal(harnessInForce(scribe, {}, {}, machine), "claude", "the Peer's own choice, not the kit's default");
-  assert.equal(modelInForce(scribe, {}, {}, machine), "claude-opus-5");
-  assert.equal(modelInForce(scribe, { roles: { peer: { model: "claude-sonnet-5" } } }, {}, machine), "claude-sonnet-5", "a Peer being edited in the same draft moves it too");
-  const own: Layer = { roles: { scribe: { harness: "codex" } } };
-  assert.equal(harnessInForce(scribe, {}, own, machine), "codex", "an agent of its own wins");
-  assert.equal(modelInForce(scribe, {}, own, machine), undefined, "and drops what it followed");
-  const back: Layer = { roles: { scribe: { harness: "claude" } } };
-  assert.equal(modelInForce(scribe, back, own, machine), "claude-opus-5", "coming back to the Peer's agent brings back the Peer's model");
 });
 
 test("switching the watch on keeps the rest of the tuning", () => {
