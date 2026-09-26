@@ -9,9 +9,11 @@ import { expandHome, home } from "../core/paths.ts";
 import type { Project } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { errorText } from "../core/errors.ts";
+import { daemonLog } from "../core/logger.ts";
 
 type SeatContext = { node: string; socket: string };
 
+/** Builds a seat's directory for its role, agent and project, once per settings revision while the directory still holds. */
 export class Seating {
   private readonly kit: Kit;
   private readonly source: TeamSource;
@@ -42,14 +44,16 @@ export class Seating {
     try {
       const changes = materialize(this.kit, team, roleName, home(), project, this.servers(team, roleName));
       if (changes.length > 0)
-        console.log(
-          `seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`,
+        daemonLog.info(
+          `seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`,
         );
       this.built.add(key);
     } catch (error) {
       // Not swallowed: refusing the launch names the reason; letting it through runs a full-access agent with no brief.
-      console.error(`seatworks-v2: seat ${roleName} on ${harness.id} could not be built:`, error);
-      throw new Error(`the ${roleName} seat could not be built, so it was not started: ${errorText(error)}`);
+      daemonLog.error(`seat ${roleName} on ${harness.id} could not be built:`, error);
+      throw new Error(`the ${roleName} seat could not be built, so it was not started: ${errorText(error)}`, {
+        cause: error,
+      });
     }
     return team;
   }

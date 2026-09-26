@@ -1,41 +1,51 @@
 import { mkdirSync } from "node:fs";
-import { renderPrompt } from "../catalog/kit/content.ts";
 import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
-import { SEAT_KEY } from "../catalog/kit/kit.ts";
-import { seatOf } from "../catalog/kit/roles.ts";
-import { type ModelCache, applyModels, fetchModels, listingProviders } from "../catalog/paseo/models.ts";
-import { applyRole, seatBin, seatEnv } from "../catalog/seat/launch.ts";
-import { applyReconcile, reloadDaemon } from "../catalog/paseo/providers.ts";
-import { seedRecords } from "../catalog/seat/seat-files.ts";
-import { seatDir } from "../catalog/seat/seats.ts";
-import { placeGuides, sweepSnapshots } from "../catalog/seat/snapshots.ts";
-import { stampKit } from "../upkeep/migrate.ts";
+import type { ModelCache } from "../catalog/paseo/models.ts";
+import { reloadDaemon } from "../catalog/paseo/providers.ts";
 import { type IndexedProxy, choicesFor, indexedProxies } from "../catalog/seat/servers.ts";
-import { deskSocket, guidesDir, home, nodeBin, outboxPath, stateRoot } from "../core/paths.ts";
-import type { AgentConfig, HookAgent, Host, HostHooks, Judge, PermissionRequested, Seats, SessionOpen, TurnEnded, Workspaces } from "../core/ports.ts";
+import { placeGuides, sweepSnapshots } from "../catalog/seat/snapshots.ts";
+import { errorText } from "../core/errors.ts";
+import { daemonLog } from "../core/logger.ts";
+import { deskSocket, home, nodeBin, outboxPath, stateRoot } from "../core/paths.ts";
+import type {
+  AgentConfig,
+  HookAgent,
+  Host,
+  HostHooks,
+  Judge,
+  PermissionRequested,
+  SessionOpen,
+  TurnEnded,
+} from "../core/ports.ts";
 import type { CodeIndex } from "../desk/context.ts";
 import { Desk } from "../desk/desk.ts";
-import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
-import { openAsksTo } from "../domain/ledger.ts";
-import { TOOLS } from "../desk/tools/registry.ts";
-import { mailbox } from "../desk/letters/envelope.ts";
-import { appendRecord } from "../desk/store/records.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
-import { SettingsControl } from "./control.ts";
-import { watchView } from "./watch-view.ts";
+import { appendRecord } from "../desk/store/records.ts";
+import { TOOLS } from "../desk/tools/registry.ts";
+import { stampKit } from "../upkeep/migrate.ts";
 import { codeIndex } from "./code-index.ts";
-import { type Letter, Outbox, type Rules } from "./outbox.ts";
-import { Patrol } from "./patrol.ts";
+import { SettingsControl } from "./control.ts";
 import { SeatKeys } from "./keys.ts";
+import { composeMail, mailRules } from "./mail-rules.ts";
+import { Outbox } from "./outbox.ts";
+import { Patrol } from "./patrol.ts";
+import { PatrolClock } from "./patrol-clock.ts";
+import { ProviderSync } from "./provider-sync.ts";
+import { SeatLaunch } from "./seat-launch.ts";
 import { Seating } from "./seating.ts";
 import { TeamSocket } from "./team-socket.ts";
 import { TeamSource } from "./team-source.ts";
-import { Watching } from "./watching.ts";
 import { TurnRules } from "./turns.ts";
 import { Watches } from "./watch/watches.ts";
-import { errorText } from "../core/errors.ts";
+import { watchView } from "./watch-view.ts";
+import { Watching } from "./watching.ts";
 
-type RuntimeOptions = { outboxFile?: string; codeIndex?: (proxy: IndexedProxy) => CodeIndex; reloadDaemon?: () => Promise<boolean>; sensor?: (spec: SensorSpec, key: string) => Judge };
+type RuntimeOptions = {
+  outboxFile?: string;
+  codeIndex?: (proxy: IndexedProxy) => CodeIndex;
+  reloadDaemon?: () => Promise<boolean>;
+  sensor?: (spec: SensorSpec, key: string) => Judge;
+};
 
 export class Runtime implements HostHooks {
   readonly kit: Kit;
@@ -44,62 +54,90 @@ export class Runtime implements HostHooks {
   readonly control: SettingsControl;
   private readonly keys = new SeatKeys();
   private readonly socket: TeamSocket;
-  private readonly seats: Seats;
-  private readonly workspaces: Workspaces;
   private readonly source: TeamSource;
   private readonly seating: Seating;
   private readonly turns: TurnRules;
   private readonly patrol: Patrol;
   private readonly watches: Watches;
   private readonly watching: Watching;
-  private readonly offline = new Set<string>();
+  private readonly sync: ProviderSync;
+  private readonly launch: SeatLaunch;
+  private readonly clock: PatrolClock;
   private readonly makeIndex: (proxy: IndexedProxy) => CodeIndex;
-  private readonly reload: () => Promise<boolean>;
   private readonly host: Host;
-  private modelsAsked = false;
-  private tick: ReturnType<typeof setTimeout> | undefined;
 
   constructor(kit: Kit, host: Host, options: RuntimeOptions = {}) {
     this.kit = kit;
     this.host = host;
     this.makeIndex = options.codeIndex ?? codeIndex;
-    this.reload = options.reloadDaemon ?? reloadDaemon;
-    this.seats = host.seats;
-    this.workspaces = host.workspaces;
     this.source = new TeamSource(kit);
     this.seating = new Seating(kit, this.source, { node: nodeBin(), socket: deskSocket() });
-    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), (to, list) => this.compose(to, list), this.seats, this.outboxRules(kit));
+    const rules = mailRules(kit, (agentId) => this.socket.calling(agentId));
+    const compose = (to: string, list: Parameters<typeof composeMail>[2]) => composeMail(host.seats, to, list);
+    this.outbox = new Outbox(options.outboxFile ?? outboxPath(), compose, host.seats, rules);
     const log = (project: Project, line: string) => this.log(project, line);
     const remember = (project: Project) => this.remember(project);
     this.desk = new Desk({
       kit,
       tools: TOOLS,
       outbox: this.outbox,
-      seats: this.seats,
-      workspaces: this.workspaces,
+      seats: host.seats,
+      workspaces: host.workspaces,
       log,
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
       sensor: options.sensor,
     });
     this.socket = this.teamSocket();
-    this.turns = new TurnRules({ kit, desk: this.desk, seats: this.seats, remember, log });
+    this.turns = new TurnRules({ kit, desk: this.desk, seats: host.seats, remember, log });
     this.watching = new Watching({ kit, source: this.source, desk: this.desk, watches: () => this.watches });
-    this.watches = new Watches({
+    this.watches = this.watchesOf(kit);
+    this.patrol = new Patrol({
       kit,
-      seats: this.seats,
+      source: this.source,
+      desk: this.desk,
+      seats: host.seats,
+      outbox: this.outbox,
+      turns: this.turns,
+      watches: this.watches,
+      remember,
+    });
+    this.clock = new PatrolClock({ host, patrol: this.patrol, source: this.source, desk: this.desk });
+    const reload = options.reloadDaemon ?? reloadDaemon;
+    this.sync = new ProviderSync({
+      kit,
+      models: host.models,
+      source: this.source,
+      reload,
+      modelsChanged: () => this.seating.forget(),
+    });
+    this.launch = new SeatLaunch(kit, this.seating, this.keys, remember);
+    this.control = this.controlOf(kit);
+  }
+
+  private watchesOf(kit: Kit): Watches {
+    return new Watches({
+      kit,
+      seats: this.host.seats,
       context: (seat) => this.watching.context(seat),
       found: (watch, facts) => this.watching.found(watch, facts),
-      spoke: (seat, text) => void this.turns.spoke(seat, text).catch((error: unknown) => console.error("seatworks-v2: a word the Human wrote to a seat could not be passed on:", error)),
+      spoke: (seat, text) =>
+        void this.turns
+          .spoke(seat, text)
+          .catch((error: unknown) =>
+            daemonLog.error("a word the Human wrote to a seat could not be passed on:", error),
+          ),
     });
-    this.patrol = new Patrol({ kit, source: this.source, desk: this.desk, seats: this.seats, outbox: this.outbox, turns: this.turns, watches: this.watches, remember });
-    this.control = new SettingsControl({
+  }
+
+  private controlOf(kit: Kit): SettingsControl {
+    return new SettingsControl({
       kit,
       source: this.source,
       changed: () => this.teamChanged(),
-      reconcile: () => this.reconcileProviders(),
+      reconcile: () => this.sync.reconcile(),
       models: () => this.refreshModels(),
-      seats: this.seats,
+      seats: this.host.seats,
       held: () => this.outbox.held(),
       watch: (project) => watchView(project, this.watching.troublesOf(project), this.source.teamFor(project), kit),
       human: this.desk.human,
@@ -112,7 +150,11 @@ export class Runtime implements HostHooks {
       agentOf: (key) => this.keys.agentOf(key),
       choices: (role, cwd) => choicesFor(this.kit, this.source.teamFor(projectOf(cwd)), role),
       // A reloaded plugin has Paseo's API only once a hook or a panel call brings it: a call waits for it rather than fail to reach a seat.
-      answer: (request, cancelled) => this.host.reached().then(() => this.desk.answer(request, { cancelled })).catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` })),
+      answer: (request, cancelled) =>
+        this.host
+          .reached()
+          .then(() => this.desk.answer(request, { cancelled }))
+          .catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` })),
       mailLost: (request, reply) => this.desk.mailLost(request, reply),
     });
   }
@@ -130,30 +172,19 @@ export class Runtime implements HostHooks {
       sweepSnapshots();
       stampKit(this.kit, home());
     } catch (error) {
-      console.error("seatworks-v2: could not prepare the state directory:", error);
+      daemonLog.error("could not prepare the state directory:", error);
     }
-    for (const problem of this.source.teamFor().errors) console.error(`seatworks-v2: settings: ${problem}`);
-    this.reconcileProviders();
+    for (const problem of this.source.teamFor().errors) daemonLog.error(`settings: ${problem}`);
+    this.sync.reconcile();
   }
 
   /** A panel call is the first sign someone looks at the models, so the first one of a load asks the agents for them. */
   panelCalled(): void {
-    if (this.modelsAsked) return;
-    this.modelsAsked = true;
-    this.refreshModels().catch((error) => console.error("seatworks-v2: could not list the agents' models:", error));
+    this.sync.firstLook();
   }
 
-  /** A seat with tools is given a key, which its team server shows the desk to say which seat calls. */
   create(config: AgentConfig, env: Record<string, string> = {}): { config: AgentConfig; env: Record<string, string> } {
-    const seat = seatOf(this.kit, config.provider);
-    if (!seat) return { config, env };
-    const project = projectOf(config.cwd);
-    this.remember(project);
-    const team = this.seating.ensure(seat.role.role, seat.harness, project);
-    const render = (role: Parameters<typeof renderPrompt>[1]) => renderPrompt(this.kit, role, seat.harness.id, { guides: guidesDir(), state: project.state });
-    const key = seat.role.tools ? this.keys.issue() : undefined;
-    const applied = applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role, key));
-    return { config: applied, env: key ? { ...env, [SEAT_KEY]: key } : env };
+    return this.launch.create(config, env);
   }
 
   async created(agent: HookAgent): Promise<void> {
@@ -170,47 +201,17 @@ export class Runtime implements HostHooks {
 
   start(): void {
     this.socket.listen();
-    // The cadence is read every time round, so changing it in settings takes hold without a reload.
-    const patrol = () => {
-      if (this.host.connected()) this.patrol.tick().then(() => this.offline.clear(), (error) => this.tickFailed(error));
-      this.tick = setTimeout(patrol, Math.max(5, this.source.teamFor().attention.tickSeconds) * 1000);
-    };
-    this.tick = setTimeout(patrol, this.source.teamFor().attention.tickSeconds * 1000);
-  }
-
-  private tickFailed(error: unknown): void {
-    console.error("seatworks-v2: tick failed:", error);
-    if (!/not connected|client closed|transport/i.test(errorText(error))) return;
-    for (const project of this.desk.projects.values()) {
-      if (this.offline.has(project.slug)) continue;
-      this.offline.add(project.slug);
-      this.desk.event(project, { kind: "watch.offline", error: errorText(error) });
-    }
+    this.clock.start();
   }
 
   dispose(): void {
     this.socket.close();
     this.watches.dispose();
-    if (this.tick) clearTimeout(this.tick);
-    this.tick = undefined;
+    this.clock.stop();
   }
 
   sessionOpen(request: SessionOpen): SessionOpen {
-    const seat = seatOf(this.kit, request.provider);
-    if (!seat) return request;
-    const project = projectOf(request.cwd);
-    this.remember(project);
-    try {
-      seedRecords(this.kit, project.state);
-    } catch (error) {
-      console.error("seatworks-v2: could not seed project records:", error);
-    }
-    this.seating.ensure(seat.role.role, seat.harness, project);
-    const opened = seatEnv(this.kit, request, seatDir(this.kit, seat.role, seat.harness, home(), project), project, seatBin(this.kit));
-    // Created, the seat brings the key made for it; opened again, it is given back the one it was bound to.
-    const key = request.reason === "create" ? request.env[SEAT_KEY] : this.keys.keyOf(request.agentId);
-    if (request.reason === "create" && key) this.keys.bind(request.agentId, key);
-    return key ? { ...opened, env: { ...opened.env, [SEAT_KEY]: key } } : opened;
+    return this.launch.sessionOpen(request);
   }
 
   async turnStarted(agent: HookAgent): Promise<void> {
@@ -246,55 +247,11 @@ export class Runtime implements HostHooks {
     return indexedProxies(this.source.teamFor(project)).map((proxy) => this.makeIndex(proxy));
   }
 
-  /** Asked once per load and on demand: Paseo keeps a catalog until told to refresh it. */
-  async refreshModels(): Promise<ModelCache> {
-    const { models } = this.host;
-    // Scoped to one directory: unscoped, Paseo probes the agent for every workspace it has ever opened.
-    const cwd = stateRoot();
-    await Promise.all([...listingProviders(this.kit).values()].map((provider) => models.refresh(provider, cwd)));
-    const { cache, changed } = await fetchModels(this.kit, (provider) => models.list(provider, cwd), stateRoot());
-    applyModels(this.kit, cache);
-    if (changed) {
-      this.seating.forget();
-      this.reconcileProviders();
-    }
-    return cache;
-  }
-
-  private reconcileProviders(): void {
-    try {
-      const changed = applyReconcile(this.kit, this.source.teamFor());
-      if (changed.length === 0) return;
-      console.log(`seatworks-v2: config updated (${changed.join(", ")}); reloading the daemon`);
-      void this.reload();
-    } catch (error) {
-      console.error("seatworks-v2: could not reconcile role providers:", error);
-    }
+  refreshModels(): Promise<ModelCache> {
+    return this.sync.refreshModels();
   }
 
   private log(project: Project, line: string): void {
     appendRecord(project.state, "attention", `${new Date().toISOString()}  ${line}\n`);
-  }
-
-  private async compose(to: string, list: Letter[]): Promise<string> {
-    const items = list.map((letter) => letter.text);
-    try {
-      const seat = await this.seats.look(to);
-      if (!seat.cwd) return mailbox(items, []);
-      return mailbox(items, openAsksTo(loadLedger(projectOf(seat.cwd).state), to));
-    } catch {
-      return mailbox(items, []);
-    }
-  }
-
-  /** Mail waits on a seat's open call to the desk, its lane's hold and its agent's steering; a letter given up on is logged. */
-  private outboxRules(kit: Kit): Rules {
-    return {
-      dropped: (letter, at) =>
-        console.error(`seatworks-v2: a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / 3_600_000)} hours`),
-      steers: (seat) => seatOf(kit, seat.provider)?.harness.steers === true,
-      calling: (agentId) => this.socket.calling(agentId),
-      holding: (seat) => Boolean(seat.cwd && laneOnHold(projectOf(seat.cwd).state, seat.id)),
-    };
   }
 }

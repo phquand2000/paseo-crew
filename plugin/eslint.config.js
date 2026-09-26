@@ -10,7 +10,6 @@ const NOT_YET_CLEAN = [
   "server/core/gate.ts",
   "server/core/git.ts",
   "server/runtime/control.ts",
-  "server/runtime/seating.ts",
   "server/runtime/timeline.ts",
   "server/runtime/turns.ts",
   "server/runtime/watch-view.ts",
