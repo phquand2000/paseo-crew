@@ -6,7 +6,7 @@ import { materialize, seatDir } from "../catalog/seats.ts";
 import { serversFor } from "../catalog/servers.ts";
 import { type Team, withHarness } from "../catalog/team.ts";
 import { expandHome, home } from "../core/paths.ts";
-import type { Project } from "../desk/project.ts";
+import { type Project, seatWrites } from "../desk/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { errorText } from "../core/errors.ts";
 
@@ -30,16 +30,18 @@ export class Seating {
 
   ensure(roleName: string, harness: HarnessSpec, project?: Project): Team {
     const team = withHarness(this.source.teamFor(project), roleName, harness);
-    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${projectImports(harness, project?.root)}`;
-    // Remembering a seat was built is no proof its directory still exists; a seat without instructions runs with none.
     const seat = team.roles[roleName];
+    const writes = project && seat ? seatWrites(seat.role, project) : [];
+    const where = project && { ...project, writes };
+    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${projectImports(harness, project?.root)}|${writes.join("\n")}`;
+    // Remembering a seat was built is no proof its directory still exists; a seat without instructions runs with none.
     const dir = seat ? seatDir(this.kit, seat.role, harness, home(), project) : undefined;
     // And a login made after the seat was built is a link the seat does not have yet.
     const linked = (link: { link: string; target: string }) => !existsSync(expandHome(link.target)) || existsSync(join(dir!, link.link));
     const built = dir ? existsSync(join(dir, harness.settings.file)) && (harness.links ?? []).every(linked) : false;
     if (this.built.has(key) && built) return team;
     try {
-      const changes = materialize(this.kit, team, roleName, home(), project, this.servers(team, roleName));
+      const changes = materialize(this.kit, team, roleName, home(), where, this.servers(team, roleName));
       if (changes.length > 0) console.log(`seatworks-v2: seat ${roleName} on ${harness.id}${project ? ` for ${project.slug}` : ""} updated: ${changes.join(", ")}`);
       this.built.add(key);
     } catch (error) {

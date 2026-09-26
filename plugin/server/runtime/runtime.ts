@@ -16,7 +16,7 @@ import { laneOfLead, laneOnHold, loadLedger, openAsksTo, taskOfPeer } from "../d
 import { TOOLS } from "../desk/tools/registry.ts";
 import { letters } from "../desk/letters.ts";
 import { appendRecord } from "../desk/records.ts";
-import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project.ts";
+import { type Project, gateCommands, loadConfig, projectOf, seatWrites } from "../desk/project.ts";
 import { SettingsControl } from "./control.ts";
 import { type Trouble, watchView } from "./watch-view.ts";
 import { codeIndex } from "./code-index.ts";
@@ -207,7 +207,7 @@ export class Runtime implements HostHooks {
     this.remember(project);
     const team = this.seating.ensure(seat.role.role, seat.harness, project);
     const render = (role: Parameters<typeof renderPrompt>[1]) => renderPrompt(this.kit, role, seat.harness.id, { guides: guidesDir(), state: project.state });
-    return applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role));
+    return applyRole(this.kit, team, config, render, project.state, this.seating.servers(team, seat.role.role), seatWrites(seat.role, project));
   }
 
   async created(agent: HookAgent): Promise<void> {

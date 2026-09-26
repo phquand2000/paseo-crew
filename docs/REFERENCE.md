@@ -93,6 +93,30 @@ The first `open_lane` of a project with no gate on record looks in the project r
 `serialOnly` replaces them), how test and docs files are named, and the watch's default patterns. A file
 of the same name in the state root replaces it, as `roles.json` does.
 
+## Local files
+
+For a project that keeps its agent instructions and plans out of git, two values in
+`projects/<slug>/project.json` are set by hand. `set_project` keeps them and cannot change them: they
+widen what seats may write, so they are the Human's.
+
+| Value | Default | What it does |
+|---|---|---|
+| `links` | `[]` | Paths, relative to the project root, that a lane's own working copy gets as a symlink to the project's copy. A path is linked only if it exists in the project, stays inside it, is not already in the copy, and git ignores it. A path git would see as a change is skipped, since it would leave the copy dirty and fail the gate. Each skip is logged and written to `events.log` as `link.skipped`. |
+| `writable` | `[]` | Paths, relative to the project root, that seats may write through their agent's sandbox (`writable_roots` for Codex, `sandbox.filesystem.allowWrite` for Claude Code). They are granted as real paths, which is what a write through a link in a lane's copy resolves to. |
+
+A role that can `work` or `write` is also granted the repository's git directory: a lane's copy keeps
+its index and refs there, and a sandboxed agent could not commit without it.
+
+Git matches a link as a file, so an ignore rule with a trailing slash (`docs/plans/`) does not cover
+it: write `docs/plans`.
+
+```json
+{
+  "links": ["AGENTS.md", "docs/WORKFLOW.md", "docs/plans", "docs/patterns"],
+  "writable": ["docs/plans", "docs/patterns"]
+}
+```
+
 ## Letters
 
 They are written in `desk/letters.ts` and, for asks, merges, landings and the Watcher's cases, in

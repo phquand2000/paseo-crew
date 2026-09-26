@@ -19,6 +19,7 @@ export type DeskEvent =
   | { kind: "lane.report"; lane: string; ready: boolean; gate: boolean | undefined; to: string | null; text: string | undefined }
   | { kind: "lane.closed"; lane: string; land: boolean; landing: string; reason: string; writers: string[] }
   | { kind: "lane.inPlace"; branch: string; base: string }
+  | { kind: "link.skipped"; slot: string; path: string; why: string }
   | { kind: "lane.onBranch"; branch: string; from?: string }
   | { kind: "lane.unstarted"; branch: string; from: string }
   | { kind: "lane.gaveBack"; branch: string; base: string }

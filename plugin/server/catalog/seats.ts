@@ -13,7 +13,7 @@ import { errorText } from "../core/errors.ts";
 
 type Json = Record<string, unknown>;
 
-type SeatProject = { root: string; slug: string; state: string };
+type SeatProject = { root: string; slug: string; state: string; writes?: string[] };
 
 export function seatDir(kit: Kit, role: RoleSpec, harness: HarnessSpec, homeDir = home(), project?: SeatProject): string {
   const name = `${kit.prefix}${role.role}-${harness.id}${project ? `-${project.slug}` : ""}`;
@@ -245,7 +245,7 @@ function stateWritesSetting(team: Team, roleName: string, project?: SeatProject)
   const { role, harness } = team.roles[roleName]!;
   if (harness.stateWrites?.delivery !== "file" || !project) return {};
   const setting: Json = {};
-  setPath(setting, harness.stateWrites.path.split("."), stateWrites(role, project.state));
+  setPath(setting, harness.stateWrites.path.split("."), [...stateWrites(role, project.state), ...(project.writes ?? [])]);
   return setting;
 }
 

@@ -32,7 +32,7 @@ export function stateWrites(role: RoleSpec, state: string): string[] {
   return (role.writes ?? []).map((entry) => join(state, entry.replace(/\/$/, "")));
 }
 
-export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}): AgentConfig {
+export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: RenderPrompt, state?: string, servers: McpServers = {}, writes: string[] = []): AgentConfig {
   const seat = seatOf(kit, config.provider);
   if (!seat) return config;
   const { role, harness } = seat;
@@ -65,7 +65,7 @@ export function applyRole(kit: Kit, team: Team, config: AgentConfig, render: Ren
   }
   let providerOptions = config.providerOptions;
   if (harness.stateWrites?.delivery === "launch" && state) {
-    for (const path of stateWrites(role, state)) providerOptions = appendAt(providerOptions, harness.stateWrites.path, path);
+    for (const path of [...stateWrites(role, state), ...writes]) providerOptions = appendAt(providerOptions, harness.stateWrites.path, path);
   }
   if (harness.projectContextOption && config.cwd) providerOptions = appendAt(providerOptions, harness.projectContextOption, config.cwd);
   if (providerOptions !== config.providerOptions) next.providerOptions = providerOptions;

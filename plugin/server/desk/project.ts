@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, normalize, sep } from "node:path";
 import { LAND_AS, type LandAs, gitCommonDir } from "../core/git.ts";
 import { stateRoot } from "../core/paths.ts";
 import { readJson, writeJson } from "../core/store.ts";
-import type { Ecosystem, Kit } from "../catalog/kit.ts";
+import { type Ecosystem, type Kit, type RoleSpec, can } from "../catalog/kit.ts";
 import { RiskRule } from "../catalog/schema.ts";
 import { coverOf } from "../core/scope.ts";
 
@@ -19,8 +19,9 @@ export type LaneHome = (typeof LANE_HOMES)[number];
 /**
  * `serialOnly` and `riskRules` are the project's own when it set them; without, the kit's hold, so a change to the kit reaches it.
  * `askFirst` is the Human's standing order: a landing that touches one of these paths waits for them.
+ * `links` and `writable` are the Human's alone, set by hand: they widen what seats may write.
  */
-export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly?: string[]; landAs: LandAs; laneHome?: LaneHome; askFirst: string[]; riskRules?: RiskRule[] };
+export type ProjectConfig = { base?: string; gate?: string; gateTimeoutMinutes: number; gateOn: GateOn; serialOnly?: string[]; landAs: LandAs; laneHome?: LaneHome; askFirst: string[]; riskRules?: RiskRule[]; links: string[]; writable: string[] };
 
 const cache = new Map<string, Project>();
 
@@ -115,6 +116,8 @@ export function loadConfig(state: string): ProjectConfig {
     askFirst: Array.isArray(stored.askFirst) ? stored.askFirst.map(String) : [],
     // A list that does not read as rules falls to the kit's, which ask more rather than less.
     riskRules: RiskRule.array().safeParse(stored.riskRules).data,
+    links: Array.isArray(stored.links) ? stored.links.map(String) : [],
+    writable: Array.isArray(stored.writable) ? stored.writable.map(String) : [],
   };
 }
 
@@ -148,4 +151,30 @@ export function rulesFor(rules: RiskRule[], files: string[]): RiskRule[] {
 
 export function saveConfig(state: string, config: ProjectConfig): void {
   writeJson(configFile(state), config);
+}
+
+/** Why `rel` cannot name a path inside the project's own checkout, or undefined when it can. */
+export function pathProblem(root: string, rel: string): string | undefined {
+  if (!rel || isAbsolute(rel)) return "is not a path relative to the project";
+  const clean = normalize(rel);
+  if (clean === "." || clean.split(/[\\/]/).includes("..")) return "leaves the project";
+  const path = join(root, clean);
+  if (!existsSync(path)) return "does not exist in the project";
+  const home = realpathSync(root);
+  const real = realpathSync(path);
+  if (real !== home && !real.startsWith(home + sep)) return "resolves outside the project";
+  return undefined;
+}
+
+/** The Human's `writable` paths, resolved: a sandbox checks the real path, not a lane copy's link to it. */
+export function projectWrites(project: Project): string[] {
+  return loadConfig(project.state)
+    .writable.filter((rel) => !pathProblem(project.root, rel))
+    .map((rel) => realpathSync(join(project.root, normalize(rel))));
+}
+
+/** What a seat writes beyond state: the Human's `writable`, and for a role that commits, the git directory a lane copy keeps its index in. */
+export function seatWrites(role: RoleSpec, project: Project): string[] {
+  const common = can(role, "work") || can(role, "write") ? gitCommonDir(project.root) : undefined;
+  return [...projectWrites(project), ...(common ? [common] : [])];
 }

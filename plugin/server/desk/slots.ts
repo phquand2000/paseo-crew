@@ -5,6 +5,7 @@ import type { Workspace, Workspaces } from "../core/ports.ts";
 import { worktreeRoot } from "../core/paths.ts";
 import type { DeskContext } from "./context.ts";
 import { closeIndexes, openIndexes } from "./indexes.ts";
+import { placeLinks } from "./links.ts";
 import { type Ledger, type Slot, loadLedger, nextSlotId } from "./ledger.ts";
 import type { Project } from "./project.ts";
 import { errorText } from "../core/errors.ts";
@@ -28,6 +29,7 @@ export class Slots {
     const picked = this.reserve(project, holder);
     try {
       const reused = await this.checkOut(project, picked, branch, base);
+      await placeLinks(this.ctx, project, picked);
       const workspaceId = picked.workspaceId ?? (await this.createWorkspace(project, picked));
       this.ctx.event(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
       openIndexes(this.ctx, project, picked, reused);
