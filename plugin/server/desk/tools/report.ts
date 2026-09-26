@@ -3,6 +3,7 @@ import { currentBranch } from "../../core/git.ts";
 import { no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../gates.ts";
 import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "../landing.ts";
+import { holdRefusal } from "../hold.ts";
 import { type Lane, laneOfLead, loadLedger, tasksOf } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { putOnHold } from "../hold.ts";
@@ -39,6 +40,8 @@ export const report = defineTool({
     const lane = laneOfLead(loadLedger(caller.project.state), caller.id);
     if (!lane) return no("You have no open lane.");
     if (args.ready === true) {
+      const held = holdRefusal(lane);
+      if (held) return no(held);
       // What ready claims is what the gate runs on: the merges accepted before it land first, and nobody writes under it.
       await desk.merges.retry(caller.project);
       await desk.merges.settled(caller.project);

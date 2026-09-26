@@ -3,6 +3,11 @@ import { letters } from "./letters.ts";
 import type { Project } from "./project.ts";
 import type { DeskServices } from "./services.ts";
 
+/** Why nothing may start, move or land in `lane` now: it is on hold. */
+export function holdRefusal(lane: Lane): string | undefined {
+  return lane.onHold ? `Lane ${lane.id} is on hold: ${lane.onHold.reason}. Nothing is accepted, started or landed in it until it resumes.` : undefined;
+}
+
 /**
  * Puts a lane on hold for `by`: each seat still working in it gets HOLD past the outbox, and a landing it waited on is called
  * off. An approval the Human already gave stands: it is for the lane as it is, and nothing lands while the hold lasts.

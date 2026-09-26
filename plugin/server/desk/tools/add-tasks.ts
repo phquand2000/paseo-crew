@@ -4,6 +4,7 @@ import { type RoleSpec, namedOrNot, roleThatCan } from "../../catalog/kit.ts";
 import { skillDirsFor } from "../../catalog/team.ts";
 import { clip, slugify } from "../../core/text.ts";
 import { type Args, type DeskContext, no, ok, str, strs } from "../context.ts";
+import { holdRefusal } from "../hold.ts";
 import { type Lane, type Ledger, laneOfLead, loadLedger, nextTaskId } from "../ledger.ts";
 import { layoutProblems, readPlan } from "../plan.ts";
 import { type Project, serialIn } from "../project.ts";
@@ -78,7 +79,8 @@ export const addTasks = defineTool({
     const added = ctx.transact(project, (ledger) => {
       const now = laneOfLead(ledger, caller.id);
       if (!now) return "You have no open lane.";
-      if (now.onHold) return `Lane ${now.id} is on hold: ${now.onHold.reason}. Nothing is accepted, started or landed in it until it resumes.`;
+      const held = holdRefusal(now);
+      if (held) return held;
       const plan = readPlan(ledger, now, args.tasks);
       if (typeof plan === "string") return plan;
       const problems = layoutProblems(ledger, now, plan, serial);

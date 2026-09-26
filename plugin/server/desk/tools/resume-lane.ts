@@ -23,6 +23,7 @@ export const resumeLane = defineTool({
     ctx.event(project, { kind: "lane.resumed", lane: lifted.lane.id, by: caller.id });
     await openWaiting(desk, project, true);
     await startWaiting(desk, project, true);
+    await desk.merges.retry(project);
     return ok(`Lane ${lifted.lane.id} resumes: each of its seats is told to carry on, with what was held for it.`);
   },
 });

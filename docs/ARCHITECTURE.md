@@ -391,12 +391,13 @@ The Human is asked what only they can decide and told what they cannot take back
 - **No question stops a turn.** A permission request of kind `question` from a seat with desk tools is
   refused, naming where to ask: `ask_human` or its reply for the Supervisor, `ask` for a Lead, Peer or
   Reviewer; the Watcher settles it from what it has.
-- **Holds.** `hold_lane` sets `onHold`, calls off a landing waiting or held for the Human, approved or not,
-  and sends HOLD to the Lead and the seat of each task not merged or cut. Until `resume_lane`, their mail
-  waits, their permission requests are refused, `add_tasks`, `accept` and `land_lane` are refused, no task
-  starts and a waiting lane does not open; `start_review`, `replace_lead`, `rework`, `cut`, `amend_task`,
-  `message`, `report` and merges accepted before it go on. Only the Supervisor lifts a hold, the desk's own
-  included.
+- **Holds.** `hold_lane` sets `onHold`, calls off a landing waiting to finish or still waiting for the Human
+  (one they approved stands), and sends HOLD to the Lead and the seat of each task not merged or cut. Until
+  `resume_lane`, their mail waits, their permission requests are refused, and nothing starts, moves or lands:
+  `add_tasks`, `start_review`, `accept`, `rework`, a ready `report`, `replace_lead` and `land_lane` are
+  refused, no task starts, a waiting lane does not open, and an accepted task waits queued. `cut`,
+  `amend_task`, `message` and a `report` that claims nothing go on. Only the Supervisor lifts a hold, the
+  desk's own included; resuming tries the queued merges again.
 - **Landings held for the Human** keep the head they were held at, the `askFirst` hits and the evidence, shown
   on the Flow tab with a note, Approve and Send back. A head moved since the hold drops it, whatever the Human
   chose (CHANGED to the Supervisor). Otherwise, approved, the desk tries to land the lane at once for the

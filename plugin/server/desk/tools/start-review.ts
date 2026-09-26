@@ -3,6 +3,7 @@ import { namedOrNot, roleThatCan } from "../../catalog/kit.ts";
 import { branchExists, changedFiles, currentBranch } from "../../core/git.ts";
 import { type DeskContext, no, ok, str } from "../context.ts";
 import { errorText } from "../../core/errors.ts";
+import { holdRefusal } from "../hold.ts";
 import { type Lane, type Ledger, type Task, findTask, laneOfLead, loadLedger, nextTaskId, tasksOf } from "../ledger.ts";
 import { clip } from "../../core/text.ts";
 import { reviewBrief } from "../briefs.ts";
@@ -73,6 +74,19 @@ function recordReview(ctx: DeskContext, project: Project, lane: Lane, target: Ta
   });
 }
 
+type Copy = { id?: string; path: string; workspaceId?: string };
+
+/** The lane's copy, and the one `target` still has its branch checked out in: its own while it works beside others, else the lane's. */
+function copiesFor(ledger: Ledger, lane: Lane, worktree: string, target: Task | undefined): { laneCopy?: Copy; own?: Copy } {
+  const laneCopy: Copy | undefined = lane.slot ? ledger.slots[lane.slot] : { path: worktree, workspaceId: lane.workspaceId };
+  // A slot marked for teardown still answers as the task's copy; a reviewer seated there loses it at the Peer's turn end.
+  const holds = target?.slot ? ledger.slots[target.slot] : undefined;
+  const beside = target?.mode === "parallel" && holds?.task === target.id && !holds.releasing ? holds : undefined;
+  // Until it merges its branch is checked out in its copy, the lane's for a task there; merged, it is read from the lane's copy.
+  const own = target && target.status !== "merged" ? (target.mode === "parallel" ? beside : laneCopy) : undefined;
+  return { laneCopy, own };
+}
+
 export const startReview = defineTool({
   name: "start_review",
   input: z.strictObject({ task: z.string().optional(), focus: z.string(), title: z.string().max(60).optional(), role: z.string().optional() }),
@@ -83,14 +97,11 @@ export const startReview = defineTool({
     const ledger = loadLedger(project.state);
     const lane = laneOfLead(ledger, caller.id);
     if (!lane?.worktree) return no("You have no open lane.");
+    const held = holdRefusal(lane);
+    if (held) return no(held);
     const target = str(args.task) ? findTask(ledger, str(args.task)) : undefined;
     if (str(args.task) && (!target || target.lane !== lane.id || target.kind !== "code")) return no(`${str(args.task)} is not a code task in your lane.`);
-    const laneCopy: { id?: string; path: string; workspaceId?: string } | undefined = lane.slot ? ledger.slots[lane.slot] : { path: lane.worktree, workspaceId: lane.workspaceId };
-    // A slot marked for teardown still answers as the task's copy; a reviewer seated there loses it at the Peer's turn end.
-    const holds = target?.slot ? ledger.slots[target.slot] : undefined;
-    const beside = target?.mode === "parallel" && holds?.task === target.id && !holds.releasing ? holds : undefined;
-    // Until it merges its branch is checked out in its copy, the lane's for a task there; merged, it is read from the lane's copy.
-    const own = target && target.status !== "merged" ? (target.mode === "parallel" ? beside : laneCopy) : undefined;
+    const { laneCopy, own } = copiesFor(ledger, lane, lane.worktree, target);
     const change = target ? await rangeOf(project, target, lane, Boolean(own)) : undefined;
     if (target && !change)
       return no(`${target.id} worked in a copy that has been given back, and neither a merge nor a branch is left to read it from. Ask for a review of the lane instead.`);

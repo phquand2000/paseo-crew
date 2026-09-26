@@ -49,6 +49,19 @@ test("a merge the queue held when the plugin stopped goes through on its first r
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
 });
 
+test("a merge a stop left queued in a lane on hold waits out the hold, and goes through once the lane resumes", async () => {
+  const { h, sup, stopped } = await handedBack();
+  await h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
+  stopped("queued");
+  h.restart();
+  await h.tick();
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "queued", "nothing lands in a lane on hold");
+  await h.call(sup, "supervisor", "resume_lane", { lane: "L1" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "merged");
+});
+
 test("a merge the plugin stopped in the middle of is run again from the start, and one that had landed is only finished", async () => {
   const { h, lane, stopped } = await handedBack();
   const copy = lane.worktree!;

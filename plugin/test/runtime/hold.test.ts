@@ -58,3 +58,20 @@ test("a waiting lane on hold does not open when its turn comes, but once resumed
   assert.match((await h.call(sup, "supervisor", "hold_lane", { lane: "L2", reason: "stop" })).text, /The landing it was waiting on is called off: land it again once it resumes\./);
   assert.equal(h.ledger().lanes.L2!.landApproval, undefined, "so nothing lands on the Human's approval while it is on hold");
 });
+
+test("a lane on hold starts no review, sends no task back, reports nothing ready and seats no Lead until it resumes", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
+  await h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
+  for (const seat of [lead, peer]) h.agents.get(seat)!.status = "idle";
+  const refused = /^Lane L1 is on hold: a page came in\. Nothing is accepted, started or landed in it until it resumes\./;
+  assert.match((await h.call(lead, "lead", "start_review", { task: "L1-T1", focus: "the cart" })).text, refused);
+  assert.match((await h.call(lead, "lead", "rework", { task: "L1-T1", text: "once more" })).text, refused);
+  assert.match((await h.call(lead, "lead", "report", { summary: "done", ready: true })).text, refused);
+  assert.equal((await h.call(lead, "lead", "report", { summary: "stopped where HOLD found me", ready: false })).ok, true, "a report that claims nothing still reaches the Supervisor");
+  assert.deepEqual(Object.values(h.ledger().tasks).map((task) => [task.id, task.status]), [["L1-T1", "done"]]);
+  Object.assign(h.agents.get(lead)!, { archivedAt: new Date().toISOString(), status: "closed" });
+  assert.match((await h.call(sup, "supervisor", "replace_lead", { lane: "L1" })).text, refused);
+});

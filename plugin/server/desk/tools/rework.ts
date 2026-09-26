@@ -4,6 +4,7 @@ import { oneLine } from "../../core/text.ts";
 import { TASK } from "../../domain/task.ts";
 import { no, ok, str } from "../context.ts";
 import { repeatsIncident } from "../incidents.ts";
+import { holdRefusal } from "../hold.ts";
 import { type Ledger, type Task, loadLedger } from "../ledger.ts";
 import { letters } from "../letters.ts";
 import { tellMoment } from "../moments.ts";
@@ -41,6 +42,8 @@ export const rework = defineTool({
       const found = laneTask(ledger, caller, str(args.task));
       if (typeof found === "string") return found;
       const { lane, task } = found;
+      const held = holdRefusal(lane);
+      if (held) return held;
       if (!TASK.may(task.status, "rework")) return `${task.id} is ${task.status}.`;
       const reopened = task.status === "merged";
       const problem = reopened ? reopenProblem(ledger, task) : undefined;

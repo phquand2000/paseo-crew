@@ -3,6 +3,7 @@ import { z } from "zod";
 import { namedOrNot, roleThatCan } from "../../catalog/kit.ts";
 import { errorText } from "../../core/errors.ts";
 import { type Caller, no, ok, str } from "../context.ts";
+import { holdRefusal } from "../hold.ts";
 import { type Lane, findLane, loadLedger } from "../ledger.ts";
 import { seatTitle } from "../names.ts";
 import { type DeskServices, defineTool } from "../services.ts";
@@ -37,6 +38,8 @@ export const replaceLead = defineTool({
     const lane = findLane(loadLedger(project.state), str(args.lane));
     if (!lane) return no(`There is no lane ${str(args.lane)}.`);
     if (lane.status !== "open") return no(`Lane ${lane.id} is ${lane.status}; only an open lane has a Lead to replace.`);
+    const held = holdRefusal(lane);
+    if (held) return no(held);
     const seats = await roster.open();
     if (seats.some((seat) => seat.id === lane.lead)) return no(`Lane ${lane.id}'s Lead ${lane.lead} is still seated; message it instead.`);
     const key = seatingKey(project, lane.id);

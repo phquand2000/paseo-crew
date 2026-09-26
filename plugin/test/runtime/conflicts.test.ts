@@ -148,6 +148,21 @@ test("a task accepted while the lane's copy, on the lane branch, has work uncomm
   assert.equal(h.git(lane.worktree!, "show", "HEAD:c.txt"), "C\n");
 });
 
+test("an accepted task waits in the queue while its lane is on hold, and merges once the lane resumes", async () => {
+  const { h, sup, lane, side } = await besideOnly();
+  writeFileSync(join(lane.worktree!, "a.txt"), "half written\n");
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  await h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
+  h.git(lane.worktree!, "checkout", "--", "a.txt");
+  await h.endTurn(side.peer!, "nothing");
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "queued", "nothing lands in a lane on hold, its own branch included");
+  await h.call(sup, "supervisor", "resume_lane", { lane: "L1" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+});
+
 test("landing a lane while an accepted task waits on its copy tries that merge once more first, so the accepted work lands with it", async () => {
   const { h, sup, lane } = await besideOnly();
   writeFileSync(join(lane.worktree!, "a.txt"), "half written\n");

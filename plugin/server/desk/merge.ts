@@ -92,7 +92,13 @@ export class MergeQueue {
     const picked = this.ctx.transact(project, (ledger) => {
       const task = ledger.tasks[taskId];
       const lane = task ? ledger.lanes[task.lane] : undefined;
-      if (!task || !lane || !TASK.move(task, "merge")) return undefined;
+      if (!task || !lane) return undefined;
+      // Nothing lands in a lane on hold, its own branch included: accepted, it waits queued, and resume_lane tries it again.
+      if (lane.onHold) {
+        if (task.status === "queued") task.held = { why: "its lane is on hold" };
+        return undefined;
+      }
+      if (!TASK.move(task, "merge")) return undefined;
       return { task: { ...task }, lane: { ...lane } };
     });
     if (!picked) return;

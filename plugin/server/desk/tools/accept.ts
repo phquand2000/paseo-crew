@@ -2,6 +2,7 @@ import { z } from "zod";
 import { currentBranch, headSha, pristineState, uncommittedIn } from "../../core/git.ts";
 import { AT_WORK, IN_QUEUE, TASK } from "../../domain/task.ts";
 import { type Args, type ToolReply, no, ok, str } from "../context.ts";
+import { holdRefusal } from "../hold.ts";
 import { type Task, loadLedger } from "../ledger.ts";
 import type { Project } from "../project.ts";
 import { type DeskServices, defineTool } from "../services.ts";
@@ -42,7 +43,8 @@ export const accept = defineTool({
     const found = laneTask(loadLedger(project.state), caller, str(args.task));
     if (typeof found === "string") return no(found);
     const { lane, task } = found;
-    if (lane.onHold) return no(`Lane ${lane.id} is on hold: ${lane.onHold.reason}. Nothing is accepted, started or landed in it until it resumes.`);
+    const held = holdRefusal(lane);
+    if (held) return no(held);
     if (task.kind !== "code") return no(`${task.id} is a review; cut it when you are done with it.`);
     if (!TASK.may(task.status, "queue")) return no(`${task.id} is ${task.status}.`);
     return queueTask(desk, project, task, args);
