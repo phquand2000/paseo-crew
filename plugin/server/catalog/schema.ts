@@ -32,6 +32,7 @@ export const HarnessFile = z
     skillsDir: text,
     steers: z.boolean().optional(),
     stateWrites: z.strictObject({ path: text, delivery: z.enum(["launch", "file"]) }).optional(),
+    hideSkills: z.strictObject({ roots: z.array(text).min(1), setting: text }).optional(),
     projectContextOption: text.optional(),
     projectInstructions: z.strictObject({ reads: z.array(text).min(1), otherwise: z.array(text).min(1), importAs: z.string().includes("{path}", { error: "does not say where the file's path goes" }) }).optional(),
     mcpCall: z.string().includes("{server}", { error: "does not say where the server's name goes" }).optional(),

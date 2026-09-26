@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { type PromptPaths, renderPrompt, renderText, skillProblems, skillSources, toolProblems } from "./content.ts";
 import { type HarnessSpec, type Kit, type McpServers, type RoleSpec, harnessFileSources, roleSettingsFile } from "./kit.ts";
 import { projectImports, stateWrites } from "./launch.ts";
+import { hideSkillsSetting } from "./hide-skills.ts";
 import { contentRoot, expandHome, guidesDir, home } from "../core/paths.ts";
 import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../core/config-file.ts";
 import { sameJson } from "../core/store.ts";
@@ -359,7 +360,7 @@ export function materialize(kit: Kit, team: Team, roleName: string, homeDir = ho
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();
   mkdirSync(dir, { recursive: true });
-  const extra = layerSettings(writeModelCatalog(seat.harness, dir, record), stateWritesSetting(team, roleName, project)) as Json;
+  const extra = [stateWritesSetting(team, roleName, project), hideSkillsSetting(seat.harness, homeDir)].reduce(layerSettings, writeModelCatalog(seat.harness, dir, record)) as Json;
   writeRoleSettings(kit, seat.harness, seat.role, dir, homeDir, record, extra);
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);

@@ -218,6 +218,7 @@ can answer.
 | `links`, `files` | Files linked from your own setup (logins, history), and files composed per role |
 | `modelCatalog` | A command whose model list is written as the agent's catalog |
 | `stateWrites` | Where the seat's writable state paths go |
+| `hideSkills` | Your own skill folders the agent would load anyway, and the settings path where each skill found there is written as `{ path, enabled: false }` |
 | `projectContextOption` | The provider option that receives the working directory |
 | `steers` | Whether mail may be steered into a running turn |
 | `mcpCall`, `mcpServerField` | How the agent names a call to an MCP server, or the field that holds the server's name, so a call to the desk is known as one |
@@ -475,6 +476,11 @@ it:
   whose tools the kit doesn't know stays out of reach on Codex.
 - **Codex command rules match argument prefixes**, so `git -C <path> push` gets past them; the
   seat's own `git` refuses it instead.
+- **A Codex seat hides your `~/.agents/skills` only as they were when it was built.** Codex has no
+  key that hides a whole folder, so the seat gets one `[[skills.config]]` entry per `SKILL.md` it
+  finds there, by path; by name would hide the seat's own skill of that name too. A skill you add
+  later shows in the seat until it is rebuilt. A repository's own `.agents/skills` stays visible: it
+  belongs to the repository.
 - **A steer Paseo can't hand over replaces the turn.** A Claude seat that is compacting refuses a
   steer the same way.
 - **A turn running before a daemon restart** is never steered, and is read as having started

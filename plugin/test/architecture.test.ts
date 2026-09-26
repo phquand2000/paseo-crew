@@ -34,7 +34,7 @@ const LIMITS = { file: 300, testFile: 400, function: 50 };
 const LONG_FILES: Record<string, number> = {
   "client/data.ts": 437,
   "mcp/code.mjs": 308,
-  "server/catalog/seats.ts": 370,
+  "server/catalog/seats.ts": 371,
   "server/desk/slots.ts": 363,
   "server/runtime/control.ts": 418,
   "server/runtime/runtime.ts": 380,
