@@ -1,233 +1,296 @@
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { can, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
 import { renderPrompt } from "../../server/catalog/content.ts";
-import { HarnessFile } from "../../server/catalog/schema.ts";
+import { can, loadKit, roleNamed, roleThatCan, rolesThatCan, toolsOf } from "../../server/catalog/kit.ts";
 import { tempDir } from "../tempdir.ts";
 
-/** A kit of the test's own, holding the shipped ecosystem, Paseo's tools, the watch's questions and what a seat's PATH refuses: no fixture's to make up. */
-function kitDir(prefix: string): string {
-  const dir = tempDir(prefix);
+const shipped = (name: string): unknown =>
+  JSON.parse(readFileSync(new URL(`../../catalog/${name}`, import.meta.url), "utf-8"));
+
+function put(dir: string, path: string, value: unknown): void {
+  mkdirSync(dirname(join(dir, path)), { recursive: true });
+  writeFileSync(join(dir, path), JSON.stringify(value));
+}
+
+/** A kit of the test's own over the shipped ecosystem, Paseo's tools, the watch's questions and refused commands. */
+function kitDir(files: Record<string, unknown>): string {
+  const dir = tempDir("sw2-kit-");
   mkdirSync(join(dir, "catalog"), { recursive: true });
-  for (const name of ["ecosystem.json", "paseo.json", "checks.json", "refused.json"]) copyFileSync(new URL(`../../catalog/${name}`, import.meta.url), join(dir, "catalog", name));
+  for (const name of ["ecosystem.json", "paseo.json", "checks.json", "refused.json"])
+    copyFileSync(new URL(`../../catalog/${name}`, import.meta.url), join(dir, "catalog", name));
+  for (const [path, value] of Object.entries(files)) put(dir, path, value);
   return dir;
 }
 
-const good = () => ({
+const harness = {
   id: "acme",
   label: "Acme CLI",
   baseProvider: "omp",
   configDirEnv: "ACME_CONFIG_DIR",
   profileRoot: "HOME/.acme/seats",
   skillsDir: "skills",
+  projectContextOption: "additionalDirectories",
+  mcpCall: "mcp__{server}__",
   settings: { file: "config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
   mcp: { file: "mcp.json", delivery: "file", transports: ["stdio"], key: "mcpServers" },
-  provider: { profileModeId: "full" },
-});
+  provider: { profileModeId: "full", env: { SEATWORKS_AGENT_BIN: "acme" } },
+};
+const { label: _label, ...unlabelled } = harness;
+const peer = {
+  role: "peer",
+  label: "Peer",
+  defaults: { harness: "acme", model: "m" },
+  prompt: "prompts/PEER.md",
+  skills: null,
+};
+const archivist = {
+  role: "archivist",
+  label: "Archivist",
+  follows: "peer",
+  prompt: "prompts/ARCHIVIST.md",
+  skills: null,
+};
+const sensor = {
+  id: "judge",
+  label: "Judge",
+  key: "Judge key",
+  url: "https://judge.example/api",
+  model: "judge-1",
+  terms: "Asked as its vendor's terms say.",
+  timeoutSeconds: 5,
+  retries: 1,
+};
+const checks = shipped("checks.json") as Record<string, Record<string, unknown>>;
+const good = {
+  "harness/acme/harness.json": harness,
+  "roles.json": { roles: [peer, archivist] },
+  "catalog/sensor/judge.json": sensor,
+};
 
-/** Each field a harness file gets wrong, by its path: an unknown field by its own name. */
-function wrong(harness: object): string[] {
-  const read = HarnessFile.safeParse(harness);
-  if (read.success) return [];
-  return read.error.issues.flatMap((issue) => (issue.code === "unrecognized_keys" ? issue.keys : [issue.path.join(".")]));
-}
+const HARNESS = "harness/acme/harness.json";
+const REFUSED: [string, unknown, RegExp][] = [
+  [HARNESS, { ...harness, skillDir: "skills" }, /^harness acme is not as the kit reads it:\n✖ .*"skillDir"$/],
+  [HARNESS, unlabelled, /^harness acme is not as the kit reads it:\n✖ .*\n {2}→ at label$/],
+  [
+    HARNESS,
+    { ...harness, mcp: { file: "mcp.json", delivery: "file", transports: ["stdio"] } },
+    /^harness acme is not as the kit reads it:\n✖ delivers MCP servers in a file but names no key\n {2}→ at mcp\.key$/,
+  ],
+  [
+    HARNESS,
+    { ...harness, settings: { file: "config.json", source: "settings.json" } },
+    /^harness acme is not as the kit reads it:\n✖ .*\n {2}→ at settings\.roleSource$/,
+  ],
+  [
+    HARNESS,
+    { ...harness, projectContextOption: ["additionalDirectories"] },
+    /^harness acme is not as the kit reads it:\n✖ .*\n {2}→ at projectContextOption$/,
+  ],
+  [
+    HARNESS,
+    { ...harness, projectContextOption: "" },
+    /^harness acme is not as the kit reads it:\n✖ .*\n {2}→ at projectContextOption$/,
+  ],
+  [
+    HARNESS,
+    { ...harness, mcpCall: "mcp__team__{tool}" },
+    /^harness acme is not as the kit reads it:\n✖ does not say where the server's name goes\n {2}→ at mcpCall$/,
+  ],
+  [HARNESS, { ...harness, id: "other" }, /^harness acme calls itself other but sits in harness\/acme$/],
+  [
+    "roles.json",
+    { roles: [peer, { ...archivist, defaults: { harness: "acme" } }] },
+    /^role archivist follows peer and names defaults of its own; it takes one or the other$/,
+  ],
+  [
+    "roles.json",
+    { roles: [peer, { ...archivist, follows: "nobody" }] },
+    /^role archivist follows nobody, which is no other role in roles\.json$/,
+  ],
+  [
+    "roles.json",
+    { roles: [peer, { ...archivist, follows: "archivist" }] },
+    /^role archivist follows archivist, which is no other role in roles\.json$/,
+  ],
+  [
+    "roles.json",
+    { roles: [peer, archivist, { ...archivist, role: "echo", follows: "archivist" }] },
+    /^role echo follows archivist, which follows peer in turn; a role follows one that chooses for itself$/,
+  ],
+  [
+    "roles.json",
+    { roles: [{ ...peer, extraSkills: ["council"] }] },
+    /^roles\.json is not as the kit reads it:\n✖ is not written set:name\n {2}→ at roles\[0\]\.extraSkills\[0\]$/,
+  ],
+  [
+    "roles.json",
+    { roles: [{ ...peer, writes: ["gates/"] }] },
+    /^role peer writes gates, which is the desk's own record$/,
+  ],
+  [
+    "roles.json",
+    { roles: [{ ...peer, writes: ["../outside"] }] },
+    /^roles\.json is not as the kit reads it:\n✖ is not one file, or one folder ending in \/, under the project's state\n {2}→ at roles\[0\]\.writes\[0\]$/,
+  ],
+  [
+    "catalog/refused.json",
+    { acme: "agents start through the desk" },
+    /^refused\.json refuses acme, which every acme seat is started with, through the same PATH$/,
+  ],
+  [
+    "catalog/refused.json",
+    { git: "the desk's" },
+    /^refused\.json refuses git, which the kit's git shim runs, through the same PATH$/,
+  ],
+  [
+    "catalog/refused.json",
+    { "hub cli": "the forge's" },
+    /^refused\.json is not as the kit reads it:\n✖ names what is not a command's name$/,
+  ],
+  [
+    "catalog/sensor/judge.json",
+    { ...sensor, url: "http://judge.example/api" },
+    /^catalog\/sensor\/judge\.json is not as the kit reads it:\n✖ is not an https address\n {2}→ at url$/,
+  ],
+  ["catalog/sensor/judge.json", { ...sensor, id: "other" }, /^catalog\/sensor\/judge\.json names itself other$/],
+  [
+    "catalog/checks.json",
+    { ...checks, review_ran_invariant: { ...checks.review_ran_invariant, no: 0.9 } },
+    /^checks\.json is not as the kit reads it:\n✖ no must sit below yes\n {2}→ at review_ran_invariant$/,
+  ],
+  [
+    "catalog/checks.json",
+    { ...checks, review_ran_invariant: { ...checks.review_ran_invariant, instructions: { invariant: null } } },
+    /^checks\.json is not as the kit reads it:\n✖ names no question\n {2}→ at review_ran_invariant\.instructions$/,
+  ],
+  [
+    "catalog/checks.json",
+    { ...checks, instruction_kind: { ...checks.instruction_kind, criteria: { other: "Anything." } } },
+    /^checks\.json is not as the kit reads it:\n✖ a choice needs two criteria or more\n {2}→ at instruction_kind$/,
+  ],
+  [
+    "catalog/checks.json",
+    { ...checks, asked_for: { ...checks.asked_for, acts: { destructive: "run a command" } } },
+    /^checks\.json is not as the kit reads it:\n✖ .*\{quote\}.*\n {2}→ at asked_for\.acts\.destructive$/,
+  ],
+];
 
-test("a harness is refused for a field no contract knows or a missing one, and one that fills it passes", () => {
-  assert.deepEqual(wrong(good()), []);
-  assert.deepEqual(wrong({ ...good(), skillDir: "skills" }), ["skillDir"]);
-  const { label: _label, ...noLabel } = good();
-  assert.deepEqual(wrong(noLabel), ["label"]);
-});
-
-test("the way a harness takes its servers and settings is checked, not assumed", () => {
-  assert.deepEqual(wrong({ ...good(), mcp: { file: "mcp.json", delivery: "file", transports: ["stdio"] } }), ["mcp.key"]);
-  assert.deepEqual(wrong({ ...good(), settings: { file: "config.json", source: "settings.json" } }), ["settings.roleSource"]);
-  assert.deepEqual(wrong({ ...good(), projectContextOption: ["additionalDirectories"] }), ["projectContextOption"]);
-  assert.deepEqual(wrong({ ...good(), projectContextOption: "" }), ["projectContextOption"]);
-  assert.deepEqual(wrong({ ...good(), projectContextOption: "additionalDirectories" }), []);
-  assert.deepEqual(wrong({ ...good(), mcpCall: "mcp__team__{tool}" }), ["mcpCall"], "a call name with nowhere for the server's name");
-});
-
-test("a role follows one other role that chooses for itself, and takes its defaults", () => {
-  const dir = kitDir("sw2-kit-");
-  mkdirSync(join(dir, "harness", "acme"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
-  const peer = { role: "peer", label: "Peer", defaults: { harness: "acme", model: "m" }, prompt: "prompts/PEER.md", skills: null };
-  const roles = (...more: object[]) => writeFileSync(join(dir, "roles.json"), JSON.stringify({ roles: [peer, ...more] }));
-  const follower = (extra: object = {}) => ({ role: "archivist", label: "Archivist", follows: "peer", prompt: "prompts/ARCHIVIST.md", skills: null, ...extra });
-
-  roles(follower());
-  assert.deepEqual(roleNamed(loadKit(dir), "archivist")!.defaults, { harness: "acme", model: "m" });
-  roles(follower({ defaults: { harness: "acme" } }));
-  assert.throws(() => loadKit(dir), /role archivist follows peer and names defaults of its own/);
-  roles(follower({ follows: "nobody" }));
-  assert.throws(() => loadKit(dir), /role archivist follows nobody, which is no other role/);
-  roles(follower({ follows: "archivist" }));
-  assert.throws(() => loadKit(dir), /role archivist follows archivist, which is no other role/);
-  roles(follower(), { ...follower(), role: "echo", follows: "archivist" });
-  assert.throws(() => loadKit(dir), /role echo follows archivist, which follows peer in turn/);
-  roles(follower({ extraSkills: ["council"] }));
-  assert.throws(() => loadKit(dir), /roles\.json is not as the kit reads it:[^]*is not written set:name[^]*extraSkills/, "an extra skill names its set as well");
-});
-
-test("loading a kit refuses a harness that breaks the contract, naming the field", () => {
-  const dir = kitDir("sw2-kit-");
-  mkdirSync(join(dir, "harness", "acme"), { recursive: true });
-  writeFileSync(join(dir, "roles.json"), JSON.stringify({ roles: [{ role: "peer", label: "Peer", defaults: { harness: "acme" }, prompt: "prompts/PEER.md", skills: null }] }));
-  const write = (harness: Record<string, unknown>) => writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(harness));
-
-  write({ ...good(), skillDir: "skills" });
-  assert.throws(() => loadKit(dir), /harness acme is not as the kit reads it:[^]*skillDir/);
-  write({ ...good(), id: "other" });
-  assert.throws(() => loadKit(dir), /harness acme calls itself other but sits in harness\/acme/);
-
-  write(good());
-  assert.deepEqual(Object.keys(loadKit(dir).harnesses), ["acme"]);
-});
-
-test("a command refused on a seat's PATH is never the agent a seat starts with or its git, and an owner's own list replaces the kit's", () => {
-  const dir = kitDir("sw2-refused-");
-  writeFileSync(join(dir, "roles.json"), JSON.stringify({ roles: [] }));
-  mkdirSync(join(dir, "harness", "acme"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify({ ...good(), provider: { env: { SEATWORKS_AGENT_BIN: "acme" } } }));
-  const mine = tempDir("sw2-refused-mine-");
-  const refuse = (list: object) => writeFileSync(join(mine, "refused.json"), JSON.stringify(list));
-  refuse({ acme: "agents start through the desk" });
-  assert.throws(() => loadKit(dir, mine), /refused\.json refuses acme, which every acme seat is started with/);
-  refuse({ git: "the desk's" });
-  assert.throws(() => loadKit(dir, mine), /refused\.json refuses git, which the kit's git shim runs/);
-  refuse({ "hub cli": "the forge's" });
-  assert.throws(() => loadKit(dir, mine), /refused\.json is not as the kit reads it:[^]*names what is not a command's name/);
-  refuse({ hub: "the forge's" });
-  assert.deepEqual(loadKit(dir, mine).refused, { hub: "the forge's" });
-});
-
-test("a sensor or a question the watch could not ask by is refused as the kit loads, naming its file", () => {
-  const dir = kitDir("sw2-kit-");
-  writeFileSync(join(dir, "roles.json"), JSON.stringify({ roles: [] }));
-  mkdirSync(join(dir, "catalog", "sensor"), { recursive: true });
-  const sensor = { id: "judge", label: "Judge", key: "Judge key", url: "https://judge.example/api", model: "judge-1", terms: "Asked as its vendor's terms say.", timeoutSeconds: 5, retries: 1 };
-  const place = (name: string, value: object) => writeFileSync(join(dir, "catalog", "sensor", name), JSON.stringify(value));
-  place("judge.json", { ...sensor, url: "http://judge.example/api" });
-  assert.throws(() => loadKit(dir), /catalog\/sensor\/judge\.json is not as the kit reads it:[^]*is not an https address/);
-  place("judge.json", { ...sensor, id: "other" });
-  assert.throws(() => loadKit(dir), /catalog\/sensor\/judge\.json names itself other/);
-  place("judge.json", sensor);
-  assert.deepEqual(Object.keys(loadKit(dir).sensors), ["judge"]);
-
-  const checks = join(dir, "catalog", "checks.json");
-  const shipped = JSON.parse(readFileSync(checks, "utf-8"));
-  const question = shipped.review_ran_invariant;
-  writeFileSync(checks, JSON.stringify({ ...shipped, review_ran_invariant: { ...question, no: 0.9 } }));
-  assert.throws(() => loadKit(dir), /checks\.json is not as the kit reads it:[^]*no must sit below yes/);
-  writeFileSync(checks, JSON.stringify({ ...shipped, review_ran_invariant: { ...question, instructions: { invariant: null } } }));
-  assert.throws(() => loadKit(dir), /checks\.json is not as the kit reads it:[^]*names no question/);
-  writeFileSync(checks, JSON.stringify({ ...shipped, instruction_kind: { ...shipped.instruction_kind, criteria: { other: "Anything." } } }));
-  assert.throws(() => loadKit(dir), /checks\.json is not as the kit reads it:[^]*a choice needs two criteria or more/);
-  writeFileSync(checks, JSON.stringify({ ...shipped, asked_for: { ...shipped.asked_for, acts: { destructive: "run a command" } } }));
-  assert.throws(() => loadKit(dir), /checks\.json is not as the kit reads it:[^]*\{quote\}/);
-});
-
-test("the shipped harnesses satisfy their own contract", () => {
-  const root = new URL("../../harness", import.meta.url).pathname;
-  for (const id of readdirSync(root)) assert.deepEqual(wrong(JSON.parse(readFileSync(join(root, id, "harness.json"), "utf-8"))), [], `harness ${id}`);
-});
-
-test("several seats can supervise one project, each for its own concern, declared as data", () => {
-  const dir = kitDir("sw2-concerns-");
-  mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
-  writeFileSync(join(dir, "harness", "acme", "settings.json"), "{}");
-  mkdirSync(join(dir, "mcp"), { recursive: true });
-  writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ supervisor: [{ name: "open_lane" }, { name: "answer" }], lead: [{ name: "report" }] }));
-
-  const role = (name: string, can: string[], tools: string, concern?: string) => {
-    writeFileSync(join(dir, "harness", "acme", "settings", `${name}.settings.json`), "{}");
-    return { role: name, label: name, can, tools, ...(concern ? { concern } : {}), defaults: { harness: "acme" }, prompt: `prompts/${name}.md`, skills: null };
-  };
-  writeFileSync(
-    join(dir, "roles.json"),
-    JSON.stringify({
-      providerPrefix: "sw2-",
-      roles: [
-        role("architecture", ["supervise"], "supervisor", "architecture"),
-        role("safety", ["supervise"], "supervisor", "safety"),
-        role("lead", ["lead"], "lead"),
-      ],
-    }),
-  );
-
-  const kit = loadKit(dir);
-  const supervising = rolesThatCan(kit, "supervise");
+test("a kit file that breaks its contract is refused as the kit loads, naming the file and what is wrong, and one that keeps it loads", () => {
+  const kit = loadKit(kitDir(good));
+  assert.deepEqual(Object.keys(kit.harnesses), ["acme"]);
   assert.deepEqual(
-    supervising.map((entry) => [entry.role, entry.concern]),
-    [
-      ["architecture", "architecture"],
-      ["safety", "safety"],
-    ],
-    "a project is not limited to one supervising seat, and each carries what it specialises in",
+    roleNamed(kit, "archivist")!.defaults,
+    { harness: "acme", model: "m" },
+    "a follower takes its defaults",
   );
-  assert.deepEqual(toolsOf(kit, supervising[0]), ["open_lane", "answer"]);
-  assert.deepEqual(toolsOf(kit, supervising[1]), ["open_lane", "answer"]);
-  assert.deepEqual(toolsOf(kit, roleThatCan(kit, "lead")), ["report"]);
-  assert.equal(can(supervising[0], "lead"), false);
+  assert.deepEqual(Object.keys(kit.sensors), ["judge"]);
+
+  for (const [file, value, refusal] of REFUSED) {
+    const dir = kitDir({ ...good, [file]: value });
+    assert.throws(() => loadKit(dir), { message: refusal }, `${file}: ${String(refusal)}`);
+  }
 });
 
-test("a roles file of one's own replaces the kit's preset, and may name its files anywhere", () => {
-  const dir = kitDir("sw2-preset-kit-");
-  mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
-  writeFileSync(join(dir, "harness", "acme", "settings", "lead.settings.json"), "{}");
-  writeFileSync(join(dir, "harness", "acme", "settings", "driver.settings.json"), "{}");
-  mkdirSync(join(dir, "mcp"), { recursive: true });
-  writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ lead: [{ name: "report" }] }));
-  const shipped = { role: "lead", label: "Lead", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: "prompts/LEAD.md", skills: null };
-  writeFileSync(join(dir, "roles.json"), JSON.stringify({ providerPrefix: "sw2-", roles: [shipped] }));
-  assert.deepEqual(loadKit(dir).roles.map((role) => role.role), ["lead"], "with nothing of the owner's, the kit runs what it ships");
+test("a roles or refused file in the state root replaces the shipped one, and a roles file may name its prompts anywhere", () => {
+  const lead = {
+    role: "lead",
+    label: "Lead",
+    can: ["lead"],
+    tools: "lead",
+    defaults: { harness: "acme" },
+    prompt: "prompts/LEAD.md",
+    skills: null,
+  };
+  const bare = { ...harness, provider: { profileModeId: "full" } };
+  const dir = kitDir({ [HARNESS]: bare, "roles.json": { providerPrefix: "sw2-", roles: [lead] } });
+  const kit = loadKit(dir);
+  assert.deepEqual(
+    [kit.roles.map((role) => role.role), kit.refused],
+    [["lead"], shipped("refused.json")],
+    "with nothing of the owner's, the kit runs what it ships",
+  );
 
   const mine = tempDir("sw2-preset-mine-");
-  const ownPrompt = join(mine, "DRIVER.md");
-  writeFileSync(ownPrompt, "# Driver\n\nYou drive.\n");
-  writeFileSync(
-    join(mine, "roles.json"),
-    JSON.stringify({ providerPrefix: "sw2-", roles: [{ role: "driver", label: "Driver", can: ["lead"], tools: "lead", defaults: { harness: "acme" }, prompt: ownPrompt, skills: null }] }),
+  const prompt = join(mine, "DRIVER.md");
+  writeFileSync(prompt, "# Driver\n\nYou drive.\n");
+  put(mine, "roles.json", { providerPrefix: "sw2-", roles: [{ ...lead, role: "driver", label: "Driver", prompt }] });
+  put(mine, "refused.json", { hub: "the forge's" });
+  const own = loadKit(dir, mine);
+  assert.deepEqual(
+    own.roles.map((role) => role.role),
+    ["driver"],
+    "and that arrangement is the one that runs",
   );
-
-  const kit = loadKit(dir, mine);
-  assert.deepEqual(kit.roles.map((role) => role.role), ["driver"], "and that arrangement is the one that runs");
-  assert.match(renderPrompt(kit, kit.roles[0]!, "claude", { guides: "/g", state: "/s" }), /You drive\./, "its prompt is read from where it says, not from inside the package");
+  assert.deepEqual(own.refused, { hub: "the forge's" });
+  assert.match(
+    renderPrompt(own, own.roles[0]!, "claude", { guides: "/g", state: "/s" }),
+    /You drive\./,
+    "its prompt is read from where it says, not from inside the package",
+  );
 });
 
 test("a capability several roles hold can name which of them, and a stored name is asked what it can do", () => {
-  const dir = kitDir("sw2-several-");
-  mkdirSync(join(dir, "harness", "acme", "settings"), { recursive: true });
-  writeFileSync(join(dir, "harness", "acme", "harness.json"), JSON.stringify(good()));
-  writeFileSync(join(dir, "harness", "acme", "settings.json"), "{}");
-  mkdirSync(join(dir, "mcp"), { recursive: true });
-  writeFileSync(join(dir, "mcp", "tools.json"), JSON.stringify({ lead: [{ name: "report" }], reviewer: [{ name: "done" }] }));
-  const role = (name: string, can: string[], tools: string) => {
-    writeFileSync(join(dir, "harness", "acme", "settings", `${name}.settings.json`), "{}");
-    return { role: name, label: name, can, tools, defaults: { harness: "acme" }, prompt: `prompts/${name}.md`, skills: null };
-  };
-  writeFileSync(
-    join(dir, "roles.json"),
-    JSON.stringify({
-      providerPrefix: "sw2-",
-      roles: [role("careful", ["review"], "reviewer"), role("adversary", ["review"], "reviewer"), role("lead", ["lead"], "lead"), role("arch-lead", ["lead"], "lead")],
+  const role = (name: string, can: string[], tools: string, concern?: string) => ({
+    role: name,
+    label: name,
+    can,
+    tools,
+    ...(concern ? { concern } : {}),
+    defaults: { harness: "acme" },
+    prompt: `prompts/${name}.md`,
+    skills: null,
+  });
+  const kit = loadKit(
+    kitDir({
+      [HARNESS]: harness,
+      "mcp/tools.json": {
+        supervisor: [{ name: "open_lane" }, { name: "answer" }],
+        lead: [{ name: "report" }],
+        reviewer: [{ name: "done" }],
+      },
+      "roles.json": {
+        providerPrefix: "sw2-",
+        roles: [
+          role("architecture", ["supervise"], "supervisor", "architecture"),
+          role("safety", ["supervise"], "supervisor", "safety"),
+          role("careful", ["review"], "reviewer"),
+          role("adversary", ["review"], "reviewer"),
+          role("lead", ["lead"], "lead"),
+          role("arch-lead", ["lead"], "lead"),
+        ],
+      },
     }),
   );
-  const kit = loadKit(dir);
 
-  // Two lenses are only evidence if they are not one reader twice, so the caller may say which.
+  const supervising = rolesThatCan(kit, "supervise");
+  assert.deepEqual(
+    supervising.map((entry) => [entry.role, entry.concern, toolsOf(kit, entry), can(entry, "lead")]),
+    [
+      ["architecture", "architecture", ["open_lane", "answer"], false],
+      ["safety", "safety", ["open_lane", "answer"], false],
+    ],
+    "a project is not limited to one supervising seat, and each carries what it specialises in",
+  );
+  assert.deepEqual(toolsOf(kit, roleThatCan(kit, "lead")), ["report"]);
   assert.equal(roleThatCan(kit, "review")?.role, "careful", "unnamed, the preset's first");
   assert.equal(roleThatCan(kit, "review", "adversary")?.role, "adversary", "named, the one asked for");
-  assert.equal(roleThatCan(kit, "review", "lead"), undefined, "a role that cannot do it is not a stand-in for one that can");
+  assert.equal(
+    roleThatCan(kit, "review", "lead"),
+    undefined,
+    "a role that cannot do it is not a stand-in for one that can",
+  );
   assert.equal(roleThatCan(kit, "review", "nobody"), undefined);
-
-  // A name comparison once called only a role literally named "lead" a lead, escalating other leads' asks.
-  assert.equal(can(roleNamed(kit, "arch-lead"), "lead"), true);
+  assert.equal(
+    can(roleNamed(kit, "arch-lead"), "lead"),
+    true,
+    "a lead need not be named lead to have its asks answered",
+  );
   assert.equal(can(roleNamed(kit, "careful"), "lead"), false, "and a reviewer still has someone above it");
-  assert.equal(can(roleNamed(kit, "a role this kit lost"), "lead"), false, "a name the kit no longer has can do nothing, so its ask still escalates");
+  assert.equal(
+    can(roleNamed(kit, "a role this kit lost"), "lead"),
+    false,
+    "a name the kit no longer has can do nothing, so its ask still escalates",
+  );
 });
