@@ -20,7 +20,6 @@ test("an idle Lead with nothing running, asked or reported ready wakes whoever s
   h.commit(lanes.L4!.worktree!, "b.txt", "bee, changed\n");
   await h.call(lanes.L4!.lead!, "lead", "report", { summary: "done", ready: true });
   assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L4" })).text, /waits for the Human's approval/);
-  // Amended while the Human reads it, so it is no longer reported ready, yet its Lead still waits on them.
   await h.call(sup, "supervisor", "amend_lane", { lane: "L4", acceptance: ["a", "b"], why: "the Human added b" });
   for (const lane of Object.values(lanes)) h.agents.get(lane.lead!)!.status = "idle";
   await h.tick(Date.now() + 20 * 60_000);

@@ -2,10 +2,7 @@ import type { harness } from "./harness.ts";
 
 type Handle = { refresh: () => Promise<unknown>; archive: () => Promise<unknown> };
 
-/**
- * The desk's next `call` on `seat` in Paseo, a look or an archive, is held until `release`, so a call is stopped at a
- * known point while another runs.
- */
+/** The desk's next `call` on `seat` in Paseo, a look or an archive, is held until `release`. */
 export function heldCall(h: ReturnType<typeof harness>, seat: string, call: keyof Handle) {
   const agents = (h.paseo as { agents: { ref: (id: string) => Handle } }).agents;
   const ref = agents.ref;
