@@ -1,4 +1,4 @@
-import { isAbsolute, relative } from "node:path";
+import { isAbsolute, normalize, relative } from "node:path";
 import { oneLine, within } from "../../core/text.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
 import { type Rules } from "./facts.ts";
@@ -6,49 +6,134 @@ import type { Call } from "./window.ts";
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
-const SCRATCH = /^(?:\$\{?TMPDIR\}?|\/tmp|\/private\/tmp)(?:\/|$)/;
-const MKTEMP = /\b([A-Za-z_]\w*)=["']?(?:\$\(\s*mktemp\b[^)]*\)|`\s*mktemp\b[^`]*`)/g;
-const VARIABLE = /^\$\{?([A-Za-z_]\w*)\}?(?:\/|$)/;
+const SCRATCH = /^(?:\$\{?TMPDIR(?:[%#:][^}]*)?\}?|\/tmp|\/private\/tmp)(?:\/|$)/;
+const MKTEMP = /^(?:\$\(\s*mktemp\b[^)]*\)|`\s*mktemp\b[^`]*`)$/;
+const VARIABLE = /\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))/g;
+const ASSIGN = /^([A-Za-z_]\w*)=(.*)$/s;
+const HEREDOC = /(?<!<)<<(-?)\s*(['"]?)([A-Za-z_]\w*)\2/g;
+/** Programs that only store what they read: a heredoc fed to one is data, and any other program may run it. */
+const STORES = new Set(["cat", "tee"]);
+const QUOTED = /(?<!<<-?\s*)(["'])(?:(?!\1).)*\1/g;
+/** Words before a command that only say when it runs: a loop, a branch, a group or a function's head. */
+const PREFIX = /^(?:do|then|else|elif|if|while|until|!|time|\{|\(+|[A-Za-z_][\w-]*\(\)\{?)$/;
+const DECLARE = new Set(["export", "local", "declare", "readonly", "typeset"]);
 
-const unquoted = (word: string) => word.replace(/^["']|["']$/g, "");
-
-/** What a command makes for itself before it removes it: the variables it sets from mktemp, and what it creates with mkdir or touch. */
-function madeBy(parts: string[]): { variables: Set<string>; paths: string[] } {
-  const variables = new Set([...parts.join("\n").matchAll(MKTEMP)].map((match) => match[1]!));
-  const paths = parts.flatMap((part) => {
-    const words = part.trim().split(/\s+/);
-    return words[0] === "mkdir" || words[0] === "touch"
-      ? words
-          .slice(1)
-          .filter((word) => !word.startsWith("-"))
-          .map(unquoted)
-      : [];
-  });
-  return { variables, paths };
+/** A part's shell words with their quotes taken off; `$NAME` and a command substitution stay whole, to be resolved. */
+function words(part: string): string[] {
+  const found: string[] = [];
+  let word = "";
+  let quote = "";
+  let open = false;
+  let depth = 0;
+  for (const char of part) {
+    if (quote === "'" || (quote === '"' && depth === 0)) {
+      if (char === quote) quote = "";
+      else word += char;
+      continue;
+    }
+    if (char === "(" && word.endsWith("$")) depth += 1;
+    else if (char === ")" && depth > 0) depth -= 1;
+    else if (char === "`") depth += word.split("`").length % 2 === 1 ? 1 : -1;
+    if (depth > 0 || char === ")" || char === "`") word += char;
+    else if (char === "'" || char === '"') {
+      quote = char;
+      open = true;
+    } else if (/\s/.test(char)) {
+      if (word || open) found.push(word);
+      word = "";
+      open = false;
+    } else word += char;
+  }
+  if (word || open) found.push(word);
+  return found;
 }
 
-/** An `rm` whose every target is scratch space: $TMPDIR, /tmp, the machine's temporary directory, or what the same command made. */
-function scratchOnly(part: string, made: ReturnType<typeof madeBy>, temp?: string): boolean {
-  const words = part.trim().split(/\s+/);
-  if (words[0] !== "rm") return false;
-  const targets = words
+const leading = (list: string[]): string[] => {
+  while (list.length > 0 && PREFIX.test(list[0]!)) list.shift();
+  return list;
+};
+
+/** The command without the heredoc bodies only `cat` or `tee` read: a script written to a file is not run by this call. */
+function runLines(command: string): string {
+  const kept: string[] = [];
+  const bodies: { end: string; dash: boolean; runs: boolean }[] = [];
+  for (const line of command.split("\n")) {
+    const body = bodies.at(-1);
+    if (body && (body.dash ? line.replace(/^\t+/, "") : line) === body.end) {
+      bodies.pop();
+      continue;
+    }
+    if (body && !body.runs) continue;
+    kept.push(line);
+    const markers = line
+      .replace(QUOTED, "")
+      .split(/&&|\|\||;/)
+      .flatMap((command) => {
+        const runs = !command.split("|").every((stage) => STORES.has(leading(words(stage))[0] ?? ""));
+        return [...command.matchAll(HEREDOC)].map((m) => ({ end: m[3]!, dash: m[1] === "-", runs }));
+      });
+    bodies.push(...markers.reverse());
+  }
+  return kept.join("\n");
+}
+
+/** What the command so far set: a name set twice may hold either value, as a branch decides, so it is known to be neither. */
+type Known = { values: Map<string, string>; temps: Set<string>; twice: Set<string>; made: string[] };
+
+const expand = (word: string, known: Known): string =>
+  word.replace(VARIABLE, (whole, braced?: string, bare?: string) => {
+    const name = braced ?? bare ?? "";
+    if (known.twice.has(name)) return whole;
+    return known.temps.has(name) ? `\0${name}` : (known.values.get(name) ?? whole);
+  });
+
+/** The command word once the words that only say when it runs are gone; assignments before it are learned. */
+function commandOf(part: string, known: Known): string[] {
+  const list = leading(words(part));
+  if (DECLARE.has(list[0] ?? "")) list.shift();
+  while (list.length > 0 && ASSIGN.test(list[0]!)) {
+    const [, name = "", value = ""] = ASSIGN.exec(list.shift()!)!;
+    if (known.temps.has(name) || known.values.has(name)) known.twice.add(name);
+    if (MKTEMP.test(value.trim())) known.temps.add(name);
+    else known.values.set(name, expand(value, known));
+  }
+  return list;
+}
+
+const operands = (list: string[], known: Known): string[] =>
+  list
     .slice(1)
     .filter((word) => !word.startsWith("-"))
-    .map(unquoted);
+    .map((word) => normalize(expand(word, known)));
+
+const below = (root: string, target: string, strict: boolean): boolean => {
+  if (!isAbsolute(target)) return false;
+  const rel = relative(root, target);
+  return !rel.startsWith("..") && !isAbsolute(rel) && (!strict || rel !== "");
+};
+
+/** An `rm` whose every target is scratch: $TMPDIR, /tmp, the machine's temporary directory, what the command made, or below what the seat was granted outside its copy. */
+function scratchOnly(list: string[], known: Known, rules: Rules): boolean {
+  const targets = operands(list, known);
   const scratch = (target: string) =>
+    target.startsWith("\0") ||
     SCRATCH.test(target) ||
-    Boolean(temp && isAbsolute(target) && !relative(temp, target).startsWith("..")) ||
-    made.variables.has(VARIABLE.exec(target)?.[1] ?? "") ||
-    made.paths.some((path) => target === path || target.startsWith(`${path.replace(/\/$/, "")}/`));
+    Boolean(rules.temp && below(rules.temp, target, false)) ||
+    (rules.outside ?? []).some((root) => below(root, target, true)) ||
+    known.made.some((path) => target === path || target.startsWith(`${path.replace(/\/$/, "")}/`));
   return targets.length > 0 && targets.every(scratch);
 }
 
 export function onDetail(call: Call, rules: Rules): Fact[] {
   if (call.detail.type !== "shell") return [];
   // A command at a time: removing a commit message's temp file once paged a Lead.
-  const parts = str(call.detail.command).split(/&&|\|\||;|\n/);
-  const made = madeBy(parts);
-  const risky = parts.find((part) => rules.destructive.test(part) && !scratchOnly(part, made, rules.temp));
+  const parts = runLines(str(call.detail.command)).split(/&&|\|\||;|\n/);
+  const known: Known = { values: new Map(), temps: new Set(), twice: new Set(), made: [] };
+  const risky = parts.find((part) => {
+    const list = commandOf(part, known);
+    if (list[0] === "mkdir" || list[0] === "touch") known.made.push(...operands(list, known));
+    return rules.destructive.test(part) && !(list[0] === "rm" && scratchOnly(list, known, rules));
+  });
   return risky ? [fact("destructive", around(oneLine(risky, Infinity), rules.destructive, 200))] : [];
 }
 

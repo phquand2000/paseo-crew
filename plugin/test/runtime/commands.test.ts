@@ -80,4 +80,33 @@ test("an irreversible command is paged the moment it is known, quoted where it i
     "a variable nothing here set from mktemp is not scratch",
   );
   assert.equal(paged("mkdir -p out/tmp && rm -rf out").length, 1, "removing more than it made is not");
+
+  // Twenty-one pages reached the Human for scratch work the watch misread; each row is one's shape.
+  const granted = rules({ temp: "/var/folders/xy/T", outside: ["/srv/dev cache"] });
+  for (const command of [
+    'rm -rf "/srv/dev cache/lane/red-wt"',
+    'D="/srv/dev cache/lane"; C=14010cd; rm -f "$D/smoke-$C" && docker run --rm -v "$D:/h" img',
+    'rm -rf "$TMPDIR"/v17-p7-1 "${TMPDIR:-/tmp}/marked"',
+    `export S="$TMPDIR/$lane-secrets"\nrm -rf "$S"`,
+    `{ T="$TMPDIR/l3-merged"; git worktree add "$T" main; }\nrm -rf "$T"`,
+    `M=$(mktemp -d -t probe); for i in 1 2; do rm -rf $M; done`,
+    `T=$(mktemp -d); v() { rm -rf "$T"; }; v`,
+    `cat > "$H/smoke.sh" <<'EOF'\nif true; then rm -f "$DATA"; fi\nEOF\nsh "$H/smoke.sh"`,
+    `t=$(mktemp); cat > "$t" <<'PERL'\n  rm -rf "$SU/src"\n  f() << op.payload;\nPERL\nrm -rf "$t"`,
+  ])
+    assert.deepEqual(paged(command, granted), [], `scratch, as the command itself shows: ${command}`);
+  for (const command of [
+    `cat <<'EOF' | sh\nrm -rf src\nEOF`,
+    `psql <<'SQL'\ndrop table users;\nSQL`,
+    `echo "a << EOF"\nrm -rf src\nEOF`,
+    `if [ -n "$X" ]; then T="$TMPDIR/a"; else T=src; fi; rm -rf "$T"`,
+    "rm -rf /tmp/../etc",
+    'rm -rf "/srv/dev cache"',
+    'rm -rf "/srv/dev cache/../cache2"',
+  ])
+    assert.equal(
+      paged(command, granted).length,
+      1,
+      `a body a program runs, or a target not surely scratch: ${command}`,
+    );
 });

@@ -9,6 +9,7 @@ import type { Desk } from "../desk/desk.ts";
 import { laneOfLead, taskOfPeer } from "../domain/ledger.ts";
 import { loadLedger } from "../desk/store/ledger.ts";
 import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project/project.ts";
+import { outsideWrites } from "../desk/project/writes.ts";
 import type { TeamSource } from "./team-source.ts";
 import { malformed } from "./timeline.ts";
 import type { Trouble } from "./panel/watch-view.ts";
@@ -60,6 +61,7 @@ export class Watching {
         gates: gateCommands(seat.cwd, loadConfig(project.state).gate, this.deps.kit.ecosystem),
         cwd: seat.cwd,
         temp: tmpdir(),
+        outside: outsideWrites(found.role, project),
         scope,
         repeatsAt: attention.repeatsAt,
         recoverWithin: 10,

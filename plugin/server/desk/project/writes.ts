@@ -37,7 +37,7 @@ export function projectWrites(project: Project): string[] {
 }
 
 /** The Human's `writableOutside` paths a role that writes code may also write, resolved. */
-function outsideWrites(role: RoleSpec, project: Project): string[] {
+export function outsideWrites(role: RoleSpec, project: Project): string[] {
   if (!can(role, "write")) return [];
   return loadConfig(project.state)
     .writableOutside.filter((path) => !outsideProblem(path))

@@ -17,6 +17,8 @@ export type Rules = {
   gates: string[];
   cwd?: string;
   temp?: string;
+  /** What the seat was granted outside its copy: below one, removing is scratch work. */
+  outside?: string[];
   /** What the seat writes inside: a parallel task's holds, or its lane's write set; empty or none is anywhere in its copy. */
   scope?: string[];
   repeatsAt: number;
