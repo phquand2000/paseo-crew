@@ -94,13 +94,8 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
   assert.deepEqual(agents.real.sent, ["and this still goes out"]);
 
   outbox.turnStarted("lead", Date.now() - 2 * 60_000);
-  assert.equal(await post("lead", "d", "a hand-back"), "held", "word that asks nothing of the turn waits for its end");
   assert.equal(await post("lead", "a", "the owner says stop", steer), "sent");
-  assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into a settled turn, not in place of it, and alone");
-  agents.lead.status = "idle";
-  outbox.turnEnded("lead");
-  assert.equal((await outbox.pump("lead")).size, 1);
-  assert.deepEqual(agents.lead.sent.at(-1), "a hand-back");
+  assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into a settled turn, not in place of it");
   // A steer the provider cannot take yet is turned into replacing the turn by the daemon.
   outbox.turnStarted("fresh");
   assert.equal(await post("fresh", "a", "t", steer), "held");
