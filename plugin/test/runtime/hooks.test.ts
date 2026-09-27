@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
@@ -195,12 +196,19 @@ test("a seat that writes code gets a temp directory of its own, where its comman
     assert.equal(temp.length < 40, true, "short, so a socket's path under it stays within what the system allows");
     const seat = codexGrants("peer");
     assert.deepEqual([seat.filesystem?.[temp], seat.network?.unix_sockets?.[temp]], ["write", "allow"]);
+    const machine = realpathSync(execFileSync("getconf", ["DARWIN_USER_TEMP_DIR"], { encoding: "utf-8" }).trim());
+    assert.deepEqual(
+      [seat.filesystem?.[machine], seat.network?.unix_sockets?.[machine]],
+      ["write", undefined],
+      "macOS mktemp makes its files there whatever TMPDIR says, and no socket is bound there",
+    );
     const claude = launch("peer", "claude");
     const sandbox = claude.made.config.providerOptions as {
       settings: { sandbox: { filesystem: { allowWrite: string[] }; network: { allowUnixSockets: string[] } } };
     };
     assert.equal(claude.env.CLAUDE_CODE_TMPDIR, temp, "Claude sets its commands' TMPDIR from its own variable");
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(temp), true);
+    assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(machine), true);
     assert.deepEqual(sandbox.settings.sandbox.network.allowUnixSockets, [temp]);
     const lead = launch("lead", "codex");
     assert.equal(lead.env.TMPDIR, undefined, "a role that writes no code keeps the machine's temp directory");

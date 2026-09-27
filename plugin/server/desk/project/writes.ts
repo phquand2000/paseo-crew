@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -80,6 +81,13 @@ export function seatTemp(role: RoleSpec, project: Project): string | undefined {
   return dir;
 }
 
+/** Where macOS makes temp files whatever TMPDIR says, as `mktemp` does with no template; none elsewhere. */
+function machineTemp(): string[] {
+  if (process.platform !== "darwin") return [];
+  const dir = execFileSync("getconf", ["DARWIN_USER_TEMP_DIR"], { encoding: "utf-8" }).trim();
+  return dir ? [realpathSync(dir)] : [];
+}
+
 /** What a seat writes and reaches beyond its copy, with the temp directory its harness points its commands at. */
 export function seatGrants(
   role: RoleSpec,
@@ -88,5 +96,6 @@ export function seatGrants(
 ): { writes: string[]; sockets: string[]; temp?: string } {
   const temp = harness.tempDirEnv ? seatTemp(role, project) : undefined;
   const own = temp ? [temp] : [];
-  return { writes: [...seatWrites(role, project), ...own], sockets: [...seatSockets(role, project), ...own], temp };
+  const writes = [...seatWrites(role, project), ...own, ...(temp ? machineTemp() : [])];
+  return { writes, sockets: [...seatSockets(role, project), ...own], temp };
 }
