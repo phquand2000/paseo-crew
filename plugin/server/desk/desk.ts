@@ -38,7 +38,7 @@ import { MergeQueue } from "./tasks/merge-queue.ts";
 import { openWaiting } from "./waiting/lanes.ts";
 import { startWaiting } from "./waiting/tasks.ts";
 import type { Moment } from "./watch/checks.ts";
-import { type Noticed, closeIncidentsOf, notice, retell } from "./watch/notice.ts";
+import { type Noticed, closeIncidentsOf, notice, retell, reweigh } from "./watch/notice.ts";
 import { Watcher } from "./watch/watcher.ts";
 
 type DeskOptions = {
@@ -115,6 +115,10 @@ export class Desk {
 
   retell(project: Project): Promise<string[]> {
     return retell(this.services, project);
+  }
+
+  reweigh(project: Project, seat: Noticed, id: string): Promise<string[]> {
+    return reweigh(this.services, project, seat, id);
   }
 
   /** Paseo archived a seat: its binding is let go, and a watched seat's incidents close with it. */

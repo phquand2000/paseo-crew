@@ -235,6 +235,36 @@ export async function retell(services: DeskServices, project: Project, now = Dat
   return told;
 }
 
+/** A standing fact's held incident: today's settings decide again whether it is told, without counting it seen again. */
+export async function reweigh(
+  services: DeskServices,
+  project: Project,
+  seat: Noticed,
+  id: string,
+  now = Date.now(),
+): Promise<string[]> {
+  const attention = services.teamFor(project).attention;
+  const settled = (book: Incidents): boolean => {
+    const incident = book.items[id];
+    return (
+      !incident?.open ||
+      deliveryOf(incident) !== "held" ||
+      incident.held === "nobody" ||
+      holdFor(incident, book, attention, now) === incident.held
+    );
+  };
+  // Read first: a transaction writes the book, and a standing fact comes round every patrol.
+  if (settled(services.incidents.view(project))) return [];
+  const sending = services.incidents.transact(project, (book) => {
+    const incident = book.items[id];
+    if (settled(book) || !incident) return [];
+    const held = holdFor(incident, book, attention, now);
+    if (held) hold(incident, held);
+    return !held && tell(incident, now) ? [{ ...incident }] : [];
+  });
+  return sending.length > 0 ? deliver(services, project, seat, placeOf(project, seat), sending, now) : [];
+}
+
 export function closeIncidentsOf(services: DeskServices, project: Project, seat: string, now = Date.now()): string[] {
   return services.incidents.transact(project, (incidents) => closeSeat(incidents, seat, now));
 }

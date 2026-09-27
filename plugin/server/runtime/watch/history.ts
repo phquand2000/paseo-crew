@@ -12,6 +12,8 @@ type Seen = { seat: string; fact: Fact };
 type Reading = {
   reworksAt: number;
   reviewsAt: number;
+  /** Closed incidents someone labelled: what they name was already judged. */
+  judged: { kind: string; quote: string; later?: string }[];
 };
 
 const CERTAIN =
@@ -92,8 +94,16 @@ function patchedNotFixed({ here, reading }: LaneRecord): Finding {
 }
 
 /** A hand-back that said partial or blocked, accepted all the same: nothing else records the Lead taking it in. */
-function acceptedUnfinished({ here }: LaneRecord): Finding {
-  const unfinished = here.filter((task) => task.status === "merged" && UNFINISHED.has(task.handback?.outcome ?? ""));
+function acceptedUnfinished({ here, reading }: LaneRecord): Finding {
+  const said = reading.judged
+    .filter((item) => item.kind === "accepted-unfinished")
+    .flatMap((item) => [item.quote, item.later ?? ""]);
+  // Once judged, a task stays judged: naming it again with each new one reopened what the Supervisor had settled.
+  const judged = (task: Task) =>
+    said.some((quote) => quote.startsWith(`${task.id} (`) || quote.includes(`; ${task.id} (`));
+  const unfinished = here.filter(
+    (task) => task.status === "merged" && UNFINISHED.has(task.handback?.outcome ?? "") && !judged(task),
+  );
   if (unfinished.length === 0) return undefined;
   const named = unfinished.slice(0, MOST_NAMED);
   const rest = unfinished.length - named.length;

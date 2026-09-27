@@ -165,22 +165,21 @@ export class Patrol {
   /** Desk-record facts about a lane, filed against its Lead in the same incident book the watch uses. */
   private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const attention = this.deps.source.teamFor(project).attention;
-    const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
-    if (found.length === 0) return;
     const book = loadIncidents(project.state);
+    const judged = Object.values(book.items).filter((item) => !item.open && item.label);
+    const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt, judged });
     for (const seen of found) {
       // A gone seat's incidents closed when it went; raising one leaves a sighting nothing closes.
       const seat = seats.get(seen.seat);
       if (!seat || seat.archivedAt) continue;
-      // Still open: sight it again so today's settings reweigh it. Settled: nothing new until the record changes.
+      const noticed = { id: seen.seat, provider: seat.provider, title: seat.title };
+      const { quote } = seen.fact;
       const open = openFor(book, seen.seat, seen.fact.kind);
-      if (!open && saidBefore(book, seen.seat, seen.fact.kind, seen.fact.quote)) continue;
-      if (open && open.quote === seen.fact.quote && open.told !== undefined) continue;
-      await this.deps.desk.notice(
-        project,
-        { id: seen.seat, provider: seat.provider, title: seat.title },
-        decide([seen.fact]),
-      );
+      // Settled: nothing new until the record changes. Open in these words: only today's settings weigh it again.
+      if (!open && saidBefore(book, seen.seat, seen.fact.kind, quote)) continue;
+      if (open && (open.quote === quote || open.later === quote))
+        await this.deps.desk.reweigh(project, noticed, open.id);
+      else await this.deps.desk.notice(project, noticed, decide([seen.fact]));
     }
   }
 

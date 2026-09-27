@@ -6,7 +6,7 @@ import type { Task } from "../../server/domain/task.ts";
 import type { FactKind } from "../../server/runtime/watch/fact-kinds.ts";
 import { deskFacts } from "../../server/runtime/watch/history.ts";
 
-const READING = { reworksAt: 3, reviewsAt: 3 };
+const READING = { reworksAt: 3, reviewsAt: 3, judged: [] };
 
 const lane = (over: Partial<Lane> = {}): Lane => ({
   id: "L1",
