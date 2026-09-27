@@ -7,7 +7,7 @@ import { serversFor } from "../../catalog/seat/servers.ts";
 import { type Team, withHarness } from "../../catalog/team/team.ts";
 import { expandHome, home } from "../../core/paths.ts";
 import type { Project } from "../../desk/project/project.ts";
-import { seatWrites } from "../../desk/project/writes.ts";
+import { seatSockets, seatWrites } from "../../desk/project/writes.ts";
 import type { TeamSource } from "../team-source.ts";
 import { errorText } from "../../core/errors.ts";
 import { daemonLog } from "../../core/logger.ts";
@@ -35,8 +35,9 @@ export class Seating {
     const team = withHarness(this.source.teamFor(project), roleName, harness);
     const seat = team.roles[roleName];
     const writes = project && seat ? seatWrites(seat.role, project) : [];
-    const where = project && { ...project, writes };
-    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${projectImports(harness, project?.root)}|${writes.join("\n")}`;
+    const sockets = project && seat ? seatSockets(seat.role, project) : [];
+    const where = project && { ...project, writes, sockets };
+    const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${projectImports(harness, project?.root)}|${[...writes, ...sockets].join("\n")}`;
     // Remembering a seat was built is no proof its directory still exists; a seat without instructions runs with none.
     const dir = seat ? seatDir(this.kit, seat.role, harness, home(), project) : undefined;
     // And a login made after the seat was built is a link the seat does not have yet.

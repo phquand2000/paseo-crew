@@ -17,6 +17,7 @@ import type { Team } from "../team/team.ts";
 import { preapprovedFor } from "./servers.ts";
 
 type RenderPrompt = (role: RoleSpec) => string;
+type Grant = NonNullable<HarnessSpec["sockets"]>;
 
 /** Only what the role declares it writes: state also holds the desk's record, whose `gate` runs unsandboxed in the daemon. */
 export function stateWrites(role: RoleSpec, state: string): string[] {
@@ -87,6 +88,14 @@ function thinkingOf(
   return [given, preferred].find(valid) ?? (options.find((option) => option.isDefault) ?? options[0])!.id;
 }
 
+/** A harness's setting that grants `paths`, as a list or as a table of each path to the grant's `as`. */
+export function grantSetting(grant: Grant, paths: string[]): Json {
+  const setting: Json = {};
+  const value = grant.as ? Object.fromEntries(paths.map((path) => [path, grant.as])) : paths;
+  setPath(setting, grant.path.split("."), value);
+  return setting;
+}
+
 /** The paths the role writes under the state, the project as its context, and the sockets it may reach, where the harness takes them at launch. */
 function providerOptionsOf(
   harness: HarnessSpec,
@@ -97,11 +106,13 @@ function providerOptionsOf(
   sockets: string[],
 ): Json | undefined {
   let options = config.providerOptions;
-  if (harness.stateWrites?.delivery === "launch" && state)
-    for (const path of [...stateWrites(role, state), ...writes])
-      options = appendAt(options, harness.stateWrites.path, path);
+  const granted = (grant: Grant | undefined, paths: string[]) => {
+    if (grant?.delivery === "launch" && paths.length > 0)
+      options = layered(options, grantSetting(grant, paths)) as Json;
+  };
+  if (state) granted(harness.stateWrites, [...stateWrites(role, state), ...writes]);
   if (harness.projectContextOption && config.cwd) options = appendAt(options, harness.projectContextOption, config.cwd);
-  if (harness.socketsOption) for (const socket of sockets) options = appendAt(options, harness.socketsOption, socket);
+  granted(harness.sockets, sockets);
   return options;
 }
 

@@ -14,10 +14,10 @@ import {
 import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
 import { harnessFileSources } from "../kit/harness-files.ts";
 import {
+  grantsSetting,
   linkShared,
   linkSkills,
   recorder,
-  stateWritesSetting,
   writeFiles,
   writeInstructions,
   writeMcpFile,
@@ -27,7 +27,7 @@ import {
 import { type Team, rulesFor, skillDirsFor } from "../team/team.ts";
 import { hideSkillsSetting } from "./hide-skills.ts";
 
-type SeatProject = { root: string; slug: string; state: string; writes?: string[] };
+type SeatProject = { root: string; slug: string; state: string; writes?: string[]; sockets?: string[] };
 
 /** The directory a seat's agent runs from: one per role, agent and project. */
 export function seatDir(
@@ -82,8 +82,10 @@ export function materialize(
   mkdirSync(dir, { recursive: true });
   const built = { dir, homeDir };
   const catalog = writeModelCatalog(seat.harness, dir, record);
-  const writes = stateWritesSetting(team, roleName, project?.state, project?.writes);
-  const extra = [writes, hideSkillsSetting(seat.harness, homeDir)].reduce(layered, catalog) as Json;
+  const extra = [grantsSetting(team, roleName, project), hideSkillsSetting(seat.harness, homeDir)].reduce(
+    layered,
+    catalog,
+  ) as Json;
   writeRoleSettings(kit, seat.harness, seat.role, built, record, extra);
   writeFiles(kit, seat.harness, seat.role, dir, record);
   linkShared(seat.harness, dir, homeDir, record);

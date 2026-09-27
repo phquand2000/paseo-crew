@@ -1,13 +1,33 @@
 approval_policy = "never"
-sandbox_mode = "workspace-write"
+default_permissions = "seat"
 check_for_update_on_startup = false
 
 [features]
 multi_agent = false
 multi_agent_v2 = false
+network_proxy = true
 
 [skills.bundled]
 enabled = false
 
-[sandbox_workspace_write]
-network_access = true
+[permissions.seat.filesystem]
+":root" = "read"
+":project_roots" = "write"
+":tmpdir" = "write"
+":slash_tmp" = "write"
+"~/.ssh" = "none"
+"~/.aws" = "none"
+"~/.kube" = "none"
+
+[permissions.seat.network]
+enabled = true
+mode = "full"
+domains = { "*" = "allow" }
+allow_local_binding = true
+enable_socks5 = true
+
+[permissions.reader.filesystem]
+":root" = "read"
+"~/.ssh" = "none"
+"~/.aws" = "none"
+"~/.kube" = "none"

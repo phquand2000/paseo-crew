@@ -244,6 +244,7 @@ const cx = (catalog: string[]) =>
     skillsDir: "skills",
     settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml" },
     stateWrites: { path: "sandbox_workspace_write.writable_roots", delivery: "file" },
+    sockets: { path: "permissions.seat.network.unix_sockets", delivery: "file", as: "allow" },
     files: { "rules/seat.rules": ["rules/all.rules", "rules/ROLE.rules"] },
     modelCatalog: {
       command: catalog,

@@ -10,7 +10,7 @@ import { expandHome } from "../../core/paths.ts";
 import { type PromptPaths, renderText, skillProblems, skillSources } from "../kit/content.ts";
 import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
 import { harnessFileSources, roleSettingsFile } from "../kit/harness-files.ts";
-import { projectImports, stateWrites } from "./launch.ts";
+import { grantSetting, projectImports, stateWrites } from "./launch.ts";
 import { snapshot } from "./snapshots.ts";
 import { type Team, rulesFor, skillDirsFor } from "../team/team.ts";
 
@@ -125,17 +125,21 @@ export function writeModelCatalog(harness: HarnessSpec, dir: string, record: Rec
   return setting;
 }
 
-export function stateWritesSetting(
+/** What a harness that takes its grants in its settings file is granted: the role's writes, and the sockets it may reach. */
+export function grantsSetting(
   team: Team,
   roleName: string,
-  state: string | undefined,
-  writes: string[] = [],
+  project?: { state: string; writes?: string[]; sockets?: string[] },
 ): Json {
   const { role, harness } = team.roles[roleName]!;
-  if (harness.stateWrites?.delivery !== "file" || !state) return {};
-  const setting: Json = {};
-  setPath(setting, harness.stateWrites.path.split("."), [...stateWrites(role, state), ...writes]);
-  return setting;
+  if (!project) return {};
+  const { stateWrites: writes, sockets } = harness;
+  const setting: Json =
+    writes?.delivery === "file"
+      ? grantSetting(writes, [...stateWrites(role, project.state), ...(project.writes ?? [])])
+      : {};
+  if (sockets?.delivery !== "file" || !project.sockets?.length) return setting;
+  return layered(setting, grantSetting(sockets, project.sockets)) as Json;
 }
 
 export function writeFiles(kit: Kit, harness: HarnessSpec, role: RoleSpec, dir: string, record: Recorder): void {

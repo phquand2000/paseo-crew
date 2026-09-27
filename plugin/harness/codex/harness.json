@@ -43,8 +43,14 @@
     }
   },
   "stateWrites": {
-    "path": "sandbox_workspace_write.writable_roots",
-    "delivery": "file"
+    "path": "permissions.seat.filesystem",
+    "delivery": "file",
+    "as": "write"
+  },
+  "sockets": {
+    "path": "permissions.seat.network.unix_sockets",
+    "delivery": "file",
+    "as": "allow"
   },
   "files": {
     "rules/seatworks.rules": [

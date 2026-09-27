@@ -2,6 +2,9 @@ import { z } from "zod";
 import { Json, pattern, text, texts } from "./fields.ts";
 import { McpTransport } from "./mcp.ts";
 
+/** Where a harness takes a grant of paths: a list, or with `as` a table of each path to that value. */
+const Grant = z.strictObject({ path: text, delivery: z.enum(["launch", "file"]), as: text.optional() });
+
 /** `harness/<id>/harness.json`: how one agent harness is set up, launched and read. */
 export const HarnessFile = z
   .strictObject({
@@ -13,10 +16,10 @@ export const HarnessFile = z
     contextFile: text.optional(),
     skillsDir: text,
     steers: z.boolean().optional(),
-    stateWrites: z.strictObject({ path: text, delivery: z.enum(["launch", "file"]) }).optional(),
+    stateWrites: Grant.optional(),
     hideSkills: z.strictObject({ roots: z.array(text).min(1), setting: text }).optional(),
     projectContextOption: text.optional(),
-    socketsOption: text.optional(),
+    sockets: Grant.optional(),
     projectInstructions: z
       .strictObject({
         reads: z.array(text).min(1),
@@ -79,4 +82,8 @@ export const HarnessFile = z
   .refine((harness) => harness.mcp.delivery !== "file" || harness.mcp.key, {
     error: "delivers MCP servers in a file but names no key",
     path: ["mcp", "key"],
+  })
+  .refine((harness) => !harness.stateWrites || harness.sockets, {
+    error: "confines what a seat writes but says not how its sandbox is granted a socket",
+    path: ["sockets"],
   });

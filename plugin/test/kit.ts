@@ -67,6 +67,7 @@ export function makeKit(): Kit {
     contextFile: "CLAUDE.md",
     skillsDir: "skills",
     stateWrites: { path: "settings.sandbox.filesystem.allowWrite", delivery: "launch" },
+    sockets: { path: "settings.sandbox.network.allowUnixSockets", delivery: "launch" },
     projectContextOption: "additionalDirectories",
     projectInstructions: {
       reads: ["CLAUDE.md", ".claude/CLAUDE.md"],

@@ -88,5 +88,8 @@
     "delivery": "launch"
   },
   "projectContextOption": "additionalDirectories",
-  "socketsOption": "settings.sandbox.network.allowUnixSockets"
+  "sockets": {
+    "path": "settings.sandbox.network.allowUnixSockets",
+    "delivery": "launch"
+  }
 }

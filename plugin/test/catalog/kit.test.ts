@@ -81,6 +81,11 @@ const REFUSED: [string, unknown, RegExp][] = [
   ],
   [
     HARNESS,
+    { ...harness, stateWrites: { path: "sandbox.writes", delivery: "launch" } },
+    /^harness acme is not as the kit reads it:\n✖ confines what a seat writes but says not how its sandbox is granted a socket\n {2}→ at sockets$/,
+  ],
+  [
+    HARNESS,
     { ...harness, settings: { file: "config.json", source: "settings.json" } },
     /^harness acme is not as the kit reads it:\n✖ .*\n {2}→ at settings\.roleSource$/,
   ],

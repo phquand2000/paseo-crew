@@ -144,7 +144,7 @@ test("a lane copy gets a link to each ignored path the Human named, and a skip i
   assert.equal(lines.length, 4, "a path already in the copy is left as it is");
 });
 
-test("a seat's extra writes reach its sandbox at launch and in its own settings file", () => {
+test("a seat's extra writes and the sockets the Human grants reach its sandbox at launch and in its own settings file", () => {
   const kit = makeKit();
   const team = resolveTeam(kit);
   const config = {
@@ -171,7 +171,8 @@ test("a seat's extra writes reach its sandbox at launch and in its own settings 
       contextFile: "AGENTS.md",
       skillsDir: "skills",
       settings: { file: "config.toml", source: "settings.toml", roleSource: "settings/ROLE.settings.toml" },
-      stateWrites: { path: "sandbox_workspace_write.writable_roots", delivery: "file" },
+      stateWrites: { path: "permissions.seat.filesystem", delivery: "file", as: "write" },
+      sockets: { path: "permissions.seat.network.unix_sockets", delivery: "file", as: "allow" },
       mcp: { file: "config.toml", delivery: "launch", transports: ["stdio", "http"] },
       provider: {},
     }),
@@ -185,10 +186,26 @@ test("a seat's extra writes reach its sandbox at launch and in its own settings 
   const cx = loadKit(kit.dir);
   const lead = withHarness(resolveTeam(cx), "lead", cx.harnesses.cx!);
   const home = tempDir("sw2-links-home-");
-  const where = { root: "/work/shop", slug: "shop-abc123", state: "/state/shop", writes: ["/work/shop/docs/plans"] };
+  const socket = "/Users/me/.orbstack/run/docker.sock";
+  const where = {
+    root: "/work/shop",
+    slug: "shop-abc123",
+    state: "/state/shop",
+    writes: ["/work/shop/docs/plans"],
+    sockets: [socket],
+  };
   materialize(cx, lead, "lead", home, where, {});
   const toml = parse(
     readFileSync(join(seatDir(cx, lead.roles.lead!.role, cx.harnesses.cx!, home, where), "config.toml"), "utf-8"),
-  ) as { sandbox_workspace_write: { writable_roots: string[] } };
-  assert.deepEqual(toml.sandbox_workspace_write.writable_roots, ["/state/shop/plans", "/work/shop/docs/plans"]);
+  ) as { permissions: { seat: { filesystem: unknown; network: { unix_sockets: unknown } } } };
+  assert.deepEqual(toml.permissions.seat.filesystem, {
+    "/state/shop/plans": "write",
+    "/work/shop/docs/plans": "write",
+  });
+  // Codex once had no way to take a socket, and the Human's grant was dropped without a word.
+  assert.deepEqual(
+    toml.permissions.seat.network.unix_sockets,
+    { [socket]: "allow" },
+    "a path is a key, not split at its dots",
+  );
 });

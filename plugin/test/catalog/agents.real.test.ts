@@ -154,8 +154,8 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     if (harness.id === "codex") {
       assert.deepEqual(
         at(settings, "features"),
-        { multi_agent: false, multi_agent_v2: false },
-        `${where}: Paseo is the only control plane`,
+        { multi_agent: false, multi_agent_v2: false, network_proxy: true },
+        `${where}: Paseo is the only control plane, and the proxy holds the shell to the sockets granted`,
       );
       assert.equal(at(settings, "approval_policy"), "never", `${where}: nobody is there to approve`);
       assert.equal(
@@ -163,11 +163,14 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         false,
         `${where}: only the role's skills, as on every other agent`,
       );
-      assert.equal(
-        at(settings, "sandbox_mode"),
-        ["reviewer", "pager", "watcher"].includes(kind) ? "read-only" : "workspace-write",
-        where,
-      );
+      const profile = ["reviewer", "pager", "watcher"].includes(kind) ? "reader" : "seat";
+      assert.equal(at(settings, "default_permissions"), profile, where);
+      for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
+        assert.equal(
+          (at(settings, `permissions.${profile}.filesystem`) as Record<string, unknown> | undefined)?.[secret],
+          "none",
+          `${where}: reads no key or cloud login that reaches production`,
+        );
       assert.equal(
         at(settings, "web_search") === "disabled",
         !searches,
@@ -180,7 +183,9 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         `${where}: no model offers native agents`,
       );
       assert.ok(
-        list(at(settings, "sandbox_workspace_write.writable_roots")).every((path) => path.startsWith("/state/demo/")),
+        Object.entries(at(settings, "permissions.seat.filesystem") as Record<string, string>)
+          .filter(([path, access]) => access === "write" && path.startsWith("/"))
+          .every(([path]) => path.startsWith("/state/demo/")),
         `${where}: writes into the state only where its content says`,
       );
       const rules = readFileSync(join(dir, "rules", "seatworks.rules"), "utf-8");

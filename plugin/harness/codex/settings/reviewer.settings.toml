@@ -1,2 +1,2 @@
-sandbox_mode = "read-only"
+default_permissions = "reader"
 web_search = "disabled"
