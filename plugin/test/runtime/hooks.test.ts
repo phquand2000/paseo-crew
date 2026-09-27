@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -167,5 +167,46 @@ test("a codex seat Paseo creates may reach the Human's sockets and write their o
       assert.deepEqual(granted(name), [undefined, undefined], `${name} writes no code, so it is granted neither`);
   } finally {
     server.close();
+  }
+});
+
+test("a seat that writes code gets a temp directory of its own, where its commands keep their files and it alone may bind a socket", () => {
+  const h = harness();
+  const host = new PaseoHost();
+  h.restart(host);
+  const hook = daemon(host, h);
+  const { kit } = h.runtime;
+  const launch = (name: string, agent: string) => {
+    const provider = providerId(kit, name, agent);
+    const made = hook("agent.create", { request: { config: { provider, cwd: h.root }, env: {} } }) as Made;
+    const request = { agentId: `${name}-${agent}`, reason: "create", purpose: "interactive", provider, cwd: h.root };
+    const opened = hook("agent.session_open", { request: { ...request, env: made.env } }) as Made;
+    return { made, env: opened.env };
+  };
+  const codexGrants = (name: string) => {
+    const role = kit.roles.find((entry) => entry.role === name)!;
+    const file = join(seatDir(kit, role, kit.harnesses.codex!, home(), h.project), "config.toml");
+    return (parse(readFileSync(file, "utf-8")) as { permissions: { seat: Grants } }).permissions.seat;
+  };
+  const temp = launch("peer", "codex").env.TMPDIR!;
+  try {
+    const found = lstatSync(temp);
+    assert.equal(found.isDirectory() && (found.mode & 0o777) === 0o700, true, "a directory this user alone may enter");
+    assert.equal(temp.length < 40, true, "short, so a socket's path under it stays within what the system allows");
+    const seat = codexGrants("peer");
+    assert.deepEqual([seat.filesystem?.[temp], seat.network?.unix_sockets?.[temp]], ["write", "allow"]);
+    const claude = launch("peer", "claude");
+    const sandbox = claude.made.config.providerOptions as {
+      settings: { sandbox: { filesystem: { allowWrite: string[] }; network: { allowUnixSockets: string[] } } };
+    };
+    assert.equal(claude.env.CLAUDE_CODE_TMPDIR, temp, "Claude sets its commands' TMPDIR from its own variable");
+    assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(temp), true);
+    assert.deepEqual(sandbox.settings.sandbox.network.allowUnixSockets, [temp]);
+    const lead = launch("lead", "codex");
+    assert.equal(lead.env.TMPDIR, undefined, "a role that writes no code keeps the machine's temp directory");
+    assert.equal(codexGrants("lead").network?.unix_sockets, undefined, "and binds no socket");
+    assert.equal(launch("lead", "claude").env.CLAUDE_CODE_TMPDIR, undefined);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
   }
 });

@@ -9,7 +9,7 @@ import { guidesDir, home } from "../../core/paths.ts";
 import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
 import { type Project, projectOf } from "../../desk/project/project.ts";
 import { SEAT_SSH, seatSsh } from "../../desk/project/ssh.ts";
-import { seatSockets, seatWrites } from "../../desk/project/writes.ts";
+import { seatGrants, seatTemp } from "../../desk/project/writes.ts";
 import type { SeatKeys } from "./keys.ts";
 import type { Seating } from "./seating.ts";
 
@@ -38,16 +38,8 @@ export class SeatLaunch {
     const render = (role: RoleSpec) => renderPrompt(this.kit, role, seat.harness.id, paths);
     const key = seat.role.tools ? this.keys.issue() : undefined;
     const servers = this.seating.servers(team, seat.role.role, key);
-    const applied = applyRole(
-      this.kit,
-      team,
-      config,
-      render,
-      project.state,
-      servers,
-      seatWrites(seat.role, project),
-      seatSockets(seat.role, project),
-    );
+    const { writes, sockets } = seatGrants(seat.role, seat.harness, project);
+    const applied = applyRole(this.kit, team, config, render, project.state, servers, writes, sockets);
     return { config: applied, env: key ? { ...env, [SEAT_KEY]: key } : env };
   }
 
@@ -73,9 +65,16 @@ export class SeatLaunch {
     const dir = seatDir(this.kit, seat.role, seat.harness, home(), project);
     const opened = seatEnv(this.kit, request, dir, project, seatBin(this.kit));
     const ssh = this.sshConfig(seat.role, project);
+    const tempEnv = seat.harness.tempDirEnv;
+    const temp = tempEnv && seatTemp(seat.role, project);
     return {
       ...opened,
-      env: { ...opened.env, ...(key ? { [SEAT_KEY]: key } : {}), ...(ssh ? { [SEAT_SSH]: ssh } : {}) },
+      env: {
+        ...opened.env,
+        ...(key ? { [SEAT_KEY]: key } : {}),
+        ...(ssh ? { [SEAT_SSH]: ssh } : {}),
+        ...(temp ? { [tempEnv]: temp } : {}),
+      },
     };
   }
 

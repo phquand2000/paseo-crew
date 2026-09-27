@@ -52,6 +52,7 @@
     "delivery": "file",
     "as": "allow"
   },
+  "tempDirEnv": "TMPDIR",
   "files": {
     "rules/seatworks.rules": [
       "rules/seat.rules",

@@ -1,8 +1,9 @@
-import { existsSync, realpathSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, lstatSync, mkdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, normalize, sep } from "node:path";
 import { can } from "../../catalog/kit/roles.ts";
-import type { RoleSpec } from "../../catalog/kit/kit.ts";
+import type { HarnessSpec, RoleSpec } from "../../catalog/kit/kit.ts";
 import { gitCommonDir } from "../../core/git.ts";
 import { type Project, loadConfig } from "./project.ts";
 
@@ -64,4 +65,28 @@ export function seatSockets(role: RoleSpec, project: Project): string[] {
 export function seatWrites(role: RoleSpec, project: Project): string[] {
   const common = can(role, "work") || can(role, "write") ? gitCommonDir(project.root) : undefined;
   return [...projectWrites(project), ...outsideWrites(role, project), ...(common ? [common] : [])];
+}
+
+/** A directory under /tmp for a project's seats that write code: short enough for a socket's path, and none other's to reach. */
+export function seatTemp(role: RoleSpec, project: Project): string | undefined {
+  if (!can(role, "write")) return undefined;
+  const parent = join(realpathSync("/tmp"), `seatworks-${process.getuid!()}`);
+  mkdirSync(parent, { recursive: true, mode: 0o700 });
+  const found = lstatSync(parent);
+  if (!found.isDirectory() || found.uid !== process.getuid!() || (found.mode & 0o077) !== 0)
+    throw new Error(`${parent} is not this user's alone, so no seat is given a temp directory in it`);
+  const dir = join(parent, createHash("sha256").update(project.state).digest("hex").slice(0, 8));
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  return dir;
+}
+
+/** What a seat writes and reaches beyond its copy, with the temp directory its harness points its commands at. */
+export function seatGrants(
+  role: RoleSpec,
+  harness: HarnessSpec,
+  project: Project,
+): { writes: string[]; sockets: string[]; temp?: string } {
+  const temp = harness.tempDirEnv ? seatTemp(role, project) : undefined;
+  const own = temp ? [temp] : [];
+  return { writes: [...seatWrites(role, project), ...own], sockets: [...seatSockets(role, project), ...own], temp };
 }

@@ -91,5 +91,6 @@
   "sockets": {
     "path": "settings.sandbox.network.allowUnixSockets",
     "delivery": "launch"
-  }
+  },
+  "tempDirEnv": "CLAUDE_CODE_TMPDIR"
 }

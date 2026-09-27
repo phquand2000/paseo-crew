@@ -7,7 +7,7 @@ import { serversFor } from "../../catalog/seat/servers.ts";
 import { type Team, withHarness } from "../../catalog/team/team.ts";
 import { expandHome, home } from "../../core/paths.ts";
 import type { Project } from "../../desk/project/project.ts";
-import { seatSockets, seatWrites } from "../../desk/project/writes.ts";
+import { seatGrants } from "../../desk/project/writes.ts";
 import type { TeamSource } from "../team-source.ts";
 import { errorText } from "../../core/errors.ts";
 import { daemonLog } from "../../core/logger.ts";
@@ -34,8 +34,7 @@ export class Seating {
   ensure(roleName: string, harness: HarnessSpec, project?: Project): Team {
     const team = withHarness(this.source.teamFor(project), roleName, harness);
     const seat = team.roles[roleName];
-    const writes = project && seat ? seatWrites(seat.role, project) : [];
-    const sockets = project && seat ? seatSockets(seat.role, project) : [];
+    const { writes, sockets } = project && seat ? seatGrants(seat.role, harness, project) : { writes: [], sockets: [] };
     const where = project && { ...project, writes, sockets };
     const key = `${roleName}|${harness.id}|${project?.slug ?? ""}|${this.source.revision(project)}|${projectImports(harness, project?.root)}|${[...writes, ...sockets].join("\n")}`;
     // Remembering a seat was built is no proof its directory still exists; a seat without instructions runs with none.
