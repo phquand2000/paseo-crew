@@ -59,6 +59,7 @@ const FlowAsk = z.object({
   to: z.string(),
   minutes: z.number(),
   text: z.string(),
+  default: z.string().nullable(),
 });
 export type FlowAsk = z.infer<typeof FlowAsk>;
 const FlowQuestion = z.object({

@@ -123,6 +123,7 @@ function asksOf(ledger: Ledger, now: number): FlowAsk[] {
       to: ask.to,
       minutes: minutes(now, ask.openedAt),
       text: ask.text.split(/\r?\n/).find((line) => line.trim()) ?? "",
+      default: ask.default ?? null,
     }));
 }
 

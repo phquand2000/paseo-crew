@@ -194,8 +194,10 @@ function askLines(ledger: Ledger, now: number, laneId: string | undefined): stri
   const asks = Object.values(ledger.asks).filter(
     (ask) => ask.status === "open" && (laneId ? ask.lane === laneId : true),
   );
-  const line = (ask: (typeof asks)[number]) =>
-    `- ${ask.id} ${ask.kind} from ${ask.fromRole} ${ask.from} to ${ask.to}, open ${minutesSince(now, ask.openedAt)} min: ${opening(ask.text).slice(0, 160)}`;
+  const line = (ask: (typeof asks)[number]) => {
+    const ahead = ask.default ? ` Going ahead meanwhile on: ${opening(ask.default).slice(0, 160)}` : "";
+    return `- ${ask.id} ${ask.kind} from ${ask.fromRole} ${ask.from} to ${ask.to}, open ${minutesSince(now, ask.openedAt)} min: ${opening(ask.text).slice(0, 160)}${ahead}`;
+  };
   return ["## Open asks", "", ...(asks.length === 0 ? ["None."] : asks.map(line))];
 }
 

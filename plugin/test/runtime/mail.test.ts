@@ -106,6 +106,14 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
     true,
   );
   const endpoint = Object.values(h.ledger().asks).at(-1)!.id;
+  assert.match(
+    (await h.call(back, "supervisor", "status", {})).text,
+    new RegExp(`- ${endpoint} question from lead .*: Keep the old endpoint\\? Going ahead meanwhile on: keep it\\n`),
+    "what runs unconfirmed shows where whoever supervises follows progress",
+  );
+  const flow = await h.rpc(contracts.flow, { project: h.project.slug, open: [] });
+  assert.ok("asks" in flow);
+  assert.equal(flow.asks.find((ask) => ask.id === endpoint)?.default, "keep it", "and on the Human's panel");
   archive(h, back);
   const next = h.add(SUPERVISOR, h.root, "sup-3");
   await h.tick(start + 80 * 60_000);
