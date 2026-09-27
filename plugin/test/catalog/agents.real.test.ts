@@ -121,6 +121,11 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           `${where}: only the desk does git ${command}, with -C or without`,
         );
       assert.ok(!refusesReading(deny.map((rule) => rule.replace(/^Bash\((.*)\)$/, "$1"))), `${where}: reads worktrees`);
+      for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
+        assert.ok(
+          [`Read(${secret}/**)`, `Edit(${secret}/**)`].every((rule) => deny.includes(rule)),
+          `${where}: neither the shell nor a file tool reaches a key or cloud login that reaches production`,
+        );
       for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit"])
         assert.equal(
           deny.includes(tool),
