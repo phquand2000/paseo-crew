@@ -65,6 +65,14 @@ export class Slots {
     let kept: string | undefined;
     if (slot) {
       closeIndexes(this.desk, project, slot);
+      // Put away before the copy goes: Paseo reads a workspace's git state until it is archived.
+      if (slot.workspaceId) {
+        try {
+          await this.workspaces.archive(slot.workspaceId);
+        } catch (error) {
+          this.desk.log(project, `workspace ${slot.workspaceId} could not be put away: ${errorText(error)}`);
+        }
+      }
       // A lane's copy left on a task's branch: that branch goes with the copy once the lane branch has all of it.
       const off = slot.lane && existsSync(slot.path) ? await currentBranch(slot.path) : undefined;
       if (existsSync(slot.path)) {
@@ -78,13 +86,6 @@ export class Slots {
       const laneBranch = slot.lane ? loadLedger(project.state).lanes[slot.lane]?.branch : undefined;
       if (off && laneBranch && off !== laneBranch && off !== dropBranch)
         await dropMerged(project.root, off, laneBranch);
-      if (slot.workspaceId) {
-        try {
-          await this.workspaces.archive(slot.workspaceId);
-        } catch (error) {
-          this.desk.log(project, `workspace ${slot.workspaceId} could not be put away: ${errorText(error)}`);
-        }
-      }
     }
     this.drop(project, slotId);
     recordEvent(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot), kept });

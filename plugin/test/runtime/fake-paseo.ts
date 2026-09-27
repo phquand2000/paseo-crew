@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { FakeTimeline } from "./fake-timeline.ts";
 
 export type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
@@ -31,6 +33,7 @@ export function fakePaseo() {
   const workspaceNames = new Map<string, string>();
   const workspaceProjects = new Map<string, string>();
   const archivedWorkspaces = new Set<string>();
+  const repositories = new Set<string>();
   const timelines = new Map<string, InstanceType<typeof FakeTimeline>>();
   const timelineOf = (id: string) => {
     const found = timelines.get(id) ?? new FakeTimeline();
@@ -167,6 +170,7 @@ export function fakePaseo() {
       async create({ title, source }: { title?: string; source: { path: string; projectId?: string } }) {
         const id = `ws-${workspaces.size + 1}`;
         workspaces.set(id, source.path);
+        if (existsSync(join(source.path, ".git"))) repositories.add(id);
         workspaceProjects.set(id, source.projectId ?? `prj:${source.path}`);
         if (title) workspaceNames.set(id, title);
         return workspace(id);
@@ -185,6 +189,9 @@ export function fakePaseo() {
       // The daemon archives every agent a workspace owns with it (workspace-archive-service.js, archiveWorkspaceContents).
       async archive(id: string) {
         const workspaceId = typeof id === "string" ? id : (id as { id: string }).id;
+        // The daemon reads a workspace's git state until it is archived, and warns once the repository is gone.
+        if (repositories.has(workspaceId) && !existsSync(join(workspaces.get(workspaceId)!, ".git")))
+          console.error(`workspace ${workspaceId}: not a git repository`);
         archivedWorkspaces.add(workspaceId);
         for (const agent of agents.values()) if (agent.workspaceId === workspaceId) archiveWithChildren(agent.id);
         return { archivedAt: new Date().toISOString() };
