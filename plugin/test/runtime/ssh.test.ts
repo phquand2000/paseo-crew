@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 import { once } from "node:events";
 import { readFileSync, writeFileSync } from "node:fs";
 import { type AddressInfo, type Server, connect, createServer } from "node:net";
@@ -11,15 +12,18 @@ import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
 
 const BIN = fileURLToPath(new URL("../../bin/", import.meta.url));
-const KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeHostKeyForTestsOnly0000000000000000000";
+const wire = (...parts: Buffer[]) =>
+  Buffer.concat(parts.flatMap((part) => [Buffer.from([0, 0, 0, part.length]), part])).toString("base64");
+const raw = Buffer.from(generateKeyPairSync("ed25519").publicKey.export({ format: "jwk" }).x!, "base64url");
+const KEY = `ssh-ed25519 ${wire(Buffer.from("ssh-ed25519"), raw)}`;
 
 test("the Human's ssh grant reaches a seat that writes code as a config ssh resolves: the host pinned, no key, no agent, nothing asked", () => {
   const h = harness();
   saveConfig(h.project.state, {
     ...loadConfig(h.project.state),
     ssh: {
-      raspi: { hostName: "100.68.82.68", user: "admin", port: 22, hostKey: KEY },
-      "bad host": { hostName: "10.0.0.1", user: "x", port: 22, hostKey: KEY },
+      "example-host": { hostName: "192.0.2.10", user: "example-user", port: 22, hostKey: KEY },
+      "bad host": { hostName: "192.0.2.20", user: "x", port: 22, hostKey: KEY },
     },
   });
   const open = (provider: string) =>
@@ -29,14 +33,14 @@ test("the Human's ssh grant reaches a seat that writes code as a config ssh reso
   assert.equal(open("sw2-peer-claude").SEATWORKS_SSH_CONFIG, config, "whichever harness it runs on");
   assert.equal(open("sw2-lead-claude").SEATWORKS_SSH_CONFIG, undefined, "a role that writes no code reaches no host");
 
-  const resolved = spawnSync("ssh", ["-G", "-F", config, "raspi"], { encoding: "utf-8" });
+  const resolved = spawnSync("ssh", ["-G", "-F", config, "example-host"], { encoding: "utf-8" });
   assert.equal(resolved.status, 0, resolved.stderr);
   const settings = new Map(
     resolved.stdout.split("\n").map((line) => [line.split(" ")[0], line.slice(line.indexOf(" ") + 1)]),
   );
   for (const [name, value] of Object.entries({
-    hostname: "100.68.82.68",
-    user: "admin",
+    hostname: "192.0.2.10",
+    user: "example-user",
     port: "22",
     batchmode: "yes",
     stricthostkeychecking: "true",
@@ -60,7 +64,7 @@ test("the Human's ssh grant reaches a seat that writes code as a config ssh reso
 const shim = (script: string, env: Record<string, string> = {}) => {
   const fake = join(tempDir("sw2-ssh-"), "ssh");
   writeFileSync(fake, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
-  return spawnSync(process.execPath, [join(BIN, "ssh-shim.mjs"), fake, "raspi", "hostname"], {
+  return spawnSync(process.execPath, [join(BIN, "ssh-shim.mjs"), fake, "example-host", "hostname"], {
     encoding: "utf-8",
     env: { ...process.env, ...env },
     timeout: 20_000,
@@ -69,7 +73,7 @@ const shim = (script: string, env: Record<string, string> = {}) => {
 
 test("a seat's ssh reads the granted hosts, and stops at once, without the link, when the tailnet holds it for a check", () => {
   const ran = shim(`echo "$@"; echo warn >&2; exit 3`, { SEATWORKS_SSH_CONFIG: "/state/ssh/config" });
-  assert.deepEqual([ran.status, ran.stdout, ran.stderr], [3, "-F /state/ssh/config raspi hostname\n", "warn\n"]);
+  assert.deepEqual([ran.status, ran.stdout, ran.stderr], [3, "-F /state/ssh/config example-host hostname\n", "warn\n"]);
 
   // As Tailscale sends it once the check has lapsed; ssh would then wait on the browser for good.
   const held = shim(

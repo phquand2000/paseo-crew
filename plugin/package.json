@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "node --test --import ./test/setup.ts 'test/**/*.test.ts'",
-    "check": "npm run typecheck && npm run lint && prettier --check . && npm test",
+    "check": "npm run typecheck && npm run lint && prettier --check . && node test/private-addresses.ts && npm test",
     "eval:triggers": "node test/skills/run-triggers.ts"
   },
   "dependencies": {
