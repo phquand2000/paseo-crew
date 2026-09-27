@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 
 const [ssh, ...argv] = process.argv.slice(2);
 const config = process.env.SEATWORKS_SSH_CONFIG;
-const HELD = /To authenticate, visit/;
+const HELD = /Tailscale SSH requires an additional check|To authenticate, visit/;
 
 // A -F the seat gives comes later, and ssh takes the last one.
 const child = spawn(ssh, config ? ["-F", config, ...argv] : argv, { stdio: ["inherit", "inherit", "pipe"] });
@@ -22,7 +22,7 @@ child.stderr.on("data", (chunk) => {
       child.kill("SIGTERM");
       process.stderr.write(
         "ssh: the tailnet holds this connection for its SSH check, which has lapsed, and no agent can pass it. Nothing ran. " +
-          "The Human must pass the check again: run ssh to this host once on their own machine and open the link it shows.\n",
+          "The Human must re-approve the Tailscale check: run ssh to this host once on their own machine and open the link it shows.\n",
       );
       return;
     }

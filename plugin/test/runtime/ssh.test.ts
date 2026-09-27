@@ -83,13 +83,16 @@ test("a seat's ssh reads the granted hosts, and stops at once, without the link,
   assert.deepEqual([ran.status, ran.stdout, ran.stderr], [3, "-F /state/ssh/config example-host hostname\n", "warn\n"]);
 
   // As Tailscale sends it once the check has lapsed; ssh would then wait on the browser for good.
-  const held = shim(
-    `printf '# Tailscale SSH requires an additional check.\\n# To authenticate, visit: https://login.example/a/s3cret\\n' >&2; exec sleep 600`,
-  );
-  assert.equal(held.signal, null, "it did not wait for the check");
-  assert.equal(held.status, 255);
-  assert.match(held.stderr, /Nothing ran\. The Human must pass the check again/);
-  assert.doesNotMatch(held.stderr, /s3cret/, "the link is the Human's to open, never a seat's");
+  for (const said of [
+    "# Tailscale SSH requires an additional check.\\n# To authenticate, visit: https://login.example/a/s3cret\\n",
+    "# Tailscale SSH requires an additional check.\\n",
+  ]) {
+    const held = shim(`printf '${said}' >&2; exec sleep 600`);
+    assert.equal(held.signal, null, "it did not wait for the check");
+    assert.equal(held.status, 255);
+    assert.match(held.stderr, /Nothing ran\. The Human must re-approve the Tailscale check/);
+    assert.doesNotMatch(held.stderr, /s3cret/, "the link is the Human's to open, never a seat's");
+  }
 });
 
 const listening = async (server: Server): Promise<number> => {
