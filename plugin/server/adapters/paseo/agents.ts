@@ -41,30 +41,39 @@ function lookOf(handle: Handle): SeatLook {
   };
 }
 
-/** Paged: an unpaged read is capped by the daemon, and a seat missing from this list is treated as gone, so with no handle it fails. */
-async function openSeats(bound: Bound): Promise<SeatView[]> {
+/** Paged, as the daemon caps an unpaged read; `whole` is false when the pages ran out before the agents did. */
+async function listed(bound: Bound, includeArchived: boolean): Promise<{ seats: SeatView[]; whole: boolean }> {
   const paseo = reach(bound);
-  const found: SeatView[] = [];
+  const seats: SeatView[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 20; page++) {
     const result = await paseo.agents.list({
-      filter: { includeArchived: false },
+      filter: { includeArchived },
       page: cursor ? { limit: 200, cursor } : { limit: 200 },
     });
-    for (const entry of result.entries) {
-      const seat = entry.agent as unknown as SeatView;
-      if (!seat.archivedAt) found.push(seat);
-    }
-    if (!result.pageInfo?.hasMore || !result.pageInfo.nextCursor) break;
+    for (const entry of result.entries) seats.push(entry.agent);
+    if (!result.pageInfo?.hasMore || !result.pageInfo.nextCursor) return { seats, whole: true };
     cursor = result.pageInfo.nextCursor;
   }
-  return found;
+  return { seats, whole: false };
+}
+
+/** A seat missing from this list is treated as gone, so with no handle it fails. */
+async function openSeats(bound: Bound): Promise<SeatView[]> {
+  return (await listed(bound, false)).seats.filter((seat) => !seat.archivedAt);
+}
+
+async function existingAgents(bound: Bound): Promise<Set<string>> {
+  const { seats, whole } = await listed(bound, true);
+  if (!whole) throw new Error("Paseo holds more agents than one listing reads, so none is taken for deleted");
+  return new Set(seats.map((seat) => seat.id));
 }
 
 export function seatsOn(bound: Bound): Seats {
   const ref = (id: string): Handle => reach(bound).agents.ref(id) as unknown as Handle;
   return {
     open: () => openSeats(bound),
+    existing: () => existingAgents(bound),
     async look(id: string): Promise<SeatLook> {
       const handle = ref(id);
       await handle.refresh();

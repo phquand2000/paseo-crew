@@ -77,6 +77,7 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
   h.runtime.sessionOpen({
     agentId: lead,
     reason: "create",
+    purpose: "interactive",
     provider: seat.provider,
     cwd: h.root,
     env: { SEATWORKS_DESK_KEY: "k-lead" },

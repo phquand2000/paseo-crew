@@ -54,6 +54,14 @@ export class SeatLaunch {
   sessionOpen(request: SessionOpen): SessionOpen {
     const seat = seatOf(this.kit, request.provider);
     if (!seat) return request;
+    // Created, the seat brings the key made for it; opened again, it is given back the one it was bound to.
+    const key = request.reason === "create" ? request.env[SEAT_KEY] : this.keys.keyOf(request.agentId);
+    if (request.reason === "create" && key) this.keys.bind(request.agentId, key);
+    // Refused before it runs: a keyless seat ran its whole turn, and only its desk calls failed.
+    else if (request.reason !== "create" && !key && seat.role.tools && request.purpose === "interactive")
+      throw new Error(
+        `The desk holds no key for this ${seat.role.label}, so every desk call it made would be refused: start a new one in its place, and the project's records carry over.`,
+      );
     const project = projectOf(request.cwd);
     this.remember(project);
     try {
@@ -64,9 +72,6 @@ export class SeatLaunch {
     this.seating.ensure(seat.role.role, seat.harness, project);
     const dir = seatDir(this.kit, seat.role, seat.harness, home(), project);
     const opened = seatEnv(this.kit, request, dir, project, seatBin(this.kit));
-    // Created, the seat brings the key made for it; opened again, it is given back the one it was bound to.
-    const key = request.reason === "create" ? request.env[SEAT_KEY] : this.keys.keyOf(request.agentId);
-    if (request.reason === "create" && key) this.keys.bind(request.agentId, key);
     const ssh = this.sshConfig(seat.role, project);
     return {
       ...opened,

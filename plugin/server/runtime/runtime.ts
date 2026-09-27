@@ -104,6 +104,7 @@ export class Runtime implements HostHooks {
       outbox: this.outbox,
       turns: this.turns,
       watches: this.watches,
+      keys: this.keys,
       remember,
     });
     this.clock = new PatrolClock({ host, patrol: this.patrol, source: this.source, desk: this.desk });
@@ -197,7 +198,6 @@ export class Runtime implements HostHooks {
   }
 
   async archived(agent: HookAgent): Promise<void> {
-    this.keys.forget(agent.id);
     this.outbox.archived(agent.id);
     this.turns.forget(agent.id);
     this.watches.drop(agent.id);

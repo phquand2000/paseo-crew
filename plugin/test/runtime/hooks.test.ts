@@ -57,11 +57,23 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   const delta = readFileSync(join(import.meta.dirname, "..", "..", "harness", "codex", "delta", "peer.md"), "utf-8");
   assert.equal(prompt("sw2-peer-codex"), `${onClaude.trimEnd()}\n\n${delta}`, "then what its harness needs said");
 
-  const open = (agentId: string, reason: string, env: Record<string, string> = {}, cwd = h.root) =>
-    (hook("agent.session_open", { request: { agentId, reason, provider: "sw2-lead-claude", cwd, env } }) as Made).env;
+  const open = (
+    agentId: string,
+    reason: string,
+    env: Record<string, string> = {},
+    cwd = h.root,
+    purpose = "interactive",
+  ) =>
+    (
+      hook("agent.session_open", {
+        request: { agentId, reason, purpose, provider: "sw2-lead-claude", cwd, env },
+      }) as Made
+    ).env;
+  const refused = /The desk holds no key for this Lead, so every desk call it made would be refused/;
   assert.equal(open("agent-9", "create", { [SEAT_KEY]: "k9" })[SEAT_KEY], "k9");
   assert.equal(open("agent-9", "resume")[SEAT_KEY], "k9", "a resumed seat's server starts again with its key");
-  assert.equal(open("agent-0", "resume")[SEAT_KEY], undefined, "a seat never given one gets none");
+  assert.throws(() => open("agent-0", "resume"), refused, "a seat never given one is refused before it runs a turn");
+  assert.equal(open("agent-0", "resume", {}, h.root, "history")[SEAT_KEY], undefined, "though its history still reads");
 
   const { kit } = h.runtime;
   const lead = kit.roles.find((role) => role.role === "lead")!;
@@ -77,7 +89,7 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   writeFileSync(join(root, "AGENTS.md"), "Use pnpm.\n");
   const file = join(seatDir(kit, lead, claude, home(), projectOf(root)), "CLAUDE.md");
   const rules = () => (existsSync(file) ? readFileSync(file, "utf-8") : "");
-  open("agent-7", "create", {}, root);
+  open("agent-7", "create", { [SEAT_KEY]: "k7" }, root);
   assert.match(
     rules(),
     new RegExp(`^@${join(root, "AGENTS.md")}$`, "m"),
@@ -88,13 +100,32 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   assert.doesNotMatch(rules(), /AGENTS\.md/, "and reads the project's CLAUDE.md in its place once there is one");
 
   await hook("agent.archived", { agent: { id: "agent-9", provider: "sw2-lead-claude", cwd: h.root } });
-  assert.equal(open("agent-9", "resume")[SEAT_KEY], undefined, "a seat archived lets its key go");
+  assert.equal(open("agent-9", "resume")[SEAT_KEY], "k9", "a prompt resumes an archived seat, which keeps its key");
+  const held = h.add("sw2-lead-claude", h.root, "held");
+  open(held, "create", { [SEAT_KEY]: "kh" });
+  h.agents.get(held)!.archivedAt = new Date().toISOString();
+  await h.tick();
+  assert.throws(
+    () => open("agent-9", "resume"),
+    refused,
+    "one Paseo no longer holds lets it go on the round after a load",
+  );
+  assert.equal(open(held, "resume")[SEAT_KEY], "kh", "one Paseo holds, archived too, keeps it");
 
   const ways: [string, unknown][] = [
     ["agent.create", { request: { config: { provider: "sw2-lead-claude", cwd: h.root }, env: {} } }],
     [
       "agent.session_open",
-      { request: { agentId: "agent-8", reason: "resume", provider: "sw2-lead-claude", cwd: h.root, env: {} } },
+      {
+        request: {
+          agentId: "agent-8",
+          reason: "resume",
+          purpose: "history",
+          provider: "sw2-lead-claude",
+          cwd: h.root,
+          env: {},
+        },
+      },
     ],
     ["agent.turn_started", { agent: { id: "agent-8", provider: "sw2-lead-claude", cwd: h.root } }],
   ];

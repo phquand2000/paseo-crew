@@ -292,6 +292,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const request = {
         agentId: "a",
         reason: "create" as const,
+        purpose: "interactive" as const,
         provider: providerId(kit, role.role, "omp"),
         cwd: "/work/demo",
         env: {},

@@ -300,6 +300,7 @@ test("a seat's session gets its harness's environment, its config directory, pro
   const request = {
     agentId: "a",
     reason: "create" as const,
+    purpose: "interactive" as const,
     provider: "sw2-peer-omp",
     cwd: "/repo",
     env: { KEEP: "1", PATH: "/usr/bin" },

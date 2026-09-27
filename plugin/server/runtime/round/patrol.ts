@@ -17,6 +17,7 @@ import { statusPage } from "../../desk/views/status.ts";
 import { dueAsks } from "./due-asks.ts";
 import { wakeLimited } from "../limits.ts";
 import type { Outbox } from "../mail/outbox.ts";
+import type { SeatKeys } from "../seat/keys.ts";
 import type { TeamSource } from "../team-source.ts";
 import type { TurnRules } from "../turns.ts";
 import { deskFacts } from "../watch/history.ts";
@@ -33,6 +34,7 @@ type PatrolDeps = {
   outbox: Outbox;
   turns: TurnRules;
   watches: Watches;
+  keys: Pick<SeatKeys, "agents" | "forget">;
   remember: (project: Project) => void;
 };
 
@@ -128,6 +130,11 @@ export class Patrol {
   private async resume(seats: SeatMap): Promise<void> {
     const { desk } = this.deps;
     try {
+      await this.forgetDeleted();
+    } catch (error) {
+      daemonLog.error("the keys of seats Paseo deleted could not be let go:", error);
+    }
+    try {
       await desk.resume(seats);
     } catch (error) {
       daemonLog.error("what waited on a turn when the plugin stopped could not be taken up:", error);
@@ -142,6 +149,13 @@ export class Patrol {
           desk.reapSlots(project, live),
         );
     }
+  }
+
+  /** A prompt resumes an archived seat, so a key goes only with its agent; read before the listing, so one bound meanwhile stays. */
+  private async forgetDeleted(): Promise<void> {
+    const bound = this.deps.keys.agents();
+    const existing = await this.deps.seats.existing();
+    for (const id of bound) if (!existing.has(id)) this.deps.keys.forget(id);
   }
 
   /** One project's round is made of steps, and a step that fails is the only thing that fails. */

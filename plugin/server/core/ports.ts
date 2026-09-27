@@ -48,6 +48,8 @@ export type Stream = { readonly ready: Promise<void>; stop(): void };
 
 export type Seats = {
   open(): Promise<SeatView[]>;
+  /** Every agent Paseo still holds, archived ones too; throws rather than list them short. */
+  existing(): Promise<Set<string>>;
   look(id: string): Promise<SeatLook>;
   /** Into a running turn only as `into` says: steered in beside it, or the turn cut short for it. */
   send(id: string, text: string, kinds: string[], into?: "steer" | "interrupt"): Promise<void>;
@@ -108,6 +110,7 @@ export type AgentConfig = {
 export type SessionOpen = {
   agentId: string;
   reason: "create" | "resume" | "refresh" | "import";
+  purpose: "interactive" | "history";
   provider: string;
   cwd: string;
   env: Record<string, string>;

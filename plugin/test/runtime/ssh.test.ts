@@ -27,7 +27,14 @@ test("the Human's ssh grant reaches a seat that writes code as a config ssh reso
     },
   });
   const open = (provider: string) =>
-    h.runtime.sessionOpen({ agentId: provider, reason: "create", provider, cwd: h.root, env: {} }).env;
+    h.runtime.sessionOpen({
+      agentId: provider,
+      reason: "create",
+      purpose: "interactive",
+      provider,
+      cwd: h.root,
+      env: {},
+    }).env;
   const config = open("sw2-peer-codex").SEATWORKS_SSH_CONFIG;
   assert.ok(config, "a Peer is given the config");
   assert.equal(open("sw2-peer-claude").SEATWORKS_SSH_CONFIG, config, "whichever harness it runs on");

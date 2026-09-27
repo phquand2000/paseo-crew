@@ -50,7 +50,14 @@ async function lineUp(t: TestContext) {
 
 function bind(h: Harness, agent: string, key: string): void {
   const { provider } = h.agents.get(agent)!;
-  h.runtime.sessionOpen({ agentId: agent, reason: "create", provider, cwd: h.root, env: { SEATWORKS_DESK_KEY: key } });
+  h.runtime.sessionOpen({
+    agentId: agent,
+    reason: "create",
+    purpose: "interactive",
+    provider,
+    cwd: h.root,
+    env: { SEATWORKS_DESK_KEY: key },
+  });
 }
 
 /** The seat's team server as its harness starts it in the project, with the key it was given; `changed` hears list_changed. */

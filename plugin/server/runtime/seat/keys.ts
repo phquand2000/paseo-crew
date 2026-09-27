@@ -5,7 +5,8 @@ import { readJson, writeJson } from "../../core/store.ts";
 
 /**
  * Which agent each seat's key belongs to. A key is made as the seat is created, before Paseo names the agent, and bound
- * when it does; kept on disk, since a resumed seat's team server starts again with the key it was created with.
+ * when it does; kept on disk until Paseo deletes the agent, since a prompt resumes an archived seat and its team server
+ * starts again with the key it was created with.
  */
 export class SeatKeys {
   private readonly file: string;
@@ -28,6 +29,10 @@ export class SeatKeys {
 
   agentOf(key: string): string | undefined {
     return key ? Object.entries(this.all()).find(([, held]) => held === key)?.[0] : undefined;
+  }
+
+  agents(): string[] {
+    return Object.keys(this.all());
   }
 
   forget(agent: string): void {
