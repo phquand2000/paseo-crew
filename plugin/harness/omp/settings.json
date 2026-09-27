@@ -230,19 +230,115 @@
         "approval": "deny"
       },
       {
-        "match": "git worktree",
+        "match": "git worktree add",
         "approval": "deny"
       },
       {
-        "match": "git worktree *",
+        "match": "git worktree add *",
         "approval": "deny"
       },
       {
-        "match": "git -C * worktree",
+        "match": "git -C * worktree add",
         "approval": "deny"
       },
       {
-        "match": "git -C * worktree *",
+        "match": "git -C * worktree add *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree lock",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree lock *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree lock",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree lock *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree move",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree move *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree move",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree move *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree prune",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree prune *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree prune",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree prune *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree remove",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree remove *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree remove",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree remove *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree repair",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree repair *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree repair",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree repair *",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree unlock",
+        "approval": "deny"
+      },
+      {
+        "match": "git worktree unlock *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree unlock",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * worktree unlock *",
         "approval": "deny"
       },
       {

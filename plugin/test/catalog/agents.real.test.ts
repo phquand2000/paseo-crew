@@ -22,7 +22,17 @@ import { tempDir } from "../tempdir.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-const DESK_GIT = "push pull merge checkout switch reset rebase cherry-pick update-ref stash worktree".split(" ");
+const DESK_GIT = [
+  ..."push pull merge checkout switch reset rebase cherry-pick update-ref stash".split(" "),
+  ..."add lock move prune remove repair unlock".split(" ").map((verb) => `worktree ${verb}`),
+];
+/** Whether a deny rule, `*` taking in anything, refuses reading which copy holds which branch, as the git shim allows. */
+const refusesReading = (rules: string[]) =>
+  rules.some((rule) =>
+    ["git worktree list", "git -C /work worktree list"].some((command) =>
+      new RegExp(`^${rule.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replaceAll("*", ".*")}$`).test(command),
+    ),
+  );
 const SEARCHES = ["supervisor", "lead", "peer"];
 
 /** A role that does another's work on another model is held to that role's terms. */
@@ -110,6 +120,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           [`Bash(git ${command} *)`, `Bash(git -C * ${command} *)`].every((rule) => deny.includes(rule)),
           `${where}: only the desk does git ${command}, with -C or without`,
         );
+      assert.ok(!refusesReading(deny.map((rule) => rule.replace(/^Bash\((.*)\)$/, "$1"))), `${where}: reads worktrees`);
       for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit"])
         assert.equal(
           deny.includes(tool),
@@ -173,12 +184,13 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         `${where}: writes into the state only where its content says`,
       );
       const rules = readFileSync(join(dir, "rules", "seatworks.rules"), "utf-8");
-      for (const command of DESK_GIT)
+      for (const [command, verb] of DESK_GIT.map((command) => command.split(" ")))
         assert.match(
           rules,
-          new RegExp(`\\["git", (\\[[^\\]]*)?"${command}"`),
-          `${where}: only the desk does git ${command}`,
+          new RegExp(verb ? `\\["git", "${command}", \\[[^\\]]*"${verb}"` : `\\["git", (\\[[^\\]]*)?"${command}"`),
+          `${where}: only the desk does git ${command} ${verb ?? ""}`,
         );
+      assert.doesNotMatch(rules, /\["git", (\[[^\]]*)?"worktree"\]/, `${where}: reads worktrees`);
       assert.equal(
         /"git", "commit"/.test(rules),
         ["supervisor", "lead"].includes(kind),
@@ -205,6 +217,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const approval = (tool: string) => at(settings, `tools.approval.${tool}`);
       for (const command of DESK_GIT)
         assert.ok(refuses(command), `${where}: only the desk does git ${command}, with -C or without`);
+      assert.ok(!refusesReading(denied), `${where}: reads worktrees`);
       assert.ok(
         !denied.some((rule) => /^git (-C \* )?[a-z-]+\*$/.test(rule)),
         `${where}: no pattern takes in a longer command, as git merge* took git merge-base`,
@@ -310,6 +323,8 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           bash[`git ${command} *`] === "deny" && bash[`git -C * ${command} *`] === "deny",
           `${where}: only the desk does git ${command}, with -C or without`,
         );
+      const denied = Object.keys(bash).filter((rule) => bash[rule] === "deny" && rule !== "*");
+      assert.ok(!refusesReading(denied), `${where}: reads worktrees`);
       assert.equal(
         bash["git commit *"] === "deny",
         ["supervisor", "lead", "reviewer"].includes(kind),
