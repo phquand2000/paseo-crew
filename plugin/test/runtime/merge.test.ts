@@ -45,8 +45,12 @@ test("a task beside others hands back what its lane would become: the lane broug
   const [side, quotes, other] = ["L1-T2", "L1-T3", "L1-T4"].map((id) => h.ledger().tasks[id]!);
   h.commitTo(lane.branch, "shared.txt", "from the lane\n");
   h.commit(side!.worktree!, "c.txt", "prices\n");
-  assert.equal((await h.call(side!.peer!, "peer", "done", { outcome: "complete", summary: "c" })).ok, true);
+  // A Lead once read the rest of a clipped hand-back from its file, and the deny rules took the read for a write.
+  const summary = `c ${"added c.txt ".repeat(300)}and nothing else.`;
+  assert.equal((await h.call(side!.peer!, "peer", "done", { outcome: "complete", summary })).ok, true);
   const handback = heard(h, lead).split("HANDBACK L1-T2")[1] ?? "";
+  assert.ok(handback.includes(summary), "the whole hand-back, however long");
+  assert.doesNotMatch(handback, /handbacks\//, "nothing left to read from a file");
   assert.match(heard(h, lead), new RegExp(`HANDBACK L1-T2 \\(Side\\) from ${side!.peer}`), "the agent its Lead reads");
   assert.match(handback, new RegExp(`\\nBrought up to date with ${lane.branch} at [0-9a-f]{7}\\.\\n`));
   assert.match(handback, /\nChanged: c\.txt\n/, "only what the task changed, not what came in with the lane");

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { can, seatOf } from "../../catalog/kit/roles.ts";
 import { type Quirks, exitOf, pseudo } from "../../catalog/kit/timeline.ts";
 import { errorText } from "../../core/errors.ts";
@@ -110,6 +111,14 @@ async function historyOf(
   return { rows: await roster.history(seat, limit), quirks: seatOf(kit, look.provider)?.harness.timeline ?? {} };
 }
 
+function handbackText(file: string): string {
+  try {
+    return readFileSync(file, "utf8").trim();
+  } catch (error) {
+    return `The hand-back at ${file} could not be read: ${errorText(error)}`;
+  }
+}
+
 /** What the desk kept of a seat that is gone. */
 function kept({ name, lane, task }: Whose): string {
   const gone = `${name} is gone, and reading its steps would start it again, so this is what the desk kept.`;
@@ -117,9 +126,7 @@ function kept({ name, lane, task }: Whose): string {
   const back = task.handback;
   return [
     `${gone} ${task.id} is ${task.status}.`,
-    back
-      ? `- Handed back (${back.outcome}): ${oneLine(back.summary, 400)} The whole hand-back: ${back.file}`
-      : "- Nothing was handed back.",
+    back ? `- Handed back (${back.outcome}):\n\n${handbackText(back.file)}\n` : "- Nothing was handed back.",
     ...(back?.gate ? [`- The gate ${back.gate.ok ? "passed" : "failed"}: ${oneLine(back.gate.note)}`] : []),
     ...(task.mergeSha ? [`- Merged as ${task.mergeSha.slice(0, 7)}.`] : []),
   ].join("\n");

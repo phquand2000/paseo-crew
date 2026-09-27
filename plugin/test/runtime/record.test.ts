@@ -141,6 +141,6 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   assert.equal(timeline.fetches.length, fetched, "its history is not read, since that would start it again");
   assert.match(
     gone,
-    /^L1-T1 Clean build's Peer is gone, and reading its steps would start it again, so this is what the desk kept\. L1-T1 is merged\.\n- Handed back \(complete\): a\.txt now says changed\. The whole hand-back: \S+\/handbacks\/L1-T1-\d+\.md/,
+    /^L1-T1 Clean build's Peer is gone, and reading its steps would start it again, so this is what the desk kept\. L1-T1 is merged\.\n- Handed back \(complete\):\n\n# L1-T1 Clean build\n\n[^]*a\.txt now says changed\.[^]*\n- Merged as [0-9a-f]{7}\.$/,
   );
 });

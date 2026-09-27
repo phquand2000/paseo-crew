@@ -12,7 +12,7 @@ const waited = (entry: Lane | Task, what: string): string => {
 /** A task's and a lane's course: hand-backs and rework, reports and amendments, waits, starts and holds. */
 export const workLetters = {
   /** `reader` is the Lead, or whoever supervises once the Lead is no longer seated. */
-  handback(task: Task, file: string, body: string, peer: string, reader: "lead" | "supervisor"): Letter {
+  handback(task: Task, body: string, peer: string, reader: "lead" | "supervisor"): Letter {
     const next =
       reader === "supervisor"
         ? "Its Lead is gone: replace_lead puts a new Lead on the lane, this hand-back included; drop_lane only if the lane is no longer wanted."
@@ -22,9 +22,7 @@ export const workLetters = {
     return mail(
       "done",
       [task.id, hash(body)],
-      [`HANDBACK ${task.id} (${task.title}) from ${peer}`, "", clip(body, 2500), "", `Full hand-back: ${file}`].join(
-        "\n",
-      ),
+      [`HANDBACK ${task.id} (${task.title}) from ${peer}`, "", body].join("\n"),
       next,
     );
   },

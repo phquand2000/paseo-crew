@@ -133,8 +133,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
       { ...lane, writeSet: ["src/discounts/**"], contracts: ["src/orders.ts"] },
       { gate, serial: ["package-lock.json"], concept: "/state/CONTEXT.md" },
     ),
-    workLetters.handback(task, "/h.md", "Outcome: complete", "agent-3", "lead"),
-    workLetters.handback({ ...task, kind: "review" }, "/h.md", "Verdict: accept", "agent-4", "lead"),
+    workLetters.handback(task, "Outcome: complete", "agent-3", "lead"),
+    workLetters.handback({ ...task, kind: "review" }, "Verdict: accept", "agent-4", "lead"),
     ...[true, false].flatMap((last) => [
       mergeLetters.merged(task, counts, outside, "passed", last),
       mergeLetters.merged(task, undefined, [], "passed", last),
@@ -251,15 +251,15 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   );
 
   assert.match(
-    next(workLetters.handback(task, "/h.md", "Outcome: complete", "agent-7", "lead")),
+    next(workLetters.handback(task, "Outcome: complete", "agent-7", "lead")),
     /^Judge it by what the work did/,
   );
   assert.match(
-    next(workLetters.handback({ ...task, kind: "review" }, "/h.md", "Verdict: accept", "agent-7", "lead")),
+    next(workLetters.handback({ ...task, kind: "review" }, "Verdict: accept", "agent-7", "lead")),
     /^Weigh its findings, then cut it/,
   );
   assert.match(
-    next(workLetters.handback(task, "/h.md", "Outcome: complete", "agent-7", "supervisor")),
+    next(workLetters.handback(task, "Outcome: complete", "agent-7", "supervisor")),
     /^Its Lead is gone: replace_lead/,
   );
 
