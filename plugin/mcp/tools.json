@@ -220,7 +220,7 @@
     {
       "name": "amend_lane",
       "title": "Amend a lane",
-      "description": "Change what an open or waiting lane is asked. Give only the fields that change; the old values are kept with why. Its Lead is told, and a READY it gave before no longer stands.",
+      "description": "Change what an open or waiting lane is asked. Give only the fields that change; the old values are kept with why. Its Lead is told, and a READY it gave before no longer stands. A waiting lane can change what it waits for.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -269,6 +269,13 @@
               "type": "string"
             },
             "description": "Shared files or modules it depends on now."
+          },
+          "after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every lane it waits for now, while it still waits to open; [] to open as soon as nothing else holds it."
           }
         },
         "required": [
@@ -960,7 +967,7 @@
     {
       "name": "amend_task",
       "title": "Amend a task",
-      "description": "Change what a task asks while its Peer works on it. Give only the fields that change; the old values are kept with why, and the Peer reads the change at its next turn. A task whose contract changed is better cut and started again.",
+      "description": "Change what a task asks while its Peer works on it. Give only the fields that change; the old values are kept with why, and the Peer reads the change at its next turn. A waiting task can change what it waits for. A task whose contract changed is better cut and started again.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1013,6 +1020,13 @@
               "type": "string"
             },
             "description": "A parallel task's held paths as they stand now; more are checked against the tasks beside it, as at its start."
+          },
+          "after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every task it waits for now, while it still waits to start; [] to start as soon as nothing else holds it."
           }
         },
         "required": [

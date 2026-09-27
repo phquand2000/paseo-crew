@@ -67,6 +67,20 @@ test("a lane that waits is recorded, amended, opened off a base holding the work
     (await open("T", { after: ["L3"] })).text,
     /Lane L3 closed without landing[^]*Open this lane without waiting for it/,
   );
+  const reorder = (id: string, after: string[]) =>
+    h.call(sup, "supervisor", "amend_lane", { lane: id, why: "the order changed", after });
+  assert.match((await reorder("L1", ["L2"])).text, /Lane L1 is open; after orders only a lane still waiting to open/);
+  assert.match((await reorder("L4", ["L3"])).text, /Lane L3 closed without landing[^]*Take it out of after/);
+  assert.match((await reorder("L4", ["l2"])).text, /Lane L4 is amended; it opens as it is now/);
+  assert.match(
+    (await reorder("L2", ["L1", "L4"])).text,
+    /Lane L2 would wait for itself through L4, so it could never open/,
+  );
+  assert.match(
+    (await h.call(sup, "supervisor", "status", {})).text,
+    /- L4 Other: after L2 waiting\n/,
+    "what held it is gone with what it waited for",
+  );
   assert.match((await h.call(sup, "supervisor", "land_lane", { lane: "L4" })).text, /never opened/);
   assert.match(
     (await h.call(sup, "supervisor", "drop_lane", { lane: "L4", reason: "gone" })).text,
@@ -89,6 +103,10 @@ test("a lane that waits is recorded, amended, opened off a base holding the work
   );
   assert.match(h.agents.get(order.lead)!.prompt ?? "", /Outcome: orders from an upserted cart/);
   assert.match((await h.call(sup, "supervisor", "amend_lane", { ...amended, lane: "L1" })).text, /Lane L1 is closed/);
+  await open("Late", { after: ["L2"], isolate: true });
+  assert.equal(h.ledger().lanes.L5!.status, "waiting");
+  assert.match((await reorder("L5", [])).text, /Lane L5 is amended/);
+  assert.equal(h.ledger().lanes.L5!.status, "open", "a lane that now waits for nothing opens at once");
   assert.match((await open("Receipt", { after: ["L1"], isolate: true })).text, /is open on lane\//);
 });
 
@@ -252,6 +270,20 @@ test("tasks that wait are recorded, amended, held while the lane's copy is taken
   assert.match(
     (await add("g", "Again", { hints: ["d.txt"], after: ["L1-T4"] })).text,
     /L1-T4 was cut[^]*Take it out of after/,
+  );
+  const reorder = (task: string, after: string[]) =>
+    h.call(lead, "lead", "amend_task", { task, why: "the order changed", after });
+  assert.match((await reorder("L1-T3", [])).text, /L1-T3 is running; after orders only a task still waiting to start/);
+  await add("w", "Wait", { hints: ["e.txt"], after: ["L1-T5"] });
+  assert.match(
+    (await reorder("L1-T5", ["l1-t6"])).text,
+    /L1-T5 would wait for itself through L1-T6, so it could never start/,
+  );
+  assert.match((await reorder("L1-T5", [])).text, /L1-T5 is amended; it starts as it is now/);
+  assert.match(
+    h.ledger().tasks["L1-T5"]!.held?.why ?? "",
+    /L1-T3 is still writing in the lane's working copy/,
+    "weighed again at once, not at the next round",
   );
   await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "no longer wanted" });
   assert.equal(h.ledger().tasks["L1-T5"]!.status, "cut");

@@ -22,7 +22,7 @@ import {
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { waitsFor } from "../waiting/rules.ts";
+import { afterIds, waitsFor } from "../waiting/rules.ts";
 import { openedReply, startLead } from "./lead-seat.ts";
 import { placement } from "./placement.ts";
 
@@ -64,7 +64,7 @@ export async function openLane(desk: DeskServices, caller: Caller, asked: OpenLa
 
 /** Checks the call and works out where the lane works: carrying a branch on, or off which base. */
 async function planOpen(project: Project, config: ProjectConfig, asked: OpenLaneCall): Promise<Plan | string> {
-  const after = [...new Set(strs(asked.after).map((id) => id.trim().toUpperCase()))];
+  const after = afterIds(strs(asked.after));
   const here = await currentBranch(project.root);
   const newBranch = str(asked.newBranch).trim();
   if (newBranch && asked.onBranch !== true && config.laneHome !== "onBranch")

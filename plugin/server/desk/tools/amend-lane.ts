@@ -13,6 +13,7 @@ export const amendLane = defineTool({
     outOfScope: z.array(z.string()).optional(),
     writeSet: z.array(z.string()).optional(),
     contracts: z.array(z.string()).optional(),
+    after: z.array(z.string()).optional(),
   }),
   handle: (desk, caller, args) => amend(desk, caller, args),
 });

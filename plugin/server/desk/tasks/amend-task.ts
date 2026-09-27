@@ -10,6 +10,8 @@ import { tellMoment } from "../watch/moments.ts";
 import { serialIn } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
+import { startWaiting } from "../waiting/tasks.ts";
+import { afterIds, taskAfterProblem } from "../waiting/rules.ts";
 import { parallelProblem } from "./placement.ts";
 
 type Changes = Record<string, string | string[]>;
@@ -18,7 +20,8 @@ type Amended = { task: Task; amendment: Amendment };
 
 /** Changes what a task asks while its Peer works, keeping what it asked before; the Peer is told at its next turn, not cut off. */
 export async function amendTask(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
-  const changes = given(args, ["goal", "context"], ["acceptance", "outOfScope", "hints", "holds"]);
+  const changes = given(args, ["goal", "context"], ["acceptance", "outOfScope", "hints", "holds", "after"]);
+  if (changes.after) changes.after = afterIds(changes.after as string[]);
   const serial = await checked(desk, caller, args, changes);
   if (typeof serial === "string") return no(serial);
   const done = record(desk, caller, args, changes, serial);
@@ -30,7 +33,11 @@ export async function amendTask(desk: DeskServices, caller: Caller, args: Args):
     by: caller.id,
   });
   await tellMoments(desk, caller, str(args.why), done);
-  if (done.task.status === "waiting") return ok(`${done.task.id} is amended; it starts as it is now.`);
+  if (done.task.status === "waiting") {
+    // What it waits for changed: it may start now, or be held for a new reason.
+    if (done.amendment.was.after) await startWaiting(desk, caller.project, true);
+    return ok(`${done.task.id} is amended; it starts as it is now.`);
+  }
   const posted = await desk.mail.post(done.task.peer, workLetters.amended(done.task, done.amendment, "worker"));
   const told = posted === "nobody" ? ", and it has no Peer to tell" : "; its Peer has it at its next turn";
   return ok(`${done.task.id} is amended${told}.`);
@@ -72,9 +79,12 @@ function record(
         ? parallelProblem(ledger, lane, holds, serial, task.id)
         : undefined;
     if (problem) return `${problem.why} Leave those paths out of ${task.id}.`;
+    const reordered = changes.after ? taskAfterProblem(ledger, task, changes.after as string[]) : undefined;
+    if (reordered) return reordered;
     const amendment = amend(task, changes, caller.id, str(args.why));
     if (!amendment) return `Nothing about ${task.id} would change; pass the fields it asks differently now.`;
     task.updatedAt = Date.now();
+    if (amendment.was.after) delete task.held;
     return { task: { ...task }, amendment };
   });
 }

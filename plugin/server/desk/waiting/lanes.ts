@@ -29,7 +29,7 @@ export async function openWaiting(desk: DeskServices, project: Project, retryHel
   for (const waiting of due) {
     const pending = waitsFor(ledger, waiting.after ?? [], waiting.onBranch === true);
     if (Array.isArray(pending) && pending.length > 0) continue;
-    const next = "Close this lane to drop it, or close it and open the work again without waiting.";
+    const next = "Change what it waits for with amend_lane, or close this lane to drop it.";
     const held = typeof pending === "string" ? { why: pending, next } : await tryOpen(desk, project, waiting);
     if (held) await noteHeld(desk, project, waiting, held);
   }

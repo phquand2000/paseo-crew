@@ -39,7 +39,7 @@ export async function startWaiting(
     const pending = taskWaitsFor(ledger, lane.id, waiting.after ?? []);
     if (Array.isArray(pending) && pending.length > 0) continue;
     const told = !answered.has(waiting.id);
-    const next = "Cut this task to drop it, or cut it and start the work again without waiting.";
+    const next = "Change what it waits for with amend_task, or cut this task to drop it.";
     const held =
       typeof pending === "string" ? { why: pending, next } : await tryStart(desk, project, lane, waiting, told);
     if (held) await noteHeld(desk, project, waiting, held, told);
