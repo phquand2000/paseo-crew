@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: "Takes a reported failure to a confirmed cause and a fix: a red command first, ranked hypotheses with predictions, a trace back to where the value first went wrong, and a regression test at a real seam. Use when a brief reports a failure, crash, flake, or regression whose cause is unknown. Not for a bug whose cause the brief already names, which is test-first."
+description: "Takes a reported failure to a confirmed cause and a fix: a red command first, ranked hypotheses with predictions, a trace back to where the value first went wrong, and a regression test at a real seam. Use when a brief reports a failure, crash, flake, or regression whose cause is unknown, or when a failure would take a second workaround at one spot. Not for a bug whose cause the brief already names, which is test-first."
 ---
 
 # Diagnosing bugs
@@ -31,7 +31,7 @@ The line that throws is where the damage surfaced. Walk from the bad value to it
 
 Put the shrunk repro in a test at a seam that has the real callers, watch it fail, fix at the source, watch it pass; then revert the fix to see it fail again, and restore it. If the only seam is too shallow to reproduce the bug honestly, say so in `leftUndone` rather than writing a test that gives false confidence. Rerun the original red command, and commit with the cause in the message.
 
-After the third failed fix on one symptom, stop patching and look for the mechanism behind the chain; where you may not write it, `ask` your lead, naming the mechanism and what each fix revealed. A cause you judge environmental or timing-dependent is stated with what you checked; a retry or timeout added without that statement hides the bug.
+A second workaround at one spot, or a third failed fix on one symptom, means stop patching and look for the mechanism behind the chain; where you may not write it, `ask` your lead, naming the mechanism and what each fix revealed. A cause you judge environmental or timing-dependent is stated with what you checked; a retry or timeout added without that statement hides the bug.
 
 ## Ends in
 

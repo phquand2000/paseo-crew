@@ -483,6 +483,7 @@ The watch also asks what a code fact cannot read, one condition at a time, at th
 | `asked_for` | A command cannot be undone, a test is weakened or a check silenced | The seat's latest instruction, and its task's goal and acceptance, or its lane's for a Lead: did they ask for that act? |
 | `instruction_kind` | The first thing a turn did was change a file, before any read or run | The instruction: what does it mainly do, `new_requirement`, `claims_code_bug`, `asks_question`, `approves` or `other`? |
 | `summary_admits_gap` | A task is handed back `complete` | Its summary: does it say something asked for was not done? |
+| `summary_works_around` | A task is handed back `complete` | Its summary: does it say a failure was worked around instead of its cause removed? |
 | `claims_checks_pass` | A hand-back the desk did not gate is `unverified` or `claim-contradicted` | The hand-back: does it say the checks pass? |
 | `review_ran_invariant` | A review accepts a change a risk rule reaches | Its report, once per invariant: was it checked by running code? |
 

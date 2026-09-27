@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { type TestContext, test } from "node:test";
 import { stateRoot } from "../../server/core/paths.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, heldRound, laneWithPeer, nobodySeated } from "./harness.ts";
@@ -41,10 +41,13 @@ const watchersOf = (h: Harness) =>
 /** The case id a letter or prompt asks about, the last one it names. */
 const caseIn = (text: string) => [...text.matchAll(/CASE (C\w+) about/g)].at(-1)![1]!;
 
-/** A lane with a Peer that hands back complete, the watch judged by the Watcher: each hand-back is a case. */
-async function watched() {
+/** A lane with a Peer that hands back complete, the watch judged by the Watcher: each hand-back is a case of one question. */
+async function watched(t: TestContext) {
   const h = harness();
   judgedBy("watcher");
+  const around = h.runtime.kit.checks.summary_works_around!;
+  around.mode = "off";
+  t.after(() => void (around.mode = "shadow"));
   const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
     title: "Rounding",
@@ -69,7 +72,7 @@ async function watched() {
 }
 
 test("the Watcher's life: seated for a case, answering by the rules, kept while needed, let go after", async (t) => {
-  const { h, sup, handBack, judge } = await watched();
+  const { h, sup, handBack, judge } = await watched(t);
   const role = h.runtime.kit.roles.find((entry) => entry.role === "watcher")!;
   const label = role.label;
   role.label = "Case reader";
@@ -200,7 +203,7 @@ test("cases at once seat one Watcher, and a case is given up only when nobody ca
     "with nobody seated, a case whose Watcher has gone is given up by the next round",
   );
 
-  const slow = await watched();
+  const slow = await watched(t);
   type Create = (options: { config: { provider: string } }) => Promise<unknown>;
   const workspaces = (slow.h.paseo as { workspaces: { ref: (id: string) => { agents: { create: Create } } } })
     .workspaces;

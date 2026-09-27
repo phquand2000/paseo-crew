@@ -17,8 +17,8 @@ export type Moment = {
 };
 
 /**
- * What a hand-back asks: of a task handed back complete, whether its summary says something asked for was not done; of a
- * review that accepts a change risk rules reach, whether its report says each rule's invariant was checked by running code.
+ * What a hand-back asks: of a task handed back complete, whether its summary says something asked for was not done or a
+ * failure was worked around; of a review that accepts a change risk rules reach, whether each invariant was run.
  */
 export function handbackCase(
   kit: Kit,
@@ -33,7 +33,10 @@ export function handbackCase(
       subject: task.id,
       episode,
       state: { summary: clip(handback.summary, SAID), out_of_scope: task.outOfScope },
-      asked: { summary_admits_gap: { check: "summary_admits_gap" } },
+      asked: {
+        summary_admits_gap: { check: "summary_admits_gap" },
+        summary_works_around: { check: "summary_works_around" },
+      },
     };
   }
   if (handback.outcome !== "accept") return undefined;

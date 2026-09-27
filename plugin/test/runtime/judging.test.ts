@@ -124,7 +124,7 @@ function turn(
 }
 
 test("a hand-back is asked about in shadow, and what the sensor says is kept, never sent", async () => {
-  const { asked, make, of } = sensor({ summary_admits_gap: 0.9, review_ran_invariant: 0.1 });
+  const { asked, make, of } = sensor({ summary_admits_gap: 0.9, summary_works_around: 0.1, review_ran_invariant: 0.1 });
   const h = harness({ sensor: make });
   judgedBy("jev", KEY);
   const { opened, lead, peer } = await lane(h, "a.txt");
@@ -134,10 +134,17 @@ test("a hand-back is asked about in shadow, and what the sensor says is kept, ne
     summary: "Rounds half up; the refund path is stubbed for now.",
   });
   await settle();
-  const gap = h.runtime.kit.checks.summary_admits_gap!;
   const summary = { summary: "Rounds half up; the refund path is stubbed for now.", out_of_scope: ["the CSV export"] };
-  const question = { type: "noul", instructions: gap.instructions, criteria: gap.criteria };
-  assert.deepEqual(asked, [{ key: KEY, state: summary, questions: { summary_admits_gap: question } }]);
+  const questionOf = ({ instructions, criteria }: { instructions: unknown; criteria: unknown }) => ({
+    type: "noul",
+    instructions,
+    criteria,
+  });
+  const questions = {
+    summary_admits_gap: questionOf(h.runtime.kit.checks.summary_admits_gap!),
+    summary_works_around: questionOf(h.runtime.kit.checks.summary_works_around!),
+  };
+  assert.deepEqual(asked, [{ key: KEY, state: summary, questions }]);
   const { at, episode, ...first } = kept(h.project.state)[0]!;
   assert.ok(Date.parse(at) > 0);
   assert.match(episode, /^L1-T1-\d+\.md$/, "the hand-back it is about");
@@ -145,12 +152,12 @@ test("a hand-back is asked about in shadow, and what the sensor says is kept, ne
     subject: "L1-T1",
     by: "jev",
     state: summary,
-    checks: { summary_admits_gap: "summary_admits_gap" },
-    questions: { summary_admits_gap: question },
+    checks: { summary_admits_gap: "summary_admits_gap", summary_works_around: "summary_works_around" },
+    questions,
     model: "vendor/model-1-20260917",
     tokens: 321,
-    answers: { summary_admits_gap: { noul: 0.9 } },
-    verdicts: { summary_admits_gap: "yes" },
+    answers: { summary_admits_gap: { noul: 0.9 }, summary_works_around: { noul: 0.1 } },
+    verdicts: { summary_admits_gap: "yes", summary_works_around: "no" },
   });
   await h.idle(lead);
   assert.match(h.heard(lead).join("\n"), /HANDBACK L1-T1/);
@@ -346,11 +353,12 @@ test("nothing is asked when it cannot be, and the Flow tab says who answers and 
   await handBack("second");
   judgedBy("jev", KEY);
   assert.equal((await line()).state, "waiting");
-  const gap = h.runtime.kit.checks.summary_admits_gap!;
-  t.after(() => void (gap.mode = "shadow"));
-  gap.mode = "off";
+  const handbackChecks = [h.runtime.kit.checks.summary_admits_gap!, h.runtime.kit.checks.summary_works_around!];
+  const turn = (mode: "off" | "shadow") => handbackChecks.forEach((check) => void (check.mode = mode));
+  t.after(() => turn("shadow"));
+  turn("off");
   await handBack("off in the catalog");
-  gap.mode = "shadow";
+  turn("shadow");
   assert.deepEqual([judged.asked.length, kept(h.project.state).length], [0, 0]);
 
   await handBack("answered");

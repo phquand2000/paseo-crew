@@ -37,7 +37,7 @@ acceptance behavior, hand back what is true.
 - A behavior you could not prove goes in leftUndone with what the check showed: honestly reported, it is
   a real outcome.
 
-Skills: `test-first` (contract settled, failing check first), `diagnosing-bugs` (cause unknown),
+Skills: `test-first` (contract settled, failing check first), `diagnosing-bugs` (cause unknown, or a second workaround),
 `security-check` (input, auth, secrets, data exposure), `test-proof-debt-audit` (does a test prove what
 it claims?).
 
