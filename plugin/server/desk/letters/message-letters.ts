@@ -1,7 +1,7 @@
 import { clip, hash, outside } from "../../core/text.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { IN_QUEUE, type Task } from "../../domain/task.ts";
-import { type Letter, mail } from "./envelope.ts";
+import { type Letter, mail, steering } from "./envelope.ts";
 
 /** A call a seat was told to stop waiting for: the one identity its late answer and its lost answer share. */
 type Waited = { agent: string; tool: string; started: number };
@@ -24,13 +24,15 @@ export const messageLetters = {
       "",
       reply.ok ? reply.text : `It was refused: ${reply.text}`,
     ].join("\n");
-    return mail(
-      "later",
-      [hash(call.agent, call.tool, String(call.started))],
-      text,
-      reply.ok
-        ? "Go on from this answer as if the call had just returned it."
-        : "Read why it was refused before you call it again.",
+    return steering(
+      mail(
+        "later",
+        [hash(call.agent, call.tool, String(call.started))],
+        text,
+        reply.ok
+          ? "Go on from this answer as if the call had just returned it."
+          : "Read why it was refused before you call it again.",
+      ),
     );
   },
 
@@ -44,11 +46,13 @@ export const messageLetters = {
   },
 
   message(from: string, text: string, sending: Sending): Letter {
-    return mail(
-      "message",
-      sendingIds(sending, text),
-      [`MESSAGE from ${from}`, "", text].join("\n"),
-      "Carry it into your work from now on.",
+    return steering(
+      mail(
+        "message",
+        sendingIds(sending, text),
+        [`MESSAGE from ${from}`, "", text].join("\n"),
+        "Carry it into your work from now on.",
+      ),
     );
   },
 

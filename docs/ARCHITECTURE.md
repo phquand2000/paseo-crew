@@ -341,12 +341,15 @@ to the seat, and a change reaches it as a changed tool list.
 turn ends and after each patrol round, and goes as one message, with the asks waiting on the seat listed last.
 It is:
 
-- **steered** into a running turn only when the agent takes a steer (`steers`), the turn has run 60 s since
-  the desk saw it start, and the seat waits on no desk call;
+- **steered** into a running turn only when a letter bears on that turn (`steer`: a message, an amendment, the
+  answer to its own ask or call, the Human's answer, a page), the agent takes a steer (`steers`), the turn has
+  run 60 s since the desk saw it start, and the seat waits on no desk call. Only those letters go in: a
+  hand-back, report or merge waits for the turn to end, so Peers finishing together reach their Lead as one
+  message rather than splitting its turn;
 - **held** while the seat waits on a permission, runs or starts, or its lane is on hold, and for up to 10
   minutes after its last mail, until it ends a turn;
 - **kept** while every letter for it asks nothing of it (`wakes: false`), such as a task started or a landing
-  held, to go with the next that asks something or ride into a steer;
+  held, to go with the next that asks something;
 - **sent** otherwise.
 
 HOLD alone goes past the outbox, as an interrupt that cuts a running turn short where the agent allows it. A

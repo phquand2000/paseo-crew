@@ -2,7 +2,7 @@ import { clip, hash } from "../../core/text.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import type { Incident } from "../store/incidents.ts";
-import { type Letter, mail } from "./envelope.ts";
+import { type Letter, mail, steering } from "./envelope.ts";
 
 const line = (text: string, limit: number) => clip(text.replace(/\s+/g, " ").trim(), limit);
 
@@ -67,7 +67,8 @@ export const watchLetters = {
           : place.lane
             ? "If it may reach past the lane unasked, hold_lane it and tell the Human; then read the record and mark_incident it."
             : "Tell the Human what it did; then read the record and mark_incident it.";
-    return mail("incident", [incident.id, incident.opened, incident.level], lines.join("\n"), next);
+    const letter = mail("incident", [incident.id, incident.opened, incident.level], lines.join("\n"), next);
+    return incident.level === "page" ? steering(letter) : letter;
   },
 
   moment(heading: Moment, task: Task, what: string): Letter {

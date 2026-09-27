@@ -43,4 +43,6 @@ export type CodeIndex = {
 /** "duplicate": dropped as a repeat of a letter already sent. */
 export type Posted = "sent" | "held" | "duplicate";
 
-export type Mailer = { post(letter: { to: string; key: string; text: string; wakes?: false }): Promise<Posted> };
+export type Mailer = {
+  post(letter: { to: string; key: string; text: string; wakes?: false; steer?: true }): Promise<Posted>;
+};

@@ -60,8 +60,9 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
     fakeSeats(agents),
     { steers: (seat) => steering.has(seat.id) },
   );
-  const post = (to: string, key: string, text: string, wakes?: false) =>
-    outbox.post({ to, key, text, ...(wakes === false ? { wakes } : {}) });
+  const post = (to: string, key: string, text: string, more: { wakes?: false; steer?: true } = {}) =>
+    outbox.post({ to, key, text, ...more });
+  const steer = { steer: true } as const;
 
   assert.equal(await post("sup", "k1", "one"), "sent", "an idle seat is sent a letter at once");
   assert.deepEqual(agents.sup.sent, ["one"]);
@@ -93,23 +94,32 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
   assert.deepEqual(agents.real.sent, ["and this still goes out"]);
 
   outbox.turnStarted("lead", Date.now() - 2 * 60_000);
-  assert.equal(await post("lead", "a", "the owner says stop"), "sent");
-  assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into a settled turn, not in place of it");
+  assert.equal(await post("lead", "d", "a hand-back"), "held", "word that asks nothing of the turn waits for its end");
+  assert.equal(await post("lead", "a", "the owner says stop", steer), "sent");
+  assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into a settled turn, not in place of it, and alone");
+  agents.lead.status = "idle";
+  outbox.turnEnded("lead");
+  assert.equal((await outbox.pump("lead")).size, 1);
+  assert.deepEqual(agents.lead.sent.at(-1), "a hand-back");
   // A steer the provider cannot take yet is turned into replacing the turn by the daemon.
   outbox.turnStarted("fresh");
-  assert.equal(await post("fresh", "a", "t"), "held");
+  assert.equal(await post("fresh", "a", "t", steer), "held");
   // Nor one the desk never saw start, which may have begun a moment ago.
-  assert.equal(await post("unseen", "a", "t"), "held");
+  assert.equal(await post("unseen", "a", "t", steer), "held");
   outbox.turnStarted("peer", Date.now() - 2 * 60_000);
-  assert.equal(await post("peer", "a", "t"), "held", "a harness that cannot take mail mid-turn waits");
+  assert.equal(await post("peer", "a", "t", steer), "held", "a harness that cannot take mail mid-turn waits");
   outbox.turnStarted("stopped", Date.now() - 2 * 60_000);
-  assert.equal(await post("stopped", "a", "t"), "held", "stopped until the permission is decided");
+  assert.equal(await post("stopped", "a", "t", steer), "held", "stopped until the permission is decided");
   assert.deepEqual(
     [agents.fresh, agents.unseen, agents.peer, agents.stopped].flatMap((seat) => seat.sent),
     [],
   );
 
-  assert.equal(await post("quiet", "opened:L2", "lane opened", false), "held", "word that asks nothing waits");
+  assert.equal(
+    await post("quiet", "opened:L2", "lane opened", { wakes: false }),
+    "held",
+    "word that asks nothing waits",
+  );
   outbox.turnEnded("quiet");
   assert.equal((await outbox.pump("quiet")).size, 0, "a round does not send it on its own either");
   assert.deepEqual(agents.quiet.sent, []);

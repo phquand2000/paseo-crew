@@ -298,7 +298,7 @@ when its turn ends, and each round. The first row that fits decides:
 | The seat is archived | Never sent, nor passed to another seat. `status.md` lists them, with when each is given up on, until they age out |
 | The seat has a pending permission | Held |
 | The seat's lane is on hold | Held until `resume_lane`, or until the lane is dropped |
-| Running, its agent `steers`, the turn started at least 60 s ago, and it waits on no desk call | **Steered** into the turn |
+| Running, a letter for it bears on the turn (MESSAGE, AMENDED, ANSWER, HUMAN ANSWERED, a call's late answer, a page incident), its agent `steers`, the turn started at least 60 s ago, and it waits on no desk call | Those letters alone are **steered** into the turn; the rest wait for it to end |
 | Running or starting | Held |
 | Mailed less than 10 minutes ago, with no turn end since | Held |
 | Every letter for it asks nothing of it | Held until one that does |

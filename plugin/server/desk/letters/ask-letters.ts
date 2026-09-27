@@ -1,7 +1,7 @@
 import type { Question } from "../../domain/question.ts";
 import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, firstLine, mail } from "./envelope.ts";
+import { type Letter, firstLine, mail, steering } from "./envelope.ts";
 
 const theirDefault = (ask: Ask): string[] => (ask.default ? ["", `Their default: ${ask.default}`] : []);
 
@@ -46,20 +46,24 @@ export const askLetters = {
     if (question.answer?.text) lines.push("", "Their note, their own words:", question.answer.text);
     if (lane?.onHold) lines.push("", `Lane ${lane.id} is still on hold for it.`);
     const next = answeredNext(question);
-    return mail(
-      "humananswered",
-      [question.id],
-      lines.join("\n"),
-      lane?.onHold ? `${next}; then resume_lane ${lane.id}.` : `${next}.`,
+    return steering(
+      mail(
+        "humananswered",
+        [question.id],
+        lines.join("\n"),
+        lane?.onHold ? `${next}; then resume_lane ${lane.id}.` : `${next}.`,
+      ),
     );
   },
 
   answered(ask: Ask): Letter {
-    return mail(
-      "answer",
-      [ask.id],
-      [`ANSWER to your ask ${ask.id}`, "", ask.answer ?? ""].join("\n"),
-      "Go on with your work from it.",
+    return steering(
+      mail(
+        "answer",
+        [ask.id],
+        [`ANSWER to your ask ${ask.id}`, "", ask.answer ?? ""].join("\n"),
+        "Go on with your work from it.",
+      ),
     );
   },
 

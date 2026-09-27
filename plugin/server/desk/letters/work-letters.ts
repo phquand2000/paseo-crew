@@ -2,7 +2,7 @@ import { clip, hash } from "../../core/text.ts";
 import type { Amendment } from "../../domain/amendment.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
-import { type Letter, fyi, list, mail } from "./envelope.ts";
+import { type Letter, fyi, list, mail, steering } from "./envelope.ts";
 
 const waited = (entry: Lane | Task, what: string): string => {
   const after = entry.after?.length ? ` to wait for ${entry.after.join(", ")}` : "";
@@ -90,7 +90,7 @@ export const workLetters = {
       reader === "lead"
         ? "Carry it into the tasks it touches (amend_task a moved goal; cut and restart a task whose contract changed), then report ready once the lane meets it."
         : "Work to it as it stands now; if what you have done no longer fits it, say so in your hand-back.";
-    return mail("amended", [entry.id, entry.amended?.length ?? 0], text, next);
+    return steering(mail("amended", [entry.id, entry.amended?.length ?? 0], text, next));
   },
 
   /** Why a lane or task still waits, told once per reason, and what its reader can do about it. */

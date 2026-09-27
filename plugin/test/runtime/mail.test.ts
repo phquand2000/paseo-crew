@@ -285,3 +285,36 @@ test("mail reaches a running seat inside its turn where its harness can take it 
   assert.match(toPeer.text, /Queued for the Peer on L1-T1/);
   assert.deepEqual(h.agents.get(peer)!.sent, [], "the Peer's harness cannot, and sending would replace its turn");
 });
+
+test("a running Lead is steered only word that bears on its turn: its Peers' hand-backs wait, and reach it together when the turn ends", async (t) => {
+  const h = harness();
+  const sup = h.add(SUPERVISOR, h.root, "sup");
+  const { lead } = await lane(h, sup, "Pricing");
+  for (const [title, holds] of [
+    ["Rates", "a.txt"],
+    ["Quotes", "b.txt"],
+  ] as const)
+    await h.call(lead, "lead", "add_tasks", { tasks: [{ ...task(title, holds), holds: [holds], parallel: true }] });
+  const seat = h.agents.get(lead)!;
+  seat.status = "running";
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
+  await h.beginTurn(lead);
+  for (const id of ["L1-T1", "L1-T2"]) {
+    t.mock.timers.tick(2 * 60_000);
+    const handing = h.ledger().tasks[id]!;
+    h.commit(handing.worktree!, handing.hints[0]!, `${id}\n`);
+    const done = await h.call(handing.peer!, "peer", "done", { outcome: "complete", summary: id });
+    assert.equal(done.ok, true, done.text);
+    await h.tick();
+  }
+  const steered = () => seat.steered.join("\n");
+  assert.doesNotMatch(steered(), /HANDBACK/, "a hand-back asks nothing of the turn the Lead is in");
+
+  await h.call(sup, "supervisor", "message", { to: "L1", text: "Stop: the premise is wrong." });
+  assert.match(steered(), /the premise is wrong/, "word that bears on the turn goes into it");
+  assert.doesNotMatch(steered(), /HANDBACK/, "alone");
+
+  seat.status = "idle";
+  await h.endTurn(lead, "weighed the premise");
+  assert.match(seat.sent.at(-1) ?? "", /HANDBACK L1-T1[\s\S]*HANDBACK L1-T2/, "both in one message");
+});

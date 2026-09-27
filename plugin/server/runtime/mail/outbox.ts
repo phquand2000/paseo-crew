@@ -3,7 +3,7 @@ import { midTurn } from "../../core/paseo.ts";
 import type { SeatLook, Seats } from "../../core/ports.ts";
 import { readJson, writeJson } from "../../core/store.ts";
 
-export type Letter = { id: string; to: string; key: string; text: string; at: number; wakes?: false };
+export type Letter = { id: string; to: string; key: string; text: string; at: number; wakes?: false; steer?: true };
 type Posted = "sent" | "held" | "duplicate";
 type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
 /**
@@ -133,22 +133,25 @@ export class Outbox {
         began !== undefined &&
         Date.now() - began >= SETTLE_MS &&
         this.rules.steers?.(seat) === true &&
-        this.rules.calling?.(to) !== true;
+        this.rules.calling?.(to) !== true &&
+        mine.some((letter) => letter.steer === true);
       if (!steer && (midTurn(seat.status) || waiting)) return new Set<string>();
-      // Word that asks nothing of an idle seat now waits for a letter that does, or for a turn it is already in.
+      // Word that asks nothing of an idle seat now waits for a letter that does.
       if (!steer && mine.every((letter) => letter.wakes === false)) return new Set<string>();
-      const text = await this.compose(to, mine);
+      // Into a running turn goes only what bears on it; the rest reaches the seat together when the turn ends.
+      const sending = steer ? mine.filter((letter) => letter.steer === true) : mine;
+      const text = await this.compose(to, sending);
       await this.seats.send(
         to,
         text,
-        [...new Set(mine.map((letter) => letter.key.split(":")[0]!))],
+        [...new Set(sending.map((letter) => letter.key.split(":")[0]!))],
         steer ? "steer" : undefined,
       );
       const now = Date.now();
       this.awaiting.set(to, now);
-      const ids = new Set(mine.map((letter) => letter.id));
+      const ids = new Set(sending.map((letter) => letter.id));
       for (const [key, at] of this.sentKeys) if (now - at >= DUPLICATE_MS) this.sentKeys.delete(key);
-      for (const letter of mine) this.sentKeys.set(Outbox.held(letter), now);
+      for (const letter of sending) this.sentKeys.set(Outbox.held(letter), now);
       this.save(this.letters().filter((letter) => !ids.has(letter.id)));
       return ids;
     });

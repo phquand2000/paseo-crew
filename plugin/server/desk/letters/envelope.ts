@@ -60,8 +60,8 @@ type Kind =
   | "started"
   | "unanswered";
 
-/** A letter the desk mails a seat: its text, the key under which a second one to that seat is the same letter, and `wakes` false for word that asks nothing of its reader now, which rides along with the next letter that does. */
-export type Letter = { key: string; text: string; wakes?: false };
+/** A letter the desk mails a seat: its text, the key under which a second one to that seat is the same letter, and `wakes` false for word that asks nothing of its reader now, which rides along with the next letter that does; `steer` for word that bears on the turn its reader is in, the only mail that may go into a running one. */
+export type Letter = { key: string; text: string; wakes?: false; steer?: true };
 
 /** Keyed by its kind and the ids that make it this letter, never by hand where it is posted; it ends with `next`, what it asks of whoever reads it. */
 export const mail = (kind: Kind, ids: (string | number)[], text: string, next: string): Letter => ({
@@ -70,6 +70,7 @@ export const mail = (kind: Kind, ids: (string | number)[], text: string, next: s
 });
 
 export const fyi = (letter: Letter): Letter => ({ ...letter, wakes: false });
+export const steering = (letter: Letter): Letter => ({ ...letter, steer: true });
 
 /** Several letters delivered at once, and the asks still waiting on their reader. */
 export function mailbox(items: string[], open: Ask[]): string {
