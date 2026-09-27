@@ -58,7 +58,7 @@ never on its role's name.
 | `drop_lane` | Closes a lane without landing, with a reason, and keeps its branch for the Human; it works on a lane on hold. A waiting lane is dropped before anything starts. See [closing a lane](#closing-a-lane) |
 | `hold_lane` | Stops a lane where it stands, with a reason: its Lead and each Peer and Reviewer still at work get HOLD past the outbox, which cuts a running turn short where the agent allows. Until `resume_lane`, mail to the lane's seats waits, their permission requests are refused, `add_tasks`, `accept` and `land_lane` are refused, nothing waiting starts, and a landing waiting to finish or waiting for the Human is called off; one the Human approved stands. `start_review`, `rework`, a ready `report` and `replace_lead` are refused too, and a task accepted before the hold waits queued until it resumes |
 | `resume_lane` | Lifts a hold: each seat of the lane gets RESUMED, with the Supervisor's `note` and the mail held for it, and what waited may start |
-| `ask_human` | Puts a decision only the Human can make on their question queue, with a recommendation and what goes ahead while they are silent: see [Questions for the Human](#questions-for-the-human) |
+| `ask_human` | Puts a decision only the Human can make, or work only their side can do that a lane waits on, on their question queue, with a recommendation and what goes ahead while they are silent: see [Questions for the Human](#questions-for-the-human) |
 | `record_human_answer` | Records an answer the Human gave in the Supervisor's chat: an option, `decline` or `cancel`, with their own words, which the desk must find in that chat |
 | `incidents` | Lists the 50 most recent incidents that are open or not yet marked, with what each seat was asked. With `closed`, it adds the 20 most recently marked. A Lead sees only those about the other seats of its open lane |
 | `mark_incident` | Marks an incident `useful`, `noise` or `unknown`, with an optional note, and closes it. `noise` also silences the same words on that seat and kind, at attention level; a page is never silenced |
@@ -357,8 +357,9 @@ files are named, and the watch's default patterns. A file of the same name in th
 
 ## Questions for the Human
 
-A question is a decision only the Human can make: a behaviour the concept leaves open, a risk only they may take. The
-Supervisor puts it on their queue with `ask_human`, and its turn goes on; no seat stops a turn to ask
+A question is a decision only the Human can make: a behaviour the concept leaves open, a risk only they may take, work
+only their side can do that a lane waits on. The Supervisor puts it on their queue with `ask_human`, and its
+turn goes on, since its reply reaches them only when they read its chat; no seat stops a turn to ask
 ([permission requests](#permission-requests), [the Human in the loop](ARCHITECTURE.md#the-human-in-the-loop)).
 
 | Field | Holds |

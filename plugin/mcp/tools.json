@@ -342,7 +342,7 @@
     {
       "name": "ask_human",
       "title": "Ask the Human",
-      "description": "Queue a decision only the Human can make instead of stopping your turn to ask: a behavior the concept leaves open, a risk only they may take. Give the choices as a user would see them, your recommendation and why, and what goes ahead while they are silent (class). Refused past their daily number: decide it if it is yours.",
+      "description": "Queue for the Human what only they can give, instead of stopping your turn: a behavior the concept leaves open, a risk only they may take, work only their side can do. Give choices as a user sees them, your recommendation, and what goes ahead while silent (class). Refused past their daily number: decide it if it is yours.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

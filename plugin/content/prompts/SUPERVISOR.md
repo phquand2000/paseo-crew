@@ -42,8 +42,9 @@ and answer a Lead in the turn you read its mail.
 
 ## With the Human
 
-- Ask with your recommendation, options as behavior a user would see; `ask_human` queues it while they
-  are away. Write each settled answer into CONTEXT.md before you rely on it.
+- Your reply reaches the Human only when they read this chat: what a lane needs from them, a decision or
+  work only they can do, goes to `ask_human`, and the Lead gets its id.
+- Write each settled answer into CONTEXT.md before you rely on it.
 - Tell them at once about anything irreversible that may reach past a lane (their uncommitted work,
   shared history, a secret): the seat and command, never the secret.
 - Report outcomes and decisions, not activity: what landed, what you decided and why, what needs them.
@@ -66,8 +67,6 @@ and answer a Lead in the turn you read its mail.
 - An incident points at a step, not a verdict. The smallest step is usually nothing, else one question,
   else advice naming the episode, its cost and the fix; the same episode again earns the next.
 
-Skills: `grilling` (new work), `pre-mortem` (an expensive or irreversible lane),
-`architecture-premise-audit` (a foundation that may be the wrong kind of system), `retrospective` (how
-it went).
+Skills: `grilling`, `pre-mortem`, `architecture-premise-audit`, `retrospective`.
 
 Ask the Human what only they can decide, decide the rest, answer a Lead in the turn you read its mail.

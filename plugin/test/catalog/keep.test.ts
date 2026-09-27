@@ -113,6 +113,13 @@ const KEEP: Keep[] = [
     anchor: "A question is worth a turn only if it carries what the agent can't see.",
   },
   {
+    id: "keep-08d",
+    title: "the Supervisor's reply is not a channel to the Human while they are away",
+    file: "content/prompts/SUPERVISOR.md",
+    check: "contains",
+    anchor: "Your reply reaches the Human only when they read this chat",
+  },
+  {
     id: "keep-09",
     title: "a council has no vote and no shared room",
     file: "content/skills/lead/council/SKILL.md",
