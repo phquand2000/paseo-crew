@@ -74,6 +74,43 @@ export const seatLetters = {
     return mail("failed", [agent, turn], failedText(who, message), next);
   },
 
+  /** `meanwhile` names the roles on another agent that do the same work; with no `wakeAt`, nothing wakes it. */
+  limited(
+    agent: string,
+    who: string,
+    since: number,
+    limit: { resets: string | null; wakeAt?: number },
+    meanwhile: string[],
+    reader: "lead" | "supervisor" | "leadGone",
+  ): Letter {
+    const lines = [
+      `LIMITED: ${who} stopped on its agent's usage limit${limit.resets ? `, which resets ${limit.resets}` : ""}.`,
+      limit.wakeAt
+        ? `The desk tells it to continue at ${new Date(limit.wakeAt).toISOString()}; anything sent before then stops on the same limit.`
+        : "The desk could not read when it resets, so nothing wakes it: message it to continue once it has reset.",
+      meanwhile.length > 0
+        ? `Meanwhile ${meanwhile.join(" or ")} runs on another agent and can take the work.`
+        : "Every role that could take the work runs on this agent too; the Human can move one to another agent in settings.",
+    ];
+    const next = {
+      lead: "If the lane can wait, leave it: it keeps its work and carries on at the reset. If it cannot, add the task again on a role named above, naming its branch in the brief so its commits carry on, then cut this one.",
+      supervisor:
+        "If the lane can wait, leave it: it carries on at the reset. If it cannot, tell the Human, who may move the work to another agent meanwhile.",
+      leadGone:
+        "Its Lead is gone: replace_lead puts a Lead on the lane, which can wait for it or move its task to a role named above.",
+    }[reader];
+    return mail("limited", [agent, since], lines.join("\n"), next);
+  },
+
+  limitReset(wakeAt: number): Letter {
+    return mail(
+      "limitreset",
+      [wakeAt],
+      "LIMIT RESET: your agent's usage limit has reset.",
+      "Continue the work you were doing when it stopped, from where you left off.",
+    );
+  },
+
   gone(task: Task): Letter {
     return mail(
       "gone",

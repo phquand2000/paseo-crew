@@ -262,7 +262,7 @@ first prompt, not mail, and carry neither.
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |
-| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, LEAD GONE, INCIDENT, the bare nudge |
+| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, the bare nudge |
 | A moment to look | ARCHITECTURE, STRUGGLING, TURNING |
 | A question for the Watcher | CASE |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
@@ -278,6 +278,7 @@ first prompt, not mail, and carry neither.
 | HUMAN WROTE, HUMAN ANSWERED | Whoever supervises: what the Human typed straight into a Lead's or Peer's chat; what they chose for a question on the panel |
 | HOLD | The seats of a lane: stop. The one letter sent past the outbox, cutting a running turn short where the agent allows |
 | ARCHITECTURE, STRUGGLING, TURNING | Whoever supervises, at the three moments SLP names, as the desk sees them: a Lead widening what a parallel task holds; a task sent back a second time, or stalled; a Lead changing what a task is for |
+| LIMITED, LIMIT RESET | A seat's owner, once a spell: it stopped on its agent's usage limit, when the desk wakes it, and which roles on another agent can take the work meanwhile. The seat, once the reset its agent named is 5 minutes past: continue. A reset the agent's words give no clock time for wakes nothing |
 | NO ANSWER | A seat: the plugin stopped before a call it was told to wait for by mail had finished |
 
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
@@ -692,7 +693,7 @@ kept off only the machine's settings file itself; its file tools still honour ev
 <!-- end -->
 
 `tickSeconds` is the round, 5 s at least ([the patrol](ARCHITECTURE.md#the-patrol)). A Lead idle `leadIdleMinutes`
-with no task at work or queued, no ask of its own open, no hold, no ready report and no landing held brings LANE IDLE,
+with no task at work or queued, no ask of its own open, no hold, no ready report, no landing held and no usage-limit reset still to wake it brings LANE IDLE,
 once per idle spell. An ask waiting on an idle seat gets STILL OPEN every `askRemindMinutes`, `maxReminders` times;
 then a Peer's ask to its Lead goes to whoever supervises as UNANSWERED. The rest act where [facts](#facts),
 [holds](#holds), [questions for the Human](#questions-for-the-human) and [to a model](#questions-to-a-model) name them.

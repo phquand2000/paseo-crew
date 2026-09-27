@@ -1,6 +1,6 @@
-import type { Kit, RoleSpec } from "../catalog/kit/kit.ts";
+import type { HarnessSpec, Kit, RoleSpec } from "../catalog/kit/kit.ts";
 import { can, seatOf, toolsOf, worksTasks } from "../catalog/kit/roles.ts";
-import type { PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
+import type { HookAgent, PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
 import type { Lane } from "../domain/lane.ts";
 import { DECIDED, TASK, type Task } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
@@ -10,12 +10,15 @@ import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
 import { watchLetters } from "../desk/letters/watch-letters.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
+import type { TeamSource } from "./team-source.ts";
+import { clearLimited, markLimited, meanwhileRoles, wakeTime } from "./limits.ts";
 import { deniedCall, lastToolCall, lastWords, limitStop, outputText } from "./timeline.ts";
 
 type TurnDeps = {
   kit: Kit;
   desk: Desk;
   seats: Pick<Seats, "respond">;
+  source: Pick<TeamSource, "teamFor">;
   remember: (project: Project) => void;
   log: (project: Project, line: string) => void;
 };
@@ -127,7 +130,8 @@ export class TurnRules {
     const text = outputText(timeline);
     this.lastEnding.set(agent.id, text);
     const limit = limitStop(seat.harness, outcome.kind === "failed" ? outcome.error.message : lastWords(timeline));
-    if (limit) return this.limited(project, agent.id, limit);
+    if (limit) return this.limited(project, agent, seat, limit.resets);
+    clearLimited(this.deps.desk, project, agent.id);
     if (outcome.kind === "failed") {
       const owner = await this.ownerOf(project, agent.id, role);
       await this.deps.desk.post(
@@ -180,9 +184,23 @@ export class TurnRules {
       });
   }
 
-  /** An agent stopped on its usage limit has not gone quiet: a nudge would only stop on the same limit. */
-  private limited(project: Project, agentId: string, limit: { resets: string | null }): void {
-    this.deps.desk.event(project, { kind: "seat.limited", agent: agentId, resets: limit.resets });
+  /** An agent stopped on its usage limit has not gone quiet: its owner is told once a spell, and the patrol wakes it at the reset. */
+  private async limited(
+    project: Project,
+    agent: HookAgent,
+    seat: { role: RoleSpec; harness: HarnessSpec },
+    resets: string | null,
+  ): Promise<void> {
+    const { desk } = this.deps;
+    const now = Date.now();
+    const wakeAt = wakeTime(resets, now);
+    desk.event(project, { kind: "seat.limited", agent: agent.id, resets, wakeAt: wakeAt ?? null });
+    const since = markLimited(desk, project, { id: agent.id, role: seat.role.role }, wakeAt, now);
+    if (since === undefined || can(seat.role, "supervise")) return;
+    const owner = await this.ownerOf(project, agent.id, seat.role);
+    const meanwhile = meanwhileRoles(this.deps.source.teamFor(project), seat.role, seat.harness.id);
+    const who = agent.title ?? `${seat.role.label} ${agent.id}`;
+    await desk.post(owner.to, seatLetters.limited(agent.id, who, since, { resets, wakeAt }, meanwhile, owner.reader));
   }
 
   /** A turn ended with no hand-back and no ask: counted and nudged, then stalled and told to its Lead, and once to whoever supervises. */

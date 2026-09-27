@@ -26,6 +26,7 @@ export type AgentRef = {
   gone?: boolean;
   recordedAt?: number;
   spokeAt?: number;
+  limited?: { since: number; wakeAt?: number };
 };
 
 /** A project's whole record of work: every lane, task, ask, question, seat binding and copy, and the id sequences. */

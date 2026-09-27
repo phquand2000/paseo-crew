@@ -41,6 +41,8 @@ type Kind =
   | "landheld"
   | "later"
   | "leadgone"
+  | "limited"
+  | "limitreset"
   | "merge"
   | "message"
   | "moment"

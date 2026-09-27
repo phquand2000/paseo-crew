@@ -6,7 +6,9 @@ import type { Roster } from "./roster.ts";
 export function markGone({ ledgers }: Pick<DeskBase, "ledgers">, project: Project, agentId: string): void {
   ledgers.transact(project, (ledger) => {
     const bound = ledger.agents[agentId];
-    if (bound) bound.gone = true;
+    if (!bound) return;
+    bound.gone = true;
+    delete bound.limited;
   });
 }
 

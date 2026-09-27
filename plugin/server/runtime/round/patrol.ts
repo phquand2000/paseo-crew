@@ -15,6 +15,7 @@ import { seatLetters } from "../../desk/letters/seat-letters.ts";
 import { type Project, projectOf } from "../../desk/project/project.ts";
 import { statusPage } from "../../desk/views/status.ts";
 import { dueAsks } from "./due-asks.ts";
+import { wakeLimited } from "../limits.ts";
 import type { Outbox } from "../mail/outbox.ts";
 import type { TeamSource } from "../team-source.ts";
 import type { TurnRules } from "../turns.ts";
@@ -89,6 +90,7 @@ export class Patrol {
     const ledger = () => loadLedger(project.state);
     const gone = (id: string) => !seats.has(id) && outbox.pending(id).length === 0;
     return [
+      ["seats whose usage limit has reset could not be woken", () => wakeLimited(desk, project, ledger(), seats, now)],
       ["idle lanes could not be read", () => this.idleLanes(project, ledger(), seats, now)],
       ["incidents held for nobody could not be told", async () => void (await desk.retell(project))],
       ["a task whose Peer is gone could not be recorded", () => this.goneTasks(project, ledger(), seats)],
@@ -182,12 +184,18 @@ export class Patrol {
     }
   }
 
-  /** A Lead waiting on nobody: not on hold, not reported ready, and no landing of its lane waiting for the Human. */
+  /** A Lead waiting on nobody: not on hold, not reported ready, no landing waiting for the Human, and no limit reset to wake it. */
   private async idleLanes(project: Project, ledger: Ledger, seats: SeatMap, now: number): Promise<void> {
     const { desk, turns } = this.deps;
     const { leadIdleMinutes } = this.deps.source.teamFor(project).attention;
     for (const lane of Object.values(ledger.lanes).filter(
-      (entry) => entry.status === "open" && entry.lead && !entry.onHold && !entry.ready && !entry.landApproval,
+      (entry) =>
+        entry.status === "open" &&
+        entry.lead &&
+        !entry.onHold &&
+        !entry.ready &&
+        !entry.landApproval &&
+        ledger.agents[entry.lead]?.limited?.wakeAt === undefined,
     )) {
       const lead = seats.get(lane.lead!);
       if (!lead || lead.status !== "idle") continue;
