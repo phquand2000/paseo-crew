@@ -177,6 +177,17 @@ const KEEP: Keep[] = [
     ],
   },
   {
+    id: "keep-22",
+    title: "Codex seats run commands in a plain shell, so the seat's own bin stays first on PATH",
+    file: "harness/codex/settings.toml",
+    check: "contains",
+    anchor: "allow_login_shell = false",
+    structure: [
+      "allow_login_shell is no longer false at the top level",
+      (text) => (parse(text) as { allow_login_shell?: unknown }).allow_login_shell === false,
+    ],
+  },
+  {
     id: "keep-21c",
     title: "Codex's model catalog is written without multi_agent_version",
     file: "harness/codex/harness.json",

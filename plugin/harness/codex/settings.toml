@@ -1,6 +1,7 @@
 approval_policy = "never"
 default_permissions = "seat"
 check_for_update_on_startup = false
+allow_login_shell = false
 
 [features]
 multi_agent = false
