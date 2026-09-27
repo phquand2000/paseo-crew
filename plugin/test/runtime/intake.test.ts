@@ -233,7 +233,7 @@ test("tasks that wait are recorded, amended, held while the lane's copy is taken
   );
   assert.match(
     h.agents.get(started.peer!)!.prompt ?? "",
-    /TASK L1-T3: Receipt\n\nGoal: show the total with tax\nIt serves the lane's outcome: a\.txt changes\n/,
+    /TASK L1-T3: Receipt\n\nGoal: show the total with tax\nIt serves the lane's outcome: a\.txt changes\n[^]*\n\nOut of scope, your Lead's call \(question it with evidence if the goal needs it\):\n- the rest\n\nThe lane's limits, set above your Lead \(ask before crossing one\):\n- anything else in the repository\n/,
   );
   await h.idle(lead);
   assert.match(

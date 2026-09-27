@@ -59,8 +59,11 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
     "",
     ...whereLines(task, lane),
     "",
-    "Out of scope:",
+    "Out of scope, your Lead's call (question it with evidence if the goal needs it):",
     list(task.outOfScope),
+    ...(lane.outOfScope.length > 0
+      ? ["", "The lane's limits, set above your Lead (ask before crossing one):", list(lane.outOfScope)]
+      : []),
     "",
     `Context: ${task.context?.trim() || "none"}`,
     task.skills && task.skills.length > 0 ? `\nSkills to open: ${task.skills.join(", ")}` : "",
