@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
@@ -143,9 +143,11 @@ test("a task in the lane's copy that waits on its Lead, fails to merge, is cut o
   await add("d", "D", { hints: ["d.txt"] });
   const elsewhere = join(tempDir("sw2-elsewhere-"), "wt");
   h.git(h.root, "worktree", "add", "-q", elsewhere, lane.branch);
+  writeFileSync(join(elsewhere, "a.txt"), "local\n");
   await h.call(lead, "lead", "accept", { task: "L1-T3" });
   await h.runtime.desk.settled(h.project);
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "failed");
+  assert.match(h.heard(lead).join("\n"), new RegExp(`checked out at ${realpathSync(elsewhere)}, which has`));
   await h.tick();
   assert.equal(h.ledger().tasks["L1-T5"]!.peer, undefined);
   assert.equal(onBranch(h, copy), second.branch);

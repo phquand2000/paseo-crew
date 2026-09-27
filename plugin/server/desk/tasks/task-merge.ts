@@ -83,10 +83,12 @@ export class TaskMerge {
       const why = `${lane.branch} moved while it was gated, so it goes round again with that brought in`;
       return this.hold(project, task, lane, why, false);
     }
-    if (stopped?.why === "dirty") return this.waitFor(project, task, lane, cwd);
+    if (stopped?.why === "dirty" && stopped.where === cwd) return this.waitFor(project, task, lane, cwd);
     if (stopped) {
-      const unread = stopped.detail ?? `git could not read the lane's working copy at ${cwd}`;
-      const reason = stopped.why === "elsewhere" ? `${lane.branch} is checked out in another working copy` : unread;
+      const reason =
+        stopped.why === "dirty"
+          ? `${lane.branch} is checked out at ${stopped.where}, which has uncommitted changes`
+          : (stopped.detail ?? `git could not read the working copy at ${stopped.where ?? cwd}`);
       return this.fail(project, task, lane, reason);
     }
     await this.landed(project, task, lane, cwd, { before: at, after: made });

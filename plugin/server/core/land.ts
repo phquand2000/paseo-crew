@@ -2,25 +2,35 @@ import { type LandAs, cleanState, currentBranch, git, headSha, isAncestor } from
 
 type LandResult = { landed: boolean; how: string };
 
-/** Why a branch was not moved: work uncommitted or unreadable where it is checked out, a move from what was read, a checkout in another copy, or git refusing the fast-forward. */
-type Unmoved = { why: "dirty" | "unknown" | "moved" | "elsewhere" | "refused"; detail?: string };
+/** Why a branch was not moved: work uncommitted or unreadable in the checkout `where` it is, a move from what was read, or git refusing the fast-forward. */
+type Unmoved = { why: "dirty" | "unknown" | "moved" | "refused"; where?: string; detail?: string };
+
+/** The working copy that has `branch` checked out: `cwd` itself, another worktree of its repository, or none. */
+async function checkoutOf(cwd: string, branch: string): Promise<string | undefined> {
+  if ((await currentBranch(cwd)) === branch) return cwd;
+  let path: string | undefined;
+  for (const line of (await git(cwd, ["worktree", "list", "--porcelain"])).stdout.split("\n")) {
+    if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
+    else if (line.trim() === `branch refs/heads/${branch}`) return path;
+  }
+  return undefined;
+}
 
 /**
- * Moves `branch` to `tip` only from `from`, the commit it was read as: a fast-forward where `cwd` has it checked out,
- * otherwise a ref update git refuses once `branch` has moved, so nothing written in between is written over.
+ * Moves `branch` to `tip` only from `from`, the commit it was read as: a fast-forward in the copy that has it checked out,
+ * wherever that is, otherwise a ref update git refuses once `branch` has moved, so nothing written in between is written over.
  */
 export async function advance(cwd: string, branch: string, from: string, tip: string): Promise<Unmoved | undefined> {
-  if ((await currentBranch(cwd)) === branch) {
-    const state = await cleanState(cwd);
-    if (state !== "clean") return { why: state };
-    if ((await headSha(cwd, branch)) !== from) return { why: "moved" };
-    const run = await git(cwd, ["merge", "--ff-only", tip]);
-    return run.code === 0 ? undefined : { why: "refused", detail: run.stderr.trim() || "fast-forward failed" };
-  }
-  const used = await git(cwd, ["worktree", "list", "--porcelain"]);
-  if (used.stdout.split("\n").some((line) => line.trim() === `branch refs/heads/${branch}`))
-    return { why: "elsewhere" };
-  return (await git(cwd, ["update-ref", `refs/heads/${branch}`, tip, from])).code === 0 ? undefined : { why: "moved" };
+  const where = await checkoutOf(cwd, branch);
+  if (!where)
+    return (await git(cwd, ["update-ref", `refs/heads/${branch}`, tip, from])).code === 0
+      ? undefined
+      : { why: "moved" };
+  const state = await cleanState(where);
+  if (state !== "clean") return { why: state, where };
+  if ((await headSha(where, branch)) !== from) return { why: "moved" };
+  const run = await git(where, ["merge", "--ff-only", tip]);
+  return run.code === 0 ? undefined : { why: "refused", where, detail: run.stderr.trim() || "fast-forward failed" };
 }
 
 /** A merge of `branch` onto `onto` whose tree is `branch`'s own, made without checking anything out: `branch` already contains `onto`. */
@@ -38,14 +48,17 @@ export async function mergeCommit(
   return made?.code === 0 ? made.stdout.trim() : undefined;
 }
 
-/** Why a landing did not move base, as whoever lands the lane reads it. */
+/** Why a landing did not move base, as whoever lands the lane reads it, naming the copy that stopped it. */
 function unlanded(base: string, root: string, stopped: Unmoved): string {
-  if (stopped.why === "dirty") return `the main working copy on ${base} has uncommitted changes`;
-  if (stopped.why === "unknown") return `git could not read the main working copy at ${root}`;
-  if (stopped.why === "elsewhere") return `${base} is checked out in another working copy`;
+  const copy = stopped.where === root ? "the main working copy" : `the working copy at ${stopped.where}`;
+  if (stopped.why === "dirty")
+    return stopped.where === root
+      ? `the main working copy on ${base} has uncommitted changes`
+      : `${copy}, which has ${base} checked out, has uncommitted changes`;
+  if (stopped.why === "unknown") return `git could not read ${copy}, which has ${base} checked out`;
   return stopped.why === "moved"
     ? `${base} moved while this lane was landing; land it again`
-    : (stopped.detail ?? "fast-forward failed");
+    : `${copy} would not fast-forward ${base}: ${stopped.detail ?? "fast-forward failed"}`;
 }
 
 /**

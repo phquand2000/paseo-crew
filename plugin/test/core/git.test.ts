@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileKinds } from "../../server/catalog/kit/patterns.ts";
@@ -147,6 +147,29 @@ test("a lane lands on base only as its gate saw it, squashed, merged or fast-for
     assert.deepEqual(await advance(raced.root, "main", read, tip), { why: "moved" }, `on main: ${onMain}`);
     assert.equal(await raced.sha("main"), landedFirst, "a landing in between is never written over");
   }
+
+  // A landing refused only because base was checked out in another worktree, which it could have moved.
+  const shared = repo();
+  const base = await shared.sha("main");
+  shared.run("checkout", "-qb", "lane/l1");
+  shared.commit("b.txt", "lane\n", "lane work");
+  const laneTip = await shared.sha("lane/l1");
+  const other = join(tempDir("sw2-wt-"), "main");
+  shared.run("worktree", "add", "-q", other, "main");
+  assert.equal(await advance(shared.root, "main", base, laneTip), undefined, "a clean copy holding base is moved");
+  assert.equal(await shared.sha("main"), laneTip);
+  assert.equal(readFileSync(join(other, "b.txt"), "utf-8"), "lane\n", "and its files with it");
+  shared.commit("b.txt", "more\n", "more lane work");
+  writeFileSync(join(other, "a.txt"), "edited\n");
+  const dirty = await advance(shared.root, "main", laneTip, await shared.sha("lane/l1"));
+  assert.deepEqual(dirty, { why: "dirty", where: realpathSync(other) }, "a dirty one is left, and named");
+  const refused = await landLane(shared.root, "main", "lane/l1", await shared.sha("lane/l1"), {
+    as: "squash",
+    message: "x",
+    keep: KEEP,
+  });
+  assert.match(refused.how, new RegExp(`working copy at ${realpathSync(other)}, which has main checked out`));
+  assert.equal(await shared.sha("main"), laneTip);
 });
 
 test("the desk's merges leave the lane as it was on a conflict, ignore the Human's rerere and signer, can be made without a checkout, and a branch counts as merged only on the branches' word", async () => {
