@@ -124,7 +124,7 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   );
 });
 
-test("reaching a Peer directly tells its Lead what reached it, and is refused when there is no Lead to tell", async () => {
+test("reaching a Peer directly tells its Lead what reached it, and is refused when there is no Lead to tell", async (t) => {
   const h = harness();
   const sup = h.add(SUPERVISOR, h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
@@ -160,6 +160,17 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   await h.idle(lane.lead!);
   assert.equal(h.agents.get(peer)!.sent.join("\n").split("banker's rounding").length - 1, 2, "both reached the Peer");
   assert.equal(h.agents.get(lane.lead!)!.sent.join("\n").split("RECONCILE L1").length - 1, 2, "the Lead is told both");
+
+  // Mid-turn too, the Lead is told as the Peer is reached, not only once its own turn ends.
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
+  for (const seat of [peer, lane.lead!]) {
+    h.agents.get(seat)!.status = "running";
+    await h.beginTurn(seat);
+  }
+  t.mock.timers.tick(2 * 60_000);
+  assert.equal((await reach("Round only at the end.")).ok, true);
+  assert.match(h.agents.get(peer)!.steered.join("\n"), /Round only at the end/);
+  assert.match(h.agents.get(lane.lead!)!.steered.join("\n"), /RECONCILE L1[\s\S]*Round only at the end/);
 
   // With no Lead to reconcile to, the intervention is refused rather than run behind its back.
   Object.assign(h.agents.get(lane.lead!)!, { archivedAt: new Date().toISOString(), status: "closed" });

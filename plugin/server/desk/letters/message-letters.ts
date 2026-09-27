@@ -71,11 +71,13 @@ export const messageLetters = {
         ? `Integration and acceptance: you have already accepted ${task.id} and it is waiting to merge; nothing here changed that.`
         : `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
     ].join("\n");
-    return mail(
-      "reconcile",
-      ["message", ...sendingIds(sending, text)],
-      letter,
-      "If this changes what you were going to do, say so in your next report.",
+    return steering(
+      mail(
+        "reconcile",
+        ["message", ...sendingIds(sending, text)],
+        letter,
+        "If this changes what you were going to do, say so in your next report.",
+      ),
     );
   },
 
