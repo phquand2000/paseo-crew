@@ -1,19 +1,23 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
+import { parse } from "smol-toml";
 import { PaseoHost } from "../../server/adapters/paseo/host.ts";
 import { SEAT_KEY } from "../../server/catalog/kit/kit.ts";
+import { providerId } from "../../server/catalog/kit/roles.ts";
 import { seatDir } from "../../server/catalog/seat/seats.ts";
 import { home } from "../../server/core/paths.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
-import { projectOf } from "../../server/desk/project/project.ts";
+import { loadConfig, projectOf, saveConfig } from "../../server/desk/project/project.ts";
 import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
 
 type Hook = (input: unknown, context: { paseo: unknown }) => unknown;
 type Made = { config: AgentConfig; env: Record<string, string> };
+type Grants = { filesystem?: Record<string, string>; network?: { unix_sockets?: Record<string, string> } };
 
 /** Paseo's plugin server as far as a host registers on it: each hook called as the daemon calls it, with its API. */
 function daemon(host: PaseoHost, h: ReturnType<typeof harness>) {
@@ -135,5 +139,33 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
     assert.equal(await settled(fresh.reached()), false, `nothing has reached the host before ${name}`);
     await call(name, input);
     assert.equal(await settled(fresh.reached()), true, `${name} brings Paseo's API`);
+  }
+});
+
+test("a codex seat Paseo creates may reach the Human's sockets and write their outside paths only where its role writes code", async () => {
+  const h = harness();
+  const host = new PaseoHost();
+  h.restart(host);
+  const hook = daemon(host, h);
+  const { kit } = h.runtime;
+  const outside = realpathSync(tempDir("sw2-hooks-outside-"));
+  const socket = join(realpathSync(tempDir("sw2-hooks-sock-")), "d.sock");
+  const server = createServer();
+  await new Promise<void>((done) => server.listen(socket, done));
+  try {
+    saveConfig(h.project.state, { ...loadConfig(h.project.state), writableOutside: [outside], sockets: [socket] });
+    const granted = (name: string) => {
+      const config = { provider: providerId(kit, name, "codex"), cwd: h.root };
+      hook("agent.create", { request: { config, env: {} } });
+      const role = kit.roles.find((entry) => entry.role === name)!;
+      const file = join(seatDir(kit, role, kit.harnesses.codex!, home(), h.project), "config.toml");
+      const { seat } = (parse(readFileSync(file, "utf-8")) as { permissions: { seat: Grants } }).permissions;
+      return [seat.filesystem?.[outside], seat.network?.unix_sockets?.[socket]];
+    };
+    for (const name of ["peer", "backup-peer"]) assert.deepEqual(granted(name), ["write", "allow"], name);
+    for (const name of ["lead", "supervisor", "senior-reviewer"])
+      assert.deepEqual(granted(name), [undefined, undefined], `${name} writes no code, so it is granted neither`);
+  } finally {
+    server.close();
   }
 });
