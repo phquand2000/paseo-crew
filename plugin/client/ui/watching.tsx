@@ -5,7 +5,7 @@ import { Text, View } from "react-native";
 import { Dot, Rule } from "./bits.tsx";
 import type { WatchJudge, WatchView } from "../../shared/flow-views.ts";
 import { incidentState } from "../format/watch.ts";
-import { judgeWords } from "../format/watch.ts";
+import { judgeWords, marksWords } from "../format/watch.ts";
 
 const ago = (minutes: number): string => (minutes < 1 ? "just now" : minutes < 60 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`);
 
@@ -80,7 +80,7 @@ function JudgeLine({ judge, theme }: { judge: WatchJudge; theme: PluginTheme }) 
   );
 }
 
-/** Who answers the watch, then what the code noticed and nobody has marked yet, in short cards like the open asks. */
+/** Who answers the watch, what the code noticed and nobody has marked yet, and how each kind has been marked. */
 export function WatchCard({ watch, theme }: { watch: WatchView; theme: PluginTheme }) {
   const styles = useStyles(theme);
   return (
@@ -97,6 +97,24 @@ export function WatchCard({ watch, theme }: { watch: WatchView; theme: PluginThe
                   <Text style={styles.hint}>{`${item.name} · ${incidentState(item)}`}</Text>
                 </View>
                 <Text style={styles.hint}>{ago(item.minutes)}</Text>
+              </View>
+            </View>
+          ))}
+        </Section>
+      ) : null}
+      {watch.marks.length > 0 ? (
+        <Section title="How each kind was marked" theme={theme}>
+          {watch.marks.map((entry, index) => (
+            <View key={entry.title}>
+              {index > 0 ? <Rule theme={theme} /> : null}
+              <View style={styles.row}>
+                <View style={styles.dot}>
+                  <Dot color={entry.noisy ? theme.colors.statusWarning : theme.colors.foregroundMuted} />
+                </View>
+                <View style={styles.labels}>
+                  <Text style={styles.title}>{entry.title}</Text>
+                  <Text style={styles.hint}>{marksWords(entry)}</Text>
+                </View>
               </View>
             </View>
           ))}

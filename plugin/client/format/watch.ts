@@ -1,4 +1,4 @@
-import type { WatchIncident, WatchJudge } from "../../shared/flow-views.ts";
+import type { WatchIncident, WatchJudge, WatchMarks } from "../../shared/flow-views.ts";
 
 const HELD: Record<string, string> = { budget: "held · the lane's limit for today is reached", probation: "held · most of this kind's last ten were marked noise", nobody: "held · nobody is seated to tell", shadow: "recorded · mail is off" };
 
@@ -16,4 +16,11 @@ export function judgeWords(judge: WatchJudge): { title: string; hint: string; to
   if (judge.state === "nokey") return { title: `${judge.label} is asked nothing: it has no key`, hint: `Add its ${judge.detail} on Team, under Machine defaults, on the Watcher. The code's own facts go on.`, tone: "muted" };
   if (judge.state === "failing") return { title: `${judge.label} is not answering`, hint: `${judge.detail}. The code's own facts go on; nothing waits for an answer.`, tone: "warning" };
   return { title: `${judge.label} answers the watch's questions`, hint: judge.state === "waiting" ? `Nothing has been asked of it yet. ${kept}` : kept, tone: "success" };
+}
+
+/** How a kind has been marked, and what that asks: a noisy page is never held, so only narrowing what raises it quiets it. */
+export function marksWords(marks: WatchMarks): string {
+  const counted = `${marks.level} · ${marks.useful} useful of ${marks.marked < 10 ? `${marks.marked} marked so far` : "the last 10 marked"}`;
+  if (!marks.noisy) return counted;
+  return marks.level === "page" ? `${counted} · mostly noise, and a page is never held: narrow what raises it, or retire it` : `${counted} · mostly noise, so it is held on probation`;
 }

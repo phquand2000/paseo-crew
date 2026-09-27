@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { KEPT, type Layer } from "../../shared/settings.ts";
 import { countsInstead } from "../../client/format/flow.ts";
-import { incidentState, judgeWords } from "../../client/format/watch.ts";
+import { incidentState, judgeWords, marksWords } from "../../client/format/watch.ts";
 import { dropMcp, foldRoles, keptRoles, modelRow, setAttention, setRole, withKey } from "../../client/model/layer.ts";
-import type { WatchIncident, WatchJudge } from "../../shared/flow-views.ts";
+import type { WatchIncident, WatchJudge, WatchMarks } from "../../shared/flow-views.ts";
 
 const docs = {
   enabled: true,
@@ -175,6 +175,18 @@ const INCIDENTS: [Partial<WatchIncident>, string][] = [
   [{ held: "shadow" }, "recorded · mail is off"],
   [{}, "recorded"],
 ];
+const MARKS: [WatchMarks, string][] = [
+  [
+    { title: "t", level: "page", useful: 0, marked: 10, noisy: true },
+    "page · 0 useful of the last 10 marked · mostly noise, and a page is never held: narrow what raises it, or retire it",
+  ],
+  [
+    { title: "t", level: "attend", useful: 3, marked: 10, noisy: true },
+    "attend · 3 useful of the last 10 marked · mostly noise, so it is held on probation",
+  ],
+  [{ title: "t", level: "attend", useful: 1, marked: 4, noisy: false }, "attend · 1 useful of 4 marked so far"],
+  [{ title: "t", level: "attend", useful: 7, marked: 10, noisy: false }, "attend · 7 useful of the last 10 marked"],
+];
 const judge = { label: "Jev", minutes: null, detail: null };
 const kept = "Its answers are kept in assessments.log; no seat is sent them.";
 const JUDGES: [WatchJudge, ReturnType<typeof judgeWords>][] = [
@@ -212,7 +224,8 @@ const JUDGES: [WatchJudge, ReturnType<typeof judgeWords>][] = [
   ],
 ];
 
-test("the watch card says in words where an incident has got to and who answers the watch's questions, and how that stands", () => {
+test("the watch card says in words where an incident has got to and who answers the watch's questions, how that stands, and how each kind has been marked", () => {
   for (const [over, words] of INCIDENTS) assert.equal(incidentState(incident(over)), words);
   for (const [state, words] of JUDGES) assert.deepEqual(judgeWords(state), words, state.state);
+  for (const [marks, words] of MARKS) assert.equal(marksWords(marks), words);
 });

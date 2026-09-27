@@ -8,7 +8,7 @@ import {
   type Incidents,
   closeSeat,
   forget,
-  onProbation,
+  lastMarks,
   settledAsNoise,
   sight,
   spentToday,
@@ -32,7 +32,7 @@ type Placed = { where: string; lane?: Lane; task?: Task };
 function holdFor(incident: Incident, incidents: Incidents, attention: Attention, now: number): Held | undefined {
   if (incident.level === "page") return undefined;
   if (!attention.watch) return "shadow";
-  if (onProbation(incidents, incident.kind)) return "probation";
+  if (lastMarks(incidents).get(incident.kind)?.noisy) return "probation";
   if (spentToday(incidents, incident.lane, now) >= attention.incidentsPerLane) return "budget";
   return undefined;
 }

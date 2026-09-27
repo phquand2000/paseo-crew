@@ -459,7 +459,8 @@ one missing after 15 minutes, or whose Watcher is gone, is kept as unasked.
 
 **Marking.** Whoever is told of an incident marks it with `mark_incident`, `useful`, `noise` or `unknown`,
 from the seat's own record, closing it; `noise` also silences the same words on that seat and kind at `attend`
-level, never a page. The marks feed probation.
+level, never a page. The marks feed probation, and the Flow tab shows each kind's last ten: a page is never
+held, so a noisy one there is the evidence to narrow what raises it.
 
 ## The patrol
 

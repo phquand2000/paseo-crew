@@ -196,6 +196,16 @@ test("a kind most of whose last ten marks were noise is held on probation, and a
     /\[attend, not sent: most of its kind's last ten marks were noise\] Peer \(peer-1\)/,
     "the book says why",
   );
+  const watch = await h.rpc(flowRpc, { project: h.project.slug });
+  assert.ok("watch" in watch, JSON.stringify(watch));
+  assert.deepEqual(
+    watch.watch.marks,
+    [
+      { title: "Ran a command that cannot be undone", level: "page", useful: 4, marked: 10, noisy: true },
+      { title: "Going round in circles", level: "attend", useful: 4, marked: 10, noisy: true },
+    ],
+    "the panel shows how each kind's last ten were marked, a page too, which nothing holds",
+  );
   marks(5, 10, 3);
   await notice(h, seat(3), "stuck");
   assert.ok(told(3), "half of the last ten useful is not probation, and a mark of unknown says nothing either way");

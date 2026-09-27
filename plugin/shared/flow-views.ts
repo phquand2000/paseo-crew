@@ -94,9 +94,19 @@ const WatchJudge = z.object({
   detail: z.string().nullable(),
 });
 export type WatchJudge = z.infer<typeof WatchJudge>;
-/** What the code noticed about the seats and nobody has marked yet, the trouble nobody is mailed about, and who answers the watch's questions. */
+/** How a kind's last ten incidents were marked: the evidence that it earns someone's attention, or should be narrowed. */
+const WatchMarks = z.object({
+  title: z.string(),
+  level: z.enum(["page", "attend"]),
+  useful: z.number(),
+  marked: z.number(),
+  noisy: z.boolean(),
+});
+export type WatchMarks = z.infer<typeof WatchMarks>;
+/** What the code noticed about the seats and nobody has marked yet, how each kind has been marked, the trouble nobody is mailed about, and who answers the watch's questions. */
 const WatchView = z.object({
   incidents: z.array(WatchIncident),
+  marks: z.array(WatchMarks),
   trouble: z.array(z.object({ kind: z.string(), minutes: z.number(), detail: z.string() })),
   judge: WatchJudge,
 });

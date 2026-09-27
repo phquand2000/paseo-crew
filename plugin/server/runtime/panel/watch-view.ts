@@ -1,10 +1,10 @@
 import { minutesSince } from "../../core/time.ts";
 import { join } from "node:path";
-import type { WatchJudge, WatchView } from "../../../shared/flow-views.ts";
+import type { WatchJudge, WatchMarks, WatchView } from "../../../shared/flow-views.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import type { Team } from "../../catalog/team/team.ts";
 import { lastBytes } from "../../core/gate.ts";
-import { loadIncidents } from "../../desk/store/incidents.ts";
+import { type Incidents, lastMarks, loadIncidents } from "../../desk/store/incidents.ts";
 import { type Ledger, laneOfLead, taskOfPeer } from "../../domain/ledger.ts";
 import { loadLedger } from "../../desk/store/ledger.ts";
 import type { Project } from "../../desk/project/project.ts";
@@ -41,6 +41,16 @@ function judgeLine(project: Project, team: Team, kit: Kit, now: number): WatchJu
     : { label, state: "answering", minutes, detail: null };
 }
 
+const titleOf = (kind: string) => factTitle(kind) ?? kind.replace(/[-_]/g, " ");
+
+/** Each kind that has been marked, pages first and the noisy before the rest. */
+function marksOf(book: Incidents): WatchMarks[] {
+  const rank = (entry: WatchMarks) => (entry.level === "page" ? 0 : 2) + (entry.noisy ? 0 : 1);
+  return [...lastMarks(book)]
+    .map(([kind, marks]) => ({ title: titleOf(kind), ...marks }))
+    .sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
+}
+
 /** What the panel shows of a project's watch: open incidents, pages first, each named by its seat's place, and trouble nobody is mailed about. */
 export function watchView(project: Project, troubles: Trouble[], team: Team, kit: Kit, now = Date.now()): WatchView {
   const ago = (at: number) => Math.max(0, Math.round((now - at) / 60_000));
@@ -56,13 +66,14 @@ export function watchView(project: Project, troubles: Trouble[], team: Team, kit
     const lane = ledger ? laneOfLead(ledger, id) : undefined;
     return lane ? `Lead · ${lane.id} ${lane.title}` : fallback;
   };
-  const incidents = Object.values(loadIncidents(project.state).items)
+  const book = loadIncidents(project.state);
+  const incidents = Object.values(book.items)
     .filter((item) => item.open)
     .sort((a, b) => (a.level === b.level ? b.last - a.last : a.level === "page" ? -1 : 1))
     .slice(0, INCIDENTS_SHOWN)
     .map((item) => ({
       id: item.id,
-      title: factTitle(item.kind) ?? item.kind.replace(/[-_]/g, " "),
+      title: titleOf(item.kind),
       level: item.level,
       name: nameOf(item.seat, item.where),
       minutes: ago(item.last),
@@ -73,6 +84,7 @@ export function watchView(project: Project, troubles: Trouble[], team: Team, kit
     }));
   return {
     incidents,
+    marks: marksOf(book),
     trouble: troubles.map((entry) => ({ kind: entry.kind, minutes: ago(entry.at), detail: entry.detail })).reverse(),
     judge: judgeLine(project, team, kit, now),
   };

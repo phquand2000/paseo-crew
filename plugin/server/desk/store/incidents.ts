@@ -119,13 +119,22 @@ export function spentToday(incidents: Incidents, lane: string | undefined, now: 
 
 const JUDGED = 10;
 
-/** A kind whose last ten marks, noise and useful, were mostly noise; fewer than ten marks judge nothing. */
-export function onProbation(incidents: Incidents, kind: string): boolean {
-  const marked = Object.values(incidents.items)
-    .filter((item) => item.kind === kind && (item.label === "useful" || item.label === "noise"))
-    .sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last))
-    .slice(0, JUDGED);
-  return marked.length === JUDGED && marked.filter((item) => item.label === "useful").length / JUDGED < 0.5;
+type Marks = { level: Incident["level"]; useful: number; marked: number; noisy: boolean };
+
+/** Each kind's last ten marks, noise and useful: noisy when all ten are in and most were noise; fewer judge nothing. */
+export function lastMarks(incidents: Incidents): Map<string, Marks> {
+  const byKind = new Map<string, Incident[]>();
+  for (const item of Object.values(incidents.items))
+    if (item.label === "useful" || item.label === "noise")
+      byKind.set(item.kind, [...(byKind.get(item.kind) ?? []), item]);
+  const found = new Map<string, Marks>();
+  for (const [kind, items] of byKind) {
+    const last = items.sort((a, b) => (b.closed ?? b.last) - (a.closed ?? a.last)).slice(0, JUDGED);
+    const useful = last.filter((item) => item.label === "useful").length;
+    const noisy = last.length === JUDGED && useful / JUDGED < 0.5;
+    found.set(kind, { level: last[0]!.level, useful, marked: last.length, noisy });
+  }
+  return found;
 }
 
 export function closeSeat(incidents: Incidents, seat: string, now: number): string[] {
