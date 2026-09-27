@@ -51,10 +51,14 @@ export class TeamSocket {
     this.server = server;
   }
 
+  /** Settles each line's calls now: its socket's `close` comes a turn later, and its seat may hear of the drop before that. */
   close(): void {
     this.server?.close();
     this.server = undefined;
-    for (const line of this.lines) line.socket.destroy();
+    for (const line of this.lines) {
+      line.socket.destroy();
+      this.dropped(line);
+    }
     rmSync(this.path, { force: true });
   }
 

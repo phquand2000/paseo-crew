@@ -184,13 +184,13 @@ test("a call its harness stops, or whose line drops, is answered by mail, and th
   const dropping = seat.call("report", { summary: "done again", ready: true });
   await until(() => socket.calling(lead), "the call reaches the desk");
   socket.close();
+  assert.equal(socket.calling(lead), false, "a closed desk waits on no call of a line it closed");
   const dropped = await dropping;
   assert.equal(dropped.isError, true);
   assert.equal(
     dropped.content[0]!.text,
     "The line to the team desk dropped while report ran, so its answer did not come back here. If the desk took the call, its answer comes as mail: look before calling report again, since a second call may do it twice.",
   );
-  assert.equal(socket.calling(lead), false);
   gate.release();
   await until(
     () => letters().match(/ANSWER to your report call/g)?.length === 2,
