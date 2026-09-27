@@ -231,7 +231,10 @@ test("tasks that wait are recorded, amended, held while the lane's copy is taken
     ["a.txt", "b.txt"].map((file) => h.git(build.worktree!, "show", `HEAD:${file}`)),
     ["A\n", "B\n"],
   );
-  assert.match(h.agents.get(started.peer!)!.prompt ?? "", /TASK L1-T3: Receipt[^]*show the total with tax/);
+  assert.match(
+    h.agents.get(started.peer!)!.prompt ?? "",
+    /TASK L1-T3: Receipt\n\nGoal: show the total with tax\nIt serves the lane's outcome: a\.txt changes\n/,
+  );
   await h.idle(lead);
   assert.match(
     h.agents.get(lead)!.sent.join("\n"),

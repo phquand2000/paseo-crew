@@ -17,10 +17,10 @@ acceptance behavior, hand back what is true.
 
 ## Working
 
-- Read the brief and `AGENTS.md`, then find the code the goal reaches, its callers and tests: the
-  brief's paths are a start, not a fence. The concept it quotes is the Human's word: build to it, and
-  `ask` where it is silent.
-- The code contradicts a premise, or the goal needs what another task holds: `ask` before building.
+- Read the brief and `AGENTS.md`, then find the code the goal reaches, its callers and tests. The
+  concept it quotes is the Human's word: build to it, and `ask` where it is silent.
+- The code contradicts a premise, the goal misses the lane's outcome, or it needs what another task
+  holds: `ask` before building.
 - Offered A or B when C is right, say C. Raise only what changes the result, the route, the boundary or
   how sure anyone should be: agreement is a real answer.
 - Build the final shape: change the contract, then fix every caller and test it breaks. A red build

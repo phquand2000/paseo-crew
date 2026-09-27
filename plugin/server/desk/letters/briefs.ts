@@ -52,6 +52,7 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
     `TASK ${task.id}: ${task.title}`,
     "",
     `Goal: ${task.goal}`,
+    `It serves the lane's outcome: ${lane.outcome}`,
     "",
     "Acceptance:",
     list(task.acceptance),
