@@ -8,6 +8,7 @@ import { readJson, writeJson } from "../../core/store.ts";
 import type { Ecosystem, Kit } from "../../catalog/kit/kit.ts";
 import { RiskRule } from "../../catalog/kit/schema/ecosystem.ts";
 import { coverOf, serialPaths } from "../../core/scope.ts";
+import { z } from "zod";
 
 export type Project = { root: string; slug: string; state: string };
 
@@ -20,7 +21,7 @@ export type LaneHome = (typeof LANE_HOMES)[number];
 /**
  * `serialOnly` and `riskRules` are the project's own when it set them; without, the kit's hold, so a change to the kit reaches it.
  * `askFirst` is the Human's standing order: a landing that touches one of these paths waits for them.
- * `links`, `writable`, `writableOutside` and `sockets` are the Human's alone, set by hand: they widen what seats may write or reach.
+ * `links`, `writable`, `writableOutside`, `sockets` and `ssh` are the Human's alone, set by hand: they widen what seats may write or reach.
  */
 export type ProjectConfig = {
   base?: string;
@@ -36,7 +37,29 @@ export type ProjectConfig = {
   writable: string[];
   writableOutside: string[];
   sockets: string[];
+  ssh: Record<string, SshHost>;
 };
+
+const word = z.string().regex(/^[\w.:-]+$/);
+/** A host a seat reaches by its name in `ssh`: only words, since each goes into an ssh config as it is. */
+const SshHost = z.strictObject({
+  hostName: word,
+  user: word,
+  port: z.number().int().min(1).max(65535).default(22),
+  hostKey: z.string().regex(/^[\w@.-]+ [A-Za-z0-9+/]+={0,2}$/),
+});
+export type SshHost = z.infer<typeof SshHost>;
+
+/** The hosts that read as hosts under a name that is one word; the rest are left out, so a mistake reaches nothing. */
+function sshHosts(stored: unknown): Record<string, SshHost> {
+  if (!stored || typeof stored !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(stored).flatMap(([name, host]) => {
+      const parsed = SshHost.safeParse(host);
+      return /^[\w.-]+$/.test(name) && parsed.success ? [[name, parsed.data]] : [];
+    }),
+  );
+}
 
 /** Enough for every copy a machine keeps at once: copy paths are never reused, so an unbounded cache grew for good. */
 const CACHED_PROJECTS = 512;
@@ -142,6 +165,7 @@ export function loadConfig(state: string): ProjectConfig {
     writable: Array.isArray(stored.writable) ? stored.writable.map(String) : [],
     writableOutside: Array.isArray(stored.writableOutside) ? stored.writableOutside.map(String) : [],
     sockets: Array.isArray(stored.sockets) ? stored.sockets.map(String) : [],
+    ssh: sshHosts(stored.ssh),
   };
 }
 

@@ -8,6 +8,7 @@ import { daemonLog } from "../../core/logger.ts";
 import { guidesDir, home } from "../../core/paths.ts";
 import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
 import { type Project, projectOf } from "../../desk/project/project.ts";
+import { SEAT_SSH, seatSsh } from "../../desk/project/ssh.ts";
 import { seatSockets, seatWrites } from "../../desk/project/writes.ts";
 import type { SeatKeys } from "./keys.ts";
 import type { Seating } from "./seating.ts";
@@ -66,6 +67,20 @@ export class SeatLaunch {
     // Created, the seat brings the key made for it; opened again, it is given back the one it was bound to.
     const key = request.reason === "create" ? request.env[SEAT_KEY] : this.keys.keyOf(request.agentId);
     if (request.reason === "create" && key) this.keys.bind(request.agentId, key);
-    return key ? { ...opened, env: { ...opened.env, [SEAT_KEY]: key } } : opened;
+    const ssh = this.sshConfig(seat.role, project);
+    return {
+      ...opened,
+      env: { ...opened.env, ...(key ? { [SEAT_KEY]: key } : {}), ...(ssh ? { [SEAT_SSH]: ssh } : {}) },
+    };
+  }
+
+  /** A grant that cannot be written is left out, not a session refused: the seat reaches no host, and says so when it tries. */
+  private sshConfig(role: RoleSpec, project: Project): string | undefined {
+    try {
+      return seatSsh(this.kit, role, project);
+    } catch (error) {
+      daemonLog.error("could not write the project's ssh grant:", error);
+      return undefined;
+    }
   }
 }

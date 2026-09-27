@@ -165,24 +165,29 @@ export function seatEnv(
 
 const quoted = (text: string) => `'${text.replaceAll("'", `'\\''`)}'`;
 
-/** The git a seat's PATH finds past the shim: the shim's directory is skipped, since what is there is named git too. */
-function realGit(skip: string): string | undefined {
+/** The `name` a seat's PATH finds past the shim: the shim's directory is skipped, since what is there is named the same. */
+function real(skip: string, name: string): string | undefined {
   return executableIn(
     pathDirs().filter((dir) => dir && dir !== skip),
-    "git",
+    name,
   );
 }
 
+const shim = (script: string, command: string) =>
+  `#!/bin/sh\nexec ${quoted(nodeBin())} ${quoted(script)} ${quoted(command)} "$@"\n`;
+
 /**
- * Writes the directory a seat's PATH starts at, and gives it: a git that runs the kit's git shim with node, the shim and the real
- * git by absolute path, and for each command the kit refuses one that says why and fails. Nothing where this machine has no git.
+ * Writes the directory a seat's PATH starts at, and gives it: a git and an ssh that run the kit's shims with node, each given the
+ * real command by absolute path, and for each command the kit refuses one that says why and fails. Nothing where this machine has no git.
  */
 export function seatBin(kit: Kit, root = stateRoot()): string | undefined {
   const dir = join(root, "bin");
-  const git = realGit(dir);
+  const git = real(dir, "git");
   if (!git) return undefined;
+  const ssh = real(dir, "ssh");
   const wanted: Record<string, string> = {
-    git: `#!/bin/sh\nexec ${quoted(nodeBin())} ${quoted(join(kit.dir, "bin", "git-shim.mjs"))} ${quoted(git)} "$@"\n`,
+    git: shim(join(kit.dir, "bin", "git-shim.mjs"), git),
+    ...(ssh ? { ssh: shim(join(kit.dir, "bin", "ssh-shim.mjs"), ssh) } : {}),
   };
   for (const [name, why] of Object.entries(kit.refused))
     wanted[name] =

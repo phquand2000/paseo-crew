@@ -54,7 +54,7 @@ test("a seat's shell, on the PATH the desk gives it, refuses what only the desk 
   const dir = seatBin(kit, state)!;
   assert.deepEqual(
     readdirSync(dir).sort(),
-    ["git", ...Object.keys(kit.refused)].sort(),
+    ["git", "ssh", ...Object.keys(kit.refused)].sort(),
     "nothing the kit no longer refuses is left refusing",
   );
 
