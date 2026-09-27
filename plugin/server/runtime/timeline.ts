@@ -1,3 +1,4 @@
+import type { HarnessSpec } from "../catalog/kit/kit.ts";
 import type { TimelineItem } from "../core/ports.ts";
 
 type Timeline = readonly TimelineItem[];
@@ -23,6 +24,23 @@ export function outputText(timeline: Timeline): string {
     .filter((item) => item.type === "assistant_message" && typeof item.text === "string")
     .map((item) => item.text as string)
     .join("");
+}
+
+/** The turn's last assistant message alone: an agent's stop notice follows whatever it said earlier in the turn. */
+export function lastWords(timeline: Timeline): string {
+  const turn = timeline.slice(lastUserIndex(timeline) + 1);
+  for (let index = turn.length - 1; index >= 0; index--) {
+    const item = turn[index];
+    if (item?.type === "assistant_message" && typeof item.text === "string") return item.text;
+  }
+  return "";
+}
+
+/** Whether the agent stopped on its usage limit, by the words its harness stops with; `resets` is when, as the agent put it. */
+export function limitStop(harness: HarnessSpec, said: string): { resets: string | null } | undefined {
+  const limit = harness.timeline?.limit;
+  const found = limit ? new RegExp(limit, "i").exec(said.trim()) : null;
+  return found ? { resets: found.groups?.resets?.trim() || null } : undefined;
 }
 
 const QUIET_CHARS = 200;

@@ -9,7 +9,8 @@
     "unparsed": {
       "input": "__unparsedToolInput",
       "error": "InputValidationError[^\"]*could not be parsed as JSON"
-    }
+    },
+    "limit": "^You've (?:hit|reached) your [a-z ]*limit\\b.*?(?:resets (?<resets>.+?))?\\s*$"
   },
   "steers": true,
   "mcp": {

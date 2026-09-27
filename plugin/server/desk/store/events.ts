@@ -51,6 +51,7 @@ export type DeskEvent =
   | { kind: "task.cut"; task: string; reason: string; kept: string | undefined }
   | { kind: "task.silent"; task: string; denied: string | null; refused: boolean }
   | { kind: "turn.silent"; task: string; denied: string | null; refused: boolean; lastCall: string }
+  | { kind: "seat.limited"; agent: string; resets: string | null }
   | { kind: `merge.${TaskStatus}`; task: string }
   | { kind: "review.started"; task: string; of: string | null; reviewer: string }
   | { kind: "ask.opened"; ask: string; from: string; to: string }

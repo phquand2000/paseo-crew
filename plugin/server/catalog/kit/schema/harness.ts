@@ -31,6 +31,7 @@ export const HarnessFile = z
         exitField: text.optional(),
         pseudoCalls: z.array(z.strictObject({ name: text, detail: text })).optional(),
         unparsed: z.strictObject({ input: text, error: pattern }).optional(),
+        limit: pattern.optional(),
       })
       .optional(),
     settings: z.strictObject({

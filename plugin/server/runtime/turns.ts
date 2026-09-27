@@ -10,7 +10,7 @@ import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
 import { watchLetters } from "../desk/letters/watch-letters.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
-import { deniedCall, lastToolCall, outputText } from "./timeline.ts";
+import { deniedCall, lastToolCall, lastWords, limitStop, outputText } from "./timeline.ts";
 
 type TurnDeps = {
   kit: Kit;
@@ -116,8 +116,9 @@ export class TurnRules {
 
   async ended(event: TurnEnded): Promise<void> {
     const { agent, outcome, timeline } = event;
-    const role = seatOf(this.deps.kit, agent.provider)?.role;
-    if (!role?.tools) return;
+    const seat = seatOf(this.deps.kit, agent.provider);
+    const role = seat?.role;
+    if (!seat || !role?.tools) return;
     const project = projectOf(agent.cwd);
     this.deps.remember(project);
     const started = this.startedAt.get(agent.id) ?? Date.now() - 30 * 60_000;
@@ -125,6 +126,8 @@ export class TurnRules {
     if (outcome.kind === "canceled") return;
     const text = outputText(timeline);
     this.lastEnding.set(agent.id, text);
+    const limit = limitStop(seat.harness, outcome.kind === "failed" ? outcome.error.message : lastWords(timeline));
+    if (limit) return this.limited(project, agent.id, limit);
     if (outcome.kind === "failed") {
       const owner = await this.ownerOf(project, agent.id, role);
       await this.deps.desk.post(
@@ -175,6 +178,11 @@ export class TurnRules {
       desk.moveTask(project, task.id, "resume", (entry) => {
         delete entry.peerGone;
       });
+  }
+
+  /** An agent stopped on its usage limit has not gone quiet: a nudge would only stop on the same limit. */
+  private limited(project: Project, agentId: string, limit: { resets: string | null }): void {
+    this.deps.desk.event(project, { kind: "seat.limited", agent: agentId, resets: limit.resets });
   }
 
   /** A turn ended with no hand-back and no ask: counted and nudged, then stalled and told to its Lead, and once to whoever supervises. */
