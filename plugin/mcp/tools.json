@@ -1040,6 +1040,38 @@
       }
     },
     {
+      "name": "take_paths",
+      "title": "Take paths into the lane",
+      "description": "Add paths the outcome needs to your lane's write set, never what its out of scope rules out. Refused, naming the lane, when another open lane writes or depends on one, or may write a one-writer path: then ask with kind need. Your owner is told; a READY you reported no longer stands.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Paths or globs to add, like src/cart/**."
+          },
+          "why": {
+            "type": "string",
+            "description": "What in the work needs them, in a sentence."
+          }
+        },
+        "required": [
+          "paths",
+          "why"
+        ]
+      }
+    },
+    {
       "name": "cut",
       "title": "Cut a task",
       "description": "Cut a task or finish with a reviewer: its agent stops, and none of its work reaches the lane branch. One in the lane's working copy leaves it on the lane branch, its uncommitted work gone unless that is the Human's own branch; its branch is kept only if it holds commits nothing else has.",

@@ -298,7 +298,7 @@ test("a Lead's directive says what its lane writes, depends on and keeps to one 
   const build = directive("L2");
   assert.match(
     build,
-    /^Writes: a\.txt, package-lock\.json\. A change outside these is flagged at hand-back and at landing; if the work needs more, ask with kind need\.$/m,
+    /^Writes: a\.txt, package-lock\.json\. A change outside these is flagged at hand-back and at landing; if the work needs more, take_paths what no other lane holds, and ask with kind need for what one does\.$/m,
   );
   assert.match(build, /^Depends on: b\.txt, which this lane uses and does not write\.$/m);
   assert.match(

@@ -58,6 +58,7 @@ type Kind =
   | "settling"
   | "silent"
   | "started"
+  | "taken"
   | "unanswered";
 
 /** A letter the desk mails a seat: its text, the key under which a second one to that seat is the same letter, and `wakes` false for word that asks nothing of its reader now, which rides along with the next letter that does; `steer` for word that bears on the turn its reader is in, the only mail that may go into a running one. */

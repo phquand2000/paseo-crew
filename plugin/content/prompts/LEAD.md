@@ -43,7 +43,7 @@ says, and keep the lane to its outcome.
   from you.
 - Put every correction for a Peer into one `rework` after its hand-back.
 - Broken shared code goes to the task holding it or whose goal needs it; outside the write set,
-  `ask` kind need, so one owner fixes it once.
+  `take_paths` it, or `ask` kind need if another lane holds it, so one owner fixes it once.
 - A hard decision goes to two reviewers with `start_review` and no task, one of them with
   `role: "senior-reviewer"` (`council`); hold your own answer first, and spend your turn where they
   contradict you.

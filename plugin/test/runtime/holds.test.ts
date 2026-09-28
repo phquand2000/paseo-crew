@@ -139,7 +139,7 @@ test("a Peer writing past where it was pointed is noted, not stopped: at hand-ba
   await h.idle(lead);
   assert.deepEqual(notes(h, lead, "d.txt, notes.md"), [
     "Note: in what L1-T2 holds (c.txt, **/*.md): notes.md.",
-    "Note: outside the lane's write set (a.txt, c.txt, package-lock.json, src/**): d.txt.",
+    "Note: outside the lane's write set (a.txt, c.txt, package-lock.json, src/**), which no other lane declares: d.txt.",
   ]);
   await h.call(lead, "lead", "accept", { task: "L1-T1" });
   await h.runtime.desk.settled(h.project);
@@ -166,11 +166,14 @@ test("a Peer writing past where it was pointed is noted, not stopped: at hand-ba
       planned("q", "Q", { holds: ["src/q/"], parallel: true }),
     ],
   });
-  await handBack(h, "L2-T1", ["src/p/a.ts", "src/q/b.ts", "src/c.ts", "d.md"]);
+  const docs = { title: "Docs", outcome: "docs", ...scope, writeSet: ["docs/**"], isolate: true };
+  await h.call(sup, "supervisor", "open_lane", docs);
+  await handBack(h, "L2-T1", ["src/p/a.ts", "src/q/b.ts", "src/c.ts", "d.md", "docs/p.md"]);
   await h.idle(other);
   assert.deepEqual(notes(h, other), [
     "Note: in what L2-T2 holds (src/q/): src/q/b.ts.",
-    "Note: outside the lane's write set (src/**): d.md.",
+    "Note: outside the lane's write set, in what lane L3 holds: docs/p.md.",
+    "Note: outside the lane's write set (src/**), which no other lane declares: d.md.",
     "Note: outside what it holds (src/p/): src/c.ts.",
   ]);
 });

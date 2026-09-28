@@ -109,7 +109,7 @@ function writes(lane: Lane, serial: string[], elsewhere: Elsewhere[]): string[] 
       : "";
   return [
     lane.writeSet.length > 0
-      ? `Writes: ${lane.writeSet.join(", ")}. A change outside these is flagged at hand-back and at landing; if the work needs more, ask with kind need.`
+      ? `Writes: ${lane.writeSet.join(", ")}. A change outside these is flagged at hand-back and at landing; if the work needs more, take_paths what no other lane holds, and ask with kind need for what one does.`
       : `Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer.${open}`,
     ...(lane.contracts.length > 0
       ? [`Depends on: ${lane.contracts.join(", ")}, which this lane uses and does not write.`]

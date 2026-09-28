@@ -93,6 +93,16 @@ export const workLetters = {
     return steering(mail("amended", [entry.id, entry.amended?.length ?? 0], text, next));
   },
 
+  /** The paths a Lead took into its lane, told to whoever supervises without waking them: no other lane held them. */
+  taken(lane: Lane, amendment: Amendment): Letter {
+    const was = new Set(amendment.was.writeSet as string[]);
+    const added = lane.writeSet.filter((path) => !was.has(path));
+    const text = `TAKEN by the Lead of ${lane.id} (${lane.title}) into its write set, which no other lane held: ${added.join(", ")}. Why: ${amendment.why}`;
+    return fyi(
+      mail("taken", [lane.id, lane.amended?.length ?? 0], text, "Nothing, unless the lane's intent rules it out."),
+    );
+  },
+
   /** Why a lane or task still waits, told once per reason, and what its reader can do about it. */
   held(entry: Lane | Task, why: string, next: string): Letter {
     return mail(

@@ -31,7 +31,7 @@ never on its role's name.
 | Role | Tools |
 |---|---|
 | Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` |
-| Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `amend_task` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
+| Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
 | Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` |
 | Watcher | `judge` `record` |
 <!-- end -->
@@ -44,6 +44,7 @@ never on its role's name.
 | `replace_lead` | Seats another Lead on an open lane whose Lead is gone, where the lane stands, and moves to it the asks that waited on the gone one. A Lead Paseo already started for the lane is taken on instead |
 | `add_tasks` | Records tasks in the caller's lane in one call, and starts what can start. Each task gets a Peer and a branch of its own, and the lane counts as not reported ready. See [laying out tasks](#laying-out-tasks) |
 | `amend_task` | Changes what a task asks until it is accepted or cut (goal, acceptance, out of scope, context, hints), keeping what it asked before, and why; the Peer reads it at its next turn. A parallel task's `holds` change too, never to none, checked as a start checks them. A changed goal sends TURNING, and widened `holds` ARCHITECTURE, to whoever supervises. A waiting task's `after` changes too, checked as `add_tasks` checks it and against a loop back to itself, and is weighed again at once |
+| `take_paths` | Adds paths to the caller's open lane's write set, keeping what it was before, and why; the lane counts as not reported ready. Refused, as `amend_lane` refuses, when another open lane writes or depends on one, or when it reaches a one-writer path another lane may write; refused too for a lane that declared no write set. Whoever supervises gets TAKEN, which waits for their next letter. The reply says when the lane now meets the Human's ask-first paths |
 | `done` | A Peer hands its task back: an outcome (`complete`, `partial` or `blocked`), a summary and its checks. A Reviewer hands back its verdict. Refused once the task is in the merge queue, merged or cut. See [a hand-back](#a-hand-back) |
 | `accept` | Queues a handed-back task for merging, the only way the lane branch takes work: see [a merge](#a-merge). Its Peer stays until the Lead releases it or the lane closes, and never takes another task. Refused while the lane is on hold, for a review or a task not handed back, while the task's copy is off its branch or has work uncommitted, and over a red gate on the same commit without `overGate` and a `reason` |
 | `rework` | Sends a task back to its Peer with REWORK, a merged one too while that Peer is kept: it goes back onto its branch with the lane brought in, and the lane counts as not reported ready. Refused for a Peer that is gone, a parallel task whose copy is being put away, and a task in the lane's copy while another holds it (or, merged, while it has work uncommitted). A second rework sends STRUGGLING to whoever supervises |
@@ -160,7 +161,7 @@ task on record, or waits on others in a loop.
 | Part | What the desk does |
 |---|---|
 | The lane first | Brings the lane into the task's branch, so the gate runs on what the lane would become. Conflicts stop the hand-back and are left in the copy for the Peer to settle and commit; the Lead gets SETTLING. A copy with work uncommitted is left as it is, and the hand-back says so |
-| What changed | Names the commit, read from the branch, and the files the task changed, counting only its own commits. A note marks each file in what a task beside it holds, settled from the base it took in, outside the lane's write set, or, for a parallel task, outside what it holds, a one-writer path called so. MERGED carries the same notes |
+| What changed | Names the commit, read from the branch, and the files the task changed, counting only its own commits. A note marks each file in what a task beside it holds, settled from the base it took in, outside the lane's write set (naming the open lane that holds it, if one does), or, for a parallel task, outside what it holds, a one-writer path called so. MERGED carries the same notes |
 | The gate | On a project gating each task, the default when it has a gate: runs the gate, then rehearses each risk rule the change reaches, stopping at the first that fails |
 | A review | Takes the verdict (`accept`, `changes` or `reopen`), the answer to the focus, each finding (severity, place, failure, fix; at least one for `changes` or `reopen`), and an answer to each risk-rule question of the brief, in order; refuses it without them |
 | Where it goes | Keeps it whole in `handbacks/`, and sends HANDBACK to the Lead, or to whoever supervises once the Lead is gone |
@@ -259,7 +260,7 @@ first prompt, not mail, and carry neither.
 | A seat's first prompt | OWNER DIRECTIVE, TASK, REVIEW |
 | Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE |
 | Between seats | MESSAGE, RECONCILE, ASK, ANSWER to your ask, ANSWERED FOR YOU, STILL OPEN, UNANSWERED |
-| Work coming back | HANDBACK, REWORK, AMENDED, SETTLING |
+| Work coming back | HANDBACK, REWORK, AMENDED, TAKEN, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
 | Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, DETOUR DROPPED, LANE CLOSED |
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
@@ -286,7 +287,7 @@ first prompt, not mail, and carry neither.
 | NO ANSWER | A seat: the plugin stopped before a call it was told to wait for by mail had finished |
 
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
-WAITING for a lane that opened by itself, LANDED and SENT BACK. For a Lead: WAITING for a task that started by itself,
+WAITING for a lane that opened by itself, TAKEN, LANDED and SENT BACK. For a Lead: WAITING for a task that started by itself,
 LAND HELD, LANE CLOSED, SETTLING, a MERGE WAITS the desk clears by itself, and a MERGED with nothing to note while other
 tasks remain.
 

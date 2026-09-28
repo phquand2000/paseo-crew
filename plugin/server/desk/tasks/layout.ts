@@ -86,7 +86,7 @@ export function layoutProblems(ledger: Ledger, lane: Lane, plan: Planned[], seri
     const loose = lane.writeSet.length > 0 ? task.holds.filter((path) => !firstOverlap([path], lane.writeSet)) : [];
     if (loose.length > 0)
       findings.push(
-        `${task.key} holds ${loose.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}: leave it out, or ask for the lane to take it.`,
+        `${task.key} holds ${loose.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}: leave it out, or take_paths it first.`,
       );
     for (const active of activeTasks(ledger, lane.id).filter((entry) => entry.kind === "code")) {
       if (before.get(task.key)!.has(active.id) || (!task.parallel && active.mode !== "parallel")) continue;

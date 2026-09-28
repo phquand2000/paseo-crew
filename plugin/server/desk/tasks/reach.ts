@@ -23,12 +23,29 @@ export function reachNotes(ledger: Ledger, task: Task, lane: Lane, files: string
   for (const file of settled) taken.add(file);
   if (settled.length > 0) notes.push(`settled from merging ${lane.base}: ${capped(settled, SHOWN)}`);
   const beyond = lane.writeSet.length > 0 ? uncovered(files, lane.writeSet).filter((file) => !taken.has(file)) : [];
-  if (beyond.length > 0)
-    notes.push(`outside the lane's write set (${lane.writeSet.join(", ")}): ${capped(beyond, SHOWN)}`);
+  notes.push(...beyondNotes(ledger, lane, beyond));
   if (task.mode !== "parallel") return notes;
   const loose = uncovered(files, task.holds).filter((file) => !taken.has(file) && !beyond.includes(file));
   const oneWriter = new Set(serialHits(loose, serial));
   const named = loose.map((file) => (oneWriter.has(file) ? `${file} (one writer at a time)` : file));
   if (loose.length > 0) notes.push(`outside what it holds (${task.holds.join(", ")}): ${capped(named, SHOWN)}`);
+  return notes;
+}
+
+/** Files outside the lane's write set, split by the open lane that writes or depends on them: take_paths can claim the rest. */
+function beyondNotes(ledger: Ledger, lane: Lane, beyond: string[]): string[] {
+  const notes: string[] = [];
+  let free = beyond;
+  for (const other of Object.values(ledger.lanes)) {
+    if (other.status !== "open" || other.id === lane.id) continue;
+    const held = free.filter((file) => covers([...other.writeSet, ...other.contracts], file));
+    if (held.length === 0) continue;
+    free = free.filter((file) => !held.includes(file));
+    notes.push(`outside the lane's write set, in what lane ${other.id} holds: ${capped(held, SHOWN)}`);
+  }
+  if (free.length > 0)
+    notes.push(
+      `outside the lane's write set (${lane.writeSet.join(", ")}), which no other lane declares: ${capped(free, SHOWN)}`,
+    );
   return notes;
 }

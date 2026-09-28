@@ -27,6 +27,7 @@ import { rework } from "./rework.ts";
 import { setProject } from "./set-project.ts";
 import { startReview } from "./start-review.ts";
 import { status } from "./status.ts";
+import { takePaths } from "./take-paths.ts";
 
 export const TOOLS: ToolDef[] = [
   openLane,
@@ -45,6 +46,7 @@ export const TOOLS: ToolDef[] = [
   accept,
   rework,
   amendTask,
+  takePaths,
   cut,
   releasePeer,
   report,

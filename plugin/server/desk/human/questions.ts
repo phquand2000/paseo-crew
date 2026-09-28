@@ -116,7 +116,7 @@ function recordQuestion(
 }
 
 /** Why a question about `lane` stops it at its ready report at least: it writes where the Human asked to be asked first. */
-async function askFirstOf(project: Project, lane: Lane): Promise<string | undefined> {
+export async function askFirstOf(project: Project, lane: Lane): Promise<string | undefined> {
   const declared = loadConfig(project.state).askFirst.find((path) => firstOverlap(lane.writeSet, [coverGlob(path)]));
   if (declared) return `Lane ${lane.id} may write under ${declared}, which the Human asked to be asked about first.`;
   const hit = lane.status === "open" ? askFirstHits(project, await changeOf(project, lane))[0] : undefined;
