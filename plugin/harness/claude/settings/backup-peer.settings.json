@@ -1,4 +1,5 @@
 {
+  "autoCompactWindow": 200000,
   "permissions": {
     "deny": [
       "Edit(~/.local/share/paseo-crew/projects/*/CONTEXT.md)"
