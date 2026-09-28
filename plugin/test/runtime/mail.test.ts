@@ -55,13 +55,16 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   assert.equal(asked.ok, true, asked.text);
   await h.idle(sup);
   assert.match(h.agents.get(sup)!.sent.at(-1)!, /ASK A1 \(question\)[\s\S]*half up/);
-  assert.equal((await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up." })).ok, true);
+  assert.equal(
+    (await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up.", keepsDefault: true })).ok,
+    true,
+  );
   await h.idle(lead);
   assert.match(h.agents.get(lead)!.sent.join("\n"), /ANSWER to your ask A1[\s\S]*Half up/);
   // Its first prompt too carries the kinds of its letters in its id, so the watch tells desk mail from a person's words.
   assert.deepEqual(sentBy({ clientMessageId: h.agents.get(lead)!.promptId }), ["brief"]);
   assert.deepEqual(sentBy({ clientMessageId: h.agents.get(lead)!.sentIds.at(-1) }), ["answer"]);
-  const again = await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half down." });
+  const again = await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half down.", keepsDefault: false });
   assert.deepEqual([again.ok, again.text], [false, "Ask A1 is already answered."]);
 
   await h.call(lead, "lead", "add_tasks", { tasks: [task("Drop it")] });
@@ -75,7 +78,10 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   const ask = Object.values(h.ledger().asks).at(-1)!;
   assert.equal(ask.to, lead, "an ask goes upward, to the Lead");
   // Unanswered asks escalate to the owner, so the owner answering one is the design.
-  assert.equal((await h.call(sup, "supervisor", "answer", { ask: ask.id, text: "Drop it and migrate." })).ok, true);
+  assert.equal(
+    (await h.call(sup, "supervisor", "answer", { ask: ask.id, text: "Drop it and migrate.", keepsDefault: false })).ok,
+    true,
+  );
   assert.match(heard(h, peer), /Drop it and migrate/, "the Peer gets its answer");
   assert.match(heard(h, lead), new RegExp(`ANSWERED FOR YOU: ${ask.id}`), "the Lead holds the room's state");
   assert.match(heard(h, lead), /Drop it and migrate[^]*accepting it is still yours to judge/);
@@ -95,6 +101,10 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   const back = h.add(SUPERVISOR, h.root, "sup-2");
   await h.tick(start + 64 * 60_000);
   assert.equal(h.ledger().asks[escalating]!.escalated, true);
+  assert.deepEqual(
+    h.events("ask.escalated").map((event) => [event.ask, event.to]),
+    [[escalating, back]],
+  );
   assert.match(
     heard(h, back),
     /Round half up or down\?\n\nTried: read the spec\n\nTheir default: half up/,

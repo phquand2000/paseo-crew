@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync,
 import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { gzip } from "node:zlib";
+import { gunzip, gzip } from "node:zlib";
 
 /** An append-only log that rolls into numbered files, packs the older ones and drops the oldest past `keepBytes`. */
 type Rolling = {
@@ -16,6 +16,7 @@ type Rolling = {
 };
 
 const packed = promisify(gzip);
+const unpacked = promisify(gunzip);
 const packing = new Set<string>();
 const gone = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -81,6 +82,35 @@ function sizeOf(file: string): number {
     return statSync(file).size;
   } catch {
     return 0;
+  }
+}
+
+/** The log's text, oldest roll first; a roll last written before `since` (ms) is skipped, and one mid-packing is read plain. */
+export async function readRolling(
+  roll: Pick<Rolling, "dir" | "current" | "prefix" | "ext">,
+  since = 0,
+): Promise<string> {
+  if (!existsSync(roll.dir)) return "";
+  const names = readdirSync(roll.dir);
+  const texts: string[] = [];
+  for (const stamp of rolledStamps(names, roll, true)) {
+    const plain = join(roll.dir, rolledName(roll, stamp));
+    const written = statSync(plain, { throwIfNoEntry: false }) ?? statSync(`${plain}.gz`, { throwIfNoEntry: false });
+    if ((written?.mtimeMs ?? 0) < since) continue;
+    texts.push((await readText(plain)) ?? (await readText(`${plain}.gz`)) ?? "");
+  }
+  texts.push((await readText(join(roll.dir, roll.current))) ?? "");
+  return texts.join("");
+}
+
+/** A file's text, unpacked when it ends in `.gz`; undefined once it is gone, as a roll packed or pruned meanwhile is. */
+async function readText(file: string): Promise<string | undefined> {
+  try {
+    const data = await readFile(file);
+    return (file.endsWith(".gz") ? await unpacked(data) : data).toString("utf8");
+  } catch (error) {
+    if (gone(error)) return undefined;
+    throw error;
   }
 }
 

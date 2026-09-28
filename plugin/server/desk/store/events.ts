@@ -47,15 +47,34 @@ export type DeskEvent =
   | { kind: "seat.released"; seat: string; of: string }
   | { kind: "task.halfStarted"; task: string; now: TaskStatus }
   | { kind: "task.amended"; task: string; fields: string[]; by: string }
-  | { kind: "task.done" | "review.done"; task: string; outcome: string; commit: string | undefined }
+  | { kind: "task.done"; task: string; outcome: string; commit: string | undefined }
+  | {
+      kind: "review.done";
+      task: string;
+      outcome: string;
+      commit: string | undefined;
+      of: string | null;
+      role: string;
+    }
+  | { kind: "task.reworked"; task: string; by: string; round: number }
+  | { kind: "task.accepted"; task: string; by: string; reworks: number }
   | { kind: "task.cut"; task: string; reason: string; kept: string | undefined }
   | { kind: "task.silent"; task: string; denied: string | null; refused: boolean }
   | { kind: "turn.silent"; task: string; denied: string | null; refused: boolean; lastCall: string }
   | { kind: "seat.limited"; agent: string; resets: string | null; wakeAt: number | null }
   | { kind: `merge.${TaskStatus}`; task: string }
   | { kind: "review.started"; task: string; of: string | null; reviewer: string }
-  | { kind: "ask.opened"; ask: string; from: string; to: string }
-  | { kind: "ask.answered"; ask: string; by: string; told: string | null }
+  | {
+      kind: "ask.opened";
+      ask: string;
+      from: string;
+      to: string;
+      fromRole: string;
+      askKind: string;
+      withDefault: boolean;
+    }
+  | { kind: "ask.answered"; ask: string; by: string; told: string | null; kept: boolean | null }
+  | { kind: "ask.escalated"; ask: string; to: string }
   | { kind: "slot.taken"; slot: string; branch: string; lane?: string; task?: string }
   | { kind: "slot.heldOpen"; slot: string; writers: string[] }
   | { kind: "slot.released"; slot: string; removed: boolean; kept: string | undefined }

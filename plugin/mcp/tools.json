@@ -150,6 +150,10 @@
           "text": {
             "type": "string",
             "description": "The answer, with the decision it settles."
+          },
+          "keepsDefault": {
+            "type": "boolean",
+            "description": "Needed when the ask came with a default: true if your answer keeps it, false if it changes it."
           }
         },
         "required": [
@@ -708,6 +712,24 @@
           "of"
         ]
       }
+    },
+    {
+      "name": "outcomes",
+      "title": "Count outcomes",
+      "description": "What reviews and asks went on to change, counted from the events log: each review by reviewer role and verdict, and whether its task was then reworked, accepted or cut; each ask by who asked and kind, and whether the answer kept the asker's default; reworks before each accept. Counts to weigh, never verdicts.",
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "description": "A date like 2026-09-01: count only what happened from then on. The whole log kept when left out."
+          }
+        }
+      }
     }
   ],
   "lead": [
@@ -901,6 +923,10 @@
           "text": {
             "type": "string",
             "description": "The answer, with what it settles."
+          },
+          "keepsDefault": {
+            "type": "boolean",
+            "description": "Needed when the ask came with a default, the Peer's best guess: true if your answer keeps it, false if it changes it."
           }
         },
         "required": [

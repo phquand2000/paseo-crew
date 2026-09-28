@@ -258,7 +258,7 @@ test("the Flow tab draws the machine as the ledger and Paseo have it, and an unc
     (await drawn(h)).asks.map((ask) => [ask.id, ask.text, ask.minutes]),
     [["A1", "Which rounding do we use?", 0]],
   );
-  await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up." });
+  await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up.", keepsDefault: true });
   assert.deepEqual((await drawn(h)).asks, []);
 
   const apart = { outcome: "x", ...scope, isolate: true };

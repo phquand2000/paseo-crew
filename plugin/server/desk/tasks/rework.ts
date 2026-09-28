@@ -14,6 +14,7 @@ import { workLetters } from "../letters/work-letters.ts";
 import { tellMoment } from "../watch/moments.ts";
 import type { DeskServices } from "../services.ts";
 import { bringLaneIn } from "../copies/sync.ts";
+import { recordEvent } from "../store/event-log.ts";
 
 /** A rework call as the tool takes it. */
 type ReworkCall = { task: string; text: string };
@@ -48,6 +49,7 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
   }
   // Keyed by the rework's count, each letter is its own: none is dropped as a repeat.
   await desk.mail.post(result.peer, workLetters.rework(result, text));
+  recordEvent(caller.project, { kind: "task.reworked", task: result.id, by: caller.id, round: result.reworks ?? 1 });
   if (result.reworks === 2)
     await tellMoment(
       desk,

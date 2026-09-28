@@ -9,6 +9,7 @@ import { type Ledger, laneOfLead, nextAskId, taskOfPeer } from "../../domain/led
 import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
+import type { DeskEvent } from "../store/events.ts";
 
 type Asking = Pick<Ask, "from" | "fromRole" | "to" | "lane" | "task" | "kind" | "text" | "default">;
 
@@ -16,6 +17,16 @@ type Asking = Pick<Ask, "from" | "fromRole" | "to" | "lane" | "task" | "kind" | 
 function newAsk(ledger: Ledger, asking: Asking): Ask {
   return { id: nextAskId(ledger), ...asking, status: "open", openedAt: Date.now(), reminders: 0 };
 }
+
+const opened = (ask: Ask): DeskEvent => ({
+  kind: "ask.opened",
+  ask: ask.id,
+  from: ask.from,
+  to: ask.to,
+  fromRole: ask.fromRole,
+  askKind: ask.kind,
+  withDefault: Boolean(ask.default),
+});
 
 /** A Lead asks whoever supervises its lane, and works on its default while it waits. */
 export async function askOwner(
@@ -39,7 +50,7 @@ export async function askOwner(
   });
   if (!entry) return no("You have no open lane.");
   await mail.post(to, askLetters.askTo(entry, `the Lead of ${lane.id} (${lane.title})`, "supervisor"));
-  recordEvent(project, { kind: "ask.opened", ask: entry.id, from: caller.id, to });
+  recordEvent(project, opened(entry));
   return ok(`Asked as ${entry.id}. Keep working on your default where you can; the answer arrives as mail.`);
 }
 
@@ -74,7 +85,7 @@ export async function askUp(
     return no(`${task.id} was accepted or cut while you asked, so there is nothing to ask about; end your turn.`);
   const reader = to === lane.lead ? "lead" : "supervisor";
   await mail.post(to, askLetters.askTo(entry, `the Peer on ${task.id} (${task.title})`, reader));
-  recordEvent(project, { kind: "ask.opened", ask: entry.id, from: caller.id, to });
+  recordEvent(project, opened(entry));
   const owner = to === lane.lead ? "" : ", of the owner, because your lead is not there";
   return ok(`Asked as ${entry.id}${owner}. End your turn; the answer arrives as a message.`);
 }
@@ -83,7 +94,7 @@ export async function askUp(
 export async function answerAsk(
   { kit, ledgers, mail }: Pick<DeskServices, "kit" | "ledgers" | "mail">,
   caller: Caller,
-  answered: { ask: string; text: string },
+  answered: { ask: string; text: string; keepsDefault?: boolean },
 ): Promise<ToolReply> {
   const id = answered.ask.toUpperCase();
   const { text } = answered;
@@ -94,6 +105,8 @@ export async function answerAsk(
     if (!ask) return `There is no ask ${id}.`;
     if (!ASK.may(ask.status, "answer")) return `Ask ${id} is already answered.`;
     if (ask.to !== caller.id && !can(caller.role, "supervise")) return `Ask ${id} was not addressed to you.`;
+    if (ask.default && answered.keepsDefault === undefined)
+      return `${id} came with a default (${ask.default}): say with keepsDefault whether your answer keeps it.`;
     ASK.move(ask, "answer");
     ask.answer = text;
     return { ask: { ...ask }, waitingRole: ledger.agents[ask.to]?.role };
@@ -108,7 +121,8 @@ export async function answerAsk(
     await mail.post(waiting, askLetters.answeredFor(ask, by, can(waitingRole, "lead")));
   }
   const posted = await mail.post(ask.from, askLetters.answered(ask));
-  recordEvent(caller.project, { kind: "ask.answered", ask: ask.id, by: caller.id, told: waiting ?? null });
+  const kept = ask.default ? answered.keepsDefault! : null;
+  recordEvent(caller.project, { kind: "ask.answered", ask: ask.id, by: caller.id, told: waiting ?? null, kept });
   const has = posted === "sent" ? "has it" : "reads it as soon as it can take it";
   const told = waiting ? " Whoever it was waiting on has been told what it was answered with." : "";
   return ok(`Answered ${ask.id}; the asker ${has}.${told}`);

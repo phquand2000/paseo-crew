@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { appendRolling } from "../../server/core/rolling.ts";
+import { appendRolling, readRolling } from "../../server/core/rolling.ts";
 import { type Lane } from "../../server/domain/lane.ts";
 import { emptyLedger } from "../../server/domain/ledger.ts";
 import { GATE_LOGS_PER_OWNER, tidyRecords } from "../../server/desk/store/records.ts";
@@ -38,6 +38,8 @@ test("a record log rolls over, keeps its newest roll as text for a grep, and pac
     line.repeat(2),
     "the name agents read stays the live file",
   );
+  assert.equal(await readRolling(roll), line.repeat(8), "a reader gets every roll kept, packed ones unpacked");
+  assert.equal(await readRolling(roll, Date.now() + 60_000), line.repeat(2), "and skips rolls written before since");
 });
 
 test("two rolls close together pack each file once, so neither packing trips over the other's half-written copy", async () => {

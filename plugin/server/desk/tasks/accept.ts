@@ -5,7 +5,7 @@ import { type Args, type Caller, type ToolReply, no, ok, str } from "../context.
 import { holdRefusal } from "../lanes/hold.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project/project.ts";
+import { recordEvent } from "../store/event-log.ts";
 import type { DeskServices } from "../services.ts";
 
 /** A Lead accepts a handed-back task into its lane's merge queue. */
@@ -18,17 +18,18 @@ export async function acceptTask(desk: DeskServices, caller: Caller, args: Args)
   if (held) return no(held);
   if (task.kind !== "code") return no(`${task.id} is a review; cut it when you are done with it.`);
   if (!TASK.may(task.status, "queue")) return no(`${task.id} is ${task.status}.`);
-  return queueTask(desk, project, task, args);
+  return queueTask(desk, caller, task, args);
 }
 
 /** A task goes into its lane's merge queue once handed back, and over a red gate on its tree only with its Lead's reason. */
 async function queueTask(
   desk: Pick<DeskServices, "ledgers" | "merges">,
-  project: Project,
+  caller: Caller,
   task: Task,
   args: Args,
 ): Promise<ToolReply> {
   const { ledgers, merges } = desk;
+  const { project } = caller;
   if (AT_WORK.includes(task.status) || !task.handback)
     return no(`${task.id} is not handed back: accept it once its Peer hands it back, or cut it.`);
   // A copy off its branch (mid-bisect) has commits on no branch; clean and detached is not work the merge would take.
@@ -60,6 +61,7 @@ async function queueTask(
     if (over && entry.handback?.gate?.ok === false) entry.handback.gate.over = str(args.reason);
   });
   if (typeof queued !== "object") return no(`${task.id} is ${queued ?? "gone"}.`);
+  recordEvent(project, { kind: "task.accepted", task: task.id, by: caller.id, reworks: queued.reworks ?? 0 });
   const ahead =
     Object.values(loadLedger(project.state).tasks).filter(
       (entry) => entry.lane === task.lane && IN_QUEUE.includes(entry.status),

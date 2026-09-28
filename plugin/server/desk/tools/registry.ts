@@ -17,6 +17,7 @@ import { message } from "./message.ts";
 import { note } from "./note.ts";
 import { landLane } from "./land-lane.ts";
 import { openLane } from "./open-lane.ts";
+import { outcomes } from "./outcomes.ts";
 import { record } from "./record.ts";
 import { recordHumanAnswer } from "./record-human-answer.ts";
 import { releaseLead, releasePeer } from "./release.ts";
@@ -61,6 +62,7 @@ export const TOOLS: ToolDef[] = [
   incidents,
   markIncident,
   record,
+  outcomes,
   note,
   judgeCase,
 ];

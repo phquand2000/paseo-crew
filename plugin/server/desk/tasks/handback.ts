@@ -232,8 +232,13 @@ async function tell(
     task.kind === "review" ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
   const reader = await roster.readerOf(caller.project, lane);
   await mail.post(reader.to, workLetters.handback(heading, handed.body, caller.id, reader.as));
-  const kind = task.kind === "review" ? "review.done" : "task.done";
-  recordEvent(caller.project, { kind, task: task.id, outcome: handed.outcome, commit: handed.commit });
+  const done = { task: task.id, outcome: handed.outcome, commit: handed.commit };
+  recordEvent(
+    caller.project,
+    task.kind === "review"
+      ? { kind: "review.done", ...done, of: task.of ?? null, role: caller.role.role }
+      : { kind: "task.done", ...done },
+  );
   const judged = handbackCase(kit, caller.project, task, handed);
   if (judged) void judge(desk, caller.project, judged);
 }

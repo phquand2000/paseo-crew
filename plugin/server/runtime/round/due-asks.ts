@@ -72,6 +72,7 @@ async function remind(
     const to = await desk.supervisorFor(project, lane?.opener);
     // Marked escalated only once delivered; with nobody seated it is retried next round.
     if ((await desk.post(to, askLetters.escalated(ask, age, ask.lane ?? "the project"))) === "nobody") return;
+    desk.event(project, { kind: "ask.escalated", ask: ask.id, to: to! });
   } else return;
   // Pinned to this round's count so overlapping rounds cannot push it past the owner's maximum.
   desk.transact(project, (current) => {
