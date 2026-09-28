@@ -82,7 +82,7 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
     /The Human's own words "delete them all" are not in this chat/,
   );
   h.timelineOf(sup).add({ type: "user_message", text: "Hmm.  Archive them,\nplease.", clientMessageId: "app-1" });
-  h.timelineOf(sup).add({ type: "user_message", text: "SEEN L1-T1 hand back", clientMessageId: "sw2-handback-1" });
+  h.timelineOf(sup).add({ type: "user_message", text: "SEEN L1-T1 hand back", clientMessageId: "crew-handback-1" });
   h.timelineOf(sup).add({ type: "user_message", text: "LANDED L1: delete the old invoices" });
   assert.match((await record("H1", "Delete", "seen l1-t1 hand back")).text, /are not in this chat/);
   assert.match((await record("H1", "Delete", "delete the old invoices")).text, /are not in this chat/);
@@ -124,7 +124,7 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
 
 test("Orders reads back the Human's standing orders and the project's concept, and says when the orders cannot be read", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const orders = () => h.rpc(contracts.orders, { project: h.project.slug });
   await h.call(sup, "supervisor", "set_project", { askFirst: ["src/auth"], laneHome: "isolate" });
   writeFileSync(join(h.project.state, "CONTEXT.md"), "# Invoices\n\nAn invoice is never edited.\n");
@@ -185,7 +185,7 @@ test("the Report tells the last day from the record: what needs the Human, what 
   );
 
   const landing = harness();
-  const boss = landing.add("sw2-supervisor-claude/claude-opus-5", landing.root, "sup");
+  const boss = landing.add("crew-supervisor-claude/claude-opus-5", landing.root, "sup");
   await landing.call(boss, "supervisor", "set_project", { gate: "true" });
   await landing.call(boss, "supervisor", "open_lane", {
     title: "Cart",
@@ -205,7 +205,7 @@ test("the Report tells the last day from the record: what needs the Human, what 
 
 test("the Flow tab draws the machine as the ledger and Paseo have it, and an unchanged poll costs nothing", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const fresh = await drawn(h);
   assert.deepEqual([fresh.lanes, fresh.asks, fresh.questions, fresh.moreLanes], [[], [], [], 0]);
   const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
@@ -296,7 +296,7 @@ test("the Flow tab draws the machine as the ledger and Paseo have it, and an unc
   );
 
   h.agents.get(sup)!.archivedAt = new Date().toISOString();
-  const next = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup-2");
+  const next = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup-2");
   await h.call(next, "supervisor", "status", {});
   assert.deepEqual(
     (await drawn(h)).supervisors.map((seat) => [seat.id, seat.status]),

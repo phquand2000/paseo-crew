@@ -38,4 +38,4 @@ The output can shrink the outcome, add an out-of-scope entry, or stop the lane; 
 
 ## Ends in
 
-The `open_lane` call with its fields filled, and the named failure with rows ordered by how early their first signal appears in `$SEATWORKS_STATE/pre-mortem/<lane-title>.md`.
+The `open_lane` call with its fields filled, and the named failure with rows ordered by how early their first signal appears in `$CREW_STATE/pre-mortem/<lane-title>.md`.

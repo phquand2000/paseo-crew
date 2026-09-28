@@ -63,9 +63,9 @@ test("every role builds on every agent the kit ships, each in that agent's own t
   writeFileSync(paseoConfigPath(), "{}\n");
   applyReconcile(kit, base);
   const paseo = readConfig<unknown>(paseoConfigPath(), {});
-  const home = tempDir("sw2-every-home-");
+  const home = tempDir("crew-every-home-");
   const project = { root: "/work/demo", slug: "demo-000000", state: "/state/demo" };
-  const agents = Object.values(kit.harnesses).flatMap((harness) => harness.provider.env?.SEATWORKS_AGENT_BIN ?? []);
+  const agents = Object.values(kit.harnesses).flatMap((harness) => harness.provider.env?.CREW_AGENT_BIN ?? []);
   for (const { role, harness } of seatPairs(kit)) {
     const where = `${role.role} on ${harness.id}`;
     const kind = TWIN[role.role] ?? role.role;
@@ -193,7 +193,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           .every(([path]) => path.startsWith("/state/demo/")),
         `${where}: writes into the state only where its content says`,
       );
-      const rules = readFileSync(join(dir, "rules", "seatworks.rules"), "utf-8");
+      const rules = readFileSync(join(dir, "rules", "paseo-crew.rules"), "utf-8");
       for (const [command, verb] of DESK_GIT.map((command) => command.split(" ")))
         assert.match(
           rules,

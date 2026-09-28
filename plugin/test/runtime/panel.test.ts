@@ -87,7 +87,7 @@ test("with mail off a page still reaches whoever supervises, the rest is recorde
 
 test("a lane's budget for the day holds back what is only worth attention, however many arrive at once, lane by lane, and never what is irreversible", async () => {
   const { h, sup, peer } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 1 } });
-  const seat = (id: string) => ({ id, provider: "sw2-peer-claude/claude-opus-5", title: id });
+  const seat = (id: string) => ({ id, provider: "crew-peer-claude/claude-opus-5", title: id });
   const attend = (kind: string, quote: string) => [{ kind, level: "attend" as const, quote, facts: [kind] }];
   await Promise.all([
     h.runtime.desk.notice(h.project, seat(peer), attend("test-weakened", "one")),

@@ -13,8 +13,8 @@ import { tempDir } from "../tempdir.ts";
 
 function world() {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
-  const root = tempDir("sw2-repo-");
+  const home = tempDir("crew-home-");
+  const root = tempDir("crew-repo-");
   const shop = { root, slug: "shop-abc123", state: join(stateRoot(home), "projects", "shop-abc123") };
   const seat = (name: string) => {
     const dir = join(home, name.includes("claude") ? ".claude/profiles" : ".omp/seats", name);
@@ -51,12 +51,12 @@ const found = async (ctx: Parameters<typeof scanGarbage>[0]) =>
 test("clean up lists only what nothing will use again: seats nothing will sit in, copies no slot holds, detached records, unlinked copies of the guides and Migrate's backups", async () => {
   const { home, shop, seat, copy, live, ctx, moveLead } = world();
   assert.deepEqual(await found(ctx), [], "a machine with nothing left over lists nothing");
-  const current = seat("sw2-lead-claude-shop-abc123");
-  const detached = seat("sw2-peer-omp-gone-def456");
-  const removedRole = seat("sw2-scout-omp-shop-abc123");
-  seat("sw2-peer-omp-old-fff000");
-  live.push({ provider: "sw2-peer-omp", slug: "old-fff000" });
-  seat("sw2-lead-claude");
+  const current = seat("crew-lead-claude-shop-abc123");
+  const detached = seat("crew-peer-omp-gone-def456");
+  const removedRole = seat("crew-scout-omp-shop-abc123");
+  seat("crew-peer-omp-old-fff000");
+  live.push({ provider: "crew-peer-omp", slug: "old-fff000" });
+  seat("crew-lead-claude");
   const held = copy("S1");
   const free = copy("S2");
   const dirty = copy("S3", true);
@@ -109,12 +109,12 @@ test("clean up lists only what nothing will use again: seats nothing will sit in
 
 test("removal takes only what a fresh scan still finds free, and leaves a folder a seat has started in since and a copy with work in it", async () => {
   const { seat, copy, live, ctx } = world();
-  const one = seat("sw2-peer-omp-gone-def456");
-  const two = seat("sw2-lead-omp-gone-def456");
+  const one = seat("crew-peer-omp-gone-def456");
+  const two = seat("crew-lead-omp-gone-def456");
   const free = copy("S2");
   const dirty = copy("S3", true);
   const picked = (await found(ctx)).map(([, path]) => path);
-  live.push({ provider: "sw2-lead-omp", slug: "gone-def456" });
+  live.push({ provider: "crew-lead-omp", slug: "gone-def456" });
 
   const result = await removeGarbage(ctx, picked);
   assert.deepEqual(result.removed.sort(), [one, free].sort());

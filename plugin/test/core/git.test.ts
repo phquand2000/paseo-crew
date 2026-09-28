@@ -11,11 +11,11 @@ import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
 const kinds = fileKinds(makeKit());
-const KEEP = "refs/seatworks/lanes/L1";
+const KEEP = "refs/crew/lanes/L1";
 
 /** A repository on main with one commit, a.txt holding "one". */
 function repo() {
-  const root = tempDir("sw2-git-");
+  const root = tempDir("crew-git-");
   const run = (...args: string[]) =>
     execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   const write = (file: string, text: string) => {
@@ -116,7 +116,7 @@ test("a lane lands on base only as its gate saw it, squashed, merged or fast-for
   const ungated = await landLane(behind.root, "main", "lane/l2", await behind.sha("lane/l2"), {
     as: "squash",
     message: "x",
-    keep: "refs/seatworks/lanes/L2",
+    keep: "refs/crew/lanes/L2",
   });
   assert.equal(ungated.landed, false);
   assert.match(ungated.how, /does not contain main/, "that merge would be one no gate saw");
@@ -154,7 +154,7 @@ test("a lane lands on base only as its gate saw it, squashed, merged or fast-for
   shared.run("checkout", "-qb", "lane/l1");
   shared.commit("b.txt", "lane\n", "lane work");
   const laneTip = await shared.sha("lane/l1");
-  const other = join(tempDir("sw2-wt-"), "main");
+  const other = join(tempDir("crew-wt-"), "main");
   shared.run("worktree", "add", "-q", other, "main");
   assert.equal(await advance(shared.root, "main", base, laneTip), undefined, "a clean copy holding base is moved");
   assert.equal(await shared.sha("main"), laneTip);
@@ -222,7 +222,7 @@ test("the desk's merges leave the lane as it was on a conflict, ignore the Human
   assert.equal(bare.run("rev-parse", `${made}^{tree}`).trim(), bare.run("rev-parse", "task/l1-t1^{tree}").trim());
   assert.equal(
     bare.run("log", "-1", "--format=%P %an %s", made).trim(),
-    `${onto} ${bare.run("rev-parse", "task/l1-t1").trim()} seatworks Merge L1-T1: Two`,
+    `${onto} ${bare.run("rev-parse", "task/l1-t1").trim()} paseo-crew Merge L1-T1: Two`,
   );
   assert.equal(await bare.sha("main"), onto, "main is where it was until something advances it");
 

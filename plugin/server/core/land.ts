@@ -41,7 +41,7 @@ export async function mergeCommit(
   message: string,
 ): Promise<string | undefined> {
   const tip = await headSha(cwd, branch);
-  const own = ["-c", "user.name=seatworks", "-c", "user.email=seatworks@localhost", "-c", "commit.gpgSign=false"];
+  const own = ["-c", "user.name=paseo-crew", "-c", "user.email=paseo-crew@localhost", "-c", "commit.gpgSign=false"];
   const made = tip
     ? await git(cwd, [...own, "commit-tree", `${tip}^{tree}`, "-p", onto, "-p", tip, "-m", message])
     : undefined;

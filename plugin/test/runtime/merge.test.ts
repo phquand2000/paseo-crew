@@ -147,11 +147,11 @@ test("a task in the lane's copy is read from where its branch meets the lane's, 
 });
 
 test("a merge that cannot take its lane safely waits, says why, and goes round again", async (t) => {
-  const signals = tempDir("sw2-merge-waits-");
+  const signals = tempDir("crew-merge-waits-");
   const [armed, go] = [join(signals, "armed"), join(signals, "go")];
   t.after(() => writeFileSync(go, ""));
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Beside only", outcome: "c", ...scope });
   const lane = h.ledger().lanes.L1!;
   const lead = lane.lead!;
@@ -226,12 +226,12 @@ test("a merge that cannot take its lane safely waits, says why, and goes round a
 
 /** Two lanes, each with a task beside others handed back green; the first lane has moved, and its merge's gate waits on `go`. */
 async function heldLanes(t: { after(fn: () => void): void }) {
-  const signals = tempDir("sw2-queues-");
+  const signals = tempDir("crew-queues-");
   const [armed, go] = [join(signals, "armed"), join(signals, "go")];
   // Let go of the held gate whatever the test found, or it would wait out the gate's timeout.
   t.after(() => writeFileSync(go, ""));
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", {
     gate: `if [ -f ${armed} ]; then while [ ! -f ${go} ]; do sleep 0.05; done; fi`,
     gateOn: "task",

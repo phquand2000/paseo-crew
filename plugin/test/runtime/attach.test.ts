@@ -16,7 +16,7 @@ const git = (cwd: string, ...args: string[]) =>
 test("a project attached by path, set up, detached only when idle and attached again, and the setup screen's candidates and folders", async (t) => {
   const { call } = served();
   const listed = async () => (await call(contracts.projects, {})).map((entry) => entry.slug);
-  const root = realpathSync(tempDir("sw2-rpc-attach-"));
+  const root = realpathSync(tempDir("crew-rpc-attach-"));
   git(root, "init", "-q");
   mkdirSync(join(root, "src"), { recursive: true });
   const added = which(await call(contracts.projectsAdd, { root: join(root, "src") }), "slug");
@@ -84,12 +84,12 @@ test("a project attached by path, set up, detached only when idle and attached a
   assert.ok((await listed()).includes(added.slug), "an attach that reports a slug is one the rest of the plugin finds");
   assert.equal((await call(contracts.settingsRead, { project: added.slug })).status, "ready");
 
-  const repo = realpathSync(tempDir("sw2-rpc-live-"));
+  const repo = realpathSync(tempDir("crew-rpc-live-"));
   git(repo, "init", "-q");
   git(repo, "commit", "-q", "--allow-empty", "-m", "init");
-  const linked = join(realpathSync(tempDir("sw2-rpc-linked-")), "wt");
+  const linked = join(realpathSync(tempDir("crew-rpc-linked-")), "wt");
   git(repo, "worktree", "add", "-q", "-b", "side", linked);
-  const plain = realpathSync(tempDir("sw2-rpc-plain-"));
+  const plain = realpathSync(tempDir("crew-rpc-plain-"));
   const ours = join(stateRoot(), "worktrees/shop-ef484b/S0");
   mkdirSync(ours, { recursive: true });
   const roots = [repo, linked, plain, ours, join(repo, "nowhere"), root];
@@ -99,7 +99,7 @@ test("a project attached by path, set up, detached only when idle and attached a
     "a setup screen is offered no worktree, gone or plain directory, nor a project already set up",
   );
 
-  const walk = realpathSync(tempDir("sw2-rpc-browse-"));
+  const walk = realpathSync(tempDir("crew-rpc-browse-"));
   mkdirSync(join(walk, "plain"), { recursive: true });
   git(walk, "init", "-q", "repo");
   const folders = which(await call(contracts.paths, { path: walk }), "folders");

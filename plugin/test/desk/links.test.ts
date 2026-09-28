@@ -25,13 +25,13 @@ import { makeKit } from "../kit.ts";
 import { tempDir } from "../tempdir.ts";
 
 const repo = (): string => {
-  const root = realpathSync(tempDir("sw2-links-root-"));
+  const root = realpathSync(tempDir("crew-links-root-"));
   execFileSync("git", ["init", "-q", root]);
   return root;
 };
 
 test("the Human's links and writable paths default to none, and set_project's save keeps them", () => {
-  const state = tempDir("sw2-links-state-");
+  const state = tempDir("crew-links-state-");
   const config = loadConfig(state);
   assert.deepEqual([config.links, config.writable, config.writableOutside, config.sockets], [[], [], [], []]);
   saveConfig(state, { ...config, links: ["AGENTS.md"], writable: ["docs/plans"] });
@@ -39,8 +39,8 @@ test("the Human's links and writable paths default to none, and set_project's sa
 });
 
 test("a configured path must stay inside the project, and a writable one is granted as its real path", () => {
-  const root = realpathSync(tempDir("sw2-links-root-"));
-  const outside = realpathSync(tempDir("sw2-links-outside-"));
+  const root = realpathSync(tempDir("crew-links-root-"));
+  const outside = realpathSync(tempDir("crew-links-outside-"));
   mkdirSync(join(root, "docs", "plans"), { recursive: true });
   symlinkSync(outside, join(root, "away"));
   assert.equal(pathProblem(root, "docs/plans"), undefined);
@@ -50,7 +50,7 @@ test("a configured path must stay inside the project, and a writable one is gran
   assert.match(pathProblem(root, ".") ?? "", /leaves the project/);
   assert.match(pathProblem(root, "missing") ?? "", /does not exist/);
   assert.match(pathProblem(root, "away") ?? "", /resolves outside/);
-  const state = tempDir("sw2-links-state-");
+  const state = tempDir("crew-links-state-");
   saveConfig(state, { ...loadConfig(state), writable: ["docs/plans", "away", "../x", "missing"] });
   assert.deepEqual(projectWrites({ root, slug: "x", state }), [join(root, "docs", "plans")]);
 });
@@ -58,7 +58,7 @@ test("a configured path must stay inside the project, and a writable one is gran
 test("a role that commits also writes the repository's git directory, where a lane copy keeps its index", () => {
   const kit = makeKit();
   const root = repo();
-  const project = { root, slug: "x", state: tempDir("sw2-links-state-") };
+  const project = { root, slug: "x", state: tempDir("crew-links-state-") };
   const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
   assert.deepEqual(seatWrites(role("peer"), project), [join(root, ".git")]);
   assert.deepEqual(seatWrites(role("lead"), project), []);
@@ -67,8 +67,8 @@ test("a role that commits also writes the repository's git directory, where a la
 test("a path the Human grants outside the project is absolute, real, never home or above it, and only for a role that writes code", () => {
   const kit = makeKit();
   const root = repo();
-  const home = realpathSync(tempDir("sw2-links-home-"));
-  const cache = realpathSync(tempDir("sw2-links-cache-"));
+  const home = realpathSync(tempDir("crew-links-home-"));
+  const cache = realpathSync(tempDir("crew-links-cache-"));
   symlinkSync(cache, join(home, "cache"));
   assert.equal(outsideProblem(join(home, "cache"), home), undefined);
   assert.match(outsideProblem("cache", home) ?? "", /not an absolute path/);
@@ -76,7 +76,7 @@ test("a path the Human grants outside the project is absolute, real, never home 
   assert.match(outsideProblem(home, home) ?? "", /holds the home/);
   assert.match(outsideProblem(dirname(home), home) ?? "", /holds the home/);
   assert.match(outsideProblem("/", home) ?? "", /holds the home/);
-  const state = tempDir("sw2-links-state-");
+  const state = tempDir("crew-links-state-");
   saveConfig(state, { ...loadConfig(state), writableOutside: [join(home, "cache"), "relative", "/"] });
   const project = { root, slug: "x", state };
   const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
@@ -88,7 +88,7 @@ test("a path the Human grants outside the project is absolute, real, never home 
 
 test("a socket the Human grants is an absolute path to a unix socket, and only for a role that writes code", async () => {
   const kit = makeKit();
-  const dir = realpathSync(tempDir("sw2-links-sock-"));
+  const dir = realpathSync(tempDir("crew-links-sock-"));
   const path = join(dir, "d.sock");
   const server = createServer();
   await new Promise<void>((done) => server.listen(path, done));
@@ -98,7 +98,7 @@ test("a socket the Human grants is an absolute path to a unix socket, and only f
     assert.match(socketProblem("d.sock") ?? "", /not an absolute path/);
     assert.match(socketProblem(join(dir, "gone.sock")) ?? "", /does not exist/);
     assert.match(socketProblem(join(dir, "file")) ?? "", /not a unix socket/);
-    const state = tempDir("sw2-links-state-");
+    const state = tempDir("crew-links-state-");
     saveConfig(state, { ...loadConfig(state), sockets: [path, join(dir, "file"), "relative"] });
     const project = { root: repo(), slug: "x", state };
     const peer = kit.roles.find((entry) => entry.role === "peer")!;
@@ -115,10 +115,10 @@ test("a lane copy gets a link to each ignored path the Human named, and a skip i
   writeFileSync(join(root, "AGENTS.md"), "rules\n");
   writeFileSync(join(root, "tracked.md"), "x\n");
   mkdirSync(join(root, "docs", "plans"), { recursive: true });
-  const copy = { id: "s1", path: realpathSync(tempDir("sw2-links-copy-")) };
+  const copy = { id: "s1", path: realpathSync(tempDir("crew-links-copy-")) };
   execFileSync("git", ["init", "-q", copy.path]);
   writeFileSync(join(copy.path, ".gitignore"), "AGENTS.md\ndocs/plans\n");
-  const project = { root, slug: "x", state: tempDir("sw2-links-state-") };
+  const project = { root, slug: "x", state: tempDir("crew-links-state-") };
   saveConfig(project.state, { ...loadConfig(project.state), links: ["AGENTS.md", "docs/plans", "tracked.md", "../x"] });
   const lines: string[] = [];
   const log = (_project: unknown, line: string) => lines.push(line);
@@ -185,7 +185,7 @@ test("a seat's extra writes and the sockets the Human grants reach its sandbox a
   }
   const cx = loadKit(kit.dir);
   const lead = withHarness(resolveTeam(cx), "lead", cx.harnesses.cx!);
-  const home = tempDir("sw2-links-home-");
+  const home = tempDir("crew-links-home-");
   const socket = "/Users/me/.orbstack/run/docker.sock";
   const where = {
     root: "/work/shop",

@@ -17,7 +17,7 @@ function put(dir: string, path: string, value: unknown): void {
 
 /** A kit of the test's own over the shipped ecosystem, Paseo's tools, the watch's questions and refused commands. */
 function kitDir(files: Record<string, unknown>): string {
-  const dir = tempDir("sw2-kit-");
+  const dir = tempDir("crew-kit-");
   mkdirSync(join(dir, "catalog"), { recursive: true });
   for (const name of ["ecosystem.json", "paseo.json", "checks.json", "refused.json"])
     copyFileSync(new URL(`../../catalog/${name}`, import.meta.url), join(dir, "catalog", name));
@@ -36,7 +36,7 @@ const harness = {
   mcpCall: "mcp__{server}__",
   settings: { file: "config.json", source: "settings.json", roleSource: "settings/ROLE.settings.json" },
   mcp: { file: "mcp.json", delivery: "file", transports: ["stdio"], key: "mcpServers" },
-  provider: { profileModeId: "full", env: { SEATWORKS_AGENT_BIN: "acme" } },
+  provider: { profileModeId: "full", env: { CREW_AGENT_BIN: "acme" } },
 };
 const { label: _label, ...unlabelled } = harness;
 const peer = {
@@ -210,7 +210,7 @@ test("a roles or refused file in the state root replaces the shipped one, and a 
     skills: null,
   };
   const bare = { ...harness, provider: { profileModeId: "full" } };
-  const dir = kitDir({ [HARNESS]: bare, "roles.json": { providerPrefix: "sw2-", roles: [lead] } });
+  const dir = kitDir({ [HARNESS]: bare, "roles.json": { providerPrefix: "crew-", roles: [lead] } });
   const kit = loadKit(dir);
   assert.deepEqual(
     [kit.roles.map((role) => role.role), kit.refused],
@@ -218,10 +218,10 @@ test("a roles or refused file in the state root replaces the shipped one, and a 
     "with nothing of the owner's, the kit runs what it ships",
   );
 
-  const mine = tempDir("sw2-preset-mine-");
+  const mine = tempDir("crew-preset-mine-");
   const prompt = join(mine, "DRIVER.md");
   writeFileSync(prompt, "# Driver\n\nYou drive.\n");
-  put(mine, "roles.json", { providerPrefix: "sw2-", roles: [{ ...lead, role: "driver", label: "Driver", prompt }] });
+  put(mine, "roles.json", { providerPrefix: "crew-", roles: [{ ...lead, role: "driver", label: "Driver", prompt }] });
   put(mine, "refused.json", { hub: "the forge's" });
   const own = loadKit(dir, mine);
   assert.deepEqual(
@@ -257,7 +257,7 @@ test("a capability several roles hold can name which of them, and a stored name 
         reviewer: [{ name: "done" }],
       },
       "roles.json": {
-        providerPrefix: "sw2-",
+        providerPrefix: "crew-",
         roles: [
           role("architecture", ["supervise"], "supervisor", "architecture"),
           role("safety", ["supervise"], "supervisor", "safety"),

@@ -13,7 +13,7 @@ const reviews = (h: Harness) => Object.values(h.ledger().tasks).filter((entry) =
 /** A lane opened by a supervising seat, with its Lead. */
 async function opened(title: string, more: Record<string, unknown> = {}) {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title, outcome: "money rounds correctly", ...scope, ...more });
   const lane = h.ledger().lanes.L1!;
   return { h, sup, lane, lead: lane.lead! };

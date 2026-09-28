@@ -58,10 +58,10 @@ const addTask = (id: string, title: string, holds: string) => ({
 });
 
 test("a seat's line to the desk carries its choices and its calls, and a call stopped on either side, or made before a reload is reached, is carried out and mailed", async (t) => {
-  const go = join(tempDir("sw2-line-"), "go");
+  const go = join(tempDir("crew-line-"), "go");
   t.after(() => writeFileSync(go, ""));
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   // The lane's gate waits for the test, so a report is still being worked on when its caller stops it.
   await h.call(sup, "supervisor", "set_project", { gate: `until [ -f ${go} ]; do sleep 0.05; done`, gateOn: "lane" });
   await h.call(sup, "supervisor", "open_lane", {
@@ -80,7 +80,7 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
     purpose: "interactive",
     provider: seat.provider,
     cwd: h.root,
-    env: { SEATWORKS_DESK_KEY: "k-lead" },
+    env: { CREW_DESK_KEY: "k-lead" },
   });
   const { socket, heard, say, result } = await lineOf(h, t);
   const skills = (said?: Heard) => said?.choices?.add_tasks?.skills ?? [];

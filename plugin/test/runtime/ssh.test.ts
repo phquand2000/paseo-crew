@@ -35,10 +35,10 @@ test("the Human's ssh grant reaches a seat that writes code as a config ssh reso
       cwd: h.root,
       env: {},
     }).env;
-  const config = open("sw2-peer-codex").SEATWORKS_SSH_CONFIG;
+  const config = open("crew-peer-codex").CREW_SSH_CONFIG;
   assert.ok(config, "a Peer is given the config");
-  assert.equal(open("sw2-peer-claude").SEATWORKS_SSH_CONFIG, config, "whichever harness it runs on");
-  assert.equal(open("sw2-lead-claude").SEATWORKS_SSH_CONFIG, undefined, "a role that writes no code reaches no host");
+  assert.equal(open("crew-peer-claude").CREW_SSH_CONFIG, config, "whichever harness it runs on");
+  assert.equal(open("crew-lead-claude").CREW_SSH_CONFIG, undefined, "a role that writes no code reaches no host");
 
   const resolved = spawnSync("ssh", ["-G", "-F", config, "example-host"], { encoding: "utf-8" });
   assert.equal(resolved.status, 0, resolved.stderr);
@@ -69,7 +69,7 @@ test("the Human's ssh grant reaches a seat that writes code as a config ssh reso
 
 /** Runs the seat's ssh over a stand-in that plays `script`, as the shim is written to PATH. */
 const shim = (script: string, env: Record<string, string> = {}) => {
-  const fake = join(tempDir("sw2-ssh-"), "ssh");
+  const fake = join(tempDir("crew-ssh-"), "ssh");
   writeFileSync(fake, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
   return spawnSync(process.execPath, [join(BIN, "ssh-shim.mjs"), fake, "example-host", "hostname"], {
     encoding: "utf-8",
@@ -79,7 +79,7 @@ const shim = (script: string, env: Record<string, string> = {}) => {
 };
 
 test("a seat's ssh reads the granted hosts, and stops at once, without the link, when the tailnet holds it for a check", () => {
-  const ran = shim(`echo "$@"; echo warn >&2; exit 3`, { SEATWORKS_SSH_CONFIG: "/state/ssh/config" });
+  const ran = shim(`echo "$@"; echo warn >&2; exit 3`, { CREW_SSH_CONFIG: "/state/ssh/config" });
   assert.deepEqual([ran.status, ran.stdout, ran.stderr], [3, "-F /state/ssh/config example-host hostname\n", "warn\n"]);
 
   // As Tailscale sends it once the check has lapsed; ssh would then wait on the browser for good.

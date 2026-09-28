@@ -47,8 +47,8 @@
   ],
   "provider": {
     "env": {
-      "SEATWORKS_HARNESS": "opencode",
-      "SEATWORKS_AGENT_BIN": "opencode",
+      "CREW_HARNESS": "opencode",
+      "CREW_AGENT_BIN": "opencode",
       "OPENCODE_DISABLE_CLAUDE_CODE": "1",
       "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1",
       "OPENCODE_DISABLE_PROJECT_CONFIG": "1",

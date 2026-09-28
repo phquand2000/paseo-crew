@@ -36,7 +36,7 @@ async function until(check: () => boolean, what: string): Promise<void> {
 }
 
 const watchersOf = (h: Harness) =>
-  [...h.agents.values()].filter((agent) => agent.provider.startsWith("sw2-watcher-") && !agent.archivedAt);
+  [...h.agents.values()].filter((agent) => agent.provider.startsWith("crew-watcher-") && !agent.archivedAt);
 
 /** The case id a letter or prompt asks about, the last one it names. */
 const caseIn = (text: string) => [...text.matchAll(/CASE (C\w+) about/g)].at(-1)![1]!;
@@ -48,7 +48,7 @@ async function watched(t: TestContext) {
   const around = h.runtime.kit.checks.summary_works_around!;
   around.mode = "off";
   t.after(() => void (around.mode = "shadow"));
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
     title: "Rounding",
     outcome: "money rounds correctly",
@@ -100,7 +100,7 @@ test("the Watcher's life: seated for a case, answering by the rules, kept while 
   assert.match((await said([{ ...yes, says: "probably" }])).text, /summary_admits_gap takes yes, no, unsure/);
   assert.match((await said([{ ...yes, why: " " }])).text, /give summary_admits_gap a why/);
   assert.match((await said([yes, { ...yes, question: "toString" }])).text, /toString is no question of C\w+/);
-  const other = h.add("sw2-watcher-claude/claude-opus-5", h.root, "another Watcher");
+  const other = h.add("crew-watcher-claude/claude-opus-5", h.root, "another Watcher");
   assert.match((await said([yes], first, other)).text, /was sent to another Watcher/);
   h.agents.get(other)!.archivedAt = new Date().toISOString();
   await settle();
@@ -178,7 +178,7 @@ test("cases at once seat one Watcher, and a case is given up only when nobody ca
   const copy = h.ledger().tasks["L1-T1"]!.worktree!;
   // A change before any look opens one question, and a hand-back no gate backs another, both as the turn ends.
   timeline.beat("turn_started", "t1");
-  timeline.add({ type: "user_message", text: "The total is wrong.", clientMessageId: "sw2-rework-t1" }, "t1");
+  timeline.add({ type: "user_message", text: "The total is wrong.", clientMessageId: "crew-rework-t1" }, "t1");
   const edit = { type: "edit", filePath: join(copy, "src/cart.ts"), oldString: "a", newString: "b" };
   timeline.add({ type: "tool_call", callId: "e1", name: "Edit", status: "completed", detail: edit }, "t1");
   await h.call(peer, "peer", "done", { outcome: "partial", summary: "Half of it." });
@@ -213,7 +213,7 @@ test("cases at once seat one Watcher, and a case is given up only when nobody ca
   t.mock.method(workspaces, "ref", (id: string) => {
     const real = ref(id);
     const create: Create = async (options) => {
-      if (options.config.provider.startsWith("sw2-watcher-")) await seated;
+      if (options.config.provider.startsWith("crew-watcher-")) await seated;
       return real.agents.create(options);
     };
     return { ...real, agents: { create } };

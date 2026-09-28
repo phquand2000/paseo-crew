@@ -7,7 +7,7 @@ import { nodeBin } from "../../core/paths.ts";
 import { type Project, type SshHost, loadConfig } from "./project.ts";
 
 /** Read by the ssh a seat's PATH finds first. */
-export const SEAT_SSH = "SEATWORKS_SSH_CONFIG";
+export const SEAT_SSH = "CREW_SSH_CONFIG";
 
 const quoted = (text: string) => `'${text.replaceAll("'", `'\\''`).replaceAll("%", "%%")}'`;
 

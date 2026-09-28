@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 export function repo(): { root: string; git: (cwd: string, ...args: string[]) => string } {
-  const root = tempDir("sw2-flow-repo-");
+  const root = tempDir("crew-flow-repo-");
   const git = (cwd: string, ...args: string[]) =>
     execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
   writeFileSync(join(root, "a.txt"), "one\ntwo\nthree\n");
@@ -72,7 +72,7 @@ type EventOf<K, E = DeskEvent> = E extends { kind: infer T } ? (K extends T ? E 
 
 export function harness(options: { sensor?: (spec: SensorSpec, key: string) => Judge } = {}) {
   // One harness is one machine: a test that builds two gets two, since a daemon never shares its state.
-  process.env.HOME = tempDir("sw2-home-");
+  process.env.HOME = tempDir("crew-home-");
   const { root, git } = repo();
   const state = stateRoot();
   mkdirSync(state, { recursive: true });
@@ -127,7 +127,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
       .split("\n\n")
       .find((entry) => entry.includes(`branch refs/heads/${branch}\n`));
     if (where) return commit(where.split("\n")[0]!.slice("worktree ".length), file, text);
-    const copy = join(tempDir("sw2-commit-to-"), "copy");
+    const copy = join(tempDir("crew-commit-to-"), "copy");
     git(root, "worktree", "add", "-q", copy, branch);
     commit(copy, file, text);
     git(root, "worktree", "remove", "--force", copy);
@@ -224,7 +224,7 @@ export async function laneWithPeer(
     mkdirSync(h.project.state, { recursive: true });
     writeFileSync(join(h.project.state, "settings.json"), JSON.stringify(settings));
   }
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
     title: "Build",
     outcome: "a.txt changes",

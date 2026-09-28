@@ -33,7 +33,7 @@ async function until(check: () => boolean | Promise<boolean>, what: string): Pro
 /** A lane with its Lead, the desk's socket listening as the plugin's start opens it, and the Lead's key bound as Paseo opens it. */
 async function lineUp(t: TestContext) {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
     title: "Build",
     outcome: "a.txt changes",
@@ -56,7 +56,7 @@ function bind(h: Harness, agent: string, key: string): void {
     purpose: "interactive",
     provider,
     cwd: h.root,
-    env: { SEATWORKS_DESK_KEY: key },
+    env: { CREW_DESK_KEY: key },
   });
 }
 
@@ -70,7 +70,7 @@ async function served(t: TestContext, h: Harness, set: string, key: string, env 
     command: process.execPath,
     args: [TEAM, set, set, deskSocket()],
     cwd: h.root,
-    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: key, ...env },
+    env: { PATH: process.env.PATH ?? "", CREW_DESK_KEY: key, ...env },
     stderr: "inherit",
   });
   await client.connect(transport);
@@ -97,7 +97,7 @@ async function line(t: TestContext, h: Harness, key: string, role: string) {
 
 /** A gate that holds until `release` is called, so a call it runs is stopped or dropped while the desk is still at it. */
 function heldGate(t: TestContext) {
-  const go = join(tempDir("sw2-gate-"), "go");
+  const go = join(tempDir("crew-gate-"), "go");
   const release = () => writeFileSync(go, "");
   t.after(release);
   return { command: `until [ -f '${go}' ]; do sleep 0.02; done`, release };
@@ -153,7 +153,7 @@ test("a call its harness stops, or whose line drops, is answered by mail, and th
     await h.call(sup, "supervisor", "set_project", { gate: gate.command, gateOn: "lane" });
     return gate;
   };
-  const seat = await served(t, h, "lead", "k-lead", { SEATWORKS_PROGRESS_MS: "50" });
+  const seat = await served(t, h, "lead", "k-lead", { CREW_PROGRESS_MS: "50" });
   const ready = { summary: "done", ready: true };
 
   let gate = await gated();
@@ -242,7 +242,7 @@ test("new choices reach a harness as a changed tool list, only where its set cha
 });
 
 test("a seat started before a tool was added is told the list changed and then sees it", async (t) => {
-  const root = tempDir("sw2-mcp-");
+  const root = tempDir("crew-mcp-");
   const dir = join(root, "mcp");
   mkdirSync(dir);
   for (const file of ["team.mjs", "instructions.json"]) copyFileSync(join(dirname(TEAM), file), join(dir, file));
@@ -258,7 +258,7 @@ test("a seat started before a tool was added is told the list changed and then s
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [join(dir, "team.mjs"), "supervisor", "supervisor", join(root, "no-desk.sock")],
-    env: { PATH: process.env.PATH ?? "", SEATWORKS_TOOLS_POLL_MS: "20" },
+    env: { PATH: process.env.PATH ?? "", CREW_TOOLS_POLL_MS: "20" },
     stderr: "inherit",
   });
   await client.connect(transport);

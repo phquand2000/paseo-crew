@@ -17,7 +17,7 @@ const opus = {
 
 test("the models are what Paseo lists for each agent, not what the plugin marked as default, and an agent Paseo cannot list keeps its last list and says why", async () => {
   const kit = makeKit();
-  const state = tempDir("sw2-state-");
+  const state = tempDir("crew-state-");
   const asked: string[] = [];
   const first = await fetchModels(
     kit,
@@ -30,7 +30,7 @@ test("the models are what Paseo lists for each agent, not what the plugin marked
     state,
     Date.parse("2026-09-01T00:00:00Z"),
   );
-  assert.deepEqual(asked, ["sw2-supervisor-claude", "sw2-lead-omp"], "one seat's provider is asked per agent");
+  assert.deepEqual(asked, ["crew-supervisor-claude", "crew-lead-omp"], "one seat's provider is asked per agent");
   assert.equal(first.changed, true);
   assert.deepEqual(
     first.cache.claude!.models,

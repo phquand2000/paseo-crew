@@ -58,7 +58,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
     [],
     "every harness delta speaks to a role the kit has",
   );
-  const home = tempDir("sw2-real-home-");
+  const home = tempDir("crew-real-home-");
   for (const [name, seat] of Object.entries(team.roles)) {
     const { role, harness } = seat;
     materialize(kit, team, name, home, project, serversFor(kit, team, name, context));
@@ -93,7 +93,7 @@ test("the shipped kit resolves to a complete team, and every role's seat builds 
 
 test("nothing a seat or its guides lead it to read resolves into a git repository", async () => {
   const kit = loadKit(PLUGIN);
-  const home = tempDir("sw2-outside-home-");
+  const home = tempDir("crew-outside-home-");
   const roots = [guidesDir(home)];
   placeGuides(kit, home);
   for (const { role, harness } of seatPairs(kit)) {
@@ -122,7 +122,7 @@ test("a Codex seat runs on the model provider the owner's own Codex names, and o
   const pair = seatPairs(kit).find((entry) => entry.harness.id === "codex" && entry.role.role === "lead")!;
   if (!installed(pair.harness)) return t.skip("codex is not installed here");
   const team = withHarness(resolveTeam(kit), "lead", pair.harness);
-  const home = tempDir("sw2-codex-home-");
+  const home = tempDir("crew-codex-home-");
   materialize(kit, team, "lead", home, project);
   const file = join(seatDir(kit, pair.role, pair.harness, home, project), "config.toml");
   type Seat = {
@@ -254,9 +254,9 @@ test("a Claude seat reads the project's own CLAUDE.md, or its AGENTS.md where it
       `${role.role}: the seat's own directory is the one added`,
     );
   }
-  const root = tempDir("sw2-agents-only-");
+  const root = tempDir("crew-agents-only-");
   writeFileSync(join(root, "AGENTS.md"), "Use pnpm.\n");
-  const home = tempDir("sw2-agents-home-");
+  const home = tempDir("crew-agents-home-");
   const own = { root, slug: "demo-000000", state: join(root, ".state") };
   const peer = pairs.find((pair) => pair.role.role === "peer")!;
   materialize(kit, team, "peer", home, own);
@@ -269,7 +269,7 @@ test("a Claude seat reads the project's own CLAUDE.md, or its AGENTS.md where it
 
 test("project records are seeded once and never overwritten", () => {
   const kit = loadKit(PLUGIN);
-  const state = tempDir("sw2-state-");
+  const state = tempDir("crew-state-");
   assert.ok(seedRecords(kit, state).includes("notebook.md"));
   writeFileSync(join(state, "notebook.md"), "The owner's own notes.\n");
   assert.deepEqual(seedRecords(kit, state), []);

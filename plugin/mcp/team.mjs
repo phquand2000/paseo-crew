@@ -13,7 +13,7 @@ let tools = read("tools.json")[toolSet] ?? [];
 const instructions = read("instructions.json")[toolSet];
 const { version } = read("../package.json");
 // A harness that asked for progress hears that often that a call still runs, which also keeps one that counts idle time waiting.
-const PROGRESS_MS = Number(process.env.SEATWORKS_PROGRESS_MS ?? 20_000);
+const PROGRESS_MS = Number(process.env.CREW_PROGRESS_MS ?? 20_000);
 // A dropped line is tried again that soon. A harness's first list waits that long for the desk's choices, well inside the
 // second Codex gives a server to start; choices that come later reach it as a changed list, and the desk checks values anyway.
 const RETRY_MS = 2_000;
@@ -56,7 +56,7 @@ class Desk {
         // The harness's pipe keeps this server alive; the line to the desk never does on its own.
         line.unref();
         this.#line = line;
-        this.#write({ type: "hello", key: process.env.SEATWORKS_DESK_KEY ?? "", role, cwd: process.cwd() });
+        this.#write({ type: "hello", key: process.env.CREW_DESK_KEY ?? "", role, cwd: process.cwd() });
       });
       // readline passes on the line's errors: a line that fails is closed, which is handled below.
       createInterface({ input: line }).on("line", (text) => this.#heard(text, done)).on("error", () => {});
@@ -153,7 +153,7 @@ serveStdio(async () => {
     }
   };
   // A seat outlives plugin updates, so a tool added since it started reaches it by the list changing, not by a restart it never gets.
-  watchFile(join(here, "tools.json"), { interval: Number(process.env.SEATWORKS_TOOLS_POLL_MS ?? 5000) }, () => {
+  watchFile(join(here, "tools.json"), { interval: Number(process.env.CREW_TOOLS_POLL_MS ?? 5000) }, () => {
     try {
       tools = read("tools.json")[toolSet] ?? [];
     } catch {

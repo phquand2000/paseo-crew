@@ -32,7 +32,7 @@ const ALLOWED = [
 ];
 
 test("a seat's shell, on the PATH the desk gives it, refuses what only the desk does however it is spelled, and runs the rest with the real git", () => {
-  const root = tempDir("sw2-shim-");
+  const root = tempDir("crew-shim-");
   execFileSync("git", ["-C", root, "init", "-q", "-b", "main"]);
   execFileSync("git", [
     "-C",
@@ -47,7 +47,7 @@ test("a seat's shell, on the PATH the desk gives it, refuses what only the desk 
     "-m",
     "seed",
   ]);
-  const state = tempDir("sw2-shim-state-");
+  const state = tempDir("crew-shim-state-");
   mkdirSync(join(state, "bin"));
   writeFileSync(join(state, "bin", "hub"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
   const kit = loadKit(PLUGIN);

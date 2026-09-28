@@ -71,7 +71,7 @@ export function seatWrites(role: RoleSpec, project: Project): string[] {
 /** A directory under /tmp for a project's seats that write code: short enough for a socket's path, and none other's to reach. */
 export function seatTemp(role: RoleSpec, project: Project): string | undefined {
   if (!can(role, "write")) return undefined;
-  const parent = join(realpathSync("/tmp"), `seatworks-${process.getuid!()}`);
+  const parent = join(realpathSync("/tmp"), `paseo-crew-${process.getuid!()}`);
   mkdirSync(parent, { recursive: true, mode: 0o700 });
   const found = lstatSync(parent);
   if (!found.isDirectory() || found.uid !== process.getuid!() || (found.mode & 0o077) !== 0)

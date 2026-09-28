@@ -41,7 +41,7 @@
 <text class="badge-text" x="300" y="240" text-anchor="middle">2</text>
 <rect class="node" x="300" y="334" width="360" height="62" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
 <text class="title" x="480.0" y="352.0" text-anchor="middle" style="fill:var(--teal-ink)">before session_open</text>
-<text class="sub" x="480.0" y="371.0" text-anchor="middle">config dir, SEATWORKS_ vars,</text>
+<text class="sub" x="480.0" y="371.0" text-anchor="middle">config dir, CREW_ vars,</text>
 <text class="sub" x="480.0" y="388.0" text-anchor="middle">its key; git, gh, paseo on PATH</text>
 <circle cx="300" cy="334" r="11" style="fill:var(--teal)"/>
 <text class="badge-text" x="300" y="338" text-anchor="middle">3</text>

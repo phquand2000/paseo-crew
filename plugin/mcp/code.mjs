@@ -15,7 +15,7 @@ const pin = config.pin;
 const CALL_MS = (config.timeoutSeconds ?? 180) * 1000;
 const LIST_MS = (config.listSeconds ?? (backend.type === "stdio" ? 20 : 3)) * 1000;
 // A harness that asked for progress hears that often that a call, or the opening or indexing it waits on, still runs.
-const PROGRESS_MS = Number(process.env.SEATWORKS_PROGRESS_MS ?? 20_000);
+const PROGRESS_MS = Number(process.env.CREW_PROGRESS_MS ?? 20_000);
 const { version } = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf-8"));
 
 function gitOut(args, cwd = process.cwd()) {
@@ -77,7 +77,7 @@ class Backend {
     if (backend.type === "stdio" && !command) throw new Error("no command is set");
     // Kept quiet: a harness may not read a server's stderr, and a full pipe can stall the backend.
     const transport = backend.type === "stdio" ? new StdioClientTransport({ command, args, cwd: root, stderr: "ignore" }) : new StreamableHTTPClientTransport(new URL(backend.url));
-    const client = new Client({ name: "seatworks-code", version });
+    const client = new Client({ name: "paseo-crew-code", version });
     client.onclose = () => {
       if (this.#client === client) this.#client = undefined;
     };

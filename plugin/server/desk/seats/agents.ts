@@ -50,9 +50,9 @@ export class Agents {
   /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
   private marks(role: RoleSpec, project: Project): Record<string, string> {
     return {
-      "seatworks.project": project.slug,
-      "seatworks.role": role.role,
-      ...(role.concern ? { "seatworks.concern": role.concern } : {}),
+      "crew.project": project.slug,
+      "crew.role": role.role,
+      ...(role.concern ? { "crew.concern": role.concern } : {}),
     };
   }
 

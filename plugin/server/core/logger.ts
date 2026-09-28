@@ -4,7 +4,7 @@ interface Logger {
   info(message: string): void;
 }
 
-const PREFIX = "seatworks-v2:";
+const PREFIX = "paseo-crew:";
 
 /** The one place the plugin writes to the console. */
 export const daemonLog: Logger = {

@@ -36,7 +36,7 @@ Settle every choice that changes ownership, public behavior, safety, compatibili
 
 ## The plan page
 
-Keep it with `note` in plans, as `$SEATWORKS_STATE/plans/<lane>.md`, from the template in [references/plan-page.md](references/plan-page.md): outcome, final contract, one row per task with why it is separate, intermediate states, decisions, the end check, and getting back. It holds the present only, under 80 lines, replacing lines rather than adding them, so a successor can resume the lane from it.
+Keep it with `note` in plans, as `$CREW_STATE/plans/<lane>.md`, from the template in [references/plan-page.md](references/plan-page.md): outcome, final contract, one row per task with why it is separate, intermediate states, decisions, the end check, and getting back. It holds the present only, under 80 lines, replacing lines rather than adding them, so a successor can resume the lane from it.
 
 Getting back is not optional for a lane that migrates data, writes outside the repository, or makes a call nobody can take back: a plan that says how to reach the outcome but not how to get out of it is missing the half needed under pressure. A lane that leaves nothing behind says so in one line.
 

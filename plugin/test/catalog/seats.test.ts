@@ -43,11 +43,11 @@ function withAgent(id: string, files: Record<string, string>): Kit {
 test("a Claude seat per project writes shared plus role settings, links skills, clears MCP files and writes the rules to CLAUDE.md", () => {
   const kit = makeKit();
   const team = resolveTeam(kit);
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   mkdirSync(join(home, ".claude", "projects"), { recursive: true });
   const lead = team.roles.lead!;
   const dir = seatDir(kit, lead.role, lead.harness, home, project);
-  assert.equal(basename(dir), "sw2-lead-claude-shop-abc123");
+  assert.equal(basename(dir), "crew-lead-claude-shop-abc123");
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, ".claude.json"),
@@ -112,7 +112,7 @@ test("a seat whose harness reads its servers from a file gets that file, its who
     "settings/peer.settings.toml": 'approval = "never"\n',
     "settings/scribe.settings.toml": "",
   });
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const rows: [string, string, object][] = [
     [
       "omp",
@@ -128,7 +128,7 @@ test("a seat whose harness reads its servers from a file gets that file, its who
     const dir = seatDir(kit, role, harness, home, project);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, harness.settings.file), own);
-    const outside = join(tempDir("sw2-outside-"), "AGENTS.md");
+    const outside = join(tempDir("crew-outside-"), "AGENTS.md");
     writeFileSync(outside, "project rules that must not change");
     symlinkSync(outside, join(dir, "AGENTS.md"));
 
@@ -170,7 +170,7 @@ test("a seat whose harness reads its servers from a file gets that file, its who
 test("an unreadable MCP file is written again when the plugin owns it, and left alone when the harness does", (t) => {
   const said = reported(t);
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   const peer = team.roles.peer!;
   assert.equal(peer.harness.mcp.delivery, "file", "the Peer's harness takes its servers from this file alone");
@@ -214,7 +214,7 @@ test("an unreadable MCP file is written again when the plugin owns it, and left 
 test("a real directory where a skill link should go is left alone, not turned into a seat that cannot start", (t) => {
   const said = reported(t);
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   const dir = seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project);
   mkdirSync(join(dir, "skills", "test-first"), { recursive: true });
@@ -270,7 +270,7 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   });
   put(kit, "content/prompts/LEAD.md", "# Lead\n\nWrite a plan in {{state}}/plans/ first.\n");
   const team = withHarness(resolveTeam(kit), "lead", kit.harnesses.cx!);
-  const home = tempDir("sw2-cx-home-");
+  const home = tempDir("crew-cx-home-");
   materialize(kit, team, "lead", home, project, serversFor(kit, team, "lead", context));
   const dir = seatDir(kit, team.roles.lead!.role, kit.harnesses.cx!, home, project);
   type Seat = {
@@ -318,7 +318,7 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
     "rules/lead.rules": "",
   });
   const refused = withHarness(resolveTeam(blind), "lead", blind.harnesses.cx!);
-  const elsewhere = tempDir("sw2-cx-home-");
+  const elsewhere = tempDir("crew-cx-home-");
   assert.throws(() => materialize(blind, refused, "lead", elsewhere, project, {}), {
     message: /^Cx's model list could not be read from `node -e process\.exit\(3\)`/,
   });
@@ -328,7 +328,7 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
 
 test("a changed skill reaches the seat as a new copy, the one read before stays as it was, and a copy nobody touches for two weeks goes", () => {
   const kit = makeKit();
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const team = resolveTeam(kit);
   const link = join(
     seatDir(kit, team.roles.peer!.role, team.roles.peer!.harness, home, project),

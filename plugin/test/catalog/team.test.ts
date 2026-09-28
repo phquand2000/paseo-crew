@@ -297,7 +297,7 @@ test("each seat is told and given what its servers, its role and the Human say, 
 
 test("a server that needs something the project lacks is left off its seats, with everything that tells them to use it", () => {
   const team = resolveTeam(kit, { mcp: { docs: { enabled: true } } });
-  const bareRoot = tempDir("sw2-bare-");
+  const bareRoot = tempDir("crew-bare-");
   const lacking = servingProject(team, bareRoot);
   assert.deepEqual(
     lacking.roles.peer!.mcp,
@@ -309,7 +309,7 @@ test("a server that needs something the project lacks is left off its seats, wit
   assert.equal(skillDirsFor(lacking, "peer").has("ide-guide"), false);
   assert.equal(served(lacking, "peer").ide, undefined);
 
-  const opened = tempDir("sw2-idea-");
+  const opened = tempDir("crew-idea-");
   mkdirSync(join(opened, ".idea"));
   assert.deepEqual(servingProject(team, opened).roles.peer!.mcp, ["ide", "docs"]);
 });

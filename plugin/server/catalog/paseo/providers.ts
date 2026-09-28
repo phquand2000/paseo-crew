@@ -53,7 +53,7 @@ function desiredProvider(kit: Kit, team: Team, role: RoleSpec, harness: HarnessS
   const entry: Json = {
     extends: harness.baseProvider,
     label: labelFor(kit, role, harness),
-    env: { ...(harness.provider.env ?? {}), SEATWORKS_ROLE: role.role, SEATWORKS_KIT: kit.dir },
+    env: { ...(harness.provider.env ?? {}), CREW_ROLE: role.role, CREW_KIT: kit.dir },
   };
   if (role.description) entry.description = role.description;
   const command = (harness.provider.command ?? []).map((part) => part.replaceAll("KIT", kit.dir));
@@ -142,7 +142,7 @@ function reconcileProvider(
 ): void {
   const have = providers[id] ?? {};
   const env = Object.entries(isRecord(have.env) ? have.env : {});
-  const kept = Object.fromEntries(env.filter(([key]) => !key.startsWith("SEATWORKS_") && !managed.has(key)));
+  const kept = Object.fromEntries(env.filter(([key]) => !key.startsWith("CREW_") && !managed.has(key)));
   const merged: Json = { ...have, ...want, env: { ...kept, ...(want.env as Json) } };
   for (const key of PROVIDER_OPTIONAL) if (!(key in want)) delete merged[key];
   if (sameJson(merged, have)) return;

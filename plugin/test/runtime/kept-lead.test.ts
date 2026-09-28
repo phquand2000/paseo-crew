@@ -29,7 +29,7 @@ const copyCalls = (path: string) => ideCalls.filter((call) => call.path === path
 
 test("a copy waits for every seat writing in it: the last to stop puts it away, and a round puts away one whose writers are gone for good", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const release = (lane: string) => h.call(sup, "supervisor", "release", { lane });
   await h.tick();
   await h.call(sup, "supervisor", "open_lane", { title: "Both in here", outcome: "x", ...scope, isolate: true });
@@ -74,7 +74,7 @@ test("a copy waits for every seat writing in it: the last to stop puts it away, 
 
 test("a kept Lead keeps its lane's copy until the Supervisor releases it or the round finds it gone, and one failed look is not gone", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const release = (lane: string) => h.call(sup, "supervisor", "release", { lane });
   await h.call(sup, "supervisor", "set_project", { gate: "true" });
   const part = await isolated(h, sup, "Part B", "b");
@@ -105,7 +105,7 @@ test("a kept Lead keeps its lane's copy until the Supervisor releases it or the 
   assert.match(
     landed.text,
     new RegExp(
-      `Lane L1 closed; squashed ${part.branch} into one commit on main, its own commits kept at refs/seatworks/lanes/L1\\. Its Peers are archived, and its Lead ${lead} stays until you release it\\. Its working copy S0 stays with its Lead\\.`,
+      `Lane L1 closed; squashed ${part.branch} into one commit on main, its own commits kept at refs/crew/lanes/L1\\. Its Peers are archived, and its Lead ${lead} stays until you release it\\. Its working copy S0 stays with its Lead\\.`,
     ),
   );
   assert.notEqual(h.git(h.root, "branch", "--list", part.branch).trim(), "");

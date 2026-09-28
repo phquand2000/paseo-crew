@@ -13,7 +13,7 @@ const work = (title: string, hint: string) => ({
 
 test("a lane works in the project's own copy from open to landing, and hands it back on its base", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const root = h.project.root;
   const branch = () => h.git(root, "branch", "--show-current").trim();
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "lane" });
@@ -130,7 +130,7 @@ test("a lane works in the project's own copy from open to landing, and hands it 
 
 test("a lane whose base moved lands only once nobody writes in its copy: main is brought in there as one commit, CAN LAND tells whoever tried, and a project may land by merge", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const land = (lane: string) => h.call(sup, "supervisor", "land_lane", { lane });
   const numbers = { title: "Numbers", outcome: "a.txt gains words", ...scope };
   await h.call(sup, "supervisor", "open_lane", numbers);
@@ -159,7 +159,7 @@ test("a lane whose base moved lands only once nobody writes in its copy: main is
   assert.match(h.git(h.root, "show", "main:a.txt"), /four/);
   assert.equal(h.git(h.root, "rev-parse", "main^").trim(), moved);
   assert.equal(
-    h.git(h.root, "log", "-1", "--format=%s", "refs/seatworks/lanes/L1").trim(),
+    h.git(h.root, "log", "-1", "--format=%s", "refs/crew/lanes/L1").trim(),
     `Bring main into ${lane.branch}`,
   );
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
@@ -179,7 +179,7 @@ test("a lane whose base moved lands only once nobody writes in its copy: main is
 
 test("a lane carrying on the Human's branch is refused where there is none, started as a new branch that takes their work along, drawn without a base, and landed where it is", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const open = (title: string, extra: Record<string, unknown>) =>
     h.call(sup, "supervisor", "open_lane", { title, outcome: "the login fix is finished", ...scope, ...extra });
   const branch = () => h.git(h.root, "branch", "--show-current").trim();

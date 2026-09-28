@@ -149,7 +149,7 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
 
 test("a kind most of whose last ten marks were noise is held on probation, and a page never is", async () => {
   const { h, sup } = await laneWithPeer({ attention: { watch: true } });
-  const seat = (n: number) => ({ id: `peer-${n}`, title: "Peer", provider: "sw2-peer-claude/claude-opus-5" });
+  const seat = (n: number) => ({ id: `peer-${n}`, title: "Peer", provider: "crew-peer-claude/claude-opus-5" });
   const marks = (useful: number, count = 10, unknown = 0) => {
     const marked = (kind: string, level: "attend" | "page", n: number) => ({
       id: `I${kind}${n}`,

@@ -10,7 +10,7 @@ import { GATE_LOGS_PER_OWNER, tidyRecords } from "../../server/desk/store/record
 import { tempDir } from "../tempdir.ts";
 
 test("a record log rolls over, keeps its newest roll as text for a grep, and packs the older ones and drops what outgrows its bytes", async () => {
-  const dir = tempDir("sw2-roll-");
+  const dir = tempDir("crew-roll-");
   const line = `${"x".repeat(20)}\n`;
   const roll = {
     dir,
@@ -41,7 +41,7 @@ test("a record log rolls over, keeps its newest roll as text for a grep, and pac
 });
 
 test("two rolls close together pack each file once, so neither packing trips over the other's half-written copy", async () => {
-  const dir = tempDir("sw2-roll-race-");
+  const dir = tempDir("crew-roll-race-");
   const roll = {
     dir,
     current: "events.log",
@@ -82,7 +82,7 @@ const lane = (id: string): Lane => ({
 });
 
 test("a lane in the ledger keeps its records but the gate runs a newer run of the same owner replaced, rehearsals with their run", () => {
-  const state = tempDir("sw2-tidy-");
+  const state = tempDir("crew-tidy-");
   const gates = join(state, "gates");
   const handbacks = join(state, "handbacks");
   mkdirSync(gates);

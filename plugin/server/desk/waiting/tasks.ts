@@ -109,13 +109,11 @@ async function putBackHalfStarted(desk: DeskServices, project: Project): Promise
     halfStarted(ledger).flatMap((task) => {
       const seat = seats.find(
         (entry) =>
-          !entry.archivedAt &&
-          entry.labels?.["seatworks.project"] === project.slug &&
-          entry.labels["seatworks.task"] === task.id,
+          !entry.archivedAt && entry.labels?.["crew.project"] === project.slug && entry.labels["crew.task"] === task.id,
       );
       if (seat) {
         task.peer = seat.id;
-        const role = seat.labels!["seatworks.role"] ?? "peer";
+        const role = seat.labels!["crew.role"] ?? "peer";
         ledger.agents[seat.id] = { id: seat.id, role, lane: task.lane, task: task.id };
         return [];
       }

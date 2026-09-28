@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Seatworks is a Paseo plugin that runs a team of coding agents the **SLP** way: a Supervisor works
+Paseo Crew is a Paseo plugin that runs a team of coding agents the **SLP** way: a Supervisor works
 with the Human, a Lead owns each lane of work, and Peers each do one task, with a Reviewer, a Watcher
 and a Pager beside them. This file holds what the code will not tell you before you change it. How
 the parts fit is in `docs/ARCHITECTURE.md`; every name and value is in `docs/REFERENCE.md`.
@@ -64,7 +64,7 @@ These eight rules settle most questions about where a behaviour belongs.
 cd plugin && npm run check                                 # typecheck, lint, format check, every test: before every commit
 cd plugin && npm run format                                # lays the code out as Prettier wants it
 cd plugin && node --test --import ./test/setup.ts <file>   # one test file, set up as the suite is
-paseo plugin reload seatworks-v2                           # after a client change, to see it in the panel
+paseo plugin reload paseo-crew                           # after a client change, to see it in the panel
 ```
 
 There is no build step. `test/setup.ts` runs before every test file: each test gets a HOME of its
@@ -77,7 +77,7 @@ the test did not ask for fails it.
 - **Never start the daemon or launch seats to test.** Seats are real agents with broad permissions,
   and they cost money. The suite, your reading and `~/.paseo/daemon.log` are the evidence.
 - **Never print or cat a file that can hold a key:** `settings.json` under
-  `~/.local/share/seatworks-v3/`, the `settings.json.bak-*` copies Migrate keeps beside it, any
+  `~/.local/share/paseo-crew/`, the `settings.json.bak-*` copies Migrate keeps beside it, any
   project's `settings.json`, `~/.paseo/config.json`. Fake keys in tests never start with OpenRouter's
   real key prefix, so a scan for that prefix before a push finds only a real key.
 - **Some lines must stay word for word.** `plugin/test/catalog/keep.test.ts` names each one (in
@@ -92,7 +92,7 @@ What a Java codebase does with packages, interfaces and injected dependencies, t
 below. `test/architecture.test.ts`, `tsc`, ESLint and Prettier hold most of it.
 
 **Layers and folders.** The architecture test holds each folder to what `MAY_IMPORT` lets it import.
-- `server/core/`: helpers that know nothing of Seatworks (git, files, JSON, time, the logger,
+- `server/core/`: helpers that know nothing of Paseo Crew (git, files, JSON, time, the logger,
   `KeyedQueue`), and `ports.ts`, the interfaces to Paseo and the judge.
 - `server/domain/`: the model. Each entity's type sits beside its lifecycle table (`lane.ts`,
   `task.ts`, `ask.ts`, `question.ts`, `incident.ts`); `ledger.ts` holds the ledger and the pure

@@ -24,7 +24,7 @@ function commitAll(h: Harness, cwd: string, files: Record<string, string>) {
 
 test("a lane lands after another moved main, gated with main's newer work in it, even while a third holds the project's copy", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f b/b.txt || test -f c/c.txt" });
   for (const [title, path] of [
     ["Part A", "a/**"],
@@ -225,8 +225,8 @@ test("what the record holds of a lane goes to whoever lands it, and never to the
 
 test("two lanes landed at once each stay on the base: the second waits for the first, and a landing never erases another", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
-  const gate = tempDir("sw2-gate-");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  const gate = tempDir("crew-gate-");
   const hold = `test ! -f hold || test ! -f ${gate}/armed || { : > ${gate}/reached; until test -f ${gate}/open; do sleep 0.02; done; }`;
   await h.call(sup, "supervisor", "set_project", { gate: hold });
   for (const [title, file] of [

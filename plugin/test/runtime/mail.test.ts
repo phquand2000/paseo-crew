@@ -9,7 +9,7 @@ import { harness } from "./harness.ts";
 
 type Harness = ReturnType<typeof harness>;
 
-const SUPERVISOR = "sw2-supervisor-claude/claude-opus-5";
+const SUPERVISOR = "crew-supervisor-claude/claude-opus-5";
 const task = (title: string, hint = "a.txt") => ({
   key: "t",
   title,
@@ -221,7 +221,7 @@ test("a Peer that is gone is found past the first page of agents, its Lead told,
 });
 
 test("a call that runs longer than a seat can wait is answered once by mail, and the turn it ends is not silence", async (t) => {
-  const go = join(tempDir("sw2-slow-"), "go");
+  const go = join(tempDir("crew-slow-"), "go");
   t.after(() => writeFileSync(go, ""));
   const h = harness();
   const sup = h.add(SUPERVISOR, h.root, "sup");

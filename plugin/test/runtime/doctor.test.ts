@@ -25,7 +25,7 @@ async function closedPort(): Promise<number> {
 
 test("the doctor over the panel names what this machine lacks for the team, a server at a time", async (t) => {
   const { call } = served();
-  const bins = tempDir("sw2-bin-");
+  const bins = tempDir("crew-bin-");
   const gitHome = execFileSync("git", ["--exec-path"], { encoding: "utf-8" }).trim();
   const path = process.env.PATH;
   process.env.PATH = [bins, gitHome].join(delimiter);

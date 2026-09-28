@@ -1,4 +1,4 @@
-# Seatworks
+# Paseo Crew
 
 A [Paseo](https://paseo.sh) plugin that runs a team of coding agents on your project the **SLP** way.
 You tell a **Supervisor** what you want. It splits the work into lanes; a **Lead** owns each lane and
@@ -9,9 +9,9 @@ the evidence between them, and brings you in for what only you can decide.
 
 ## This fork
 
-This branch of Paseo Crew is Seatworks `v3` taken whole at
-[`4c35563`](https://github.com/sting9k/seatworks/commit/4c35563), keeping its names (plugin id
-`seatworks-v2`, state `~/.local/share/seatworks-v3`, `SEATWORKS_*`, prefix `sw2-`), with these
+Paseo Crew is a fork of Seatworks `v3`, taken whole at
+[`4c35563`](https://github.com/sting9k/seatworks/commit/4c35563) and renamed (plugin id
+`paseo-crew`, state `~/.local/share/paseo-crew`, `CREW_*`, provider prefix `crew-`), with these
 changes on top. It is not affiliated with or endorsed by the Seatworks author; the
 [MIT license](LICENSE) is unchanged.
 
@@ -134,7 +134,7 @@ because every project moves to the new version at once. Below the version is one
 that needs you:
 
 - A changed **prompt** or **skill**: **Use new**, or **Keep mine** to go on with the version you had.
-  Yours is copied to `~/.local/share/seatworks-v3/own/` for you to edit by hand, and you are still
+  Yours is copied to `~/.local/share/paseo-crew/own/` for you to edit by hand, and you are still
   told when the original changes.
 - Changed **guides** and **records**: named only, for you to read in git.
 - Settings this version cannot read, and seats still on an older version.
@@ -144,10 +144,10 @@ what you pick.
 
 ## First run
 
-1. In Paseo, open **Seatworks** in the sidebar.
+1. In Paseo, open **Paseo Crew** in the sidebar.
 2. **Add project**, pick the repository, choose an agent for each role, and attach.
 3. Open **Health** and choose **Run**.
-4. Start an agent in that project with the provider **Supervisor · Claude Code (sw2)**, and tell it
+4. Start an agent in that project with the provider **Supervisor · Claude Code (crew)**, and tell it
    what you want.
 
 The plugin starts everyone else as the work needs them. A lane works in your checkout on a new
@@ -157,7 +157,7 @@ takes a copy of its own or waits its turn. When neither has said, and your check
 work or is on a branch other than the base, you are asked first.
 
 **Your project's files stay yours.** The plugin writes nothing into them: what the team shares is in
-each role's own prompt, and everything the plugin keeps lives under `~/.local/share/seatworks-v3/`.
+each role's own prompt, and everything the plugin keeps lives under `~/.local/share/paseo-crew/`.
 
 ## When the team needs you
 

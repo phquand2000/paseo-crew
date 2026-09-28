@@ -63,7 +63,7 @@ test("settings: machine and project layers saved by revision, checked before sav
   const machine = await team();
   assert.deepEqual(machine.roles.lead!.mcp, ["ide", "docs"], "a server turned on for the machine");
   assert.match(machine.roles.lead!.rules, /Look library APIs up in the docs\./);
-  assert.equal(machine.roles.lead!.provider, "sw2-lead-claude");
+  assert.equal(machine.roles.lead!.provider, "crew-lead-claude");
   onRecord("shop-abc123", "/work/shop");
   assert.deepEqual(await call(contracts.projects, {}), [{ slug: "shop-abc123", root: "/work/shop" }]);
   const projectRead = which(await call(contracts.settingsRead, { project: "shop-abc123" }), "values");
@@ -82,7 +82,7 @@ test("settings: machine and project layers saved by revision, checked before sav
   const shop = await team("shop-abc123");
   assert.deepEqual(
     [shop.roles.lead!.harness, shop.roles.lead!.provider, shop.roles.lead!.mcp],
-    ["omp", "sw2-lead-omp", ["docs"]],
+    ["omp", "crew-lead-omp", ["docs"]],
   );
   assert.match(shop.roles.lead!.rules, /Look library APIs up in the docs\./);
   assert.equal((await team()).roles.lead!.harness, "claude", "a role's harness switched for one project only");

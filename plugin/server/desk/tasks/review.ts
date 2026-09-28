@@ -126,7 +126,7 @@ async function seat(
       parent: caller.id,
       title: seatTitle.review(review.id, target?.id ?? lane.id),
       prompt: reviewBrief(review, target, focus, planned.place),
-      labels: { "seatworks.lane": lane.id, "seatworks.task": review.id, "seatworks.role": role.role },
+      labels: { "crew.lane": lane.id, "crew.task": review.id, "crew.role": role.role },
     });
     ledgers.transact(project, (current) => {
       const entry = current.tasks[review.id];

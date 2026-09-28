@@ -13,7 +13,7 @@ const underWay = (h: Harness, copy: string) =>
 
 test("a base that conflicts with a lane is merged as far as git goes and left in the lane's copy; landed once settled, or given back clean when dropped", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const land = (lane: string) => h.call(sup, "supervisor", "land_lane", { lane });
   await h.call(sup, "supervisor", "set_project", { gate: "true" });
   await h.call(sup, "supervisor", "open_lane", {
@@ -73,7 +73,7 @@ test("a base that conflicts with a lane is merged as far as git goes and left in
 
 test("the merge queue hands a conflict to its Peer, merges nothing as nothing, waits out a busy copy or a hold, fails a task on a crash, and is tried once more by landing", async (t) => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Two", outcome: "x", ...scope, writeSet: ["*.txt"] });
   const lane = h.ledger().lanes.L1!;
   const lead = lane.lead!;

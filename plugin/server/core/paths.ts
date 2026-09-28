@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { basename, delimiter, join, resolve } from "node:path";
 import { getPath, isRecord } from "./json.ts";
 
-export const PLUGIN_ID = "seatworks-v2";
+export const PLUGIN_ID = "paseo-crew";
 
 export function home(): string {
   return process.env.HOME || homedir();
@@ -42,7 +42,7 @@ export const DESK_OWNED = new Set([
 ]);
 
 export function stateRoot(homeDir = home()): string {
-  return join(homeDir, ".local", "share", "seatworks-v3");
+  return join(homeDir, ".local", "share", "paseo-crew");
 }
 
 export function guidesDir(homeDir = home()): string {
@@ -96,7 +96,7 @@ export function intentsPath(homeDir = home()): string {
 }
 
 export function pluginDir(configPath = paseoConfigPath()): string | undefined {
-  if (process.env.SEATWORKS_PLUGIN_DIR) return process.env.SEATWORKS_PLUGIN_DIR;
+  if (process.env.CREW_PLUGIN_DIR) return process.env.CREW_PLUGIN_DIR;
   try {
     const entry = getPath(JSON.parse(readFileSync(configPath, "utf-8")) as unknown, ["plugins", PLUGIN_ID]);
     return isRecord(entry) && entry.source === "directory" && typeof entry.path === "string" ? entry.path : undefined;

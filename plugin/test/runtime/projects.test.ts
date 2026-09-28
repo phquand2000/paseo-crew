@@ -15,7 +15,7 @@ test("two projects on one daemon keep their own settings, task ids and letters",
   const second = repo().root;
   const other = projectOf(second);
   const open = async (where: string, name: string) => {
-    const sup = h.add("sw2-supervisor-claude/claude-opus-5-5", where, name);
+    const sup = h.add("crew-supervisor-claude/claude-opus-5-5", where, name);
     const lane = { title: "Numbers", outcome: "a.txt gains words", ...scope };
     await h.call(sup, "supervisor", "open_lane", lane, where);
     return h.ledger(where === h.root ? undefined : other).lanes.L1!;
@@ -31,20 +31,20 @@ test("two projects on one daemon keep their own settings, task ids and letters",
   const provider = (task: { peer?: string }) => h.agents.get(task.peer!)!.provider;
   const here = await open(h.root, "sup-a");
   await add(here, h.root, { hints: ["a.txt"] });
-  assert.equal(provider(h.ledger().tasks["L1-T1"]!), "sw2-peer-claude/claude-opus-5-5");
-  assert.equal(h.agents.get(here.lead!)!.provider, "sw2-lead-claude/claude-opus-5-5");
+  assert.equal(provider(h.ledger().tasks["L1-T1"]!), "crew-peer-claude/claude-opus-5-5");
+  assert.equal(h.agents.get(here.lead!)!.provider, "crew-lead-claude/claude-opus-5-5");
   const shown = await h.rpc(contracts.settingsRead, { project: h.project.slug });
   const values = { roles: { peer: { harness: "pi", model: "glm-5" } } };
   const saved = await h.rpc(contracts.settingsWrite, { project: h.project.slug, revision: shown.revision, values });
   assert.equal(saved.status, "saved", JSON.stringify(saved));
   await add(here, h.root, { holds: ["b.txt"], parallel: true });
-  assert.equal(provider(h.ledger().tasks["L1-T2"]!), "sw2-peer-pi/glm-5");
-  assert.equal(h.agents.get(here.lead!)!.provider, "sw2-lead-claude/claude-opus-5-5");
+  assert.equal(provider(h.ledger().tasks["L1-T2"]!), "crew-peer-pi/glm-5");
+  assert.equal(h.agents.get(here.lead!)!.provider, "crew-lead-claude/claude-opus-5-5");
 
   const there = await open(second, "sup-b");
   await add(there, second, { hints: ["a.txt"] });
   const [mine, theirs] = [h.ledger().tasks["L1-T1"]!, h.ledger(other).tasks["L1-T1"]!];
-  assert.equal(provider(theirs), "sw2-peer-claude/claude-opus-5-5");
+  assert.equal(provider(theirs), "crew-peer-claude/claude-opus-5-5");
   for (const task of [mine, theirs]) h.agents.get(task.peer!)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());
   await h.idle(here.lead!);
@@ -55,7 +55,7 @@ test("two projects on one daemon keep their own settings, task ids and letters",
 
 test("a ledger the desk cannot read is not written over, and the seat is told why", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Real work", outcome: "x", ...scope });
   assert.ok(h.ledger().lanes.L1);
   const file = join(h.project.state, "ledger.json");
@@ -73,7 +73,7 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
 
 test("the round keeps only what the desk still holds: an orphan copy goes, the project's workspace goes once quiet, a project removed stays removed, and none is detached while a seat works in it", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Quiet", outcome: "a.txt changes", ...scope });
   const lane = h.ledger().lanes.L1!;
   const paseo = h.paseo as {
@@ -107,7 +107,7 @@ test("the round keeps only what the desk still holds: an orphan copy goes, the p
 
 test("a round files the finished lanes past the newest few into the archive, with their records", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5-5", h.root, "sup");
   const open = (title: string, extra: Record<string, unknown>) =>
     h.call(sup, "supervisor", "open_lane", { title, outcome: "x", ...scope, ...extra });
   await h.call(sup, "supervisor", "set_project", { gate: "echo gate ran", gateOn: "lane" });

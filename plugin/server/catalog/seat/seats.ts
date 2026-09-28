@@ -75,7 +75,7 @@ export function materialize(
   const seat = team.roles[roleName];
   if (!seat) throw new Error(`the team has no ${roleName} seat`);
   const dir = seatDir(kit, seat.role, seat.harness, homeDir, project);
-  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$SEATWORKS_STATE" };
+  const paths = { guides: guidesDir(homeDir), state: project?.state ?? "$CREW_STATE" };
   const problems = seatProblems(kit, team, roleName, paths);
   if (problems.length > 0) throw new Error(problems.join("; "));
   const record = recorder();

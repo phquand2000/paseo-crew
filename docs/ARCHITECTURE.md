@@ -1,6 +1,6 @@
 # Architecture
 
-How Seatworks works inside, for a contributor, in one sitting. The [README](../README.md) says what it does;
+How Paseo Crew works inside, for a contributor, in one sitting. The [README](../README.md) says what it does;
 [REFERENCE.md](REFERENCE.md) holds every name, value and letter.
 
 **One rule governs it: the plugin serves SLP and never constrains it.** It owns session lifecycle, transport,
@@ -9,13 +9,13 @@ Human's.
 
 ## Bird's eye
 
-![Seatworks inside Paseo](images/overview.svg)
+![Paseo Crew inside Paseo](images/overview.svg)
 
-| Process | Seatworks code in it |
+| Process | Paseo Crew code in it |
 |---|---|
 | Paseo daemon | `server/**`, entered through `index.server.ts`: the runtime, the desk, the watch, the patrol, the outbox |
 | Paseo app | `client/**`, the panel, entered through `index.client.tsx` |
-| A seat: an agent started from a `sw2-<role>-<agent>` provider | `bin/git-shim.mjs`, which its `git` runs, and `bin/seat-room`, the launcher of a Claude Code seat |
+| A seat: an agent started from a `crew-<role>-<agent>` provider | `bin/git-shim.mjs`, which its `git` runs, and `bin/seat-room`, the launcher of a Claude Code seat |
 | A seat's MCP servers | `mcp/team.mjs` (the desk verbs), and `mcp/code.mjs` for proxied servers |
 
 Paths are under `plugin/`. The daemon and the seats share no memory; two channels join them:
@@ -26,7 +26,7 @@ Paths are under `plugin/`. The daemon and the seats share no memory; two channel
 - **The plugin reaches seats through Paseo**: it starts them in workspaces, follows their timelines, and mails
   them with `agents.ref(id).send`.
 
-Its records, mail, seat keys and working copies live under the state root, `~/.local/share/seatworks-v3/`, and
+Its records, mail, seat keys and working copies live under the state root, `~/.local/share/paseo-crew/`, and
 a seat directory per role and agent under that agent's own folder, such as `~/.claude/profiles/`.
 
 ## The workflow in code
@@ -124,7 +124,7 @@ These are mostly absences, so the code will not show them to you.
   and a letter that asks nothing waits for one that does.
 - **The desk keeps out of the Human's files.** No file of its own goes into the project's tree (a code index
   may add patterns to `.git/info/exclude`), and what roles share is in their prompts; in git it makes lane and
-  task branches and `refs/seatworks/lanes/<id>`, moves the local base only at a landing, and pushes nothing.
+  task branches and `refs/crew/lanes/<id>`, moves the local base only at a landing, and pushes nothing.
 - **Skills and guides are copies** under the state root's `content/`, never links into a repository, since
   some agents load the `AGENTS.md` above every file they read.
 - **All or nothing.** A seat directory is written only when the whole seat can be built, else the launch is
@@ -170,10 +170,10 @@ shrink.
    settings with the role's overlay, deny rules and sandbox, MCP servers an agent reads from a file, working
    rules, skills linked to their copies. `applyRole` sets model, thinking, mode and system prompt (the role's
    prompt, then the agent's `delta/<role>.md`) and hands over MCP servers the agent takes at launch; a seat
-   with desk tools gets a fresh key in `SEATWORKS_DESK_KEY`.
+   with desk tools gets a fresh key in `CREW_DESK_KEY`.
 3. **Before `agent.session_open`.** The plugin seeds the project's records (`notebook.md`), rebuilds the
-   directory if its inputs changed, points the agent's config directory at it, sets `SEATWORKS_ROLE`,
-   `SEATWORKS_PROJECT` and `SEATWORKS_STATE`, binds the key, and puts the state root's `bin/` first on `PATH`:
+   directory if its inputs changed, points the agent's config directory at it, sets `CREW_ROLE`,
+   `CREW_PROJECT` and `CREW_STATE`, binds the key, and puts the state root's `bin/` first on `PATH`:
    a `git` running `bin/git-shim.mjs`, which refuses the commands kept for the desk (push, pull, merge,
    checkout, reset and the like) however they are spelled, and a `gh` and a `paseo` that only refuse.
 4. **`bin/seat-room`** refuses a Claude Code launch the plugin did not configure, forces
@@ -245,7 +245,7 @@ merges in the last. It is refused while a task's branch is checked out in the la
    landing for the Human (`landApproval`), with LAND HELD to the Lead, as do standing orders it cannot read
    and, with `askFirst` set, a change it cannot read; nothing else makes a landing wait.
 4. It lands on the local base as `landAs` says, with no checkout: one squashed commit by default, the lane's
-   own commits kept at `refs/seatworks/lanes/<id>`; a merge commit; or a fast-forward. Base moves only from
+   own commits kept at `refs/crew/lanes/<id>`; a merge commit; or a fast-forward. Base moves only from
    the commit read at the start, to the head the gate saw: a lane that moved after its gate lands nothing.
 
 The rest the desk reads goes with REPORT, the Supervisor's reply and the Human's card as evidence: commits,
@@ -419,7 +419,7 @@ The Human is asked what only they can decide and told what they cannot take back
   Beyond a lane (page-level incidents of 24 h), and counts, among them the questions of the last 24 h across
   every project, against `questionsPerDay`. Flow shows questions and held landings only while "Follow the team live" is on.
 - **Writing in a seat's chat.** A live message a person sent into a Lead's or Peer's chat, its id not starting
-  `sw2-` as the desk's do, reaches the Supervisor as HUMAN WROTE, fenced as data; for a Peer, saying its Lead
+  `crew-` as the desk's do, reaches the Supervisor as HUMAN WROTE, fenced as data; for a Peer, saying its Lead
   was not told.
 
 ## The watch
@@ -493,7 +493,7 @@ ANSWER for answers the stop lost, and takes up the merge queues. Then every seat
 
 ## Settings
 
-Two JSON layers: the machine's, `~/.local/share/seatworks-v3/settings.json`, and a project's,
+Two JSON layers: the machine's, `~/.local/share/paseo-crew/settings.json`, and a project's,
 `projects/<slug>/settings.json`. For one value the project wins; rules from both are joined, the machine's
 first; a project that puts a role on another agent drops the machine's model and thinking for it. One strict
 schema (`shared/settings.ts`) reads both, so an unknown key is refused; `tickSeconds` comes from the machine

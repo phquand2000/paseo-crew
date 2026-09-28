@@ -37,7 +37,7 @@ async function paseoProjects(paseo: ReturnType<typeof usePaseo>): Promise<PaseoP
   }
 }
 
-export function useSeatworks(project?: string) {
+export function useCrew(project?: string) {
   const bound = {
     catalog: useRpc(catalogRpc),
     projects: useRpc(projectsRpc),

@@ -79,7 +79,7 @@ test("a deletion is raised the moment it is known, quoted where it deletes, and 
     paged(`cat > "$TMPDIR/msg" <<'EOF'\nfix: merge\nEOF\ngit commit -F "$TMPDIR/msg" && rm -f "$TMPDIR/msg"`, temp),
     [],
   );
-  assert.deepEqual(paged("rm -rf /tmp/sw2-probe ${TMPDIR}/x /var/folders/xy/T/y", temp), []);
+  assert.deepEqual(paged("rm -rf /tmp/crew-probe ${TMPDIR}/x /var/folders/xy/T/y", temp), []);
   assert.match(
     paged(`rm -f "$TMPDIR/msg" && rm -rf src`, temp).join(),
     /rm -rf src/,

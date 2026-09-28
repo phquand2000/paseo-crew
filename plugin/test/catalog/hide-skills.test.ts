@@ -24,7 +24,7 @@ const ownSkills = (home: string, names: string[]): string => {
 test("the shipped Codex harness turns off the owner's ~/.agents/skills, each by the path of its SKILL.md", () => {
   const real = loadKit(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
   const codex = real.harnesses.codex!;
-  const home = tempDir("sw2-hide-home-");
+  const home = tempDir("crew-hide-home-");
   assert.deepEqual(hideSkillsSetting(codex, home), {}, "no own skills, nothing to turn off");
   const own = ownSkills(home, ["ultra-review", "tilth"]);
   assert.deepEqual(
@@ -64,7 +64,7 @@ test("a seat's hidden skills sit beside the kit's own skill settings, not in the
   }
   const cx = loadKit(kit.dir);
   const team = withHarness(resolveTeam(cx), "lead", cx.harnesses.cx!);
-  const home = tempDir("sw2-hide-home-");
+  const home = tempDir("crew-hide-home-");
   const own = ownSkills(home, ["plan"]);
   materialize(cx, team, "lead", home, undefined, {});
   const config = parse(

@@ -62,7 +62,7 @@ function harnessChecks(kit: Kit, team: Team): Check[] {
   const checks: Check[] = [];
   for (const [id, roles] of harnesses) {
     const harness = kit.harnesses[id]!;
-    const bin = harness.provider.env?.SEATWORKS_AGENT_BIN;
+    const bin = harness.provider.env?.CREW_AGENT_BIN;
     if (bin) {
       const ok = realProbes.has(bin);
       checks.push({

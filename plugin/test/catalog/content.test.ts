@@ -84,7 +84,7 @@ const UNBUILDABLE: { role: string; layer?: Layer; file?: string; text?: string; 
   {
     role: "peer",
     file: "content/skills/peer/test-first/SKILL.md",
-    text: skill("Write findings to $SEATWORKS_STATE/findings/."),
+    text: skill("Write findings to $CREW_STATE/findings/."),
     refusal:
       "skill test-first names findings under the project's state in SKILL.md, which the peer does not write: add it to the role's writes",
   },
@@ -96,7 +96,7 @@ test("a seat whose text shows its role a hidden word, an unfilled placeholder or
     if (file) put(kit, file, text!);
     const team = resolveTeam(kit, layer);
     assert.deepEqual(team.errors, [], `${refusal}: nothing the schema or the team resolution objects to`);
-    const home = tempDir("sw2-home-");
+    const home = tempDir("crew-home-");
     assert.throws(() => materialize(kit, team, role, home, project), { message: refusal });
     const dir = seatDir(kit, team.roles[role]!.role, team.roles[role]!.harness, home, project);
     assert.deepEqual(filesIn(dir), [], `${refusal}: nothing at all is written, because half a seat is worse than none`);
@@ -111,14 +111,14 @@ test("a seat whose text shows its role a hidden word, an unfilled placeholder or
   put(
     kit,
     "content/prompts/LEAD.md",
-    "Put the plan in {{state}}/plans/cart.md; the history is in $SEATWORKS_STATE/events.log.\n",
+    "Put the plan in {{state}}/plans/cart.md; the history is in $CREW_STATE/events.log.\n",
   );
   assert.equal(
     renderPrompt(kit, roleOf("lead"), "claude", { guides: "/g", state: "/Users/supervisor/x" }),
-    "Put the plan in /Users/supervisor/x/plans/cart.md; the history is in $SEATWORKS_STATE/events.log.\n",
+    "Put the plan in /Users/supervisor/x/plans/cart.md; the history is in $CREW_STATE/events.log.\n",
     "a hidden word in a path the desk puts in is not the role's text, and the role names what it writes or the desk's own record",
   );
-  const home = tempDir("sw2-home-");
+  const home = tempDir("crew-home-");
   const fine = resolveTeam(kit, { rules: "Leave the daemon config alone." });
   assert.ok(materialize(kit, fine, "peer", home, project).length > 0);
   const peer = fine.roles.peer!;

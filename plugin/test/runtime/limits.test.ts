@@ -58,7 +58,7 @@ test("a Peer on its usage limit is told to its Lead once, with who can take the 
 
 test("a Lead on its usage limit is told to whoever supervises and is not idle until woken; one with no reset time is not woken", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   for (const title of ["Waits", "Unread"])
     await h.call(sup, "supervisor", "open_lane", {
       title,

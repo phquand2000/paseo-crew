@@ -14,7 +14,7 @@ const lane = (title: string, extra: Record<string, unknown> = {}) => ({
 
 test("where a lane works is the Human's call: asked when their copy is off its base or dirty, carried by open_lane or laneHome, and shown on status", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const status = async () => (await h.call(sup, "supervisor", "status", {})).text;
   const branch = () => h.git(h.root, "branch", "--show-current").trim();
   const open = (title: string, extra: Record<string, unknown> = {}) =>
@@ -109,7 +109,7 @@ test("where a lane works is the Human's call: asked when their copy is off its b
 
 test("a lane takes the project's own copy while it is free; one that finds it taken, or still being given back, is told both ways out, and a copy of its own is filed under the project", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const open = (title: string, extra: Record<string, unknown> = {}) =>
     h.call(sup, "supervisor", "open_lane", lane(title, extra));
   assert.equal((await open("Authorization", { outcome: "roles gate the api" })).ok, true);
@@ -196,7 +196,7 @@ const failed: { where: string; on?: string; ask: Record<string, unknown>; fault?
 test("an open that fails gives back everything it took, wherever it took it, and keeps the Human's branch and work", async () => {
   for (const row of failed) {
     const h = harness();
-    const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+    const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
     const paseo = h.paseo as {
       workspaces: {
         list: unknown;
@@ -244,7 +244,7 @@ test("an open that fails gives back everything it took, wherever it took it, and
 
 test("a detour gets a Lead and a copy of its own without asking, and the lane it clears hears how it ended", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const money = lane("Money type", { outcome: "money is not a float" });
   await h.call(sup, "supervisor", "open_lane", lane("Checkout", { outcome: "an order can be paid for" }));
   const waiting = h.ledger().lanes.L1!;
@@ -282,7 +282,7 @@ test("a detour gets a Lead and a copy of its own without asking, and the lane it
 
 test("a Lead's directive says what its lane writes, depends on and keeps to one writer, how the project gates, and where the Human's concept is", async () => {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const open = (title: string, extra: Record<string, unknown> = {}) =>
     h.call(sup, "supervisor", "open_lane", lane(title, { isolate: true, ...extra }));
   const directive = (id: string) => h.agents.get(h.ledger().lanes[id]!.lead!)!.prompt ?? "";

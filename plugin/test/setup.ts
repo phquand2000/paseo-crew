@@ -16,7 +16,7 @@ if (compiled.directory) process.env.NODE_COMPILE_CACHE = compiled.directory;
 
 /** A HOME of its own for every test, set before any test file loads, so none reads the owner's state or another test's. */
 const freshHome = () => {
-  process.env.HOME = tempDir("sw2-home-");
+  process.env.HOME = tempDir("crew-home-");
   delete process.env.PASEO_HOME;
 };
 freshHome();

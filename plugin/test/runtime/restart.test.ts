@@ -118,7 +118,7 @@ test("what waited on a turn when the plugin stopped goes on at its first round",
   const numbers = h.ledger().lanes.L2!;
   h.commit(numbers.worktree!, "a.txt", "one\ntwo\nthree\nfour\n");
   // main moves on, so landing starts with merging it into the lane's copy, where its Lead is mid-turn.
-  const side = join(tempDir("sw2-moved-"), "wt");
+  const side = join(tempDir("crew-moved-"), "wt");
   h.git(h.root, "worktree", "add", "-q", "-b", "side", side, "main");
   h.git(side, "commit", "-qm", "moved", "--allow-empty");
   h.git(h.root, "branch", "-f", "main", "side");
@@ -146,10 +146,10 @@ test("what waited on a turn when the plugin stopped goes on at its first round",
 });
 
 test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async (t) => {
-  const go = join(tempDir("sw2-promise-"), "go");
+  const go = join(tempDir("crew-promise-"), "go");
   t.after(() => writeFileSync(go, ""));
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   // The gate waits for the test, which decides whether the answer comes before or after the stop.
   await h.call(sup, "supervisor", "set_project", { gate: `until [ -f ${go} ]; do sleep 0.05; done` });
   await h.call(sup, "supervisor", "open_lane", {
@@ -200,7 +200,7 @@ test("an answer promised as mail that a stop lost is owned up to once the plugin
 /** Opens a lane whose Lead Paseo seats, then stops the plugin before the desk hears back, as a crash there would. */
 async function stoppedOpening(where: Record<string, unknown>) {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const paseo = h.paseo as unknown as {
     workspaces: { ref: (id: string) => { agents: { create: (options: unknown) => Promise<unknown> } } };
   };

@@ -16,7 +16,7 @@ const task = (key: string, paths: string[], extra: Record<string, unknown> = {})
 /** A lane with a Lead and nothing started. */
 async function lane() {
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
     title: "Cart",
     outcome: "a cart",

@@ -1,7 +1,7 @@
 {
-  "name": "seatworks-v2-paseo-plugin",
+  "name": "paseo-crew",
   "private": true,
-  "version": "3.0.0-dev.61.crew.24",
+  "version": "3.0.0-dev.61.crew.25",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json",

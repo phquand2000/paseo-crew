@@ -1,7 +1,7 @@
 {
   "permissions": {
     "deny": [
-      "Edit(~/.local/share/seatworks-v3/projects/*/CONTEXT.md)"
+      "Edit(~/.local/share/paseo-crew/projects/*/CONTEXT.md)"
     ]
   },
   "sandbox": {

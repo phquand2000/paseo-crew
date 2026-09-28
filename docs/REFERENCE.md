@@ -96,7 +96,7 @@ set by hand. `set_project` keeps them and cannot change them: they widen what se
 | `links` | `[]` | Paths, relative to the project root, that each copy of its own a lane or task works in gets as a symlink to the project's copy. A path is linked only if it exists in the project, stays inside it, is not already in the copy, and git ignores it. A path git would see as a change is skipped, since it would leave the copy dirty and fail the gate. Each skip is logged and written to `events.log` as `link.skipped` |
 | `writable` | `[]` | Paths, relative to the project root, that seats may write through their agent's sandbox (Claude Code's `sandbox.filesystem.allowWrite`, Codex's `permissions.seat.filesystem`, each path granted `write`). They are granted as real paths, which is what a write through a link in a copy resolves to |
 | `writableOutside` | `[]` | Absolute paths outside the project, such as a shared build cache, that a role that writes code (`can` holds `write`) may also write through its sandbox. A path is granted as its real path only if it exists and neither is nor holds the home directory, so `/` and `~` are never granted |
-| `sockets` | `[]` | Absolute paths to unix sockets, such as a container runtime's, that a role that writes code (`can` holds `write`) may connect to through its sandbox: Claude Code's `sandbox.network.allowUnixSockets`, Codex's `permissions.seat.network.unix_sockets`. Such a role may also bind and connect sockets in a temp directory of its own, `/tmp/seatworks-<uid>/<8 hex>` per project, which its commands get as `TMPDIR`; nowhere else, since the machine's shared temp directories hold other programs' sockets. On macOS it may also write the user's own temp directory, where `mktemp` with no template makes its files whatever `TMPDIR` says |
+| `sockets` | `[]` | Absolute paths to unix sockets, such as a container runtime's, that a role that writes code (`can` holds `write`) may connect to through its sandbox: Claude Code's `sandbox.network.allowUnixSockets`, Codex's `permissions.seat.network.unix_sockets`. Such a role may also bind and connect sockets in a temp directory of its own, `/tmp/paseo-crew-<uid>/<8 hex>` per project, which its commands get as `TMPDIR`; nowhere else, since the machine's shared temp directories hold other programs' sockets. On macOS it may also write the user's own temp directory, where `mktemp` with no template makes its files whatever `TMPDIR` says |
 
 A role that can `work` or `write` is also granted the repository's git directory: a copy keeps its index and refs there,
 and a sandboxed agent could not commit without it.
@@ -235,7 +235,7 @@ nothing else has. Then waiting lanes may open.
 
 A lane works on `lane/l<n>-<title>`, unless it carries on the Human's own branch, and a task on
 `task/l<n>-t<n>-<title>`: the title in lower case with dashes, cut at a word break to at most 24 characters. Every
-landing onto a base keeps the lane's own commits at `refs/seatworks/lanes/<lane>`, which `git branch` does not list.
+landing onto a base keeps the lane's own commits at `refs/crew/lanes/<lane>`, which `git branch` does not list.
 
 ## Letters
 
@@ -519,7 +519,7 @@ open, or once something else judges the watch.
 
 | Hook or event | What the plugin does |
 |---|---|
-| before `agent.create` | For a `sw2-` provider: builds the seat directory, sets the launch's model, mode, thinking and system prompt, and its MCP servers where the harness takes them at launch, and gives a seat with desk tools its key. A seat that cannot be built refuses the launch, with the reason |
+| before `agent.create` | For a `crew-` provider: builds the seat directory, sets the launch's model, mode, thinking and system prompt, and its MCP servers where the harness takes them at launch, and gives a seat with desk tools its key. A seat that cannot be built refuses the launch, with the reason |
 | before `agent.session_open` | Seeds the project's records, rebuilds the seat directory if needed, points the agent's config directory at it, gives the seat back its key, and puts the kit's `git`, `gh` and `paseo` first on its `PATH`. A seat directory that cannot be rebuilt refuses the session |
 | `agent.created` | Follows the seat's timeline, if its role can be `watched` |
 | `agent.turn_started` | Notes when the turn started, for reading turns and steering |
@@ -574,8 +574,8 @@ and says that duty.
 | Watcher | `Watcher` |
 | Pager | `Page: <the start of the page>` |
 
-A name is cut at 60 characters. Labels carry `seatworks.project`, `seatworks.role`, `seatworks.concern` for a role that
-names one, and `seatworks.lane` and `seatworks.task` for the work a seat does. Letters name a seat by its work (the Lead
+A name is cut at 60 characters. Labels carry `crew.project`, `crew.role`, `crew.concern` for a role that
+names one, and `crew.lane` and `crew.task` for the work a seat does. Letters name a seat by its work (the Lead
 of L1, the Peer on L1-T3) or by its agent id; a failed turn's FAILED and WAITING FOR PERMISSION use the name Paseo
 shows, or the seat's role and id where Paseo shows none.
 
@@ -586,7 +586,7 @@ seat with desk tools works in the project. It also removes working copies under 
 
 ## Seat directories
 
-One per role, agent and project: `<profileRoot>/sw2-<role>-<agent>-<slug>`. It is brought up to date the first time a
+One per role, agent and project: `<profileRoot>/crew-<role>-<agent>-<slug>`. It is brought up to date the first time a
 seat starts after the plugin loads, and again when the settings revision, the team or the agents' model lists change.
 The same happens when its settings file is gone, when a login appears, and, on Claude, when the project gains or loses
 its own `CLAUDE.md` or `AGENTS.md`. Its rules file (`CLAUDE.md` on Claude, `AGENTS.md` elsewhere) holds the working
@@ -602,7 +602,7 @@ rules, each enabled MCP server's and the Human's, and is written only when there
   outside any seat and never needs one of its own.
 - **Codex**, under `~/.codex/seats/`: `config.toml` (`model_provider` and `model_providers` from the Human's own
   `~/.codex/config.toml`; `workspace-write`, or `read-only` for the Reviewer, the Watcher and the Pager;
-  `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/seatworks.rules`, `skills/`, an `auth.json`
+  `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json`
   link and `AGENTS.md`. Paseo's Codex provider launches it. Building a seat needs the `codex` CLI, which lists its
   models.
 - **Pi**, under `~/.pi/seats/`: `settings.json` (`pi-mcp-adapter`, project trust off, tool lists for the Lead and the
@@ -650,7 +650,7 @@ and Pi's `team` server `requestTimeoutMs: 600000`. Claude Code waits hours, and 
 
 ## Settings
 
-Two layers: `~/.local/share/seatworks-v3/settings.json` for the machine, and `projects/<slug>/settings.json` under the
+Two layers: `~/.local/share/paseo-crew/settings.json` for the machine, and `projects/<slug>/settings.json` under the
 state root for a project ([how they combine](ARCHITECTURE.md#settings)). The project layer wins value by value, except
 rules: both layers' rules are given, the machine's first. A project that puts a role on another agent drops the
 machine's model and thinking for it.
@@ -703,7 +703,7 @@ once per idle spell. An ask waiting on an idle seat gets STILL OPEN every `askRe
 then a Peer's ask to its Lead goes to whoever supervises as UNANSWERED. The rest act where [facts](#facts),
 [holds](#holds), [questions for the Human](#questions-for-the-human) and [to a model](#questions-to-a-model) name them.
 
-A `roles.json` in `~/.local/share/seatworks-v3/` replaces the preset whole. A role names `defaults` or `follows`, never
+A `roles.json` in `~/.local/share/paseo-crew/` replaces the preset whole. A role names `defaults` or `follows`, never
 both. A follower takes the agent, model and thinking of the role it follows until it is given its own. Each role still
 needs its settings file under `harness/<agent>/settings/`, and on Codex its `rules/<role>.rules`; an agent missing one
 is not offered for that role.
@@ -729,15 +729,15 @@ Models and their thinking options come from Paseo, which asks each agent; each a
 plugin lists them once a load, and **Refresh** under the Team tab asks again. A role's chosen model is written as that
 provider's default in Paseo (`additionalModels`), so Paseo's own picker offers every model and starts on the role's.
 
-The panel talks to the server only through the `seatworks.*` RPCs in `shared/rpc.ts`. Detaching a project forgets its
+The panel talks to the server only through the `crew.*` RPCs in `shared/rpc.ts`. Detaching a project forgets its
 settings and keeps its ledger and logs. It is refused while a seat with desk tools still works in it, a lane is open or
 waiting, a closed lane's copy is not back on its base, or a working copy is out.
 
 ## State on disk
 
 ```
-~/.paseo/config.json                      providers sw2-<role>-<agent>, agent profiles
-~/.local/share/seatworks-v3/
+~/.paseo/config.json                      providers crew-<role>-<agent>, agent profiles
+~/.local/share/paseo-crew/
   roles.json                              optional; replaces the shipped preset
   ecosystem.json                          optional; replaces catalog/ecosystem.json
   refused.json  paseo.json                optional; each replaces the one in catalog/
@@ -765,7 +765,7 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
     handbacks/  gates/  archive/          hand-backs whole; gate output; closed lanes filed away
     notebook.md  CONTEXT.md               the Supervisor's notebook; the concept as the Human settled it
     plans/  council/  ultra-review/  repo-refresh/  pre-mortem/  architecture-premise-audit/
-<profileRoot>/sw2-<role>-<agent>-<slug>/  one seat directory per role, agent and project
+<profileRoot>/crew-<role>-<agent>-<slug>/  one seat directory per role, agent and project
 ```
 
 `events.log` is the provenance record: one JSON line per tool call and per lane, task, merge, gate and slot event.

@@ -146,9 +146,9 @@ export async function mergeBranch(cwd: string, branch: string, message: string, 
   if (!before) return { ok: false, conflicts: [], message: "the lane working copy has no HEAD" };
   const own = [
     "-c",
-    "user.name=seatworks",
+    "user.name=paseo-crew",
     "-c",
-    "user.email=seatworks@localhost",
+    "user.email=paseo-crew@localhost",
     "-c",
     "rerere.enabled=false",
     "-c",
@@ -213,7 +213,7 @@ export type LandAs = "squash" | "merge" | "ff";
 export const LAND_AS: LandAs[] = ["squash", "merge", "ff"];
 
 /** Where a landed lane's own commits stay reachable once its branch is gone: squashed, base never carries them. */
-export const landedRef = (lane: string) => `refs/seatworks/lanes/${lane}`;
+export const landedRef = (lane: string) => `refs/crew/lanes/${lane}`;
 
 export function gitCommonDir(cwd: string): string | undefined {
   try {

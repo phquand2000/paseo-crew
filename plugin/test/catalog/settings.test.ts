@@ -12,7 +12,7 @@ import { tempDir } from "../tempdir.ts";
 const ok = () => [];
 
 test("the settings store saves only over what it read, and never over a file it could not read", () => {
-  const file = join(tempDir("sw2-settings-"), "nested", "settings.json");
+  const file = join(tempDir("crew-settings-"), "nested", "settings.json");
   const fresh = readLayer(file);
   assert.deepEqual(
     [fresh.status, fresh.status === "ready" && fresh.values],
@@ -75,8 +75,8 @@ test("the settings store saves only over what it read, and never over a file it 
 
 test("a rule that would leave a seat unbuildable is refused where it is written, not where it lands", () => {
   const kit = makeKit();
-  const machine = join(tempDir("sw2-settings-"), "settings.json");
-  const paths = { guides: "/guides", state: "$SEATWORKS_STATE" };
+  const machine = join(tempDir("crew-settings-"), "settings.json");
+  const paths = { guides: "/guides", state: "$CREW_STATE" };
   const unbuildable = (layer: Layer) => {
     const team = resolveTeam(kit, layer);
     return team.errors.length > 0

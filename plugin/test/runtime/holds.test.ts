@@ -23,7 +23,7 @@ async function laneWriting(writeSet: string[], settings?: Record<string, unknown
     mkdirSync(h.project.state, { recursive: true });
     writeFileSync(join(h.project.state, "settings.json"), JSON.stringify(settings));
   }
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a cart", ...scope, writeSet });
   return { h, sup, lead: h.ledger().lanes.L1!.lead! };
 }

@@ -24,12 +24,12 @@ async function until(check: () => boolean, what: string): Promise<void> {
 
 test("the line's ends: no desk, a socket file left behind, a pipe closed under a server, and a line that fails", async (t) => {
   const client = new Client({ name: "probe", version: "0" });
-  const nowhere = join(tempDir("sw2-desk-"), "none.sock");
+  const nowhere = join(tempDir("crew-desk-"), "none.sock");
   await client.connect(
     new StdioClientTransport({
       command: process.execPath,
       args: [TEAM, "lead", "lead", nowhere],
-      env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" },
+      env: { PATH: process.env.PATH ?? "", CREW_DESK_KEY: "k1" },
       stderr: "inherit",
     }),
   );
@@ -45,7 +45,7 @@ test("the line's ends: no desk, a socket file left behind, a pipe closed under a
   );
 
   const cancelled: AbortSignal[] = [];
-  const path = join(tempDir("sw2-sock-"), "d.sock");
+  const path = join(tempDir("crew-sock-"), "d.sock");
   writeFileSync(path, "left behind");
   const socket = new TeamSocket(path, {
     agentOf: (key) => (key === "k1" ? "agent-1" : undefined),
@@ -66,14 +66,14 @@ test("the line's ends: no desk, a socket file left behind, a pipe closed under a
 
   const lines: Socket[] = [];
   const open = createServer((line) => lines.push(line));
-  const held = join(tempDir("sw2-desk-"), "held.sock");
+  const held = join(tempDir("crew-desk-"), "held.sock");
   await new Promise<void>((resolve) => open.listen(held, resolve));
   t.after(() => {
     for (const line of lines) line.destroy();
     open.close();
   });
   const server = spawn(process.execPath, [TEAM, "peer", "peer", held], {
-    env: { PATH: process.env.PATH ?? "", SEATWORKS_DESK_KEY: "k1" },
+    env: { PATH: process.env.PATH ?? "", CREW_DESK_KEY: "k1" },
     stdio: ["pipe", "ignore", "inherit"],
   });
   t.after(() => server.kill());

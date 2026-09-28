@@ -47,8 +47,8 @@ Each answer reshapes the tree: recompute what can be asked now and ask that.
 
 ## Writing it down
 
-Write each answer that settles a behavior or a term into `$SEATWORKS_STATE/CONTEXT.md` the moment it
-is settled, shaped by `$SEATWORKS_KIT/content/guides/CONTEXT_FORMAT.md`; one that changes an earlier
+Write each answer that settles a behavior or a term into `$CREW_STATE/CONTEXT.md` the moment it
+is settled, shaped by `$CREW_KIT/content/guides/CONTEXT_FORMAT.md`; one that changes an earlier
 answer replaces its line. Create the file with the first settled answer, not before.
 
 ## Read-back
@@ -63,7 +63,7 @@ what ships (CI workflows, Docker, `.env`, infra, deploy, terraform, k8s, helm); 
 and nothing waits for them unless they keep one. Name the risk rules this work reaches (the kit's put a
 question to every review of migrations, schemas and SQL; `set_project` `riskRules` replaces them), and
 ask for a command that rehearses one, such as a migration run twice on a copy, where they have one. A correction is a settled answer like any other; what
-they want to be woken for, in their words, goes in `$SEATWORKS_STATE/notebook.md`.
+they want to be woken for, in their words, goes in `$CREW_STATE/notebook.md`.
 
 ## Ends in
 

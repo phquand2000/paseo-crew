@@ -9,7 +9,7 @@ export type PromptPaths = { guides: string; state: string };
 /** What under the project's state a text names that the role neither writes nor reads as the desk's own record. */
 function unwritten(role: RoleSpec, text: string): string[] {
   const writes = new Set((role.writes ?? []).map((entry) => entry.replace(/\/$/, "")));
-  const named = [...text.matchAll(/(?:\{\{state\}\}|\$SEATWORKS_STATE)\/([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)/g)].map(
+  const named = [...text.matchAll(/(?:\{\{state\}\}|\$CREW_STATE)\/([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)/g)].map(
     (match) => match[1]!,
   );
   return [...new Set(named)].filter((segment) => !writes.has(segment) && !DESK_OWNED.has(segment));

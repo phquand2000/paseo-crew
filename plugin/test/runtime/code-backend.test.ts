@@ -34,7 +34,7 @@ test("a call or a proxy its harness stops stops what it started", async (t) => {
     ...ideConfig(indexing.url, ["ide_find_references"]),
     wait: { ...entry("intellij-index").proxy.wait, seconds: 30, pollSeconds: 0.02 },
   };
-  const waiting = await proxy(t, cwd, config, undefined, { SEATWORKS_PROGRESS_MS: "50" });
+  const waiting = await proxy(t, cwd, config, undefined, { CREW_PROGRESS_MS: "50" });
   const heard: string[] = [];
   const halting = new AbortController();
   const polling = waiting.client.callTool(
@@ -72,7 +72,7 @@ test("a call or a proxy its harness stops stops what it started", async (t) => {
   );
 
   // Never answers, like a cold start still fetching its package; the list once waited out init's budget, then its own.
-  const pidFile = join(tempDir("sw2-slow-"), "pid");
+  const pidFile = join(tempDir("crew-slow-"), "pid");
   const silent = [
     process.execPath,
     "-e",

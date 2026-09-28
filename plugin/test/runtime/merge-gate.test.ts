@@ -82,9 +82,9 @@ test("a task that goes red with its lane brought in stays out until its Lead acc
 });
 
 test("what the gate did reaches the Lead: with the hand-back, when its verdict is used again, and with each merge", async () => {
-  const runs = join(tempDir("sw2-gate-runs-"), "runs");
+  const runs = join(tempDir("crew-gate-runs-"), "runs");
   const h = harness();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const gate = (settings: Record<string, unknown>) => h.call(sup, "supervisor", "set_project", settings);
   await gate({ gate: "test ! -f BROKEN", gateOn: "task" });
   await h.call(sup, "supervisor", "open_lane", {

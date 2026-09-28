@@ -11,9 +11,9 @@ function put(root: string, path: string, value: unknown): void {
 }
 
 export function makeKit(): Kit {
-  const dir = tempDir("sw2-kit-");
+  const dir = tempDir("crew-kit-");
   put(dir, "roles.json", {
-    providerPrefix: "sw2-",
+    providerPrefix: "crew-",
     attention: { leadIdleMinutes: 15 },
     roles: [
       {
@@ -99,7 +99,7 @@ export function makeKit(): Kit {
       transports: ["stdio", "http"],
     },
     provider: {
-      env: { CLAUDE_CODE_DISABLE_CRON: "1", SEATWORKS_HARNESS: "claude", SEATWORKS_AGENT_BIN: "claude" },
+      env: { CLAUDE_CODE_DISABLE_CRON: "1", CREW_HARNESS: "claude", CREW_AGENT_BIN: "claude" },
       profileModeId: "bypassPermissions",
       command: ["KIT/bin/seat-room"],
     },
@@ -120,7 +120,7 @@ export function makeKit(): Kit {
     links: [{ link: "git", target: "HOME/.config/git", optional: true }],
     models: [{ id: "glm", label: "GLM" }],
     mcp: { file: "mcp.json", delivery: "file", key: "mcpServers", transports: ["stdio", "http"] },
-    provider: { env: { SEATWORKS_HARNESS: "omp", SEATWORKS_AGENT_BIN: "omp" }, profileModeId: "full" },
+    provider: { env: { CREW_HARNESS: "omp", CREW_AGENT_BIN: "omp" }, profileModeId: "full" },
     checks: [{ path: "HOME/.omp/agent/agent.db", help: "Log in with omp once, outside any seat." }],
   });
   put(dir, "harness/omp/settings.json", {

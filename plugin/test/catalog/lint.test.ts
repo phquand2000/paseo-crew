@@ -197,8 +197,8 @@ test("seat text names only what that seat can reach and what exists: its own too
       const text = readFileSync(file, "utf-8");
       for (const [, link] of text.matchAll(/\]\((references\/[^)#]+)\)/g))
         assert.ok(existsSync(join(dir, link!)), `${file} links ${link}, which is not there`);
-      for (const [, path] of text.matchAll(/\$SEATWORKS_KIT\/([\w./-]+[\w-])/g))
-        assert.ok(existsSync(join(PLUGIN, path!)), `${file} names $SEATWORKS_KIT/${path}, which is not there`);
+      for (const [, path] of text.matchAll(/\$CREW_KIT\/([\w./-]+[\w-])/g))
+        assert.ok(existsSync(join(PLUGIN, path!)), `${file} names $CREW_KIT/${path}, which is not there`);
     }
   }
   const letters = new Set<string>();

@@ -213,7 +213,7 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
 
 test("a seat's turn stays open through the late end of an older turn, and a message steered into a long turn does not make it long again", () => {
   const context = () => ({ rules: rules(), handedBack: () => undefined, placed: true });
-  const seat = { id: "s1", provider: "sw2-peer-claude", cwd: "/work" };
+  const seat = { id: "s1", provider: "crew-peer-claude", cwd: "/work" };
   const late = new SeatWatch(seat, context);
   late.see({ kind: "turn", phase: "started", turnId: "turn-2" }, 1_000);
   late.see({ kind: "turn", phase: "completed", turnId: "turn-1" }, 2_000);

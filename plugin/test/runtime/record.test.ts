@@ -82,7 +82,7 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   const letter = timeline.add({
     type: "user_message",
     text: "HANDBACK L1-T1 wanted\nthe rest",
-    clientMessageId: "sw2-rework-1",
+    clientMessageId: "crew-rework-1",
   });
   const thought = timeline.add({ type: "reasoning", text: "The empty cart\nneeds a test first." });
   const call = (callId: string, name: string, detail: Record<string, unknown>, more: Record<string, unknown> = {}) =>

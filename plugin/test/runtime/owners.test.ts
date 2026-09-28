@@ -5,7 +5,7 @@ import { harness } from "./harness.ts";
 
 type Harness = ReturnType<typeof harness>;
 
-const SUPERVISOR = "sw2-supervisor-claude/claude-opus-5";
+const SUPERVISOR = "crew-supervisor-claude/claude-opus-5";
 const heard = (h: Harness, id: string) => h.heard(id).join("\n");
 const task = (title: string) => ({
   key: "t",
@@ -34,7 +34,7 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   await h.call(lead, "lead", "add_tasks", { tasks: [task("Clean build")] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   // A Watcher has no ask: told to use one, it was pointed at a tool it cannot call.
-  const watcher = h.add("sw2-watcher-claude/claude-opus-5", h.root, "watcher");
+  const watcher = h.add("crew-watcher-claude/claude-opus-5", h.root, "watcher");
   let turns = 0;
   const fail = (id: string, title: string | null = h.agents.get(id)!.title) => {
     const seat = h.agents.get(id)!;

@@ -22,7 +22,7 @@ const upstream = (h: ReturnType<typeof harness>, branch: string) =>
 
 test("no branch the desk starts tracks its base's upstream, so a first push cannot land on main", async () => {
   const h = tracked();
-  const sup = h.add("sw2-supervisor-claude/claude-opus-5", h.root, "sup");
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { base: "main" });
   assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Away", ...scope, isolate: true })).ok, true);
   assert.equal((await h.call(sup, "supervisor", "open_lane", { title: "Here", ...scope })).ok, true);
@@ -31,7 +31,7 @@ test("no branch the desk starts tracks its base's upstream, so a first push cann
   h.runtime.dispose();
 
   const n = tracked();
-  const nsup = n.add("sw2-supervisor-claude/claude-opus-5", n.root, "sup");
+  const nsup = n.add("crew-supervisor-claude/claude-opus-5", n.root, "sup");
   await n.call(nsup, "supervisor", "set_project", { base: "main" });
   const opened = await n.call(nsup, "supervisor", "open_lane", {
     title: "Split off",

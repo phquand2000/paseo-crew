@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 
 const [ssh, ...argv] = process.argv.slice(2);
-const config = process.env.SEATWORKS_SSH_CONFIG;
+const config = process.env.CREW_SSH_CONFIG;
 const HELD = /Tailscale SSH requires an additional check|To authenticate, visit/;
 
 // A -F the seat gives comes later, and ssh takes the last one.

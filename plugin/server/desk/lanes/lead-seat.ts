@@ -21,9 +21,7 @@ type Seated = { slot: Copy; lead: string; elsewhere: Elsewhere[] };
 export function leadSeatOf(seats: SeatView[], project: Project, lane: string): SeatView | undefined {
   return seats.find(
     (seat) =>
-      seat.labels?.["seatworks.project"] === project.slug &&
-      seat.labels["seatworks.lane"] === lane &&
-      !seat.labels["seatworks.task"],
+      seat.labels?.["crew.project"] === project.slug && seat.labels["crew.lane"] === lane && !seat.labels["crew.task"],
   );
 }
 
@@ -162,7 +160,7 @@ async function launchLead(
     parent: how.parent,
     title: seatTitle.of(lane, leadRole),
     prompt: directed.text,
-    labels: { "seatworks.lane": lane.id, "seatworks.role": leadRole.role },
+    labels: { "crew.lane": lane.id, "crew.role": leadRole.role },
   });
   ledgers.transact(project, (ledger) => {
     const entry = ledger.lanes[lane.id];

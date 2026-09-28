@@ -18,7 +18,7 @@ function open(env: Record<string, string>, args: string[]): Promise<{ code: numb
   });
 }
 
-const acme = tempDir("sw2-seat-room-kit-");
+const acme = tempDir("crew-seat-room-kit-");
 mkdirSync(join(acme, "harness", "acme"), { recursive: true });
 writeFileSync(
   join(acme, "harness", "acme", "harness.json"),
@@ -91,12 +91,12 @@ const ROWS: [string, string, string, string, string | undefined, string[], numbe
 
 test("the seat room starts the agent only on the seat's own settings and with the flags its agent is forced to take, and answers Paseo's version probe unconfigured", async () => {
   for (const [what, kit, harness, configDirEnv, configured, args, code, started] of ROWS) {
-    const dir = tempDir("sw2-seat-room-");
+    const dir = tempDir("crew-seat-room-");
     const launched = join(dir, "launched");
     const agent = join(dir, "agent");
     writeFileSync(agent, `#!/bin/sh\necho "$${configDirEnv} $*" > ${JSON.stringify(launched)}\n`);
     chmodSync(agent, 0o755);
-    const env = { PATH: process.env.PATH!, SEATWORKS_KIT: kit, SEATWORKS_HARNESS: harness, SEATWORKS_AGENT_BIN: agent };
+    const env = { PATH: process.env.PATH!, CREW_KIT: kit, CREW_HARNESS: harness, CREW_AGENT_BIN: agent };
     const ran = await open(configured ? { ...env, [configDirEnv]: configured } : env, args);
     assert.equal(ran.code, code, `${what}: ${ran.stderr}`);
     assert.equal(existsSync(launched) ? readFileSync(launched, "utf-8") : null, started, what);

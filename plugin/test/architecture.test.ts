@@ -44,7 +44,7 @@ const LIMITS = { file: 300, testFile: 400, function: 50 };
 const LONG_FILES: Record<string, number> = {};
 
 const LONG_FUNCTIONS: Record<string, number> = {
-  "client/state/seatworks.ts useSeatworks": 240,
+  "client/state/crew.ts useCrew": 240,
   "client/ui/flow.tsx FlowSection": 63,
   "client/ui/health.tsx HealthSection": 94,
   "client/ui/model-picker.tsx ModelPicker": 128,
@@ -52,7 +52,7 @@ const LONG_FUNCTIONS: Record<string, number> = {
   "client/ui/servers.tsx ServersSection": 138,
   "client/ui/servers.tsx Tuning": 56,
   "client/ui/setup-dialog.tsx SetupDialog": 242,
-  "client/ui/surface.tsx SeatworksSurface": 172,
+  "client/ui/surface.tsx CrewSurface": 172,
   "client/ui/team.tsx roleRows": 56,
   "client/ui/upkeep.tsx UpkeepSection": 163,
 };

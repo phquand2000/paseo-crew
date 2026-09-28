@@ -197,7 +197,7 @@ function loadRoles(listed: RoleFile[], harnesses: Record<string, HarnessSpec>): 
 /** A seat's own agent is started through the PATH these go first on, and its git through the shim: neither may be refused. */
 function checkRefused(refused: Record<string, string>, harnesses: Record<string, HarnessSpec>): void {
   for (const name of Object.keys(refused)) {
-    const starts = Object.values(harnesses).find((harness) => harness.provider.env?.SEATWORKS_AGENT_BIN === name);
+    const starts = Object.values(harnesses).find((harness) => harness.provider.env?.CREW_AGENT_BIN === name);
     if (name === "git" || starts)
       throw new Error(
         `refused.json refuses ${name}, which ${starts ? `every ${starts.id} seat is started with` : "the kit's git shim runs"}, through the same PATH`,
@@ -207,5 +207,5 @@ function checkRefused(refused: Record<string, string>, harnesses: Record<string,
 
 export const TEAM_SERVER = "team";
 /** What a seat's team server tells the desk it is: the key the seat was created with. */
-export const SEAT_KEY = "SEATWORKS_DESK_KEY";
+export const SEAT_KEY = "CREW_DESK_KEY";
 export const PASEO_SERVER = "paseo";
