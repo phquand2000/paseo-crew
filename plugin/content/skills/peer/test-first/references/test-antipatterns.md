@@ -21,4 +21,4 @@ Check every test you added or changed against each row before `done`. A test can
 | Over-specified | Exact log lines, full error messages, internal layout, or details acceptance doesn't name (column widths, tie-breaks, statement counts). | Assert the kind of rejection or the observable result. |
 | Sleep-timed | A fixed delay instead of waiting on a condition. | Wait on the condition, with a timeout only against hangs. |
 | Order-dependent | Shared mutable fixtures; passes alone, fails in the suite. | Each test creates and cleans its own state. |
-| Outside the brief | The full suite, a port or a shared test database when the brief's Context rules them out. | Run what the brief allows, and list what you skipped in `checks`. |
+| Outside the brief | The full suite, a port or a shared test database when what the brief says your Lead decided rules them out. | Run what the brief allows, and list what you skipped in `checks`. |

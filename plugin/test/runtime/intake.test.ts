@@ -206,7 +206,11 @@ test("tasks that wait are recorded, amended, held while the lane's copy is taken
   const add = (key: string, title: string, extra: Record<string, unknown> = {}) =>
     h.call(lead, "lead", "add_tasks", oneTask(key, title, extra));
   await add("s", "Side", { holds: ["b.txt"], parallel: true });
-  const queued = await add("r", "Receipt", { hints: ["c.txt"], after: ["l1-t2"] });
+  const queued = await add("r", "Receipt", {
+    hints: ["c.txt"],
+    after: ["l1-t2"],
+    context: "Tax is in the cart total already.",
+  });
   assert.match(queued.text, /is L1-T3 Receipt: waits for L1-T2/);
   assert.deepEqual([h.ledger().tasks["L1-T3"]!.status, h.ledger().tasks["L1-T3"]!.peer], ["waiting", undefined]);
   assert.match((await h.call(lead, "lead", "status", {})).text, /- L1-T3 Receipt: waiting, after L1-T2/);
@@ -251,7 +255,7 @@ test("tasks that wait are recorded, amended, held while the lane's copy is taken
   );
   assert.match(
     h.agents.get(started.peer!)!.prompt ?? "",
-    /TASK L1-T3: Receipt\n\nGoal: show the total with tax\nIt serves the lane's outcome: a\.txt changes\n[^]*\n\nOut of scope, your Lead's call \(question it with evidence if the goal needs it\):\n- the rest\n\nThe lane's limits, set above your Lead \(ask before crossing one\):\n- anything else in the repository\n/,
+    /TASK L1-T3: Receipt\n\nGoal: show the total with tax\nIt serves the lane's outcome: a\.txt changes\n[^]*\n\nOut of scope, your Lead's call \(question it with evidence if the goal needs it\):\n- the rest\n\nThe lane's limits, set above your Lead \(ask before crossing one\):\n- anything else in the repository\n\nDecided so far and why, your Lead's reading \(question it with evidence if the work shows otherwise\):\nTax is in the cart total already\.\n/,
   );
   await h.idle(lead);
   assert.match(

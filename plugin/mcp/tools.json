@@ -795,7 +795,7 @@
                 },
                 "context": {
                   "type": "string",
-                  "description": "Decisions made and why, approaches ruled out and why, facts already found; never the answer you worked out alone."
+                  "description": "Decisions and approaches ruled out, each with why, and facts found; never your worked-out answer. The Peer reads it as yours to question with evidence."
                 },
                 "skills": {
                   "type": "array",
@@ -1035,7 +1035,7 @@
           },
           "context": {
             "type": "string",
-            "description": "Its context as it stands now: decisions made, approaches ruled out, facts found since."
+            "description": "Its context as it stands now: decisions made, approaches ruled out, facts found since. The Peer reads it as yours to question with evidence."
           },
           "hints": {
             "type": "array",

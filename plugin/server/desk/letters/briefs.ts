@@ -78,7 +78,8 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
       ? ["", "The lane's limits, set above your Lead (ask before crossing one):", list(lane.outOfScope)]
       : []),
     "",
-    `Context: ${task.context?.trim() || "none"}`,
+    "Decided so far and why, your Lead's reading (question it with evidence if the work shows otherwise):",
+    task.context?.trim() || "none",
     task.skills && task.skills.length > 0 ? `\nSkills to open: ${task.skills.join(", ")}` : "",
     "",
     besideLine(task, beside),
