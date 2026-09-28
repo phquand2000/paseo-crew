@@ -326,3 +326,31 @@ test("a running Lead is steered only word that bears on its turn: its Peers' han
   await h.endTurn(lead, "weighed the premise");
   assert.match(seat.sent.at(-1) ?? "", /HANDBACK L1-T1[\s\S]*HANDBACK L1-T2/, "both in one message");
 });
+
+test("word a Peer had not read when it handed back waits for the next letter that asks something of it", async () => {
+  const h = harness();
+  // omp takes mail only between turns, as any seat does whose turn the desk did not see begin.
+  writeFileSync(
+    join(h.project.state, "settings.json"),
+    JSON.stringify({ roles: { peer: { harness: "omp", model: "glm-5" } } }),
+  );
+  const sup = h.add(SUPERVISOR, h.root, "sup");
+  const { lead, peer } = await lane(h, sup, "Pricing", "Round");
+  const amended = await h.call(lead, "lead", "amend_task", { task: "L1-T1", why: "rates too", acceptance: ["a", "b"] });
+  assert.match(amended.text, /its Peer has it at its next turn/);
+  await h.call(lead, "lead", "message", { to: "L1-T1", text: "Check the rates as well." });
+  const seat = h.agents.get(peer)!;
+  h.commit(h.ledger().tasks["L1-T1"]!.worktree!, "a.txt", "round\n");
+  const done = await h.call(peer, "peer", "done", { outcome: "partial", summary: "rounded" });
+  assert.equal(done.ok, true, done.text);
+  seat.status = "idle";
+  await h.endTurn(peer, "handed back");
+  await h.tick();
+  assert.deepEqual(seat.sent, [], "its Lead has the move now, and a new turn would work on what was handed back");
+
+  const back = await h.call(lead, "lead", "rework", { task: "L1-T1", text: "Round the rates too." });
+  assert.equal(back.ok, true, back.text);
+  const sent = seat.sent.at(-1) ?? "";
+  for (const said of [/Round the rates too/, /AMENDED L1-T1/, /Check the rates as well/])
+    assert.match(sent, said, "what waited reaches it with the rework, in one message");
+});

@@ -5,7 +5,7 @@ import type { Seats } from "../../core/ports.ts";
 import { HOUR_MS } from "../../core/time.ts";
 import { mailbox } from "../../desk/letters/envelope.ts";
 import { projectOf } from "../../desk/project/project.ts";
-import { laneOnHold, loadLedger } from "../../desk/store/ledger.ts";
+import { handedBackAt, laneOnHold, loadLedger } from "../../desk/store/ledger.ts";
 import { openAsksTo } from "../../domain/ledger.ts";
 import type { Letter, Rules } from "./outbox.ts";
 
@@ -21,7 +21,7 @@ export async function composeMail(seats: Seats, to: string, list: Letter[]): Pro
   }
 }
 
-/** Mail waits on a seat's open call to the desk, its lane's hold and its agent's steering; a letter given up on is logged. */
+/** Mail waits on a seat's open call to the desk, its lane's hold, its agent's steering and its hand-back; a letter given up on is logged. */
 export function mailRules(kit: Kit, calling: (agentId: string) => boolean): Rules {
   return {
     dropped: (letter, at) =>
@@ -31,5 +31,6 @@ export function mailRules(kit: Kit, calling: (agentId: string) => boolean): Rule
     steers: (seat) => seatOf(kit, seat.provider)?.harness.steers === true,
     calling,
     holding: (seat) => Boolean(seat.cwd && laneOnHold(projectOf(seat.cwd).state, seat.id)),
+    quietBefore: (seat) => (seat.cwd ? handedBackAt(projectOf(seat.cwd).state, seat.id) : undefined),
   };
 }

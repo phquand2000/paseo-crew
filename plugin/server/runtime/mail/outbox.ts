@@ -9,13 +9,15 @@ type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
 /**
  * What the outbox asks of the desk. `dropped` is told when a letter is given up on, so it is not lost quietly; `steers`, whether
  * the seat's harness takes a text into a running turn rather than replacing the turn; `calling`, whether the seat waits on a
- * call to the desk, where a text steered in reads as the call cut short; `holding`, whether its mail waits for a hold to lift.
+ * call to the desk, where a text steered in reads as the call cut short; `holding`, whether its mail waits for a hold to lift;
+ * `quietBefore`, when the seat gave back the work its earlier mail was about, which no longer wakes it.
  */
 export type Rules = {
   dropped?: (letter: Letter, now: number) => void;
   steers?: (seat: SeatLook) => boolean;
   calling?: (agentId: string) => boolean;
   holding?: (seat: SeatLook) => boolean;
+  quietBefore?: (seat: SeatLook) => number | undefined;
 };
 
 const KEEP_MS = 7 * 24 * 3_600_000;
@@ -124,6 +126,8 @@ export class Outbox {
       }
       if ((seat.pendingPermissions?.length ?? 0) > 0) return new Set<string>();
       if (this.rules.holding?.(seat)) return new Set<string>();
+      const quiet = this.rules.quietBefore?.(seat);
+      const asks = (letter: Letter) => letter.wakes !== false && (quiet === undefined || letter.at >= quiet);
       const since = this.awaiting.get(to);
       const waiting = since !== undefined && Date.now() - since < GRACE_MS;
       // A turn this desk never saw start — one running across a restart — is not known to be settled.
@@ -134,12 +138,12 @@ export class Outbox {
         Date.now() - began >= SETTLE_MS &&
         this.rules.steers?.(seat) === true &&
         this.rules.calling?.(to) !== true &&
-        mine.some((letter) => letter.steer === true);
+        mine.some((letter) => letter.steer === true && asks(letter));
       if (!steer && (midTurn(seat.status) || waiting)) return new Set<string>();
       // Word that asks nothing of an idle seat now waits for a letter that does.
-      if (!steer && mine.every((letter) => letter.wakes === false)) return new Set<string>();
+      if (!steer && !mine.some(asks)) return new Set<string>();
       // Into a running turn goes only what bears on it; the rest reaches the seat together when the turn ends.
-      const sending = steer ? mine.filter((letter) => letter.steer === true) : mine;
+      const sending = steer ? mine.filter((letter) => letter.steer === true && asks(letter)) : mine;
       const text = await this.compose(to, sending);
       await this.seats.send(
         to,

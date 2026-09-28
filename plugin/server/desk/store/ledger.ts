@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { isRecord } from "../../core/json.ts";
 import { readJsonFile, writeJson } from "../../core/store.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Ledger, emptyLedger } from "../../domain/ledger.ts";
+import { type Ledger, emptyLedger, taskOfPeer } from "../../domain/ledger.ts";
+import { AT_WORK } from "../../domain/task.ts";
 
 function ledgerFile(state: string): string {
   return join(state, "ledger.json");
@@ -51,14 +52,24 @@ export function readLedger(state: string): Ledger {
   return ledger;
 }
 
-/** The lane on hold that this seat works in, as its Lead, a Peer or a reviewer; none where the ledger cannot be read. */
-export function laneOnHold(state: string, agentId: string): Lane | undefined {
-  let ledger: Ledger;
+function readable(state: string): Ledger | undefined {
   try {
-    ledger = loadLedger(state);
+    return loadLedger(state);
   } catch {
     return undefined;
   }
-  const lane = ledger.lanes[ledger.agents[agentId]?.lane ?? ""];
+}
+
+/** The lane on hold that this seat works in, as its Lead, a Peer or a reviewer; none where the ledger cannot be read. */
+export function laneOnHold(state: string, agentId: string): Lane | undefined {
+  const ledger = readable(state);
+  const lane = ledger?.lanes[ledger.agents[agentId]?.lane ?? ""];
   return lane?.onHold && lane.status !== "closed" ? lane : undefined;
+}
+
+/** When this Peer handed its task back, unless it was sent back to work since; none where the ledger cannot be read. */
+export function handedBackAt(state: string, agentId: string): number | undefined {
+  const ledger = readable(state);
+  const task = ledger && taskOfPeer(ledger, agentId);
+  return task?.handback && !AT_WORK.includes(task.status) ? task.handback.at : undefined;
 }

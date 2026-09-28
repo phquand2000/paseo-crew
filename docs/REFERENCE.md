@@ -301,7 +301,7 @@ when its turn ends, and each round. The first row that fits decides:
 | Running, a letter for it bears on the turn (MESSAGE, RECONCILE, AMENDED, ANSWER, HUMAN ANSWERED, a call's late answer, a page incident), its agent `steers`, the turn started at least 60 s ago, and it waits on no desk call | Those letters alone are **steered** into the turn; the rest wait for it to end |
 | Running or starting | Held |
 | Mailed less than 10 minutes ago, with no turn end since | Held |
-| Every letter for it asks nothing of it | Held until one that does |
+| Every letter for it asks nothing of it, or was posted before the Peer handed its task back and it has not been sent back to work since | Held until one that does |
 | Otherwise | Sent: every letter waiting for it in one message, with the open asks put to it |
 
 | Timing | Value |

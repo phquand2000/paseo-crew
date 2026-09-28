@@ -349,7 +349,8 @@ It is:
 - **held** while the seat waits on a permission, runs or starts, or its lane is on hold, and for up to 10
   minutes after its last mail, until it ends a turn;
 - **kept** while every letter for it asks nothing of it (`wakes: false`), such as a task started or a landing
-  held, to go with the next that asks something;
+  held, or was posted before its Peer handed the task back, which is its Lead's move then, to go with the next
+  that asks something;
 - **sent** otherwise.
 
 HOLD alone goes past the outbox, as an interrupt that cuts a running turn short where the agent allows it. A
