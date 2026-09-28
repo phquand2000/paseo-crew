@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { contracts } from "../../shared/rpc.ts";
 import { harness } from "./harness.ts";
 
 const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
 const finding = { severity: "P1", where: "a.txt:1", failure: "rounds half down", fix: "round half up" };
 
-test("what each review and ask went on to change is counted for whoever supervises", async () => {
+test("what each review and ask went on to change is counted for whoever supervises, and a default overruled is seen until its lane closes", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", ...scope });
@@ -21,6 +22,16 @@ test("what each review and ask went on to change is counted for whoever supervis
     "A1 came with a default (half down): say with keepsDefault whether your answer keeps it.",
   );
   assert.equal((await h.call(lead, "lead", "answer", { ask: "A1", text: "Half up.", keepsDefault: false })).ok, true);
+  assert.equal(
+    h.heard(sup).find((text) => text.startsWith("OVERRULED")),
+    "OVERRULED A1 (question) on L1-T1: the Lead answered the peer against its default.\n\nWhich rounding?\n\nTried: the spec\n\nTheir default: half down\n\nThe answer:\nHalf up.\n\nNext: Nothing, unless the answer crosses the lane's intent or the Lead keeps overruling.",
+  );
+  const shown = async () => {
+    const flow = await h.rpc(contracts.flow, { project: h.project.slug, open: [] });
+    assert.ok("asks" in flow);
+    return flow.asks.find((ask) => ask.id === "A1");
+  };
+  assert.equal((await shown())?.overruled?.answer, "Half up.", "the Human's panel keeps the overruled default in view");
 
   const handBack = async (content: string) => {
     h.commit(lane.worktree!, "a.txt", content);
@@ -55,4 +66,7 @@ test("what each review and ask went on to change is counted for whoever supervis
       "Accepted tasks: 1 (after one rework 1).",
     ].join("\n"),
   );
+  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
+  await h.runtime.desk.settled(h.project);
+  assert.equal(await shown(), undefined, "and lets it go once its lane closes");
 });

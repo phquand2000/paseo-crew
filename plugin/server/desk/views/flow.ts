@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { SeatView } from "../../core/paseo.ts";
 import { AT_WORK, SETTLED } from "../../domain/task.ts";
 import { keptCopy, keptPeers } from "../seats/kept.ts";
+import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { FlowAsk, FlowLane, FlowQuestion, FlowSeat, FlowTask, FlowView } from "../../../shared/flow-views.ts";
@@ -113,9 +114,11 @@ function laneOf(
   };
 }
 
+/** Open asks, and those answered against their asker's default while their lane is still open. */
 function asksOf(ledger: Ledger, now: number): FlowAsk[] {
+  const overruled = (ask: Ask) => ask.kept === false && ledger.lanes[ask.lane ?? ""]?.status === "open";
   return Object.values(ledger.asks)
-    .filter((ask) => ask.status === "open")
+    .filter((ask) => ask.status === "open" || overruled(ask))
     .map((ask) => ({
       id: ask.id,
       kind: ask.kind,
@@ -124,6 +127,7 @@ function asksOf(ledger: Ledger, now: number): FlowAsk[] {
       minutes: minutes(now, ask.openedAt),
       text: ask.text.split(/\r?\n/).find((line) => line.trim()) ?? "",
       default: ask.default ?? null,
+      ...(overruled(ask) ? { overruled: { answer: ask.answer ?? "", minutes: minutes(now, ask.answeredAt) } } : {}),
     }));
 }
 

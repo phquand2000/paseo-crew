@@ -2,7 +2,7 @@ import { can, roleNamed } from "../../catalog/kit/roles.ts";
 import { ASK } from "../../domain/ask.ts";
 import { SETTLED } from "../../domain/task.ts";
 import { askLetters } from "../letters/ask-letters.ts";
-import { type Caller, type ToolReply, no, ok } from "../context.ts";
+import { type Caller, type Posted, type ToolReply, no, ok } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
 import type { Ask } from "../../domain/ask.ts";
 import { type Ledger, laneOfLead, nextAskId, taskOfPeer } from "../../domain/ledger.ts";
@@ -92,7 +92,7 @@ export async function askUp(
 
 /** Answers an open ask; one put to someone else may be answered by whoever supervises, and that seat is told first. */
 export async function answerAsk(
-  { kit, ledgers, mail }: Pick<DeskServices, "kit" | "ledgers" | "mail">,
+  desk: Pick<DeskServices, "kit" | "ledgers" | "mail" | "roster">,
   caller: Caller,
   answered: { ask: string; text: string; keepsDefault?: boolean },
 ): Promise<ToolReply> {
@@ -100,7 +100,7 @@ export async function answerAsk(
   const { text } = answered;
   const refused = repeatsIncident(caller.project.state, loadLedger(caller.project.state).asks[id]?.from, text);
   if (refused) return no(refused);
-  const result = ledgers.transact(caller.project, (ledger): { ask: Ask; waitingRole?: string } | string => {
+  const result = desk.ledgers.transact(caller.project, (ledger): Answered | string => {
     const ask = ledger.asks[id];
     if (!ask) return `There is no ask ${id}.`;
     if (!ASK.may(ask.status, "answer")) return `Ask ${id} is already answered.`;
@@ -109,21 +109,46 @@ export async function answerAsk(
       return `${id} came with a default (${ask.default}): say with keepsDefault whether your answer keeps it.`;
     ASK.move(ask, "answer");
     ask.answer = text;
-    return { ask: { ...ask }, waitingRole: ledger.agents[ask.to]?.role };
+    ask.answeredAt = Date.now();
+    if (ask.default) ask.kept = answered.keepsDefault;
+    const opener = ask.lane ? ledger.lanes[ask.lane]?.opener : undefined;
+    return { ask: { ...ask }, waitingRole: ledger.agents[ask.to]?.role, opener };
   });
   if (typeof result === "string") return no(result);
   const { ask } = result;
-  // Answering an ask put to someone else is allowed (the round escalates them), but that seat is told first.
   const waiting = ask.to === caller.id ? undefined : ask.to;
-  const waitingRole = roleNamed(kit, result.waitingRole ?? "");
-  if (waiting) {
-    const by = can(waitingRole, "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
-    await mail.post(waiting, askLetters.answeredFor(ask, by, can(waitingRole, "lead")));
-  }
-  const posted = await mail.post(ask.from, askLetters.answered(ask));
-  const kept = ask.default ? answered.keepsDefault! : null;
-  recordEvent(caller.project, { kind: "ask.answered", ask: ask.id, by: caller.id, told: waiting ?? null, kept });
+  const posted = await tellAround(desk, caller, result, waiting);
+  recordEvent(caller.project, {
+    kind: "ask.answered",
+    ask: ask.id,
+    by: caller.id,
+    told: waiting ?? null,
+    kept: ask.kept ?? null,
+  });
   const has = posted === "sent" ? "has it" : "reads it as soon as it can take it";
   const told = waiting ? " Whoever it was waiting on has been told what it was answered with." : "";
   return ok(`Answered ${ask.id}; the asker ${has}.${told}`);
+}
+
+type Answered = { ask: Ask; waitingRole?: string; opener?: string };
+
+/** The asker gets the answer; the seat it waited on is told first, and whoever supervises sees a default overruled below them. */
+async function tellAround(
+  { kit, mail, roster }: Pick<DeskServices, "kit" | "mail" | "roster">,
+  caller: Caller,
+  { ask, waitingRole, opener }: Answered,
+  waiting: string | undefined,
+): Promise<Posted | "nobody"> {
+  // Answering an ask put to someone else is allowed (the round escalates them), but that seat is told first.
+  if (waiting) {
+    const role = roleNamed(kit, waitingRole ?? "");
+    const by = can(role, "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
+    await mail.post(waiting, askLetters.answeredFor(ask, by, can(role, "lead")));
+  }
+  const posted = await mail.post(ask.from, askLetters.answered(ask));
+  if (ask.kept === false && !can(caller.role, "supervise")) {
+    const above = await roster.supervisorFor(caller.project, opener);
+    if (above) await mail.post(above, askLetters.overruled(ask));
+  }
+  return posted;
 }

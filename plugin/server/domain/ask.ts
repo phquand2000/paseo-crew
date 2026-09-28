@@ -24,4 +24,6 @@ export type Ask = {
   reminders: number;
   escalated?: boolean;
   answer?: string;
+  answeredAt?: number;
+  kept?: boolean;
 };

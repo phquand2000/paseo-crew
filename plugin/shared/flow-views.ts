@@ -60,6 +60,7 @@ const FlowAsk = z.object({
   minutes: z.number(),
   text: z.string(),
   default: z.string().nullable(),
+  overruled: z.object({ answer: z.string(), minutes: z.number() }).optional(),
 });
 export type FlowAsk = z.infer<typeof FlowAsk>;
 const FlowQuestion = z.object({

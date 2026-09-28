@@ -204,7 +204,7 @@ const Lane = memo(function Lane({ lane, theme, onOpen, navigation }: LaneProps &
   );
 });
 
-/** The asks still open between seats, which the Human only reads: answering them is the seats' own work. */
+/** The asks still open between seats, and those answered against their asker's default until the lane closes; the Human only reads them. */
 function AsksCard({ asks, theme }: { asks: FlowAsk[]; theme: PluginTheme }) {
   const styles = useStyles(theme);
   return (
@@ -213,9 +213,10 @@ function AsksCard({ asks, theme }: { asks: FlowAsk[]; theme: PluginTheme }) {
         <View key={ask.id} style={styles.row}>
           <View style={styles.labels}>
             <Text style={styles.title}>{`${ask.id} · ${ask.text}`}</Text>
-            <Text style={styles.hint}>{`${ask.kind} from the ${ask.fromRole}${ask.default ? ` · going ahead on: ${ask.default}` : ""}`}</Text>
+            <Text style={styles.hint}>{`${ask.kind} from the ${ask.fromRole}${ask.default ? ` · ${ask.overruled ? "its default" : "going ahead on"}: ${ask.default}` : ""}`}</Text>
+            {ask.overruled ? <Text style={styles.quiet}>{`overruled: ${ask.overruled.answer}`}</Text> : null}
           </View>
-          <Text style={styles.quiet}>{ago(ask.minutes)}</Text>
+          <Text style={styles.quiet}>{ago(ask.overruled?.minutes ?? ask.minutes)}</Text>
         </View>
       ))}
     </SettingsCard>

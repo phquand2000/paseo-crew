@@ -49,6 +49,7 @@ type Kind =
   | "notstarted"
   | "nudge"
   | "opened"
+  | "overruled"
   | "permission"
   | "reconcile"
   | "remind"

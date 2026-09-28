@@ -1,7 +1,7 @@
 import type { Question } from "../../domain/question.ts";
 import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, firstLine, mail, steering } from "./envelope.ts";
+import { type Letter, firstLine, fyi, mail, steering } from "./envelope.ts";
 
 const theirDefault = (ask: Ask): string[] => (ask.default ? ["", `Their default: ${ask.default}`] : []);
 
@@ -90,6 +90,27 @@ export const askLetters = {
       leads
         ? "If this changes what you were going to do, say so in your next report."
         : "If it changes a decision of yours, carry that into the lane.",
+    );
+  },
+
+  /** Whoever supervises sees a Peer's default overruled by its Lead, without being woken for it. */
+  overruled(ask: Ask): Letter {
+    const text = [
+      `OVERRULED ${ask.id} (${ask.kind}) on ${ask.task ?? ask.lane ?? "the project"}: the Lead answered the ${ask.fromRole} against its default.`,
+      "",
+      ask.text,
+      ...theirDefault(ask),
+      "",
+      "The answer:",
+      ask.answer ?? "",
+    ].join("\n");
+    return fyi(
+      mail(
+        "overruled",
+        [ask.id],
+        text,
+        "Nothing, unless the answer crosses the lane's intent or the Lead keeps overruling.",
+      ),
     );
   },
 
