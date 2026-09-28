@@ -113,7 +113,7 @@ limits](docs/REFERENCE.md#known-limits).
 
 You need:
 
-- Paseo `>=0.9.1 <0.10.0`
+- Paseo `>=0.9.1 <0.11.0`
 - Node.js 24 or newer; there is no build step
 - `git` and `jq`
 - the CLI of each agent you use, signed in
