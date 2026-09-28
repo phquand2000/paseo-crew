@@ -9,7 +9,7 @@ const SHOWN = 10;
 
 /**
  * What of a task's changed files its Lead should weigh, one note each and each file once: in what a task beside it holds,
- * outside the lane's write set, or for a parallel task outside what it holds, a path one writer at a time may write marked.
+ * settled from the base it took in, outside the lane's write set, or for a parallel task outside what it holds, a path one writer at a time may write marked.
  */
 export function reachNotes(ledger: Ledger, task: Task, lane: Lane, files: string[], serial: string[]): string[] {
   const notes: string[] = [];
@@ -19,6 +19,9 @@ export function reachNotes(ledger: Ledger, task: Task, lane: Lane, files: string
     for (const file of into) taken.add(file);
     if (into.length > 0) notes.push(`in what ${other.id} holds (${other.holds.join(", ")}): ${capped(into, SHOWN)}`);
   }
+  const settled = files.filter((file) => !taken.has(file) && task.tookBase?.conflicts.includes(file));
+  for (const file of settled) taken.add(file);
+  if (settled.length > 0) notes.push(`settled from merging ${lane.base}: ${capped(settled, SHOWN)}`);
   const beyond = lane.writeSet.length > 0 ? uncovered(files, lane.writeSet).filter((file) => !taken.has(file)) : [];
   if (beyond.length > 0)
     notes.push(`outside the lane's write set (${lane.writeSet.join(", ")}): ${capped(beyond, SHOWN)}`);

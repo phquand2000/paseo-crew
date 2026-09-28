@@ -44,7 +44,20 @@ function whereLines(task: Task, lane: Lane): string[] {
   if (task.mode === "parallel")
     return [...start, "You hold (others write beside you, so ask before writing outside it):", list(task.holds)];
   const writes = lane.writeSet.length > 0 ? `, inside the lane's write set: ${lane.writeSet.join(", ")}` : "";
-  return [...start, `Where the change goes, callers and tests included, is yours to find${writes}.`];
+  return [
+    ...start,
+    `Where the change goes, callers and tests included, is yours to find${writes}.`,
+    ...tookLine(task, lane),
+  ];
+}
+
+/** What the desk's merge of base into the task's branch left: the conflicts are the task's own, wherever they lie. */
+function tookLine({ tookBase }: Task, lane: Lane): string[] {
+  if (!tookBase) return [];
+  if (tookBase.conflicts.length === 0) return [`The desk merged ${lane.base} into your branch, and it merged cleanly.`];
+  return [
+    `The desk merged ${lane.base} into your branch and stopped on conflicts in ${tookBase.conflicts.join(", ")}: settling them is this task's work, wherever they are; settle so both sides stand and commit with git commit --no-edit.`,
+  ];
 }
 
 export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {

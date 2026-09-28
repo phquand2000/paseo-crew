@@ -31,6 +31,8 @@ export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] 
       return `${task.key} runs beside others but holds nothing: name the paths it writes meanwhile, as coarse as the work allows.`;
     if (!task.parallel && task.holds.length > 0)
       return `${task.key} holds ${task.holds.join(", ")} but runs in the lane's copy, which has one writer at a time: leave holds out, or give those paths as hints.`;
+    if (task.parallel && task.args.takeBase === true)
+      return `${task.key} takes ${lane.base} in, which reaches files every task beside it holds: run it in the lane's copy.`;
   }
   for (const task of tasks) {
     const outside = task.after.filter((id) => !keys.has(id));

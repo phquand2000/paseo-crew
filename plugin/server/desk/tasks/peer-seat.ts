@@ -1,6 +1,6 @@
 import { roleNamed } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
-import { dropMerged, switchTo } from "../../core/git.ts";
+import { dropMerged, git, headSha, mergeBranch, switchTo } from "../../core/git.ts";
 import { TASK } from "../../domain/task.ts";
 import { besideOf, taskBrief } from "../letters/briefs.ts";
 import { workKey } from "../claims.ts";
@@ -26,10 +26,11 @@ export async function startPeer(
   const { kit, ledgers, agents } = desk;
   try {
     const copy = await peerCopy(desk, project, lane, task);
+    const now = loadLedger(project.state);
     const peer = await agents.start(project, copy, how.role, {
       parent: how.parent,
       title: seatTitle.of(task, roleNamed(kit, how.role)!),
-      prompt: taskBrief(task, lane, besideOf(loadLedger(project.state), task)),
+      prompt: taskBrief(now.tasks[task.id] ?? task, lane, besideOf(now, task)),
       labels: { "crew.lane": lane.id, "crew.task": task.id, "crew.role": how.role },
     });
     ledgers.transact(project, (ledger) => {
@@ -69,7 +70,25 @@ async function peerCopy(
   // The lane's copy takes the task's own branch, made from the lane as it stands; the lane branch moves only by merges.
   const refused = await switchTo(copy.path, task.branch!, task.startSha ?? lane.branch);
   if (refused) throw new Error(`the lane's working copy could not go onto ${task.branch}: ${refused}`);
+  if (task.takeBase && !task.tookBase) await takeBase(ledgers, project, lane, task, copy.path);
   return copy;
+}
+
+/** Merges base into the task's branch once, conflicts left for its Peer to settle and commit, since no seat may run git merge. */
+async function takeBase(
+  ledgers: DeskServices["ledgers"],
+  project: Project,
+  lane: Lane,
+  task: Task,
+  cwd: string,
+): Promise<void> {
+  const sha = await headSha(cwd, lane.base);
+  if (!sha) throw new Error(`${lane.base} could not be read to merge into ${task.branch}`);
+  const merged = await mergeBranch(cwd, sha, `Bring ${lane.base} into ${task.branch}`, true);
+  if (!merged.ok && merged.conflicts.length === 0)
+    throw new Error(`${lane.base} does not merge into ${task.branch}: ${merged.message}`);
+  const conflicts = merged.ok ? [] : merged.conflicts;
+  ledgers.setTask(project, task.id, (entry) => Object.assign(entry, { tookBase: { sha, conflicts } }));
 }
 
 /** A Peer that did not start leaves its task waiting, and the copy it was given as it was. */
@@ -80,9 +99,12 @@ async function putBack(
   task: Task,
 ): Promise<void> {
   const parallel = task.mode === "parallel";
-  const taken = loadLedger(project.state).tasks[task.id]?.slot;
+  const { slot: taken, tookBase } = loadLedger(project.state).tasks[task.id] ?? {};
+  // The merge this start left goes, so the next start makes it again.
+  if (tookBase && tookBase.conflicts.length > 0 && lane.worktree) await git(lane.worktree, ["merge", "--abort"]);
   ledgers.setTask(project, task.id, (entry) => {
     TASK.move(entry, "wait");
+    delete entry.tookBase;
     if (parallel) {
       delete entry.slot;
       delete entry.worktree;

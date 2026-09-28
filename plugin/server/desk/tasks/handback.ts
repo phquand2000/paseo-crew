@@ -15,6 +15,7 @@ import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { type Project, serialIn } from "../project/project.ts";
+import { changeFrom } from "./change-from.ts";
 import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -118,8 +119,8 @@ async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task, sy
         : "not" in synced
           ? `Not brought up to date with ${lane.branch}: ${synced.not}.`
           : undefined;
-  // Read from where its branch meets the lane's: what came in with the lane is not the task's.
-  const changed = lane ? await changedFiles(task.worktree, `${lane.branch}...HEAD`) : undefined;
+  const from = lane ? await changeFrom(task.worktree, task, lane.branch, "HEAD") : undefined;
+  const changed = from ? await changedFiles(task.worktree, `${from}..HEAD`) : undefined;
   const serial = lane && changed && task.mode === "parallel" ? await serialIn(kit, project, task.worktree) : [];
   const notes = lane && changed ? reachNotes(ledger, task, lane, changed, serial) : [];
   // Only what git actually said: a copy it could not read is not a copy with work left in it.

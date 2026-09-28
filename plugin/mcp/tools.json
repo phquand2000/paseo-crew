@@ -786,6 +786,10 @@
                   "type": "boolean",
                   "description": "Run beside the lane's writer in a working copy of its own; give what it holds in holds."
                 },
+                "takeBase": {
+                  "type": "boolean",
+                  "description": "For BASE CONFLICT, in the lane's copy: the desk merges base into the task's branch as it starts; its Peer settles what conflicts."
+                },
                 "after": {
                   "type": "array",
                   "items": {

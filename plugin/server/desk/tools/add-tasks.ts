@@ -13,6 +13,7 @@ const Asked = z.strictObject({
   context: z.string().optional(),
   skills: z.array(z.string()).optional(),
   parallel: z.boolean().optional(),
+  takeBase: z.boolean().optional(),
   after: z.array(z.string()).optional(),
   role: z.string().optional(),
 });

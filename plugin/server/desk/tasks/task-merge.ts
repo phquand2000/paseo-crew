@@ -13,6 +13,7 @@ import { othersLeft } from "../../domain/ledger.ts";
 import type { Letter } from "../letters/envelope.ts";
 import { mergeLetters } from "../letters/merge-letters.ts";
 import { type Project, serialIn } from "../project/project.ts";
+import { changeFrom } from "./change-from.ts";
 import { reachNotes } from "./reach.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { backOnLane, bringLaneIn } from "../copies/sync.ts";
@@ -130,7 +131,8 @@ export class TaskMerge {
     const head = await headSha(task.worktree);
     const last = task.handback?.gate;
     if (last && last.sha === head) return last;
-    const files = await changedFiles(task.worktree, `${lane.branch}...HEAD`);
+    const from = await changeFrom(task.worktree, task, lane.branch, "HEAD");
+    const files = from ? await changedFiles(task.worktree, `${from}..HEAD`) : undefined;
     const run = await taskGate(this.desk.kit, project, task.id, task.worktree, files);
     if (!run) return undefined;
     this.desk.ledgers.setTask(project, task.id, (entry) => {
@@ -170,7 +172,8 @@ export class TaskMerge {
     cwd: string,
     merged: { before: string; after: string },
   ): Promise<void> {
-    const counts = await diffCounts(cwd, merged.before, merged.after, fileKinds(this.desk.kit));
+    const from = await changeFrom(cwd, task, merged.before, merged.after);
+    const counts = from ? await diffCounts(cwd, from, merged.after, fileKinds(this.desk.kit)) : undefined;
     const serial = await serialIn(this.desk.kit, project, cwd);
     this.desk.ledgers.transact(project, (ledger) => {
       const entry = ledger.tasks[task.id];

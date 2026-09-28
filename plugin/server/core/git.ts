@@ -88,6 +88,8 @@ export async function switchTo(
   discard = false,
 ): Promise<string | undefined> {
   const exists = await branchExists(cwd, branch);
+  // git refuses to switch mid-merge even when discarding: a merge the desk left for a seat goes with the rest.
+  if (discard && (await mergeUnderWay(cwd))) await git(cwd, ["merge", "--abort"]);
   const run = await git(cwd, [
     "switch",
     ...(discard ? ["--discard-changes"] : []),
@@ -168,6 +170,13 @@ export async function mergeBranch(cwd: string, branch: string, message: string, 
 /** A merge begun in the copy and neither committed nor undone: no seat may begin one, so it is one the desk left for a seat to settle. */
 export async function mergeUnderWay(cwd: string): Promise<boolean> {
   return (await git(cwd, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])).code === 0;
+}
+
+/** The tree merging `ours` and `theirs` would make, conflicts written in with their markers; undefined when git cannot make it. */
+export async function mergeTree(cwd: string, ours: string, theirs: string): Promise<string | undefined> {
+  const run = await git(cwd, ["merge-tree", "--write-tree", "--no-messages", ours, theirs]);
+  // 1 is a merge with conflicts, whose tree git still writes.
+  return run.code === 0 || run.code === 1 ? run.stdout.split("\n")[0]?.trim() || undefined : undefined;
 }
 
 /** `into` as the merge that brought `branch` in, if it is one: a merge a stop cut off after git made it. */

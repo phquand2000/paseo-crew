@@ -143,11 +143,14 @@ opens anyway, and it and its Supervisor are told which one-writer paths open lan
   branch of its own, one at a time: it waits while another holds the copy, until that one is merged or cut.
 - A `parallel` task works in a copy of its own and names in `holds` what it writes while others run beside it; only it
   may write those. `hints` say where a Peer might start reading, and fence nothing.
+- A `takeBase` task runs in the lane's copy. As it starts, the desk merges the base into its branch and leaves the
+  conflicts for its Peer to settle and commit, wherever they lie. Its change is read against what the lane and that base
+  make together, and a note names the files it settled.
 - Each brief names the tasks written beside it and what they hold. A Peer at work in the lane's copy gets BESIDE when a
   parallel task starts after its brief was written.
 
 The whole call is refused while the lane is on hold. It is also refused when two tasks that may run at once hold one
-path, a parallel task holds nothing or a one-writer path, a task in the lane's copy names `holds`, or a held path lies
+path, a parallel task holds nothing, holds a one-writer path or takes the base, a task in the lane's copy names `holds`, or a held path lies
 outside the lane's write set. And it is refused when a task holds a path a running task still holds without waiting for
 it, names a skill its role does not have, waits for a task that is missing or cut, or has a key that repeats, names a
 task on record, or waits on others in a loop.
@@ -157,7 +160,7 @@ task on record, or waits on others in a loop.
 | Part | What the desk does |
 |---|---|
 | The lane first | Brings the lane into the task's branch, so the gate runs on what the lane would become. Conflicts stop the hand-back and are left in the copy for the Peer to settle and commit; the Lead gets SETTLING. A copy with work uncommitted is left as it is, and the hand-back says so |
-| What changed | Names the commit, read from the branch, and the files the task changed, counting only its own commits. A note marks each file in what a task beside it holds, outside the lane's write set, or, for a parallel task, outside what it holds, a one-writer path called so. MERGED carries the same notes |
+| What changed | Names the commit, read from the branch, and the files the task changed, counting only its own commits. A note marks each file in what a task beside it holds, settled from the base it took in, outside the lane's write set, or, for a parallel task, outside what it holds, a one-writer path called so. MERGED carries the same notes |
 | The gate | On a project gating each task, the default when it has a gate: runs the gate, then rehearses each risk rule the change reaches, stopping at the first that fails |
 | A review | Takes the verdict (`accept`, `changes` or `reopen`), the answer to the focus, each finding (severity, place, failure, fix; at least one for `changes` or `reopen`), and an answer to each risk-rule question of the brief, in order; refuses it without them |
 | Where it goes | Keeps it whole in `handbacks/`, and sends HANDBACK to the Lead, or to whoever supervises once the Lead is gone |
@@ -194,7 +197,7 @@ before landing, where review changes stand that nothing on record answers; land.
 
 1. It waits for queued merges; a project lands one lane at a time.
 2. If the base moved on, it merges the base into the lane in the lane's copy. With a seat mid-turn there it stops, and
-   CAN LAND comes when that turn ends. Conflicts are left in the copy, the Lead gets BASE CONFLICT, and the lane counts
+   CAN LAND comes when that turn ends. On conflicts the merge is aborted, the Lead gets BASE CONFLICT, and the lane counts
    as not reported ready. It is refused while a task holds the lane's copy on its own branch, until that task is merged
    or cut.
 3. It runs the lane gate. A red gate lands only with `overGate` and a `reason`.
@@ -273,7 +276,8 @@ first prompt, not mail, and carry neither.
 | SETTLING | A Lead, in passing: bringing its lane into a task's branch at hand-back stopped on conflicts, which that task's Peer settles before it hands back |
 | RECONCILE | A Lead: what the Supervisor sent its Peer |
 | ANSWERED FOR YOU | A seat: someone else answered an ask put to it |
-| MERGE CONFLICT, BASE CONFLICT | A Lead: the desk began a merge no seat may run, and left its conflicts in the copy of whoever settles them (the task's own, or the lane's) for a Peer to settle and commit |
+| MERGE CONFLICT | A Lead: the desk began a merge no seat may run, and left its conflicts in the task's copy for its Peer to settle and commit |
+| BASE CONFLICT | A Lead: the base conflicts with the lane, and nothing was left mid-merge; a task with `takeBase` takes it in |
 | CAN LAND | Whoever tried to land a lane under a seat mid-turn: the turn has ended |
 | HUMAN WROTE, HUMAN ANSWERED | Whoever supervises: what the Human typed straight into a Lead's or Peer's chat; what they chose for a question on the panel |
 | HOLD | The seats of a lane: stop. The one letter sent past the outbox, cutting a running turn short where the agent allows |

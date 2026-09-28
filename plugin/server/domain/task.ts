@@ -78,6 +78,8 @@ export type Task = {
   worktree?: string;
   slot?: string;
   startSha?: string;
+  takeBase?: true;
+  tookBase?: { sha: string; conflicts: string[] };
   mergeSha?: string;
   status: TaskStatus;
   openedAt: number;

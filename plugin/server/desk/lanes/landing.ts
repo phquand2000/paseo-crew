@@ -1,4 +1,4 @@
-import { currentBranch, headSha, isAncestor, landedRef, mergeBranch, mergeUnderWay } from "../../core/git.ts";
+import { currentBranch, headSha, isAncestor, landedRef, mergeBranch } from "../../core/git.ts";
 import { landLane as landOnBase } from "../../core/land.ts";
 import { no, ok } from "../context.ts";
 import { laneGate } from "../project/gates.ts";
@@ -86,7 +86,7 @@ async function gateThenLand(
   return { how: `${result.how}${gate.ok ? "" : ", over a red gate"}`, note: check.note };
 }
 
-/** Merges base into the lane in its own copy, never under a seat mid-turn there; conflicts stay there for its Lead. */
+/** Merges base into the lane in its own copy, never under a seat mid-turn there; on conflicts a task takes base in on its own branch. */
 async function bringBaseIn(
   { ledgers, mail, roster }: Pick<DeskServices, "ledgers" | "mail" | "roster">,
   project: Project,
@@ -98,7 +98,8 @@ async function bringBaseIn(
     return { why: `it has no working copy on record to merge ${lane.base} into`, then: "Drop it with drop_lane." };
   const blocked = await baseMergeBlocked(roster, ledger, lane, copy);
   if (blocked) return blocked === "current" ? undefined : blocked;
-  const merged = await mergeBranch(copy, lane.base, `Bring ${lane.base} into ${lane.branch}`, true);
+  // Never left mid-merge: every task in the copy starts by switching branch, which git refuses then.
+  const merged = await mergeBranch(copy, lane.base, `Bring ${lane.base} into ${lane.branch}`);
   if (merged.ok) return undefined;
   if (merged.conflicts.length === 0)
     return {
@@ -112,7 +113,7 @@ async function bringBaseIn(
   await mail.post(lane.lead, landLetters.baseConflict(lane, merged.conflicts));
   return {
     why: `${lane.base} has moved on and conflicts with ${lane.branch} in ${merged.conflicts.join(", ")}`,
-    then: `The merge is left in the lane's copy, and its Lead has a letter to have it settled; ${SETTLE}`,
+    then: `Nothing was left in the lane's copy, and its Lead has a letter to have a task take ${lane.base} in; ${SETTLE}`,
   };
 }
 
@@ -132,11 +133,6 @@ async function baseMergeBlocked(
       then: `Land it once ${holding.id} is merged or cut.`,
     };
   if (await isAncestor(copy, lane.base, lane.branch)) return "current";
-  if (await mergeUnderWay(copy))
-    return {
-      why: `the merge of ${lane.base} into ${lane.branch} left in its copy is not settled yet`,
-      then: `Its Lead has it to settle; ${SETTLE}`,
-    };
   // Readers count too: a merge changes the files under whoever is reading them.
   const inCopy = tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel");
   const busy = await midTurnAmong(roster, [lane.lead, ...inCopy.map((task) => task.peer)]);
