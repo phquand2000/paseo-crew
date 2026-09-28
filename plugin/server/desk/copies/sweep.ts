@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { errorText } from "../../core/errors.ts";
 import { removeWorktree } from "../../core/git.ts";
 import type { Workspaces } from "../../core/ports.ts";
-import { worktreeRoot } from "../../core/paths.ts";
+import { realPath, worktreeRoot } from "../../core/paths.ts";
 import type { DeskBase } from "../base.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { Project } from "../project/project.ts";
@@ -34,9 +34,10 @@ export async function sweepCopies(
     }
   }
   const root = join(worktreeRoot(), project.slug);
-  if (!root.startsWith(worktreeRoot()) || !existsSync(root)) return;
+  if (!existsSync(root)) return;
   // Read and listed inside the lock; removal outside it is safe because a slot id is never handed out twice.
-  const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => slot.path));
+  // Compared by real path: a slot recorded before the folder moved behind a link names its copy through the link.
+  const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => realPath(slot.path)));
   const held = live(ledgers.read(project));
   const strays = readdirSync(root)
     .map((name) => join(root, name))

@@ -753,7 +753,7 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
   bin/                                    the git, gh and paseo first on each seat's PATH
   content/<name>-<hash>/                  copies of the guides and skills seats read; safe to delete; 14 days unused, gone
   guides -> content/guides-<hash>
-  worktrees/<slug>/S<n>/                  copies of their own
+  worktrees/<slug>/S<n>/                  copies of their own; worktrees may be a link to another volume
   projects/<slug>/                        slug: repository folder name, lower case and dashed, "-", 6 hex of sha1(root)
     meta.json                             root and slug; detaching removes it with settings.json
     settings.json  settings.json.bak-<time>

@@ -58,7 +58,7 @@ export class ProjectsPanel implements ProjectsRpc {
     const keep: string[] = [];
     for (const given of roots) {
       const path = given.trim();
-      if (!path || path === worktrees || path.startsWith(`${worktrees}/`)) continue;
+      if (!path) continue;
       let real: string;
       try {
         if (!statSync(path).isDirectory()) continue;
@@ -66,6 +66,7 @@ export class ProjectsPanel implements ProjectsRpc {
       } catch {
         continue;
       }
+      if (real === worktrees || real.startsWith(`${worktrees}/`)) continue;
       if (!gitCommonDir(real)) continue;
       const project = projectOf(real);
       if (project.root !== real || attached.has(project.root)) continue;

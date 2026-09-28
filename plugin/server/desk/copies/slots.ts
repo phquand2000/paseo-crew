@@ -11,7 +11,7 @@ import {
   removeWorktree,
 } from "../../core/git.ts";
 import type { Workspace, Workspaces } from "../../core/ports.ts";
-import { worktreeRoot } from "../../core/paths.ts";
+import { realPath, worktreeRoot } from "../../core/paths.ts";
 import type { DeskBase } from "../base.ts";
 import { closeIndexes, openIndexes } from "./indexes.ts";
 import { placeLinks } from "./links.ts";
@@ -164,7 +164,7 @@ export class Slots {
   /** Removes a path the desk made under its own worktree root, and the project's folder once empty. */
   private discard(project: Project, path: string): void {
     const root = join(worktreeRoot(), project.slug);
-    if (!path.startsWith(`${root}/`)) return;
+    if (!realPath(path).startsWith(`${root}/`)) return;
     try {
       rmSync(path, { recursive: true, force: true });
       if (readdirSync(root).length === 0) rmdirSync(root);

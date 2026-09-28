@@ -4,7 +4,7 @@ import type { CleanItem, CleanView } from "../../shared/upkeep-views.ts";
 import type { Kit } from "../catalog/kit/kit.ts";
 import type { Team } from "../catalog/team/team.ts";
 import { git, pristineState } from "../core/git.ts";
-import { contentRoot, expandHome, guidesDir, stateRoot, worktreeRoot } from "../core/paths.ts";
+import { contentRoot, expandHome, guidesDir, realPath, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { errorText } from "../core/errors.ts";
 import { readLedger } from "../desk/store/ledger.ts";
 import type { Project } from "../desk/project/project.ts";
@@ -88,7 +88,7 @@ async function copies(ctx: CleanContext): Promise<CleanItem[]> {
     const project = attached.get(slug);
     let held: Set<string>;
     try {
-      held = new Set(project ? Object.values(readLedger(project.state).slots).map((slot) => resolve(slot.path)) : []);
+      held = new Set(project ? Object.values(readLedger(project.state).slots).map((slot) => realPath(slot.path)) : []);
     } catch {
       // A ledger that will not read says nothing about which copies are free, so none of them are.
       continue;

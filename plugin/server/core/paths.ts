@@ -1,4 +1,4 @@
-import { accessSync, constants, readFileSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, delimiter, join, resolve } from "node:path";
 import { getPath, isRecord } from "./json.ts";
@@ -54,8 +54,16 @@ export function contentRoot(homeDir = home()): string {
   return join(stateRoot(homeDir), "content");
 }
 
+/** Resolved, so the folder may be a link to another volume: a sandbox and git both hold a copy by its real path. */
 export function worktreeRoot(homeDir = home()): string {
-  return join(stateRoot(homeDir), "worktrees");
+  const root = join(stateRoot(homeDir), "worktrees");
+  mkdirSync(root, { recursive: true });
+  return realpathSync(root);
+}
+
+/** A path as a sandbox sees it, for one that may not exist any more. */
+export function realPath(path: string): string {
+  return existsSync(path) ? realpathSync(path) : resolve(path);
 }
 
 /** Where seats' team servers reach the desk: beside the state it keeps, and open to this user alone. */
