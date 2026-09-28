@@ -15,18 +15,13 @@ export type WatchedSeat = { id: string; provider: string; cwd: string; title?: s
 /** `placed` is false until the ledger has placed the seat, or while it cannot be read; `handedBack` is the outcome of a hand-back since `at` the desk did not gate. */
 export type SeatContext = { rules: Rules; handedBack: (at: number) => string | undefined; placed: boolean };
 
-const median = (values: number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)] ?? 0;
-};
-
 export class SeatWatch {
   readonly seat: WatchedSeat;
   readonly window: Window;
   private running = false;
   turnId: string | null = null;
   startedAt = 0;
-  private readonly durations: number[] = [];
+  private heardAt = 0;
   private readonly told = new Set<string>();
   private readonly recovery = new Recovery();
   private readonly context: () => SeatContext | undefined;
@@ -53,11 +48,12 @@ export class SeatWatch {
     if (seen.kind === "turn") {
       if (seen.phase === "started") return this.started(seen.turnId, seen.at ?? now);
       if (this.running && this.turnId !== null && seen.turnId !== null && seen.turnId !== this.turnId) return [];
-      return this.ended(seen.phase, now);
+      return this.ended(seen.phase);
     }
     const { row } = seen;
     const change = this.window.add(row);
     if (row.replay) return [];
+    this.heardAt = now;
     if (row.item.type === "user_message") {
       this.recovery.reset();
       for (const key of [...this.told]) if (key !== "long-turn") this.told.delete(key);
@@ -82,18 +78,13 @@ export class SeatWatch {
     return this.fresh(facts, change.call?.id);
   }
 
+  /** Timed from the last thing seen of the turn: long builds and test runs that keep moving were all labelled noise. */
   longTurn(now: number, minutes: number): Fact[] {
     if (!this.running || !this.startedAt) return [];
-    const floor = minutes * 60_000;
-    const limit = this.durations.length >= 5 ? Math.max(floor, 3 * median(this.durations)) : floor;
-    const took = now - this.startedAt;
-    if (took < limit) return [];
-    return this.fresh([
-      fact(
-        "long-turn",
-        `running for ${Math.round(took / 60_000)} minutes, past the ${Math.round(limit / 60_000)} this seat's turns take`,
-      ),
-    ]);
+    const quiet = now - Math.max(this.startedAt, this.heardAt);
+    if (quiet < minutes * 60_000) return [];
+    const [still, took] = [quiet, now - this.startedAt].map((ms) => Math.round(ms / 60_000));
+    return this.fresh([fact("long-turn", `nothing new for ${still} minutes of a turn running ${took}`)]);
   }
 
   private started(turnId: string | null, at: number): Fact[] {
@@ -101,6 +92,7 @@ export class SeatWatch {
     this.running = true;
     this.turnId = turnId;
     this.startedAt = at;
+    this.heardAt = at;
     this.current = this.context();
     this.told.clear();
     return [];
@@ -115,12 +107,10 @@ export class SeatWatch {
     return [];
   }
 
-  private ended(phase: "completed" | "failed" | "canceled", now: number): Fact[] {
+  private ended(phase: "completed" | "failed" | "canceled"): Fact[] {
     const since = this.startedAt;
     this.running = false;
     this.window.closeRunning();
-    if (since) this.durations.push(now - since);
-    if (this.durations.length > 20) this.durations.shift();
     this.startedAt = 0;
     const context = this.placed();
     if (phase !== "completed" || !context) return [];

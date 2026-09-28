@@ -211,7 +211,7 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
   );
 });
 
-test("a seat's turn stays open through the late end of an older turn, and a message steered into a long turn does not make it long again", () => {
+test("a seat's turn stays open through the late end of an older turn, and is long only once nothing new is seen of it for the limit", () => {
   const context = () => ({ rules: rules(), handedBack: () => undefined, placed: true });
   const seat = { id: "s1", provider: "crew-peer-claude", cwd: "/work" };
   const late = new SeatWatch(seat, context);
@@ -233,5 +233,23 @@ test("a seat's turn stays open through the late end of an older turn, and a mess
     { kind: "row", row: { item: message, seqStart: 1, seq: 1, epoch: "e", turnId: "t", replay: false } },
     t0 + 40 * 60_000,
   );
-  assert.deepEqual(steered.longTurn(t0 + 45 * 60_000, 30), []);
+  assert.deepEqual(
+    steered.longTurn(t0 + 45 * 60_000, 30),
+    [],
+    "a message steered into a long turn does not make it long again",
+  );
+
+  const busy = new SeatWatch(seat, context);
+  busy.see({ kind: "turn", phase: "started", turnId: "b" }, t0);
+  const said = { type: "assistant_message", text: "The build is green; running the tests." };
+  busy.see(
+    { kind: "row", row: { item: said, seqStart: 1, seq: 1, epoch: "e", turnId: "b", replay: false } },
+    t0 + 25 * 60_000,
+  );
+  assert.deepEqual(
+    busy.longTurn(t0 + 50 * 60_000, 30),
+    [],
+    "a turn that keeps moving is not long, however long it runs",
+  );
+  assert.match(busy.longTurn(t0 + 56 * 60_000, 30)[0]!.quote, /^nothing new for 31 minutes of a turn running 56$/);
 });

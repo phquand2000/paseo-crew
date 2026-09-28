@@ -9,7 +9,7 @@ export const FACTS = {
   "test-weakened": { level: "attend", title: "A test lost its assertions" },
   suppressed: { level: "attend", title: "Silenced a check instead of fixing it" },
   "claim-contradicted": { level: "attend", title: "Handed back as complete while its last check failed" },
-  "long-turn": { level: "attend", title: "A turn running far longer than usual" },
+  "long-turn": { level: "attend", title: "A turn with nothing new for a long time" },
   "rework-loop": { level: "attend", title: "Sent back again and again" },
   "patched-not-fixed": { level: "attend", title: "Several tasks patched, none fixed" },
   "accepted-unfinished": { level: "attend", title: "Work taken in unfinished" },

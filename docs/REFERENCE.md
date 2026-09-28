@@ -434,7 +434,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again |
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
 | `claim-contradicted` | attend | A Peer hands back `complete`, with no gate result from the desk, though the gate it last ran, after its last edit, failed. Needs a gate |
-| `long-turn` | attend | A turn runs past `longTurnMinutes`, or, once the seat has finished five turns, past three times its median turn, whichever is longer |
+| `long-turn` | attend | A running turn shows nothing new, no call, output or message, for `longTurnMinutes` |
 | `call-failed` / `gate-failed` / `outside-scope` | note | A call other than a desk call failed; a run of the gate failed; a file was written outside the seat's copy, or outside what its task may write. Evidence only, never an incident alone |
 | `edit-before-look` | note | A turn's first step, desk calls and Paseo's own steps aside, changed a file before it read, searched or ran anything since an instruction the watch still holds. It opens only the `instruction_kind` question |
 
