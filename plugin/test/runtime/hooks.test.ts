@@ -222,3 +222,25 @@ test("a seat that writes code gets a temp directory of its own, where its comman
     rmSync(temp, { recursive: true, force: true });
   }
 });
+
+test("a seat that commits in a copy is granted that copy's own git directory by name, which a sandbox that resolves the copy's .git link asks for", () => {
+  const h = harness();
+  const host = new PaseoHost();
+  h.restart(host);
+  const hook = daemon(host, h);
+  const { kit } = h.runtime;
+  const copy = join(tempDir("crew-copy-"), "S1");
+  h.git(h.root, "worktree", "add", "-q", "-b", "task/one", copy);
+  const own = h.git(copy, "rev-parse", "--absolute-git-dir").trim();
+  const launch = (name: string) => {
+    const provider = providerId(kit, name, "codex");
+    const made = hook("agent.create", { request: { config: { provider, cwd: copy }, env: {} } }) as Made;
+    const request = { agentId: `${name}-codex`, reason: "create", purpose: "interactive", provider, cwd: copy };
+    hook("agent.session_open", { request: { ...request, env: made.env } });
+    const role = kit.roles.find((entry) => entry.role === name)!;
+    const file = join(seatDir(kit, role, kit.harnesses.codex!, home(), h.project), "config.toml");
+    return (parse(readFileSync(file, "utf-8")) as { permissions: { seat: Grants } }).permissions.seat.filesystem;
+  };
+  assert.equal(launch("peer")?.[own], "write");
+  assert.equal(launch("lead")?.[own], undefined, "a Lead commits nothing");
+});

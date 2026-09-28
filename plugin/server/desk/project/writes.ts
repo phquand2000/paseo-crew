@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, normalize, sep } from "node:path";
 import { can } from "../../catalog/kit/roles.ts";
@@ -62,10 +62,23 @@ export function seatSockets(role: RoleSpec, project: Project): string[] {
     .map((path) => realpathSync(path));
 }
 
+/** Each linked copy's own git directory: a sandbox that resolves a copy's `.git` link denies it unless named, whatever holds its parent. */
+function copyGitDirs(common: string): string[] {
+  const dir = join(common, "worktrees");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(dir, entry.name));
+}
+
 /** What a seat writes beyond state: the Human's `writable`, for a role that writes code the Human's `writableOutside`, and for a role that commits the git directory a lane copy keeps its index in. */
 export function seatWrites(role: RoleSpec, project: Project): string[] {
   const common = can(role, "work") || can(role, "write") ? gitCommonDir(project.root) : undefined;
-  return [...projectWrites(project), ...outsideWrites(role, project), ...(common ? [common] : [])];
+  return [
+    ...projectWrites(project),
+    ...outsideWrites(role, project),
+    ...(common ? [common, ...copyGitDirs(common)] : []),
+  ];
 }
 
 /** A directory under /tmp for a project's seats that write code: short enough for a socket's path, and none other's to reach. */
