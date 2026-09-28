@@ -1,9 +1,12 @@
+import { readLedger } from "../store/ledger.ts";
 import type { DeskBase } from "../base.ts";
 import type { Project } from "../project/project.ts";
 import type { Roster } from "./roster.ts";
 
 /** Marks a seat's binding gone: from here on nothing hands it work or counts it as kept, whatever Paseo lists meanwhile. */
 export function markGone({ ledgers }: Pick<DeskBase, "ledgers">, project: Project, agentId: string): void {
+  // Paseo tells of every agent archived: one no project binds must not leave a project on record.
+  if (!readLedger(project.state).agents[agentId]) return;
   ledgers.transact(project, (ledger) => {
     const bound = ledger.agents[agentId];
     if (!bound) return;

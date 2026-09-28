@@ -110,6 +110,13 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
 
   await hook("agent.archived", { agent: { id: "agent-9", provider: "crew-lead-claude", cwd: h.root } });
   assert.equal(open("agent-9", "resume")[SEAT_KEY], "k9", "a prompt resumes an archived seat, which keeps its key");
+  const elsewhere = tempDir("not-crew-");
+  await hook("agent.archived", { agent: { id: "agent-5", provider: "claude", cwd: elsewhere } });
+  assert.equal(
+    existsSync(projectOf(elsewhere).state),
+    false,
+    "an agent that is no seat leaves no project when archived",
+  );
   const held = h.add("crew-lead-claude", h.root, "held");
   open(held, "create", { [SEAT_KEY]: "kh" });
   h.agents.get(held)!.archivedAt = new Date().toISOString();
