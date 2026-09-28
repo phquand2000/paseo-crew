@@ -21,7 +21,7 @@ export const seatLetters = {
   /** Told the count and what happened to the last call, rather than asserting both. */
   stalled(task: Task, ending: string, quiet: number, denied?: { what: string; refused: boolean }): Letter {
     const turns = quiet === 1 ? "its turn ended once" : `its turn ended ${quiet === 2 ? "twice" : `${quiet} times`}`;
-    const lines = [`SILENT ${task.id} (${task.title}): ${turns} without a hand-back or an ask.`];
+    const lines = [`SILENT ${task.id} (${task.title}): ${turns} without a hand-back.`];
     if (denied?.refused)
       lines.push(`Its last call was refused: ${denied.what}. A refused call ends that agent's turn.`);
     else if (denied)

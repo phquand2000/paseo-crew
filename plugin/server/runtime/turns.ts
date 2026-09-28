@@ -148,9 +148,7 @@ export class TurnRules {
     }
     const ledger = loadLedger(project.state);
     const recorded = (ledger.agents[agent.id]?.recordedAt ?? 0) >= started;
-    // The read-only status tool counts as heard from, but not as reaching somebody.
-    const spoke = (ledger.agents[agent.id]?.spokeAt ?? 0) >= started;
-    if (worksTasks(role)) await this.workerEnded(project, ledger, event, text, recorded, spoke);
+    if (worksTasks(role)) await this.workerEnded(project, ledger, event, text, recorded);
   }
 
   private async workerEnded(
@@ -159,28 +157,23 @@ export class TurnRules {
     event: TurnEnded,
     text: string,
     recorded: boolean,
-    spoke: boolean,
   ): Promise<void> {
     const task = taskOfPeer(ledger, event.agent.id);
     if (!task) return;
     if (DECIDED.includes(task.status) && !recorded) return;
-    if (recorded || task.status === "done") return this.heard(project, task, recorded, spoke);
+    if (recorded || task.status === "done") return this.heard(project, task, recorded);
     // A call still in flight is not silence: a nudge here started a second gate beside the first.
     if (this.deps.desk.inFlight(event.agent.id)) return;
     await this.silent(project, ledger.lanes[task.lane], task, event, text);
   }
 
-  /** Heard from, so the quiet count restarts; left standing it was a lifetime tally. */
-  private heard(project: Project, task: Task, recorded: boolean, spoke: boolean): void {
-    const { desk } = this.deps;
-    if (spoke && task.silent > 0)
-      desk.setTask(project, task.id, (entry) => {
-        entry.silent = 0;
-      });
+  /** Only a hand-back restarts the quiet count, or a stall its Lead was told of: an ask after each nudge once looped seven times. */
+  private heard(project: Project, task: Task, recorded: boolean): void {
     // Nothing else sets a stalled task back to running once its Peer works again.
     if (recorded && task.status === "stalled")
-      desk.moveTask(project, task.id, "resume", (entry) => {
+      this.deps.desk.moveTask(project, task.id, "resume", (entry) => {
         delete entry.peerGone;
+        entry.silent = 0;
       });
   }
 
@@ -240,7 +233,7 @@ export class TurnRules {
     if (task.status === "stalled") return;
     const why = denied
       ? `its Peer's last call ${denied.refused ? "was refused" : "did not finish"}: ${denied.what}`
-      : `its Peer ended ${updated.silent} turns without a hand-back or an ask`;
+      : `its Peer ended ${updated.silent} turns without a hand-back`;
     await desk.post(await desk.supervisorFor(project, lane?.opener), watchLetters.moment("STRUGGLING", updated, why));
   }
 }

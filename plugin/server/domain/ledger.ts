@@ -25,7 +25,6 @@ export type AgentRef = {
   task?: string;
   gone?: boolean;
   recordedAt?: number;
-  spokeAt?: number;
   limited?: { since: number; wakeAt?: number };
 };
 

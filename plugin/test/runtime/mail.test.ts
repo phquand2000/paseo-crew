@@ -125,7 +125,7 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   assert.equal(h.ledger().asks[endpoint]!.to, next);
 });
 
-test("a Peer's silence is counted turn by turn, nudged, then told to its Lead, and a word from it undoes the stall", async () => {
+test("a Peer's silence is counted until it hands back, nudged, then told to its Lead, and a word from it undoes the stall", async () => {
   const h = harness();
   const sup = h.add(SUPERVISOR, h.root, "sup");
   const { lead, peer } = await lane(h, sup, "Quiet", "Work");
@@ -151,11 +151,10 @@ test("a Peer's silence is counted turn by turn, nudged, then told to its Lead, a
   assert.match(h.agents.get(peer)!.sent.at(-1)!, /without calling done or ask/);
   assert.match(h.agents.get(peer)!.sent.at(-1)!, /`done` and `ask` are tools of the `team` MCP server/);
   await turn("asked and waiting", ask);
-  assert.equal(silent(), 0, "the count is of turns in a row, not a lifetime tally");
-  await turn("applying it");
-  assert.deepEqual([h.ledger().tasks["L1-T1"]!.status, silent()], ["running", 1], "it asked in between");
+  assert.equal(silent(), 1, "an ask is not a hand-back: a Peer once asked after each nudge, seven times over");
   await turn("Still looking.");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
+  assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended twice without a hand-back\./);
   assert.match(
     heard(h, lead),
     /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or cut it and start again\./,
@@ -168,6 +167,12 @@ test("a Peer's silence is counted turn by turn, nudged, then told to its Lead, a
   assert.equal(h.ledger().tasks["L1-T2"]!.peer, undefined);
   await turn("asked", ask);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "heard from, it runs again");
+  await turn("applying it");
+  assert.deepEqual(
+    [h.ledger().tasks["L1-T1"]!.status, silent()],
+    ["running", 1],
+    "the stall its Lead saw is not counted again",
+  );
 
   // The same instruction twice: letters are keyed by the event, so the second really goes.
   for (let sent = 0; sent < 2; sent++) {

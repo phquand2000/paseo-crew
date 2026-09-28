@@ -14,8 +14,6 @@ import { recordEvent } from "../store/event-log.ts";
 export const ANSWER_WITHIN_MS = 240_000;
 
 /** The tools a seat says something with; any other call only shows it was heard from. */
-const SPEAKS = ["done", "ask", "answer", "message", "report"];
-
 type Mail = Parameters<typeof inTime>[3];
 
 /** A seat's tool calls: who is calling, whether the call fits what the seat was shown, and its reply in time or as mail. */
@@ -78,7 +76,7 @@ export class ToolCalls {
       ok: reply.ok,
       reply: text,
     });
-    if (reply.ok) this.heardFrom(caller, request.tool);
+    if (reply.ok) this.heardFrom(caller);
     return reply;
   }
 
@@ -100,12 +98,11 @@ export class ToolCalls {
   }
 
   /** Notes that the seat was heard from; noting it must not turn a reply it has earned into a crash. */
-  private heardFrom(caller: Caller, tool: string): void {
+  private heardFrom(caller: Caller): void {
     try {
       this.desk.ledgers.transact(caller.project, (ledger) => {
         const ref = ledger.agents[caller.id] ?? { id: caller.id, role: caller.role.role };
         ref.recordedAt = Date.now();
-        if (SPEAKS.includes(tool)) ref.spokeAt = ref.recordedAt;
         ledger.agents[caller.id] = ref;
       });
     } catch (error) {

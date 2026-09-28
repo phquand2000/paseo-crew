@@ -52,7 +52,7 @@ test("a task sent back a second time, gone quiet until it stalls, or stopped on 
   }
   // A turn counts the Peer as heard from when its last record is no older than the turn: this one starts after it.
   const heard = h.ledger().agents[peer]!;
-  while (Date.now() <= Math.max(heard.recordedAt ?? 0, heard.spokeAt ?? 0)) await sleep(1);
+  while (Date.now() <= (heard.recordedAt ?? 0)) await sleep(1);
   for (const words of ["Looking at it.", "Still looking.", "Still."]) {
     await h.beginTurn(peer);
     await h.endTurn(peer, words);
@@ -60,7 +60,7 @@ test("a task sent back a second time, gone quiet until it stalls, or stopped on 
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   const said = () => h.heard(sup).join("\n");
   assert.match(said(), /STRUGGLING L1-T1 \(Clean build\) in L1: its Lead sent it back a second time: not yet, round 2/);
-  assert.match(said(), /STRUGGLING L1-T1 \(Clean build\) in L1: its Peer ended 2 turns without a hand-back or an ask/);
+  assert.match(said(), /STRUGGLING L1-T1 \(Clean build\) in L1: its Peer ended 2 turns without a hand-back/);
   assert.equal(
     said().match(/STRUGGLING L1-T1/g)!.length,
     2,
