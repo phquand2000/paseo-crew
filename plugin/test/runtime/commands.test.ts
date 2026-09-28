@@ -18,7 +18,6 @@ test("a deletion is raised the moment it is known, quoted where it deletes, and 
   );
   const facts = play(rewritten, rules()).filter((fact) => fact.kind === "destructive");
   assert.equal(facts.length, 1, "only once");
-  assert.equal(facts[0]!.level, "attend", "a deletion stays on this machine: the Supervisor may hold it, no phone");
   assert.equal(
     facts[0]!.seq,
     3,
@@ -41,8 +40,8 @@ test("a deletion is raised the moment it is known, quoted where it deletes, and 
     "git branch --delete --force x",
   ])
     assert.deepEqual(
-      raised(command).map((fact) => fact.level),
-      ["attend"],
+      raised(command).map((fact) => fact.kind),
+      ["destructive"],
       `caught where a command starts, in any flag order: ${command}`,
     );
   for (const command of [

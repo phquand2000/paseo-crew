@@ -429,7 +429,6 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | Fact | Level | Fires when |
 |---|---|---|
 | `irreversible` | page | A shell command matches the irreversible pattern, checked one command at a time: by default a forced push or a dropped or truncated table, which leave the machine |
-| `destructive` | attend | A shell command matches the destructive pattern, checked one command at a time: by default a forced removal, a hard reset, a forced clean or a forced branch delete, which stay on the machine. Removing only scratch files, under the temp directory or made by the same command, does not count |
 | `stuck` | attend | In the last 20 steps since the seat's latest instruction, ending with the newest: the same action and result `repeatsAt` + 1 times (4 by default), the same action failing `repeatsAt` times, the same words `repeatsAt` times, or two actions alternating `repeatsAt` times |
 | `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again. A command made only of looks, the ecosystem's `probe`, such as a `cat` or `grep` that finds nothing, is no failure |
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
@@ -437,6 +436,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `long-turn` | attend | A running turn shows nothing new, no call, output or message, for `longTurnMinutes` |
 | `call-failed` / `gate-failed` / `outside-scope` | note | A call other than a desk call failed; a run of the gate failed; a file was written outside the seat's copy, or outside what its task may write. Evidence only, never an incident alone |
 | `edit-before-look` | note | A turn's first step, desk calls and Paseo's own steps aside, changed a file before it read, searched or ran anything since an instruction the watch still holds. It opens only the `instruction_kind` question |
+| `destructive` | note | A shell command matches the destructive pattern, checked one command at a time: by default a forced removal, a hard reset, a forced clean or a forced branch delete, which stay on the machine. Removing only scratch files, under the temp directory or made by the same command, does not count. Evidence only, for the `asked_for` question: as an incident it was marked noise every time |
 
 **From a lane's record**, read each round and filed against the lane's Lead:
 

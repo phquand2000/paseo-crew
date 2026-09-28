@@ -51,7 +51,7 @@ test("a seat is followed once while it is seated and watched, let go when it goe
 });
 
 test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
-  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 4 } });
+  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 3 } });
   const lead = lane.lead!;
   await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
   const noticed = noticesOf(h, t);
@@ -126,10 +126,14 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
     "the same incident seen again pages nobody again, and one that is not a page pages nobody",
   );
   await h.idle(lead);
-  assert.match(
+  assert.ok(
+    h.events("watch.fact").some((event) => event.fact === "destructive" && /rm -rf dist/.test(String(event.quote))),
+    "a deletion in the copy is kept as evidence",
+  );
+  assert.doesNotMatch(
     h.agents.get(lead)!.sent.join("\n"),
-    /INCIDENT I\d+ \(destructive, attend\)[\s\S]*rm -rf dist/,
-    "a deletion stays on this machine, so it goes to the Lead, who may hold it",
+    /\(destructive,/,
+    "and reaches no one: marked noise each time it was sent, as a page and then to the Lead",
   );
 
   await h.tick(Date.now() + 31 * 60_000);
