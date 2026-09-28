@@ -105,6 +105,9 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   assert.ok((pager!.prompt ?? "").length <= 220, "Paseo shows 220 characters of a push");
   assert.equal(pager!.labels["paseo.parent-agent-id"], undefined, "an agent with a parent is never pushed");
   assert.ok(watched.labels["paseo.parent-agent-id"], "while every seat the desk starts under another has one");
+  assert.equal(pager!.archivedAt, null, "Paseo pushes its reply as its first turn ends");
+  await h.endTurn(pager!.id, pager!.prompt ?? "");
+  assert.ok(pager!.archivedAt, "and then the pager goes, rather than piling up idle");
 
   call("c3", "Bash", "running", { type: "shell", command: "git push --force origin main && rm -rf dist" });
   const edit = {

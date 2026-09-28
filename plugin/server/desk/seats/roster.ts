@@ -87,6 +87,11 @@ export class Roster {
     return this.intents.toArchive().includes(agentId);
   }
 
+  /** A seat started for one turn goes as it ends: its status as it starts may not show that turn yet. */
+  archiveAfterTurn(agentId: string): void {
+    this.intents.archiveLater(agentId);
+  }
+
   async archive(agentId: string | undefined, force = false): Promise<void> {
     if (!agentId) return;
     try {

@@ -8,7 +8,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
-/** Paseo pushes an agent's reply to the Human's phone only as it finishes its first turn, so a pager is started for each page. */
+/** Paseo pushes an agent's reply to the Human's phone only as it finishes its first turn, so a pager is started for each page and goes after it. */
 async function page(desk: DeskServices, project: Project, text: string): Promise<void> {
   const role = roleThatCan(desk.kit, "page");
   if (!role) return;
@@ -19,6 +19,7 @@ async function page(desk: DeskServices, project: Project, text: string): Promise
       prompt: text,
       labels: {},
     });
+    desk.roster.archiveAfterTurn(agent);
     recordEvent(project, { kind: "page.sent", agent });
   } catch (error) {
     recordEvent(project, { kind: "page.failed", error: errorText(error) });
