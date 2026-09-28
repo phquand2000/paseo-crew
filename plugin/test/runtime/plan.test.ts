@@ -62,6 +62,12 @@ test("a Lead lays its lane out: tasks in the lane's copy run in turn, tasks besi
     ),
     "L1-T6 waits for it, so it is not beside it",
   );
+  const commitLine = / Commit what you change, then call done; a task that changes nothing hands back with no commit\./;
+  assert.deepEqual(
+    ["L1-T1", "L1-T3"].map((id) => commitLine.test(briefOf(h, id))),
+    [true, true],
+    "a brief that asked for a commit regardless got empty ones made to satisfy it",
+  );
   assert.match(
     briefOf(h, "L1-T5"),
     besideLine(

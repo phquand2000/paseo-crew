@@ -71,8 +71,8 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
     besideLine(task, beside),
     "",
     task.mode === "parallel"
-      ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit your work on this branch, then call done.`
-      : `You work on branch ${task.branch} in the lane's working copy, branched from ${lane.branch}. Commit your work there, then call done.${task.startSha ? ` Your task started from ${task.startSha}: that is BASE for anything that asks what existed before you began.` : ""}`,
+      ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.`
+      : `You work on branch ${task.branch} in the lane's working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.${task.startSha ? ` Your task started from ${task.startSha}: that is BASE for anything that asks what existed before you began.` : ""}`,
   ]
     .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
     .join("\n");
