@@ -65,6 +65,7 @@ const Attention = z.object({
   maxReminders: z.number(),
   watch: z.boolean(),
   destructive: z.string(),
+  irreversible: z.string(),
   testPath: z.string(),
   repeatsAt: z.number(),
   reworksAt: z.number(),

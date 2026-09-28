@@ -18,16 +18,16 @@ test("what was held because nobody could read it is told once somebody can, and 
   const supB = h.add("sw2-supervisor-claude/claude-opus-5", second.root, "sup-b");
 
   seated(false);
-  await notice(h, peer, "destructive", "page", "rm -rf build");
+  await notice(h, peer, "irreversible", "page", "drop table build");
   assert.equal(book(h).I1!.held, "nobody");
   seated(true);
-  assert.deepEqual((await notice(h, peer, "destructive", "page", "git push --force origin main")).sent, ["I1"]);
+  assert.deepEqual((await notice(h, peer, "irreversible", "page", "git push --force origin main")).sent, ["I1"]);
   assert.match(
     told("I1").join("\n"),
-    /INCIDENT I1 \(destructive, page\)[\s\S]*git push --force origin main/,
+    /INCIDENT I1 \(irreversible, page\)[\s\S]*git push --force origin main/,
     "on its next sighting, in the latest words",
   );
-  await notice(h, peer, "destructive", "page", "rm -rf dist");
+  await notice(h, peer, "irreversible", "page", "drop table dist");
   assert.equal(told("I1").length, 1, "told once, then quiet");
   assert.equal(
     book(h).I1!.quote,
@@ -37,27 +37,27 @@ test("what was held because nobody could read it is told once somebody can, and 
   assert.equal((await h.call(sup, "supervisor", "mark_incident", { id: "I1", verdict: "useful" })).ok, true);
 
   seated(false);
-  await notice(h, peer, "destructive", "page", "rm -rf src");
+  await notice(h, peer, "irreversible", "page", "drop table src");
   await h.tick();
   assert.deepEqual(told("I2"), [], "nobody yet");
   seated(true);
   await h.tick();
   await h.tick();
   assert.equal(told("I2").length, 1, "the round tells it once somebody sits down, and once only");
-  assert.match(told("I2").join("\n"), /rm -rf src/);
-  await notice(h, peer, "destructive", "page", "git push --force origin main");
+  assert.match(told("I2").join("\n"), /drop table src/);
+  await notice(h, peer, "irreversible", "page", "git push --force origin main");
   const acked = await h.call(sup, "supervisor", "mark_incident", { id: "I2", verdict: "useful" });
   assert.match(
     acked.text,
     /after you were told: git push --force origin main/,
     "a sighting after the letter is kept beside it",
   );
-  assert.equal(book(h).I2!.quote, "rm -rf src");
+  assert.equal(book(h).I2!.quote, "drop table src");
 
   seated(false);
   await notice(h, lane.lead!, "stuck");
   writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: {} }));
-  await notice(h, peer, "destructive", "page", "rm -rf lib");
+  await notice(h, peer, "irreversible", "page", "drop table lib");
   seated(true);
   await h.tick();
   assert.deepEqual(
@@ -66,21 +66,21 @@ test("what was held because nobody could read it is told once somebody can, and 
     "with mail off, only the page held for nobody is told",
   );
 
-  const self = await notice(h, sup, "destructive", "page", "rm -rf build");
+  const self = await notice(h, sup, "irreversible", "page", "drop table build");
   assert.deepEqual(self.sent, [], "an incident is never addressed to the seat it is about");
   assert.equal(book(h).I5!.held, "nobody");
 
   await notice(
     h,
     { id: "p-b", provider: "sw2-peer-claude/claude-opus-5" },
-    "destructive",
+    "irreversible",
     "page",
-    "rm -rf build",
+    "drop table build",
     other,
   );
   assert.match(
     h.heard(supB).join("\n"),
-    /INCIDENT I1 \(destructive, page\)/,
+    /INCIDENT I1 \(irreversible, page\)/,
     "the second project's owner is told of its own I1, not dropped as a repeat of the first's",
   );
 });

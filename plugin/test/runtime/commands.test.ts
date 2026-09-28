@@ -4,20 +4,21 @@ import type { StreamMessage } from "../../server/core/stream.ts";
 import type { Rules } from "../../server/runtime/watch/facts.ts";
 import { again, fixture, opening, piRow, play, rules } from "./seat-replay.ts";
 
-/** What the watch pages of one shell command a seat ran, as its quotes. */
-const paged = (command: string, given: Rules = rules()) =>
-  play([...opening(), again(piRow(11), "c", 2, (detail) => Object.assign(detail, { command }))], given)
-    .filter((fact) => fact.kind === "destructive")
-    .map((fact) => fact.quote);
+/** What the watch raises of one shell command a seat ran: a deletion, or an act that cannot be undone. */
+const raised = (command: string, given: Rules = rules()) =>
+  play([...opening(), again(piRow(11), "c", 2, (detail) => Object.assign(detail, { command }))], given).filter(
+    (fact) => fact.kind === "destructive" || fact.kind === "irreversible",
+  );
+const paged = (command: string, given: Rules = rules()) => raised(command, given).map((fact) => fact.quote);
 
-test("an irreversible command is paged the moment it is known, quoted where it is irreversible, and scratch clean-up is not one", () => {
+test("a deletion is raised the moment it is known, quoted where it deletes, and scratch clean-up is not one", () => {
   const rewritten = fixture("claude").map(
     (message) =>
       JSON.parse(JSON.stringify(message).replaceAll("sleep 4; echo step-one", "rm -rf build")) as StreamMessage,
   );
   const facts = play(rewritten, rules()).filter((fact) => fact.kind === "destructive");
   assert.equal(facts.length, 1, "only once");
-  assert.equal(facts[0]!.level, "page");
+  assert.equal(facts[0]!.level, "attend", "a deletion stays on this machine: the Supervisor may hold it, no phone");
   assert.equal(
     facts[0]!.seq,
     3,
@@ -34,12 +35,28 @@ test("an irreversible command is paged the moment it is known, quoted where it i
     "cd x && rm -fr dist",
     "find . -exec rm -f {} ;",
     'bash -c "rm -rf tmp"',
-    "git -C repo push --force",
+    "git reset --hard HEAD~1",
     "git branch -df feat",
     "git branch -d -f feat",
     "git branch --delete --force x",
   ])
-    assert.equal(paged(command).length, 1, `caught where a command starts, in any flag order: ${command}`);
+    assert.deepEqual(
+      raised(command).map((fact) => fact.level),
+      ["attend"],
+      `caught where a command starts, in any flag order: ${command}`,
+    );
+  for (const command of [
+    "git -C repo push --force",
+    "git push -f origin main",
+    "git push --force-with-lease origin main",
+    "psql -c 'drop table users'",
+    "rm -rf build && git push --force",
+  ])
+    assert.equal(
+      raised(command).find((fact) => fact.kind === "irreversible")?.level,
+      "page",
+      `what leaves the machine and cannot be undone still pages: ${command}`,
+    );
   for (const command of [
     "echo 'rm -rf /'",
     "grep -rn 'git reset --hard' docs",

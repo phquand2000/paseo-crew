@@ -139,6 +139,7 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     attention: {
       ...ATTENTION,
       destructive: watch.destructive,
+      irreversible: watch.irreversible,
       testPath: watch.testPath,
       suppressed: watch.suppressed,
       ...raw.attention,

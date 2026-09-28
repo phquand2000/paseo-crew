@@ -11,6 +11,7 @@
     },
     "acts": {
       "destructive": "run `{quote}`",
+      "irreversible": "run `{quote}`",
       "test-weakened": "weaken the tests in {quote}",
       "suppressed": "silence a check in {quote}"
     },

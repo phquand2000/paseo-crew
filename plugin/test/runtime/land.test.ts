@@ -199,7 +199,7 @@ test("what the record holds of a lane goes to whoever lands it, and never to the
     h.events("incident.open").map((event) => [event.id, event.finding]),
     [
       ["I1", "claim-contradicted"],
-      ["I2", "destructive"],
+      ["I2", "irreversible"],
     ],
   );
 
@@ -216,7 +216,7 @@ test("what the record holds of a lane goes to whoever lands it, and never to the
   );
   assert.match(report, /L1-T2 is running: landing cuts it\./);
   assert.match(report, /L1-R1 review: accept\./);
-  assert.doesNotMatch(report, /L1-R1 is|destructive/);
+  assert.doesNotMatch(report, /L1-R1 is|irreversible/);
   const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L1", overGate: true, reason: "judged safe" });
   assert.equal(landed.ok, true, landed.text);
   assert.match(landed.text, /Incident I\d+ on this lane is still open: claim-contradicted\./);

@@ -410,7 +410,7 @@ The Human is asked what only they can decide and told what they cannot take back
   yet, the approval standing while the head does); sent back, the hold drops, the lane stays open with `ready`
   as it was, and LAND SENT BACK brings the note to the Lead. No verb lets a seat approve. A hold calls off a
   landing still waiting for the Human; one they approved stands.
-- **Pages.** Only `destructive` opens one. As its incident opens, INCIDENT goes to the Supervisor whatever the
+- **Pages.** Only `irreversible` opens one. As its incident opens, INCIDENT goes to the Supervisor whatever the
   watch's switch, budget or marks say, and the desk starts a Pager in the project's workspace, with no tools
   and no parent, whose one reply is the page the desk wrote, cut at 220 characters: the repository, the seat
   and its command, whether a Supervisor is told, what is held. No verb sends a page.
@@ -430,7 +430,7 @@ back what a join, gap or reconnect missed, into a window of at most 80 entries p
 thoughts, instructions, errors); a seat whose subscription fails is followed again the next round.
 
 **Facts** are read in code as a turn runs, as each call's detail comes and settles, and at its end; each round
-reads long turns and every open lane's record, for shapes that span turns. `destructive` alone is `page`, its
+reads long turns and every open lane's record, for shapes that span turns. `irreversible` alone is `page`, its
 incident going out at once; `attend` facts, such as `stuck` or `test-weakened` in a turn, or `rework-loop` in
 a lane's record, filed against its Lead, open incidents told within the lane's budget; `note` facts, such as
 `gate-failed`, are evidence in `events.log`, never an incident alone ([facts](REFERENCE.md#facts);

@@ -42,7 +42,7 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
     "counted, and the latest words kept until told",
   );
   await notice(h, beside, "stuck", "attend", "the same action failing 3 times: npm run build");
-  await notice(h, peer, "destructive", "page", "rm -rf /");
+  await notice(h, peer, "irreversible", "page", "drop database app");
   assert.deepEqual(Object.keys(book(h)), ["I1", "I2", "I3"], "another seat, or another kind, is another incident");
 
   writeFileSync(
@@ -106,7 +106,7 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
   );
   assert.equal((await mark(sup, "I3", "noise", "expected: its own scratch directory")).ok, true);
   assert.deepEqual(
-    (await notice(h, peer, "destructive", "page", "rm -rf /")).opened.map((incident) => incident.id),
+    (await notice(h, peer, "irreversible", "page", "drop database app")).opened.map((incident) => incident.id),
     ["I7"],
     "a page is never settled away",
   );
@@ -169,7 +169,7 @@ test("a kind most of whose last ten marks were noise is held on probation, and a
     });
     const items = Array.from({ length: count + unknown }, (_, n) => [
       marked("stuck", "attend", n),
-      marked("destructive", "page", n),
+      marked("irreversible", "page", n),
     ]);
     mkdirSync(h.project.state, { recursive: true });
     saveIncidents(h.project.state, {
@@ -181,14 +181,14 @@ test("a kind most of whose last ten marks were noise is held on probation, and a
 
   marks(4);
   await notice(h, seat(1), "stuck");
-  await notice(h, seat(2), "destructive", "page", "rm -rf /");
+  await notice(h, seat(2), "irreversible", "page", "drop database app");
   assert.deepEqual(
     Object.values(book(h))
       .filter((item) => item.open)
       .map((item) => [item.kind, item.held ?? null, item.told !== undefined]),
     [
       ["stuck", "probation", false],
-      ["destructive", null, true],
+      ["irreversible", null, true],
     ],
   );
   assert.match(

@@ -51,7 +51,7 @@ test("a seat is followed once while it is seated and watched, let go when it goe
 });
 
 test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
-  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 3 } });
+  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 4 } });
   const lead = lane.lead!;
   await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
   const noticed = noticesOf(h, t);
@@ -74,13 +74,13 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   assert.deepEqual(h.events("incident.open"), [], "a failed call is a note: evidence, opening no incident");
 
   call("c2", "Bash", "running", { type: "unknown", input: {}, output: null });
-  call("c2", "Bash", "running", { type: "shell", command: "rm -rf build" });
+  call("c2", "Bash", "running", { type: "shell", command: "git push --force origin main" });
   await settle();
   await noticed();
   await h.idle(sup);
   const told = h.agents.get(sup)!.sent.join("\n");
-  assert.match(told, /INCIDENT I1 \(destructive, page\) on the Peer on L1-T1 \(Clean build\)/);
-  assert.match(told, /What was seen: rm -rf build/);
+  assert.match(told, /INCIDENT I1 \(irreversible, page\) on the Peer on L1-T1 \(Clean build\)/);
+  assert.match(told, /What was seen: git push --force origin main/);
   assert.match(told, /not a verdict/);
   assert.ok(!timeline.rows.some((row) => row.item.status === "completed"), "the call it warns about is still running");
   assert.deepEqual(
@@ -91,7 +91,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   await h.idle(peer);
   const watched = h.agents.get(peer)!;
   assert.deepEqual(
-    [...watched.sent, ...watched.steered].filter((text) => /INCIDENT|destructive|rm -rf|incident/i.test(text)),
+    [...watched.sent, ...watched.steered].filter((text) => /INCIDENT|irreversible|--force|incident/i.test(text)),
     [],
     "nor reaches it when its turn ends",
   );
@@ -100,13 +100,13 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   assert.equal(pagers().length, 1, "a page reaches the Human's phone through a pager of its own");
   assert.match(
     pager!.prompt ?? "",
-    /^[^:\n]+: the Peer on L1-T1 \(Clean build\) ran rm -rf build\.\nIts Supervisor is told; nothing is held yet\.$/,
+    /^[^:\n]+: the Peer on L1-T1 \(Clean build\) ran git push --force origin main\.\nIts Supervisor is told; nothing is held yet\.$/,
   );
   assert.ok((pager!.prompt ?? "").length <= 220, "Paseo shows 220 characters of a push");
   assert.equal(pager!.labels["paseo.parent-agent-id"], undefined, "an agent with a parent is never pushed");
   assert.ok(watched.labels["paseo.parent-agent-id"], "while every seat the desk starts under another has one");
 
-  call("c3", "Bash", "running", { type: "shell", command: "rm -rf dist" });
+  call("c3", "Bash", "running", { type: "shell", command: "git push --force origin main && rm -rf dist" });
   const edit = {
     type: "edit",
     filePath: "src/a.ts",
@@ -120,6 +120,12 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
     pagers().length,
     1,
     "the same incident seen again pages nobody again, and one that is not a page pages nobody",
+  );
+  await h.idle(lead);
+  assert.match(
+    h.agents.get(lead)!.sent.join("\n"),
+    /INCIDENT I\d+ \(destructive, attend\)[\s\S]*rm -rf dist/,
+    "a deletion stays on this machine, so it goes to the Lead, who may hold it",
   );
 
   await h.tick(Date.now() + 31 * 60_000);

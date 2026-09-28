@@ -8,6 +8,7 @@ import type { Call, Unit } from "./window.ts";
 /** `skipped` and `assertion` are global, since they are counted; `runners` are the commands whose first word says little. */
 export type Rules = {
   destructive: RegExp;
+  irreversible: RegExp;
   testPath: RegExp;
   suppressed: RegExp;
   skipped: RegExp;

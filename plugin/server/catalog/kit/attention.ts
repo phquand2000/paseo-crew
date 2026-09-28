@@ -1,6 +1,6 @@
 import type { Attention } from "../../../shared/views.ts";
 
-export const ATTENTION: Omit<Attention, "destructive" | "testPath" | "suppressed"> = {
+export const ATTENTION: Omit<Attention, "destructive" | "irreversible" | "testPath" | "suppressed"> = {
   tickSeconds: 30,
   leadIdleMinutes: 12,
   askRemindMinutes: 15,

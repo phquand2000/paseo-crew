@@ -28,6 +28,7 @@ export const EcosystemFile = z.strictObject({
   files: z.strictObject({ test: pattern, docs: pattern }),
   watch: z.strictObject({
     destructive: pattern,
+    irreversible: pattern,
     testPath: pattern,
     suppressed: pattern,
     skipped: pattern,

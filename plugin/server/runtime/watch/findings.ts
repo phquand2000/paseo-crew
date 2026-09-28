@@ -1,7 +1,7 @@
 import type { Finding } from "../../domain/incident.ts";
 import type { Fact } from "./fact-kinds.ts";
 
-const FIRST = ["destructive", "stuck", "no-recovery", "long-turn"];
+const FIRST = ["irreversible", "destructive", "stuck", "no-recovery", "long-turn"];
 
 const rank = (finding: Finding) =>
   (finding.level === "page" ? 0 : 1) * 100 +

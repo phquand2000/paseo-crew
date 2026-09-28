@@ -32,11 +32,11 @@ test("with mail off a page still reaches whoever supervises, the rest is recorde
     incidentsOf(h.project.state).map((item) => [item.kind, item.held]),
     [
       ["suppressed", "shadow"],
-      ["destructive", undefined],
+      ["irreversible", undefined],
     ],
   );
   const sent = h.agents.get(sup)!.sent.join("\n");
-  assert.match(sent, /INCIDENT I2 \(destructive, page\)/, "a page is irreversible and often done already");
+  assert.match(sent, /INCIDENT I2 \(irreversible, page\)/, "a page is irreversible and often done already");
   assert.doesNotMatch(sent, /INCIDENT I1/);
   const held = await h.rpc(contracts.flow, { project: h.project.slug });
   assert.ok("watch" in held);
@@ -94,7 +94,7 @@ test("a lane's budget for the day holds back what is only worth attention, howev
     h.runtime.desk.notice(h.project, seat(peer), attend("suppressed", "two")),
     h.runtime.desk.notice(h.project, seat("p-c"), attend("test-weakened", "three")),
     h.runtime.desk.notice(h.project, seat("p-d"), [
-      { kind: "destructive", level: "page", quote: "rm -rf /", facts: ["destructive"] },
+      { kind: "irreversible", level: "page", quote: "drop database app", facts: ["irreversible"] },
     ]),
   ]);
   const items = incidentsOf(h.project.state);
@@ -105,7 +105,7 @@ test("a lane's budget for the day holds back what is only worth attention, howev
   assert.deepEqual(told, ["L1", "none"], "one a day for the lane, and one for what is about no lane");
   const spent = items.filter((item) => item.held === "budget");
   assert.equal(spent.length, 1);
-  assert.ok(items.find((item) => item.kind === "destructive")!.told, "an irreversible act is never held for budget");
+  assert.ok(items.find((item) => item.kind === "irreversible")!.told, "an irreversible act is never held for budget");
   await h.idle(sup);
   await h.idle(h.ledger().lanes.L1!.lead!);
   assert.equal(

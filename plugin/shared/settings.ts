@@ -55,6 +55,7 @@ export const AttentionChoice = z.strictObject({
   maxReminders: z.number().int().min(0).optional(),
   watch: z.boolean().optional(),
   destructive: Pattern.optional(),
+  irreversible: Pattern.optional(),
   testPath: Pattern.optional(),
   repeatsAt: z.number().int().min(2).optional(),
   reworksAt: z.number().int().min(2).optional(),

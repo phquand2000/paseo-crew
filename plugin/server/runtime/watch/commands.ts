@@ -129,12 +129,19 @@ export function onDetail(call: Call, rules: Rules): Fact[] {
   // A command at a time: removing a commit message's temp file once paged a Lead.
   const parts = runLines(str(call.detail.command)).split(/&&|\|\||;|\n/);
   const known: Known = { values: new Map(), temps: new Set(), twice: new Set(), made: [] };
-  const risky = parts.find((part) => {
+  const found = new Map<"irreversible" | "destructive", string>();
+  for (const part of parts) {
     const list = commandOf(part, known);
     if (list[0] === "mkdir" || list[0] === "touch") known.made.push(...operands(list, known));
-    return rules.destructive.test(part) && !(list[0] === "rm" && scratchOnly(list, known, rules));
-  });
-  return risky ? [fact("destructive", around(oneLine(risky, Infinity), rules.destructive, 200))] : [];
+    if (!found.has("irreversible") && rules.irreversible.test(part)) found.set("irreversible", part);
+    if (
+      !found.has("destructive") &&
+      rules.destructive.test(part) &&
+      !(list[0] === "rm" && scratchOnly(list, known, rules))
+    )
+      found.set("destructive", part);
+  }
+  return [...found].map(([kind, part]) => fact(kind, around(oneLine(part, Infinity), rules[kind], 200)));
 }
 
 /** Cuts around the match, not from the front: what makes a long command irreversible is often at its end. */

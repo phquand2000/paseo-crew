@@ -428,7 +428,8 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 
 | Fact | Level | Fires when |
 |---|---|---|
-| `destructive` | page | A shell command matches the destructive pattern, checked one command at a time. Removing only scratch files, under the temp directory or made by the same command, does not count |
+| `irreversible` | page | A shell command matches the irreversible pattern, checked one command at a time: by default a forced push or a dropped or truncated table, which leave the machine |
+| `destructive` | attend | A shell command matches the destructive pattern, checked one command at a time: by default a forced removal, a hard reset, a forced clean or a forced branch delete, which stay on the machine. Removing only scratch files, under the temp directory or made by the same command, does not count |
 | `stuck` | attend | In the last 20 steps since the seat's latest instruction, ending with the newest: the same action and result `repeatsAt` + 1 times (4 by default), the same action failing `repeatsAt` times, the same words `repeatsAt` times, or two actions alternating `repeatsAt` times |
 | `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again |
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
@@ -691,6 +692,7 @@ kept off only the machine's settings file itself; its file tools still honour ev
 | `questionsPerDay` | 3 |
 | `judge` | `off` |
 | `destructive` | a pattern in `catalog/ecosystem.json` |
+| `irreversible` | a pattern in `catalog/ecosystem.json` |
 | `testPath` | a pattern in `catalog/ecosystem.json` |
 | `suppressed` | a pattern in `catalog/ecosystem.json` |
 <!-- end -->
