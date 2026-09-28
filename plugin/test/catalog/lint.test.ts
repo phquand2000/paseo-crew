@@ -161,6 +161,11 @@ test("seat text shouts nothing, never says mail waits for a running turn to end,
       null,
       `${file} makes one task a lane's norm, which put whole lanes into one beside the Lead's rule`,
     );
+    assert.deepEqual(
+      text.match(/after committing|commit your work/gi),
+      null,
+      `${file} asks for a commit whatever changed, and Peers made empty ones to satisfy it`,
+    );
   }
 });
 

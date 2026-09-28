@@ -1292,7 +1292,7 @@
     {
       "name": "done",
       "title": "Hand the task back",
-      "description": "Hand the task back. Call it once at the end of the task, after committing on your branch; the desk reads the commit from your branch.",
+      "description": "Hand the task back. Call it once at the end of the task, with what you changed committed on your branch; the desk reads the commit from your branch.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
