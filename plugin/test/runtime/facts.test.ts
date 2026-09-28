@@ -185,11 +185,18 @@ test("a seat going round in circles is stuck: failing, repeating, alternating or
   );
 });
 
-test("a failure not climbed out of in ten steps is noticed, ended only by the same program or the gate passing", () => {
+test("a failure not climbed out of in ten steps is noticed, ended only by the same program or the gate passing, and a look that finds nothing is no failure", () => {
   const lost = (messages: StreamMessage[]) => found(messages, "no-recovery").map((fact) => fact.quote);
-  assert.equal(lost([run("bad", 2, "cat ./does-not-exist.txt", false), ...steps(10, 3)]).length, 1);
-  const cured = run("good", 3, "cat ./does-not-exist.txt", true);
-  assert.deepEqual(lost([run("bad", 2, "cat ./does-not-exist.txt", false), cured, ...steps(10, 4)]), []);
+  assert.equal(lost([run("bad", 2, "make build", false), ...steps(10, 3)]).length, 1);
+  const cured = run("good", 3, "make build", true);
+  assert.deepEqual(lost([run("bad", 2, "make build", false), cured, ...steps(10, 4)]), []);
+  const look = "cd /work; cat plan.md; echo ===; grep -n total build.log | head -5";
+  assert.deepEqual(lost([run("look", 2, look, false), ...steps(12, 3)]), [], "a missing file or no match is an answer");
+  assert.equal(
+    lost([run("mixed", 2, "make build && ls out", false), ...steps(10, 3)]).length,
+    1,
+    "unless it did more than look",
+  );
   assert.deepEqual(
     lost([run("f", 2, "npm test", false), run("p", 3, "npm test 2>&1 | tail -30", true), ...steps(12, 4)]),
     [],

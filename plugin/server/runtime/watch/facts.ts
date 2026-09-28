@@ -5,7 +5,7 @@ import { oneLine } from "../../core/text.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
 import type { Call, Unit } from "./window.ts";
 
-/** `skipped` and `assertion` are global, since they are counted; `runners` are the commands whose first word says little. */
+/** `skipped` and `assertion` are global, since they are counted; `runners` are the commands whose first word says little; `probe` a command that only looks. */
 export type Rules = {
   destructive: RegExp;
   irreversible: RegExp;
@@ -13,6 +13,7 @@ export type Rules = {
   suppressed: RegExp;
   skipped: RegExp;
   assertion: RegExp;
+  probe: RegExp;
   runners: Set<string>;
   desk?: (call: Call) => boolean;
   gates: string[];
@@ -214,6 +215,17 @@ function head(command: string, runners: Set<string>): string {
   return words.slice(0, /^(run|exec|-m|x|dlx)$/.test(words[1] ?? "") ? 3 : 2).join(" ");
 }
 
+const ASSIGNED = /^(?:[A-Za-z_]\w*=(?:"[^"]*"|'[^']*'|\S*)\s*)+/;
+
+/** Every program in it only looks, so a missing file or no match is an answer, not a failure: those were all labelled noise. */
+function looks(command: string, probe: RegExp): boolean {
+  const parts = command
+    .split(/&&|\|\|?|;|\n/)
+    .map((part) => part.trim().replace(ASSIGNED, ""))
+    .filter((part) => part && !/^cd\s/.test(part));
+  return parts.length > 0 && parts.every((part) => probe.test(part));
+}
+
 export class Recovery {
   private open: { command: string; head: string; steps: number; told: boolean } | undefined;
 
@@ -221,7 +233,12 @@ export class Recovery {
     const shell = call.detail.type === "shell";
     const command = str(call.detail.command);
     const bad = failed(call);
-    if (shell && bad && (!this.open || head(command, rules.runners) !== this.open.head)) {
+    if (
+      shell &&
+      bad &&
+      !looks(command, rules.probe) &&
+      (!this.open || head(command, rules.runners) !== this.open.head)
+    ) {
       this.open = { command, head: head(command, rules.runners), steps: 0, told: false };
       return [];
     }
