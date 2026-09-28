@@ -83,13 +83,17 @@ export function reviewBrief(
   review: Task,
   target: Task | undefined,
   focus: string,
-  place: { where: string; range?: string },
+  place: { where: string; range?: string; handedBack?: string },
 ): string {
   const lines = target
     ? [
         `REVIEW ${review.id} of ${target.id}: ${target.title}`,
         "",
         `${place.where}; see it with ${place.range ?? ""}.`,
+        ...(place.handedBack ? ["", "What was handed back for it, to hold against the change:", place.handedBack] : []),
+        ...(target.handback
+          ? [`What was handed back for it, to hold against the change: ${target.handback.file}`]
+          : []),
         "",
         `Goal of the change: ${target.goal}`,
         "",

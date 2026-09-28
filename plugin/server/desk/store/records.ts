@@ -1,7 +1,8 @@
-import { existsSync, readdirSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { RECORDS } from "../../core/paths.ts";
 import { appendRolling } from "../../core/rolling.ts";
+import { errorText } from "../../core/errors.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import { daemonLog } from "../../core/logger.ts";
 
@@ -69,4 +70,12 @@ export function tidyRecords(state: string, ledger: Ledger): string[] {
     dropped.push(join(log.dir, log.name));
   }
   return dropped;
+}
+
+export function handbackText(file: string): string {
+  try {
+    return readFileSync(file, "utf8").trim();
+  } catch (error) {
+    return `The hand-back at ${file} could not be read: ${errorText(error)}`;
+  }
 }

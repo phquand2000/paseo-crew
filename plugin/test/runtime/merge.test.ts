@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
@@ -129,13 +129,18 @@ test("a task in the lane's copy is read from where its branch meets the lane's, 
     /\nChanged: a\.txt\n/,
     "c.txt came in with L1-T2's merge, not from this Peer",
   );
+  const { file, commit } = h.ledger().tasks["L1-T1"]!.handback!;
   assert.equal((await h.call(lead, "lead", "start_review", { task: "L1-T1", focus: "Is a right?" })).ok, true);
   assert.equal(h.ledger().tasks["L1-R1"]!.asked, undefined, "the rule on c.txt asks L1-T2's reviews, not this one's");
-  const commit = h.ledger().tasks["L1-T1"]!.handback!.commit!;
+  const brief = h.agents.get(h.ledger().tasks["L1-R1"]!.peer!)!.prompt ?? "";
   assert.match(
-    h.agents.get(h.ledger().tasks["L1-R1"]!.peer!)!.prompt ?? "",
+    brief,
     new RegExp(`see it with git diff ${lane.branch}\\.\\.\\.${commit}\\.`),
     "read from where its branch meets the lane's, L1-T2's lines are not this task's",
+  );
+  assert.ok(
+    brief.includes(readFileSync(file, "utf8").trim()),
+    "the reviewer holds what was claimed against the change",
   );
 
   await h.idle(peer);

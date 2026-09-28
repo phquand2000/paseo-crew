@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { can, seatOf } from "../../catalog/kit/roles.ts";
+import { handbackText } from "../store/records.ts";
 import { type Quirks, exitOf, pseudo } from "../../catalog/kit/timeline.ts";
 import { errorText } from "../../core/errors.ts";
 import type { StreamRow } from "../../core/ports.ts";
@@ -109,14 +109,6 @@ async function historyOf(
   const look = await roster.look(seat);
   if (look.archivedAt) return undefined;
   return { rows: await roster.history(seat, limit), quirks: seatOf(kit, look.provider)?.harness.timeline ?? {} };
-}
-
-function handbackText(file: string): string {
-  try {
-    return readFileSync(file, "utf8").trim();
-  } catch (error) {
-    return `The hand-back at ${file} could not be read: ${errorText(error)}`;
-  }
 }
 
 /** What the desk kept of a seat that is gone. */

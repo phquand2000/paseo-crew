@@ -17,6 +17,7 @@ import { seatTitle } from "../seats/names.ts";
 import { type Project, riskRulesOf, rulesFor } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
+import { handbackText } from "../store/records.ts";
 
 /** A start_review call as the tool takes it: one task, or the whole lane when `task` is left out. */
 type ReviewCall = { task?: string; focus: string; title?: string; role?: string };
@@ -31,7 +32,7 @@ type Planned = {
   copy: Copy;
   role: RoleSpec;
   asked: string[];
-  place: { where: string; range?: string };
+  place: { where: string; range?: string; handedBack?: string };
 };
 
 /** Starts a read-only reviewer on a task of the Lead's lane, or on the whole lane. */
@@ -66,7 +67,11 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
   if (!role) return namedOrNot(desk.kit, "review", lens, "review, so there is nobody to ask a read-only question of");
   const asked = await askedOf(desk, project, lane, copy.path, change);
   const place = change
-    ? { where: change.where, range: `git diff ${change.spec}` }
+    ? {
+        where: change.where,
+        range: `git diff ${change.spec}`,
+        ...(target?.handback ? { handedBack: handbackText(target.handback.file) } : {}),
+      }
     : { where: await laneView(ledger, lane, copy.path) };
   return { lane, target, copy, role, asked, place };
 }
