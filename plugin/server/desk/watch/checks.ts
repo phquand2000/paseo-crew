@@ -91,9 +91,7 @@ export function momentCases(kit: Kit, place: { lane?: Lane; task?: Task }, momen
     cases.push({ subject, episode, state: { instruction, ...asked }, asked: Object.fromEntries(fills) });
   }
   const handback =
-    task?.handback && moment.facts.some((found) => found.kind === "unverified" || found.kind === "claim-contradicted")
-      ? handbackOf(task)
-      : undefined;
+    task?.handback && moment.facts.some((found) => found.kind === "claim-contradicted") ? handbackOf(task) : undefined;
   if (task?.handback && handback)
     cases.push({
       subject: task.id,

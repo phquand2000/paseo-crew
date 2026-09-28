@@ -433,7 +433,6 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `stuck` | attend | In the last 20 steps since the seat's latest instruction, ending with the newest: the same action and result `repeatsAt` + 1 times (4 by default), the same action failing `repeatsAt` times, the same words `repeatsAt` times, or two actions alternating `repeatsAt` times |
 | `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again |
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
-| `unverified` | attend | A Peer hands back, with no gate result from the desk, after writing files in its copy, prose aside, that it never ran the gate on. Needs a gate |
 | `claim-contradicted` | attend | A Peer hands back `complete`, with no gate result from the desk, though the gate it last ran, after its last edit, failed. Needs a gate |
 | `long-turn` | attend | A turn runs past `longTurnMinutes`, or, once the seat has finished five turns, past three times its median turn, whichever is longer |
 | `call-failed` / `gate-failed` / `outside-scope` | note | A call other than a desk call failed; a run of the gate failed; a file was written outside the seat's copy, or outside what its task may write. Evidence only, never an incident alone |
@@ -450,7 +449,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `brief-prewritten` | A code task not yet merged or cut has a brief with code in a fence, or numbered steps that name a file and a member or chain one change after another |
 | `accepted-unfinished` | A task merged whose Peer handed it back `partial` or `blocked` |
 
-`unverified`, `claim-contradicted` and `edit-before-look` are read at the end of a completed turn only. A lane fact adds
+`claim-contradicted` and `edit-before-look` are read at the end of a completed turn only. A lane fact adds
 to its open incident each round until that is told; once it is told, or closed in the same words, it is not raised
 again. [ANTIPATTERNS.md](ANTIPATTERNS.md) says which pattern each lane fact answers.
 
@@ -486,7 +485,7 @@ The watch also asks what a code fact cannot read, one condition at a time, at th
 | `instruction_kind` | The first thing a turn did was change a file, before any read or run | The instruction: what does it mainly do, `new_requirement`, `claims_code_bug`, `asks_question`, `approves` or `other`? |
 | `summary_admits_gap` | A task is handed back `complete` | Its summary: does it say something asked for was not done? |
 | `summary_works_around` | A task is handed back `complete` | Its summary: does it say a failure was worked around instead of its cause removed? |
-| `claims_checks_pass` | A hand-back the desk did not gate is `unverified` or `claim-contradicted` | The hand-back: does it say the checks pass? |
+| `claims_checks_pass` | A hand-back the desk did not gate is `claim-contradicted` | The hand-back: does it say the checks pass? |
 | `review_ran_invariant` | A review accepts a change a risk rule reaches | Its report, once per invariant: was it checked by running code? |
 
 - `catalog/checks.json` holds each question's wording, what each answer means, and its thresholds: the shipped

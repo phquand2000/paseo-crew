@@ -117,6 +117,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
     newString: "// @ts-ignore\nconst x = f();",
   };
   call("c4", "Edit", "completed", edit);
+  call("c5", "Bash", "failed", { type: "shell", command: "npm test", output: "1 failing" });
   await settle();
   await noticed();
   assert.equal(
@@ -150,7 +151,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   await noticed();
   const listed = (await h.call(sup, "supervisor", "incidents", {})).text;
   const idOf = (kind: string) => Number(new RegExp(`- I(\\d+) \\[[^\\n]*: ${kind} `).exec(listed)?.[1]);
-  assert.ok(idOf("stuck") < idOf("unverified"), "the loop is ranked above the unchecked claim, so it opens first");
+  assert.ok(idOf("stuck") < idOf("claim-contradicted"), "the loop is ranked above the claim, so it opens first");
   assert.match(listed, /- I\d+ \[attend, told [^\]]*\][^\n]*: stuck /, "and takes the lane's last slot for the day");
-  assert.match(listed, /- I\d+ \[attend, not sent: its lane's limit for today is reached\][^\n]*: unverified /);
+  assert.match(listed, /- I\d+ \[attend, not sent: its lane's limit for today is reached\][^\n]*: claim-contradicted /);
 });

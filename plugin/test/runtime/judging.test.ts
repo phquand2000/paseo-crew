@@ -255,24 +255,19 @@ test("a turn's moments are asked about: an act, an unbacked hand-back, a change 
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "Rounded.", checks: "All 35 tests green." });
   timeline.beat("turn_completed", "t2");
   await moment();
+  await h.call(opened.lead!, "lead", "rework", { task: "L1-T1", text: "Half up, please." });
+  turn(timeline, "t3", "Half up, please.", "rework", read, edit, { type: "shell", command: "npm test", exitCode: 1 });
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "Half up now.", checks: "All 35 tests green." });
+  timeline.beat("turn_completed", "t3");
+  await moment();
   assert.match(
     String(of("claims_checks_pass")[0]!.state.handback),
-    /^Outcome: complete\n[^]*Rounded\.[^]*Checks: All 35 tests green\./,
+    /^Outcome: complete\n[^]*Half up now\.[^]*Checks: All 35 tests green\./,
   );
   assert.deepEqual(
     verdicts("claims_checks_pass"),
     [{ claims_checks_pass: "yes" }],
-    "a hand-back no gate run after its edit backs",
-  );
-  await h.call(opened.lead!, "lead", "rework", { task: "L1-T1", text: "Half up, please." });
-  turn(timeline, "t3", "Half up, please.", "rework", read, edit, { type: "shell", command: "npm test", exitCode: 1 });
-  await h.call(peer, "peer", "done", { outcome: "complete", summary: "Half up now.", checks: "Green." });
-  timeline.beat("turn_completed", "t3");
-  await moment();
-  assert.match(
-    String(of("claims_checks_pass")[1]!.state.handback),
-    /Half up now\./,
-    "and one whose last check failed after its last edit",
+    "a hand-back whose last check failed after its last edit",
   );
 
   turn(timeline, "t4", "The total is wrong: it rounds half down.", "rework", edit);

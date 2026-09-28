@@ -17,21 +17,7 @@ function lastWriteAndGate(window: Window, rules: Rules) {
     if (inside(call) && !failed(call)) lastWrite = index;
     if (isGate(call, rules.gates)) lastGate = index;
   });
-  return { calls, inside, lastWrite, lastGate };
-}
-
-export function unverified(window: Window, rules: Rules, heard: boolean): Fact[] {
-  const named = rules.gates[0];
-  if (!heard || !named) return [];
-  const { calls, inside, lastWrite, lastGate } = lastWriteAndGate(window, rules);
-  if (lastWrite < 0 || lastGate > lastWrite) return [];
-  const written = new Set(calls.filter(inside).map((call) => str(call.detail.filePath)));
-  return [
-    fact(
-      "unverified",
-      `${written.size} file${written.size === 1 ? "" : "s"} written and \`${oneLine(named, 100)}\` not run after the last of them`,
-    ),
-  ];
+  return { calls, lastWrite, lastGate };
 }
 
 /** A hand-back that says the work is complete when the check it ran after its last edit failed: the record, not the claim, is what settles it. */

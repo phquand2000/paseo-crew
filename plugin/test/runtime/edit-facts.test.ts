@@ -157,32 +157,29 @@ test("a hand-back is read against what the turn ran after its last edit", () => 
     "an edit after it leaves the claim unchecked, not contradicted",
   );
 
-  const unverified = (messages: StreamMessage[], given = gated, handedBack = true) =>
-    kinds(play(turn(...messages), given, handedBack ? "complete" : undefined)).filter((kind) => kind === "unverified");
-  assert.deepEqual(unverified([wrote]), ["unverified"], "files written and the gate never run after them");
-  assert.deepEqual(unverified([wrote, shell("g", 3, "npm test")]), []);
-  assert.deepEqual(unverified([wrote], gated, false), [], "a turn that reported nothing claimed nothing");
-  // The runner the gate's script starts is the gate too, on one module's tests as on all of them.
   assert.deepEqual(
-    unverified(
-      [wrote, shell("g", 3, 'node --test "test/text/slug.test.js"')],
-      rules({ gates: ["npm test", "node --test"] }),
-    ),
+    kinds(play(turn(wrote), gated, "complete")).filter((kind) => kind !== "edit-before-look"),
     [],
+    "the gate is the desk's to run, per task or per lane as the Human set it: a Peer that did not run it is not held to it",
   );
 
   const inCopy = rules({ gates: ["npm test"], cwd: "/work" });
-  const written = edit("w", 2, { filePath: "/work/src/a.ts" });
-  const gate = shell("g", 3, "npm test");
-  assert.deepEqual(
-    unverified([written, gate, edit("m", 4, { filePath: "/var/folders/xy/T/msg" })], inCopy),
-    [],
+  const contradictedIn = (after: StreamMessage) =>
+    play(
+      turn(edit("w", 2, { filePath: "/work/src/a.ts" }), shell("g", 3, "npm test", 1), after),
+      inCopy,
+      "complete",
+    ).filter((fact) => fact.kind === "claim-contradicted").length;
+  assert.equal(
+    contradictedIn(edit("m", 4, { filePath: "/var/folders/xy/T/msg" })),
+    1,
     "a commit message written to the temp directory is not a write the gate has to see",
   );
-  // A hand-back that only wrote docs after the gate was told it had not run the tests.
-  assert.deepEqual(unverified([written, gate, edit("d", 4, { filePath: "/work/docs/cart.md" })], inCopy), []);
+  assert.equal(contradictedIn(edit("d", 4, { filePath: "/work/docs/cart.md" })), 1, "nor is prose");
 
   const secret = "GITHUB_TOKEN=ghp_0123456789abcdefghijklmn npm test";
-  const masked = play(turn(wrote), rules({ gates: [secret] }), "complete").find((fact) => fact.kind === "unverified");
+  const masked = play(turn(wrote, shell("g", 3, secret, 1)), rules({ gates: [secret] }), "complete").find(
+    (fact) => fact.kind === "claim-contradicted",
+  );
   assert.doesNotMatch(masked!.quote, /ghp_0123/, "the gate named in the fact is masked like any other quote");
 });

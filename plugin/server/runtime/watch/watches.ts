@@ -5,7 +5,7 @@ import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
 import { Recovery, type Rules, onSettle, stuck } from "./facts.ts";
-import { contradicted, editBeforeLook, unverified } from "./turn-facts.ts";
+import { contradicted, editBeforeLook } from "./turn-facts.ts";
 import type { Quirks } from "../../catalog/kit/timeline.ts";
 import { Window } from "./window.ts";
 import { daemonLog } from "../../core/logger.ts";
@@ -125,11 +125,7 @@ export class SeatWatch {
     const context = this.placed();
     if (phase !== "completed" || !context) return [];
     const handed = since ? context.handedBack(since) : undefined;
-    const facts = [
-      ...unverified(this.window, context.rules, handed !== undefined),
-      ...contradicted(this.window, context.rules, handed),
-      ...editBeforeLook(this.window, context.rules),
-    ];
+    const facts = [...contradicted(this.window, context.rules, handed), ...editBeforeLook(this.window, context.rules)];
     const pattern = stuck(this.window.sinceInstruction(), context.rules);
     if (pattern) facts.push(fact("stuck", pattern));
     return this.fresh(facts);
@@ -156,9 +152,7 @@ export class SeatWatch {
   private fresh(facts: Fact[], call?: string): Fact[] {
     const kept = facts.filter((fact) => {
       const key =
-        fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "unverified"
-          ? fact.kind
-          : `${fact.kind}\n${call ?? fact.quote}`;
+        fact.kind === "stuck" || fact.kind === "long-turn" ? fact.kind : `${fact.kind}\n${call ?? fact.quote}`;
       if (this.told.has(key)) return false;
       this.told.add(key);
       return true;

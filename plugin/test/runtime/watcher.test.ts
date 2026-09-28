@@ -176,19 +176,21 @@ test("cases at once seat one Watcher, and a case is given up only when nobody ca
   await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
   await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "Again." });
   const copy = h.ledger().tasks["L1-T1"]!.worktree!;
-  // A change before any look opens one question, and a hand-back no gate backs another, both as the turn ends.
+  // A change before any look, a complete hand-back and a claim its own red gate contradicts each open a case as the turn ends.
   timeline.beat("turn_started", "t1");
   timeline.add({ type: "user_message", text: "The total is wrong.", clientMessageId: "crew-rework-t1" }, "t1");
   const edit = { type: "edit", filePath: join(copy, "src/cart.ts"), oldString: "a", newString: "b" };
   timeline.add({ type: "tool_call", callId: "e1", name: "Edit", status: "completed", detail: edit }, "t1");
-  await h.call(peer, "peer", "done", { outcome: "partial", summary: "Half of it." });
+  const gate = { type: "shell", command: "npm test", output: "1 failing" };
+  timeline.add({ type: "tool_call", callId: "g1", name: "Bash", status: "failed", detail: gate }, "t1");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "Fixed." });
   timeline.beat("turn_completed", "t1");
   const cases = () => {
     const [watcher] = watchersOf(h);
     if (!watcher) return 0;
     return [watcher.prompt ?? "", ...h.heard(watcher.id)].join("\n").match(/^CASE /gm)?.length ?? 0;
   };
-  await until(() => cases() === 2, "both cases reach one Watcher");
+  await until(() => cases() === 3, "every case reaches one Watcher");
   assert.equal(watchersOf(h).length, 1);
   const read = await h.call(watchersOf(h)[0]!.id, "watcher", "record", { of: "L1-T1" });
   assert.equal(read.ok, true, read.text);
@@ -199,7 +201,7 @@ test("cases at once seat one Watcher, and a case is given up only when nobody ca
     kept(h.project.state)
       .slice(1)
       .map((line) => line.unasked),
-    ["the Watcher it was sent to is gone", "the Watcher it was sent to is gone"],
+    Array(3).fill("the Watcher it was sent to is gone"),
     "with nobody seated, a case whose Watcher has gone is given up by the next round",
   );
 

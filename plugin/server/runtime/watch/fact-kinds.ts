@@ -8,7 +8,6 @@ export const FACTS = {
   "no-recovery": { level: "attend", title: "Did not recover from a failure" },
   "test-weakened": { level: "attend", title: "A test lost its assertions" },
   suppressed: { level: "attend", title: "Silenced a check instead of fixing it" },
-  unverified: { level: "attend", title: "Handed back without running the gate" },
   "claim-contradicted": { level: "attend", title: "Handed back as complete while its last check failed" },
   "long-turn": { level: "attend", title: "A turn running far longer than usual" },
   "rework-loop": { level: "attend", title: "Sent back again and again" },
