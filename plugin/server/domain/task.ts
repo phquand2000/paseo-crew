@@ -68,6 +68,7 @@ export type Task = {
   kind: "code" | "review";
   mode: "lane" | "parallel";
   of?: string;
+  scope?: "lane";
   /** A review's questions from the risk rules its change reaches: its verdict answers each, in order. */
   asked?: string[];
   title: string;
@@ -86,6 +87,7 @@ export type Task = {
   takeBase?: true;
   tookBase?: { sha: string; conflicts: string[] };
   mergeSha?: string;
+  mergedAt?: number;
   status: TaskStatus;
   openedAt: number;
   updatedAt: number;

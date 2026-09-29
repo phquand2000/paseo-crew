@@ -309,11 +309,13 @@ ready report or a close tries again. The queue is the tasks' statuses in `ledger
 a start takes it up in accept order, finishing a merge that reached the lane branch and running again one that
 did not. With `gateOn: lane`, no gate runs at hand-back or merge, and MERGED says so.
 
-**Reviews.** `start_review` seats a read-only reviewing role on a review task, `L<n>-R<k>`, `running` at once
-and holding nothing, in a parallel task's own copy while it has one, else in the lane's copy; with no task
-named, on the whole lane. Its REVIEW brief says where to read the change and carries the question of every
-risk rule the change reaches, and `done` refuses a verdict of `changes` or `reopen` without findings, or one
-that leaves such a question unanswered. `accept` refuses a review; the Lead cuts it.
+**Reviews.** `start_review` seats a read-only reviewing role on a review task, `L<n>-R<k>`, `running` at once and
+holding nothing, in a parallel task's own copy while it has one, else in the lane's copy; with `scope: lane`, it is
+the review of the whole lane, briefed with the lane's acceptance and its change from where it began, and with
+neither, an open question on the lane branch. Only the lane's own review, started after its last merge moved it,
+stands as the review of the whole lane. Its REVIEW brief says where to read the change and carries the question of
+every risk rule the change reaches, and `done` refuses a verdict that leaves such a question unanswered. `accept`
+refuses a review; the Lead cuts it.
 
 `rework` returns a task to its own Peer, and reopening a merged one, while that Peer is kept, clears the
 lane's `ready`. `cut` archives the Peer at once and gives back its copy, refused while the task merges.

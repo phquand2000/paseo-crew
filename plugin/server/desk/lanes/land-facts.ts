@@ -26,11 +26,23 @@ type Reviewed = Task & { handback: NonNullable<Task["handback"]> };
 /** A task accepted after its own latest review did not accept it: whether it was handed back again after that review, and whether a review accepted it since. */
 type Over = { task: string; review: string; outcome: string; again: boolean; since: boolean };
 
+/** What the lane's own review says of it: none, or one that read it only before its last merge; a review reads the lane as it starts. */
+function wholeFacts(reviews: Reviewed[], tasks: Task[]): string[] {
+  const own = reviews.filter((review) => review.scope === "lane");
+  if (own.length === 0) return ["No review of the whole lane is on record."];
+  const last = tasks.reduce<Task | undefined>(
+    (at, task) => ((task.mergedAt ?? 0) > (at?.mergedAt ?? 0) ? task : at),
+    undefined,
+  );
+  if (!last || own.some((review) => review.openedAt >= last.mergedAt!)) return [];
+  return [`No review of the whole lane since its last merge, ${last.id}.`];
+}
+
 /** A lane's reviews as the record has them, by when each came back rather than when it was asked for. */
 function reviewRecord(
   ledger: Ledger,
   lane: Lane,
-): { whole: boolean; latest?: Reviewed; after: string[]; over: Over[] } {
+): { whole: string[]; latest?: Reviewed; after: string[]; over: Over[] } {
   const tasks = tasksOf(ledger, lane.id);
   const reviews = tasks
     .filter((task): task is Reviewed => task.kind === "review" && task.handback !== undefined)
@@ -46,7 +58,7 @@ function reviewRecord(
     if (!own || own.handback.outcome === "accept") return [];
     const since = reviews.some(
       (review) =>
-        (!review.of || review.of === task.id) &&
+        (review.scope === "lane" || review.of === task.id) &&
         review.handback.outcome === "accept" &&
         review.handback.at > task.acceptedAt,
     );
@@ -60,7 +72,7 @@ function reviewRecord(
       },
     ];
   });
-  return { whole: reviews.some((review) => !review.of), latest, after, over };
+  return { whole: wholeFacts(reviews, tasks), latest, after, over };
 }
 
 /**
@@ -69,7 +81,7 @@ function reviewRecord(
  */
 export function reviewFacts(ledger: Ledger, lane: Lane): string[] {
   const { whole, latest, after, over } = reviewRecord(ledger, lane);
-  const facts = whole ? [] : ["No review of the whole lane is on record."];
+  const facts = [...whole];
   if (latest && latest.handback.outcome !== "accept") {
     const since =
       after.length > 0

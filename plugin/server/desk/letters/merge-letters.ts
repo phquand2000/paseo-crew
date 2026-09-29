@@ -23,7 +23,7 @@ export const mergeLetters = {
     const letter = (next: string) => mail("merge", [task.id, Date.now()], [...lines, ...notes].join("\n"), next);
     if (last)
       return letter(
-        "Every task of the lane is settled: if its outcome is complete, have the whole lane reviewed (start_review, no task), then report it ready.",
+        "Every task of the lane is settled: if its outcome is complete, start the review of the whole lane (start_review with scope lane), then report it ready.",
       );
     return notes.length > 0
       ? letter("Act on a note only if it matters to the lane.")

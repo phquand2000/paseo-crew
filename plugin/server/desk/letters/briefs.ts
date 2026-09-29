@@ -117,7 +117,7 @@ export function reviewBrief(
   review: Task,
   target: Task | undefined,
   focus: string,
-  place: { where: string; range?: string; handedBack?: string },
+  place: { where: string; range?: string; handedBack?: string; lane?: string },
 ): string {
   const lines = target
     ? [
@@ -134,7 +134,16 @@ export function reviewBrief(
         "Acceptance it must meet:",
         list(target.acceptance),
       ]
-    : [`REVIEW ${review.id}: ${review.title}`, "", `${place.where} Read whatever the question needs.`];
+    : review.scope === "lane"
+      ? [
+          `REVIEW ${review.id} of lane ${review.lane}: ${place.lane ?? review.title}`,
+          "",
+          `${place.where}${place.range ? ` See the lane's change with ${place.range}.` : ""}`,
+          "",
+          "Acceptance it must meet:",
+          list(review.acceptance),
+        ]
+      : [`REVIEW ${review.id}: ${review.title}`, "", `${place.where} Read whatever the question needs.`];
   lines.push("", "Open question:", focus);
   if (review.asked)
     lines.push(

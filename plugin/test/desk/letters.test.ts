@@ -276,7 +276,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     [settledLane.wakes, next(settledLane)],
     [
       undefined,
-      "Every task of the lane is settled: if its outcome is complete, have the whole lane reviewed (start_review, no task), then report it ready.",
+      "Every task of the lane is settled: if its outcome is complete, start the review of the whole lane (start_review with scope lane), then report it ready.",
     ],
   );
   const noted = mergeLetters.merged(task, changed, ["src/other.js"], "passed", false);

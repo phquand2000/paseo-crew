@@ -6,6 +6,7 @@ export const startReview = defineTool({
   name: "start_review",
   input: z.strictObject({
     task: z.string().optional(),
+    scope: z.enum(["lane"]).optional(),
     focus: z.string(),
     title: z.string().max(60).optional(),
     role: z.string().optional(),

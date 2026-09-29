@@ -19,8 +19,8 @@ import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { handbackText } from "../store/records.ts";
 
-/** A start_review call as the tool takes it: one task, or the whole lane when `task` is left out. */
-type ReviewCall = { task?: string; focus: string; title?: string; role?: string };
+/** A start_review call as the tool takes it: one task, the whole lane when `scope` is lane, else an open question on the lane. */
+type ReviewCall = { task?: string; scope?: "lane"; focus: string; title?: string; role?: string };
 
 type Change = { where: string; spec: string };
 type Copy = { id?: string; path: string; workspaceId?: string };
@@ -29,10 +29,11 @@ type Copy = { id?: string; path: string; workspaceId?: string };
 type Planned = {
   lane: Lane;
   target?: Task;
+  whole: boolean;
   copy: Copy;
   role: RoleSpec;
   asked: string[];
-  place: { where: string; range?: string; handedBack?: string };
+  place: { where: string; range?: string; handedBack?: string; lane?: string };
 };
 
 /** Starts a read-only reviewer on a task of the Lead's lane, or on the whole lane. */
@@ -53,6 +54,9 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
   const held = holdRefusal(lane);
   if (held) return held;
   const named = str(args.task);
+  const whole = args.scope === "lane";
+  if (named && whole)
+    return "Name a task for a review of it, or scope lane for the review of the whole lane, not both.";
   const target = named ? findTask(ledger, named) : undefined;
   if (named && (!target || target.lane !== lane.id || target.kind !== "code"))
     return `${named} is not a code task in your lane.`;
@@ -73,8 +77,8 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
         range: `git diff ${change.spec}`,
         ...(target?.handback ? { handedBack: handbackText(target.handback.file) } : {}),
       }
-    : { where: await laneView(ledger, lane, copy.path) };
-  return { lane, target, copy, role, asked, place };
+    : { where: await laneView(ledger, lane, copy.path), ...(whole ? await wholeRange(project, lane) : {}) };
+  return { lane, target, whole, copy, role, asked, place };
 }
 
 /** A review is a task of the lane that holds nothing, recorded running and claimed; the lane is read again, as it may have closed or been held meanwhile. */
@@ -85,7 +89,7 @@ function record(
   title: string,
   focus: string,
 ): Task | string {
-  const { lane, target, copy, asked } = planned;
+  const { lane, target, whole, copy, asked } = planned;
   return ledgers.transact(project, (current): Task | string => {
     const now = current.lanes[lane.id];
     if (now?.status !== "open") return `Lane ${lane.id} closed while its review was being set up.`;
@@ -99,10 +103,11 @@ function record(
       kind: "review",
       mode: "lane",
       of: target?.id,
+      ...(whole ? { scope: "lane" as const } : {}),
       asked: asked.length > 0 ? asked : undefined,
       title: title || (target ? `Review ${target.id}` : clip(focus.split(/\r?\n/)[0] ?? "Review", 50)),
       goal: focus,
-      acceptance: target?.acceptance ?? [],
+      acceptance: target?.acceptance ?? (whole ? lane.acceptance : []),
       hints: [],
       holds: [],
       outOfScope: [],
@@ -145,7 +150,7 @@ async function seat(
     });
     recordEvent(project, { kind: "review.started", task: review.id, of: target?.id ?? null, reviewer });
     return ok(
-      `Started ${review.id}${target ? ` on ${target.id}` : ""} with reviewer ${reviewer}. The verdict arrives as mail.`,
+      `Started ${review.id}${target ? ` on ${target.id}` : planned.whole ? " on the whole lane" : ""} with reviewer ${reviewer}. The verdict arrives as mail.`,
     );
   } catch (error) {
     ledgers.moveTask(project, review.id, "cut");
@@ -175,7 +180,13 @@ async function rangeOf(project: Project, target: Task, lane: Lane, inOwnCopy: bo
   return undefined;
 }
 
-/** Where a review of the whole lane reads it: the lane branch, which a task at work in the lane's copy has off its own. */
+/** The review of the whole lane reads the lane's change from where it began. */
+async function wholeRange(project: Project, lane: Lane): Promise<{ lane: string; range?: string }> {
+  const { from } = await changeOf(project, lane);
+  return { lane: lane.title, ...(from ? { range: `git diff ${from}..${lane.branch}` } : {}) };
+}
+
+/** Where a review on the lane reads it: the lane branch, which a task at work in the lane's copy has off its own. */
 async function laneView(ledger: Ledger, lane: Lane, copy: string): Promise<string> {
   const on = await currentBranch(copy);
   if (on === lane.branch) return `Your working copy is on ${lane.branch}.`;

@@ -176,10 +176,16 @@ export class TaskMerge {
     const serial = await serialIn(this.desk.kit, project, cwd);
     this.desk.ledgers.transact(project, (ledger) => {
       const entry = ledger.tasks[task.id];
-      if (entry) Object.assign(entry, { mergeSha: merged.after, updatedAt: Date.now() });
+      const moved = merged.after !== merged.before;
+      if (entry)
+        Object.assign(entry, {
+          mergeSha: merged.after,
+          ...(moved ? { mergedAt: Date.now() } : {}),
+          updatedAt: Date.now(),
+        });
       // The lane branch moved: what its Lead reported ready is not what it holds now.
       const home = ledger.lanes[lane.id];
-      if (home && merged.after !== merged.before) loseReady(home);
+      if (home && moved) loseReady(home);
     });
     // A task in the lane's copy gives it back to the lane branch: the same tree, so nothing in it changes.
     if (task.mode !== "parallel" && (await currentBranch(cwd)) === task.branch) await backOnLane(lane);

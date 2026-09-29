@@ -848,7 +848,7 @@
     {
       "name": "start_review",
       "title": "Start a review",
-      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. Without task: it answers the open question on your lane branch, which is how a council seat, a scout or an audit reader starts.",
+      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. With scope lane: the whole lane's change against its acceptance. With neither: your open question on the lane branch, as a council seat, a scout or an audit reader asks it.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -861,6 +861,11 @@
           "task": {
             "type": "string",
             "description": "Optional task id (L1-T2) whose branch is reviewed."
+          },
+          "scope": {
+            "type": "string",
+            "enum": ["lane"],
+            "description": "lane: the review of the whole lane against its acceptance, which READY and landing count. Left out with no task: an open question."
           },
           "focus": {
             "type": "string",
