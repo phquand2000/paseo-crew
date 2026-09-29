@@ -21,7 +21,7 @@ import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { type Synced, bringLaneIn } from "../copies/sync.ts";
 
-type Finding = { severity: string; where: string; failure: string; fix: string; confirmedBy?: string };
+type Finding = { severity: string; where?: string; failure: string; fix: string; confirmedBy?: string };
 
 /** A hand-back as the done tool takes it: a task's outcome and summary, or a review's verdict and findings. */
 type HandingBack = {
@@ -74,12 +74,10 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 }
 
-/** Why this hand-back is refused before anything is read: a settled task, or a review missing what its verdict needs. */
+/** Why this hand-back is refused before anything is read: a settled task, or a review leaving its risk rules unanswered. */
 function refusal(task: Task, args: HandingBack): string | undefined {
   if (SETTLED.includes(task.status)) return `This task is already ${task.status}; there is nothing to hand back.`;
   if (task.kind !== "review") return undefined;
-  if (args.verdict !== "accept" && (args.findings ?? []).length === 0)
-    return `A verdict of ${args.verdict} names what must change: give each finding.`;
   const asked = task.asked ?? [];
   if (!asked.some((_, index) => !args.answers?.[index]?.trim())) return undefined;
   const count = plural(asked.length, "a question", `${asked.length} questions`);
@@ -177,7 +175,8 @@ function reviewBody(task: Task, args: HandingBack): { outcome: string; body: str
   const outcome = args.verdict?.trim() ?? "";
   const confirmed = (found: Finding) => (found.confirmedBy ? ` Confirmed by: ${found.confirmedBy}` : "");
   const findings = (args.findings ?? []).map(
-    (found) => `- ${found.severity} ${found.where}: ${found.failure} Fix: ${found.fix}${confirmed(found)}`,
+    (found) =>
+      `- ${found.severity} ${found.where ? `${found.where}: ` : ""}${found.failure} Fix: ${found.fix}${confirmed(found)}`,
   );
   const answers = listOf(args.answers);
   const asked = (task.asked ?? []).flatMap((question, index) => [`${index + 1}. ${question}`, `   ${answers[index]}`]);

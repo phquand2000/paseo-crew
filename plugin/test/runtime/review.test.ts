@@ -42,7 +42,7 @@ test("a review hands back a verdict and its findings, answers what the project's
   assert.equal(started.ok, true, started.text);
   const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
   const unnamed = await h.call(reviewer, "reviewer", "done", { verdict: "changes", answer: "Half-up is wrong here." });
-  assert.match(unnamed.text, /A verdict of changes names what must change: give each finding\./);
+  assert.equal(unnamed.ok, true, `a verdict is evidence its Lead weighs, findings or none: ${unnamed.text}`);
   const handed = await h.call(reviewer, "reviewer", "done", {
     verdict: "accept",
     answer: "Half-up is right for money here.",
@@ -53,6 +53,7 @@ test("a review hands back a verdict and its findings, answers what the project's
         failure: "banker's rounding would be safer at the boundary",
         fix: "none needed: half-up matches the spec",
       },
+      { severity: "P2", failure: "the brief assumes totals in cents", fix: "confirm the unit with the Lead" },
     ],
     read: ["the diff"],
     ran: ["npm test -- rounding"],
@@ -62,7 +63,7 @@ test("a review hands back a verdict and its findings, answers what the project's
   assert.deepEqual([verdict?.outcome, verdict?.summary], ["accept", "Half-up is right for money here."]);
   assert.match(
     h.heard(lead).join("\n"),
-    /Verdict: accept\n\nHalf-up is right for money here\.\n\nFindings:\n- P3 a\.txt:1: banker's rounding would be safer at the boundary Fix: none needed: half-up matches the spec\n\nRead: the diff\nRan: npm test -- rounding/,
+    /Verdict: accept\n\nHalf-up is right for money here\.\n\nFindings:\n- P3 a\.txt:1: banker's rounding would be safer at the boundary Fix: none needed: half-up matches the spec\n- P2 the brief assumes totals in cents Fix: confirm the unit with the Lead\n\nRead: the diff\nRan: npm test -- rounding/,
     "the review itself reaches the Lead rather than being dropped",
   );
 

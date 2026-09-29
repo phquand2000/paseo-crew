@@ -12,7 +12,7 @@ const HandBack = z.strictObject({
 
 const Finding = z.strictObject({
   severity: z.enum(["P0", "P1", "P2", "P3"]),
-  where: z.string(),
+  where: z.string().optional(),
   failure: z.string(),
   fix: z.string(),
   confirmedBy: z.string().optional(),

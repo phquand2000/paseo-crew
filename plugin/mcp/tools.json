@@ -1509,7 +1509,7 @@
           },
           "findings": {
             "type": "array",
-            "description": "Each defect you traced. A verdict of changes or reopen needs at least one.",
+            "description": "Each defect you traced.",
             "items": {
               "type": "object",
               "properties": {
@@ -1525,7 +1525,7 @@
                 },
                 "where": {
                   "type": "string",
-                  "description": "file:line"
+                  "description": "file:line, when the defect has a place."
                 },
                 "failure": {
                   "type": "string",
@@ -1542,7 +1542,6 @@
               },
               "required": [
                 "severity",
-                "where",
                 "failure",
                 "fix"
               ]
