@@ -3,8 +3,7 @@ import type { Attention } from "../../../shared/views.ts";
 export const ATTENTION: Omit<Attention, "destructive" | "irreversible" | "testPath" | "suppressed"> = {
   tickSeconds: 30,
   leadIdleMinutes: 12,
-  askRemindMinutes: 15,
-  maxReminders: 2,
+  askWaitingMinutes: 15,
   watch: false,
   repeatsAt: 3,
   reworksAt: 3,

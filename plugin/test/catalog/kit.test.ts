@@ -297,6 +297,6 @@ test("a capability several roles hold can name which of them, and a stored name 
   assert.equal(
     can(roleNamed(kit, "a role this kit lost"), "lead"),
     false,
-    "a name the kit no longer has can do nothing, so its ask still escalates",
+    "a name the kit no longer has can do nothing, so it still has someone above it",
   );
 });

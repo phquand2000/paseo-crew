@@ -15,6 +15,7 @@ export const FACTS = {
   "reviews-unconverged": { level: "attend", title: "Reviews piling up with nothing accepted" },
   "certainty-only": { level: "attend", title: "A review told to report only certainties" },
   "brief-prewritten": { level: "attend", title: "A brief that writes the answer out" },
+  "ask-waiting": { level: "attend", title: "An ask left waiting on its reader" },
   "call-failed": { level: "note" },
   "gate-failed": { level: "note" },
   "outside-scope": { level: "note" },

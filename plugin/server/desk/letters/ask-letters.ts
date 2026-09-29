@@ -24,7 +24,7 @@ function answeredNext(question: Question): string {
   return "Write their choice into CONTEXT.md if it settles the concept";
 }
 
-/** The letters an ask sends: to whoever it is put to, the answer back, and the reminders while it waits. */
+/** The letters an ask sends: to whoever it is put to, and the answer back. */
 export const askLetters = {
   askTo(ask: Ask, from: string, reader: "lead" | "supervisor", carried: Ask[] = []): Letter {
     const next =
@@ -133,30 +133,6 @@ export const askLetters = {
         text,
         "Nothing, unless the answer crosses the lane's intent or the Lead keeps overruling.",
       ),
-    );
-  },
-
-  reminder(ask: Ask, minutes: number): Letter {
-    return mail(
-      "remind",
-      [ask.id, ask.reminders],
-      `STILL OPEN after ${minutes} minutes: ask ${ask.id} (${ask.kind}): ${firstLine(ask.text)}`,
-      "Answer it now: whoever asked is waiting on you.",
-    );
-  },
-
-  escalated(ask: Ask, minutes: number, lane: string): Letter {
-    const text = [
-      `UNANSWERED ${ask.id} in ${lane}: a Peer has waited ${minutes} minutes on its Lead.`,
-      "",
-      ask.text,
-      ...theirDefault(ask),
-    ].join("\n");
-    return mail(
-      "escalate",
-      [ask.id],
-      text,
-      "Take the smallest step that unblocks the Peer, often answering it yourself (its Lead is told); if the Lead looks stuck, read its record first.",
     );
   },
 };

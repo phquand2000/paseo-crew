@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { contracts } from "../../shared/rpc.ts";
 import { harness, laneWithPeer } from "./harness.ts";
+import { book } from "./noticed.ts";
 
 const SUPERVISOR = "crew-supervisor-claude/claude-opus-5";
 
-test("a Peer parked on an ask its Lead carries up waits unnudged and unreminded until the answer comes down", async () => {
+test("a Peer parked on an ask its Lead carries up waits unnudged and unwatched until the answer comes down", async () => {
   const h = harness();
   const sup = h.add(SUPERVISOR, h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", {
@@ -55,8 +56,11 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unreminded 
   await h.idle(lead);
   await h.idle(sup);
   await h.tick(Date.now() + 16 * 60_000);
-  assert.match(heard(sup), /STILL OPEN after \d+ minutes: ask A2/, "the ask carrying it is reminded");
-  assert.doesNotMatch(heard(lead), /ask A1/, "the carried one is not");
+  assert.deepEqual(
+    Object.values(book(h)).filter((item) => item.kind === "ask-waiting"),
+    [],
+    "the carried one waits on the ask above, which stands for it",
+  );
 
   const ruled = await h.call(sup, "supervisor", "answer", {
     ask: "A2",
@@ -75,7 +79,7 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unreminded 
   assert.match(heard(peer), /without calling done or ask/);
 });
 
-test("a Lead's ask carried into a Human question is not reminded while they are silent, and their answer names it", async () => {
+test("a Lead's ask carried into a Human question waits on their answer, which names it", async () => {
   const { h, sup, lane } = await laneWithPeer();
   const heard = (id: string) => h.heard(id).join("\n");
   const human = (carries: string[]) =>
@@ -97,14 +101,6 @@ test("a Lead's ask carried into a Human question is not reminded while they are 
   assert.match((await human(["a1"])).text, /Asked the Human as H1;[\s\S]* It carries A1: leave them open/);
   assert.deepEqual(Object.keys(h.ledger().questions), ["H1"]);
 
-  await h.idle(sup);
-  await h.tick(Date.now() + 16 * 60_000);
-  assert.doesNotMatch(
-    heard(sup),
-    /STILL OPEN after \d+ minutes: ask A1/,
-    "carried into an open question, it waits unreminded",
-  );
-
   const answered = await h.rpc(contracts.questionAnswer, {
     project: h.project.slug,
     question: "H1",
@@ -113,7 +109,4 @@ test("a Lead's ask carried into a Human question is not reminded while they are 
   });
   assert.deepEqual(answered, { answered: "H1 is answered: Tomorrow. The Supervisor has it." });
   assert.match(heard(sup), /HUMAN ANSWERED H1[\s\S]*answer A1, which it carries/);
-  await h.idle(sup);
-  await h.tick(Date.now() + 32 * 60_000);
-  assert.match(heard(sup), /STILL OPEN after \d+ minutes: ask A1/, "answered, the question no longer stands for it");
 });

@@ -8,6 +8,7 @@ import { contracts } from "../../shared/rpc.ts";
 import { reported } from "../console.ts";
 import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
+import { book } from "./noticed.ts";
 
 type Harness = ReturnType<typeof harness>;
 
@@ -79,7 +80,7 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   assert.equal(columns.ok, true, columns.text);
   const ask = Object.values(h.ledger().asks).at(-1)!;
   assert.equal(ask.to, lead, "an ask goes upward, to the Lead");
-  // Unanswered asks escalate to the owner, so the owner answering one is the design.
+  // The Supervisor may answer any ask, and its Lead is told.
   assert.equal(
     (await h.call(sup, "supervisor", "answer", { ask: ask.id, text: "Drop it and migrate.", keepsDefault: false })).ok,
     true,
@@ -94,23 +95,23 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
     bestGuess: "half up",
   });
   assert.equal(rounding.ok, true, rounding.text);
-  const escalating = Object.values(h.ledger().asks).at(-1)!.id;
-  h.agents.get(lead)!.status = "idle";
-  archive(h, sup);
+  const waiting = Object.values(h.ledger().asks).at(-1)!.id;
   const start = Date.now();
+  const waitedOn = () => Object.values(book(h)).filter((item) => item.kind === "ask-waiting");
+  await h.tick(start + 14 * 60_000);
+  assert.deepEqual(waitedOn(), [], "not before it has waited its while");
   for (const minutes of [16, 32, 48]) await h.tick(start + minutes * 60_000);
-  assert.equal(h.ledger().asks[escalating]!.escalated ?? false, false, "nobody received it, so it is not escalated");
-  const back = h.add(SUPERVISOR, h.root, "sup-2");
-  await h.tick(start + 64 * 60_000);
-  assert.equal(h.ledger().asks[escalating]!.escalated, true);
+  const [fact] = waitedOn();
   assert.deepEqual(
-    h.events("ask.escalated").map((event) => [event.ask, event.to]),
-    [[escalating, back]],
+    [waitedOn().length, fact!.seat, fact!.held],
+    [1, lead, "shadow"],
+    "an ask left waiting is a fact about its reader for the watch, in shadow",
   );
-  assert.match(
-    heard(h, back),
-    /Round half up or down\?\n\nTried: read the spec\n\nTheir default: half up/,
-    "the one who sat down is told, the Peer's best guess with it",
+  assert.match(fact!.quote, new RegExp(`${waiting} \\(question\\) from L1-T1: Round half up or down\\?`));
+  assert.doesNotMatch(
+    `${heard(h, lead)}\n${heard(h, sup)}`,
+    /STILL OPEN|UNANSWERED/,
+    "no clock nags the reader or goes over its head: when to look is the watch's to say",
   );
 
   assert.equal(
@@ -119,14 +120,14 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   );
   const endpoint = Object.values(h.ledger().asks).at(-1)!.id;
   assert.match(
-    (await h.call(back, "supervisor", "status", {})).text,
+    (await h.call(sup, "supervisor", "status", {})).text,
     new RegExp(`- ${endpoint} question from lead .*: Keep the old endpoint\\? Going ahead meanwhile on: keep it\\n`),
     "what runs unconfirmed shows where whoever supervises follows progress",
   );
   const flow = await h.rpc(contracts.flow, { project: h.project.slug, open: [] });
   assert.ok("asks" in flow);
   assert.equal(flow.asks.find((ask) => ask.id === endpoint)?.default, "keep it", "and on the Human's panel");
-  archive(h, back);
+  archive(h, sup);
   const next = h.add(SUPERVISOR, h.root, "sup-3");
   await h.tick(start + 80 * 60_000);
   assert.match(

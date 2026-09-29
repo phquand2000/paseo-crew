@@ -83,7 +83,6 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     default: "half up",
     status: "answered",
     openedAt: 0,
-    reminders: 0,
     answer: "half even",
   };
   const amendment = { at: 0, by: "agent-1", why: "the Human wants an upsert", was: { goal: "insert" } };
@@ -159,7 +158,6 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     askLetters.answered({ ...ask, fromRole: "lead" }),
     askLetters.answeredFor(ask, "the owner"),
     askLetters.askTo({ ...ask, status: "open" }, "the Peer on L1-T1", "lead"),
-    askLetters.reminder(ask, 30),
     landLetters.landHeld(lane, "It changes src/auth.", "abc"),
     landLetters.landSentBack(lane, "put it behind a flag", "abc"),
     landLetters.baseConflict(lane, ["a.js"]),

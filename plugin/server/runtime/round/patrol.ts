@@ -98,7 +98,7 @@ export class Patrol {
       ["a task whose Peer is gone could not be recorded", () => this.goneTasks(project, ledger(), seats)],
       ["a lane whose Lead is gone could not be told", () => this.goneLeads(project, ledger(), seats)],
       [
-        "asks due a reminder could not be sent",
+        "open asks could not be read",
         () => dueAsks(this.deps, project, ledger(), seats, now, (ids) => this.missing(ids)),
       ],
       ["what a lane's history shows could not be read", () => this.history(project, ledger(), seats)],

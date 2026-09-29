@@ -101,7 +101,6 @@ function askLines(events: Stamped[]): string[] {
     }
     const row = "ask" in event ? rows.get(event.ask) : undefined;
     if (!row) continue;
-    if (event.kind === "ask.escalated") bump(tally, row, "escalated");
     if (event.kind !== "ask.answered") continue;
     bump(tally, row, event.kept === null ? "no default" : event.kept ? "kept" : "changed");
     waits.set(row, [...(waits.get(row) ?? []), (Date.parse(event.at) - opened.get(event.ask)!) / 60_000]);
@@ -113,7 +112,7 @@ function askLines(events: Stamped[]): string[] {
       const answered = ANSWERS.reduce((sum, column) => sum + (counts.get(column) ?? 0), 0);
       counts.set("open", counts.get("asked")! - answered);
       const wait = waits.has(row) ? `; median wait ${median(waits.get(row)!)} min` : "";
-      return `- ${row}: ${counts.get("asked")} (${spread(counts, [...ANSWERS, "open", "escalated"])})${wait}`;
+      return `- ${row}: ${counts.get("asked")} (${spread(counts, [...ANSWERS, "open"])})${wait}`;
     }),
   ];
 }

@@ -74,7 +74,6 @@ export type DeskEvent =
       withDefault: boolean;
     }
   | { kind: "ask.answered"; ask: string; by: string; told: string | null; kept: boolean | null }
-  | { kind: "ask.escalated"; ask: string; to: string }
   | { kind: "slot.taken"; slot: string; branch: string; lane?: string; task?: string }
   | { kind: "slot.heldOpen"; slot: string; writers: string[] }
   | { kind: "slot.released"; slot: string; removed: boolean; kept: string | undefined }

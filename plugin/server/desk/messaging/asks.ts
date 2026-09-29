@@ -15,7 +15,7 @@ type Asking = Pick<Ask, "from" | "fromRole" | "to" | "lane" | "task" | "kind" | 
 
 /** A new open ask, numbered in `ledger`. */
 function newAsk(ledger: Ledger, asking: Asking): Ask {
-  return { id: nextAskId(ledger), ...asking, status: "open", openedAt: Date.now(), reminders: 0 };
+  return { id: nextAskId(ledger), ...asking, status: "open", openedAt: Date.now() };
 }
 
 const opened = (ask: Ask): DeskEvent => ({
@@ -154,7 +154,7 @@ async function tellAround(
   { ask, waitingRole, opener, carried }: Answered,
   waiting: string | undefined,
 ): Promise<Posted | "nobody"> {
-  // Answering an ask put to someone else is allowed (the round escalates them), but that seat is told first.
+  // Answering an ask put to someone else is allowed, but that seat is told first.
   if (waiting) {
     const role = roleNamed(kit, waitingRole ?? "");
     const by = can(role, "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";

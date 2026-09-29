@@ -58,7 +58,7 @@ The Human may be away. Each row is a verb a seat calls, or something the desk re
 | Lead | `accept` | `queued`, then `merging` and `merged` through the lane's merge queue | MERGED, MERGE RED, MERGE CONFLICT, MERGE WAITS or MERGE FAILED to the Lead |
 | Lead | `rework`, `amend_task`, `cut` | the task back in `rework` for its Peer, changed, or `cut` | REWORK or AMENDED to the Peer; STRUGGLING, ARCHITECTURE or TURNING to the Supervisor at the moments SLP names |
 | Lead | `start_review` | a review task, `L<n>-R<k>`, `running` at once | the Reviewer starts from its REVIEW brief; its verdict comes back as HANDBACK |
-| Peer, Reviewer | `ask` | an ask, `open`, to the Lead; a Peer's `bestGuess` is its default, a Reviewer's has none | ASK to the Lead, or to the Supervisor once the Lead is gone; UNANSWERED to the Supervisor once reminders run out |
+| Peer, Reviewer | `ask` | an ask, `open`, to the Lead; a Peer's `bestGuess` is its default, a Reviewer's has none | ASK to the Lead, or to the Supervisor once the Lead is gone |
 | Lead | `ask`, with the `default` it works on meanwhile | an ask to the Supervisor | ASK to the Supervisor |
 | Supervisor, Lead | `answer`, `message` | the ask `answered` | ANSWER to the asker, and ANSWERED FOR YOU to the seat it was put to when another answers; MESSAGE, with RECONCILE to the Lead first when the Supervisor writes to a Peer |
 | Supervisor | `amend_lane` | the lane amended, its `ready` cleared | AMENDED to the Lead |
@@ -476,9 +476,8 @@ turns, then, for each project the desk has met since it started:
 3. A task at work whose Peer is gone goes `stalled`, with FAILED to its Lead, whose `reseat` gives it a fresh
    Peer on its branch; a lane whose Lead is gone brings LEAD GONE to the Supervisor, once, whose `replace_lead`
    seats a Lead where the lane stands.
-4. Remind an ask after `askRemindMinutes` (15) while its reader is idle and no open ask or question carries it,
-   up to `maxReminders` (2), then escalate one a Peer or Reviewer put to its Lead (UNANSWERED); move one whose reader is gone to the
-   Supervisor.
+4. Move an open ask whose reader is gone to the Supervisor. One waiting `askWaitingMinutes` (15) that no open ask or
+   question carries is an `ask-waiting` fact about its reader; nothing reminds it on a clock.
 5. Read each open lane's record for facts.
 6. Sweep workspaces and worktrees the desk made that nothing holds, keeping each owner's last five gate runs.
 7. Take on the seat Paseo had started for a lane or task a stop left half-seated, found by its labels, or put

@@ -62,7 +62,6 @@ function busyLedger(count: number) {
       text: "?",
       status: "answered",
       openedAt: n,
-      reminders: 0,
     };
   }
   return ledger;
@@ -181,7 +180,6 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
     text: "?",
     status: "open",
     openedAt: 0,
-    reminders: 0,
   };
   ledger.asks.B2 = {
     id: "B2",
@@ -192,7 +190,6 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
     text: "?",
     status: "answered",
     openedAt: 0,
-    reminders: 0,
   };
   ledger.asks.B3 = {
     id: "B3",
@@ -203,7 +200,6 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
     text: "?",
     status: "answered",
     openedAt: 0,
-    reminders: 0,
   };
 
   const taken = takeFinished(ledger, () => true)!;

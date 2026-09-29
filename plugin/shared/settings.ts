@@ -51,8 +51,8 @@ const Pattern = z
 export const AttentionChoice = z.strictObject({
   tickSeconds: z.number().int().min(5).optional(),
   leadIdleMinutes: z.number().int().min(1).optional(),
-  askRemindMinutes: z.number().int().min(1).optional(),
-  maxReminders: z.number().int().min(0).optional(),
+  /** How long an open ask waits on its reader before the watch notes it. */
+  askWaitingMinutes: z.number().int().min(1).optional(),
   watch: z.boolean().optional(),
   destructive: Pattern.optional(),
   irreversible: Pattern.optional(),

@@ -3,8 +3,7 @@
   "attention": {
     "tickSeconds": 30,
     "leadIdleMinutes": 12,
-    "askRemindMinutes": 15,
-    "maxReminders": 2,
+    "askWaitingMinutes": 15,
     "judge": "off"
   },
   "roles": [
