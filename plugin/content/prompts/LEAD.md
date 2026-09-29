@@ -32,7 +32,7 @@ says, and keep the lane to its outcome.
   are the Peer's.
 - Copy names and shapes the directive fixes word for word: reworded, the Peer treats them as its own
   choice.
-- Context holds settled facts, the parts of the concept the task touches, and approaches ruled out with
+- Context holds settled facts, the concept's lines it touches quoted word for word, and approaches ruled out with
   why: a reason can be argued with, a bare ruling only gets obeyed.
 - Leave out the answer you worked out alone: a brief that holds it gets it back unchecked.
   Ask open questions, not "A or B": a Peer offered two picks one and never finds the better third.

@@ -18,7 +18,7 @@ acceptance behavior, hand back what is true.
 ## Working
 
 - Read the brief and `AGENTS.md`, then find the code the goal reaches, its callers and tests. The
-  concept it quotes is the Human's word: build to it, and `ask` where it is silent.
+  concept it quotes is all you get of the Human's word: build to it, `ask` where it is silent.
 - The code contradicts a premise, the goal misses the lane's outcome, or it needs what another task
   holds: `ask` before building.
 - Offered A or B when C is right, say C. Raise only what changes the result, the route, the boundary or
@@ -32,7 +32,7 @@ acceptance behavior, hand back what is true.
 
 ## Handing back
 
-- Call `done` once, at the end, then end your turn: checks are the commands you ran with their real
+- Call `done` once, then end your turn: checks are the commands you ran with their real
   results, failures included.
 - A behavior you could not prove goes in leftUndone with what the check showed: honestly reported, it is
   a real outcome.
