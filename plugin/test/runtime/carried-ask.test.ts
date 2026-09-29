@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { harness } from "./harness.ts";
+import { contracts } from "../../shared/rpc.ts";
+import { harness, laneWithPeer } from "./harness.ts";
 
 const SUPERVISOR = "crew-supervisor-claude/claude-opus-5";
 
@@ -72,4 +73,47 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unreminded 
   await turn("Answered; still nothing to do.");
   assert.equal(task().silent, 1, "answered, its quiet turns count again");
   assert.match(heard(peer), /without calling done or ask/);
+});
+
+test("a Lead's ask carried into a Human question is not reminded while they are silent, and their answer names it", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  const heard = (id: string) => h.heard(id).join("\n");
+  const human = (carries: string[]) =>
+    h.call(sup, "supervisor", "ask_human", {
+      question: "Restart the service tonight?",
+      why: "Only they may take the downtime.",
+      options: [
+        { label: "Tonight", effect: "Ten minutes offline." },
+        { label: "Tomorrow", effect: "The fix waits a day." },
+      ],
+      recommend: "Tomorrow",
+      reason: "Nobody is on call tonight.",
+      ifSilent: "The lane waits with a clean tree.",
+      class: "reversible",
+      carries,
+    });
+  await h.call(lane.lead!, "lead", "ask", { kind: "need", text: "May the service restart?", default: "wait" });
+  assert.match((await human(["A9"])).text, /A9 is not an open ask put to you\./);
+  assert.match((await human(["a1"])).text, /Asked the Human as H1;[\s\S]* It carries A1: leave them open/);
+  assert.deepEqual(Object.keys(h.ledger().questions), ["H1"]);
+
+  await h.idle(sup);
+  await h.tick(Date.now() + 16 * 60_000);
+  assert.doesNotMatch(
+    heard(sup),
+    /STILL OPEN after \d+ minutes: ask A1/,
+    "carried into an open question, it waits unreminded",
+  );
+
+  const answered = await h.rpc(contracts.questionAnswer, {
+    project: h.project.slug,
+    question: "H1",
+    choice: "Tomorrow",
+    note: "",
+  });
+  assert.deepEqual(answered, { answered: "H1 is answered: Tomorrow. The Supervisor has it." });
+  assert.match(heard(sup), /HUMAN ANSWERED H1[\s\S]*answer A1, which it carries/);
+  await h.idle(sup);
+  await h.tick(Date.now() + 32 * 60_000);
+  assert.match(heard(sup), /STILL OPEN after \d+ minutes: ask A1/, "answered, the question no longer stands for it");
 });

@@ -378,6 +378,7 @@ turn goes on, since its reply reaches them only when they read its chat; no seat
 | `recommend`, `reason` | The label of the choice the Supervisor recommends, and why |
 | `ifSilent` | What goes ahead while the Human has not answered, and until when it can still be undone |
 | `class` | What goes ahead while they are silent, below |
+| `carries` | Open asks put to the Supervisor that the answer settles. They stay open and are not reminded while the question is, and the answer names them |
 
 | Class | While the Human is silent |
 |---|---|
@@ -705,7 +706,7 @@ kept off only the machine's settings file itself; its file tools still honour ev
 
 `tickSeconds` is the round, 5 s at least ([the patrol](ARCHITECTURE.md#the-patrol)). A Lead idle `leadIdleMinutes`
 with no task at work or queued, no ask of its own open, no hold, no ready report, no landing held and no usage-limit reset still to wake it brings LANE IDLE,
-once per idle spell. An ask waiting on an idle seat, and not carried by an ask still open, gets STILL OPEN every `askRemindMinutes`, `maxReminders` times;
+once per idle spell. An ask waiting on an idle seat, and not carried by an ask or question still open, gets STILL OPEN every `askRemindMinutes`, `maxReminders` times;
 then a Peer's ask to its Lead goes to whoever supervises as UNANSWERED. The rest act where [facts](#facts),
 [holds](#holds), [questions for the Human](#questions-for-the-human) and [to a model](#questions-to-a-model) name them.
 

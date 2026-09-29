@@ -5,7 +5,7 @@ import { askLetters } from "../letters/ask-letters.ts";
 import { type Caller, type Posted, type ToolReply, no, ok } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
 import type { Ask } from "../../domain/ask.ts";
-import { type Ledger, laneOfLead, nextAskId, taskOfPeer } from "../../domain/ledger.ts";
+import { type Ledger, carriedOf, laneOfLead, nextAskId, taskOfPeer } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -127,13 +127,7 @@ export async function answerAsk(
     ask.answeredAt = Date.now();
     if (ask.default) ask.kept = answered.keepsDefault;
     const opener = ask.lane ? ledger.lanes[ask.lane]?.opener : undefined;
-    const carried = Object.values(ledger.asks).filter((entry) => entry.status === "open" && entry.carriedBy === ask.id);
-    return {
-      ask: { ...ask },
-      waitingRole: ledger.agents[ask.to]?.role,
-      opener,
-      carried: carried.map((entry) => entry.id),
-    };
+    return { ask: { ...ask }, waitingRole: ledger.agents[ask.to]?.role, opener, carried: carriedOf(ledger, ask.id) };
   });
   if (typeof result === "string") return no(result);
   const { ask } = result;

@@ -10,7 +10,7 @@ import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { putOnHold } from "../lanes/hold.ts";
 import { askFirstHits, changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { findLane, nextQuestionId } from "../../domain/ledger.ts";
+import { carriedOf, findLane, nextQuestionId } from "../../domain/ledger.ts";
 import { loadLedger, readLedger } from "../store/ledger.ts";
 import { type Project, loadConfig } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
@@ -26,6 +26,7 @@ type AskHumanCall = {
   reason: string;
   ifSilent: string;
   class: QuestionClass;
+  carries?: string[];
 };
 
 const WHILE_SILENT: Record<QuestionClass, string> = {
@@ -45,7 +46,8 @@ export async function askHuman(desk: DeskServices, caller: Caller, args: AskHuma
   // The Supervisor may only raise a question's class above what the Human's standing orders make it.
   const floor =
     named && named.status !== "closed" && args.class === "reversible" ? await askFirstOf(project, named) : undefined;
-  const opened = recordQuestion(desk, caller, args, floor ? "costly" : args.class);
+  const carries = [...new Set((args.carries ?? []).map((id) => id.trim().toUpperCase()))];
+  const opened = recordQuestion(desk, caller, args, floor ? "costly" : args.class, carries);
   if (typeof opened === "string") return no(opened);
   recordEvent(project, { kind: "question.asked", question: opened.id, lane: opened.lane ?? null, class: opened.class });
   const why = `it waits for the Human's answer to ${opened.id}: ${clip(opened.question, 200)}`;
@@ -57,12 +59,15 @@ export async function askHuman(desk: DeskServices, caller: Caller, args: AskHuma
         ? ` Its lane was not put on hold: ${parked}`
         : ` Lane ${opened.lane} is on hold for it.`;
   const raised = floor ? ` It is costly, not reversible. ${floor}` : "";
+  const carrying = carries.length
+    ? ` It carries ${carries.join(", ")}: leave them open, and answer them from theirs.`
+    : "";
   const silent =
     opened.class === "costly" && opened.parked
       ? "Its lane has already reported ready, so it stops now until they answer."
       : WHILE_SILENT[opened.class];
   return ok(
-    `Asked the Human as ${opened.id}; it waits in their question queue.${raised} ${silent}${held} An answer they give you here goes on record with record_human_answer.`,
+    `Asked the Human as ${opened.id}; it waits in their question queue.${raised} ${silent}${held}${carrying} An answer they give you here goes on record with record_human_answer.`,
   );
 }
 
@@ -89,10 +94,13 @@ function recordQuestion(
   caller: Caller,
   args: AskHumanCall,
   kind: QuestionClass,
+  carries: string[],
 ): Question | string {
   return ledgers.transact(caller.project, (ledger) => {
     const lane = args.lane ? findLane(ledger, args.lane) : undefined;
     if (args.lane && (!lane || lane.status === "closed")) return `There is no open or waiting lane ${str(args.lane)}.`;
+    const stray = carries.find((id) => ledger.asks[id]?.status !== "open" || ledger.asks[id]?.to !== caller.id);
+    if (stray) return `${stray} is not an open ask put to you.`;
     // A costly question stops its lane at the ready report; asked once the lane has reported ready, that is now.
     const parked = lane !== undefined && (kind === "irreversible" || (kind === "costly" && lane.ready !== undefined));
     const question: Question = {
@@ -111,6 +119,7 @@ function recordQuestion(
       parked: parked || undefined,
     };
     ledger.questions[question.id] = question;
+    for (const id of carries) ledger.asks[id]!.carriedBy = question.id;
     return question;
   });
 }
@@ -195,9 +204,12 @@ export async function recordHumanAnswer(
     quote: str(args.quote),
   });
   if (typeof recorded === "string") return no(recorded);
-  const lane = recorded.parked && recorded.lane ? loadLedger(project.state).lanes[recorded.lane] : undefined;
+  const ledger = loadLedger(project.state);
+  const lane = recorded.parked && recorded.lane ? ledger.lanes[recorded.lane] : undefined;
   const held = lane?.onHold
     ? ` Lane ${lane.id} is still on hold for it: resume_lane it once the answer is carried into the lane.`
     : "";
-  return ok(`${id} is ${recorded.status}: ${choice}.${held}`);
+  const carried = carriedOf(ledger, id);
+  const carries = carried.length ? ` It carries ${carried.join(", ")}: answer them from it.` : "";
+  return ok(`${id} is ${recorded.status}: ${choice}.${held}${carries}`);
 }

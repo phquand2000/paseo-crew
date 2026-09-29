@@ -477,8 +477,8 @@ turns, then, for each project the desk has met since it started:
 2. Retell incidents held for nobody.
 3. A task at work whose Peer is gone goes `stalled`, with FAILED to its Lead; a lane whose Lead is gone brings
    LEAD GONE to the Supervisor, once, whose `replace_lead` seats a Lead where the lane stands.
-4. Remind an ask after `askRemindMinutes` (15) while its reader is idle and no open ask carries it, up
-   to `maxReminders` (2), then escalate one a Peer or Reviewer put to its Lead (UNANSWERED); move one whose reader is gone to the
+4. Remind an ask after `askRemindMinutes` (15) while its reader is idle and no open ask or question carries it,
+   up to `maxReminders` (2), then escalate one a Peer or Reviewer put to its Lead (UNANSWERED); move one whose reader is gone to the
    Supervisor.
 5. Read each open lane's record for facts.
 6. Sweep workspaces and worktrees the desk made that nothing holds, keeping each owner's last five gate runs.

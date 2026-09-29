@@ -3,6 +3,7 @@ import { settleQuestion } from "./questions.ts";
 import { askLetters } from "../letters/ask-letters.ts";
 import { reportView } from "../views/report.ts";
 import { decideLand } from "../lanes/land-decision.ts";
+import { carriedOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { ordersView } from "../views/orders.ts";
 import type { Project } from "../project/project.ts";
@@ -29,9 +30,10 @@ export class Human {
       return { ok: false, text: "Only the Supervisor cancels a question; choose one of its options, or decline it." };
     const settled = settleQuestion(this.services, project, id, choice, { text: note || undefined, by: "panel" });
     if (typeof settled === "string") return { ok: false, text: settled };
-    const lane = settled.lane ? loadLedger(project.state).lanes[settled.lane] : undefined;
+    const ledger = loadLedger(project.state);
+    const lane = settled.lane ? ledger.lanes[settled.lane] : undefined;
     const to = (await roster.seated(settled.from)) ? settled.from : await roster.supervisorFor(project, lane?.opener);
-    const posted = await mail.post(to, askLetters.humanAnswered(settled, lane));
+    const posted = await mail.post(to, askLetters.humanAnswered(settled, lane, carriedOf(ledger, settled.id)));
     const told =
       posted === "nobody"
         ? "Nobody supervising is seated to be told; it is on the record for whoever comes back."

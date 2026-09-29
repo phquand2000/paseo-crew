@@ -59,12 +59,12 @@ export const askLetters = {
   },
 
   /** Whoever asked the Human is told their word from the panel, and that a lane held for it stays held until it is resumed. */
-  humanAnswered(question: Question, lane: Lane | undefined): Letter {
+  humanAnswered(question: Question, lane: Lane | undefined, carried: string[] = []): Letter {
     const word = question.status === "declined" ? "they declined to decide it" : (question.answer?.choice ?? "");
     const lines = [`HUMAN ANSWERED ${question.id} (${firstLine(question.question)}), on the panel: ${word}.`];
     if (question.answer?.text) lines.push("", "Their note, their own words:", question.answer.text);
     if (lane?.onHold) lines.push("", `Lane ${lane.id} is still on hold for it.`);
-    const next = answeredNext(question);
+    const next = answeredNext(question) + (carried.length ? `; answer ${carried.join(", ")}, which it carries` : "");
     return steering(
       mail(
         "humananswered",

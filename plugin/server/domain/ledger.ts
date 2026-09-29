@@ -114,6 +114,11 @@ export function openAskOf(ledger: Ledger, agentId: string, taskId: string): Ask 
   return Object.values(ledger.asks).find((ask) => ask.status === "open" && ask.from === agentId && ask.task === taskId);
 }
 
+/** The open asks carried by the ask or question `id`: they wait on its answer. */
+export function carriedOf(ledger: Ledger, id: string): string[] {
+  return Object.values(ledger.asks).flatMap((ask) => (ask.status === "open" && ask.carriedBy === id ? [ask.id] : []));
+}
+
 export function openAsksTo(ledger: Ledger, agentId: string): Ask[] {
   return Object.values(ledger.asks).filter((ask) => ask.status === "open" && ask.to === agentId);
 }

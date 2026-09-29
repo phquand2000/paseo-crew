@@ -27,8 +27,9 @@ export async function dueAsks(
   for (const ask of open) {
     const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
     if (missing.has(ask.to)) await moveAsk(deps, project, ask, lane, now);
-    // Carried up, it waits on the ask above, which is reminded in its place.
-    else if (ask.carriedBy && ledger.asks[ask.carriedBy]?.status === "open") continue;
+    // Carried up, it waits on the ask or Human question above, which stands for it.
+    else if (ask.carriedBy && (ledger.asks[ask.carriedBy] ?? ledger.questions[ask.carriedBy])?.status === "open")
+      continue;
     else if (seats.get(ask.to)?.status === "idle" && waited(ask))
       await remind(deps, project, ask, lane, now, maxReminders);
   }

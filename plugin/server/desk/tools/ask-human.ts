@@ -17,6 +17,7 @@ export const askHuman = defineTool({
     reason: z.string(),
     ifSilent: z.string(),
     class: z.enum(["reversible", "costly", "irreversible"]),
+    carries: z.array(z.string()).optional(),
   }),
   handle: (desk, caller, args) => ask(desk, caller, args),
 });

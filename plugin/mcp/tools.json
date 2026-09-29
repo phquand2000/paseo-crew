@@ -404,6 +404,13 @@
             "type": "string",
             "description": "What goes ahead while they have not answered, and until when it can still be undone."
           },
+          "carries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Open asks put to you that their answer settles, such as A12. Leave them open: they are not reminded, and you answer them after."
+          },
           "class": {
             "type": "string",
             "enum": [
