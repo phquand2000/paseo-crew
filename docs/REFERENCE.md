@@ -514,7 +514,7 @@ The watch also asks what a code fact cannot read, one condition at a time, at th
 | before `agent.create` | For a `crew-` provider: builds the seat directory, sets the launch's model, mode, thinking and system prompt, and its MCP servers where the harness takes them at launch, and gives a seat with desk tools its key. A seat that cannot be built refuses the launch, with the reason |
 | before `agent.session_open` | Seeds the project's records, rebuilds the seat directory if needed, points the agent's config directory at it, gives the seat back its key, and puts the kit's `git`, `gh` and `paseo` first on its `PATH`. A seat directory that cannot be rebuilt refuses the session |
 | `agent.created` | Follows the seat's timeline, if its role can be `watched` |
-| `agent.turn_started` | Notes when the turn started, for reading turns and steering |
+| `agent.turn_started` | Notes when the turn started, for reading the turn when it ends, and runs a stalled Peer's task again |
 | `agent.turn_ended` | Archives a seat that waited for its turn to end, finishes teardowns that waited on it, sends CAN LAND to whoever waited to land under it, retries queued merges, reads the turn (a failure, a Peer or Reviewer silent without `done` or `ask`, a call its harness rejected as not JSON), and tries the seat's mail |
 | `agent.permission_requested` | Refuses it while the seat's lane is on hold, and refuses a question with where to ask; otherwise mails the request to the seat's owner, or logs it |
 | `agent.archived` | Forgets the seat's key and timing, marks it gone on record, stops its watch, and closes its open incidents |
@@ -816,7 +816,7 @@ it never reached the desk; only Claude marks such calls.
   hide the seat's own skill of that name too. A skill added later shows in the seat until it is rebuilt. A repository's
   own `.agents/skills` stays visible: it belongs to the repository.
 - **A steer Paseo can't hand over replaces the turn.** A Claude seat that is compacting refuses a steer the same way.
-- **A turn running before a daemon restart or a plugin reload** is never steered, and is read as having started 30
-  minutes ago.
+- **A turn running before a daemon restart or a plugin reload** is steered by when Paseo says it began, but read at
+  its end as having started 30 minutes ago.
 - **A project-layer save** does not rewrite the Paseo providers.
 - **The watch can't see a sub-agent's work.** It is not on the seat's timeline.

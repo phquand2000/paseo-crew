@@ -342,7 +342,7 @@ It is:
 
 - **steered** into a running turn only when a letter bears on that turn (`steer`: a message, the Lead's word that its
   Peer was reached, an amendment, the answer to its own ask or call, the Human's answer, a page), the agent takes a steer (`steers`), the turn has
-  run 60 s since the desk saw it start, and the seat waits on no desk call. Only those letters go in: a
+  run 60 s since Paseo says it began, and the seat waits on no desk call. Only those letters go in: a
   hand-back, report or merge waits for the turn to end, so Peers finishing together reach their Lead as one
   message rather than splitting its turn;
 - **held** while the seat waits on a permission, runs or starts, or its lane is on hold, and for up to 10
