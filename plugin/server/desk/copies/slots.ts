@@ -36,15 +36,19 @@ export class Slots {
   /** `work` is what the copy is taken for, as its workspace is named: a lane or a task, its id and title. */
   async acquire(project: Project, branch: string, base: string, holder: Holder, work: string): Promise<Slot> {
     const picked = this.reserve(project, holder);
+    let checkedOut = false;
     try {
       const reused = await this.checkOut(project, picked, branch, base);
+      checkedOut = true;
       await placeLinks(this.desk.log, project, picked);
       const workspaceId = await this.workspaceFor(project, picked, work);
       recordEvent(project, { kind: "slot.taken", slot: picked.id, branch, ...holder });
       openIndexes(this.desk, project, picked, reused);
       return { ...picked, workspaceId };
     } catch (error) {
-      this.free(project, picked.id);
+      // The branch it made goes with the copy: left behind, it would refuse every later try at the same work.
+      if (checkedOut) await this.release(project, picked.id, branch, base);
+      else this.free(project, picked.id);
       throw error;
     }
   }

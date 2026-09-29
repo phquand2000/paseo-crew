@@ -155,12 +155,30 @@ test("a lane takes the project's own copy while it is free; one that finds it ta
   assert.equal(h.git(h.root, "log", "-1", "--format=%s", third.branch).trim(), "edit a.txt");
 
   const home = [...h.workspaceNames].find(([, name]) => name === h.project.slug)![0];
+  const filed = h.workspaceProjects.get(home)!;
   h.workspaceProjects.set(home, "");
   const made = h.workspaces.size;
   const bare = await open("Away", { isolate: true });
   assert.equal(bare.ok, false);
   assert.match(bare.text, /names no Paseo project/);
   assert.equal(h.workspaces.size, made);
+  assert.equal(h.git(h.root, "branch", "--list", "lane/l4-away").trim(), "", "a copy never made leaves no branch");
+
+  // A task whose copy could not be made starts on its own branch once the copy can be made.
+  const beside = (key: string) => ({
+    key,
+    title: key,
+    goal: "g",
+    acceptance: ["a"],
+    holds: [`${key}.txt`],
+    parallel: true,
+  });
+  await h.call(third.lead!, "lead", "add_tasks", { tasks: [{ ...beside("one"), outOfScope: ["the rest"] }] });
+  assert.equal(h.ledger().tasks["L3-T1"]!.peer, undefined);
+  h.workspaceProjects.set(home, filed);
+  await h.call(third.lead!, "lead", "add_tasks", { tasks: [{ ...beside("two"), outOfScope: ["the rest"] }] });
+  const retried = h.ledger().tasks["L3-T1"]!;
+  assert.deepEqual([retried.status, Boolean(retried.peer), Boolean(retried.slot)], ["running", true, true]);
 });
 
 type Fault = "seat" | "workspace";
