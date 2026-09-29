@@ -58,6 +58,9 @@ export function fakePaseo() {
       get pendingPermissions() {
         return agent?.pending ?? [];
       },
+      get activeTurn() {
+        return timelineOf(id).activeTurn;
+      },
       async refresh() {},
       current() {
         return agent ? { id: agent.id, provider: agent.provider, cwd: agent.cwd, title: agent.title } : null;

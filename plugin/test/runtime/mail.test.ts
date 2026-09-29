@@ -307,6 +307,8 @@ test("mail reaches a running seat inside its turn where its harness can take it 
   t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
   await h.beginTurn(lead);
   await h.beginTurn(peer);
+  // The plugin reloads mid-turn: when a turn began is Paseo's to say, not the plugin's memory.
+  h.restart();
   const early = await h.call(sup, "supervisor", "message", { to: "L1", text: "Is the premise right?" });
   assert.match(early.text, /Queued for the Lead of L1/);
   t.mock.timers.tick(2 * 60_000);

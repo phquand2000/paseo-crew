@@ -14,6 +14,7 @@ type Handle = {
   cwd?: string | null;
   archivedAt?: string | null;
   pendingPermissions?: PendingPermission[];
+  activeTurn?: { startedAt?: string | null } | null;
   refresh(): Promise<unknown>;
   current(): { id?: string; provider?: string; cwd?: string | null; title?: string | null } | null | undefined;
   send(text: string, options?: { messageId?: string; activeTurnBehavior?: "steer" | "interrupt" }): Promise<unknown>;
@@ -38,6 +39,7 @@ function lookOf(handle: Handle): SeatLook {
     status: handle.status ?? null,
     archivedAt: handle.archivedAt ?? null,
     pendingPermissions: handle.pendingPermissions ?? [],
+    turnStartedAt: handle.activeTurn?.startedAt ?? null,
   };
 }
 

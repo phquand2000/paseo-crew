@@ -10,6 +10,7 @@ export type SeatLook = {
   status?: string | null;
   archivedAt?: string | null;
   pendingPermissions?: PendingPermission[];
+  turnStartedAt?: string | null;
 };
 
 export type SeatSpec = {

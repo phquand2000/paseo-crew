@@ -221,7 +221,6 @@ export class Runtime implements HostHooks {
 
   async turnStarted(agent: HookAgent): Promise<void> {
     this.turns.started(agent);
-    this.outbox.turnStarted(agent.id);
   }
 
   async turnEnded(event: TurnEnded): Promise<void> {

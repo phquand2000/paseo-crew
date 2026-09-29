@@ -105,7 +105,7 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   h.agents.get(peer)!.status = "idle";
   seat.status = "running";
-  h.runtime.outbox.turnStarted(lead, Date.now() - 2 * 60_000);
+  h.timelineOf(lead).activeTurn = { turnId: "t", startedAt: new Date(Date.now() - 2 * 60_000).toISOString() };
   say({ type: "call", id: "accept", tool: "accept", args: { task: "L1-T1" } });
   assert.match((await result("accept")).text ?? "", /L1-T1 is in the merge queue/);
   await h.runtime.desk.settled(h.project);

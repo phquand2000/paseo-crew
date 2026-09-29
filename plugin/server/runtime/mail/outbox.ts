@@ -31,7 +31,6 @@ export class Outbox {
   private readonly seats: Pick<Seats, "look" | "send">;
   private readonly rules: Rules;
   private readonly awaiting = new Map<string, number>();
-  private readonly started = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
 
   /** Keyed on the reader too: desk ids are unique only per project, and this one file serves them all. */
@@ -87,10 +86,6 @@ export class Outbox {
     return sent.has(stored.id) ? "sent" : "held";
   }
 
-  turnStarted(agentId: string, now = Date.now()): void {
-    this.started.set(agentId, now);
-  }
-
   turnEnded(agentId: string): void {
     this.forget(agentId);
   }
@@ -101,7 +96,6 @@ export class Outbox {
 
   private forget(agentId: string): void {
     this.awaiting.delete(agentId);
-    this.started.delete(agentId);
   }
 
   /** Every letter not yet sent, with when it is given up on: nothing else is sent a gone seat's mail. */
@@ -130,11 +124,10 @@ export class Outbox {
       const asks = (letter: Letter) => letter.wakes !== false && (quiet === undefined || letter.at >= quiet);
       const since = this.awaiting.get(to);
       const waiting = since !== undefined && Date.now() - since < GRACE_MS;
-      // A turn this desk never saw start — one running across a restart — is not known to be settled.
-      const began = this.started.get(to);
+      // Paseo's own start, so a turn running across a reload is still known to have settled; with none, it is not.
+      const began = seat.turnStartedAt ? Date.parse(seat.turnStartedAt) : Number.NaN;
       const steer =
         seat.status === "running" &&
-        began !== undefined &&
         Date.now() - began >= SETTLE_MS &&
         this.rules.steers?.(seat) === true &&
         this.rules.calling?.(to) !== true &&

@@ -154,13 +154,17 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     title: agents.get(id)!.title,
   });
   // Paseo fires a turn start before a turn end; without one, a turn is measured from half an hour ago.
-  const beginTurn = (id: string) => runtime.turnStarted(agentOf(id));
+  const beginTurn = (id: string) => {
+    timelineOf(id).beat("turn_started", `t-${id}`, undefined, true);
+    return runtime.turnStarted(agentOf(id));
+  };
   // Paseo hands this hook the seat's whole append-only timeline, not the turn that ended.
   const told = new Map<string, TimelineItem[]>();
   const endTurn = (id: string, text: string, ...calls: TimelineItem[]) => {
     const timeline = told.get(id) ?? [];
     timeline.push({ type: "user_message", text: "go" }, ...calls, { type: "assistant_message", text });
     told.set(id, timeline);
+    timelineOf(id).beat("turn_completed", `t-${id}`, undefined, true);
     return runtime.turnEnded({
       agent: agentOf(id),
       turnId: `t-${id}-${Date.now()}`,

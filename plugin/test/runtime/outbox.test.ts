@@ -12,13 +12,20 @@ type FakeAgent = {
   sent: string[];
   steered: string[];
   kinds: string[][];
+  turnStartedAt?: string;
 };
 
 function fakeSeats(agents: Record<string, FakeAgent>): Pick<Seats, "look" | "send"> {
   return {
     async look(id: string) {
       const agent = agents[id]!;
-      return { id, status: agent.status, pendingPermissions: agent.pendingPermissions, archivedAt: agent.archivedAt };
+      return {
+        id,
+        status: agent.status,
+        pendingPermissions: agent.pendingPermissions,
+        archivedAt: agent.archivedAt,
+        turnStartedAt: agent.turnStartedAt,
+      };
     },
     async send(id: string, text: string, kinds: string[], into?: "steer" | "interrupt") {
       agents[id]!.sent.push(text);
@@ -39,17 +46,18 @@ const agent = (status: string, more: Partial<FakeAgent> = {}): FakeAgent => ({
 });
 
 test("a letter goes to its seat when the seat can take it, and until then is held and kept, never sent twice and never waking a seat for nothing", async () => {
+  const settled = new Date(Date.now() - 2 * 60_000).toISOString();
   const agents = {
     sup: agent("idle"),
     busy: agent("running"),
     asking: agent("idle", { pendingPermissions: [{}] }),
     archived: agent("idle", { archivedAt: "2026-01-01" }),
     real: agent("idle"),
-    lead: agent("running"),
-    fresh: agent("running"),
+    lead: agent("running", { turnStartedAt: settled }),
+    fresh: agent("running", { turnStartedAt: new Date().toISOString() }),
     unseen: agent("running"),
-    peer: agent("running"),
-    stopped: agent("running", { pendingPermissions: [{ title: "Which?" }] }),
+    peer: agent("running", { turnStartedAt: settled }),
+    stopped: agent("running", { pendingPermissions: [{ title: "Which?" }], turnStartedAt: settled }),
     quiet: agent("idle"),
   };
   // Whether a seat's harness takes mail into a running turn is its own: here, by the seat.
@@ -93,17 +101,13 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
   assert.equal(await post("real", "y", "and this still goes out"), "sent");
   assert.deepEqual(agents.real.sent, ["and this still goes out"]);
 
-  outbox.turnStarted("lead", Date.now() - 2 * 60_000);
   assert.equal(await post("lead", "a", "the owner says stop", steer), "sent");
   assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into a settled turn, not in place of it");
   // A steer the provider cannot take yet is turned into replacing the turn by the daemon.
-  outbox.turnStarted("fresh");
   assert.equal(await post("fresh", "a", "t", steer), "held");
-  // Nor one the desk never saw start, which may have begun a moment ago.
+  // Nor one Paseo gives no start for, which may have begun a moment ago.
   assert.equal(await post("unseen", "a", "t", steer), "held");
-  outbox.turnStarted("peer", Date.now() - 2 * 60_000);
   assert.equal(await post("peer", "a", "t", steer), "held", "a harness that cannot take mail mid-turn waits");
-  outbox.turnStarted("stopped", Date.now() - 2 * 60_000);
   assert.equal(await post("stopped", "a", "t", steer), "held", "stopped until the permission is decided");
   assert.deepEqual(
     [agents.fresh, agents.unseen, agents.peer, agents.stopped].flatMap((seat) => seat.sent),
