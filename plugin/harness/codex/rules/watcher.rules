@@ -1,1 +1,0 @@
-prefix_rule(pattern = ["git"], decision = "forbidden", justification = "The Watcher answers from its case and never touches the work.")

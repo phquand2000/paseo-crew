@@ -138,7 +138,7 @@ test("settings: machine and project layers saved by revision, checked before sav
   });
   assert.match(
     which(oracle, "error").error,
-    /judged by oracle, which is neither off, a sensor the kit knows nor a role that can judge \(none\)/,
+    /judged by oracle, which is neither off nor a sensor the kit knows \(none\)/,
   );
   const off = await call(contracts.settingsWrite, {
     revision: judged.revision,

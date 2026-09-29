@@ -106,7 +106,6 @@ export class Patrol {
       ["waiting lanes could not be opened", () => desk.openWaiting(project)],
       ["finished lanes could not be archived", () => desk.archiveFinished(project, gone)],
       ["a copy waiting on a seat could not be put away", () => desk.reapSlots(project, new Set(seats.keys()))],
-      ["the Watcher's cases could not be tended", () => desk.watcher.tend(project, seats, now)],
       ["the status page could not be written", async () => this.writeStatus(project, seats, now)],
     ];
   }

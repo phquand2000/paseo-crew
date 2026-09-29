@@ -8,7 +8,6 @@ import type { OwnCopy } from "./copies/own-copy.ts";
 import type { Roster } from "./seats/roster.ts";
 import type { Slots } from "./copies/slots.ts";
 import type { Teardowns } from "./seats/teardown.ts";
-import type { Watcher } from "./watch/watcher.ts";
 
 /** The desk's services; a function takes only those it uses. */
 export type DeskServices = DeskBase & {
@@ -18,7 +17,6 @@ export type DeskServices = DeskBase & {
   teardowns: Teardowns;
   agents: Agents;
   merges: MergeQueue;
-  watcher: Watcher;
 };
 
 /** A tool as the desk serves it: `input` is what its handler reads, and it must be the schema the calling seat was shown. */

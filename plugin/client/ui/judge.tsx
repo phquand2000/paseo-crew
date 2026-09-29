@@ -17,8 +17,6 @@ type Props = {
   layer: "machine" | "project";
   theme: PluginTheme;
   disabled: boolean;
-  role: CatalogView["roles"][number];
-  rows: ReactElement[];
   save(change: (values: Layer) => Layer): Promise<boolean>;
 };
 
@@ -27,7 +25,7 @@ type Sensor = CatalogView["sensors"][number];
 type Draft = { typed: string; setDraft(text: string): void; field: RefObject<SettingsInputHandle | null> };
 
 /** Rows, not a component, since the card borders each child it gets: a sensor's key typed and saved, replaced or forgotten on the machine, or on a project's screen only whether there is one. */
-function keyRows({ sensor, values, machine, layer, theme, disabled, save }: Omit<Props, "catalog" | "team" | "role" | "rows"> & { sensor: Sensor }, { typed, setDraft, field }: Draft): ReactElement[] {
+function keyRows({ sensor, values, machine, layer, theme, disabled, save }: Omit<Props, "catalog" | "team"> & { sensor: Sensor }, { typed, setDraft, field }: Draft): ReactElement[] {
   const kept = values.sensor?.[sensor.id]?.key === KEPT || machine.sensor?.[sensor.id]?.key === KEPT;
   const write = (key: string | null) => {
     void save((current) => withKey(current, sensor.id, key)).then((saved) => {
@@ -44,7 +42,7 @@ function keyRows({ sensor, values, machine, layer, theme, disabled, save }: Omit
   );
   if (layer === "project") {
     return [
-      <SettingsRow key="key" label={sensor.key} hint="Kept on this machine for every project. Add, replace or forget it under Machine defaults, on the Watcher.">
+      <SettingsRow key="key" label={sensor.key} hint="Kept on this machine for every project. Add, replace or forget it under Machine defaults, on the Supervisor.">
         <Text style={{ color: kept ? theme.colors.foreground : theme.colors.statusWarning, fontSize: 14 }}>{kept ? "set" : "not set"}</Text>
       </SettingsRow>,
       model,
@@ -66,26 +64,20 @@ function keyRows({ sensor, values, machine, layer, theme, disabled, save }: Omit
   ];
 }
 
-/** On the chip of a role that can judge: who answers the watch's questions, then that sensor's key or this seat's agent. */
+/** On the Supervisor's chip, beside incident mail: who answers the watch's questions, then that sensor's key. */
 export function JudgeCard(props: Props) {
-  const { catalog, team, values, machine, layer, theme, disabled, role, rows, save } = props;
+  const { catalog, team, values, machine, layer, theme, disabled, save } = props;
   const [draft, setDraft] = useState("");
   const field = useRef<SettingsInputHandle>(null);
   const judge = team.attention.judge;
   const sensor = catalog.sensors.find((entry) => entry.id === judge);
-  const options = [{ id: "off", label: "Off" }, ...catalog.sensors.map((entry) => ({ id: entry.id, label: entry.label })), ...catalog.roles.filter((entry) => entry.can.includes("judge")).map((entry) => ({ id: entry.id, label: `${entry.label} seat` }))];
-  const note = judge === role.id
-    ? `One ${role.label} per project, seated under the Supervisor when a case first needs it, and let go once no lane is open. It answers each case with judge, and nobody is sent what it says.`
-    : `No ${role.label} is seated while ${sensor ? sensor.label : "nobody"} answers. What is set for the ${role.label} seat is kept for when it answers again.`;
+  const options = [{ id: "off", label: "Off" }, ...catalog.sensors.map((entry) => ({ id: entry.id, label: entry.label }))];
   return (
-    <>
-      <SettingsCard>
-        <SettingsRow label="Answered by" hint={`Who answers the watch's questions. They are all in shadow: each answer is kept in the project's assessments.log, and no seat is sent it. ${sourceLabel(sourceOf(values, machine, (entry) => entry.attention?.judge, layer), layer)}.`}>
-          <TabBar theme={theme} active={judge} disabled={disabled} onPick={(next) => void save((current) => setAttention(current, { judge: next }))} tabs={options} />
-        </SettingsRow>
-        {judge === role.id ? rows : sensor ? keyRows({ ...props, sensor }, { typed: draft.trim(), setDraft, field }) : null}
-      </SettingsCard>
-      <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>{note}</Text>
-    </>
+    <SettingsCard>
+      <SettingsRow label="Answered by" hint={`Who answers the watch's questions. They are all in shadow: each answer is kept in the project's assessments.log, and no seat is sent it. ${sourceLabel(sourceOf(values, machine, (entry) => entry.attention?.judge, layer), layer)}.`}>
+        <TabBar theme={theme} active={judge} disabled={disabled} onPick={(next) => void save((current) => setAttention(current, { judge: next }))} tabs={options} />
+      </SettingsRow>
+      {sensor ? keyRows({ ...props, sensor }, { typed: draft.trim(), setDraft, field }) : null}
+    </SettingsCard>
   );
 }

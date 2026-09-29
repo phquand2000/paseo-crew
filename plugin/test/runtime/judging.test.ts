@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import type { SensorSpec } from "../../server/catalog/kit/kit.ts";
@@ -369,15 +369,16 @@ test("nothing is asked when it cannot be, and the Flow tab says who answers and 
   const events = h.events("watch.unasked").map(({ subject, by, error }) => [subject, by, error]);
   assert.deepEqual(events, [["L1-T1", "jev", "503: busy"]]);
   assert.deepEqual(await line(), { label: "Jev", state: "failing", minutes: 0, detail: "503: busy" });
-  judgedBy("watcher");
-  const other = await line();
+  appendFileSync(
+    join(h.project.state, "assessments.log"),
+    `${JSON.stringify({ at: new Date().toISOString(), by: "retired" })}\n`,
+  );
   assert.deepEqual(
-    other,
-    { label: "The Watcher", state: "waiting", minutes: null, detail: null },
-    "another judge's line is not its",
+    await line(),
+    { label: "Jev", state: "waiting", minutes: null, detail: null },
+    "a line kept by another judge is not its",
   );
 
-  judgedBy("jev", KEY);
   rmSync(join(h.project.state, "assessments.log"));
   mkdirSync(join(h.project.state, "assessments.log"));
   const said = reported(t);

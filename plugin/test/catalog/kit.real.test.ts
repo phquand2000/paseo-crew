@@ -280,7 +280,7 @@ test("project records are seeded once and never overwritten", () => {
   );
 });
 
-test("a pasted server that names no roles is given to every role that works with tools but a judge, which has one only where it is named", () => {
+test("a pasted server that names no roles is given to every role that works with tools, and one that names roles only to those", () => {
   const kit = loadKit(PLUGIN);
   const pasted = { enabled: true, label: "Pasted", connect: { type: "http" as const, url: "https://mcp.example.com" } };
   const given = (team: ReturnType<typeof resolveTeam>) =>
@@ -291,7 +291,7 @@ test("a pasted server that names no roles is given to every role that works with
   const team = resolveTeam(kit, { mcp: { pasted } });
   assert.deepEqual(team.errors, []);
   assert.deepEqual(given(team), ["backup-peer", "lead", "peer", "reviewer", "senior-reviewer", "supervisor"]);
-  assert.deepEqual(given(resolveTeam(kit, { mcp: { pasted: { ...pasted, roles: ["watcher"] } } })), ["watcher"]);
+  assert.deepEqual(given(resolveTeam(kit, { mcp: { pasted: { ...pasted, roles: ["reviewer"] } } })), ["reviewer"]);
 });
 
 test("the desk names each seat's fixed choices from the kit: who writes and with which skills, who reviews, who leads, where its pages go", () => {

@@ -180,23 +180,6 @@
       ]
     },
     {
-      "role": "watcher",
-      "label": "Watcher",
-      "description": "Answers the watch's questions about one moment of the work at a time, from what the desk read then; it cannot touch the work",
-      "follows": "peer",
-      "can": [
-        "judge"
-      ],
-      "tools": "watcher",
-      "prompt": "prompts/WATCHER.md",
-      "skills": null,
-      "paseoTools": {
-        "enabled": false
-      },
-      "hidesWords": [],
-      "writes": []
-    },
-    {
       "role": "pager",
       "label": "Pager",
       "description": "Carries a page to the Human: says back the lines the desk gives it, and Paseo pushes them to their phone",

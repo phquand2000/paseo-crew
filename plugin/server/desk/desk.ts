@@ -39,7 +39,6 @@ import { openWaiting } from "./waiting/lanes.ts";
 import { startWaiting } from "./waiting/tasks.ts";
 import type { Moment } from "./watch/checks.ts";
 import { type Noticed, closeIncidentsOf, notice, retell, reweigh } from "./watch/notice.ts";
-import { Watcher } from "./watch/watcher.ts";
 
 type DeskOptions = {
   kit: Kit;
@@ -57,7 +56,6 @@ type DeskOptions = {
 export class Desk {
   readonly projects: Map<string, Project>;
   readonly human: Human;
-  readonly watcher: Watcher;
   private readonly services: DeskServices;
   private readonly intents: Intents;
   private readonly calls: ToolCalls;
@@ -88,9 +86,8 @@ export class Desk {
     const ownCopy = new OwnCopy(base, slots);
     const teardowns = new Teardowns(base, slots, ownCopy);
     const agents = new Agents(base, roster, slots, teardowns, options.workspaces);
-    this.watcher = new Watcher(base, roster, agents);
     const merges = new MergeQueue(base, (project) => startWaiting(this.services, project, true));
-    this.services = { ...base, roster, slots, ownCopy, teardowns, agents, merges, watcher: this.watcher };
+    this.services = { ...base, roster, slots, ownCopy, teardowns, agents, merges };
     const mail = { intents: this.intents, post: (to: string, letter: Letter) => base.mail.post(to, letter) };
     this.calls = new ToolCalls(this.services, options.tools, mail);
     this.projects = projects;

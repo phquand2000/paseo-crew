@@ -33,8 +33,6 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   const lead = build!.lead!;
   await h.call(lead, "lead", "add_tasks", { tasks: [task("Clean build")] });
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
-  // A Watcher has no ask: told to use one, it was pointed at a tool it cannot call.
-  const watcher = h.add("crew-watcher-claude/claude-opus-5", h.root, "watcher");
   let turns = 0;
   const fail = (id: string, title: string | null = h.agents.get(id)!.title) => {
     const seat = h.agents.get(id)!;
@@ -62,10 +60,6 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   for (const [seat, instead] of [
     [peer, /ask it with ask, then end your turn/],
     [architecture, /put it to the Human with ask_human, or ask them in your reply and end your turn/],
-    [
-      watcher,
-      /^A question that stops your turn is not taken here: answer from what you have, saying what you could not settle, then end your turn\.$/,
-    ],
   ] as const) {
     h.agents.get(seat)!.pending.push(question);
     await h.permission(seat, question);

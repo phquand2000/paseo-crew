@@ -18,7 +18,7 @@ changes on top. It is not affiliated with or endorsed by the Seatworks author; t
 - Every role defaults to Claude Opus 5.5; a **Backup Peer** runs a Peer's task on Codex
   `gpt-5.6-luna` when the Peer's agent is out of quota, and a **Senior Reviewer** reads complex or
   high-stakes design on Codex `gpt-6-astra`. The Lead never cuts a Peer stopped on a usage limit.
-- The Watcher's judge is off by default.
+- Nobody answers the watch's questions by default.
 - `project.json` takes `links` (git-ignored files symlinked into a lane's copy) and `writable`
   (extra paths a seat may write), and `writableOutside` (absolute paths outside the project a Peer
   may write) and `sockets` (unix sockets a Peer on Claude Code may connect to); roles that commit
@@ -80,7 +80,6 @@ yours.
 | Lead | One lane: its tasks, their order, and what is accepted | Started with its lane; stays after the lane closes until the Supervisor releases it | Claude Code · `claude-opus-5` · medium |
 | Peer | One task, and the engineering judgement inside it | Started with its task; stays after the task is accepted until its Lead releases it or the lane closes, and never takes another | Claude Code · `claude-opus-5` · medium |
 | Reviewer | A read-only review of one change | Started with its review; ends when its Lead cuts the review or the lane closes | Claude Code · `claude-opus-5` · medium |
-| Watcher | The watch's questions, one case at a time, when you choose a seat to answer them | Started when a case first needs it; let go once no lane is open | The Peer's, until you set its own |
 | Pager | One page, said back word for word so Paseo pushes it to your phone | Started for its page | Claude Code · `claude-opus-5` · low |
 
 Roles are data in `plugin/roles.json`, not code, and each has the tools listed in
@@ -196,9 +195,9 @@ in the **Team** tab.
 
 What code cannot read, the watch asks a model, one question at a time, at the moment it matters: was
 this destructive command asked for, does a complete hand-back's summary admit a gap, did a review that
-accepts a migration say it ran the invariant. On the Watcher's chip in **Team** you pick who answers:
+accepts a migration say it ran the invariant. On the Supervisor's chip in **Team** you pick who answers:
 Jev, a small model asked over OpenRouter with your key, which stays on this machine and is never shown
-again; the Watcher seat; or nobody. Every question ships in shadow: its answers are kept in the
+again, or nobody. Every question ships in shadow: its answers are kept in the
 project's `assessments.log` for you to label, and no seat is sent them. How the watch works is in
 [the architecture](docs/ARCHITECTURE.md#the-watch).
 

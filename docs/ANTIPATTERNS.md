@@ -36,7 +36,7 @@ Both go through one incident book and are read and marked the one way: an attent
 a Peer goes to its Lead, the rest to the Supervisor, and none of them ever reaches the seat it is
 about.
 
-The watch can also put a question to a model, when `attention.judge` names a sensor or the Watcher:
+The watch can also put a question to a model, when `attention.judge` names a sensor:
 one condition at a time, at a hand-back or at a moment a fact marks. Every question ships in shadow:
 its answer goes to `assessments.log` and acts on nothing.
 

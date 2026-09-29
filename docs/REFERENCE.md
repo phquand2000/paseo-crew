@@ -24,8 +24,8 @@ Otherwise it refuses the call and says what is wrong. A field that takes one of 
 and their skills, roles that review or lead, a role's page folders) shows that set as its choices. Each verb carries a
 title and hints (reads only, may destroy, safe to repeat, reaches outside the desk), each field a description, and
 `mcp/instructions.json` says per tool set what the server is for, shown where a harness keeps tools behind a search. A
-verb acts on the caller's capabilities (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `judge`, `page`),
-never on its role's name.
+verb acts on the caller's capabilities (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `page`), never
+on its role's name.
 
 <!-- drawn from the code: verbs -->
 | Role | Tools |
@@ -33,7 +33,6 @@ never on its role's name.
 | Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` `outcomes` |
 | Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `reseat` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
 | Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` |
-| Watcher | `judge` `record` |
 <!-- end -->
 
 | Verb | Effect |
@@ -64,8 +63,7 @@ never on its role's name.
 | `record_human_answer` | Records an answer the Human gave in the Supervisor's chat: an option, `decline` or `cancel`, with their own words, which the desk must find in that chat |
 | `incidents` | Lists the 50 most recent incidents that are open or not yet marked, with what each seat was asked. With `closed`, it adds the 20 most recently marked. A Lead sees only those about the other seats of its open lane |
 | `mark_incident` | Marks an incident `useful`, `noise` or `unknown`, with an optional note, and closes it. `noise` also silences the same words on that seat and kind, at attention level; a page is never silenced |
-| `judge` | The Watcher answers a case: see [Questions to a model](#questions-to-a-model) |
-| `record` | A seat's steps, one numbered line each, without output or diffs: the last 40, or up to 200 with `limit`. A Lead reads the tasks of its own lane; the Supervisor and the Watcher read any lane's Lead or task. For a seat already archived it shows what the desk kept, since Paseo starts an archived agent again to read its history |
+| `record` | A seat's steps, one numbered line each, without output or diffs: the last 40, or up to 200 with `limit`. A Lead reads the tasks of its own lane; whoever supervises reads any lane's Lead or task. For a seat already archived it shows what the desk kept, since Paseo starts an archived agent again to read its history |
 | `outcomes` | Counts from `events.log`, its rolls included, from `since` on: each review by the reviewer's role and verdict, and whether the task it read was then reworked, accepted or cut; each ask by who asked and its kind, and whether the answer kept its default, how many went up to whoever supervises, and the median wait; and how many reworks came before each accept. Events written before these fields were kept are left out |
 | `status` | For the Supervisor: lanes, tasks, working copies, open asks, open questions, the Leads kept after their lane closed, and the project's own checkout, with whether the Human must say where the next lane works. A Lead sees its own lane and asks, with the Peers kept from its merged tasks; a kept Lead, only that it is kept. Asked again within the minute with nothing changed, it says only that |
 | `note` | Writes a page into a folder the caller's role keeps pages in under the project's state (the Lead's: `plans`, `council`, `ultra-review`, `repo-refresh`), replacing one of the same name, and answers with its path. It never writes into the repository. The Lead has no file-editing tools, except on Codex, where only its prompt keeps it from editing |
@@ -247,11 +245,10 @@ landing onto a base keeps the lane's own commits at `refs/crew/lanes/<lane>`, wh
 
 The desk writes every letter, in `desk/letters/`: `envelope.ts` holds what every letter goes out in; `work-letters.ts`,
 `seat-letters.ts`, `message-letters.ts` and `watch-letters.ts` hold a task's and a lane's course, what the desk sees of
-a seat, messages and answers by mail, and the watch's; and for asks and questions, merges, landings, the Watcher's
-cases and a kept Lead, `ask-letters.ts`, `merge-letters.ts`, `land-letters.ts`, `case-letters.ts` and `kept-letters.ts`.
+a seat, messages and answers by mail, and the watch's; and for asks and questions, merges, landings and a
+kept Lead, `ask-letters.ts`, `merge-letters.ts`, `land-letters.ts` and `kept-letters.ts`.
 First prompts come from `briefs.ts` (Peer, Reviewer) and `directive.ts` (Lead) beside them, and `desk/watch/pager.ts`
-(a Pager's two lines); a
-Watcher starts from its first case. A letter mailed carries a key made of its kind and the ids that make it
+(a Pager's two lines). A letter mailed carries a key made of its kind and the ids that make it
 that letter, never written by hand where it is posted, and ends with one `Next:` line: what it asks of its reader,
 picked from what the desk knows (a red gate, the kind of an ask, whether the reader is the Lead or whoever supervises
 because the Lead is gone, whether the task merged was the lane's last). OWNER DIRECTIVE, TASK and REVIEW are a seat's
@@ -270,7 +267,6 @@ first prompt, not mail, and carry neither.
 | A lane stopped | HOLD, RESUMED |
 | The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, the bare nudge |
 | A moment to look | ARCHITECTURE, STRUGGLING, TURNING |
-| A question for the Watcher | CASE |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
 
 | Letter | Tells its reader |
@@ -328,13 +324,12 @@ when its turn ends, and each round. The first row that fits decides:
 | Lead | A letter to whoever supervises; with none seated, only Paseo |
 | Peer or Reviewer on a task | A letter to its Lead, or to whoever supervises once the Lead is gone; with neither, only Paseo |
 | Supervisor | `attention.log`, and `status.md` under "Waiting on the Human". The Human answers it in Paseo |
-| Peer or Reviewer with no task, the Watcher, the Pager | Only Paseo |
+| Peer or Reviewer with no task, the Pager | Only Paseo |
 
 While a seat's lane is on hold, its requests are refused with the hold's reason. A question that would stop a turn (such
 as AskUserQuestion or `request_user_input`) from a seat with desk tools is refused, with where to ask instead by the
 tools it holds: `ask_human`, or its reply at the end of its turn, for the Supervisor; `ask` for a Lead, Peer or
-Reviewer; and for the Watcher, which holds neither, to settle it from what it has. On Claude, the Lead, the Watcher and
-the Pager are denied AskUserQuestion outright, so theirs never reaches the desk. Only the Human can answer any other
+Reviewer. On Claude, the Lead and the Pager are denied AskUserQuestion outright, so theirs never reaches the desk. Only the Human can answer any other
 permission.
 
 ## Gate detection
@@ -503,25 +498,14 @@ The watch also asks what a code fact cannot read, one condition at a time, at th
 - `instruction_kind` is asked only when the instruction came from a sender its `after` names: a REWORK, MESSAGE,
   AMENDED or LAND SENT BACK letter, an ANSWER to an ask, or the Human. No question reads an instruction the watch's
   window has lost.
-- Who answers is `attention.judge`, set on the panel (Team › Watcher, *Answered by*):
+- Who answers is `attention.judge`, set on the panel (Team › Supervisor, *Answered by*):
   - `off`: nothing is asked.
   - A sensor in `catalog/sensor/`, asked over HTTPS with its key; without the key, nothing is asked. The preset's is
     `jev`: `typesafe/jev-1.13` through OpenRouter, with data collection denied, 5 s a try and one retry.
-  - A role that can `judge`: the Watcher seat, below.
 - **Shadow:** each answer, and each failure to get one, is appended to the project's `assessments.log` with the case,
   the questions, who answered and the verdicts; a failure also writes `watch.unasked` to `events.log`. No seat is sent
   it, and nothing acts on it. The Flow tab says who answers and how that stands: nobody, a sensor with no key, nothing
   asked yet, the last answer or the last failure, and how long ago.
-
-**The Watcher seat.** The desk seats one per project when a case first needs it, in the project's own workspace and
-always under its Supervisor: a seat with no parent would have its first reply pushed to the Human's phone. With no
-Supervisor seated, no Watcher is, and the case goes unasked. Each case comes as CASE: the fields the desk read, and the
-questions with what each answer means. The Watcher answers with `judge`, every question once, by name, with `yes`, `no`,
-`unsure` or a choice's name, and a why; anything else is refused and nothing is kept. `record` lets it read any lane's
-Lead or task, the seat a case is about among them. On every agent but Codex it has no other tool; Codex cannot take its
-shell away, so there it keeps a read-only one. It has no MCP server unless one names it. A case unanswered 15 minutes
-after it was sent, or whose Watcher is gone, is kept as unasked. The round lets an idle Watcher go once no lane is
-open, or once something else judges the watch.
 
 ## Hooks and events
 
@@ -579,7 +563,6 @@ and says that duty.
 | Lead | `<lane> · <role> · <lane title>`, as `L1 · Lead · Cart`. A Lead that replaces one gone gets the same name |
 | Peer | `<task> · <role> · <task title>`, as `L1-T3 · Peer · Cart total` |
 | Reviewer | `<review> · Review <task or lane>`, as `L1-R1 · Review L1-T3` |
-| Watcher | `Watcher` |
 | Pager | `Page: <the start of the page>` |
 
 A name is cut at 60 characters. Labels carry `crew.project`, `crew.role`, `crew.concern` for a role that
@@ -609,12 +592,12 @@ rules, each enabled MCP server's and the Human's, and is written only when there
   keeps its login per config dir; a seat sets `CLAUDE_SECURESTORAGE_CONFIG_DIR` empty, so it reads the one login made
   outside any seat and never needs one of its own.
 - **Codex**, under `~/.codex/seats/`: `config.toml` (`model_provider` and `model_providers` from the Human's own
-  `~/.codex/config.toml`; `workspace-write`, or `read-only` for the Reviewer, the Watcher and the Pager;
+  `~/.codex/config.toml`; `workspace-write`, or `read-only` for the Reviewer and the Pager;
   `approval_policy = "never"`; subagents off), `model-catalog.json`, `rules/paseo-crew.rules`, `skills/`, an `auth.json`
   link and `AGENTS.md`. Paseo's Codex provider launches it. Building a seat needs the `codex` CLI, which lists its
   models.
 - **Pi**, under `~/.pi/seats/`: `settings.json` (`pi-mcp-adapter`, project trust off, tool lists for the Lead and the
-  Reviewer and none for the Watcher and the Pager), `mcp.json`, `AGENTS.md`, `skills/`, and links to its login, models
+  Reviewer and none for the Pager), `mcp.json`, `AGENTS.md`, `skills/`, and links to its login, models
   and npm. Paseo's Pi provider launches it.
 - **Oh My Pi**, under `~/.omp/seats/`: `config.yml` (command denials in `bash.patterns`, tool denials, and code eval,
   subagents, questions, memory and other agents' config off), `mcp.json`, `AGENTS.md`, `skills/`, and links to its login
@@ -636,8 +619,8 @@ rules, each enabled MCP server's and the Human's, and is written only when there
 | `code-search` | Proxy over stdio (`uvx … semble`) | One `search` tool |
 | `context7` | Plain HTTP, no key | Library docs. Queries leave the machine |
 
-Catalog servers are off until a settings layer turns one on. One that names no roles goes to every role with desk tools
-but one that can `judge`. With `intellij-index` on, the desk itself opens in the IDE each copy a lane or task works in,
+Catalog servers are off until a settings layer turns one on. One that names no roles goes to every role with desk tools.
+With `intellij-index` on, the desk itself opens in the IDE each copy a lane or task works in,
 the project's own checkout included, closes a copy of its own when it is put away, and adds `.idea/` to the
 repository's `.git/info/exclude`.
 
@@ -668,8 +651,8 @@ machine's model and thinking for it.
 | Each role's agent, model and thinking | Panel, Team tab |
 | MCP servers: on or off, roles, options, pasted snippets | Panel, MCP tab |
 | `attention.watch`, whether incidents are mailed | Panel, Team › Supervisor, *Mail incidents* |
-| `attention.judge`, who answers the watch's questions | Panel, Team › Watcher, *Answered by* |
-| A sensor's key, `sensor.<id>.key`, which the panel never reads back | Panel, Machine defaults › Watcher; a project's by hand |
+| `attention.judge`, who answers the watch's questions | Panel, Team › Supervisor, *Answered by* |
+| A sensor's key, `sensor.<id>.key`, which the panel never reads back | Panel, Machine defaults › Supervisor; a project's by hand |
 | The Flow switch, `flow.live` | Panel, Flow tab |
 | The Flow interval, `flow.everySeconds`, 5 s by default | By hand |
 | Rules for every seat, `rules`, or for a role, `roles.<role>.rules` | By hand |
@@ -720,7 +703,7 @@ is not offered for that role.
 
 | Tab | What it holds |
 |---|---|
-| **Team** | The agent per role, its model and thinking. The Supervisor's chip also holds *Mail incidents*; the Watcher's, *Answered by* and a sensor's key |
+| **Team** | The agent per role, its model and thinking. The Supervisor's chip also holds *Mail incidents*, *Answered by* and a sensor's key |
 | **Flow** | Live while its switch is on. First what waits for the Human: each open question, answered with an option or declined, and each landing held for approval, approved or sent back, each with a note. Then the supervisors, lanes and tasks. Then the watch: who answers and how that stands, the open incidents (at most 200, pages first), and trouble nobody is mailed about. Then the open asks |
 | **Report** | The project's last 24 h, read from the record, not written by an agent: what needs the Human, what went ahead on a recommendation, what landed, what could not be undone, and the counts |
 | **Orders** | What the Human settled, read only: the paths asked about first, the risk rules, where lanes work, and `CONTEXT.md`. The Human changes them by telling the Supervisor |
@@ -789,7 +772,7 @@ field that changes meaning takes a kind of its own. The watch writes these kinds
 
 | Group | Kinds |
 |---|---|
-| Watch | `watch.fact`, `watch.finding`, `watch.unbriefed`, `watch.unasked`, `watch.offline`, `watcher.seated` |
+| Watch | `watch.fact`, `watch.finding`, `watch.unbriefed`, `watch.unasked`, `watch.offline` |
 | Incidents | `incident.open`, `incident.held`, `incident.told`, `incident.read`, `incident.ack`, `incident.lookup-failed`, `incident.post-failed` |
 | Pages | `page.sent`, `page.failed` |
 

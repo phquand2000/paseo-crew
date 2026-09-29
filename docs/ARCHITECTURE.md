@@ -99,8 +99,8 @@ These are mostly absences, so the code will not show them to you.
   gate, overridden by `overGate` with a reason: a task's by its Lead at `accept`, a lane's by the Supervisor
   at `land_lane`. A landing held for `askFirst` is the Human's standing order, not a verdict.
 - **Capabilities, not names.** No code under `server/` compares a role to a name; what a role can do
-  (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `judge`, `page`) decides who is mailed, seated,
-  watched, asked to judge or sent to page.
+  (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `page`) decides who is mailed, seated,
+  watched or sent to page.
 - **One door to Paseo.** In `server/`, only `adapters/paseo/` imports Paseo's SDK: it registers the hooks,
   binds the daemon's API from each hook and panel call, and serves it behind `core/ports.ts`, so tests use
   fakes; beyond it, only `index.server.ts`, `shared/rpc.ts` and the panel use the SDK.
@@ -111,8 +111,7 @@ These are mostly absences, so the code will not show them to you.
   `server/domain/`, inside the transaction on `ledger.json`; an incident's delivery, likewise.
 - **One place writes letters**: `desk/letters/`, the envelope every letter goes out in and the `*-letters.ts`
   beside it, each letter keyed by kind and ids and ending in one `Next:` line. First prompts come from
-  `desk/letters/briefs.ts`, `desk/letters/directive.ts` and `desk/watch/pager.ts`, and a Watcher's from its first
-  CASE.
+  `desk/letters/briefs.ts`, `desk/letters/directive.ts` and `desk/watch/pager.ts`.
 - **One writer per working copy.** The project's checkout holds one lane at a time; a lane-mode task holds the
   lane's copy on its own branch from its start until it is merged or cut, a failed merge included.
 - **No hidden command chain.** A Peer the Supervisor messages has its Lead told first; when one seat answers
@@ -181,7 +180,7 @@ shrink.
 
 The desk starts every seat but the Supervisor, in a Paseo workspace, labelled with its project, role, lane and
 task, under a parent: a Lead under the Supervisor that opened its lane or replaced its Lead, a Peer or
-Reviewer under its Lead, the Watcher under the Supervisor, a Pager under nobody, as Paseo pushes the first
+Reviewer under its Lead, a Pager under nobody, as Paseo pushes the first
 reply of an agent with no parent to the Human's phone.
 
 The build runs the content lint: a prompt, working rule, skill or tool set showing a word from the role's
@@ -397,7 +396,7 @@ The Human is asked what only they can decide and told what they cannot take back
   ([questions for the Human](REFERENCE.md#questions-for-the-human)).
 - **No question stops a turn.** A permission request of kind `question` from a seat with desk tools is
   refused, naming where to ask: `ask_human` or its reply for the Supervisor, `ask` for a Lead, Peer or
-  Reviewer; the Watcher settles it from what it has.
+  Reviewer.
 - **Holds.** `hold_lane` sets `onHold`, calls off a landing waiting to finish or still waiting for the Human
   (one they approved stands), and sends HOLD to the Lead and the seat of each task not merged or cut. Until
   `resume_lane`, their mail waits, their permission requests are refused, and nothing starts, moves or lands:
@@ -427,7 +426,7 @@ The Human is asked what only they can decide and told what they cannot take back
 ## The watch
 
 **What is watched.** Every live seat whose role can be `watched`: Leads and Peers in the preset, never a
-Reviewer, the Watcher or a Pager. `core/stream.ts` joins Paseo's live timeline with its paged history, reading
+Reviewer or a Pager. `core/stream.ts` joins Paseo's live timeline with its paged history, reading
 back what a join, gap or reconnect missed, into a window of at most 80 entries per seat (calls, words,
 thoughts, instructions, errors); a seat whose subscription fails is followed again the next round.
 
@@ -453,12 +452,11 @@ question, of a small state `desk/watch/checks.ts` builds from the record, never 
 hand-back, of a review that accepts a change a risk rule reaches, of an act a fact names, of a first change
 made before any look ([each](REFERENCE.md#questions-to-a-model)). Wording, thresholds and mode are data in
 `catalog/checks.json`; every mode is `shadow`, which with `off` is all the schema takes. `desk/watch/judging.ts`
-puts each case to whoever `attention.judge` names, behind the `Judge` port: a sensor over HTTP
+puts each case to the sensor `attention.judge` names, behind the `Judge` port, over HTTP
 (`adapters/decisions.ts`; the preset's Jev, over OpenRouter, its key in the request header only, the catalog's
-data rules sent with every request, and nothing asked without a key), or the Watcher, one seat per project,
-seated under the Supervisor at the first case, mailed a CASE per case, answering with `judge`. The case, the
-question as sent and the answer go to `assessments.log`, which no seat reads; nothing waits on an answer, and
-one missing after 15 minutes, or whose Watcher is gone, is kept as unasked.
+data rules sent with every request, and nothing asked without a key). The case, the question as sent and the
+answer go to `assessments.log`, which no seat reads; nothing waits on an answer, and one that fails is kept as
+unasked.
 
 **Marking.** Whoever is told of an incident marks it with `mark_incident`, `useful`, `noise` or `unknown`,
 from the seat's own record, closing it; `noise` also silences the same words on that seat and kind at `attend`
@@ -487,9 +485,7 @@ turns, then, for each project the desk has met since it started:
    back what it took; open waiting lanes and start waiting tasks whose turn has come.
 8. Archive closed lanes past the newest 20 once nothing of theirs is still open.
 9. Finish teardowns held for writers that are gone, and put away copies kept for seats that are gone.
-10. Give up on Watcher cases unanswered in 15 minutes or whose Watcher is gone; let an idle Watcher go once no
-    lane is open, or once something else judges.
-11. Write `status.md`.
+10. Write `status.md`.
 
 The first round after a start also ends what waited on turns that ended while the plugin was down, sends NO
 ANSWER for answers the stop lost, and takes up the merge queues. Then every seat with mail is pumped.

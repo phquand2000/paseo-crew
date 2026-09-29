@@ -25,12 +25,11 @@ type TurnDeps = {
   log: (project: Project, line: string) => void;
 };
 
-/** Where a seat puts a question instead, by the tools it holds: one that holds no way to ask settles it itself. */
+/** Where a seat puts a question instead, by the tools it holds. */
 function askInstead(tools: string[]): string {
   if (tools.includes("ask_human"))
     return "put it to the Human with ask_human, or ask them in your reply and end your turn";
-  if (tools.includes("ask")) return "ask it with ask, then end your turn; the answer arrives as a message";
-  return "answer from what you have, saying what you could not settle, then end your turn";
+  return "ask it with ask, then end your turn; the answer arrives as a message";
 }
 
 export class TurnRules {

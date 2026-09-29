@@ -108,7 +108,7 @@ test("every hand-written table in the reference names exactly what the code has:
   const heading = /^[A-Z]{2,}(?: [A-Z]{2,})*/;
   const kinds = [
     ...readFileSync(join(desk, "store", "events.ts"), "utf-8").matchAll(
-      /kind: "((?:watch|watcher|incident|page)\.[A-Za-z-]+)"/g,
+      /kind: "((?:watch|incident|page)\.[A-Za-z-]+)"/g,
     ),
   ].map((match) => match[1]!);
   const tables: [string, string[], string[]][] = [

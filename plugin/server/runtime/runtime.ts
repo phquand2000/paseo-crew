@@ -140,8 +140,7 @@ export class Runtime implements HostHooks {
     const changed = () => this.teamChanged();
     const reconcile = () => this.sync.reconcile();
     const seats = this.host.seats;
-    const watch = (project: Project) =>
-      watchView(project, this.watching.troublesOf(project), source.teamFor(project), kit);
+    const watch = (project: Project) => watchView(project, this.watching.troublesOf(project), source.teamFor(project));
     return {
       settings: new SettingsPanel({ kit, source, changed, reconcile, models: () => this.refreshModels() }),
       projects: new ProjectsPanel({ kit, source, seats, held: () => this.outbox.held(), watch, changed }),

@@ -86,7 +86,6 @@ export type DeskEvent =
   | { kind: "watch.finding"; agent: string; finding: string; level: Finding["level"]; quote: string; facts: string[] }
   | { kind: "watch.unbriefed"; agent: string; error: string }
   | { kind: "watch.unasked"; subject: string; by: string; error: string }
-  | { kind: "watcher.seated"; agent: string; parent: string }
   | { kind: "watch.offline"; error: string }
   | { kind: "incident.open"; id: string; agent: string; finding: string; level: Finding["level"]; held: Held | null }
   | { kind: "page.sent"; agent: string }

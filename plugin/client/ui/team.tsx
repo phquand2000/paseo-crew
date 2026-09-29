@@ -145,8 +145,9 @@ export function TeamSection(props: Props) {
   return (
     <SettingsSection title="Team" info={role.description}>
       <TabBar theme={theme} active={role.id} disabled={disabled} onPick={onActive} tabs={catalog.roles.map((entry) => ({ id: entry.id, label: entry.label }))} />
-      {role.can.includes("judge") ? <JudgeCard {...props} role={role} rows={roleRows({ ...props, role })} /> : <SettingsCard>{roleRows({ ...props, role })}</SettingsCard>}
+      <SettingsCard>{roleRows({ ...props, role })}</SettingsCard>
       {role.can.includes("supervise") ? <IncidentMailCard {...props} /> : null}
+      {role.can.includes("supervise") ? <JudgeCard {...props} /> : null}
       <ModelsCard catalog={props.catalog} disabled={props.disabled} reload={props.reload} />
     </SettingsSection>
   );

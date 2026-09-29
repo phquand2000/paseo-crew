@@ -5,10 +5,9 @@ import type { Attention } from "../../../shared/views.ts";
 import type { HarnessSpec, Kit, SensorSpec } from "../kit/kit.ts";
 import { type McpState, resolveMcp } from "./mcp-states.ts";
 import { type RoleSeat, presetOn, resolveRole } from "./role-seats.ts";
-import { can } from "../kit/roles.ts";
 
-/** Who answers the watch's questions, as the settings chose: a sensor, and its key where a settings layer keeps one, or a seat of a role that can judge. */
-type JudgeChoice = { id: string; sensor: SensorSpec; key?: string } | { id: string; role: string };
+/** Who answers the watch's questions, as the settings chose: a sensor, and its key where a settings layer keeps one. */
+type JudgeChoice = { id: string; sensor: SensorSpec; key?: string };
 
 /** The kit as the machine's and the project's settings leave it: each role's seat, the MCP servers, attention and the judge. */
 export type Team = {
@@ -70,11 +69,9 @@ function resolveRoles(
 function judgeOf(kit: Kit, id: string, layers: Layer[], errors: string[]): JudgeChoice | undefined {
   if (id === "off") return undefined;
   const sensor = kit.sensors[id];
-  const judges = kit.roles.filter((role) => can(role, "judge")).map((role) => role.role);
   if (!sensor) {
-    if (judges.includes(id)) return { id, role: id };
     errors.push(
-      `The watch is set to be judged by ${id}, which is neither off, a sensor the kit knows nor a role that can judge (${[...Object.keys(kit.sensors), ...judges].join(", ") || "none"})`,
+      `The watch is set to be judged by ${id}, which is neither off nor a sensor the kit knows (${Object.keys(kit.sensors).join(", ") || "none"})`,
     );
     return undefined;
   }

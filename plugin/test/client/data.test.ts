@@ -194,7 +194,7 @@ const JUDGES: [WatchJudge, ReturnType<typeof judgeWords>][] = [
     { ...judge, label: "", state: "off" },
     {
       title: "Nobody answers the watch's questions",
-      hint: "Answered by is off: set it on Team, on the Watcher. The code's own facts go on.",
+      hint: "Answered by is off: set it on Team, on the Supervisor. The code's own facts go on.",
       tone: "muted",
     },
   ],
@@ -202,7 +202,7 @@ const JUDGES: [WatchJudge, ReturnType<typeof judgeWords>][] = [
     { ...judge, state: "nokey", detail: "OpenRouter key" },
     {
       title: "Jev is asked nothing: it has no key",
-      hint: "Add its OpenRouter key on Team, under Machine defaults, on the Watcher. The code's own facts go on.",
+      hint: "Add its OpenRouter key on Team, under Machine defaults, on the Supervisor. The code's own facts go on.",
       tone: "muted",
     },
   ],

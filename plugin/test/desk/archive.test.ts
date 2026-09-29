@@ -170,7 +170,7 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
   ledger.agents["sup-1"] = { id: "sup-1", role: "supervisor" };
   ledger.agents["sup-2"] = { id: "sup-2", role: "supervisor" };
   ledger.agents["sup-3"] = { id: "sup-3", role: "supervisor" };
-  ledger.agents["watch-1"] = { id: "watch-1", role: "watcher" };
+  ledger.agents["page-1"] = { id: "page-1", role: "pager" };
   ledger.asks.B1 = {
     id: "B1",
     from: "sup-2",
@@ -218,7 +218,7 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
     "an answer its asker, still on record, may read again stays",
   );
   assert.ok(
-    ledger.agents["sup-2"] && ledger.agents["sup-3"] && ledger.agents["watch-1"] && ledger.asks.B1 && ledger.asks.B3,
+    ledger.agents["sup-2"] && ledger.agents["sup-3"] && ledger.agents["page-1"] && ledger.asks.B1 && ledger.asks.B3,
   );
 });
 

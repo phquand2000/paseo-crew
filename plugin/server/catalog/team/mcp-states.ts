@@ -1,7 +1,6 @@
 import type { Connect, Layer, McpChoice, Scalar } from "../../../shared/settings.ts";
 import type { Kit, McpEntry, McpTransport } from "../kit/kit.ts";
 import { PASEO_SERVER, TEAM_SERVER } from "../kit/kit.ts";
-import { can } from "../kit/roles.ts";
 
 /** An MCP server as the settings leave it: on or off, for which roles, and how it connects. */
 export type McpState = {
@@ -103,16 +102,11 @@ function eligibleRoles(state: McpState, kit: Kit): string[] {
   return entry?.roles ?? kit.roles.filter((role) => role.tools).map((role) => role.role);
 }
 
-/** The roles a server goes to: those named, where it can serve them, or else each it can serve but a judge, which answers from its case and the record. */
+/** The roles a server goes to: those named, where it can serve them, or else each it can serve. */
 function rolesOf(state: McpState, kit: Kit, named: string[] | undefined, errors: string[]): string[] {
   const eligible = eligibleRoles(state, kit);
   for (const role of named ?? [])
     if (!eligible.includes(role))
       errors.push(`${state.label} can't be given to the ${role} role: it has nothing for that role`);
-  const judges = (role: string) =>
-    can(
-      kit.roles.find((entry) => entry.role === role),
-      "judge",
-    );
-  return (named ?? eligible.filter((role) => !judges(role))).filter((role) => eligible.includes(role));
+  return (named ?? eligible).filter((role) => eligible.includes(role));
 }

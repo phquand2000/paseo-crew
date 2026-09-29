@@ -69,10 +69,10 @@ test("every role builds on every agent the kit ships, each in that agent's own t
   for (const { role, harness } of seatPairs(kit)) {
     const where = `${role.role} on ${harness.id}`;
     const kind = TWIN[role.role] ?? role.role;
-    const edits = !["reviewer", "lead", "pager", "watcher"].includes(kind);
+    const edits = !["reviewer", "lead", "pager"].includes(kind);
     const waits = !["lead", "supervisor"].includes(kind);
     const searches = SEARCHES.includes(kind);
-    const bare = ["watcher", "pager"].includes(kind);
+    const bare = kind === "pager";
     assert.deepEqual(
       at(paseo, `agents.providers.${providerId(kit, role.role, harness.id)}.paseoTools`),
       { enabled: false },
@@ -145,7 +145,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.equal(
         deny.includes("WebSearch"),
         !searches,
-        `${where}: a Reviewer judges what is in front of it, and the Watcher and the Pager touch nothing`,
+        `${where}: a Reviewer judges what is in front of it, and the Pager touches nothing`,
       );
       if (bare)
         for (const tool of BUILT_INS.claude!)
@@ -168,7 +168,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         false,
         `${where}: only the role's skills, as on every other agent`,
       );
-      const profile = ["reviewer", "pager", "watcher"].includes(kind) ? "reader" : "seat";
+      const profile = ["reviewer", "pager"].includes(kind) ? "reader" : "seat";
       assert.equal(at(settings, "default_permissions"), profile, where);
       for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
         assert.equal(
@@ -373,7 +373,6 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         reviewer: ["read", "bash", "grep", "find", "ls"],
         lead: ["read", "bash", "grep", "find", "ls"],
         pager: [],
-        watcher: [],
       }[kind as "reviewer"];
       assert.deepEqual(at(settings, "defaultTools"), tools, where);
       const desk = at(readConfig<unknown>(join(dir, harness.mcp.file), {}), "mcpServers.team");

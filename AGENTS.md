@@ -1,8 +1,8 @@
 # AGENTS.md
 
 Paseo Crew is a Paseo plugin that runs a team of coding agents the **SLP** way: a Supervisor works
-with the Human, a Lead owns each lane of work, and Peers each do one task, with a Reviewer, a Watcher
-and a Pager beside them. This file holds what the code will not tell you before you change it. How
+with the Human, a Lead owns each lane of work, and Peers each do one task, with a Reviewer and a
+Pager beside them. This file holds what the code will not tell you before you change it. How
 the parts fit is in `docs/ARCHITECTURE.md`; every name and value is in `docs/REFERENCE.md`.
 
 **Nothing has shipped.** No users, no releases, nothing to stay compatible with.

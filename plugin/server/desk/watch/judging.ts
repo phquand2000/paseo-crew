@@ -17,15 +17,13 @@ export type Case = {
   asked: Record<string, { check: string; fill?: Record<string, string> }>;
 };
 
-/** Who answers for `project` now, if anyone can: a sensor needs its key and the host a way to ask it; a seat is the project's Watcher. */
+/** Who answers for `project` now, if anyone can: a sensor needs its key and the host a way to ask it. */
 function judgeFor(
-  { teamFor, sensorFor, watcher }: DeskServices,
+  { teamFor, sensorFor }: Pick<DeskServices, "teamFor" | "sensorFor">,
   project: Project,
-  subject: string,
 ): { id: string; judge: Judge } | undefined {
   const choice = teamFor(project).judge;
   if (!choice) return undefined;
-  if ("role" in choice) return { id: choice.id, judge: watcher.judge(project, choice.role, subject) };
   const judge = choice.key ? sensorFor(choice.sensor, choice.key) : undefined;
   return judge && { id: choice.id, judge };
 }
@@ -56,7 +54,7 @@ function verdictOf(check: CheckSpec, answer: Answer): string {
 export async function judge(services: DeskServices, project: Project, found: Case): Promise<void> {
   const { kit } = services;
   const asked = Object.entries(found.asked).filter(([, { check }]) => kit.checks[check]?.mode === "shadow");
-  const chosen = asked.length > 0 ? judgeFor(services, project, found.subject) : undefined;
+  const chosen = asked.length > 0 ? judgeFor(services, project) : undefined;
   if (!chosen) return;
   const kept = {
     at: new Date().toISOString(),

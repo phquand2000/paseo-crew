@@ -16,10 +16,10 @@ const STEPS = 40;
 
 type Whose = { seat: string; name: string; lane: Lane; task?: Task };
 
-/** Whose record `of` names, if the caller may read it: a lane's Lead for whoever supervises or judges, a task's worker for its lane's Lead too. */
+/** Whose record `of` names, if the caller may read it: a lane's Lead for whoever supervises, a task's worker for its lane's Lead too. */
 function whose(ledger: Ledger, caller: Caller, of: string): Whose | string {
   const id = of.trim().toUpperCase();
-  const supervises = can(caller.role, "supervise") || can(caller.role, "judge");
+  const supervises = can(caller.role, "supervise");
   const lane = ledger.lanes[id];
   if (lane) {
     if (!supervises) return `${lane.id} is a lane; name a task of yours.`;
