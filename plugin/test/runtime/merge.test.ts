@@ -76,7 +76,7 @@ test("a task beside others hands back what its lane would become: the lane broug
   const refused = await h.call(quotes!.peer!, "peer", "done", { outcome: "complete", summary: "d, and c" });
   assert.equal(
     refused.text,
-    `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in c.txt, changed there by L1-T2. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`,
+    `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in c.txt, changed there by L1-T2. The merge is left in your copy: settle it so both changes stand, commit it with git commit --no-edit (an editor would wait forever here), then call done again.`,
   );
   assert.equal(h.ledger().tasks["L1-T3"]!.status, "running", "nothing is handed back");
   assert.match(

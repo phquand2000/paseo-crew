@@ -146,7 +146,7 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
   await h.idle(lead);
   assert.match(
     h.agents.get(lead)!.sent.join("\n"),
-    /MERGE CONFLICT L1-T1 \(B\) with lane\/l1-two\.\nFiles: b\.txt\nThe lane branch is unchanged\. The desk began merging lane\/l1-two into the task's branch in its own copy and left the conflicts there\.\n\nNext: Send rework asking its Peer to settle them and commit the merge with git commit/,
+    /MERGE CONFLICT L1-T1 \(B\) with lane\/l1-two\.\nFiles: b\.txt\nThe lane branch is unchanged\. The desk began merging lane\/l1-two into the task's branch in its own copy and left the conflicts there\.\n\nNext: Send rework asking its Peer to settle them and commit the merge with git commit --no-edit, since an editor would wait forever in its session/,
   );
   writeFileSync(join(first.worktree!, "b.txt"), "both sides\n");
   h.git(first.worktree!, "commit", "-qam", "Settle the lane into the task");

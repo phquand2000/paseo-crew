@@ -111,7 +111,7 @@ async function settling(
   await mail.post(lane.lead, workLetters.settling(task, lane.branch, synced.conflicts, synced.by));
   const by = synced.by.length > 0 ? `, changed there by ${synced.by.join(", ")}` : "";
   return no(
-    `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in ${synced.conflicts.join(", ")}${by}. The merge is left in your copy: settle it so both changes stand, commit it with git commit, then call done again.`,
+    `Not handed back yet: ${lane.branch} has moved on since your branch left it, and bringing it in conflicts in ${synced.conflicts.join(", ")}${by}. The merge is left in your copy: settle it so both changes stand, commit it with git commit --no-edit (an editor would wait forever here), then call done again.`,
   );
 }
 

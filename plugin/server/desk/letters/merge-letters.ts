@@ -83,7 +83,7 @@ export const mergeLetters = {
       settling === "left"
         ? [
             `The desk began merging ${laneBranch} into the task's branch in its own copy and left the conflicts there.`,
-            "Send rework asking its Peer to settle them and commit the merge with git commit, then accept it again; or cut the task.",
+            "Send rework asking its Peer to settle them and commit the merge with git commit --no-edit, since an editor would wait forever in its session, then accept it again; or cut the task.",
           ]
         : settling === "clean"
           ? [
