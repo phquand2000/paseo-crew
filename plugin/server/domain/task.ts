@@ -21,7 +21,7 @@ const MOVES = {
   // Red with its lane brought in: the lane branch stays as it was, and the task is its Lead's to send back or accept over the gate.
   red: { from: ["merging"], to: "done" },
   fail: { from: ["queued", "merging"], to: "failed" },
-  stall: { from: ["running", "rework", "failed"], to: "stalled" },
+  stall: { from: ["running", "rework"], to: "stalled" },
   lose: { from: ["running", "rework"], to: "stalled" },
   resume: { from: ["stalled"], to: "running" },
   cut: { from: ["waiting", ...IN_HAND, "queued"], to: "cut" },

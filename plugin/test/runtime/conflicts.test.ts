@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { setTimeout as sleep } from "node:timers/promises";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -185,6 +186,16 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
     h.events("merge.failed").map((event) => event.task),
     ["L1-T3"],
   );
+  const crashed = h.ledger().tasks["L1-T3"]!.peer!;
+  const heard = h.ledger().agents[crashed]!;
+  // A turn that starts in the millisecond of its hand-back counts that hand-back as its own.
+  while (Date.now() <= (heard.recordedAt ?? 0)) await sleep(1);
+  for (const words of ["Waiting on the merge.", "Still waiting."]) {
+    await h.beginTurn(crashed);
+    await h.endTurn(crashed, words);
+  }
+  assert.equal(status("L1-T3"), "failed", "a failed merge waits on its Lead, however quiet its Peer is meanwhile");
+  assert.doesNotMatch(h.heard(crashed).join("\n"), /Your turn ended without calling done or ask/);
 
   const side = await beside("s", "Side", "c.txt", "C\n");
   writeFileSync(join(copy, "a.txt"), "half written\n");
