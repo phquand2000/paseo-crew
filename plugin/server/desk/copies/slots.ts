@@ -164,7 +164,7 @@ export class Slots {
   /** Removes a path the desk made under its own worktree root, and the project's folder once empty. */
   private discard(project: Project, path: string): void {
     const root = join(worktreeRoot(), project.slug);
-    if (!realPath(path).startsWith(`${root}/`)) return;
+    if (!realPath(path).startsWith(`${realPath(root)}/`)) return;
     try {
       rmSync(path, { recursive: true, force: true });
       if (readdirSync(root).length === 0) rmdirSync(root);

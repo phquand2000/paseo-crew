@@ -40,7 +40,7 @@ export async function sweepCopies(
   const live = (current: Ledger) => new Set(Object.values(current.slots).map((slot) => realPath(slot.path)));
   const held = live(ledgers.read(project));
   const strays = readdirSync(root)
-    .map((name) => join(root, name))
+    .map((name) => realPath(join(root, name)))
     .filter((path) => !held.has(path));
   for (const path of strays) {
     // Asked again just before, for a row reserved for a path from before ids stopped being reused.
