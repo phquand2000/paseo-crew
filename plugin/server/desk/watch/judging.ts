@@ -1,6 +1,7 @@
 import { recordEvent } from "../store/event-log.ts";
 import type { CheckSpec } from "../../catalog/kit/kit.ts";
 import { errorText } from "../../core/errors.ts";
+import { daemonLog } from "../../core/logger.ts";
 import type { Answer, Judge, Question } from "../../core/ports.ts";
 import type { Project } from "../project/project.ts";
 import { appendRecord } from "../store/records.ts";
@@ -52,6 +53,14 @@ function verdictOf(check: CheckSpec, answer: Answer): string {
  * in shadow that record is all an answer does. Nothing the desk does waits on it, so it never throws.
  */
 export async function judge(services: DeskServices, project: Project, found: Case): Promise<void> {
+  try {
+    await ask(services, project, found);
+  } catch (error) {
+    daemonLog.error(`${project.slug}: the watch could not ask about ${found.subject}:`, error);
+  }
+}
+
+async function ask(services: DeskServices, project: Project, found: Case): Promise<void> {
   const { kit } = services;
   const asked = Object.entries(found.asked).filter(([, { check }]) => kit.checks[check]?.mode === "shadow");
   const chosen = asked.length > 0 ? judgeFor(services, project) : undefined;

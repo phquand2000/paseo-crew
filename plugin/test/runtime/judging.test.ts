@@ -15,26 +15,32 @@ const KEY = "a-key-for-tests-only";
 
 type Asked = { key: string; state: Record<string, unknown>; questions: Record<string, Question> };
 
-/** A sensor answering each noul by its check's name in `nouls` and every choice with `picks`, or failing once told to; and what it was asked, with which key. */
+/** A sensor answering each noul by its check's name in `nouls` and every choice with `picks`, failing to ask or to be made once told to; and what it was asked, with which key. */
 function sensor(nouls: Record<string, number>, picks: Answer = { choice: "claims_code_bug", confidence: 0.9 }) {
   const asked: Asked[] = [];
   let failing: Error | undefined;
-  const make = (_spec: SensorSpec, key: string): Judge => ({
-    async ask(state, questions) {
-      asked.push({ key, state, questions });
-      if (failing) throw failing;
-      const answers = Object.fromEntries(
-        Object.entries(questions).map(([name, question]): [string, Answer] => [
-          name,
-          question.type === "noul" ? { noul: nouls[name.split("__")[0]!] ?? 0.5 } : picks,
-        ]),
-      );
-      return { answers, model: "vendor/model-1-20260917", tokens: 321 };
-    },
-  });
+  let unmade: Error | undefined;
+  const make = (_spec: SensorSpec, key: string): Judge => {
+    if (unmade) throw unmade;
+    return {
+      async ask(state, questions) {
+        asked.push({ key, state, questions });
+        if (failing) throw failing;
+        const answers = Object.fromEntries(
+          Object.entries(questions).map(([name, question]): [string, Answer] => [
+            name,
+            question.type === "noul" ? { noul: nouls[name.split("__")[0]!] ?? 0.5 } : picks,
+          ]),
+        );
+        return { answers, model: "vendor/model-1-20260917", tokens: 321 };
+      },
+    };
+  };
   const of = (check: string) =>
     asked.filter((entry) => Object.keys(entry.questions).some((name) => name.split("__")[0] === check));
-  return { asked, make, of, fail: (error?: Error) => void (failing = error) };
+  const fail = (error?: Error) => void (failing = error);
+  const unmake = (error?: Error) => void (unmade = error);
+  return { asked, make, of, fail, unmake };
 }
 
 /** The machine settings with the watch judged by `judge`, and its key where one is given. */
@@ -388,4 +394,7 @@ test("nothing is asked when it cannot be, and the Flow tab says who answers and 
     /assessments\.log write failed/,
     "a record that cannot be written is reported, and the desk goes on",
   );
+  judged.unmake(new Error("that key is not one this sensor takes"));
+  await handBack("fifth");
+  assert.match(said(), /the watch could not ask about L1-T1:[^]*that key is not one this sensor takes/);
 });

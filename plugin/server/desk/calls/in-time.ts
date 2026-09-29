@@ -1,3 +1,4 @@
+import { daemonLog } from "../../core/logger.ts";
 import type { ToolReply, ToolRequest } from "../context.ts";
 import { ok } from "../context.ts";
 import type { Intents } from "../store/intents.ts";
@@ -26,10 +27,18 @@ export function inTime(
       resolve(ok(said));
       const promised = { agent: request.agent, tool: request.tool, started: how.started };
       mail.intents.promise(promised);
-      void reply.then(async (done) => {
-        await mail.post(request.agent, messageLetters.later(promised, done, cut));
-        mail.intents.kept(promised);
-      });
+      // Unkept when it cannot be posted: the next start then tells the seat no answer is coming.
+      void reply
+        .then(async (done) => {
+          await mail.post(request.agent, messageLetters.later(promised, done, cut));
+          mail.intents.kept(promised);
+        })
+        .catch((error: unknown) =>
+          daemonLog.error(
+            `the answer promised to ${request.agent} for its ${request.tool} call could not be mailed:`,
+            error,
+          ),
+        );
     };
     const long = how.again
       ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`

@@ -8,6 +8,7 @@ import { PaseoHost } from "../../server/adapters/paseo/host.ts";
 import { deskSocket } from "../../server/core/paths.ts";
 import type { TeamSocket } from "../../server/runtime/seat/team-socket.ts";
 import { contracts } from "../../shared/rpc.ts";
+import { reported } from "../console.ts";
 import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
 
@@ -162,4 +163,14 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
   // Either call may start the first task, so its Peer is read once both are done.
   const started = Object.values(h.ledger().tasks).find((entry) => entry.title === "Waits")!;
   assert.ok(started.peer, "carried out once Paseo came, its task started with a Peer of its own");
+
+  const said = reported(t);
+  t.mock.method(h.runtime.outbox, "post", () => Promise.reject(new Error("the disk is full")));
+  reloaded.say({ type: "call", id: "late", tool: "status", args: {} });
+  await reloaded.result("late");
+  reloaded.say({ type: "cancel", id: "late" });
+  assert.ok(
+    await within(5000, () => /could not be mailed[^]*the disk is full/.test(said())),
+    "a reply lost on its way that cannot be mailed either is reported, and the line goes on",
+  );
 });

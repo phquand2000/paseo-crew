@@ -138,7 +138,10 @@ export class TeamSocket {
 
   /** A call whose seat will not take its answer here: stopped before it came, the desk mails it when it does; after, it is mailed now. */
   private lose(call: Call): void {
-    if (call.reply) void this.desk.mailLost(call.request, call.reply);
+    if (call.reply)
+      void this.desk
+        .mailLost(call.request, call.reply)
+        .catch((error: unknown) => daemonLog.error("a reply that did not reach its seat could not be mailed:", error));
     else call.stop.abort();
   }
 
