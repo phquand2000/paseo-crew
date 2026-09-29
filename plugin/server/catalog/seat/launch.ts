@@ -159,6 +159,7 @@ export function seatEnv(
         ? { [seat.harness.settings.overlayEnv]: join(seatPath, seat.harness.settings.file) }
         : {}),
       CREW_ROLE: seat.role.role,
+      CREW_KIT: kit.dir,
       CREW_PROJECT: project.root,
       CREW_STATE: project.state,
       ...(shim ? { PATH: [shim, request.env.PATH ?? process.env.PATH].filter(Boolean).join(delimiter) } : {}),

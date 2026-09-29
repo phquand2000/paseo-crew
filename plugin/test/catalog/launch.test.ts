@@ -325,10 +325,11 @@ test("a seat's session gets its harness's environment, its config directory, pro
       CREW_AGENT_BIN: "omp",
       PI_CODING_AGENT_DIR: "/seats/peer-omp-repo",
       CREW_ROLE: "peer",
+      CREW_KIT: kit.dir,
       CREW_PROJECT: "/repo",
       CREW_STATE: "/state/repo",
     },
-    "Paseo may run one agent server for every seat of a harness, so only the session carries the seat's own environment",
+    "Paseo may run one agent server for every seat of a harness, so only the session carries the seat's own environment, the kit its skills name included",
   );
   mkdirSync(dirname(paseoConfigPath()), { recursive: true });
   writeFileSync(
