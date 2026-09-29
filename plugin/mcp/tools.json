@@ -3,7 +3,7 @@
     {
       "name": "open_lane",
       "title": "Open a lane",
-      "description": "Open a lane: one outcome, run by a new Lead whose whole directive is these fields. It works in the project's own copy, in a copy of its own (isolate), or waits for lanes (after); the reply says which. Refused, with the choices, when the Human must first say where it works, or its writeSet meets an open lane's.",
+      "description": "Open a lane: one outcome, run by a new Lead whose directive is these fields. It works in the project's own copy, its own copy (isolate, or unplaced while that copy is dirty or off base), or waits (after); the reply says which. Refused, with the choices, when its home cannot hold or its writeSet meets an open lane's.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

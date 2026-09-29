@@ -170,8 +170,8 @@ export function loadConfig(state: string): ProjectConfig {
 }
 
 /**
- * Where the next lane works in a project whose own copy is free: as its call or the Human's standing choice says, or else the
- * question the Human answers first, which is real only over uncommitted work or a branch that is not the base.
+ * Where the next lane works in a project whose own copy is free: as its call or the standing choice says, or else the question
+ * of where, which is real only over uncommitted work or a branch that is not the base.
  */
 export function laneHomeFor(
   asked: LaneHome | undefined,

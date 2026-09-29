@@ -119,7 +119,9 @@ function ownCopyLines(project: Project, ledger: Ledger, config: ProjectConfig, c
     lines.push(`Lanes open ${HOMES[config.laneHome]}, as the Human chose for every lane (laneHome).`);
   const home = holder ? undefined : laneHomeFor(undefined, config, copy.branch, copy.tracked);
   if (typeof home === "object")
-    lines.push(`The Human decides where the next lane works, before it opens: ${home.question}.`);
+    lines.push(
+      `Nothing on record places the next lane, so it opens in a copy of its own unless its call says: ${home.question}.`,
+    );
   return [...lines, ""];
 }
 

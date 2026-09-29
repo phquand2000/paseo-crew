@@ -45,7 +45,7 @@ export async function setProject(caller: Caller, args: Settings): Promise<ToolRe
   saveConfig(caller.project.state, next);
   const home = next.laneHome
     ? `lanes open as ${next.laneHome} unless a call says otherwise`
-    : "where a lane opens is asked when the Human's copy makes it a question";
+    : "a lane no call places opens in a copy of its own where the Human's copy is dirty or off its base";
   const asked =
     next.askFirst.length > 0
       ? `a landing that touches ${next.askFirst.join(", ")} waits for the Human`

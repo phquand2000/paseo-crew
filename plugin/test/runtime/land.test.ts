@@ -127,10 +127,7 @@ test("in the Human's own checkout, files git does not track are theirs and stop 
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { base: "main", gate: "true" });
   writeFileSync(join(h.root, "notes.txt"), "the Human's own notes\n");
-  assert.doesNotMatch(
-    (await h.call(sup, "supervisor", "status", {})).text,
-    /The Human decides where the next lane works/,
-  );
+  assert.doesNotMatch((await h.call(sup, "supervisor", "status", {})).text, /Nothing on record places the next lane/);
   const opened = await h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a cart", ...scope });
   assert.equal(opened.ok, true, opened.text);
   const lane = h.ledger().lanes.L1!;
