@@ -754,7 +754,7 @@
         "properties": {
           "tasks": {
             "type": "array",
-            "description": "The tasks to add, in the order you mean them to run.",
+            "description": "The tasks to add, in the order they start where after leaves it open.",
             "items": {
               "type": "object",
               "properties": {

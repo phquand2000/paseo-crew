@@ -50,7 +50,11 @@ test("a Lead lays its lane out: tasks in the lane's copy run in turn, tasks besi
   assert.equal(planned.ok, true, planned.text);
   assert.match(planned.text, /- TOTALS is L1-T2 Task totals: waits for L1-T1/);
   assert.match(planned.text, /- RECEIPT is L1-T3 Task receipt: running, Peer/);
-  assert.match(planned.text, /- TAX is L1-T4 Task tax: waits for L1-T2/, "the lane's copy takes one writer at a time");
+  assert.match(
+    planned.text,
+    /- TAX is L1-T4 Task tax: held: L1-T1 is still writing in the lane's working copy/,
+    "the lane's copy takes one writer at a time, and the listed order is only the order they start in",
+  );
   await h.idle(lead);
   assert.doesNotMatch(h.agents.get(lead)!.sent.join("\n"), /WAITING L1-T3/, "the reply already said it started");
   assert.match(h.agents.get(h.ledger().tasks["L1-T3"]!.peer!)!.provider, /peer/, "no role given is the preset's own");
@@ -93,6 +97,8 @@ test("a Lead lays its lane out: tasks in the lane's copy run in turn, tasks besi
     briefOf(h, "L1-T2"),
     besideLine("in copies of their own", "L1-T3 \\(Task receipt\\) holds b\\.txt; L1-T5 \\(Task cee\\) holds c\\.txt"),
   );
+  await h.call(lead, "lead", "cut", { task: "L1-T2", reason: "not wanted after all" });
+  assert.equal(h.ledger().tasks["L1-T4"]!.status, "running", "a cut frees the lane's copy for the next task listed");
 
   const clashing = await h.call(lead, "lead", "add_tasks", {
     tasks: [
