@@ -1,3 +1,4 @@
+import { AS_DESK } from "./git-merge.ts";
 import { type LandAs, cleanState, currentBranch, git, headSha, isAncestor } from "./git.ts";
 
 type LandResult = { landed: boolean; how: string };
@@ -41,9 +42,8 @@ export async function mergeCommit(
   message: string,
 ): Promise<string | undefined> {
   const tip = await headSha(cwd, branch);
-  const own = ["-c", "user.name=paseo-crew", "-c", "user.email=paseo-crew@localhost", "-c", "commit.gpgSign=false"];
   const made = tip
-    ? await git(cwd, [...own, "commit-tree", `${tip}^{tree}`, "-p", onto, "-p", tip, "-m", message])
+    ? await git(cwd, [...AS_DESK, "commit-tree", `${tip}^{tree}`, "-p", onto, "-p", tip, "-m", message])
     : undefined;
   return made?.code === 0 ? made.stdout.trim() : undefined;
 }
@@ -59,6 +59,29 @@ function unlanded(base: string, root: string, stopped: Unmoved): string {
   return stopped.why === "moved"
     ? `${base} moved while this lane was landing; land it again`
     : `${copy} would not fast-forward ${base}: ${stopped.detail ?? "fast-forward failed"}`;
+}
+
+/** The commit that lands `tested` on `from`; undefined when the lane changes nothing there, so base stays where it is. */
+async function landingCommit(
+  root: string,
+  from: string,
+  tested: string,
+  how: { as: LandAs; message: string },
+): Promise<string | undefined | LandResult> {
+  const trees = await git(root, ["rev-parse", `${from}^{tree}`, `${tested}^{tree}`]);
+  const [was, now] = trees.stdout.trim().split("\n");
+  if (trees.code === 0 && was === now) return undefined;
+  const parents = how.as === "merge" ? [from, tested] : [from];
+  const made = await git(root, [
+    ...AS_DESK,
+    "commit-tree",
+    `${tested}^{tree}`,
+    ...parents.flatMap((parent) => ["-p", parent]),
+    "-m",
+    how.message,
+  ]);
+  if (made.code !== 0) return { landed: false, how: made.stderr.trim() || "git could not make the commit to land" };
+  return made.stdout.trim();
 }
 
 /**
@@ -81,25 +104,8 @@ export async function landLane(
       landed: false,
       how: `${branch} does not contain ${base}, so landing it would be a merge nobody has gated`,
     };
-  // Undefined when the lane changes nothing on base: there is nothing to commit and base stays where it is.
-  let tip: string | undefined = tested;
-  if (how.as !== "ff") {
-    const trees = await git(root, ["rev-parse", `${from}^{tree}`, `${tested}^{tree}`]);
-    const [was, now] = trees.stdout.trim().split("\n");
-    if (trees.code === 0 && was === now) tip = undefined;
-    else {
-      const parents = how.as === "merge" ? [from, tested] : [from];
-      const made = await git(root, [
-        "commit-tree",
-        `${tested}^{tree}`,
-        ...parents.flatMap((parent) => ["-p", parent]),
-        "-m",
-        how.message,
-      ]);
-      if (made.code !== 0) return { landed: false, how: made.stderr.trim() || "git could not make the commit to land" };
-      tip = made.stdout.trim();
-    }
-  }
+  const tip = how.as === "ff" ? tested : await landingCommit(root, from, tested, how);
+  if (typeof tip === "object") return tip;
   const stopped = tip ? await advance(root, base, from, tip) : undefined;
   if (stopped) return { landed: false, how: unlanded(base, root, stopped) };
   // Should this fail, the branch is kept rather than lost: dropping it checks it against this ref.

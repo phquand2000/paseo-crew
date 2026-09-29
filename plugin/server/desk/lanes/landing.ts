@@ -1,4 +1,5 @@
-import { currentBranch, headSha, isAncestor, landedRef, mergeBranch } from "../../core/git.ts";
+import { mergeBranch } from "../../core/git-merge.ts";
+import { currentBranch, headSha, isAncestor, landedRef } from "../../core/git.ts";
 import { landLane as landOnBase } from "../../core/land.ts";
 import { no, ok } from "../context.ts";
 import { laneGate } from "../project/gates.ts";

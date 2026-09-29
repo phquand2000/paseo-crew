@@ -1,6 +1,7 @@
 import { roleNamed } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
-import { dropMerged, git, headSha, mergeBranch, switchTo } from "../../core/git.ts";
+import { mergeBranch } from "../../core/git-merge.ts";
+import { dropMerged, git, headSha, switchTo } from "../../core/git.ts";
 import { TASK } from "../../domain/task.ts";
 import { besideOf, taskBrief } from "../letters/briefs.ts";
 import { workKey } from "../claims.ts";

@@ -1,4 +1,5 @@
-import { mergeBase, mergeTree } from "../../core/git.ts";
+import { mergeTree } from "../../core/git-merge.ts";
+import { mergeBase } from "../../core/git.ts";
 import type { Task } from "../../domain/task.ts";
 
 /**

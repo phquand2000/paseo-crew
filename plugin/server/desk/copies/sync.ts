@@ -5,10 +5,10 @@ import {
   git,
   headSha,
   isAncestor,
-  mergeBranch,
   pristineState,
   switchTo,
 } from "../../core/git.ts";
+import { mergeBranch } from "../../core/git-merge.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 

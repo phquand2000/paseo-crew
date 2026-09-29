@@ -1,5 +1,5 @@
 import { errorText } from "../../core/errors.ts";
-import { mergeOf } from "../../core/git.ts";
+import { mergeOf } from "../../core/git-merge.ts";
 import { KeyedQueue } from "../../core/keyed-queue.ts";
 import { IN_QUEUE } from "../../domain/task.ts";
 import type { Lane } from "../../domain/lane.ts";
