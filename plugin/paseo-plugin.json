@@ -2,6 +2,6 @@
   "id": "paseo-crew",
   "description": "A Supervisor, Leads and Peers working in lanes, with a desk that keeps their record.",
   "requirements": {
-    "paseo": ">=0.9.1 <0.11.0"
+    "paseo": ">=0.9.1"
   }
 }
