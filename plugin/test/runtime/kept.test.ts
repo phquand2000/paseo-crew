@@ -180,6 +180,19 @@ test("a task beside others keeps its Peer in its own copy once merged, until its
     new RegExp(`- L1-T2 Beside: merged[^\\n]*; its Peer ${side.peer} idle \\d+ min is kept until you release it`),
   );
 
+  const asked = await h.call(lead, "lead", "message", { to: "L1-T2", text: "why b.txt alone?" });
+  assert.match(asked.text, /^(Delivered|Queued)/, "in a copy of its own, a merged task's Peer can still be asked");
+  assert.match(
+    (await h.call(sup, "supervisor", "message", { to: "L1-T2", text: "why b.txt alone?" })).text,
+    /Its Lead has been told what reached it/,
+  );
+  assert.match(
+    h.heard(lead).join("\n"),
+    /RECONCILE L1: [^]*Integration and acceptance: L1-T2 is merged already, and nothing here changed that\./,
+  );
+  const answered = await h.call(side.peer!, "peer", "ask", { question: "b.txt only: is that enough?" });
+  assert.equal(answered.ok, true, `and it can answer its Lead with ask: ${answered.text}`);
+
   const quotes = await mergedBeside(h, lead, "Quotes", "d.txt");
   assert.equal((await h.call(lead, "lead", "rework", { task: "L1-T2", text: "b wants its second line" })).ok, true);
   assert.equal(h.ledger().tasks["L1-T2"]!.status, "rework");

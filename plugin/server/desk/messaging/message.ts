@@ -1,5 +1,4 @@
 import { can } from "../../catalog/kit/roles.ts";
-import { SETTLED } from "../../domain/task.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
@@ -27,11 +26,11 @@ async function handTo(
 
 const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;
 
-/** Why a settled task takes no message: a merged one's Peer is kept only to take rework, which would wake it in a copy it no longer holds. */
+/** Why a settled task takes no message: a merged one's Peer in the lane's copy is kept only to take rework, since a message would wake it in a copy it no longer holds. */
 const settled = (task: Task) =>
-  task.status === "merged"
+  task.status === "merged" && task.mode !== "parallel"
     ? `${task.id} is merged, and its Peer is kept only to take rework: send rework if its work must change.`
-    : SETTLED.includes(task.status)
+    : task.status === "cut"
       ? `${task.id} is ${task.status}, and its Peer went with it.`
       : undefined;
 

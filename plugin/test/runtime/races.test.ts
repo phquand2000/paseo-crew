@@ -233,7 +233,7 @@ test("an ask whose task is cut, or whose lane closes, while whoever answers is l
   await toLead.reached;
   assert.equal((await h.call(lead, "lead", "cut", { task: "L1-T1", reason: "not needed" })).ok, true);
   toLead.release();
-  assert.match((await asking).text, /L1-T1 was accepted or cut while you asked/);
+  assert.match((await asking).text, /L1-T1 was cut while you asked/);
 
   const toSup = heldLook(h, sup);
   const leading = h.call(lead, "lead", "ask", { kind: "question", text: "Which one?", default: "the first" });

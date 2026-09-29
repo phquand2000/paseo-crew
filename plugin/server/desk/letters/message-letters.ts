@@ -65,9 +65,11 @@ export const messageLetters = {
       `Current intent: ${lane.outcome}`,
       `Ownership: ${task.id} (${task.title}) is still owned by ${peer}, on ${lane.branch}. The lane is still yours.`,
       "Topology: unchanged. No seat was started, moved or put away.",
-      IN_QUEUE.includes(task.status)
-        ? `Integration and acceptance: you have already accepted ${task.id} and it is waiting to merge; nothing here changed that.`
-        : `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
+      task.status === "merged"
+        ? `Integration and acceptance: ${task.id} is merged already, and nothing here changed that.`
+        : IN_QUEUE.includes(task.status)
+          ? `Integration and acceptance: you have already accepted ${task.id} and it is waiting to merge; nothing here changed that.`
+          : `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
     ].join("\n");
     return steering(
       mail(
