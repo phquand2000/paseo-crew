@@ -12,9 +12,9 @@ import {
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 
-/** The lane's copy back on the lane branch from a task's own, `discard`ing work left there; git's reason when it cannot. */
+/** The lane's copy back on the lane branch, `discard`ing work left there; untracked files go only from a copy the desk made. */
 export async function backOnLane(lane: Lane, discard = false): Promise<string | undefined> {
-  return lane.worktree ? switchTo(lane.worktree, lane.branch, lane.branch, discard) : undefined;
+  return lane.worktree ? switchTo(lane.worktree, lane.branch, lane.branch, discard, Boolean(lane.slot)) : undefined;
 }
 
 /**

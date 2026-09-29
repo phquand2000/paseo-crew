@@ -124,12 +124,13 @@ export async function dropMerged(cwd: string, branch: string, into: string): Pro
   return (await contains(cwd, into, branch)) === true && (await git(cwd, ["branch", "-D", branch])).code === 0;
 }
 
-/** Puts `cwd` on `branch`, made from `start` when it is not there yet; git's reason when it cannot. `discard` drops work uncommitted there. */
+/** Puts `cwd` on `branch`, made from `start` if absent; git's reason when it cannot. `discard` drops tracked edits, `untracked` also untracked files. */
 export async function switchTo(
   cwd: string,
   branch: string,
   start: string,
   discard = false,
+  untracked = false,
 ): Promise<string | undefined> {
   const exists = await branchExists(cwd, branch);
   // git refuses to switch mid-merge even when discarding: a merge the desk left for a seat goes with the rest.
@@ -139,7 +140,7 @@ export async function switchTo(
     ...(discard ? ["--discard-changes"] : []),
     ...(exists ? [branch] : ["--no-track", "-c", branch, start]),
   ]);
-  if (run.code === 0 && discard) await git(cwd, ["clean", "-fd"]);
+  if (run.code === 0 && discard && untracked) await git(cwd, ["clean", "-fd"]);
   return run.code === 0 ? undefined : run.stderr.trim() || `git switch exited ${run.code}`;
 }
 
