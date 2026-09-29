@@ -69,6 +69,11 @@ test("a review hands back a verdict and its findings, answers what the project's
 
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
   await h.runtime.desk.settled(h.project);
+  assert.match(
+    h.heard(lead).join("\n"),
+    /MERGED L1-T1[^]*Next: Every task of the lane is settled/,
+    "a review that has handed back holds nothing open",
+  );
   await h.call(lead, "lead", "add_tasks", {
     tasks: [{ key: "m", title: "Move", goal: "g", ...scope, hints: ["db/migrations"] }],
   });
@@ -293,6 +298,7 @@ test("a review reads a task where its work is: in the task's own copy until it m
   await h.idle(task.peer!);
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
   await h.runtime.desk.settled(h.project);
+  assert.doesNotMatch(h.heard(lead).join("\n"), /Every task of the lane is settled/, "a review still reading does");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
   assert.ok(existsSync(first.worktree!), "the reviewer is mid-turn, and its verdict is what the Lead waits for");
   h.agents.get(first.peer!)!.status = "idle";

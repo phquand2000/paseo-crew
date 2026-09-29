@@ -4,12 +4,11 @@ import { plural } from "../../core/text.ts";
 import { ASK } from "../../domain/ask.ts";
 import { LANE } from "../../domain/lane.ts";
 import { QUESTION } from "../../domain/question.ts";
-import { TASK } from "../../domain/task.ts";
+import { TASK, openWork } from "../../domain/task.ts";
 import { workKey } from "../claims.ts";
 import { no, ok, str } from "../context.ts";
 import { keptLetters } from "../letters/kept-letters.ts";
 import { landLetters } from "../letters/land-letters.ts";
-import { unfinished } from "./land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, findLane } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
@@ -154,7 +153,7 @@ function settleLeftovers(ledger: Ledger, lane: Lane): Leftovers {
   const tasks: Task[] = [];
   const cut: string[] = [];
   for (const task of Object.values(ledger.tasks).filter((item) => item.lane === lane.id)) {
-    const lost = unfinished(task);
+    const lost = openWork(task);
     if (TASK.move(task, "cut") && lost) cut.push(task.id);
     tasks.push({ ...task });
   }

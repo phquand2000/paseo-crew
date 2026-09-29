@@ -33,6 +33,11 @@ export const TASK = new Lifecycle<TaskStatus, TaskMove>(MOVES);
 
 export const DECIDED: readonly TaskStatus[] = ["queued", "merging", "merged", "cut"];
 export const SETTLED: readonly TaskStatus[] = ["merged", "cut"];
+
+/** Whether a task still has work to come: a review that has handed back has none. */
+export function openWork(task: { kind?: string; status: TaskStatus }): boolean {
+  return !SETTLED.includes(task.status) && !(task.kind === "review" && task.status === "done");
+}
 export const IN_QUEUE: readonly TaskStatus[] = ["queued", "merging"];
 export const AT_WORK: readonly TaskStatus[] = ["running", "rework"];
 // A task in the lane's copy has it on its own branch from its start until it is merged or cut, a failed merge included.

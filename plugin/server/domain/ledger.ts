@@ -1,7 +1,7 @@
 import type { Ask } from "./ask.ts";
 import type { Lane } from "./lane.ts";
 import type { Question } from "./question.ts";
-import { ACTIVE, SETTLED, type Task } from "./task.ts";
+import { ACTIVE, SETTLED, type Task, openWork } from "./task.ts";
 
 /** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
 type Releasing = { writers: string[]; dropBranch?: string; into?: string };
@@ -136,9 +136,9 @@ export function tasksOf(ledger: Ledger, laneId: string): Task[] {
   return Object.values(ledger.tasks).filter((task) => task.lane === laneId);
 }
 
-/** The tasks of `task`'s lane other than it still to be merged or cut. */
+/** The tasks of `task`'s lane other than it with work still to come. */
 export function othersLeft(ledger: Ledger, task: Task): Task[] {
-  return tasksOf(ledger, task.lane).filter((entry) => entry.id !== task.id && !SETTLED.includes(entry.status));
+  return tasksOf(ledger, task.lane).filter((entry) => entry.id !== task.id && openWork(entry));
 }
 
 export function activeTasks(ledger: Ledger, laneId: string): Task[] {

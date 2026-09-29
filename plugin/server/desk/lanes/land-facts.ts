@@ -5,7 +5,7 @@ import { coverOf, globToRegex, uncovered } from "../../core/scope.ts";
 import { capped } from "../../core/text.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { fileKinds, testMarkers, weakened } from "../../catalog/kit/patterns.ts";
-import { SETTLED } from "../../domain/task.ts";
+import { openWork } from "../../domain/task.ts";
 import { loadIncidents } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
@@ -136,11 +136,6 @@ export function askFirstHits(project: Project, change: Change): AskHit[] {
   });
 }
 
-/** Work closing a lane would lose: a code task not merged, or a review still reading. A review that handed back its verdict is done. */
-export function unfinished(task: Task): boolean {
-  return !SETTLED.includes(task.status) && !(task.kind === "review" && task.status === "done");
-}
-
 async function changed(root: string, range: string, filter: "D" | "M"): Promise<string[]> {
   const run = await git(root, ["diff", "-z", "--name-only", `--diff-filter=${filter}`, range]);
   return run.stdout.split("\0").filter(Boolean);
@@ -218,7 +213,7 @@ function recordFacts(project: Project, ledger: Ledger, lane: Lane): string[] {
     ...tasks
       .filter((task) => task.status === "merged" && task.handback?.gate?.ok === false)
       .map((task) => `${task.id} was accepted over its red gate: ${task.handback!.gate!.note}.`),
-    ...tasks.filter(unfinished).map((task) => `${task.id} is ${task.status}: landing cuts it.`),
+    ...tasks.filter(openWork).map((task) => `${task.id} is ${task.status}: landing cuts it.`),
     ...open.map((incident) => `Incident ${incident.id} on this lane is still open: ${incident.kind}.`),
     ...tasks
       .filter((task) => task.kind === "review" && task.handback)
