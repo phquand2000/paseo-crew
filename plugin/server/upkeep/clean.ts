@@ -78,7 +78,7 @@ function seats(ctx: CleanContext, lost: Map<string, string>): CleanItem[] {
     .map((id) => id.replace(/[^a-z0-9]/gi, "\\$&"))
     .join("|");
   const named = new RegExp(
-    `^${kit.prefix.replace(/[^a-z0-9]/gi, "\\$&")}([a-z]+)-(${agents})-([a-z0-9-]+-[0-9a-f]{6})$`,
+    `^${kit.prefix.replace(/[^a-z0-9]/gi, "\\$&")}([a-z0-9-]+?)-(${agents})-([a-z0-9-]+-[0-9a-f]{6})$`,
   );
   const found: CleanItem[] = [];
   for (const root of roots) {
