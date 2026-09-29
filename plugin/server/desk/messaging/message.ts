@@ -89,7 +89,9 @@ async function toPeer(
     return no(
       `${task.id} has no running Lead to tell. Reaching its Peer without one would leave nobody holding the room's state, which is the one thing this must not do. Reopen the lane's Lead, or say it to the lane.`,
     );
-  const refused = repeatsIncident(caller.project.state, peer, text);
+  // What reaches the Peer reaches its Lead in the reconcile letter, so neither may be told of the watch.
+  const refused =
+    repeatsIncident(caller.project.state, peer, text) ?? repeatsIncident(caller.project.state, lead, text);
   if (refused) return no(refused);
   await mail.post(lead, messageLetters.reconciled(lane, task, peer, text, sending));
   const handed = await handTo(

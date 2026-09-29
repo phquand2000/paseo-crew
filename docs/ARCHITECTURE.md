@@ -118,8 +118,8 @@ These are mostly absences, so the code will not show them to you.
   an ask put to another, that one is told, as is the Lead of a Peer whose ask went past it while the lane had no
   Lead; the Human's words in a Lead's or Peer's chat go to the Supervisor.
 - **The watched seat never hears what the watch concluded about it**: no incident is addressed to it, and a
-  `message`, `answer`, `rework`, `amend_task` or `amend_lane` that names or quotes an open incident about the
-  seat it goes to is refused.
+  `message`, `answer`, `rework`, `amend_task` or `amend_lane` that names or quotes an open incident about any
+  seat it reaches is refused: the asker and the seat an ask was put to, or a Peer and the Lead told of it.
 - **No heartbeat.** Nothing wakes a seat on a timer: the patrol mails only when what it reads calls for it,
   and a letter that asks nothing waits for one that does.
 - **The desk keeps out of the Human's files.** No file of its own goes into the project's tree (a code index

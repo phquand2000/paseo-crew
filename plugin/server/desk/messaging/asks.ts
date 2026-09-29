@@ -113,7 +113,7 @@ export async function answerAsk(
 ): Promise<ToolReply> {
   const id = answered.ask.toUpperCase();
   const { text } = answered;
-  const refused = repeatsIncident(caller.project.state, loadLedger(caller.project.state).asks[id]?.from, text);
+  const refused = repeatsToReaders(caller, id, text);
   if (refused) return no(refused);
   const result = desk.ledgers.transact(caller.project, (ledger): Answered | string => {
     const ask = ledger.asks[id];
@@ -151,6 +151,18 @@ export async function answerAsk(
   const told = waiting ? " Whoever it was waiting on has been told what it was answered with." : "";
   const led = lead ? " Its lane's Lead has been told what it was answered with." : "";
   return ok(`Answered ${ask.id}; the asker ${has}.${told}${led}`);
+}
+
+/** An answer reaches its asker, the seat it was put to, and, from whoever supervises, the Peer's Lead: none may be told of the watch. */
+function repeatsToReaders(caller: Caller, id: string, text: string): string | undefined {
+  const { state } = caller.project;
+  const ledger = loadLedger(state);
+  const ask = ledger.asks[id];
+  const lead = ask?.lane && can(caller.role, "supervise") ? ledger.lanes[ask.lane]?.lead : undefined;
+  return [ask?.from, ask?.to, lead]
+    .filter((seat) => seat !== caller.id)
+    .map((seat) => repeatsIncident(state, seat, text))
+    .find(Boolean);
 }
 
 type Answered = { ask: Ask; waitingRole?: string; opener?: string; lead?: string; carried: string[] };
