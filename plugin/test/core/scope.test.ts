@@ -23,6 +23,12 @@ test("write sets overlap by prefix and glob, serial-only paths are caught, and a
   assert.ok(firstOverlap(["src/**/*.ts"], ["**/api/*.ts"]), "src/api/x.ts matches both");
   assert.ok(firstOverlap(["server/**"], ["**/ledger.ts"]), "server/ledger.ts matches both");
   assert.equal(firstOverlap(["src/**/*.ts"], ["docs/**/*.md"]), undefined, "and nothing satisfies these");
+  assert.equal(
+    firstOverlap(["/tools/run.sh"], ["app/compose.yaml"]),
+    undefined,
+    "a path from the root is not a directory",
+  );
+  assert.ok(firstOverlap(["/tools/"], ["/tools/run.sh"]));
   // Inside one segment the same trap waits: a witness made up from either pattern matches neither.
   assert.ok(firstOverlap(["src/*.ts"], ["src/app.*"]), "src/app.ts satisfies both");
   assert.ok(firstOverlap(["app/a*.tsx"], ["app/*b.tsx"]), "app/ab.tsx satisfies both");

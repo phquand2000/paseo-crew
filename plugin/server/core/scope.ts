@@ -78,7 +78,8 @@ function meet(a: string[], b: string[]): boolean {
   }
   const [ax, ...at] = a;
   const [bx, ...bt] = b;
-  if (ax === "" || bx === "") return true;
+  // Only a trailing "" is a directory: a leading one is the root of an absolute path.
+  if ((ax === "" && at.length === 0) || (bx === "" && bt.length === 0)) return true;
   // "**" spans any number of segments, including none, on either side.
   if (ax === "**") return meet(at, b) || meet(a, bt) || meet(at, bt);
   if (bx === "**") return meet(a, bt) || meet(at, b) || meet(at, bt);
