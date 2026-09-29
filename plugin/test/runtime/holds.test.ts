@@ -68,7 +68,7 @@ test("a task beside others holds its paths: refused when it cannot hold them, br
   const peer = h.ledger().tasks["L1-T1"]!.peer!;
   assert.match(
     brief("L1-T1"),
-    /\n\nWhere to start reading \(a start, not a fence\):\n- src\/cart\.ts\n\nWhere the change goes, callers and tests included, is yours to find, inside the lane's write set: src\/\*\*, test\/\*\*\.\n\nOut of scope, your Lead's call/,
+    /\n\nWhere to start reading \(a start, not a fence\):\n- src\/cart\.ts\n\nWhere the change goes, callers and tests included, is yours to find; the lane's write set is src\/\*\*, test\/\*\*, and a change outside it is noted for your Lead\.\n\nOut of scope, your Lead's call/,
   );
   await add(planned("r", "Receipt", { holds: ["src/receipt/"], parallel: true }));
   const receipt = h.ledger().tasks["L1-T2"]!;

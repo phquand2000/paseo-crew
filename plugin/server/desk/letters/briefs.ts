@@ -38,12 +38,15 @@ function besideLine(task: Task, beside: Task[]): string {
   return `Beside you, ${where}, each merged into the lane branch once accepted: ${who}. What they write reaches your copy only as your hand-back brings the lane in: leave it to them, and ask if you need it first.`;
 }
 
-/** Where a task starts and what bounds it: hints are a start to read from; a parallel task writes in what it holds, one in the lane's copy wherever its goal reaches in the lane's write set. */
+/** Where a task starts and what bounds it: hints are a start to read from; a parallel task writes in what it holds, one in the lane's copy wherever its goal reaches. */
 function whereLines(task: Task, lane: Lane): string[] {
   const start = task.hints.length > 0 ? ["Where to start reading (a start, not a fence):", list(task.hints), ""] : [];
   if (task.mode === "parallel")
     return [...start, "You hold (others write beside you, so ask before writing outside it):", list(task.holds)];
-  const writes = lane.writeSet.length > 0 ? `, inside the lane's write set: ${lane.writeSet.join(", ")}` : "";
+  const writes =
+    lane.writeSet.length > 0
+      ? `; the lane's write set is ${lane.writeSet.join(", ")}, and a change outside it is noted for your Lead`
+      : "";
   return [
     ...start,
     `Where the change goes, callers and tests included, is yours to find${writes}.`,
