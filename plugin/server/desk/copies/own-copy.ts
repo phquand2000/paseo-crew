@@ -1,12 +1,4 @@
-import {
-  branchExists,
-  cleanState,
-  currentBranch,
-  dropMerged,
-  git,
-  mergeUnderWay,
-  pristineState,
-} from "../../core/git.ts";
+import { branchExists, cleanState, currentBranch, dropMerged, git, mergeUnderWay } from "../../core/git.ts";
 import type { DeskBase } from "../base.ts";
 import { openIndexes } from "./indexes.ts";
 import type { Project } from "../project/project.ts";
@@ -24,7 +16,8 @@ export class OwnCopy {
   }
 
   async inPlace(project: Project, branch: string, base: string): Promise<{ path: string; workspaceId: string }> {
-    const copy = await pristineState(project.root);
+    // Untracked files in the Human's checkout are theirs: a new branch leaves them where they are.
+    const copy = await cleanState(project.root);
     if (copy !== "clean") {
       throw new Error(
         copy === "dirty"

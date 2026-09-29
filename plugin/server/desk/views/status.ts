@@ -18,7 +18,7 @@ import {
 } from "../project/project.ts";
 
 /** What the status tool read from the project's own checkout; `work` is undefined when git could not say. */
-export type OwnCheckout = { branch?: string; head?: string; work?: string[] };
+export type OwnCheckout = { branch?: string; head?: string; work?: string[]; tracked?: string[] };
 
 /** A letter the outbox still holds, and when it is given up on. */
 type Held = { to: string; text: string; at: number; until: number };
@@ -117,7 +117,7 @@ function ownCopyLines(project: Project, ledger: Ledger, config: ProjectConfig, c
   const lines = ["## The project's own copy", "", `${project.root} is ${at}, ${state}.`, held];
   if (config.laneHome)
     lines.push(`Lanes open ${HOMES[config.laneHome]}, as the Human chose for every lane (laneHome).`);
-  const home = holder ? undefined : laneHomeFor(undefined, config, copy.branch, work);
+  const home = holder ? undefined : laneHomeFor(undefined, config, copy.branch, copy.tracked);
   if (typeof home === "object")
     lines.push(`The Human decides where the next lane works, before it opens: ${home.question}.`);
   return [...lines, ""];

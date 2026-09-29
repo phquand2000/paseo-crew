@@ -1,7 +1,7 @@
 import { recordEvent } from "../store/event-log.ts";
 import { join } from "node:path";
 import { runGate } from "../../core/gate.ts";
-import { pristineState } from "../../core/git.ts";
+import { cleanState, pristineState } from "../../core/git.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
@@ -45,7 +45,8 @@ export async function laneGate({ kit }: Pick<DeskBase, "kit">, project: Project,
   const files = rules.length > 0 ? (await changeOf(project, lane)).files : [];
   const rehearsals = files ? rulesFor(rules, files) : rules;
   if ((!gate && rehearsals.length === 0) || !lane.worktree) return { ok: true, text: "no gate set", ran: false };
-  const state = await pristineState(lane.worktree);
+  // In the Human's own checkout an untracked file is theirs, not the lane's unsaved work.
+  const state = await (lane.slot ? pristineState : cleanState)(lane.worktree);
   if (state !== "clean") {
     return {
       ok: false,

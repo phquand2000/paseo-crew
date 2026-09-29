@@ -91,9 +91,9 @@ export function cleanState(cwd: string): Promise<Cleanliness> {
   return cleanliness(cwd, ["status", "--porcelain", "--untracked-files=no"]);
 }
 
-/** Uncommitted and untracked paths, or undefined when git cannot say; read NUL-separated, so a name is as it is and a rename is where it went. */
-export async function uncommittedPaths(cwd: string): Promise<string[] | undefined> {
-  const run = await git(cwd, ["status", "--porcelain", "-z"]);
+/** Uncommitted paths, untracked ones too unless `untracked` is false, or undefined when git cannot say; read NUL-separated, so a name is as it is and a rename is where it went. */
+export async function uncommittedPaths(cwd: string, untracked = true): Promise<string[] | undefined> {
+  const run = await git(cwd, ["status", "--porcelain", "-z", ...(untracked ? [] : ["--untracked-files=no"])]);
   if (run.code !== 0) return undefined;
   const entries = run.stdout.split("\0").filter(Boolean);
   const found: string[] = [];

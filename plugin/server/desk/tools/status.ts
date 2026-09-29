@@ -11,7 +11,12 @@ import { type OwnCheckout, statusText } from "../views/status.ts";
 
 async function ownCopy(root: string): Promise<OwnCheckout> {
   const branch = await currentBranch(root);
-  return { branch, head: branch ? undefined : (await headSha(root))?.slice(0, 7), work: await uncommittedPaths(root) };
+  return {
+    branch,
+    head: branch ? undefined : (await headSha(root))?.slice(0, 7),
+    work: await uncommittedPaths(root),
+    tracked: await uncommittedPaths(root, false),
+  };
 }
 
 /** A supervisor also sees the Human's own checkout, read from git only here, when it asks. */

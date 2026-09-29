@@ -109,7 +109,7 @@ async function homeOf(
           : undefined;
   // A waiting lane opens into whatever the copy is by then, and one the copy is taken from takes a copy of its own or waits.
   if (!opensNow || ownCopyHolder(Object.values(loadLedger(project.state).lanes))) return said ?? config.laneHome;
-  const home = laneHomeFor(said, config, here, await uncommittedPaths(project.root));
+  const home = laneHomeFor(said, config, here, await uncommittedPaths(project.root, false));
   if (typeof home !== "object") return home;
   return {
     refused: `The Human decides where this lane works, and has not said: ${home.question}. Ask them, and keep their answer for every lane with set_project laneHome if they give one.`,

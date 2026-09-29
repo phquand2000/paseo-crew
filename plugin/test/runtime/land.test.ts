@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
@@ -93,6 +93,32 @@ test("a red gate or a red rehearsal holds a landing until the Supervisor lands o
   });
   assert.equal(over.ok, true, over.text);
   assert.ok(onMain("src/db/001.sql"));
+});
+
+test("in the Human's own checkout, files git does not track are theirs and stop no lane, while changes to tracked files still stop its gate", async () => {
+  const h = harness();
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "set_project", { base: "main", gate: "true" });
+  writeFileSync(join(h.root, "notes.txt"), "the Human's own notes\n");
+  assert.doesNotMatch(
+    (await h.call(sup, "supervisor", "status", {})).text,
+    /The Human decides where the next lane works/,
+  );
+  const opened = await h.call(sup, "supervisor", "open_lane", { title: "Cart", outcome: "a cart", ...scope });
+  assert.equal(opened.ok, true, opened.text);
+  const lane = h.ledger().lanes.L1!;
+  assert.equal(lane.slot, undefined, "it opened in the project's own copy");
+  writeFileSync(join(h.root, "a.txt"), "cart\n");
+  h.git(h.root, "commit", "-qam", "cart");
+  writeFileSync(join(h.root, "b.txt"), "the Human is editing\n");
+  const land = () => h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  h.agents.get(lane.lead!)!.status = "idle";
+  assert.match((await land()).text, /the lane working copy has uncommitted changes/);
+  h.git(h.root, "checkout", "--", "b.txt");
+  const landed = await land();
+  assert.equal(landed.ok, true, landed.text);
+  assert.equal(readFileSync(join(h.root, "notes.txt"), "utf-8"), "the Human's own notes\n");
+  assert.equal(h.git(h.root, "show", "main:a.txt"), "cart\n");
 });
 
 test("what git shows of a lane goes with its landing as evidence, and holds nothing back", async () => {
