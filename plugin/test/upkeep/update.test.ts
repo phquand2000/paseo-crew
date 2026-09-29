@@ -82,6 +82,14 @@ test("check says where the checkout stands and what the update will need, and mo
   assert.deepEqual([view.installs, view.paseo], [true, ">=0.9.0"]);
   assert.equal(git(dir, "rev-parse", "HEAD"), before);
 
+  publish({ "package.json": "{ not json" }, "Break the package");
+  const broken = await checkUpdate(ctx);
+  assert.deepEqual(
+    [broken.behind, broken.next, broken.installs],
+    [3, null, true],
+    "a package that does not parse is a change to install from, not a check that throws",
+  );
+
   const managed = await checkUpdate({
     ...ctx,
     dir: "/home/me/.paseo/plugins/paseo-crew/abc/checkout/plugin",
@@ -99,6 +107,9 @@ test("update moves the checkout forward only when it safely can, installs only w
   publish({ "a.txt": "a" }, "Add a");
   await applyUpdate(ctx);
   assert.deepEqual(calls, { install: 0, reload: 1 }, "moved forward and reloaded, with nothing to install");
+  publish({ "package.json": '{"version":"2.0.1"}' }, "Raise the version");
+  await applyUpdate(ctx);
+  assert.deepEqual(calls, { install: 0, reload: 2 }, "a raised version asks for no package");
 
   publish({ "package.json": '{"dependencies":{"zod":"4"}}' }, "Need zod");
   const waiting = git(dir, "rev-parse", "HEAD");
@@ -112,7 +123,7 @@ test("update moves the checkout forward only when it safely can, installs only w
   const view = await applyUpdate(ctx);
   assert.equal(view.updated?.to, git(dir, "rev-parse", "--short", "HEAD"));
   assert.equal(git(dir, "log", "-1", "--format=%s"), "Need zod");
-  assert.deepEqual(calls, { install: 1, reload: 2 });
+  assert.deepEqual(calls, { install: 1, reload: 3 });
 
   const installed = git(dir, "rev-parse", "HEAD");
   publish({ "package.json": '{"dependencies":{"nope":"1"}}' }, "Need nope");
@@ -126,5 +137,5 @@ test("update moves the checkout forward only when it safely can, installs only w
   commit(dir, { "b.txt": "b" }, "Mine");
   assert.match((await applyUpdate(ctx)).blocked ?? "", /has 1 commit origin\/main does not/);
   assert.equal(git(dir, "log", "-1", "--format=%s"), "Mine");
-  assert.deepEqual(calls, { install: 2, reload: 2 }, "and nothing refused is reloaded");
+  assert.deepEqual(calls, { install: 2, reload: 3 }, "and nothing refused is reloaded");
 });

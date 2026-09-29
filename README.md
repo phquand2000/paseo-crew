@@ -127,7 +127,7 @@ paseo plugin install "$PWD"
 Paseo remembers where the clone is. If you move it, install it again.
 
 **Keeping it current.** The **Plugin** tab shows the version that runs and, once checked, the one on
-the clone's branch. **Update** only moves forward, runs `npm install` when the packages changed, and
+the clone's branch. **Update** only moves forward, runs `npm install` when what npm installs from changed, and
 reloads the plugin. It is offered only once no seat is left in any project, idle ones included,
 because every project moves to the new version at once. Below the version is one row for each thing
 that needs you:
