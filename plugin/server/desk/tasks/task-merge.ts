@@ -5,7 +5,6 @@ import { advance, mergeCommit } from "../../core/land.ts";
 import { TASK } from "../../domain/task.ts";
 import type { DeskBase } from "../base.ts";
 import { gateNote, taskGate } from "../project/gates.ts";
-import { closeSeat } from "../store/incidents.ts";
 import { type Lane, loseReady } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
@@ -23,7 +22,7 @@ type Outcome = "merged" | "conflict" | "red" | "fail";
 /** A gate verdict on a task's branch, with the failing run's tail when this merge ran it. */
 type Verdict = { ok: boolean; note: string; over?: string; run?: { tail: string; logFile: string } };
 
-export type MergeDesk = Pick<DeskBase, "kit" | "ledgers" | "incidents" | "mail" | "log" | "stopping">;
+export type MergeDesk = Pick<DeskBase, "kit" | "ledgers" | "mail" | "log" | "stopping">;
 
 /** Merges one accepted task into its lane: the lane brought into the task's copy, gated there, then taken on as it is. */
 export class TaskMerge {
@@ -203,9 +202,6 @@ export class TaskMerge {
     if (typeof moved !== "object") return;
     await this.desk.mail.post(lane.lead, letter);
     recordEvent(project, { kind: `merge.${moved.status}`, task: task.id });
-    if (moved.status !== "merged") return;
-    // Its task is settled, so what the watch told about it is too; its Peer stays with its copy until its Lead releases it.
-    if (task.peer) this.desk.incidents.transact(project, (book) => closeSeat(book, task.peer!, Date.now()));
-    await this.merged(project);
+    if (moved.status === "merged") await this.merged(project);
   }
 }

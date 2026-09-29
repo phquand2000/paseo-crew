@@ -7,6 +7,21 @@ import { projectOf } from "../../server/desk/project/project.ts";
 import { laneWithPeer, repo } from "./harness.ts";
 import { book, notice } from "./noticed.ts";
 
+test("a page held for nobody is told once somebody can read it, though the task it is about merged meanwhile", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  h.agents.get(sup)!.archivedAt = new Date().toISOString();
+  await notice(h, peer, "irreversible", "page", "drop table build");
+  assert.equal(book(h).I1!.held, "nobody");
+  h.commit(lane.worktree!, "a.txt", "done\n");
+  await h.call(peer, "peer", "done", { outcome: "complete", summary: "done" });
+  await h.call(lane.lead!, "lead", "accept", { task: "L1-T1" });
+  await h.runtime.desk.settled(h.project);
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
+  h.agents.get(sup)!.archivedAt = null;
+  await h.tick();
+  assert.match(h.heard(sup).join("\n"), /INCIDENT I1 \(irreversible, page\)[\s\S]*drop table build/);
+});
+
 test("what was held because nobody could read it is told once somebody can, and never to the seat it is about", async () => {
   const { h, sup, lane, peer } = await laneWithPeer({ attention: { watch: true } });
   const seated = (yes: boolean) => void (h.agents.get(sup)!.archivedAt = yes ? null : new Date().toISOString());

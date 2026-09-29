@@ -477,7 +477,7 @@ other to whoever supervises, never to the seat it is about. Until then it may be
   repository, the seat and the command, whether its Supervisor was told, and whether the lane is on hold. Paseo pushes
   an agent's first finished turn, and pushes an agent once until someone opens it, so each page has a Pager of its own.
 - An attention-level sighting in words already marked `noise` for that seat and kind opens nothing; a page always does.
-- A seat's incidents close when it is archived, when its task merges, and when the lane it leads closes; closed, they
+- A seat's incidents close when it is archived and when the lane it leads closes, not when its task merges; closed, they
   still wait to be marked. `incidents.json` keeps the open ones and the newest 500 closed.
 
 ## Questions to a model

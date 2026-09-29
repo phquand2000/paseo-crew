@@ -445,8 +445,8 @@ while `attention.watch` is off, the default ("Mail incidents" on the Supervisor'
 its kind's last ten marks were mostly noise; over **budget** once its lane had `incidentsPerLane` (2) told in
 24 h, those about no lane sharing one; or for **nobody** to tell, retold by the patrol once someone is seated,
 the only hold on a page. The Supervisor's `incidents` lists them all, a Lead's those about the other seats of
-its lane, the Flow tab the open ones. An incident closes when marked, when its seat is archived, when its task
-merges, and, for a Lead, when its lane closes.
+its lane, the Flow tab the open ones. An incident closes when marked, when its seat is archived, and, for a
+Lead, when its lane closes; a merged task's Peer keeps its copy, so its incidents stay open until it goes.
 
 **Questions to a model.** What a fact cannot say, the watch asks at the moment it matters, one condition per
 question, of a small state `desk/watch/checks.ts` builds from the record, never a seat's own reasoning: of a
