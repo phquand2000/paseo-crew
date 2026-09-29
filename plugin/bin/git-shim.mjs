@@ -34,27 +34,32 @@ function refusal(command, rest) {
   return undefined;
 }
 
-/** The command an alias stands for, read with the same options, so `git -c alias.p=push p` is read as a push; git ignores an alias named for a command of its own. */
+/** The words an alias stands for, read with the same options, so `git -c alias.p=push p` is read as a push; a shell alias comes back as its text. */
 function expanded(globals, command) {
   if (OWN.has(command)) return undefined;
   const run = spawnSync(git, [...globals, "config", "--get", `alias.${command}`], { encoding: "utf-8" });
   const alias = run.status === 0 ? run.stdout.trim() : "";
-  // A shell alias runs git again through this same PATH, so what it starts is judged there.
-  return alias && !alias.startsWith("!") ? alias.split(/\s+/) : undefined;
+  if (!alias) return undefined;
+  return alias.startsWith("!") ? alias : alias.split(/\s+/);
 }
 
-const { globals } = split(argv);
-let { command, rest } = split(argv);
+function refuse(why) {
+  process.stderr.write(`git: refused: ${why}. Say what you need to whoever gave you the work.\n`);
+  process.exit(1);
+}
+
+let { globals, command, rest } = split(argv);
 for (let depth = 0; command && depth < 10; depth++) {
   const why = refusal(command, rest);
-  if (why) {
-    process.stderr.write(`git: refused: ${why}. Say what you need to whoever gave you the work.\n`);
-    process.exit(1);
-  }
+  if (why) refuse(why);
   const words = expanded(globals, command);
   if (!words) break;
-  rest = [...words.slice(1), ...rest];
-  command = words[0];
+  // git puts its own exec-path first on a shell alias's PATH, so the git inside it would run past this check unread.
+  if (typeof words === "string") refuse(`git ${command} is a shell alias, which runs git out of this check's sight; run its commands directly`);
+  // An alias may open with options of git's own, as `-p push` does: its command is read after them.
+  const again = split([...words, ...rest]);
+  globals = [...globals, ...again.globals];
+  ({ command, rest } = again);
 }
 
 const ran = spawnSync(git, argv, { stdio: "inherit" });
