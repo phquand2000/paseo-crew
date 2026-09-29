@@ -153,6 +153,14 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
     false,
     "a book that cannot be read is refused, not started again",
   );
+  await assert.rejects(notice(h, peer, "irreversible", "page", "drop database prod"), /could not be read/);
+  assert.match(
+    h.heard(sup).join("\n"),
+    /PAGE \(irreversible\) on the Peer on L1-T1[\s\S]*drop database prod[\s\S]*The incident book could not be read, so this is on no list/,
+    "a page the book cannot keep reaches whoever supervises all the same",
+  );
+  const pager = [...h.agents.values()].findLast((agent) => agent.provider.startsWith("crew-pager-"));
+  assert.match(pager?.prompt ?? "", /ran drop database prod\.\nIts Supervisor is told/, "and the Human's phone");
 });
 
 test("a kind most of whose last ten marks were noise is held on probation, and a page never is", async () => {

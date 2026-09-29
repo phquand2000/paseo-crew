@@ -30,7 +30,7 @@ async function page(desk: DeskServices, project: Project, text: string): Promise
 export async function pageIncident(
   desk: DeskServices,
   project: Project,
-  incident: Incident,
+  incident: Pick<Incident, "quote">,
   where: string,
   lane: Lane | undefined,
   told: boolean,

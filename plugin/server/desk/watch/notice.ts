@@ -72,12 +72,38 @@ export async function notice(
       facts: finding.facts,
     });
   }
-  const { opened, sending } = openIncidents(services, project, seat, place, findings, now);
+  let booked: { opened: Incident[]; sending: Incident[] };
+  try {
+    booked = openIncidents(services, project, seat, place, findings, now);
+  } catch (error) {
+    await pageUnbooked(services, project, seat, place, findings, errorText(error));
+    throw error;
+  }
+  const { opened, sending } = booked;
   const sent = sending.length > 0 ? await deliver(services, project, seat, place, sending, now) : [];
   // Once, as it opens: a page is irreversible and often done already, so the Human hears of it whoever else does.
   for (const incident of opened.filter((item) => item.level === "page"))
     await pageIncident(services, project, incident, place.where, place.lane, sent.includes(incident.id));
   return { opened, sent, place };
+}
+
+/** A page reaches whoever supervises and the Human whatever the book can keep: with none to read, it goes unbooked. */
+async function pageUnbooked(
+  services: DeskServices,
+  project: Project,
+  seat: Noticed,
+  place: Placed,
+  findings: Finding[],
+  fault: string,
+): Promise<void> {
+  for (const page of findings.filter((finding) => finding.level === "page")) {
+    const to = await services.roster.supervisorFor(project, place.lane?.opener).catch(() => undefined);
+    const posted =
+      to && to !== seat.id
+        ? await services.mail.post(to, watchLetters.unbooked(page, place, seat.id, fault)).catch(() => "nobody")
+        : "nobody";
+    await pageIncident(services, project, page, place.where, place.lane, posted !== "nobody");
+  }
 }
 
 /** Opens or sights an incident for each finding not settled as noise, and holds it where attention says so, else tells it. */

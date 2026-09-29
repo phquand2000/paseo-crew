@@ -265,7 +265,7 @@ first prompt, not mail, and carry neither.
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |
-| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, the bare nudge |
+| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, PAGE, the bare nudge |
 | A moment to look | ARCHITECTURE, STRUGGLING, TURNING |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
 

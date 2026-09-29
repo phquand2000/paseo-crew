@@ -414,7 +414,8 @@ The Human is asked what only they can decide and told what they cannot take back
 - **Pages.** Only `irreversible` opens one. As its incident opens, INCIDENT goes to the Supervisor whatever the
   watch's switch, budget or marks say, and the desk starts a Pager in the project's workspace, with no tools
   and no parent, whose one reply is the page the desk wrote, cut at 220 characters: the repository, the seat
-  and its command, whether a Supervisor is told, what is held. No verb sends a page.
+  and its command, whether a Supervisor is told, what is held. When `incidents.json` cannot be read, the page opens
+  no incident but still goes out: PAGE to the Supervisor, saying it is on no list, and the Pager. No verb sends a page.
 - **The Report tab** (`desk/views/report.ts`, read once as the tab opens): Needs you (questions holding a lane or
   irreversible, landings held), Went ahead on its recommendation (every other open question), Landed in 24 h,
   Beyond a lane (page-level incidents of 24 h), and counts, among them the questions of the last 24 h across
