@@ -15,6 +15,12 @@ export function issueArgs(ref: string): string[] | undefined {
   return undefined;
 }
 
+/** Zero-width, direction and tag characters: text a reader of the issue page never sees, which a model still reads. */
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]|[\u{e0000}-\u{e007f}]/gu;
+
+/** An issue as its page shows it: an HTML comment, closed or not, and invisible characters say nothing to its reader. */
+const unseen = (text: string) => text.replace(/<!--[^]*?(-->|$)/g, "").replace(INVISIBLE, "");
+
 export function fetchIssue(ref: string, cwd: string): Promise<Issue | { error: string }> {
   const args = issueArgs(ref);
   if (!args) return Promise.resolve({ error: `"${ref}" is not an issue reference` });
@@ -26,7 +32,12 @@ export function fetchIssue(ref: string, cwd: string): Promise<Issue | { error: s
       }
       try {
         const value = JSON.parse(String(stdout)) as Issue;
-        resolve({ number: value.number, title: value.title, url: value.url, body: value.body ?? "" });
+        resolve({
+          number: value.number,
+          title: unseen(value.title),
+          url: unseen(value.url),
+          body: unseen(value.body ?? ""),
+        });
       } catch {
         resolve({ error: "gh returned unreadable output" });
       }
