@@ -133,6 +133,11 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           `${where}: ${tool} only where the role edits files; the Lead coordinates and keeps its pages with note`,
         );
       assert.equal(
+        deny.includes("Edit(./**)"),
+        !edits && !bare,
+        `${where}: an Edit deny binds the sandbox too, so its shell writes nothing in the working copy; its pages under the state and $TMPDIR lie outside it`,
+      );
+      assert.equal(
         deny.includes("Bash(sleep *)"),
         !waits,
         `${where}: mail wakes a coordinating seat, and one asleep in its turn holds it open`,
