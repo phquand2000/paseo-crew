@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { delimiter, join, matchesGlob } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { delimiter, dirname, join, matchesGlob } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loadKit } from "../../server/catalog/kit/kit.ts";
@@ -7,7 +8,7 @@ import { providerId } from "../../server/catalog/kit/roles.ts";
 import { applyRole, seatEnv } from "../../server/catalog/seat/launch.ts";
 import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { readConfig } from "../../server/core/config-file.ts";
-import { DESK_OWNED, stateRoot } from "../../server/core/paths.ts";
+import { DESK_OWNED, paseoConfigPath, stateRoot } from "../../server/core/paths.ts";
 import type { AgentConfig } from "../../server/core/ports.ts";
 import { BACKUP } from "../../server/upkeep/migrate.ts";
 import type { Layer } from "../../shared/settings.ts";
@@ -305,7 +306,7 @@ test("a Claude seat's file tools are kept off what the desk owns and what sets u
     );
 });
 
-test("a seat's session gets its harness's environment, its config directory, project variables and the git launcher first on its PATH", () => {
+test("a seat's session gets its harness's environment, its config directory, project variables, the git launcher first on its PATH and the agent its provider runs", () => {
   const request = {
     agentId: "a",
     reason: "create" as const,
@@ -328,5 +329,16 @@ test("a seat's session gets its harness's environment, its config directory, pro
       CREW_STATE: "/state/repo",
     },
     "Paseo may run one agent server for every seat of a harness, so only the session carries the seat's own environment",
+  );
+  mkdirSync(dirname(paseoConfigPath()), { recursive: true });
+  writeFileSync(
+    paseoConfigPath(),
+    JSON.stringify({ agents: { providers: { omp: { command: ["/opt/agents/omp"] } } } }),
+  );
+  assert.equal(
+    seatEnv(kit, request, "/seats/peer-omp-repo", { root: "/repo", state: "/state/repo" }, "/state/bin").env
+      .CREW_AGENT_BIN,
+    "/opt/agents/omp",
+    "a daemon started without the owner's PATH still runs the agent the owner's provider names",
   );
 });

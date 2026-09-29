@@ -10,6 +10,7 @@ import { expandHome } from "../../core/paths.ts";
 import { type PromptPaths, renderText, skillProblems, skillSources } from "../kit/content.ts";
 import type { HarnessSpec, Kit, McpServers, RoleSpec } from "../kit/kit.ts";
 import { harnessFileSources, roleSettingsFile } from "../kit/harness-files.ts";
+import { agentBin } from "../paseo/agent-bin.ts";
 import { grantSetting, projectImports, stateWrites } from "./launch.ts";
 import { snapshot } from "./snapshots.ts";
 import { type Team, rulesFor, skillDirsFor } from "../team/team.ts";
@@ -105,10 +106,12 @@ function catalogText(command: string[]): string {
 export function writeModelCatalog(harness: HarnessSpec, dir: string, record: Recorder): Json {
   const spec = harness.modelCatalog;
   if (!spec) return {};
-  const from = `\`${spec.command.join(" ")}\``;
+  const [first, ...args] = spec.command;
+  const command = first === harness.provider.env?.CREW_AGENT_BIN ? [agentBin(harness)!, ...args] : spec.command;
+  const from = `\`${command.join(" ")}\``;
   let catalog: unknown;
   try {
-    catalog = JSON.parse(catalogText(spec.command));
+    catalog = JSON.parse(catalogText(command));
   } catch (error) {
     throw new Error(`${harness.label}'s model list could not be read from ${from}: ${errorText(error)}`, {
       cause: error,

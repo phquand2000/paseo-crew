@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import type { Check } from "../../../shared/views.ts";
 import type { Kit, ProxySpec } from "../../catalog/kit/kit.ts";
+import { agentBin } from "../../catalog/paseo/agent-bin.ts";
 import { connectToServer, hookTools, proxyOf } from "../../catalog/seat/servers.ts";
 import type { McpState } from "../../catalog/team/mcp-states.ts";
 import type { RoleSeat } from "../../catalog/team/role-seats.ts";
@@ -62,7 +63,7 @@ function harnessChecks(kit: Kit, team: Team): Check[] {
   const checks: Check[] = [];
   for (const [id, roles] of harnesses) {
     const harness = kit.harnesses[id]!;
-    const bin = harness.provider.env?.CREW_AGENT_BIN;
+    const bin = agentBin(harness);
     if (bin) {
       const ok = realProbes.has(bin);
       checks.push({

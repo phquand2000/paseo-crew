@@ -13,6 +13,7 @@ import {
   type RoleSpec,
 } from "../kit/kit.ts";
 import { agentDefault, seatOf } from "../kit/roles.ts";
+import { agentBin } from "../paseo/agent-bin.ts";
 import type { Team } from "../team/team.ts";
 import { preapprovedFor } from "./servers.ts";
 
@@ -146,11 +147,13 @@ export function seatEnv(
 ): SessionOpen {
   const seat = seatOf(kit, request.provider);
   if (!seat) return request;
+  const bin = agentBin(seat.harness);
   return {
     ...request,
     env: {
       ...request.env,
       ...seat.harness.provider.env,
+      ...(bin ? { CREW_AGENT_BIN: bin } : {}),
       [seat.harness.configDirEnv]: seatPath,
       ...(seat.harness.settings.overlayEnv
         ? { [seat.harness.settings.overlayEnv]: join(seatPath, seat.harness.settings.file) }
