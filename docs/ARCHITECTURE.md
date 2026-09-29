@@ -81,9 +81,9 @@ the Supervisor); and a permission prompt (WAITING FOR PERMISSION to the seat's o
 | Supervisor | `drop_lane`, `release` | the lane `closed` without landing, its branch kept; a kept Lead archived, its copy put away | LANE CLOSED to the Lead; CLEARED, as on landing |
 
 A landing that touches an `askFirst` path waits for the Human's approval on the Flow tab. `ready` is evidence,
-not a condition: a lane never reported ready still lands, saying so in its evidence. A landing the Human
-approved needs it only when the lane was ready as it was held and has been amended since. [A lane](#a-lane)
-has the order `land_lane` works in.
+not a condition: a lane never reported ready still lands, saying so in its evidence, approved or not. An
+approval holds again only for an `askFirst` path the Human was not asked about. [A lane](#a-lane) has the order
+`land_lane` works in.
 
 ### Report
 

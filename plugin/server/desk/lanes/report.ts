@@ -133,5 +133,5 @@ async function readAhead(
   const change = await changeOf(project, lane);
   const ledger = loadLedger(project.state);
   const facts = await landFacts(kit, project, ledger, lane, change);
-  return { asks: askFirstHits(project, change), facts, changes: changesStanding(ledger, lane) };
+  return { asks: askFirstHits(project, change).map((hit) => hit.text), facts, changes: changesStanding(ledger, lane) };
 }

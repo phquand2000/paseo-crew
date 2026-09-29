@@ -34,7 +34,7 @@ export async function landLane(
   const tip = await headSha(project.root, lane.branch);
   // A commit after the hold makes it a lane nobody has looked at: it is checked again from the start.
   const approved = lane.landApproval?.approved && lane.landApproval.head === tip ? lane.landApproval : undefined;
-  const waits = await waitsForHuman(desk, project, lane, tip, approved);
+  const waits = await waitsForHuman(desk, project, lane, tip);
   if (waits) return waits;
   const unsaved = lane.worktree ? await unsavedIn(lane.worktree, Boolean(lane.slot)) : undefined;
   if (unsaved) {

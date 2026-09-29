@@ -211,8 +211,8 @@ before landing, where review changes stand that nothing on record answers; land.
 
 A lane not reported ready as it stands lands all the same, with that and the review facts as evidence. A ready report
 stands until the lane changes under it: an amendment, new tasks, a task merged or sent back after it, a base conflict
-while landing, or a landing the Human sends back. A landing the Human approved while the lane stood ready waits for
-the next report if the lane lost it since; one they approved before it was reported ready lands.
+while landing, or a landing the Human sends back. A landing the Human approved lands whether the lane still stands
+ready or not, and is held again only for an `askFirst` path they were not asked about.
 
 ### Closing a lane
 

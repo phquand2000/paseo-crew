@@ -55,10 +55,10 @@ export type Lane = {
     since: number;
     head: string;
     signals: string[];
+    paths: string[];
     evidence: string[];
     overGate: boolean;
     reason?: string;
-    ready: boolean;
     approved?: { at: number; note: string };
   };
   landed?: boolean;

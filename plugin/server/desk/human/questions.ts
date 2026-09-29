@@ -129,7 +129,7 @@ export async function askFirstOf(project: Project, lane: Lane): Promise<string |
   const declared = loadConfig(project.state).askFirst.find((path) => firstOverlap(lane.writeSet, [coverGlob(path)]));
   if (declared) return `Lane ${lane.id} may write under ${declared}, which the Human asked to be asked about first.`;
   const hit = lane.status === "open" ? askFirstHits(project, await changeOf(project, lane))[0] : undefined;
-  return hit && `Lane ${lane.id}: ${hit}`;
+  return hit && `Lane ${lane.id}: ${hit.text}`;
 }
 
 /** The questions put to the Human since `since` across every project on this machine: the Human has one attention for them all. */

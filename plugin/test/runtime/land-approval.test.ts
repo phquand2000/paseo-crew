@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { configFile } from "../../server/desk/project/project.ts";
@@ -155,7 +155,7 @@ test("an approval is for the lane as it was held, and for what the Human asked a
 
 test("an approval that cannot land yet stands through a dirty base, a hold and a missing READY; a hold calls off only a landing not yet approved", async () => {
   const landable = await laneWith(risky, ["src/auth"], true);
-  const { h, sup, lane, land, onMain } = landable;
+  const { h, sup, land, onMain } = landable;
   const hold = () => h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "a page came in" });
   const resume = () => h.call(sup, "supervisor", "resume_lane", { lane: "L1" });
   await land();
@@ -190,14 +190,23 @@ test("an approval that cannot land yet stands through a dirty base, a hold and a
     why: "backups",
   });
   h.git(h.root, "checkout", "--", "a.txt");
-  assert.match(
-    (await land()).text,
-    /was not landed: its Lead has not reported it ready as it now stands\. The Human's approval stands/,
-  );
-  await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   const landed = await land();
   assert.equal(landed.ok, true, landed.text);
+  assert.match(landed.text, /The Human approved it\.\nEvidence: Its Lead has not reported it ready as it now stands/);
   assert.doesNotMatch(landed.text, /waits/);
+  assert.ok(onMain("src/auth/login.ts"));
+});
+
+test("an approval stands for the paths the Human was asked about, however base merged in first changes the files named under them", async () => {
+  const { h, land, onMain } = await laneWith(
+    { "src/auth/login.ts": "export const login = 1;\n", "src/auth/logout.ts": "export const logout = 1;\n" },
+    ["src/auth"],
+    true,
+  );
+  await land();
+  mkdirSync(join(h.root, "src", "auth"), { recursive: true });
+  h.commit(h.root, "src/auth/logout.ts", "export const logout = 1;\n");
+  assert.match(await decide(h, true, ""), /^Approved: Lane L1 closed/);
   assert.ok(onMain("src/auth/login.ts"));
 });
 
