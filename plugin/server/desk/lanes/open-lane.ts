@@ -65,7 +65,7 @@ export async function openLane(desk: DeskServices, caller: Caller, asked: OpenLa
   const config = loadConfig(project.state);
   const plan = await planOpen(project, config, asked);
   if (typeof plan === "string") return no(plan);
-  const fault = seedConfig(desk.kit, project, config, plan);
+  const fault = seedGate(desk.kit, project, config);
   if (fault) return no(fault);
   return plan.pending.length > 0 ? waitToOpen(desk, caller, plan) : openNow(desk, caller, plan);
 }
@@ -95,7 +95,9 @@ async function planOpen(project: Project, config: ProjectConfig, asked: OpenLane
   const pending = after.length > 0 ? waitsFor(loadLedger(project.state), after, onBranch) : [];
   if (typeof pending === "string") return `${pending} Open this lane without waiting for it.`;
   const carried = pending.find((lane) => lane.onBranch)?.branch;
-  const base = onBranch ? (carried ?? (newBranch || here!)) : str(args.base) || config.base || here || "main";
+  // With no base on record a lane starts where the Human's copy stands, which a lane holding that copy is not.
+  const from = ownCopyHolder(Object.values(loadLedger(project.state).lanes))?.base ?? here;
+  const base = onBranch ? (carried ?? (newBranch || here!)) : str(args.base) || config.base || from || "main";
   if (!newBranch && !(await branchExists(project.root, base))) return `The base branch ${base} does not exist.`;
   const place = { base, onBranch, branch: onBranch ? base : undefined };
   return { args, place, after, pending, newBranch, here, decided };
@@ -132,14 +134,13 @@ async function homeOf(
   };
 }
 
-/** Seeded only when unanswered: the gate is "" when the owner answered "no gate", and a branch carried on is not a base. */
-function seedConfig(kit: Kit, project: Project, config: ProjectConfig, plan: Plan): string | undefined {
-  if (config.base && config.gate !== undefined) return undefined;
+/** The gate detected once while nothing answered it: "" is the owner's own answer, no gate. The base is only set_project's. */
+function seedGate(kit: Kit, project: Project, config: ProjectConfig): string | undefined {
+  if (config.gate !== undefined) return undefined;
   const fault = configFault(configFile(project.state));
   if (fault)
     return `${fault}\nOnly the Human can repair it or move it aside — no seat may write the desk's own files — so tell them; the desk will not write its own defaults over a file it could not read.`;
-  const base = config.base ?? (plan.place.onBranch ? undefined : plan.place.base);
-  saveConfig(project.state, { ...config, base, gate: config.gate ?? detectGate(project.root, kit.ecosystem) });
+  saveConfig(project.state, { ...config, gate: detectGate(project.root, kit.ecosystem) });
   return undefined;
 }
 
