@@ -259,4 +259,13 @@ test("a seat's turn stays open through the late end of an older turn, and is lon
     "a turn that keeps moving is not long, however long it runs",
   );
   assert.match(busy.longTurn(t0 + 56 * 60_000, 30)[0]!.quote, /^nothing new for 31 minutes of a turn running 56$/);
+
+  const joined = new SeatWatch(seat, context);
+  joined.see({ kind: "turn", phase: "started", turnId: "j", at: t0 }, t0 + 40 * 60_000);
+  assert.deepEqual(
+    joined.longTurn(t0 + 45 * 60_000, 30),
+    [],
+    "a watch that joins a running turn counts quiet from when it joined, not from the turn's start",
+  );
+  assert.match(joined.longTurn(t0 + 71 * 60_000, 30)[0]!.quote, /^nothing new for 31 minutes of a turn running 71$/);
 });

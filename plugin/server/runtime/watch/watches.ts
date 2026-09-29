@@ -46,7 +46,7 @@ export class SeatWatch {
       return [];
     }
     if (seen.kind === "turn") {
-      if (seen.phase === "started") return this.started(seen.turnId, seen.at ?? now);
+      if (seen.phase === "started") return this.started(seen.turnId, seen.at ?? now, now);
       if (this.running && this.turnId !== null && seen.turnId !== null && seen.turnId !== this.turnId) return [];
       return this.ended(seen.phase);
     }
@@ -87,12 +87,13 @@ export class SeatWatch {
     return this.fresh([fact("long-turn", `nothing new for ${still} minutes of a turn running ${took}`)]);
   }
 
-  private started(turnId: string | null, at: number): Fact[] {
+  /** Quiet counts from `now`: a watch that joins a running turn has heard nothing of it before. */
+  private started(turnId: string | null, at: number, now: number): Fact[] {
     if (this.running && this.turnId === turnId && turnId !== null) return [];
     this.running = true;
     this.turnId = turnId;
     this.startedAt = at;
-    this.heardAt = at;
+    this.heardAt = now;
     this.current = this.context();
     this.told.clear();
     return [];
