@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { harness, ideCalls, laneWithPeer } from "./harness.ts";
 
@@ -27,7 +27,7 @@ async function isolated(h: Harness, sup: string, title: string, dir: string) {
 
 const copyCalls = (path: string) => ideCalls.filter((call) => call.path === path).map((call) => call.kind);
 
-test("a copy waits for every seat writing in it: the last to stop puts it away, and a round puts away one whose writers are gone for good", async () => {
+test("a copy waits for every seat writing in it: the last to stop puts it away, or leaves it where it holds work nobody committed, and a round puts away one whose writers are gone for good", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const release = (lane: string) => h.call(sup, "supervisor", "release", { lane });
@@ -55,8 +55,8 @@ test("a copy waits for every seat writing in it: the last to stop puts it away, 
   assert.ok(h.ledger().slots[lane.slot!]);
   h.agents.get(lead)!.status = "idle";
   await h.endTurn(lead, "stopping too");
-  assert.equal(existsSync(lane.worktree!), false);
-  assert.equal(existsSync(dirname(lane.worktree!)), false);
+  const unsaved = join(lane.worktree!, "half-written.txt");
+  assert.equal(readFileSync(unsaved, "utf-8"), "the Peer is mid-sentence\n", "the desk never deletes work");
   assert.deepEqual(Object.keys(h.ledger().slots), []);
   assert.notEqual(h.git(h.root, "branch", "--list", lane.branch).trim(), "");
 
@@ -70,6 +70,7 @@ test("a copy waits for every seat writing in it: the last to stop puts it away, 
   await h.tick(Date.now());
   assert.equal(existsSync(abandoned.worktree!), false);
   assert.deepEqual(Object.keys(h.ledger().slots), []);
+  assert.equal(existsSync(unsaved), true, "nor does a round's sweep");
 });
 
 test("a kept Lead keeps its lane's copy until the Supervisor releases it or the round finds it gone, and one failed look is not gone", async () => {

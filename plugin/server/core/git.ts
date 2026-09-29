@@ -189,8 +189,8 @@ export async function mergeUnderWay(cwd: string): Promise<boolean> {
 }
 
 /** What is uncommitted in `cwd`, named: a stray message file reads as unfinished work otherwise. */
-export async function uncommittedIn(cwd: string): Promise<string> {
-  const run = await git(cwd, ["status", "--porcelain"]);
+export async function uncommittedIn(cwd: string, untracked = true): Promise<string> {
+  const run = await git(cwd, ["status", "--porcelain", ...(untracked ? [] : ["--untracked-files=no"])]);
   const lines = run.stdout.split("\n").filter((line) => line.trim());
   const shown = lines
     .slice(0, 6)

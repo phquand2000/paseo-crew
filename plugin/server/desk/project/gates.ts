@@ -1,7 +1,7 @@
 import { recordEvent } from "../store/event-log.ts";
 import { join } from "node:path";
 import { runGate } from "../../core/gate.ts";
-import { cleanState, pristineState } from "../../core/git.ts";
+import { unsavedIn } from "../copies/unsaved.ts";
 import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
@@ -56,17 +56,8 @@ export async function laneGate(
   const rehearsals = files ? rulesFor(rules, files) : rules;
   if ((!gate && rehearsals.length === 0) || !lane.worktree) return { ok: true, text: "no gate set", ran: false };
   // In the Human's own checkout an untracked file is theirs, not the lane's unsaved work.
-  const state = await (lane.slot ? pristineState : cleanState)(lane.worktree);
-  if (state !== "clean") {
-    return {
-      ok: false,
-      text:
-        state === "dirty"
-          ? "the lane working copy has uncommitted changes"
-          : `git could not read the lane working copy at ${lane.worktree}`,
-      ran: false,
-    };
-  }
+  const unsaved = await unsavedIn(lane.worktree, Boolean(lane.slot));
+  if (unsaved) return { ok: false, text: `the gate did not run: the lane's working copy ${unsaved}`, ran: false };
   const copy = { ...lane, worktree: lane.worktree };
   const verdicts: GateVerdict[] = gate ? [await onLane(project, copy, gate, stopping)] : [];
   for (const rule of rehearsals) verdicts.push(await onLane(project, copy, rule.rehearse!, stopping, rule.invariant));

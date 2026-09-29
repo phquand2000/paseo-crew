@@ -11,6 +11,7 @@ import type { Roster } from "../seats/roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { midTurnAmong } from "../seats/writing.ts";
+import { unsavedIn } from "../copies/unsaved.ts";
 import { type Closed, type Held, type OverGate, checkLanding, waitsForHuman } from "./land-hold.ts";
 
 /** How a lane landed, as its CLOSED reply and letters say; `note` is the evidence that went with it. */
@@ -35,6 +36,12 @@ export async function landLane(
   const approved = lane.landApproval?.approved && lane.landApproval.head === tip ? lane.landApproval : undefined;
   const waits = await waitsForHuman(desk, project, lane, tip, approved);
   if (waits) return waits;
+  const unsaved = lane.worktree ? await unsavedIn(lane.worktree, Boolean(lane.slot)) : undefined;
+  if (unsaved) {
+    const why = `its working copy ${unsaved}`;
+    const text = `Lane ${lane.id} was not closed: ${why}. Only what is committed lands, so overGate does not pass it: have its Lead get it committed or cleared, then land_lane it again; or drop_lane it, which keeps the copy and that work.`;
+    return { ...no(text), blocked: why };
+  }
   // Land before closing: a closed lane cannot be closed again, so a landing that cannot happen is refused while open.
   const stop = await bringBaseIn(desk, project, ledger, lane);
   if (stop) {
@@ -77,9 +84,12 @@ async function gateThenLand(
     };
   }
   const gate = await laneGate(desk, project, lane);
-  // A red gate stops landing unless the Supervisor passes `overGate`: the verdict is evidence, not a veto.
-  if (!gate.ok && !over.overGate) {
-    const text = `Lane ${lane.id} was not closed: ${gate.text}\nMessage its Lead, drop_lane it, or land_lane it over the gate with overGate true and your reason: that is your call.`;
+  // A red gate stops landing unless the Supervisor passes `overGate`: the verdict is evidence, not a veto. One that never ran is no verdict.
+  if (!gate.ok && (!gate.ran || !over.overGate)) {
+    const then = gate.ran
+      ? "Message its Lead, drop_lane it, or land_lane it over the gate with overGate true and your reason: that is your call."
+      : "land_lane it again once it can run, or drop_lane it.";
+    const text = `Lane ${lane.id} was not closed: ${gate.text}\n${then}`;
     return { ...no(text), blocked: gate.text.split("\n")[0]!.replace(/\.$/, "") };
   }
   const check = await checkLanding(desk, project, lane, gate, over, approved);

@@ -12,6 +12,7 @@ import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { midTurnAmong } from "../seats/writing.ts";
+import { unsavedIn } from "../copies/unsaved.ts";
 
 /** A report call as the tool takes it. */
 type ReportCall = { summary: string; ready: boolean; carried?: string[] };
@@ -42,7 +43,7 @@ export async function reportLane(desk: DeskServices, caller: Caller, args: Repor
   return tell(desk, project, lane, args, gate);
 }
 
-/** Why READY cannot be claimed now: the lane on hold, a seat still writing in its copy, or the copy on a task's branch. */
+/** Why READY cannot be claimed now: the lane on hold, a seat still writing in its copy, the copy on a task's branch or holding work uncommitted. */
 async function readyBlocked(desk: DeskServices, project: Project, lane: Lane): Promise<string | undefined> {
   const held = holdRefusal(lane);
   if (held) return held;
@@ -64,7 +65,10 @@ async function readyBlocked(desk: DeskServices, project: Project, lane: Lane): P
   const holding = inCopy.find((task) => task.branch === on);
   if (holding)
     return `The lane's working copy is on ${on}, ${holding.id}'s branch, not ${lane.branch}: the gate would read ${holding.id}'s tree. Report ready once it is merged or cut.`;
-  return undefined;
+  const unsaved = await unsavedIn(lane.worktree!, Boolean(lane.slot));
+  return unsaved
+    ? `The lane's working copy ${unsaved}: only what is committed is gated and lands. Report ready once it is committed or cleared.`
+    : undefined;
 }
 
 async function tell(

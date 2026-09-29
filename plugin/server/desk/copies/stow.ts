@@ -1,9 +1,11 @@
+import { existsSync } from "node:fs";
 import { currentBranch, landedRef } from "../../core/git.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { leaveCopy } from "./sync.ts";
+import { unsavedIn } from "./unsaved.ts";
 
 type Stowing = { land: boolean; kept: boolean; writers: string[] };
 
@@ -40,14 +42,21 @@ export async function stowCopy(
   const now =
     lane.worktree && (lane.slot ? how.kept : how.writers.length === 0) ? await currentBranch(lane.worktree) : undefined;
   const stuck = now && now !== (lane.slot || lane.onBranch ? lane.branch : lane.base) ? now : undefined;
-  return { kept, note: copyNote(lane, how, Boolean(holder), stuck) };
+  const left = lane.slot && !how.kept && how.writers.length === 0 && lane.worktree && existsSync(lane.worktree);
+  const unsaved = left ? await unsavedIn(lane.worktree!) : undefined;
+  return { kept, note: copyNote(lane, how, Boolean(holder), stuck, unsaved) };
 }
 
-/** Where the lane's copy stands once it closes: on a carried-on branch, kept with its Lead, going away, or the Human's going back; `stuck`, where git left it instead. */
-function copyNote(lane: Lane, { kept, writers }: Stowing, held: boolean, stuck?: string): string {
+/**
+ * Where the lane's copy stands once it closes: on a carried-on branch, kept with its Lead, going away, left for the work it
+ * holds uncommitted, or the Human's going back; `stuck`, where git left it instead.
+ */
+function copyNote(lane: Lane, { kept, writers }: Stowing, held: boolean, stuck?: string, unsaved?: string): string {
   if (lane.onBranch && !held) return `The project's own copy stays on ${lane.branch}.`;
   if (lane.slot && kept)
     return `Its working copy ${lane.slot} stays with its Lead${stuck ? `, still on ${stuck}` : ""}.`;
+  if (lane.slot && unsaved)
+    return `Its working copy ${lane.slot} holds work nobody committed, so it stays at ${lane.worktree}, on ${lane.branch}, for the Human: the desk never deletes work.`;
   const to = lane.onBranch ? lane.branch : lane.base;
   if (stuck)
     return `The project's own copy is still on ${stuck}: git would not take it to ${to} as it stands, and each round tries again.`;

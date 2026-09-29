@@ -16,6 +16,7 @@ import type { DeskBase } from "../base.ts";
 import { closeIndexes, openIndexes } from "./indexes.ts";
 import { placeLinks } from "./links.ts";
 import { sweepCopies } from "./sweep.ts";
+import { unsavedIn } from "./unsaved.ts";
 import { type Slot, nextSlotId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project/project.ts";
@@ -53,7 +54,10 @@ export class Slots {
     return kept ?? (await this.workspaces.make(project.slug, project.root));
   }
 
-  /** Returns the branch it kept because its work is not in `into` yet. `into` must be named: `branch -d` checks against whatever is checked out. */
+  /**
+   * Returns the branch it kept because its work is not in `into` yet: `into` must be named, since `branch -d` checks against
+   * whatever is checked out. A copy holding work no commit does is never removed: it stays, off the record, for the Human.
+   */
   async release(
     project: Project,
     slotId: string | undefined,
@@ -63,6 +67,7 @@ export class Slots {
     if (!slotId) return undefined;
     const slot = loadLedger(project.state).slots[slotId];
     let kept: string | undefined;
+    const unsaved = slot && existsSync(slot.path) ? await unsavedIn(slot.path) : undefined;
     if (slot) {
       closeIndexes(this.desk, project, slot);
       // Put away before the copy goes: Paseo reads a workspace's git state until it is archived.
@@ -73,22 +78,29 @@ export class Slots {
           this.desk.log(project, `workspace ${slot.workspaceId} could not be put away: ${errorText(error)}`);
         }
       }
-      // A lane's copy left on a task's branch: that branch goes with the copy once the lane branch has all of it.
-      const off = slot.lane && existsSync(slot.path) ? await currentBranch(slot.path) : undefined;
-      if (existsSync(slot.path)) {
-        await git(slot.path, ["switch", "--detach"]);
-        await removeWorktree(project.root, slot.path);
-        // And the directory the desk made: git leaves one often enough, and nothing else reliably sweeps it.
-        this.discard(project, slot.path);
-      }
-      // A branch whose commits are not in `into` holds the only copy of that work: clutter is cheaper.
-      if (dropBranch && !(into && (await dropMerged(project.root, dropBranch, into)))) kept = dropBranch;
-      const laneBranch = slot.lane ? loadLedger(project.state).lanes[slot.lane]?.branch : undefined;
-      if (off && laneBranch && off !== laneBranch && off !== dropBranch)
-        await dropMerged(project.root, off, laneBranch);
+      if (unsaved)
+        this.desk.log(project, `working copy ${slot.id} ${unsaved}, so it stays at ${slot.path}, with its branch`);
+      else kept = await this.remove(project, slot, dropBranch, into);
     }
     this.drop(project, slotId);
-    recordEvent(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot), kept });
+    recordEvent(project, { kind: "slot.released", slot: slotId, removed: Boolean(slot) && !unsaved, kept });
+    return kept;
+  }
+
+  /** Removes a copy whose work is all committed, and the branches it no longer needs; returns one it kept. */
+  private async remove(project: Project, slot: Slot, dropBranch?: string, into?: string): Promise<string | undefined> {
+    // A lane's copy left on a task's branch: that branch goes with the copy once the lane branch has all of it.
+    const off = slot.lane && existsSync(slot.path) ? await currentBranch(slot.path) : undefined;
+    if (existsSync(slot.path)) {
+      await git(slot.path, ["switch", "--detach"]);
+      await removeWorktree(project.root, slot.path);
+      // And the directory the desk made: git leaves one often enough, and nothing else reliably sweeps it.
+      this.discard(project, slot.path);
+    }
+    // A branch whose commits are not in `into` holds the only copy of that work: clutter is cheaper.
+    const kept = dropBranch && !(into && (await dropMerged(project.root, dropBranch, into))) ? dropBranch : undefined;
+    const laneBranch = slot.lane ? loadLedger(project.state).lanes[slot.lane]?.branch : undefined;
+    if (off && laneBranch && off !== laneBranch && off !== dropBranch) await dropMerged(project.root, off, laneBranch);
     return kept;
   }
 

@@ -95,6 +95,33 @@ test("a red gate or a red rehearsal holds a landing until the Supervisor lands o
   assert.ok(onMain("src/db/001.sql"));
 });
 
+test("work nobody committed in a lane's copy never lands, over the gate or not, and the desk never deletes it: READY waits for it, landing stops, a drop keeps the copy", async () => {
+  const { h, sup, lane, land } = await laneWith({ "a.txt": "cart\n" }, [], true);
+  const copy = lane.worktree!;
+  writeFileSync(join(copy, "notes.txt"), "half a thought\n");
+  const ready = await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
+  assert.equal(ready.ok, false, ready.text);
+  assert.match(ready.text, /working copy has work uncommitted \(\?\? notes\.txt\)/);
+  const over = await h.call(sup, "supervisor", "land_lane", { lane: "L1", overGate: true, reason: "judged safe" });
+  assert.equal(over.ok, false, over.text);
+  assert.match(
+    over.text,
+    /^Lane L1 was not closed: its working copy has work uncommitted \(\?\? notes\.txt\)\. Only what is committed lands, so overGate does not pass it/,
+  );
+  assert.notEqual(h.git(h.root, "show", "main:a.txt"), "cart\n");
+  assert.equal((await land()).ok, false);
+
+  Object.assign(h.agents.get(lane.lead!)!, { status: "closed", archivedAt: new Date().toISOString() });
+  const dropped = await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "not wanted" });
+  assert.equal(dropped.ok, true, dropped.text);
+  assert.ok(
+    dropped.text.includes(`Its working copy ${lane.slot} holds work nobody committed, so it stays at ${copy}`),
+    dropped.text,
+  );
+  await h.tick();
+  assert.equal(readFileSync(join(copy, "notes.txt"), "utf-8"), "half a thought\n", "the desk never deletes work");
+});
+
 test("in the Human's own checkout, files git does not track are theirs and stop no lane, while changes to tracked files still stop its gate", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -113,7 +140,10 @@ test("in the Human's own checkout, files git does not track are theirs and stop 
   writeFileSync(join(h.root, "b.txt"), "the Human is editing\n");
   const land = () => h.call(sup, "supervisor", "land_lane", { lane: "L1" });
   h.agents.get(lane.lead!)!.status = "idle";
-  assert.match((await land()).text, /the lane working copy has uncommitted changes/);
+  assert.match(
+    (await land()).text,
+    /its working copy has work uncommitted \(M b\.txt\)\. Only what is committed lands/,
+  );
   h.git(h.root, "checkout", "--", "b.txt");
   const landed = await land();
   assert.equal(landed.ok, true, landed.text);
