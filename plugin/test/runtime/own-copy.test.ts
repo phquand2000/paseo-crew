@@ -195,6 +195,10 @@ test("a lane carrying on the Human's branch is refused where there is none, star
   assert.match((await open("Taken", { onBranch: true, newBranch: "main" })).text, /main already exists/);
   h.git(h.root, "switch", "-q", "--detach");
   assert.match((await open("Nowhere", { onBranch: true })).text, /not on a branch/);
+  assert.match(
+    (await open("Loose", {})).text,
+    /^Nothing names the base this lane starts from: none is on record, and the project's own copy is not on a branch\. Pass base, or set_project names one\.$/,
+  );
   h.git(h.root, "switch", "-q", "fix/login");
 
   assert.equal((await open("Finish the fix", { onBranch: true })).ok, true);

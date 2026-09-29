@@ -97,7 +97,9 @@ async function planOpen(project: Project, config: ProjectConfig, asked: OpenLane
   const carried = pending.find((lane) => lane.onBranch)?.branch;
   // With no base on record a lane starts where the Human's copy stands, which a lane holding that copy is not.
   const from = ownCopyHolder(Object.values(loadLedger(project.state).lanes))?.base ?? here;
-  const base = onBranch ? (carried ?? (newBranch || here!)) : str(args.base) || config.base || from || "main";
+  const base = onBranch ? (carried ?? (newBranch || here!)) : str(args.base) || config.base || from;
+  if (!base)
+    return "Nothing names the base this lane starts from: none is on record, and the project's own copy is not on a branch. Pass base, or set_project names one.";
   if (!newBranch && !(await branchExists(project.root, base))) return `The base branch ${base} does not exist.`;
   const place = { base, onBranch, branch: onBranch ? base : undefined };
   return { args, place, after, pending, newBranch, here, decided };

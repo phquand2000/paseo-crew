@@ -77,7 +77,7 @@ Every field is optional; one left out keeps its value.
 
 | Field | Sets | Default |
 |---|---|---|
-| `base` | The branch lanes start from and land on. It must exist | set by the first lane not carried on the Human's branch |
+| `base` | The branch lanes start from and land on. It must exist | none: a lane starts from the branch the Human's copy is on, and is refused while that copy is on none |
 | `gate` | The command that proves a lane works, run in its copy. An empty string is an answer: no gate, and the desk never detects one over it | [detected](#gate-detection) |
 | `gateTimeoutMinutes` | How long a gate run may take before it counts as failed | 30 |
 | `gateOn` | `task` also gates each hand-back and each merge, unless the gate already ran on that commit. `lane` gates only the ready report and the landing, for a slow suite | `task` |
