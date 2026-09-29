@@ -67,6 +67,15 @@ async function gateThenLand(
 ): Promise<Closed | Landed> {
   // What lands is the head its gate saw: a lane that moves after the gate lands nothing.
   const tested = await headSha(project.root, lane.branch);
+  if (!tested) {
+    const why = `git could not read ${lane.branch}`;
+    return {
+      ...no(
+        `Lane ${lane.id} was not closed: ${why}, so what its gate would see is not known. land_lane it again, or drop_lane it.`,
+      ),
+      blocked: why,
+    };
+  }
   const gate = await laneGate(desk, project, lane);
   // A red gate stops landing unless the Supervisor passes `overGate`: the verdict is evidence, not a veto.
   if (!gate.ok && !over.overGate) {
@@ -78,7 +87,7 @@ async function gateThenLand(
   const how = { as: loadConfig(project.state).landAs, message: landMessage(ledger, lane), keep: landedRef(lane.id) };
   const result = lane.onBranch
     ? { landed: true, how: `the work stays on ${lane.branch}, the branch it carried on; nothing was merged anywhere` }
-    : await landOnBase(project.root, lane.base, lane.branch, tested ?? "", how);
+    : await landOnBase(project.root, lane.base, lane.branch, tested, how);
   if (!result.landed) {
     const text = `Lane ${lane.id} was not closed: it could not land, because ${result.how}. land_lane it again once that is cleared, or drop_lane it.`;
     return { ...no(text), blocked: result.how };

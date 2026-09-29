@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
@@ -293,4 +293,23 @@ test("two lanes landed at once each stay on the base: the second waits for the f
     ["cart.txt", "order.txt"].filter((file) => onMain.includes(file)),
     ["cart.txt", "order.txt"],
   );
+});
+
+test("a lane whose head git cannot read as its gate is taken refuses with that reason, not as moved, and lands once it reads", async () => {
+  const { lane, land, onMain } = await laneWith({ "src/cart.ts": "cart\n" });
+  const fake = tempDir("crew-fake-git-");
+  const path = process.env.PATH ?? "";
+  writeFileSync(
+    join(fake, "git"),
+    `#!/bin/sh\nfor a; do last=$a; done\nif [ "$last" = '${lane.branch}^{commit}' ]; then n=$(( $(cat '${fake}/n' 2>/dev/null || echo 0) + 1 )); echo $n > '${fake}/n'; [ $n = 2 ] && exit 128; fi\nPATH='${path}' exec git "$@"\n`,
+  );
+  chmodSync(join(fake, "git"), 0o755);
+  process.env.PATH = `${fake}:${path}`;
+  const refused = await land().finally(() => (process.env.PATH = path));
+  assert.equal(refused.ok, false);
+  assert.match(refused.text, new RegExp(`^Lane L1 was not closed: git could not read ${lane.branch}`));
+  assert.doesNotMatch(refused.text, /moved after its gate ran/);
+  assert.equal(onMain("src/cart.ts"), false);
+  assert.equal((await land()).ok, true);
+  assert.equal(onMain("src/cart.ts"), true);
 });
