@@ -37,7 +37,7 @@ async function drawn(h: Harness, open: string[] = []) {
 }
 
 test("a question waits in the Human's queue, and their answer, on the panel or in the Supervisor's chat, goes on record and to whoever asked", async () => {
-  const { h, sup } = await laneWithPeer();
+  const { h, sup, lane } = await laneWithPeer();
   const ask = (extra: Record<string, unknown>) => h.call(sup, "supervisor", "ask_human", packet(extra));
   const record = (question: string, choice: string, quote: string) =>
     h.call(sup, "supervisor", "record_human_answer", { question, choice, quote });
@@ -56,10 +56,13 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
 
   assert.match(
     (await ask({ lane: "L1", class: "irreversible" })).text,
-    /^Asked the Human as H1; it waits in their question queue\. Nothing it decides goes ahead until they answer\. Lane L1 is on hold for it\./,
+    /^Asked the Human as H1; it waits in their question queue\. Nothing it decides goes ahead until they answer: its Lead is told to keep off it and carry on with the rest\. Holding the whole lane is yours, with hold_lane\./,
   );
-  const why = "it waits for the Human's answer to H1: Delete old invoices, or keep them archived?";
-  assert.equal(h.ledger().lanes.L1!.onHold?.reason, why);
+  assert.equal(h.ledger().lanes.L1!.onHold, undefined, "only what it decides waits, not the whole lane");
+  assert.match(
+    h.heard(lane.lead!).join("\n"),
+    /DECISION PENDING H1, the Human's to make: Delete old invoices, or keep them archived\?\n\nNothing it decides goes ahead until they answer; what it does not touch goes on\.\n\nNext: Keep the lane off what it decides/,
+  );
   assert.match(
     (await h.call(sup, "supervisor", "status", {})).text,
     /## Questions for the Human\n\n- H1 \(irreversible, L1\), open 0 min: Delete old invoices, or keep them archived\? Recommended: Archive\. While silent: The lane archives them/,
@@ -75,7 +78,7 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
     ]),
     [["H1", "irreversible", "L1", "Archive", ["Delete", "Archive"]]],
   );
-  assert.equal(flow.lanes[0]!.onHold?.reason, why);
+  assert.equal(flow.lanes[0]!.onHold, undefined);
 
   assert.match(
     (await record("H1", "Delete", "delete them all")).text,
@@ -103,15 +106,12 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
   );
   assert.match(
     h.heard(sup).join("\n"),
-    /HUMAN ANSWERED H1 \(Delete old invoices, or keep them archived\?\), on the panel: Archive\.\n\nTheir note, their own words:\nand keep a list of them\n\nLane L1 is still on hold for it\.\n\nNext: Carry their choice into the lane, and write it into CONTEXT\.md if it settles the concept; then resume_lane L1\./,
+    /HUMAN ANSWERED H1 \(Delete old invoices, or keep them archived\?\), on the panel: Archive\.\n\nTheir note, their own words:\nand keep a list of them\n\nNext: Carry their choice into the lane, and write it into CONTEXT\.md if it settles the concept\./,
   );
   assert.match((await record("H1", "decline", "archive them")).text, /H1 is already answered\./);
 
-  assert.match((await ask({ lane: "L1", class: "irreversible" })).text, /Its lane was not put on hold: /);
-  assert.equal(
-    (await record("h2", "Archive", "archive them, please!")).text,
-    "H2 is answered: Archive. Lane L1 is still on hold for it: resume_lane it once the answer is carried into the lane.",
-  );
+  await ask({ lane: "L1", class: "irreversible" });
+  assert.match((await record("h2", "Archive", "archive them, please!")).text, /^H2 is answered: Archive\.$/);
   assert.equal(h.ledger().questions.H2!.answer?.by, "chat");
   await ask({});
   assert.deepEqual(await answer("H3", "decline"), { answered: "H3 is declined. The Supervisor has it." });

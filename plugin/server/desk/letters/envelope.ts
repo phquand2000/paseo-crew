@@ -50,6 +50,7 @@ type Kind =
   | "nudge"
   | "opened"
   | "overruled"
+  | "pending"
   | "permission"
   | "reconcile"
   | "report"

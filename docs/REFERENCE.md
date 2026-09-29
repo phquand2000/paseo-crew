@@ -58,7 +58,7 @@ on its role's name.
 | `land_lane` | Lands a lane on its base as the project's `landAs` says, or holds it for the Human when it touches `askFirst`: see [ready and landing](#ready-and-landing) |
 | `drop_lane` | Closes a lane without landing, with a reason, and keeps its branch for the Human; it works on a lane on hold. A waiting lane is dropped before anything starts. See [closing a lane](#closing-a-lane) |
 | `hold_lane` | Stops a lane where it stands, with a reason: its Lead and each Peer and Reviewer still at work get HOLD past the outbox, which cuts a running turn short where the agent allows. Until `resume_lane`, mail to the lane's seats waits, their permission requests are refused, `add_tasks`, `accept` and `land_lane` are refused, nothing waiting starts, and a landing waiting to finish or waiting for the Human is called off; one the Human approved stands. `start_review`, `rework`, `reseat`, a ready `report` and `replace_lead` are refused too, and a task accepted before the hold waits queued until it resumes |
-| `resume_lane` | Lifts a hold: each seat of the lane gets RESUMED, with the Supervisor's `note` and the mail held for it, and what waited may start |
+| `resume_lane` | Lifts a hold: each seat of the lane gets RESUMED, with the Supervisor's `note` and the mail held for it, and what waited may start. Refused while the lane is stopped for a question the Human has not settled |
 | `ask_human` | Puts a decision only the Human can make, or work only their side can do that a lane waits on, on their question queue, with a recommendation and what goes ahead while they are silent: see [Questions for the Human](#questions-for-the-human) |
 | `record_human_answer` | Records an answer the Human gave in the Supervisor's chat: an option, `decline` or `cancel`, with their own words, which the desk must find in that chat |
 | `incidents` | Lists the 50 most recent incidents that are open or not yet marked, with what each seat was asked. With `closed`, it adds the 20 most recently marked. A Lead sees only those about the other seats of its open lane |
@@ -258,7 +258,7 @@ first prompt, not mail, and carry neither.
 |---|---|
 | A seat's first prompt | OWNER DIRECTIVE, TASK, REVIEW |
 | Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE |
-| Between seats | MESSAGE, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED |
+| Between seats | MESSAGE, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, DECISION PENDING |
 | Work coming back | HANDBACK, REWORK, AMENDED, TAKEN, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
 | Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, DETOUR DROPPED, LANE CLOSED |
@@ -275,6 +275,7 @@ first prompt, not mail, and carry neither.
 | SETTLING | A Lead, in passing: bringing its lane into a task's branch at hand-back stopped on conflicts, which that task's Peer settles before it hands back |
 | RECONCILE | A Lead: what the Supervisor sent its Peer |
 | ANSWERED FOR YOU | A seat: someone else answered an ask put to it, or, to a Lead, the Supervisor answered its Peer's ask past it |
+| DECISION PENDING | A Lead: an `irreversible` question about its lane waits for the Human; keep the lane off what it decides and carry on with the rest |
 | CARRIED UP | A Peer: its Lead put its open ask to the owner in one of its own; the answer comes back as the answer to its ask |
 | MERGE CONFLICT | A Lead: the desk began a merge no seat may run, and left its conflicts in the task's copy for its Peer to settle and commit |
 | BASE CONFLICT | A Lead: the base conflicts with the lane, and nothing was left mid-merge; a task with `takeBase` takes it in |
@@ -302,7 +303,7 @@ when its turn ends, and each round. The first row that fits decides:
 | The seat is archived | Never sent, nor passed to another seat. `status.md` lists them, with when each is given up on, until they age out |
 | The seat has a pending permission | Held |
 | The seat's lane is on hold | Held until `resume_lane`, or until the lane is dropped |
-| Running, a letter for it bears on the turn (MESSAGE, RECONCILE, AMENDED, ANSWER, HUMAN ANSWERED, a call's late answer, a page incident), its agent `steers`, the turn started at least 60 s ago, and it waits on no desk call | Those letters alone are **steered** into the turn; the rest wait for it to end |
+| Running, a letter for it bears on the turn (MESSAGE, RECONCILE, AMENDED, ANSWER, HUMAN ANSWERED, DECISION PENDING, a call's late answer, a page incident), its agent `steers`, the turn started at least 60 s ago, and it waits on no desk call | Those letters alone are **steered** into the turn; the rest wait for it to end |
 | Running or starting | Held |
 | Mailed less than 10 minutes ago, with no turn end since | Held |
 | Every letter for it asks nothing of it, or was posted before the Peer handed its task back and it has not been sent back to work since | Held until one that does |
@@ -380,11 +381,12 @@ turn goes on, since its reply reaches them only when they read its chat; no seat
 |---|---|
 | `reversible` | The lane goes on as recommended. Nothing waits, and the Human can turn it back |
 | `costly` | The lane goes on as recommended until its Lead reports it ready. The desk then puts it on hold, and the REPORT says it waits for the Human |
-| `irreversible` | Nothing it decides goes ahead: the desk puts its lane on hold at once |
+| `irreversible` | Nothing it decides goes ahead: its Lead gets DECISION PENDING, to keep the lane off it and carry on with the rest. Holding the whole lane is the Supervisor's, with `hold_lane` |
 
 - A `reversible` question about a lane whose write set, or whose change so far, reaches a path in `askFirst` is recorded
   as `costly`, and the reply says why. A question with no lane holds nothing, whatever its class.
-- A lane on hold for a question stays on hold until the Supervisor calls `resume_lane`: an answer does not lift it.
+- A lane the desk held for a question stays on hold until the Supervisor calls `resume_lane`, which is refused while the
+  question is open: only the Human's answer, decline or cancel lets it go, and the answer alone does not lift it.
 - A `costly` question stops its lane at the ready report made while it is open, or at once when the lane already stands
   reported ready. `land_lane` does not look at questions.
 - Nothing times a question out. It stays `open` until it is settled, or until its lane closes, which cancels it
@@ -418,7 +420,7 @@ What the Supervisor is told:
 
 Open questions also show in the Supervisor's `status` and in `status.md`, under "Questions for the Human". The Report
 tab lists an open question under "Needs you" when nothing it decides goes ahead (an `irreversible` one, or a `costly`
-one that stopped its lane at the ready report), even after `resume_lane`, and every other under "Went ahead on its
+one that stopped its lane at the ready report), and every other under "Went ahead on its
 recommendation", with the count of the last 24 h across every project, the one `questionsPerDay` limits. `events.log` has `question.asked` and `question.answered`.
 
 ## Facts

@@ -19,7 +19,7 @@ const packet = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-test("a question's class decides what waits on it: an irreversible one holds its lane now, a costly one at its ready report, and the Human's standing orders raise it", async () => {
+test("a question's class decides what waits on it: a costly one stops its lane at its ready report until the Human's word, and their standing orders raise it", async () => {
   const { h, sup, lane } = await laneWithPeer({ attention: { questionsPerDay: 6 } }, undefined, {
     holds: ["a.txt"],
     parallel: true,
@@ -51,6 +51,11 @@ test("a question's class decides what waits on it: an irreversible one holds its
     /Its lane has already reported ready, so it stops now until they answer\. Lane L1 is on hold for it\./,
   );
   assert.match(h.ledger().lanes.L1!.onHold?.reason ?? "", /waits for the Human's answer to H2/);
+  assert.match(
+    (await h.call(sup, "supervisor", "resume_lane", { lane: "L1" })).text,
+    /^Lane L1 waits for the Human's answer to H2, and resumes only once they answer, decline or cancel it\.$/,
+  );
+  assert.ok(h.ledger().lanes.L1!.onHold, "only their word lifts it");
 
   await h.call(sup, "supervisor", "set_project", { askFirst: ["src/auth"] });
   const scope = { outcome: "x", acceptance: ["a"], outOfScope: ["the rest"], isolate: true };

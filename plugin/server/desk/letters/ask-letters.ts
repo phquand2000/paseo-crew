@@ -117,6 +117,18 @@ export const askLetters = {
   },
 
   /** Whoever supervises sees a Peer's default overruled by its Lead, without being woken for it. */
+  /** A decision that cannot be undone waits for the Human: the Lead keeps off what it decides and plans the rest around it. */
+  pending(question: Question): Letter {
+    return steering(
+      mail(
+        "pending",
+        [question.id],
+        `DECISION PENDING ${question.id}, the Human's to make: ${firstLine(question.question)}\n\nNothing it decides goes ahead until they answer; what it does not touch goes on.`,
+        "Keep the lane off what it decides, and carry on with the rest; the Supervisor carries their answer into the lane.",
+      ),
+    );
+  },
+
   overruled(ask: Ask): Letter {
     const text = [
       `OVERRULED ${ask.id} (${ask.kind}) on ${ask.task ?? ask.lane ?? "the project"}: the Lead answered the ${ask.fromRole} against its default.`,

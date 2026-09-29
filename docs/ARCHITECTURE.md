@@ -388,13 +388,13 @@ The Human is asked what only they can decide and told what they cannot take back
 - **Questions.** `ask_human` carries 2–4 options with their effects, the one recommended and why, what happens
   if the Human is silent, and a class. Nothing times out; the class says what goes ahead meanwhile:
   `reversible`, everything; `costly`, the lane, until it reports ready, when the desk parks the question and
-  holds the lane (at once, if it already stands ready); `irreversible`, nothing, its lane held at once. A `reversible` question about a lane whose
+  holds the lane (at once, if it already stands ready); `irreversible`, nothing it decides, its Lead told to keep the lane off it. A `reversible` question about a lane whose
   write set or change reaches `askFirst` becomes `costly`. At most `questionsPerDay` (3, set by hand in a
   settings layer) go out in 24 h across every project on the machine; an `irreversible` one, or one `askFirst`
   raised, goes out past it and is counted. The Human answers on the Flow tab, an
   option or Decline with a note, and HUMAN ANSWERED tells the Supervisor what that turns round; or in its
-  chat, which `record_human_answer` takes only with a quote found among the Human's own messages there. No
-  Lead is mailed, and a held lane stays held until `resume_lane`
+  chat, which `record_human_answer` takes only with a quote found among the Human's own messages there. No Lead is mailed
+  the answer, and a lane the desk held for a question stays held until `resume_lane`, refused until the Human settles it
   ([questions for the Human](REFERENCE.md#questions-for-the-human)).
 - **No question stops a turn.** A permission request of kind `question` from a seat with desk tools is
   refused, naming where to ask: `ask_human` or its reply for the Supervisor, `ask` for a Lead, Peer or

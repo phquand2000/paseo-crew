@@ -58,12 +58,17 @@ export async function holdLane(desk: DeskServices, caller: Caller, lane: string,
   );
 }
 
-/** Lifts a hold: each seat of the lane is told to carry on, with the mail held for it, and what waited on the lane may start. */
+/** Lifts a hold: each seat of the lane is told to carry on, with the mail held for it, and what waited on the lane may start. One stopped for the Human's answer waits for their word. */
 export async function resumeLane(desk: DeskServices, caller: Caller, laneId: string, note: string): Promise<ToolReply> {
   const { project } = caller;
   const lifted = desk.ledgers.transact(project, (ledger) => {
     const lane = findLane(ledger, laneId);
     if (!lane?.onHold) return `Lane ${lane?.id ?? str(laneId)} is not on hold.`;
+    const waiting = Object.values(ledger.questions).find(
+      (question) => question.lane === lane.id && question.parked && question.status === "open",
+    );
+    if (waiting)
+      return `Lane ${lane.id} waits for the Human's answer to ${waiting.id}, and resumes only once they answer, decline or cancel it.`;
     delete lane.onHold;
     return { lane: { ...lane }, seats: laneSeats(ledger, lane) };
   });

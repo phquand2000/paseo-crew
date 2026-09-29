@@ -318,7 +318,7 @@
     {
       "name": "resume_lane",
       "title": "Resume a lane",
-      "description": "Lift a hold: each seat of the lane is told to carry on from where it stopped, with the mail held for it, and what waited on the lane may start.",
+      "description": "Lift a hold: each seat of the lane is told to carry on from where it stopped, with the mail held for it, and what waited on the lane may start. A lane stopped for the Human's answer waits for their word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -417,7 +417,7 @@
               "costly",
               "irreversible"
             ],
-            "description": "reversible: the default runs now; costly: it runs until the lane reports ready; irreversible: nothing goes ahead until they answer. Touching askFirst: costly or irreversible."
+            "description": "reversible: the default runs now; costly: until the lane reports ready; irreversible: nothing it decides goes ahead until they answer. Touching askFirst: costly at least."
           }
         },
         "required": [

@@ -8,6 +8,7 @@ import { QUESTION, type Question, type QuestionClass } from "../../domain/questi
 import type { DeskBase } from "../base.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { putOnHold } from "../lanes/hold.ts";
+import { askLetters } from "../letters/ask-letters.ts";
 import { askFirstHits, changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { carriedOf, findLane, nextQuestionId } from "../../domain/ledger.ts";
@@ -34,7 +35,8 @@ const WHILE_SILENT: Record<QuestionClass, string> = {
     "Nothing waits for it: the lane goes on as you said it would if they are silent, and they can overturn that.",
   costly:
     "The lane goes on as you said it would if they are silent, and stops at its next report of ready if they have not answered by then.",
-  irreversible: "Nothing it decides goes ahead until they answer.",
+  irreversible:
+    "Nothing it decides goes ahead until they answer: its Lead is told to keep off it and carry on with the rest. Holding the whole lane is yours, with hold_lane.",
 };
 
 /** Puts a decision only the Human can make on their question queue, with what happens while they are silent. */
@@ -54,7 +56,10 @@ export async function askHuman(desk: DeskServices, caller: Caller, args: AskHuma
   if (typeof opened === "string") return no(opened);
   recordEvent(project, { kind: "question.asked", question: opened.id, lane: opened.lane ?? null, class: opened.class });
   const why = `it waits for the Human's answer to ${opened.id}: ${clip(opened.question, 200)}`;
-  const parked = opened.parked ? await putOnHold(desk, project, opened.lane!, caller.id, why) : undefined;
+  // Held by the desk, not the Supervisor: only the Human's word lifts what waits for it.
+  const parked = opened.parked ? await putOnHold(desk, project, opened.lane!, "desk", why) : undefined;
+  const lead = opened.class === "irreversible" && named ? loadLedger(project.state).lanes[named.id]?.lead : undefined;
+  if (lead) await desk.mail.post(lead, askLetters.pending(opened));
   const held =
     parked === undefined
       ? ""
@@ -104,8 +109,8 @@ function recordQuestion(
     if (args.lane && (!lane || lane.status === "closed")) return `There is no open or waiting lane ${str(args.lane)}.`;
     const stray = carries.find((id) => ledger.asks[id]?.status !== "open" || ledger.asks[id]?.to !== caller.id);
     if (stray) return `${stray} is not an open ask put to you.`;
-    // A costly question stops its lane at the ready report; asked once the lane has reported ready, that is now.
-    const parked = lane !== undefined && (kind === "irreversible" || (kind === "costly" && lane.ready !== undefined));
+    // A costly question stops its lane at the ready report, now if it reported ready; an irreversible one only what it decides.
+    const parked = lane !== undefined && kind === "costly" && lane.ready !== undefined;
     const question: Question = {
       id: nextQuestionId(ledger),
       from: caller.id,
