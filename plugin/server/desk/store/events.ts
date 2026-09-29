@@ -47,7 +47,13 @@ export type DeskEvent =
   | { kind: "seat.released"; seat: string; of: string }
   | { kind: "task.halfStarted"; task: string; now: TaskStatus }
   | { kind: "task.amended"; task: string; fields: string[]; by: string }
-  | { kind: "task.done"; task: string; outcome: string; commit: string | undefined }
+  | {
+      kind: "task.done";
+      task: string;
+      outcome: string;
+      commit: string | undefined;
+      lines: { src: number; test: number } | null;
+    }
   | {
       kind: "review.done";
       task: string;

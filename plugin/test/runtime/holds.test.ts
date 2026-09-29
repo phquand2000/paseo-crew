@@ -131,9 +131,17 @@ test("a Peer writing past where it was pointed is noted, not stopped: at hand-ba
     ["own d.txt", "side a.txt"],
   );
 
-  await handBack(h, "L1-T1", ["a.txt", "src/caller.ts"]);
+  await handBack(h, "L1-T1", ["a.txt", "src/caller.test.ts", "src/caller.ts"]);
   await h.idle(lead);
-  assert.match(h.agents.get(lead)!.sent.join("\n"), /Discovered: nothing\nChanged: a\.txt, src\/caller\.ts\n/);
+  assert.match(
+    h.agents.get(lead)!.sent.join("\n"),
+    /Discovered: nothing\nChanged: a\.txt, src\/caller\.test\.ts, src\/caller\.ts\n/,
+  );
+  assert.deepEqual(
+    h.events("task.done").map((event) => [event.task, event.lines]),
+    [["L1-T1", { src: 1, test: 1 }]],
+    "how much of the change is tests goes on record",
+  );
   assert.deepEqual(notes(h, lead), []);
   await h.call(lead, "lead", "rework", { task: "L1-T1", text: "take in the notes too" });
   await handBack(h, "L1-T1", ["d.txt", "notes.md"]);

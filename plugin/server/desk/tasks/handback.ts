@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Kit } from "../../catalog/kit/kit.ts";
-import { changedFiles } from "../../core/git-diff.ts";
+import { changedFiles, diffCounts } from "../../core/git-diff.ts";
+import { fileKinds } from "../../catalog/kit/patterns.ts";
 import { currentBranch, headSha, pristineState } from "../../core/git.ts";
 import { capped, clip, plural } from "../../core/text.ts";
 import { IN_QUEUE, SETTLED, TASK, type TaskStatus } from "../../domain/task.ts";
@@ -38,8 +39,17 @@ type HandingBack = {
   ran?: string[];
 };
 
+type Lines = { src: number; test: number };
+
 /** What a code task's copy holds as it hands back, as git says it. */
-type Work = { commit?: string; uncommitted: boolean; synced?: string; changed?: string[]; notes: string[] };
+type Work = {
+  commit?: string;
+  uncommitted: boolean;
+  synced?: string;
+  changed?: string[];
+  lines?: Lines;
+  notes: string[];
+};
 
 /** The hand-back as written: its file, what it says, and the gate run on it. */
 type Written = { file: string; outcome: string; body: string; gate?: { ok: boolean; note: string } };
@@ -69,7 +79,7 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
         : `${task.id} is already ${already}; there is nothing to hand back.`,
     );
   }
-  await tell(desk, caller, task, lane, { ...written, summary, commit: work.commit });
+  await tell(desk, caller, task, lane, { ...written, summary, commit: work.commit, lines: work.lines });
   const reminder = task.kind === "review" ? "" : await reminderOf(task, work.uncommitted);
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 }
@@ -119,12 +129,14 @@ async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task, sy
           : undefined;
   const from = lane ? await changeFrom(task.worktree, task, lane.branch, "HEAD") : undefined;
   const changed = from ? await changedFiles(task.worktree, `${from}..HEAD`) : undefined;
+  const counts = from ? await diffCounts(task.worktree, from, "HEAD", fileKinds(kit)) : undefined;
   const serial = lane && changed && task.mode === "parallel" ? await serialIn(kit, project, task.worktree) : [];
   const notes = lane && changed ? reachNotes(ledger, task, lane, changed, serial) : [];
   // Only what git actually said: a copy it could not read is not a copy with work left in it.
   const commit = await headSha(task.worktree);
   const uncommitted = (await pristineState(task.worktree)) === "dirty";
-  return { commit, uncommitted, synced: line, changed, notes };
+  const lines = counts && { src: counts.src, test: counts.test };
+  return { commit, uncommitted, synced: line, changed, ...(lines ? { lines } : {}), notes };
 }
 
 /** Gated at hand-back so the Lead has the verdict in time; gating after accept undid a merge already chosen. */
@@ -230,7 +242,7 @@ async function tell(
   caller: Caller,
   task: Task,
   lane: Lane | undefined,
-  handed: Written & { summary: string; commit?: string },
+  handed: Written & { summary: string; commit?: string; lines?: Lines | undefined },
 ): Promise<void> {
   const { kit, mail, roster } = desk;
   const heading =
@@ -242,7 +254,7 @@ async function tell(
     caller.project,
     task.kind === "review"
       ? { kind: "review.done", ...done, of: task.of ?? null, role: caller.role.role }
-      : { kind: "task.done", ...done },
+      : { kind: "task.done", ...done, lines: handed.lines ?? null },
   );
   const judged = handbackCase(kit, caller.project, task, handed);
   if (judged) void judge(desk, caller.project, judged);
