@@ -111,9 +111,10 @@ export async function pristineState(cwd: string): Promise<Cleanliness> {
   return paths === undefined ? "unknown" : paths.length > 0 ? "dirty" : "clean";
 }
 
-export async function trackedFiles(cwd: string): Promise<string[]> {
+/** The files git tracks in `cwd`, or undefined when git cannot say: an empty list would read as a copy holding nothing. */
+export async function trackedFiles(cwd: string): Promise<string[] | undefined> {
   const run = await git(cwd, ["ls-files", "-z"]);
-  return run.code === 0 ? run.stdout.split("\0").filter(Boolean) : [];
+  return run.code === 0 ? run.stdout.split("\0").filter(Boolean) : undefined;
 }
 
 export async function branchExists(cwd: string, branch: string): Promise<boolean> {

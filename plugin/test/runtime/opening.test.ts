@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
 
 const lane = (title: string, extra: Record<string, unknown> = {}) => ({
@@ -375,4 +376,25 @@ test("a Lead's directive says what its lane writes, depends on and keeps to one 
     /^One writer at a time: b\.txt\. A task that writes any of these works in the lane's working copy, not in parallel\.$/m,
   );
   assert.doesNotMatch(directive("L6"), /package-lock/);
+
+  const bin = tempDir("blind-git-");
+  const real = h.git(h.root, "--exec-path").trim();
+  writeFileSync(
+    join(bin, "git"),
+    `#!/bin/sh\ncase " $* " in *" ls-files "*) echo "fatal: index file corrupt" >&2; exit 128;; esac\nexec "${real}/git" "$@"\n`,
+  );
+  chmodSync(join(bin, "git"), 0o755);
+  await h.call(sup, "supervisor", "set_project", { serialOnly: ["b.txt", "vendor/**"] });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}${delimiter}${path}`;
+  try {
+    await open("Blind", { writeSet: ["g.txt"] });
+  } finally {
+    process.env.PATH = path;
+  }
+  assert.match(
+    directive("L7"),
+    /^One writer at a time: b\.txt, vendor\/\*\*\. A task that writes any of these works in the lane's working copy, not in parallel\.$/m,
+    "where git cannot list the copy, every one-writer rule counts",
+  );
 });
