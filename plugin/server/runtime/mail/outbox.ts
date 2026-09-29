@@ -2,6 +2,7 @@ import { KeyedQueue } from "../../core/keyed-queue.ts";
 import { midTurn } from "../../core/paseo.ts";
 import type { SeatLook, Seats } from "../../core/ports.ts";
 import { isRecord } from "../../core/json.ts";
+import { daemonLog } from "../../core/logger.ts";
 import { keptFault, readKept, writeJson } from "../../core/store.ts";
 
 export type Letter = { id: string; to: string; key: string; text: string; at: number; wakes?: false; steer?: true };
@@ -140,20 +141,26 @@ export class Outbox {
       if (!steer && !mine.some(asks)) return new Set<string>();
       // Into a running turn goes only what bears on it; the rest reaches the seat together when the turn ends.
       const sending = steer ? mine.filter((letter) => letter.steer === true && asks(letter)) : mine;
-      const text = await this.compose(to, sending);
-      await this.seats.send(
-        to,
-        text,
-        [...new Set(sending.map((letter) => letter.key.split(":")[0]!))],
-        steer ? "steer" : undefined,
-      );
-      const now = Date.now();
-      this.awaiting.set(to, now);
-      const ids = new Set(sending.map((letter) => letter.id));
-      for (const [key, at] of this.sentKeys) if (now - at >= DUPLICATE_MS) this.sentKeys.delete(key);
-      for (const letter of sending) this.sentKeys.set(Outbox.held(letter), now);
-      this.save(this.letters().filter((letter) => !ids.has(letter.id)));
-      return ids;
+      return this.deliver(to, sending, steer);
     });
+  }
+
+  /** A send Paseo refuses keeps the letters for the next pump: what posted them has done its work, and a retry would do it twice. */
+  private async deliver(to: string, sending: Letter[], steer: boolean): Promise<Set<string>> {
+    const text = await this.compose(to, sending);
+    const kinds = [...new Set(sending.map((letter) => letter.key.split(":")[0]!))];
+    try {
+      await this.seats.send(to, text, kinds, steer ? "steer" : undefined);
+    } catch (error) {
+      daemonLog.error(`mail for ${to} was not taken:`, error);
+      return new Set<string>();
+    }
+    const now = Date.now();
+    this.awaiting.set(to, now);
+    const ids = new Set(sending.map((letter) => letter.id));
+    for (const [key, at] of this.sentKeys) if (now - at >= DUPLICATE_MS) this.sentKeys.delete(key);
+    for (const letter of sending) this.sentKeys.set(Outbox.held(letter), now);
+    this.save(this.letters().filter((letter) => !ids.has(letter.id)));
+    return ids;
   }
 }

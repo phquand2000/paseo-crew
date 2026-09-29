@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import type { Seats } from "../../server/core/ports.ts";
 import { Outbox } from "../../server/runtime/mail/outbox.ts";
+import { reported } from "../console.ts";
 import { tempDir } from "../tempdir.ts";
 
 type FakeAgent = {
@@ -127,4 +128,29 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
   writeFileSync(file, "{not json");
   await assert.rejects(post("busy", "late", "held for later"), /outbox\.json is there but could not be read/);
   assert.equal(readFileSync(file, "utf-8"), "{not json", "the letters held in it are not written over by the next one");
+});
+
+test("a letter Paseo will not take is kept for the next try, and the post that wrote it does not fail", async (t) => {
+  const said = reported(t);
+  const agents = { lead: agent("idle") };
+  const seats = fakeSeats(agents);
+  let refusing = true;
+  const outbox = new Outbox(
+    join(tempDir(), "outbox.json"),
+    (_to, list) => list.map((letter) => letter.text).join("|"),
+    {
+      look: seats.look,
+      async send(id, text, kinds, into) {
+        if (refusing) throw new Error("the daemon did not accept the message");
+        await seats.send(id, text, kinds, into);
+      },
+    },
+  );
+  assert.equal(await outbox.post({ to: "lead", key: "merged:L1-T1", text: "merged" }), "held");
+  assert.equal(outbox.pending("lead").length, 1, "what posted it has already done its work, so the letter waits");
+  assert.match(said(), /the daemon did not accept the message/);
+  refusing = false;
+  await outbox.pump("lead");
+  assert.deepEqual(agents.lead.sent, ["merged"]);
+  assert.deepEqual(outbox.pending("lead"), []);
 });
