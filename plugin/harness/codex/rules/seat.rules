@@ -1,5 +1,7 @@
 prefix_rule(pattern = ["git", "push"], decision = "forbidden", justification = "The desk lands branches; do not push.")
-prefix_rule(pattern = ["git", ["pull", "merge", "checkout", "switch", "reset", "rebase", "update-ref", "cherry-pick", "stash"]], decision = "forbidden", justification = "Branches and working copies belong to the desk.")
+prefix_rule(pattern = ["git", ["pull", "merge", "switch", "reset", "rebase", "update-ref", "cherry-pick"]], decision = "forbidden", justification = "Branches and working copies belong to the desk.")
+prefix_rule(pattern = ["git", "checkout"], decision = "forbidden", justification = "Branches and working copies belong to the desk; for one file, run git restore --source=<commit> -- <path>, or git show <commit>:<path> to read it.")
+prefix_rule(pattern = ["git", "stash"], decision = "forbidden", justification = "Branches and working copies belong to the desk; to read a stash, run git log -g refs/stash or git show stash@{<n>}.")
 prefix_rule(pattern = ["git", "worktree", ["add", "lock", "move", "prune", "remove", "repair", "unlock"]], decision = "forbidden", justification = "Working copies belong to the desk.")
 prefix_rule(pattern = ["git", "branch", ["-f", "-D", "--force"]], decision = "forbidden", justification = "Branches belong to the desk.")
 prefix_rule(pattern = ["gh"], decision = "forbidden", justification = "The desk talks to the forge.")

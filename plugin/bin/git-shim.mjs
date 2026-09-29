@@ -8,6 +8,11 @@ const VALUED = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "
 
 const DESKS = new Set(["push", "pull", "merge", "checkout", "switch", "reset", "rebase", "cherry-pick", "update-ref", "stash"]);
 
+const INSTEAD = {
+  checkout: "for one file, run git restore --source=<commit> -- <path>, or git show <commit>:<path> to read it",
+  stash: "to read a stash, run git log -g refs/stash or git show stash@{<n>}",
+};
+
 const OWN = new Set([...DESKS, "add", "blame", "branch", "commit", "config", "diff", "fetch", "grep", "log", "ls-files", "rev-parse", "show", "status", "worktree"]);
 
 const DEPTH = 10;
@@ -30,7 +35,8 @@ function rewritesBranch(arg) {
 
 /** Why `command` with `rest` is the desk's to run, not a seat's; nothing when it is the seat's. */
 function refusal(command, rest) {
-  if (DESKS.has(command)) return `git ${command} moves branches or working copies, and that is the desk's to do`;
+  if (DESKS.has(command))
+    return [`git ${command} moves branches or working copies, and that is the desk's to do`, INSTEAD[command]].filter(Boolean).join("; ");
   if (command === "worktree" && rest[0] !== "list") return "git worktree changes working copies, and that is the desk's to do";
   if (command === "branch" && rest.some(rewritesBranch)) return "git branch that forces, deletes, renames or overwrites a branch is the desk's to do";
   return undefined;

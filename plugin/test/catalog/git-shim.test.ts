@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -34,19 +34,13 @@ const ALLOWED = [
 test("a seat's shell, on the PATH the desk gives it, refuses what only the desk does however it is spelled, and runs the rest with the real git", () => {
   const root = tempDir("crew-shim-");
   execFileSync("git", ["-C", root, "init", "-q", "-b", "main"]);
-  execFileSync("git", [
-    "-C",
-    root,
-    "-c",
-    "user.name=t",
-    "-c",
-    "user.email=t@x",
-    "commit",
-    "-q",
-    "--allow-empty",
-    "-m",
-    "seed",
-  ]);
+  const commit = (message: string) =>
+    execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "-am", message]);
+  writeFileSync(join(root, "kept.txt"), "first\n");
+  execFileSync("git", ["-C", root, "add", "kept.txt"]);
+  commit("seed");
+  writeFileSync(join(root, "kept.txt"), "second\n");
+  commit("change");
   const state = tempDir("crew-shim-state-");
   mkdirSync(join(state, "bin"));
   writeFileSync(join(state, "bin", "hub"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
@@ -87,6 +81,17 @@ test("a seat's shell, on the PATH the desk gives it, refuses what only the desk 
     ]),
   ];
   for (const [why, args] of spelled) assert.ok(refused(...args), why);
+  const checkout = git("-C", root, "checkout", "HEAD~1", "--", "kept.txt");
+  assert.match(
+    checkout.stderr,
+    /git restore --source=<commit> -- <path>/,
+    "a refusal names what the seat may run instead",
+  );
+  assert.equal(git("-C", root, "restore", "--source=HEAD~1", "--", "kept.txt").status, 0);
+  assert.equal(readFileSync(join(root, "kept.txt"), "utf-8"), "first\n", "and what it names does the work");
+  execFileSync("git", ["-C", root, "stash", "-q"]);
+  assert.match(git("-C", root, "stash", "list").stderr, /git log -g refs\/stash/);
+  assert.match(git("-C", root, "log", "-g", "--oneline", "refs/stash").stdout, /stash@\{0\}/);
   for (const args of ALLOWED) {
     const ran = git("-C", root, ...args);
     assert.equal(ran.status, 0, `${args.join(" ")}: ${ran.stderr}`);
@@ -97,7 +102,7 @@ test("a seat's shell, on the PATH the desk gives it, refuses what only the desk 
   );
   assert.match(
     git("-C", root, "log", "--oneline").stdout,
-    /work\n[^\n]*seed/,
+    /work\n[^\n]*change/,
     "and what it runs is the real git's doing",
   );
 
