@@ -109,6 +109,11 @@ export function taskOfPeer(ledger: Ledger, agentId: string): Task | undefined {
   return task?.peer === agentId ? task : undefined;
 }
 
+/** A Peer's ask on its task still waiting for an answer: while there is one, its quiet turns are waiting, not silence. */
+export function openAskOf(ledger: Ledger, agentId: string, taskId: string): Ask | undefined {
+  return Object.values(ledger.asks).find((ask) => ask.status === "open" && ask.from === agentId && ask.task === taskId);
+}
+
 export function openAsksTo(ledger: Ledger, agentId: string): Ask[] {
   return Object.values(ledger.asks).filter((ask) => ask.status === "open" && ask.to === agentId);
 }

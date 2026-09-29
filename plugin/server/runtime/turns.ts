@@ -4,7 +4,7 @@ import type { HookAgent, PermissionRequested, Seats, TurnEnded } from "../core/p
 import type { Lane } from "../domain/lane.ts";
 import { DECIDED, TASK, type Task } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, laneOfLead, leadLaneOf, taskOfPeer } from "../domain/ledger.ts";
+import { type Ledger, laneOfLead, leadLaneOf, openAskOf, taskOfPeer } from "../domain/ledger.ts";
 import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
@@ -176,6 +176,8 @@ export class TurnRules {
     if (recorded || task.status === "done") return this.heard(project, task, recorded);
     // A call still in flight is not silence: a nudge here started a second gate beside the first.
     if (this.deps.desk.inFlight(event.agent.id)) return;
+    // Told to end its turn once it asked: it is waiting, and the ask round keeps the wait in its reader's sight.
+    if (openAskOf(ledger, event.agent.id, task.id)) return;
     await this.silent(project, ledger.lanes[task.lane], task, event, text);
   }
 

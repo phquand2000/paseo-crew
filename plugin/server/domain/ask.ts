@@ -23,6 +23,7 @@ export type Ask = {
   remindedAt?: number;
   reminders: number;
   escalated?: boolean;
+  carriedBy?: string;
   answer?: string;
   answeredAt?: number;
   kept?: boolean;

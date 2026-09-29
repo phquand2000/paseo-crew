@@ -22,6 +22,7 @@ type Kind =
   | "beside"
   | "brief"
   | "canland"
+  | "carried"
   | "case"
   | "closed"
   | "detour"

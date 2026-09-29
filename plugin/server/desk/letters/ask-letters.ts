@@ -26,16 +26,35 @@ function answeredNext(question: Question): string {
 
 /** The letters an ask sends: to whoever it is put to, the answer back, and the reminders while it waits. */
 export const askLetters = {
-  askTo(ask: Ask, from: string, reader: "lead" | "supervisor"): Letter {
+  askTo(ask: Ask, from: string, reader: "lead" | "supervisor", carried: Ask[] = []): Letter {
     const next =
       reader === "lead"
-        ? `Answer ${ask.id} from the brief and the code; if only the owner can, ask up and tell the Peer to wait.`
+        ? `Answer ${ask.id} from the brief and the code; if only the owner can, ask up with carries [${ask.id}] and leave it open: its Peer waits on it without being nudged.`
         : askNext(ask);
+    const carries = carried.map((entry) => `Carries ${entry.id}: the Peer on ${entry.task} waits on this answer.`);
     return mail(
       "ask",
       [ask.id],
-      [`ASK ${ask.id} (${ask.kind}) from ${from}`, "", ask.text, ...theirDefault(ask)].join("\n"),
+      [
+        `ASK ${ask.id} (${ask.kind}) from ${from}`,
+        "",
+        ask.text,
+        ...theirDefault(ask),
+        ...(carries.length ? ["", ...carries] : []),
+      ].join("\n"),
       next,
+    );
+  },
+
+  /** A Peer told its ask went up, so a turn that wakes before the answer does not ask it again. */
+  carried(ask: Ask, up: string): Letter {
+    return fyi(
+      mail(
+        "carried",
+        [ask.id, up],
+        `CARRIED UP ${ask.id}: your Lead put it to the owner as ${up}. Its answer reaches you as the answer to ${ask.id}.`,
+        "Nothing until it comes: keep to your default, and end your turn.",
+      ),
     );
   },
 
@@ -56,13 +75,16 @@ export const askLetters = {
     );
   },
 
-  answered(ask: Ask): Letter {
+  answered(ask: Ask, carried: string[] = []): Letter {
+    const names = carried.join(", ");
     return steering(
       mail(
         "answer",
         [ask.id],
         [`ANSWER to your ask ${ask.id}`, "", ask.answer ?? ""].join("\n"),
-        "Go on with your work from it.",
+        carried.length
+          ? `It carries ${names}: answer ${names} for its Peer from it, then go on with your work.`
+          : "Go on with your work from it.",
       ),
     );
   },

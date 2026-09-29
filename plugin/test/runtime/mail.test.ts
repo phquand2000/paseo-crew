@@ -154,6 +154,12 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
       tried: "read both",
       bestGuess: "the one the test names",
     });
+  /** Its Lead answers the Peer's last ask: until then its quiet turns are waiting on it. */
+  const answer = async () => {
+    const last = Object.values(h.ledger().asks).at(-1)!;
+    const answered = await h.call(lead, "lead", "answer", { ask: last.id, text: "That one.", keepsDefault: true });
+    assert.equal(answered.ok, true, answered.text);
+  };
   h.agents.get(peer)!.status = "idle";
 
   await turn("still reading");
@@ -162,6 +168,7 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   assert.match(h.agents.get(peer)!.sent.at(-1)!, /`done` and `ask` are tools of the `team` MCP server/);
   await turn("asked and waiting", ask);
   assert.equal(silent(), 1, "an ask is not a hand-back: a Peer once asked after each nudge, seven times over");
+  await answer();
   await turn("Still looking.");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended twice without a hand-back\./);
@@ -181,6 +188,7 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended 3 times without a hand-back\./);
   await turn("asked", ask);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "heard from, it runs again");
+  await answer();
   await turn("applying it");
   assert.deepEqual(
     [h.ledger().tasks["L1-T1"]!.status, silent()],

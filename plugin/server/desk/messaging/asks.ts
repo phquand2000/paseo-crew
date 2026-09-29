@@ -28,11 +28,11 @@ const opened = (ask: Ask): DeskEvent => ({
   withDefault: Boolean(ask.default),
 });
 
-/** A Lead asks whoever supervises its lane, and works on its default while it waits. */
+/** A Lead asks whoever supervises its lane, and works on its default while it waits; a Peer's ask it carries waits on it. */
 export async function askOwner(
   { ledgers, mail, roster }: Pick<DeskServices, "ledgers" | "mail" | "roster">,
   caller: Caller,
-  asked: { kind: string; text: string; default: string },
+  asked: { kind: string; text: string; default: string; carries?: string[] },
 ): Promise<ToolReply> {
   const { project } = caller;
   const lane = laneOfLead(loadLedger(project.state), caller.id);
@@ -40,19 +40,34 @@ export async function askOwner(
   const to = await roster.supervisorFor(project, lane.opener);
   if (!to)
     return no("Nobody above you is running to answer; keep working on your default and report when the lane is ready.");
+  const ids = [...new Set((asked.carries ?? []).map((id) => id.toUpperCase()))];
   // Opened on the lane the caller still leads: it may have closed while whoever answers was looked up.
-  const entry = ledgers.transact(project, (ledger) => {
-    if (laneOfLead(ledger, caller.id)?.id !== lane.id) return undefined;
+  const result = ledgers.transact(project, (ledger) => {
+    if (laneOfLead(ledger, caller.id)?.id !== lane.id) return "You have no open lane.";
+    const stray = ids.find((id) => !carriable(ledger.asks[id], caller.id, lane.id));
+    if (stray) return `${stray} is not a Peer's open ask put to you on ${lane.id}.`;
     const from = { from: caller.id, fromRole: caller.role.role, to, lane: lane.id };
     const created = newAsk(ledger, { ...from, kind: asked.kind, text: asked.text, default: asked.default });
     ledger.asks[created.id] = created;
-    return { ...created };
+    const carried = ids.map((id) => Object.assign(ledger.asks[id]!, { carriedBy: created.id }));
+    return { entry: { ...created }, carried: carried.map((ask) => ({ ...ask })) };
   });
-  if (!entry) return no("You have no open lane.");
-  await mail.post(to, askLetters.askTo(entry, `the Lead of ${lane.id} (${lane.title})`, "supervisor"));
+  if (typeof result === "string") return no(result);
+  const { entry, carried } = result;
+  await mail.post(to, askLetters.askTo(entry, `the Lead of ${lane.id} (${lane.title})`, "supervisor", carried));
+  for (const ask of carried) await mail.post(ask.from, askLetters.carried(ask, entry.id));
   recordEvent(project, opened(entry));
-  return ok(`Asked as ${entry.id}. Keep working on your default where you can; the answer arrives as mail.`);
+  if (carried.length === 0)
+    return ok(`Asked as ${entry.id}. Keep working on your default where you can; the answer arrives as mail.`);
+  const names = carried.map((ask) => ask.id).join(", ");
+  return ok(
+    `Asked as ${entry.id}, carrying ${names}. Leave ${names} open: its Peer waits on it without being nudged, and you answer it from ${entry.id}'s answer.`,
+  );
 }
+
+/** A Peer's ask a Lead may carry up: open, put to that Lead, on its lane. */
+const carriable = (ask: Ask | undefined, lead: string, lane: string): boolean =>
+  Boolean(ask?.task) && ask?.status === "open" && ask.to === lead && ask.lane === lane;
 
 /** A Peer or reviewer asks up: its Lead, or the level above when the Lead is gone; a Peer's best guess is its default. */
 export async function askUp(
@@ -112,7 +127,13 @@ export async function answerAsk(
     ask.answeredAt = Date.now();
     if (ask.default) ask.kept = answered.keepsDefault;
     const opener = ask.lane ? ledger.lanes[ask.lane]?.opener : undefined;
-    return { ask: { ...ask }, waitingRole: ledger.agents[ask.to]?.role, opener };
+    const carried = Object.values(ledger.asks).filter((entry) => entry.status === "open" && entry.carriedBy === ask.id);
+    return {
+      ask: { ...ask },
+      waitingRole: ledger.agents[ask.to]?.role,
+      opener,
+      carried: carried.map((entry) => entry.id),
+    };
   });
   if (typeof result === "string") return no(result);
   const { ask } = result;
@@ -130,13 +151,13 @@ export async function answerAsk(
   return ok(`Answered ${ask.id}; the asker ${has}.${told}`);
 }
 
-type Answered = { ask: Ask; waitingRole?: string; opener?: string };
+type Answered = { ask: Ask; waitingRole?: string; opener?: string; carried: string[] };
 
 /** The asker gets the answer; the seat it waited on is told first, and whoever supervises sees a default overruled below them. */
 async function tellAround(
   { kit, mail, roster }: Pick<DeskServices, "kit" | "mail" | "roster">,
   caller: Caller,
-  { ask, waitingRole, opener }: Answered,
+  { ask, waitingRole, opener, carried }: Answered,
   waiting: string | undefined,
 ): Promise<Posted | "nobody"> {
   // Answering an ask put to someone else is allowed (the round escalates them), but that seat is told first.
@@ -145,7 +166,7 @@ async function tellAround(
     const by = can(role, "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
     await mail.post(waiting, askLetters.answeredFor(ask, by, can(role, "lead")));
   }
-  const posted = await mail.post(ask.from, askLetters.answered(ask));
+  const posted = await mail.post(ask.from, askLetters.answered(ask, carried));
   if (ask.kept === false && !can(caller.role, "supervise")) {
     const above = await roster.supervisorFor(caller.project, opener);
     if (above) await mail.post(above, askLetters.overruled(ask));

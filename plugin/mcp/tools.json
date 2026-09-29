@@ -1177,6 +1177,13 @@
           "default": {
             "type": "string",
             "description": "What you do meanwhile, and what stands if nobody answers."
+          },
+          "carries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Your Peers' open asks this answer settles, such as A12. Leave them open: their Peers wait without being nudged, and you answer them after."
           }
         },
         "required": [

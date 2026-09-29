@@ -51,7 +51,7 @@ never on its role's name.
 | `cut` | Stops a task and archives its Peer: none of its work reaches the lane branch. A task in the lane's copy leaves it on the lane branch, its uncommitted work gone, save on the Human's own branch, where nothing uncommitted is discarded and git may refuse the switch. The task's branch stays only if it holds commits nothing else has. Refused while its merge runs. Cutting a review lets its Reviewer go |
 | `release` | The Lead lets go of the Peer kept from a merged task: it is archived, a parallel task's copy and merged branch with it. Refused for a task not merged, a parallel task a review still reads, and a review. The Supervisor lets go of the Lead kept from a closed lane: it is archived after its turn, and its copy put away once nobody writes there, a landed lane's branch with it. A kept Lead archived in Paseo has its copy put away by the next round |
 | `start_review` | Seats a read-only reviewing role, in the task's own copy while a parallel task still has it, else in the lane's. With `task`, it reads the change from where the task's branch meets the lane's to its last hand-back, or its head while its Peer works; a merged task as its merge; one whose copy is gone, from its branch. Without, it answers the `focus` over the lane branch. Its brief asks the question of every risk rule the change reaches |
-| `ask` | Asks the seat above, with what goes on meanwhile. A Lead asks the Supervisor (`need`, `blocked` or `question`) and works on its `default`. A Peer asks its Lead with its `bestGuess`, which the letter shows as its default; a Reviewer asks with what it `tried`. Either goes to whoever supervises when the Lead is gone, and each round moves an open ask whose reader is gone the same way |
+| `ask` | Asks the seat above, with what goes on meanwhile. A Lead asks the Supervisor (`need`, `blocked` or `question`) and works on its `default`, and may name in `carries` its Peers' open asks the answer settles: they stay open and are not reminded while it is. A Peer asks its Lead with its `bestGuess`, which the letter shows as its default; a Reviewer asks with what it `tried`. Either goes to whoever supervises when the Lead is gone, and each round moves an open ask whose reader is gone the same way |
 | `answer` | Closes an open ask. The Supervisor may answer any ask, and the seat it was put to gets ANSWERED FOR YOU; other seats answer only asks put to them. An ask that came with a default needs `keepsDefault`, whether the answer keeps it, which `events.log` keeps; one a Lead answers against its Peer's default sends OVERRULED to whoever supervises, and the Flow tab shows it until the lane closes |
 | `message` | The Supervisor messages a lane's Lead, a Lead kept from a closed lane included, or a task's Peer, whose Lead must be seated and gets RECONCILE first. A Lead messages a Peer of its own lane. A seat that is gone, or a task merged or cut, takes no message |
 | `report` | The Lead reports its lane to the Supervisor as REPORT; with nobody supervising seated, it is kept in `events.log`. Without `ready`, it takes back an earlier ready report. For `ready`, see [ready and landing](#ready-and-landing) |
@@ -260,7 +260,7 @@ first prompt, not mail, and carry neither.
 |---|---|
 | A seat's first prompt | OWNER DIRECTIVE, TASK, REVIEW |
 | Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE |
-| Between seats | MESSAGE, RECONCILE, ASK, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, STILL OPEN, UNANSWERED |
+| Between seats | MESSAGE, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, STILL OPEN, UNANSWERED |
 | Work coming back | HANDBACK, REWORK, AMENDED, TAKEN, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
 | Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, DETOUR DROPPED, LANE CLOSED |
@@ -278,6 +278,7 @@ first prompt, not mail, and carry neither.
 | SETTLING | A Lead, in passing: bringing its lane into a task's branch at hand-back stopped on conflicts, which that task's Peer settles before it hands back |
 | RECONCILE | A Lead: what the Supervisor sent its Peer |
 | ANSWERED FOR YOU | A seat: someone else answered an ask put to it |
+| CARRIED UP | A Peer: its Lead put its open ask to the owner in one of its own; the answer comes back as the answer to its ask |
 | MERGE CONFLICT | A Lead: the desk began a merge no seat may run, and left its conflicts in the task's copy for its Peer to settle and commit |
 | BASE CONFLICT | A Lead: the base conflicts with the lane, and nothing was left mid-merge; a task with `takeBase` takes it in |
 | CAN LAND | Whoever tried to land a lane under a seat mid-turn: the turn has ended |
@@ -290,7 +291,7 @@ first prompt, not mail, and carry neither.
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
 WAITING for a lane that opened by itself, TAKEN, OVERRULED, LANDED and SENT BACK. For a Lead: WAITING for a task that started by itself,
 LAND HELD, LANE CLOSED, SETTLING, a MERGE WAITS the desk clears by itself, and a MERGED with nothing to note while other
-tasks remain.
+tasks remain. For a Peer: CARRIED UP.
 
 ## Mail
 
@@ -704,7 +705,7 @@ kept off only the machine's settings file itself; its file tools still honour ev
 
 `tickSeconds` is the round, 5 s at least ([the patrol](ARCHITECTURE.md#the-patrol)). A Lead idle `leadIdleMinutes`
 with no task at work or queued, no ask of its own open, no hold, no ready report, no landing held and no usage-limit reset still to wake it brings LANE IDLE,
-once per idle spell. An ask waiting on an idle seat gets STILL OPEN every `askRemindMinutes`, `maxReminders` times;
+once per idle spell. An ask waiting on an idle seat, and not carried by an ask still open, gets STILL OPEN every `askRemindMinutes`, `maxReminders` times;
 then a Peer's ask to its Lead goes to whoever supervises as UNANSWERED. The rest act where [facts](#facts),
 [holds](#holds), [questions for the Human](#questions-for-the-human) and [to a model](#questions-to-a-model) name them.
 

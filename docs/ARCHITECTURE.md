@@ -366,10 +366,11 @@ LAND and retries held merges; then `TurnRules` reads the turn in code, with no m
   the Supervisor once that Lead is gone. A permission request goes the same way as WAITING FOR PERMISSION,
   unless refused: any while the seat's lane is on hold, and a question that would stop the turn. The
   Supervisor's own are only logged, and `status.md` lists them under "Waiting on the Human".
-- A Peer or Reviewer whose turn ends before its hand-back with no desk call carried out, and none running, is
-  nudged; on a second such turn, or one ending on a call refused or left unfinished, its task is `stalled`,
-  with SILENT to its Lead and STRUGGLING to the Supervisor. A turn it starts runs the task again; one more
-  quiet turn stalls it again, with SILENT to its Lead only, until a desk call of its own restarts the count.
+- A Peer or Reviewer whose turn ends before its hand-back with no desk call carried out, none running and no
+  ask of its own open (it was told to end its turn and wait), is nudged; on a second such turn, or one ending
+  on a call refused or left unfinished, its task is `stalled`, with SILENT to its Lead and STRUGGLING to the
+  Supervisor. A turn it starts runs the task again; one more quiet turn stalls it again, with SILENT to its
+  Lead only, until a desk call of its own restarts the count.
 
 ## The Human in the loop
 
@@ -476,8 +477,8 @@ turns, then, for each project the desk has met since it started:
 2. Retell incidents held for nobody.
 3. A task at work whose Peer is gone goes `stalled`, with FAILED to its Lead; a lane whose Lead is gone brings
    LEAD GONE to the Supervisor, once, whose `replace_lead` seats a Lead where the lane stands.
-4. Remind an ask after `askRemindMinutes` (15) while its reader is idle, up to `maxReminders` (2), then
-   escalate one a Peer or Reviewer put to its Lead (UNANSWERED); move one whose reader is gone to the
+4. Remind an ask after `askRemindMinutes` (15) while its reader is idle and no open ask carries it, up
+   to `maxReminders` (2), then escalate one a Peer or Reviewer put to its Lead (UNANSWERED); move one whose reader is gone to the
    Supervisor.
 5. Read each open lane's record for facts.
 6. Sweep workspaces and worktrees the desk made that nothing holds, keeping each owner's last five gate runs.

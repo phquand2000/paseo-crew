@@ -5,9 +5,19 @@ import { defineTool } from "../services.ts";
 
 export const askOwner = defineTool({
   name: "ask",
-  input: z.strictObject({ kind: z.enum(["need", "blocked", "question"]), text: z.string(), default: z.string() }),
+  input: z.strictObject({
+    kind: z.enum(["need", "blocked", "question"]),
+    text: z.string(),
+    default: z.string(),
+    carries: z.array(z.string()).optional(),
+  }),
   handle: (desk, caller, args) =>
-    askAbove(desk, caller, { kind: str(args.kind), text: str(args.text), default: str(args.default) }),
+    askAbove(desk, caller, {
+      kind: str(args.kind),
+      text: str(args.text),
+      default: str(args.default),
+      carries: args.carries,
+    }),
 });
 
 export const askLead = defineTool({
