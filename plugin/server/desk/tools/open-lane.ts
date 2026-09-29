@@ -10,7 +10,7 @@ export const openLane = defineTool({
     acceptance: z.array(z.string()),
     appetite: z.string().optional(),
     deadline: z.string().optional(),
-    outOfScope: z.array(z.string()),
+    outOfScope: z.array(z.string()).optional(),
     issue: z.string().optional(),
     isolate: z.boolean().optional(),
     base: z.string().optional(),

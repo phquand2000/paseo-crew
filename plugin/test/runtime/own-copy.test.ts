@@ -18,11 +18,8 @@ test("a lane works in the project's own copy from open to landing, and hands it 
   const branch = () => h.git(root, "branch", "--show-current").trim();
   await h.call(sup, "supervisor", "set_project", { gate: "test ! -f BROKEN", gateOn: "lane" });
   const numbers = { title: "Numbers", outcome: "a.txt gains words", acceptance: ["four"] };
-  const noLimits = await h.call(sup, "supervisor", "open_lane", numbers);
-  assert.equal(noLimits.ok, false);
-  assert.match(noLimits.text, /needs outOfScope/);
-  const opened = await h.call(sup, "supervisor", "open_lane", { ...numbers, outOfScope: scope.outOfScope });
-  assert.equal(opened.ok, true, opened.text);
+  const opened = await h.call(sup, "supervisor", "open_lane", numbers);
+  assert.equal(opened.ok, true, `limits the outcome does not hold are the Supervisor's to give or not: ${opened.text}`);
   const lane = h.ledger().lanes.L1!;
   const lead = lane.lead!;
   assert.deepEqual(Object.keys(h.ledger().slots), []);
