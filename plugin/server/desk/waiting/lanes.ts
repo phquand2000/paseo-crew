@@ -59,7 +59,9 @@ async function tryOpen(desk: DeskServices, project: Project, lane: Lane): Promis
   const { claimed, ownCopy } = placed;
   const fetched = claimed.issue ? await fetchIssue(claimed.issue, project.root) : undefined;
   const issue = fetched && !("error" in fetched) ? fetched : undefined;
-  const how = { ownCopy, failed: "wait" as const, role: claimed.opening?.role, parent: claimed.opener, issue };
+  // Paseo refuses a parent it no longer holds, so a lane outliving its opener would never start.
+  const supervisor = await roster.supervisorFor(project, claimed.opener);
+  const how = { ownCopy, failed: "wait" as const, role: claimed.opening?.role, parent: supervisor, issue };
   const started = await startLead(desk, project, claimed, how);
   if (typeof started === "string")
     return { why: started, next: "It is tried again when a lane closes; close it to drop it.", tried: true };
@@ -67,7 +69,7 @@ async function tryOpen(desk: DeskServices, project: Project, lane: Lane): Promis
     delete entry.held;
   });
   const reply = openedReply(project, claimed, started.slot, started.lead, issue, started.elsewhere);
-  await mail.post(await roster.supervisorFor(project, claimed.opener), workLetters.opened(claimed, reply));
+  await mail.post(supervisor, workLetters.opened(claimed, reply));
   return undefined;
 }
 

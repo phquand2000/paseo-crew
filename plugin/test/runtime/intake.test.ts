@@ -19,7 +19,7 @@ const oneTask = (key: string, title: string, extra: Record<string, unknown> = {}
 
 test("a lane that waits is recorded, amended, opened off a base holding the work it waited for, or dropped", async () => {
   const h = harness();
-  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  let sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const open = (title: string, extra: Record<string, unknown> = {}) =>
     h.call(sup, "supervisor", "open_lane", lane(title, extra));
   await h.call(sup, "supervisor", "set_project", { gate: "true" });
@@ -91,17 +91,23 @@ test("a lane that waits is recorded, amended, opened off a base holding the work
   h.commit(h.root, "a.txt", "cart\n");
   h.agents.get(cart.lead!)!.status = "idle";
   await h.endTurn(cart.lead!, "done");
+  Object.assign(h.agents.get(sup)!, { archivedAt: new Date().toISOString(), status: "closed" });
+  sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "the supervisor seated in its place");
   assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
   const order = h.ledger().lanes.L2!;
   assert.deepEqual([order.status, h.ledger().lanes.L1!.landed], ["open", true]);
-  assert.ok(order.lead);
+  assert.equal(
+    h.agents.get(order.lead!)!.labels["paseo.parent-agent-id"],
+    sup,
+    "its opener is gone, so it sits under who supervises",
+  );
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), order.branch);
   assert.equal(readFileSync(join(h.root, "a.txt"), "utf-8"), "cart\n");
   assert.match(
     h.heard(sup).join("\n"),
     /WAITING L2 \(Order\), the lane you opened to wait for L1: Lane L2 is open on lane\/l2-order/,
   );
-  assert.match(h.agents.get(order.lead)!.prompt ?? "", /Outcome: orders from an upserted cart/);
+  assert.match(h.agents.get(order.lead!)!.prompt ?? "", /Outcome: orders from an upserted cart/);
   assert.match((await h.call(sup, "supervisor", "amend_lane", { ...amended, lane: "L1" })).text, /Lane L1 is closed/);
   await open("Late", { after: ["L2"], isolate: true });
   assert.equal(h.ledger().lanes.L5!.status, "waiting");

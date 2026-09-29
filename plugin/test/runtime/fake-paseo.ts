@@ -143,6 +143,10 @@ export function fakePaseo() {
         clientMessageId?: string;
         labels?: Record<string, string>;
       }) {
+        // Paseo 0.10.1 refuses a parent its agent manager does not hold, as it does an archived one.
+        const parent = options.parent === undefined ? undefined : agents.get(options.parent);
+        if (options.parent && (!parent || parent.archivedAt))
+          throw new Error(`Caller agent ${options.parent} not found`);
         // Paseo keeps an agent's parent as this label, and never pushes an agent that has one.
         const labels = { ...options.labels, ...(options.parent ? { "paseo.parent-agent-id": options.parent } : {}) };
         const made = add(
