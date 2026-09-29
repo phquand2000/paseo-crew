@@ -2,7 +2,6 @@ import { recordEvent } from "../store/event-log.ts";
 import { join } from "node:path";
 import { runGate } from "../../core/gate.ts";
 import { cleanState, pristineState } from "../../core/git.ts";
-import type { Kit } from "../../catalog/kit/kit.ts";
 import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
@@ -11,16 +10,19 @@ import { type Project, loadConfig, riskRulesOf, rulesFor } from "./project.ts";
 /** `ran` is whether anything ran: a lane with no gate and nothing to rehearse passes with nothing run. */
 type GateVerdict = { ok: boolean; text: string; ran: boolean };
 
+const STOPPED = "was stopped as the plugin stopped";
+
 /** One command on the lane's copy, as whoever lands it reads it: passed, or how it failed with its tail and its log. */
 async function onLane(
   project: Project,
   lane: Lane & { worktree: string },
   command: string,
+  stopping: AbortSignal,
   rehearsing?: string,
 ): Promise<GateVerdict> {
   const minutes = loadConfig(project.state).gateTimeoutMinutes;
   const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
-  const result = await runGate(command, lane.worktree, logFile, minutes * 60_000);
+  const result = await runGate(command, lane.worktree, logFile, minutes * 60_000, stopping);
   recordEvent(project, {
     kind: result.ok ? "gate.passed" : "gate.failed",
     lane: lane.id,
@@ -29,7 +31,11 @@ async function onLane(
   });
   const what = rehearsing ? `${command}, rehearsing that ${rehearsing},` : command;
   if (result.ok) return { ok: true, text: `${what} passed on the lane branch in ${result.seconds}s`, ran: true };
-  const reason = result.timedOut ? `timed out after ${minutes} minutes` : `failed with exit ${result.code}`;
+  const reason = result.stopped
+    ? STOPPED
+    : result.timedOut
+      ? `timed out after ${minutes} minutes`
+      : `failed with exit ${result.code}`;
   return {
     ok: false,
     text: `${what} ${reason} on the lane branch.\n\n${result.tail}\n\nFull log: ${logFile}`,
@@ -38,7 +44,11 @@ async function onLane(
 }
 
 /** The project's gate on the lane, then a rehearsal for each risk rule its change reaches: red in any is a red gate. */
-export async function laneGate({ kit }: Pick<DeskBase, "kit">, project: Project, lane: Lane): Promise<GateVerdict> {
+export async function laneGate(
+  { kit, stopping }: Pick<DeskBase, "kit" | "stopping">,
+  project: Project,
+  lane: Lane,
+): Promise<GateVerdict> {
   const { gate } = loadConfig(project.state);
   const rules = riskRulesOf(project, kit).filter((rule) => rule.rehearse);
   // A change git cannot read is rehearsed against every rule, rather than none.
@@ -58,8 +68,8 @@ export async function laneGate({ kit }: Pick<DeskBase, "kit">, project: Project,
     };
   }
   const copy = { ...lane, worktree: lane.worktree };
-  const verdicts: GateVerdict[] = gate ? [await onLane(project, copy, gate)] : [];
-  for (const rule of rehearsals) verdicts.push(await onLane(project, copy, rule.rehearse!, rule.invariant));
+  const verdicts: GateVerdict[] = gate ? [await onLane(project, copy, gate, stopping)] : [];
+  for (const rule of rehearsals) verdicts.push(await onLane(project, copy, rule.rehearse!, stopping, rule.invariant));
   return {
     ok: verdicts.every((verdict) => verdict.ok),
     text: verdicts.map((verdict) => verdict.text).join("\n\n"),
@@ -74,7 +84,7 @@ type GateRun = { ok: boolean; note: string; tail: string; logFile: string };
  * stopping at the first that fails. Undefined when this project does not gate tasks.
  */
 export async function taskGate(
-  kit: Kit,
+  { kit, stopping }: Pick<DeskBase, "kit" | "stopping">,
   project: Project,
   taskId: string,
   cwd: string,
@@ -92,10 +102,12 @@ export async function taskGate(
   let last = { ok: true, tail: "", logFile: "" };
   for (const [index, { command, what }] of [{ command: config.gate, what: config.gate }, ...rehearsals].entries()) {
     const logFile = join(project.state, "gates", `${taskId}-${Date.now()}${index > 0 ? `-${index}` : ""}.log`);
-    const result = await runGate(command, cwd, logFile, config.gateTimeoutMinutes * 60_000);
-    const failed = result.timedOut
-      ? `timed out after ${config.gateTimeoutMinutes} minutes`
-      : `failed with exit ${result.code}`;
+    const result = await runGate(command, cwd, logFile, config.gateTimeoutMinutes * 60_000, stopping);
+    const failed = result.stopped
+      ? STOPPED
+      : result.timedOut
+        ? `timed out after ${config.gateTimeoutMinutes} minutes`
+        : `failed with exit ${result.code}`;
     notes.push(
       result.ok
         ? `${what} passed in ${result.seconds}s`

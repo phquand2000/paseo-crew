@@ -27,4 +27,5 @@ export type DeskBase = {
   closing: Claims;
   landings: KeyedQueue;
   lastStatus: Map<string, string>;
+  stopping: AbortSignal;
 };

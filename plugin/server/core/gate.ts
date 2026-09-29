@@ -2,7 +2,14 @@ import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readSync, statSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
 
-type GateResult = { ok: boolean; code: number | null; timedOut: boolean; seconds: number; tail: string };
+type GateResult = {
+  ok: boolean;
+  code: number | null;
+  timedOut: boolean;
+  stopped: boolean;
+  seconds: number;
+  tail: string;
+};
 
 const TAIL_LINES = 40;
 const TAIL_CHARS = 3000;
@@ -41,7 +48,22 @@ export function lastBytes(file: string, limit = 64 * 1024): string {
   }
 }
 
-export function runGate(command: string, cwd: string, logFile: string, timeoutMs: number): Promise<GateResult> {
+function closeLog(fd: number): void {
+  try {
+    closeSync(fd);
+  } catch {
+    // Closed already: the log holds what was written.
+  }
+}
+
+/** `stop` kills the gate's group when the plugin stops: a gate left running would write into a copy nobody watches. */
+export function runGate(
+  command: string,
+  cwd: string,
+  logFile: string,
+  timeoutMs: number,
+  stop?: AbortSignal,
+): Promise<GateResult> {
   mkdirSync(dirname(logFile), { recursive: true });
   const started = Date.now();
   const fd = openSync(logFile, "w");
@@ -54,26 +76,28 @@ export function runGate(command: string, cwd: string, logFile: string, timeoutMs
       detached: true,
       stdio: ["ignore", fd, fd],
     });
-    let timedOut = false;
+    let ended: "timedOut" | "stopped" | undefined;
     let answered = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
+    const end = (why: "timedOut" | "stopped") => {
+      ended ??= why;
       killGroup(child.pid);
-    }, timeoutMs);
+    };
+    const timer = setTimeout(() => end("timedOut"), timeoutMs);
+    const stopped = () => end("stopped");
+    if (stop?.aborted) stopped();
+    else stop?.addEventListener("abort", stopped, { once: true });
     const finish = (code: number | null) => {
       if (answered) return;
       answered = true;
       clearTimeout(timer);
+      stop?.removeEventListener("abort", stopped);
       killGroup(child.pid);
-      try {
-        closeSync(fd);
-      } catch {
-        // Closed already: the log holds what was written.
-      }
+      closeLog(fd);
       resolve({
-        ok: code === 0 && !timedOut,
+        ok: code === 0 && !ended,
         code,
-        timedOut,
+        timedOut: ended === "timedOut",
+        stopped: ended === "stopped",
         seconds: Math.round((Date.now() - started) / 1000),
         tail: tailOf(lastBytes(logFile)),
       });

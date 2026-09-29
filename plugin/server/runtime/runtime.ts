@@ -210,6 +210,7 @@ export class Runtime implements HostHooks {
 
   dispose(): void {
     this.socket.close();
+    this.desk.dispose();
     this.watches.dispose();
     this.clock.stop();
   }

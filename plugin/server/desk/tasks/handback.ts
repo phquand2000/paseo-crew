@@ -58,7 +58,7 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
   const synced = await syncOf(task, lane);
   if (synced && "conflicts" in synced) return settling(desk, task, lane!, synced);
   const work = await workOf(desk.kit, project, ledger, task, synced);
-  const written = await write(desk.kit, project, task, args, work);
+  const written = await write(desk, project, task, args, work);
   const summary = (task.kind === "review" ? args.answer : args.summary)?.trim() ?? "";
   const already = record(desk, project, task, written, work.commit, summary);
   if (already) {
@@ -130,11 +130,17 @@ async function workOf(kit: Kit, project: Project, ledger: Ledger, task: Task, sy
 }
 
 /** Gated at hand-back so the Lead has the verdict in time; gating after accept undid a merge already chosen. */
-async function write(kit: Kit, project: Project, task: Task, args: HandingBack, work: Work): Promise<Written> {
+async function write(
+  desk: Pick<DeskServices, "kit" | "stopping">,
+  project: Project,
+  task: Task,
+  args: HandingBack,
+  work: Work,
+): Promise<Written> {
   const { outcome, body } = task.kind === "review" ? reviewBody(task, args) : taskBody(args, work);
   const run =
     task.kind !== "review" && task.worktree
-      ? await taskGate(kit, project, task.id, task.worktree, work.changed)
+      ? await taskGate(desk, project, task.id, task.worktree, work.changed)
       : undefined;
   const red =
     run &&

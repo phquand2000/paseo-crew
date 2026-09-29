@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { intentsPath } from "../../server/core/paths.ts";
@@ -106,6 +106,32 @@ test("merges a stop left go through once each, in turn, when the plugin starts a
   nobodySeated(h);
   await started();
   assert.equal(status(alone.id), "merged", "the first round takes them up even with nobody seated");
+});
+
+/** Whether a process of that id still runs. */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test("a gate running when the plugin stops is stopped with it, not left writing into the copy", async (t) => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const pidFile = join(tempDir("crew-gate-"), "pid");
+  await h.call(sup, "supervisor", "set_project", { gate: `echo $$ > ${pidFile}; exec sleep 30`, gateOn: "task" });
+  h.commit(lane.worktree!, "a.txt", "A\n");
+  const handing = h.call(peer, "peer", "done", { outcome: "complete", summary: "done" });
+  assert.ok(await within(5000, () => existsSync(pidFile) && readFileSync(pidFile, "utf-8").trim() !== ""));
+  const gate = Number(readFileSync(pidFile, "utf-8"));
+  t.after(() => void (alive(gate) && process.kill(gate, "SIGKILL")));
+  h.restart();
+  assert.ok(await within(5000, () => !alive(gate)), "its process goes with the plugin");
+  await handing;
+  const handback = h.ledger().tasks["L1-T1"]!.handback;
+  assert.match(handback?.gate?.note ?? "", /stopped as the plugin stopped/, "and the hand-back says so");
 });
 
 test("what waited on a turn when the plugin stopped goes on at its first round", async () => {

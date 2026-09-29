@@ -59,6 +59,7 @@ export class Desk {
   private readonly services: DeskServices;
   private readonly intents: Intents;
   private readonly calls: ToolCalls;
+  private readonly stop = new AbortController();
 
   constructor(options: DeskOptions) {
     const projects = new Map<string, Project>();
@@ -79,6 +80,7 @@ export class Desk {
       closing: new Claims(),
       landings: new KeyedQueue(),
       lastStatus: new Map(),
+      stopping: this.stop.signal,
     };
     this.intents = new Intents(intentsPath());
     const roster = new Roster(options.kit, options.seats, this.intents);
@@ -92,6 +94,11 @@ export class Desk {
     this.calls = new ToolCalls(this.services, options.tools, mail);
     this.projects = projects;
     this.human = new Human(this.services);
+  }
+
+  /** Stops the gates still running, so none outlives the plugin in a working copy. */
+  dispose(): void {
+    this.stop.abort();
   }
 
   transact<T>(project: Project, decide: (ledger: Ledger) => Sync<T>): T {
