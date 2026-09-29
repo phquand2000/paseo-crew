@@ -147,6 +147,9 @@ export function conceptFile(state: string): string | undefined {
 }
 
 /** An empty gate is the owner's decision and must survive a read: as `undefined`, `open_lane` would seed a detected gate over it. */
+/** How long a git step writing a whole tree may take: a large repository checks out and merges as slowly as it gates. */
+export const gitTimeout = (project: Project) => loadConfig(project.state).gateTimeoutMinutes * 60_000;
+
 export function loadConfig(state: string): ProjectConfig {
   const stored = readJson<Partial<ProjectConfig>>(configFile(state), {});
   const minutes = Number(stored.gateTimeoutMinutes);

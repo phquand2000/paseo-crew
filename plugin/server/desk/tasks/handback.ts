@@ -14,7 +14,7 @@ import { type Ledger, taskOfPeer } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
-import { type Project, serialIn } from "../project/project.ts";
+import { type Project, gitTimeout, serialIn } from "../project/project.ts";
 import { changeFrom } from "./change-from.ts";
 import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
@@ -55,7 +55,7 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
   const refused = refusal(task, args);
   if (refused) return no(refused);
   const lane = ledger.lanes[task.lane];
-  const synced = await syncOf(task, lane);
+  const synced = await syncOf(project, task, lane);
   if (synced && "conflicts" in synced) return settling(desk, task, lane!, synced);
   const work = await workOf(desk.kit, project, ledger, task, synced);
   const written = await write(desk, project, task, args, work);
@@ -86,9 +86,9 @@ function refusal(task: Task, args: HandingBack): string | undefined {
 }
 
 /** A task hands back what its lane would become: the lane comes into its copy first. */
-function syncOf(task: Task, lane: Lane | undefined): Promise<Synced | undefined> {
+function syncOf(project: Project, task: Task, lane: Lane | undefined): Promise<Synced | undefined> {
   if (task.kind !== "code" || !lane || !task.worktree || !task.branch) return Promise.resolve(undefined);
-  return bringLaneIn({ ...task, worktree: task.worktree, branch: task.branch }, lane);
+  return bringLaneIn({ ...task, worktree: task.worktree, branch: task.branch }, lane, gitTimeout(project));
 }
 
 /** Bringing the lane in stopped on conflicts: the Peer settles them before it hands back, and its Lead is told in passing. */

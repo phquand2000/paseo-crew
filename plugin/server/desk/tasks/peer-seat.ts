@@ -9,7 +9,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { seatTitle } from "../seats/names.ts";
-import type { Project } from "../project/project.ts";
+import { type Project, gitTimeout } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { backOnLane } from "../copies/sync.ts";
@@ -85,7 +85,10 @@ async function takeBase(
 ): Promise<void> {
   const sha = await headSha(cwd, lane.base);
   if (!sha) throw new Error(`${lane.base} could not be read to merge into ${task.branch}`);
-  const merged = await mergeBranch(cwd, sha, `Bring ${lane.base} into ${task.branch}`, true);
+  const merged = await mergeBranch(cwd, sha, `Bring ${lane.base} into ${task.branch}`, {
+    leave: true,
+    timeout: gitTimeout(project),
+  });
   if (!merged.ok && merged.conflicts.length === 0)
     throw new Error(`${lane.base} does not merge into ${task.branch}: ${merged.message}`);
   const conflicts = merged.ok ? [] : merged.conflicts;

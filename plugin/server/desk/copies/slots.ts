@@ -19,7 +19,7 @@ import { sweepCopies } from "./sweep.ts";
 import { unsavedIn } from "./unsaved.ts";
 import { type Slot, nextSlotId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import type { Project } from "../project/project.ts";
+import { type Project, gitTimeout } from "../project/project.ts";
 import { errorText } from "../../core/errors.ts";
 
 type Holder = { lane?: string; task?: string };
@@ -135,12 +135,12 @@ export class Slots {
             ? `working copy ${slot.id} has uncommitted changes`
             : `git could not read working copy ${slot.id} at ${slot.path}`,
         );
-      const run = await git(slot.path, ["switch", "--no-track", "-c", branch, base]);
+      const run = await git(slot.path, ["switch", "--no-track", "-c", branch, base], gitTimeout(project));
       if (run.code !== 0) throw new Error(run.stderr.trim() || "git switch failed");
       return true;
     }
     mkdirSync(dirname(slot.path), { recursive: true });
-    const added = await addWorktree(project.root, slot.path, branch, base);
+    const added = await addWorktree(project.root, slot.path, branch, base, gitTimeout(project));
     if (!added.ok) throw new Error(added.message);
     return false;
   }

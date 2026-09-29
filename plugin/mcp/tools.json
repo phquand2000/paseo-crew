@@ -541,7 +541,7 @@
           },
           "gateTimeoutMinutes": {
             "type": "number",
-            "description": "Minutes a gate may run before it counts as failed; 30 unless set."
+            "description": "Minutes a gate, or a merge or working copy the desk makes, may run before it counts as failed; 30 unless set."
           },
           "gateOn": {
             "type": "string",

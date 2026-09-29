@@ -11,7 +11,7 @@ import { loadLedger } from "../store/ledger.ts";
 import { othersLeft } from "../../domain/ledger.ts";
 import type { Letter } from "../letters/envelope.ts";
 import { mergeLetters } from "../letters/merge-letters.ts";
-import { type Project, serialIn } from "../project/project.ts";
+import { type Project, gitTimeout, serialIn } from "../project/project.ts";
 import { changeFrom } from "./change-from.ts";
 import { reachNotes } from "./reach.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -103,7 +103,7 @@ export class TaskMerge {
     task: Task & { branch: string; worktree: string },
     lane: Lane,
   ): Promise<string | undefined> {
-    const synced = await bringLaneIn(task, lane);
+    const synced = await bringLaneIn(task, lane, gitTimeout(project));
     if ("conflicts" in synced) {
       const letter = mergeLetters.conflict(task, synced.conflicts, lane.branch, "left", synced.by);
       await this.finish(project, task, lane, "conflict", letter);

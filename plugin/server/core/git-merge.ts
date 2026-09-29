@@ -16,13 +16,18 @@ type MergeResult = { ok: true; before: string; after: string } | { ok: false; co
  * `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit, since no seat may run git merge; anything
  * else that stops it is undone. The Human's rerere would settle conflicts unseen, and their signer can wait on them: neither applies.
  */
-export async function mergeBranch(cwd: string, branch: string, message: string, leave = false): Promise<MergeResult> {
+export async function mergeBranch(
+  cwd: string,
+  branch: string,
+  message: string,
+  { leave = false, timeout }: { leave?: boolean; timeout: number },
+): Promise<MergeResult> {
   const before = await headSha(cwd);
   if (!before) return { ok: false, conflicts: [], message: "the lane working copy has no HEAD" };
   const run = await git(
     cwd,
     [...AS_DESK, "-c", "rerere.enabled=false", "merge", "--no-ff", "-m", message, branch],
-    120_000,
+    timeout,
   );
   if (run.code === 0) return { ok: true, before, after: (await headSha(cwd)) ?? before };
   const unmerged = await git(cwd, ["diff", "--name-only", "--diff-filter=U"]);

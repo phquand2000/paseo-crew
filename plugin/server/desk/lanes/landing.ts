@@ -6,7 +6,7 @@ import { laneGate } from "../project/gates.ts";
 import { type Lane, loseReady } from "../../domain/lane.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import { landLetters } from "../letters/land-letters.ts";
-import { type Project, loadConfig } from "../project/project.ts";
+import { type Project, gitTimeout, loadConfig } from "../project/project.ts";
 import type { Roster } from "../seats/roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -119,7 +119,9 @@ async function bringBaseIn(
   const blocked = await baseMergeBlocked(roster, ledger, lane, copy);
   if (blocked) return blocked === "current" ? undefined : blocked;
   // Never left mid-merge: every task in the copy starts by switching branch, which git refuses then.
-  const merged = await mergeBranch(copy, lane.base, `Bring ${lane.base} into ${lane.branch}`);
+  const merged = await mergeBranch(copy, lane.base, `Bring ${lane.base} into ${lane.branch}`, {
+    timeout: gitTimeout(project),
+  });
   if (merged.ok) return undefined;
   if (merged.conflicts.length === 0)
     return {

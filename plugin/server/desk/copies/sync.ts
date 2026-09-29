@@ -64,7 +64,11 @@ async function changedBy(cwd: string, tip: string, files: string[]): Promise<str
  * Brings the lane branch into a task's own copy, so what it hands back or merges is what the lane would become. A copy with
  * work uncommitted is left as it is; conflicts are left in it for its Peer to settle and commit, since no seat may run git merge.
  */
-export async function bringLaneIn(task: Task & { worktree: string; branch: string }, lane: Lane): Promise<Synced> {
+export async function bringLaneIn(
+  task: Task & { worktree: string; branch: string },
+  lane: Lane,
+  timeout: number,
+): Promise<Synced> {
   const cwd = task.worktree;
   const tip = await headSha(cwd, lane.branch);
   if (!tip) return { not: `git could not read ${lane.branch}` };
@@ -72,7 +76,7 @@ export async function bringLaneIn(task: Task & { worktree: string; branch: strin
   const copy = await pristineState(cwd);
   if (copy !== "clean")
     return { not: copy === "dirty" ? "its copy has work uncommitted" : "git could not read its copy" };
-  const merged = await mergeBranch(cwd, tip, `Bring ${lane.branch} into ${task.branch}`, true);
+  const merged = await mergeBranch(cwd, tip, `Bring ${lane.branch} into ${task.branch}`, { leave: true, timeout });
   if (merged.ok) return { at: tip };
   if (merged.conflicts.length === 0) return { not: merged.message.split("\n")[0] || "git merge failed" };
   // HEAD is still the task's own tip while the merge waits on its conflicts.

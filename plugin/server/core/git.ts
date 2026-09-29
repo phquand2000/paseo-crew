@@ -167,10 +167,11 @@ export async function addWorktree(
   path: string,
   branch: string,
   base: string,
+  timeout: number,
 ): Promise<{ ok: boolean; message: string }> {
   if (!(await branchExists(root, base))) return { ok: false, message: `the base branch ${base} does not exist` };
   if (await branchExists(root, branch)) return { ok: false, message: `the branch ${branch} already exists` };
-  const run = await git(root, ["worktree", "add", "--no-track", "-b", branch, path, base], 120_000);
+  const run = await git(root, ["worktree", "add", "--no-track", "-b", branch, path, base], timeout);
   // git can fail with no output at all (timeout, missing binary); never report an empty reason.
   return {
     ok: run.code === 0,

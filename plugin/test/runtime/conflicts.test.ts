@@ -4,6 +4,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
+import { heldGit } from "./lane-gates.ts";
 
 type Harness = ReturnType<typeof harness>;
 
@@ -233,3 +234,32 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
   assert.equal(status("L1-T5"), "merged");
   assert.equal(h.git(h.root, "show", "main:f.txt"), "F\n");
 });
+
+test(
+  "bringing the lane into a task's copy stops at the project's own time limit, not a fixed one",
+  { timeout: 20_000 },
+  async (t) => {
+    const h = harness();
+    const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+    await h.call(sup, "supervisor", "set_project", { gateTimeoutMinutes: 0.005 });
+    await h.call(sup, "supervisor", "open_lane", {
+      title: "Cart",
+      outcome: "x",
+      ...scope,
+      writeSet: ["a.txt", "b.txt"],
+    });
+    const lane = h.ledger().lanes.L1!;
+    await h.call(lane.lead!, "lead", "add_tasks", {
+      tasks: [{ key: "a", title: "A", goal: "g", ...scope, holds: ["a.txt"], parallel: true }],
+    });
+    const task = h.ledger().tasks["L1-T1"]!;
+    h.commit(task.worktree!, "a.txt", "A\n");
+    h.commit(lane.worktree!, "b.txt", "the lane moved on\n");
+    const merge = heldGit("merge");
+    t.after(merge.release);
+    const handed = await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
+    assert.equal(handed.ok, true, handed.text);
+    await h.idle(lane.lead!);
+    assert.match(h.heard(lane.lead!).join("\n"), /Not brought up to date with lane\/l1-cart: git merge failed\./);
+  },
+);

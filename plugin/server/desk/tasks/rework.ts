@@ -14,6 +14,7 @@ import { workLetters } from "../letters/work-letters.ts";
 import { tellMoment } from "../watch/moments.ts";
 import type { DeskServices } from "../services.ts";
 import { bringLaneIn } from "../copies/sync.ts";
+import { gitTimeout } from "../project/project.ts";
 import { recordEvent } from "../store/event-log.ts";
 
 /** A rework call as the tool takes it. */
@@ -45,7 +46,9 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
   // Reopened, it takes up the lane as it stands now, on its own branch; one that cannot is brought up to date at its hand-back.
   if (asked.task.status === "merged" && result.worktree && result.branch) {
     const switched = inLaneCopy ? await switchTo(inLaneCopy, result.branch, asked.lane.branch) : undefined;
-    if (!switched) await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane);
+    const timeout = gitTimeout(caller.project);
+    if (!switched)
+      await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane, timeout);
   }
   // Keyed by the rework's count, each letter is its own: none is dropped as a repeat.
   await desk.mail.post(result.peer, workLetters.rework(result, text));

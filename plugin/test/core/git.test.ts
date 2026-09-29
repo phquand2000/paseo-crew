@@ -51,7 +51,7 @@ test("a lane lands on base only as its gate saw it, squashed, merged or fast-for
   ff.commit("b.txt", "two\n", "task work");
   ff.run("checkout", "-q", "lane/l1");
   assert.equal(
-    (await mergeBranch(ff.root, "task/l1-t1", "Merge L1-T1")).ok,
+    (await mergeBranch(ff.root, "task/l1-t1", "Merge L1-T1", { timeout: 60_000 })).ok,
     true,
     "a task branch merges into the lane",
   );
@@ -192,7 +192,7 @@ test("the desk's merges leave the lane as it was on a conflict, ignore the Human
   conflict.run("checkout", "-q", "lane/l1");
   conflict.commit("a.txt", "lane side\n", "lane edit");
   const before = await conflict.sha();
-  const stopped = await mergeBranch(conflict.root, "task/l1-t2", "Merge L1-T2");
+  const stopped = await mergeBranch(conflict.root, "task/l1-t2", "Merge L1-T2", { timeout: 60_000 });
   assert.deepEqual(stopped.ok ? [] : stopped.conflicts, ["a.txt"], "the files in conflict are named");
   assert.equal(await conflict.sha(), before, "and the lane is left as it was");
   assert.equal(conflict.run("status", "--porcelain").trim(), "");
@@ -212,7 +212,7 @@ test("the desk's merges leave the lane as it was on a conflict, ignore the Human
   human.write("a.txt", "both\n");
   human.run("commit", "-qam", "settled");
   human.run("reset", "-q", "--hard", "HEAD~1");
-  const again = await mergeBranch(human.root, "task/l1-t2", "Merge L1-T2");
+  const again = await mergeBranch(human.root, "task/l1-t2", "Merge L1-T2", { timeout: 60_000 });
   assert.deepEqual(again.ok ? [] : again.conflicts, ["a.txt"], "a desk merge reads conflicts as git leaves them");
   human.run("checkout", "-qb", "task/l1-t3");
   human.commit("c.txt", "c\n", "task three");
@@ -220,7 +220,7 @@ test("the desk's merges leave the lane as it was on a conflict, ignore the Human
   human.run("config", "commit.gpgSign", "true");
   human.run("config", "gpg.program", "false");
   assert.equal(
-    (await mergeBranch(human.root, "task/l1-t3", "Merge L1-T3")).ok,
+    (await mergeBranch(human.root, "task/l1-t3", "Merge L1-T3", { timeout: 60_000 })).ok,
     true,
     "a signer that needs the Human cannot stop a merge only the desk makes",
   );

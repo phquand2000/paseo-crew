@@ -79,7 +79,7 @@ Every field is optional; one left out keeps its value.
 |---|---|---|
 | `base` | The branch lanes start from and land on. It must exist | none: a lane starts from the branch the Human's copy is on, and is refused while that copy is on none |
 | `gate` | The command that proves a lane works, run in its copy. An empty string is an answer: no gate, and the desk never detects one over it | [detected](#gate-detection) |
-| `gateTimeoutMinutes` | How long a gate run may take before it counts as failed | 30 |
+| `gateTimeoutMinutes` | How long a gate run, or a merge or working copy the desk makes, may take before it counts as failed | 30 |
 | `gateOn` | `task` also gates each hand-back and each merge, unless the gate already ran on that commit. `lane` gates only the ready report and the landing, for a slow suite | `task` |
 | `serialOnly` | Globs only one writer at a time may write. Replaces the kit's list | the kit's |
 | `landAs` | How a lane goes onto its base: `squash` one commit, `merge` a merge commit, `ff` a fast-forward | `squash` |
