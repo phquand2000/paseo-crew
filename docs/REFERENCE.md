@@ -568,7 +568,7 @@ and says that duty.
 | Reviewer | `<review> · Review <task or lane>`, as `L1-R1 · Review L1-T3` |
 | Pager | `Page: <the start of the page>` |
 
-A name is cut at 60 characters. Labels carry `crew.project`, `crew.role`, `crew.concern` for a role that
+A name is cut at 200 characters, the most Paseo takes. Labels carry `crew.project`, `crew.role`, `crew.concern` for a role that
 names one, and `crew.lane` and `crew.task` for the work a seat does. Letters name a seat by its work (the Lead
 of L1, the Peer on L1-T3) or by its agent id; a failed turn's FAILED and WAITING FOR PERMISSION use the name Paseo
 shows, or the seat's role and id where Paseo shows none.
