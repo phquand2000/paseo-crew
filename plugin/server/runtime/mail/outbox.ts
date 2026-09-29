@@ -1,10 +1,14 @@
 import { KeyedQueue } from "../../core/keyed-queue.ts";
 import { midTurn } from "../../core/paseo.ts";
 import type { SeatLook, Seats } from "../../core/ports.ts";
-import { readJson, writeJson } from "../../core/store.ts";
+import { isRecord } from "../../core/json.ts";
+import { keptFault, readKept, writeJson } from "../../core/store.ts";
 
 export type Letter = { id: string; to: string; key: string; text: string; at: number; wakes?: false; steer?: true };
 type Posted = "sent" | "held" | "duplicate";
+
+const isLetter = (value: unknown): value is Letter =>
+  isRecord(value) && typeof value.to === "string" && typeof value.at === "number";
 type Compose = (to: string, letters: Letter[]) => string | Promise<string>;
 /**
  * What the outbox asks of the desk. `dropped` is told when a letter is given up on, so it is not lost quietly; `steers`, whether
@@ -47,12 +51,11 @@ export class Outbox {
     this.rules = rules;
   }
 
-  /** Aged-out letters included: both writers rebuild the file from this read, so filtering here deletes. */
+  /** Aged-out letters included, as both writers rebuild the file from this read; one that cannot be read throws, not empties. */
   letters(): Letter[] {
-    const stored = readJson<Letter[]>(this.file, []);
-    return Array.isArray(stored)
-      ? stored.filter((letter) => Boolean(letter) && typeof letter.to === "string" && typeof letter.at === "number")
-      : [];
+    const read = readKept<unknown[]>(this.file, [], Array.isArray);
+    if ("fault" in read) throw keptFault(read.fault);
+    return read.value.filter(isLetter);
   }
 
   /** The one place a letter is given up on, and it says so. */

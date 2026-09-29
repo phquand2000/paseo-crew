@@ -33,6 +33,10 @@ export function readKept<T>(
   return holds(read.value) ? { value: read.value } : { fault: `${path} does not hold what the plugin keeps there` };
 }
 
+export function keptFault(fault: string): Error {
+  return new Error(`${fault}. Nothing was written over it. Only the Human can repair it or move it aside.`);
+}
+
 export function readJson<T>(path: string, fallback: T): T {
   const read = readJsonFile(path);
   return "value" in read ? (read.value as T) : fallback;
