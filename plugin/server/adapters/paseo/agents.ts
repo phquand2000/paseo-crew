@@ -2,11 +2,15 @@ import type { PluginHookContext } from "@getpaseo/plugin/server";
 import type { PendingPermission, PermissionResponse, SeatView } from "../../core/paseo.ts";
 import type { SeatLook, SeatSpec, Seats, Workspace, Workspaces } from "../../core/ports.ts";
 import { deskId } from "../../core/sent-by.ts";
+import { within } from "../../core/text.ts";
 import { type TimelineHandle, follow } from "../../core/stream.ts";
 
 export type PaseoApi = PluginHookContext["paseo"];
 
 type Bound = () => PaseoApi | undefined;
+
+/** Paseo's cap on a title it is given; sixty is its cap on one it derives from a prompt. */
+const TITLE_CHARS = 200;
 
 type Handle = {
   id: string;
@@ -166,7 +170,7 @@ export function workspacesOn(bound: Bound): Workspaces {
         .agents.create({
           config: spec.config as never,
           parent: spec.parent,
-          title: spec.title.slice(0, 60),
+          title: within(spec.title, TITLE_CHARS),
           prompt: spec.prompt,
           clientMessageId: deskId(["brief"]),
           labels: spec.labels,

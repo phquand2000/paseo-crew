@@ -18,10 +18,23 @@ test("a seat, its branch and its copy's workspace are named for the one duty eac
   assert.equal(title(lead), "L1 · Lead · Build");
   assert.equal(title(peer), "L1-T1 · Peer · Clean build");
   await h.call(lead, "lead", "add_tasks", {
-    tasks: [{ key: "b", title: "Side", goal: "g", ...scope, holds: ["b.txt"], parallel: true }],
+    tasks: [
+      {
+        key: "b",
+        title: "Side: reconcile every receipt the old importer skipped",
+        goal: "g",
+        ...scope,
+        holds: ["b.txt"],
+        parallel: true,
+      },
+    ],
   });
   const side = h.ledger().tasks["L1-T2"]!;
-  assert.equal(title(side.peer!), "L1-T2 · Peer · Side");
+  assert.equal(
+    title(side.peer!),
+    "L1-T2 · Peer · Side: reconcile every receipt the old importer skipped",
+    "a seat's whole name, as Paseo takes up to 200 characters",
+  );
   h.commit(lane.worktree!, "a.txt", "A\n");
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   assert.equal((await h.call(lead, "lead", "start_review", { task: "L1-T1", focus: "Is a right?" })).ok, true);
@@ -55,7 +68,7 @@ test("a seat, its branch and its copy's workspace are named for the one duty eac
   const [beside, own] = [h.ledger().slots[side.slot!]!, h.ledger().slots[spending.slot!]!];
   assert.equal(
     h.workspaceNames.get(beside.workspaceId!),
-    `${slug} ${beside.id} · L1-T2 Side`,
+    `${slug} ${beside.id} · L1-T2 Side: reconcile every receipt the old importer skipped`,
     "named for the project, then the work it holds",
   );
   assert.equal(h.workspaceNames.get(own.workspaceId!), `${slug} ${own.id} · L2 Chi tiêu định kỳ`);
