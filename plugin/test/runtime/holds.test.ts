@@ -209,3 +209,23 @@ test("git the desk runs never runs a hook or a command a seat could plant in the
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merged");
   assert.deepEqual(readdirSync(marks), []);
 });
+
+test("a copy the desk made is locked in git, marked as the desk's, while its work goes on, and let go with it", async () => {
+  const { h, lead } = await laneWriting(["src/**"]);
+  await h.call(lead, "lead", "add_tasks", { tasks: [planned("a", "A", { holds: ["src/**"], parallel: true })] });
+  const copy = h.ledger().tasks["L1-T1"]!.worktree!;
+  const listed = () =>
+    h
+      .git(h.root, "worktree", "list", "--porcelain")
+      .split("\n\n")
+      .find((entry) => entry.includes(`/${copy.split("/").slice(-2).join("/")}\n`));
+  assert.match(listed() ?? "", /\nlocked paseo-crew: the working copy of L1-T1 A, which the desk removes itself$/);
+  assert.throws(
+    () => h.git(h.root, "worktree", "remove", copy),
+    /locked/,
+    "no git command takes it from under its seat",
+  );
+  await h.call(lead, "lead", "cut", { task: "L1-T1", reason: "not now" });
+  await h.tick();
+  assert.equal(listed(), undefined, "and it goes with its work");
+});

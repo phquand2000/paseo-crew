@@ -243,6 +243,8 @@ export async function removeGarbage(ctx: CleanContext, picked: string[]): Promis
     }
     try {
       const common = found.kind === "copy" ? commonDir(path) : undefined;
+      // A copy the desk locked keeps its record, and its branch with it, through a prune: the lock goes first.
+      if (common && existsSync(common)) await git(common, ["worktree", "unlock", path]);
       rmSync(path, { recursive: true, force: true });
       if (common && existsSync(common)) await git(common, ["worktree", "prune"]);
       if (found.kind === "copy" && entries(dirname(path)).length === 0) rmdirSync(dirname(path));

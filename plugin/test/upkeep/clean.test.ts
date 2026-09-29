@@ -160,3 +160,19 @@ test("removal takes only what a fresh scan still finds free, and leaves a folder
     [false, false, true, true],
   );
 });
+
+test("a copy the desk locked goes whole when removed, leaving git no record that holds its branch", async () => {
+  const { home, shop, ctx } = world();
+  const run = (cwd: string, ...args: string[]) =>
+    execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
+  run(shop.root, "init", "-q", "-b", "main");
+  run(shop.root, "commit", "-q", "--allow-empty", "-m", "seed");
+  const left = join(worktreeRoot(home), shop.slug, "S4");
+  run(shop.root, "worktree", "add", "-q", "-b", "task/l1-t1-left", left);
+  run(shop.root, "worktree", "lock", "--reason", "paseo-crew: L1-T1", left);
+
+  const result = await removeGarbage(ctx, [left]);
+  assert.deepEqual([result.removed, result.failed], [[left], []]);
+  assert.doesNotMatch(run(shop.root, "worktree", "list", "--porcelain"), /S4/, "git keeps no locked record of it");
+  run(shop.root, "branch", "-D", "task/l1-t1-left");
+});

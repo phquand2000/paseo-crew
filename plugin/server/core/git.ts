@@ -179,9 +179,19 @@ export async function addWorktree(
   };
 }
 
+/** Keeps git's own commands, the Human's prune or remove among them, from taking a copy away under whoever works there. */
+export async function lockWorktree(root: string, path: string, reason: string): Promise<void> {
+  await git(root, ["worktree", "lock", "--reason", reason, path]);
+}
+
+export async function unlockWorktree(root: string, path: string): Promise<void> {
+  await git(root, ["worktree", "unlock", path]);
+}
+
 export async function removeWorktree(root: string, path: string | undefined): Promise<void> {
   if (!path) return;
-  await git(root, ["worktree", "remove", "--force", path], 60_000);
+  // Twice forced, it goes locked or not: only a copy the desk made and holds nothing of anyone's gets here.
+  await git(root, ["worktree", "remove", "--force", "--force", path], 60_000);
   await git(root, ["worktree", "prune"], 30_000);
 }
 
