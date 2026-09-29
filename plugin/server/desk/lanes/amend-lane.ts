@@ -1,7 +1,7 @@
 import { type Args, type Caller, type ToolReply, given, no, ok, str } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
 import { type Amendment, amend } from "../../domain/amendment.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import { findLane } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
@@ -72,7 +72,7 @@ function record(
     }
     const amendment = amend(entry, changes, id, why);
     if (!amendment) return `Nothing about lane ${laneId} would change; pass the fields it is asked differently now.`;
-    delete entry.ready;
+    loseReady(entry);
     if (amendment.was.after) delete entry.held;
     return { lane: { ...entry }, amendment };
   });

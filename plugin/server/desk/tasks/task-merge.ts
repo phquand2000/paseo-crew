@@ -6,7 +6,7 @@ import { TASK } from "../../domain/task.ts";
 import type { DeskBase } from "../base.ts";
 import { gateNote, taskGate } from "../project/gates.ts";
 import { closeSeat } from "../store/incidents.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { othersLeft } from "../../domain/ledger.ts";
@@ -179,7 +179,8 @@ export class TaskMerge {
       const entry = ledger.tasks[task.id];
       if (entry) Object.assign(entry, { mergeSha: merged.after, updatedAt: Date.now() });
       // The lane branch moved: what its Lead reported ready is not what it holds now.
-      if (merged.after !== merged.before) delete ledger.lanes[lane.id]?.ready;
+      const home = ledger.lanes[lane.id];
+      if (home && merged.after !== merged.before) loseReady(home);
     });
     // A task in the lane's copy gives it back to the lane branch: the same tree, so nothing in it changes.
     if (task.mode !== "parallel" && (await currentBranch(cwd)) === task.branch) await backOnLane(lane);

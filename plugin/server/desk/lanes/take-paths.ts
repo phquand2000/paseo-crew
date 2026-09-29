@@ -1,7 +1,7 @@
 import { covers } from "../../core/scope.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { type Amendment, amend } from "../../domain/amendment.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import { laneOfLead } from "../../domain/ledger.ts";
 import { askFirstOf } from "../human/questions.ts";
 import { loadLedger } from "../store/ledger.ts";
@@ -52,7 +52,7 @@ function take(
     const problem = scopeProblem(serial, others, writeSet, entry.contracts);
     if (problem) return `${problem.why} Ask with kind need: which lane writes it is your owner's call.`;
     const amendment = amend(entry, { writeSet }, id, why)!;
-    delete entry.ready;
+    loseReady(entry);
     return { lane: { ...entry }, amendment };
   });
 }

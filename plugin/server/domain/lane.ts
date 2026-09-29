@@ -48,6 +48,8 @@ export type Lane = {
   onHold?: { at: number; by: string; reason: string };
   /** When its Lead last reported it ready; an amendment takes it away, since what it was ready against has changed. */
   ready?: { at: number };
+  /** How often READY was taken away: a report whose gate ran meanwhile sees the lane changed under it. */
+  readyLost?: number;
   /** A landing held for the Human, for the lane branch at `head`; approved, it lands without being asked again while that holds. */
   landApproval?: {
     since: number;
@@ -68,3 +70,9 @@ export type Lane = {
   tasks: number;
   reviews?: number;
 };
+
+/** Takes READY away, counting it, as whatever changes what the lane holds or is asked does. */
+export function loseReady(lane: Lane): void {
+  delete lane.ready;
+  lane.readyLost = (lane.readyLost ?? 0) + 1;
+}

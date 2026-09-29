@@ -3,7 +3,7 @@ import { currentBranch, headSha, isAncestor, landedRef } from "../../core/git.ts
 import { landLane as landOnBase } from "../../core/land.ts";
 import { no, ok } from "../context.ts";
 import { laneGate } from "../project/gates.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import { landLetters } from "../letters/land-letters.ts";
 import { type Project, loadConfig } from "../project/project.ts";
@@ -127,9 +127,7 @@ async function bringBaseIn(
       then: "Nothing was changed. Message its Lead, or drop_lane it.",
     };
   // What it was reported ready as is not what it holds now.
-  ledgers.setLane(project, lane.id, (entry) => {
-    delete entry.ready;
-  });
+  ledgers.setLane(project, lane.id, loseReady);
   await mail.post(lane.lead, landLetters.baseConflict(lane, merged.conflicts));
   return {
     why: `${lane.base} has moved on and conflicts with ${lane.branch} in ${merged.conflicts.join(", ")}`,

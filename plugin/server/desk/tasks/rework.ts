@@ -6,7 +6,7 @@ import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { holdRefusal } from "../lanes/hold.ts";
 import { holderOf } from "../copies/holder.ts";
 import { repeatsIncident } from "../store/incidents.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
@@ -83,7 +83,7 @@ function sendBack({ ledgers }: Pick<DeskServices, "ledgers">, caller: Caller, id
     if (holder)
       return `${holder.id} holds the lane's working copy; waking the Peer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
     TASK.move(task, "rework");
-    if (reopened) delete lane.ready;
+    if (reopened) loseReady(lane);
     task.silent = 0;
     task.reworks = (task.reworks ?? 0) + 1;
     task.updatedAt = Date.now();

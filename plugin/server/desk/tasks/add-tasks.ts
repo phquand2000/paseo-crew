@@ -5,7 +5,7 @@ import { type Team, skillDirsFor } from "../../catalog/team/team.ts";
 import { clip, plural, slugify } from "../../core/text.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { holdRefusal } from "../lanes/hold.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import { type Ledger, laneOfLead, nextTaskId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { serialIn } from "../project/project.ts";
@@ -101,7 +101,7 @@ function record(
       ids.set(task.key, recordTask(ledger, now, task.args, task.parallel, { after, role: roles.get(task.key)! }));
     }
     // New work: what the lane was reported ready as is not what it will hold.
-    delete now.ready;
+    loseReady(now);
     return { plan, ids };
   });
 }

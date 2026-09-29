@@ -1,7 +1,7 @@
 import { headSha } from "../../core/git.ts";
 import { type ToolReply, no, ok } from "../context.ts";
 import { landLetters } from "../letters/land-letters.ts";
-import type { Lane } from "../../domain/lane.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
@@ -61,7 +61,7 @@ function recordDecision(
     if (approve && !changed) held.approved = { at: Date.now(), note };
     else delete entry.landApproval;
     // Sent back, it is no longer what its Lead reported ready: the note asks for more.
-    if (!approve && !changed) delete entry.ready;
+    if (!approve && !changed) loseReady(entry);
     return { held: { ...held }, changed };
   });
 }

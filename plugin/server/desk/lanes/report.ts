@@ -4,8 +4,8 @@ import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../project/gates.ts";
 import { holdRefusal, putOnHold } from "./hold.ts";
 import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "./land-facts.ts";
-import type { Lane } from "../../domain/lane.ts";
-import { laneOfLead, tasksOf } from "../../domain/ledger.ts";
+import { type Lane, loseReady } from "../../domain/lane.ts";
+import { type Ledger, laneOfLead, tasksOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import type { Project } from "../project/project.ts";
@@ -29,18 +29,27 @@ export async function reportLane(desk: DeskServices, caller: Caller, args: Repor
     const blocked = await readyBlocked(desk, project, lane);
     if (blocked) return no(blocked);
   }
+  const lost = loadLedger(project.state).lanes[lane.id]?.readyLost ?? 0;
   const gate = ready ? await laneGate(desk, project, lane) : undefined;
-  // Recorded on the lane the caller still leads: it may have closed, or had its Lead replaced, while the gate ran.
-  const still = desk.ledgers.transact(project, (current) => {
-    const entry = laneOfLead(current, caller.id);
-    if (entry?.id !== lane.id) return false;
-    if (ready) entry.ready = { at: Date.now() };
-    else delete entry.ready;
-    return true;
-  });
-  if (!still)
-    return no(`Lane ${lane.id} is no longer yours to report on: it closed, or has another Lead, while this was asked.`);
+  const refused = desk.ledgers.transact(project, (current) =>
+    stillReportable(current, caller.id, lane.id, ready, lost),
+  );
+  if (refused) return no(refused);
   return tell(desk, project, lane, args, gate);
+}
+
+/** Records the report on the lane as it stands after the gate, or says why not: closed, led by another, changed or held meanwhile. */
+function stillReportable(ledger: Ledger, lead: string, id: string, ready: boolean, lost: number): string | undefined {
+  const entry = laneOfLead(ledger, lead);
+  if (entry?.id !== id)
+    return `Lane ${id} is no longer yours to report on: it closed, or has another Lead, while this was asked.`;
+  if (ready && (entry.readyLost ?? 0) !== lost)
+    return `Lane ${id} changed while its gate ran (amended, given work, reworked or merged into), so the gate does not speak for it as it stands: report ready again once it settles.`;
+  const held = ready ? holdRefusal(entry) : undefined;
+  if (held) return held;
+  if (ready) entry.ready = { at: Date.now() };
+  else loseReady(entry);
+  return undefined;
 }
 
 /** Why READY cannot be claimed now: the lane on hold, a seat still writing in its copy, the copy on a task's branch or holding work uncommitted. */
