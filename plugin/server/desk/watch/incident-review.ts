@@ -1,6 +1,6 @@
 import { can } from "../../catalog/kit/roles.ts";
 import { mask } from "../../core/mask.ts";
-import { clip } from "../../core/text.ts";
+import { oneLine } from "../../core/text.ts";
 import { type Held, close } from "../../domain/incident.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { type Incident, readIncidentsFile } from "../store/incidents.ts";
@@ -26,9 +26,8 @@ function line(item: Incident): string {
     ? sent || "open"
     : ["closed", sent, item.label ? `marked ${item.label}` : "not marked"].filter(Boolean).join(", ");
   const seen = item.count > 1 ? ` (seen ${item.count} times, last ${at(item.last)})` : "";
-  const later =
-    item.later !== undefined ? `; seen after you were told: ${clip(item.later.replace(/\s+/g, " "), 200)}` : "";
-  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${seen} — ${clip(item.quote.replace(/\s+/g, " "), 300)}${later}`;
+  const later = item.later !== undefined ? `; seen after you were told: ${oneLine(item.later, 200)}` : "";
+  return `- ${item.id} [${item.level}, ${state}] ${item.where}, agent ${item.seat}: ${item.kind}${seen} — ${oneLine(item.quote, 300)}${later}`;
 }
 
 function briefs(state: string, shown: Incident[]): string[] {
@@ -39,7 +38,7 @@ function briefs(state: string, shown: Incident[]): string[] {
     // What they were asked is context, not the list: an unreadable ledger leaves it out.
     return [];
   }
-  const text = (value: string, limit: number) => clip(value.replace(/\s+/g, " "), limit);
+  const text = oneLine;
   const out: string[] = [];
   for (const id of [...new Set(shown.flatMap((item) => (item.task ? [item.task] : [])))]) {
     const task = ledger.tasks[id];
@@ -134,7 +133,7 @@ export function markIncident(
   });
   const later =
     done.later !== undefined
-      ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${clip(done.later.replace(/\s+/g, " "), 200)}`
+      ? ` It was seen ${done.count} times, the last at ${at(done.last)} after you were told: ${oneLine(done.later, 200)}`
       : "";
   return ok(`${id} marked ${verdict} and closed.${later}`);
 }

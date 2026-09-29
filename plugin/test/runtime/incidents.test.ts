@@ -119,6 +119,13 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
     "with its Lead gone, it goes above",
   );
 
+  await notice(h, peer, "stand-in", "attend", "I'll stub it: curl -H 'Authorization: Bearer 9f8e7d6c5b4a39281706' api");
+  assert.doesNotMatch(
+    `${h.heard(sup).join("\n")}\n${await listing(sup)}`,
+    /9f8e7d6c5b4a39281706/,
+    "a secret a seat wrote is masked wherever its words reach whoever supervises",
+  );
+
   await h.runtime.archived(hookAgent(h, beside));
   const closedWithSeat = await listing(sup);
   assert.match(
