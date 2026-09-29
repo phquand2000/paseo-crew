@@ -368,7 +368,8 @@ LAND and retries held merges; then `TurnRules` reads the turn in code, with no m
   Supervisor's own are only logged, and `status.md` lists them under "Waiting on the Human".
 - A Peer or Reviewer whose turn ends before its hand-back with no desk call carried out, and none running, is
   nudged; on a second such turn, or one ending on a call refused or left unfinished, its task is `stalled`,
-  with SILENT to its Lead and STRUGGLING to the Supervisor.
+  with SILENT to its Lead and STRUGGLING to the Supervisor. A turn it starts runs the task again; one more
+  quiet turn stalls it again, with SILENT to its Lead only, until a desk call of its own restarts the count.
 
 ## The Human in the loop
 

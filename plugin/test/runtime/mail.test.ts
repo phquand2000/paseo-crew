@@ -175,6 +175,10 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   const more = await h.call(lead, "lead", "add_tasks", { tasks: [task("More", "b.txt")] });
   assert.match(more.text, /L1-T2 More: held: L1-T1 is still writing/);
   assert.equal(h.ledger().tasks["L1-T2"]!.peer, undefined);
+  const status = () => h.ledger().tasks["L1-T1"]!.status;
+  await turn("Still at it.", async () => assert.equal(status(), "running", "a stalled Peer at work again runs"));
+  assert.equal(status(), "stalled", "and one more quiet turn stalls it again");
+  assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended 3 times without a hand-back\./);
   await turn("asked", ask);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "heard from, it runs again");
   await turn("applying it");

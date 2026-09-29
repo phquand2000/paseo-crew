@@ -14,6 +14,8 @@ import type { TeamSource } from "./team-source.ts";
 import { clearLimited, markLimited, meanwhileRoles, wakeTime } from "./limits.ts";
 import { deniedCall, lastToolCall, lastWords, limitStop, outputText } from "./timeline.ts";
 
+const QUIET = 2;
+
 type TurnDeps = {
   kit: Kit;
   desk: Desk;
@@ -40,8 +42,18 @@ export class TurnRules {
     this.deps = deps;
   }
 
-  started(agentId: string): void {
-    this.startedAt.set(agentId, Date.now());
+  /** A stalled Peer at work again runs; its count stays at the stall, so one more quiet turn stalls it without a second wake. */
+  started(agent: HookAgent): void {
+    this.startedAt.set(agent.id, Date.now());
+    const role = seatOf(this.deps.kit, agent.provider)?.role;
+    if (!role?.tools || !worksTasks(role)) return;
+    const project = projectOf(agent.cwd);
+    const task = taskOfPeer(loadLedger(project.state), agent.id);
+    if (task?.status === "stalled")
+      this.deps.desk.moveTask(project, task.id, "resume", (entry) => {
+        delete entry.peerGone;
+        entry.silent = Math.max(entry.silent, QUIET);
+      });
   }
 
   forget(agentId: string): void {
@@ -169,12 +181,13 @@ export class TurnRules {
 
   /** Only a hand-back restarts the quiet count, or a stall its Lead was told of: an ask after each nudge once looped seven times. */
   private heard(project: Project, task: Task, recorded: boolean): void {
-    // Nothing else sets a stalled task back to running once its Peer works again.
-    if (recorded && task.status === "stalled")
-      this.deps.desk.moveTask(project, task.id, "resume", (entry) => {
-        delete entry.peerGone;
-        entry.silent = 0;
-      });
+    if (!recorded || (task.status !== "stalled" && task.silent < QUIET)) return;
+    const reset = (entry: Task) => {
+      delete entry.peerGone;
+      entry.silent = 0;
+    };
+    if (task.status === "stalled") this.deps.desk.moveTask(project, task.id, "resume", reset);
+    else this.deps.desk.setTask(project, task.id, reset);
   }
 
   /** An agent stopped on its usage limit has not gone quiet: its owner is told once a spell, and the patrol wakes it at the reset. */
@@ -216,7 +229,7 @@ export class TurnRules {
     });
     const updated = desk.setTask(project, task.id, (entry) => {
       entry.silent += 1;
-      if (entry.silent >= 2 || denied) TASK.move(entry, "stall");
+      if (entry.silent >= QUIET || denied) TASK.move(entry, "stall");
     });
     if (!updated) return;
     if (updated.status !== "stalled") {
@@ -230,7 +243,7 @@ export class TurnRules {
       denied: denied?.what ?? null,
       refused: denied?.refused ?? false,
     });
-    if (task.status === "stalled") return;
+    if (task.status === "stalled" || task.silent >= QUIET) return;
     const why = denied
       ? `its Peer's last call ${denied.refused ? "was refused" : "did not finish"}: ${denied.what}`
       : `its Peer ended ${updated.silent} turns without a hand-back`;
