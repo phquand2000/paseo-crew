@@ -6,6 +6,8 @@ import type { Team } from "../catalog/team/team.ts";
 import { git, pristineState } from "../core/git.ts";
 import { contentRoot, expandHome, guidesDir, realPath, stateRoot, worktreeRoot } from "../core/paths.ts";
 import { errorText } from "../core/errors.ts";
+import { isRecord } from "../core/json.ts";
+import { readKept } from "../core/store.ts";
 import { readLedger } from "../desk/store/ledger.ts";
 import type { Project } from "../desk/project/project.ts";
 import { BACKUP } from "./migrate.ts";
@@ -49,8 +51,25 @@ const item = (path: string, kind: CleanItem["kind"], why: string, extra: Partial
   ...extra,
 });
 
+/** Why each project not known has no readable meta.json: which project it is is not known, so nothing of it is free. */
+function unread(ctx: CleanContext): Map<string, string> {
+  const base = join(stateRoot(ctx.home), "projects");
+  const known = new Set(ctx.known.map((project) => project.slug));
+  const found = new Map<string, string>();
+  for (const slug of entries(base)) {
+    if (known.has(slug)) continue;
+    const isMeta = (value: unknown): value is object =>
+      isRecord(value) && typeof value.root === "string" && value.slug === slug;
+    const meta = readKept<object | null>(join(base, slug, "meta.json"), null, isMeta);
+    if ("fault" in meta) found.set(slug, meta.fault);
+  }
+  return found;
+}
+
+const unknown = (slug: string) => `no project is known for ${slug}: its meta.json cannot be read`;
+
 /** Nothing else removes a seat directory, but one an open seat runs in is never garbage: its harness is reading it. */
-function seats(ctx: CleanContext): CleanItem[] {
+function seats(ctx: CleanContext, lost: Map<string, string>): CleanItem[] {
   const { kit } = ctx;
   const attached = new Map(ctx.known.map((project) => [project.slug, project]));
   const running = new Set(ctx.live.map((seat) => `${seat.provider}|${seat.slug}`));
@@ -71,7 +90,9 @@ function seats(ctx: CleanContext): CleanItem[] {
       const project = attached.get(slug);
       const spec = kit.roles.find((entry) => entry.role === role);
       const now = project && spec ? ctx.teamFor(project).roles[role]?.harness : undefined;
-      if (!project) found.push(item(path, "seat", `${slug} is not attached`));
+      const fault = lost.get(slug);
+      if (fault) found.push(item(path, "seat", unknown(slug), { held: fault }));
+      else if (!project) found.push(item(path, "seat", `${slug} is not attached`));
       else if (!spec) found.push(item(path, "seat", `this version has no ${role} role`));
       else if (now && now.id !== agent) found.push(item(path, "seat", `the ${spec.label} sits on ${now.label} now`));
     }
@@ -80,12 +101,18 @@ function seats(ctx: CleanContext): CleanItem[] {
 }
 
 /** A working copy the desk holds no slot for, and every copy of a project that is not attached. */
-async function copies(ctx: CleanContext): Promise<CleanItem[]> {
+async function copies(ctx: CleanContext, lost: Map<string, string>): Promise<CleanItem[]> {
   const root = worktreeRoot(ctx.home);
   const attached = new Map(ctx.known.map((project) => [project.slug, project]));
   const found: CleanItem[] = [];
   for (const slug of entries(root)) {
     const project = attached.get(slug);
+    const fault = lost.get(slug);
+    if (fault) {
+      for (const name of entries(join(root, slug)))
+        found.push(item(join(root, slug, name), "copy", unknown(slug), { held: fault }));
+      continue;
+    }
     let held: Set<string>;
     try {
       held = new Set(project ? Object.values(readLedger(project.state).slots).map((slot) => realPath(slot.path)) : []);
@@ -113,7 +140,7 @@ async function copies(ctx: CleanContext): Promise<CleanItem[]> {
 }
 
 /** Records outlive Detach on purpose, so attaching again finds its lanes and CONTEXT.md. */
-function records(ctx: CleanContext): CleanItem[] {
+function records(ctx: CleanContext, lost: Map<string, string>): CleanItem[] {
   const base = join(stateRoot(ctx.home), "projects");
   const attached = new Map(ctx.known.map((project) => [project.slug, project]));
   const found: CleanItem[] = [];
@@ -121,6 +148,11 @@ function records(ctx: CleanContext): CleanItem[] {
     const path = join(base, slug);
     const project = attached.get(slug);
     if (project && existsSync(project.root)) continue;
+    const fault = lost.get(slug);
+    if (fault) {
+      found.push(item(path, "records", unknown(slug), { held: fault, careful: true }));
+      continue;
+    }
     const concept = existsSync(join(path, "CONTEXT.md"));
     const why = project ? `attached, but ${project.root} is gone` : "detached; attaching it again would find its lanes";
     found.push(
@@ -184,7 +216,8 @@ function backups(ctx: CleanContext): CleanItem[] {
 }
 
 export async function scanGarbage(ctx: CleanContext): Promise<CleanItem[]> {
-  return [...seats(ctx), ...(await copies(ctx)), ...records(ctx), ...snapshots(ctx), ...backups(ctx)];
+  const lost = unread(ctx);
+  return [...seats(ctx, lost), ...(await copies(ctx, lost)), ...records(ctx, lost), ...snapshots(ctx), ...backups(ctx)];
 }
 
 /** The repository a linked working copy belongs to, read before the copy is gone. */

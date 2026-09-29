@@ -114,6 +114,25 @@ test("clean up lists only what nothing will use again: seats nothing will sit in
     [],
     "a ledger that cannot even be looked at says no copy is free",
   );
+
+  const lost = join(stateRoot(home), "projects", "lost-aaa111");
+  mkdirSync(join(worktreeRoot(home), "lost-aaa111", "S1"), { recursive: true });
+  mkdirSync(lost, { recursive: true });
+  writeFileSync(join(lost, "meta.json"), '{ "root": fake-key-in-meta }');
+  seat("crew-peer-omp-lost-aaa111");
+  assert.deepEqual(
+    (await found(ctx))
+      .filter(([, path]) => path.includes("lost-aaa111"))
+      .map(([kind, , , held]) => [kind, /meta\.json is there but could not be read: it is not JSON/.test(held ?? "")])
+      .sort(),
+    [
+      ["copy", true],
+      ["records", true],
+      ["seat", true],
+    ],
+    "a project whose meta.json cannot be read is not known to be detached: its copies, records and seats are held",
+  );
+  assert.ok(!JSON.stringify(await found(ctx)).includes("fake-key"));
 });
 
 test("removal takes only what a fresh scan still finds free, and leaves a folder a seat has started in since and a copy with work in it", async () => {
