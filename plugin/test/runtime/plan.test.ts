@@ -222,7 +222,6 @@ test("a call is carried out only for the role that holds its tool, in the shape 
     [lead, "lead", "report", { summary: "done", carries: "a note" }, /needs ready/],
     [peer, "peer", "done", { outcome: "complete", summary: "  " }, /needs summary/],
     [lead, "lead", "ask", { kind: "question", text: "Which one?" }, /needs default \(What you do meanwhile/],
-    [peer, "peer", "ask", { question: "Which one?" }, /needs bestGuess \(Your best answer to it/],
   ];
   for (const [seat, role, tool, args, ...reasons] of rows) {
     const reply = await h.call(seat, role, tool, args);
@@ -231,4 +230,6 @@ test("a call is carried out only for the role that holds its tool, in the shape 
   }
   assert.equal(Object.keys(h.ledger().lanes).length, 1, "nothing was opened");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "nothing was handed back");
+  const unguessed = await h.call(peer, "peer", "ask", { question: "Which one?" });
+  assert.equal(unguessed.ok, true, `a best guess is asked for, never required: ${unguessed.text}`);
 });

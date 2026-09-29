@@ -1468,8 +1468,7 @@
           }
         },
         "required": [
-          "question",
-          "bestGuess"
+          "question"
         ]
       }
     }

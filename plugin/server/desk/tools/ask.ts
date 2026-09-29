@@ -22,7 +22,7 @@ export const askOwner = defineTool({
 
 export const askLead = defineTool({
   name: "ask",
-  input: z.strictObject({ question: z.string(), tried: z.string().optional(), bestGuess: z.string() }),
+  input: z.strictObject({ question: z.string(), tried: z.string().optional(), bestGuess: z.string().optional() }),
   handle: (desk, caller, args) =>
     askUp(desk, caller, { question: str(args.question), tried: str(args.tried), guess: str(args.bestGuess) }),
 });
