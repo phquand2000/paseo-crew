@@ -475,8 +475,9 @@ turns, then, for each project the desk has met since it started:
 1. LANE IDLE to the Supervisor for a Lead idle `leadIdleMinutes` (12) with no task at work or in the merge
    queue, no ask of its own open, no ready report, no hold and no landing held.
 2. Retell incidents held for nobody.
-3. A task at work whose Peer is gone goes `stalled`, with FAILED to its Lead; a lane whose Lead is gone brings
-   LEAD GONE to the Supervisor, once, whose `replace_lead` seats a Lead where the lane stands.
+3. A task at work whose Peer is gone goes `stalled`, with FAILED to its Lead, whose `reseat` gives it a fresh
+   Peer on its branch; a lane whose Lead is gone brings LEAD GONE to the Supervisor, once, whose `replace_lead`
+   seats a Lead where the lane stands.
 4. Remind an ask after `askRemindMinutes` (15) while its reader is idle and no open ask or question carries it,
    up to `maxReminders` (2), then escalate one a Peer or Reviewer put to its Lead (UNANSWERED); move one whose reader is gone to the
    Supervisor.

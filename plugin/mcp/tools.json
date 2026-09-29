@@ -1002,6 +1002,38 @@
       }
     },
     {
+      "name": "reseat",
+      "title": "Give a task a fresh Peer",
+      "description": "Let a task's Peer go and start a fresh one on the same branch and copy, told why and given the task's hand-backs so far. For a Peer that is gone, stuck, limited or going wrong: its commits and uncommitted work stay for the next to carry on. A handed-back task goes back to rework.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task id, like L1-T2: one in hand, not a review."
+          },
+          "why": {
+            "type": "string",
+            "description": "Why its Peer is replaced and what the fresh one must do differently; it reads this first."
+          },
+          "role": {
+            "type": "string",
+            "description": "The writing role to take it, such as another agent when this one is limited; left out, the role it had."
+          }
+        },
+        "required": [
+          "task",
+          "why"
+        ]
+      }
+    },
+    {
       "name": "amend_task",
       "title": "Amend a task",
       "description": "Change what a task asks while its Peer works on it. Give only the fields that change; the old values are kept with why, and the Peer reads the change at its next turn. A waiting task can change what it waits for. A task whose contract changed is better cut and started again.",

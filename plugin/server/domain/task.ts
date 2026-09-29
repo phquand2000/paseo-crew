@@ -4,7 +4,7 @@ import { Lifecycle, type Moves } from "./lifecycle.ts";
 export type TaskStatus =
   "waiting" | "running" | "done" | "rework" | "queued" | "merging" | "merged" | "failed" | "cut" | "stalled";
 
-const IN_HAND: TaskStatus[] = ["running", "rework", "done", "failed", "stalled"];
+export const IN_HAND: readonly TaskStatus[] = ["running", "rework", "done", "failed", "stalled"];
 
 const MOVES = {
   start: { from: ["waiting"], to: "running" },

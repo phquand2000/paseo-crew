@@ -35,7 +35,7 @@ export const seatLetters = {
       "silent",
       [task.id, quiet],
       lines.join("\n"),
-      "If its last words hand the work back without calling done, message it to call done; else message it, or cut it and start again.",
+      "If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch.",
     );
   },
 
@@ -65,11 +65,11 @@ export const seatLetters = {
     reader: "lead" | "supervisor" | "leadGone",
   ): Letter {
     const next = {
-      lead: "Nothing restarts it: message it to continue, or cut the task and start it again.",
+      lead: "Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch.",
       supervisor:
         "Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again.",
       leadGone:
-        "Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or cut its task.",
+        "Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or reseat its task.",
     }[reader];
     return mail("failed", [agent, turn], failedText(who, message), next);
   },
@@ -93,7 +93,7 @@ export const seatLetters = {
         : "Every role that could take the work runs on this agent too; the Human can move one to another agent in settings.",
     ];
     const next = {
-      lead: "If the lane can wait, leave it: it keeps its work and carries on at the reset. If it cannot, add the task again on a role named above, naming its branch in the brief so its commits carry on, then cut this one.",
+      lead: "If the lane can wait, leave it: it keeps its work and carries on at the reset. If it cannot, reseat the task on a role named above: the fresh Peer carries on from its branch.",
       supervisor:
         "If the lane can wait, leave it: it carries on at the reset. If it cannot, tell the Human, who may move the work to another agent meanwhile.",
       leadGone:
@@ -116,7 +116,7 @@ export const seatLetters = {
       "gone",
       [task.id],
       failedText(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"),
-      "Nothing restarts it, and without a hand-back it cannot be accepted: cut it and start it again, naming its branch in the new brief if what it committed is worth carrying on.",
+      "Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it.",
     );
   },
 

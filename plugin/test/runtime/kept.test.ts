@@ -138,7 +138,7 @@ test("a Peer whose task is accepted is kept for rework until its Lead releases i
   h.agents.get(fourth)!.archivedAt = new Date().toISOString();
   assert.match(
     await say("rework", { task: "L1-T4", text: "x" }),
-    /The Peer on L1-T4 is gone; cut the task and start a new one\./,
+    /The Peer on L1-T4 is gone; reseat the task for a fresh Peer on its branch and copy, or cut it\./,
   );
   assert.equal(h.ledger().tasks["L1-T4"]!.status, "done", "not left waiting on a rework nobody will do");
 

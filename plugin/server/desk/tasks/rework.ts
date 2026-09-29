@@ -32,7 +32,7 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
     return no(
       asked.task.status === "merged"
         ? `The Peer on ${asked.task.id} is gone: add a task for what must change.`
-        : `The Peer on ${asked.task.id} is gone; cut the task and start a new one.`,
+        : `The Peer on ${asked.task.id} is gone; reseat the task for a fresh Peer on its branch and copy, or cut it.`,
     );
   // Sent back after its merge, a task in the lane's copy takes that copy onto its branch again: nothing may be left in it.
   const inLaneCopy = laneCopyToReopen(loadLedger(caller.project.state), asked.lane, asked.task);

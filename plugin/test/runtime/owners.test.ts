@@ -91,7 +91,7 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   await fail(peer);
   assert.match(
     heard(h, lead),
-    /FAILED: L1-T1 · Peer · Clean build ended its turn with an error: the model is overloaded\n\nNext: Nothing restarts it: message it to continue, or cut the task and start it again\./,
+    /FAILED: L1-T1 · Peer · Clean build ended its turn with an error: the model is overloaded\n\nNext: Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch\./,
   );
   await fail(lead);
   assert.match(
@@ -109,7 +109,7 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   await h.permission(peer, second);
   assert.match(
     heard(h, architecture),
-    /FAILED: L1-T1 · Peer · Clean build ended its turn with an error: the model is overloaded\n\nNext: Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or cut its task\./,
+    /FAILED: L1-T1 · Peer · Clean build ended its turn with an error: the model is overloaded\n\nNext: Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or reseat its task\./,
   );
   assert.match(
     heard(h, architecture),

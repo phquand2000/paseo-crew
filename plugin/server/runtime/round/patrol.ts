@@ -237,7 +237,7 @@ export class Patrol {
 
   private async goneTasks(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const { desk } = this.deps;
-    const key = (task: Task) => `${project.slug}:${task.id}`;
+    const key = (task: Task) => `${project.slug}:${task.id}:${task.peer}`;
     const lost = Object.values(ledger.tasks).filter(
       (entry) => TASK.may(entry.status, "lose") && entry.peer && !seats.has(entry.peer),
     );

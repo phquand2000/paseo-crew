@@ -174,7 +174,7 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended twice without a hand-back\./);
   assert.match(
     heard(h, lead),
-    /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or cut it and start again\./,
+    /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch\./,
     "accept needs a hand-back on record, so it is not offered",
   );
 
@@ -231,7 +231,7 @@ test("a Peer that is gone is found past the first page of agents, its Lead told,
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   assert.match(
     heard(h, lead),
-    /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: cut it and start it again, naming its branch in the new brief if what it committed is worth carrying on\./,
+    /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it\./,
   );
   const stranded = new RegExp(
     `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: MESSAGE from your lead`,
