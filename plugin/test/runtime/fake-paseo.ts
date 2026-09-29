@@ -2,7 +2,14 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { FakeTimeline } from "./fake-timeline.ts";
 
-export type Pending = { id: string; kind: string; name: string; title?: string; input?: Record<string, unknown> };
+export type Pending = {
+  id: string;
+  kind: string;
+  name: string;
+  title?: string;
+  description?: string;
+  input?: Record<string, unknown>;
+};
 type Fake = {
   id: string;
   provider: string;
