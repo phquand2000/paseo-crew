@@ -219,3 +219,26 @@ test("a task beside others keeps its Peer in its own copy once merged, until its
   assert.equal(existsSync(last.worktree!), false);
   assert.equal(h.git(h.root, "branch", "--list", last.branch!).trim(), "", "its work is in the landed lane");
 });
+
+test("a seat Paseo made though its create timed out is taken on, never made twice", async () => {
+  const { h, lane } = await laneWithPeer();
+  type Create = (options: { title: string }) => Promise<unknown>;
+  const paseo = h.paseo as { workspaces: { ref: (id: string) => { agents: { create: Create } } } };
+  const ref = paseo.workspaces.ref;
+  paseo.workspaces.ref = (id) => {
+    const workspace = ref(id);
+    const create = workspace.agents.create;
+    workspace.agents.create = async (options) => {
+      await create(options);
+      throw new Error("timed out waiting for the agent to start");
+    };
+    return workspace;
+  };
+  const added = await h.call(lane.lead!, "lead", "add_tasks", {
+    tasks: [task("b", "Beside", "b.txt", { parallel: true })],
+  });
+  assert.equal(added.ok, true, added.text);
+  const made = [...h.agents.values()].filter((agent) => agent.title.includes("L1-T2"));
+  assert.equal(made.length, 1, "one Peer on the task");
+  assert.deepEqual([h.ledger().tasks["L1-T2"]!.status, h.ledger().tasks["L1-T2"]!.peer], ["running", made[0]!.id]);
+});

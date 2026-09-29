@@ -10,6 +10,7 @@ type Fake = {
   title: string;
   status: string;
   archivedAt: string | null;
+  createdAt: string;
   updatedAt: string;
   sent: string[];
   sentIds: string[];
@@ -106,6 +107,7 @@ export function fakePaseo() {
       title,
       status,
       archivedAt: null,
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sent: [],
       sentIds: [],

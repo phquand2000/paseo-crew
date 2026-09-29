@@ -1,7 +1,7 @@
 import type { RoleSpec } from "../../catalog/kit/kit.ts";
 import { providerId } from "../../catalog/kit/roles.ts";
 import { contains, dropMerged } from "../../core/git.ts";
-import type { Workspaces } from "../../core/ports.ts";
+import type { SeatLook, SeatSpec, Workspaces } from "../../core/ports.ts";
 import type { DeskBase } from "../base.ts";
 import { letGo } from "./gone.ts";
 import type { Slot } from "../../domain/ledger.ts";
@@ -47,6 +47,22 @@ export class Agents {
     return { role, config };
   }
 
+  /** Paseo can make an agent and still fail the call, as when its start times out: one made since under the same labels is taken on. */
+  private async seatOnce(workspace: string, spec: SeatSpec): Promise<SeatLook> {
+    const since = Date.now();
+    try {
+      return await this.workspaces.seat(workspace, spec);
+    } catch (error) {
+      const labelled = (labels: Record<string, string> | undefined) =>
+        Object.entries(spec.labels).every(([key, value]) => labels?.[key] === value);
+      const made = (await this.roster.open().catch(() => [])).find(
+        (seat) => !seat.archivedAt && labelled(seat.labels) && Date.parse(seat.createdAt ?? "") >= since - 1000,
+      );
+      if (!made) throw error;
+      return made;
+    }
+  }
+
   /** Paseo can filter agents by label, so what a seat is and what it specialises in are written where that filter can read them. */
   private marks(role: RoleSpec, project: Project): Record<string, string> {
     return {
@@ -60,7 +76,7 @@ export class Agents {
   async startResident(project: Project, roleName: string, options: StartOptions): Promise<string> {
     const { role, config } = this.seatConfig(project, roleName);
     const workspace = await this.slots.projectWorkspace(project);
-    const started = await this.workspaces.seat(workspace.id, {
+    const started = await this.seatOnce(workspace.id, {
       config,
       parent: options.parent,
       title: options.title,
@@ -78,7 +94,7 @@ export class Agents {
   ): Promise<string> {
     if (!slot.workspaceId) throw new Error("the working copy has no workspace");
     const { role, config } = this.seatConfig(project, roleName);
-    const started = await this.workspaces.seat(slot.workspaceId, {
+    const started = await this.seatOnce(slot.workspaceId, {
       config,
       parent: options.parent,
       title: options.title,
