@@ -41,9 +41,11 @@ export function readLedger(state: string): Ledger {
   let stamp: { mtimeMs: number; size: number };
   try {
     stamp = statSync(ledgerFile(state));
-  } catch {
+  } catch (error) {
     cached.delete(state);
-    return emptyLedger();
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyLedger();
+    // Only absence is empty: anything else throws, as reading it does.
+    return loadLedger(state);
   }
   const hit = cached.get(state);
   if (hit && hit.mtimeMs === stamp.mtimeMs && hit.size === stamp.size) return hit.ledger;

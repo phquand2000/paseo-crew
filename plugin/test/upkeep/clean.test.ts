@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { resolveTeam } from "../../server/catalog/team/team.ts";
@@ -104,6 +104,15 @@ test("clean up lists only what nothing will use again: seats nothing will sit in
     (await found(ctx)).find(([, path]) => path === current),
     ["seat", current, "the Lead sits on Oh My Pi now", null, false],
     "a seat whose role moved to another agent",
+  );
+
+  const ledger = join(shop.state, "ledger.json");
+  rmSync(ledger);
+  symlinkSync(ledger, ledger);
+  assert.deepEqual(
+    (await found(ctx)).filter(([kind]) => kind === "copy"),
+    [],
+    "a ledger that cannot even be looked at says no copy is free",
   );
 });
 
