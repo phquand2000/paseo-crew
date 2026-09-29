@@ -5,6 +5,9 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { type Letter, fyi, mail } from "./envelope.ts";
 
+const LEAD_GONE =
+  "Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or reseat its task.";
+
 const failedText = (who: string, message: string) => `FAILED: ${who} ended its turn with an error: ${message}`;
 
 /** What the desk sees of a seat, told to whoever answers for it: quiet, idle, failed, gone or waiting on the Human. */
@@ -18,8 +21,14 @@ export const seatLetters = {
     );
   },
 
-  /** Told the count and what happened to the last call, rather than asserting both. */
-  stalled(task: Task, ending: string, quiet: number, denied?: { what: string; refused: boolean }): Letter {
+  /** Told the count and what happened to the last call; `reader` is its Lead, or whoever supervises once that Lead is gone. */
+  stalled(
+    task: Task,
+    ending: string,
+    quiet: number,
+    denied: { what: string; refused: boolean } | undefined,
+    reader: "lead" | "supervisor",
+  ): Letter {
     const turns = quiet === 1 ? "its turn ended once" : `its turn ended ${quiet === 2 ? "twice" : `${quiet} times`}`;
     const lines = [`SILENT ${task.id} (${task.title}): ${turns} without a hand-back.`];
     if (denied?.refused)
@@ -35,7 +44,9 @@ export const seatLetters = {
       "silent",
       [task.id, quiet],
       lines.join("\n"),
-      "If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch.",
+      reader === "lead"
+        ? "If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch."
+        : LEAD_GONE,
     );
   },
 
@@ -68,8 +79,7 @@ export const seatLetters = {
       lead: "Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch.",
       supervisor:
         "Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again.",
-      leadGone:
-        "Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or reseat its task.",
+      leadGone: LEAD_GONE,
     }[reader];
     return mail("failed", [agent, turn], failedText(who, message), next);
   },
@@ -111,12 +121,15 @@ export const seatLetters = {
     );
   },
 
-  gone(task: Task): Letter {
+  /** `reader` is its Lead, or whoever supervises once that Lead is gone. */
+  gone(task: Task, reader: "lead" | "supervisor"): Letter {
     return mail(
       "gone",
       [task.id],
       failedText(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"),
-      "Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it.",
+      reader === "lead"
+        ? "Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it."
+        : LEAD_GONE,
     );
   },
 

@@ -249,7 +249,8 @@ export class Patrol {
         entry.peerGone = true;
       });
       if (typeof moved !== "object") continue;
-      await desk.post(ledger.lanes[task.lane]?.lead, seatLetters.gone(task));
+      const reader = await desk.readerOf(project, ledger.lanes[task.lane]);
+      await desk.post(reader.to, seatLetters.gone(task, reader.as));
     }
   }
 

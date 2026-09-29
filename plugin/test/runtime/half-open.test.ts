@@ -133,6 +133,13 @@ test("a lane whose Lead is gone gets one where it stands, with the asks that wai
     mail,
     /LEAD GONE L1 \(Build\): its Lead [^ ]+ is no longer seated[^]*replace_lead puts a new Lead on it where it stands/,
   );
+  h.agents.get(peer)!.archivedAt = new Date().toISOString();
+  await h.tick(Date.now());
+  assert.match(
+    h.heard(sup).join("\n"),
+    /L1-T1[^]*its agent was closed or archived[^]*Next: Its Lead is gone: replace_lead puts a new Lead on the lane/,
+    "a Peer gone under a Lead gone is told to whoever supervises, not to the Lead nobody reads",
+  );
 
   const orphan = h.add("crew-lead-claude/claude-opus-5", lane.worktree!, "L1 Build", "idle", undefined, {
     "crew.project": h.project.slug,

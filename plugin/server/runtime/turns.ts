@@ -238,7 +238,8 @@ export class TurnRules {
       await desk.post(agent.id, seatLetters.nudge(updated, "done"));
       return;
     }
-    await desk.post(lane?.lead, seatLetters.stalled(task, text, updated.silent, denied));
+    const reader = await desk.readerOf(project, lane);
+    await desk.post(reader.to, seatLetters.stalled(task, text, updated.silent, denied, reader.as));
     desk.event(project, {
       kind: "task.silent",
       task: task.id,
