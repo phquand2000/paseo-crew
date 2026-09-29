@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
+import { reported } from "../console.ts";
 import { tempDir } from "../tempdir.ts";
 import {
   KEEP_CLOSED_LANES,
@@ -222,7 +223,7 @@ test("an open lane is never archived; a seat with no lane keeps its role's newes
   );
 });
 
-test("a lane leaves as one file with its entries, every hand-back and each owner's last gate run with its rehearsals, and filing it again changes nothing", () => {
+test("a lane leaves as one file with its entries, every hand-back and each owner's last gate run with its rehearsals, and filing it again changes nothing", (t) => {
   const state = tempDir("crew-archive-");
   const ledger = busyLedger(KEEP_CLOSED_LANES + 1);
   ledger.seq.lane = 30;
@@ -284,6 +285,15 @@ test("a lane leaves as one file with its entries, every hand-back and each owner
     JSON.parse(gunzipSync(before).toString("utf-8")),
     "a crash replayed rewrites the same file",
   );
+
+  const said = reported(t);
+  writeFileSync(join(archiveDir(state), "L1.json.gz"), "not gzip");
+  keepArchived(state, taken);
+  const aside = readdirSync(archiveDir(state)).filter((name) => name.startsWith("L1.json.gz.unreadable-"));
+  assert.equal(aside.length, 1, "an archive that cannot be read is set aside, never written over");
+  assert.equal(readFileSync(join(archiveDir(state), aside[0]!), "utf-8"), "not gzip");
+  assert.deepEqual(read(state, "L1").tasks, taken.lanes[0]!.tasks);
+  assert.match(said(), /L1\.json\.gz could not be read and is set aside/);
 });
 
 test("records left by a crash between the ledger and the files are filed on the next look, and the oldest lanes' files go past the budget", () => {
