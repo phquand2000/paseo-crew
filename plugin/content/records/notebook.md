@@ -9,10 +9,11 @@ lives. Read it at the start of a session and match what you see against it befor
 |---|---|
 | An event, a quote, a time or a SHA | nowhere: the desk logs events in `events.log` beside this file |
 | A ruling on work in flight | a `message` to the Lead |
-| A rule for code in this repository | a `message` asking the Lead to put it in `AGENTS.md` through a task |
+| A rule for code in this repository | a `message` asking the Lead for a task: a gate check whose failure says what to do, else the narrowest file beside that code, the root `AGENTS.md` only for a rule every task needs |
+| A rule for a file the Human keeps out of git | `ask_human`, the text ready to paste |
 | What the project does or how it behaves, as the Human settled it | `CONTEXT.md` beside this file |
 | A pattern, new or seen again | a row below |
-| A change to a prompt, skill, role setting or profile | a diff for the Human |
+| A change to a prompt, skill, role setting or profile | a diff for the Human, through `ask_human` |
 
 ## Working method
 
