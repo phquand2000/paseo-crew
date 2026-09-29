@@ -177,7 +177,7 @@ shrink.
    a `git` running `bin/git-shim.mjs`, which refuses the commands kept for the desk (push, pull, merge,
    checkout, reset and the like) however they are spelled, and a `gh` and a `paseo` that only refuse.
 4. **`bin/seat-room`** refuses a Claude Code launch the plugin did not configure, forces
-   `--setting-sources user`, and `exec`s Claude; the other agents start through Paseo's own providers.
+   `--setting-sources user` and `--thinking-display summarized`, and `exec`s Claude; the other agents start through Paseo's own providers.
 
 The desk starts every seat but the Supervisor, in a Paseo workspace, labelled with its project, role, lane and
 task, under a parent: a Lead under the Supervisor that opened its lane or replaced its Lead, a Peer or

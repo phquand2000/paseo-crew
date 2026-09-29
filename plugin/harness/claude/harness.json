@@ -68,7 +68,8 @@
       "KIT/bin/seat-room"
     ],
     "forceFlags": {
-      "--setting-sources": "user"
+      "--setting-sources": "user",
+      "--thinking-display": "summarized"
     }
   },
   "contextFile": "CLAUDE.md",

@@ -589,7 +589,8 @@ rules, each enabled MCP server's and the Human's, and is written only when there
 - **Claude Code**, under `~/.claude/profiles/`: `settings.json` (deny rules, the sandbox, replies in Vietnamese in the
   `Concise` style, no commit attribution), `.claude.json` (its own MCP servers cleared), `skills/`, a `projects` link,
   and `CLAUDE.md`, which, when the project has no `CLAUDE.md`, imports its `AGENTS.md`. It launches through
-  `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out.
+  `bin/seat-room` with `--setting-sources user`, so the project's settings, hooks and skills stay out, and
+  `--thinking-display summarized`, since Claude run headless sends its thinking empty otherwise and the watch reads it.
   It still reads the project's `CLAUDE.md`, since the working directory is passed as an additional directory; Claude
   never reads an added directory's `AGENTS.md`, hence the import, as Claude Code reads it outside a seat. Claude Code
   keeps its login per config dir; a seat sets `CLAUDE_SECURESTORAGE_CONFIG_DIR` empty, so it reads the one login made

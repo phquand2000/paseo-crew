@@ -58,14 +58,14 @@ const ROWS: [string, string, string, string, string | undefined, string[], numbe
     "/seats/acme-peer --print\n",
   ],
   [
-    "a Claude seat, whose settings come from its seat alone",
+    "a Claude seat, whose settings come from its seat alone and whose thinking the watch reads, which headless Claude empties unless its launch asks for a summary",
     PLUGIN,
     "claude",
     "CLAUDE_CONFIG_DIR",
     "/seats/claude-peer",
     ["-p"],
     0,
-    "/seats/claude-peer -p --setting-sources user\n",
+    "/seats/claude-peer -p --setting-sources user --thinking-display summarized\n",
   ],
   [
     "whatever setting sources its caller names",
@@ -75,7 +75,7 @@ const ROWS: [string, string, string, string, string | undefined, string[], numbe
     "/seats/claude-peer",
     ["--setting-sources", "project,local", "-p"],
     0,
-    "/seats/claude-peer --setting-sources user -p\n",
+    "/seats/claude-peer --setting-sources user -p --thinking-display summarized\n",
   ],
   [
     "and however it names them",
@@ -85,7 +85,17 @@ const ROWS: [string, string, string, string, string | undefined, string[], numbe
     "/seats/claude-peer",
     ["--setting-sources=project", "-p"],
     0,
-    "/seats/claude-peer --setting-sources=user -p\n",
+    "/seats/claude-peer --setting-sources=user -p --thinking-display summarized\n",
+  ],
+  [
+    "and a thinking display its caller would hide",
+    PLUGIN,
+    "claude",
+    "CLAUDE_CONFIG_DIR",
+    "/seats/claude-peer",
+    ["--thinking-display", "omitted", "-p"],
+    0,
+    "/seats/claude-peer --thinking-display summarized -p --setting-sources user\n",
   ],
 ];
 
