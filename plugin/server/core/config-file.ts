@@ -34,6 +34,13 @@ export function readConfig<T>(path: string, fallback: T): T {
   return "value" in read ? (read.value as T) : fallback;
 }
 
+/** A config file's value; one missing or unparseable throws, naming it, rather than stand in as empty. */
+export function readConfigStrict<T>(path: string): T {
+  const read = readFile(path);
+  if ("value" in read) return read.value as T;
+  throw new Error(`${path} could not be read: ${"problem" in read ? read.problem : "it is missing"}`);
+}
+
 /** Unparseable is a fault, not absent: seeding over a harness's config would erase its account and history. */
 export function configFault(path: string): string | undefined {
   const read = readFile(path);

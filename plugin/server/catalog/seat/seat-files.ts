@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { configFault, formatConfig, readConfig, writeConfigAtomic } from "../../core/config-file.ts";
+import { configFault, formatConfig, readConfig, readConfigStrict, writeConfigAtomic } from "../../core/config-file.ts";
 import { errorText } from "../../core/errors.ts";
 import { LeftAlone, ensureLink, isLink, present, writeIfChanged } from "../../core/fs.ts";
 import { type Json, getPath, isRecord, layered, sameJson, setPath } from "../../core/json.ts";
@@ -78,8 +78,8 @@ export function writeRoleSettings(
   const roleFile = roleSettingsFile(kit, harness, role);
   if (!existsSync(roleFile)) throw new Error(`${role.role}: ${roleFile} is missing`);
   const kitSettings = layered(
-    readConfig<Json>(join(kit.dir, "harness", harness.id, source), {}),
-    readConfig<Json>(roleFile, {}),
+    readConfigStrict<Json>(join(kit.dir, "harness", harness.id, source)),
+    readConfigStrict<Json>(roleFile),
   );
   const wanted = layered(layered(inherited(harness, seat.homeDir), kitSettings), extra) as Json;
   record.note(writeConfigIfChanged(join(seat.dir, file), wanted), file);

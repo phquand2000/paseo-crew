@@ -324,6 +324,22 @@ test("an agent configured in its own file format gets its catalog trimmed, its s
   });
   const nothing = seatDir(blind, refused.roles.lead!.role, blind.harnesses.cx!, elsewhere, project);
   assert.equal(existsSync(join(nothing, "config.toml")), false, "and nothing of the seat is written");
+
+  const garbled = withAgent("cx", {
+    "harness.json": cx(["node", "-e", offering]),
+    "settings.toml": "",
+    "settings/lead.settings.toml": 'sandbox_mode = "fake-key-in-role-settings\n',
+    "rules/all.rules": "",
+    "rules/lead.rules": "",
+  });
+  const unread = withHarness(resolveTeam(garbled), "lead", garbled.harnesses.cx!);
+  assert.throws(
+    () => materialize(garbled, unread, "lead", tempDir("crew-cx-home-"), project, {}),
+    (error: Error) =>
+      /lead\.settings\.toml could not be read: it is not TOML/.test(error.message) &&
+      !error.message.includes("fake-key"),
+    "a role's settings that cannot be read seat no one, rather than a seat without its sandbox",
+  );
 });
 
 test("a changed skill reaches the seat as a new copy, the one read before stays as it was, and a copy nobody touches for two weeks goes", () => {
