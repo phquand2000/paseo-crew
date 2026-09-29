@@ -281,8 +281,8 @@ for idle will wait forever.
 **Here.** *caught, in half its cases* — a turn that ends with no desk call is counted silent, so a
 Peer or Reviewer that only polls is nudged, and after two such turns its task stalls and is reported.
 But that machinery runs only for seats that work tasks: a Lead or a Supervisor that polls is not
-counted at all. It is turned away instead: `sleep` is denied to it wherever its agent can deny it,
-and a `status` asked again with nothing changed says only that, and to end the turn.
+counted at all. It is turned away only where its agent can deny `sleep`; a `status` asked again
+returns the whole page, since a seat whose context was compacted needs it.
 
 ### Nested protocol confusion
 **Rule.** One orchestrator owns lifecycle and authority. Two is neither.

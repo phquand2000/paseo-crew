@@ -627,7 +627,7 @@
     {
       "name": "status",
       "title": "Project status",
-      "description": "The current status of every lane, task and open ask in this project. Asked again with nothing changed, it says only that.",
+      "description": "The current status of every lane, task and open ask in this project.",
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false
@@ -1269,7 +1269,7 @@
     {
       "name": "status",
       "title": "Lane status",
-      "description": "The current status of your lane's tasks and open asks. Asked again with nothing changed, it says only that.",
+      "description": "The current status of your lane's tasks and open asks.",
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false

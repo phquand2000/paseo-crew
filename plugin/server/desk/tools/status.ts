@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { can } from "../../catalog/kit/roles.ts";
 import { currentBranch, headSha, uncommittedPaths } from "../../core/git.ts";
-import { hash } from "../../core/text.ts";
 import { ok } from "../context.ts";
 import { leadLaneOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
@@ -23,7 +22,7 @@ async function ownCopy(root: string): Promise<OwnCheckout> {
 export const status = defineTool({
   name: "status",
   input: z.strictObject({}),
-  async handle({ lastStatus, roster }, caller) {
+  async handle({ roster }, caller) {
     const ledger = loadLedger(caller.project.state);
     const seats = new Map((await roster.open()).map((seat) => [seat.id, seat]));
     const led = can(caller.role, "lead") ? leadLaneOf(ledger, caller.id) : undefined;
@@ -33,13 +32,8 @@ export const status = defineTool({
       );
     const lane = led?.id;
     const copy = can(caller.role, "supervise") ? await ownCopy(caller.project.root) : undefined;
-    const text = statusText(caller.project, ledger, loadConfig(caller.project.state), seats, Date.now(), {
-      laneId: lane,
-      copy,
-    });
-    if (lastStatus.get(caller.id) === hash(text))
-      return ok("Nothing has changed since you last asked: end your turn, and mail wakes you when something does.");
-    lastStatus.set(caller.id, hash(text));
-    return ok(text);
+    return ok(
+      statusText(caller.project, ledger, loadConfig(caller.project.state), seats, Date.now(), { laneId: lane, copy }),
+    );
   },
 });
