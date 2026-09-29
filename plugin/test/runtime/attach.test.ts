@@ -6,6 +6,7 @@ import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { stateRoot } from "../../server/core/paths.ts";
+import { emptyLedger } from "../../server/domain/ledger.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { tempDir } from "../tempdir.ts";
 import { served, which } from "./served.ts";
@@ -58,13 +59,14 @@ test("a project attached by path, set up, detached only when idle and attached a
 
   const ledger = join(stateRoot(), "projects", added.slug, "ledger.json");
   const remove = async () => call(contracts.projectsRemove, { project: added.slug });
-  writeFileSync(ledger, JSON.stringify({ lanes: { L1: { id: "L1", status: "open" } }, tasks: {} }));
+  const record = (held: Record<string, unknown>) => JSON.stringify({ ...emptyLedger(), ...held });
+  writeFileSync(ledger, record({ lanes: { L1: { id: "L1", status: "open" } } }));
   assert.match(
     which(await remove(), "error").error,
     /1 open or waiting lane\(s\)/,
     "not detached while work runs in it",
   );
-  writeFileSync(ledger, JSON.stringify({ lanes: { L1: { id: "L1", status: "waiting", after: ["L0"] } }, tasks: {} }));
+  writeFileSync(ledger, record({ lanes: { L1: { id: "L1", status: "waiting", after: ["L0"] } } }));
   assert.match(
     which(await remove(), "error").error,
     /1 open or waiting lane\(s\)/,
@@ -75,7 +77,7 @@ test("a project attached by path, set up, detached only when idle and attached a
     lanes: { L1: { id: "L1", status: "closed" } },
     tasks: { "L1-T1": { id: "L1-T1", lane: "L1", status: "cut" } },
   };
-  writeFileSync(ledger, JSON.stringify(closed));
+  writeFileSync(ledger, record(closed));
   assert.deepEqual(await remove(), { removed: added.slug });
   assert.equal((await listed()).includes(added.slug), false);
   assert.match(which(await remove(), "error").error, /has been seen/);

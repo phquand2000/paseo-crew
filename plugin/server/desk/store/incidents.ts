@@ -1,7 +1,7 @@
 import { DAY_MS } from "../../core/time.ts";
 import { join } from "node:path";
 import { isRecord } from "../../core/json.ts";
-import { readJsonFile, writeJson } from "../../core/store.ts";
+import { readJsonFile, readKept, writeJson } from "../../core/store.ts";
 import { type Held, close } from "../../domain/incident.ts";
 
 export type Incident = {
@@ -39,26 +39,21 @@ function incidentsFile(state: string): string {
   return join(state, "incidents.json");
 }
 
-const normalized = (stored: Partial<Incidents>): Incidents => ({
-  next: Number.isInteger(stored.next) && (stored.next as number) > 0 ? (stored.next as number) : 1,
-  items: stored.items && typeof stored.items === "object" ? stored.items : {},
-});
+const empty = (): Incidents => ({ next: 1, items: {} });
+
+const isIncidents = (value: unknown): value is Incidents =>
+  isRecord(value) && Number.isInteger(value.next) && (value.next as number) > 0 && isRecord(value.items);
 
 /** The book from one read, or why it cannot be read: written over, what it holds would be lost. */
 export function readIncidentsFile(state: string): { incidents: Incidents } | { fault: string } {
-  const file = incidentsFile(state);
-  const read = readJsonFile(file);
-  if ("fault" in read) return read;
-  if ("absent" in read) return { incidents: normalized({}) };
-  if (!isRecord(read.value) || !isRecord(read.value.items))
-    return { fault: `${file} does not hold a record of incidents` };
-  return { incidents: normalized(read.value) };
+  const read = readKept(incidentsFile(state), empty(), isIncidents);
+  return "fault" in read ? read : { incidents: read.value };
 }
 
 /** For a view: a book that cannot be read shows as empty. */
 export function loadIncidents(state: string): Incidents {
   const read = readJsonFile(incidentsFile(state));
-  return normalized("value" in read && isRecord(read.value) ? read.value : {});
+  return "value" in read && isIncidents(read.value) ? read.value : empty();
 }
 
 export function saveIncidents(state: string, incidents: Incidents): void {

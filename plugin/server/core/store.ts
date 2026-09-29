@@ -21,6 +21,18 @@ export function readJsonFile(path: string): JsonRead {
   }
 }
 
+/** A file the plugin keeps and cannot rebuild: `empty` while absent, a fault when unreadable or not what `holds` accepts. */
+export function readKept<T>(
+  path: string,
+  empty: T,
+  holds: (value: unknown) => value is T,
+): { value: T } | { fault: string } {
+  const read = readJsonFile(path);
+  if ("fault" in read) return read;
+  if ("absent" in read) return { value: empty };
+  return holds(read.value) ? { value: read.value } : { fault: `${path} does not hold what the plugin keeps there` };
+}
+
 export function readJson<T>(path: string, fallback: T): T {
   const read = readJsonFile(path);
   return "value" in read ? (read.value as T) : fallback;

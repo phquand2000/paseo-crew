@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { flowRpc } from "../../shared/rpc.ts";
@@ -138,6 +138,14 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
   assert.ok("watch" in flow, JSON.stringify(flow));
   assert.equal(flow.watch.incidents.find((card) => card.id === "I7")?.title, "Ran a command that cannot be undone");
 
+  const unnumbered = JSON.stringify({ items: book(h) });
+  writeFileSync(join(h.project.state, "incidents.json"), unnumbered);
+  await assert.rejects(notice(h, peer, "turning"), /Nothing was written over it/);
+  assert.equal(
+    readFileSync(join(h.project.state, "incidents.json"), "utf-8"),
+    unnumbered,
+    "a book missing its numbering is not read as counting from I1 and written over",
+  );
   writeFileSync(join(h.project.state, "incidents.json"), "{ not json");
   await assert.rejects(notice(h, peer, "stuck"), /could not be read: [\s\S]*Nothing was written over it/);
   assert.equal(

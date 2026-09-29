@@ -59,6 +59,7 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   await h.call(sup, "supervisor", "open_lane", { title: "Real work", outcome: "x", ...scope });
   assert.ok(h.ledger().lanes.L1);
   const file = join(h.project.state, "ledger.json");
+  const { seq: _seq, ...unnumbered } = h.ledger();
   const kept = '{ "lanes": { "key": fake-key-in-a-broken-ledger } }';
   writeFileSync(file, kept);
   const refused = await h.call(sup, "supervisor", "open_lane", { title: "After", outcome: "y", ...scope });
@@ -70,6 +71,15 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   assert.equal(status.ok, false);
   assert.match(status.text, /could not be read/);
   assert.doesNotMatch(status.text, /No open lanes/);
+
+  const half = JSON.stringify(unnumbered);
+  writeFileSync(file, half);
+  assert.equal(
+    (await h.call(sup, "supervisor", "open_lane", { title: "Over", outcome: "z", isolate: true, ...scope })).ok,
+    false,
+    "one that parses but lacks its numbering is refused too, never read as counting from nothing and L1 written over",
+  );
+  assert.equal(readFileSync(file, "utf-8"), half);
 });
 
 test("the round keeps only what the desk still holds: an orphan copy goes, the project's workspace goes once quiet, a project removed stays removed, and none is detached while a seat works in it", async () => {
