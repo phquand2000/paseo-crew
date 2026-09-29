@@ -38,7 +38,7 @@ export const UpdateView = z.object({
 export type UpdateView = z.infer<typeof UpdateView>;
 
 const MigrateStep = z.object({
-  kind: z.enum(["settings", "seat"]),
+  kind: z.enum(["settings", "seat", "content"]),
   where: z.string(),
   what: z.string(),
   detail: z.array(z.string()),

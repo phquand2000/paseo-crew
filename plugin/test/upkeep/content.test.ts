@@ -51,6 +51,12 @@ test("a changed prompt or skill is asked about; a changed guide or record is onl
       ["skills/supervisor/plan-check", "skill", true],
     ],
   );
+
+  const taken = join(state, "content.json");
+  writeFileSync(taken, "{not json");
+  await assert.rejects(contentChanges(kit, state), /content\.json is there but could not be read/);
+  await assert.rejects(decide(kit, state, "guides/PLANS.md", "seen"), /content\.json is there but could not be read/);
+  assert.equal(readFileSync(taken, "utf-8"), "{not json", "what the owner took in is not written over with everything");
 });
 
 test("an owner keeping their version of a changed prompt or skill has it in use and is still told of the next change, and taking the new one sets theirs aside", async () => {

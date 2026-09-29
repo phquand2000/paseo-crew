@@ -1,3 +1,4 @@
+import { keptFault } from "../../core/store.ts";
 import { type Incidents, loadIncidents, readIncidentsFile, saveIncidents } from "./incidents.ts";
 import type { Project } from "../project/project.ts";
 import type { Sync } from "./ledger-store.ts";
@@ -18,8 +19,7 @@ export class IncidentStore {
   transact<T>(project: Project, change: (book: Incidents) => Sync<T>): T {
     this.touched(project);
     const read = readIncidentsFile(project.state);
-    if ("fault" in read)
-      throw new Error(`${read.fault}. Nothing was written over it. Only the Human can repair it or move it aside.`);
+    if ("fault" in read) throw keptFault(read.fault);
     const result = change(read.incidents);
     saveIncidents(project.state, read.incidents);
     return result;

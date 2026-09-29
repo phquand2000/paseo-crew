@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { stateRoot } from "../../server/core/paths.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { settle } from "./fake-timeline.ts";
-import { laneWithPeer } from "./harness.ts";
+import { harness, laneWithPeer } from "./harness.ts";
 
 type Booked = { kind: string; seat: string; quote: string; held?: string; told?: number; level: string; lane?: string };
 
@@ -134,4 +135,19 @@ test("a lane's budget for the day holds back what is only worth attention, howev
     ["shadow"],
     "seen again once mail is off, it is held again, for the reason that holds now",
   );
+});
+
+test("Migrate shows what you took in of the kit, when that cannot be read, as a step for you, and writes nothing over it", async () => {
+  const h = harness();
+  const taken = join(stateRoot(), "content.json");
+  mkdirSync(stateRoot(), { recursive: true });
+  writeFileSync(taken, "{not json");
+  const plan = await h.rpc(contracts.migrate, { apply: false });
+  const steps = plan.steps.filter((step) => step.kind === "content");
+  assert.deepEqual(
+    steps.map((step) => [step.auto, step.where]),
+    [[false, "machine"]],
+  );
+  assert.match(steps[0]!.what, /content\.json is there but could not be read/);
+  assert.equal(readFileSync(taken, "utf-8"), "{not json");
 });

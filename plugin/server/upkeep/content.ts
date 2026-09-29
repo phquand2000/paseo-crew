@@ -4,7 +4,8 @@ import type { ContentChange } from "../../shared/upkeep-views.ts";
 import type { Kit } from "../catalog/kit/kit.ts";
 import { digest } from "../core/fs.ts";
 import { git } from "../core/git.ts";
-import { readJson, writeJson } from "../core/store.ts";
+import { isRecord } from "../core/json.ts";
+import { keptFault, readKept, writeJson } from "../core/store.ts";
 
 /** `commit` is the plugin's own at the time, so the version the owner had can be read back out of git. */
 type Taken = { units: Record<string, { hash: string; commit: string | null }> };
@@ -12,6 +13,15 @@ type Taken = { units: Record<string, { hash: string; commit: string | null }> };
 type Kind = ContentChange["kind"];
 
 const takenFile = (stateDir: string) => join(stateDir, "content.json");
+
+const isTaken = (value: unknown): value is Taken => isRecord(value) && isRecord(value.units);
+
+/** What the owner took in, or null before the first reading; one that cannot be read throws and is left as it is. */
+function takenOf(stateDir: string): Taken | null {
+  const read = readKept<Taken | null>(takenFile(stateDir), null, isTaken);
+  if ("fault" in read) throw keptFault(read.fault);
+  return read.value;
+}
 
 function kindOf(unit: string): Kind | undefined {
   if (unit.startsWith("guides/")) return "guide";
@@ -46,7 +56,7 @@ async function headOf(kit: Kit): Promise<string | null> {
 /** What the kit ships differently from what the owner last took in. The first reading takes everything in as it is. */
 export async function contentChanges(kit: Kit, stateDir: string): Promise<ContentChange[]> {
   const now = shippedUnits(kit);
-  const held = readJson<Taken | null>(takenFile(stateDir), null);
+  const held = takenOf(stateDir);
   if (!held) {
     const commit = await headOf(kit);
     writeJson(takenFile(stateDir), {
@@ -94,7 +104,7 @@ export async function decide(
   choice: "new" | "mine" | "seen",
   now = Date.now(),
 ): Promise<void> {
-  const held = readJson<Taken>(takenFile(stateDir), { units: {} });
+  const held = takenOf(stateDir) ?? { units: {} };
   const shipped = shippedUnits(kit)[unit];
   const mine = kit.own ? join(kit.own, unit) : undefined;
   if (choice === "new" && mine && existsSync(mine)) {

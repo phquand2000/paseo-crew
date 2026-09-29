@@ -1,10 +1,11 @@
 import { join } from "node:path";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { seatOf } from "../../catalog/kit/roles.ts";
+import { errorText } from "../../core/errors.ts";
 import { home, paseoHome, stateRoot } from "../../core/paths.ts";
 import type { Seats } from "../../core/ports.ts";
 import { type Project, projectOf } from "../../desk/project/project.ts";
-import type { CleanView, MigrateView, UpdateView } from "../../../shared/upkeep-views.ts";
+import type { CleanView, ContentChange, MigrateStep, MigrateView, UpdateView } from "../../../shared/upkeep-views.ts";
 import { removeGarbage, scanGarbage } from "../../upkeep/clean.ts";
 import { contentChanges, decide } from "../../upkeep/content.ts";
 import { type LiveSeat, migrate, migrationPlan } from "../../upkeep/migrate.ts";
@@ -65,11 +66,24 @@ export class UpkeepPanel implements UpkeepRpc {
       live: await this.live(),
       now: Date.now(),
     };
-    const content = await contentChanges(kit, stateRoot());
-    if (!apply) return { ...migrationPlan(ctx), content };
+    const { content, unread } = await this.content();
+    if (!apply) {
+      const plan = migrationPlan(ctx);
+      return { ...plan, steps: [...plan.steps, ...unread], content };
+    }
     const done = migrate(ctx);
     this.deps.reconcile();
-    return { ...done, content };
+    return { ...done, steps: [...done.steps, ...unread], content };
+  }
+
+  /** What the kit ships differently; a record of what was taken in that cannot be read is a step for the owner. */
+  private async content(): Promise<{ content: ContentChange[]; unread: MigrateStep[] }> {
+    try {
+      return { content: await contentChanges(this.deps.kit, stateRoot()), unread: [] };
+    } catch (error) {
+      const what = errorText(error);
+      return { content: [], unread: [{ kind: "content", where: "machine", what, detail: [], auto: false }] };
+    }
   }
 
   async decide(unit: string, choice: "new" | "mine" | "seen"): Promise<MigrateView> {
