@@ -29,6 +29,8 @@ const ALLOWED = [
   ["branch", "--sort", "-committerdate"],
   ["worktree", "list"],
   ["log", "--oneline"],
+  ["fetch", "."],
+  ["fetch", ".", "+main:refs/remotes/here/main"],
 ];
 
 test("a seat's shell, on the PATH the desk gives it, refuses what only the desk does however it is spelled, and runs the rest with the real git", () => {
@@ -75,6 +77,13 @@ test("a seat's shell, on the PATH the desk gives it, refuses what only the desk 
     ],
     ["a pull merges as a merge does", ["-C", root, "pull", "--no-rebase", ".", "main"]],
     ["a new working copy is the desk's to make", ["-C", root, "worktree", "add", join(root, "..", "aside")]],
+    ["a fetch that writes a branch moves it as update-ref does", ["-C", root, "fetch", ".", "HEAD:refs/heads/aside"]],
+    ["as does one naming the branch short", ["-C", root, "fetch", ".", "+main:other"]],
+    ["or mapping it with --refmap", ["-C", root, "fetch", "--refmap=+refs/heads/*:refs/heads/x/*", ".", "main"]],
+    [
+      "or with a remote set to fetch into branches",
+      ["-c", "remote.here.url=.", "-c", "remote.here.fetch=+refs/heads/*:refs/heads/x/*", "-C", root, "fetch", "here"],
+    ],
     ...BRANCH_REWRITES.map((flags): [string, string[]] => [
       `git branch ${flags.join(" ")}: the desk's record would name a branch that is gone, and git takes a long option cut short`,
       ["-C", root, "branch", flags[0]!, "main", ...flags.slice(1)],

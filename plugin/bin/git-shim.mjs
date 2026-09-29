@@ -37,11 +37,31 @@ function rewritesBranch(arg) {
   return /^-[acCdDfhilmMqrtuv]+$/.test(arg) && /[fdDmMC]/.test(arg);
 }
 
+/** Where a fetch refspec writes what it fetches; nothing for one that writes nowhere or leaves a ref out. */
+function landing(spec) {
+  const at = spec.indexOf(":");
+  return at < 0 || spec.startsWith("^") ? "" : spec.slice(at + 1);
+}
+
+/** Whether a fetch or remote writes what it fetches outside remote-tracking branches and tags, moving a branch as update-ref does. */
+function fetchMoves(globals, command, rest) {
+  if (rest.some((arg) => arg === "--stdin" || arg === "--refmap" || /^--refmap=./.test(arg))) return true;
+  const named = command === "fetch" ? rest.filter((arg) => !arg.startsWith("-")).slice(1) : [];
+  const run = spawnSync(git, [...globals, "config", "--get-regexp", "^remote\\..*\\.fetch$"], { encoding: "utf-8" });
+  const configured = run.status === 0 ? run.stdout.split(/\r?\n/).map((line) => line.slice(line.indexOf(" ") + 1)) : [];
+  return [...named, ...configured].some((spec) => {
+    const to = landing(spec);
+    return to !== "" && !/^refs\/(remotes|tags)\//.test(to);
+  });
+}
+
 /** Why `command` with `rest` is the desk's to run, not a seat's; nothing when it is the seat's. */
-function refusal(command, rest) {
+function refusal(globals, command, rest) {
   if (DESKS.has(command))
     return [`git ${command} moves branches or working copies, and that is the desk's to do`, INSTEAD[command]].filter(Boolean).join("; ");
   if (command === "worktree" && rest[0] !== "list") return "git worktree changes working copies, and that is the desk's to do";
+  if ((command === "fetch" || command === "remote") && fetchMoves(globals, command, rest))
+    return "a fetch that writes outside refs/remotes/ or refs/tags/ moves a branch, and that is the desk's to do; fetch into refs/remotes/ and read it from there";
   if (command === "branch" && rest.some(rewritesBranch)) return "git branch that forces, deletes, renames or overwrites a branch is the desk's to do";
   return undefined;
 }
@@ -83,7 +103,7 @@ if (own && command) {
     refuse(`this git works in ${here.top}, not in your own copy ${mine.top}; read another copy's work by its branch from yours`);
 }
 for (let depth = 0; command; depth++) {
-  const why = refusal(command, rest);
+  const why = refusal(globals, command, rest);
   if (why) refuse(why);
   const words = expanded(globals, command);
   if (!words) break;
