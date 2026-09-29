@@ -390,7 +390,8 @@ The Human is asked what only they can decide and told what they cannot take back
   `reversible`, everything; `costly`, the lane, until it reports ready, when the desk parks the question and
   holds the lane (at once, if it already stands ready); `irreversible`, nothing, its lane held at once. A `reversible` question about a lane whose
   write set or change reaches `askFirst` becomes `costly`. At most `questionsPerDay` (3, set by hand in a
-  settings layer) go out in 24 h across every project on the machine. The Human answers on the Flow tab, an
+  settings layer) go out in 24 h across every project on the machine; an `irreversible` one, or one `askFirst`
+  raised, goes out past it and is counted. The Human answers on the Flow tab, an
   option or Decline with a note, and HUMAN ANSWERED tells the Supervisor what that turns round; or in its
   chat, which `record_human_answer` takes only with a quote found among the Human's own messages there. No
   Lead is mailed, and a held lane stays held until `resume_lane`

@@ -391,7 +391,7 @@ turn goes on, since its reply reaches them only when they read its chat; no seat
   (`question.answered` by `desk`); it settles once. A lane stays on record while any of its questions is under a day
   old, since the daily count reads the ledger.
 - `ask_human` is refused once `questionsPerDay` questions (3 by default) were put in the last 24 h across every project
-  on the machine. The refusal names them, and tells the Supervisor to decide it itself if it is its to decide, fold it
+  on the machine, unless it is `irreversible` or `askFirst` raised it: those queue past the limit and count. The refusal names them, and tells the Supervisor to decide it itself if it is its to decide, fold it
   into a question still open, or ask once the day turns.
 
 **On the panel**, each open question is a card on the Flow tab while the tab follows the team live: its options, the
