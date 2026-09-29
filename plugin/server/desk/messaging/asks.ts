@@ -180,7 +180,10 @@ async function tellAround(
   }
   const passed = await leadPassed(roster, caller, ask, lead === waiting ? undefined : lead);
   if (passed) await mail.post(passed, askLetters.answeredFor(ask, "the owner", true, false));
-  const posted = await mail.post(ask.from, askLetters.answered(ask, carried));
+  const posted = await mail.post(
+    ask.from,
+    askLetters.answered(ask, carried, can(roleNamed(kit, ask.fromRole), "lead")),
+  );
   if (ask.kept === false && !can(caller.role, "supervise")) {
     const above = await roster.supervisorFor(caller.project, opener);
     if (above) await mail.post(above, askLetters.overruled(ask));

@@ -75,16 +75,20 @@ export const askLetters = {
     );
   },
 
-  answered(ask: Ask, carried: string[] = []): Letter {
+  /** `leads`: the asker splits work into tasks, so an answer that changes what one must show is carried into it. */
+  answered(ask: Ask, carried: string[] = [], leads = false): Letter {
     const names = carried.join(", ");
+    const amend = leads ? "amend_task any task whose acceptance it changes, " : "";
     return steering(
       mail(
         "answer",
         [ask.id],
         [`ANSWER to your ask ${ask.id}`, "", ask.answer ?? ""].join("\n"),
         carried.length
-          ? `It carries ${names}: answer ${names} for its Peer from it, then go on with your work.`
-          : "Go on with your work from it.",
+          ? `It carries ${names}: answer ${names} for its Peer from it, ${amend}then go on with your work.`
+          : leads
+            ? `From it, ${amend}then go on with your work.`
+            : "Go on with your work from it.",
       ),
     );
   },
