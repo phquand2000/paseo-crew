@@ -13,11 +13,11 @@ import type { DeskServices } from "../services.ts";
 /** Gives `text` to a seat as mail it reads once it can; one stopped on a permission reads nothing until the Human decides it. */
 async function handTo(
   { mail, roster }: Pick<DeskServices, "mail" | "roster">,
-  to: { target: string; from: string; who: string },
+  to: { target: string; from: string; who: string; reader: "worker" | "lead" },
   sending: Sending,
   text: string,
 ): Promise<string> {
-  const posted = await mail.post(to.target, messageLetters.message(to.from, text, sending));
+  const posted = await mail.post(to.target, messageLetters.message(to.from, text, sending, to.reader));
   if (posted === "sent") return `Delivered to ${to.who}.`;
   const seat = await roster.look(to.target).catch(() => undefined);
   if ((seat?.pendingPermissions?.length ?? 0) > 0)
@@ -63,7 +63,7 @@ async function toLead(
   const refused = repeatsIncident(caller.project.state, lane.lead, text);
   if (refused) return no(refused);
   const who = `the Lead ${lane.status === "closed" ? "kept from" : "of"} ${lane.id}`;
-  return ok(await handTo(desk, { target: lane.lead, from: "the owner", who }, sending, text));
+  return ok(await handTo(desk, { target: lane.lead, from: "the owner", who, reader: "lead" }, sending, text));
 }
 
 /** The Supervisor may reach a Peer directly, but its Lead is always told first: no hidden command chains. */
@@ -94,7 +94,7 @@ async function toPeer(
   await mail.post(lead, messageLetters.reconciled(lane, task, peer, text, sending));
   const handed = await handTo(
     desk,
-    { target: peer, from: "the project owner", who: `the Peer on ${task.id}` },
+    { target: peer, from: "the project owner", who: `the Peer on ${task.id}`, reader: "worker" },
     sending,
     text,
   );
@@ -119,5 +119,6 @@ export async function sendMessage(
   if (!(await desk.roster.seated(task.peer))) return no(unread(`The Peer on ${task.id}`));
   const refused = repeatsIncident(caller.project.state, task.peer, text);
   if (refused) return no(refused);
-  return ok(await handTo(desk, { target: task.peer, from: "your lead", who: `the Peer on ${task.id}` }, sending, text));
+  const peer = { target: task.peer, from: "your lead", who: `the Peer on ${task.id}`, reader: "worker" as const };
+  return ok(await handTo(desk, peer, sending, text));
 }

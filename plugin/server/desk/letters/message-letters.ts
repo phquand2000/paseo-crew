@@ -45,15 +45,13 @@ export const messageLetters = {
     );
   },
 
-  message(from: string, text: string, sending: Sending): Letter {
-    return steering(
-      mail(
-        "message",
-        sendingIds(sending, text),
-        [`MESSAGE from ${from}`, "", text].join("\n"),
-        "Carry it into your work from now on.",
-      ),
-    );
+  /** `reader` answers only through its own tools: words it says in its turn reach nobody. */
+  message(from: string, text: string, sending: Sending, reader: "worker" | "lead"): Letter {
+    const next =
+      reader === "worker"
+        ? "Carry it into your work from now on, and answer what it asks in your hand-back, or with ask if a reply cannot wait."
+        : "Carry it into your lane from now on, and answer what it asks with report, or with ask if you need a decision back first.";
+    return steering(mail("message", sendingIds(sending, text), [`MESSAGE from ${from}`, "", text].join("\n"), next));
   },
 
   /** The Supervisor may reach a Peer directly but never out of the Lead's sight: this carries what the Lead needs to put its picture right. */

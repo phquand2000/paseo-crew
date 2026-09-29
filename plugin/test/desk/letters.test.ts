@@ -105,7 +105,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     }),
     workLetters.rework(task, "fix it"),
     seatLetters.nudge(task, "done"),
-    messageLetters.message("your lead", "hi", sending),
+    messageLetters.message("your lead", "hi", sending, "worker"),
     workLetters.amended(task, amendment, "worker"),
     workLetters.onHold(lane, "the migration drops a table", task),
     workLetters.resumed(lane, "go on", task),
@@ -154,7 +154,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     workLetters.held(task, "L1-T1 is not accepted yet.", "It starts by itself."),
     workLetters.started(task, "Started."),
     messageLetters.reconciled(lane, task, "agent-9", "stop using the old client", sending),
-    messageLetters.message("the owner", "hi", sending),
+    messageLetters.message("the owner", "hi", sending, "lead"),
     askLetters.answered({ ...ask, fromRole: "lead" }),
     askLetters.answeredFor(ask, "the owner"),
     askLetters.askTo({ ...ask, status: "open" }, "the Peer on L1-T1", "lead"),
@@ -248,6 +248,15 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     /^Write their choice into CONTEXT\.md/,
   );
 
+  assert.match(
+    next(messageLetters.message("your lead", "why X?", sending, "worker")),
+    /answer what it asks in your hand-back, or with ask if a reply cannot wait\.$/,
+    "a Peer answers only through its tools: a reply in its own words reaches no one",
+  );
+  assert.match(
+    next(messageLetters.message("the owner", "why X?", sending, "lead")),
+    /answer what it asks with report, or with ask if you need a decision back first\.$/,
+  );
   assert.match(
     next(workLetters.handback(task, "Outcome: complete", "agent-7", "lead")),
     /^Judge it by what the work did/,
