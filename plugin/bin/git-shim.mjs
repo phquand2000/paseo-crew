@@ -1,6 +1,10 @@
 // A seat's git, first on its PATH: refuses what only the desk does to branches and working copies, however the command
 // is spelled (-C, -c, --git-dir, an alias), and runs everything else as the real git would. Run as: git-shim.mjs <git> <args>.
+// It works only in the seat's own copy of the project ($CREW_WORKTREE): the Human's checkout and every other seat's copy
+// of the same repository are refused, which on an agent with no sandbox is all that keeps them apart; a repository of
+// any other making, as a test suite builds, is not.
 import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 
 const [git, ...argv] = process.argv.slice(2);
 
@@ -51,12 +55,33 @@ function expanded(globals, command) {
   return alias.startsWith("!") ? alias : alias.split(/\s+/);
 }
 
+/** The copy git works in for these options and the repository it is a copy of; nothing where it works in none. */
+function copyOf(globals) {
+  const run = spawnSync(git, [...globals, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], {
+    encoding: "utf-8",
+  });
+  const [top, common] = run.status === 0 ? run.stdout.trim().split(/\r?\n/) : [];
+  if (!top || !common) return undefined;
+  try {
+    return { top: realpathSync.native(top), common: realpathSync.native(common) };
+  } catch {
+    // A path gone since git named it is no copy to compare.
+    return undefined;
+  }
+}
+
 function refuse(why) {
   process.stderr.write(`git: refused: ${why}. Say what you need to whoever gave you the work.\n`);
   process.exit(1);
 }
 
 let { globals, command, rest } = split(argv);
+const own = process.env.CREW_WORKTREE;
+if (own && command) {
+  const [here, mine] = [copyOf(globals), copyOf(["-C", own])];
+  if (here && mine && here.common === mine.common && here.top !== mine.top)
+    refuse(`this git works in ${here.top}, not in your own copy ${mine.top}; read another copy's work by its branch from yours`);
+}
 for (let depth = 0; command; depth++) {
   const why = refusal(command, rest);
   if (why) refuse(why);

@@ -1,5 +1,5 @@
 import { renderPrompt } from "../../catalog/kit/content.ts";
-import { type Kit, type RoleSpec, SEAT_KEY } from "../../catalog/kit/kit.ts";
+import { type Kit, type RoleSpec, SEAT_KEY, SEAT_WORKTREE } from "../../catalog/kit/kit.ts";
 import { seatOf } from "../../catalog/kit/roles.ts";
 import { applyRole, seatBin, seatEnv } from "../../catalog/seat/launch.ts";
 import { seedRecords } from "../../catalog/seat/seat-files.ts";
@@ -71,6 +71,8 @@ export class SeatLaunch {
       ...opened,
       env: {
         ...opened.env,
+        // The seat's own copy, the one its git shim lets it work in.
+        [SEAT_WORKTREE]: request.cwd,
         ...(key ? { [SEAT_KEY]: key } : {}),
         ...(ssh ? { [SEAT_SSH]: ssh } : {}),
         ...(temp ? { [tempEnv]: temp } : {}),
