@@ -10,6 +10,8 @@ const DESKS = new Set(["push", "pull", "merge", "checkout", "switch", "reset", "
 
 const OWN = new Set([...DESKS, "add", "blame", "branch", "commit", "config", "diff", "fetch", "grep", "log", "ls-files", "rev-parse", "show", "status", "worktree"]);
 
+const DEPTH = 10;
+
 /** The options git reads before its command, the command, and what follows it. */
 function split(args) {
   let at = 0;
@@ -49,11 +51,12 @@ function refuse(why) {
 }
 
 let { globals, command, rest } = split(argv);
-for (let depth = 0; command && depth < 10; depth++) {
+for (let depth = 0; command; depth++) {
   const why = refusal(command, rest);
   if (why) refuse(why);
   const words = expanded(globals, command);
   if (!words) break;
+  if (depth === DEPTH) refuse(`git ${command} is an alias more than ${DEPTH} deep, past what this check reads; run what it stands for`);
   // git puts its own exec-path first on a shell alias's PATH, so the git inside it would run past this check unread.
   if (typeof words === "string") refuse(`git ${command} is a shell alias, which runs git out of this check's sight; run its commands directly`);
   // An alias may open with options of git's own, as `-p push` does: its command is read after them.
