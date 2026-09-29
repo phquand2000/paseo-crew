@@ -105,7 +105,7 @@ export async function askUp(
   return ok(`Asked as ${entry.id}${owner}. End your turn; the answer arrives as a message.`);
 }
 
-/** Answers an open ask; one put to someone else may be answered by whoever supervises, and that seat is told first. */
+/** Answers an open ask; one put to someone else may be answered by whoever supervises, and that seat is told first, as is the Lead of a Peer answered past it. */
 export async function answerAsk(
   desk: Pick<DeskServices, "kit" | "ledgers" | "mail" | "roster">,
   caller: Caller,
@@ -126,44 +126,65 @@ export async function answerAsk(
     ask.answer = text;
     ask.answeredAt = Date.now();
     if (ask.default) ask.kept = answered.keepsDefault;
-    const opener = ask.lane ? ledger.lanes[ask.lane]?.opener : undefined;
-    return { ask: { ...ask }, waitingRole: ledger.agents[ask.to]?.role, opener, carried: carriedOf(ledger, ask.id) };
+    const lane = ask.lane ? ledger.lanes[ask.lane] : undefined;
+    const carried = carriedOf(ledger, ask.id);
+    return {
+      ask: { ...ask },
+      waitingRole: ledger.agents[ask.to]?.role,
+      opener: lane?.opener,
+      lead: lane?.lead,
+      carried,
+    };
   });
   if (typeof result === "string") return no(result);
   const { ask } = result;
   const waiting = ask.to === caller.id ? undefined : ask.to;
-  const posted = await tellAround(desk, caller, result, waiting);
+  const { posted, lead } = await tellAround(desk, caller, result, waiting);
   recordEvent(caller.project, {
     kind: "ask.answered",
     ask: ask.id,
     by: caller.id,
-    told: waiting ?? null,
+    told: waiting ?? lead ?? null,
     kept: ask.kept ?? null,
   });
   const has = posted === "sent" ? "has it" : "reads it as soon as it can take it";
   const told = waiting ? " Whoever it was waiting on has been told what it was answered with." : "";
-  return ok(`Answered ${ask.id}; the asker ${has}.${told}`);
+  const led = lead ? " Its lane's Lead has been told what it was answered with." : "";
+  return ok(`Answered ${ask.id}; the asker ${has}.${told}${led}`);
 }
 
-type Answered = { ask: Ask; waitingRole?: string; opener?: string; carried: string[] };
+type Answered = { ask: Ask; waitingRole?: string; opener?: string; lead?: string; carried: string[] };
 
 /** The asker gets the answer; the seat it waited on is told first, and whoever supervises sees a default overruled below them. */
 async function tellAround(
   { kit, mail, roster }: Pick<DeskServices, "kit" | "mail" | "roster">,
   caller: Caller,
-  { ask, waitingRole, opener, carried }: Answered,
+  { ask, waitingRole, opener, lead, carried }: Answered,
   waiting: string | undefined,
-): Promise<Posted | "nobody"> {
+): Promise<{ posted: Posted | "nobody"; lead?: string }> {
   // Answering an ask put to someone else is allowed, but that seat is told first.
   if (waiting) {
     const role = roleNamed(kit, waitingRole ?? "");
     const by = can(role, "supervise") ? `${caller.role.label} ${caller.id}` : "the owner";
     await mail.post(waiting, askLetters.answeredFor(ask, by, can(role, "lead")));
   }
+  const passed = await leadPassed(roster, caller, ask, lead === waiting ? undefined : lead);
+  if (passed) await mail.post(passed, askLetters.answeredFor(ask, "the owner", true, false));
   const posted = await mail.post(ask.from, askLetters.answered(ask, carried));
   if (ask.kept === false && !can(caller.role, "supervise")) {
     const above = await roster.supervisorFor(caller.project, opener);
     if (above) await mail.post(above, askLetters.overruled(ask));
   }
-  return posted;
+  return { posted, lead: passed };
+}
+
+/** The seated Lead of a Peer's lane that whoever supervises answered past: the one reach past a Lead is never out of its sight. */
+async function leadPassed(
+  roster: Pick<DeskServices["roster"], "seated">,
+  caller: Caller,
+  ask: Ask,
+  lead: string | undefined,
+): Promise<string | undefined> {
+  if (!ask.task || !lead || lead === caller.id || !can(caller.role, "supervise")) return undefined;
+  return (await roster.seated(lead)) ? lead : undefined;
 }

@@ -90,6 +90,7 @@ test("a lane whose Lead is gone gets one where it stands, with the asks that wai
   assert.match((await replace()).text, /still seated; message it instead/);
   assert.equal((await h.call(peer, "peer", "ask", { question: "Which rounding?", bestGuess: "half up" })).ok, true);
   h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
+  assert.equal((await h.call(peer, "peer", "ask", { question: "Cents or units?" })).ok, true);
 
   const replaced = await replace();
   assert.equal(replaced.ok, true, replaced.text);
@@ -105,9 +106,18 @@ test("a lane whose Lead is gone gets one where it stands, with the asks that wai
   assert.doesNotMatch(seated.prompt ?? "", /supervisor/i);
   assert.deepEqual(
     Object.values(h.ledger().asks).map((ask) => ask.to),
-    [now.lead],
+    [now.lead, sup],
+    "one put to the owner while the lane had no Lead stays the owner's",
   );
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running");
+  assert.match((await h.call(sup, "supervisor", "answer", { ask: "A2", text: "cents" })).text, /Its lane's Lead/);
+  assert.match(
+    h.heard(now.lead!).join("\n"),
+    new RegExp(
+      `ANSWERED FOR YOU: A2 \\(question\\) from ${peer}, put to the owner while your lane had no Lead, was answered by the owner\\.[^]*cents`,
+    ),
+    "the owner reaching a Peer past its Lead never leaves the Lead out of sight",
+  );
 
   h.agents.get(now.lead!)!.archivedAt = new Date().toISOString();
   await h.tick(Date.now());

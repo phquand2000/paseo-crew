@@ -115,7 +115,8 @@ These are mostly absences, so the code will not show them to you.
 - **One writer per working copy.** The project's checkout holds one lane at a time; a lane-mode task holds the
   lane's copy on its own branch from its start until it is merged or cut, a failed merge included.
 - **No hidden command chain.** A Peer the Supervisor messages has its Lead told first; when one seat answers
-  an ask put to another, that one is told; the Human's words in a Lead's or Peer's chat go to the Supervisor.
+  an ask put to another, that one is told, as is the Lead of a Peer whose ask went past it while the lane had no
+  Lead; the Human's words in a Lead's or Peer's chat go to the Supervisor.
 - **The watched seat never hears what the watch concluded about it**: no incident is addressed to it, and a
   `message`, `answer`, `rework`, `amend_task` or `amend_lane` that names or quotes an open incident about the
   seat it goes to is refused.
