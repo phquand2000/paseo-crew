@@ -1,29 +1,46 @@
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { extname } from "node:path";
 import { parse, stringify } from "smol-toml";
 import { errorText } from "./errors.ts";
 
 const isToml = (path: string): boolean => extname(path).toLowerCase() === ".toml";
 
-export function readConfig<T>(path: string, fallback: T): T {
+/** Why a file did not parse, by where alone: a parser quotes the text, and the file may hold a key. */
+export function parseProblem(path: string, error: unknown): string {
+  const at = error as { line?: unknown; column?: unknown };
+  const where =
+    typeof at.line === "number" && typeof at.column === "number"
+      ? ` at line ${at.line} column ${at.column}`
+      : (/ at position \d+(?: \(line \d+ column \d+\))?/.exec(errorText(error))?.[0] ?? "");
+  return `it is not ${isToml(path) ? "TOML" : "JSON"}${where}`;
+}
+
+function readFile(path: string): { absent: true } | { value: unknown } | { problem: string } {
+  let text: string;
   try {
-    const text = readFileSync(path, "utf-8");
-    return (isToml(path) ? parse(text) : JSON.parse(text)) as T;
-  } catch {
-    return fallback;
+    text = readFileSync(path, "utf-8");
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { absent: true } : { problem: errorText(error) };
   }
+  try {
+    return { value: (isToml(path) ? parse(text) : JSON.parse(text)) as unknown };
+  } catch (error) {
+    return { problem: parseProblem(path, error) };
+  }
+}
+
+export function readConfig<T>(path: string, fallback: T): T {
+  const read = readFile(path);
+  return "value" in read ? (read.value as T) : fallback;
 }
 
 /** Unparseable is a fault, not absent: seeding over a harness's config would erase its account and history. */
 export function configFault(path: string): string | undefined {
-  if (!existsSync(path)) return undefined;
-  try {
-    const text = readFileSync(path, "utf-8");
-    const held = (isToml(path) ? parse(text) : JSON.parse(text)) as unknown;
-    return !held || typeof held !== "object" ? `${path} does not hold a config object` : undefined;
-  } catch (error) {
-    return `${path} is there but could not be read: ${errorText(error)}`;
-  }
+  const read = readFile(path);
+  if ("problem" in read) return `${path} is there but could not be read: ${read.problem}`;
+  return "value" in read && (!read.value || typeof read.value !== "object")
+    ? `${path} does not hold a config object`
+    : undefined;
 }
 
 /** Written whole or not at all, because a harness may be reading it while this runs. */

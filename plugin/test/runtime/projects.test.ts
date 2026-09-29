@@ -59,11 +59,12 @@ test("a ledger the desk cannot read is not written over, and the seat is told wh
   await h.call(sup, "supervisor", "open_lane", { title: "Real work", outcome: "x", ...scope });
   assert.ok(h.ledger().lanes.L1);
   const file = join(h.project.state, "ledger.json");
-  const kept = '{ "lanes": ';
+  const kept = '{ "lanes": { "key": fake-key-in-a-broken-ledger } }';
   writeFileSync(file, kept);
   const refused = await h.call(sup, "supervisor", "open_lane", { title: "After", outcome: "y", ...scope });
   assert.equal(refused.ok, false);
-  assert.match(refused.text, /could not be read/);
+  assert.match(refused.text, /ledger\.json is there but could not be read: it is not JSON/);
+  assert.doesNotMatch(refused.text, /fake-key/, "a parser quotes the file, and a seat reads this");
   assert.equal(readFileSync(file, "utf-8"), kept);
   const status = await h.call(sup, "supervisor", "status", {});
   assert.equal(status.ok, false);

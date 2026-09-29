@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 import { z } from "zod";
 import { sortKeys } from "../../core/json.ts";
 import { readJson, writeJson } from "../../core/store.ts";
-import { errorText } from "../../core/errors.ts";
+import { parseProblem } from "../../core/config-file.ts";
 import { KEPT, type Layer, LayerSchema } from "../../../shared/settings.ts";
 import type { LayerRead, WriteResult } from "../../../shared/views.ts";
 
@@ -15,13 +15,6 @@ function revisionOf(values: unknown): string {
     .slice(0, 16);
 }
 
-/** Only the position: V8 quotes the file's own text, which can hold pasted tokens. */
-function placeOf(error: unknown): string {
-  const said = errorText(error);
-  const where = /at position \d+(?: \(line \d+ column \d+\))?/.exec(said);
-  return where ? `, ${where[0]}` : "";
-}
-
 /** `readJson` reads a broken file as `{}`, a valid empty layer, so the next save would overwrite all the owner wrote. */
 function faultOf(file: string): string | undefined {
   if (!existsSync(file)) return undefined;
@@ -29,7 +22,7 @@ function faultOf(file: string): string | undefined {
   try {
     held = JSON.parse(readFileSync(file, "utf-8"));
   } catch (error) {
-    return `${file} is there but is not JSON${placeOf(error)}`;
+    return `${file} is there but could not be read: ${parseProblem(file, error)}`;
   }
   return !held || typeof held !== "object" || Array.isArray(held)
     ? `${file} does not hold a settings object`

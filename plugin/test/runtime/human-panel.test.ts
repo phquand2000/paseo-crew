@@ -139,10 +139,11 @@ test("Orders reads back the Human's standing orders and the project's concept, a
   await h.call(sup, "supervisor", "set_project", { riskRules: [] });
   const own = await orders();
   assert.ok("askFirst" in own && own.ownRules && own.riskRules.length === 0);
-  writeFileSync(configFile(h.project.state), "{ not json");
+  writeFileSync(configFile(h.project.state), '{ "gate": fake-key-in-project-json }');
   const broken = await orders();
   assert.ok("askFirst" in broken);
-  assert.match(broken.fault ?? "", /project\.json is there but could not be read/);
+  assert.match(broken.fault ?? "", /project\.json is there but could not be read: it is not JSON/);
+  assert.doesNotMatch(broken.fault ?? "", /fake-key/);
   assert.deepEqual(await h.rpc(contracts.orders, { project: "nope" }), {
     error: "No project named nope has been seen on this machine.",
   });

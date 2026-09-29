@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { writeConfigAtomic } from "./config-file.ts";
+import { parseProblem, writeConfigAtomic } from "./config-file.ts";
 import { errorText } from "./errors.ts";
 
 /** A kept file as read once: missing, its parsed value, or why it could not be read, which is never taken for missing. */
@@ -17,7 +17,7 @@ export function readJsonFile(path: string): JsonRead {
   try {
     return { value: JSON.parse(text) as unknown };
   } catch (error) {
-    return { fault: `${path} is there but could not be read: ${errorText(error)}` };
+    return { fault: `${path} is there but could not be read: ${parseProblem(path, error)}` };
   }
 }
 
