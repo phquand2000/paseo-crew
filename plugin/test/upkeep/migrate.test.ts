@@ -81,6 +81,12 @@ test("migrate names the seats started before this kit was loaded, and changes no
   writeFileSync(join(ctx.kit.dir, "content", "prompts", "LEAD.md"), "A new brief.");
   const next = stampKit(ctx.kit, ctx.home, NOW + 60_000);
   assert.ok(next.since > since, "the kit stamp moves with its content");
+  mkdirSync(join(ctx.kit.dir, "bin"), { recursive: true });
+  writeFileSync(join(ctx.kit.dir, "bin", "git-shim.mjs"), "// a new refusal");
+  assert.ok(
+    stampKit(ctx.kit, ctx.home, NOW + 90_000).since > next.since,
+    "and with whatever else a seat reads or is held to, as the release test counts it: the git shim too",
+  );
   ctx.live.push(
     {
       provider: "crew-lead-claude",

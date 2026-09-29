@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { SEAT_FACING } from "../server/upkeep/migrate.ts";
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -18,17 +19,6 @@ const versionAt = (ref: string) =>
   (JSON.parse(git("show", `${ref}:./package.json`) ?? "{}") as { version?: string }).version;
 const versionNow = () =>
   (JSON.parse(readFileSync(join(PLUGIN, "package.json"), "utf-8")) as { version?: string }).version;
-
-/** What a seat reads or is held to: its content, harness, tools and role, the letters and briefs the desk writes it, and what its PATH refuses. */
-const SEAT_FACING = [
-  "content",
-  "harness",
-  "mcp",
-  "roles.json",
-  "server/desk/letters",
-  "bin/git-shim.mjs",
-  "catalog/refused.json",
-];
 
 /** Owners learn of a change in what seats read only through the version: Update names it and Migrate asks about it. */
 test(

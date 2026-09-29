@@ -26,9 +26,20 @@ type Step = MigrateStep & { apply?: () => void };
 
 const stampFile = (homeDir: string) => join(stateRoot(homeDir), "kit.json");
 
+/** What a seat reads or is held to: its content, harness, tools and role, the letters and briefs the desk writes it, and what its PATH refuses. */
+export const SEAT_FACING = [
+  "content",
+  "harness",
+  "mcp",
+  "roles.json",
+  "server/desk/letters",
+  "bin/git-shim.mjs",
+  "catalog/refused.json",
+];
+
 /** Which kit this machine runs, and since when: a seat started earlier runs an older one. */
 export function stampKit(kit: Kit, homeDir: string, now = Date.now()): Stamp {
-  const stamp = digest(["content", "harness", "mcp", "roles.json"].map((name) => join(kit.dir, name)));
+  const stamp = digest(SEAT_FACING.map((name) => join(kit.dir, name)));
   const held = readJson<Partial<Stamp>>(stampFile(homeDir), {});
   if (held.stamp === stamp && typeof held.since === "string") return { stamp, since: held.since };
   const next = { stamp, since: new Date(now).toISOString() };
