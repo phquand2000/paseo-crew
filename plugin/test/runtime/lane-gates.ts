@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { chmodSync, existsSync, writeFileSync } from "node:fs";
+import { delimiter, join } from "node:path";
+import { tempDir } from "../tempdir.ts";
 import type { harness } from "./harness.ts";
 
 type Handle = { refresh: () => Promise<unknown>; archive: () => Promise<unknown> };
@@ -30,3 +34,25 @@ export function heldCall(h: ReturnType<typeof harness>, seat: string, call: keyo
 
 /** The desk's next look at `seat` in Paseo is held until `release`. */
 export const heldLook = (h: ReturnType<typeof harness>, seat: string) => heldCall(h, seat, "refresh");
+
+/** The next git `subcommand` the plugin runs is held until `release`, which also takes this git off PATH. */
+export function heldGit(subcommand: string) {
+  const dir = tempDir("held-git-");
+  const real = execFileSync("git", ["--exec-path"], { encoding: "utf-8" }).trim();
+  const hold = `if mkdir "${dir}/taken" 2>/dev/null; then touch "${dir}/reached"; while [ ! -f "${dir}/go" ]; do sleep 0.02; done; fi`;
+  writeFileSync(
+    join(dir, "git"),
+    `#!/bin/sh\ncase " $* " in *" ${subcommand} "*) ${hold};; esac\nexec "${real}/git" "$@"\n`,
+  );
+  chmodSync(join(dir, "git"), 0o755);
+  const path = process.env.PATH;
+  process.env.PATH = `${dir}${delimiter}${path}`;
+  const reached = (async () => {
+    while (!existsSync(join(dir, "reached"))) await new Promise((resolve) => setTimeout(resolve, 20));
+  })();
+  const release = () => {
+    writeFileSync(join(dir, "go"), "");
+    process.env.PATH = path;
+  };
+  return { reached, release };
+}

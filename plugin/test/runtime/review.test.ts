@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
+import { heldGit } from "./lane-gates.ts";
 
 type Harness = ReturnType<typeof harness>;
 
@@ -19,7 +20,7 @@ async function opened(title: string, more: Record<string, unknown> = {}) {
   return { h, sup, lane, lead: lane.lead! };
 }
 
-test("a review hands back a verdict and its findings, answers what the project's risk rules ask, and the Lead is told all of it", async () => {
+test("a review hands back a verdict and its findings, answers what the project's risk rules ask, and the Lead is told all of it", async (t) => {
   const { h, sup, lane, lead } = await opened("Rounding");
   await h.call(lead, "lead", "add_tasks", {
     tasks: [{ key: "t", title: "Round", goal: "g", ...scope, hints: ["a.txt"] }],
@@ -112,6 +113,21 @@ test("a review hands back a verdict and its findings, answers what the project's
   );
   assert.match((await rules([])).text, /0 risk rules of its own/);
   assert.equal(await ofLane(), undefined, "a project's own list, even an empty one, replaces the kit's");
+
+  const count = reviews(h).length;
+  const gate = heldGit("symbolic-ref");
+  t.after(gate.release);
+  const asking = h.call(lead, "lead", "start_review", { focus: "Anything left?" });
+  await gate.reached;
+  assert.equal(
+    (await h.call(sup, "supervisor", "hold_lane", { lane: lane.id, reason: "wait for the Human" })).ok,
+    true,
+  );
+  gate.release();
+  const held = await asking;
+  assert.equal(held.ok, false, held.text);
+  assert.match(held.text, /on hold/);
+  assert.equal(reviews(h).length, count, "a lane held while its review was set up gets none");
 });
 
 test("a lane reported ready carries what its reviews leave standing, and each fact goes once the record settles it", async () => {

@@ -41,6 +41,7 @@ export async function startReview(desk: DeskServices, caller: Caller, args: Revi
   if (typeof planned === "string") return no(planned);
   const focus = str(args.focus);
   const review = record(desk, caller.project, planned, str(args.title), focus);
+  if (typeof review === "string") return no(review);
   return seat(desk, caller, planned, review, focus);
 }
 
@@ -76,18 +77,22 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
   return { lane, target, copy, role, asked, place };
 }
 
-/** A review is a task of the lane that holds nothing, recorded running and claimed for seating like any other. */
+/** A review is a task of the lane that holds nothing, recorded running and claimed; the lane is read again, as it may have closed or been held meanwhile. */
 function record(
   { ledgers, seating }: Pick<DeskServices, "ledgers" | "seating">,
   project: Project,
   planned: Planned,
   title: string,
   focus: string,
-): Task {
+): Task | string {
   const { lane, target, copy, asked } = planned;
-  return ledgers.transact(project, (current) => {
-    const id = nextTaskId(current.lanes[lane.id]!, "review");
-    const now = Date.now();
+  return ledgers.transact(project, (current): Task | string => {
+    const now = current.lanes[lane.id];
+    if (now?.status !== "open") return `Lane ${lane.id} closed while its review was being set up.`;
+    const held = holdRefusal(now);
+    if (held) return held;
+    const id = nextTaskId(now, "review");
+    const at = Date.now();
     const created: Task = {
       id,
       lane: lane.id,
@@ -105,8 +110,8 @@ function record(
       worktree: copy.path,
       slot: copy.id,
       status: "running",
-      openedAt: now,
-      updatedAt: now,
+      openedAt: at,
+      updatedAt: at,
       silent: 0,
     };
     current.tasks[id] = created;
