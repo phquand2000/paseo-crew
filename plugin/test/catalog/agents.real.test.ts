@@ -126,17 +126,12 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           [`Read(${secret}/**)`, `Edit(${secret}/**)`].every((rule) => deny.includes(rule)),
           `${where}: neither the shell nor a file tool reaches a key or cloud login that reaches production`,
         );
-      for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit"])
+      for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit", ...(bare ? [] : ["Edit(./**)"])])
         assert.equal(
           deny.includes(tool),
           !edits,
-          `${where}: ${tool} only where the role edits files; the Lead coordinates and keeps its pages with note`,
+          `${where}: ${tool} only where the role edits files, its shell in the working copy included; the Lead keeps its pages with note`,
         );
-      assert.equal(
-        deny.includes("Edit(./**)"),
-        !edits && !bare,
-        `${where}: an Edit deny binds the sandbox too, so its shell writes nothing in the working copy; its pages under the state and $TMPDIR lie outside it`,
-      );
       assert.equal(
         deny.includes("Bash(sleep *)"),
         !waits,
