@@ -104,7 +104,7 @@ async function homeOf(
       ? "onBranch"
       : asked.isolate === true
         ? "isolate"
-        : asked.isolate === false || str(asked.base)
+        : asked.isolate === false
           ? "newBranch"
           : undefined;
   // A waiting lane opens into whatever the copy is by then, and one the copy is taken from takes a copy of its own or waits.
