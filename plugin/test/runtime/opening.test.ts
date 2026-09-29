@@ -64,8 +64,14 @@ test("where a lane works is the Human's call: asked when their copy is off its b
   );
   assert.equal(branch(), "fix/login");
   assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L2", reason: "not now" })).ok, true);
+  writeFileSync(join(h.root, "my notes.txt"), "half done\n");
+  h.git(h.root, "mv", "b.txt", "b -> c.txt");
   const dirty = await status();
-  assert.match(dirty, /with 13 uncommitted files: a\.txt, wip-01\.txt, [^\n]*wip-09\.txt, and 3 more\./);
+  assert.match(
+    dirty,
+    /with 15 uncommitted files: a\.txt, b -> c\.txt, my notes\.txt, wip-01\.txt, [^\n]*wip-07\.txt, and 5 more\./,
+    "a name is as it is, and a rename is named by where it went",
+  );
   assert.match(dirty, /takes the uncommitted work along/);
   h.git(h.root, "stash", "-u", "-q");
 
