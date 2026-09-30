@@ -11,7 +11,6 @@ export const FACTS = {
   "long-turn": { level: "attend", title: "A turn with nothing new for a long time" },
   "rework-loop": { level: "attend", title: "Sent back again and again" },
   "patched-not-fixed": { level: "attend", title: "Several tasks patched, none fixed" },
-  "accepted-unfinished": { level: "attend", title: "Work taken in unfinished" },
   "reviews-unconverged": { level: "attend", title: "Reviews piling up with nothing accepted" },
   "certainty-only": { level: "attend", title: "A review told to report only certainties" },
   "brief-prewritten": { level: "attend", title: "A brief that writes the answer out" },

@@ -185,8 +185,7 @@ export class Patrol {
   private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const attention = this.deps.source.teamFor(project).attention;
     const book = loadIncidents(project.state);
-    const judged = Object.values(book.items).filter((item) => !item.open && item.label);
-    const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt, judged });
+    const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
     for (const seen of found) {
       // A gone seat's incidents closed when it went; raising one leaves a sighting nothing closes.
       const seat = seats.get(seen.seat);

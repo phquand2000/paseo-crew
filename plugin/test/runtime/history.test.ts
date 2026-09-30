@@ -6,7 +6,7 @@ import type { Task } from "../../server/domain/task.ts";
 import type { FactKind } from "../../server/runtime/watch/fact-kinds.ts";
 import { deskFacts } from "../../server/runtime/watch/history.ts";
 
-const READING = { reworksAt: 3, reviewsAt: 3, judged: [] };
+const READING = { reworksAt: 3, reviewsAt: 3 };
 
 const lane = (over: Partial<Lane> = {}): Lane => ({
   id: "L1",
@@ -59,14 +59,13 @@ const kinds = (ledger: Ledger) =>
 
 const quote = (ledger: Ledger, kind: FactKind) => deskFacts(ledger, READING).find((seen) => seen.fact.kind === kind)!;
 
-test("a lane's record shows loops, patching, unfinished acceptance and unconverged reviews, about its Lead, in words that change only with the evidence", () => {
+test("a lane's record shows loops, patching and unconverged reviews, about its Lead, in words that change only with the evidence", () => {
   const looping = ledgerOf([task({ id: "L1-T1", reworks: 3, handback: handback("partial") })]);
   const spread = ledgerOf([1, 2, 3].map((n) => task({ id: `L1-T${n}`, reworks: 1 })));
   const rounds = [1, 2, 3].map((n) =>
     task({ id: `L1-R${n}`, kind: "review", of: "L1-T1", title: `review ${n}`, handback: handback("changes") }),
   );
   const reviewed = ledgerOf([task({ id: "L1-T1" }), ...rounds]);
-  const partial = ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("partial") })]);
   const rows: [string, Ledger, FactKind[]][] = [
     ["two sendings-back is a correction, not yet a loop", ledgerOf([task({ id: "L1-T1", reworks: 2 })]), []],
     ["a task sent back again and again is a loop", looping, ["rework-loop"]],
@@ -94,21 +93,12 @@ test("a lane's record shows loops, patching, unfinished acceptance and unconverg
       ]),
       [],
     ],
-    ["a task taken in although its Peer handed it back partial", partial, ["accepted-unfinished"]],
     [
-      "or blocked",
-      ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("blocked") })]),
-      ["accepted-unfinished"],
-    ],
-    [
-      "a Peer that said it finished raises nothing",
-      ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("complete") })]),
-      [],
-    ],
-    ["a task still running is not taken in", ledgerOf([task({ id: "L1-T1", handback: handback("blocked") })]), []],
-    [
-      "cutting a task its Peer could not finish is the answer, not the fault",
-      ledgerOf([task({ id: "L1-T1", status: "cut", handback: handback("blocked") })]),
+      "taking in work its Peer handed back partial or blocked is the Lead's call, not a fact",
+      ledgerOf([
+        task({ id: "L1-T1", status: "merged", handback: handback("partial") }),
+        task({ id: "L1-T2", status: "merged", handback: handback("blocked") }),
+      ]),
       [],
     ],
   ];
@@ -125,9 +115,6 @@ test("a lane's record shows loops, patching, unfinished acceptance and unconverg
     quote(reviewed, "reviews-unconverged").fact.quote,
     /3 reviews of L1-T1 .*which is running: changes, changes, changes/,
   );
-  const unfinished = quote(partial, "accepted-unfinished");
-  assert.match(unfinished.fact.quote, /L1-T1 \(Apply discount\) was accepted after its Peer handed it back partial/);
-  assert.equal(unfinished.seat, "lead-1", "accepting is the Lead's act, so the Lead is who this is about");
 
   const held = ledgerOf([task({ id: "L1-T1", reworks: 3 })]);
   const first = quote(held, "rework-loop").fact.quote;
@@ -139,15 +126,6 @@ test("a lane's record shows loops, patching, unfinished acceptance and unconverg
   const loops = deskFacts(two, READING).filter((seen) => seen.fact.kind === "rework-loop");
   assert.equal(loops.length, 1);
   assert.match(loops[0]!.fact.quote, /L1-T1 .*sent back 3 times.*; L1-T2 .*sent back 3 times/);
-
-  const many = ledgerOf(
-    Array.from({ length: 7 }, (_, index) =>
-      task({ id: `L1-T${index + 1}`, status: "merged", handback: handback("partial") }),
-    ),
-  );
-  const named = quote(many, "accepted-unfinished").fact.quote;
-  assert.match(named, /; and 2 more in this lane$/);
-  assert.ok(!named.includes("L1-T6"), "a lane's accepted tasks only accumulate, so the quote does not grow with them");
 });
 
 test("a brief that writes the work out, or a review told to report only certainties, is on the record, and ordinary wording is not", () => {

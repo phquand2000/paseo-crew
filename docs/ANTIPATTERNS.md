@@ -21,7 +21,7 @@ of those need a model to read the turn. The watch can ask a model, but only in s
 of its questions touches these five.
 
 The thirty-five come from one list. Section 8 holds one that does not, kept here because the watch
-now catches it and everything the watch catches belongs in this file.
+once caught it, and what that taught belongs in this file.
 
 The watch reads two things, both in code. From a seat's timeline: a destructive command, a seat
 repeating itself or not recovering from a failure, a weakened test or a silenced check, a hand-back
@@ -29,8 +29,7 @@ after edits the gate never ran on or called complete over a failed check, and a 
 longer than usual. In code, from the lane's own record — the ledger the patrol already holds — the
 shapes no window can hold, because a letter restarts the window: a task sent back again and again, a
 lane patching several tasks at once, reviews piling up with nothing accepted, a review told to report
-only what it is certain of, a brief that writes the work out instead of setting an outcome, and a
-task taken in although its Peer never said it was finished.
+only what it is certain of, and a brief that writes the work out instead of setting an outcome.
 
 Both go through one incident book and are read and marked the one way: an attention-level one about
 a Peer goes to its Lead, the rest to the Supervisor, and none of them ever reaches the seat it is
@@ -400,14 +399,11 @@ the only seam that reaches it is private". The Lead accepts, the task merges, th
 the line counts and the gate. The untested retry path now exists only in
 `handbacks/L1-T3-1758·.md`, which nothing reads until someone runs the `retrospective` skill — if
 anyone ever does.
-**Here.** *caught* — `accepted-unfinished`, when a merged task's hand-back says `partial` or
-`blocked`. `accept` takes only a task handed back, and the desk refuses an outcome that is not
-`complete`, `partial` or `blocked`, so every merged task carries one of the three. `leftUndone` and
-`discovered` are deliberately **not** read: what a follow-up would have to establish — that nothing
-afterwards carried the raised thing forward — cannot be told from the ledger without a model reading
-prose, and no record says it carries on what another left: `Task.of` names only a review's target,
-and `Lane.detourOf` only the lane a detour clears the way for. The outcome word is the part that is
-structured, so the outcome word is the part that is read.
+**Here.** *desk* — every merged task carries its outcome word in the ledger, and a code fact once
+fired on `partial` or `blocked`. It was marked noise every time: each such acceptance was a Lead's
+or the Human's deliberate call, the rest moved to another task or ruled out, and acceptance is the
+Lead's to decide. The word alone cannot tell a decision from a lapse; what would is whether anything
+afterwards carried the rest forward, and that takes a model reading `leftUndone` and what followed.
 
 ---
 

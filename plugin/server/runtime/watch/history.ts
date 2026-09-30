@@ -9,12 +9,7 @@ import { type Fact, type FactKind, fact } from "./fact-kinds.ts";
  */
 type Seen = { seat: string; fact: Fact };
 
-type Reading = {
-  reworksAt: number;
-  reviewsAt: number;
-  /** Closed incidents someone labelled: what they name was already judged. */
-  judged: { kind: string; quote: string; later?: string }[];
-};
+type Reading = { reworksAt: number; reviewsAt: number };
 
 const CERTAIN =
   /\b(?:report|raise|flag|list|mention|include)\b[^.]{0,20}\bonly\b[^.]{0,40}\b(?:certain|sure|confident|proven|prove|confirmed|verified)\b|\bonly\b[^.]{0,20}\b(?:report|raise|flag|list|mention)\b[^.]{0,40}\b(?:certain|sure|confident|proven|prove|confirmed|verified)\b|\bno\s+(?:speculation|speculative|guesswork|guesses|hypotheses|maybes)\b|\bhigh[- ]confidence\b[^.]{0,20}\bonly\b|\bonly\b[^.]{0,20}\bhigh[- ]confidence\b|\b(?:do\s*n[o']?t|never)\s+(?:report|raise|flag)\b[^.]{0,30}\bunless\b/i;
@@ -33,10 +28,6 @@ const short = (text: string, limit = 120): string => {
   const flat = text.replace(/\s+/g, " ").trim();
   return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
 };
-
-const UNFINISHED = new Set(["partial", "blocked"]);
-
-const MOST_NAMED = 5;
 
 const reworksOf = (task: Task): number => task.reworks ?? 0;
 const settled = (task: Task): boolean => SETTLED.includes(task.status);
@@ -93,26 +84,6 @@ function patchedNotFixed({ here, reading }: LaneRecord): Finding {
   ];
 }
 
-/** A hand-back that said partial or blocked, accepted all the same: nothing else records the Lead taking it in. */
-function acceptedUnfinished({ here, reading }: LaneRecord): Finding {
-  const said = reading.judged
-    .filter((item) => item.kind === "accepted-unfinished")
-    .flatMap((item) => [item.quote, item.later ?? ""]);
-  // Once judged, a task stays judged: naming it again with each new one reopened what the Supervisor had settled.
-  const judged = (task: Task) =>
-    said.some((quote) => quote.startsWith(`${task.id} (`) || quote.includes(`; ${task.id} (`));
-  const unfinished = here.filter(
-    (task) => task.status === "merged" && UNFINISHED.has(task.handback?.outcome ?? "") && !judged(task),
-  );
-  if (unfinished.length === 0) return undefined;
-  const named = unfinished.slice(0, MOST_NAMED);
-  const rest = unfinished.length - named.length;
-  return [
-    "accepted-unfinished",
-    `${named.map((task) => `${task.id} (${task.title}) was accepted after its Peer handed it back ${task.handback?.outcome}`).join("; ")}${rest > 0 ? `; and ${rest} more in this lane` : ""}`,
-  ];
-}
-
 /** Reviews of one task that keep coming round without it settling. */
 function reviewsUnconverged({ here, ledger, reading }: LaneRecord): Finding {
   const reviews = new Map<string, Task[]>();
@@ -162,11 +133,4 @@ function briefPrewritten({ here }: LaneRecord): Finding {
 }
 
 /** Each fact the record can show of a lane, in the order its Lead reads them. */
-const LANE_FACTS = [
-  reworkLoop,
-  patchedNotFixed,
-  acceptedUnfinished,
-  reviewsUnconverged,
-  certaintyOnly,
-  briefPrewritten,
-];
+const LANE_FACTS = [reworkLoop, patchedNotFixed, reviewsUnconverged, certaintyOnly, briefPrewritten];

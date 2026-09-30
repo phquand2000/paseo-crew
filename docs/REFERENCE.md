@@ -458,7 +458,6 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `reviews-unconverged` | `reviewsAt` reviews (3 by default) of one task not yet merged or cut, whatever their verdicts |
 | `certainty-only` | A review's focus asks only for what the Reviewer is sure of |
 | `brief-prewritten` | A code task not yet merged or cut has a brief with code in a fence, or numbered steps that name a file and a member or chain one change after another |
-| `accepted-unfinished` | A task merged whose Peer handed it back `partial` or `blocked` |
 | `ask-waiting` | Asks open `askWaitingMinutes` (15) on a seat that does not supervise, none carried by an ask or question still open; filed against that seat, naming every one |
 
 `claim-contradicted` and `edit-before-look` are read at the end of a completed turn only. A lane fact adds

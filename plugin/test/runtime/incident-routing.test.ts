@@ -230,28 +230,3 @@ test("nothing reaches a seat that names or quotes an open incident about it, whi
   assert.match((await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: `Stop: ${quote}.` })).text, refusal);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "done", "a refused rework sends the task nowhere");
 });
-
-test("an unfinished hand-back taken in is raised about its Lead, and once judged is not named again beside the next", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer({ attention: { watch: true } });
-  const lead = lane.lead!;
-  const acceptPartial = async (task: string, seat: string, text: string) => {
-    h.commit(lane.worktree!, "a.txt", text);
-    assert.equal((await h.call(seat, "peer", "done", { outcome: "partial", summary: "half" })).ok, true);
-    assert.equal((await h.call(lead, "lead", "accept", { task })).ok, true);
-    await h.runtime.desk.settled(h.project);
-    assert.equal(h.ledger().tasks[task]!.status, "merged");
-    await h.tick();
-  };
-  await acceptPartial("L1-T1", peer, "A\n");
-  assert.match(h.heard(sup).join("\n"), /INCIDENT I1 \(accepted-unfinished, attend\)[\s\S]*L1-T1 \(Clean build\)/);
-  assert.equal((await h.call(sup, "supervisor", "mark_incident", { id: "I1", verdict: "noise" })).ok, true);
-
-  await h.call(lead, "lead", "add_tasks", {
-    tasks: [{ key: "u", title: "Tidy", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] }],
-  });
-  await h.tick();
-  await acceptPartial("L1-T2", h.ledger().tasks["L1-T2"]!.peer!, "A2\n");
-  const second = book(h).I2;
-  assert.match(second?.quote ?? "", /^L1-T2 \(Tidy\)/, "the new one is raised");
-  assert.doesNotMatch(second!.quote, /L1-T1/, "what the Supervisor judged is not put to them again");
-});
