@@ -1494,7 +1494,7 @@
           },
           "checks": {
             "type": "string",
-            "description": "Commands run and their real results."
+            "description": "Commands run and their real results, with each new or changed test's run failing before the fix."
           },
           "leftUndone": {
             "type": "string",

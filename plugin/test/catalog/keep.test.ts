@@ -73,6 +73,13 @@ const KEEP: Keep[] = [
     anchor: "When a small contract change turns many tests red, suspect tests that minted the API.",
   },
   {
+    id: "keep-03d",
+    title: "a test never shown to fail is a finding (Reviewer)",
+    file: "content/prompts/REVIEWER.md",
+    check: "contains",
+    anchor: "Also report a new or changed test never shown to fail",
+  },
+  {
     id: "keep-04",
     title: "the shared test anti-pattern table, Minted API first",
     file: "content/skills/peer/test-first/references/test-antipatterns.md",
