@@ -320,7 +320,9 @@ test("two lanes landed at once each stay on the base: the second waits for the f
   h.git(h.root, "switch", "-qc", "human-work");
   writeFileSync(join(gate, "armed"), "");
   const first = h.call(sup, "supervisor", "land_lane", { lane: "L1" });
-  for (let i = 0; i < 500 && !existsSync(join(gate, "reached")); i++) await settle();
+  // The gate is a shell the desk runs, so only its own file says it got there: waited for by time, not by settles.
+  for (const end = Date.now() + 10_000; !existsSync(join(gate, "reached")) && Date.now() < end;)
+    await new Promise((resolve) => setTimeout(resolve, 20));
   assert.ok(existsSync(join(gate, "reached")), "the first landing is held in its gate");
   const looked = heldLook(h, sup);
   const second = h.call(sup, "supervisor", "land_lane", { lane: "L2" });
