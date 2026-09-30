@@ -449,7 +449,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
 | `claim-contradicted` | attend | A Peer hands back `complete`, with no gate result from the desk, though the gate it last ran, after its last edit, failed. Needs a gate |
 | `long-turn` | attend | A running turn shows nothing new, no call, output or message, for `longTurnMinutes`; names the call still open |
-| `outside-scope` | attend | A file was written outside the seat's copy, or outside what its task may write: a parallel task's `holds`, or the lane's write set |
+| `outside-scope` | attend | A file was written outside the seat's copy, `/tmp` and the machine's temp directory aside, or outside what its task may write: a parallel task's `holds`, or the lane's write set |
 | `plan-skipped` | attend | A Peer on a `planFirst` task changed a file in its copy, prose aside, before it asked on that task; once a turn at most |
 | `call-failed` / `gate-failed` | note | A call other than a desk call failed; a run of the gate failed. Evidence only, never an incident alone |
 | `gate-rerun` | note | The gate run `repeatsAt` times (3) since the seat's latest instruction. Evidence only, until marks show it is worth someone's attention |

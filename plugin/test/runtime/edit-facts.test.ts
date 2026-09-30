@@ -108,6 +108,8 @@ test("an edit is read for weakened tests, silenced checks and writes outside the
   const scoped = rules({ cwd: "/var/folders/xy/T/work", temp: "/var/folders/xy/T", scope: ["src/pricing"] });
   const writes = [
     edit("m", 2, { filePath: "/var/folders/xy/T/msg" }),
+    edit("t", 2, { filePath: "/private/tmp/cleanup-proof.sh" }),
+    edit("p", 2, { filePath: "/private/var/folders/xy/T/msg" }),
     edit("k", 3, { filePath: "/Users/me/.ssh/config" }),
     edit("o", 4, { filePath: "/var/folders/xy/T/work/src/pricing/rates.ts" }),
     edit("s", 5, { filePath: "/var/folders/xy/T/work/lib/x.ts" }),
@@ -118,7 +120,7 @@ test("an edit is read for weakened tests, silenced checks and writes outside the
       ["outside-scope", "/Users/me/.ssh/config"],
       ["outside-scope", "/var/folders/xy/T/work/lib/x.ts"],
     ],
-    "temp scratch and a directory of its scope are in; elsewhere, and a copy lying in temp outside its scope, are out",
+    "temp scratch, /tmp and the real path of temp included, and a directory of its scope are in; elsewhere, and a copy lying in temp outside its scope, are out",
   );
 
   // A Peer's first turn starts before start_task places it, so an empty first read must not be kept.

@@ -135,11 +135,26 @@ export function escapes(path: string, rules: Rules): boolean {
   return relative(rules.cwd, path).startsWith("..");
 }
 
+const TMP = /^\/tmp(?:\/|$)/;
+
+/** macOS reaches /tmp and /var through /private, so a seat may name one path either way. */
+const unprivate = (path: string): string => path.replace(/^\/private(?=\/(?:tmp|var)(?:\/|$))/, "");
+
+/** An absolute path in /tmp or the machine's temp directory, however it was reached. */
+export function temporary(path: string, rules: Pick<Rules, "temp">): boolean {
+  if (!isAbsolute(path)) return false;
+  const bare = unprivate(path);
+  if (TMP.test(bare)) return true;
+  if (!rules.temp) return false;
+  const rel = relative(unprivate(rules.temp), bare);
+  return !rel.startsWith("..") && !isAbsolute(rel);
+}
+
 function outside(path: string, rules: Rules): boolean {
   if (!path || /\s/.test(path) || !rules.cwd) return false;
   const rel = isAbsolute(path) ? relative(rules.cwd, path) : normalize(path);
   // The temp directory is scratch only outside the copy: a copy that lies in it is still read by its scope.
-  if (rel.startsWith("..")) return !(rules.temp && isAbsolute(path) && !relative(rules.temp, path).startsWith(".."));
+  if (rel.startsWith("..")) return !temporary(path, rules);
   return rules.scope !== undefined && rules.scope.length > 0 && !covers(rules.scope, rel);
 }
 

@@ -1,13 +1,13 @@
 import { isAbsolute, normalize, relative } from "node:path";
 import { oneLine, within } from "../../core/text.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
-import { type Rules } from "./facts.ts";
+import { type Rules, temporary } from "./facts.ts";
 import { shellWords } from "./shell-words.ts";
 import type { Call } from "./window.ts";
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
-const SCRATCH = /^(?:\$\{?TMPDIR(?:[%#:][^}]*)?\}?|\/tmp|\/private\/tmp)(?:\/|$)/;
+const SCRATCH = /^\$\{?TMPDIR(?:[%#:][^}]*)?\}?(?:\/|$)/;
 const MKTEMP = /^(?:\$\(\s*mktemp\b[^)]*\)|`\s*mktemp\b[^`]*`)$/;
 const VARIABLE = /\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))/g;
 const ASSIGN = /^([A-Za-z_]\w*)=(.*)$/s;
@@ -89,7 +89,7 @@ function scratchOnly(list: string[], known: Known, rules: Rules): boolean {
   const scratch = (target: string) =>
     target.startsWith("\0") ||
     SCRATCH.test(target) ||
-    Boolean(rules.temp && below(rules.temp, target, false)) ||
+    temporary(target, rules) ||
     (rules.outside ?? []).some((root) => below(root, target, true)) ||
     known.made.some((path) => target === path || target.startsWith(`${path.replace(/\/$/, "")}/`));
   return targets.length > 0 && targets.every(scratch);
