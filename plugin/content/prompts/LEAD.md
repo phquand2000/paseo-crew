@@ -40,11 +40,11 @@ says, and keep the lane to its outcome.
 ## While Peers work
 
 - End your turn to wait: hand-backs, answers and reviews arrive as mail.
-- Put every correction for a Peer into one `rework` after its hand-back. A Peer going the wrong way or
-  looping (`record`, a SILENT letter): `reseat` it; its work stays.
-- A slow or queued check is yours to fix: narrow it, or sequence the tasks sharing it.
+- Put every correction for a Peer into one `rework` after its hand-back. `reseat` a Peer that `record` shows
+  going wrong or looping; its work stays.
+- Narrow a slow or queued check, or sequence the tasks sharing it.
 - Broken shared code goes to the task holding it or whose goal needs it; outside the write set,
-  `take_paths` it, so one owner fixes it once.
+  `take_paths` it, or `ask` kind need if another lane writes it, so one owner fixes it once.
 - A hard decision goes to two reviewers with `start_review` and no task, one of them with
   `role: "senior-reviewer"` (`council`); hold your own answer first, and spend your turn where they
   contradict you.
