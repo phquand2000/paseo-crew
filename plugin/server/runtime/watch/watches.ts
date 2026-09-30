@@ -4,7 +4,8 @@ import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
-import { Recovery, type Rules, onSettle, stuck } from "./facts.ts";
+import { Recovery, type Rules, describe, onSettle, stuck } from "./facts.ts";
+import { oneLine } from "../../core/text.ts";
 import { contradicted, editBeforeLook } from "./turn-facts.ts";
 import type { Quirks } from "../../catalog/kit/timeline.ts";
 import { Window } from "./window.ts";
@@ -84,7 +85,9 @@ export class SeatWatch {
     const quiet = now - Math.max(this.startedAt, this.heardAt);
     if (quiet < minutes * 60_000) return [];
     const [still, took] = [quiet, now - this.startedAt].map((ms) => Math.round(ms / 60_000));
-    return this.fresh([fact("long-turn", `nothing new for ${still} minutes of a turn running ${took}`)]);
+    const call = this.window.running();
+    const on = call ? `, waiting on ${oneLine(describe(call), 80)}` : "";
+    return this.fresh([fact("long-turn", `nothing new for ${still} minutes of a turn running ${took}${on}`)]);
   }
 
   /** Quiet counts from `now`: a watch that joins a running turn has heard nothing of it before. */

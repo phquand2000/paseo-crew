@@ -87,6 +87,15 @@ export class Window {
     this.seq = 0;
   }
 
+  /** The newest call still open: what a quiet turn is waiting on. */
+  running(): Call | undefined {
+    for (let index = this.units.length - 1; index >= 0; index--) {
+      const unit = this.units[index]!;
+      if (unit.kind === "call" && !unit.call.ended && !unit.call.pseudo) return unit.call;
+    }
+    return undefined;
+  }
+
   sinceInstruction(): Unit[] {
     return this.units.slice(Math.max(0, this.instructionAt + 1 - (this.pushed - this.units.length)));
   }

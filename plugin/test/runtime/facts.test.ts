@@ -253,12 +253,26 @@ test("a seat's turn stays open through the late end of an older turn, and is lon
     { kind: "row", row: { item: said, seqStart: 1, seq: 1, epoch: "e", turnId: "b", replay: false } },
     t0 + 25 * 60_000,
   );
+  const check = {
+    type: "tool_call",
+    callId: "c",
+    name: "shell",
+    status: "running",
+    detail: { command: "npm run check" },
+  };
+  busy.see(
+    { kind: "row", row: { item: check, seqStart: 2, seq: 2, epoch: "e", turnId: "b", replay: false } },
+    t0 + 25 * 60_000,
+  );
   assert.deepEqual(
     busy.longTurn(t0 + 50 * 60_000, 30),
     [],
     "a turn that keeps moving is not long, however long it runs",
   );
-  assert.match(busy.longTurn(t0 + 56 * 60_000, 30)[0]!.quote, /^nothing new for 31 minutes of a turn running 56$/);
+  assert.match(
+    busy.longTurn(t0 + 56 * 60_000, 30)[0]!.quote,
+    /^nothing new for 31 minutes of a turn running 56, waiting on shell: npm run check$/,
+  );
 
   const joined = new SeatWatch(seat, context);
   joined.see({ kind: "turn", phase: "started", turnId: "j", at: t0 }, t0 + 40 * 60_000);

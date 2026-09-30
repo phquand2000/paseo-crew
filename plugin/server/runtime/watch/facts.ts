@@ -108,7 +108,7 @@ export function stuck(units: Unit[], rules: Pick<Rules, "repeatsAt">): string | 
   return undefined;
 }
 
-function describe(call: Call): string {
+export function describe(call: Call): string {
   const detail = call.detail;
   const what = str(detail.command) || str(detail.filePath) || str(detail.url) || str(detail.query);
   return [call.name || "tool", what].filter(Boolean).join(": ");
