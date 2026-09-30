@@ -14,6 +14,7 @@ import type {
   HostHooks,
   Judge,
   PermissionRequested,
+  PermissionResolved,
   SessionOpen,
   TurnEnded,
 } from "../core/ports.ts";
@@ -246,6 +247,10 @@ export class Runtime implements HostHooks {
 
   permissionRequested(event: PermissionRequested): Promise<void> {
     return this.turns.permission(event);
+  }
+
+  permissionResolved(event: PermissionResolved): Promise<void> {
+    return this.turns.permissionResolved(event);
   }
 
   private remember(project: Project): void {

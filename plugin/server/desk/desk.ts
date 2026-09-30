@@ -57,11 +57,13 @@ export class Desk {
   readonly projects: Map<string, Project>;
   readonly human: Human;
   private readonly services: DeskServices;
+  private readonly outbox: Mailer;
   private readonly intents: Intents;
   private readonly calls: ToolCalls;
   private readonly stop = new AbortController();
 
   constructor(options: DeskOptions) {
+    this.outbox = options.outbox;
     const projects = new Map<string, Project>();
     const touched = (project: Project) => {
       projects.set(project.slug, project);
@@ -132,6 +134,10 @@ export class Desk {
 
   post(to: string | undefined, letter: Letter): Promise<Posted | "nobody"> {
     return this.services.mail.post(to, letter);
+  }
+
+  withdraw(key: string): Promise<boolean> {
+    return this.outbox.withdraw(key);
   }
 
   supervisorFor(project: Project, preferred?: string): Promise<string | undefined> {

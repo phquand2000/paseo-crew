@@ -83,6 +83,24 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   assert.equal(h.agents.get(peer)!.answered.length, 1, "the command is left for the Human");
   assert.equal(h.runtime.outbox.pending(peer).length, 1, "and the message waits for it");
 
+  // The Human answers in the Peer's own chat: a letter still held is withdrawn, and one the Lead read is followed up.
+  const answer = async (request: Pending, behavior: "allow" | "deny") => {
+    h.agents.get(peer)!.pending.splice(0);
+    await h.resolved(peer, request.id, { behavior });
+    return h.runtime.outbox.pending(lead).map((letter) => letter.text);
+  };
+  await h.resolved(peer, question.id, { behavior: "deny" });
+  assert.doesNotMatch((await answer(command, "allow")).join("\n"), /PERMISSION/, "nor is a refusal the desk gave");
+  await h.idle(lead);
+  const later: Pending = { id: "permission-4", kind: "tool", name: "Bash", title: "make" };
+  h.agents.get(peer)!.pending.push(later);
+  await h.permission(peer, later);
+  assert.match(h.agents.get(lead)!.sent.at(-1)!, /WAITING FOR PERMISSION[^]*Bash: make/);
+  assert.deepEqual(await answer(later, "deny"), [
+    "PERMISSION ANSWERED: what L1-T1 · Peer · Clean build waited on was denied in Paseo.\n\nNext: Nothing: it no longer waits on anyone.",
+  ]);
+  h.agents.get(lead)!.status = "running";
+
   await fail(peer);
   assert.match(
     heard(h, lead),

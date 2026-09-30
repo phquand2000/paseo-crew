@@ -50,6 +50,7 @@ export class PaseoHost implements Host {
     this.on(server, "agent.turn_started", ({ agent }) => hooks.turnStarted(agent));
     this.on(server, "agent.turn_ended", (event) => hooks.turnEnded(event));
     this.on(server, "agent.permission_requested", (event) => hooks.permissionRequested(event));
+    this.on(server, "agent.permission_resolved", (event) => hooks.permissionResolved(event));
     this.on(server, "agent.created", ({ agent }) => hooks.created(agent));
     this.on(server, "agent.archived", ({ agent }) => hooks.archived(agent));
   }

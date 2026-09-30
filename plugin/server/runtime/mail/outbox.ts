@@ -103,6 +103,18 @@ export class Outbox {
     return this.letters().map((letter) => ({ ...letter, until: letter.at + KEEP_MS }));
   }
 
+  /** A letter not yet sent is dropped once what it asked is settled before its reader got it; false when none was held. */
+  withdraw(key: string): Promise<boolean> {
+    const to = this.letters().find((letter) => letter.key === key)?.to;
+    if (to === undefined) return Promise.resolve(false);
+    return this.perSeat.run(to, async () => {
+      const letters = this.letters();
+      const kept = letters.filter((letter) => letter.to !== to || letter.key !== key);
+      if (kept.length < letters.length) this.save(kept);
+      return kept.length < letters.length;
+    });
+  }
+
   pending(agentId: string): Letter[] {
     return this.letters().filter((letter) => letter.to === agentId);
   }

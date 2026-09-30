@@ -1,11 +1,12 @@
 import type { HarnessSpec, Kit, RoleSpec } from "../catalog/kit/kit.ts";
 import { can, seatOf, toolsOf, worksTasks } from "../catalog/kit/roles.ts";
-import type { HookAgent, PermissionRequested, Seats, TurnEnded } from "../core/ports.ts";
+import type { HookAgent, PermissionRequested, PermissionResolved, Seats, TurnEnded } from "../core/ports.ts";
 import type { Lane } from "../domain/lane.ts";
 import { DECIDED, TASK, type Task } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
 import { type Ledger, laneOfLead, leadLaneOf, openAskOf, taskOfPeer } from "../domain/ledger.ts";
 import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
+import { keyOf } from "../desk/letters/envelope.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
 import { watchLetters } from "../desk/letters/watch-letters.ts";
@@ -36,6 +37,7 @@ export class TurnRules {
   readonly lastEnding = new Map<string, string>();
   private readonly deps: TurnDeps;
   private readonly startedAt = new Map<string, number>();
+  private readonly mailed = new Set<string>();
 
   constructor(deps: TurnDeps) {
     this.deps = deps;
@@ -58,6 +60,7 @@ export class TurnRules {
   forget(agentId: string): void {
     this.startedAt.delete(agentId);
     this.lastEnding.delete(agentId);
+    for (const key of this.mailed) if (key.startsWith(`${agentId}\n`)) this.mailed.delete(key);
   }
 
   private async ownerOf(
@@ -112,6 +115,22 @@ export class TurnRules {
     await this.deps.desk.post(
       owner.to,
       seatLetters.permission(agent.id, agent.title ?? `${role.label} ${agent.id}`, request, owner.reader),
+    );
+    if (request.id) this.mailed.add(`${agent.id}\n${request.id}`);
+  }
+
+  /** Answered in Paseo, often in the seat's own chat: its letter still held is withdrawn, and one already read is followed up. */
+  async permissionResolved({ agent, requestId, resolution }: PermissionResolved): Promise<void> {
+    const role = seatOf(this.deps.kit, agent.provider)?.role;
+    if (!role?.tools) return;
+    // Only what the desk mailed is followed up: its own refusals, and the Supervisor's own requests, told nobody.
+    const told = this.mailed.delete(`${agent.id}\n${requestId}`);
+    if ((await this.deps.desk.withdraw(keyOf("permission", [agent.id, requestId]))) || !told) return;
+    const owner = await this.ownerOf(projectOf(agent.cwd), agent.id, role);
+    const who = agent.title ?? `${role.label} ${agent.id}`;
+    await this.deps.desk.post(
+      owner.to,
+      seatLetters.permissionAnswered(agent.id, who, requestId, resolution.behavior === "allow"),
     );
   }
 

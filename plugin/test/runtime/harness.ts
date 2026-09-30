@@ -16,6 +16,7 @@ import { registerRpc } from "../../server/runtime/panel/rpc.ts";
 import { Runtime } from "../../server/runtime/runtime.ts";
 import type { z } from "zod";
 import { tempDir } from "../tempdir.ts";
+import type { PermissionResponse } from "../../server/core/paseo.ts";
 import { type Pending, fakePaseo } from "./fake-paseo.ts";
 
 const made: Runtime[] = [];
@@ -173,6 +174,8 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     });
   };
   const permission = (id: string, request: Pending) => runtime.permissionRequested({ agent: agentOf(id), request });
+  const resolved = (id: string, requestId: string, resolution: PermissionResponse) =>
+    runtime.permissionResolved({ agent: agentOf(id), requestId, resolution });
   // A panel call as the panel makes it: through its contract, and its answer, as sent, read by the schema the panel checks it with.
   const rpc = async <C extends Contract>(contract: C, input: z.input<C["input"]>): Promise<z.output<C["output"]>> => {
     let answer: (input: unknown) => unknown = () => assert.fail(`nothing serves ${contract.name}`);
@@ -211,6 +214,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
     tick,
     beginTurn,
     permission,
+    resolved,
     rpc,
     timelineOf,
     restart,

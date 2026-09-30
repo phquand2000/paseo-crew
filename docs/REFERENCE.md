@@ -265,7 +265,7 @@ first prompt, not mail, and carry neither.
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |
-| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, PAGE, the bare nudge |
+| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, PERMISSION ANSWERED, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, PAGE, the bare nudge |
 | A moment to look | ARCHITECTURE, STRUGGLING, TURNING |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
 
@@ -290,7 +290,7 @@ first prompt, not mail, and carry neither.
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
 WAITING for a lane that opened by itself, TAKEN, OVERRULED, LANDED and SENT BACK. For a Lead: WAITING for a task that started by itself,
 LAND HELD, LANE CLOSED, SETTLING, a MERGE WAITS the desk clears by itself, and a MERGED with nothing to note while other
-tasks remain, and LANE BESIDE. For a Peer: CARRIED UP.
+tasks remain, and LANE BESIDE. For whoever reads it: PERMISSION ANSWERED. For a Peer: CARRIED UP.
 
 ## Mail
 
@@ -335,7 +335,8 @@ While a seat's lane is on hold, its requests are refused with the hold's reason.
 as AskUserQuestion or `request_user_input`) from a seat with desk tools is refused, with where to ask instead by the
 tools it holds: `ask_human`, or its reply at the end of its turn, for the Supervisor; `ask` for a Lead, Peer or
 Reviewer. On Claude, the Lead and the Pager are denied AskUserQuestion outright, so theirs never reaches the desk. Only the Human can answer any other
-permission.
+permission. Once it is answered in Paseo, a WAITING FOR PERMISSION still held for its reader is withdrawn, and one already
+read is followed by PERMISSION ANSWERED, which asks nothing.
 
 ## Gate detection
 
@@ -524,6 +525,7 @@ The watch also asks what a code fact cannot read, one condition at a time, at th
 | `agent.turn_started` | Notes when the turn started, for reading the turn when it ends, and runs a stalled Peer's task again |
 | `agent.turn_ended` | Archives a seat that waited for its turn to end, finishes teardowns that waited on it, sends CAN LAND to whoever waited to land under it, retries queued merges, reads the turn (a failure, a Peer or Reviewer silent without `done` or `ask`, a call its harness rejected as not JSON), and tries the seat's mail |
 | `agent.permission_requested` | Refuses it while the seat's lane is on hold, and refuses a question with where to ask; otherwise mails the request to the seat's owner, or logs it |
+| `agent.permission_resolved` | Withdraws the request's letter if it is still held, or tells the owner who read it that it was answered |
 | `agent.archived` | Forgets the seat's key and timing, marks it gone on record, stops its watch, and closes its open incidents |
 
 ## Harness fields

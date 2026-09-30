@@ -367,8 +367,9 @@ LAND and retries held merges; then `TurnRules` reads the turn in code, with no m
 
 - A failed turn goes to the seat's owner as FAILED: a Lead's to the Supervisor, a Peer's to its Lead, or to
   the Supervisor once that Lead is gone. A permission request goes the same way as WAITING FOR PERMISSION,
-  unless refused: any while the seat's lane is on hold, and a question that would stop the turn. The
-  Supervisor's own are only logged, and `status.md` lists them under "Waiting on the Human".
+  unless refused: any while the seat's lane is on hold, and a question that would stop the turn. Answered in
+  Paseo, its letter is withdrawn if still held, or followed by PERMISSION ANSWERED. The Supervisor's own are
+  only logged, and `status.md` lists them under "Waiting on the Human".
 - A Peer or Reviewer whose turn ends before its hand-back with no desk call carried out, none running and no
   ask of its own open (it was told to end its turn and wait), is nudged; on a second such turn, or one ending
   on a call refused or left unfinished, its task is `stalled`, with SILENT to its Lead and STRUGGLING to the

@@ -45,4 +45,5 @@ export type Posted = "sent" | "held" | "duplicate";
 
 export type Mailer = {
   post(letter: { to: string; key: string; text: string; wakes?: false }): Promise<Posted>;
+  withdraw(key: string): Promise<boolean>;
 };

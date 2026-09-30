@@ -158,6 +158,17 @@ export const seatLetters = {
     );
   },
 
+  permissionAnswered(agent: string, who: string, requestId: string, allowed: boolean): Letter {
+    return fyi(
+      mail(
+        "permissionanswered",
+        [agent, requestId],
+        `PERMISSION ANSWERED: what ${who} waited on was ${allowed ? "allowed" : "denied"} in Paseo.`,
+        "Nothing: it no longer waits on anyone.",
+      ),
+    );
+  },
+
   leadGone(lane: Lane): Letter {
     return mail(
       "leadgone",

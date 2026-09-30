@@ -53,6 +53,7 @@ type Kind =
   | "overruled"
   | "pending"
   | "permission"
+  | "permissionanswered"
   | "reconcile"
   | "report"
   | "resumed"
@@ -66,9 +67,11 @@ type Kind =
 /** A letter the desk mails a seat: its text, the key under which a second one to that seat is the same letter, and `wakes` false for word that asks nothing of its reader now, which rides along with the next letter that does. */
 export type Letter = { key: string; text: string; wakes?: false };
 
+export const keyOf = (kind: Kind, ids: (string | number)[]) => [kind, ...ids].join(":");
+
 /** Keyed by its kind and the ids that make it this letter, never by hand where it is posted; it ends with `next`, what it asks of whoever reads it. */
 export const mail = (kind: Kind, ids: (string | number)[], text: string, next: string): Letter => ({
-  key: [kind, ...ids].join(":"),
+  key: keyOf(kind, ids),
   text: `${text}\n\nNext: ${next}`,
 });
 

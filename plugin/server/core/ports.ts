@@ -93,6 +93,7 @@ export type TurnEnded = {
 };
 
 export type PermissionRequested = { agent: HookAgent; request: PendingPermission };
+export type PermissionResolved = { agent: HookAgent; requestId: string; resolution: PermissionResponse };
 
 /** Creating an agent, so far as a seat's launch sets it; Paseo's request holds more, and the rest passes through unchanged. */
 export type AgentConfig = {
@@ -123,6 +124,7 @@ export type HostHooks = {
   turnStarted(agent: HookAgent): Promise<void>;
   turnEnded(event: TurnEnded): Promise<void>;
   permissionRequested(event: PermissionRequested): Promise<void>;
+  permissionResolved(event: PermissionResolved): Promise<void>;
   created(agent: HookAgent): Promise<void>;
   archived(agent: HookAgent): Promise<void>;
 };
