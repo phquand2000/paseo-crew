@@ -66,7 +66,22 @@ test("what each review and ask went on to change is counted for whoever supervis
       "Accepted tasks: 1 (after one rework 1).",
     ].join("\n"),
   );
-  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
+  await h.call(lead, "lead", "add_tasks", {
+    tasks: [{ key: "u", title: "Label", goal: "g", ...scope, hints: ["b.txt"] }],
+  });
+  const second = h.ledger().tasks["L1-T2"]!.peer!;
+  h.commit(lane.worktree!, "b.txt", "label\n");
+  await h.call(second, "peer", "done", { outcome: "complete", summary: "label" });
+  await review("changes", "L1-T2");
+  assert.equal(
+    (await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "Labels move to another lane." })).ok,
+    true,
+  );
   await h.runtime.desk.settled(h.project);
   assert.equal(await shown(), undefined, "and lets it go once its lane closes");
+  assert.match(
+    (await h.call(sup, "supervisor", "outcomes", {})).text,
+    /- reviewer: 4 \(accept 2, changes 2\); then reworked 1, accepted 1, cut 1, on no task 1/,
+    "a task its lane's close cut counts as cut",
+  );
 });

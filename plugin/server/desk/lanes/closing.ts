@@ -99,6 +99,8 @@ async function retire(
   for (const task of left.tasks) {
     const branch = await agents.retire(project, task, args.land ? landedRef(lane.id) : lane.branch);
     if (branch) branches.push(branch);
+    if (left.cut.includes(task.id))
+      recordEvent(project, { kind: "task.cut", task: task.id, reason: `Lane ${lane.id} closed.`, kept: branch });
   }
   const { kept, writers } = await leadAndWriters(roster, lane, left.tasks);
   const stowed = await stowCopy(desk, project, lane, left.tasks, { land: args.land, kept, writers });
