@@ -92,7 +92,7 @@ test("a waiting lane opened by a round while a close opens another opens once, a
   assert.deepEqual([h.ledger().lanes.L3!.status, h.ledger().lanes.L3!.lead], ["open", receipt.lead]);
 });
 
-test("two calls reaching for the same paths at once do not both get them, whichever of them writes first", async () => {
+test("two calls reaching for the same paths at once: tasks do not both get them, and the lane written second hears of the first, whichever writes first", async () => {
   const { h, sup, lead } = await opened();
   const held = (paths: string[]) =>
     Object.values(h.ledger().tasks)
@@ -129,9 +129,10 @@ test("two calls reaching for the same paths at once do not both get them, whiche
   const looked = heldLook(h, sup);
   const cart = widen("L2", "e.txt");
   await looked.reached;
-  assert.equal((await widen("L3", "f.txt")).ok, true);
+  const order = await widen("L3", "f.txt");
   looked.release();
-  assert.match((await cart).text, /overlaps lane L3 at g\.txt/);
+  assert.doesNotMatch(order.text, /works beside/);
+  assert.match((await cart).text, /It now works beside lanes that may write what it does: L3 \(g\.txt\)/);
 });
 
 test("two seats' turns ending at once tell whoever tried to land once, and put a copy back once, one ending while the other is still being ended", async () => {

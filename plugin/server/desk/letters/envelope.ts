@@ -39,6 +39,7 @@ type Kind =
   | "land"
   | "landback"
   | "landheld"
+  | "lanebeside"
   | "later"
   | "leadgone"
   | "limited"

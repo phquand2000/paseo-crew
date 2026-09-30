@@ -5,17 +5,20 @@ import { headSha } from "../../core/git.ts";
 import type { SeatView } from "../../core/paseo.ts";
 import { outside } from "../../core/text.ts";
 import { workKey } from "../claims.ts";
-import { type Elsewhere, directiveFor, elsewhereText } from "../letters/directive.ts";
+import { besideNote, directiveFor } from "../letters/directive.ts";
+import { workLetters } from "../letters/work-letters.ts";
+import type { Beside } from "./placement.ts";
 import type { Issue } from "../../core/github.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { seatTitle } from "../seats/names.ts";
 import { type Project, loadConfig } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
+import { loadLedger } from "../store/ledger.ts";
 
 type Copy = { id?: string; path: string; workspaceId?: string };
 type Seating = { ownCopy: boolean; from?: string; role?: string; parent?: string; issue?: Issue };
-type Seated = { slot: Copy; lead: string; elsewhere: Elsewhere[] };
+type Seated = { slot: Copy; lead: string; beside: Beside[] };
 
 /** A seat Paseo holds as this lane's Lead, by the labels it was started with; a Peer's and a reviewer's also name a task. */
 export function leadSeatOf(seats: SeatView[], project: Project, lane: string): SeatView | undefined {
@@ -32,7 +35,7 @@ export function openedReply(
   slot: { id?: string },
   lead: string,
   issue: Issue | undefined,
-  elsewhere: Elsewhere[],
+  beside: Beside[],
 ): string {
   const config = loadConfig(project.state);
   // An empty gate is the owner's answer, not a missing one, so it is not an invitation to set one.
@@ -52,11 +55,7 @@ export function openedReply(
   const on = lane.onBranch
     ? `carries on ${lane.branch} ${where}${onBase}`
     : `is open on ${lane.branch} (off ${lane.base}) ${where}`;
-  const beside =
-    elsewhere.length > 0
-      ? ` It declared no write set, so it opened beside lanes that may be writing what only one lane at a time may write: ${elsewhereText(elsewhere)}. Its Lead is told to leave those to them; amend_lane can give it a write set.`
-      : "";
-  return `Lane ${lane.id} ${on}, and its Lead ${lead} is starting. Gate: ${gate}.${beside} Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
+  return `Lane ${lane.id} ${on}, and its Lead ${lead} is starting. Gate: ${gate}.${besideNote(beside, "opened")} Reports and asks arrive as mail; nothing to wait for now.${issueText}`;
 }
 
 /** Seats the Lead of a lane marked seating; a failure puts back what it took, moves the lane by `failed`, and is the reason. */
@@ -68,24 +67,35 @@ export async function startLead(
 ): Promise<Seated | string> {
   try {
     const started = await seatLead(desk, project, lane, how);
-    if (typeof started === "string") {
-      desk.ledgers.moveLane(project, lane.id, how.failed);
-      if (how.failed === "close") {
-        const landing = "its Lead could not start";
-        recordEvent(project, {
-          kind: "lane.closed",
-          lane: lane.id,
-          land: false,
-          landing,
-          reason: started,
-          writers: [],
-        });
-      }
+    if (typeof started !== "string") {
+      await tellBeside(desk, project, lane, started.beside);
+      return started;
     }
+    desk.ledgers.moveLane(project, lane.id, how.failed);
+    if (how.failed === "close")
+      recordEvent(project, {
+        kind: "lane.closed",
+        lane: lane.id,
+        land: false,
+        landing: "its Lead could not start",
+        reason: started,
+        writers: [],
+      });
     return started;
   } finally {
     desk.seating.release(workKey(project, lane.id));
   }
+}
+
+/** The Leads of the lanes `lane` works beside hear what both may write, as word that wakes nobody. */
+export async function tellBeside(
+  { mail }: Pick<DeskServices, "mail">,
+  project: Project,
+  lane: Lane,
+  beside: Beside[],
+): Promise<void> {
+  const lanes = loadLedger(project.state).lanes;
+  for (const entry of beside) await mail.post(lanes[entry.lane]?.lead, workLetters.laneBeside(lane, entry.paths));
 }
 
 /** Drops the copy a lane took for a Lead that never started: it has been given back, and the lane waits or closes without it. */
@@ -169,5 +179,5 @@ async function launchLead(
   });
   const slot = copy.id ?? "in place";
   recordEvent(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot });
-  return { slot: copy, lead, elsewhere: directed.elsewhere };
+  return { slot: copy, lead, beside: directed.beside };
 }

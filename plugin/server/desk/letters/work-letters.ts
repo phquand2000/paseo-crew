@@ -1,4 +1,4 @@
-import { clip, hash } from "../../core/text.ts";
+import { capped, clip, hash } from "../../core/text.ts";
 import type { Amendment } from "../../domain/amendment.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
@@ -93,11 +93,11 @@ export const workLetters = {
     return mail("amended", [entry.id, entry.amended?.length ?? 0], text, next);
   },
 
-  /** The paths a Lead took into its lane, told to whoever supervises without waking them: no other lane held them. */
-  taken(lane: Lane, amendment: Amendment): Letter {
+  /** The paths a Lead took into its lane, and the lanes beside that may write the same, told to whoever supervises without waking them. */
+  taken(lane: Lane, amendment: Amendment, beside: string): Letter {
     const was = new Set(amendment.was.writeSet as string[]);
     const added = lane.writeSet.filter((path) => !was.has(path));
-    const text = `TAKEN by the Lead of ${lane.id} (${lane.title}) into its write set, which no other lane held: ${added.join(", ")}. Why: ${amendment.why}`;
+    const text = `TAKEN by the Lead of ${lane.id} (${lane.title}) into its write set: ${added.join(", ")}. Why: ${amendment.why}${beside}`;
     return fyi(
       mail("taken", [lane.id, lane.amended?.length ?? 0], text, "Nothing, unless the lane's intent rules it out."),
     );
@@ -151,6 +151,18 @@ export const workLetters = {
       [started.id],
       `BESIDE ${started.id} (${started.title}) now runs beside you in a copy of its own and holds ${started.holds.join(", ")}.`,
       "Leave that to it, and ask your Lead if your goal needs it.",
+    );
+  },
+
+  /** A lane that works beside this Lead's and may write what its own does: word only, since what both write meets at merge or landing. */
+  laneBeside(other: Lane, paths: string[]): Letter {
+    return fyi(
+      mail(
+        "lanebeside",
+        [other.id, hash(paths.join("\n"))],
+        `LANE BESIDE ${other.id} (${other.title}) works beside your lane and may write what yours does: ${capped(paths, 8)}.`,
+        "Nothing now: what both lanes write meets when the second merges or lands, and settling it in your lane is yours.",
+      ),
     );
   },
 

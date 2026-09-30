@@ -9,7 +9,7 @@ import { workLetters } from "../letters/work-letters.ts";
 import { seatLetters } from "../letters/seat-letters.ts";
 import { forgetPlace, leadSeatOf, openedReply, startLead } from "../lanes/lead-seat.ts";
 import { placement } from "../lanes/placement.ts";
-import { type Project, serialIn } from "../project/project.ts";
+import type { Project } from "../project/project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -37,15 +37,14 @@ export async function openWaiting(desk: DeskServices, project: Project, retryHel
 
 /** Placed and claimed in one transaction, so a round can ask every time and nothing opens it twice or beside another in one copy. */
 async function tryOpen(desk: DeskServices, project: Project, lane: Lane): Promise<Holding | undefined> {
-  const { kit, ledgers, seating, mail, roster } = desk;
+  const { ledgers, seating, mail, roster } = desk;
   const moved = await branchMoved(project, lane);
-  const serial = moved ? [] : await serialIn(kit, project, project.root);
   const placed =
     moved ??
     ledgers.transact(project, (ledger): { claimed: Lane; ownCopy: boolean } | Refusal | undefined => {
       const entry = ledger.lanes[lane.id];
       if (!entry || entry.onHold || !LANE.may(entry.status, "open")) return undefined;
-      const where = placement(ledger, entry, entry.opening?.isolate === true, serial, entry.id);
+      const where = placement(ledger, entry, entry.opening?.isolate === true, entry.id);
       if ("why" in where) return where;
       LANE.move(entry, "open");
       seating.take(workKey(project, lane.id));
@@ -68,7 +67,7 @@ async function tryOpen(desk: DeskServices, project: Project, lane: Lane): Promis
   ledgers.setLane(project, lane.id, (entry) => {
     delete entry.held;
   });
-  const reply = openedReply(project, claimed, started.slot, started.lead, issue, started.elsewhere);
+  const reply = openedReply(project, claimed, started.slot, started.lead, issue, started.beside);
   await mail.post(supervisor, workLetters.opened(claimed, reply));
   return undefined;
 }

@@ -32,7 +32,7 @@ export function reachNotes(ledger: Ledger, task: Task, lane: Lane, files: string
   return notes;
 }
 
-/** Files outside the lane's write set, split by the open lane that writes or depends on them: take_paths can claim the rest. */
+/** Files outside the lane's write set, split by the open lane that writes or depends on them. */
 function beyondNotes(ledger: Ledger, lane: Lane, beyond: string[]): string[] {
   const notes: string[] = [];
   let free = beyond;

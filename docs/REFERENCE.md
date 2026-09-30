@@ -39,11 +39,11 @@ on its role's name.
 |---|---|
 | `set_project` | Sets the project's base branch, its gate and how it runs, its one-writer paths, how lanes land, and the Human's standing orders: [the fields](#set_project-fields). Refused while `project.json` cannot be read, which only the Human can repair |
 | `open_lane` | Records a lane, takes it a working copy and seats a Lead, whose directive is the lane's fields and names `CONTEXT.md` once the Supervisor has written one. It can read a GitHub issue into the directive; one it cannot read never refuses the lane. See [where a lane works](#where-a-lane-works) |
-| `amend_lane` | Changes what an open or waiting lane is asked, keeping what it was asked before, and why. Its Lead gets AMENDED, and the lane counts as not reported ready. For an open lane, a write set or `contracts` that would meet another open lane's, or reach a one-writer path it may write, is refused. A waiting lane's `after` changes too: each id must still be one it could wait for, and one that would lead back to itself is refused; it is weighed again at once |
+| `amend_lane` | Changes what an open or waiting lane is asked, keeping what it was asked before, and why. Its Lead gets AMENDED, and the lane counts as not reported ready. For an open lane, a write set or `contracts` that meet another open lane's, or reach a one-writer path it may write, are kept, and the reply names that lane; both Leads get LANE BESIDE. A waiting lane's `after` changes too: each id must still be one it could wait for, and one that would lead back to itself is refused; it is weighed again at once |
 | `replace_lead` | Seats another Lead on an open lane whose Lead is gone, where the lane stands, and moves to it the asks that waited on the gone one. A Lead Paseo already started for the lane is taken on instead |
 | `add_tasks` | Records tasks in the caller's lane in one call, and starts what can start. Each task gets a Peer and a branch of its own, and the lane counts as not reported ready. See [laying out tasks](#laying-out-tasks) |
 | `amend_task` | Changes what a task asks until it is accepted or cut (goal, acceptance, out of scope, context, hints), keeping what it asked before, and why; the Peer reads it at its next turn. A parallel task's `holds` change too, never to none, checked as a start checks them. A changed goal sends TURNING, and widened `holds` ARCHITECTURE, to whoever supervises. A waiting task's `after` changes too, checked as `add_tasks` checks it and against a loop back to itself, and is weighed again at once |
-| `take_paths` | Adds paths to the caller's open lane's write set, keeping what it was before, and why; the lane counts as not reported ready. Refused, as `amend_lane` refuses, when another open lane writes or depends on one, or when it reaches a one-writer path another lane may write; refused too for a lane that declared no write set. Whoever supervises gets TAKEN, which waits for their next letter. The reply says when the lane now meets the Human's ask-first paths |
+| `take_paths` | Adds paths to the caller's open lane's write set, keeping what it was before, and why; the lane counts as not reported ready. An open lane that writes or depends on one, or may write a one-writer path it reaches, is named in the reply and in TAKEN, and its Lead gets LANE BESIDE; refused for a lane that declared no write set. Whoever supervises gets TAKEN, which waits for their next letter. The reply says when the lane now meets the Human's ask-first paths |
 | `done` | A Peer hands its task back: an outcome (`complete`, `partial` or `blocked`), a summary and its checks. A Reviewer hands back its verdict. Refused once the task is in the merge queue, merged or cut. See [a hand-back](#a-hand-back) |
 | `accept` | Queues a handed-back task for merging, the only way the lane branch takes work: see [a merge](#a-merge). Its Peer stays until the Lead releases it or the lane closes, and never takes another task. Refused while the lane is on hold, for a review or a task not handed back, while the task's copy is off its branch or has work uncommitted, and over a red gate on the same commit without `overGate` and a `reason` |
 | `rework` | Sends a task back to its Peer with REWORK, a merged one too while that Peer is kept: it goes back onto its branch with the lane brought in, and the lane counts as not reported ready. Refused for a Peer that is gone, a parallel task whose copy is being put away, and a task in the lane's copy while another holds it (or, merged, while it has work uncommitted). A second rework sends STRUGGLING to whoever supervises |
@@ -130,11 +130,11 @@ it. A lane that waits with `after` is not asked: when it opens into a free check
 there stops it, and it waits again until a lane closes. One whose `after` has all landed opens at once, and is asked
 like any other.
 
-`open_lane` is refused when its write set meets an open lane's write set or `contracts`, or its `contracts` meet an open
-lane's write set. It is refused when its write set reaches a one-writer path an open lane may write; an open lane with
-no write set counts as reaching them all. It is refused while another lane works in the checkout, unless it passes
-`isolate`, is a detour or waits with `after`; with `onBranch`, until that lane closes. A lane that declares no write set
-opens anyway, and it and its Supervisor are told which one-writer paths open lanes may be writing.
+`open_lane` is never refused over what lanes write. When its write set meets an open lane's write set or `contracts`,
+its `contracts` meet an open lane's write set, or both may write a one-writer path (a lane with no write set counts as
+reaching them all), it opens beside that lane: the reply and its directive name it, and that lane's Lead gets LANE
+BESIDE. What both write meets when the second merges or lands. It is refused while another lane works in the checkout,
+unless it passes `isolate`, is a detour or waits with `after`; with `onBranch`, until that lane closes.
 
 ### Laying out tasks
 
@@ -257,7 +257,7 @@ first prompt, not mail, and carry neither.
 | Kind | Letters |
 |---|---|
 | A seat's first prompt | OWNER DIRECTIVE, TASK, REVIEW |
-| Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE |
+| Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE, LANE BESIDE |
 | Between seats | MESSAGE, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, DECISION PENDING |
 | Work coming back | HANDBACK, REWORK, AMENDED, TAKEN, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
@@ -272,6 +272,7 @@ first prompt, not mail, and carry neither.
 | Letter | Tells its reader |
 |---|---|
 | BESIDE | The Peer at work in the lane's copy: a task started beside it after its brief was written, and what it holds. A Peer that has handed back reads it with its next letter |
+| LANE BESIDE | A Lead: another open lane may write what its own does, and which paths; what both write meets when the second merges or lands |
 | SETTLING | A Lead, in passing: bringing its lane into a task's branch at hand-back stopped on conflicts, which that task's Peer settles before it hands back |
 | RECONCILE | A Lead: what the Supervisor sent its Peer |
 | ANSWERED FOR YOU | A seat: someone else answered an ask put to it, or, to a Lead, the Supervisor answered its Peer's ask past it |
@@ -289,7 +290,7 @@ first prompt, not mail, and carry neither.
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
 WAITING for a lane that opened by itself, TAKEN, OVERRULED, LANDED and SENT BACK. For a Lead: WAITING for a task that started by itself,
 LAND HELD, LANE CLOSED, SETTLING, a MERGE WAITS the desk clears by itself, and a MERGED with nothing to note while other
-tasks remain. For a Peer: CARRIED UP.
+tasks remain, and LANE BESIDE. For a Peer: CARRIED UP.
 
 ## Mail
 

@@ -147,8 +147,6 @@ test("a lane takes the project's own copy while it is free; one that finds it ta
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), first.branch);
   assert.notEqual(h.workspaces.get(second.workspaceId!), h.root);
   assert.equal(h.workspaceProjects.get(second.workspaceId!), h.workspaceProjects.get(first.workspaceId!));
-  assert.match((await open("Sessions", { writeSet: ["src/auth/session.ts"], isolate: true })).text, /overlaps lane L2/);
-  assert.equal(Object.keys(h.ledger().lanes).length, 2);
 
   assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "wrong outcome" })).ok, true);
   assert.deepEqual(h.ledger().lanes.L1!.restoring!.writers, [first.lead!]);

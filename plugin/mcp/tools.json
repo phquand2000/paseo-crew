@@ -3,7 +3,7 @@
     {
       "name": "open_lane",
       "title": "Open a lane",
-      "description": "Open a lane: one outcome, run by a new Lead whose directive is these fields. It works in the project's own copy, its own copy (isolate, or unplaced while that copy is dirty or off base), or waits (after); the reply says which. Refused, with the choices, when its home cannot hold or its writeSet meets an open lane's.",
+      "description": "Open a lane: one outcome, run by a new Lead whose directive is these fields. It works in the project's own copy, its own copy (isolate, or unplaced while that copy is dirty or off base), or waits (after); the reply says which, and names lanes that may write the same. Refused, with the choices, when its home cannot hold.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -69,7 +69,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Directories or modules this lane writes, as coarse as its outcome; `src/**` leaves no lane room beside it. Left out, it holds every one-writer path."
+            "description": "Directories or modules this lane writes, coarse as its outcome; left out, any one-writer path. Never refused: lanes writing the same are noted."
           },
           "contracts": {
             "type": "array",
@@ -1111,7 +1111,7 @@
     {
       "name": "take_paths",
       "title": "Take paths into the lane",
-      "description": "Add paths the outcome needs to your lane's write set, never what its out of scope rules out. Refused, naming the lane, when another open lane writes or depends on one, or may write a one-writer path: then ask with kind need. Your owner is told; a READY you reported no longer stands.",
+      "description": "Add paths the outcome needs to your lane's write set, never what its out of scope rules out. Never refused over another lane: an open lane that may write the same is named, and its Lead told. Your owner is told; a READY you reported no longer stands.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

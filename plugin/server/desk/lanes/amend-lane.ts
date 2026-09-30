@@ -7,10 +7,12 @@ import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { serialIn } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
+import { besideNote } from "../letters/directive.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { openWaiting } from "../waiting/lanes.ts";
 import { afterIds, laneAfterProblem } from "../waiting/rules.ts";
-import { scopeProblem } from "./placement.ts";
+import { tellBeside } from "./lead-seat.ts";
+import { type Beside, lanesBeside } from "./placement.ts";
 
 type Changes = Record<string, string | string[]>;
 
@@ -41,39 +43,39 @@ export async function amendLane(desk: DeskServices, caller: Caller, args: Args):
     return ok(`Lane ${lane.id} is amended; it opens as it is now.`);
   }
   const posted = await desk.mail.post(done.lane.lead, workLetters.amended(done.lane, done.amendment, "lead"));
+  await tellBeside(desk, project, done.lane, done.beside);
+  // Its own Lead hears of each lane beside it as that lane's Lead hears of it.
+  const lanes = loadLedger(project.state).lanes;
+  for (const { lane: id, paths } of done.beside) {
+    const other = lanes[id];
+    if (other) await desk.mail.post(done.lane.lead, workLetters.laneBeside(other, paths));
+  }
   return ok(
-    `Lane ${lane.id} is amended${posted === "nobody" ? ", and it has no Lead to tell" : " and its Lead has the change"}; a READY it reported before no longer stands.`,
+    `Lane ${lane.id} is amended${posted === "nobody" ? ", and it has no Lead to tell" : " and its Lead has the change"}; a READY it reported before no longer stands.${besideNote(done.beside, "now works")}`,
   );
 }
 
-/** Checked where it is written: a lane opened meanwhile may already hold the paths this one would take. */
+/** Read where it is written: a lane opened meanwhile may write what this one now does. */
 function record(
   { ledgers }: Pick<DeskServices, "ledgers">,
   { project, id }: Caller,
   laneId: string,
   changes: Changes,
   { serial, why }: { serial: string[]; why: string },
-): { lane: Lane; amendment: Amendment } | string {
+): { lane: Lane; amendment: Amendment; beside: Beside[] } | string {
   return ledgers.transact(project, (current) => {
     const entry = current.lanes[laneId];
     if (!entry || entry.status === "closed") return `Lane ${laneId} is closed; ask for the work again with open_lane.`;
     const reordered = changes.after ? laneAfterProblem(current, entry, changes.after as string[]) : undefined;
     if (reordered) return reordered;
-    if (entry.status === "open" && (changes.writeSet || changes.contracts)) {
-      const others = Object.values(current.lanes).filter((other) => other.status === "open" && other.id !== laneId);
-      const problem = scopeProblem(
-        serial,
-        others,
-        (changes.writeSet ?? entry.writeSet) as string[],
-        (changes.contracts ?? entry.contracts) as string[],
-      );
-      if (problem)
-        return `${problem.why} Leave those paths out of this lane, or ask for that work in a lane that waits for the other.`;
-    }
     const amendment = amend(entry, changes, id, why);
     if (!amendment) return `Nothing about lane ${laneId} would change; pass the fields it is asked differently now.`;
     loseReady(entry);
     if (amendment.was.after) delete entry.held;
-    return { lane: { ...entry }, amendment };
+    const others = Object.values(current.lanes).filter((other) => other.status === "open" && other.id !== laneId);
+    const scoped = Boolean(changes.writeSet || changes.contracts);
+    const beside =
+      entry.status === "open" && scoped ? lanesBeside(serial, others, entry.writeSet, entry.contracts) : [];
+    return { lane: { ...entry }, amendment, beside };
   });
 }

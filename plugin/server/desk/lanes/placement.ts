@@ -1,51 +1,39 @@
-import { capped } from "../../core/text.ts";
 import { firstOverlap, serialReach } from "../../core/scope.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, ownCopyHolder } from "../../domain/ledger.ts";
 import type { Refusal } from "../refusal.ts";
 
-/** Why a lane with this write set may not open beside the open lanes: a path only one lane at a time may write, or an overlap. */
-export function scopeProblem(
-  serial: string[],
-  open: Lane[],
-  writeSet: string[],
-  contracts: string[],
-): Refusal | undefined {
-  if (open.length === 0) return undefined;
-  const mine = serialReach(writeSet, serial);
-  for (const other of open) {
-    // No write set could mean any of them, and a copy of its own does not help: a merge cannot reconcile these.
-    const theirs = new Set(other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial));
-    const both = mine.filter((path) => theirs.has(path));
-    // Capped at four: resolved against real files, a Unity or Unreal tree can match tens of thousands.
-    if (both.length > 0)
-      return {
-        why: `Lane ${other.id} may already be writing ${capped(both, 4)}, and only one lane at a time may write those.`,
-        next: `Open this lane after ${other.id} lands, or keep those paths out of it.`,
-      };
-  }
-  // Nothing is said when either declared nothing: that is the Supervisor's call, not a hole to refuse over.
-  for (const other of open) {
-    if (writeSet.length === 0 || other.writeSet.length === 0) continue;
-    const clash =
-      firstOverlap(writeSet, [...other.writeSet, ...other.contracts]) ?? firstOverlap(contracts, other.writeSet);
-    if (clash)
-      return {
-        why: `This lane overlaps lane ${other.id} at ${clash}.`,
-        next: `Fold it in or open it after ${other.id} lands.`,
-      };
-  }
-  return undefined;
+/** An open lane a lane works beside, and what both may write: one-writer paths both reach, or where their scopes meet. */
+export type Beside = { lane: string; paths: string[] };
+
+type Scoped = Pick<Lane, "id" | "writeSet" | "contracts">;
+
+/**
+ * The open lanes a lane with this scope works beside, and what each may write that it does too. Never a refusal: every lane has
+ * a copy and a branch of its own, so what two lanes both write meets when the second merges or lands, where its Lead settles
+ * it. A lane that declares no write set may write any one-writer path, on either side.
+ */
+export function lanesBeside(serial: string[], open: Scoped[], writeSet: string[], contracts: string[]): Beside[] {
+  const reach = (paths: string[]) => (paths.length === 0 ? serial : serialReach(paths, serial));
+  const mine = reach(writeSet);
+  return open.flatMap((other) => {
+    const theirs = new Set(reach(other.writeSet));
+    const met =
+      writeSet.length > 0 && other.writeSet.length > 0
+        ? (firstOverlap(writeSet, [...other.writeSet, ...other.contracts]) ?? firstOverlap(contracts, other.writeSet))
+        : undefined;
+    const paths = [...new Set([...mine.filter((path) => theirs.has(path)), ...(met ? [met] : [])])];
+    return paths.length > 0 ? [{ lane: other.id, paths }] : [];
+  });
 }
 
-type Placing = Pick<Lane, "onBranch" | "writeSet" | "contracts" | "detourOf">;
+type Placing = Pick<Lane, "onBranch" | "detourOf">;
 
 /** Where a lane opens given the ledger as it stands, or why it cannot: decided in the transaction that records or opens it. */
 export function placement(
   ledger: Ledger,
   lane: Placing,
   isolate: boolean,
-  serial: string[],
   self?: string,
 ): { ownCopy: boolean } | Refusal {
   const lanes = Object.values(ledger.lanes).filter((entry) => entry.id !== self);
@@ -59,8 +47,6 @@ export function placement(
   // A detour must name a real open lane, or the letter back out of it has nowhere to go.
   if (lane.detourOf && !open.some((entry) => entry.id === lane.detourOf))
     return { why: `There is no open lane ${lane.detourOf} for this one to clear the way for.`, next: "" };
-  const problem = scopeProblem(serial, open, lane.writeSet, lane.contracts);
-  if (problem) return problem;
   // One checkout is one branch, so whether to wait for it or take a copy is the Supervisor's call; a detour cannot wait.
   if (holder && !isolate && !lane.onBranch && !lane.detourOf) return ownCopyTaken(holder);
   return { ownCopy: !lane.onBranch && (isolate || holder !== undefined) };

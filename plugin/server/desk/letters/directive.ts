@@ -1,32 +1,22 @@
-import { serialReach } from "../../core/scope.ts";
 import { type Issue, fetchIssue } from "../../core/github.ts";
 import type { Lane } from "../../domain/lane.ts";
-import type { Ledger } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { capped, outside } from "../../core/text.ts";
 import { list } from "./envelope.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { type Project, conceptFile, loadConfig, serialIn } from "../project/project.ts";
+import { type Beside, lanesBeside } from "../lanes/placement.ts";
 
 const SHOWN_SERIAL = 8;
 
-/** One-writer paths another open lane may be writing, by lane. */
-export type Elsewhere = { lane: string; paths: string[] };
+export const besideText = (beside: Beside[]): string =>
+  beside.map((entry) => `${entry.lane} (${capped(entry.paths, SHOWN_SERIAL)})`).join(", ");
 
-/** What a lane that declared no write set opens beside: the desk lets it open, and it is told instead, as its Supervisor is. */
-function writtenElsewhere(ledger: Ledger, lane: Lane, serial: string[]): Elsewhere[] {
-  if (lane.writeSet.length > 0) return [];
-  return Object.values(ledger.lanes)
-    .filter((other) => other.id !== lane.id && other.status === "open")
-    .map((other) => ({
-      lane: other.id,
-      paths: other.writeSet.length === 0 ? serial : serialReach(other.writeSet, serial),
-    }))
-    .filter((entry) => entry.paths.length > 0);
-}
-
-export const elsewhereText = (elsewhere: Elsewhere[]): string =>
-  elsewhere.map((entry) => `${entry.lane} (${capped(entry.paths, SHOWN_SERIAL)})`).join(", ");
+/** What the Supervisor hears of the open lanes a lane `how` beside and may write what it does; nothing when there are none. */
+export const besideNote = (beside: Beside[], how: "opened" | "now works"): string =>
+  beside.length > 0
+    ? ` It ${how} beside lanes that may write what it does: ${besideText(beside)}. Their Leads and its own are told; what two lanes both write meets when the second merges or lands, where its Lead settles it, and between lanes it is yours.`
+    : "";
 
 /** `copy` is the lane's working copy, whose files decide which paths only one writer at a time may write. */
 export async function directiveFor(
@@ -35,12 +25,15 @@ export async function directiveFor(
   lane: Lane,
   copy: string,
   issue?: Issue,
-): Promise<{ text: string; elsewhere: Elsewhere[] }> {
+): Promise<{ text: string; beside: Beside[] }> {
   const serial = await serialIn(kit, project, copy);
-  const elsewhere = writtenElsewhere(loadLedger(project.state), lane, serial);
+  const open = Object.values(loadLedger(project.state).lanes).filter(
+    (other) => other.id !== lane.id && other.status === "open",
+  );
+  const beside = lanesBeside(serial, open, lane.writeSet, lane.contracts);
   return {
-    text: directive(lane, { gate: gateRegime(project), serial, elsewhere, concept: conceptFile(project.state), issue }),
-    elsewhere,
+    text: directive(lane, { gate: gateRegime(project), serial, beside, concept: conceptFile(project.state), issue }),
+    beside,
   };
 }
 
@@ -74,10 +67,10 @@ export function directive(
   {
     gate,
     serial,
-    elsewhere = [],
+    beside = [],
     concept,
     issue,
-  }: { gate: string; serial: string[]; elsewhere?: Elsewhere[]; concept?: string; issue?: Issue },
+  }: { gate: string; serial: string[]; beside?: Beside[]; concept?: string; issue?: Issue },
 ): string {
   return [
     `OWNER DIRECTIVE ${lane.id}: ${lane.title}`,
@@ -93,7 +86,7 @@ export function directive(
     "Out of scope:",
     list(lane.outOfScope),
     "",
-    ...writes(lane, serial, elsewhere),
+    ...writes(lane, serial, beside),
     "",
     branchLine(lane),
     `Gate: ${gate}`,
@@ -101,22 +94,23 @@ export function directive(
   ].join("\n");
 }
 
-/** What the lane writes, what it uses and does not write, and what only one writer at a time may write. */
-function writes(lane: Lane, serial: string[], elsewhere: Elsewhere[]): string[] {
-  const open =
-    elsewhere.length > 0
-      ? ` Lanes already open may be writing what only one lane at a time may write: ${elsewhereText(elsewhere)}. Leave those to them until they land, or ask with kind need.`
-      : "";
+/** What the lane writes, what it uses and does not write, what only one writer at a time may write, and who else may write it. */
+function writes(lane: Lane, serial: string[], beside: Beside[]): string[] {
   return [
     lane.writeSet.length > 0
-      ? `Writes: ${lane.writeSet.join(", ")}. A change outside these is flagged at hand-back and at landing; if the work needs more, take_paths what no other lane holds, and ask with kind need for what one does.`
-      : `Writes: not declared, so lanes opened after this one are kept off every path this project keeps to one writer.${open}`,
+      ? `Writes: ${lane.writeSet.join(", ")}. A change outside these is noted at hand-back and at landing; if the work needs more, take_paths it.`
+      : "Writes: not declared.",
     ...(lane.contracts.length > 0
       ? [`Depends on: ${lane.contracts.join(", ")}, which this lane uses and does not write.`]
       : []),
     ...(serial.length > 0
       ? [
           `One writer at a time: ${capped(serial, SHOWN_SERIAL)}. A task that writes any of these works in the lane's working copy, not in parallel.`,
+        ]
+      : []),
+    ...(beside.length > 0
+      ? [
+          `Open beside it and may write the same: ${besideText(beside)}. What both write meets when the second of you merges or lands; settling it in this lane is yours.`,
         ]
       : []),
   ];

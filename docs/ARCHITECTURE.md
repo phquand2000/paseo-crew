@@ -230,8 +230,9 @@ take the project's own checkout.
 - **Waiting**, with `after` naming lanes not yet landed: it opens by itself, placed again, once they all land;
   never, if one closed without landing.
 
-It is also refused where its write set or `contracts` overlap an open lane's, or its write set reaches a
-one-writer path (`serialOnly`) an open lane may write ([`open_lane`](REFERENCE.md#desk-verbs) has each case).
+Where its write set or `contracts` overlap an open lane's, or both may write a one-writer path (`serialOnly`), it
+opens beside that lane and both Leads are told; what both write meets when the second merges or lands
+([`open_lane`](REFERENCE.md#desk-verbs) has each case).
 Each copy the desk takes is opened in the project's code indexes, and a slot closed there as it goes.
 
 **Landing.** `land_lane` waits for the project's queued merges and takes its one landing turn, so each landing
