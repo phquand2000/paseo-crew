@@ -25,12 +25,6 @@ test("a Lead takes paths into its write set on its own, told of a lane beside th
   });
   const lead = h.ledger().lanes.L1!.lead!;
 
-  const outside = await h.call(lead, "lead", "add_tasks", { tasks: [docs] });
-  assert.match(
-    outside.text,
-    /DOCS holds docs\/cart\.md, outside the lane's write set src\/\*\*: leave it out, or take_paths it first\./,
-  );
-
   const taken = await h.call(lead, "lead", "take_paths", { paths: ["docs/**"], why: "the cart ships with its page" });
   assert.equal(taken.ok, true, taken.text);
   assert.doesNotMatch(taken.text, /works beside/);
@@ -63,4 +57,5 @@ test("a Lead takes paths into its write set on its own, told of a lane beside th
 
   const added = await h.call(lead, "lead", "add_tasks", { tasks: [docs] });
   assert.equal(added.ok, true, added.text);
+  assert.doesNotMatch(added.text, /outside the lane's write set/);
 });

@@ -13,6 +13,7 @@ import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { startWaiting } from "../waiting/tasks.ts";
 import { layoutProblems, readPlan } from "./layout.ts";
+import { outsideNote } from "./placement.ts";
 
 /** One task as add_tasks takes it, in the Lead's own key. */
 type AskedTask = Args & { key: string };
@@ -41,8 +42,10 @@ export async function addTasks(desk: DeskServices, caller: Caller, asked: AskedT
         : running;
     return `- ${task.key} is ${entry.id} ${entry.title}: ${state}`;
   });
+  const notes = plan.flatMap((task) => outsideNote(lane, task.key, task.holds) ?? []);
+  const noted = notes.length > 0 ? `\n\n${notes.map((note) => `Note: ${note}`).join("\n")}` : "";
   return ok(
-    `Added; each task starts by itself once what it waits for is merged, and hand-backs arrive as mail.\n${lines.join("\n")}`,
+    `Added; each task starts by itself once what it waits for is merged, and hand-backs arrive as mail.\n${lines.join("\n")}${noted}`,
   );
 }
 
@@ -93,7 +96,7 @@ function record(
     if (problems.length > 0) {
       const these = plural(problems.length, "this", "these");
       const list = problems.map((problem) => `- ${problem}`).join("\n");
-      return `No task was added, since ${these} would have two tasks hold one path or hold one the lane does not write:\n${list}`;
+      return `No task was added, since ${these} would put two writers on one path:\n${list}`;
     }
     const ids = new Map<string, string>();
     for (const task of plan) {

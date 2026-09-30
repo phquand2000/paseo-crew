@@ -56,7 +56,7 @@ export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] 
   return order;
 }
 
-/** What in the layout would collide as the desk will run it: two tasks holding one path, or a held path the lane does not write. */
+/** What in the layout would collide as the desk will run it: two tasks holding one path, or one path held beside another writer. */
 export function layoutProblems(ledger: Ledger, lane: Lane, plan: Planned[], serial: string[]): string[] {
   const findings: string[] = [];
   const before = new Map<string, Set<string>>();
@@ -75,11 +75,6 @@ export function layoutProblems(ledger: Ledger, lane: Lane, plan: Planned[], seri
     if (hits.length > 0)
       findings.push(
         `${task.key} runs beside others but holds ${hits.join(", ")}, which only one writer at a time may write: run it in the lane's copy.`,
-      );
-    const loose = lane.writeSet.length > 0 ? task.holds.filter((path) => !firstOverlap([path], lane.writeSet)) : [];
-    if (loose.length > 0)
-      findings.push(
-        `${task.key} holds ${loose.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}: leave it out, or take_paths it first.`,
       );
     for (const active of activeTasks(ledger, lane.id).filter((entry) => entry.kind === "code")) {
       if (before.get(task.key)!.has(active.id) || (!task.parallel && active.mode !== "parallel")) continue;

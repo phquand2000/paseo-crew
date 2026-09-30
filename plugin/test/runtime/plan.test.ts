@@ -180,10 +180,8 @@ test("a layout that cannot run as given is refused whole, each problem named, an
     /^No task was added/,
     /LEFT and RIGHT may run at once and both hold src\/x\.ts/,
     /LOCK runs beside others but holds package-lock\.json/,
-    /STRAY holds docs\/readme\.md, outside the lane's write set/,
-    /LOCK holds package-lock\.json, outside the lane's write set/,
   );
-  assert.doesNotMatch(layout, /HINT/, "a hint outside the write set is where to read, not what it writes");
+  assert.doesNotMatch(layout, /STRAY|HINT/, "what the lane does not write is noted, not refused");
   assert.deepEqual(h.ledger().tasks, {}, "none of those recorded a task");
 
   await h.call(lead, "lead", "start_review", { focus: "is the cart shape right?" });
@@ -194,6 +192,27 @@ test("a layout that cannot run as given is refused whole, each problem named, an
   assert.equal(named.ok, true, named.text);
   assert.match(named.text, /- T is L1-T1 /, "a refused task took no id");
   assert.match(briefOf(h, "L1-T1"), new RegExp(`Skills to open: ${real}`));
+});
+
+test("a task may hold what its lane does not write: added or amended, it runs as asked and its Lead is told", async () => {
+  const { h, lead } = await lane();
+  const added = await h.call(lead, "lead", "add_tasks", {
+    tasks: [task("stray", ["docs/readme.md"], { parallel: true }), task("hint", ["docs/guide.md"])],
+  });
+  assert.equal(added.ok, true, added.text);
+  assert.match(
+    added.text,
+    /\n\nNote: STRAY holds docs\/readme\.md, outside the lane's write set a\.txt, b\.txt, c\.txt, src\/\*\*; it runs as asked, and what it changes there is noted again at hand-back and landing\.$/,
+  );
+  assert.doesNotMatch(added.text, /HINT holds/, "a hint is where to read, not what it writes");
+  const amended = await h.call(lead, "lead", "amend_task", {
+    task: "L1-T1",
+    why: "the notes live there too",
+    holds: ["docs/readme.md", "notes/**"],
+  });
+  assert.equal(amended.ok, true, amended.text);
+  assert.match(amended.text, /Note: L1-T1 holds docs\/readme\.md, notes\/\*\*, outside the lane's write set/);
+  assert.deepEqual(h.ledger().tasks["L1-T1"]!.holds, ["docs/readme.md", "notes/**"]);
 });
 
 test("a call is carried out only for the role that holds its tool, in the shape that role was shown", async () => {

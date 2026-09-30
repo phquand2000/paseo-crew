@@ -151,8 +151,8 @@ unless it passes `isolate`, is a detour or waits with `after`; with `onBranch`, 
   parallel task starts after its brief was written.
 
 The whole call is refused while the lane is on hold. It is also refused when two tasks that may run at once hold one
-path, a parallel task holds nothing, holds a one-writer path or takes the base, a task in the lane's copy names `holds`, or a held path lies
-outside the lane's write set. And it is refused when a task holds a path a running task still holds without waiting for
+path, a parallel task holds nothing, holds a one-writer path or takes the base, or a task in the lane's copy names `holds`; a held path outside the lane's
+write set is noted to the Lead, not refused. And it is refused when a task holds a path a running task still holds without waiting for
 it, names a skill its role does not have, waits for a task that is missing or cut, or has a key that repeats, names a
 task on record, or waits on others in a loop.
 

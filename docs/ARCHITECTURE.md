@@ -285,7 +285,7 @@ start waits again until a task merges or is cut, the lane resumes, or more are a
   `hints` fence nothing, and the lane's write set bounds it.
 - **Parallel**: a slot of its own, and `holds` for what it writes, as coarsely as the work allows. What it
   holds may not be held by a task of its call that may run beside it, nor by a task at work or in the merge
-  queue that it does not wait for, nor be a one-writer path or outside the lane's write set; the Peer at work
+  queue that it does not wait for, nor be a one-writer path; one outside the lane's write set is noted; the Peer at work
   in the lane's copy gets BESIDE as it starts.
 
 **One way in.** At hand-back (`done`) the lane is brought into the task's branch, so its gate runs on what the

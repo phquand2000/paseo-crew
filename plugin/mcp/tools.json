@@ -742,7 +742,7 @@
     {
       "name": "add_tasks",
       "title": "Add tasks",
-      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is merged; tasks in the lane's copy run one at a time, their Peers finding where to change. Refused whole when held paths collide or leave the write set.",
+      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is merged; tasks in the lane's copy run one at a time. Refused whole when held paths collide; outside the write set is noted.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

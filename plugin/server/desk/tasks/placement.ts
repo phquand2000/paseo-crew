@@ -54,3 +54,10 @@ export function parallelProblem(
   }
   return undefined;
 }
+
+/** A task's held paths outside its lane's write set, as a note to its Lead: the write set scopes a lane and never refuses a task. */
+export function outsideNote(lane: Lane, id: string, holds: string[]): string | undefined {
+  const outside = lane.writeSet.length > 0 ? holds.filter((path) => !firstOverlap([path], lane.writeSet)) : [];
+  if (outside.length === 0) return undefined;
+  return `${id} holds ${outside.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}; it runs as asked, and what it changes there is noted again at hand-back and landing.`;
+}
