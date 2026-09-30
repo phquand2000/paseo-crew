@@ -6,7 +6,6 @@ import { intentsPath } from "../../server/core/paths.ts";
 import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { reported } from "../console.ts";
 import { tempDir } from "../tempdir.ts";
-import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer, nobodySeated } from "./harness.ts";
 
 /** Whether `check` comes true within `ms`, looked at every 20 ms. */
@@ -265,10 +264,12 @@ async function stoppedOpening(where: Record<string, unknown>) {
     workspaces: { ref: (id: string) => { agents: { create: (options: unknown) => Promise<unknown> } } };
   };
   const ref = paseo.workspaces.ref;
+  let created!: () => void;
+  const seatedGate = new Promise<void>((resolve) => (created = resolve));
   paseo.workspaces.ref = (id) => {
     const workspace = ref(id);
     const create = workspace.agents.create;
-    workspace.agents.create = async (options) => (await create(options), new Promise(() => {}));
+    workspace.agents.create = async (options) => (await create(options), created(), new Promise(() => {}));
     return workspace;
   };
   const head = h.git(h.root, "rev-parse", "HEAD").trim();
@@ -280,7 +281,7 @@ async function stoppedOpening(where: Record<string, unknown>) {
     ...where,
   });
   const seated = () => [...h.agents.values()].find((agent) => agent.title.startsWith("L1 · Lead"));
-  for (let i = 0; i < 200 && !seated(); i++) await settle();
+  await seatedGate;
   paseo.workspaces.ref = ref;
   h.restart();
   await h.tick(Date.now());
