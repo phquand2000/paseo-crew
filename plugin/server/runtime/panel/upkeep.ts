@@ -9,11 +9,19 @@ import type { CleanView, ContentChange, MigrateStep, MigrateView, UpdateView } f
 import { removeGarbage, scanGarbage } from "../../upkeep/clean.ts";
 import { contentChanges, decide } from "../../upkeep/content.ts";
 import { type LiveSeat, migrate, migrationPlan } from "../../upkeep/migrate.ts";
+import type { StateReport } from "../../upkeep/state-upgrade.ts";
 import { applyUpdate, checkUpdate, npmInstall, reloadSoon } from "../../upkeep/update.ts";
 import type { TeamSource } from "../team-source.ts";
 import type { UpkeepRpc } from "./rpc.ts";
 
-type UpkeepDeps = { kit: Kit; source: TeamSource; seats: Seats; reconcile: () => void; changed: () => void };
+type UpkeepDeps = {
+  kit: Kit;
+  source: TeamSource;
+  seats: Seats;
+  reconcile: () => void;
+  changed: () => void;
+  state: () => StateReport;
+};
 
 /** The plugin's own upkeep on the panel: what it left behind, its updates, and the kit files the owner changed. */
 export class UpkeepPanel implements UpkeepRpc {
@@ -67,13 +75,20 @@ export class UpkeepPanel implements UpkeepRpc {
       now: Date.now(),
     };
     const { content, unread } = await this.content();
+    const stuck = this.deps.state().failed.map(({ where, error }): MigrateStep => ({
+      kind: "state",
+      where,
+      what: "its records could not be carried to this version's format",
+      detail: [error],
+      auto: false,
+    }));
     if (!apply) {
       const plan = migrationPlan(ctx);
-      return { ...plan, steps: [...plan.steps, ...unread], content };
+      return { ...plan, steps: [...plan.steps, ...unread, ...stuck], content };
     }
     const done = migrate(ctx);
     this.deps.reconcile();
-    return { ...done, steps: [...done.steps, ...unread], content };
+    return { ...done, steps: [...done.steps, ...unread, ...stuck], content };
   }
 
   /** What the kit ships differently; a record of what was taken in that cannot be read is a step for the owner. */

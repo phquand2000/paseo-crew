@@ -742,6 +742,8 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
   refused.json  paseo.json                optional; each replaces the one in catalog/
   settings.json                           machine settings
   settings.json.bak-<time>                what Migrate repaired, as it was; can hold a pasted token
+  state.json                              the format of the machine's kept files
+  backup-state-<from>-<time>/             the kept files as they were before a step carried them; can hold keys
   kit.json                                which kit runs, and since when
   content.json                            the shipped prompts, skills and guides the Human has taken in
   own/                                    the Human's own copies, kept over the shipped ones
@@ -758,7 +760,8 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
     meta.json                             root and slug; detaching removes it with settings.json
     settings.json  settings.json.bak-<time>
     project.json                          base, gate and standing orders, as set_project writes them
-    ledger.json  incidents.json           the record; the incident book
+    ledger.json  incidents.json           the record, whose `version` is the project's format; the incident book
+    backup-state-<from>-<time>/           the project's kept files as they were before a step carried them
     events.log  attention.log  assessments.log  status.md
     <log>.<n>.log[.gz]                    older rolls of each log
     handbacks/  gates/  archive/          hand-backs whole; gate output; closed lanes filed away

@@ -5,7 +5,8 @@ with the Human, a Lead owns each lane of work, and Peers each do one task, with 
 Pager beside them. This file holds what the code will not tell you before you change it. How
 the parts fit is in `docs/ARCHITECTURE.md`; every name and value is in `docs/REFERENCE.md`.
 
-**Nothing has shipped.** No users, no releases, nothing to stay compatible with.
+**3.0.0 has shipped.** What stays compatible is the files the plugin keeps, and only through a step (below);
+every other contract is still cut whole.
 
 ## The governing rule
 
@@ -177,10 +178,12 @@ lines (400 for a test) and a function within 50: split by concept, not by line c
 - **One live contract, hard cut.** No dual path, version branch, shim, facade, old-shape adapter,
   legacy parser, read-time upgrade or fallback. Fail closed. Change every producer and consumer
   together, and audit the tests rather than syncing them.
-- **Kept files have no format number before 3.0.0.** Until then a file the plugin keeps and cannot
-  rebuild (ledger, incidents, project, meta, settings, outbox, intents, keys, `content.json`) changes
-  shape with no upgrade step, since nothing has shipped. 3.0.0 locks the format as state 1 and brings
-  back the upgrade steps, their fixtures and a shape test. Logs are only appended to, never migrated.
+- **Kept files change only by a step.** A file the plugin keeps and cannot rebuild (ledger, incidents,
+  project, meta, settings, outbox, intents, keys, `content.json`) is at `STATE_VERSION`, which 3.0.0
+  locked as state 1. A change to one raises it, adds its step in `upkeep/state-upgrade.ts`, adds
+  `test/fixtures/state/v<N>` and records its shape in `shapes.json`; `state-shape.test.ts` fails until
+  then. An older fixture is never edited. Steps run at the plugin's start, before anything reads a kept
+  file, which is why they are not a read-time upgrade. Logs are only appended to, never migrated.
 - **What a seat reads or is held to raises the version.** A change to `content/`, `harness/`, `mcp/`,
   `roles.json`, the desk's letters, briefs or directive, the git shim or `catalog/refused.json` raises
   `version` in `package.json`; `test/release.test.ts` checks it.

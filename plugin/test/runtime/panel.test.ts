@@ -3,7 +3,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { stateRoot } from "../../server/core/paths.ts";
+import { STATE_VERSION } from "../../server/core/state-version.ts";
+import { emptyLedger } from "../../server/domain/ledger.ts";
 import { contracts } from "../../shared/rpc.ts";
+import { reported } from "../console.ts";
 import { settle } from "./fake-timeline.ts";
 import { harness, laneWithPeer } from "./harness.ts";
 
@@ -150,4 +153,25 @@ test("Migrate shows what you took in of the kit, when that cannot be read, as a 
   );
   assert.match(steps[0]!.what, /content\.json is there but could not be read/);
   assert.equal(readFileSync(taken, "utf-8"), "{not json");
+});
+
+test("the plugin's start carries the machine to this format, and shows a project it cannot carry under Migrate, writing nothing over it", async (t) => {
+  const h = harness();
+  const said = reported(t);
+  const newer = join(stateRoot(), "projects", "newer-abc123");
+  mkdirSync(newer, { recursive: true });
+  const held = JSON.stringify({ ...emptyLedger(), version: STATE_VERSION + 1 });
+  writeFileSync(join(newer, "ledger.json"), held);
+  h.runtime.prepare();
+  const machine = JSON.parse(readFileSync(join(stateRoot(), "state.json"), "utf-8")) as { version: number };
+  assert.equal(machine.version, STATE_VERSION);
+  const plan = await h.rpc(contracts.migrate, { apply: false });
+  const steps = plan.steps.filter((step) => step.kind === "state");
+  assert.deepEqual(
+    steps.map((step) => [step.where, step.auto]),
+    [["newer-abc123", false]],
+  );
+  assert.match(steps[0]!.detail.join("\n"), /made by a newer Paseo Crew/);
+  assert.match(said(), /state of newer-abc123 /);
+  assert.equal(readFileSync(join(newer, "ledger.json"), "utf-8"), held);
 });

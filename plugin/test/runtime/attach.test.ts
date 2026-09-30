@@ -6,6 +6,7 @@ import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { stateRoot } from "../../server/core/paths.ts";
+import { STATE_VERSION } from "../../server/core/state-version.ts";
 import { emptyLedger } from "../../server/domain/ledger.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { tempDir } from "../tempdir.ts";
@@ -59,7 +60,8 @@ test("a project attached by path, set up, detached only when idle and attached a
 
   const ledger = join(stateRoot(), "projects", added.slug, "ledger.json");
   const remove = async () => call(contracts.projectsRemove, { project: added.slug });
-  const record = (held: Record<string, unknown>) => JSON.stringify({ ...emptyLedger(), ...held });
+  const record = (held: Record<string, unknown>) =>
+    JSON.stringify({ ...emptyLedger(), ...held, version: STATE_VERSION });
   writeFileSync(ledger, record({ lanes: { L1: { id: "L1", status: "open" } } }));
   assert.match(
     which(await remove(), "error").error,

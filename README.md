@@ -5,7 +5,8 @@ You tell a **Supervisor** what you want. It splits the work into lanes; a **Lead
 splits it into tasks; each task gets a **Peer** of its own. The plugin carries the work, the mail and
 the evidence between them, and brings you in for what only you can decide.
 
-> **Pre-release.** Nothing has shipped: no releases, no compatibility promises.
+> **3.0.0** is the first release. The files it keeps are locked as state 1: a later change to one is carried
+> forward at the plugin's start, with a copy of the files as they were.
 
 ## This fork
 

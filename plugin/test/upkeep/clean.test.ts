@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { resolveTeam } from "../../server/catalog/team/team.ts";
 import { contentRoot, stateRoot, worktreeRoot } from "../../server/core/paths.ts";
-import { writeJson } from "../../server/core/store.ts";
+import { saveLedger } from "../../server/desk/store/ledger.ts";
 import { emptyLedger } from "../../server/domain/ledger.ts";
 import { removeGarbage, scanGarbage } from "../../server/upkeep/clean.ts";
 import { makeKit } from "../kit.ts";
@@ -61,10 +61,7 @@ test("clean up lists only what nothing will use again: seats nothing will sit in
   const held = copy("S1");
   const free = copy("S2");
   const dirty = copy("S3", true);
-  writeJson(join(shop.state, "ledger.json"), {
-    ...emptyLedger(),
-    slots: { S1: { id: "S1", path: held, lane: "L1", createdAt: 1 } },
-  });
+  saveLedger(shop.state, { ...emptyLedger(), slots: { S1: { id: "S1", path: held, lane: "L1", createdAt: 1 } } });
   const old = join(stateRoot(home), "projects", "old-fff000");
   mkdirSync(old, { recursive: true });
   writeFileSync(join(old, "CONTEXT.md"), "# Old");
@@ -78,6 +75,8 @@ test("clean up lists only what nothing will use again: seats nothing will sit in
     join(shop.state, "settings.json.bak-20260922-071230"),
   ];
   for (const backup of backups) writeFileSync(backup, "{}");
+  const carried = join(shop.state, "backup-state-1-20260922-071230");
+  mkdirSync(carried);
 
   const tokens = "a copy Migrate kept of settings it repaired; it can hold a pasted server's token";
   assert.deepEqual(
@@ -98,6 +97,13 @@ test("clean up lists only what nothing will use again: seats nothing will sit in
         true,
       ],
       ["backup", backups[1], tokens, null, false],
+      [
+        "backup",
+        carried,
+        "the files as they were before their format was carried forward; it can hold keys and a pasted server's token",
+        null,
+        false,
+      ],
     ].sort((a, b) => String(a[1]).localeCompare(String(b[1]))),
     "never a seat a seat is running in, a copy a slot holds, a copy of the guides in use, or a name that is no seat's",
   );

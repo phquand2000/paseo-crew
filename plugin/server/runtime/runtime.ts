@@ -24,6 +24,7 @@ import { type Project, projectOf } from "../desk/project/project.ts";
 import { appendRecord } from "../desk/store/records.ts";
 import { TOOLS } from "../desk/tools/registry.ts";
 import { stampKit } from "../upkeep/migrate.ts";
+import { type StateReport, upgradeState } from "../upkeep/state-upgrade.ts";
 import { codeIndex } from "./seat/code-index.ts";
 import { HumanPanel } from "./panel/human.ts";
 import { ProjectsPanel } from "./panel/projects.ts";
@@ -58,6 +59,7 @@ export class Runtime implements HostHooks {
   readonly desk: Desk;
   readonly panel: Panel;
   private readonly keys = new SeatKeys();
+  private state: StateReport = { upgraded: [], failed: [] };
   private readonly socket: TeamSocket;
   private readonly source: TeamSource;
   private readonly seating: Seating;
@@ -145,7 +147,7 @@ export class Runtime implements HostHooks {
     return {
       settings: new SettingsPanel({ kit, source, changed, reconcile, models: () => this.refreshModels() }),
       projects: new ProjectsPanel({ kit, source, seats, held: () => this.outbox.held(), watch, changed }),
-      upkeep: new UpkeepPanel({ kit, source, seats, reconcile, changed }),
+      upkeep: new UpkeepPanel({ kit, source, seats, reconcile, changed, state: () => this.state }),
       human: new HumanPanel(source, this.desk.human),
     };
   }
@@ -180,6 +182,9 @@ export class Runtime implements HostHooks {
   prepare(): void {
     try {
       mkdirSync(stateRoot(), { recursive: true });
+      // Before anything reads a kept file: a seat opened on a half-read ledger would write it back wrong.
+      this.state = upgradeState(stateRoot());
+      for (const failed of this.state.failed) daemonLog.error(`state of ${failed.where} ${failed.error}`);
       placeGuides(this.kit);
       sweepSnapshots();
       stampKit(this.kit, home());

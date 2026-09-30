@@ -11,6 +11,7 @@ import { readKept } from "../core/store.ts";
 import { readLedger } from "../desk/store/ledger.ts";
 import type { Project } from "../desk/project/project.ts";
 import { BACKUP } from "./migrate.ts";
+import { STATE_BACKUP } from "./state-upgrade.ts";
 
 type CleanContext = {
   kit: Kit;
@@ -210,7 +211,15 @@ function backups(ctx: CleanContext): CleanItem[] {
               "a copy Migrate kept of settings it repaired; it can hold a pasted server's token",
             ),
           ]
-        : [],
+        : STATE_BACKUP.test(name)
+          ? [
+              item(
+                join(dir, name),
+                "backup",
+                "the files as they were before their format was carried forward; it can hold keys and a pasted server's token",
+              ),
+            ]
+          : [],
     ),
   );
 }

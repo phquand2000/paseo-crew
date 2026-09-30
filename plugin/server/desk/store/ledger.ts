@@ -1,7 +1,8 @@
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "../../core/json.ts";
-import { readKept, writeJson } from "../../core/store.ts";
+import { STATE_VERSION } from "../../core/state-version.ts";
+import { readJsonFile, writeJson } from "../../core/store.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, emptyLedger, taskOfPeer } from "../../domain/ledger.ts";
 import { AT_WORK } from "../../domain/task.ts";
@@ -18,10 +19,24 @@ const isLedger = (value: unknown): value is Ledger =>
   Number.isInteger(value.seq.ask) &&
   Object.keys(emptyLedger()).every((part) => part === "seq" || isRecord(value[part]));
 
+function stateFault(file: string, value: unknown): string | undefined {
+  const version = isRecord(value) ? value.version : undefined;
+  if (version === STATE_VERSION) return undefined;
+  if (typeof version === "number" && version > STATE_VERSION)
+    return `${file} is at state ${version}, made by a newer Paseo Crew than this one, which reads ${STATE_VERSION}`;
+  return `${file} is at state ${JSON.stringify(version)} and this plugin reads ${STATE_VERSION}: its upgrade at the plugin's start did not go through, and Migrate says why`;
+}
+
 /** The ledger on disk from one read, or why it cannot be read: parsed as nothing, the next write would erase the project. */
 export function readLedgerFile(state: string): { ledger: Ledger } | { fault: string } {
-  const read = readKept(ledgerFile(state), emptyLedger(), isLedger);
-  return "fault" in read ? read : { ledger: read.value };
+  const file = ledgerFile(state);
+  const read = readJsonFile(file);
+  if ("fault" in read) return read;
+  if ("absent" in read) return { ledger: emptyLedger() };
+  const fault =
+    stateFault(file, read.value) ??
+    (isLedger(read.value) ? undefined : `${file} does not hold what the plugin keeps there`);
+  return fault ? { fault } : { ledger: read.value as Ledger };
 }
 
 /** The ledger, or throws why it cannot be read: never an empty one standing in for a file that is there. Absent is empty. */
@@ -36,7 +51,7 @@ export function loadLedger(state: string): Ledger {
 
 export function saveLedger(state: string, ledger: Ledger): void {
   cached.delete(state);
-  writeJson(ledgerFile(state), ledger);
+  writeJson(ledgerFile(state), { ...ledger, version: STATE_VERSION });
 }
 
 const cached = new Map<string, { mtimeMs: number; size: number; ledger: Ledger }>();

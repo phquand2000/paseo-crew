@@ -163,7 +163,8 @@ shrink.
 
 ![From data to a running seat](images/seat-build.svg)
 
-1. **Plugin start.** `loadKit` reads `roles.json`, each `harness.json`, the MCP catalog and the `catalog/`
+1. **Plugin start.** `upgradeState` carries the machine's and each project's kept files to `STATE_VERSION`, a copy
+   set aside first; a place it cannot carry is refused and shown under Migrate. `loadKit` reads `roles.json`, each `harness.json`, the MCP catalog and the `catalog/`
    files, each against its schema, and the tool sets. The plugin writes a Paseo provider and profile per role
    and agent, thirty for the shipped kit, reloads the daemon only when they changed, and opens `desk.sock`.
 2. **Before `agent.create`.** `Seating.ensure` builds the seat directory for that role, agent and project:
